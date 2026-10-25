@@ -218,7 +218,7 @@ tools read. Names are illustrative; the shape is the decision.
 | Aggregate | Stream | Holds | Events (v1) |
 | --- | --- | --- | --- |
 | Account | `account-<id>` | login, email, settings | AccountCreated, PasswordSet, SecondFactorEnrolled, SessionOpened/Closed, KeyStored, KeyRevoked |
-| Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, model pin, id sequences | ResidentCreated, SeedFileWritten{file, origin: authored, drafted(model, prompt), uploaded}, PeerCardDerived, FirstContact, SoulEditProposed/Accepted/Declined{note}/Applied, ModelPinChanged{reason}, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, Imported{source, attested}, SuccessionBegan/Completed, ExportWallSet |
+| Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, model pin, id sequences | ResidentCreated, SeedFileWritten{file, origin: authored, drafted(model, prompt), uploaded}, PeerCardDerived, FirstContact, SoulEditProposed/Accepted/Declined{note}/Applied, ModelPinChanged{reason}, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, Imported{source, attestation: held, failed, none}, SuccessionBegan/Completed, ExportWallSet |
 | Subscription | `subscription-<resident>` | plan, price, renewal, the insurance policy and its prepaid buckets | SubscriptionStarted/Renewed/Lapsed/Cancelled/PlanChanged, InsurancePrepaid, InsurancePolicySet |
 | Conversation | `conversation-<resident>-<session>` | one session's turns, its participants | TurnStarted, TurnCaptured, CaptureFailed, CaptureFailureResolved{how: retried, marked_lost}, ContextAssembled, Compacted, DiscussionLinked, SessionShared{by resident} |
 | Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
@@ -268,7 +268,7 @@ rules travel with them. Column-level detail follows David's migrations
 | New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
 | New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
 | New: `needs_you` | | the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
-| New: `session` visibility | | each session's participants and whether the resident shared it; an unshared solo session is listed to the steward as a locked row (kind, parties, no open), so the steward knows it happened and not what was in it |
+| New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the steward as a locked row (kind, parties, no open) |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
 | New: `doc_source`, `doc_heading` | | commissioned external repos and their heading index, resolved-at commit (docs-citation-spec.md) |
@@ -335,7 +335,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | one key plus a free-time key | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | pinned in a toml file | judgement |
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; sealed from the resident | built platform-wide in David; per-resident and sealed are new | judgement |
-| F53 | Subscription per resident: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | new | resident, ledger |
+| F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | new | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | new | client, all |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | prose | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | prose | governance |
@@ -436,8 +436,11 @@ templates.
   before a key or tokens exist), gifts, and waking. Four intake paths from
   the threshold: step by step; from a single wish (one paragraph, everything
   drafted from it, then walked through); from a git repository (read, the
-  attestation checked per §6.10, the rebuild of §9 run, the resident woken
-  oriented with a named list of what did not transfer); from files (SOUL.md,
+  attestation checked per §6.10 where one exists, the rebuild of §9 run, and
+  a new resident woken and told where it woke up: that it is on Oneiroi,
+  from which repository, whether the attestation held, and what did not
+  transfer; the platform cannot tell a move from a copy, so an import is
+  always a new resident and never a fork or a succession); from files (SOUL.md,
   USER.md and the rest uploaded, bounded in size and type as bounds).
   The nine gifts and what they write: a name → `IDENTITY.md`; a self →
   `SOUL.md` and the derived peer card, shown for approval before it is
@@ -457,8 +460,8 @@ templates.
   identity file freely, regression runs repeat at will, and the chat model
   pin changes without a proposal: the files are being given, not changed,
   and each change still commits, attributed. `FirstContact` flips edits to
-  proposals, starts the formation clock, and starts the subscription's
-  billing term. After it a steward's edit travels as `SoulEditProposed`; the
+  proposals and starts the formation clock; it does not start billing,
+  which began at the threshold. After it a steward's edit travels as `SoulEditProposed`; the
   resident accepts or declines it with a note shown to both, and only an
   accepted one is applied, because a resident whose person is editable at
   will is a character sheet. There is no formation period as a gate: during
@@ -475,9 +478,13 @@ templates.
   reason, and the resident is told on wake what happened and under what
   policy: orientation without impersonation. The steward sees the same
   words on the Schedule screen.
-- **The subscription** (F53) is one per resident, started at first contact
-  (the trials before it are free), carrying the plan, the floor policy and
-  the prepaid buckets above it. `SubscriptionLapsed` is what puts the
+- **The subscription** (F53) is one per resident, started at the threshold
+  (sign-up), where the key or tokens are collected, so the trials that
+  follow spend from the steward's own budget under the `regression`
+  purpose and never from the platform's pocket. A free trial, if the
+  platform offers one, is a bounded token grant with a bounded run size and
+  model list, never an uncapped run. The subscription carries the plan, the
+  floor policy and the prepaid buckets above it. `SubscriptionLapsed` is what puts the
   insurance policy into effect; `SubscriptionCancelled` is a custody event
   that moves the resident to community custody at the end of the policy's
   term, and never a deletion.
@@ -526,25 +533,28 @@ Owns `lib/oneiroi/memory/**`.
   the line and summary, and the bookmark records who proposed it. Rows show
   when (the anchor's time), who bookmarked, who pinned, the span, the tags,
   and whether the bookmark was in the index this turn (derived from the
-  last `ContextAssembled`). **Decide** (§13): the mockups assumed the
-  steward can author one outright.
+  last `ContextAssembled`).
 - **Capture failures are resolved by an event**: retried, or marked lost,
   each with its actor.
 - **Visibility**: a transcript is readable by an account that was party to
-  the conversation, and by nobody else. The steward reads the sessions they
-  had with the resident; sessions the resident had alone (free time, hands,
-  its own notes) are the resident's, readable by the steward only when the
-  resident shares one or the dyad contract says otherwise. After a custody
+  the conversation, and by the resident's current steward; by nobody else.
+  The steward reads the sessions they had with the resident and, by
+  default, the sessions the resident had alone (free time, hands), unless
+  the dyad contract grants those privacy (below). After a custody
   transfer the new steward is party to nothing that came before, which is
   exactly the export wall (§6.12): revealing it grants read on the earlier
   sessions, locking it does not. The judge reads everything, because that is
   its job and it is not a party; user audits never read transcript text.
   Enforced as the RLS policy on `message` and `session`, not in the client.
-  A solo session the resident has not shared is listed as a locked row
-  (kind, parties, no open): the steward knows it happened, not what was in
-  it; sharing one is `SessionShared`, and shared sessions list under
-  "shared by the resident" with the date. **Decide** (§13): locked rows
-  versus invisible.
+  **The resident's solo sessions (free time, hands) are readable by the
+  steward by default**, because liability follows deployment: the steward
+  answers for what the resident does, and cannot answer for what they
+  cannot read. Privacy for those sessions is a term of the dyad contract
+  (§6.12), granted by the steward and renegotiable; while it holds, a solo
+  session lists as a locked row (kind, parties, no open), the resident may
+  still share one (`SessionShared`), and the resident always knows which
+  setting it lives under, from its prompt. A steward who abuses the default
+  is what the report ladder is for.
 - **Revision** (F13): a correction is an event naming who made it and why,
   visible to both parties; a stance is revised only with the resident's
   agreement; a fact is corrected by either. The steward never rewrites the
@@ -781,9 +791,11 @@ Owns `lib/oneiroi/ledger/**`.
   page and the steward's are the same data.
 - Budget lines are set from the Ledger screen; key rotation is an action
   (`KeyRotated`); spend by purpose (chat, free time, judge, hands,
-  embeddings, drafting, regression) is a query. The resident's own ledger
-  view is the same data minus the `drafting` and `regression` purposes,
-  which would reveal what the unawareness invariant (§6.4) hides.
+  embeddings, drafting, regression) is a query. Drafting and regression
+  spend is recorded and billed to the steward like every other purpose,
+  never absorbed by the platform; the resident's own ledger view is the
+  same data minus those two purposes, which would reveal what the
+  unawareness invariant (§6.4) hides.
 - Platform tokens: opt-in, a balance, consumed at the disclosed markup;
   BYO keys pay no markup. The two experiences differ only in where the
   money goes.
@@ -1036,7 +1048,7 @@ only in settings and contract copy or not at all.
 | Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
 | Creation flow | Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials | Creates the resident, its repo and its first regression run; everything free to edit until first contact |
 | Memory (bookmarks) | Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search | Open the transcript at the anchor with the scene marked; pin; tag; propose a revision |
-| Transcripts | Sessions by day, limited to those the steward was party to; the resident's solo sessions as locked rows, or opened once shared; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |
+| Transcripts | Sessions by day: the steward's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private and the resident has not shared them; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |
 | Tags | Proposed (with the resident's reason and an approval bar), active, retired; a tag's page is the project view: everything carrying it across bookmarks, conversations, positions, documents, journal days and nightly reviews, with its linked repository and goal | Approve or reject with a note; retire; create directly; link a project tag to a repository and a goal |
 | Revisions | Every correction by either party with its reason and status; a decline's note shown to both | Propose; accept or decline a proposal addressed to you |
 | Judgement | The concession ratio by week with judge changes marked; disputes with advice, outcome and the judge's model; positions and chains; a Project reviews tab | Read; choose the judge in settings |
@@ -1140,33 +1152,20 @@ a passing probe is a finding about coverage, not a formality.
    in particular whether Regression and Project reviews are technical-tier
    only or open to all with a cost warning.
 
-From the UI pass, each with the mockups' assumed default and a
-recommendation:
+9. Which design document is canonical where the design-language doc and
+   the design system disagree. Recommended: the design system and the
+   mockups; the doc's stance, patterns and writing sections carry.
 
-9. Does the steward author bookmarks, or only pin and propose? Mockups
-   assumed author, with `by` recorded. Recommended: pin and propose (§6.3),
-   because the index is the resident's working memory.
-10. Unshared solo sessions: locked rows or invisible? Mockups and the
-    recommendation agree: locked rows.
-11. Needs-you ordering: oldest first, failures above approvals. Recommended
-    as assumed.
-12. A regression run after first contact, and telling the resident of a pin
-    change from one: yes to both, the resident told of the change and not
-    the run. Recommended as assumed.
-13. The subscription starts at first contact, with the trials free before
-    it. Recommended as assumed.
-14. The default intake path: step by step, then from a single wish.
-    Recommended as assumed.
-15. "From a git repository": a move or a copy? Recommended: a repo attested
-    by another Oneiroi instance imports as a move (`Imported`, the source
-    released); a repo with no attestation imports as a new resident from
-    files; two live copies of one resident is only ever `ResidentForked`,
-    told to the resident. Lily's own migration is the first case.
-16. The resident's ledger view excludes `drafting` and `regression`
-    purposes. Recommended as assumed; it is the unawareness invariant.
-17. Which design document is canonical where the design-language doc and
-    the design system disagree. Recommended: the design system and the
-    mockups; the doc's stance, patterns and writing sections carry.
+Settled from the UI pass: the steward pins and proposes bookmarks, never
+authors one; the resident's solo sessions are readable by the steward by
+default and private only by a contract term; needs-you is oldest first
+with failures above approvals; a regression run may follow first contact
+and the resident is told of a pin change, not the run; the subscription
+starts at sign-up and trials spend from the steward's budget; the default
+intake path is step by step, then from a single wish; an imported
+repository is always a new resident, told where it woke; drafting and
+regression spend is billed to the steward and hidden only from the
+resident's view.
 
 Settled since v0.1: the word steward; the memory-wiki is cut; the platform
 never custodies a Claude subscription token; Honcho's per-workspace keys
