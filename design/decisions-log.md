@@ -178,3 +178,4 @@ mockups' defaults and a recommendation each.
 8. Drafting and regression spend is tracked and billed to the steward;
    hidden only from the resident's ledger view.
 9. Tier placement of regression and project reviews: with the tiers.
+Design system canonical over the design-language doc (not kept up to date).

@@ -1073,12 +1073,11 @@ bound says so beside it; nothing says "AI", "the model", "generate",
 "regenerate", or "error" as a heading; "AI refused" is never a feedback
 option.
 
-**The design-language doc and the design system disagree**, and the design
-system is the later of the two (its last change moved Chat to home). Where
-they differ (the sans face, the actor hues versus "actors are not coloured",
-the radius semantics, shadows, the nav) the design system and the mockups
-are what the client is built from; the doc's stance, patterns and writing
-sections still hold. **Decide** (§13).
+**The design system is canonical.** The design-language doc of the same
+day was not kept up to date and disagrees with it on the sans face, actor
+hues, radii, shadows and the nav; where they differ, the design system and
+the mockups are what the client is built from. The doc's stance, patterns
+and writing sections carry as guidance.
 
 ---
 
@@ -1152,11 +1151,8 @@ a passing probe is a finding about coverage, not a formality.
    in particular whether Regression and Project reviews are technical-tier
    only or open to all with a cost warning.
 
-9. Which design document is canonical where the design-language doc and
-   the design system disagree. Recommended: the design system and the
-   mockups; the doc's stance, patterns and writing sections carry.
-
-Settled from the UI pass: the steward pins and proposes bookmarks, never
+Settled from the UI pass: the design system is canonical over the
+design-language doc; the steward pins and proposes bookmarks, never
 authors one; the resident's solo sessions are readable by the steward by
 default and private only by a contract term; needs-you is oldest first
 with failures above approvals; a regression run may follow first contact
