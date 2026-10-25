@@ -161,3 +161,20 @@ steward pins and proposes bookmarks rather than authoring them (my
 recommendation, pending); unshared solo sessions as locked rows (pending);
 the screens table rewritten; nine decide items added to §13 with the
 mockups' defaults and a recommendation each.
+
+## Round 5: the UI pass decisions
+
+1. Steward pins and proposes bookmarks; never authors one.
+2. Solo sessions readable by the steward by default (liability follows
+   deployment); privacy is a dyad-contract term; the resident always knows.
+3. Needs-you: oldest first, failures above approvals.
+4. Regression after first contact allowed; the resident is told of a pin
+   change, not the run.
+5. Subscription starts at sign-up (the threshold), so trials spend from the
+   steward's budget; a free trial is a bounded token grant.
+6. Default intake: step by step, then single wish.
+7. Importing a repository is always a new resident, told where it woke;
+   the platform cannot tell a move from a copy.
+8. Drafting and regression spend is tracked and billed to the steward;
+   hidden only from the resident's ledger view.
+9. Tier placement of regression and project reviews: with the tiers.
