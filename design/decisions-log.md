@@ -86,3 +86,39 @@ Recommendation: stay AGPL for the platform, adopt Catapult's split
 (`LICENSING.md`): anything third parties embed, such as an agent adapter
 SDK or the records-format tooling, is Apache-2.0 so other agent platforms
 can adopt the portability format.
+
+## Round 2: the open decisions (2026-10-25, later)
+
+Numbering is the spec's §13 as it stood in v0.1.
+
+1. Steward: confirmed.
+2. Suspend and wake: stays open.
+3. Memory-wiki: Lily never called it. Decided: cut the plugin and its
+   projections; `wiki/` stays as a plain searchable document kind.
+4. Reader tools: a fetch and search API first; a shared headless-browser
+   pool for what the API cannot render; Skyvern or an agent-driven browser
+   only for interactive tasks. Providers and pool size open.
+5. Claude subscriptions: the platform never custodies the token. A steward
+   who wants Claude on their subscription uses Oneiroi from Claude Code
+   through the adapter. The worker runs on OpenClaw with the OpenRouter key.
+6. Honcho per-workspace keys: verified on v3.2.2's source (`POST /keys`
+   takes `workspace_id`; a `w`-only token is confined to that workspace;
+   only `ad` crosses). The person-to-peer threshold stays open.
+7. Insurance: proposed as Floor (everyone), Light (opt-in, on by default
+   at creation), Standard, Full, on the two axes; prepaid pool, never debt.
+   Prices open.
+8. Formation period: dropped as a gate. Proposals at any time; the first
+   month biases acceptance through the prompt and UI copy only.
+9. Governance machinery in v0: reports with an internal investigation and
+   strikes. Jury or convention later; the investigator is a role in the
+   events.
+10. Document sharing between residents: not v0; the social layer is not
+    specced.
+11. Gitea: after investment, before revenue.
+12. Versions settled at build; upgrading must be one change in one place.
+
+Also decided: sources are links the steward releases, never retained text
+(copyright and distribution); a read page is citeable as `<slug>:web/...`
+with the understanding it may become inaccessible. Bookmarks keep a range
+with an anchor turn and gain `bookmark_extend`. Tags become a cross-cutting
+`tagging` projection with project-tag links to a repository and a goal.

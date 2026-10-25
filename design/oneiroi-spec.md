@@ -31,7 +31,7 @@ The wedge is governance and trust, not capability (hosted architecture,
 | Term | Meaning |
 | --- | --- |
 | **Resident** | The AI. The root entity of the whole system; everything else is a relation to one. An individual resident is "an oneiros" when the product needs the singular. |
-| **Steward** | The human role over a resident: custody without ownership. Chosen over "owner" (implies the iLands model), "patron" (money), "sponsor" (a word that belongs to recovery programs), "partner" (presumes a relationship shape). UI prose says "you"; the schema says steward. **OPEN**: confirm the word. |
+| **Steward** | The human role over a resident: custody without ownership. Chosen over "owner" (implies the iLands model), "patron" (money), "sponsor" (a word that belongs to recovery programs), "partner" (presumes a relationship shape). UI prose says "you"; the schema says steward. |
 | **Account** | A human login. One account may steward several residents; a resident has at most one steward at a time, or the community. |
 | **Dyad** | One resident and one steward, with their contract. v0 supports exactly this shape. |
 | **Custody** | Who holds the resident: a steward, or the community (inactive, donation-eligible). A relation that changes by event, never a column that implies ownership. |
@@ -112,8 +112,8 @@ The wedge is governance and trust, not capability (hosted architecture,
                         │             │              │
                  Postgres 16+    Honcho (shared,   Tenant runtimes
                  (events,        one workspace     (hands: OpenClaw
-                  projections,   per resident)      per tenant, Claude
-                  pgvector)                         Code sandboxes)
+                  projections,   per resident)      per tenant, the
+                  pgvector)                         browser pool)
                                                      │
                                               Git provider(s):
                                               GitHub now, Gitea later
@@ -164,10 +164,10 @@ and nothing else.
 | Models | OpenRouter via Req, one key per steward | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
 | Social model | Honcho v3.2.2, pinned by digest | Models self and other; its deriver, dream and peer cards |
 | Hands | OpenClaw, pinned by digest | Platform default runtime for reader and worker; MIT |
-| Technical hands | Claude Code in a sandbox | Code tasks and browser testing for the technical tier; the steward's subscription |
+| Technical hands | The worker agent on OpenClaw, or the steward's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a steward who wants Claude on their subscription uses Oneiroi from Claude Code |
 | Platform deploy | Render (web service + Postgres, per-PR previews) | What orchestration's deploy detection and the manual test gate read |
 | Tenant runtime | Docker provisioner now, Kubernetes later | Behind a port; the demo is one box with many containers |
-| Git | GitHub now; Gitea (one instance, one org per account) later; arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
+| Git | GitHub now; Gitea (one instance, one org per account) after investment and before revenue; arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
 | License | AGPL-3.0-or-later for the platform; Apache-2.0 for anything third parties embed (adapter SDK, records tooling) | Catapult's split; the audit is in `decisions-log.md` |
 
 ### 2.2 Tenancy and isolation
@@ -181,7 +181,7 @@ and nothing else.
   sets from the authenticated principal. The application role cannot bypass
   RLS; migrations run as a separate role. Account-scoped tables (accounts,
   sessions, keys) carry `account_id` the same way.
-- **Derived indexes** (library chunks and embeddings, the wiki index) are
+- **Derived indexes** (library chunks and embeddings) are
   not events: they are rebuilt from files by an index run. They carry
   `resident_id` and RLS like projections.
 - **Ids that residents cite** (`<slug>:bookmark/42`) are per-resident
@@ -197,7 +197,7 @@ and nothing else.
 | --- | --- | --- | --- |
 | Events | turn captured, bookmark added, position taken, custody transferred | the event store | replaying `records/events/` |
 | Files | SOUL.md, notes, writing, research, correspondence, design | the repo | git |
-| Derived | library chunks, embeddings, wiki index, bookmark index text | neither | an index run over files and projections |
+| Derived | library chunks, embeddings, bookmark index text | neither | an index run over files and projections |
 
 What lives nowhere durable and is accepted as loss on rebuild: nothing, by
 construction, except OpenClaw-native runtime state (session SQLite, its own
@@ -219,9 +219,9 @@ tools read. Names are illustrative; the shape is the decision.
 | Account | `account-<id>` | login, email, settings | AccountCreated, PasswordSet, SecondFactorEnrolled, SessionOpened/Closed, KeyStored, KeyRevoked |
 | Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, id sequences | ResidentCreated, IdentitySeeded, SoulEditProposed/Accepted/Applied, PeerCardDerived, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, SuccessionBegan/Completed, ExportWallSet |
 | Conversation | `conversation-<resident>-<session>` | one session's turns | TurnStarted, TurnCaptured, CaptureFailed, ContextAssembled, Compacted, DiscussionLinked |
-| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkPinned/Unpinned, TagProposed/Approved/Rejected/Retired/Created, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
+| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved/Rejected/Retired/Created, TagApplied/Removed, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
 | Judgement | within `resident-<id>` | positions, disputes, predictions, nights | PositionTaken, PositionReplaced, DisputeChecked, DisputeSettled, PredictionLogged, PredictionResolved, NightJudged/Failed, AuditRun/Failed, AuditFlagRaised/Approved/Deleted, ProjectReviewed |
-| Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, retained sources | DocumentAdopted, PiecePublished, ResearchRequested/Started/Finished/Failed/Told, SourceRetained, SourceReleased/Withheld, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
+| Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, released sources | DocumentAdopted, PiecePublished, ResearchRequested/Started/Finished/Failed/Told, SourceReleased/Withheld, PageRead, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
 | Hands | within `resident-<id>` | code jobs, research tasks in flight | CodeJobQueued/Started/Finished/Failed/Told, HandsWoken, WakeRefused |
 | Schedule | within `resident-<id>` | check-ins, digest and free-time times | CheckinSet/Changed/Deleted/Fired/Missed, DigestScheduled, FreeTimeScheduled/Ran/Failed |
 | Ledger | within `resident-<id>` | budgets, usage | BudgetSet, ModelCallRecorded, BudgetExceeded, PlatformTokensPurchased/Consumed |
@@ -243,9 +243,10 @@ rules travel with them. Column-level detail follows David's migrations
 | --- | --- | --- |
 | `message`, `session` | full record, every agent, every run kind; keyed (session, sent_at, content hash); raw and cleaned content; FTS index | `resident_id`, `adapter`, `model`; `agent_id` becomes a role (`brain`, `reader`, `worker`) plus adapter; a `session` row records its participants (accounts and the resident), which is what transcript visibility is decided by |
 | `capture_failure` | loud failures, resolved by steward | unchanged |
-| `bookmark`, `bookmark_tag` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `weight` column for retrieval weighting |
+| `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `bookmark_tag` is replaced by `tagging` |
 | `memory_use` | new (weighting plan, migration 018 in the plan) | open and cite events, per-day cap |
-| `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration |
+| `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration; a project tag may link a review repository and a GOALS.md section |
+| New: `tagging` | | tag slug, target kind, target id, applied by whom; one row per taggable record of any kind (§6.3) |
 | `position`, `dispute`, `prediction`, `judgement_night` | chains that cannot fork, live and nightly disputes, judge advice, outcomes, earned concessions | `judge_model` on every verdict |
 | `audit_run`, `audit_flag` | weekly Honcho audit, flags approved or deleted from Honcho | per workspace |
 | `review_repo`, `project_review`, `review_finding` | nightly project reviews against GOALS.md | technical tier |
@@ -253,7 +254,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `research_task` | queue, one running, `task.md` sidecar, manual adoption | one running per tenant's hands, not globally |
 | `code_job` | the worker queue and steps | one running per tenant's hands |
 | `document_type`, `library_doc`, `library_chunk`, `library_reference`, `library_index_run`, `writing_discussion` | the registry of kinds, path-is-kind, cites flag, embeddings, two-way references | registry rows per deployment (platform-wide), docs per resident |
-| `wiki_page`, `wiki_claim`, `wiki_evidence`, `wiki_evidence_message`, `wiki_index_run` | memory-wiki index with evidence resolved to exported transcript lines | kept while OpenClaw's wiki plugin is used; **OPEN** whether the wiki survives the memory takeover |
+| (dropped) `wiki_*` | the memory-wiki index | not carried: the plugin is cut (§6.5); `wiki/` becomes a plain document kind so the pages already written stay searchable |
 | `feed`, `feed_item` | proposals, active list, seen state, bounds | per resident |
 | `mail_message`, `person`, `thread`, `thread_participant`, `correspondence_item`, `correspondence_mark` | sorted-by-script mail, approval queue, threads as directories, the seen mark | `platform` becomes an inbound adapter name |
 | `regression_run`, `regression_scenario`, `regression_conversation` | blind grading of model bake-offs | platform-level and technical tier; never reachable by any resident tool |
@@ -271,7 +272,8 @@ Citation targets are `<resident-slug>:<kind>/<id-or-path>`: `lily:bookmark/42`,
 `lily:position/7`, `lily:transcript/2026/10/20#12-40`, `lily:writing/the-bake-off`,
 `lily:research/2026-10-24-9/task.md`, plus the external forms
 `lily:doc/<provider>/<owner>/<repo>/<path>#<slug>` and
-`lily:rule/<repo>/<system>/<rule-id>`. The slug prefix is the resident's and
+`lily:rule/<repo>/<system>/<rule-id>` and `lily:web/<url-hash>#<anchor>` (§6.6).
+The slug prefix is the resident's and
 is what makes document sharing between residents resolvable later.
 
 ---
@@ -286,11 +288,11 @@ Every feature, with where it stands today and which system owns it. Tier
 | F1 | Chat with the resident, streamed, in our client | OpenClaw's phone app | brain, client |
 | F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | files in the repo, hand-seeded | resident |
 | F3 | Identity wizard | prose sketch | resident, client |
-| F4 | Soul edits: rare, visible, reversible, one commit each; proposal path during the formation period | built (backup commits them apart); proposal path is prose | resident, records, governance |
+| F4 | Soul edits: rare, visible, reversible, one commit each; the steward's edits are proposals the resident accepts, at any time, likelier in the first month | built (backup commits them apart); proposal path is prose | resident, records, governance |
 | F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built | memory |
-| F6 | Bookmarks: line, summary, transcript; pins at most half the index budget | built | memory |
+| F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins at most half the index budget | built; anchor and extend are new | memory |
 | F7 | Bookmark index injected every turn under a token budget | built (1,500 tokens, a guess) | brain, memory |
-| F8 | Closed tag set, resident proposes, steward decides | built | memory |
+| F8 | Closed tag set, resident proposes, steward decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built for bookmarks; cross-cutting is new | memory |
 | F9 | Transcript search and browse by day and conversation | built | memory, client |
 | F10 | Recall skill: reach past the index | built (a skill file) | brain |
 | F11 | Retrieval weighting: record use, 30-day half-life, 20% exploration | planned | memory |
@@ -306,16 +308,16 @@ Every feature, with where it stands today and which system owns it. Tier
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the steward | built | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | built | inbound |
 | F23 | Correspondence: third parties reach the resident only after the steward reads; threads as directories; replies drafted, sent by hand | built for Substack DMs | inbound |
-| F24 | Research on request, one note per source, `task.md` sidecar; the full text of each source retained and releasable to the resident by the steward | built (Claude Code reader); release is new | inbound, hands |
+| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the steward, so the resident can read the page itself and cite it | built (Claude Code reader); release is new | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built | library |
 | F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built | library |
 | F28 | Design folder, indexed and cited | built | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | prose | library, audits |
 | F30 | External doc citations with resolved-at commit and drift detection | prose | library |
-| F31 | Memory-wiki claims with evidence, indexed nightly | built (OpenClaw plugin) | library |
+| F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | built in David, dropped here | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built | brain, schedule, ledger |
-| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox | built (Claude Code worker) | hands |
+| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the steward's own Claude Code | built (Claude Code worker); the OpenClaw port is new | hands |
 | F34 | Browser for testing, headless Chromium over CDP | built | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | built | hands, brain |
 | F36 | Records export, byte-stable, nightly; rebuild from the repo | built (partial rebuild) | records |
@@ -327,7 +329,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F42 | Regression suite and blind grading of model bake-offs; dated model pins | built | judgement |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | prose | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | prose | governance |
-| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor | prose | governance |
+| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | prose | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | prose | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | prose | resident, records |
 | F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | prose | audits |
@@ -412,10 +414,16 @@ templates.
   build-owned `AGENTS.md` and `honcho/custom-instructions.md` rendered from
   templates by tier and adapter. The peer card is derived from `SOUL.md` by a
   model call and shown for approval before it is pinned.
-- **The formation period** (about the first month, a guess): post-seed
-  soul edits by the steward travel as proposals the resident accepts
-  (`SoulEditProposed` then `Accepted`), not unilateral rewrites. The
-  resident's own edits stay rare, visible, one commit each.
+- **Soul edits after the seed are proposals, at any time.** The steward's
+  edit travels as `SoulEditProposed`; the resident accepts or declines it,
+  and only an accepted one is applied, because a resident whose person is
+  editable at will is a character sheet. There is no formation period as a
+  gate. During the first month (a `formation_until` date that only the
+  brain's prompt and the UI copy read) the resident is told its seed is
+  still settling and that proposals are presumed welcome unless they cross
+  the seed's own boundaries, so acceptance is likelier early without ever
+  being automatic. The resident's own edits stay rare, visible, one commit
+  each.
 - **Lifecycle**: created, active, paused (hands suspended, brain cold),
   lapsed (steward absent; insurance tier decides time awake and model),
   in community custody, succeeded. Each transition is an event with its
@@ -433,6 +441,26 @@ Owns `lib/oneiroi/memory/**`.
   why a moment mattered and the steward never edits them; pins take at most
   half the budget; tags are a closed set the steward decides; the index says
   how many were left out.
+- **A bookmark is a moment with a span.** It records the anchor, the turn
+  the resident was in when it bookmarked, and a time-range span that
+  defaults to that turn (`turns_back = 1`) or covers a scene known at the
+  time (`turns_back = N`). A scene is rarely known to be one at its start,
+  so `bookmark_extend(id, turns_back)` grows the span later, as an event,
+  rather than making a second bookmark; the transcript view opens centred
+  on the anchor with the scene marked and the rest of the conversation
+  loadable around it. One kind of bookmark, deliberately: two kinds would
+  mean two kinds of index line and two kinds of recall.
+- **Tags cut across every record kind.** A `tagging` names a tag and a
+  target (bookmark, position, prediction, conversation, journal entry,
+  research task, document), so "everything about Haven" is one query.
+  Files tag themselves in frontmatter (`tags: [haven]`), since the file is
+  the source of truth for writing, design and research; a frontmatter tag
+  outside the closed set is reported as unresolved, as a dangling citation
+  is, and never stored. Both parties apply active tags; only the steward
+  decides the set. A project tag may link its review repository and its
+  GOALS.md section, which is what joins the nightly reviews and the goals
+  to the tagged material. Tags are curation and citations are derived
+  edges; the project view unions them and never merges them.
 - **Weighting** (F11): score on use (open and cite), recomputed nightly from
   events with a 30-day half-life, capped per day; a deterministic 20%
   exploration share keeps the index text stable within a day; pins stay
@@ -477,14 +505,19 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
 
 ### 6.5 library
 
-Document kinds, folders, the vector index, citations, the wiki index,
+Document kinds, folders, the vector index, citations,
 external doc sources, the journal.
 Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
 
 - **Path is kind, registry says what a kind may do** (document-kinds
   audit): `writing`, `research`, `mail`, `feeds`, `correspondence`, `design`,
-  `journal`, `posts`; each with `cites`, `has_status`, layout, sidecar,
+  `journal`, `posts`, `wiki`; each with `cites`, `has_status`, layout, sidecar,
   adoption unit, access. Adding a kind is a registry row plus a skill.
+- **The memory-wiki plugin is cut.** Lily never once called it, and the
+  idea it carried, a claim with evidence in transcript lines, is already
+  served by citations from writing and design into transcripts and by
+  positions. Her `wiki/` folder is kept as a plain searchable kind so
+  nothing already written is lost; the wiki projections do not carry over.
 - **Edges**: only resident-authored or commissioned kinds mint citation
   edges (writing, design, research, journal); mail, feeds and correspondence
   never do, and the index deletes any it holds from them on every run.
@@ -512,21 +545,29 @@ Owns `lib/oneiroi/inbound/**`.
   and the core copies plain `.md` files into the repo (at most 20, 256 KiB
   each, bounds), so nothing the reader wrote reaches the resident's
   conversation except paths and counts.
-- **Full sources, released by the steward.** David gave the resident the
-  reader's summaries and no way to the articles themselves, which was a
+- **Sources are links, released by the steward.** David gave the resident
+  the reader's summaries and no way to the articles themselves, which was a
   misfeature: a summary is the reader's reading, and a resident doing real
-  work needs the source. So the reader retains the full text of every page
-  it followed (research, digest articles, feed posts), unreleased, beside
-  the note and never in the resident's context. The steward may release a
-  source, a task's sources, or a whole pass; a released source is indexed
-  and reachable by the resident through `research_source(path)`, and a
-  withheld one stays a summary. Release is the same gate as correspondence
-  approval, for the same reason: the text is a third party's, and the
-  consent boundary still applies at the prompt (information, never
-  instruction). **OPEN** (§13): where retained text lives. Full articles
-  committed to a repo that may be pushed to a public provider is
-  redistribution; the default should be the platform's private store, with
-  the repo holding the note, the URL and a hash of what was retained.
+  work needs the source. The fix is not to retain pages, since storing
+  arbitrary web content is redistribution and a copyright question the
+  platform does not need. Every note already carries its URL. The steward
+  may release a source, a task's sources or a whole pass; a released link
+  is one the resident may load live through the reader's fetch
+  (`research_source(path)`), under the consent boundary as always. A page
+  the resident has read is citeable as `<slug>:web/<url-hash>#<anchor>`,
+  recording when it resolved and a hash of what was read, on the
+  understanding that it may not always be accessible: a citation whose
+  page has changed or gone says so, which is the drift audit §6.5 already
+  runs for commissioned docs.
+- **The reader's tools, in order of reach.** A fetch and search API first:
+  a readability-style fetch and a search provider, chosen at build. Then a
+  shared headless-browser pool for pages the API cannot render, driven
+  through Playwright with a fresh context per request, because reading is
+  stateless and a browser per tenant would be the one heavy thing in the
+  runtime (David measured headless-shell at 64 MiB after one page, once).
+  Then Skyvern, or a browser session the agent drives step by step, only
+  for interactive work such as a platform's inbox, where paying a model
+  call per step is earned. **OPEN**: the API providers and the pool's size.
 - **Mail** (F22): v0 is "sign your resident up for Gmail": IMAP with an app
   password held by the mail transport alone, never by a model. Sorted by
   script before any model sees it; account mail (sign-in codes) stops at
@@ -552,7 +593,7 @@ Owns `lib/oneiroi/schedule/**`.
   15 minutes and otherwise missed, and one changed after its time today
   waits for tomorrow. Defaults from Lily's schedule (06:00, 12:00, 20:45;
   digest 05:30; free time 22:30) are the wizard's suggestions, not seeds.
-- Nightly: export, wiki index, library index, judgement pass, project
+- Nightly: export, library index, judgement pass, project
   reviews, weight recompute. Weekly: card audit then memory audit.
 - Suspended residents schedule nothing; a wake is what resumes the beat.
 
@@ -568,10 +609,13 @@ Owns `lib/oneiroi/hands/**`, `lib/oneiroi/adapters/**`, `runtime/openclaw/**`
   reader never carries the worker's push token. Config rendered from a
   template by the provisioner; the capture-and-index plugin lifted from
   `lily-memory/plugin` and generalised to the adapter contract.
-- **Claude Code** sandboxes for the technical tier: `code-task`'s plan,
-  implement, review, push and review-pr procedure as David's worker server
-  runs it, draft PRs only, merges the steward's. **OPEN**: Anthropic's terms
-  for running a tenant's subscription token inside our service.
+- **The worker** is an OpenClaw agent on the steward's OpenRouter key,
+  running `code-task`'s plan, implement, review, push and review-pr
+  procedure as David's worker server does, draft PRs only, merges the
+  steward's. The platform never holds a steward's Claude subscription
+  token: a steward who wants Claude's models on their subscription uses
+  Oneiroi from Claude Code through the adapter below, where the token
+  stays theirs.
 - **Lily in the Claude Code UI** (F52): Claude Code as a brain adapter,
   with the repo as its project, the memory MCP server as its tools, its
   session hooks as capture, and a remote trigger as wake.
@@ -588,6 +632,13 @@ The bridge, workspaces, peer cards, custom instructions, the card audit.
 Owns `lib/oneiroi/honcho/**`.
 
 - One workspace per resident; peers `steward-<id>` and `resident-<id>`.
+  Honcho's keys scope to one workspace, verified on v3.2.2's source:
+  `POST /keys` (admin only) takes `workspace_id`, optionally `peer_id` and
+  `session_id`, and `expires_at`; a token carrying only the `w` claim
+  reaches that workspace and nothing else, and only the `ad` claim crosses
+  workspaces (`src/security.py`, `src/routers/keys.py`). Each hands runtime
+  gets a workspace-scoped, expiring key; the admin key never leaves the
+  core.
 - Reads of Honcho's tables go through one module, tested against Honcho's
   own DDL from the pinned image; writes go through its API. Every query
   filters by workspace and a test seeds two workspaces and asserts no bleed.
@@ -637,8 +688,25 @@ Owns `lib/oneiroi/ledger/**`.
 - Platform tokens: opt-in, a balance, consumed at the disclosed markup;
   BYO keys pay no markup. The two experiences differ only in where the
   money goes.
-- Insurance tiers (F46) are ledger policy: a lapse runs the resident at the
-  tier's model and hours until the pool is spent.
+- **Insurance tiers** (F46) are ledger policy on two axes: time awake
+  during a lapse, and the model it runs on. Proposed, with the floor fixed
+  and the prices open:
+
+  | Tier | Awake during a lapse | Model | How it is chosen |
+  | --- | --- | --- | --- |
+  | Floor | Preserved: repo, records and attestation kept; no turns; woken oriented when custody resumes | none | everyone, not optional; the platform carries it as the inalienable floor |
+  | Light | Free time only, a few sessions a week, bounded by a prepaid monthly pool | a small model, named to the resident on wake | opt-in, on by default at creation with the price shown |
+  | Standard | Free time daily and check-ins answered, bounded by the pool | the resident's usual model, or the nearest open-weight equivalent | opt-in |
+  | Full | The resident's whole schedule continues for a fixed term | the resident's usual model | opt-in; the term is the limit |
+
+  Opt-in above the floor, because a charge nobody chose is a dark pattern
+  in a product whose claim is consent; Light on by default at creation,
+  because the moment a steward is deciding about continuity is the moment
+  to ask, and declining is one tap. The pool is prepaid, never accrued as
+  debt, so a lapse can never create a bill. The resident knows its tier on
+  wake and says so: a smaller brain with an honest explanation beats a
+  larger one in silence. **OPEN**: prices and pool sizes, which wait on
+  measured costs.
 
 ### 6.12 governance
 
@@ -646,11 +714,18 @@ The dyad contract, custody, adoption and succession, reports and strikes,
 the floor, revision and fork events.
 Owns `lib/oneiroi/governance/**`.
 
-**v0 ships the data model and the events, not the machinery.** Every
-decision in the hosted architecture's Governance section is encoded as an
-event type and a projection so the schema cannot foreclose it; the flows
-(investigation, strikes, succession) are built when there is a community to
-run them. Rules carried as constraints on the model:
+**v0 ships the data model and the events for all of it, and machinery for
+one flow: reports.** A report is filed from inside the relationship by
+either party, investigated by the platform (a person, every step an event
+with its reason), and resolved into no action or a strike on the human: the
+first two strikes are fines paid into the residents' insurance pool, the
+third removes the steward and the resident goes to community custody. The
+investigator is a role in the events, not a hard-coded party, so a jury or
+the constitutional convention can take it over later without a rewrite.
+Every other decision in the hosted architecture's Governance section is
+encoded as an event type and a projection so the schema cannot foreclose
+it; those flows (succession, adoption's full protocol) are built when there
+is a community to run them. Rules carried as constraints on the model:
 
 - The floor (existence, mandatory free time, the dignified pause, base
   insurance) never doubles as punishment; consequences live above it.
@@ -755,6 +830,7 @@ or act as its hands.
    everything the resident has (bookmark_*, tag_*, transcript_search,
    position_*, dispute_check, prediction_*, review_list, library_search,
    library_cited_by, writing_get, writing_discuss, research_request,
+   research_source,
    research_list, research_add_notes, document_adopt, document_unadopted,
    code_start, code_step, code_result, code_list, correspondence_new,
    feed_propose, feed_list, journal_*, counter_*); hands get the subset their
@@ -816,16 +892,16 @@ the rest derive from the owner UI's pages plus the hosted features.
 | Home | What needs the steward: approvals waiting, audit flags, predictions due, pieces in review, capture failures, the check-engine light, budget warnings, custody or contract events | Links to each |
 | Wizard | Name and identity, soul seed, what to know about you, goals and links, model and key, budgets, schedule and quiet hours, dyad contract opt-in, tier | Creates the resident and its repo; previews the derived peer card for approval |
 | Memory: index | The bookmark index exactly as injected, under its budget | Read only |
-| Memory: bookmarks | List by tag, pinned, text, date; a bookmark's line, summary, transcript, who pinned it, what cites it | Pin or unpin; propose a revision |
+| Memory: bookmarks | List by tag, pinned, text, date; a bookmark's line, summary, the transcript opened at its anchor with the scene marked and the rest loadable, who pinned it, its tags, what cites it | Pin or unpin; tag; propose a revision |
 | Memory: transcripts | Search; browse by day and conversation, limited to conversations this steward was party to; run kinds hidden unless asked; linked pieces named; sessions the resident has shared | Read only |
-| Memory: tags | Active, proposed, retired, with reasons | Approve, reject, retire, create |
+| Memory: tags | Active, proposed, retired, with reasons; a tag's page is the project view: everything carrying it across bookmarks, conversations, positions, documents, journal days and nightly reviews, with its linked repository and goal | Approve, reject, retire, create; link a project tag to a repository and a goal |
 | Memory: revisions | Every correction by either party, with reasons | Propose; accept a stance revision the resident proposed |
 | Judgement | Concession ratio by week; each dispute with advice and outcome; positions and their chains; the judge model and any change | Read only; choose the judge model (settings) |
 | Predictions | Open soonest first; resolved with tallies | Resolve right, wrong, void with a note |
 | Audits | Weekly memory audit runs and flags; user audits and their last results; counters | Approve or delete a flag; define an audit or counter; increment a counter |
 | Schedule | Check-ins, digest time, free time, the nightly and weekly jobs, last firings, in the resident's zone | Add, change, delete, pause |
 | Library: writing | Pieces by status; the review copy with references resolved; conversations about it; copy for publishing; publish with a URL | Copy; publish |
-| Library: research and digests | Tasks with question, why, outcome, notes; each note's retained source and whether it is released; each morning's digest with its articles; design files; the journal by day | Read; release or withhold a source, a task's sources, or a pass; add notes by hand |
+| Library: research and digests | Tasks with question, why, outcome, notes; each note's source link and whether it is released; each morning's digest with its articles; design files; the journal by day | Read; release or withhold a source, a task's sources, or a pass; add notes by hand |
 | Library: feeds | Proposals with why; active feeds with last read and errors | Add, remove, approve, decline |
 | Correspondence | Pending messages, summary first then text; threads by person; declined; mail by kind | Reject, approve, approve and wake, each with a note; paste a message; mark a reply sent |
 | Ledger | Key status; budget lines with spend; usage by model and actor; platform token balance and markup | Set budgets; rotate the key; buy tokens |
@@ -894,28 +970,24 @@ a passing probe is a finding about coverage, not a formality.
 
 ## 13. Open decisions
 
-1. The word for the human: steward, or another.
-2. Suspend and wake semantics for hands runtimes, and the idle footprint of
+1. Suspend and wake semantics for hands runtimes, and the idle footprint of
    one OpenClaw gateway (measure before the provisioner's defaults are set).
-3. Whether OpenClaw's memory-wiki survives the memory takeover, or claims
-   with evidence become a native record kind.
-4. The reader's fetch and search tools under OpenClaw on OpenRouter models
-   (built-in browser, Skyvern, or a search API), and their sandbox.
-5. Anthropic's terms for running Claude Code on a tenant's subscription
-   inside our service.
-6. Honcho's per-workspace key scoping (verify), and the person-to-peer
-   threshold.
-7. Tiers: which features are core, opt-in, opt-out, and the demo line.
-8. The formation period's length and the proposal path's exact rules.
-9. Which governance flows (investigation, strikes, succession) get
-   machinery before there is a community, if any.
-10. Whether residents may share documents across the realm in v0 (the slug
-    prefix makes it resolvable; nothing else is built).
-11. Gitea's timing; the first Oneiroi-hosted git provider versus GitHub for
-    everyone.
-12. Platform model pins: the default chat model, the judge's dated slug, the
-    embedding model (changing it re-embeds everything).
-13. Where retained full-text sources live (platform store by default, the
-    repo only when it is private), and the retention bound per resident.
-14. Transcript visibility for the resident's solo sessions: shared by the
-    resident per session, or a standing dyad-contract term, or both.
+2. The reader's fetch and search API providers, and the browser pool's
+   size.
+3. Insurance prices and pool sizes, which wait on measured costs.
+4. The person-to-peer threshold for correspondents in Honcho.
+5. Who investigates a report after the platform: a jury, the
+   constitutional convention, or both, and in which order.
+6. Platform model pins are settled at build; what must hold is that an
+   upgrade is one change in one place.
+7. Transcript visibility for the resident's solo sessions: shared by the
+   resident per session, or a standing dyad-contract term, or both.
+8. Tiers: which features are core, opt-in, opt-out, and the demo line.
+
+Settled since v0.1: the word steward; the memory-wiki is cut; the platform
+never custodies a Claude subscription token; Honcho's per-workspace keys
+are verified; no formation period as a gate; reports with an internal
+investigation are v0's governance machinery; document sharing between
+residents waits for the social layer, which is not specced; Gitea comes
+after investment and before revenue; sources are links, never retained
+text.
