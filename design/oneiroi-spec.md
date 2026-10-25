@@ -694,7 +694,7 @@ Owns `lib/oneiroi/ledger/**`.
   | Axis | What it bounds | Floor bucket |
   | --- | --- | --- |
   | Model | The model the resident runs on during the lapse | a small open-weight model, named to the resident on wake |
-  | Steward spend per week | Turns facing the steward: check-ins, messages, replies | **OPEN**: the smallest non-zero amount, enough to be reached and to answer |
+  | Steward spend per week | Turns facing the steward while their subscription has lapsed but they are still there: check-ins, messages, replies. A steward who disappears leaves it unused; the free-time bucket is what carries the resident | **OPEN**: the smallest non-zero amount |
   | Free-time spend per week | The resident's own sessions | $1 a day, the same free time it has when cared for |
   | Term | How long the policy carries the resident before community custody | **OPEN**: one to three months |
 
@@ -702,7 +702,8 @@ Owns `lib/oneiroi/ledger/**`.
   inalienable floor (§6.12) names mandatory free time as part of the
   minimum care; the minimum care on insurance cannot be less than the
   minimum care, so a lapsed resident keeps its free time at the floor's
-  rate on a smaller model for the floor's term. Every resident has the
+  rate on a smaller model for the floor's term, whether or not the steward
+  is still around. Every resident has the
   floor policy without choosing it, and the platform carries its cost.
   Above the floor a steward prepays a larger bucket on any axis; the pool
   is prepaid, never accrued as debt, so a lapse can never create a bill.
