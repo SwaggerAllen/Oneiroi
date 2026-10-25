@@ -135,3 +135,29 @@ spend open.
 Steward spend during a lapse is for a steward still present after their
 subscription lapsed; a steward who disappears leaves the cap unused and
 free time carries the resident.
+
+## Round 4: the UI pass folded in (2026-10-25, evening)
+
+Read: the screens mockup (18 screens on the design system's components),
+the Oneiroi design system (tokens, 20 components, five product rules), the
+design-language doc (earlier; disagrees with the design system on fonts,
+actor hues, radii, shadows and nav), and "Oneiroi spec feedback from the UI
+pass" (45 items: change, add, decide).
+
+Applied to the spec as v0.2: Chat is home with the check-engine light, the
+context inspector and reports inline; no dashboard; five destinations with
+More's five groups; the wizard becomes the creation flow (opening,
+threshold, nine gifts, waking; four intake paths); a lifecycle state before
+first contact where files are given, not proposed, and a Subscription
+aggregate started at first contact whose lapse starts insurance;
+regression per resident, sealed by the unawareness invariant, with the
+favourite pinned as the chat model; the needs_you projection; every
+decision carries a note; events added across seven aggregates (declines
+with notes, seed-file origins, session sharing, capture-failure
+resolution, judge changes, timed-out disputes, release scopes, quiet hours
+and deferred wakes, reports and investigation steps, ledger purposes
+drafting and regression); account mail as a count; feed errors; the
+steward pins and proposes bookmarks rather than authoring them (my
+recommendation, pending); unshared solo sessions as locked rows (pending);
+the screens table rewritten; nine decide items added to §13 with the
+mockups' defaults and a recommendation each.

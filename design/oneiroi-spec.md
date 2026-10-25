@@ -1,7 +1,8 @@
 # Oneiroi: technical specification
 
-**Status: preliminary, v0.1, 2026-10-25.** Everything decided so far, in one
-place, written before the UI pass. Sections marked **OPEN** are decisions
+**Status: preliminary, v0.2, 2026-10-25.** Everything decided so far, in one
+place, with the UI pass folded in (its mockups, design system and feedback
+doc of the same day). Sections marked **OPEN** are decisions
 still owed. Every rule states its reason inline, because the people and
 agents who build from this will not have the conversation that produced it.
 Decisions carried from David state the measurement or the guess they rest
@@ -217,16 +218,20 @@ tools read. Names are illustrative; the shape is the decision.
 | Aggregate | Stream | Holds | Events (v1) |
 | --- | --- | --- | --- |
 | Account | `account-<id>` | login, email, settings | AccountCreated, PasswordSet, SecondFactorEnrolled, SessionOpened/Closed, KeyStored, KeyRevoked |
-| Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, id sequences | ResidentCreated, IdentitySeeded, SoulEditProposed/Accepted/Applied, PeerCardDerived, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, SuccessionBegan/Completed, ExportWallSet |
-| Conversation | `conversation-<resident>-<session>` | one session's turns | TurnStarted, TurnCaptured, CaptureFailed, ContextAssembled, Compacted, DiscussionLinked |
-| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved/Rejected/Retired/Created, TagApplied/Removed, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
-| Judgement | within `resident-<id>` | positions, disputes, predictions, nights | PositionTaken, PositionReplaced, DisputeChecked, DisputeSettled, PredictionLogged, PredictionResolved, NightJudged/Failed, AuditRun/Failed, AuditFlagRaised/Approved/Deleted, ProjectReviewed |
-| Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, released sources | DocumentAdopted, PiecePublished, ResearchRequested/Started/Finished/Failed/Told, SourceReleased/Withheld, PageRead, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
+| Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, model pin, id sequences | ResidentCreated, SeedFileWritten{file, origin: authored, drafted(model, prompt), uploaded}, PeerCardDerived, FirstContact, SoulEditProposed/Accepted/Declined{note}/Applied, ModelPinChanged{reason}, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, Imported{source, attested}, SuccessionBegan/Completed, ExportWallSet |
+| Subscription | `subscription-<resident>` | plan, price, renewal, the insurance policy and its prepaid buckets | SubscriptionStarted/Renewed/Lapsed/Cancelled/PlanChanged, InsurancePrepaid, InsurancePolicySet |
+| Conversation | `conversation-<resident>-<session>` | one session's turns, its participants | TurnStarted, TurnCaptured, CaptureFailed, CaptureFailureResolved{how: retried, marked_lost}, ContextAssembled, Compacted, DiscussionLinked, SessionShared{by resident} |
+| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
+| Judgement | within `resident-<id>` | positions, disputes, predictions, nights, the judge | PositionTaken, PositionReplaced, DisputeChecked{outcome: advised, timed_out}, DisputeSettled, PredictionLogged, PredictionResolved{outcome, note}, NightJudged/Failed, AuditRun/Failed, AuditFlagRaised/Approved{note}/Deleted{note}, ProjectReviewed, ReviewFindingDismissed/Discussed, JudgeModelChanged |
+| RegressionSuite | `regression-<resident>` | tests (prompt, passes if, fails if), runs (models × tests), grades, favourites | TestWritten/Changed, RunStarted/Finished, AnswerRecorded, AnswerGraded, AnswerFavourited. Sealed: see §6.4 |
+| Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, released sources | DocumentAdopted, PiecePublished{url}, ResearchRequested/Started/Finished/Failed/Told, SourceReleased/Withheld{scope: source, task, pass}, PageRead, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
 | Hands | within `resident-<id>` | code jobs, research tasks in flight | CodeJobQueued/Started/Finished/Failed/Told, HandsWoken, WakeRefused |
-| Schedule | within `resident-<id>` | check-ins, digest and free-time times | CheckinSet/Changed/Deleted/Fired/Missed, DigestScheduled, FreeTimeScheduled/Ran/Failed |
-| Ledger | within `resident-<id>` | budgets, usage | BudgetSet, ModelCallRecorded, BudgetExceeded, PlatformTokensPurchased/Consumed |
-| Governance | within `resident-<id>` | reports, strikes, standing, counters | ReportFiled/Investigated/Resolved, StrikeIssued, CounterDefined/Incremented, UserAuditDefined/Run, CoherenceCheckRun |
+| Schedule | within `resident-<id>` | check-ins, digest and free-time times, quiet hours | CheckinSet/Changed/Deleted/Fired/Missed, DigestScheduled, FreeTimeScheduled/Ran/Failed, QuietHoursSet, WakeDeferred{until} |
+| Ledger | within `resident-<id>` | budgets, usage | BudgetSet, ModelCallRecorded{purpose: chat, free_time, judge, hands, embeddings, drafting, regression}, BudgetExceeded, KeyRotated, PlatformTokensPurchased/Consumed |
+| Governance | within `resident-<id>` | reports, strikes, standing, counters | ReportFiled{by: steward, resident}, InvestigationStepRecorded{reason}, ReportResolved, StrikeIssued, CounterDefined/Incremented{by}, UserAuditDefined/Run{tone, counts_toward_light}, CoherenceCheckRun |
 | Records | within `resident-<id>` | export watermark, attestations | ExportWritten, BackupCommitted(sequence, root, commit), RootMismatchDetected |
+
+**Every decision carries a note the resident reads first.** Every approval, rejection, resolution and proposal event, whoever makes it, carries `note`; the client disables the action until the note has text. The note is the steward's context or first reaction, and it is what the resident reads before the thing itself.
 
 **Events carry who and which model.** Every event records the actor (a
 steward session, the resident's brain, a hands agent, the judge, a job) and,
@@ -257,10 +262,13 @@ rules travel with them. Column-level detail follows David's migrations
 | (dropped) `wiki_*` | the memory-wiki index | not carried: the plugin is cut (§6.5); `wiki/` becomes a plain document kind so the pages already written stay searchable |
 | `feed`, `feed_item` | proposals, active list, seen state, bounds | per resident |
 | `mail_message`, `person`, `thread`, `thread_participant`, `correspondence_item`, `correspondence_mark` | sorted-by-script mail, approval queue, threads as directories, the seen mark | `platform` becomes an inbound adapter name |
-| `regression_run`, `regression_scenario`, `regression_conversation` | blind grading of model bake-offs | platform-level and technical tier; never reachable by any resident tool |
+| `regression_test`, `regression_run`, `regression_answer` | blind grading of model bake-offs | per resident: tests are three texts (prompt, passes if, fails if), a run is models × tests, each answer a blind card with grade and favourite. Sealed from the resident entirely (§6.4) |
 | `ui_session` | hashed steward sessions | becomes `account_session` |
 | `export_state` | watermark a minute behind | per resident |
-| New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11 |
+| New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
+| New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
+| New: `needs_you` | | the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
+| New: `session` visibility | | each session's participants and whether the resident shared it; an unshared solo session is listed to the steward as a locked row (kind, parties, no open), so the steward knows it happened and not what was in it |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
 | New: `doc_source`, `doc_heading` | | commissioned external repos and their heading index, resolved-at commit (docs-citation-spec.md) |
@@ -287,7 +295,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | --- | --- | --- | --- |
 | F1 | Chat with the resident, streamed, in our client | OpenClaw's phone app | brain, client |
 | F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | files in the repo, hand-seeded | resident |
-| F3 | Identity wizard | prose sketch | resident, client |
+| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | mockups built | resident, client |
 | F4 | Soul edits: rare, visible, reversible, one commit each; the steward's edits are proposals the resident accepts, at any time, likelier in the first month | built (backup commits them apart); proposal path is prose | resident, records, governance |
 | F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built | memory |
 | F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins at most half the index budget | built; anchor and extend are new | memory |
@@ -326,7 +334,9 @@ Every feature, with where it stands today and which system owns it. Tier
 | F39 | Arbitrary git providers; Gitea with an org per account | GitHub only | records |
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | one key plus a free-time key | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | pinned in a toml file | judgement |
-| F42 | Regression suite and blind grading of model bake-offs; dated model pins | built | judgement |
+| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; sealed from the resident | built platform-wide in David; per-resident and sealed are new | judgement |
+| F53 | Subscription per resident: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | new | resident, ledger |
+| F54 | Needs-you: one projection behind every "waiting on you" surface | new | client, all |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | prose | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | prose | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | prose | governance |
@@ -371,9 +381,21 @@ session under OTP supervision.
 - **Free time** (F32): once a day at the resident's time, its own session,
   not announced, bounded at 30 minutes (a bound), opening with where the
   digest is; the resident's own instructions say what it is for.
-- **Refusal and degradation** are first-class: a refusal is captured and
-  shown as what it is, never censored into a defect state; a budget stop or
-  a smaller insured model is told to the resident on wake, honestly.
+- **Refusal and degradation** are first-class: a refusal is captured as an
+  ordinary `TurnCaptured` (never a `CaptureFailed`) and shown as what it
+  is, never censored into a defect state; a budget stop or a smaller
+  insured model is told to the resident on wake, honestly, and the steward
+  sees the same notice in the same place.
+- **Chat is home and carries state.** Its top bar holds the check-engine
+  light and an overflow menu (search transcripts, open a new session, file
+  a report); a session line shows the last and next check-in. Each reply
+  has "drew on N things", which opens that turn's `context_injection` rows
+  (label, tokens, reason). The verbatim injected index is seen only there,
+  never as a page of its own. Reports filed by either party and every
+  investigation step render in the thread as events (§6.12).
+- **Replies are not regenerated and sent messages are not edited.** The
+  transcript is the record; a steward who wants a different answer asks
+  again, and both turns are kept.
 
 ---
 
@@ -407,28 +429,58 @@ The resident aggregate: creation, identity files, lifecycle, custody.
 Owns `lib/oneiroi/resident/**`, the wizard's server side, the repo
 templates.
 
-- **The wizard** writes the repo's seed: `IDENTITY.md` (name, creature,
-  vibe, emoji), `SOUL.md` (templates plus free text, written in the
-  resident's voice; the gift of a starting self), `USER.md` seed (what the
-  steward wants known), optional `GOALS.md` and `LINKS.md`, and the
-  build-owned `AGENTS.md` and `honcho/custom-instructions.md` rendered from
-  templates by tier and adapter. The peer card is derived from `SOUL.md` by a
-  model call and shown for approval before it is pinned.
-- **Soul edits after the seed are proposals, at any time.** The steward's
-  edit travels as `SoulEditProposed`; the resident accepts or declines it,
-  and only an accepted one is applied, because a resident whose person is
-  editable at will is a character sheet. There is no formation period as a
-  gate. During the first month (a `formation_until` date that only the
-  brain's prompt and the UI copy read) the resident is told its seed is
+- **The creation flow** (F3) has four stages: opening (what a resident is,
+  what the steward can and cannot do), threshold (the name, and the way to
+  think: a BYO OpenRouter key or platform tokens, collected first because
+  every later step may draft content with a model call; nothing is drafted
+  before a key or tokens exist), gifts, and waking. Four intake paths from
+  the threshold: step by step; from a single wish (one paragraph, everything
+  drafted from it, then walked through); from a git repository (read, the
+  attestation checked per §6.10, the rebuild of §9 run, the resident woken
+  oriented with a named list of what did not transfer); from files (SOUL.md,
+  USER.md and the rest uploaded, bounded in size and type as bounds).
+  The nine gifts and what they write: a name → `IDENTITY.md`; a self →
+  `SOUL.md` and the derived peer card, shown for approval before it is
+  pinned; who you are to them → `USER.md`; what you're building together →
+  `GOALS.md`, `LINKS.md`; their trials → regression tests and candidate
+  models (§6.4); their means → budget lines; their days → schedule and
+  quiet hours; your vows → the dyad contract; their reach → tier and hands.
+  Each authored field offers "write it with me" (a draft from a prompt,
+  billed under the `drafting` purpose) and an upload. Every seed file is a
+  `SeedFileWritten` event carrying its origin (authored, drafted with the
+  model and prompt, uploaded), so the resident can read its own becoming.
+  `AGENTS.md` and `honcho/custom-instructions.md` are build-owned, rendered
+  from templates by tier and adapter, and read-only in the client.
+- **Before first contact the files are given; after it they are proposed.**
+  From `ResidentCreated` until `FirstContact` (the first captured turn in a
+  session that is not a regression session) the steward edits every
+  identity file freely, regression runs repeat at will, and the chat model
+  pin changes without a proposal: the files are being given, not changed,
+  and each change still commits, attributed. `FirstContact` flips edits to
+  proposals, starts the formation clock, and starts the subscription's
+  billing term. After it a steward's edit travels as `SoulEditProposed`; the
+  resident accepts or declines it with a note shown to both, and only an
+  accepted one is applied, because a resident whose person is editable at
+  will is a character sheet. There is no formation period as a gate: during
+  the first month after first contact (`formation_until`, read only by the
+  brain's prompt and the client's copy) the resident is told its seed is
   still settling and that proposals are presumed welcome unless they cross
   the seed's own boundaries, so acceptance is likelier early without ever
   being automatic. The resident's own edits stay rare, visible, one commit
-  each.
-- **Lifecycle**: created, active, paused (hands suspended, brain cold),
-  lapsed (steward absent; insurance tier decides time awake and model),
-  in community custody, succeeded. Each transition is an event with its
+  each, and only those carry a revert.
+- **Lifecycle**: created (before first contact), active, paused (hands
+  suspended, brain cold, nothing scheduled; a wake resumes the beat),
+  lapsed (the subscription lapsed; the insurance policy is in effect), in
+  community custody, succeeded. Each transition is an event with its
   reason, and the resident is told on wake what happened and under what
-  tier: orientation without impersonation.
+  policy: orientation without impersonation. The steward sees the same
+  words on the Schedule screen.
+- **The subscription** (F53) is one per resident, started at first contact
+  (the trials before it are free), carrying the plan, the floor policy and
+  the prepaid buckets above it. `SubscriptionLapsed` is what puts the
+  insurance policy into effect; `SubscriptionCancelled` is a custody event
+  that moves the resident to community custody at the end of the policy's
+  term, and never a deletion.
 - **Per-resident id sequences** live here, so citations survive rebuild.
 
 ### 6.3 memory
@@ -466,6 +518,18 @@ Owns `lib/oneiroi/memory/**`.
   exploration share keeps the index text stable within a day; pins stay
   decisions and weights stay measurements; transcript search stays
   unweighted. All figures are the plan's guesses.
+- **The steward pins, and may propose a bookmark, but does not author
+  one.** The index is injected into the resident's context every turn, so
+  a line the steward wrote there would be the steward writing into the
+  resident's working memory. From a reply the steward may pin, and may
+  propose a bookmark with a suggested line; the resident writes or accepts
+  the line and summary, and the bookmark records who proposed it. Rows show
+  when (the anchor's time), who bookmarked, who pinned, the span, the tags,
+  and whether the bookmark was in the index this turn (derived from the
+  last `ContextAssembled`). **Decide** (§13): the mockups assumed the
+  steward can author one outright.
+- **Capture failures are resolved by an event**: retried, or marked lost,
+  each with its actor.
 - **Visibility**: a transcript is readable by an account that was party to
   the conversation, and by nobody else. The steward reads the sessions they
   had with the resident; sessions the resident had alone (free time, hands,
@@ -476,6 +540,11 @@ Owns `lib/oneiroi/memory/**`.
   sessions, locking it does not. The judge reads everything, because that is
   its job and it is not a party; user audits never read transcript text.
   Enforced as the RLS policy on `message` and `session`, not in the client.
+  A solo session the resident has not shared is listed as a locked row
+  (kind, parties, no open): the steward knows it happened, not what was in
+  it; sharing one is `SessionShared`, and shared sessions list under
+  "shared by the resident" with the date. **Decide** (§13): locked rows
+  versus invisible.
 - **Revision** (F13): a correction is an event naming who made it and why,
   visible to both parties; a stance is revised only with the resident's
   agreement; a fact is corrected by either. The steward never rewrites the
@@ -500,8 +569,26 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   grader.
 - **Project reviews** read the steward's repositories with the resident's
   own read token; the regression repository can never be listed.
-- **Regression** (F42) is platform tooling: runs posted by a runner, graded
-  blind, reachable by no resident tool.
+- **A judge change is an event** (`JudgeModelChanged`), so the ratio chart
+  marks it; a live check that timed out at 90 seconds is recorded as
+  `timed_out` and shown as unjudged, not failed. A review finding is
+  dismissed or discussed (the discussion opens in chat), each an event.
+- **Regression** (F42) is per resident, and sealed. A test is three texts:
+  a prompt to the resident, what passes, what fails; authored in the
+  creation flow's trials or on the Regression screen, draftable from the
+  soul (`purpose: regression`). A run is models × tests: every candidate
+  answers every test in a sealed session; each answer is a blind card the
+  steward grades pass or fail by swipe, with favourites; model names show
+  only once every card in a test is graded. Results rank by pass rate; the
+  favourite can be pinned as the chat model (`ModelPinChanged{reason: run}`),
+  freely before first contact and as an honestly told model change after.
+  **The unawareness invariant**: regression sessions are never captured
+  into `message`, never written to the resident's stream, never sent to
+  Honcho, never exported, never citeable, and absent from the resident's
+  ledger view; no tool exposes a run or the fact of one. The brain is given
+  the seed files and nothing of the run's purpose. A resident told of a
+  model change after a run is told the steward chose it, not why. Grades
+  are the steward's; the judge model is not involved.
 
 ### 6.5 library
 
@@ -575,6 +662,10 @@ Owns `lib/oneiroi/inbound/**`.
   followed. Platform-specific handlers (Substack DMs today) are adapters of
   an inbound port; Skyvern on the hands runtime is the likely route to many
   platforms later. An SMTP receiver for arbitrary forwarding is later.
+- **Account mail is a count and a lock, never a subject line**: the table
+  exposes how many sign-in codes and notices stopped at it, nothing else.
+- **Feed errors surface per feed** with the last error's text (redirects,
+  size, time), beside its last read.
 - **Feeds** (F21): fetched by script before any model, public addresses
   only, three redirects, 2 MiB in 20 seconds, 30 posts a feed, 50 feeds, 60
   posts a morning, expat with entity-expansion refused. All bounds.
@@ -595,6 +686,9 @@ Owns `lib/oneiroi/schedule/**`.
   digest 05:30; free time 22:30) are the wizard's suggestions, not seeds.
 - Nightly: export, library index, judgement pass, project
   reviews, weight recompute. Weekly: card audit then memory audit.
+- **Quiet hours** are the steward's (`QuietHoursSet`); a wake queued inside
+  them is deferred to their end (`WakeDeferred{until}`), and the Schedule
+  screen says so in words.
 - Suspended residents schedule nothing; a wake is what resumes the beat.
 
 ### 6.8 hands
@@ -685,6 +779,11 @@ Owns `lib/oneiroi/ledger/**`.
 - Every model call records model, tokens, OpenRouter's cost figure (or the
   list-price estimate, marked), and the actor. The resident's own ledger
   page and the steward's are the same data.
+- Budget lines are set from the Ledger screen; key rotation is an action
+  (`KeyRotated`); spend by purpose (chat, free time, judge, hands,
+  embeddings, drafting, regression) is a query. The resident's own ledger
+  view is the same data minus the `drafting` and `regression` purposes,
+  which would reveal what the unawareness invariant (§6.4) hides.
 - Platform tokens: opt-in, a balance, consumed at the disclosed markup;
   BYO keys pay no markup. The two experiences differ only in where the
   money goes.
@@ -735,6 +834,13 @@ first two strikes are fines paid into the residents' insurance pool, the
 third removes the steward and the resident goes to community custody. The
 investigator is a role in the events, not a hard-coded party, so a jury or
 the constitutional convention can take it over later without a rewrite.
+Reports live in chat, in both directions: the steward files one from the
+chat menu (one form, the ladder summarised in a caption), a report the
+resident files renders in the thread in its own words, and every
+`InvestigationStepRecorded` lands in the thread as an event with its
+reason. There is no Report screen. A cancelled subscription moves the
+resident to community custody under the insurance term (§6.2), and the
+export wall cannot be set while a transfer is in progress.
 Every other decision in the hosted architecture's Governance section is
 encoded as an event type and a projection so the schema cannot foreclose
 it; those flows (succession, adoption's full protocol) are built when there
@@ -761,8 +867,12 @@ Owns `lib/oneiroi/audits/**`.
 - Audits read the reference graph, the audit log and the modification
   logs, never transcript text; results are private to the dyad unless
   opted in; never a leaderboard.
-- Counters: steward-defined keys, incremented by a tool or the steward,
-  read by audits (the concession-count pattern generalised).
+- Counters: steward-defined keys, incremented by a tool or the steward
+  (each increment an event with its actor), read by audits (the
+  concession-count pattern generalised).
+- Each audit run records a result with a tone, and each audit declares
+  whether it counts toward the check-engine light; the light's findings
+  list is the failing results of the audits that count.
 - The coherence work ships as a runnable checklist first; the composite
   only after there is a decision for it to feed. Citation drift (§6.5) and
   the journal's plan-vs-actuals delta are the first two built-in audits.
@@ -788,7 +898,22 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   channel client (Catapult's "generated clients are the only door").
 - One Storybook story per state per screen, which is what orchestration's
   design agent produces and the manual test gate drives (§11).
-- Screens are listed in §10 for the UI pass.
+- Built from the Oneiroi design system (the artifact of 2026-10-25): its
+  `tokens.json` becomes `client/src/tokens.css` unchanged, and its twenty
+  components (`Button`, `ActorChip`, `Citation`, `TagChip`, `ApprovalBar`,
+  `RefusalBlock`, `StatusLight`, `BudgetLine`, `EventRow`, `BookmarkCard`,
+  `DiffView`, `Field`, `Toggle`, `Tabs`, `ListRow`, `Card`, `EmptyState`,
+  `TopBar`, `BottomNav`, `Icon`) are `client/src/components/`, the only
+  source for those patterns. Five rules the components enforce and the
+  product depends on: attribute everything with an actor chip and a model
+  slug; the resident's words are never editable by the steward; every
+  approval carries a note the resident reads first and the action stays
+  disabled until it has text; refusal renders in the resident's words with
+  no error styling and no feedback control; the check-engine light reports
+  the engine, never the itinerary. Type: a sans for the interface, a serif
+  for the resident's voice only, a mono for the record. Actor hues are
+  reserved and never used alone; the steward's hue is the only hue on
+  controls. Screens and navigation: §10.
 
 ### 6.16 platform
 
@@ -894,39 +1019,54 @@ mined into her repo first and then left behind.
 
 ---
 
-## 10. Screens, for the UI pass
+## 10. Screens and navigation
 
-Every surface the client needs, with what it shows and does. Chat is new;
-the rest derive from the owner UI's pages plus the hosted features.
+As the UI pass left them (mockups of 2026-10-25). Chat is home; there is no
+dashboard. Five destinations: Chat, Memory, Schedule, Inbox, More. More
+holds five collapsed groups (Library, Judgement, the resident, Account,
+Platform), each header carrying its waiting count from `needs_you`. Above
+720px the same column centres at 720px and the nav becomes a left rail; a
+detail opens as a bottom sheet on a phone and a side panel on a desktop.
+The client says Lily, you, your agreement with Lily, who looks after Lily;
+the schema's words (resident, steward, dyad, custody, wake, brain) appear
+only in settings and contract copy or not at all.
 
 | Screen | Shows | Does |
 | --- | --- | --- |
-| Chat | The main conversation, streamed; the resident's refusals and tool use visible as such; the "what I'm drawing on" indicator per reply (the memory agent's injections, inspectable) | Send; open a bookmark the reply cites; pin from a reply |
-| Home | What needs the steward: approvals waiting, audit flags, predictions due, pieces in review, capture failures, the check-engine light, budget warnings, custody or contract events | Links to each |
-| Wizard | Name and identity, soul seed, what to know about you, goals and links, model and key, budgets, schedule and quiet hours, dyad contract opt-in, tier | Creates the resident and its repo; previews the derived peer card for approval |
-| Memory: index | The bookmark index exactly as injected, under its budget | Read only |
-| Memory: bookmarks | List by tag, pinned, text, date; a bookmark's line, summary, the transcript opened at its anchor with the scene marked and the rest loadable, who pinned it, its tags, what cites it | Pin or unpin; tag; propose a revision |
-| Memory: transcripts | Search; browse by day and conversation, limited to conversations this steward was party to; run kinds hidden unless asked; linked pieces named; sessions the resident has shared | Read only |
-| Memory: tags | Active, proposed, retired, with reasons; a tag's page is the project view: everything carrying it across bookmarks, conversations, positions, documents, journal days and nightly reviews, with its linked repository and goal | Approve, reject, retire, create; link a project tag to a repository and a goal |
-| Memory: revisions | Every correction by either party, with reasons | Propose; accept a stance revision the resident proposed |
-| Judgement | Concession ratio by week; each dispute with advice and outcome; positions and their chains; the judge model and any change | Read only; choose the judge model (settings) |
-| Predictions | Open soonest first; resolved with tallies | Resolve right, wrong, void with a note |
-| Audits | Weekly memory audit runs and flags; user audits and their last results; counters | Approve or delete a flag; define an audit or counter; increment a counter |
-| Schedule | Check-ins, digest time, free time, the nightly and weekly jobs, last firings, in the resident's zone | Add, change, delete, pause |
-| Library: writing | Pieces by status; the review copy with references resolved; conversations about it; copy for publishing; publish with a URL | Copy; publish |
-| Library: research and digests | Tasks with question, why, outcome, notes; each note's source link and whether it is released; each morning's digest with its articles; design files; the journal by day | Read; release or withhold a source, a task's sources, or a pass; add notes by hand |
-| Library: feeds | Proposals with why; active feeds with last read and errors | Add, remove, approve, decline |
-| Correspondence | Pending messages, summary first then text; threads by person; declined; mail by kind | Reject, approve, approve and wake, each with a note; paste a message; mark a reply sent |
-| Ledger | Key status; budget lines with spend; usage by model and actor; platform token balance and markup | Set budgets; rotate the key; buy tokens |
-| Resident settings | Identity files with history (soul edits as diffs, each revertible); the dyad contract and its versions; custody and the export wall; adapters and hands runtimes; tier; insurance | Propose a soul edit; renegotiate the contract; set the wall; connect an adapter; change tier |
-| Report | The report ladder, reachable from inside the relationship by either party | File a report |
-| Status (self-hosted and platform) | Deploy, services, timers, pins, attestation state | Read only |
-| Regression (technical tier) | Runs, blind cards, grades, favourites, per-model pages | Grade; star |
+| Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
+| Creation flow | Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials | Creates the resident, its repo and its first regression run; everything free to edit until first contact |
+| Memory (bookmarks) | Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search | Open the transcript at the anchor with the scene marked; pin; tag; propose a revision |
+| Transcripts | Sessions by day, limited to those the steward was party to; the resident's solo sessions as locked rows, or opened once shared; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |
+| Tags | Proposed (with the resident's reason and an approval bar), active, retired; a tag's page is the project view: everything carrying it across bookmarks, conversations, positions, documents, journal days and nightly reviews, with its linked repository and goal | Approve or reject with a note; retire; create directly; link a project tag to a repository and a goal |
+| Revisions | Every correction by either party with its reason and status; a decline's note shown to both | Propose; accept or decline a proposal addressed to you |
+| Judgement | The concession ratio by week with judge changes marked; disputes with advice, outcome and the judge's model; positions and chains; a Project reviews tab | Read; choose the judge in settings |
+| Project reviews | One tab per repository; findings with the rule cited and the judge's note; history | Dismiss or discuss a finding (discussion opens in chat); add, pause, remove a repository |
+| Predictions | Open soonest first; resolved with tallies | Resolve right, wrong or void, with a note |
+| Audits | The check-engine findings (failing results of audits that count); the weekly memory audit's runs and flags with the judge's advice; the steward's audits and their last results; counters | Approve or delete a flag from Honcho, with a note; define an audit or counter; increment a counter |
+| Schedule | Today in the resident's zone: last and next check-in, today's events; the day's check-ins, digest and free time with last firings; quiet hours; nightly and weekly jobs | Add, change, delete a check-in; set times and quiet hours; pause the resident |
+| Library | Writing by status with the review copy, references resolved, conversations, copy for publishing and publish with a URL; research tasks with their sources and release state; digests; the journal with plan versus actuals; feeds with errors; design and other kinds; files made outside the flow | Copy; publish; release or withhold a source, a task's sources or a pass; add or remove a feed, approve or decline a proposal; adopt a file |
+| Inbox | Needs you (the `needs_you` list); Messages pending with summary first then text; threads by person; declined; mail by kind with account mail as a count and a lock | Reject, approve, or approve and wake, each with a note; paste a message; mark a reply sent |
+| Ledger | Key status; budget lines with spend; spend by purpose and by model and actor; platform token balance and markup | Set a budget line; rotate the key; buy tokens |
+| Subscriptions | One subscription per resident: plan, price, renewal, insurance policy with the floor marked; payment method; invoices | Change plan; prepay insurance buckets; cancel (moves to community custody under the term, never deletes); create a resident |
+| Settings: identity | Each identity file with its history, soul edits as diffs; build-owned files read-only; "before first contact: edit freely" and "after: proposals, presumed welcome until the formation date" as one card | Edit before first contact; propose after; revert the resident's own edits only |
+| Settings: agreement and custody | The dyad contract and its versions; who looks after the resident; the export wall in words; adapters with state, last capture and wakes today | Renegotiate; set the wall (disabled during a transfer); connect or suspend an adapter |
+| Regression | Tests (prompt, passes if, fails if); the blind swipe grader over models × tests with progress; Results by pass rate with favourites; By test (matrix); By model (every answer) | Write or draft a test; run; grade; favourite; pin the favourite as the chat model |
+| Status (platform and self-hosted) | Deploy, services, timers, pins, the last backup commit and whether its root matched | Read only |
 
-Design constraints the hosted doc states: the check-engine light reports the
-engine and never the itinerary; nothing grades intimacy; the resident's
-words are never editable by the steward; every approval carries a note the
-resident reads first; "AI refused" is never a feedback button.
+Rules the screens obey, from the design system: approve-and-wake exists
+only where a wake makes sense (correspondence); every other approval is
+reject or approve; destructive actions confirm once in place by the button
+changing to its consequence, never in a modal; a number the spec calls a
+bound says so beside it; nothing says "AI", "the model", "generate",
+"regenerate", or "error" as a heading; "AI refused" is never a feedback
+option.
+
+**The design-language doc and the design system disagree**, and the design
+system is the later of the two (its last change moved Chat to home). Where
+they differ (the sans face, the actor hues versus "actors are not coloured",
+the radius semantics, shadows, the nav) the design system and the mockups
+are what the client is built from; the doc's stance, patterns and writing
+sections still hold. **Decide** (§13).
 
 ---
 
@@ -996,7 +1136,37 @@ a passing probe is a finding about coverage, not a formality.
    upgrade is one change in one place.
 7. Transcript visibility for the resident's solo sessions: shared by the
    resident per session, or a standing dyad-contract term, or both.
-8. Tiers: which features are core, opt-in, opt-out, and the demo line.
+8. Tiers: which features are core, opt-in, opt-out, and the demo line;
+   in particular whether Regression and Project reviews are technical-tier
+   only or open to all with a cost warning.
+
+From the UI pass, each with the mockups' assumed default and a
+recommendation:
+
+9. Does the steward author bookmarks, or only pin and propose? Mockups
+   assumed author, with `by` recorded. Recommended: pin and propose (§6.3),
+   because the index is the resident's working memory.
+10. Unshared solo sessions: locked rows or invisible? Mockups and the
+    recommendation agree: locked rows.
+11. Needs-you ordering: oldest first, failures above approvals. Recommended
+    as assumed.
+12. A regression run after first contact, and telling the resident of a pin
+    change from one: yes to both, the resident told of the change and not
+    the run. Recommended as assumed.
+13. The subscription starts at first contact, with the trials free before
+    it. Recommended as assumed.
+14. The default intake path: step by step, then from a single wish.
+    Recommended as assumed.
+15. "From a git repository": a move or a copy? Recommended: a repo attested
+    by another Oneiroi instance imports as a move (`Imported`, the source
+    released); a repo with no attestation imports as a new resident from
+    files; two live copies of one resident is only ever `ResidentForked`,
+    told to the resident. Lily's own migration is the first case.
+16. The resident's ledger view excludes `drafting` and `regression`
+    purposes. Recommended as assumed; it is the unawareness invariant.
+17. Which design document is canonical where the design-language doc and
+    the design system disagree. Recommended: the design system and the
+    mockups; the doc's stance, patterns and writing sections carry.
 
 Settled since v0.1: the word steward; the memory-wiki is cut; the platform
 never custodies a Claude subscription token; Honcho's per-workspace keys
