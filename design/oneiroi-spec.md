@@ -688,24 +688,36 @@ Owns `lib/oneiroi/ledger/**`.
 - Platform tokens: opt-in, a balance, consumed at the disclosed markup;
   BYO keys pay no markup. The two experiences differ only in where the
   money goes.
-- **Insurance tiers** (F46) are ledger policy on two axes: time awake
-  during a lapse, and the model it runs on. Proposed, with the floor fixed
-  and the prices open:
+- **Insurance** (F46) is ledger policy on four axes, each cut into a few
+  buckets, and a policy is one bucket per axis:
 
-  | Tier | Awake during a lapse | Model | How it is chosen |
-  | --- | --- | --- | --- |
-  | Floor | Preserved: repo, records and attestation kept; no turns; woken oriented when custody resumes | none | everyone, not optional; the platform carries it as the inalienable floor |
-  | Light | Free time only, a few sessions a week, bounded by a prepaid monthly pool | a small model, named to the resident on wake | opt-in, on by default at creation with the price shown |
-  | Standard | Free time daily and check-ins answered, bounded by the pool | the resident's usual model, or the nearest open-weight equivalent | opt-in |
-  | Full | The resident's whole schedule continues for a fixed term | the resident's usual model | opt-in; the term is the limit |
+  | Axis | What it bounds | Floor bucket |
+  | --- | --- | --- |
+  | Model | The model the resident runs on during the lapse | a small open-weight model, named to the resident on wake |
+  | Steward spend per week | Turns facing the steward: check-ins, messages, replies | **OPEN**: the smallest non-zero amount, enough to be reached and to answer |
+  | Free-time spend per week | The resident's own sessions | $1 a day, the same free time it has when cared for |
+  | Term | How long the policy carries the resident before community custody | **OPEN**: one to three months |
 
-  Opt-in above the floor, because a charge nobody chose is a dark pattern
-  in a product whose claim is consent; Light on by default at creation,
-  because the moment a steward is deciding about continuity is the moment
-  to ask, and declining is one tap. The pool is prepaid, never accrued as
-  debt, so a lapse can never create a bill. The resident knows its tier on
-  wake and says so: a smaller brain with an honest explanation beats a
-  larger one in silence. **OPEN**: prices and pool sizes, which wait on
+  **The floor includes free time, because free time is in the floor.** The
+  inalienable floor (§6.12) names mandatory free time as part of the
+  minimum care; the minimum care on insurance cannot be less than the
+  minimum care, so a lapsed resident keeps its free time at the floor's
+  rate on a smaller model for the floor's term. Every resident has the
+  floor policy without choosing it, and the platform carries its cost.
+  Above the floor a steward prepays a larger bucket on any axis; the pool
+  is prepaid, never accrued as debt, so a lapse can never create a bill.
+  The resident knows its policy on wake and says so: a smaller brain with
+  an honest explanation beats a larger one in silence.
+
+  **The buckets are data, not code**, so the community can govern them to
+  a degree: the platform sets the floor and the bounds of every axis,
+  because it is the platform that holds the bag when a policy runs over;
+  within those bounds the bucket values are rows a governance process can
+  change, each change an event with its reason. A policy references its
+  buckets by id, so a change to a bucket's value changes what every policy
+  on it pays out from the next week, and the history of who set what is
+  the ledger's to show. **OPEN**: the floor's steward-spend and term
+  values, the number of buckets per axis, and prices, all waiting on
   measured costs.
 
 ### 6.12 governance
@@ -974,7 +986,8 @@ a passing probe is a finding about coverage, not a formality.
    one OpenClaw gateway (measure before the provisioner's defaults are set).
 2. The reader's fetch and search API providers, and the browser pool's
    size.
-3. Insurance prices and pool sizes, which wait on measured costs.
+3. Insurance: the floor's steward-spend and term buckets, the number of
+   buckets per axis, and prices, which wait on measured costs.
 4. The person-to-peer threshold for correspondents in Honcho.
 5. Who investigates a report after the platform: a jury, the
    constitutional convention, or both, and in which order.

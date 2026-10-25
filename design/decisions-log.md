@@ -122,3 +122,13 @@ Also decided: sources are links the steward releases, never retained text
 with the understanding it may become inaccessible. Bookmarks keep a range
 with an anchor turn and gain `bookmark_extend`. Tags become a cross-cutting
 `tagging` projection with project-tag links to a repository and a goal.
+
+## Round 3: insurance corrected
+
+Insurance is four axes, not two: the model, steward-facing spend per week,
+free-time spend per week, and the term it covers. Each axis is cut into a
+few buckets held as data; the platform sets the floor and the bounds (it
+holds the bag), the community governs bucket values within them. The floor
+includes free time, since free time is in the inalienable floor: $1 a day
+on a smaller model for one to three months (term open). Floor steward
+spend open.
