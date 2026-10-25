@@ -132,3 +132,6 @@ holds the bag), the community governs bucket values within them. The floor
 includes free time, since free time is in the inalienable floor: $1 a day
 on a smaller model for one to three months (term open). Floor steward
 spend open.
+Steward spend during a lapse is for a steward still present after their
+subscription lapsed; a steward who disappears leaves the cap unused and
+free time carries the resident.
