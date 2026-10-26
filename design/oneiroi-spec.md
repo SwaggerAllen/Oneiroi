@@ -1179,16 +1179,41 @@ The repo is built to be driven by orchestration from the start.
 
 ## 12. Testing and gates
 
+The code-facing rules, with their reasons, are `design/conventions.md`;
+this section is what CI holds and what the layers cover.
+
+**The gate set**, identical in `CLAUDE.md`, `ci.yml` and
+`pipeline.config.json`'s `qualityGates`, and held identical by the audit:
+lockfile `--check-locked`; `hex.audit` then `mix_audit`; format; `credo
+--strict`; `sobelow --exit` from the first commit; `compile
+--warnings-as-errors` with the Boundary compiler; xref cycles at zero; the
+compile-connected ratchet at zero, its number living only in the two
+author-owned files; `mix oneiroi.audit`, the check registry (conventions
+§13); `mix test` with no network; the client's lint, typecheck, tests and
+Storybook build; the SDK's own full block. CI runs on pull requests into
+main only, against a Postgres pinned to production's major, with an exact-
+key dependency cache and a self-arming pipeline audit that says "skipped"
+rather than passing on an author branch.
+
+**Invariants the audit holds that are Oneiroi's own:** every projection
+table carries its resident scope and a policy; no query runs without a
+scope; no model call outside the provider port; every event carries actor
+and model and every decision event a note; every numeric setting is tagged
+bound or measured; prompts are files; the SDK's dependency closure is
+permissive.
+
 Cheapest layer first; nothing below the live layer calls a paid model.
 
 | Layer | Covers | Against |
 | --- | --- | --- |
-| Core | Aggregates, projections, every rule; replay produces identical projections; RLS with two residents seeded; per-resident id sequences | Throwaway Postgres, never a mocked database |
-| Contract | MCP tools, JSON API, channels; which token may call what, asserted exactly per role | The real server in-process |
+| Core | Aggregates, projections, every rule; replay produces identical projections; replay determinism, worker idempotency and upcaster round trips as properties; per-resident id sequences | Throwaway Postgres, never a mocked database |
+| Tenancy | Two residents seeded; nothing bleeds through projections, tools, channels or the Honcho bridge | The core layer with the application role |
+| Consent | Hostile fixtures: a third party's footnote mints no edge; a canary string never reaches wake text; the reader's sandbox cannot read its environment; the unawareness invariant over every resident-reachable surface | The real server in-process |
+| Contract | MCP tools, JSON API, channels; which token may call what, asserted exactly per role; no steward route can write the resident's words | The real server in-process |
 | Adapters | Each runtime adapter's three interfaces | Recorded fixtures from the real runtime, unedited |
-| Cost | Statements per captured turn, per index fetch, per re-index with nothing changed; budget checks per call | The core layer with every statement recorded |
-| Rebuild | Export, rebuild into a fresh store, export again: byte-identical; the migration's transfer list | Throwaway Postgres and a temporary git repository |
-| Integration | One real turn through the brain with Honcho's mock provider; a hands runtime provisioned, woken, capturing, told; a check-in fired; an approval woken; the nightly jobs | The compose stack, Honcho's mock, a scripted model as judge and embedder |
+| Cost | Statements per captured turn, per index fetch, per re-index with nothing changed, per needs-you read; budget checks per call | The core layer with every statement recorded |
+| Rebuild | Export, rebuild into a fresh store, export again: byte-identical; the attestation root recomputed; the migration's transfer list; fixture logs of every historical event shape | Throwaway Postgres and a temporary git repository |
+| Integration | One real turn through the brain with Honcho's mock provider; a hands runtime provisioned, woken, capturing, suspended and woken again; a check-in fired; an approval woken; the nightly jobs | The compose stack, Honcho's mock, a scripted model as judge and embedder |
 | Manual (judged) | Seams the diff touches, per PR; the full set at a milestone boundary | A Render preview, orchestration's gate |
 | Live | The resident's judgement: the regression suite, graded blind | OpenRouter, by hand, on the steward's key |
 

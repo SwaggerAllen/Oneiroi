@@ -206,6 +206,22 @@ Design system canonical over the design-language doc (not kept up to date).
    technical; nothing else technical. Roadmap by dependency written as
    §14 with a proposed demo line at the end of P4.
 
+## Round 7: CI and invariants (2026-10-26)
+
+Lifted from Catapult's conventions and CI into `design/conventions.md`:
+the gate set as one block held identical across CLAUDE.md, ci.yml and
+qualityGates; the ratchet at zero in author-owned files only; the
+component behaviour and registries; the naming spine; the purity floor
+with an AST audit and a self-pruning escape comment; immutable event
+shapes with upcasters and fixture logs; properties as the floor; no
+network in CI; `:live` as a cadence; structural coverage; recorded
+fixtures; cost assertions; write-only logs; wrapped secrets. Inverted:
+the core makes model calls, through one metered port. Oneiroi's own:
+tenancy (RLS on every projection, scoped Repo), the consent boundary and
+the unawareness invariant as tests, actor and note on every event,
+bounds tagged in the settings module, prompts as files. Spec §12 now
+names the gates and the layers.
+
 ## Round 8: the P0 plan (2026-10-26)
 
 - P0 is sequenced in `design/p0-plan.md`: four attended steps (skeleton
@@ -230,3 +246,6 @@ Design system canonical over the design-language doc (not kept up to date).
   substrate question was put as "does lifting chain us to Catapult's
   lifecycle": no, because it is a copy with no upstream, and the plan now
   says so.
+- Working agreement from the author, after two design PRs conflicted on
+  this file: this thread keeps one PR open at a time, however large it
+  grows, and a PR is brought onto main before the next one opens.
