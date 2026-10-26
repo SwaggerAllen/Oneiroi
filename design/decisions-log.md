@@ -249,3 +249,32 @@ names the gates and the layers.
 - Working agreement from the author, after two design PRs conflicted on
   this file: this thread keeps one PR open at a time, however large it
   grows, and a PR is brought onto main before the next one opens.
+
+## Round 9: the rest of P0 in one pass (2026-10-26)
+
+- P0.2, P0.4, P0.6 and P0.7 were built attended in one branch on the
+  author's ask ("knock out the rest of P0 in one go"), with P0.5's
+  repository artifacts beside them; the account-side hookup steps are
+  `SETUP.md`'s. The plan's P0.6 and P0.7 tickets are therefore not the
+  pipeline's first work; the verification ticket is.
+- Secrets at rest are `Oneiroi.Platform.Vault` (AES-256-GCM over
+  `:crypto` under `PLATFORM_VAULT_KEY`), not `cloak_ecto`: the
+  dependency arrived with two open advisories and no fixed release, and
+  `mix deps.audit` refused it. The plan's decision 4 records the change.
+- The export's own bookkeeping (`ExportWritten`, `BackupCommitted`) is
+  `export: false`, and the export line's `sequence` is a dense ordinal:
+  measured, exporting the bookkeeping made every nightly backup commit
+  again forever, and the stream version left gaps a rebuild closes.
+- An imported stream is a new resident with the source's slug suffixed
+  by its new id's first eight hex digits and no remote; the projector
+  reads `imported` from the replayed events' metadata.
+- The ratchet stays at zero by construction rather than by concession:
+  `Oneiroi.Event` split from its codec, and the router and projection
+  macros name every module as an atom. The alternative, raising the
+  number for Commanded's macros, was measured at fifteen edges and
+  declined.
+- The two database roles are one credential and `SET ROLE`; the Render
+  measurement the plan asked for is not needed by that shape and is
+  recorded as not taken.
+- Twelve stubs, not fourteen: Render's previews retire the Pages pair.
+

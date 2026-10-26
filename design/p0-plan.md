@@ -248,9 +248,12 @@ over.
    block, `deploy.provider: render` with the service id, the `state`
    block, `staleClaimGrace: 20m`, `citationShorthands` for `spec` and
    `conventions`.
-3. **The stubs**: the fourteen from orchestration's `examples/stubs`,
-   each with `ci.yml`'s environment block, Node beside the BEAM, and the
-   Postgres service.
+3. **The stubs**: twelve of the fourteen from orchestration's
+   `examples/stubs`, the five that run the project's own commands with
+   `ci.yml`'s environment block, Node beside the BEAM, and the Postgres
+   service. `pipeline-pages-provision` and `pipeline-preview-cleanup`
+   are not copied: Render builds and expires the preview per PR from
+   `render.yaml`, and Catapult retired both on the same move.
 4. **Orchestration's own touch-ups** (spec §11), landed in that repo by
    the author in the same sitting: the design-artifact list as a
    parameterised block, the design prompt phrased for React components
@@ -335,13 +338,21 @@ GitHub and the rebuild done on a second database.
    is created, pgvector confirmed on it, and CI and `render.yaml` pinned
    to it in one commit. Spec §2.1's "16 or later" permits this; Catapult
    pinned 18 the same way because CI was cheaper to move than a database.
-4. **Secrets at rest** use `cloak_ecto` (MIT) with a deployment key from
-   the config module. A new direct dependency, named here as the decision.
+4. **Secrets at rest** were to use `cloak_ecto` (MIT) with a deployment
+   key from the config module. Superseded in the build (decisions log
+   round 9): the gate refused its two open advisories, and
+   `Oneiroi.Platform.Vault` over `:crypto` took its place under the same
+   key.
 5. **The GitHub provider's credential in P0** is a fine-grained token the
    steward pastes, scoped to a repository they created; a GitHub App that
    creates repositories and installs deploy keys comes with Gitea.
 6. **The tracker** is a project under the `ORC` team.
 7. **Identity is written attended**, as P0.4.
+8. **P0.6 and P0.7 were built attended too**, in one pass with the spine
+   (decisions log round 9), because the author asked for the rest of P0
+   in one go; their tickets become the verification ticket's successors
+   only as follow-ups the pipeline files later, not as the first work it
+   delivers.
 
 ## Ticket drafts (filed on the author's ask)
 
@@ -367,8 +378,8 @@ Filled in as they are taken, each with its date and where it was taken.
 | Measurement | Where it is needed | Value |
 | --- | --- | --- |
 | Full gate set wall clock on CI | whether the gate block is affordable per PR | 2m19s on a cold cache, PR #6's first run (`40270464624`, 2026-10-26): checkout, BEAM and Node setup, every gate line including the client's `npm ci` and storybook build |
-| Event store reset per test run | decision 2 | |
-| Second database role on Render's managed Postgres | P0.2 step 2 | |
+| Event store reset per test run | decision 2 | 3s for drop, create and migrate (Oban, the event store schema, the application role, three projections), measured locally 2026-10-26 with the shell timer; the 89-test suite runs in 15.8s after it |
+| Second database role on Render's managed Postgres | P0.2 step 2 | not measured; the build took the `SET ROLE` shape, which needs no answer (systems/platform.md #12) |
 | pgvector on the chosen Postgres major | decision 3 | |
 | Export bytes and seconds per thousand events | the nightly export's budget | |
 | Preview environment cost per hour | `render.yaml`'s `expireAfterDays` | |

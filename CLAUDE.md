@@ -94,11 +94,24 @@ way before trusting a local green.
 - `@tag :skip` needs a ticket key: `@tag skip: "ORC-n reason"`.
 - The gate block above is the gate block; editing one copy is an audit
   failure until all three agree.
-- Every table carries `resident_id` or `account_id` and a row-level
-  policy; the application role cannot bypass RLS (from P0.2).
-- Events are immutable contracts: a change is a new version with an
-  upcaster; every event carries its actor and, for model output, the
-  model slug; every decision event carries `note` (from P0.2).
+- Every projection table is declared with `Oneiroi.Migration.projection/3`
+  and carries `resident_id` or `account_id` and a row-level policy; the
+  application role cannot bypass RLS; a query with no `Oneiroi.Scope`
+  raises. A cross-tenant read is `Scope.platform/1` by name.
+- Events are immutable contracts: `use Oneiroi.Event, version:` listed in
+  the system's `events/0`; a change is a new version with an upcaster,
+  and `test/fixtures/records/` is the test that fails without one. Every
+  event carries its actor and instant and, for model output, the model
+  slug; every decision event carries `note`; the middleware refuses the
+  rest. An instant field besides `at` is named in `instants:`.
+- The macro modules are leaves: `Oneiroi.Event`'s runtime half is
+  `Oneiroi.Event.Codec`, and a router or projector names its application,
+  repo, aggregate and commands as atoms, never aliases (`Oneiroi.Router`
+  has the reason). The compile-connected ratchet is at 0 and stays there.
+- `mix xref graph --format cycles` counts runtime edges: an error module
+  derives its component from `__MODULE__`, a plug reads the endpoint off
+  the conn, and a worker calls its system's service module rather than
+  the export.
 - The core makes model calls only through the provider port, metered by
   the ledger (from P1).
 
@@ -110,3 +123,10 @@ way before trusting a local green.
   evidence it passed.
 - **A stale `_build` fails `--warnings-as-errors` for a lie.** Before
   believing such a failure, `mix compile --force`.
+- **ExUnit runs an async module while sibling files are still
+  compiling.** A test that changes the process-global cwd (`File.cd!`)
+  makes another file's `require` fail with `enoent` on a file that
+  exists; a check that reads files resolves them beside its scope path
+  instead (`Oneiroi.Platform.Policies.Gates`).
+- **Run `mix test` once per shell call.** A second run in the same call
+  once failed on a spurious `enoent`; log one run to a file and read it.
