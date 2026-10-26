@@ -3,8 +3,8 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
 
   alias Oneiroi.Platform.Policies.Gates
 
-  # The check reads three files by fixed name from the working directory,
-  # so each test runs in a directory of its own and writes the three.
+  # The check reads three files by fixed name beside the scope path, so each
+  # test writes the three into a directory of its own.
   setup do
     dir = Path.join(System.tmp_dir!(), "oneiroi-gates-#{System.unique_integer([:positive])}")
     File.mkdir_p!(Path.join(dir, ".github/workflows"))
@@ -12,8 +12,11 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
     {:ok, dir: dir}
   end
 
+  # Never `File.cd!/2`: the cwd is process-global, and ExUnit runs an async
+  # module while sibling test files are still being compiled by relative
+  # path. The check resolves its siblings beside the scope path instead.
   defp run_in(dir, fun) do
-    File.cd!(dir, fn -> fun.() end)
+    fun.(Path.join(dir, "pipeline.config.json"))
   end
 
   defp write!(dir, gates, claude \\ nil, ci \\ nil) do
@@ -37,7 +40,7 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
 
   test "three identical blocks are clean", %{dir: dir} do
     write!(dir, ["mix format --check-formatted", "mix test"])
-    assert run_in(dir, fn -> Gates.run("pipeline.config.json") end) == []
+    assert run_in(dir, &Gates.run/1) == []
   end
 
   test "a gate CLAUDE.md lacks is reported", %{dir: dir} do
@@ -47,7 +50,7 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
       "```oneiroi:gates\nmix format --check-formatted\n```\n"
     )
 
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "CLAUDE.md lacks qualityGates's gate: mix test"
   end
 
@@ -59,13 +62,13 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
       "# oneiroi:gates\n- run: mix test\n- run: mix extra\n# oneiroi:gates end\n"
     )
 
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "qualityGates lacks ci.yml's gate: mix extra"
   end
 
   test "the same gates in another order are reported", %{dir: dir} do
     write!(dir, ["mix a", "mix b"], "```oneiroi:gates\nmix b\nmix a\n```\n")
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "different order"
   end
 
@@ -77,17 +80,17 @@ defmodule Oneiroi.Platform.Policies.GatesTest do
       "# oneiroi:gates\n- run: |\n    mix test\n# oneiroi:gates end\n"
     )
 
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "multi-line run:"
   end
 
   test "a missing fence or region is the finding", %{dir: dir} do
     write!(dir, ["mix test"], "# no block\n")
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "has no ```oneiroi:gates block"
 
     write!(dir, ["mix test"], nil, "steps:\n  - run: mix test\n")
-    assert [problem] = run_in(dir, fn -> Gates.run("pipeline.config.json") end)
+    assert [problem] = run_in(dir, &Gates.run/1)
     assert problem =~ "has no # oneiroi:gates region"
   end
 end

@@ -36,11 +36,21 @@ defmodule Oneiroi.Platform.Policies.Gates do
   @start "# oneiroi:gates"
   @stop "# oneiroi:gates end"
 
+  # The two siblings are resolved beside the scope path rather than from the
+  # working directory. The first version read them from the cwd and its test
+  # ran each case inside `File.cd!/2`, which passed while the suite was small:
+  # ExUnit runs an async module as soon as it is compiled, so once the suite
+  # grew, a case changed the process-global cwd while sibling test files were
+  # still being required by relative path, and the run died with `enoent` on
+  # a file that existed. A check that reads from the cwd forces that on every
+  # test of it.
   @impl Oneiroi.Audit.Check
   def run(scope) do
+    root = Path.dirname(scope)
+
     with {:ok, config} <- config(scope),
-         {:ok, claude} <- claude(@claude),
-         {:ok, ci} <- ci(@ci) do
+         {:ok, claude} <- claude(Path.join(root, @claude)),
+         {:ok, ci} <- ci(Path.join(root, @ci)) do
       compare(config, claude, ci)
     else
       {:error, problem} -> [problem]

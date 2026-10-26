@@ -14,7 +14,9 @@ defmodule Oneiroi.Application do
 
   # A top-level boundary of its own, depending on both halves it composes
   # and depended on by neither (`Oneiroi`'s moduledoc).
-  use Boundary, top_level?: true, deps: [Oneiroi, OneiroiWeb]
+  use Boundary,
+    top_level?: true,
+    deps: [Oneiroi, Oneiroi.Identity, Oneiroi.Records, Oneiroi.Resident, OneiroiWeb]
 
   alias Oneiroi.Boot
   alias Oneiroi.Component.Composer

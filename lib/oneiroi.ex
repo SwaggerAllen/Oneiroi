@@ -34,13 +34,56 @@ defmodule Oneiroi do
   """
   use Boundary,
     deps: [
+      # An implicit boundary covers a module namespace within one
+      # application, so Ecto and Commanded are several entries each.
+      Commanded,
+      Commanded.Commands.Router,
+      Commanded.Event.Handler,
+      Commanded.Middleware,
+      Commanded.Middleware.Pipeline,
+      Commanded.Projections.Ecto,
+      Commanded.Serialization.JsonDecoder,
+      Commanded.Serialization.JsonSerializer,
+      Ecto,
+      Ecto.Adapters.Postgres,
+      Ecto.Adapters.SQL,
+      Ecto.Adapters.SQL.Sandbox,
+      Ecto.Changeset,
+      Ecto.Migration,
+      Ecto.Migrator,
+      Ecto.Multi,
+      Ecto.Query,
+      Ecto.Schema,
+      Ecto.Type,
+      EventStore,
       Jason,
+      Oban,
       Phoenix.PubSub,
-      Plug
+      Plug,
+      Postgrex
     ],
     exports: [
+      Actor,
       Boot,
+      Commanded.Middleware.Actor,
+      System,
+      Command,
+      Commanded,
+      Event,
+      Event.Codec,
+      EventStore,
       Platform,
-      Platform.HealthPlug
+      Platform.Clock,
+      Platform.Clock.Fake,
+      Platform.HealthPlug,
+      Platform.Jobs,
+      Platform.PubSub,
+      Platform.Vault,
+      Platform.Vault.Encrypted,
+      Projection,
+      Repo,
+      Router,
+      Scope,
+      Worker
     ]
 end
