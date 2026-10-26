@@ -23,8 +23,10 @@ own it says so. Three Catapult rules invert here and are marked.
   Commanded and EventStore (events), Oban (jobs), Boundary (isolation),
   Req (HTTP), Ecto and pgvector (projections, embeddings), PromEx
   (metrics), ex_machina (factories), StreamData (properties). Client:
-  React 18, TypeScript, Storybook, an OpenAPI-generated client and a typed
-  channel client. Every extra way to do one thing is a review burden.
+  React 19 (the generator's current stable; the design system's
+  components are plain function components and port unchanged),
+  TypeScript, Vite, Vitest with Storybook's portable stories as the
+  render tests, an OpenAPI-generated client and a typed channel client. Every extra way to do one thing is a review burden.
 - **A new direct dependency is a decision, not a port.** Named in the
   ticket or sketch with its reason. Transitive lockfile churn is accepted.
 - **License gate on the adapter SDK.** `sdk/` (Apache-2.0, the package
@@ -52,19 +54,23 @@ mix sobelow --exit --skip --ignore Config.HTTPS   # armed from day one: the core
 mix compile --warnings-as-errors     # the Boundary compiler is in the set
 mix xref graph --format cycles --fail-above 0
 mix xref graph --label compile-connected --fail-above 0   # the ratchet, armed at 0 while it is free
-mix oneiroi.audit                    # the check registry, §13 below
+mix oneiroi.audit.all                # the check registry (§13), over every mix project
 mix test                             # Postgres; sandbox, async; no network
 cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
-cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && \
-  mix credo --strict && mix compile --warnings-as-errors && \
-  mix xref graph --format cycles --fail-above 0 && \
-  mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix test
+cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix test
 ```
 
+Each `cd` line is one gate, written on one line in all three places,
+because the `gates` check compares lines and parses no YAML; the
+substrate and the SDK run `mix hex.audit` alone rather than the
+`deps.audit` alias, since neither takes an audit dependency to get one.
+
 - **The gate set is a property of a mix project, not the repo.** The
-  audit's globs are rooted at the working directory, so `sdk/` runs its
-  own block; `mix oneiroi.audit.all` at the root runs every project and
-  exits 1 rather than skipping when one is unresolved.
+  audit's globs are rooted at the working directory, so `sdk/` and
+  `components/substrate/` run their own blocks; `mix oneiroi.audit.all`
+  at the root runs the audit in every project and exits 1 rather than
+  skipping when one is unresolved.
 - **The ratchet's number lives only in `pipeline.config.json` and
   `ci.yml`**, both author-owned, never in `config/*.exs`, a module
   attribute or a baseline file: an agent that adds a compile dependency
@@ -114,16 +120,23 @@ the sixteen systems of spec §6.
 
 - **Every system is a Boundary with an explicit export list.** Single OTP
   app, no umbrella; nested boundaries for subcomponents; cross-system calls
-  go through exports only. No cross-boundary schema access, no
+  go through exports only. External-dependency checking is armed as
+  `check: [apps: [...]]` rather than `type: :strict`, because strict with
+  a path dependency fails on the second gate run of a CI job (Boundary's
+  cached view drops the path dep's boundaries on an incremental compile;
+  measured on Catapult), and the audit's boundary-apps check holds the
+  list complete. No cross-boundary schema access, no
   cross-boundary Repo queries; a read model spanning systems is its own
   system with declared dependencies.
 - **Standard skeleton:** the export module, `Config` (declarations and
   casts), `Supervisor`, `Store`, `Events`, `TestSupport` (boundary-exported,
   test env only), and the system doc with its file map.
-- **The component behaviour** (`use Oneiroi.System`) declares the
-  registries: `config/0` (with secret flags), `processes/0`, `errors/0`,
+- **The component behaviour** (`use Oneiroi.System`, the substrate's
+  `Oneiroi.Component` under the spec's own word) declares the
+  registries: `config/0` (the settings, each with `usage:`, a `tag:`
+  when numeric, and secret flags), `processes/0`, `errors/0`,
   `externals/0`, `telemetry_events/0`, `events/0`, `oban_queues/0`,
-  `pubsub_topics/0`, `settings/0`. The root composer fails the boot and the
+  `pubsub_topics/0`, `policies/0`. The root composer fails the boot and the
   audit on a collision, never warns: a warned collision ships.
 - **Root artifacts are composed, never edited:** router, root supervisor,
   the MCP tool table, the settings report. A ticket that edits root glue by
@@ -316,10 +329,12 @@ reported when it covers nothing, and the first set is:
 | `tables` | every table has one owner; every projection has `resident_id` and a policy |
 | `exports_tested` | every boundary export is referenced by a test |
 | `model_port` | no model call outside the provider port |
-| `settings` | every numeric setting is tagged `bound` or `measured`; every setting has a default and a usage line |
+| `settings` | every numeric setting is tagged `bound` or `measured`; every setting has a usage line, and a default unless it is a secret, an external name or `required: false` |
+| `required_env` | a required value this codebase invented is recorded in `SETUP.md`'s `oneiroi:required-env` block, and a recorded name is declared |
+| `boundary_apps` | every application a `:prod` build can reach and Boundary can restrain is named in the apps list |
 | `license` | the SDK's dependency closure is permissive |
 | `skips` | every `@tag :skip` names a ticket |
-| `prompts` | no prompt string literal outside `priv/prompts/` |
+| `prompts` | no prompt string literal outside `priv/prompts/` (lands with the model port in P1, as a string passed to the port's call sites) |
 
 ## 14. Docs and commits
 
