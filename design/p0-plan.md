@@ -14,13 +14,19 @@ the pipeline that will deliver everything after it.
 
 ## Standing decisions for P0
 
-- **The gates predate the work.** P0.1 to P0.4 are attended (this
-  session with the author), and the pipeline delivers from P0.5. Same
+- **The gates predate the work.** P0.1 to P0.5 are attended (this
+  session with the author), and the pipeline delivers from P0.6. Same
   reason as Catapult's Phase 1: reconciliation trusts green, so every
   check must exist, and have been watched failing, before an unattended
-  merge trusts it. The split point is "the first ticket flows"; nothing
-  domain-shaped is written attended.
-- **The substrate is lifted from Catapult, not rewritten.**
+  merge trusts it. Identity is the one domain system written attended,
+  by the author's decision: they want to read the auth code as it is
+  written. It lands before the hookup rather than after, because attended
+  work on `main` once the pipeline runs is out-of-band by orchestration's
+  definition and may only land with nothing in flight; written first, the
+  pipeline's history begins with the verification ticket and the project
+  is never parked for its own authors.
+- **The substrate is lifted from Catapult as a copy, never as a
+  dependency.**
   `components/substrate` there is Apache-2.0 and about 4,900 lines: the
   component behaviour and its registry roster, the composer that fails on
   collision, the config registry with env, static and secret sources, the
@@ -33,7 +39,15 @@ the pipeline that will deliver everything after it.
   as `components/substrate`, a path dependency renamed to the `Oneiroi.*`
   namespace, with its licence kept, and `sdk/` consumes the same
   package: the audit scopes per mix project, and the SDK needs the audit
-  without ever holding core code (conventions §1).
+  without ever holding core code (conventions §1). A copy, not a
+  dependency: no hex package, no git reference, no upstream remote. It is
+  Oneiroi's code from the first commit and diverges at once (the roster
+  rows below). `systems/substrate.md` records the Catapult commit it was
+  taken from so a later session can diff against it by choice; nothing
+  obliges one to. The live dependency on Catapult's neighbourhood is
+  orchestration, pinned at `@v1`, and that one the roadmap chose; the
+  substrate adds no coupling to it, since nothing in the pipeline knows
+  what component macro a project uses.
 - **Four projects exist from the first commit, each empty and
   enforced**: the core at the root, `components/substrate`, `sdk/` and
   `client/`. The gate block in conventions §2 names all four, and a gate
@@ -175,7 +189,7 @@ on CI.
    system's `tokens.json` imported as the theme and one story that
    renders a token swatch, so `npm run build-storybook` builds something.
    `npm run lint`, `typecheck` and `test` configured. The OpenAPI client
-   generates from `/v1/openapi.json`, which P0.5 is the first to
+   generates from `/v1/openapi.json`, which P0.4 is the first to
    populate, and the typed channel client is a stub with its type.
    Phoenix serves the built storybook on previews, which is what Design
    review reads.
@@ -188,7 +202,24 @@ Exit: both blocks in the gate set run and pass. Probes: a copyleft
 dependency added to `sdk/mix.exs` (`license`); a story whose variation
 name is not a state name (the export build); a type error in `client/`.
 
-## P0.4 Orchestration hookup (attended, `SETUP.md`)
+## P0.4 identity (attended)
+
+Written with the author watching, by their decision, and before the
+hookup for the reason the standing decisions give. It depends on no other
+system, and every later system scopes by the principal it creates.
+
+Accounts with password and TOTP; argon2 hashes; sessions as random ids
+with the hash stored, thirty-day expiry; `__Host-` cookies, `HttpOnly`,
+`Secure`, `SameSite=Strict`; `Origin` checked on every mutation; the CSP
+allowing the client bundle and nothing else; failed logins slowed, never
+locked. The Account aggregate's v1 events. The stewardship relation with
+a start and an end, and the community as a principal. The JSON API token
+for scripts. `/v1/openapi.json` with its first routes, so the client
+generates. The self-hosted setup task that creates the one account.
+Contract tests per role token, asserting exactly which routes each may
+call. Sobelow has its first real surface here.
+
+## P0.5 Orchestration hookup (attended, `SETUP.md`)
 
 A runbook rather than tickets, because the pipeline does not run until
 it is done. Catapult's `SETUP.md` is the template and most lines carry
@@ -219,10 +250,10 @@ over.
    parameterised block, the design prompt phrased for React components
    and CSF stories, the class audit reading `.tsx` base names under
    `componentPaths`, the stub environment block installing Node.
-5. **The tracker**: a Linear team for Oneiroi (none exists; the
-   workspace has ORC, CAT and STR), its project, `pipeline setup
-   --apply` to create the states and labels, the team and project ids in
-   the config.
+5. **The tracker**: a Linear project for Oneiroi under the `ORC` team,
+   which is where Catapult's project lives too (its config names that
+   team's id); `pipeline setup --apply` to create any state or label the
+   team lacks; the team and project ids in the config.
 6. **The metronome**: the `PROJECTS` entry in the Worker's config, the
    `DISPATCH_TOKEN` repository list, the GitHub webhook for workflow runs
    and deployment statuses.
@@ -236,27 +267,10 @@ over.
    unattended. Its Done is this phase's exit, and the moment the ci
    audit step stops printing "skipped".
 
-Exit: the verification ticket is Done; the backlog holds P0.5 to P0.7
+Exit: the verification ticket is Done; the backlog holds P0.6 and P0.7
 as tickets and P1 as coarse placeholders. Tickets are filed on the
 author's ask (orchestration's rule), from the drafts in the last
 section.
-
-## P0.5 identity (pipeline ticket)
-
-The first real ticket, chosen because it depends on no other system and
-Phoenix authentication is well-trodden ground: it proves the pipeline on
-bounded work before the pipeline meets an aggregate.
-
-Accounts with password and TOTP; argon2 hashes; sessions as random ids
-with the hash stored, thirty-day expiry; `__Host-` cookies, `HttpOnly`,
-`Secure`, `SameSite=Strict`; `Origin` checked on every mutation; the CSP
-allowing the client bundle and nothing else; failed logins slowed, never
-locked. The Account aggregate's v1 events. The stewardship relation with
-a start and an end, and the community as a principal. The JSON API token
-for scripts. `/v1/openapi.json` with its first routes, so the client
-generates. The self-hosted setup task that creates the one account.
-Contract tests per role token, asserting exactly which routes each may
-call. Sobelow has its first real surface here.
 
 ## P0.6 resident (pipeline ticket)
 
@@ -304,28 +318,24 @@ GitHub and the rebuild done on a second database.
 
 ---
 
-## Decisions this plan needs from the author
+## Decisions, settled 2026-10-26
 
-1. Lift the substrate as a path dependency, as above. The alternative is
-   a rewrite, which this plan argues against.
-2. The event store on Postgres in test, as above.
-3. **The Postgres major.** Spec §2.1 says 16 or later. Catapult pinned
-   18 because Render chose it at creation and CI was cheaper to move than
-   the database. Recommendation: read Render's default when the blueprint
-   is created, confirm pgvector is available on it, and pin CI and
-   `render.yaml` to that major in the same commit.
-4. **Secrets at rest.** Recommendation: `cloak_ecto` (MIT) with a
-   deployment key from the config module, over an in-house AES-GCM
-   module. A new direct dependency is a decision, so it is named here
-   rather than in the ticket.
-5. **The GitHub provider's credential in P0.** Recommendation: the
-   steward creates the repository and pastes a fine-grained token scoped
-   to it; a GitHub App that creates repositories and installs deploy keys
-   is later work, alongside Gitea.
-6. **The Linear team key** for Oneiroi.
-7. Whether identity goes through the pipeline. The plan says yes, as the
-   proof; the author can take it attended if they would rather read every
-   line of the auth code as it is written.
+1. The substrate is lifted as a copy, as the standing decisions say,
+   after the author asked whether lifting chains Oneiroi to Catapult's
+   lifecycle. It does not: a copy has no upstream, and the measured rules
+   and their tests are what a rewrite would lose.
+2. The event store runs on Postgres in test.
+3. **The Postgres major** is read off Render's default when the blueprint
+   is created, pgvector confirmed on it, and CI and `render.yaml` pinned
+   to it in one commit. Spec §2.1's "16 or later" permits this; Catapult
+   pinned 18 the same way because CI was cheaper to move than a database.
+4. **Secrets at rest** use `cloak_ecto` (MIT) with a deployment key from
+   the config module. A new direct dependency, named here as the decision.
+5. **The GitHub provider's credential in P0** is a fine-grained token the
+   steward pastes, scoped to a repository they created; a GitHub App that
+   creates repositories and installs deploy keys comes with Gitea.
+6. **The tracker** is a project under the `ORC` team.
+7. **Identity is written attended**, as P0.4.
 
 ## Ticket drafts (filed on the author's ask)
 
@@ -334,10 +344,6 @@ what it touches, open questions stated.
 
 - **Verify the pipeline on a README touch.** Argument: nothing after
   this merges unattended until one ticket has. Touches `README.md`.
-- **Build identity: accounts, sessions and stewardship.** Argument: every
-  later system scopes by a principal that does not exist yet; P0.5 above.
-  Touches `lib/oneiroi/identity/**`, `lib/oneiroi_web/auth/**`,
-  `systems/identity.md`.
 - **Build the resident aggregate with per-resident id sequences.**
   Argument: P0.6 above; the id rule is what makes citations survive a
   rebuild, and it must exist before the first citeable thing does.

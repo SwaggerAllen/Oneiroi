@@ -223,3 +223,10 @@ Design system canonical over the design-language doc (not kept up to date).
   recommended), the GitHub provider's credential in P0 (a steward-supplied
   fine-grained token recommended), the Linear team key, whether identity
   goes through the pipeline.
+- Settled the same day: all of the above as recommended, with two
+  changes. Identity is written attended (P0.4, ahead of the hookup so the
+  project is never parked for its own authors), and the tracker is a
+  project under the existing `ORC` team rather than a new team. The
+  substrate question was put as "does lifting chain us to Catapult's
+  lifecycle": no, because it is a copy with no upstream, and the plan now
+  says so.
