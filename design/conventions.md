@@ -54,23 +54,28 @@ mix sobelow --exit --skip --ignore Config.HTTPS   # armed from day one: the core
 mix compile --warnings-as-errors     # the Boundary compiler is in the set
 mix xref graph --format cycles --fail-above 0
 mix xref graph --label compile-connected --fail-above 0   # the ratchet, armed at 0 while it is free
-mix oneiroi.audit.all                # the check registry (§13), over every mix project
+mix oneiroi.audit                    # the check registry (§13); each project runs its own, below
 mix test                             # Postgres; sandbox, async; no network
 cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
-cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix test
-cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix test
+cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 ```
 
 Each `cd` line is one gate, written on one line in all three places,
 because the `gates` check compares lines and parses no YAML; the
 substrate and the SDK run `mix hex.audit` alone rather than the
-`deps.audit` alias, since neither takes an audit dependency to get one.
+`deps.audit` alias, since neither takes an audit dependency to get one,
+and each runs its own `mix oneiroi.audit` after its own `deps.get`: an
+audit over a project whose deps are unresolved exits 1 rather than
+skipping, which is why `mix oneiroi.audit.all` is a local shortcut and
+not a gate line (measured: the first ordinary-user run of this block
+failed exactly there).
 
 - **The gate set is a property of a mix project, not the repo.** The
   audit's globs are rooted at the working directory, so `sdk/` and
-  `components/substrate/` run their own blocks; `mix oneiroi.audit.all`
-  at the root runs the audit in every project and exits 1 rather than
-  skipping when one is unresolved.
+  `components/substrate/` run their own blocks, each with its own audit;
+  `mix oneiroi.audit.all` at the root runs the three audits in one go and
+  exits 1 rather than skipping when a project's deps are unresolved.
 - **The ratchet's number lives only in `pipeline.config.json` and
   `ci.yml`**, both author-owned, never in `config/*.exs`, a module
   attribute or a baseline file: an agent that adds a compile dependency
