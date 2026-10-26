@@ -221,3 +221,31 @@ tenancy (RLS on every projection, scoped Repo), the consent boundary and
 the unawareness invariant as tests, actor and note on every event,
 bounds tagged in the settings module, prompts as files. Spec §12 now
 names the gates and the layers.
+
+## Round 8: the P0 plan (2026-10-26)
+
+- P0 is sequenced in `design/p0-plan.md`: four attended steps (skeleton
+  and substrate, the persistence spine, the client and SDK skeletons, the
+  orchestration hookup), then three pipeline-delivered tickets (identity,
+  resident, records) after a verification ticket.
+- Catapult's `components/substrate` is Apache-2.0 and is lifted as a path
+  dependency rather than rewritten; the SDK consumes the same package.
+- The event store runs on Postgres in test as well as production; the
+  in-memory adapter would be a fake that disagrees with the real store.
+- The export never carries the resident's uuid, so a rebuild can be a new
+  resident and still re-export byte-identically up to the `Imported`
+  event.
+- Open for the author: the Postgres major, secrets at rest (`cloak_ecto`
+  recommended), the GitHub provider's credential in P0 (a steward-supplied
+  fine-grained token recommended), the Linear team key, whether identity
+  goes through the pipeline.
+- Settled the same day: all of the above as recommended, with two
+  changes. Identity is written attended (P0.4, ahead of the hookup so the
+  project is never parked for its own authors), and the tracker is a
+  project under the existing `ORC` team rather than a new team. The
+  substrate question was put as "does lifting chain us to Catapult's
+  lifecycle": no, because it is a copy with no upstream, and the plan now
+  says so.
+- Working agreement from the author, after two design PRs conflicted on
+  this file: this thread keeps one PR open at a time, however large it
+  grows, and a PR is brought onto main before the next one opens.

@@ -1276,6 +1276,8 @@ settings, not tiers (Honcho, the digest, feeds, predictions).
 
 Each phase builds only on the ones before it; the order is what the data
 and the adapters require, not a schedule.
+P0's own sequence, with its exit criteria, probes and the decisions it
+waits on, is `design/p0-plan.md`.
 
 | Phase | Builds | Depends on |
 | --- | --- | --- |
