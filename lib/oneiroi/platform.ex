@@ -1,39 +1,67 @@
 defmodule Oneiroi.Platform do
   @moduledoc """
   The platform system (spec §6.16): fleet pins, the configuration module,
-  deploy, observability, the status page. In P0.1 it owns the one process
-  the skeleton starts (PubSub), the two settings the endpoint needs, and
-  the two audit checks that are Oneiroi's own rather than the substrate's:
-  `gates` and `skips`. The Repo, Oban and the rest of the spine arrive
-  with P0.2.
+  deploy, observability, the status page. It owns the persistence spine
+  (plan P0.2): the one Repo and the migrator, the event store and the
+  Commanded application, Oban with the queues every system declares, the
+  vault, the injected clock, and the audit checks that are Oneiroi's own
+  (`gates`, `skips`, `tables`).
   """
   use Oneiroi.System, slug: :platform
 
-  # Served over a network to people who are not its operator: `:service`,
-  # under the core's own licence. `{:service, :listed}` arms no dependency
-  # check, as it should; we offer source on AGPL's own terms.
+  alias Oneiroi.Component.Composer
+
+  alias Ecto.Adapters.SQL
+  alias Oneiroi.Platform.Vault
+
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
 
   @impl Oneiroi.Component
   def config do
     [
-      # Deliberately not PORT: this is the app's own listener, and
-      # `render.yaml` sets both to one number so the platform's probe and
-      # the app's socket cannot disagree. A bound, not a measurement.
       {:http_port, "PLATFORM_HTTP_PORT",
        cast: :integer,
        default: "8080",
        tag: :bound,
        usage: "the port the endpoint binds; the health probe reaches it directly"},
-      # The endpoint's own secret: signs the session cookie. No default,
-      # so a build without it fails at boot with the report naming it; the
-      # cast enforces Plug.Session.Cookie's 64-byte floor so a short value
-      # is a boot-time line rather than a 500 on the first request.
       {:secret_key_base, "PLATFORM_SECRET_KEY_BASE",
        cast: &__MODULE__.cast_secret_key_base/1,
        secret: true,
-       usage: "signs the session cookie and every token the endpoint issues"}
+       usage: "signs the session cookie and every token the endpoint issues"},
+      # The one name imposed from outside: the platform supplies the
+      # connection string under DATABASE_URL (render.yaml binds it from
+      # the database) and every Postgres client expects this key. The
+      # credential is the migrator's; the application takes its own role
+      # on connect (Oneiroi.Repo).
+      {:database_url, "DATABASE_URL",
+       cast: &__MODULE__.cast_database_url/1,
+       secret: true,
+       external: true,
+       usage: "the Repo's, the migrator's and the event store's connection; the owner credential"},
+      {:pool_size, "PLATFORM_POOL_SIZE",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage: "the Repo's connection pool; a bound until the first instance is measured"},
+      {:event_store_pool_size, "PLATFORM_EVENT_STORE_POOL_SIZE",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage: "the event store's own connection pool, beside the Repo's"},
+      {:queue_concurrency, "PLATFORM_QUEUE_CONCURRENCY",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage: "Oban's concurrency per declared queue; a bound until a queue is measured"},
+      {:vault_key, "PLATFORM_VAULT_KEY",
+       cast: &Vault.cast_key/1,
+       secret: true,
+       usage: "the deployment key secrets at rest are encrypted under (Oneiroi.Platform.Vault)"},
+      {:clock, "PLATFORM_CLOCK",
+       cast: &__MODULE__.cast_clock/1,
+       default: "system",
+       usage: "the injected clock: system in every real build, fake in test (conventions §9)"}
     ]
   end
 
@@ -42,13 +70,47 @@ defmodule Oneiroi.Platform do
   def cast_secret_key_base(raw) when byte_size(raw) >= 64, do: {:ok, raw}
 
   def cast_secret_key_base(raw) do
-    # The byte count is not the secret; the value itself never appears.
     {:error, "must be at least 64 bytes (Plug.Session.Cookie's minimum), is #{byte_size(raw)}"}
   end
+
+  @doc """
+  Casts a database URL into the options the Repo and the store merge. A
+  managed platform may append `?sslmode=require`, which Ecto's parser
+  refuses, so the query string is stripped and TLS set explicitly. The
+  reason names no part of the value: this one carries a password.
+  """
+  @spec cast_database_url(String.t()) :: {:ok, keyword()} | {:error, String.t()}
+  def cast_database_url(raw) do
+    [base | _query] = String.split(raw, "?", parts: 2)
+
+    case URI.new(base) do
+      {:ok, %URI{scheme: scheme, host: host}}
+      when is_binary(scheme) and is_binary(host) and host != "" ->
+        {:ok, [url: base, ssl: ssl_option(raw)]}
+
+      _other ->
+        {:error, "is not a database URL (expected scheme://user:password@host/database)"}
+    end
+  end
+
+  defp ssl_option(raw) do
+    if String.contains?(raw, "sslmode=require"), do: [verify: :verify_none], else: false
+  end
+
+  @doc "Casts the configured clock name to its module."
+  @spec cast_clock(String.t()) :: {:ok, module()} | {:error, String.t()}
+  def cast_clock("system"), do: {:ok, Oneiroi.Clock.System}
+  def cast_clock("fake"), do: {:ok, Oneiroi.Platform.Clock.Fake}
+  def cast_clock(other), do: {:error, "is #{inspect(other)}, expected \"system\" or \"fake\""}
 
   @impl Oneiroi.Component
   def processes do
     [{:platform_pubsub, :local}]
+  end
+
+  @impl Oneiroi.Component
+  def telemetry_events do
+    [[:oneiroi, :platform, :repo, :query]]
   end
 
   @impl Oneiroi.Component
@@ -57,12 +119,51 @@ defmodule Oneiroi.Platform do
       {Oneiroi.Platform.Policies.Gates, "pipeline.config.json",
        policy: "conventions §2: the gate set is identical in CLAUDE.md, ci.yml and qualityGates"},
       {Oneiroi.Platform.Policies.Skips, "test/**/*.exs",
-       policy: "conventions §9: a skipped test names the ticket that owns it"}
+       policy: "conventions §9: a skipped test names the ticket that owns it"},
+      {Oneiroi.Platform.Policies.Tables, "priv/repo/migrations/*.exs",
+       policy: "conventions §12: every table has one owner, a scope column and a row-level policy"}
     ]
   end
 
   @impl Oneiroi.Component
   def children do
-    [{Phoenix.PubSub, name: :platform_pubsub}]
+    [
+      {Phoenix.PubSub, name: :platform_pubsub},
+      Oneiroi.Repo,
+      Oneiroi.Commanded,
+      {Oban, oban_config()}
+    ]
   end
+
+  @impl Oneiroi.Component
+  def ready? do
+    match?({:ok, _}, SQL.query(Oneiroi.Repo, "SELECT 1", []))
+  rescue
+    _ -> false
+  end
+
+  @doc """
+  Oban's configuration, composed from every system's `oban_queues/0`:
+  the queues at the declared concurrency and the crontab from the
+  queues' `cron:` entries. A root artifact composed from declarations,
+  never edited (conventions §4). In test Oban runs in manual mode and
+  starts no queue.
+  """
+  @spec oban_config() :: keyword()
+  def oban_config do
+    inventory = Composer.inventory(Oneiroi.Boot.components())
+    concurrency = Oneiroi.Config.fetch!(:platform, :queue_concurrency)
+    queues = for entry <- inventory.oban_queues, do: {entry.queue, concurrency}
+
+    crontab =
+      for entry <- inventory.oban_queues,
+          {schedule, worker} <- Keyword.get(entry.opts, :cron, []),
+          do: {schedule, worker}
+
+    base = [repo: Oneiroi.Repo, queues: queues, plugins: plugins(crontab)]
+    Keyword.merge(base, Application.get_env(:oneiroi, Oban, []))
+  end
+
+  defp plugins([]), do: []
+  defp plugins(crontab), do: [{Oban.Plugins.Cron, crontab: crontab}]
 end

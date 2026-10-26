@@ -349,7 +349,7 @@ reported when it covers nothing, and the first set is:
   inventory, no state sections; amended in the same change that moves a
   boundary. Every heading and standing decision opens with an id, the
   reason lives in the `.reasons.md` sibling, and a rule is cited by id
-  (`memory#4`), never by its wording.
+  (`system:memory#4`), never by its wording.
 - **A number in prose is a claim no later pass re-derives.** Enumerate
   wherever the members are nameable.
 - **Naming some of the sites a rule reaches makes the next pass treat the

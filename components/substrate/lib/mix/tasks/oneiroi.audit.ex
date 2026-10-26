@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Oneiroi.Audit do
   `mix xref graph --label compile-connected --fail-above N` is stock and
   already exits 1, so the number lives in `qualityGates` — author-owned,
   which is what makes "raising it is a reviewed change" literal rather
-  than aspirational (docs/conventions.md §2).
+  than aspirational (design/conventions.md §2).
 
   ## A green run prints a census
 

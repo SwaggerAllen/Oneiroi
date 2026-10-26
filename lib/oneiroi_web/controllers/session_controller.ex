@@ -1,0 +1,59 @@
+defmodule OneiroiWeb.SessionController do
+  use OneiroiWeb, :controller
+
+  alias Oneiroi.Identity.Error, as: IdentityError
+  alias OpenApiSpex.Schema
+
+  tags(["identity"])
+
+  operation(:create,
+    summary: "Log in: open a session",
+    request_body:
+      {"credentials", "application/json",
+       %Schema{
+         type: :object,
+         required: [:email, :password],
+         properties: %{
+           email: %Schema{type: :string},
+           password: %Schema{type: :string},
+           code: %Schema{
+             type: :string,
+             description: "the TOTP code, once a second factor is enrolled"
+           }
+         }
+       }},
+    responses: [
+      created: {"the principal", "application/json", %Schema{type: :object}},
+      unauthorized: {"refused", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def create(conn, %{"email" => email, "password" => password} = params) do
+    case Oneiroi.Identity.login(email, password, params["code"]) do
+      {:ok, raw, principal} ->
+        conn
+        |> put_session(:sid, raw)
+        |> put_status(201)
+        |> json(%{account_id: principal.account_id, email: principal.email})
+
+      {:error, :identity_second_factor_required} ->
+        error(conn, 401, IdentityError.new(:identity_second_factor_required))
+
+      {:error, _reason} ->
+        error(conn, 401, IdentityError.new(:identity_invalid_credentials))
+    end
+  end
+
+  def create(conn, _params),
+    do: problem(conn, 422, :credentials_required, "email and password are required")
+
+  operation(:delete, summary: "Log out: close the session", responses: [no_content: "closed"])
+
+  def delete(conn, _params) do
+    with raw when is_binary(raw) <- get_session(conn, :sid) do
+      Oneiroi.Identity.logout(raw)
+    end
+
+    conn |> configure_session(drop: true) |> send_resp(204, "")
+  end
+end

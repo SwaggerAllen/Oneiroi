@@ -52,18 +52,38 @@ defmodule Oneiroi.MixProject do
       default: [
         check: [
           apps: [
+            :argon2_elixir,
+            :backoff,
             :bandit,
+            :commanded,
+            :commanded_ecto_projections,
+            :commanded_eventstore_adapter,
+            :comeonin,
+            :db_connection,
+            :decimal,
+            :ecto,
+            :ecto_sql,
+            :eventstore,
+            :fsm,
+            :gen_stage,
             :hpax,
             :jason,
+            :logger_json,
             :mime,
+            :nimble_totp,
+            :oban,
+            :open_api_spex,
             :phoenix,
             :phoenix_pubsub,
             :phoenix_template,
             :plug,
             :plug_crypto,
+            :postgrex,
+            :telemetry_registry,
             :thousand_island,
             :websock,
-            :websock_adapter
+            :websock_adapter,
+            :ymlr
           ]
         ]
       ]
@@ -86,6 +106,25 @@ defmodule Oneiroi.MixProject do
       {:phoenix, "~> 1.8.1"},
       {:bandit, "~> 1.5"},
       {:jason, "~> 1.4"},
+      # The persistence spine (plan P0.2, conventions §1's blessed list):
+      # one Repo on Postgres, Commanded over EventStore for the event log,
+      # Ecto projections, Oban for jobs.
+      {:ecto_sql, "~> 3.13"},
+      {:postgrex, "~> 0.22"},
+      {:commanded, "~> 1.4"},
+      {:commanded_eventstore_adapter, "~> 1.4"},
+      {:eventstore, "~> 1.4"},
+      {:commanded_ecto_projections, "~> 1.4"},
+      {:oban, "~> 2.20"},
+      # Identity (plan P0.4): argon2 hashes and TOTP second factors.
+      {:argon2_elixir, "~> 4.1"},
+      {:nimble_totp, "~> 1.0"},
+      # The OpenAPI document the client generates from (spec §2.1).
+      {:open_api_spex, "~> 3.21"},
+      # Structured JSON logs to stdout (conventions §10), prod only.
+      {:logger_json, "~> 7.0"},
+      {:stream_data, "~> 1.1", only: :test},
+      {:ex_machina, "~> 2.8", only: :test},
       {:boundary, "~> 0.10", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
@@ -101,6 +140,13 @@ defmodule Oneiroi.MixProject do
       # `hex.audit` first (the supply gate, reads the registry before
       # anything compiles), `mix_audit` second (a second opinion).
       "deps.audit": ["hex.audit", "deps.audit"],
+      # The event store is not sandboxed (its own connection, its own
+      # schema), so the suite starts from an empty store every run: drop,
+      # create, migrate, test. Measured on the first run (plan: the store
+      # reset per test run) and recorded in design/p0-plan.md.
+      "ecto.setup": ["ecto.create", "ecto.migrate"],
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      test: ["ecto.drop --quiet", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
       # The audit's globs are rooted at the working directory, so the
       # invoker that knows this repo has three mix projects lives here
       # and nowhere the shipped task could know a layout. It exits 1

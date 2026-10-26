@@ -18,7 +18,9 @@ prevents, so read the reason before changing the rule.
   Storybook.
 - `design/` — the spec, the conventions, the plan and the decisions log.
 - `systems/` — one doc per system with its file map and standing
-  decisions, as orchestration reads them.
+  decisions, as orchestration reads them; `screens/` the same per client
+  screen; `CHANGE.md`, `non-asks.md` and `tests/manual/` the other design
+  artifacts; `SETUP.md` the attended runbook.
 
 ## Gates
 

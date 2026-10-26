@@ -1,13 +1,18 @@
 defmodule OneiroiWeb do
   @moduledoc """
-  The web layer's boundary and use-macros: the endpoint, the router and
-  the JSON surface. It reaches the core for the roster and the health
-  plug and nothing under `Oneiroi.*` reaches it except the application
-  that starts the endpoint.
+  The web layer's boundary and use-macros: the endpoint, the router, the
+  plugs and the JSON controllers of `/v1`. It reaches the core's exports
+  and nothing under `Oneiroi.*` reaches it except the application root.
   """
   use Boundary,
     deps: [
       Oneiroi,
+      Oneiroi.Identity,
+      Oneiroi.Records,
+      Oneiroi.Resident,
+      OpenApiSpex,
+      OpenApiSpex.Plug.PutApiSpec,
+      OpenApiSpex.Plug.RenderSpec,
       Phoenix,
       Phoenix.PubSub,
       Plug
@@ -28,8 +33,10 @@ defmodule OneiroiWeb do
   def controller do
     quote do
       use Phoenix.Controller, formats: [:json]
+      use OpenApiSpex.ControllerSpecs
 
       import Plug.Conn
+      import OneiroiWeb.Controllers.Helpers
     end
   end
 
