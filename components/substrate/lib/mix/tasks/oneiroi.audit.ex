@@ -19,8 +19,9 @@ defmodule Mix.Tasks.Oneiroi.Audit do
     * **Facts spanning a registry and a tree**: a declared VM guardrail
       never applied, a declared error kind never constructed, a declared
       config value never read (and a `Oneiroi.Config.fetch!/2` call no
-      declaration explains), and a Phoenix-bearing project with no
-      sobelow gate.
+      declaration explains), a setting with no usage line, no tag on a
+      number or no default without a reason (conventions §13's
+      `settings`), and a Phoenix-bearing project with no sobelow gate.
     * **The boundary apps list** (`Oneiroi.Audit.BoundaryApps`): every
       application a `:prod` build can reach and Boundary can restrain,
       against the list that arms `check: [apps: [...]]`. Armed by that
@@ -221,7 +222,8 @@ defmodule Mix.Tasks.Oneiroi.Audit do
     Declarations.guardrails(inventory.processes, Oneiroi.Guardrails.enforceable(), @scope) ++
       Declarations.error_kinds(inventory.errors, @scope) ++
       Declarations.config(declarations, @scope) ++
-      Declarations.operator_values(declarations, @manifest, @scope)
+      Declarations.operator_values(declarations, @manifest, @scope) ++
+      Declarations.settings(declarations, @scope)
   end
 
   ## Gates this task reports and never runs

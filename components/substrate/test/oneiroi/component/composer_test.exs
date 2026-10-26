@@ -45,6 +45,8 @@ defmodule Oneiroi.Component.ComposerTest do
         {:bad_default, "SLOPPY_BAD_DEFAULT", [cast: :integer, default: 10]},
         {:both, "SLOPPY_BOTH", [default: "x", required: false]},
         {:bad_cast, "SLOPPY_BAD_CAST", [cast: :atom]},
+        {:bad_tag, "SLOPPY_BAD_TAG", [cast: :integer, tag: :guess]},
+        {:bad_usage, "SLOPPY_BAD_USAGE", [usage: 7]},
         {:lowercase, "sloppy_lowercase", []},
         {:dup, "SLOPPY_DUP", []},
         {:dup, "SLOPPY_DUP_TWO", []},
@@ -106,6 +108,8 @@ defmodule Oneiroi.Component.ComposerTest do
     assert err.message =~ "declares both a default and required: false"
     assert err.message =~ "unusable cast :atom"
     assert err.message =~ ~s("sloppy_lowercase" is not a SCREAMING_SNAKE env var name)
+    assert err.message =~ "SLOPPY_BAD_TAG has a tag :guess that is not one of [:bound, :measured]"
+    assert err.message =~ "SLOPPY_BAD_USAGE has a usage 7 that is not a non-empty string"
     assert err.message =~ "declares config key :dup more than once"
     assert err.message =~ "malformed config declaration :not_a_declaration"
   end

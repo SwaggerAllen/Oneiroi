@@ -37,6 +37,16 @@ defmodule Oneiroi.Config do
       the audit's slug-prefix check does not apply. It confers no
       permission: `external: true` on a name nobody else imposes is a
       lie a reviewer can see, which is the most a declaration can offer.
+    * `usage:` — one line saying what reads the value and why it exists.
+      Oneiroi's own addition (conventions §13's `settings` check): a
+      setting with no stated reader is the one an operator sets for
+      nothing, and the boot report is too late to learn that.
+    * `tag:` — `:bound` or `:measured`, on a numeric value. Also
+      Oneiroi's: a number nobody measured is a guess that survives
+      review, and the tag is where the declaration says which it is.
+      The type is checked here; whether a declaration carries them at
+      all is the audit's `Oneiroi.Audit.Declarations.settings/2`, which
+      judges only the tree that declares them.
 
   ## Two reports, at two times
 
@@ -102,7 +112,8 @@ defmodule Oneiroi.Config do
 
   @store {__MODULE__, :values}
 
-  @known_opts [:cast, :default, :external, :required, :secret]
+  @known_opts [:cast, :default, :external, :required, :secret, :tag, :usage]
+  @tags [:bound, :measured]
   @builtin_casts [:string, :integer, :boolean]
   @name_format ~r/\A[A-Z][A-Z0-9_]*\z/
 
@@ -195,6 +206,10 @@ defmodule Oneiroi.Config do
   @doc "The opts a declaration may carry — the composer checks against this."
   @spec known_opts() :: [atom()]
   def known_opts, do: @known_opts
+
+  @doc "The values `tag:` may take: a stated bound, or a measurement."
+  @spec tags() :: [atom()]
+  def tags, do: @tags
 
   @doc """
   Structural problems in one component's `config/0`, all at once.
@@ -395,7 +410,30 @@ defmodule Oneiroi.Config do
     unknown_opts(where, opts) ++
       boolean_opts(where, opts) ++
       default_opt(where, opts) ++
-      cast_opt(where, opts)
+      cast_opt(where, opts) ++
+      tag_opt(where, opts) ++
+      usage_opt(where, opts)
+  end
+
+  defp tag_opt(where, opts) do
+    case Keyword.fetch(opts, :tag) do
+      :error ->
+        []
+
+      {:ok, tag} when tag in @tags ->
+        []
+
+      {:ok, other} ->
+        ["#{where} has a tag #{inspect(other)} that is not one of #{inspect(@tags)}"]
+    end
+  end
+
+  defp usage_opt(where, opts) do
+    case Keyword.fetch(opts, :usage) do
+      :error -> []
+      {:ok, usage} when is_binary(usage) and usage != "" -> []
+      {:ok, other} -> ["#{where} has a usage #{inspect(other)} that is not a non-empty string"]
+    end
   end
 
   defp unknown_opts(where, opts) do

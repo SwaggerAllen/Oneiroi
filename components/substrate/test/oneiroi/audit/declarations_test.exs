@@ -81,6 +81,62 @@ defmodule Oneiroi.Audit.DeclarationsTest do
 
   defp manifest!(ctx, body), do: File.write!(ctx.manifest, body)
 
+  # A component whose declarations carry, or lack, each of the three
+  # facts the settings check asks for; compiled inside the scope like
+  # `@engine`, because the check judges only the tree that declares.
+  @tuned """
+    use Oneiroi.Component, slug: :tuned
+
+    def config do
+      [
+        {:well, "TUNED_WELL", cast: :integer, default: "4", tag: :bound, usage: "the pool"},
+        {:secretive, "TUNED_SECRETIVE", secret: true, usage: "a token"},
+        {:imposed, "DATABASE_URL", external: true, usage: "the host's name for it"},
+        {:optional, "TUNED_OPTIONAL", required: false, usage: "may be absent"},
+        {:untold, "TUNED_UNTOLD", default: "x"},
+        {:untagged, "TUNED_UNTAGGED", cast: :integer, default: "1", usage: "a count"},
+        {:undefaulted, "TUNED_UNDEFAULTED", usage: "a path"}
+      ]
+    end
+  """
+
+  describe "settings" do
+    setup ctx do
+      tuned = compile!(ctx.dir, @tuned)
+      {:ok, settings: Declarations.settings(Config.declarations([tuned, Shipped]), ctx.scope)}
+    end
+
+    test "a setting with every fact, or a reason to lack one, is not a problem", ctx do
+      refute Enum.any?(ctx.settings, &(&1 =~ ":well"))
+      refute Enum.any?(ctx.settings, &(&1 =~ ":secretive"))
+      refute Enum.any?(ctx.settings, &(&1 =~ ":imposed"))
+      refute Enum.any?(ctx.settings, &(&1 =~ ":optional"))
+    end
+
+    test "a setting with no usage line is", ctx do
+      assert [problem] = Enum.filter(ctx.settings, &(&1 =~ ":untold"))
+      assert problem =~ "with no usage: line"
+    end
+
+    test "a number with no tag is", ctx do
+      assert [problem] = Enum.filter(ctx.settings, &(&1 =~ ":untagged"))
+      assert problem =~ "as a number with no tag:"
+    end
+
+    test "a value with no default and no reason is", ctx do
+      assert [problem] = Enum.filter(ctx.settings, &(&1 =~ ":undefaulted"))
+      assert problem =~ "with no default: and no reason to lack one"
+    end
+
+    test "a packaged component's settings are never judged here", ctx do
+      refute Enum.any?(ctx.settings, &(&1 =~ "Shipped"))
+    end
+
+    test "nothing declared is nothing to judge", ctx do
+      assert Declarations.settings([], ctx.scope) == []
+    end
+  end
+
   describe "declared ↔ applied" do
     test "an applied guardrail is not a problem", ctx do
       write(ctx.dir, """

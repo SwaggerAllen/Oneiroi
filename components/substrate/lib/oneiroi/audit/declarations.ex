@@ -311,6 +311,66 @@ defmodule Oneiroi.Audit.Declarations do
         do: entry
   end
 
+  @doc """
+  Settings declared without the facts a setting owes, over the in-scope
+  subjects only (conventions §13's `settings` check; Oneiroi's own).
+
+  Three facts, each with the failure it prevents: a `usage:` line,
+  because a setting nobody can explain is one every operator sets for
+  nothing; a `tag:` on a numeric value, because a number nobody measured
+  is a guess that survives review and the declaration is where it says
+  which it is; and a `default:`, unless the declaration is a secret, an
+  externally imposed name, or opted out with `required: false`, because
+  those are the three reasons a value legitimately has none and
+  `operator_values/3` already makes the manifest record them.
+
+  In scope only, for `guardrails/3`'s reason: a packaged component's
+  declarations are judged by the package's own audit, and a consumer's
+  advice about them would be advice about a tree its author never read.
+  """
+  @spec settings([map()], String.t()) :: [String.t()]
+  def settings([], _scope), do: []
+
+  def settings(declarations, scope) do
+    sources = sources(paths(scope))
+
+    for declaration <- declarations,
+        in_scope?(declaration.component, sources),
+        problem <- setting_problems(declaration),
+        do: problem
+  end
+
+  defp setting_problems(%{component: component, key: key, name: name, opts: opts}) do
+    where = "#{inspect(component)} declares config key #{inspect(key)} (#{name})"
+
+    usage =
+      if Keyword.has_key?(opts, :usage),
+        do: [],
+        else: ["#{where} with no usage: line (say what reads it and why; conventions §13)"]
+
+    tag =
+      if Keyword.get(opts, :cast) == :integer and not Keyword.has_key?(opts, :tag),
+        do: ["#{where} as a number with no tag: (:bound or :measured; conventions §13)"],
+        else: []
+
+    default =
+      if defaultless?(opts),
+        do: [
+          "#{where} with no default: and no reason to lack one (a secret, an external " <>
+            "name or required: false are the reasons; conventions §13)"
+        ],
+        else: []
+
+    usage ++ tag ++ default
+  end
+
+  defp defaultless?(opts) do
+    not Keyword.has_key?(opts, :default) and
+      Keyword.get(opts, :secret, false) != true and
+      Keyword.get(opts, :external, false) != true and
+      Keyword.get(opts, :required, true) != false
+  end
+
   ## Declared ↔ used, for the two registries with one name to match
 
   # The sweep runs only when something is declared, so the common case —
