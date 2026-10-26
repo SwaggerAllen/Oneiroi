@@ -179,3 +179,29 @@ mockups' defaults and a recommendation each.
    hidden only from the resident's ledger view.
 9. Tier placement of regression and project reviews: with the tiers.
 Design system canonical over the design-language doc (not kept up to date).
+
+## Round 6: the build-side open decisions (2026-10-26)
+
+1. Suspend and wake: wake on the first call that needs the runtime, suspend
+   after a configurable idle period keeping the volume, discard after a
+   configurable retention (24 h default); a running step pins it awake;
+   spool drains first; config rendered at wake; a discarded session is
+   refused honestly. What pools is capacity, never runtimes.
+2. Browser pool configurable and scaling. Research pass (licenses from
+   LICENSE files): Jina Reader Apache-2.0, Crawl4AI Apache-2.0, Steel
+   Apache-2.0, Browserless SSPL (out), Lightpanda AGPL-3.0 and beta
+   (re-measure later), SearXNG AGPL-3.0. Defaults: Crawl4AI fetch, Brave
+   search, Steel pool on Chromium.
+3. Insurance values are configured placeholders until measured.
+4. Peer threshold per account, default ten inbound messages or promotion;
+   trusted correspondents skip review, per verified identity, revocable.
+5. Investigator after the platform: a jury or whatever the convention
+   names; community policing with AI assistance.
+6. Parameterize everything: operator settings are env with defaults in one
+   validated module; governable values are rows with history; admin page
+   later.
+7. Solo sessions shared by default, private by contract, and the resident
+   may share a locked thread either way.
+8. Tiers: regression core; projects (reviews, code tasks, GitHub, Linear)
+   technical; nothing else technical. Roadmap by dependency written as
+   §14 with a proposed demo line at the end of P4.
