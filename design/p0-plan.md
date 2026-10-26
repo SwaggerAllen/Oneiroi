@@ -366,7 +366,7 @@ Filled in as they are taken, each with its date and where it was taken.
 
 | Measurement | Where it is needed | Value |
 | --- | --- | --- |
-| Full gate set wall clock on CI | whether the gate block is affordable per PR | |
+| Full gate set wall clock on CI | whether the gate block is affordable per PR | 2m19s on a cold cache, PR #6's first run (`40270464624`, 2026-10-26): checkout, BEAM and Node setup, every gate line including the client's `npm ci` and storybook build |
 | Event store reset per test run | decision 2 | |
 | Second database role on Render's managed Postgres | P0.2 step 2 | |
 | pgvector on the chosen Postgres major | decision 3 | |
