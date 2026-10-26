@@ -205,3 +205,21 @@ Design system canonical over the design-language doc (not kept up to date).
 8. Tiers: regression core; projects (reviews, code tasks, GitHub, Linear)
    technical; nothing else technical. Roadmap by dependency written as
    §14 with a proposed demo line at the end of P4.
+
+## Round 8: the P0 plan (2026-10-26)
+
+- P0 is sequenced in `design/p0-plan.md`: four attended steps (skeleton
+  and substrate, the persistence spine, the client and SDK skeletons, the
+  orchestration hookup), then three pipeline-delivered tickets (identity,
+  resident, records) after a verification ticket.
+- Catapult's `components/substrate` is Apache-2.0 and is lifted as a path
+  dependency rather than rewritten; the SDK consumes the same package.
+- The event store runs on Postgres in test as well as production; the
+  in-memory adapter would be a fake that disagrees with the real store.
+- The export never carries the resident's uuid, so a rebuild can be a new
+  resident and still re-export byte-identically up to the `Imported`
+  event.
+- Open for the author: the Postgres major, secrets at rest (`cloak_ecto`
+  recommended), the GitHub provider's credential in P0 (a steward-supplied
+  fine-grained token recommended), the Linear team key, whether identity
+  goes through the pipeline.
