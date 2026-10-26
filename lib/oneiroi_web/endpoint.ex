@@ -15,11 +15,15 @@ defmodule OneiroiWeb.Endpoint do
   alias Oneiroi.Platform.HealthPlug
   alias OneiroiWeb.Router
 
+  # `__Host-`, Secure, HttpOnly, Strict (spec §6.1): the cookie carries
+  # the raw session id, signed; the store holds only its hash.
   @session_options [
     store: :cookie,
     key: "__Host-oneiroi",
     signing_salt: "oneiroi-session",
-    same_site: "Strict"
+    same_site: "Strict",
+    secure: true,
+    http_only: true
   ]
 
   plug Plug.Static,
@@ -43,6 +47,12 @@ defmodule OneiroiWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  # The OpenAPI document is derived from the router, so the router cannot
+  # mount it without a cycle; it is put on the conn here, before routing.
+  # An atom rather than an alias, because `plug` is a macro and the alias
+  # would be a compile-time dependency on a module that is only called
+  # (the ratchet, `Oneiroi.Router` has the reasoning).
+  plug OpenApiSpex.Plug.PutApiSpec, module: Module.concat([OneiroiWeb, ApiSpec])
   plug :health
   plug :router
 
