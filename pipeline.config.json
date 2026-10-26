@@ -2,7 +2,7 @@
   "version": 1,
   "tracker": {
     "teamId": "94b1977f-5b88-4aae-9a0e-c4d7d00ebf85",
-    "projectId": "SET-IN-P0.5"
+    "projectId": "52912951-94a7-4803-b430-67b10da55523"
   },
   "states": {
     "backlog": "Backlog",
@@ -25,6 +25,7 @@
   },
   "designOwnedPaths": [
     "CHANGE.md",
+    "non-asks.md",
     "tests/manual/**",
     "screens/**",
     "storybook/**",

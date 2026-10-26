@@ -1,11 +1,142 @@
 # Setup
 
-The attended runbook for standing an instance up, filled in through P0.5
-(design/p0-plan.md). The block below is read by `mix oneiroi.audit`: every
-variable this codebase requires with no default and no external name is
-listed here, one per line, or the audit says so, and a line no
-declaration explains is reported too.
+The attended runbook for standing an instance up: the human steps P0.5
+leaves (`design/p0-plan.md`), one-time, in order, because values made
+early are consumed late. Everything code-shaped is in the tree: the
+Dockerfile and `render.yaml`, `pipeline.config.json` with the tracker
+ids and the gate set, the twelve pipeline stubs under
+`.github/workflows/`, `ci.yml` with its self-arming pipeline audit, and
+the design artifacts (`systems/`, `screens/`, `CHANGE.md`,
+`non-asks.md`, `tests/manual/`).
+
+## Required variables this codebase invented
+
+The block below is read by `mix oneiroi.audit`: every variable this
+codebase requires with no default and no external name is listed here,
+one per line, or the audit says so, and a line no declaration explains
+is reported too. Names only; where each goes is in the steps below.
 
 ```oneiroi:required-env
 PLATFORM_SECRET_KEY_BASE   # the endpoint's cookie-signing secret, 64 bytes or more
+PLATFORM_VAULT_KEY         # 32 random bytes, base64: what secrets at rest are encrypted under
 ```
+
+`DATABASE_URL` is deliberately absent: it is declared `external: true`
+because Render supplies it under a name this codebase does not choose,
+and `render.yaml` binds it from the database.
+
+## 1. The reference instance (Render)
+
+`render.yaml` is the service's shape: a Blueprint Render creates the
+services from and re-reads on every push. The dashboard is the
+authority on everything the Blueprint does not set, which is every
+secret (`sync: false`).
+
+1. Create the Blueprint from `render.yaml`, pointed at this branch until
+   it merges. **Read the Postgres major Render offers with pgvector off
+   the dashboard** and, if it is not 16, change `postgresMajorVersion`
+   in `render.yaml` and the `pgvector/pgvector:pg16` image in `ci.yml`
+   and the five stubs that carry it, in one commit (plan decision 3).
+2. Set the two secrets above in the dashboard: `PLATFORM_SECRET_KEY_BASE`
+   (`mix phx.gen.secret 64` or any 64+ random bytes) and
+   `PLATFORM_VAULT_KEY` (`openssl rand -base64 32`). A deploy without
+   either fails at boot with the config report naming it.
+3. Read the service id (`srv-…`) and put it in `pipeline.config.json`'s
+   `deploy.endpoint` as
+   `https://api.render.com/v1/services/<id>/deploys`. Unreplaced,
+   `pipeline setup` fails its deploy probe naming the endpoint, which is
+   why that probe runs at hookup rather than on the first ticket to
+   reach `Merged`.
+4. Two things to read off the first deploy and write into the plan's
+   measurement table: the database's connection limit against
+   `PLATFORM_POOL_SIZE` and `PLATFORM_EVENT_STORE_POOL_SIZE` (both
+   default 2, Catapult's budget against a 22-connection cluster; the Repo, the event store's pool, and one listener each
+   for Oban and the store share the limit, and a rolling deploy runs two
+   containers), and whether a preview environment can take a smaller
+   database plan than production.
+5. Run the one account's creation once the service answers `/health`:
+   `mix oneiroi.setup --email <you> --password <...>` from a shell on the
+   service, or the same through the Render shell. Autodeploy stays on;
+   the image's own `CMD` runs the migrator ahead of `start`, so a failed
+   migration fails the deploy with the previous one still serving.
+
+## 2. Orchestration's court
+
+- Merge the `PROJECTS` entry for this repo into the metronome Worker's
+  config in `SwaggerAllen/orchestration` (`worker/wrangler.toml`: this
+  repo, `pipeline-sweep.yml`, `main`, the Linear project id below).
+  Merging redeploys the Worker on its own.
+- Add `SwaggerAllen/Oneiroi` to the `DISPATCH_TOKEN` fine-grained
+  token's repository list: a beat that cannot reach the repo logs 404s
+  hourly and nothing else.
+- The four touch-ups spec §11 names, landed in orchestration by the
+  author in the same sitting: the design-artifact list as a
+  parameterised block, the design prompt phrased for React components
+  and CSF stories, the class audit reading `.tsx` base names under
+  `componentPaths`, and the stub environment block installing Node.
+  Until they land, a design pass writes Phoenix-shaped artifacts into a
+  React tree. The next PR in this thread is theirs.
+
+## 3. The tracker
+
+The Linear project exists: **Oneiroi** under the `ORC` team
+(`52912951-94a7-4803-b430-67b10da55523`, `pipeline.config.json`'s
+`tracker.projectId`). Run `pipeline-admin` with `setup`, dry first and
+then applied, to create any state or label the team lacks; the state
+names are the config's `states` map.
+
+## 4. Secrets, webhook, repo settings (GitHub UI)
+
+Actions secrets on this repo:
+
+- `LINEAR_API_KEY`
+- A model credential: `CLAUDE_CODE_OAUTH_TOKEN` (from `claude
+  setup-token`, tried first) and/or `ANTHROPIC_API_KEY` (the failover);
+  at least one.
+- `PIPELINE_REPO_TOKEN`: Contents read on the orchestration repo. Until
+  it exists, `ci.yml`'s pipeline audit step prints "skipped" on every
+  run, and a clean run on an author branch is not evidence it passed.
+- `AGENT_GITHUB_TOKEN`, with this repo on its repository list; without
+  it agents fall back to `GITHUB_TOKEN` and degrade loudly (CI never
+  triggers on agent pushes, deploys are not recorded, bot PRs wait for
+  manual approval).
+- `RENDER_API_KEY`: reads only; deploy detection is one GET against the
+  service's deploys.
+- `PIPELINE_STATE_TOKEN`, matching the metronome Worker's `STATE_TOKEN`:
+  the pipeline's record of its own writes, without which it judges
+  nothing and says so on every sweep.
+- `STATS_GITHUB_TOKEN`: a fine-grained PAT with Actions read on this repo
+  and on orchestration, for `pipeline-stats` alone.
+
+Then: the GitHub webhook on this repo to the Worker URL (content type
+JSON, the orchestration repo's `WEBHOOK_SECRET`, events **Workflow runs**
+and **Deployment statuses**; without it every CI hop waits for the
+hourly cron); Settings → Actions → General → allow GitHub Actions to
+create and approve pull requests; branch protection on `main` requiring
+the `ci` check and pull requests, your own pushes as the deliberate admin
+bypass; the repo variable `PIPELINE_KILL_SWITCH=true` parks the project
+and clears it before expecting work.
+
+Run `pipeline-preflight` once everything above is set: it exercises
+every credential-bearing read and names the write scopes it did not.
+
+## 5. Verification (P0.5's exit)
+
+File the verification ticket (a README touch) in the Oneiroi project
+and move it to **Designing**: starting work is always the author's act.
+Watch it flow design → dev → reconcile → deploy unattended. Its `Done`
+is the exit, and the moment the ci audit step stops printing "skipped".
+From there the backlog holds P1 as coarse placeholders; P0.6 and P0.7
+were built attended with the spine (decisions log round 9), so the
+plan's drafts for them become follow-ups rather than the first work.
+
+## 6. The records run by hand (P0's exit)
+
+Once a resident exists: `PUT /v1/residents/:id/remote` with a GitHub
+repository you created and a fine-grained token scoped to it (Contents
+read and write), then `Oneiroi.Records.backup/2` from a shell, read the
+`Oneiroi-Sequence` and `Oneiroi-Root` trailers off the commit on GitHub,
+and `mix oneiroi.records.rebuild <repo> --steward <account id>` against
+a second database. The export of the rebuilt resident is byte-identical
+up to the `Imported` line; the test suite asserts the same against a
+local bare repository on every PR.

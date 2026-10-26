@@ -1,0 +1,111 @@
+# From orchestration's `examples/stubs/pipeline-sweep.yml`, kept in step by hand: a
+# stub is copied, not tracked, so a change there is a change here or the
+# two silently disagree.
+# Project stub: control-plane sweep. Copy into the project repo's
+# .github/workflows/.
+#
+# One trigger, per DESIGN §13: workflow_dispatch, from the metronome.
+# It fires on a Linear webhook the moment the tracker changes, on a
+# GitHub webhook for the CI and deploy hops, and hourly regardless for
+# the elapsed-time conditions nothing announces — stale claims, deploy
+# timeouts. GitHub's own `schedule:` is deliberately not used: its 5-15
+# minute jitter compounds across every hop of a ticket's life.
+#
+# This file used to carry `workflow_run` and `deployment_status` as
+# well, and removing them is the point rather than a tidy-up.
+#
+# The care needed here: they are NOT dead triggers. They were dead when
+# the metronome's GitHub route was written — GitHub does not start a
+# workflow run from an event created with GITHUB_TOKEN, so a dev agent's
+# CI completion woke nothing (measured on ORC-1, worker/index.ts). But
+# SETUP 2 has every project check out with AGENT_GITHUB_TOKEN since,
+# exactly so that CI runs and deploys record. Under that token these
+# triggers fire normally.
+#
+# Which makes them a duplicate of a route that is strictly better. The
+# metronome coalesces a burst of webhooks into one dispatch in a five
+# second window (worker/debounce.ts); a trigger declared here is
+# scheduled by GitHub and never reaches it. So one CI completion started
+# two sweeps — one at once from here, one debounced from the Worker —
+# and `concurrency` then evicted the pending one. That is coalescing
+# done late and billed by the minute: measured on Catapult, seven sweeps
+# in 107 seconds, two of them cancelled.
+#
+# The Worker route covers both token configurations and both events
+# (`workflow_run` filtered to the project's CI workflow by name,
+# `deployment_status` to `success`), so nothing here is load-bearing.
+# The backstop argument does not survive either: the hourly cron is the
+# floor under all of it, and it is direct rather than debounced, so a
+# Worker outage is already covered by something that works for agent
+# events too.
+name: pipeline-sweep
+run-name: "pipeline: sweep"
+
+on:
+  workflow_dispatch:
+
+# Declaring this block at all drops every permission not listed to
+# none, so it has to name everything the snapshot reads, not just the
+# unusual ones. One line per call the sweep makes:
+permissions:
+  contents: read # checkout, and compare for the deploy ancestry check
+  actions: write # dispatching agent workflows; write covers listing runs,
+    # and the CI verdict per PR head that drives the Checks hop
+  pull-requests: read # the open-PR list the snapshot is built from
+  deployments: read # deploy state, when the project's provider is "github"
+
+# One dispatcher at a time: the single-dev-agent invariant is only as
+# strong as single-dispatcher (DESIGN §13).
+concurrency:
+  group: pipeline-control-plane
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    # The kill switch stops the job, not just the work inside it.
+    #
+    # `PIPELINE_KILL_SWITCH` already halted planning — the binary builds
+    # a snapshot, sees the flag and produces nothing (DESIGN §13). That
+    # is correct and it is not free: Actions bills each job rounded up to
+    # the nearest minute, so an idle project on the hourly beat spends
+    # roughly 730 minutes a month doing nothing. A job whose `if` is
+    # false never starts and is billed nothing at all.
+    #
+    # This is what lets a project be genuinely parked. A rehearsal repo
+    # between rehearsals, or a project paused for a week, costs zero
+    # instead of most of a plan's allowance. The env var below stays: a
+    # hand-dispatched run with the flag on still refuses inside the
+    # binary, so the two agree rather than one guarding the other.
+    if: vars.PIPELINE_KILL_SWITCH != 'true'
+    runs-on: ubuntu-latest
+    env:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      PIPELINE_STATE_TOKEN: ${{ secrets.PIPELINE_STATE_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      PIPELINE_KILL_SWITCH: ${{ vars.PIPELINE_KILL_SWITCH }}
+      # Deploy detection for API-polled providers. Each is optional and
+      # only the one `deploy.provider` names is read; without it the
+      # pipeline warns and deploy detection is off, so Merged tickets ride
+      # to the timeout. Both are listed because a workflow cannot branch
+      # on a config value it has not loaded yet, and an unset secret
+      # expands to the empty string — which is the same thing as absent.
+      DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_TOKEN }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+    steps:
+      - name: checkout project (for pipeline.config.json)
+        uses: actions/checkout@v4
+
+      # Checks out the pipeline and puts its binary on PATH, built once
+      # per pipeline commit and restored from cache after that. The
+      # sweep runs hourly and on every webhook, so it is the single
+      # biggest consumer of the compile this avoids.
+      - name: set up the pipeline
+        uses: SwaggerAllen/orchestration/.github/actions/setup-pipeline@main
+        with:
+          pipeline_repo_token: ${{ secrets.PIPELINE_REPO_TOKEN }}
+          pipeline_ref: main # pin to @v1 once released
+
+      - name: sweep
+        run: |
+          pipeline sweep \
+            --config "$GITHUB_WORKSPACE/pipeline.config.json"
