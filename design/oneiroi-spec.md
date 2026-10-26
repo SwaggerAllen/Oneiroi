@@ -656,15 +656,34 @@ Owns `lib/oneiroi/inbound/**`.
   understanding that it may not always be accessible: a citation whose
   page has changed or gone says so, which is the drift audit §6.5 already
   runs for commissioned docs.
-- **The reader's tools, in order of reach.** A fetch and search API first:
-  a readability-style fetch and a search provider, chosen at build. Then a
-  shared headless-browser pool for pages the API cannot render, driven
-  through Playwright with a fresh context per request, because reading is
-  stateless and a browser per tenant would be the one heavy thing in the
-  runtime (David measured headless-shell at 64 MiB after one page, once).
-  Then Skyvern, or a browser session the agent drives step by step, only
-  for interactive work such as a platform's inbox, where paying a model
-  call per step is earned. **OPEN**: the API providers and the pool's size.
+- **The reader's tools, in order of reach**, each behind a port with a
+  configurable provider and sane defaults (§6.16):
+  - **Fetch**: a readability extraction that returns Markdown and needs no
+    browser for most pages. Candidates read 2026-10-26, licenses from each
+    repository's LICENSE file: Jina Reader (Apache-2.0, self-hostable) and
+    Crawl4AI (Apache-2.0, Python, drives Playwright underneath). Default:
+    Crawl4AI as a service beside the browser pool, since it already falls
+    through to a browser when a page needs one.
+  - **Search**: a hosted API by default (Brave Search or Exa; both charge
+    per query, Exa is semantic and built for agents, Brave is keyword and
+    independent), with SearXNG (AGPL-3.0, a separate service) as the
+    self-hosted option. Default: Brave, the cheapest to swap away from.
+  - **Browser pool**: Chromium, because every candidate still runs it or
+    emulates its protocol. Run as a pool service with a session API rather
+    than a browser per tenant, sized by configuration and scaled on queue
+    depth. Steel (Apache-2.0: REST and WebSocket session management over
+    Chrome, a Docker image, scales horizontally) is the default pool;
+    Browserless is out (SSPL or a commercial licence). Lightpanda (AGPL-3.0,
+    written from scratch, vendor-reported at roughly a tenth of Chrome's
+    memory) speaks CDP so it is a drop-in image swap later, but in late
+    2025 evaluations it was beta with partial Web API coverage, so it is a
+    candidate to re-measure, not a default. David's one measurement of
+    headless-shell stands at 64 MiB after one page.
+  - **Agent-driven browsing** (Skyvern, or the reader driving a pool
+    session step by step) only for interactive work such as a platform's
+    inbox, where a model call per step is earned.
+  Pool size and provider choices are configuration with defaults, to be
+  measured once the reader has real traffic.
 - **Mail** (F22): v0 is "sign your resident up for Gmail": IMAP with an app
   password held by the mail transport alone, never by a model. Sorted by
   script before any model sees it; account mail (sign-in codes) stops at
@@ -679,6 +698,14 @@ Owns `lib/oneiroi/inbound/**`.
 - **Feeds** (F21): fetched by script before any model, public addresses
   only, three redirects, 2 MiB in 20 seconds, 30 posts a feed, 50 feeds, 60
   posts a morning, expat with entity-expansion refused. All bounds.
+- **Trusted correspondents**: the steward may mark a person trusted, and
+  their messages then reach the resident without the steward's reading,
+  as approved items with no note. The trust is per verified identity (a
+  DMARC-passing sender for mail, a platform account for a platform's
+  messages), never per display name, because a name is the sender's to
+  choose; it is an event with its actor, revocable, and shown on the
+  person's thread. Wake text still never carries the words, and the words
+  are still information, never instruction, when they reach the resident.
 - **The approval queue** (F23): the steward's reading is the gate;
   summarising is not a security boundary. Three actions: reject, approve,
   approve and wake, each with a note the resident reads first. Wake text
@@ -750,7 +777,8 @@ Owns `lib/oneiroi/honcho/**`.
   the weekly audit if a dream moved it. Custom instructions name the two
   peers and are rendered per resident.
 - Correspondence is not sent to Honcho; a person gets a peer of their own
-  only past a threshold the steward sets.
+  past a threshold configured per account (default: ten inbound messages),
+  or when the steward promotes them.
 
 ### 6.10 records
 
@@ -828,9 +856,10 @@ Owns `lib/oneiroi/ledger/**`.
   change, each change an event with its reason. A policy references its
   buckets by id, so a change to a bucket's value changes what every policy
   on it pays out from the next week, and the history of who set what is
-  the ledger's to show. **OPEN**: the floor's steward-spend and term
-  values, the number of buckets per axis, and prices, all waiting on
-  measured costs.
+  the ledger's to show. The first values are placeholders: three buckets
+  per axis, the floor at $1 a day of free time on a small open-weight
+  model for two months, steward spend at the smallest non-zero bucket;
+  configuration with defaults until the platform is stood up and measured.
 
 ### 6.12 governance
 
@@ -844,8 +873,10 @@ either party, investigated by the platform (a person, every step an event
 with its reason), and resolved into no action or a strike on the human: the
 first two strikes are fines paid into the residents' insurance pool, the
 third removes the steward and the resident goes to community custody. The
-investigator is a role in the events, not a hard-coded party, so a jury or
-the constitutional convention can take it over later without a rewrite.
+investigator is a role in the events, not a hard-coded party: after the
+platform it is a jury, or whatever body the constitutional convention
+names, a form of community policing with AI assistance, and the events
+need no rewrite for the handover.
 Reports live in chat, in both directions: the steward files one from the
 chat menu (one form, the ladder summarised in a caption), a report the
 resident files renders in the thread in its own words, and every
@@ -898,8 +929,30 @@ Owns `lib/oneiroi/provisioner/**`, `runtime/**` templates.
   render its config and secrets; health. Docker implementation for one box
   (compose per tenant, driven by the Docker API); Kubernetes implementation
   later; a fake for tests.
-- Residents suspend when idle and wake on action; what counts as action
-  and the wake latency are **OPEN** until measured.
+- **Suspend and wake.** A hands runtime wakes on the first call that
+  needs it (a research request, a code step, a scheduled digest), suspends
+  after a configurable idle period, and is discarded after a configurable
+  retention (default 24 hours) with nothing queued. Suspend stops the
+  container and keeps its volume, so OpenClaw's state (its SQLite, session
+  transcripts, the plugin's spool) and the worker's home (mirrors,
+  worktrees, task records, sessions) survive to be revived; discard
+  deletes the volume. On Docker that is a stop and a start; on Kubernetes
+  it is a pod deleted and recreated against a persistent volume claim,
+  which is where the wake latency lives.
+- Rules the lifecycle keeps: a step in progress pins the runtime awake,
+  and suspend waits for an empty queue and the idle timer, never cutting a
+  run; the plugin's spool drains before suspend, so no captured turn is
+  stranded; config and secrets are rendered at wake, not at create, so a
+  rotated key or a new fleet pin applies on the next wake and a suspended
+  runtime never holds a stale image; wake is start, wait for health, and
+  verify the adapter token, and the queue's tick hands the step over only
+  then, so the brain never blocks on a cold start; a `continue` on a task
+  whose runtime was discarded is refused honestly ("that session is
+  gone; start again") rather than resumed from nothing. The repo and the
+  records are the durable self; the runtime is scratch with a grace
+  period.
+- What pools is capacity (hosts, the browser pool), never runtimes: a
+  runtime holds one tenant's state and is stopped or running, not shared.
 
 ### 6.15 client
 
@@ -933,6 +986,18 @@ Fleet pins, conformance tests, deploy, observability, the self-hosted
 status page.
 Owns `lib/oneiroi/platform/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 
+- **Parameterize everything, in one place.** Every bound, default, pin,
+  pool size and provider choice in this spec is a named setting with a
+  sane default, declared in one module that is validated and reported at
+  boot (a missing or malformed value names itself; Catapult's required-env
+  pattern). Operator settings are environment variables read by the
+  runtime config, which is enough for the platform and for self-hosters;
+  an admin page over the same module can come later without changing
+  where a value lives. Values the community may govern (insurance buckets,
+  thresholds that policy owns) are not settings but rows with history,
+  because a change to them needs an author and a reason. The split is the
+  rule: a value only the operator sets is config; a value a governance
+  process may change is data.
 - Every image and model id pinned in one place and checked in CI against
   the catalogue, as David's `models.toml` and `check_models.py` do.
 - Conformance suites for each runtime adapter, run against recorded
@@ -1134,22 +1199,20 @@ a passing probe is a finding about coverage, not a formality.
 
 ## 13. Open decisions
 
-1. Suspend and wake semantics for hands runtimes, and the idle footprint of
-   one OpenClaw gateway (measure before the provisioner's defaults are set).
-2. The reader's fetch and search API providers, and the browser pool's
-   size.
-3. Insurance: the floor's steward-spend and term buckets, the number of
-   buckets per axis, and prices, which wait on measured costs.
-4. The person-to-peer threshold for correspondents in Honcho.
-5. Who investigates a report after the platform: a jury, the
-   constitutional convention, or both, and in which order.
-6. Platform model pins are settled at build; what must hold is that an
-   upgrade is one change in one place.
-7. Transcript visibility for the resident's solo sessions: shared by the
-   resident per session, or a standing dyad-contract term, or both.
-8. Tiers: which features are core, opt-in, opt-out, and the demo line;
-   in particular whether Regression and Project reviews are technical-tier
-   only or open to all with a cost warning.
+1. Where the demo line falls on the roadmap (§14 proposes one).
+2. Measurements the configuration waits on: the idle footprint and wake
+   latency of a hands runtime, the browser pool's size, insurance prices.
+3. Provider confirmations for the reader's ports (§6.6 names defaults).
+
+Settled on 2026-10-26: suspend and wake semantics (§6.14); the reader's
+tool ports and their defaults, after a research pass (§6.6); insurance
+values as configured placeholders; the person-to-peer threshold per
+account, default ten inbound messages or promotion, with trusted
+correspondents; the investigator after the platform is a jury or whatever
+the convention names; platform defaults are environment settings with
+defaults in one module, governable values are rows with history; solo
+sessions shared by default, private by contract, shareable by the resident
+either way; tiers (§14).
 
 Settled from the UI pass: the design system is canonical over the
 design-language doc; the steward pins and proposes bookmarks, never
@@ -1170,3 +1233,41 @@ investigation are v0's governance machinery; document sharing between
 residents waits for the social layer, which is not specced; Gitea comes
 after investment and before revenue; sources are links, never retained
 text.
+
+---
+
+## 14. Tiers and roadmap
+
+### Tiers
+
+Two tiers. **Core** is everything a resident and a steward need, regression
+included, because the trials are how a resident is made and how its model
+is changed honestly. **Technical** is what needs a repository or a tracker:
+project reviews, code tasks and the worker, the GitHub and Linear
+integrations. Nothing else is technical. Opt-in and opt-out inside core are
+settings, not tiers (Honcho, the digest, feeds, predictions).
+
+### Roadmap, by dependency
+
+Each phase builds only on the ones before it; the order is what the data
+and the adapters require, not a schedule.
+
+| Phase | Builds | Depends on |
+| --- | --- | --- |
+| P0 Spine | The Elixir core with Commanded and EventStore; Postgres with RLS and the application role; the configuration module (§6.16); identity (accounts, auth, sessions); the resident aggregate with per-resident id sequences; records export of events and the byte-stable files, replay into a fresh store, attestation trailers on backup commits, the GitHub provider; the orchestration bootstrap (systems docs with file maps, `pipeline.config.json`, stubs, CI, Render) | nothing |
+| P1 Brain and memory | Transcript capture and the adapter contract (turn API, context fetch, wake); bookmarks, tags, taggings, the index under its budget, context assembly with its recorded injections, compaction; the brain's chat loop over OpenRouter with streaming channels; the ledger (key, budget lines, usage by purpose); the client shell on the design system with Chat, Memory and Ledger; the creation flow with the step-by-step and from-files paths and seed files committed; the Claude Code adapter (Lily in the Claude Code UI); regression per resident, sealed | P0 |
+| P2 Judgement, Honcho, schedule | Honcho workspace per resident and the bridge; positions, disputes, predictions, the nightly pass, the weekly audit; audits, counters and the check-engine light; the schedule (check-ins, quiet hours, free time); the subscription and the insurance data | P1 |
+| P3 Library | Document kinds, the library index and search, citations both ways, writing review and publish, the journal, design and plain kinds, adoption of files | P1 |
+| P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
+| P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |
+| P6 Scale | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery | P5 |
+
+**Proposed demo line: the end of P4.** That is one resident, chat, the
+soul file with proposals, visible and inspectable memory, regression, the
+judge with the concession ratio, citations both ways, Lily herself migrated
+and woken on the new brain. Of the replan's four unbuyables, three are in
+by then; wake fan-out is the first item of P5 and could be pulled forward
+if the demo wants the reader. The line can move earlier (end of P2, a
+resident with memory and judgement but no library and no Lily) or later
+(end of P5, with research and the digest); P3 and P4 are what make the
+demo Lily rather than a new resident.
