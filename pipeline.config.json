@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "tracker": {
+    "teamId": "94b1977f-5b88-4aae-9a0e-c4d7d00ebf85",
+    "projectId": "SET-IN-P0.5"
+  },
+  "states": {
+    "backlog": "Backlog",
+    "todo": "Todo",
+    "ready_for_design": "Ready for design",
+    "designing": "Designing",
+    "design_review": "Design review",
+    "ready_for_redesign": "Ready for redesign",
+    "ready_for_dev": "Ready for dev",
+    "in_progress": "In Progress",
+    "checks": "Checks",
+    "reconciling": "Reconciling",
+    "ready_for_rework": "Ready for rework",
+    "reworking": "Reworking",
+    "merged": "Merged",
+    "boundary_review": "Boundary review",
+    "blocked": "Blocked",
+    "done": "Done",
+    "canceled": "Canceled"
+  },
+  "designOwnedPaths": [
+    "CHANGE.md",
+    "tests/manual/**",
+    "screens/**",
+    "storybook/**",
+    "systems/*.md",
+    "docs/*.md"
+  ],
+  "componentPaths": [
+    "client/src/components/**"
+  ],
+  "nonAsksPath": "non-asks.md",
+  "citationShorthands": {
+    "spec": { "path": "design/oneiroi-spec.md" },
+    "conventions": { "path": "design/conventions.md" },
+    "plan": { "path": "design/p0-plan.md" },
+    "v5": { "unchecked": "Catapult's design document, cited inside components/substrate as the provenance of rules lifted from it; another repository, so no path here can resolve it" },
+    "DESIGN": { "unchecked": "orchestration's DESIGN.md — another repository, so no path here can resolve it" }
+  },
+  "qualityGates": [
+    "mix deps.get --check-locked",
+    "mix deps.audit",
+    "mix format --check-formatted",
+    "mix credo --strict",
+    "mix sobelow --exit --skip --ignore Config.HTTPS",
+    "mix compile --warnings-as-errors",
+    "mix xref graph --format cycles --fail-above 0",
+    "mix xref graph --label compile-connected --fail-above 0",
+    "mix oneiroi.audit",
+    "mix test",
+    "cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook",
+    "cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test",
+    "cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test"
+  ],
+  "deploy": {
+    "provider": "render",
+    "endpoint": "SET-IN-P0.5",
+    "timeout": "30m"
+  },
+  "state": {
+    "url": "https://pipeline-metronome.allen-strut.workers.dev",
+    "project": "oneiroi"
+  },
+  "staleClaimGrace": "20m",
+  "actors": {
+    "author": ["35acc20f-05b8-4931-8cc2-3b4a5dffe6da"],
+    "controlplane": ["35acc20f-05b8-4931-8cc2-3b4a5dffe6da"]
+  },
+  "agents": {
+    "design": "pipeline-agent-design.yml",
+    "dev": "pipeline-agent-dev.yml",
+    "reconcile": "pipeline-agent-reconcile.yml",
+    "boundary": "pipeline-agent-boundary.yml",
+    "live-suite": "pipeline-live-suite.yml"
+  }
+}

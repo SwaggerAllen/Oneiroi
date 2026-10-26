@@ -1,0 +1,142 @@
+# The gate set (design/conventions.md §2), in place before the pipeline:
+# reconciliation trusts green, so the gates predate the work. The name
+# `ci` is load-bearing: the metronome wakes a sweep on a `workflow_run`
+# whose name matches this one.
+#
+# PRs into main only: push plus bare pull_request ran every commit twice
+# for one verdict, and branch protection reads the PR run.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      PGHOST: localhost
+      PGUSER: oneiroi
+      PGPASSWORD: oneiroi
+    services:
+      postgres:
+        # Pinned to the major production runs (P0.2 reads Render's
+        # default when the blueprint is created and moves this line in
+        # the same commit); a suite against another major says nothing
+        # about production.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: oneiroi
+          POSTGRES_PASSWORD: oneiroi
+          POSTGRES_DB: oneiroi_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      # fetch-depth: 0 — the pipeline-audit step diffs against
+      # origin/main, which a shallow PR-merge checkout cannot reach.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      # Exact key only, no `restore-keys` fallback: a prefix fallback
+      # restores this branch's own older _build after a lockfile change,
+      # and the Boundary compiler reports green on that partial state
+      # (measured on Catapult). The only safe states are an exact hit or
+      # a clean build.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            components/substrate/deps
+            components/substrate/_build
+            sdk/deps
+            sdk/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock', 'components/substrate/mix.lock', 'sdk/mix.lock') }}
+
+      # oneiroi:gates
+      - name: deps
+        run: mix deps.get --check-locked
+      - name: deps audit
+        run: mix deps.audit
+      - name: format
+        run: mix format --check-formatted
+      - name: credo
+        run: mix credo --strict
+      # Config.HTTPS is ignored permanently: Render terminates TLS and
+      # redirects at its edge, and the container-local health probe
+      # arrives over plain http, which a `force_ssl:` would answer with
+      # a 301 and fail the deploy. HSTS goes on the browser pipeline.
+      - name: sobelow
+        run: mix sobelow --exit --skip --ignore Config.HTTPS
+      - name: compile
+        run: mix compile --warnings-as-errors
+      - name: xref cycles
+        run: mix xref graph --format cycles --fail-above 0
+      # The ratchet, armed at the only number it is free to arm at. The
+      # cap also lives in qualityGates, so raising it is an author change.
+      - name: xref compile-connected
+        run: mix xref graph --label compile-connected --fail-above 0
+      - name: audit
+        run: mix oneiroi.audit
+      - name: test
+        run: mix test
+      - name: client
+        run: cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
+      - name: substrate
+        run: cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+      - name: sdk
+        run: cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+      # oneiroi:gates end
+
+      # The pipeline audit self-arms on a ticket key in the branch and the
+      # pipeline token, and prints "skipped" otherwise, so a clean run on
+      # an author branch never reads as those checks having passed.
+      - name: gate the pipeline audit
+        id: audit_gate
+        env:
+          TOKEN: ${{ secrets.PIPELINE_REPO_TOKEN }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          KEY=$(echo "$BRANCH" | grep -oiE 'orc-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
+          if [ -n "$TOKEN" ] && [ -n "$KEY" ]; then
+            { echo "run=true"; echo "key=$KEY"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "pipeline audit skipped:${TOKEN:+}${TOKEN:- no PIPELINE_REPO_TOKEN;}${KEY:+}${KEY:- no ticket key in branch '$BRANCH'}"
+          fi
+      - name: set up the pipeline
+        if: steps.audit_gate.outputs.run == 'true'
+        uses: SwaggerAllen/orchestration/.github/actions/setup-pipeline@main
+        with:
+          pipeline_repo_token: ${{ secrets.PIPELINE_REPO_TOKEN }}
+      - name: pipeline audit (mutex, doc lint, class, design ownership)
+        if: steps.audit_gate.outputs.run == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          BASE="origin/main...HEAD"
+          git diff --name-only "$BASE" > /tmp/changed
+          git diff --diff-filter=A --name-only "$BASE" > /tmp/added
+          git log --format=%H --author=pipeline-design-agent origin/main..HEAD \
+            | xargs -r -n1 git show --name-only --format= \
+            | sort -u > /tmp/design
+          pipeline audit --changed-files /tmp/changed --added-files /tmp/added \
+            --design-files /tmp/design \
+            --ticket "${{ steps.audit_gate.outputs.key }}"
