@@ -90,13 +90,17 @@ a tree that does nothing.
    patch versions. CI reads the same file strictly.
 2. `mix phx.new` at the root with no HTML, no LiveView, no assets, no
    mailer, no dashboard: the client is React and the mailer is a decision
-   for the ticket that first sends mail. Boundary on, `type: :strict`.
+   for the ticket that first sends mail. Boundary on, as `check: [apps:
+   [...]]` rather than `type: :strict`, for the reason conventions §4
+   records; the application root is a top-level boundary of its own, so
+   the core and the web layer need not depend on each other.
 3. `components/substrate`: the port of Catapult's substrate under the
    `Oneiroi` namespace, Apache-2.0 licence file kept, Catapult-specific
    prose trimmed. The roster gains what conventions §4 names that it
-   lacks (`events/0` with versions, `settings/0` with the bound-or-measured
-   tag, `externals/0` with the kill switch) as rows in the one registry
-   table, so the composer and the census pick them up without new code.
+   lacks (`usage:` and the bound-or-measured `tag:` on a `config/0`
+   declaration, and the `settings` check that holds them) in the one
+   place each belongs; `events/0` and `externals/0` with its kill switch
+   were already rows in the roster.
 4. `Oneiroi.System`: the `use` macro over the component behaviour, with
    the standard skeleton (export module, `Config`, `Supervisor`, `Store`,
    `Events`, `TestSupport`) and `defexport` riding telemetry spans.
@@ -107,7 +111,9 @@ a tree that does nothing.
    P0.2 chooses, `fetch-depth: 0`, exact-key dependency cache with no
    fallback, the self-arming pipeline audit.
 6. `mix oneiroi.audit` v0 with every check the substrate carries plus
-   `gates`, `skips` and `prompts`; `mix oneiroi.audit.all` at the root
+   `gates` and `skips`, registered by the platform system through
+   `policies/0`; `prompts` waits for the model port in P1, since it is a
+   rule about that port's call sites. `mix oneiroi.audit.all` at the root
    over the three mix projects, exiting 1 on an unresolved one.
 7. `/health` with the git SHA and per-system readiness; `Dockerfile`
    whose CMD migrates then starts; `render.yaml` with the previews
