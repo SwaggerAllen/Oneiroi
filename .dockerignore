@@ -1,0 +1,10 @@
+.git
+_build
+deps
+components/substrate/_build
+components/substrate/deps
+sdk/_build
+sdk/deps
+client/node_modules
+client/storybook-static
+priv/static/client
