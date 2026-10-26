@@ -247,8 +247,11 @@ names the gates and the layers.
   lifecycle": no, because it is a copy with no upstream, and the plan now
   says so.
 - Working agreement from the author, after two design PRs conflicted on
-  this file: this thread keeps one PR open at a time, however large it
-  grows, and a PR is brought onto main before the next one opens.
+  this file: one PR open at a time per repository, however large it
+  grows, and a PR is brought onto main before the next one in that
+  repository opens. The rule is against splitting one repository's work
+  into PRs that could have been one; a PR in another repository (the
+  orchestration touch-ups beside P0's) may sit open alongside.
 
 ## Round 9: the rest of P0 in one pass (2026-10-26)
 
