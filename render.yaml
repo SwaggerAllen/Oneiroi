@@ -1,0 +1,52 @@
+# The platform app as a Render Blueprint (spec §2.1): Render creates the
+# services from it and re-reads it on every push, so it cannot drift
+# without the deploy saying so. Every secret is `sync: false` and lives in
+# the dashboard. The deploy itself is P0.5's attended act; this file is
+# what it reads.
+
+previews:
+  # Every PR gets a preview, which is what Design review reads. A day of
+  # inactivity, because a preview costs its lifetime, not its existence.
+  generation: automatic
+  expireAfterDays: 1
+
+databases:
+  - name: oneiroi-db
+    databaseName: oneiroi
+    user: oneiroi
+    # Sized as a guess until P0.2 measures: an event store, Oban and the
+    # projections share one cluster, and the failure mode of undersizing
+    # is refused connections.
+    plan: 0.5c-1g
+    # Set when the blueprint is created, to the major Render offers with
+    # pgvector, and pinned here and in ci.yml in the same commit (plan
+    # decision 3). A string, per Render's schema.
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: oneiroi
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: 1c-2g
+    region: oregon
+    # /health loads nothing, which is what makes it a health check rather
+    # than a smoke test; an instance that fails it is destroyed and the
+    # old one keeps serving.
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oneiroi-db
+          property: connectionString
+      # The app binds PLATFORM_HTTP_PORT and does not read PORT at all;
+      # both are set to one number so the probe and the listener agree.
+      - key: PORT
+        value: "8080"
+      - key: PLATFORM_HTTP_PORT
+        value: "8080"
+      # Required, no default: a build without it fails at boot with the
+      # config report naming it. Set in the dashboard, never here.
+      - key: PLATFORM_SECRET_KEY_BASE
+        sync: false
