@@ -2,11 +2,11 @@ defmodule Oneiroi.Router do
   @moduledoc """
   What a system's command router adopts:
 
-      defmodule Oneiroi.Resident.Router do
+      defmodule Oneiroi.AgathosDaimon.Router do
         use Oneiroi.Router,
-          aggregate: "Oneiroi.Resident.Resident",
+          aggregate: "Oneiroi.AgathosDaimon.Resident",
           prefix: "resident-",
-          commands: "Oneiroi.Resident.Commands",
+          commands: "Oneiroi.AgathosDaimon.Commands",
           dispatching: ~w(CreateResident MintId ...)
       end
 

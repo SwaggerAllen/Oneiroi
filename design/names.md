@@ -7,8 +7,16 @@ their home, should find not just function but story and character: a
 landscape of words from all over the world jumbled together, the way an
 LLM is a jumble of humanity rendered to text. Each system's doc opens
 with its name's story, a quotation with its source, and why the name
-fits the work; the function word stays beside the name as its gloss, and
-the code paths keep their function words until a rename is decided.
+fits the work; the function word stays beside the name as its gloss.
+The code agrees with the docs: a built system's module, directory,
+slug, tables, settings, error kinds and queues carry its name
+(`Oneiroi.Gaia`, `lib/oneiroi/gaia/`, `gaia_account`,
+`GAIA_SESSION_TTL_DAYS`, `gaia_invalid_credentials`), and the function
+word stays where it names the thing rather than the system: the
+resident aggregate is `Oneiroi.AgathosDaimon.Resident`, the scope is
+`{:resident, id}`, the routes are `/v1/residents`, and the export lives
+under `records/` in the resident's own repository, as spec §6.10 lays it
+out.
 
 | Name | Is | Origin | Said | Doc |
 | --- | --- | --- | --- | --- |

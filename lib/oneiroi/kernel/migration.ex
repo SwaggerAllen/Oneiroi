@@ -5,7 +5,7 @@ defmodule Oneiroi.Migration do
 
       import Oneiroi.Migration
 
-      projection :resident_resident, scope: :resident do
+      projection :agathos_daimon_resident, scope: :resident do
         add :id, :binary_id, primary_key: true
         add :slug, :string, null: false
       end

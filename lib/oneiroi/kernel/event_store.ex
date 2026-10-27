@@ -3,7 +3,7 @@ defmodule Oneiroi.EventStore do
   The event log's own store: a dedicated Postgres schema (`eventstore`,
   created by the infrastructure migration), reached only through this
   module and Commanded's API. Nothing reads `eventstore.*` directly
-  (conventions §12); the export (`Oneiroi.Records`) reads streams through
+  (conventions §12); the export (`Oneiroi.SimaQian`) reads streams through
   `read_stream_forward/4`.
 
   Connection settings are assembled at init from the platform's declared

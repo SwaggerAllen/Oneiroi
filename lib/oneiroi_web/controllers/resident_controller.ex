@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.ResidentController do
   use OneiroiWeb, :controller
 
-  alias Oneiroi.Resident.Error, as: ResidentError
+  alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias OpenApiSpex.Schema
 
   tags(["resident"])
@@ -12,7 +12,7 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def index(%{assigns: %{principal: p}} = conn, _params) do
-    json(conn, Enum.map(Oneiroi.Resident.for_steward(p.account_id), &row/1))
+    json(conn, Enum.map(Oneiroi.AgathosDaimon.for_steward(p.account_id), &row/1))
   end
 
   operation(:create,
@@ -32,13 +32,13 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def create(%{assigns: %{principal: p}} = conn, %{"name" => name, "slug" => slug}) do
-    case Oneiroi.Resident.create(name, slug, p.account_id, actor(conn)) do
+    case Oneiroi.AgathosDaimon.create(name, slug, p.account_id, actor(conn)) do
       {:ok, id} ->
-        {:ok, resident} = Oneiroi.Resident.fetch(id)
+        {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
         conn |> put_status(201) |> json(row(resident))
 
-      {:error, :resident_slug_taken} ->
-        error(conn, 409, ResidentError.new(:resident_slug_taken))
+      {:error, :agathos_daimon_slug_taken} ->
+        error(conn, 409, ResidentError.new(:agathos_daimon_slug_taken))
 
       {:error, reason} ->
         problem(conn, 422, reason, "the name or slug is not acceptable")
@@ -55,11 +55,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def show(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
-    with true <- id in Oneiroi.Identity.stewarded_residents(p.account_id),
-         {:ok, resident} <- Oneiroi.Resident.fetch(id) do
+    with true <- id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+         {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id) do
       json(conn, row(resident))
     else
-      _ -> error(conn, 404, ResidentError.new(:resident_not_stewarded))
+      _ -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
     end
   end
 
@@ -78,11 +78,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def remote(%{assigns: %{principal: p}} = conn, %{"id" => id, "url" => url} = params) do
-    with true <- id in Oneiroi.Identity.stewarded_residents(p.account_id),
-         :ok <- Oneiroi.Records.set_remote(id, url, params["token"], actor(conn)) do
+    with true <- id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+         :ok <- Oneiroi.SimaQian.set_remote(id, url, params["token"], actor(conn)) do
       send_resp(conn, 204, "")
     else
-      false -> error(conn, 404, ResidentError.new(:resident_not_stewarded))
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
       {:error, reason} -> problem(conn, 422, :remote_not_set, inspect(reason))
     end
   end

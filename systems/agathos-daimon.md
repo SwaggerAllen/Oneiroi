@@ -1,10 +1,10 @@
 ---
 paths:
-  - lib/oneiroi/resident/**
-  - lib/oneiroi/resident.ex
+  - lib/oneiroi/agathos_daimon/**
+  - lib/oneiroi/agathos_daimon.ex
   - lib/oneiroi_web/controllers/resident_controller.ex
-  - priv/repo/migrations/*_resident.exs
-  - test/oneiroi/resident/**
+  - priv/repo/migrations/*_agathos_daimon.exs
+  - test/oneiroi/agathos_daimon/**
 ---
 
 # agathos-daimon
@@ -28,7 +28,7 @@ The Resident aggregate on `resident-<id>` and its v1 events
 (`ResidentCreated`, `IdMinted`, `ResidentPaused`, `ResidentWoken`,
 `CustodyTransferred`, `ExportWallSet`, `Imported`, `ExportWritten`,
 `BackupCommitted`, `RootMismatchDetected`, `RecordsRemoteSet`); the
-`resident_resident` projection, scoped by both the resident and its
+`agathos_daimon_resident` projection, scoped by both the resident and its
 steward's account; the custody wire form (`account:<id>`, `community`);
 the `/v1/residents` routes.
 

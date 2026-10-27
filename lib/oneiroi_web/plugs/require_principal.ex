@@ -4,7 +4,7 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
 
   import Plug.Conn
 
-  alias Oneiroi.Identity.Error
+  alias Oneiroi.Gaia.Error
   alias OneiroiWeb.Controllers.Helpers
 
   @impl Plug
@@ -15,7 +15,7 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
 
   def call(conn, _opts) do
     conn
-    |> Helpers.error(401, Error.new(:identity_not_a_principal))
+    |> Helpers.error(401, Error.new(:gaia_not_a_principal))
     |> halt()
   end
 end

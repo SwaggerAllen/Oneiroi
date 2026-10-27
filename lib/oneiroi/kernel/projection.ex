@@ -2,8 +2,8 @@ defmodule Oneiroi.Projection do
   @moduledoc """
   What a system's Ecto projector adopts (conventions §6, §12):
 
-      defmodule Oneiroi.Resident.Projectors.Resident do
-        use Oneiroi.Projection, name: "resident_resident"
+      defmodule Oneiroi.AgathosDaimon.Projectors.Resident do
+        use Oneiroi.Projection, name: "agathos_daimon_resident"
 
         fold %ResidentCreated{} = e, _metadata, fn multi ->
           Ecto.Multi.insert(multi, :row, %Row{...})

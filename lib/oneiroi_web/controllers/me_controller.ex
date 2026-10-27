@@ -15,7 +15,7 @@ defmodule OneiroiWeb.MeController do
       account_id: p.account_id,
       email: p.email,
       via: Atom.to_string(p.via),
-      residents: Oneiroi.Identity.stewarded_residents(p.account_id)
+      residents: Oneiroi.Gaia.stewarded_residents(p.account_id)
     })
   end
 end

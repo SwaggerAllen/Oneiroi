@@ -1,10 +1,10 @@
 ---
 paths:
-  - lib/oneiroi/records/**
-  - lib/oneiroi/records.ex
-  - lib/mix/tasks/oneiroi.records.rebuild.ex
-  - test/oneiroi/records/**
-  - test/fixtures/records/**
+  - lib/oneiroi/sima_qian/**
+  - lib/oneiroi/sima_qian.ex
+  - lib/mix/tasks/oneiroi.sima_qian.rebuild.ex
+  - test/oneiroi/sima_qian/**
+  - test/fixtures/sima_qian/**
 ---
 
 # sima-qian
@@ -24,9 +24,9 @@ attended with the spine (plan P0.7, decisions log round 9).
 
 The export (`records/events/<day>.jsonl` and `records/README.md`), the
 Merkle root, the git port, the backup run, the rebuild, the attestation
-check, the two nightly workers on the `records_nightly` queue, and the
-`mix oneiroi.records.rebuild` task. The fixture log under
-`test/fixtures/records/` and its replay test.
+check, the two nightly workers on the `sima_qian_nightly` queue, and the
+`mix oneiroi.sima_qian.rebuild` task. The fixture log under
+`test/fixtures/sima_qian/` and its replay test.
 
 ## #2 Standing decisions
 
@@ -43,7 +43,7 @@ check, the two nightly workers on the `records_nightly` queue, and the
   version the export ran through is the commit's `Oneiroi-Sequence`
   trailer and `ExportWritten.through`.
 - **#5 The export stays a watermark behind capture.**
-  `RECORDS_WATERMARK_SECONDS` (a bound, 60) by the event's own instant,
+  `SIMA_QIAN_WATERMARK_SECONDS` (a bound, 60) by the event's own instant,
   so a turn still being written is never half-exported.
 - **#6 The root is sha256 over path, NUL and bytes, in path order, paired
   upward with the last leaf doubled on an odd row.** Deterministic for
@@ -53,7 +53,7 @@ check, the two nightly workers on the `records_nightly` queue, and the
   rest has landed.** The soul alone, writing and research apart, machine
   state together (David's rule); in P0 the only class with files is the
   machine one. A path outside every class fails the run with
-  `records_stray_files` naming it, after the export is committed and
+  `sima_qian_stray_files` naming it, after the export is committed and
   pushed, so the backup is taken and the stray is loud.
 - **#8 The git port is one module calling the `git` binary, with two
   providers by URL.** A local path for tests and self-hosters, GitHub over

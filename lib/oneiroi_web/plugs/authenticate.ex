@@ -23,7 +23,7 @@ defmodule OneiroiWeb.Plugs.Authenticate do
   end
 
   defp token(raw) do
-    case Oneiroi.Identity.authenticate_token(raw) do
+    case Oneiroi.Gaia.authenticate_token(raw) do
       {:ok, principal} -> principal
       :error -> nil
     end
@@ -32,7 +32,7 @@ defmodule OneiroiWeb.Plugs.Authenticate do
   defp session(nil), do: nil
 
   defp session(raw) do
-    case Oneiroi.Identity.authenticate_session(raw) do
+    case Oneiroi.Gaia.authenticate_session(raw) do
       {:ok, principal} -> principal
       :error -> nil
     end

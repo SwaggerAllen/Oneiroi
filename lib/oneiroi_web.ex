@@ -7,9 +7,9 @@ defmodule OneiroiWeb do
   use Boundary,
     deps: [
       Oneiroi,
-      Oneiroi.Identity,
-      Oneiroi.Records,
-      Oneiroi.Resident,
+      Oneiroi.Gaia,
+      Oneiroi.SimaQian,
+      Oneiroi.AgathosDaimon,
       OpenApiSpex,
       OpenApiSpex.Plug.PutApiSpec,
       OpenApiSpex.Plug.RenderSpec,

@@ -107,7 +107,7 @@ schema, `projection_versions`) and the application role.
   actor is invalid, whose instant is missing, or whose note is blank on a
   decision. An event's `version:` is listed in its system's `events/0`;
   a shape change is a new version with an upcaster, and the fixture log
-  under `test/fixtures/records/` is the test that fails without one.
+  under `test/fixtures/sima_qian/` is the test that fails without one.
 - **#16 The macro modules are leaves.** `Oneiroi.Event` is the macro and
   `Oneiroi.Event.Codec` the restoring; the router and projection macros
   name the application, the repo and the middleware as atoms built with

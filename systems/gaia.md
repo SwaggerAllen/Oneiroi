@@ -1,15 +1,15 @@
 ---
 paths:
-  - lib/oneiroi/identity/**
-  - lib/oneiroi/identity.ex
+  - lib/oneiroi/gaia/**
+  - lib/oneiroi/gaia.ex
   - lib/oneiroi_web/plugs/**
   - lib/oneiroi_web/controllers/session_controller.ex
   - lib/oneiroi_web/controllers/me_controller.ex
   - lib/oneiroi_web/controllers/second_factor_controller.ex
   - lib/oneiroi_web/controllers/token_controller.ex
   - lib/mix/tasks/oneiroi.setup.ex
-  - priv/repo/migrations/*_identity.exs
-  - test/oneiroi/identity/**
+  - priv/repo/migrations/*_gaia.exs
+  - test/oneiroi/gaia/**
   - test/oneiroi_web/contract_test.exs
 ---
 
@@ -30,8 +30,8 @@ written (plan P0.4).
 ## #1 Owns
 
 The Account aggregate on `account-<id>` and its v1 events; the
-`identity_account`, `identity_session`, `identity_token` and
-`identity_stewardship` projections; the principal (`Oneiroi.Identity
+`gaia_account`, `gaia_session`, `gaia_token` and
+`gaia_stewardship` projections; the principal (`Oneiroi.Gaia
 .Principal`: an account via a session or a token, carrying the actor it
 acts as); the request plugs (secure headers, authenticate, origin,
 require-principal); the session, me, second-factor and token routes under
@@ -45,7 +45,7 @@ task that creates the one account.
   enters the log encrypted under the platform vault and is redacted from
   every export. Passkeys are later (spec §6.1).
 - **#4 Sessions and tokens are random ids with only the hash stored.**
-  Thirty days for a session, from `IDENTITY_SESSION_TTL_DAYS`; a token
+  Thirty days for a session, from `GAIA_SESSION_TTL_DAYS`; a token
   until revoked. The raw value is returned once and never written.
 - **#5 The cookie is `__Host-oneiroi`, `HttpOnly`, `Secure`,
   `SameSite=Strict`, and every mutation without a bearer token checks
@@ -55,7 +55,7 @@ task that creates the one account.
   Origin or it is refused before any controller runs. Login is checked
   too. The CSP allows the client's own bundle and nothing else.
 - **#6 Failed logins slow down and never lock out.** Per email, the
-  delay doubles from `IDENTITY_LOGIN_DELAY_MS` on each failure, capped
+  delay doubles from `GAIA_LOGIN_DELAY_MS` on each failure, capped
   at five seconds, cleared on success; counts live in a process's ETS
   and are lost on restart.
 - **#7 Stewardship is a relation with a start and an end, written by this

@@ -411,7 +411,7 @@ Catapult's `systems/README.md`.
 ### 6.1 identity
 
 Accounts, authentication, sessions, stewardship.
-Owns `lib/oneiroi/identity/**`, `lib/oneiroi_web/auth/**`.
+Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
 
 - Password plus a second factor (TOTP, passkeys later); scrypt or argon2
   hashes; sessions as random ids with only the hash stored, expiring in 30
@@ -426,7 +426,7 @@ Owns `lib/oneiroi/identity/**`, `lib/oneiroi_web/auth/**`.
 ### 6.2 resident
 
 The resident aggregate: creation, identity files, lifecycle, custody.
-Owns `lib/oneiroi/resident/**`, the wizard's server side, the repo
+Owns `lib/oneiroi/agathos_daimon/**`, the wizard's server side, the repo
 templates.
 
 - **The creation flow** (F3) has four stages: opening (what a resident is,
@@ -783,7 +783,7 @@ Owns `lib/oneiroi/honcho/**`.
 ### 6.10 records
 
 Export, replay, attestation, git providers, backups.
-Owns `lib/oneiroi/records/**`.
+Owns `lib/oneiroi/sima_qian/**`.
 
 - **Export** nightly to `records/`: transcripts by day, bookmarks, tags,
   positions, disputes, predictions, judgement nights, feeds (urls redacted

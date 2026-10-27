@@ -3,7 +3,7 @@ defmodule OneiroiWeb.Controllers.Helpers do
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
 
-  alias Oneiroi.Identity.Principal
+  alias Oneiroi.Gaia.Principal
 
   @doc "Renders a registered error kind as the JSON envelope, at `status`."
   def error(conn, status, %{kind: kind, meaning: meaning, remedy: remedy}) do

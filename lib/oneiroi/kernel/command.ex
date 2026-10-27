@@ -3,7 +3,7 @@ defmodule Oneiroi.Command do
   What every command carries (conventions §6): the actor, the instant,
   and, for a decision, the note.
 
-      defmodule Oneiroi.Resident.Commands.CreateResident do
+      defmodule Oneiroi.AgathosDaimon.Commands.CreateResident do
         use Oneiroi.Command, fields: [:id, :name, :slug]
       end
 
