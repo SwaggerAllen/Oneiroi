@@ -32,7 +32,7 @@ pinned toolchain is the only supported one.
   and error kinds carry the same name, and the function word stays only
   where it names the entity (the resident aggregate, `/v1/residents`).
 - `lib/oneiroi_web/` — the endpoint, router and JSON surface.
-- `components/daedalus/` — the platform substrate, lifted from Catapult
+- `components/daedalus/` — Daedalus, the substrate, lifted from Catapult
   (Apache-2.0): its own mix project with its own gate block. Citations of
   the form `v5 §n` and `ORC-n` inside it are Catapult's, kept as the
   provenance of each rule; `systems/daedalus.md` says where they resolve.

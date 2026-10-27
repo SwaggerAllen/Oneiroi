@@ -7,7 +7,7 @@ paths:
 
 **Audits.** Old Norse, HOO-gin and MOO-nin ("thought and memory").
 
-> "O'er Mithgarth Hugin and Munin both / Each day set forth to fly; / For Hugin I fear lest he come not home, / But for Munin my care is more." — Poetic Edda, Grímnismál 20
+> "O'er Mithgarth Hugin and Munin both / Each day set forth to fly; / For Hugin I fear lest he come not home, / But for Munin my care is more." — Poetic Edda, Grímnismál 20, trans. H. A. Bellows (1923)
 
 Thought and Memory are the watcher god's two ravens: out at dawn over the whole world, home by dinner, telling him everything they saw. The poem carries its own honest line — the fear of losing Huginn, and of losing memory most of all.
 

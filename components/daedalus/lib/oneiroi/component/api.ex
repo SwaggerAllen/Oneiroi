@@ -42,7 +42,7 @@ defmodule Oneiroi.Component.API do
   The macro also leaves a trace: each `defexport` accumulates its
   `{name, arity}`, and `__oneiroi_component__/0`'s sibling
   `__oneiroi_exports__/0` is generated from it. Without that, nothing
-  in the substrate could answer "is this function a boundary export" —
+  in Daedalus could answer "is this function a boundary export" —
   which is the whole of v5 §4.4's thin-wrapper enforcement, and what
   `api_surface/0` validates against. The payoff outruns that registry:
   the audit's every-export-has-a-test check and its exported-mutating-

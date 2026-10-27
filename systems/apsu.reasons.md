@@ -23,7 +23,7 @@ code.
 
 ## #7
 A check that accepts several spellings lets a block drift out of the one
-it reads while still looking read; the substrate's `oneiroi:required-env`
+it reads while still looking read; Daedalus's `oneiroi:required-env`
 fence is the same discipline for the same reason.
 
 ## #8

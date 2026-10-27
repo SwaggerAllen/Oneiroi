@@ -1,6 +1,6 @@
 defmodule Oneiroi.Apsu.HealthPlug do
   @moduledoc """
-  `/health` (conventions §10): the substrate's health plug over the
+  `/health` (conventions §10): Daedalus's health plug over the
   composed roster, mounted ahead of the router in `OneiroiWeb.Endpoint`
   and passing everything else through. The roster is read from
   `Oneiroi.Boot` at init so the endpoint names no system itself (root

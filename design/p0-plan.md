@@ -110,8 +110,8 @@ a tree that does nothing.
    `pull_request` into `main` only, Postgres service pinned to the major
    P0.2 chooses, `fetch-depth: 0`, exact-key dependency cache with no
    fallback, the self-arming pipeline audit.
-6. `mix oneiroi.audit` v0 with every check the substrate carries plus
-   `gates` and `skips`, registered by the platform system through
+6. `mix oneiroi.audit` v0 with every check Daedalus carries plus
+   `gates` and `skips`, registered by Apsu through
    `policies/0`; `prompts` waits for the model port in P1, since it is a
    rule about that port's call sites. `mix oneiroi.audit.all` at the root
    over the three mix projects, exiting 1 on an unresolved one.
@@ -131,7 +131,7 @@ one word changed in `CLAUDE.md`'s gate block (`gates`); a `@tag :skip`
 with no key (`skips`); a compile-time dependency between two boundaries
 (the ratchet); a cycle (xref); a warning (compile). A check with no
 instance in the tree to judge prints that it covers nothing rather than
-`ok`, which is the substrate's own rule for inert states and the only
+`ok`, which is Daedalus's own rule for inert states and the only
 honest answer on an empty tree.
 
 ## P0.2 The persistence spine (attended)
@@ -140,7 +140,7 @@ Everything in conventions §6, §7 and §12 that a system is built on top
 of, built before any system exists so the first system cannot be built
 without it.
 
-1. **One Repo**, owned by the platform system; Commanded's application
+1. **One Repo**, owned by Apsu; Commanded's application
    and EventStore on Postgres with its own schema; Oban. The store reset
    per test run, measured.
 2. **Two database roles**: `oneiroi_migrator` owns the schema and runs
@@ -164,7 +164,7 @@ without it.
    read, and the fixture-log harness that replays `records/events/*.jsonl`
    files from `test/fixtures/` and asserts every historical shape still
    folds. Empty of fixtures until P0.6 writes the first.
-6. **The purity floor** enforced: the injected clock from the substrate,
+6. **The purity floor** enforced: the injected clock from Daedalus,
    seeded randomness, ids generated at the command edge. The `wall_clock`
    check now has aggregates to parse.
 7. **The configuration module** (spec §6.16): every setting declared with
@@ -199,7 +199,7 @@ on CI.
    populate, and the typed channel client is a stub with its type.
    Phoenix serves the built storybook on previews, which is what Design
    review reads.
-2. `sdk/`: a mix project, Apache-2.0, depending on the substrate and
+2. `sdk/`: a mix project, Apache-2.0, depending on Daedalus and
    nothing from the core, with `licensing: [allow: ...]` declared and the
    `license` check armed. It holds the adapter behaviour's module names
    and nothing else until P1 writes the contract.
@@ -295,7 +295,7 @@ asserts, as does the one that two residents never interleave. The
 name and a slug only; the creation flow with its threshold and gifts is
 P1 (spec §6.2), because the threshold collects a key the ledger does not
 yet exist to hold. The two-residents bleed test from P0.2 becomes real
-here. The first fixture log in `test/fixtures/sima_qian/events/` is written
+here. The first fixture log in `test/fixtures/sima_qian/records/events/` is written
 from these events, so the replay harness has a history from the day the
 first event shape exists.
 

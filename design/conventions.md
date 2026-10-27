@@ -136,7 +136,7 @@ the sixteen systems of spec §6.
 - **Standard skeleton:** the export module, `Config` (declarations and
   casts), `Supervisor`, `Store`, `Events`, `TestSupport` (boundary-exported,
   test env only), and the system doc with its file map.
-- **The component behaviour** (`use Oneiroi.System`, the substrate's
+- **The component behaviour** (`use Oneiroi.System`, Daedalus's
   `Oneiroi.Component` under the spec's own word) declares the
   registries: `config/0` (the settings, each with `usage:`, a `tag:`
   when numeric, and secret flags), `processes/0`, `errors/0`,
@@ -165,7 +165,7 @@ the sixteen systems of spec §6.
 
 ## 6. Persistence and events
 
-- **One Repo**, owned by the platform system. Stores own schemas, queries
+- **One Repo**, owned by Apsu. Stores own schemas, queries
   and migrations, never connections. Store exports are function-shaped
   (`Store.bookmark/2`), never generic CRUD.
 - **Every table has exactly one owner** (a system's store or a registered

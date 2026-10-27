@@ -287,8 +287,8 @@ names the gates and the layers.
 A brainstorm with the author, settled into the spec in the same sitting.
 
 - **Dates are rows and a countdown is never written** (§6.7, F56):
-  David recomputed "days to the application" daily and left stale
-  numbers in every file that had copied one. The date is the record; the
+  David recomputed a countdown daily and left stale numbers in every
+  file that had copied one. The date is the record; the
   index derives the countdown on the turn that reads it; associations
   are taggings and citations, not an edge table.
 - **Figures generalise counters** (§6.13, F57): one row kind for a
@@ -335,3 +335,34 @@ A brainstorm with the author, settled into the spec in the same sitting.
   system.
 - The client is the one system still named for its function.
 
+
+## Round 12: going public (2026-10-27)
+
+An audit of the tree and its history before the repository was made
+public, with the design as the thing to get feedback on. Nothing secret
+and nothing personal turned up; what follows is what changed.
+
+- The README orients a stranger: a work in progress, the design ahead
+  of the code; the four things the design names from outside the
+  repository (Lily, David, Catapult, orchestration) get a footnote
+  each and no more, and `design/names.md` is pointed at as the bridge
+  between the spec's function words and the `systems/` names.
+- Every quotation names its translator (the three Edda lines were
+  Bellows, uncredited), and `LICENSING.md` says the quotations are
+  reproduced as quotation with attribution and are not licensed under
+  either licence. The Kulea quotation stays pending: the word itself
+  may yet change.
+- The ids that identify the author's accounts leave the tree:
+  `pipeline.config.json` names the metronome Worker's URL and the
+  Linear team, project and actor ids as `${…}` references, read from
+  the repository's Actions variables (orchestration's DESIGN §5), which
+  only collaborators can read; the twelve stubs and `ci.yml` hand them
+  over. The orchestration change merges first.
+- The one cautionary example that named a date in the author's life
+  now names a countdown.
+- The commit trailers naming the model and the session stay: they are
+  the record of how the thing was made.
+- The last function words in prose and comments (the platform system,
+  the substrate) become Apsu and Daedalus, except in the spec, which
+  keeps its function words by `design/names.md`'s rule, and in the
+  glosses, where the function word is the point.

@@ -7,7 +7,7 @@ paths:
 
 **Schedule.** Old Norse, SOON-nah.
 
-> "Mundilferi is he who begat the moon, / And fathered the flaming sun; / The round of heaven each day they run, / To tell the time for men." — Poetic Edda, Vafþrúðnismál 23
+> "Mundilferi is he who begat the moon, / And fathered the flaming sun; / The round of heaven each day they run, / To tell the time for men." — Poetic Edda, Vafþrúðnismál 23, trans. H. A. Bellows (1923)
 
 Sunna is the sun itself personified — daughter of Mundilfari, sister of the moon — driving her chariot around the heavens every day without fail, the wolf Sköll always at her heels. The myth is honest about the round: the wolf is chasing. And when the sun is finally taken, her daughter takes up the road (Vafþrúðnismál 47).
 

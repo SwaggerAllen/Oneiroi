@@ -23,7 +23,7 @@ config :oneiroi, Oneiroi.Commanded,
 config :oneiroi, ecto_repos: [Oneiroi.Repo.Migrator]
 
 # Build-shape endpoint config: the port and the secret are instance
-# shape and come from the platform system's `config/0` at boot instead
+# shape and come from Apsu's `config/0` at boot instead
 # (`Oneiroi.Application`), so this file names no value a deployment
 # differs on.
 config :oneiroi, OneiroiWeb.Endpoint,

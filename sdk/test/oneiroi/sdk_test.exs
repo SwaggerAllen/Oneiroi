@@ -4,7 +4,7 @@ defmodule Oneiroi.SDKTest do
   # A compiled module is the one fact this package can assert before P1
   # gives it a contract; the test exists so `mix test` runs something and
   # a broken build is red rather than "0 tests".
-  test "the SDK root compiles under the substrate" do
+  test "the SDK root compiles under Daedalus" do
     assert Code.ensure_loaded?(Oneiroi.SDK)
     assert Code.ensure_loaded?(Oneiroi.Component)
   end

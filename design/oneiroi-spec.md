@@ -793,9 +793,9 @@ Owns `lib/oneiroi/schedule/**`.
   **A countdown is never written down.** "Days to" is derived at read
   time and rendered in the index on the turn that reads it; the journal
   and the digest cite the row. The rule exists because a figure written
-  into prose is a claim nothing re-derives: David recomputed "days to the
-  application" daily and left stale numbers in every file that had copied
-  one. The check-ins announce an approaching date by the same derivation.
+  into prose is a claim nothing re-derives: David recomputed a countdown
+  daily and left stale numbers in every file that had copied one. The
+  check-ins announce an approaching date by the same derivation.
 - **The journal's day row** is this system's to create, at the day's
   first check-in (§6.5), which is what makes a missing day visible.
 

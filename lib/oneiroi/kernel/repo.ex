@@ -1,6 +1,6 @@
 defmodule Oneiroi.Repo do
   @moduledoc """
-  The one Repo (conventions §6), owned by the platform system. Stores own
+  The one Repo (conventions §6), owned by Apsu. Stores own
   schemas and queries, never connections.
 
   Two things happen on every connection and every query, and both are
