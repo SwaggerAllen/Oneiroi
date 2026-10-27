@@ -3,7 +3,7 @@ defmodule Oneiroi.MixProject do
 
   # Oneiroi: the core (design/oneiroi-spec.md), built per
   # design/p0-plan.md under design/conventions.md. Single OTP app plus
-  # Boundary (conventions §4); the substrate and the SDK are their own
+  # Boundary (conventions §4); Daedalus and the SDK are their own
   # mix projects under components/ and sdk/, each with its own gate block.
   def project do
     [

@@ -12,7 +12,7 @@ WORKDIR /app
 ENV MIX_ENV=prod
 RUN mix local.hex --force && mix local.rebar --force
 
-# Whole-context copy: the substrate is a path dep, so a selective COPY
+# Whole-context copy: Daedalus is a path dep, so a selective COPY
 # buys little and breaks whenever the project list grows.
 COPY . .
 

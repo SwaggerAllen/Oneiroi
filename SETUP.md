@@ -64,7 +64,7 @@ secret (`sync: false`).
 
 - Merge the `PROJECTS` entry for this repo into the metronome Worker's
   config in `SwaggerAllen/orchestration` (`worker/wrangler.toml`: this
-  repo, `pipeline-sweep.yml`, `main`, the Linear project id below).
+  repo, `pipeline-sweep.yml`, `main`, the Linear project id).
   Merging redeploys the Worker on its own.
 - Add `SwaggerAllen/Oneiroi` to the `DISPATCH_TOKEN` fine-grained
   token's repository list: a beat that cannot reach the repo logs 404s
@@ -79,13 +79,27 @@ secret (`sync: false`).
 
 ## 3. The tracker
 
-The Linear project exists: **Oneiroi** under the `ORC` team
-(`52912951-94a7-4803-b430-67b10da55523`, `pipeline.config.json`'s
-`tracker.projectId`). Run `pipeline-admin` with `setup`, dry first and
+The Linear project exists: **Oneiroi** under the `ORC` team; its id
+and the team's are the `LINEAR_PROJECT_ID` and `LINEAR_TEAM_ID`
+variables below, which `pipeline.config.json`'s `tracker` block names as
+`${…}` references. Run `pipeline-admin` with `setup`, dry first and
 then applied, to create any state or label the team lacks; the state
 names are the config's `states` map.
 
-## 4. Secrets, webhook, repo settings (GitHub UI)
+## 4. Variables, secrets, webhook, repo settings (GitHub UI)
+
+Actions variables on this repo (Settings → Secrets and variables →
+Actions → Variables), which only collaborators can read; the config
+names each as a `${…}` reference (orchestration's DESIGN §5), the
+twelve stubs and `ci.yml` hand them over in one `env:` block, and a
+`pipeline` command run with one unset fails naming it:
+
+- `PIPELINE_STATE_URL`: the metronome Worker's origin,
+  `https://pipeline-metronome.<subdomain>.workers.dev`.
+- `LINEAR_TEAM_ID` and `LINEAR_PROJECT_ID`: the `ORC` team and the
+  Oneiroi project.
+- `LINEAR_AUTHOR_ID`: your Linear user id, the config's `author` and
+  `controlplane` actor.
 
 Actions secrets on this repo:
 

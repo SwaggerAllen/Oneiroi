@@ -6,13 +6,15 @@ paths:
 
 # client
 
-The React application and its Storybook. Spec §6.15. Not built; this doc is its file map, the
-standing decisions the spec already records, and the phase that builds
-it, so a design pass reaching for it finds a record rather than a gap.
+The React application and its Storybook. Spec §6.15. The skeleton is in
+the tree (Vite, React 19, Storybook and the design system's tokens,
+P0.3); no screen is. This doc is its file map, the standing decisions
+the spec already records, and the phase that builds it, so a design
+pass reaching for it finds a record rather than a gap.
 
 ## #1 Owns
 
-`client/**`, `storybook/**`, none of it in the tree yet.
+`client/**`, the skeleton so far, and `storybook/**`, nothing yet.
 
 ## #2 Standing decisions
 
@@ -24,7 +26,7 @@ Carried from spec §6.15; the reason for each is there.
 
 ## #6 Initial vs target
 
-Initial: not built; see spec §6.15. Target: the whole of spec §6.15,
+Initial: the skeleton, P0.3; see spec §6.15. Target: the whole of spec §6.15,
 built in P0.3 (the skeleton), P1 (spec §14).
 
 ## #7 Depends on

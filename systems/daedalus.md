@@ -34,7 +34,7 @@ two words meet.
   diff against that commit by choice; nothing obliges one to
   (design/p0-plan.md).
 - **#4 The provenance citations stay.** `v5 §n` is Catapult's design
-  document and `ORC-n` its tickets; both are cited inside the substrate
+  document and `ORC-n` its tickets; both are cited inside Daedalus
   as the measurement behind a rule, and neither resolves in this tree.
   `pipeline.config.json` says so under `citationShorthands`, so a later
   pass does not invent a path. Prose that names Catapult as the product
@@ -56,7 +56,7 @@ two words meet.
   projects, and it exits 1 rather than skipping one whose deps are
   unresolved.
 - **#8 Checks that are Oneiroi's own are registered through
-  `policies/0` by the platform system, never added to the substrate's
+  `policies/0` by Apsu, never added to Daedalus's
   platform checks.** The substrate ships into the SDK, which other
   agent platforms embed; a check that is this repository's policy, in a
   package that ships into trees we do not own, is the allowlist mistake
@@ -64,7 +64,7 @@ two words meet.
 
 ## #9 Initial vs target
 
-Initial: the substrate as lifted plus #6. Target: the ES property
+Initial: Daedalus as lifted plus #6. Target: the ES property
 templates as a macro once the event spine lands (P0.2), and the
 `model_port` and `prompts` checks registered by the systems that own the
 port and the prompt files (P1).

@@ -1,7 +1,7 @@
 defmodule Oneiroi.Daedalus.MixProject do
   use Mix.Project
 
-  # The elixir-target platform substrate (systems/daedalus.md): the
+  # Daedalus, the substrate (systems/daedalus.md): the
   # component behaviour + registries, the boundary-export macro, the
   # audit, health, clock, and seeds. Shipped to every target app;
   # Catapult itself is the first consumer (path dep from the repo root).

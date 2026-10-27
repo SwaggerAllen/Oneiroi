@@ -7,7 +7,7 @@ defmodule Oneiroi.Application do
 
   The endpoint is always in the tree, test included (`Phoenix.ConnTest`
   needs the process); whether it binds a socket is `config :oneiroi,
-  :serve`, and the port and secret are the platform system's declared
+  :serve`, and the port and secret are Apsu's declared
   settings.
   """
   use Application

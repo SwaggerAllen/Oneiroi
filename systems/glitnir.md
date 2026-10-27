@@ -7,7 +7,7 @@ paths:
 
 **Governance.** Old Norse, GLIT-neer ("the shining one").
 
-> "The tenth is Glitnir; its pillars are gold, / And its roof with silver is set; / There most of his days does Forseti dwell, / And sets all strife at end." — Poetic Edda, Grímnismál 15
+> "The tenth is Glitnir; its pillars are gold, / And its roof with silver is set; / There most of his days does Forseti dwell, / And sets all strife at end." — Poetic Edda, Grímnismál 15, trans. H. A. Bellows (1923)
 
 Glitnir is the shining hall — gold pillars, silver roof — where Forseti, the gods' mediator, hears every case, and every party leaves reconciled.
 

@@ -4,7 +4,7 @@ defmodule Oneiroi.SDK.MixProject do
   # The adapter SDK (spec §8, conventions §1): the package another agent
   # platform embeds to speak Oneiroi's three adapter interfaces. Its own
   # mix project rather than a directory of the core, because the core is
-  # AGPL and this is Apache-2.0: a path dependency on the substrate is the
+  # AGPL and this is Apache-2.0: a path dependency on Daedalus is the
   # only code it shares, and `mix oneiroi.audit`'s license check holds the
   # closure to the allow list below.
   def project do
