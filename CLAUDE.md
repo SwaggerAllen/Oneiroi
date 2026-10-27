@@ -12,8 +12,11 @@ Design source of truth: `design/oneiroi-spec.md` (cited as *spec §n*).
 Build sequencing: `design/p0-plan.md`. Coding rules with their reasons:
 `design/conventions.md` (*conventions §n*): read it before writing
 code; every rule carries the failure it prevents. Architecture:
-`systems/*.md`, one doc per system with a file map; the reason behind
-each numbered rule is in the `.reasons.md` sibling.
+`systems/*.md`, one doc per system, filed under the system's name
+rather than its function (`design/names.md` maps the two: Gaia is
+identity, Sima Qian is records), each opening with the name's story and
+carrying a file map; the reason behind each numbered rule is in the
+`.reasons.md` sibling.
 
 ## Toolchain
 

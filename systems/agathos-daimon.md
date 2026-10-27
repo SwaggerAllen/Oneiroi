@@ -7,7 +7,15 @@ paths:
   - test/oneiroi/resident/**
 ---
 
-# resident
+# agathos-daimon
+
+**The resident.** Greek, AH-gah-thos DYE-mon.
+
+> "...it is the custom, they say, when unmixed wine is served during a meal to greet it with the words, 'To the Good Deity!' but when the cup is passed around after the meal diluted with water, to cry out, 'To Zeus Saviour!'" — Diodorus Siculus 4.3.4, trans. C. H. Oldfather (Loeb, 1935)
+
+The *agathos daimon* is the Greek household's guardian spirit — the good spirit of the house, toasted with unmixed wine. In Alexandria every home had its own serpent of the foundations: one good spirit coiled under every house. (A *daimon* is a guardian spirit; English later bent the word toward "demon," but the native sense is this one.)
+
+The resident — the aggregate, the emergent spirit of one household of parts — is named for what the Greeks believed a home grows: a spirit personal to it, its own guide. Not a god installed at the door but the house's own good spirit, poured its cup at the end of every day.
 
 The resident aggregate: creation, lifecycle, custody, the per-resident id
 sequences, and the records bookkeeping on its stream (spec §6.2). Built
@@ -67,3 +75,13 @@ lifecycle events, succession (spec §6.2).
 
 The platform (the kernel). The identity system reads this stream for
 stewardship; the records system writes this stream's bookkeeping.
+
+## #10 Kulea, formation
+
+Swahili, koo-LEH-ah.
+
+> _Quote pending._
+
+*Kulea* is the Swahili verb "to bring up, nurse, rear" — to raise a child with care.
+
+The formation period — the soul-seed's nurture, the first weeks of a resident's life, when temperament is growing toward personhood — is named for the work done on it: being raised, with care. Not bootstrapping.

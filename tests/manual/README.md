@@ -15,7 +15,7 @@ sides are correct and the crossing is unasserted.
 ```
 ---
 covers:
-  - system:records
+  - system:sima-qian
   - screen:status
 ---
 ```

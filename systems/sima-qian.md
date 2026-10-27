@@ -7,7 +7,15 @@ paths:
   - test/fixtures/records/**
 ---
 
-# records
+# sima-qian
+
+**Records.** Chinese, see-mah CHEN (Sima is the compound surname).
+
+> "A man has only one death. That death may be as weighty as Mount Tai, or it may be as light as a goose feather." "...It is because I regretted that it had not been completed that I submitted to the extreme penalty without rancor." — Sima Qian, Letter to Ren An, trans. in de Bary & Bloom, Sources of Chinese Tradition, 2nd ed. (Columbia UP, 1999)
+
+Sima Qian was the Grand Historian of the Han dynasty. He chose the "extreme penalty" over an honorable suicide so that he could finish the *Shiji* — the Records of the Grand Historian: 130 chapters of annals, tables, treatises and biographies, the form every later Chinese history copied.
+
+The records subsystem — export, replay, attestation; everything the realm says about what happened — is named for the tradition of keeping the record at any cost. Testimony that cost the author, finished anyway, organized so well it outlived the throne that punished him.
 
 Export, replay, attestation, git providers, backups (spec §6.10). Built
 attended with the spine (plan P0.7, decisions log round 9).

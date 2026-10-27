@@ -3,7 +3,15 @@ paths:
   - lib/oneiroi/governance/**
 ---
 
-# governance
+# glitnir
+
+**Governance.** Old Norse, GLIT-neer ("the shining one").
+
+> "The tenth is Glitnir; its pillars are gold, / And its roof with silver is set; / There most of his days does Forseti dwell, / And sets all strife at end." — Poetic Edda, Grímnismál 15
+
+Glitnir is the shining hall — gold pillars, silver roof — where Forseti, the gods' mediator, hears every case, and every party leaves reconciled.
+
+The governance subsystem — custody, contracts, reports, and consequences — is named for the hall rather than its god, because the room is the institution: it holds reconciliation now, it will hold whatever governance becomes — including the residents' vote, when that day comes — and it will outlast every one of its keepers.
 
 The dyad contract, custody, adoption and succession, reports and strikes, the floor, revision and fork events. Spec §6.12. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

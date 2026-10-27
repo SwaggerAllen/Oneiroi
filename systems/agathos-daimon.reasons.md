@@ -1,4 +1,4 @@
-# resident: reasons
+# agathos-daimon: reasons
 
 ## #3
 Plan P0.6: nothing is drafted before a key or tokens exist, and the

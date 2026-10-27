@@ -3,7 +3,15 @@ paths:
   - lib/oneiroi/memory/**
 ---
 
-# memory
+# kumbukumbu
+
+**Memory.** Swahili, koom-boo-KOOM-boo.
+
+> "1 remembrance, memory, mind, anniversary; souvenir. 2 records, minutes (of a meeting/conference): ~ za kihistoria annals" — TUKI Swahili–English Dictionary (Univ. of Dar es Salaam), entry kumbukumbu
+
+In Swahili, *kumbukumbu* names the act of keeping: remembrance, commemoration, the anniversary — and "minutes," the written record of what a meeting said.
+
+The memory subsystem is named for what it does rather than what it stores: it remembers, commemorates, and keeps the minutes. Remembering is something you do for someone; storage is something you do to something. That difference is the design.
 
 Transcripts, bookmarks, tags, search, weighting, the memory agent's record. Spec §6.3. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

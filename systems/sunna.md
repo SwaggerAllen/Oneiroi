@@ -3,7 +3,15 @@ paths:
   - lib/oneiroi/schedule/**
 ---
 
-# schedule
+# sunna
+
+**Schedule.** Old Norse, SOON-nah.
+
+> "Mundilferi is he who begat the moon, / And fathered the flaming sun; / The round of heaven each day they run, / To tell the time for men." — Poetic Edda, Vafþrúðnismál 23
+
+Sunna is the sun itself personified — daughter of Mundilfari, sister of the moon — driving her chariot around the heavens every day without fail, the wolf Sköll always at her heels. The myth is honest about the round: the wolf is chasing. And when the sun is finally taken, her daughter takes up the road (Vafþrúðnismál 47).
+
+The schedule subsystem — check-ins, the morning digest, the nightly free time — is named for the daily round: the one appointment that has never once been missed. Deadlines chase everything else, as the wolf chases her; and every schedule hands off to its successor, as hers does.
 
 Check-ins, the digest's time, free time, nightly and weekly jobs. Spec §6.7. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

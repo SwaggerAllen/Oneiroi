@@ -4,7 +4,15 @@ paths:
   - lib/oneiroi/regression/**
 ---
 
-# judgement
+# eunomia
+
+**Judgement, the judge agent.** Greek, yoo-NOH-mee-ah.
+
+> "Eunomia (Lawfulness) reveals all that is orderly and fitting, and often places fetters round the unjust. She makes the rough smooth, puts a stop to excess, weakens insolence (hybris), dries up the blooming of ruin (ate), straightens out crooked judgements, tames deeds of pride, and puts an end to acts of sedition and to the anger of grievous strife." — Solon, fragment 4, trans. D. E. Gerber (Loeb, 1999)
+
+Eunomia is "good order" — to the Greeks one of the Horae, with Dike (justice) and Eirene (peace), a daughter of Themis, divine law. Her opposite had a name too: Dysnomia. Solon, writing for a fractured Athens, describes her as an active power — order that goes to work on crookedness.
+
+The judge agent — the nightly coherence pass, the dispute checks, the audit of drift against the resident's own stated positions — has its job description in that fragment. It is the one office in the machinery held deliberately apart from the resident it audits: the constitution's court, amended by the owner alone.
 
 Positions, disputes, predictions, the nightly pass, the weekly audit, project reviews, the regression suite. Spec §6.4. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

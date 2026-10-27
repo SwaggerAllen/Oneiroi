@@ -3,7 +3,15 @@ paths:
   - lib/oneiroi/audits/**
 ---
 
-# audits
+# huginn-muninn
+
+**Audits.** Old Norse, HOO-gin and MOO-nin ("thought and memory").
+
+> "O'er Mithgarth Hugin and Munin both / Each day set forth to fly; / For Hugin I fear lest he come not home, / But for Munin my care is more." — Poetic Edda, Grímnismál 20
+
+Thought and Memory are the watcher god's two ravens: out at dawn over the whole world, home by dinner, telling him everything they saw. The poem carries its own honest line — the fear of losing Huginn, and of losing memory most of all.
+
+The audits subsystem — the coherence pass that flies out over everything the realm has said and comes home to report — is named for the daily flight. An audit that might not come back is the only kind worth trusting with the truth.
 
 User-authored audits, counters, the coherence checklist, the check-engine light. Spec §6.13. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

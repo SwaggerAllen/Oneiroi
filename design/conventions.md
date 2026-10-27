@@ -115,7 +115,7 @@ A system's slug derives every name it claims. For `memory`:
 | Telemetry | `[:oneiroi, :memory, ...]` |
 | Events | declared in `Oneiroi.Memory.Events`, versioned |
 | Streams | per resident, `resident-<id>`; the system is the event's namespace, not its stream |
-| File map | `systems/memory.md` front matter |
+| File map | `systems/kumbukumbu.md` front matter |
 
 Hand-maintained mappings drift; derivations cannot. A name that does not
 fit the table means the decomposition is wrong, not the table. Slugs are
@@ -349,7 +349,7 @@ reported when it covers nothing, and the first set is:
   inventory, no state sections; amended in the same change that moves a
   boundary. Every heading and standing decision opens with an id, the
   reason lives in the `.reasons.md` sibling, and a rule is cited by id
-  (`system:memory#4`), never by its wording.
+  (`system:kumbukumbu#4`), never by its wording.
 - **A number in prose is a claim no later pass re-derives.** Enumerate
   wherever the members are nameable.
 - **Naming some of the sites a rule reaches makes the next pass treat the

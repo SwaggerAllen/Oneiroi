@@ -364,12 +364,12 @@ what it touches, open questions stated.
 - **Build the resident aggregate with per-resident id sequences.**
   Argument: P0.6 above; the id rule is what makes citations survive a
   rebuild, and it must exist before the first citeable thing does.
-  Touches `lib/oneiroi/resident/**`, `systems/resident.md`,
+  Touches `lib/oneiroi/resident/**`, `systems/agathos-daimon.md`,
   `test/fixtures/records/**`.
 - **Build records: export, attestation, the git port and rebuild.**
   Argument: P0.7 above; the repository is the portability promise and the
   round trip is the only test of it. Touches `lib/oneiroi/records/**`,
-  `systems/records.md`. Open question: decision 5.
+  `systems/sima-qian.md`. Open question: decision 5.
 
 ## Measurements P0 records
 

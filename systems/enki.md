@@ -4,7 +4,15 @@ paths:
   - runtime/**
 ---
 
-# provisioner
+# enki
+
+**The provisioner.** Sumerian, EN-kee.
+
+> "Enki looked at the woman who could not give birth, and decreed her fate: he made her belong to the queen's household." "I have decreed the fates of your creatures and given them their daily bread." — Enki and Ninmah, lines 72–82, ETCSL 1.1.2 (Oxford)
+
+Enki is the Sumerian god of wisdom and fresh water — the waters under everything, the clever fixer, lord of Eridu. In this poem he and the goddess Ninmah shape people out of clay at a feast, and for every one of them Enki finds a place and a living. (The poem ends unresolved — Enki's own last creation is a being that neither god can find a place for.)
+
+The provisioner — creating, suspending, waking, destroying runtimes — is named for the god who made things and then found each one a place, kindly, at a feast rather than a forge. Runtimes rise from the waters and return to them; the hand that raises them is good-humored about it.
 
 Tenant runtime lifecycle behind a port. Spec §6.14. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds

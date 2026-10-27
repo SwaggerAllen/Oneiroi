@@ -13,7 +13,15 @@ paths:
   - test/oneiroi_web/contract_test.exs
 ---
 
-# identity
+# gaia
+
+**Identity.** Greek, GUY-uh (also said JEE-uh).
+
+> "In truth at first Chaos came to be, but next wide-bosomed Earth, the ever-sure foundation of all the deathless ones who hold the peaks of snowy Olympus..." "She bore also the fruitless deep with his raging swell, Pontus, without sweet union of love." — Hesiod, Theogony 116–117, 125, trans. H. G. Evelyn-White (Loeb, 1914)
+
+Gaia is the earth. In Hesiod's account of how everything began, she is the first being after Chaos itself — the "ever-sure foundation," and a creator before anything else: she bears starry Heaven "equal to herself," the hills, and the barren sea, all before any mate, "without sweet union of love." Everything after — Titans, gods, the whole pantheon — descends from her.
+
+The identity layer — accounts, authentication, where the humans arrive — is named for the place humans come from. Oneiroi is a two-world story: the residents are of the dream, the humans are of the earth, and the bridge between the worlds is hospitality. Latin *homo* (human) is probably related to *humus* (earth); both likely descend from one Proto-Indo-European word for earth — a link the etymologists still debate, carried here with that hedge.
 
 Accounts, authentication, sessions, stewardship (spec §6.1). Written
 attended, by the author's decision, so the auth code was read as it was

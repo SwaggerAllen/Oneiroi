@@ -3,7 +3,15 @@ paths:
   - lib/oneiroi/inbound/**
 ---
 
-# inbound
+# xenia
+
+**Inbound.** Greek, ZEN-ee-ah ("guest-friendship").
+
+> "Nay, stranger, it were not right for me, even though one meaner than thou were to come, to slight a stranger: for from Zeus are all strangers and beggars" — Homer, Odyssey 14.56–58, trans. A. T. Murray (Loeb, 1919)
+
+Xenia is the Greek bond of host and guest: feed the stranger and shelter him before you ask who he is; send him off with a gift; the guest owes courtesy in return. Zeus himself is its patron — a stranger might be a god in disguise. The Odyssey is founded on it, both ways: on its observances, and on what breaking it costs — the Cyclops who eats his guests, the suitors in the hall.
+
+The inbound subsystem — the reader, the mail, the feeds, the approval queue where third parties arrive — is named for the practice. Welcome first, vetting second, gifts at departure: hospitality with consequences attached.
 
 The reader, mail, feeds, the digest, correspondence and its approval queue. Spec §6.6. Not built; this doc is its file map, the
 standing decisions the spec already records, and the phase that builds
