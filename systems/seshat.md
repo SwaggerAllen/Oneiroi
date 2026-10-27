@@ -30,6 +30,7 @@ Carried from spec §6.5; the reason for each is there.
 - **#4 Only resident-authored or commissioned kinds mint citation edges; resolution happens when read, not when indexed.**
 - **#5 The memory-wiki plugin is cut; `wiki/` stays a plain searchable kind.**
 - **#6 A file is re-embedded only when its hash or the model changes; a re-index with nothing changed costs three statements and no model call.**
+- **#11 The journal's day row exists before the narrative (spec §6.5).** Created by the schedule at the day's first check-in; a day without a wrap is a visible state, and reads go by day key, never the latest file.
 
 ## #7 Initial vs target
 

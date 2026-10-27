@@ -30,6 +30,9 @@ Carried from spec §6.3; the reason for each is there.
 - **#5 Tags cut across every record kind; a frontmatter tag outside the closed set is reported, never stored.**
 - **#6 The steward pins and may propose a bookmark, and never authors one: the index is injected into the resident's context every turn.**
 - **#7 Visibility is the RLS policy on `message` and `session`: a party to the conversation and the current steward read it; the export wall is what a custody transfer reveals or locks; solo sessions are readable by the steward by default and private only by a contract term.**
+- **#10 Behaviours are rows the resident owns, with a trigger, a stance and tagged enactments (spec §6.3, F55).** Two scores kept apart: habit strength, a decayed measurement; connection strength, a decision trace of pins and affirmations. The brain self-tags enactments; the nightly memory pass only proposes.
+- **#11 Retrieval is this system's and choice is the brain's.** Context assembly matches a closed set of situation tags against triggers with no model call and injects the matching behaviours with their enacting turns cited; whether to enact is the brain's thinking.
+- **#12 Dates, figures and behaviours are tagging targets** beside the kinds a tagging already names, so the project view reaches them and no edge table is needed.
 
 ## #8 Initial vs target
 

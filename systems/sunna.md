@@ -28,6 +28,8 @@ Carried from spec §6.7; the reason for each is there.
 - **#3 Oban-driven, per resident, in the resident's timezone; a check-in fires once a day whatever restarts, late within 15 minutes and otherwise missed.**
 - **#4 Quiet hours are the steward's; a wake queued inside them is deferred to their end and the screen says so in words.**
 - **#5 Suspended residents schedule nothing; a wake resumes the beat.**
+- **#8 Dates are rows and a countdown is never written (spec §6.7, F56).** A `date` row with its kind and instant, citeable and taggable; "days to" is derived on the turn that reads it, never copied into prose.
+- **#9 The journal's day row is created here, at the day's first check-in (spec §6.5).** A day the resident never wrote is a row with a plan and nothing else, visible, rather than an absent file.
 
 ## #6 Initial vs target
 

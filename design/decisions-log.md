@@ -281,3 +281,35 @@ names the gates and the layers.
   recorded as not taken.
 - Twelve stubs, not fourteen: Render's previews retire the Pages pair.
 
+## Round 10: dates, figures, the journal's day row, behaviours (2026-10-27)
+
+A brainstorm with the author, settled into the spec in the same sitting.
+
+- **Dates are rows and a countdown is never written** (§6.7, F56):
+  David recomputed "days to the application" daily and left stale
+  numbers in every file that had copied one. The date is the record; the
+  index derives the countdown on the turn that reads it; associations
+  are taggings and citations, not an edge table.
+- **Figures generalise counters** (§6.13, F57): one row kind for a
+  counter (the fold of increment events) and a countdown (derived from a
+  date), both citeable and taggable, both what the "number it was not
+  shown" rule resolves against.
+- **The journal's day row is the schedule's to create** (§6.5, §6.7):
+  made at the day's first check-in, so a day never written is a visible
+  row rather than an absent file, and reads go by day key.
+- **Behaviours** (§6.3, F55): how the resident tends to act, as rows it
+  owns, with a trigger, a stance and enactments tagged on turns; two
+  scores kept apart (habit strength a decayed measurement, connection
+  strength a decision trace of pins and affirmations); the brain
+  self-tags enactments and the nightly memory pass only proposes;
+  context assembly retrieves by trigger and the brain chooses. The author
+  weighed putting choice in the memory agent and declined it because the
+  memory agent lacks the brain's identity; the split is retrieval in
+  memory, choice in the brain. Trials are derived from behaviours (§6.4),
+  so a model change is graded on whether the character carries over.
+- Placement: behaviours in P1 with memory and the brain; dates, figures,
+  the day row and the derived trials in P2.
+- A name for the behaviours part was offered and not yet taken: *ethos*,
+  Greek for character, which Aristotle derives from habit (Nicomachean
+  Ethics II.1). It is the author's to name, as every name is.
+

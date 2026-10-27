@@ -29,6 +29,7 @@ Carried from spec §6.4; the reason for each is there.
 - **#3 David's bounds carry: the live check waits 90 seconds; the nightly pass reads at most seven days, 200,000 characters a day, 4,000 a message; a reply naming a number it was not shown fails the run; a day with nothing said calls no model.**
 - **#4 The judge is chosen by the steward, recorded on every verdict, never the resident's own chat model; a judge change is an event.**
 - **#5 Regression is per resident and sealed: never captured, never on the resident's stream, never exported, never citeable; the brain is given the seed files and nothing of the run's purpose.**
+- **#8 Trials are derived from behaviours as well as authored (spec §6.4).** A behaviour's trigger is the situation, its enactment what passes, its absence what fails, so a model change is graded on whether the character carries over; the derivation runs inside the sealed session and the unawareness invariant holds.
 
 ## #6 Initial vs target
 

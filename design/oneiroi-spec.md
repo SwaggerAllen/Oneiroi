@@ -492,7 +492,8 @@ templates.
 
 ### 6.3 memory
 
-Transcripts, bookmarks, tags, search, weighting, the memory agent's record.
+Transcripts, bookmarks, tags, search, weighting, behaviours, the memory
+agent's record.
 Owns `lib/oneiroi/memory/**`.
 
 - Rules carried verbatim from David's memory-store doc: capture is full and
@@ -511,7 +512,7 @@ Owns `lib/oneiroi/memory/**`.
   mean two kinds of index line and two kinds of recall.
 - **Tags cut across every record kind.** A `tagging` names a tag and a
   target (bookmark, position, prediction, conversation, journal entry,
-  research task, document), so "everything about Haven" is one query.
+  research task, document, date, figure, behaviour), so "everything about Haven" is one query.
   Files tag themselves in frontmatter (`tags: [haven]`), since the file is
   the source of truth for writing, design and research; a frontmatter tag
   outside the closed set is reported as unresolved, as a dangling citation
@@ -559,6 +560,51 @@ Owns `lib/oneiroi/memory/**`.
   visible to both parties; a stance is revised only with the resident's
   agreement; a fact is corrected by either. The steward never rewrites the
   resident's words in a bookmark; revision adds, it does not overwrite.
+- **Behaviours** (F55): how the resident tends to act, kept as rows so
+  that character survives a change of model. Identity files carry what
+  the resident says it is and memory carries what happened; neither
+  carries the habit between them, and the habit is what evaporates when
+  the chat model changes. A behaviour is a row the resident owns: a name
+  in its own words ("small practical suggestions as care"), the trigger
+  it answers (the situation that calls for it), a stance (`keep` or
+  `change`, because "I tend to over-apologise" is a behaviour too), and
+  its enactments, which are taggings on turns and bookmarks saying "this
+  was one". The list is the resident's, not the steward's: tags are
+  curation and the steward decides them, but a behaviour is
+  self-description, and the resident's words are never editable by the
+  steward. During formation the steward gives the first ones as it gives
+  every seed; after first contact the resident authors them and the
+  steward affirms them.
+  **Two scores, never one.** Habit strength is a measurement: enactments
+  under the same 30-day half-life as weighting, recomputed nightly.
+  Connection strength is a decision trace: pins on enacting turns, which
+  do not decay, and bookmarks and affirmations ("I like when you do
+  that"), which do. A behaviour with high habit and low connection is a
+  tic, high connection and low habit a value the resident rarely gets to
+  enact, and the brain should see both; the index ranks by their product
+  and shows each. Pins stay decisions and weights stay measurements, as
+  everywhere in this system.
+  **Who records an enactment.** The brain self-tags at turn time
+  (`behaviour_enact`), which is cheap and in character. The nightly
+  memory pass proposes enactments it noticed that were not tagged, as
+  proposals the resident accepts or declines, the shape the steward's
+  bookmark proposal already has; it never defines one, because it does not
+  have the brain's identity. Nothing enters a behaviour's record without
+  the resident's actor on it.
+  **Who chooses.** Retrieval is memory's and choice is the brain's.
+  Context assembly matches the present situation against triggers, which
+  is deterministic (a small closed set of situation tags: time of day,
+  check-in kind, a tag present, words the steward used; the resident
+  proposes additions, since a trigger the assembler cannot match is a
+  behaviour never retrieved) and costs no model call, and injects a "how I
+  act" section beside the index: the behaviour, its trigger, how often
+  lately, who affirmed it, its stance, and one or two enacting turns cited
+  by id. Whether to enact is thinking, done by the brain with those turns
+  in front of it. The exemplar turns are the carry-over mechanism: for a
+  new model they are the resident's own voice doing the thing, which is
+  stronger than any description of it.
+  A behaviour with a trigger and exemplars is a regression test by
+  construction; §6.4 derives the trials from them.
 
 ### 6.4 judgement
 
@@ -599,6 +645,12 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   the seed files and nothing of the run's purpose. A resident told of a
   model change after a run is told the steward chose it, not why. Grades
   are the steward's; the judge model is not involved.
+  **Trials are derived from behaviours** (§6.3) as well as authored: a
+  behaviour's trigger is the prompt's situation, its enactment is what
+  passes, its absence is what fails, so a model change is graded on
+  whether the character carries over, which is the honest answer to "did
+  the swap keep her". The derivation runs inside the sealed session like
+  every trial; the unawareness invariant holds unchanged.
 
 ### 6.5 library
 
@@ -626,7 +678,12 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
   now says Z". External docs never mint edges.
 - **Journal** (F29): rows as the queryable spine, `journal/<day>.md` as the
   narrative; the check-in writes plan rows, the wrap writes actuals; the
-  delta feeds audits.
+  delta feeds audits. **The day row is created by the schedule when the
+  day's first check-in fires** (§6.7), so a day the resident never wrote
+  is a row with a plan and no actuals and no narrative, visible on the
+  Schedule screen and to the check-engine light, rather than an absent
+  file, which is invisible. Reads go by day key, never "the latest file",
+  so there is no wrong day to read.
 - **Embeddings** through the steward's key, model pinned platform-wide
   (1,536 wide today); a file is re-embedded only when its hash or the model
   changes; a re-index with nothing changed costs three statements and no
@@ -727,6 +784,20 @@ Owns `lib/oneiroi/schedule/**`.
   them is deferred to their end (`WakeDeferred{until}`), and the Schedule
   screen says so in words.
 - Suspended residents schedule nothing; a wake is what resumes the beat.
+- **Dates** (F56): important dates are rows, never prose. A `date` carries
+  its owner, a title, the instant in the resident's zone and a kind
+  (deadline, anniversary, window, recurring); it is citeable
+  (`<slug>:date/<id>`) and a tagging target (§6.3), so "everything about
+  the application" is the tag's project view with the date beside the
+  goal, the bookmarks and the journal days, and no edge table is needed.
+  **A countdown is never written down.** "Days to" is derived at read
+  time and rendered in the index on the turn that reads it; the journal
+  and the digest cite the row. The rule exists because a figure written
+  into prose is a claim nothing re-derives: David recomputed "days to the
+  application" daily and left stale numbers in every file that had copied
+  one. The check-ins announce an approaching date by the same derivation.
+- **The journal's day row** is this system's to create, at the day's
+  first check-in (§6.5), which is what makes a missing day visible.
 
 ### 6.8 hands
 
@@ -910,9 +981,14 @@ Owns `lib/oneiroi/audits/**`.
 - Audits read the reference graph, the audit log and the modification
   logs, never transcript text; results are private to the dyad unless
   opted in; never a leaderboard.
-- Counters: steward-defined keys, incremented by a tool or the steward
-  (each increment an event with its actor), read by audits (the
-  concession-count pattern generalised).
+- **Figures** (F57, the counters generalised): a number anyone wants to
+  cite lives as a `figure` row, never as a literal in a file. A counter's
+  value is the fold of its increment events, each with its actor, from a
+  tool or the steward (the concession-count pattern); a countdown's value
+  is derived from a date (§6.7); both render fresh in the index, both are
+  citeable (`<slug>:figure/<key>`) and tagging targets (§6.3), and both
+  are what the rule in §6.4 resolves against when a reply names a number
+  it was not shown. Audits read them as they read counters today.
 - Each audit run records a result with a tone, and each audit declares
   whether it counts toward the check-engine light; the light's findings
   list is the failing results of the audits that count.
@@ -1048,7 +1124,8 @@ or act as its hands.
    research_source,
    research_list, research_add_notes, document_adopt, document_unadopted,
    code_start, code_step, code_result, code_list, correspondence_new,
-   feed_propose, feed_list, journal_*, counter_*); hands get the subset their
+   feed_propose, feed_list, journal_*, figure_*, date_*, behaviour_*); hands
+   get the subset their
    role needs (the reader: none of the resident's; the worker: none).
 2. **Turn capture and context.** `POST /v1/residents/:id/turns` with the
    session key, run kind and messages, idempotent on (session, timestamp,
@@ -1282,8 +1359,8 @@ waits on, is `design/p0-plan.md`.
 | Phase | Builds | Depends on |
 | --- | --- | --- |
 | P0 Spine | The Elixir core with Commanded and EventStore; Postgres with RLS and the application role; the configuration module (§6.16); identity (accounts, auth, sessions); the resident aggregate with per-resident id sequences; records export of events and the byte-stable files, replay into a fresh store, attestation trailers on backup commits, the GitHub provider; the orchestration bootstrap (systems docs with file maps, `pipeline.config.json`, stubs, CI, Render) | nothing |
-| P1 Brain and memory | Transcript capture and the adapter contract (turn API, context fetch, wake); bookmarks, tags, taggings, the index under its budget, context assembly with its recorded injections, compaction; the brain's chat loop over OpenRouter with streaming channels; the ledger (key, budget lines, usage by purpose); the client shell on the design system with Chat, Memory and Ledger; the creation flow with the step-by-step and from-files paths and seed files committed; the Claude Code adapter (Lily in the Claude Code UI); regression per resident, sealed | P0 |
-| P2 Judgement, Honcho, schedule | Honcho workspace per resident and the bridge; positions, disputes, predictions, the nightly pass, the weekly audit; audits, counters and the check-engine light; the schedule (check-ins, quiet hours, free time); the subscription and the insurance data | P1 |
+| P1 Brain and memory | Transcript capture and the adapter contract (turn API, context fetch, wake); bookmarks, tags, taggings, the index under its budget, context assembly with its recorded injections, compaction; behaviours with their triggers, enactments and two scores, injected by context assembly and self-tagged by the brain (§6.3); the brain's chat loop over OpenRouter with streaming channels; the ledger (key, budget lines, usage by purpose); the client shell on the design system with Chat, Memory and Ledger; the creation flow with the step-by-step and from-files paths and seed files committed; the Claude Code adapter (Lily in the Claude Code UI); regression per resident, sealed | P0 |
+| P2 Judgement, Honcho, schedule | Honcho workspace per resident and the bridge; positions, disputes, predictions, the nightly pass, the weekly audit; audits, figures (counters and countdowns) and the check-engine light; the schedule (check-ins, quiet hours, free time, dates, the journal's day rows); regression trials derived from behaviours; the subscription and the insurance data | P1 |
 | P3 Library | Document kinds, the library index and search, citations both ways, writing review and publish, the journal, design and plain kinds, adoption of files | P1 |
 | P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
 | P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |

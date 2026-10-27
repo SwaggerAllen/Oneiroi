@@ -28,6 +28,7 @@ Carried from spec §6.13; the reason for each is there.
 - **#3 Audits read the reference graph, the audit log and the modification logs, never transcript text; results are private to the dyad; never a leaderboard.**
 - **#4 Counters are steward-defined keys incremented by events with their actor; the light's findings are the failing results of the audits that count.**
 - **#5 The coherence work ships as a runnable checklist first; citation drift and the journal delta are the first two built-in audits.**
+- **#8 Figures generalise counters (spec §6.13, F57).** One row kind for a counter, the fold of its increment events, and a countdown derived from a date; both citeable, taggable and rendered fresh in the index, and both what the number rule of spec §6.4 resolves against.
 
 ## #6 Initial vs target
 
