@@ -12,9 +12,9 @@ defmodule Oneiroi.Gaia.Handlers.Stewardship do
     name: "gaia_stewardship",
     consistency: :strong
 
+  alias Oneiroi.AgathosDaimon.Events.{CustodyTransferred, ResidentCreated}
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Router
-  alias Oneiroi.AgathosDaimon.Events.{CustodyTransferred, ResidentCreated}
 
   @impl Commanded.Event.Handler
   def init(config) do
