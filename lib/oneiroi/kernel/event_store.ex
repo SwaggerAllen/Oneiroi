@@ -20,10 +20,10 @@ defmodule Oneiroi.EventStore do
 
     {:ok,
      config
-     |> Keyword.merge(Secret.unwrap(Config.fetch!(:platform, :database_url)))
+     |> Keyword.merge(Secret.unwrap(Config.fetch!(:apsu, :database_url)))
      |> Keyword.put(:schema, "eventstore")
      |> Keyword.put(:column_data_type, "jsonb")
-     |> Keyword.put(:pool_size, Config.fetch!(:platform, :event_store_pool_size))
+     |> Keyword.put(:pool_size, Config.fetch!(:apsu, :event_store_pool_size))
      |> Keyword.put(:serializer, Commanded.Serialization.JsonSerializer)}
   end
 end

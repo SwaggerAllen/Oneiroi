@@ -6,7 +6,7 @@ defmodule OneiroiWeb.HealthTest do
 
     assert conn.status == 200
 
-    assert %{"ok" => true, "sha" => sha, "components" => %{"platform" => true}} =
+    assert %{"ok" => true, "sha" => sha, "components" => %{"apsu" => true}} =
              json_response(conn, 200)
 
     assert is_binary(sha)

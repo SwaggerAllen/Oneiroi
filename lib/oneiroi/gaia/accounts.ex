@@ -6,14 +6,14 @@ defmodule Oneiroi.Gaia.Accounts do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Vault
   alias Oneiroi.Config
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Principal
   alias Oneiroi.Gaia.Router
   alias Oneiroi.Gaia.Store
   alias Oneiroi.Gaia.Throttle
-  alias Oneiroi.Platform.Clock
-  alias Oneiroi.Platform.Vault
   alias Oneiroi.Scope
 
   @doc "Creates an account; the password is hashed here and only the hash travels."

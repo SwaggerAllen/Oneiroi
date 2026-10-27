@@ -41,7 +41,7 @@ defmodule Oneiroi.SDK.MixProject do
 
   defp deps do
     [
-      {:oneiroi_substrate, path: "../components/substrate"},
+      {:oneiroi_daedalus, path: "../components/daedalus"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

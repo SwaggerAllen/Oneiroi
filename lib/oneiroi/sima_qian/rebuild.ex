@@ -16,7 +16,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
-  alias Oneiroi.Platform.Clock
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git

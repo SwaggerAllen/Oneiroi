@@ -45,8 +45,8 @@ defmodule Oneiroi.Application do
       # The one unwrap in the tree today: the secret is declared
       # `secret: true`, and reaching its contents is a word a reviewer sees.
       server: Application.get_env(:oneiroi, :serve, false),
-      secret_key_base: Secret.unwrap(Config.fetch!(:platform, :secret_key_base)),
-      http: [ip: {0, 0, 0, 0}, port: Config.fetch!(:platform, :http_port)]
+      secret_key_base: Secret.unwrap(Config.fetch!(:apsu, :secret_key_base)),
+      http: [ip: {0, 0, 0, 0}, port: Config.fetch!(:apsu, :http_port)]
     }
   end
 end

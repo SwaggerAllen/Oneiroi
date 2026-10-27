@@ -1,5 +1,5 @@
 [
   import_deps: [:phoenix, :plug],
   inputs: ["*.{ex,exs}", "{config,lib,test}/**/*.{ex,exs}"],
-  subdirectories: ["components/substrate", "sdk"]
+  subdirectories: ["components/daedalus", "sdk"]
 ]

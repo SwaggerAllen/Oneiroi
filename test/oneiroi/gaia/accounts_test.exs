@@ -3,11 +3,11 @@ defmodule Oneiroi.Gaia.AccountsTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Clock.Fake
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Gaia.Throttle
-  alias Oneiroi.Platform.Clock
-  alias Oneiroi.Platform.Clock.Fake
 
   test "login verifies the password, opens a session, and the session resolves to the principal" do
     %{id: id, email: email} = Fixtures.account!()

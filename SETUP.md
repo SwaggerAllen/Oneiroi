@@ -17,8 +17,8 @@ one per line, or the audit says so, and a line no declaration explains
 is reported too. Names only; where each goes is in the steps below.
 
 ```oneiroi:required-env
-PLATFORM_SECRET_KEY_BASE   # the endpoint's cookie-signing secret, 64 bytes or more
-PLATFORM_VAULT_KEY         # 32 random bytes, base64: what secrets at rest are encrypted under
+APSU_SECRET_KEY_BASE   # the endpoint's cookie-signing secret, 64 bytes or more
+APSU_VAULT_KEY         # 32 random bytes, base64: what secrets at rest are encrypted under
 ```
 
 `DATABASE_URL` is deliberately absent: it is declared `external: true`
@@ -37,9 +37,9 @@ secret (`sync: false`).
    the dashboard** and, if it is not 16, change `postgresMajorVersion`
    in `render.yaml` and the `pgvector/pgvector:pg16` image in `ci.yml`
    and the five stubs that carry it, in one commit (plan decision 3).
-2. Set the two secrets above in the dashboard: `PLATFORM_SECRET_KEY_BASE`
+2. Set the two secrets above in the dashboard: `APSU_SECRET_KEY_BASE`
    (`mix phx.gen.secret 64` or any 64+ random bytes) and
-   `PLATFORM_VAULT_KEY` (`openssl rand -base64 32`). A deploy without
+   `APSU_VAULT_KEY` (`openssl rand -base64 32`). A deploy without
    either fails at boot with the config report naming it.
 3. Read the service id (`srv-…`) and put it in `pipeline.config.json`'s
    `deploy.endpoint` as
@@ -49,7 +49,7 @@ secret (`sync: false`).
    reach `Merged`.
 4. Two things to read off the first deploy and write into the plan's
    measurement table: the database's connection limit against
-   `PLATFORM_POOL_SIZE` and `PLATFORM_EVENT_STORE_POOL_SIZE` (both
+   `APSU_POOL_SIZE` and `APSU_EVENT_STORE_POOL_SIZE` (both
    default 2, Catapult's budget against a 22-connection cluster; the Repo, the event store's pool, and one listener each
    for Oban and the store share the limit, and a rolling deploy runs two
    containers), and whether a preview environment can take a smaller

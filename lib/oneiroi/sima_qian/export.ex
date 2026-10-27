@@ -24,8 +24,8 @@ defmodule Oneiroi.SimaQian.Export do
   configured seconds is left for the next run.
   """
 
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
-  alias Oneiroi.Platform.Clock
 
   @self "$self"
   @chunk 1_000

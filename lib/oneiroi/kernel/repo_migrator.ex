@@ -19,7 +19,7 @@ defmodule Oneiroi.Repo.Migrator do
 
     {:ok,
      config
-     |> Keyword.merge(Secret.unwrap(Config.fetch!(:platform, :database_url)))
+     |> Keyword.merge(Secret.unwrap(Config.fetch!(:apsu, :database_url)))
      |> Keyword.put(:pool_size, 2)
      |> Keyword.put(:priv, "priv/repo")}
   end

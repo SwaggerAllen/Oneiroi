@@ -40,7 +40,7 @@
     "spec": { "path": "design/oneiroi-spec.md" },
     "conventions": { "path": "design/conventions.md" },
     "plan": { "path": "design/p0-plan.md" },
-    "v5": { "unchecked": "Catapult's design document, cited inside components/substrate as the provenance of rules lifted from it; another repository, so no path here can resolve it" },
+    "v5": { "unchecked": "Catapult's design document, cited inside components/daedalus as the provenance of rules lifted from it; another repository, so no path here can resolve it" },
     "DESIGN": { "unchecked": "orchestration's DESIGN.md — another repository, so no path here can resolve it" }
   },
   "qualityGates": [
@@ -55,7 +55,7 @@
     "mix oneiroi.audit",
     "mix test",
     "cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook",
-    "cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test",
+    "cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test",
     "cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test"
   ],
   "deploy": {

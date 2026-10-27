@@ -18,8 +18,8 @@ defmodule Oneiroi.SimaQian.FixtureTest do
 
   alias Commanded.Event.Upcaster
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
-  alias Oneiroi.Platform.Clock
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Export
 

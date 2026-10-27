@@ -64,11 +64,11 @@ jobs:
           path: |
             deps
             _build
-            components/substrate/deps
-            components/substrate/_build
+            components/daedalus/deps
+            components/daedalus/_build
             sdk/deps
             sdk/_build
-          key: mix-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock', 'components/substrate/mix.lock', 'sdk/mix.lock') }}
+          key: mix-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock', 'components/daedalus/mix.lock', 'sdk/mix.lock') }}
 
       # oneiroi:gates
       - name: deps
@@ -99,8 +99,8 @@ jobs:
         run: mix test
       - name: client
         run: cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
-      - name: substrate
-        run: cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+      - name: daedalus
+        run: cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
       - name: sdk
         run: cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
       # oneiroi:gates end

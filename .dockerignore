@@ -1,8 +1,8 @@
 .git
 _build
 deps
-components/substrate/_build
-components/substrate/deps
+components/daedalus/_build
+components/daedalus/deps
 sdk/_build
 sdk/deps
 client/node_modules

@@ -3,8 +3,8 @@ defmodule Oneiroi.SimaQian.ExportTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
-  alias Oneiroi.Platform.Clock
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Export
 

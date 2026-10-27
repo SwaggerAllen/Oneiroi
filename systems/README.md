@@ -22,8 +22,8 @@ git's textual conflict detection is the mutex; nothing else arbitrates.
   **`screens/**`**, **`storybook/**`**, **`CHANGE.md`**, **`non-asks.md`**
   and **`tests/manual/**`**: design-owned via `designOwnedPaths`; the
   owner is the design process, not a system.
-- **`components/substrate/**`** and **`sdk/**`**: each its own mix
-  project with its own gate block, owned by `systems/substrate.md` and,
+- **`components/daedalus/**`** and **`sdk/**`**: each its own mix
+  project with its own gate block, owned by `systems/daedalus.md` and,
   for the SDK, by the adapter contract spec §8 once P1 writes it; listed
   here because the SDK has no system doc yet.
 - **`priv/static/client/**`**: the client's build output, written by

@@ -102,7 +102,7 @@ defmodule Oneiroi.MixProject do
 
   defp deps do
     [
-      {:oneiroi_substrate, path: "components/substrate"},
+      {:oneiroi_daedalus, path: "components/daedalus"},
       {:phoenix, "~> 1.8.1"},
       {:bandit, "~> 1.5"},
       {:jason, "~> 1.4"},
@@ -153,7 +153,7 @@ defmodule Oneiroi.MixProject do
       # rather than skipping when a project's deps are unresolved.
       "oneiroi.audit.all": [
         "oneiroi.audit",
-        "cmd --cd components/substrate mix oneiroi.audit",
+        "cmd --cd components/daedalus mix oneiroi.audit",
         "cmd --cd sdk mix oneiroi.audit"
       ]
     ]

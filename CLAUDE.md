@@ -32,10 +32,10 @@ pinned toolchain is the only supported one.
   and error kinds carry the same name, and the function word stays only
   where it names the entity (the resident aggregate, `/v1/residents`).
 - `lib/oneiroi_web/` — the endpoint, router and JSON surface.
-- `components/substrate/` — the platform substrate, lifted from Catapult
+- `components/daedalus/` — the platform substrate, lifted from Catapult
   (Apache-2.0): its own mix project with its own gate block. Citations of
   the form `v5 §n` and `ORC-n` inside it are Catapult's, kept as the
-  provenance of each rule; `systems/substrate.md` says where they resolve.
+  provenance of each rule; `systems/daedalus.md` says where they resolve.
 - `sdk/` — the adapter SDK, its own mix project, Apache-2.0. Never copy
   core code into it; never add a copyleft dependency under it.
 - `client/` — the React client on the Oneiroi design system
@@ -63,7 +63,7 @@ mix xref graph --label compile-connected --fail-above 0   # the ratchet, armed a
 mix oneiroi.audit                    # the check registry (conventions §13); this project only, see below
 mix test                             # no network
 cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
-cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 ```
 
@@ -133,6 +133,6 @@ way before trusting a local green.
   compiling.** A test that changes the process-global cwd (`File.cd!`)
   makes another file's `require` fail with `enoent` on a file that
   exists; a check that reads files resolves them beside its scope path
-  instead (`Oneiroi.Platform.Policies.Gates`).
+  instead (`Oneiroi.Apsu.Policies.Gates`).
 - **Run `mix test` once per shell call.** A second run in the same call
   once failed on a spurious `enoent`; log one run to a file and read it.

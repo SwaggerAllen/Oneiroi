@@ -27,7 +27,7 @@ the pipeline that will deliver everything after it.
   is never parked for its own authors.
 - **The substrate is lifted from Catapult as a copy, never as a
   dependency.**
-  `components/substrate` there is Apache-2.0 and about 4,900 lines: the
+  `components/daedalus` there is Apache-2.0 and about 4,900 lines: the
   component behaviour and its registry roster, the composer that fails on
   collision, the config registry with env, static and secret sources, the
   error kinds, the VM guardrails, health, seeds, the injected clock, and
@@ -36,20 +36,20 @@ the pipeline that will deliver everything after it.
   is conventions §4, §5, §8, §10 and half of §13 as running code, each
   rule carrying the measurement that produced it. Rewriting it would
   re-derive rules from their wording and lose the measurements. It lands
-  as `components/substrate`, a path dependency renamed to the `Oneiroi.*`
+  as `components/daedalus`, a path dependency renamed to the `Oneiroi.*`
   namespace, with its licence kept, and `sdk/` consumes the same
   package: the audit scopes per mix project, and the SDK needs the audit
   without ever holding core code (conventions §1). A copy, not a
   dependency: no hex package, no git reference, no upstream remote. It is
   Oneiroi's code from the first commit and diverges at once (the roster
-  rows below). `systems/substrate.md` records the Catapult commit it was
+  rows below). `systems/daedalus.md` records the Catapult commit it was
   taken from so a later session can diff against it by choice; nothing
   obliges one to. The live dependency on Catapult's neighbourhood is
   orchestration, pinned at `@v1`, and that one the roadmap chose; the
   substrate adds no coupling to it, since nothing in the pipeline knows
   what component macro a project uses.
 - **Four projects exist from the first commit, each empty and
-  enforced**: the core at the root, `components/substrate`, `sdk/` and
+  enforced**: the core at the root, `components/daedalus`, `sdk/` and
   `client/`. The gate block in conventions §2 names all four, and a gate
   line that fails because its directory is absent is "fixed" by deleting
   the line. An empty project that passes its own block is cheaper than
@@ -94,7 +94,7 @@ a tree that does nothing.
    [...]]` rather than `type: :strict`, for the reason conventions §4
    records; the application root is a top-level boundary of its own, so
    the core and the web layer need not depend on each other.
-3. `components/substrate`: the port of Catapult's substrate under the
+3. `components/daedalus`: the port of Catapult's substrate under the
    `Oneiroi` namespace, Apache-2.0 licence file kept, Catapult-specific
    prose trimmed. The roster gains what conventions §4 names that it
    lacks (`usage:` and the bound-or-measured `tag:` on a `config/0`
@@ -119,7 +119,7 @@ a tree that does nothing.
    whose CMD migrates then starts; `render.yaml` with the previews
    block; the first deploy, so the deploy loop exists before anything
    deploys.
-8. `systems/platform.md` and `systems/substrate.md` with file maps, and
+8. `systems/apsu.md` and `systems/daedalus.md` with file maps, and
    the `.reasons.md` siblings.
 
 Exit: CI green on an application that answers `/health` and nothing
@@ -341,7 +341,7 @@ GitHub and the rebuild done on a second database.
 4. **Secrets at rest** were to use `cloak_ecto` (MIT) with a deployment
    key from the config module. Superseded in the build (decisions log
    round 9): the gate refused its two open advisories, and
-   `Oneiroi.Platform.Vault` over `:crypto` took its place under the same
+   `Oneiroi.Apsu.Vault` over `:crypto` took its place under the same
    key.
 5. **The GitHub provider's credential in P0** is a fine-grained token the
    steward pastes, scoped to a repository they created; a GitHub App that
@@ -379,7 +379,7 @@ Filled in as they are taken, each with its date and where it was taken.
 | --- | --- | --- |
 | Full gate set wall clock on CI | whether the gate block is affordable per PR | 2m19s on a cold cache, PR #6's first run (`40270464624`, 2026-10-26): checkout, BEAM and Node setup, every gate line including the client's `npm ci` and storybook build |
 | Event store reset per test run | decision 2 | 3s for drop, create and migrate (Oban, the event store schema, the application role, three projections), measured locally 2026-10-26 with the shell timer; the 89-test suite runs in 15.8s after it |
-| Second database role on Render's managed Postgres | P0.2 step 2 | not measured; the build took the `SET ROLE` shape, which needs no answer (systems/platform.md #12) |
+| Second database role on Render's managed Postgres | P0.2 step 2 | not measured; the build took the `SET ROLE` shape, which needs no answer (systems/apsu.md #12) |
 | pgvector on the chosen Postgres major | decision 3 | |
 | Export bytes and seconds per thousand events | the nightly export's budget | |
 | Preview environment cost per hour | `render.yaml`'s `expireAfterDays` | |

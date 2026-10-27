@@ -1060,7 +1060,7 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
 
 Fleet pins, conformance tests, deploy, observability, the self-hosted
 status page.
-Owns `lib/oneiroi/platform/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
+Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 
 - **Parameterize everything, in one place.** Every bound, default, pin,
   pool size and provider choice in this spec is a named setting with a
