@@ -57,7 +57,7 @@ mix xref graph --label compile-connected --fail-above 0   # the ratchet, armed a
 mix oneiroi.audit                    # the check registry (§13); each project runs its own, below
 mix test                             # Postgres; sandbox, async; no network
 cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
-cd components/substrate && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
+cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 ```
 
@@ -73,7 +73,7 @@ failed exactly there).
 
 - **The gate set is a property of a mix project, not the repo.** The
   audit's globs are rooted at the working directory, so `sdk/` and
-  `components/substrate/` run their own blocks, each with its own audit;
+  `components/daedalus/` run their own blocks, each with its own audit;
   `mix oneiroi.audit.all` at the root runs the three audits in one go and
   exits 1 rather than skipping when a project's deps are unresolved.
 - **The ratchet's number lives only in `pipeline.config.json` and

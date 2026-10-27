@@ -228,7 +228,7 @@ names the gates and the layers.
   and substrate, the persistence spine, the client and SDK skeletons, the
   orchestration hookup), then three pipeline-delivered tickets (identity,
   resident, records) after a verification ticket.
-- Catapult's `components/substrate` is Apache-2.0 and is lifted as a path
+- Catapult's `components/daedalus` is Apache-2.0 and is lifted as a path
   dependency rather than rewritten; the SDK consumes the same package.
 - The event store runs on Postgres in test as well as production; the
   in-memory adapter would be a fake that disagrees with the real store.
@@ -261,8 +261,8 @@ names the gates and the layers.
   repository artifacts beside them; the account-side hookup steps are
   `SETUP.md`'s. The plan's P0.6 and P0.7 tickets are therefore not the
   pipeline's first work; the verification ticket is.
-- Secrets at rest are `Oneiroi.Platform.Vault` (AES-256-GCM over
-  `:crypto` under `PLATFORM_VAULT_KEY`), not `cloak_ecto`: the
+- Secrets at rest are `Oneiroi.Apsu.Vault` (AES-256-GCM over
+  `:crypto` under `APSU_VAULT_KEY`), not `cloak_ecto`: the
   dependency arrived with two open advisories and no fixed release, and
   `mix deps.audit` refused it. The plan's decision 4 records the change.
 - The export's own bookkeeping (`ExportWritten`, `BackupCommitted`) is
@@ -313,4 +313,25 @@ A brainstorm with the author, settled into the spec in the same sitting.
 - A name for the behaviours part was offered and not yet taken: *ethos*,
   Greek for character, which Aristotle derives from habit (Nicomachean
   Ethics II.1). It is the author's to name, as every name is.
+
+## Round 11: the last names (2026-10-27)
+
+- Ethos names the behaviours part under kumbukumbu, as offered in round
+  10 and taken by the author.
+- Proteus names the bridge to Honcho (the shape-changer who knows
+  everything and answers only to the one who holds on), chosen over Janus
+  and Argus; Apsu names the platform (the deep the earth floats on, and
+  Enki's house, so the provisioner's waters and the platform are one
+  place), chosen over Yggdrasil after Oceanus was set aside because Gaia
+  already has the earth; Daedalus names the substrate (the craftsman who
+  came from elsewhere and built the house), chosen over Ptah and
+  Hephaestus. The author's rule for the choosing is recorded in
+  `design/names.md`: no, or very little, living veneration tradition.
+- The code follows the docs as it did in round 9: `Oneiroi.Apsu`,
+  `lib/oneiroi/apsu/`, the `APSU_*` settings (the two required ones in
+  `SETUP.md`'s manifest and `render.yaml`), `apsu_pubsub`, and
+  `components/daedalus` with its app `oneiroi_daedalus`. The `:platform`
+  scope and actor kind stay, because there they name the party, not the
+  system.
+- The client is the one system still named for its function.
 

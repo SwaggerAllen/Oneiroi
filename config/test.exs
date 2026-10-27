@@ -14,15 +14,15 @@ config :oneiroi,
        {Oneiroi.Config.Static,
         %{
           "DATABASE_URL" => database_url,
-          "PLATFORM_HTTP_PORT" => "4002",
-          "PLATFORM_SECRET_KEY_BASE" =>
+          "APSU_HTTP_PORT" => "4002",
+          "APSU_SECRET_KEY_BASE" =>
             "test-secret-key-base-test-secret-key-base-test-secret-key-base-64",
-          "PLATFORM_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "APSU_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
           # The sandbox checks out a connection per async test process, so
           # the pools are sized for the suite, not for the deployment.
-          "PLATFORM_POOL_SIZE" => "10",
-          "PLATFORM_EVENT_STORE_POOL_SIZE" => "10",
-          "PLATFORM_CLOCK" => "fake",
+          "APSU_POOL_SIZE" => "10",
+          "APSU_EVENT_STORE_POOL_SIZE" => "10",
+          "APSU_CLOCK" => "fake",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 

@@ -10,12 +10,12 @@ config :oneiroi,
        {Oneiroi.Config.Static,
         %{
           "DATABASE_URL" => "ecto://oneiroi:oneiroi@localhost/oneiroi_dev",
-          "PLATFORM_HTTP_PORT" => "4000",
-          "PLATFORM_SECRET_KEY_BASE" =>
+          "APSU_HTTP_PORT" => "4000",
+          "APSU_SECRET_KEY_BASE" =>
             "dev-secret-key-base-dev-secret-key-base-dev-secret-key-base-padded",
           # 32 zero bytes, base64: a dev key, never a deployment's.
-          "PLATFORM_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-          "PLATFORM_CLOCK" => "system",
+          "APSU_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "APSU_CLOCK" => "system",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev"
         }}
 

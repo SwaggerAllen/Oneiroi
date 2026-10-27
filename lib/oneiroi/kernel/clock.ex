@@ -1,14 +1,14 @@
-defmodule Oneiroi.Platform.Clock do
+defmodule Oneiroi.Apsu.Clock do
   @moduledoc """
   The injected clock's two implementations, chosen by the platform's
-  `PLATFORM_CLOCK` setting (conventions §9): `system` in every real build,
-  `fake` in test. Domain code calls `Oneiroi.Platform.Clock.now/0` and
+  `APSU_CLOCK` setting (conventions §9): `system` in every real build,
+  `fake` in test. Domain code calls `Oneiroi.Apsu.Clock.now/0` and
   never `DateTime.utc_now/0`; the audit's `wall_clock` check holds it.
   """
 
   @doc "The current instant, through the configured clock."
   @spec now() :: DateTime.t()
-  def now, do: Oneiroi.Config.fetch!(:platform, :clock).utc_now()
+  def now, do: Oneiroi.Config.fetch!(:apsu, :clock).utc_now()
 
   defmodule Fake do
     @moduledoc """

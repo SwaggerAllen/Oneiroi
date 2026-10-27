@@ -31,10 +31,10 @@ defmodule Oneiroi.Repo do
 
     {:ok,
      config
-     |> Keyword.merge(Secret.unwrap(Config.fetch!(:platform, :database_url)))
-     |> Keyword.put(:pool_size, Config.fetch!(:platform, :pool_size))
+     |> Keyword.merge(Secret.unwrap(Config.fetch!(:apsu, :database_url)))
+     |> Keyword.put(:pool_size, Config.fetch!(:apsu, :pool_size))
      |> Keyword.put(:after_connect, {__MODULE__, :set_role, []})
-     |> Keyword.put(:telemetry_prefix, [:oneiroi, :platform, :repo])}
+     |> Keyword.put(:telemetry_prefix, [:oneiroi, :apsu, :repo])}
   end
 
   @doc "Takes the application role on a fresh connection (conventions §12)."

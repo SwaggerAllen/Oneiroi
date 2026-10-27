@@ -40,13 +40,13 @@ services:
         fromDatabase:
           name: oneiroi-db
           property: connectionString
-      # The app binds PLATFORM_HTTP_PORT and does not read PORT at all;
+      # The app binds APSU_HTTP_PORT and does not read PORT at all;
       # both are set to one number so the probe and the listener agree.
       - key: PORT
         value: "8080"
-      - key: PLATFORM_HTTP_PORT
+      - key: APSU_HTTP_PORT
         value: "8080"
       # Required, no default: a build without it fails at boot with the
       # config report naming it. Set in the dashboard, never here.
-      - key: PLATFORM_SECRET_KEY_BASE
+      - key: APSU_SECRET_KEY_BASE
         sync: false

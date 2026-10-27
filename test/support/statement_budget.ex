@@ -7,7 +7,7 @@ defmodule Oneiroi.StatementBudget do
   """
   import ExUnit.Assertions
 
-  @event [:oneiroi, :platform, :repo, :query]
+  @event [:oneiroi, :apsu, :repo, :query]
 
   @doc "Runs `fun`, returning its result and the number of statements it issued."
   @spec count_statements((-> result)) :: {result, non_neg_integer()} when result: term()

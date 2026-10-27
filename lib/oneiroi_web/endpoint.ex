@@ -11,8 +11,8 @@ defmodule OneiroiWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :oneiroi
 
   # Aliases only; the calls below are runtime references, which is what
-  # keeps the compile-connected count at zero (systems/platform.md #5).
-  alias Oneiroi.Platform.HealthPlug
+  # keeps the compile-connected count at zero (systems/apsu.md #5).
+  alias Oneiroi.Apsu.HealthPlug
   alias OneiroiWeb.Router
 
   # `__Host-`, Secure, HttpOnly, Strict (spec §6.1): the cookie carries

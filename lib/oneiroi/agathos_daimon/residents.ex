@@ -5,7 +5,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
-  alias Oneiroi.Platform.Clock
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
 
   @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/

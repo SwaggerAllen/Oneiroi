@@ -8,7 +8,7 @@ defmodule Oneiroi.Worker do
       end
 
   `perform/1` is this module's: it restores the trace id the enqueuing
-  side put in the args (`Oneiroi.Platform.Jobs`), sets the component on
+  side put in the args (`Oneiroi.Apsu.Jobs`), sets the component on
   the logger, and takes the platform scope on the process before calling
   `run/1`, because a worker is a cross-tenant job by construction and is
   named in its system doc. Workers are replay-safe: `run/1` must survive

@@ -42,3 +42,14 @@ built in P1 (spec §14).
 ## #9 Depends on
 
 The platform and whatever spec §14's row for its phase names.
+
+## #13 Ethos, behaviours
+
+Greek, EE-thos.
+
+> "moral virtue comes about as a result of habit, whence also its name (ethike) is one that is formed by a slight variation from the word ethos (habit)." — Aristotle, Nicomachean Ethics II.1, 1103a, trans. W. D. Ross (Oxford, 1925)
+
+Ethos is character, and Aristotle hears habit inside it: the two words differ by one vowel, and he takes that as the lesson. Character is not stated; it is what repeated action leaves behind.
+
+The behaviours part (spec §6.3, F55; #10 and #11 above): how a resident tends to act, kept as rows with their triggers and the turns that enacted them, is named for the word that already says the design. A behaviour is a habit that has become character, and what carries over to a new model is the habit, not the description of it.
+

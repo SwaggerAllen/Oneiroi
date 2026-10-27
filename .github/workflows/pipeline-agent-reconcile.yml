@@ -96,7 +96,7 @@ jobs:
           node-version-file: .tool-versions
       - run: mix deps.get
       - run: mix deps.get
-        working-directory: components/substrate
+        working-directory: components/daedalus
       - run: mix deps.get
         working-directory: sdk
       # ------------------------------------------------------------------

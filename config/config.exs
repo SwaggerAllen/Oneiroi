@@ -3,7 +3,7 @@ import Config
 # The system roster the composer validates and composes (conventions §4).
 # Grows one entry per system as they land; `Oneiroi.Boot` reads it.
 config :oneiroi, :components, [
-  Oneiroi.Platform,
+  Oneiroi.Apsu,
   Oneiroi.Gaia,
   Oneiroi.AgathosDaimon,
   Oneiroi.SimaQian
@@ -30,7 +30,7 @@ config :oneiroi, OneiroiWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [formats: [json: OneiroiWeb.ErrorJSON], layout: false],
-  pubsub_server: :platform_pubsub
+  pubsub_server: :apsu_pubsub
 
 # The export macro's Logger metadata floor (`Oneiroi.Component.API`):
 # `component:` at every boundary entry and `trace_id:` at the root of a

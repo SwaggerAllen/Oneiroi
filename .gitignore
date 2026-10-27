@@ -27,8 +27,8 @@ oneiroi-*.tar
 
 
 # The two other mix projects' own build output.
-components/substrate/_build/
-components/substrate/deps/
+components/daedalus/_build/
+components/daedalus/deps/
 sdk/_build/
 sdk/deps/
 
