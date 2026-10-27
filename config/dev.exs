@@ -16,7 +16,7 @@ config :oneiroi,
           # 32 zero bytes, base64: a dev key, never a deployment's.
           "PLATFORM_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
           "PLATFORM_CLOCK" => "system",
-          "RECORDS_ROOT" => "tmp/records_dev"
+          "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev"
         }}
 
 config :oneiroi, serve: true

@@ -12,8 +12,11 @@ Design source of truth: `design/oneiroi-spec.md` (cited as *spec §n*).
 Build sequencing: `design/p0-plan.md`. Coding rules with their reasons:
 `design/conventions.md` (*conventions §n*): read it before writing
 code; every rule carries the failure it prevents. Architecture:
-`systems/*.md`, one doc per system with a file map; the reason behind
-each numbered rule is in the `.reasons.md` sibling.
+`systems/*.md`, one doc per system, filed under the system's name
+rather than its function (`design/names.md` maps the two: Gaia is
+identity, Sima Qian is records), each opening with the name's story and
+carrying a file map; the reason behind each numbered rule is in the
+`.reasons.md` sibling.
 
 ## Toolchain
 
@@ -24,7 +27,10 @@ pinned toolchain is the only supported one.
 ## Layout
 
 - `lib/oneiroi/` — the core, one system per directory (spec §6), each a
-  Boundary adopting `use Oneiroi.System`.
+  Boundary adopting `use Oneiroi.System`, under the system's name
+  (`gaia/`, `agathos_daimon/`, `sima_qian/`); the slug, tables, settings
+  and error kinds carry the same name, and the function word stays only
+  where it names the entity (the resident aggregate, `/v1/residents`).
 - `lib/oneiroi_web/` — the endpoint, router and JSON surface.
 - `components/substrate/` — the platform substrate, lifted from Catapult
   (Apache-2.0): its own mix project with its own gate block. Citations of
@@ -100,7 +106,7 @@ way before trusting a local green.
   raises. A cross-tenant read is `Scope.platform/1` by name.
 - Events are immutable contracts: `use Oneiroi.Event, version:` listed in
   the system's `events/0`; a change is a new version with an upcaster,
-  and `test/fixtures/records/` is the test that fails without one. Every
+  and `test/fixtures/sima_qian/` is the test that fails without one. Every
   event carries its actor and instant and, for model output, the model
   slug; every decision event carries `note`; the middleware refuses the
   rest. An instant field besides `at` is named in `instants:`.

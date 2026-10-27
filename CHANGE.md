@@ -7,6 +7,6 @@ entry is the author's, for the attended P0 work, so the file names
 somebody from the first branch the pipeline reads.
 
 What was built and where: `design/p0-plan.md` is the plan and
-`systems/platform.md`, `systems/identity.md`, `systems/resident.md` and
-`systems/records.md` are the record of what landed. The first pipeline
+`systems/platform.md`, `systems/gaia.md`, `systems/agathos-daimon.md` and
+`systems/sima-qian.md` are the record of what landed. The first pipeline
 ticket replaces this text.

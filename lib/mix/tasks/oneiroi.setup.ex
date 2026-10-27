@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Oneiroi.Setup do
     password = Keyword.get(opts, :password) || Mix.raise("--password is required")
     Mix.Task.run("app.start")
 
-    case Oneiroi.Identity.create_account(email, password, Oneiroi.Actor.platform()) do
+    case Oneiroi.Gaia.create_account(email, password, Oneiroi.Actor.platform()) do
       {:ok, id} -> Mix.shell().info("account #{id} created for #{email}")
       {:error, reason} -> Mix.raise("account not created: #{inspect(reason)}")
     end

@@ -4,9 +4,9 @@ import Config
 # Grows one entry per system as they land; `Oneiroi.Boot` reads it.
 config :oneiroi, :components, [
   Oneiroi.Platform,
-  Oneiroi.Identity,
-  Oneiroi.Resident,
-  Oneiroi.Records
+  Oneiroi.Gaia,
+  Oneiroi.AgathosDaimon,
+  Oneiroi.SimaQian
 ]
 
 # One event log, Postgres in every environment (plan P0.2); named here

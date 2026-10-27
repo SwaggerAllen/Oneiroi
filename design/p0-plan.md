@@ -295,7 +295,7 @@ asserts, as does the one that two residents never interleave. The
 name and a slug only; the creation flow with its threshold and gifts is
 P1 (spec §6.2), because the threshold collects a key the ledger does not
 yet exist to hold. The two-residents bleed test from P0.2 becomes real
-here. The first fixture log in `test/fixtures/records/events/` is written
+here. The first fixture log in `test/fixtures/sima_qian/events/` is written
 from these events, so the replay harness has a history from the day the
 first event shape exists.
 
@@ -313,7 +313,7 @@ something wrote where nothing should (David's rule). The git port with
 two providers: a local bare repository for tests, and GitHub over HTTPS
 with a steward-supplied fine-grained token stored encrypted. Secrets at
 rest need a library, which is a decision for the author (below). Rebuild
-as `mix oneiroi.records.rebuild <repo>`: replay into a fresh store under
+as `mix oneiroi.sima_qian.rebuild <repo>`: replay into a fresh store under
 a new resident with the `Imported` event appended, refusing a store that
 already holds the resident, printing by name what cannot come back. The
 attestation check as an Oban job that recomputes the root on a schedule
@@ -364,12 +364,12 @@ what it touches, open questions stated.
 - **Build the resident aggregate with per-resident id sequences.**
   Argument: P0.6 above; the id rule is what makes citations survive a
   rebuild, and it must exist before the first citeable thing does.
-  Touches `lib/oneiroi/resident/**`, `systems/resident.md`,
-  `test/fixtures/records/**`.
+  Touches `lib/oneiroi/agathos_daimon/**`, `systems/agathos-daimon.md`,
+  `test/fixtures/sima_qian/**`.
 - **Build records: export, attestation, the git port and rebuild.**
   Argument: P0.7 above; the repository is the portability promise and the
-  round trip is the only test of it. Touches `lib/oneiroi/records/**`,
-  `systems/records.md`. Open question: decision 5.
+  round trip is the only test of it. Touches `lib/oneiroi/sima_qian/**`,
+  `systems/sima-qian.md`. Open question: decision 5.
 
 ## Measurements P0 records
 

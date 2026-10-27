@@ -13,7 +13,7 @@ defmodule OneiroiWeb.SecondFactorController do
   )
 
   def create(%{assigns: %{principal: p}} = conn, _params) do
-    case Oneiroi.Identity.enroll_second_factor(p.account_id, actor(conn)) do
+    case Oneiroi.Gaia.enroll_second_factor(p.account_id, actor(conn)) do
       {:ok, %{secret: secret, uri: uri}} ->
         conn |> put_status(201) |> json(%{secret: secret, uri: uri})
 

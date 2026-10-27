@@ -134,9 +134,9 @@ plan's drafts for them become follow-ups rather than the first work.
 
 Once a resident exists: `PUT /v1/residents/:id/remote` with a GitHub
 repository you created and a fine-grained token scoped to it (Contents
-read and write), then `Oneiroi.Records.backup/2` from a shell, read the
+read and write), then `Oneiroi.SimaQian.backup/2` from a shell, read the
 `Oneiroi-Sequence` and `Oneiroi-Root` trailers off the commit on GitHub,
-and `mix oneiroi.records.rebuild <repo> --steward <account id>` against
+and `mix oneiroi.sima_qian.rebuild <repo> --steward <account id>` against
 a second database. The export of the rebuilt resident is byte-identical
 up to the `Imported` line; the test suite asserts the same against a
 local bare repository on every PR.

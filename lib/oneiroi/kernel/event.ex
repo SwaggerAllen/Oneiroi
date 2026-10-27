@@ -2,7 +2,7 @@ defmodule Oneiroi.Event do
   @moduledoc """
   What every event in the log is (conventions §6, spec §3.1):
 
-      defmodule Oneiroi.Resident.Events.ResidentCreated do
+      defmodule Oneiroi.AgathosDaimon.Events.ResidentCreated do
         use Oneiroi.Event, version: 1, fields: [:id, :name, :slug]
       end
 

@@ -16,7 +16,7 @@ defmodule Oneiroi.Application do
   # and depended on by neither (`Oneiroi`'s moduledoc).
   use Boundary,
     top_level?: true,
-    deps: [Oneiroi, Oneiroi.Identity, Oneiroi.Records, Oneiroi.Resident, OneiroiWeb]
+    deps: [Oneiroi, Oneiroi.Gaia, Oneiroi.SimaQian, Oneiroi.AgathosDaimon, OneiroiWeb]
 
   alias Oneiroi.Boot
   alias Oneiroi.Component.Composer

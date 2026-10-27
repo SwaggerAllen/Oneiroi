@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.SessionController do
   use OneiroiWeb, :controller
 
-  alias Oneiroi.Identity.Error, as: IdentityError
+  alias Oneiroi.Gaia.Error, as: IdentityError
   alias OpenApiSpex.Schema
 
   tags(["identity"])
@@ -29,18 +29,18 @@ defmodule OneiroiWeb.SessionController do
   )
 
   def create(conn, %{"email" => email, "password" => password} = params) do
-    case Oneiroi.Identity.login(email, password, params["code"]) do
+    case Oneiroi.Gaia.login(email, password, params["code"]) do
       {:ok, raw, principal} ->
         conn
         |> put_session(:sid, raw)
         |> put_status(201)
         |> json(%{account_id: principal.account_id, email: principal.email})
 
-      {:error, :identity_second_factor_required} ->
-        error(conn, 401, IdentityError.new(:identity_second_factor_required))
+      {:error, :gaia_second_factor_required} ->
+        error(conn, 401, IdentityError.new(:gaia_second_factor_required))
 
       {:error, _reason} ->
-        error(conn, 401, IdentityError.new(:identity_invalid_credentials))
+        error(conn, 401, IdentityError.new(:gaia_invalid_credentials))
     end
   end
 
@@ -51,7 +51,7 @@ defmodule OneiroiWeb.SessionController do
 
   def delete(conn, _params) do
     with raw when is_binary(raw) <- get_session(conn, :sid) do
-      Oneiroi.Identity.logout(raw)
+      Oneiroi.Gaia.logout(raw)
     end
 
     conn |> configure_session(drop: true) |> send_resp(204, "")

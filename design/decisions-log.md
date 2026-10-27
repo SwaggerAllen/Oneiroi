@@ -248,10 +248,11 @@ names the gates and the layers.
   says so.
 - Working agreement from the author, after two design PRs conflicted on
   this file: one PR open at a time per repository, however large it
-  grows, and a PR is brought onto main before the next one in that
-  repository opens. The rule is against splitting one repository's work
-  into PRs that could have been one; a PR in another repository (the
-  orchestration touch-ups beside P0's) may sit open alongside.
+  grows. New work in a repository is stacked onto its open PR rather
+  than held for a second one, so a session never waits on a merge to
+  land the next thing, and a PR in another repository (the orchestration
+  touch-ups beside P0's) may sit open alongside. The rule is against
+  splitting one repository's work into PRs that could have been one.
 
 ## Round 9: the rest of P0 in one pass (2026-10-26)
 
@@ -280,4 +281,36 @@ names the gates and the layers.
   measurement the plan asked for is not needed by that shape and is
   recorded as not taken.
 - Twelve stubs, not fourteen: Render's previews retire the Pages pair.
+
+## Round 10: dates, figures, the journal's day row, behaviours (2026-10-27)
+
+A brainstorm with the author, settled into the spec in the same sitting.
+
+- **Dates are rows and a countdown is never written** (§6.7, F56):
+  David recomputed "days to the application" daily and left stale
+  numbers in every file that had copied one. The date is the record; the
+  index derives the countdown on the turn that reads it; associations
+  are taggings and citations, not an edge table.
+- **Figures generalise counters** (§6.13, F57): one row kind for a
+  counter (the fold of increment events) and a countdown (derived from a
+  date), both citeable and taggable, both what the "number it was not
+  shown" rule resolves against.
+- **The journal's day row is the schedule's to create** (§6.5, §6.7):
+  made at the day's first check-in, so a day never written is a visible
+  row rather than an absent file, and reads go by day key.
+- **Behaviours** (§6.3, F55): how the resident tends to act, as rows it
+  owns, with a trigger, a stance and enactments tagged on turns; two
+  scores kept apart (habit strength a decayed measurement, connection
+  strength a decision trace of pins and affirmations); the brain
+  self-tags enactments and the nightly memory pass only proposes;
+  context assembly retrieves by trigger and the brain chooses. The author
+  weighed putting choice in the memory agent and declined it because the
+  memory agent lacks the brain's identity; the split is retrieval in
+  memory, choice in the brain. Trials are derived from behaviours (§6.4),
+  so a model change is graded on whether the character carries over.
+- Placement: behaviours in P1 with memory and the brain; dates, figures,
+  the day row and the derived trials in P2.
+- A name for the behaviours part was offered and not yet taken: *ethos*,
+  Greek for character, which Aristotle derives from habit (Nicomachean
+  Ethics II.1). It is the author's to name, as every name is.
 

@@ -2,8 +2,8 @@ defmodule Oneiroi.Worker do
   @moduledoc """
   What every Oban worker adopts (conventions §7, §10):
 
-      defmodule Oneiroi.Records.AttestationWorker do
-        use Oneiroi.Worker, queue: :records_nightly
+      defmodule Oneiroi.SimaQian.AttestationWorker do
+        use Oneiroi.Worker, queue: :sima_qian_nightly
         def run(%{"resident_id" => id}), do: ...
       end
 

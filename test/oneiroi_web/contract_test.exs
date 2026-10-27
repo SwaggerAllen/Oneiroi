@@ -16,7 +16,7 @@ defmodule OneiroiWeb.ContractTest do
     resident = Fixtures.resident!(account)
 
     {:ok, raw_token, _hash} =
-      Oneiroi.Identity.issue_token(account.id, "t", Oneiroi.Actor.new(:steward, account.id))
+      Oneiroi.Gaia.issue_token(account.id, "t", Oneiroi.Actor.new(:steward, account.id))
 
     {:ok, account: account, resident: resident, token: raw_token}
   end
@@ -64,7 +64,7 @@ defmodule OneiroiWeb.ContractTest do
     assert id == ctx.resident.id
     assert %{"slug" => _} = conn |> get("/v1/residents/#{id}") |> json_response(200)
 
-    assert %{"error" => %{"kind" => "resident_not_stewarded"}} =
+    assert %{"error" => %{"kind" => "agathos_daimon_not_stewarded"}} =
              ctx.conn |> login(other) |> get("/v1/residents/#{id}") |> json_response(404)
   end
 
@@ -119,7 +119,7 @@ defmodule OneiroiWeb.ContractTest do
       |> put_req_header("origin", origin())
       |> post("/v1/session", %{email: ctx.account.email, password: "wrong"})
 
-    assert %{"error" => %{"kind" => "identity_invalid_credentials", "remedy" => _}} =
+    assert %{"error" => %{"kind" => "gaia_invalid_credentials", "remedy" => _}} =
              json_response(conn, 401)
   end
 end

@@ -23,7 +23,7 @@ config :oneiroi,
           "PLATFORM_POOL_SIZE" => "10",
           "PLATFORM_EVENT_STORE_POOL_SIZE" => "10",
           "PLATFORM_CLOCK" => "fake",
-          "RECORDS_ROOT" => "tmp/records_test"
+          "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 
 # The endpoint process runs (Phoenix.ConnTest needs it) and binds no socket.
