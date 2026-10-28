@@ -27,6 +27,24 @@ defmodule Oneiroi.Apsu.SpineTest do
     end
   end
 
+  test "Oban's own queries pass the scope guard unscoped, and a plain query still does not" do
+    # Oban marks every query it issues (`Oban.Repo`); this goes through
+    # that path with the running Oban's config, from a process holding no
+    # scope, as the peer and the plugins do in a real build. The plain
+    # query beside it holds the guard where it must stay.
+    assert Scope.current() == nil
+    query = from(p in "oban_peers", select: p.name)
+    assert [] = Oban.Repo.all(Oban.config(), query)
+    assert_raise Oneiroi.Repo.UnscopedError, fn -> Repo.all(query) end
+  end
+
+  test "the release migrator runs through the migrator connection and finds nothing pending" do
+    # What the container's start command runs ahead of `start`; on the
+    # suite's migrated database it opens the migrator connection, reads
+    # the versions and has nothing to apply.
+    assert :ok = Oneiroi.Release.migrate()
+  end
+
   test "a scope is transaction-local on the connection and process-local in the tree" do
     assert Scope.current() == nil
     id = "11111111-1111-1111-1111-111111111111"

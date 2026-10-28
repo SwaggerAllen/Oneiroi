@@ -28,6 +28,12 @@ defmodule Oneiroi.Repo.Migrations.AddApplicationRole do
     $$;
     """)
 
+    # The migrator has to be able to `SET ROLE` to it. Postgres 16 grants
+    # a role's creator membership with the SET option, but the role may
+    # already exist (a second database on the cluster) and have been
+    # created by another credential, and a superuser needs no grant at
+    # all, which is why the local suite could never notice its absence.
+    execute(~s(GRANT #{@role} TO CURRENT_USER))
     execute(~s(GRANT USAGE ON SCHEMA public TO #{@role}))
     execute(~s(GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO #{@role}))
     execute(~s(GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO #{@role}))

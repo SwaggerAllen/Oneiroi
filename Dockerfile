@@ -47,10 +47,13 @@ COPY --from=build /app/_build/prod/rel/oneiroi ./
 COPY --from=build /app/GIT_SHA /app/GIT_SHA
 
 # Migrations run here, in the container's own start command, ahead of
-# `start` (from P0.2, through `Oneiroi.Release.migrate`): a separate
-# pre-deploy job is a second component whose environment goes stale the
-# day a variable is added, and a migrator that fails stops the container
-# before the health check answers, so the platform keeps the previous
-# deployment serving. GIT_SHA is exported at start; a "dev" stamp yields
-# to RENDER_GIT_COMMIT when the platform supplies one.
-CMD ["/bin/sh", "-c", "sha=$(cat /app/GIT_SHA) && if [ \"$sha\" = dev ] && [ -n \"$RENDER_GIT_COMMIT\" ]; then sha=$RENDER_GIT_COMMIT; fi && GIT_SHA=$sha exec /app/bin/oneiroi start"]
+# `start`, through `Oneiroi.Release.migrate`: a separate pre-deploy job
+# is a second component whose environment goes stale the day a variable
+# is added, and a migrator that fails stops the container before the
+# health check answers, so the platform keeps the previous deployment
+# serving. The first deploy ran without the `eval` line: the comment
+# above described it and the command did not do it, so the application
+# started against an unmigrated database and failed on the role its
+# own migration creates. GIT_SHA is exported at start; a "dev" stamp
+# yields to RENDER_GIT_COMMIT when the platform supplies one.
+CMD ["/bin/sh", "-c", "sha=$(cat /app/GIT_SHA) && if [ \"$sha\" = dev ] && [ -n \"$RENDER_GIT_COMMIT\" ]; then sha=$RENDER_GIT_COMMIT; fi && /app/bin/oneiroi eval 'Oneiroi.Release.migrate()' && GIT_SHA=$sha exec /app/bin/oneiroi start"]

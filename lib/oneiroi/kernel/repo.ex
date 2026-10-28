@@ -55,9 +55,22 @@ defmodule Oneiroi.Repo do
   # raises), which is what holds the literal in both places together.
   @scope_key :oneiroi_scope
 
+  # Oban's own queries (its peer election, stager, pruner and the job
+  # table's bookkeeping) run from Oban's processes, which hold no scope
+  # and never will: its tables carry no tenant column and no policy, and
+  # a job's tenancy is the worker's, set inside `perform/1`. Oban marks
+  # every query it issues with `oban: true` (`Oban.Repo`), which is the
+  # one thing here that lets a query through unscoped besides the
+  # explicit `oneiroi_unscoped`. The first deploy found this: the peer
+  # process crashed on its first `DELETE FROM oban_peers` until the
+  # supervisor gave up, and the test suite never saw it because Oban
+  # runs in manual mode there and starts no peer.
   @impl Ecto.Repo
   def prepare_query(_operation, query, opts) do
-    if Process.get(@scope_key) == nil and not Keyword.get(opts, :oneiroi_unscoped, false) do
+    unscoped? =
+      Keyword.get(opts, :oneiroi_unscoped, false) or Keyword.get(opts, :oban, false)
+
+    if Process.get(@scope_key) == nil and not unscoped? do
       raise UnscopedError,
         message:
           "a query ran with no Oneiroi.Scope set (wrap it in Oneiroi.Scope.resident/2, " <>
