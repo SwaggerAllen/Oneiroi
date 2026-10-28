@@ -60,7 +60,7 @@
   ],
   "deploy": {
     "provider": "render",
-    "endpoint": "SET-IN-P0.5",
+    "endpoint": "https://api.render.com/v1/services/srv-dbh2n2ifngtc73f7okl0/deploys",
     "timeout": "30m"
   },
   "state": {
