@@ -8,7 +8,13 @@ import Config
 # channel nothing parses.
 config :oneiroi, serve: true
 
+# The tuple form, never `LoggerJSON.Formatters.Basic.new/1`: config is
+# evaluated by every mix command, `mix deps.get` included, and in the
+# release build the dependency does not exist yet when it runs, so a
+# function call here fails the image at its first step. The tuple names
+# the module and the logger calls it once the handler starts. The test
+# environment never saw this because its deps were already compiled.
 config :logger, :default_handler,
-  formatter: LoggerJSON.Formatters.Basic.new(metadata: [:component, :trace_id, :request_id])
+  formatter: {LoggerJSON.Formatters.Basic, metadata: [:component, :trace_id, :request_id]}
 
 config :logger, level: :info
