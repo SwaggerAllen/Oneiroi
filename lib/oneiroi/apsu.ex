@@ -65,12 +65,30 @@ defmodule Oneiroi.Apsu do
     ]
   end
 
-  @doc "Casts the endpoint secret, holding Plug.Session.Cookie's 64-byte floor."
+  @doc """
+  Casts the endpoint secret, holding Plug.Session.Cookie's 64-byte floor.
+
+  Two forms are accepted. A value of 64 bytes or more is used as given
+  (`mix phx.gen.secret 64`). A base64 value decoding to 32 bytes or more
+  is what Render's `generateValue` produces (render.yaml): 256 bits of
+  key, in 44 characters, so short of the floor in length and not in
+  entropy. It is expanded to 64 bytes with HMAC-SHA512 under a fixed
+  label, deterministically, so every instance of a deployment derives
+  the same secret from the same value.
+  """
   @spec cast_secret_key_base(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def cast_secret_key_base(raw) when byte_size(raw) >= 64, do: {:ok, raw}
 
   def cast_secret_key_base(raw) do
-    {:error, "must be at least 64 bytes (Plug.Session.Cookie's minimum), is #{byte_size(raw)}"}
+    case Base.decode64(raw) do
+      {:ok, key} when byte_size(key) >= 32 ->
+        {:ok, Base.encode64(:crypto.mac(:hmac, :sha512, key, "oneiroi:apsu:secret_key_base"))}
+
+      _ ->
+        {:error,
+         "must be at least 64 bytes (Plug.Session.Cookie's minimum), or base64 of at least 32, " <>
+           "is #{byte_size(raw)} bytes"}
+    end
   end
 
   @doc """
