@@ -41,12 +41,13 @@ secret (`sync: false`).
    (`mix phx.gen.secret 64` or any 64+ random bytes) and
    `APSU_VAULT_KEY` (`openssl rand -base64 32`). A deploy without
    either fails at boot with the config report naming it.
-3. Read the service id (`srv-…`) and put it in `pipeline.config.json`'s
-   `deploy.endpoint` as
-   `https://api.render.com/v1/services/<id>/deploys`. Unreplaced,
-   `pipeline setup` fails its deploy probe naming the endpoint, which is
-   why that probe runs at hookup rather than on the first ticket to
-   reach `Merged`.
+3. Read the service id (`srv-…`) and set it as the `RENDER_SERVICE_ID`
+   secret in §4: `pipeline.config.json`'s `deploy.endpoint` is
+   `https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys`.
+   Unset, every `pipeline` command fails at config load naming it, and
+   `pipeline setup`'s deploy probe is what checks the id is the right
+   one, which is why that probe runs at hookup rather than on the first
+   ticket to reach `Merged`.
 4. Two things to read off the first deploy and write into the plan's
    measurement table: the database's connection limit against
    `APSU_POOL_SIZE` and `APSU_EVENT_STORE_POOL_SIZE` (both
@@ -86,13 +87,15 @@ variables below, which `pipeline.config.json`'s `tracker` block names as
 then applied, to create any state or label the team lacks; the state
 names are the config's `states` map.
 
-## 4. Variables, secrets, webhook, repo settings (GitHub UI)
+## 4. Secrets, webhook, repo settings (GitHub UI)
 
-Actions variables on this repo (Settings → Secrets and variables →
-Actions → Variables), which only collaborators can read; the config
-names each as a `${…}` reference (orchestration's DESIGN §5), the
-twelve stubs and `ci.yml` hand them over in one `env:` block, and a
-`pipeline` command run with one unset fails naming it:
+Actions secrets the config reads (Settings → Secrets and variables →
+Actions → Secrets); the config names each as a `${…}` reference
+(orchestration's DESIGN §5), the twelve stubs and `ci.yml` hand them
+over in one `env:` block, and a `pipeline` command run with one unset
+fails naming it. Secrets rather than variables, though none is a
+credential, because a public repository's run logs print each step's
+environment and mask only secrets:
 
 - `PIPELINE_STATE_URL`: the metronome Worker's origin,
   `https://pipeline-metronome.<subdomain>.workers.dev`.
@@ -100,8 +103,9 @@ twelve stubs and `ci.yml` hand them over in one `env:` block, and a
   Oneiroi project.
 - `LINEAR_AUTHOR_ID`: your Linear user id, the config's `author` and
   `controlplane` actor.
+- `RENDER_SERVICE_ID`: the reference instance's `srv-…` id from §1.
 
-Actions secrets on this repo:
+Actions secrets the workflows read directly:
 
 - `LINEAR_API_KEY`
 - A model credential: `CLAUDE_CODE_OAUTH_TOKEN` (from `claude
