@@ -354,10 +354,12 @@ and nothing personal turned up; what follows is what changed.
   may yet change.
 - The ids that identify the author's accounts leave the tree:
   `pipeline.config.json` names the metronome Worker's URL and the
-  Linear team, project and actor ids as `${…}` references, read from
-  the repository's Actions variables (orchestration's DESIGN §5), which
-  only collaborators can read; the twelve stubs and `ci.yml` hand them
-  over. The orchestration change merges first.
+  Linear team, project and actor ids, and then the Render service id,
+  as `${…}` references, read from the repository's Actions secrets
+  (orchestration's DESIGN §5): secrets rather than variables, though
+  none is a credential, because a public repository's run logs print
+  each step's environment and mask only secrets. The twelve stubs and
+  `ci.yml` hand them over. The orchestration change merges first.
 - The one cautionary example that named a date in the author's life
   now names a countdown.
 - The commit trailers naming the model and the session stay: they are
