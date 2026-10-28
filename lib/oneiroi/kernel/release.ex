@@ -9,6 +9,9 @@ defmodule Oneiroi.Release do
   @app :oneiroi
 
   def migrate do
+    # `eval` boots no application: the adapter's TLS stack has to be up
+    # before the migrator connects to a database that asks for it.
+    {:ok, _} = Application.ensure_all_started(:ssl)
     Application.load(@app)
     Oneiroi.Boot.load!()
     path = Application.app_dir(@app, "priv/repo/migrations")
