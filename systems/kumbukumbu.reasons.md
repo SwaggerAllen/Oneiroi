@@ -77,6 +77,15 @@ Spec §6.3: "Retrieval is memory's and choice is the brain's", with
 are the resident's own voice doing the thing, which is stronger than any
 description of it."
 
+## #26
+Spec §8: "`turn-start` reporting the session so the next tool calls are
+attributed to it." Measured, not inferred: `OneiroiWeb.AdapterTest`'s
+first run crashed `Projectors.Conversations` with `:utc_datetime_usec
+expects microsecond precision, got: ~U[2026-10-26 12:00:00Z]`, and
+every later test in the run lost the repo, because a projector that
+dies takes Commanded's handler tree with it. A wire value is never
+trusted to fit a column.
+
 ## #10
 Identity files carry what the resident says it is and memory what happened; the habit between them is what evaporates when the chat model changes. Two scores because pins are decisions and weights are measurements, and blending them hides a tic behind a value.
 

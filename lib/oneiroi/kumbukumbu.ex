@@ -337,6 +337,10 @@ defmodule Oneiroi.Kumbukumbu do
           {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), non_neg_integer()} | {:error, term()}
   defexport(uncompacted(resident_id, key), do: Conversations.uncompacted(resident_id, key))
 
+  @doc "An adapter's open turn, `{session_key, turn_ref}`, or nil (spec §8)."
+  @spec open_turn(String.t(), String.t()) :: {String.t(), String.t()} | nil
+  defexport(open_turn(resident_id, adapter), do: Conversations.open_turn(resident_id, adapter))
+
   @doc "Every message of a session after its compaction, in order."
   @spec since_compaction(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(since_compaction(resident_id, key),

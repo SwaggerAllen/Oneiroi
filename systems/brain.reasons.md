@@ -56,3 +56,14 @@ from a prompt, billed under the `drafting` purpose)". Returned rather
 than written so the origin on the seed is the steward's statement, not
 the model's.
 
+## #15
+Spec §6.4: "as an honestly told model change after" first contact;
+spec §5: the notice lands in the transcript, where both parties read
+it in the same place.
+
+## #16
+Spec §6.4: "the brain is given the seed files and nothing of the run's
+purpose." The index would carry the resident's memory into a session
+that is never captured, and the formation line names a date the run
+has no business knowing.
+

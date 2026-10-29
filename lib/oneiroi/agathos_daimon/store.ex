@@ -26,6 +26,9 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:last_backup_commit, :string)
       field(:first_contact_at, :utc_datetime_usec)
       field(:formation_until, :utc_datetime_usec)
+      field(:chat_model, :string)
+      field(:model_pinned_at, :utc_datetime_usec)
+      field(:model_told, :boolean, default: true)
       field(:created_at, :utc_datetime_usec)
     end
 
@@ -47,6 +50,22 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:written_by_kind, :string)
       field(:written_by_id, :string)
       field(:written_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Adapter do
+    @moduledoc "A registered adapter: its role and the hash of its token, live until revoked."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_adapter" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:adapter, :string, primary_key: true)
+      field(:role, :string)
+      field(:token_hash, :string)
+      field(:registered_at, :utc_datetime_usec)
+      field(:revoked_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -113,4 +132,16 @@ defmodule Oneiroi.AgathosDaimon.Store do
   @spec open_soul_edits() :: [SoulEdit.t()]
   def open_soul_edits,
     do: Repo.all(from(e in SoulEdit, where: e.state == "open", order_by: e.proposed_at))
+
+  @doc "The resident's adapters, live and revoked."
+  @spec adapters() :: [Adapter.t()]
+  def adapters, do: Repo.all(from(a in Adapter, order_by: a.adapter))
+
+  @doc "The live adapter presenting a token hash, under the platform scope: the resident is not known until it answers."
+  @spec live_adapter(String.t()) :: Adapter.t() | nil
+  def live_adapter(hash),
+    do:
+      Repo.one(
+        from(a in Adapter, where: a.token_hash == ^hash and is_nil(a.revoked_at), limit: 1)
+      )
 end

@@ -16,18 +16,29 @@ defmodule OneiroiWeb.Plugs.Authenticate do
     principal =
       case get_req_header(conn, "authorization") do
         ["Bearer " <> raw] -> token(raw)
-        _other -> session(get_session(conn, :sid))
+        _other -> cookie(conn)
       end
 
     assign(conn, :principal, principal)
   end
 
+  # An account's token first, else an adapter's (spec §8): two hashes,
+  # two stores, one header.
   defp token(raw) do
-    case Oneiroi.Gaia.authenticate_token(raw) do
+    with :error <- Oneiroi.Gaia.authenticate_token(raw),
+         :error <- Oneiroi.AgathosDaimon.authenticate_adapter(raw) do
+      nil
+    else
       {:ok, principal} -> principal
-      :error -> nil
     end
   end
+
+  # A bearer-only pipeline (the MCP server's) fetches no session, and a
+  # session that was never fetched cannot be read.
+  defp cookie(%Plug.Conn{private: %{plug_session: _}} = conn),
+    do: session(get_session(conn, :sid))
+
+  defp cookie(_conn), do: nil
 
   defp session(nil), do: nil
 

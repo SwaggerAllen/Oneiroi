@@ -25,6 +25,19 @@ defmodule OneiroiWeb.Router do
     get("/openapi.json", OpenApiSpex.Plug.RenderSpec, [])
   end
 
+  # The adapter contract's MCP server (spec §8): bearer only, no cookie
+  # and so no Origin check, JSON-RPC over POST.
+  pipeline :mcp do
+    plug(:accepts, ["json"])
+    plug(OneiroiWeb.Plugs.SecureHeaders)
+    plug(OneiroiWeb.Plugs.Authenticate)
+  end
+
+  scope "/mcp", OneiroiWeb do
+    pipe_through(:mcp)
+    post("/", MCPController, :rpc)
+  end
+
   scope "/v1", OneiroiWeb do
     pipe_through(:api)
 
@@ -47,6 +60,21 @@ defmodule OneiroiWeb.Router do
       put("/residents/:id/files/:name", FileController, :write)
       post("/residents/:id/files/:name/draft", FileController, :draft)
       get("/residents/:id/soul-edits", FileController, :proposals)
+      get("/residents/:id/regression/tests", RegressionController, :tests)
+      post("/residents/:id/regression/tests", RegressionController, :write_test)
+      put("/residents/:id/regression/tests/:number", RegressionController, :change_test)
+      get("/residents/:id/regression/runs", RegressionController, :runs)
+      post("/residents/:id/regression/runs", RegressionController, :start_run)
+      get("/residents/:id/regression/runs/:ref", RegressionController, :run)
+      post("/residents/:id/regression/runs/:ref/cards/:card/grade", RegressionController, :grade)
+
+      post(
+        "/residents/:id/regression/runs/:ref/cards/:card/favourite",
+        RegressionController,
+        :favourite
+      )
+
+      post("/residents/:id/model-pin", RegressionController, :pin_model)
       post("/me/socket-token", MeController, :socket_token)
       get("/residents/:id/ledger", LedgerController, :show)
       put("/residents/:id/ledger/budgets/:purpose", LedgerController, :set_budget)
@@ -60,6 +88,10 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/turns/:turn_ref/context", ConversationController, :injections)
       post("/residents/:id/turns", ConversationController, :capture)
       post("/residents/:id/turn-start", ConversationController, :turn_start)
+      get("/residents/:id/context", ConversationController, :context)
+      get("/residents/:id/adapters", ResidentController, :adapters)
+      post("/residents/:id/adapters", ResidentController, :register_adapter)
+      delete("/residents/:id/adapters/:adapter", ResidentController, :revoke_adapter)
       get("/residents/:id/bookmarks", MemoryController, :bookmarks)
       get("/residents/:id/bookmarks/:number", MemoryController, :bookmark)
       post("/residents/:id/bookmarks/:number/pin", MemoryController, :pin)

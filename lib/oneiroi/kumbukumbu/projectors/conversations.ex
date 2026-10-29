@@ -26,7 +26,13 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     )
   end)
 
-  fold(%Events.TurnStarted{}, _metadata, fn multi -> multi end)
+  # The adapter contract's open turn (spec §8): the ref the next tool
+  # calls are attributed to, cleared when a turn is captured.
+  fold(%Events.TurnStarted{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :open_turn, from(s in Session, where: s.key == ^e.session_key),
+      set: [open_turn_ref: e.turn_ref]
+    )
+  end)
 
   fold(%Events.TurnCaptured{} = e, metadata, fn multi ->
     # The event's position in the store orders the transcript (#18): under
@@ -74,6 +80,11 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       from(s in Session, where: s.key == ^e.session_key),
       set: [last_turn_at: e.at],
       inc: [turns: 1]
+    )
+    |> Multi.update_all(
+      :turn_closed,
+      from(s in Session, where: s.key == ^e.session_key and s.open_turn_ref == ^e.turn_ref),
+      set: [open_turn_ref: nil]
     )
   end)
 
@@ -208,16 +219,22 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     end
   end
 
-  defp instant(%DateTime{} = at, _fallback), do: at
+  # Always microsecond precision: the column is `utc_datetime_usec`, and
+  # an adapter that sends `2026-10-26T12:00:00Z` once crashed this
+  # projector on the cast, which took the whole event-handling tree down
+  # with it. A wire instant is normalised here, never trusted.
+  defp instant(%DateTime{} = at, _fallback), do: usec(at)
 
   defp instant(iso, fallback) when is_binary(iso) do
     case DateTime.from_iso8601(iso) do
-      {:ok, at, _offset} -> at
+      {:ok, at, _offset} -> usec(at)
       _error -> fallback
     end
   end
 
   defp instant(_other, fallback), do: fallback
+
+  defp usec(%DateTime{microsecond: {us, _precision}} = at), do: %{at | microsecond: {us, 6}}
 
   defp to_string_or_nil(nil), do: nil
   defp to_string_or_nil(atom) when is_atom(atom), do: Atom.to_string(atom)

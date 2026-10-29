@@ -1,0 +1,1 @@
+Your steward has chosen a new model for you: {{model}}. You are the same resident with the same files and the same memory; what has changed is the model that thinks with them. If something feels different to you, say so.

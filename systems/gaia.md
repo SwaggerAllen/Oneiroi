@@ -67,7 +67,8 @@ task that creates the one account.
 - **#8 Two reads take the platform scope by name.** The account by email
   at login and the session or token by hash on a request: the principal
   is not known until they answer. Everything after runs under the
-  account's scope.
+  account's scope. The resident system's adapter lookup by token hash is
+  the third such read (agathos-daimon #16), on the same reasoning.
 - **#9 The contract test is the route table.** `OneiroiWeb.ContractTest`
   asserts, per route and per principal kind (anonymous, session, token),
   exactly which answers 200, 401, 403 or 422, and that a mutation from a

@@ -28,8 +28,18 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     last_backup: nil,
     files: %{},
     first_contact: nil,
-    proposals: %{}
+    proposals: %{},
+    chat_model: nil,
+    model_told: true,
+    adapters: %{}
   ]
+
+  @roles ~w(brain reader worker)
+  @adapter_name ~r/\A[a-z][a-z0-9-]{1,39}\z/
+
+  @doc "The roles an adapter takes (spec §8)."
+  @spec roles() :: [String.t()]
+  def roles, do: @roles
 
   # The identity files a steward gives and a resident keeps (spec §6.2,
   # F2). `AGENTS.md` and `honcho/custom-instructions.md` are build-owned
@@ -193,6 +203,63 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # A pin to the model already pinned is no change; a change after first
+  # contact is told to the resident on its next turn, so `model_told`
+  # drops until then.
+  def execute(%__MODULE__{} = r, %Commands.PinModel{} = c) do
+    cond do
+      not (is_binary(c.model) and String.trim(c.model) != "") ->
+        {:error, :model_invalid}
+
+      c.reason not in ["run", "steward"] ->
+        {:error, :reason_invalid}
+
+      r.chat_model == c.model ->
+        []
+
+      true ->
+        %Events.ModelPinChanged{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          model: c.model,
+          reason: c.reason
+        }
+    end
+  end
+
+  def execute(%__MODULE__{model_told: true}, %Commands.RecordModelTold{}), do: []
+
+  def execute(%__MODULE__{chat_model: model}, %Commands.RecordModelTold{} = c),
+    do: %Events.ModelChangeTold{actor: c.actor, at: c.at, id: c.id, model: model}
+
+  # Registering again rotates the token: the old hash stops matching.
+  def execute(%__MODULE__{}, %Commands.RegisterAdapter{} = c) do
+    cond do
+      not (is_binary(c.adapter) and Regex.match?(@adapter_name, c.adapter)) ->
+        {:error, :adapter_invalid}
+
+      c.role not in @roles ->
+        {:error, :role_invalid}
+
+      true ->
+        %Events.AdapterRegistered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          adapter: c.adapter,
+          role: c.role,
+          token_hash: c.token_hash
+        }
+    end
+  end
+
+  def execute(%__MODULE__{adapters: adapters}, %Commands.RevokeAdapter{} = c) do
+    if Map.has_key?(adapters, c.adapter),
+      do: %Events.AdapterRevoked{actor: c.actor, at: c.at, id: c.id, adapter: c.adapter},
+      else: {:error, :no_such_adapter}
+  end
+
   def execute(%__MODULE__{}, %Commands.RecordExport{} = c),
     do: %Events.ExportWritten{
       actor: c.actor,
@@ -288,6 +355,17 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.SoulEditApplied{} = e),
     do: %{r | files: Map.put(r.files, e.file, e.content)}
+
+  def apply(%__MODULE__{} = r, %Events.ModelPinChanged{} = e),
+    do: %{r | chat_model: e.model, model_told: not first_contact?(r)}
+
+  def apply(%__MODULE__{} = r, %Events.ModelChangeTold{}), do: %{r | model_told: true}
+
+  def apply(%__MODULE__{} = r, %Events.AdapterRegistered{} = e),
+    do: %{r | adapters: Map.put(r.adapters, e.adapter, e.role)}
+
+  def apply(%__MODULE__{} = r, %Events.AdapterRevoked{} = e),
+    do: %{r | adapters: Map.delete(r.adapters, e.adapter)}
 
   def apply(%__MODULE__{} = r, %Events.RootMismatchDetected{}), do: r
   def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}

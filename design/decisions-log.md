@@ -419,3 +419,17 @@ and nothing personal turned up; what follows is what changed.
   set and two scores computed on read (systems/kumbukumbu.md #24);
   retrieval is memory's, injected as "how I act", and choice is the
   brain's (#25).
+- Regression is built under `Oneiroi.Eunomia` (the system's name, not
+  the spec's `regression/`): its own stream with its own test counter,
+  nothing exported, the sealed session the brain's seed context, cards
+  blind until a test is graded, and one test holding the unawareness
+  invariant over every resident-reachable surface (systems/eunomia.md
+  #9 to #12). The pin is the resident's, told once after first contact
+  (agathos-daimon #15, brain #15). Adapters are registrations with a
+  role and a token shown once, and an adapter's token opens four paths
+  and nothing else (agathos-daimon #16); the MCP server at `/mcp`
+  serves the brain's tool table. Two measured defects landed with the
+  adapter test: a second-precision wire instant crashed a projector and
+  took the handler tree down (kumbukumbu #26), and a role converted
+  with `String.to_existing_atom` raised in a process that had not
+  loaded the code naming it; both are closed lists now.

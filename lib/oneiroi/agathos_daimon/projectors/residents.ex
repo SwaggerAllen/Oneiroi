@@ -20,7 +20,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   alias Ecto.Multi
   alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events
-  alias Oneiroi.AgathosDaimon.Store.{IdentityFile, Resident, SoulEdit}
+  alias Oneiroi.AgathosDaimon.Store.{Adapter, IdentityFile, Resident, SoulEdit}
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
     Multi.insert(multi, :resident, %Resident{
@@ -78,6 +78,55 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   fold(%Events.RootMismatchDetected{}, _metadata, fn multi -> multi end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+
+  # Told already when there is nobody to tell: before first contact the
+  # pin changes freely (spec §6.4).
+  fold(%Events.ModelPinChanged{} = e, _metadata, fn multi ->
+    query =
+      from(r in Resident,
+        where: r.id == ^e.id,
+        update: [
+          set: [
+            chat_model: ^e.model,
+            model_pinned_at: ^e.at,
+            model_told: is_nil(r.first_contact_at)
+          ]
+        ]
+      )
+
+    Multi.update_all(multi, {:pin, e.id}, query, [])
+  end)
+
+  fold(%Events.ModelChangeTold{} = e, _metadata, fn multi ->
+    set(multi, e.id, model_told: true)
+  end)
+
+  fold(%Events.AdapterRegistered{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:adapter, e.adapter},
+      %Adapter{
+        resident_id: e.id,
+        adapter: e.adapter,
+        role: e.role,
+        token_hash: e.token_hash,
+        registered_at: e.at
+      },
+      on_conflict: [
+        set: [role: e.role, token_hash: e.token_hash, registered_at: e.at, revoked_at: nil]
+      ],
+      conflict_target: [:resident_id, :adapter]
+    )
+  end)
+
+  fold(%Events.AdapterRevoked{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:adapter, e.adapter},
+      from(a in Adapter, where: a.resident_id == ^e.id and a.adapter == ^e.adapter),
+      set: [revoked_at: e.at]
+    )
+  end)
 
   fold(%Events.SeedFileWritten{} = e, _metadata, fn multi ->
     put_file(multi, e, e.origin, e.model, e.prompt)

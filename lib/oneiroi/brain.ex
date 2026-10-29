@@ -26,6 +26,7 @@ defmodule Oneiroi.Brain do
 
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Session
+  alias Oneiroi.Brain.Turn
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -100,4 +101,8 @@ defmodule Oneiroi.Brain do
   defexport(draft(resident_id, file, prompt, actor),
     do: Drafting.draft(resident_id, file, prompt, actor)
   )
+
+  @doc "The sealed session's context for regression (spec §6.4): the prompt and the identity files, nothing of memory."
+  @spec seed_context(String.t()) :: [map()]
+  defexport(seed_context(resident_id), do: Turn.seed_context(resident_id))
 end

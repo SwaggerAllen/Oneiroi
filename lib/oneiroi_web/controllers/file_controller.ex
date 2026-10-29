@@ -130,8 +130,8 @@ defmodule OneiroiWeb.FileController do
   def proposals(conn, %{"id" => id}),
     do: json(conn, id |> AgathosDaimon.edit_proposals() |> Enum.map(&proposal/1))
 
-  defp stewarded(%{assigns: %{principal: p}, params: %{"id" => id}} = conn, _opts) do
-    if id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
+    if stewards?(conn, id),
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
   end

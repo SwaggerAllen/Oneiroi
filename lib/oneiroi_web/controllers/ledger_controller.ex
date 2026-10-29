@@ -18,7 +18,7 @@ defmodule OneiroiWeb.LedgerController do
   )
 
   def show(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
-    if id in Oneiroi.Gaia.stewarded_residents(p.account_id) do
+    if stewards?(conn, id) do
       {since, _to} = Period.range(:month, Clock.now())
 
       json(conn, %{
@@ -57,11 +57,11 @@ defmodule OneiroiWeb.LedgerController do
     responses: [no_content: "set"]
   )
 
-  def set_budget(%{assigns: %{principal: p}} = conn, %{"id" => id, "purpose" => purpose} = params) do
+  def set_budget(conn, %{"id" => id, "purpose" => purpose} = params) do
     cap = Map.get(params, "cap")
     cap_nanos = if is_nil(cap), do: nil, else: Money.parse_usd(cap)
 
-    with true <- id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+    with true <- stewards?(conn, id),
          {:ok, purpose} <- purpose(purpose),
          period when not is_nil(period) <- Period.parse(Map.get(params, "period")),
          true <- is_nil(cap) or is_integer(cap_nanos),
@@ -69,7 +69,7 @@ defmodule OneiroiWeb.LedgerController do
       send_resp(conn, 204, "")
     else
       false ->
-        if id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+        if stewards?(conn, id),
           do: problem(conn, 422, :cap_invalid, "cap is dollars as a decimal string, or null"),
           else: error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
 

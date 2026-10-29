@@ -9,6 +9,11 @@ defmodule OneiroiWeb.ConversationController do
 
   plug(:stewarded)
 
+  # The adapter contract's routes (spec §8): an adapter with the brain
+  # role, speaking for this resident, may open its session, start and
+  # capture turns and read the context; a steward may do all of it.
+  @adapter_actions ~w(create turn_start capture context)a
+
   operation(:index,
     summary: "The resident's sessions this account was party to, newest first",
     parameters: [id: [in: :path, type: :string]],
@@ -34,11 +39,13 @@ defmodule OneiroiWeb.ConversationController do
     responses: [created: {"the session key", "application/json", %Schema{type: :object}}]
   )
 
-  def create(%{assigns: %{principal: p}} = conn, %{"id" => id} = params) do
+  def create(conn, %{"id" => id} = params) do
+    {party, adapter_name} = party_of(conn, id)
+
     result =
-      case Map.get(params, "kind", "main") do
-        "main" -> Kumbukumbu.main_session(id, p.account_id, actor(conn))
-        kind -> Kumbukumbu.open_session(id, kind, "brain", [p.account_id], actor(conn))
+      case {Map.get(params, "kind", "main"), adapter(conn)} do
+        {"main", nil} -> Kumbukumbu.main_session(id, party, actor(conn))
+        {kind, _} -> Kumbukumbu.open_session(id, kind, adapter_name, [party], actor(conn))
       end
 
     case result do
@@ -207,7 +214,7 @@ defmodule OneiroiWeb.ConversationController do
       when is_list(messages) do
     turn_ref = Map.get(params, "turn_ref") || Kumbukumbu.turn_ref()
 
-    with {:ok, started_at, _} <- DateTime.from_iso8601(started),
+    with {:ok, started_at, _} <- parse_started(started),
          {:ok, built} <- build_messages(messages, actor(conn)),
          :ok <- Kumbukumbu.capture(id, key, turn_ref, started_at, built, actor(conn)) do
       conn |> put_status(201) |> json(%{turn_ref: turn_ref})
@@ -225,6 +232,9 @@ defmodule OneiroiWeb.ConversationController do
 
   def capture(conn, _params),
     do: problem(conn, 422, :fields_required, "session_key, started_at and messages are required")
+
+  defp parse_started(iso) when is_binary(iso), do: DateTime.from_iso8601(iso)
+  defp parse_started(_other), do: {:error, :started_at_invalid}
 
   operation(:turn_start,
     summary: "An adapter reports a turn beginning (spec §8) and gets the ref to capture it under",
@@ -257,24 +267,63 @@ defmodule OneiroiWeb.ConversationController do
   def turn_start(conn, _params),
     do: problem(conn, 422, :session_key_required, "session_key is required")
 
-  # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{assigns: %{principal: p}, params: %{"id" => id}} = conn, _opts) do
-    if id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+  operation(:context,
+    summary:
+      "What the platform would put in front of its own brain this turn (spec §8): the index and how I act, as text for an adapter to inject",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the context", "application/json", %Schema{type: :object}}]
+  )
+
+  def context(conn, %{"id" => id}) do
+    index = Kumbukumbu.index(id)
+    json(conn, %{text: index.text, bookmarks: index.included, left_out: index.left_out})
+  end
+
+  # Every route here is a resident's, read or written by its steward, or
+  # by its brain-role adapter on the adapter contract's routes.
+  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
+    allowed? =
+      case conn.assigns.principal do
+        %{account_id: account_id} ->
+          id in Oneiroi.Gaia.stewarded_residents(account_id)
+
+        %{resident_id: ^id, role: "brain"} ->
+          Phoenix.Controller.action_name(conn) in @adapter_actions
+
+        _other ->
+          false
+      end
+
+    if allowed?,
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
   end
 
-  @roles ~w(user assistant system tool)
+  # The account party to a session an adapter opens is the resident's
+  # steward (spec §6.3: solo sessions are the steward's to read).
+  defp party_of(conn, id) do
+    case {conn.assigns.principal, Oneiroi.AgathosDaimon.fetch(id)} do
+      {%{account_id: account_id}, _} -> {account_id, "brain"}
+      {%{adapter: name}, {:ok, %{account_id: account_id}}} -> {account_id, name}
+      {%{adapter: name}, :error} -> {nil, name}
+    end
+  end
+
+  # A closed map rather than `String.to_existing_atom/1`: the atom is
+  # created by the code that names it, and an adapter's capture once ran
+  # in a process where nothing had loaded that code yet.
+  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
 
   defp build_messages(messages, actor) do
     built =
       Enum.map(messages, fn
-        %{"role" => role, "content" => content} = m when role in @roles and is_binary(content) ->
+        %{"role" => role, "content" => content} = m
+        when is_map_key(@roles, role) and is_binary(content) ->
           %{
-            role: String.to_existing_atom(role),
+            role: Map.fetch!(@roles, role),
             content: content,
             sent_at: parse_instant(m["sent_at"]),
-            actor: actor,
+            actor: message_actor(role, actor),
             refusal: m["refusal"] == true
           }
 
@@ -284,6 +333,11 @@ defmodule OneiroiWeb.ConversationController do
 
     if :invalid in built, do: {:error, :message_invalid}, else: {:ok, built}
   end
+
+  # An adapter captures as the resident; the user messages in its turn are
+  # the steward's words, so they carry the steward's kind.
+  defp message_actor("user", %{kind: :resident}), do: Oneiroi.Actor.new(:steward)
+  defp message_actor(_role, actor), do: actor
 
   defp parse_instant(iso) when is_binary(iso) do
     case DateTime.from_iso8601(iso) do

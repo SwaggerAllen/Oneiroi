@@ -49,3 +49,16 @@ Spec §6.10: the soul "alone" in its own commit; the identity files are
 one self, given and proposed together, and a stray file fails the
 backup run (sima-qian #7), so they needed a class.
 
+## #15
+Spec §6.4 and §3.1 name the event and its reason; "told honestly" is
+spec §5's rule for a budget stop and an insured model too, and the
+transcript is where both parties read it.
+
+## #16
+Spec §8: "bearer token naming resident and role." The token hash is on
+the resident's stream because adapters are the resident's state (spec
+§3.1), and it is redacted because a hash of a live credential is still
+a credential's shadow in a repository. An explicit path list is a claim
+a test can assert; a per-controller check was the shape that raised on
+an adapter's token in three controllers before it was centralised.
+

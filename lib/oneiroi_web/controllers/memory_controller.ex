@@ -270,8 +270,8 @@ defmodule OneiroiWeb.MemoryController do
   def affirm_behaviour(conn, _params), do: problem(conn, 422, :note_required, "note is required")
 
   # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{assigns: %{principal: p}, params: %{"id" => id}} = conn, _opts) do
-    if id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
+    if stewards?(conn, id),
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
   end

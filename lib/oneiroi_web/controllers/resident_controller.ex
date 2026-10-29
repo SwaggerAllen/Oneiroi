@@ -54,8 +54,8 @@ defmodule OneiroiWeb.ResidentController do
     responses: [ok: {"the resident", "application/json", %Schema{type: :object}}]
   )
 
-  def show(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
-    with true <- id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+  def show(conn, %{"id" => id}) do
+    with true <- stewards?(conn, id),
          {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id) do
       json(conn, row(resident))
     else
@@ -77,13 +77,89 @@ defmodule OneiroiWeb.ResidentController do
     responses: [no_content: "set"]
   )
 
-  def remote(%{assigns: %{principal: p}} = conn, %{"id" => id, "url" => url} = params) do
-    with true <- id in Oneiroi.Gaia.stewarded_residents(p.account_id),
+  def remote(conn, %{"id" => id, "url" => url} = params) do
+    with true <- stewards?(conn, id),
          :ok <- Oneiroi.SimaQian.set_remote(id, url, params["token"], actor(conn)) do
       send_resp(conn, 204, "")
     else
       false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
       {:error, reason} -> problem(conn, 422, :remote_not_set, inspect(reason))
+    end
+  end
+
+  operation(:adapters,
+    summary: "The resident's adapters with their role and state",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"adapters", "application/json", %Schema{type: :array}}]
+  )
+
+  def adapters(conn, %{"id" => id}) do
+    if stewards?(conn, id) do
+      rows =
+        Enum.map(Oneiroi.AgathosDaimon.adapters(id), fn a ->
+          %{
+            adapter: a.adapter,
+            role: a.role,
+            registered_at: a.registered_at,
+            revoked_at: a.revoked_at
+          }
+        end)
+
+      json(conn, rows)
+    else
+      error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+    end
+  end
+
+  operation(:register_adapter,
+    summary:
+      "Register an adapter with a role (spec §8); the bearer token is shown once. Registering again rotates it",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the adapter", "application/json",
+       %Schema{
+         type: :object,
+         required: [:adapter, :role],
+         properties: %{
+           adapter: %Schema{type: :string},
+           role: %Schema{type: :string, enum: ["brain", "reader", "worker"]}
+         }
+       }},
+    responses: [created: {"the token", "application/json", %Schema{type: :object}}]
+  )
+
+  def register_adapter(conn, %{
+        "id" => id,
+        "adapter" => name,
+        "role" => role
+      }) do
+    with true <- stewards?(conn, id),
+         {:ok, token} <- Oneiroi.AgathosDaimon.register_adapter(id, name, role, actor(conn)) do
+      conn |> put_status(201) |> json(%{adapter: name, role: role, token: token})
+    else
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+      {:error, reason} -> problem(conn, 422, :not_registered, inspect(reason))
+    end
+  end
+
+  def register_adapter(conn, _params),
+    do: problem(conn, 422, :fields_required, "adapter and role are required")
+
+  operation(:revoke_adapter,
+    summary: "Revoke an adapter's token",
+    parameters: [id: [in: :path, type: :string], adapter: [in: :path, type: :string]],
+    responses: [no_content: "revoked"]
+  )
+
+  def revoke_adapter(conn, %{"id" => id, "adapter" => name}) do
+    with true <- stewards?(conn, id),
+         :ok <- Oneiroi.AgathosDaimon.revoke_adapter(id, name, actor(conn)) do
+      send_resp(conn, 204, "")
+    else
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      {:error, %{kind: _} = e} -> error(conn, 404, e)
+      {:error, reason} -> problem(conn, 422, :not_revoked, inspect(reason))
     end
   end
 
@@ -97,6 +173,8 @@ defmodule OneiroiWeb.ResidentController do
       export_wall: r.export_wall,
       first_contact_at: r.first_contact_at,
       formation_until: r.formation_until,
+      chat_model: r.chat_model,
+      model_pinned_at: r.model_pinned_at,
       exported_through: r.exported_through,
       last_backup: %{
         sequence: r.last_backup_sequence,

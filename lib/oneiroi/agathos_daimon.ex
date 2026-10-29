@@ -60,6 +60,16 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulEditAccepted,
       Events.SoulEditDeclined,
       Events.SoulEditApplied,
+      Events.ModelPinChanged,
+      Events.ModelChangeTold,
+      Events.AdapterRegistered,
+      Events.AdapterRevoked,
+      Commands.RegisterAdapter,
+      Commands.RevokeAdapter,
+      AdapterPrincipal,
+      Store.Adapter,
+      Commands.PinModel,
+      Commands.RecordModelTold,
       Commands.WriteFile,
       Commands.RecordFirstContact,
       Commands.ProposeSoulEdit,
@@ -98,7 +108,11 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulEditProposed, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditAccepted, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditDeclined, 1},
-      {Oneiroi.AgathosDaimon.Events.SoulEditApplied, 1}
+      {Oneiroi.AgathosDaimon.Events.SoulEditApplied, 1},
+      {Oneiroi.AgathosDaimon.Events.ModelPinChanged, 1},
+      {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
+      {Oneiroi.AgathosDaimon.Events.AdapterRegistered, 1},
+      {Oneiroi.AgathosDaimon.Events.AdapterRevoked, 1}
     ]
   end
 
@@ -138,7 +152,14 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_no_such_file, "the resident has no file of that name yet",
        remedy: "write it as a seed"},
       {:agathos_daimon_not_the_resident, "a proposal is the resident's to accept or decline",
-       remedy: "the resident decides from its own turn"}
+       remedy: "the resident decides from its own turn"},
+      {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or steward",
+       remedy: "give the OpenRouter slug of the model to pin"},
+      {:agathos_daimon_adapter_invalid,
+       "an adapter is a slug with a role of brain, reader or worker",
+       remedy: "name it as a slug and say which role it holds (spec §8)"},
+      {:agathos_daimon_no_such_adapter, "no adapter of that name is registered",
+       remedy: "read the adapters"}
     ]
   end
 
@@ -213,4 +234,36 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The identity files a steward may write."
   @spec identity_files() :: [String.t()]
   defexport(identity_files(), do: Oneiroi.AgathosDaimon.Resident.files())
+
+  @doc "Pins the resident's chat model (spec §6.4); reason is run or steward."
+  @spec pin_model(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(pin_model(id, model, reason, actor),
+    do: Residents.pin_model(id, model, reason, actor)
+  )
+
+  @doc "Records that the resident was told of the latest model change."
+  @spec model_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(model_told(id, actor), do: Residents.model_told(id, actor))
+
+  # ---- adapters (spec §8) ----
+
+  @doc "Registers an adapter with a role; returns its bearer token, shown once."
+  @spec register_adapter(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(register_adapter(id, adapter, role, actor),
+    do: Residents.register_adapter(id, adapter, role, actor)
+  )
+
+  @doc "Revokes an adapter's token."
+  @spec revoke_adapter(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(revoke_adapter(id, adapter, actor), do: Residents.revoke_adapter(id, adapter, actor))
+
+  @doc "The adapter a bearer token names, with its resident and role."
+  @spec authenticate_adapter(String.t()) ::
+          {:ok, Oneiroi.AgathosDaimon.AdapterPrincipal.t()} | :error
+  defexport(authenticate_adapter(raw), do: Residents.authenticate_adapter(raw))
+
+  @doc "The resident's adapters."
+  @spec adapters(String.t()) :: [Oneiroi.AgathosDaimon.Store.Adapter.t()]
+  defexport(adapters(id), do: Residents.adapters(id))
 end
