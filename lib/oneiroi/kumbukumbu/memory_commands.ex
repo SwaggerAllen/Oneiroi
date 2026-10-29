@@ -79,4 +79,18 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   defmodule EnactBehaviour do
     use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule Revise do
+    use Oneiroi.Command,
+      decision: true,
+      fields: [:id, :target_kind, :target_id, :kind, :text]
+  end
+
+  defmodule AcceptRevision do
+    use Oneiroi.Command, decision: true, fields: [:id, :number]
+  end
+
+  defmodule DeclineRevision do
+    use Oneiroi.Command, decision: true, fields: [:id, :number]
+  end
 end

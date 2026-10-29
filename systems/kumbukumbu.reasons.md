@@ -113,3 +113,10 @@ on the read says the same thing in words.
 Spec §6.3: "revealing it grants read on the earlier sessions, locking
 it does not". Every earlier session, because a steward who handed over
 no longer stewards and the wall is all or nothing (spec §6.12).
+
+## #30
+Spec §6.3: "a correction is an event naming who made it and why,
+visible to both parties; a stance is revised only with the resident's
+agreement; a fact is corrected by either. The steward never rewrites
+the resident's words in a bookmark; revision adds, it does not
+overwrite." F13: "every edit logged for both".
