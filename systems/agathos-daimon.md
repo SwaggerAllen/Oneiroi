@@ -80,6 +80,7 @@ under `/v1/residents/:id`.
 - **#17 The time zone is the resident's.** `TimezoneSet{timezone}` on the resident stream, an IANA name checked by shifting a known instant into it at the command edge (`AGATHOS_DAIMON` declares no default; the column defaults to `Etc/UTC`). The schedule reads it for every time of day and every day (sunna #10); it is the steward's to set until the resident has a say in where it lives.
 - **#18 The identity context and the active roster are exports.** `identity_context/1` is the stable prefix (spec §5): the identity files as written, in a fixed order, then the rendered `AGENTS.md`, as name and content pairs, read by the brain's every turn and the sealed regression session alike, so the two cannot drift. `active_residents/0` is every active resident under the platform scope by name (conventions §12), the roster a nightly job walks.
 - **#19 The Honcho custom instructions are rendered, never stored, like `AGENTS.md`.** `custom_instructions/1` fills `priv/templates/honcho-custom-instructions.md` with the name and the two peer names; the bridge sets it as each peer's configuration (proteus #12) and the export writes it under `honcho/` (sima-qian #13).
+- **#20 The attestation's last word is on the row.** `root_mismatched_at` is set by `RootMismatchDetected` and cleared by the next `BackupCommitted`, so the built-in attestation audit (huginn-muninn #11) reads a row and never the stream; the event itself is unchanged.
 
 ## #8 Initial vs target
 

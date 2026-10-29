@@ -24,6 +24,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:last_backup_sequence, :integer)
       field(:last_backup_root, :string)
       field(:last_backup_commit, :string)
+      field(:root_mismatched_at, :utc_datetime_usec)
       field(:first_contact_at, :utc_datetime_usec)
       field(:formation_until, :utc_datetime_usec)
       field(:chat_model, :string)

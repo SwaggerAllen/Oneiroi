@@ -190,6 +190,10 @@ defmodule Oneiroi.Sunna do
   @spec dates_text(String.t()) :: String.t()
   defexport(dates_text(resident_id), do: Schedules.dates_text(resident_id))
 
+  @doc "Every firing over the last `days` days in the resident's zone, for the audits."
+  @spec firings(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Firing.t()]
+  defexport(firings(resident_id, days), do: Schedules.firings(resident_id, days))
+
   @doc "The journal's day rows, newest first."
   @spec days(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Day.t()]
   defexport(days(resident_id, limit), do: Schedules.days(resident_id, limit))

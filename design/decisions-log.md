@@ -513,3 +513,23 @@ and nothing personal turned up; what follows is what changed.
   and the steward's promotion wait on inbound; `PROTEUS_HONCHO_URL`
   and `PROTEUS_HONCHO_ADMIN_KEY` are unset until a Honcho is deployed
   beside the instance, and the port fails with them unset.
+
+## Round 17: audits, figures and the light (2026-10-29)
+
+- Audits are built under `Oneiroi.HuginnMuninn` on their own stream
+  (systems/huginn-muninn.md #9 to #13): a counter is a key the steward
+  names and a value nobody writes, incremented by either party with the
+  actor on the event; a countdown is a figure read from the schedule,
+  never a row here; a steward's audit is a rule over a figure with a
+  tone and whether it counts; the built-in checklist reads rows (the
+  attestation, open capture failures, failed syncs, missed check-ins,
+  overdue predictions); every run is an event with a tone and the
+  check-engine light is the failing results of the audits that count,
+  read from each audit's latest run. The brain reads the figures as a
+  section and increments through a tool (brain #20); `figure` joins
+  the tagging kinds (kumbukumbu #27); the schedule's firings and the
+  resident row's attestation word are reads for it (sunna #17,
+  agathos-daimon #20).
+- Citation drift and the journal's delta, the spec's first two built-in
+  audits, wait on the library and the journal (P3); the composite
+  coherence score waits on a decision for it to feed.
