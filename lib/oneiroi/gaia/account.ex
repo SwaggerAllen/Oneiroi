@@ -13,6 +13,7 @@ defmodule Oneiroi.Gaia.Account do
     :email,
     :password_hash,
     :second_factor,
+    key?: false,
     sessions: MapSet.new(),
     tokens: MapSet.new(),
     stewardships: MapSet.new()
@@ -77,6 +78,16 @@ defmodule Oneiroi.Gaia.Account do
       else: {:error, :no_such_token}
   end
 
+  # Storing over a stored key is the rotation; the log keeps both.
+  def execute(%__MODULE__{}, %Commands.StoreKey{} = c) do
+    %Events.KeyStored{actor: c.actor, at: c.at, id: c.id, key_ciphertext: c.key_ciphertext}
+  end
+
+  def execute(%__MODULE__{key?: true}, %Commands.RevokeKey{} = c),
+    do: %Events.KeyRevoked{actor: c.actor, at: c.at, id: c.id}
+
+  def execute(%__MODULE__{}, %Commands.RevokeKey{}), do: {:error, :no_key}
+
   # Idempotent on purpose: the stewardship handler replays (conventions §7).
   def execute(%__MODULE__{stewardships: s}, %Commands.StartStewardship{} = c) do
     if MapSet.member?(s, c.resident_id),
@@ -115,6 +126,9 @@ defmodule Oneiroi.Gaia.Account do
 
   def apply(%__MODULE__{} = a, %Events.TokenRevoked{} = e),
     do: %{a | tokens: MapSet.delete(a.tokens, e.token_hash)}
+
+  def apply(%__MODULE__{} = a, %Events.KeyStored{}), do: %{a | key?: true}
+  def apply(%__MODULE__{} = a, %Events.KeyRevoked{}), do: %{a | key?: false}
 
   def apply(%__MODULE__{} = a, %Events.StewardshipStarted{} = e),
     do: %{a | stewardships: MapSet.put(a.stewardships, e.resident_id)}

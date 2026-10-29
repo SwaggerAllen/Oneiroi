@@ -18,6 +18,8 @@ defmodule Oneiroi.Gaia.Store do
       field(:email, :string)
       field(:password_hash, :string)
       field(:second_factor, :binary)
+      field(:key_ciphertext, :binary)
+      field(:key_stored_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
     end
   end

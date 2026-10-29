@@ -31,6 +31,11 @@ a request that created a resident can list it on the next read.
 Conventions §12: a cross-tenant read is a named call a reviewer can see,
 and these two are the whole list for this system.
 
+## #11
+Spec §3.1 puts `KeyStored` on the account and §6.11 says one key per
+steward: the key is the steward's, not a resident's, and a resident
+changing hands keeps the new steward's spend on the new steward's key.
+
 ## #9
 Spec §12's contract layer: which token may call what, asserted exactly
 per role. A route added without a row is a route whose access nobody

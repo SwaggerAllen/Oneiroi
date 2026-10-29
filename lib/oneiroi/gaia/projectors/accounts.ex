@@ -22,6 +22,18 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
     )
   end)
 
+  fold(%Events.KeyStored{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :key, account(e.id),
+      set: [key_ciphertext: Base.decode64!(e.key_ciphertext), key_stored_at: e.at]
+    )
+  end)
+
+  fold(%Events.KeyRevoked{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :key_revoked, account(e.id),
+      set: [key_ciphertext: nil, key_stored_at: nil]
+    )
+  end)
+
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(multi, :session, %Session{
       hash: e.session_hash,

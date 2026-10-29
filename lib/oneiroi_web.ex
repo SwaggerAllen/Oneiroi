@@ -10,6 +10,7 @@ defmodule OneiroiWeb do
       Oneiroi.Gaia,
       Oneiroi.SimaQian,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Nisaba,
       OpenApiSpex,
       OpenApiSpex.Plug.PutApiSpec,
       OpenApiSpex.Plug.RenderSpec,

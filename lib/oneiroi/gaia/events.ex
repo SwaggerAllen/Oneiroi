@@ -30,6 +30,17 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :token_hash]
   end
 
+  defmodule KeyStored do
+    # The steward's OpenRouter key (spec §6.11: one per steward, encrypted
+    # at rest), the vault's ciphertext in base64; storing again is the
+    # rotation. Redacted from the export like the second factor.
+    use Oneiroi.Event, version: 1, fields: [:id, :key_ciphertext], redact: [:key_ciphertext]
+  end
+
+  defmodule KeyRevoked do
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
   defmodule StewardshipStarted do
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
   end

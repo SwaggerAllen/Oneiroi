@@ -9,6 +9,7 @@ defmodule Oneiroi.Gaia.Accounts do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Vault
   alias Oneiroi.Config
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Principal
   alias Oneiroi.Gaia.Router
@@ -132,6 +133,67 @@ defmodule Oneiroi.Gaia.Accounts do
          uri: NimbleTOTP.otpauth_uri("#{issuer}:#{email}", secret, issuer: issuer)
        }}
     end
+  end
+
+  @doc """
+  Stores the steward's OpenRouter key, encrypted under the vault, on the
+  account (spec §6.11). Storing over a stored key is the rotation.
+  """
+  def store_key(account_id, raw_key, %Actor{} = actor) do
+    key = if is_binary(raw_key), do: String.trim(raw_key), else: ""
+
+    if key == "" do
+      {:error, :gaia_key_required}
+    else
+      ciphertext = key |> Vault.encrypt() |> Base.encode64()
+
+      command = %Commands.StoreKey{
+        actor: actor,
+        at: Clock.now(),
+        id: account_id,
+        key_ciphertext: ciphertext
+      }
+
+      with {:ok, _} <- Router.dispatch(command), do: :ok
+    end
+  end
+
+  def revoke_key(account_id, %Actor{} = actor) do
+    command = %Commands.RevokeKey{actor: actor, at: Clock.now(), id: account_id}
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :no_key} -> {:error, :gaia_no_key}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  The steward's key, wrapped, for the provider port and nothing else: the
+  wrapper's `unwrap/1` at the one call site is the word a reviewer sees.
+  """
+  def key_for(account_id) do
+    Scope.account(account_id, fn ->
+      with %{key_ciphertext: ciphertext} when is_binary(ciphertext) <- Store.account(account_id),
+           {:ok, key} <- Vault.decrypt(ciphertext) do
+        {:ok, Secret.wrap(key)}
+      else
+        _ -> {:error, :gaia_no_key}
+      end
+    end)
+  end
+
+  @doc "Whether a key is stored, and since when; the status the ledger screen shows."
+  def key_status(account_id) do
+    Scope.account(account_id, fn ->
+      case Store.account(account_id) do
+        %{key_ciphertext: c, key_stored_at: at} when is_binary(c) ->
+          %{present: true, stored_at: at}
+
+        _ ->
+          %{present: false, stored_at: nil}
+      end
+    end)
   end
 
   def issue_token(account_id, label, %Actor{} = actor) do

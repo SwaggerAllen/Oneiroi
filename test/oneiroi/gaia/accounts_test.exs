@@ -5,9 +5,11 @@ defmodule Oneiroi.Gaia.AccountsTest do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Clock.Fake
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Gaia.Throttle
+  alias Oneiroi.Scope
 
   test "login verifies the password, opens a session, and the session resolves to the principal" do
     %{id: id, email: email} = Fixtures.account!()
@@ -63,6 +65,32 @@ defmodule Oneiroi.Gaia.AccountsTest do
     assert {:ok, %{account_id: ^id, via: :token}} = Gaia.authenticate_token(raw)
     assert :ok = Gaia.revoke_token(id, hash, Actor.new(:steward, id))
     assert :error = Gaia.authenticate_token(raw)
+  end
+
+  test "the steward's key is stored encrypted, read back wrapped, rotated by storing again, and revoked" do
+    %{id: id} = Fixtures.account!()
+    actor = Actor.new(:steward, id)
+    assert %{present: false, stored_at: nil} = Gaia.key_status(id)
+    assert {:error, :gaia_no_key} = Gaia.key_for(id)
+    assert {:error, :gaia_key_required} = Gaia.store_key(id, "   ", actor)
+
+    assert :ok = Gaia.store_key(id, "sk-or-first", actor)
+    assert %{present: true, stored_at: %DateTime{}} = Gaia.key_status(id)
+    assert {:ok, secret} = Gaia.key_for(id)
+    assert Secret.unwrap(secret) == "sk-or-first"
+    refute inspect(secret) =~ "sk-or-first"
+
+    # The row holds the vault's ciphertext, never the key.
+    row = Scope.account(id, fn -> Gaia.Store.account(id) end)
+    refute row.key_ciphertext =~ "sk-or-first"
+
+    assert :ok = Gaia.store_key(id, "sk-or-second", actor)
+    assert {:ok, secret} = Gaia.key_for(id)
+    assert Secret.unwrap(secret) == "sk-or-second"
+
+    assert :ok = Gaia.revoke_key(id, actor)
+    assert {:error, :gaia_no_key} = Gaia.key_for(id)
+    assert {:error, :gaia_no_key} = Gaia.revoke_key(id, actor)
   end
 
   test "the throttle doubles from the base and caps at five seconds" do

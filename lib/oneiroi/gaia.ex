@@ -46,6 +46,8 @@ defmodule Oneiroi.Gaia do
       Events.SecondFactorEnrolled,
       Events.TokenIssued,
       Events.TokenRevoked,
+      Events.KeyStored,
+      Events.KeyRevoked,
       Events.StewardshipStarted,
       Events.StewardshipEnded,
       Store,
@@ -88,6 +90,8 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.SessionClosed, 1},
       {Oneiroi.Gaia.Events.TokenIssued, 1},
       {Oneiroi.Gaia.Events.TokenRevoked, 1},
+      {Oneiroi.Gaia.Events.KeyStored, 1},
+      {Oneiroi.Gaia.Events.KeyRevoked, 1},
       {Oneiroi.Gaia.Events.StewardshipStarted, 1},
       {Oneiroi.Gaia.Events.StewardshipEnded, 1}
     ]
@@ -102,7 +106,11 @@ defmodule Oneiroi.Gaia do
        "the account has a second factor and the code was not supplied",
        remedy: "send the code from the authenticator app"},
       {:gaia_not_a_principal, "the session or token resolves to no live account",
-       remedy: "log in again, or issue a new token"}
+       remedy: "log in again, or issue a new token"},
+      {:gaia_key_required, "the key was empty",
+       remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
+      {:gaia_no_key, "the account holds no OpenRouter key",
+       remedy: "store one on the Ledger screen; every model call for a resident spends it"}
     ]
   end
 
@@ -162,6 +170,24 @@ defmodule Oneiroi.Gaia do
   defexport(revoke_token(account_id, token_hash, actor),
     do: Accounts.revoke_token(account_id, token_hash, actor)
   )
+
+  @doc "Stores the steward's OpenRouter key, encrypted; storing again rotates it."
+  @spec store_key(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(store_key(account_id, raw_key, actor),
+    do: Accounts.store_key(account_id, raw_key, actor)
+  )
+
+  @doc "Revokes the stored key."
+  @spec revoke_key(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(revoke_key(account_id, actor), do: Accounts.revoke_key(account_id, actor))
+
+  @doc "The steward's key, wrapped as a secret, for the provider port."
+  @spec key_for(String.t()) :: {:ok, Oneiroi.Config.Secret.t()} | {:error, :gaia_no_key}
+  defexport(key_for(account_id), do: Accounts.key_for(account_id))
+
+  @doc "Whether a key is stored and since when."
+  @spec key_status(String.t()) :: %{present: boolean(), stored_at: DateTime.t() | nil}
+  defexport(key_status(account_id), do: Accounts.key_status(account_id))
 
   @doc "The resident ids an account currently stewards."
   @spec stewarded_residents(String.t()) :: [String.t()]
