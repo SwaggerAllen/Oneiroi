@@ -10,12 +10,22 @@ defmodule Oneiroi.Eunomia.Commands do
   end
 
   defmodule StartRun do
-    use Oneiroi.Command, fields: [:id, :run_ref, :models, :tests]
+    use Oneiroi.Command, fields: [:id, :run_ref, :models, :tests, :behaviours]
   end
 
   defmodule RecordAnswer do
     use Oneiroi.Command,
-      fields: [:id, :run_ref, :card_ref, :model, :test_number, :content, :refusal, :failure]
+      fields: [
+        :id,
+        :run_ref,
+        :card_ref,
+        :model,
+        :test_number,
+        :behaviour_number,
+        :content,
+        :refusal,
+        :failure
+      ]
   end
 
   defmodule FinishRun do

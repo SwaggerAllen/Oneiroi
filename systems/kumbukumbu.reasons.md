@@ -94,3 +94,10 @@ The memory agent does not have the brain's identity, so a behaviour chosen by re
 
 ## #12
 A second edge table would be a second copy of the project view; taggings already join every record kind.
+
+## #27
+Spec §6.3: "a tagging names a tag and a target (bookmark, position,
+prediction, conversation, journal entry, research task, document,
+date, figure, behaviour)". Checking another system's rows from here is
+a dependency on every system that has rows, which is the cycle the
+cycles gate refuses.

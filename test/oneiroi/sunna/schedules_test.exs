@@ -246,7 +246,12 @@ defmodule Oneiroi.Sunna.SchedulesTest do
       })
 
     assert :skipped = Sunna.tick(ctx.id)
-    # As the worker runs it: the process scope set, no transaction around it.
+    # As the worker runs it: the process scope set, no transaction around
+    # it. Under the sandbox a transaction-local `set_config` outlives its
+    # savepoint, so the connection carries whatever scope was set last;
+    # it is set to the paused resident's here so a roster read that
+    # skipped its own platform transaction sees one row, the wrong one.
+    Oneiroi.Scope.resident(ctx.id, fn -> :ok end)
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = TickWorker.run(%{})
     assert %{firings: []} = Sunna.today(ctx.id)

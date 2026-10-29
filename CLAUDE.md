@@ -134,5 +134,14 @@ way before trusting a local green.
   makes another file's `require` fail with `enoent` on a file that
   exists; a check that reads files resolves them beside its scope path
   instead (`Oneiroi.Apsu.Policies.Gates`).
+- **Under the sandbox a transaction-local `set_config` outlives its
+  savepoint.** `Oneiroi.Scope.run/2` sets the row policy's scope
+  `LOCAL` to its transaction; in production that ends with the
+  transaction, but a sandboxed test runs inside one outer transaction,
+  so the connection keeps whatever scope was set last. A test of a
+  cross-tenant read that skips its own platform transaction therefore
+  passes or fails by whichever scope leaked before it: the Eunomia
+  night-worker probe printed `ok` on a leaked platform scope until the
+  test pinned the leak to the wrong resident first. Pin it on purpose.
 - **Run `mix test` once per shell call.** A second run in the same call
   once failed on a spurious `enoent`; log one run to a file and read it.

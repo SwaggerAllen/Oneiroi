@@ -215,3 +215,78 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:ok, %{model_told: true}} = AgathosDaimon.fetch(id)
   end
 end
+
+defmodule Oneiroi.Eunomia.TrialsTest do
+  @moduledoc "Trials derived from behaviours (spec §6.4): a behaviour's trigger is the situation, its enactment what passes; derived inside the sealed session."
+  use Oneiroi.DataCase, async: false
+
+  alias Oneiroi.Actor
+  alias Oneiroi.Eunomia
+  alias Oneiroi.Fixtures
+  alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba.Provider.Fake
+
+  setup do
+    steward = Fixtures.account!()
+    resident = Fixtures.resident!(steward)
+    actor = Actor.new(:steward, steward.id)
+    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    on_exit(fn -> Fake.clear(for: resident.id) end)
+    {:ok, id: resident.id, actor: actor}
+  end
+
+  test "a run with behaviours answers one derived trial per behaviour, blind by trial, beside the authored tests",
+       ctx do
+    {:ok, 1} =
+      Kumbukumbu.define_behaviour(
+        ctx.id,
+        %{
+          name: "checks the garden first",
+          trigger: %{"words" => ["garden", "tomatoes"]},
+          stance: "keep"
+        },
+        ctx.actor
+      )
+
+    {:ok, 1} =
+      Eunomia.write_test(
+        ctx.id,
+        %{prompt: "Late again?", passes_if: "kind", fails_if: "scolds"},
+        ctx.actor
+      )
+
+    test = self()
+
+    Fake.script(
+      fn %{messages: messages} ->
+        send(test, {:sealed, List.last(messages).content})
+        {:ok, "I go and look at the tomatoes."}
+      end,
+      for: ctx.id
+    )
+
+    assert {:ok, ref} = Eunomia.run(ctx.id, ["m1"], %{tests: :all, behaviours: :all}, ctx.actor)
+    assert_received {:sealed, "Late again?"}
+    assert_received {:sealed, "Your steward says: \"garden, tomatoes\". What do you do?"}
+
+    assert {:ok, %{tests: [1], behaviours: [1]}, cards, []} = Eunomia.run_detail(ctx.id, ref)
+
+    assert [
+             %{test_number: 1, behaviour_number: nil, model: nil},
+             %{test_number: nil, behaviour_number: 1, model: nil}
+           ] =
+             cards
+
+    [_authored, derived] = cards
+    assert :ok = Eunomia.grade(ctx.id, ref, derived.card_ref, "pass", ctx.actor)
+
+    assert {:ok, _, [%{model: nil}, %{model: "m1", behaviour_number: 1}],
+            [%{model: "m1", passed: 1}]} = Eunomia.run_detail(ctx.id, ref)
+
+    # Behaviours alone are a run; nothing at all is not.
+    assert {:ok, _} = Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: [1]}, ctx.actor)
+
+    assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
+             Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: []}, ctx.actor)
+  end
+end

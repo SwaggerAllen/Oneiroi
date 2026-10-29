@@ -26,7 +26,6 @@ defmodule Oneiroi.Brain.Turn do
   """
 
   alias Oneiroi.Actor
-  alias Oneiroi.AgathosDaimon.Files
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
@@ -215,30 +214,10 @@ defmodule Oneiroi.Brain.Turn do
   defp model_change_notice(_row), do: []
 
   @doc false
-  # The sealed session's context (spec §6.4): the brain's prompt and the
-  # identity files, nothing of memory and nothing of the run's purpose.
-  def seed_context(resident_id) do
-    case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, row} ->
-        prompt = Prompt.message("brain", %{name: row.name, formation: ""})
-
-        files =
-          Enum.map(identity_files(resident_id, row), fn {name, content} ->
-            %{role: :system, content: "# " <> name <> "\n\n" <> content}
-          end)
-
-        [prompt | files]
-
-      :error ->
-        []
-    end
-  end
-
-  @doc false
   # Public for the compaction's own calls, which assemble the same way.
   def assemble(row, turn, text) do
     prompt = Prompt.message("brain", %{name: row.name, formation: formation(row)})
-    files = identity_files(turn.resident_id, row)
+    files = Oneiroi.AgathosDaimon.identity_context(turn.resident_id)
     index = Kumbukumbu.index(turn.resident_id)
     acting = how_i_act(turn, text)
     count = Config.fetch!(:brain, :transcript_messages)
@@ -331,20 +310,6 @@ defmodule Oneiroi.Brain.Turn do
       |> Enum.map(& &1.tag)
 
     Kumbukumbu.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
-  end
-
-  # The stable prefix (spec §5): the identity files in a fixed order, then
-  # the build-owned AGENTS.md, so the cached prefix is the same from turn
-  # to turn until a file changes.
-  defp identity_files(resident_id, row) do
-    written = resident_id |> Oneiroi.AgathosDaimon.files() |> Map.new(&{&1.name, &1.content})
-
-    ordered =
-      for name <- Oneiroi.AgathosDaimon.identity_files(),
-          content = Map.get(written, name),
-          do: {name, content}
-
-    ordered ++ [{"AGENTS.md", Files.agents_md(row)}]
   end
 
   # The month after first contact (spec §6.2): the resident is told its

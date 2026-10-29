@@ -12,6 +12,7 @@ defmodule Oneiroi.Brain.Tools do
   failing the turn, because a turn that dies on a typo loses the reply.
   """
 
+  alias Oneiroi.Eunomia
   alias Oneiroi.Kumbukumbu
 
   @type turn :: %{
@@ -26,6 +27,46 @@ defmodule Oneiroi.Brain.Tools do
   @spec definitions() :: [map()]
   def definitions do
     [
+      tool(
+        "position_take",
+        "Take a position: a statement you hold, in your words (at most 1,000 characters). It is yours until you replace it.",
+        %{statement: %{type: "string"}},
+        [:statement]
+      ),
+      tool(
+        "position_replace",
+        "Replace a position you hold with a new statement; the old one stays in the chain as what you used to think. Only the current head of a chain can be replaced.",
+        %{number: %{type: "integer"}, statement: %{type: "string"}},
+        [:number, :statement]
+      ),
+      tool("position_list", "The positions you hold now, with their numbers.", %{}, []),
+      tool(
+        "dispute_check",
+        "When you and your steward disagree, ask the judge before answering: the steward's claim, your stance, and the number of the position at stake if there is one. The judge advises concede, hold or unclear, or you are told to answer alone if it takes too long. Settle it afterwards with dispute_settle.",
+        %{
+          claim: %{type: "string"},
+          stance: %{type: "string"},
+          position_number: %{type: "integer"}
+        },
+        [:claim, :stance]
+      ),
+      tool(
+        "dispute_settle",
+        "Settle a dispute you checked: conceded or held, with a note on why.",
+        %{
+          ref: %{type: "string"},
+          outcome: %{type: "string", enum: ["conceded", "held"]},
+          note: %{type: "string"}
+        },
+        [:ref, :outcome, :note]
+      ),
+      tool(
+        "prediction_log",
+        "Log a prediction: what you expect, and when it is due (an ISO 8601 instant). Your steward resolves it right, wrong or void.",
+        %{statement: %{type: "string"}, due: %{type: "string"}},
+        [:statement, :due]
+      ),
+      tool("prediction_list", "Your predictions: open soonest first, then resolved.", %{}, []),
       tool(
         "bookmark_add",
         "Bookmark this moment: your line (at most 120 characters) on why it mattered, a summary, and how many turns back the moment spans (default 1, this turn).",
@@ -343,7 +384,99 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # ---- judgement (spec §6.4) ----
+
+  defp call("position_take", args, turn) do
+    case Eunomia.take_position(turn.resident_id, args["statement"], context(turn), turn.resident) do
+      {:ok, number} -> "Position ##{number} taken."
+      other -> other
+    end
+  end
+
+  defp call("position_replace", args, turn) do
+    turn.resident_id
+    |> Eunomia.replace_position(
+      integer(args["number"]),
+      args["statement"],
+      context(turn),
+      turn.resident
+    )
+    |> case do
+      {:ok, number} -> "Position ##{number} now stands where ##{integer(args["number"])} did."
+      other -> other
+    end
+  end
+
+  defp call("position_list", _args, turn) do
+    case Eunomia.held_positions(turn.resident_id) do
+      [] -> "You hold no positions yet."
+      rows -> Enum.map_join(rows, "\n", &"##{&1.number} #{&1.statement}")
+    end
+  end
+
+  defp call("dispute_check", args, turn) do
+    attrs =
+      context(turn)
+      |> Map.merge(%{
+        claim: args["claim"],
+        stance: args["stance"],
+        position_number: integer(args["position_number"])
+      })
+
+    case Eunomia.check_dispute(turn.resident_id, attrs, turn.resident) do
+      {:ok, %{outcome: "timed_out", ref: ref}} ->
+        "The judge did not answer in time; answer alone, then settle dispute #{ref}."
+
+      {:ok, %{ref: ref, advice: advice, text: text}} ->
+        "The judge advises: #{advice}. #{text}\n\nSettle dispute #{ref} once you have answered."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("dispute_settle", args, turn),
+    do:
+      Eunomia.settle_dispute(
+        turn.resident_id,
+        args["ref"],
+        args["outcome"],
+        args["note"],
+        turn.resident
+      )
+
+  defp call("prediction_log", args, turn) do
+    due =
+      case DateTime.from_iso8601(to_string(args["due"] || "")) do
+        {:ok, at, _offset} -> at
+        _other -> nil
+      end
+
+    case Eunomia.log_prediction(
+           turn.resident_id,
+           args["statement"],
+           due,
+           context(turn),
+           turn.resident
+         ) do
+      {:ok, number} -> "Prediction ##{number} logged."
+      other -> other
+    end
+  end
+
+  defp call("prediction_list", _args, turn) do
+    %{open: open, resolved: resolved} = Eunomia.predictions(turn.resident_id)
+
+    lines =
+      Enum.map(open, &"##{&1.number} (due #{DateTime.to_iso8601(&1.due)}) #{&1.statement}") ++
+        Enum.map(resolved, &"##{&1.number} #{&1.outcome}: #{&1.statement}")
+
+    if lines == [], do: "No predictions yet.", else: Enum.join(lines, "\n")
+  end
+
   defp call(name, _args, _turn), do: "There is no tool named #{name}."
+
+  defp context(turn), do: %{session_key: turn.session_key, turn_ref: turn.turn_ref}
 
   defp text(:ok), do: "Done."
   defp text(text) when is_binary(text), do: text

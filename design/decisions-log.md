@@ -457,3 +457,31 @@ and nothing personal turned up; what follows is what changed.
   aggregate answered every recorded outcome with no event), and the
   tick's roster read under the worker's process scope alone would have
   answered no rows on the live policy (sunna #11).
+
+## Round 15: judgement (2026-10-29)
+
+- Judgement proper is built under `Oneiroi.Eunomia` on its own stream,
+  exported and citeable where the regression suite beside it stays
+  sealed (systems/eunomia.md #14): positions in chains that cannot fork
+  (#15), the live check with the judge's advice or a timeout recorded
+  as unjudged (#16), settlements with a note and the concession ratio
+  by week counting earned concessions (#17), the nightly pass within
+  David's bounds with a quiet day calling no model and a reply citing a
+  message it was not shown failing the night (#18), the nightly job
+  under the platform scope by name (#19), the judge chosen by the
+  steward and never the resident's chat model, pinned or defaulted
+  (#20), predictions the steward alone resolves (#21). Trials derived
+  from behaviours ride in a regression run beside the authored tests
+  (#8, #11).
+- The brain depends on judgement for the resident's tools, so the
+  sealed session's context moved out of the brain: Eunomia builds it
+  from the brain's prompt file and a new resident-system export, the
+  identity context, which the brain's own turn now reads too
+  (brain #16, agathos-daimon #18).
+- Two defects the tests found before the gates ran: a second nightly
+  run for a judged day paid for a verdict the aggregate then discarded
+  (eunomia #18), and an unpinned resident's judge could be set to the
+  model it chats on, because only the pin was compared (eunomia #20).
+- Open for the author, carried: the judge's calls bill to the
+  resident's ledger under `judge` (critique 17 asked to whom); the
+  platform's judge slug is a placeholder until a dated one is pinned.

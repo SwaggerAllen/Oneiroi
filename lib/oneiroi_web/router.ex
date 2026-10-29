@@ -120,6 +120,14 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/dates", ScheduleController, :set_date)
       put("/residents/:id/dates/:number", ScheduleController, :change_date)
       delete("/residents/:id/dates/:number", ScheduleController, :remove_date)
+      get("/residents/:id/judgement", JudgementController, :show)
+      put("/residents/:id/judgement/judge", JudgementController, :set_judge)
+      get("/residents/:id/positions", JudgementController, :positions)
+      get("/residents/:id/disputes", JudgementController, :disputes)
+      get("/residents/:id/predictions", JudgementController, :predictions)
+      post("/residents/:id/predictions/:number/resolve", JudgementController, :resolve)
+      get("/residents/:id/nights", JudgementController, :nights)
+      post("/residents/:id/nights/:day", JudgementController, :judge_night)
     end
   end
 end

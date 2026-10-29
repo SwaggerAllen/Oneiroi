@@ -1,8 +1,10 @@
 defmodule Oneiroi.Eunomia.Store do
   @moduledoc """
-  The regression projections and their queries, under the resident's
-  scope and read only by the steward's routes: no tool, no export and no
-  other system reads them (spec §6.4's unawareness invariant).
+  The judgement and regression projections and their queries, under the
+  resident's scope. The regression rows are read only by the steward's
+  routes: no tool, no export and no other system reads them (spec §6.4's
+  unawareness invariant). The judgement rows are the resident's record
+  and the brain's tools read them.
   """
   import Ecto.Query, only: [from: 2]
 
@@ -34,6 +36,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:ref, :string, primary_key: true)
       field(:models, {:array, :string}, default: [])
       field(:tests, {:array, :integer}, default: [])
+      field(:behaviours, {:array, :integer}, default: [])
       field(:started_at, :utc_datetime_usec)
       field(:finished_at, :utc_datetime_usec)
       field(:cards, :integer, default: 0)
@@ -52,6 +55,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:card_ref, :string, primary_key: true)
       field(:model, :string)
       field(:test_number, :integer)
+      field(:behaviour_number, :integer)
       field(:content, :string)
       field(:refusal, :boolean, default: false)
       field(:failure, :string)
@@ -62,6 +66,133 @@ defmodule Oneiroi.Eunomia.Store do
     end
 
     @type t :: %__MODULE__{}
+  end
+
+  defmodule Position do
+    @moduledoc "A position the resident holds, with its place in a chain."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_position" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:statement, :string)
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:replaces, :integer)
+      field(:replaced_by, :integer)
+      field(:taken_at, :utc_datetime_usec)
+      field(:replaced_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Dispute do
+    @moduledoc "A dispute, live or nightly: the check with the judge's advice and model, and its settlement."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_dispute" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:source, :string)
+      field(:position_number, :integer)
+      field(:claim, :string)
+      field(:stance, :string)
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:outcome, :string)
+      field(:advice, :string)
+      field(:advice_text, :string)
+      field(:judge_model, :string)
+      field(:checked_at, :utc_datetime_usec)
+      field(:settlement, :string)
+      field(:settled_note, :string)
+      field(:settled_by_kind, :string)
+      field(:settled_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Prediction do
+    @moduledoc "A prediction with its due instant, resolved by the steward."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_prediction" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:statement, :string)
+      field(:due, :utc_datetime_usec)
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:logged_at, :utc_datetime_usec)
+      field(:outcome, :string)
+      field(:note, :string)
+      field(:resolved_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Night do
+    @moduledoc "One nightly pass: judged or failed, how much was read, what was found."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_night" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:outcome, :string)
+      field(:messages, :integer)
+      field(:chars, :integer)
+      field(:found, :integer)
+      field(:judge_model, :string)
+      field(:summary, :string)
+      field(:reason, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule JudgeChange do
+    @moduledoc "A change of the judge's model, so the ratio chart marks it."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_judge_change" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:model, :string)
+      field(:previous, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @spec positions() :: [Position.t()]
+  def positions, do: Repo.all(from(p in Position, order_by: p.number))
+
+  @spec position(pos_integer()) :: Position.t() | nil
+  def position(number), do: Repo.one(from(p in Position, where: p.number == ^number))
+
+  @spec disputes() :: [Dispute.t()]
+  def disputes, do: Repo.all(from(d in Dispute, order_by: [desc: d.checked_at]))
+
+  @spec dispute(String.t()) :: Dispute.t() | nil
+  def dispute(ref), do: Repo.one(from(d in Dispute, where: d.ref == ^ref))
+
+  @spec predictions() :: [Prediction.t()]
+  def predictions, do: Repo.all(from(p in Prediction, order_by: [asc: p.due, asc: p.number]))
+
+  @spec nights() :: [Night.t()]
+  def nights, do: Repo.all(from(n in Night, order_by: [desc: n.day, desc: n.at]))
+
+  @spec judge_changes() :: [JudgeChange.t()]
+  def judge_changes, do: Repo.all(from(j in JudgeChange, order_by: j.at))
+
+  @doc "The judge's model as last chosen, or nil for the platform's."
+  @spec judge_model() :: String.t() | nil
+  def judge_model do
+    Repo.one(from(j in JudgeChange, order_by: [desc: j.at], limit: 1, select: j.model))
   end
 
   @spec tests() :: [Test.t()]
@@ -83,7 +214,7 @@ defmodule Oneiroi.Eunomia.Store do
       Repo.all(
         from(a in Answer,
           where: a.run_ref == ^run_ref,
-          order_by: [asc: a.test_number, asc: a.card_ref]
+          order_by: [asc: a.test_number, asc: a.behaviour_number, asc: a.card_ref]
         )
       )
 end

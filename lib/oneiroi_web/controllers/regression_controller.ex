@@ -93,7 +93,14 @@ defmodule OneiroiWeb.RegressionController do
          required: [:models],
          properties: %{
            models: %Schema{type: :array, items: %Schema{type: :string}},
-           tests: %Schema{type: :array, items: %Schema{type: :integer}}
+           tests: %Schema{type: :array, items: %Schema{type: :integer}},
+           behaviours: %Schema{
+             description: "behaviour numbers to derive trials from, or \"all\"",
+             oneOf: [
+               %Schema{type: :array, items: %Schema{type: :integer}},
+               %Schema{type: :string, enum: ["all"]}
+             ]
+           }
          }
        }},
     responses: [created: {"the run's ref", "application/json", %Schema{type: :object}}]
@@ -102,7 +109,14 @@ defmodule OneiroiWeb.RegressionController do
   def start_run(conn, %{"id" => id, "models" => models} = params) when is_list(models) do
     tests = if is_list(params["tests"]), do: Enum.map(params["tests"], &integer/1), else: :all
 
-    case Eunomia.run(id, models, tests, actor(conn)) do
+    behaviours =
+      case params["behaviours"] do
+        "all" -> :all
+        list when is_list(list) -> Enum.map(list, &integer/1)
+        _none -> []
+      end
+
+    case Eunomia.run(id, models, %{tests: tests, behaviours: behaviours}, actor(conn)) do
       {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
       other -> respond(conn, other)
     end

@@ -107,6 +107,29 @@ defmodule Oneiroi.AgathosDaimon.Files do
   @doc "The resident's identity files as rows, by name."
   def files(resident_id), do: Scope.resident(resident_id, fn -> Store.files() end)
 
+  @doc """
+  The stable prefix (spec §5): the identity files written so far in a
+  fixed order, then the build-owned `AGENTS.md`, as `{name, content}`
+  pairs, so a cached prefix is the same from turn to turn until a file
+  changes. The brain's context and the sealed regression session both
+  read this and nothing else of the resident's files.
+  """
+  @spec context(String.t()) :: [{String.t(), String.t()}]
+  def context(resident_id) do
+    case Scope.resident(resident_id, fn -> {Store.get(resident_id), Store.files()} end) do
+      {nil, _files} ->
+        []
+
+      {row, files} ->
+        written = Map.new(files, &{&1.name, &1.content})
+
+        ordered =
+          for name <- Resident.files(), content = Map.get(written, name), do: {name, content}
+
+        ordered ++ [{"AGENTS.md", agents_md(row)}]
+    end
+  end
+
   @doc "One file's row, or the rendered `AGENTS.md`."
   def file(resident_id, "AGENTS.md") do
     case Scope.resident(resident_id, fn -> Store.get(resident_id) end) do

@@ -284,6 +284,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.share_session(resident_id, key, note, actor)
   )
 
+  @doc "Every message sent in [from, to) across the resident's sessions, in order, under the resident's scope: what the nightly pass reads."
+  @spec messages_between(String.t(), DateTime.t(), DateTime.t()) ::
+          [Oneiroi.Kumbukumbu.Store.Message.t()]
+  defexport(messages_between(resident_id, from, to),
+    do: Conversations.messages_between(resident_id, from, to)
+  )
+
   @doc "The sessions a scope sees, newest first."
   @spec sessions(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.Session.t()]
   defexport(sessions(scope), do: Conversations.sessions(scope))
