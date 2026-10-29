@@ -263,6 +263,11 @@ defmodule Oneiroi.Brain.Turn do
           "the important dates with each countdown derived on this read (spec §6.7, F56): a figure never written down"
         ) ++
         section(
+          "figures",
+          Oneiroi.HuginnMuninn.figures_text(turn.resident_id),
+          "the counters as the fold of their increments, derived on this read (spec §6.13, F57): never written down"
+        ) ++
+        section(
           "honcho",
           Oneiroi.Proteus.context(turn.resident_id),
           "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"

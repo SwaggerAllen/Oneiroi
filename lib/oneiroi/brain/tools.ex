@@ -13,6 +13,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.Eunomia
+  alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
 
   @type turn :: %{
@@ -67,6 +68,18 @@ defmodule Oneiroi.Brain.Tools do
         [:statement, :due]
       ),
       tool("prediction_list", "Your predictions: open soonest first, then resolved.", %{}, []),
+      tool(
+        "figure_list",
+        "The figures: counters your steward defined, with their values counted from every increment, and countdowns to dates.",
+        %{},
+        []
+      ),
+      tool(
+        "figure_increment",
+        "Increment a counter by its key (by 1 unless said; negative corrects), with a note on why: your increment carries your name.",
+        %{key: %{type: "string"}, by: %{type: "integer"}, note: %{type: "string"}},
+        [:key, :note]
+      ),
       tool(
         "bookmark_add",
         "Bookmark this moment: your line (at most 120 characters) on why it mattered, a summary, and how many turns back the moment spans (default 1, this turn).",
@@ -473,6 +486,25 @@ defmodule Oneiroi.Brain.Tools do
 
     if lines == [], do: "No predictions yet.", else: Enum.join(lines, "\n")
   end
+
+  # ---- figures (spec §6.13) ----
+
+  defp call("figure_list", _args, turn) do
+    case HuginnMuninn.figures(turn.resident_id) do
+      [] -> "No figures yet."
+      rows -> Enum.map_join(rows, "\n", &"figure/#{&1.key} #{&1.label}: #{&1.value} (#{&1.kind})")
+    end
+  end
+
+  defp call("figure_increment", args, turn),
+    do:
+      HuginnMuninn.increment(
+        turn.resident_id,
+        args["key"],
+        integer(args["by"]) || 1,
+        args["note"],
+        turn.resident
+      )
 
   defp call(name, _args, _turn), do: "There is no tool named #{name}."
 

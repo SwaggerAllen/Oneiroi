@@ -42,3 +42,7 @@ Spec §6.7, F56: "rendered in the index on the turn that reads it."
 
 ## #16
 Spec §6.7's fifteen minutes; conventions on `tag: :bound`.
+
+## #17
+Spec §6.13: audits read logs and rows, never transcript text; a read
+beats a second copy of the outcome vocabulary in the audits system.

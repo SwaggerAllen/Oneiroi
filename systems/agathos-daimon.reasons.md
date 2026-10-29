@@ -77,3 +77,7 @@ owns the rows, named, rather than to each job that needs it.
 ## #19
 Spec §6.2: build-owned, rendered from templates, read-only in the
 client; #13's reason holds for the second template as for the first.
+
+## #20
+Conventions §12: nothing reads the event store but Commanded; an audit
+that folded the stream itself would be a second projector of one fact.

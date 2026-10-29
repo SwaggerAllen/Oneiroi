@@ -129,6 +129,13 @@ defmodule Oneiroi.Sunna.Schedules do
     end)
   end
 
+  @doc "Every firing over the last `days` days in the resident's zone, today included."
+  def firings(resident_id, days) do
+    today = resident_id |> local_now() |> DateTime.to_date()
+    from = today |> Date.add(-(days - 1)) |> Date.to_iso8601()
+    Scope.resident(resident_id, fn -> Store.firings_between(from, Date.to_iso8601(today)) end)
+  end
+
   @doc "The dates section the brain is shown, with every countdown derived on this read; empty when there are none."
   @spec dates_text(String.t()) :: String.t()
   def dates_text(resident_id) do

@@ -92,6 +92,12 @@ defmodule Oneiroi.Sunna.Store do
   @spec firings(String.t()) :: [Firing.t()]
   def firings(day), do: Repo.all(from(f in Firing, where: f.day == ^day, order_by: f.at))
 
+  @doc "Every firing on a day in [from, to], by day then time."
+  @spec firings_between(String.t(), String.t()) :: [Firing.t()]
+  def firings_between(from, to),
+    do:
+      Repo.all(from(f in Firing, where: f.day >= ^from and f.day <= ^to, order_by: [f.day, f.at]))
+
   @spec days(pos_integer()) :: [Day.t()]
   def days(limit), do: Repo.all(from(d in Day, order_by: [desc: d.day], limit: ^limit))
 

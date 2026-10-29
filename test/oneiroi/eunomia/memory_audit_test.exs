@@ -136,13 +136,10 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
     assert :ok = Eunomia.delete_flag(id, flag2.ref, "she does live there", ctx.actor)
     assert {:ok, [%{id: "c2"}]} = Proteus.conclusions(id, 150)
 
-    assert %{
-             open: [],
-             decided: [
-               %{decision: "approved", note: "she said so herself"},
-               %{decision: "deleted"}
-             ]
-           } = Eunomia.audits(id)
+    # Raised at one instant under the fixed clock, so the order is by ref.
+    assert %{open: [], decided: decided} = Eunomia.audits(id)
+    assert %{note: "she said so herself"} = Enum.find(decided, &(&1.decision == "approved"))
+    assert Enum.any?(decided, &(&1.decision == "deleted"))
 
     judge_says(id, "FLAG [9] | nonsense\nSUMMARY: x")
 

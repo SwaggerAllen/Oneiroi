@@ -64,7 +64,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
         set(multi, e.id,
           last_backup_sequence: e.sequence,
           last_backup_root: e.root,
-          last_backup_commit: e.commit
+          last_backup_commit: e.commit,
+          root_mismatched_at: nil
         )
   end)
 
@@ -75,7 +76,11 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   fold(%Events.IdMinted{}, _metadata, fn multi -> multi end)
-  fold(%Events.RootMismatchDetected{}, _metadata, fn multi -> multi end)
+  # The attestation's last word on the row (sima-qian #10): set on a
+  # mismatch, cleared by the next backup, read by the built-in audit.
+  fold(%Events.RootMismatchDetected{} = e, _metadata, fn multi ->
+    set(multi, e.id, root_mismatched_at: e.at)
+  end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
 

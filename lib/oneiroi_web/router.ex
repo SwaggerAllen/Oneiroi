@@ -133,6 +133,16 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/audits/flags/:ref", JudgementController, :decide_flag)
       get("/residents/:id/honcho", HonchoController, :show)
       post("/residents/:id/honcho/card-audit", HonchoController, :audit_card)
+      get("/residents/:id/figures", FigureController, :figures)
+      post("/residents/:id/figures", FigureController, :define_counter)
+      get("/residents/:id/figures/:key", FigureController, :figure)
+      post("/residents/:id/figures/:key/increment", FigureController, :increment)
+      delete("/residents/:id/figures/:key", FigureController, :retire_counter)
+      get("/residents/:id/light", FigureController, :light)
+      get("/residents/:id/checks", FigureController, :checks)
+      post("/residents/:id/checks", FigureController, :define_check)
+      post("/residents/:id/checks/run", FigureController, :run_checks)
+      delete("/residents/:id/checks/:key", FigureController, :retire_check)
     end
   end
 end
