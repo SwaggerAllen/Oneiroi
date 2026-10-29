@@ -85,3 +85,8 @@ makes an external's failure retryable and not the caller's.
 
 ## #20
 Spec §6.13: "both render fresh in the index"; spec §8's tool table.
+
+## #21
+Spec §6.11: "the resident knows its policy on wake and says so"; §6.2:
+"the resident is told on wake what happened and under what policy:
+orientation without impersonation."

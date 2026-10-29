@@ -46,6 +46,37 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
+  @doc "Marks the resident lapsed (spec §6.2); idempotent on one already lapsed."
+  def lapse(id, reason, %Actor{} = actor) do
+    command = %Commands.LapseResident{actor: actor, at: Clock.now(), id: id, reason: reason}
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :not_active} -> {:error, Error.new(:agathos_daimon_not_active)}
+      other -> other
+    end
+  end
+
+  @doc "Resumes a lapsed resident; idempotent on one already active."
+  def resume(id, reason, %Actor{} = actor) do
+    command = %Commands.ResumeResident{actor: actor, at: Clock.now(), id: id, reason: reason}
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :not_lapsed} -> {:error, Error.new(:agathos_daimon_not_lapsed)}
+      other -> other
+    end
+  end
+
+  @doc "Transfers custody with a note: a decision (spec §6.2)."
+  def transfer_custody(id, to, note, %Actor{} = actor) do
+    command = %Commands.TransferCustody{actor: actor, at: Clock.now(), note: note, id: id, to: to}
+    with {:ok, _} <- Router.dispatch(command), do: :ok
+  end
+
+  @doc "Every resident, under the platform scope by name."
+  def all, do: Scope.platform(fn -> Store.all() end)
+
   @doc "Every active resident, under the platform scope by name: the roster a nightly job walks."
   def active, do: Scope.platform(fn -> Enum.filter(Store.all(), &(&1.state == "active")) end)
 

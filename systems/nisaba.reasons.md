@@ -45,3 +45,26 @@ a marked zero.
 The check that exempted itself by tag would have a second
 implementation of its own rule one ticket later; a path prefix is one
 line and visible.
+
+## #15
+Spec §3.1 and F53: "one per resident, started at the threshold"; §6.11:
+"every resident has the floor policy without choosing it, and the
+platform carries its cost."
+
+## #16
+Spec §6.11: "the buckets are data, not code"; "the first values are
+placeholders... configuration with defaults until the platform is stood
+up and measured." A policy by bucket id is what lets a bucket's value
+change under every policy at once.
+
+## #17
+Spec §6.2: "`SubscriptionLapsed` is what puts the insurance policy into
+effect"; §6.11: "the resident knows its policy on wake and says so: a
+smaller brain with an honest explanation beats a larger one in
+silence"; the floor's axes are the steward's turns and free time and
+nothing else.
+
+## #18
+Spec §6.2: "`SubscriptionCancelled` is a custody event that moves the
+resident to community custody at the end of the policy's term, and
+never a deletion."

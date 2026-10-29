@@ -533,3 +533,22 @@ and nothing personal turned up; what follows is what changed.
 - Citation drift and the journal's delta, the spec's first two built-in
   audits, wait on the library and the journal (P3); the composite
   coherence score waits on a decision for it to feed.
+
+## Round 18: the subscription and the insurance floor (2026-10-29)
+
+- The subscription is built in the ledger on its own stream
+  (systems/nisaba.md #15): started once with the floor policy, renewed
+  by record rather than charge until a payment provider lands, its
+  plan changed, lapsed, cancelled with a note. Nanshe's buckets are
+  configuration with the spec's placeholders until governance makes
+  them rows, a policy naming its buckets by id and a prepay moving one
+  axis up (#16). A lapse makes the policy the budget, marks the
+  resident lapsed, runs the brain on the policy's model and tells the
+  resident once (#17, agathos-daimon #21, brain #21); a cancellation
+  ends in community custody at the end of the term, never a deletion,
+  by the nightly pass that also lapses a renewal past its grace (#18).
+- Open for the author, carried: under a lapse the ledger still spends
+  the steward's own key, because there is no platform key yet; the
+  spec has the platform carry the floor's cost, which needs one
+  (`NISABA_PLATFORM_KEY`, not declared until it exists). Payment
+  method and invoices wait on a provider.

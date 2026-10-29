@@ -18,6 +18,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   alias Oneiroi.Config.Secret
   alias Oneiroi.Nisaba.Commands
   alias Oneiroi.Nisaba.Error
+  alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Period
   alias Oneiroi.Nisaba.Provider.{Request, Result}
   alias Oneiroi.Nisaba.Purpose
@@ -133,14 +134,36 @@ defmodule Oneiroi.Nisaba.Ledgers do
     name = Atom.to_string(purpose)
 
     Scope.resident(resident_id, fn ->
-      case Store.budget(name) do
-        %{cap_nanos: cap, period: period} when is_integer(cap) ->
+      case {Store.subscription(), Store.budget(name)} do
+        {%{state: "lapsed"} = sub, _line} ->
+          under_policy(name, sub, now)
+
+        {_sub, %{cap_nanos: cap, period: period}} when is_integer(cap) ->
           under_cap(name, cap, period, now)
 
         _no_cap ->
           :ok
       end
     end)
+  end
+
+  # Under a lapse the insurance policy is the budget (spec §6.11): the
+  # steward's turns and free time each a week's bucket, nothing else
+  # covered. The lines the steward set no longer apply; the floor does.
+  defp under_policy(name, sub, now) do
+    policy =
+      Insurance.resolve(%{
+        model: sub.policy_model,
+        steward: sub.policy_steward,
+        free_time: sub.policy_free_time,
+        term: sub.policy_term
+      })
+
+    case name do
+      "chat" -> under_cap(name, policy.steward_nanos_week || 0, "week", now)
+      "free_time" -> under_cap(name, policy.free_time_nanos_week || 0, "week", now)
+      _other -> {:error, Error.new(:nisaba_lapsed, purpose: name)}
+    end
   end
 
   defp under_cap(name, cap, period, now) do

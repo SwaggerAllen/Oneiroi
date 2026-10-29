@@ -36,6 +36,8 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.MintId,
       Commands.PauseResident,
       Commands.WakeResident,
+      Commands.LapseResident,
+      Commands.ResumeResident,
       Commands.TransferCustody,
       Commands.SetExportWall,
       Commands.ImportResident,
@@ -47,6 +49,8 @@ defmodule Oneiroi.AgathosDaimon do
       Events.IdMinted,
       Events.ResidentPaused,
       Events.ResidentWoken,
+      Events.ResidentLapsed,
+      Events.ResidentResumed,
       Events.CustodyTransferred,
       Events.ExportWallSet,
       Events.Imported,
@@ -98,6 +102,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentPaused, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentWoken, 1},
+      {Oneiroi.AgathosDaimon.Events.ResidentLapsed, 1},
+      {Oneiroi.AgathosDaimon.Events.ResidentResumed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferred, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWallSet, 1},
       {Oneiroi.AgathosDaimon.Events.Imported, 1},
@@ -163,6 +169,10 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "name it as a slug and say which role it holds (spec §8)"},
       {:agathos_daimon_no_such_adapter, "no adapter of that name is registered",
        remedy: "read the adapters"},
+      {:agathos_daimon_not_active, "the resident is not active, so it cannot lapse",
+       remedy: "a paused or custodied resident has no subscription to lapse"},
+      {:agathos_daimon_not_lapsed, "the resident is not lapsed, so there is nothing to resume",
+       remedy: "read the resident"},
       {:agathos_daimon_timezone_invalid, "a time zone is an IANA name, like Europe/London",
        remedy: "give the zone's IANA name; the resident's days and times of day are read in it"}
     ]
@@ -258,6 +268,10 @@ defmodule Oneiroi.AgathosDaimon do
   @spec active_residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
   defexport(active_residents(), do: Residents.active())
 
+  @doc "Every resident whatever its state, for the subscription's nightly pass: a cross-tenant read under the platform scope, by name."
+  @spec residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
+  defexport(residents(), do: Residents.all())
+
   @doc "Pins the resident's chat model (spec §6.4); reason is run or steward."
   @spec pin_model(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(pin_model(id, model, reason, actor),
@@ -267,6 +281,26 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Records that the resident was told of the latest model change."
   @spec model_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(model_told(id, actor), do: Residents.model_told(id, actor))
+
+  @doc "Marks the resident lapsed: the subscription lapsed and the insurance policy is in effect (spec §6.2)."
+  @spec lapse(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(lapse(id, reason, actor), do: Residents.lapse(id, reason, actor))
+
+  @doc "Resumes a lapsed resident on a renewal."
+  @spec resume(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(resume(id, reason, actor), do: Residents.resume(id, reason, actor))
+
+  @doc "Transfers custody, to an account or to the community, with a note (spec §6.2): a decision."
+  @spec transfer_custody(
+          String.t(),
+          {:account, String.t()} | :community,
+          String.t(),
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(transfer_custody(id, to, note, actor),
+    do: Residents.transfer_custody(id, to, note, actor)
+  )
 
   @doc "Sets the resident's time zone, an IANA name (spec §6.7)."
   @spec set_timezone(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

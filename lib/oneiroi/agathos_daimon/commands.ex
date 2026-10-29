@@ -13,6 +13,14 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :reason]
   end
 
+  defmodule LapseResident do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
+
+  defmodule ResumeResident do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
+
   defmodule WakeResident do
     use Oneiroi.Command, fields: [:id, :reason]
   end
