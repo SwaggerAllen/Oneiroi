@@ -24,7 +24,9 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Merkle
 
   @classes [
-    {"soul", ["SOUL.md", "honcho/"]},
+    # The soul alone (David's rule), and the identity files with it: they
+    # are one self, given and proposed together (spec §6.2).
+    {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
     {"writing", ["writing/", "research/"]},
     {"machine",
      ["records/", "memory/", "feeds/", "mail/", "correspondence/", "design/", "wiki/", "journal/"]}

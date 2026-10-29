@@ -20,7 +20,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   alias Ecto.Multi
   alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events
-  alias Oneiroi.AgathosDaimon.Store.Resident
+  alias Oneiroi.AgathosDaimon.Store.{IdentityFile, Resident, SoulEdit}
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
     Multi.insert(multi, :resident, %Resident{
@@ -78,6 +78,94 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   fold(%Events.RootMismatchDetected{}, _metadata, fn multi -> multi end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+
+  fold(%Events.SeedFileWritten{} = e, _metadata, fn multi ->
+    put_file(multi, e, e.origin, e.model, e.prompt)
+  end)
+
+  fold(%Events.FirstContact{} = e, _metadata, fn multi ->
+    days = Oneiroi.Config.fetch!(:agathos_daimon, :formation_days)
+    set(multi, e.id, first_contact_at: e.at, formation_until: DateTime.add(e.at, days, :day))
+  end)
+
+  fold(%Events.SoulEditProposed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :soul_edit,
+      %SoulEdit{
+        resident_id: e.id,
+        ref: e.ref,
+        file: e.file,
+        content: e.content,
+        note: e.note,
+        proposed_by_kind: actor_field(e.actor, :kind),
+        proposed_by_id: actor_field(e.actor, :id),
+        proposed_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.SoulEditAccepted{} = e, _metadata, fn multi ->
+    decide_edit(multi, e, "accepted")
+  end)
+
+  fold(%Events.SoulEditDeclined{} = e, _metadata, fn multi ->
+    decide_edit(multi, e, "declined")
+  end)
+
+  # An applied edit keeps the seed's origin: the row says where the file
+  # first came from and who wrote it last; the log says everything.
+  fold(%Events.SoulEditApplied{} = e, _metadata, fn multi ->
+    put_file(multi, e, "authored", nil, nil)
+  end)
+
+  defp put_file(multi, e, origin, model, prompt) do
+    Multi.insert(
+      multi,
+      {:file, e.file},
+      %IdentityFile{
+        resident_id: e.id,
+        name: e.file,
+        content: e.content,
+        origin: origin,
+        model: model,
+        prompt: prompt,
+        written_by_kind: actor_field(e.actor, :kind),
+        written_by_id: actor_field(e.actor, :id),
+        written_at: e.at
+      },
+      on_conflict: [
+        set: [
+          content: e.content,
+          written_by_kind: actor_field(e.actor, :kind),
+          written_by_id: actor_field(e.actor, :id),
+          written_at: e.at
+        ],
+        inc: [version: 1]
+      ],
+      conflict_target: [:resident_id, :name]
+    )
+  end
+
+  defp decide_edit(multi, e, state) do
+    Multi.update_all(
+      multi,
+      {:soul_edit, e.ref},
+      from(s in SoulEdit, where: s.ref == ^e.ref),
+      set: [state: state, decided_note: e.note, decided_at: e.at]
+    )
+  end
+
+  defp actor_field(%{} = actor, key) do
+    case Map.get(actor, key) || Map.get(actor, Atom.to_string(key)) do
+      nil -> nil
+      value -> to_string(value)
+    end
+  end
+
+  defp actor_field(_other, _key), do: nil
 
   defp set(multi, id, fields) do
     Multi.update_all(

@@ -408,3 +408,14 @@ and nothing personal turned up; what follows is what changed.
   captured as a `tool` message (systems/brain.md #10), and compaction
   opens the turn that finds the session over the line, flush first
   (#11).
+- The identity files are events with their origin on the resident
+  stream, written whole (systems/agathos-daimon.md #11); first contact
+  is recorded by the brain's turn and taken once, and flips a steward's
+  write to a proposal the resident decides with a note (#12);
+  `AGENTS.md` is rendered from a template, never stored (#13); the files
+  ride in the export and the soul class (#14). Drafting lives in the
+  brain because of the dependency direction (systems/brain.md #14).
+  Behaviours (Ethos) are rows the resident owns with a closed trigger
+  set and two scores computed on read (systems/kumbukumbu.md #24);
+  retrieval is memory's, injected as "how I act", and choice is the
+  brain's (#25).

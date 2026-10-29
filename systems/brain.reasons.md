@@ -38,3 +38,21 @@ keep), a summary that never deletes history", the knobs the OpenClaw
 audit named, re-owned. The threshold is a guess, said so in its usage
 line; the honest measurement is a model's context against real
 sessions, which no one here has taken.
+
+## #12
+Spec §5: "stable prefix first for prompt caching (soul files, AGENTS,
+the pinned bookmark lines)". First contact is "the first captured turn
+in a session that is not a regression session" (spec §6.2) and the turn
+is where a capture is known to have landed.
+
+## #13
+Spec §6.3: "Whether to enact is thinking, done by the brain with those
+turns in front of it"; "the brain self-tags at turn time
+(`behaviour_enact`), which is cheap and in character."
+
+## #14
+Spec §6.2: "every authored field offers 'write it with me' (a draft
+from a prompt, billed under the `drafting` purpose)". Returned rather
+than written so the origin on the seed is the steward's statement, not
+the model's.
+

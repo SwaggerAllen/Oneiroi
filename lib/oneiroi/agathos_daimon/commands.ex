@@ -42,6 +42,28 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :expected_root, :actual_root, :commit]
   end
 
+  defmodule WriteFile do
+    # Before first contact: a seed, with its origin. After: the resident's
+    # own edit, and a steward's is refused in favour of a proposal.
+    use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt]
+  end
+
+  defmodule RecordFirstContact do
+    use Oneiroi.Command, fields: [:id, :session_key, :turn_ref]
+  end
+
+  defmodule ProposeSoulEdit do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref, :file, :content]
+  end
+
+  defmodule AcceptSoulEdit do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule DeclineSoulEdit do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+  end
+
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
   end

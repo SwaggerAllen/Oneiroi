@@ -25,8 +25,30 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     state: :absent,
     sequences: %{},
     exported_through: 0,
-    last_backup: nil
+    last_backup: nil,
+    files: %{},
+    first_contact: nil,
+    proposals: %{}
   ]
+
+  # The identity files a steward gives and a resident keeps (spec §6.2,
+  # F2). `AGENTS.md` and `honcho/custom-instructions.md` are build-owned
+  # and rendered from templates, never written here.
+  @files ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md)
+  @origins ~w(authored drafted uploaded)
+  # Bounded in size as spec §6.2 asks of uploads: a guess, generous for
+  # prose and small for anything that is not.
+  @content_limit 64_000
+
+  @doc "The identity files a steward may write."
+  @spec files() :: [String.t()]
+  def files, do: @files
+
+  @doc "Whether the resident has had first contact; before it the files are given, after it proposed."
+  @spec first_contact?(t()) :: boolean()
+  def first_contact?(%__MODULE__{first_contact: fc}), do: fc != nil
+
+  @type t :: %__MODULE__{}
 
   # ---- execute ----
 
@@ -102,6 +124,74 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def execute(%__MODULE__{}, %Commands.SetExportWall{}), do: {:error, :wall_is_locked_or_revealed}
+
+  # Before first contact the files are given: a steward writes a seed
+  # with its origin, and a resident may too. After it a steward's write
+  # is a proposal (spec §6.2); the resident's own edit applies.
+  def execute(%__MODULE__{} = r, %Commands.WriteFile{} = c) do
+    cond do
+      c.file not in @files -> {:error, :file_unknown}
+      not content_ok?(c.content) -> {:error, :content_invalid}
+      Map.get(r.files, c.file) == c.content -> []
+      first_contact?(r) and actor_kind(c.actor) != "resident" -> {:error, :propose_instead}
+      first_contact?(r) -> soul_edit_applied(c, nil)
+      c.origin not in @origins -> {:error, :origin_invalid}
+      true -> seed_file_written(c)
+    end
+  end
+
+  # Once: the second captured turn is not a second first contact.
+  def execute(%__MODULE__{first_contact: nil}, %Commands.RecordFirstContact{} = c),
+    do: %Events.FirstContact{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      session_key: c.session_key,
+      turn_ref: c.turn_ref
+    }
+
+  def execute(%__MODULE__{}, %Commands.RecordFirstContact{}), do: []
+
+  def execute(%__MODULE__{} = r, %Commands.ProposeSoulEdit{} = c) do
+    cond do
+      not first_contact?(r) -> {:error, :write_instead}
+      c.file not in @files -> {:error, :file_unknown}
+      not content_ok?(c.content) -> {:error, :content_invalid}
+      Map.has_key?(r.proposals, c.ref) -> []
+      true -> soul_edit_proposed(c)
+    end
+  end
+
+  # Accepting applies in the same dispatch: two events, one decision.
+  def execute(%__MODULE__{proposals: proposals}, %Commands.AcceptSoulEdit{} = c) do
+    case Map.get(proposals, c.ref) do
+      %{state: :open, file: file, content: content} ->
+        [
+          %Events.SoulEditAccepted{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref},
+          %Events.SoulEditApplied{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            ref: c.ref,
+            file: file,
+            content: content
+          }
+        ]
+
+      _other ->
+        {:error, :no_such_proposal}
+    end
+  end
+
+  def execute(%__MODULE__{proposals: proposals}, %Commands.DeclineSoulEdit{} = c) do
+    case Map.get(proposals, c.ref) do
+      %{state: :open} ->
+        %Events.SoulEditDeclined{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref}
+
+      _other ->
+        {:error, :no_such_proposal}
+    end
+  end
 
   def execute(%__MODULE__{}, %Commands.RecordExport{} = c),
     do: %Events.ExportWritten{
@@ -180,6 +270,69 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.BackupCommitted{} = e),
     do: %{r | last_backup: %{sequence: e.sequence, root: e.root, commit: e.commit}}
 
+  def apply(%__MODULE__{} = r, %Events.SeedFileWritten{} = e),
+    do: %{r | files: Map.put(r.files, e.file, e.content)}
+
+  def apply(%__MODULE__{} = r, %Events.FirstContact{} = e), do: %{r | first_contact: e.at}
+
+  def apply(%__MODULE__{} = r, %Events.SoulEditProposed{} = e) do
+    proposal = %{state: :open, file: e.file, content: e.content}
+    %{r | proposals: Map.put(r.proposals, e.ref, proposal)}
+  end
+
+  def apply(%__MODULE__{} = r, %Events.SoulEditAccepted{} = e),
+    do: put_in(r.proposals[e.ref].state, :accepted)
+
+  def apply(%__MODULE__{} = r, %Events.SoulEditDeclined{} = e),
+    do: put_in(r.proposals[e.ref].state, :declined)
+
+  def apply(%__MODULE__{} = r, %Events.SoulEditApplied{} = e),
+    do: %{r | files: Map.put(r.files, e.file, e.content)}
+
   def apply(%__MODULE__{} = r, %Events.RootMismatchDetected{}), do: r
   def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}
+
+  # ---- helpers ----
+
+  defp seed_file_written(c) do
+    %Events.SeedFileWritten{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      file: c.file,
+      content: c.content,
+      origin: c.origin,
+      model: c.model,
+      prompt: c.prompt
+    }
+  end
+
+  defp soul_edit_applied(c, ref) do
+    %Events.SoulEditApplied{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      ref: ref,
+      file: c.file,
+      content: c.content
+    }
+  end
+
+  defp soul_edit_proposed(c) do
+    %Events.SoulEditProposed{
+      actor: c.actor,
+      at: c.at,
+      note: c.note,
+      id: c.id,
+      ref: c.ref,
+      file: c.file,
+      content: c.content
+    }
+  end
+
+  defp content_ok?(content),
+    do: is_binary(content) and String.valid?(content) and byte_size(content) <= @content_limit
+
+  defp actor_kind(%{kind: kind}), do: to_string(kind)
+  defp actor_kind(_other), do: nil
 end

@@ -24,3 +24,28 @@ Spec §6.2 and §6.10: an import is always a new resident, never a fork;
 the fixture test imports into a store that still holds the source. The
 suffix is derived from the log alone so a re-projection lands on the
 same slug.
+
+## #11
+Spec §6.2: "Every seed file is a `SeedFileWritten` event carrying its
+origin (authored, drafted with the model and prompt, uploaded), so the
+resident can read its own becoming." Whole content rather than a diff
+because the export writes the file as last written and a rebuild should
+not have to apply patches to get there.
+
+## #12
+Spec §6.2: "Before first contact the files are given; after it they are
+proposed", because "a resident whose person is editable at will is a
+character sheet." Recording it from the turn rather than the capture
+keeps the resident system from reading memory's stream; the aggregate
+taking it once is what makes the brain's every-turn call harmless.
+
+## #13
+A rendered file cannot drift from its template, and an event that
+carried `AGENTS.md` would freeze a build artefact into a resident's
+history.
+
+## #14
+Spec §6.10: the soul "alone" in its own commit; the identity files are
+one self, given and proposed together, and a stray file fails the
+backup run (sima-qian #7), so they needed a class.
+

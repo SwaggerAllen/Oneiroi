@@ -51,8 +51,8 @@ check, the two nightly workers on the `sima_qian_nightly` queue, and the
   trailer names it and a wake recomputes it.
 - **#7 Backups commit by class, and a stray file fails the run after the
   rest has landed.** The soul alone, writing and research apart, machine
-  state together (David's rule); in P0 the only class with files is the
-  machine one. A path outside every class fails the run with
+  state together (David's rule); the identity files ride with the soul
+  (agathos-daimon #14), and the export writes them at the root. A path outside every class fails the run with
   `sima_qian_stray_files` naming it, after the export is committed and
   pushed, so the backup is taken and the stray is loud.
 - **#8 The git port is one module calling the `git` binary, with two

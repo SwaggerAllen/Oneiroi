@@ -63,4 +63,20 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   defmodule RemoveTagging do
     use Oneiroi.Command, fields: [:id, :slug, :target_kind, :target_id]
   end
+
+  defmodule DefineBehaviour do
+    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance]
+  end
+
+  defmodule ChangeBehaviour do
+    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance]
+  end
+
+  defmodule AffirmBehaviour do
+    use Oneiroi.Command, decision: true, fields: [:id, :number]
+  end
+
+  defmodule EnactBehaviour do
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
+  end
 end

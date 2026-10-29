@@ -72,8 +72,23 @@ defmodule Oneiroi.SimaQian.Export do
       end)
 
     File.write!(Path.join(root, "README.md"), readme())
+    identity = identity_files(resident_id, dir)
     through = events |> List.last() |> then(&if(&1, do: &1.stream_version, else: 0))
-    {:ok, %{through: through, files: ["records/README.md" | files]}}
+    {:ok, %{through: through, files: identity ++ ["records/README.md" | files]}}
+  end
+
+  # The identity files (spec §6.2) at the repository root, as last
+  # written, so the repository reads as the resident's and a rebuild
+  # from `records/events/` reproduces them from their events. The name
+  # is one of the aggregate's closed list (`Resident.files/0`), never a
+  # request value, which is why the traversal finding is skipped here as
+  # on `write/2`.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp identity_files(resident_id, dir) do
+    for f <- Oneiroi.AgathosDaimon.files(resident_id) do
+      File.write!(Path.join(dir, f.name), f.content)
+      f.name
+    end
   end
 
   @doc "One export line for a recorded event, at `ordinal` among the exported lines."

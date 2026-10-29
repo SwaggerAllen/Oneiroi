@@ -7,6 +7,7 @@ paths:
   - priv/prompts/budget_stop.md
   - priv/prompts/memory_flush.md
   - priv/prompts/compaction.md
+  - priv/prompts/draft.md
   - test/oneiroi/brain/**
   - test/oneiroi_web/channels/**
 ---
@@ -30,9 +31,11 @@ and the session channel.
 ## #2 Standing decisions
 
 - **#3 A turn is compact if due, assemble, call, run the tools, stream, capture (spec §5).** The
-  context is the prompt file with the resident's name, the bookmark
-  index under its budget (kumbukumbu #20), the compaction summary when
-  there is one, and the session's last messages since its compaction
+  context is the prompt file with the resident's name, the identity
+  files as the stable prefix (#12), the bookmark index under its budget
+  (kumbukumbu #20), how I act when the situation matches a behaviour
+  (#13), the compaction summary when there is one, and the session's
+  last messages since its compaction
   (`BRAIN_TRANSCRIPT_MESSAGES`, a bound), each recorded as an injection
   with its reason and a token count estimated at four bytes a token; the
   identity files and the behaviours join it as the slices that build
@@ -59,14 +62,18 @@ and the session channel.
   (`ModelPinChanged`, spec §6.4) replaces; its default was chosen for
   being cheap and widely served, not measured.
 - **#10 The tools are the resident's memory functions and never a steward operation.** `Oneiroi.Brain.Tools` offers `bookmark_add`, `bookmark_extend`, `bookmark_open`, `bookmark_accept`, `bookmark_decline`, `tag_list`, `tag_propose`, `tag_apply` and `transcript_search` (spec §8's memory table, the part built so far), run against the core's exports under the resident's actor, so the role checks of kumbukumbu #21 hold for a tool call as for a route. A round is one streamed call; tool calls go back as `tool` messages for the next round, up to `BRAIN_TOOL_ROUNDS` (a bound), after which the model's last words stand. Every call the model made is captured in the turn as a `tool` message naming the call and its answer, so the transcript is full (spec §6.3). A tool the model misuses answers in words rather than failing the turn.
+- **#12 The identity files are the stable prefix, and first contact is the turn's to record.** `SOUL.md`, `IDENTITY.md`, `USER.md`, `GOALS.md`, `LINKS.md` as written, then the rendered `AGENTS.md`, each a system message and a recorded injection labelled by name, in a fixed order so the cached prefix holds until a file changes (spec §5). The prompt carries the formation line while `formation_until` is ahead of the clock (agathos-daimon #12). After every capture the turn records first contact; the aggregate takes it once. The soul-edit tools (`soul_edit`, `soul_edit_list`, `soul_edit_accept`, `soul_edit_decline`) are the resident's side of the proposal path.
+- **#13 The behaviours are retrieved by memory and shown, never enforced.** The situation is the steward's words, the conversation's tags and the clock; a match injects memory's "how I act" section as `behaviours` with the numbers as refs (kumbukumbu #25). `behaviour_define`, `behaviour_enact` (on the turn in flight) and `behaviour_list` are the resident's; the brain self-tags at turn time, which is cheap and in character.
+- **#14 Drafting lives here.** "Write it with me" (spec §6.2) is a call under the `drafting` purpose from `priv/prompts/draft.md` with the files written so far; it returns the content with its model and prompt and writes nothing, so the seed the steward saves names where it came from. It is the brain's because the ledger reaches the resident system for the key, and a system cannot depend on one that depends on it.
 - **#11 Compaction opens the turn that finds the session over the line, with a memory flush first.** When the messages since the last compaction reach `BRAIN_COMPACT_AFTER_MESSAGES` (80, twice the live window, a guess), the turn opens by giving the resident those messages and its tools under `memory_flush.md`, then asks for a summary under `compaction.md` folding in the previous one, and records `Compacted` with the watermark (kumbukumbu #23). Both calls are chat on the ledger. If either fails the turn goes on uncompacted and the next one tries again. Compaction never deletes a message.
 
 ## #8 Initial vs target
 
-Initial (P1, slices 2 and 3): #1, over the main session, with the memory
-tools, the index and compaction. Target: free-time sessions on their own
-budget line, sessions opened by wake, the rest of the MCP tool table by
-role, the identity files and the behaviours in the context (spec §5).
+Initial (P1, slices 2 to 4): #1, over the main session, with the memory
+and soul tools, the identity files, the index, the behaviours and
+compaction in the context, and drafting. Target: free-time sessions on
+their own budget line, sessions opened by wake, the rest of the MCP tool
+table by role, the pinned chat model (spec §5).
 
 ## #9 Depends on
 

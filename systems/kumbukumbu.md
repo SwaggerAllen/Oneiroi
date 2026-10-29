@@ -20,10 +20,10 @@ The memory subsystem is named for what it does rather than what it stores: it re
 
 Transcripts, bookmarks, tags, search, weighting, the memory agent's
 record. Spec §6.3. Transcripts (P1, slice 2), then bookmarks, tags,
-taggings, the index and compaction (slice 3) are built; weighting,
-revision and the behaviours are this doc's file map and the standing
-decisions the spec records, so a pass reaching for them finds a record
-rather than a gap.
+taggings, the index and compaction (slice 3), then the behaviours
+(slice 4, #13) are built; weighting and revision are this doc's file map
+and the standing decisions the spec records, so a pass reaching for
+them finds a record rather than a gap.
 
 ## #1 Owns
 
@@ -67,6 +67,8 @@ Carried from spec §6.3; the reason for each is there.
 - **#20 The index is pins first and at most half the budget, then the rest by weight and recency, and it says how many it left out.** Built pure from the bookmark rows under `KUMBUKUMBU_INDEX_TOKENS` (1,500, the plan's guess), one line a bookmark: number, day, pin, tags, the resident's line. The injection carries the verbatim text, which is seen only in the turn's inspector (spec §5), and the numbers it listed, from which each row's `last_indexed_at` is derived. Every weight is 1.0 until weighting (F11) is measured, so the rest order by recency.
 - **#21 A bookmark's words are the resident's; the tag set is the steward's; pins and taggings are either's.** Held at the command edge by the actor's kind: only the resident's actor adds, extends or declines; only the steward's creates, approves, rejects or retires a tag; a tag is a slug of at most 40 characters, a bookmark's line at most 120, and a tagging targets a bookmark by number, a conversation by key or a turn by ref, each checked to exist. The steward's proposal (`BookmarkProposed`, with a note) becomes a bookmark only when the resident writes one naming it, and the bookmark records who proposed.
 - **#22 The span is turns, not instants, and the anchor may be the turn in flight.** `turns_back` counts captured turns back from the anchor, so a span never cuts a turn in half; the brain bookmarks mid-turn with the turn's ref and start instant, and the span resolves once the turn is captured at its end.
+- **#24 A behaviour is a row the resident owns, with a trigger from a closed set and a stance, and its scores are computed on read.** `BehaviourDefined`, `BehaviourChanged` (revision adds; the old words stay in the log), `BehaviourAffirmed` (the steward's, with a note) and `BehaviourEnacted` (the resident's, on a turn or a bookmark, a set) on the memory stream; the number is the resident's sequence. A trigger is a map of `words` (the steward's), `tags` (on the conversation) and `times` (morning, afternoon, evening, night, UTC until the resident has a timezone), at least one; the resident proposes additions to that set and they are a code change. The steward defines only before first contact, as it gives every seed. Habit strength is the decayed sum of enactments; connection strength is pins on enacting bookmarks undecayed, plus affirmations and enacting bookmarks decayed; both under `KUMBUKUMBU_HALF_LIFE_DAYS` (30, the plan's guess), computed on read, the nightly recomputation being the judgement phase's.
+- **#25 How I act is retrieved by memory and chosen by the brain.** `how_i_act/2` matches the situation against every trigger with no model call and returns a section per match: the behaviour, its trigger, its two scores, who affirmed it last, and up to `KUMBUKUMBU_EXEMPLARS` (2) enacting turns quoted in the resident's own words, which is the carry-over mechanism for a new model. The brain injects it as `behaviours` with the numbers as refs, and nothing says whether to enact.
 - **#23 Compaction is a summary on the session with the store sequence it covers, and the live transcript is what follows.** `Compacted` is the conversation stream's; the session row holds the latest summary and watermark; the brain's live window reads messages after the watermark in one statement, joined on it, because the capture-cost test budgets that read. Nothing is deleted: the transcript, search and the spans read every message.
 
 ## #8 Initial vs target
@@ -90,5 +92,5 @@ Greek, EE-thos.
 
 Ethos is character, and Aristotle hears habit inside it: the two words differ by one vowel, and he takes that as the lesson. Character is not stated; it is what repeated action leaves behind.
 
-The behaviours part (spec §6.3, F55; #10 and #11 above): how a resident tends to act, kept as rows with their triggers and the turns that enacted them, is named for the word that already says the design. A behaviour is a habit that has become character, and what carries over to a new model is the habit, not the description of it.
+The behaviours part (spec §6.3, F55; #10, #11, #24 and #25): how a resident tends to act, kept as rows with their triggers and the turns that enacted them, is named for the word that already says the design. A behaviour is a habit that has become character, and what carries over to a new model is the habit, not the description of it. Built in P1 slice 4 (`Oneiroi.Kumbukumbu.Ethos`): the rows, the two scores, the matching and the brain's three tools; the nightly proposals of enactments wait on the memory pass (P2).
 

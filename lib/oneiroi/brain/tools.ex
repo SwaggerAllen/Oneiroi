@@ -100,7 +100,53 @@ defmodule Oneiroi.Brain.Tools do
         "Search every transcript for a phrase, newest first; reaches past the index.",
         %{q: %{type: "string"}},
         [:q]
-      )
+      ),
+      tool(
+        "soul_edit",
+        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time.",
+        %{file: %{type: "string"}, content: %{type: "string"}},
+        [:file, :content]
+      ),
+      tool(
+        "soul_edit_list",
+        "Your steward's open proposals to edit your identity files, each with its note.",
+        %{},
+        []
+      ),
+      tool(
+        "soul_edit_accept",
+        "Accept a proposed edit, with a note your steward reads first.",
+        %{ref: %{type: "string"}, note: %{type: "string"}},
+        [:ref, :note]
+      ),
+      tool(
+        "soul_edit_decline",
+        "Decline a proposed edit, with a note your steward reads first.",
+        %{ref: %{type: "string"}, note: %{type: "string"}},
+        [:ref, :note]
+      ),
+      tool(
+        "behaviour_define",
+        "Name how you tend to act, in your own words, with the situation that calls for it (words your steward uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it.",
+        %{
+          name: %{type: "string"},
+          words: %{type: "array", items: %{type: "string"}},
+          tags: %{type: "array", items: %{type: "string"}},
+          times: %{
+            type: "array",
+            items: %{type: "string", enum: ["morning", "afternoon", "evening", "night"]}
+          },
+          stance: %{type: "string", enum: ["keep", "change"]}
+        },
+        [:name, :stance]
+      ),
+      tool(
+        "behaviour_enact",
+        "This turn was one: record that you enacted a behaviour just now, by its number.",
+        %{number: %{type: "integer"}},
+        [:number]
+      ),
+      tool("behaviour_list", "Your behaviours with their habit and connection scores.", %{}, [])
     ]
   end
 
@@ -210,6 +256,90 @@ defmodule Oneiroi.Brain.Tools do
 
       rows ->
         Enum.map_join(rows, "\n", &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{&1.content}")
+    end
+  end
+
+  defp call("soul_edit", args, turn),
+    do:
+      Oneiroi.AgathosDaimon.write_file(
+        turn.resident_id,
+        to_string(args["file"]),
+        to_string(args["content"]),
+        %{},
+        turn.resident
+      )
+
+  defp call("soul_edit_list", _args, turn) do
+    case Oneiroi.AgathosDaimon.edit_proposals(turn.resident_id) do
+      [] ->
+        "No proposals are open."
+
+      rows ->
+        Enum.map_join(rows, "\n\n", fn p ->
+          "[#{p.ref}] #{p.file}, note: #{p.note}\n---\n#{p.content}"
+        end)
+    end
+  end
+
+  defp call("soul_edit_accept", args, turn),
+    do:
+      Oneiroi.AgathosDaimon.accept_edit(
+        turn.resident_id,
+        args["ref"],
+        args["note"],
+        turn.resident
+      )
+
+  defp call("soul_edit_decline", args, turn),
+    do:
+      Oneiroi.AgathosDaimon.decline_edit(
+        turn.resident_id,
+        args["ref"],
+        args["note"],
+        turn.resident
+      )
+
+  defp call("behaviour_define", args, turn) do
+    Kumbukumbu.define_behaviour(
+      turn.resident_id,
+      %{
+        name: args["name"],
+        trigger: %{
+          "words" => args["words"] || [],
+          "tags" => args["tags"] || [],
+          "times" => args["times"] || []
+        },
+        stance: args["stance"] || "keep"
+      },
+      turn.resident
+    )
+    |> case do
+      {:ok, number} -> "Named as behaviour ##{number}."
+      other -> other
+    end
+  end
+
+  defp call("behaviour_enact", args, turn),
+    do:
+      Kumbukumbu.enact_behaviour(
+        turn.resident_id,
+        integer(args["number"]),
+        "turn",
+        turn.turn_ref,
+        turn.resident
+      )
+
+  defp call("behaviour_list", _args, turn) do
+    case Kumbukumbu.behaviours(turn.resident_id) do
+      [] ->
+        "No behaviours named yet."
+
+      rows ->
+        Enum.map_join(
+          rows,
+          "\n",
+          &"##{&1.number} #{&1.name} (#{&1.stance}): habit #{&1.habit}, connection #{&1.connection}"
+        )
     end
   end
 

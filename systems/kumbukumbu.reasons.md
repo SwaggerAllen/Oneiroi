@@ -61,6 +61,22 @@ rather than a second read: the capture-cost test (conversations_test)
 budgets `recent/3` at four statements, and a constant extra read would
 spend that budget on nothing that grows.
 
+## #24
+Spec §6.3, F55: "a behaviour is self-description, and the resident's
+words are never editable by the steward"; "two scores, never one",
+because "a behaviour with high habit and low connection is a tic". The
+closed trigger set is the spec's: "a trigger the assembler cannot match
+is a behaviour never retrieved", so an open set would be a list of
+things nothing ever matches. On read rather than nightly: the volumes of
+P1 make the sum cheap, and the nightly job belongs to the pass that
+also proposes enactments.
+
+## #25
+Spec §6.3: "Retrieval is memory's and choice is the brain's", with
+"one or two enacting turns cited by id" because "for a new model they
+are the resident's own voice doing the thing, which is stronger than any
+description of it."
+
 ## #10
 Identity files carry what the resident says it is and memory what happened; the habit between them is what evaporates when the chat model changes. Two scores because pins are decisions and weights are measurements, and blending them hides a tic behind a value.
 
