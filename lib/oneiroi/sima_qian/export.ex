@@ -85,10 +85,18 @@ defmodule Oneiroi.SimaQian.Export do
   # on `write/2`.
   # sobelow_skip ["Traversal.FileModule"]
   defp identity_files(resident_id, dir) do
-    for f <- Oneiroi.AgathosDaimon.files(resident_id) do
-      File.write!(Path.join(dir, f.name), f.content)
-      f.name
-    end
+    written =
+      for f <- Oneiroi.AgathosDaimon.files(resident_id) do
+        File.write!(Path.join(dir, f.name), f.content)
+        f.name
+      end
+
+    # The build-owned Honcho instructions ride with the soul class
+    # (`honcho/`), rendered on every export so a template change lands.
+    File.mkdir_p!(Path.join(dir, "honcho"))
+    path = Path.join("honcho", "custom-instructions.md")
+    File.write!(Path.join(dir, path), Oneiroi.AgathosDaimon.custom_instructions(resident_id))
+    written ++ [path]
   end
 
   @doc "One export line for a recorded event, at `ordinal` among the exported lines."

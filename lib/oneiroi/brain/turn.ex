@@ -192,6 +192,9 @@ defmodule Oneiroi.Brain.Turn do
       # so and only the first is recorded.
       :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
       if turn.notices != [], do: :ok = Oneiroi.AgathosDaimon.model_told(resident_id, resident)
+      # The bridge records its own failure (proteus #13); the turn is
+      # captured already and goes on.
+      Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
       {:ok, captured}
     end
@@ -258,6 +261,11 @@ defmodule Oneiroi.Brain.Turn do
           "dates",
           Oneiroi.Sunna.dates_text(turn.resident_id),
           "the important dates with each countdown derived on this read (spec §6.7, F56): a figure never written down"
+        ) ++
+        section(
+          "honcho",
+          Oneiroi.Proteus.context(turn.resident_id),
+          "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"
         ) ++
         section(
           "summary",

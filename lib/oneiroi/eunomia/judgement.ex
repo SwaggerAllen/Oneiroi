@@ -16,6 +16,8 @@ defmodule Oneiroi.Eunomia.Judgement do
     disputes: %{},
     predictions: %{},
     nights: MapSet.new(),
+    audits: MapSet.new(),
+    flags: %{},
     judge_model: nil
   ]
 
@@ -217,6 +219,67 @@ defmodule Oneiroi.Eunomia.Judgement do
     end
   end
 
+  # ---- the weekly memory audit ----
+
+  def execute(%__MODULE__{audits: audits}, %Commands.RunAudit{} = c) do
+    if MapSet.member?(audits, c.ref),
+      do: [],
+      else: %Events.AuditRun{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        ref: c.ref,
+        conclusions: c.conclusions,
+        flagged: c.flagged,
+        judge_model: c.judge_model,
+        summary: c.summary
+      }
+  end
+
+  def execute(%__MODULE__{}, %Commands.FailAudit{} = c),
+    do: %Events.AuditFailed{actor: c.actor, at: c.at, id: c.id, ref: c.ref, reason: c.reason}
+
+  def execute(%__MODULE__{flags: flags}, %Commands.RaiseAuditFlag{} = c) do
+    if Map.has_key?(flags, c.ref),
+      do: [],
+      else: %Events.AuditFlagRaised{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        ref: c.ref,
+        audit_ref: c.audit_ref,
+        conclusion_id: c.conclusion_id,
+        conclusion: c.conclusion,
+        reason: c.reason
+      }
+  end
+
+  def execute(%__MODULE__{flags: flags}, %Commands.ApproveAuditFlag{} = c) do
+    case Map.get(flags, c.ref) do
+      nil ->
+        {:error, :no_such_flag}
+
+      %{decided: true} ->
+        []
+
+      _open ->
+        %Events.AuditFlagApproved{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref}
+    end
+  end
+
+  def execute(%__MODULE__{flags: flags}, %Commands.DeleteAuditFlag{} = c) do
+    case Map.get(flags, c.ref) do
+      nil ->
+        {:error, :no_such_flag}
+
+      %{decided: true} ->
+        []
+
+      _open ->
+        %Events.AuditFlagDeleted{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref}
+    end
+  end
+
   # ---- the judge ----
 
   def execute(%__MODULE__{judge_model: current}, %Commands.SetJudgeModel{} = c) do
@@ -265,6 +328,20 @@ defmodule Oneiroi.Eunomia.Judgement do
 
   def apply(%__MODULE__{} = s, %Events.PredictionResolved{} = e),
     do: put_in(s.predictions[e.number].resolved, true)
+
+  def apply(%__MODULE__{} = s, %Events.AuditRun{} = e),
+    do: %{s | id: e.id, audits: MapSet.put(s.audits, e.ref)}
+
+  def apply(%__MODULE__{} = s, %Events.AuditFailed{}), do: s
+
+  def apply(%__MODULE__{} = s, %Events.AuditFlagRaised{} = e),
+    do: %{s | flags: Map.put(s.flags, e.ref, %{decided: false})}
+
+  def apply(%__MODULE__{} = s, %Events.AuditFlagApproved{} = e),
+    do: put_in(s.flags[e.ref].decided, true)
+
+  def apply(%__MODULE__{} = s, %Events.AuditFlagDeleted{} = e),
+    do: put_in(s.flags[e.ref].decided, true)
 
   def apply(%__MODULE__{} = s, %Events.JudgeModelChanged{} = e),
     do: %{s | id: e.id, judge_model: e.model}

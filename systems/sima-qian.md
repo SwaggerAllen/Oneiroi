@@ -70,6 +70,7 @@ check, the two nightly workers on the `sima_qian_nightly` queue, and the
   recomputes the root over the working export and raises
   `RootMismatchDetected` with both roots and the commit; the steward
   sees it on the stream.
+- **#13 The Honcho instructions ride in the soul class, and a soul commit sets the card.** The export renders `honcho/custom-instructions.md` beside the identity files on every run (agathos-daimon #19), so the soul class commits it with the soul and the first backup of any resident makes a soul commit; after a run that committed the soul class the backup calls `Oneiroi.Proteus.set_card/3` with source `commit` (proteus #14), and a bridge not yet provisioned or a Honcho that is down is the bridge's to record, never the backup's to fail on.
 
 ## #11 Initial vs target
 

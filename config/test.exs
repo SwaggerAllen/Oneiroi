@@ -38,6 +38,8 @@ config :oneiroi,
           # so a script can tell the judge's call from the resident's; the
           # live-check bound is short so a timed-out check is a quick test.
           "EUNOMIA_JUDGE_MODEL" => "fake/judge",
+          # The in-memory Honcho (conventions §9).
+          "PROTEUS_CLIENT" => "fake",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}

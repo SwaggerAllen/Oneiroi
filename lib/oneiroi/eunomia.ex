@@ -29,6 +29,7 @@ defmodule Oneiroi.Eunomia do
       Oneiroi.AgathosDaimon,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
+      Oneiroi.Proteus,
       Commanded,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
@@ -53,6 +54,20 @@ defmodule Oneiroi.Eunomia do
       Judge,
       JudgementRouter,
       NightWorker,
+      MemoryAudit,
+      AuditWorker,
+      JudgementCommands.RunAudit,
+      JudgementCommands.FailAudit,
+      JudgementCommands.RaiseAuditFlag,
+      JudgementCommands.ApproveAuditFlag,
+      JudgementCommands.DeleteAuditFlag,
+      Events.Judgement.AuditRun,
+      Events.Judgement.AuditFailed,
+      Events.Judgement.AuditFlagRaised,
+      Events.Judgement.AuditFlagApproved,
+      Events.Judgement.AuditFlagDeleted,
+      Store.Audit,
+      Store.AuditFlag,
       JudgementCommands.TakePosition,
       JudgementCommands.ReplacePosition,
       JudgementCommands.CheckDispute,
@@ -97,6 +112,7 @@ defmodule Oneiroi.Eunomia do
     ]
 
   alias Oneiroi.Eunomia.Judgements
+  alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
 
   @impl Oneiroi.Component
@@ -143,13 +159,23 @@ defmodule Oneiroi.Eunomia do
        default: "4000",
        tag: :bound,
        usage:
-         "how many characters of one message the nightly pass reads (spec §6.4, carried from David)"}
+         "how many characters of one message the nightly pass reads (spec §6.4, carried from David)"},
+      {:audit_conclusions, "EUNOMIA_AUDIT_CONCLUSIONS",
+       cast: :integer,
+       default: "150",
+       tag: :bound,
+       usage:
+         "how many of Honcho's conclusions the weekly memory audit reads (spec §6.4, carried from David)"}
     ]
   end
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:eunomia_nightly, cron: [{"0 2 * * *", Oneiroi.Eunomia.NightWorker}]}]
+    [
+      {:eunomia_nightly, cron: [{"0 2 * * *", Oneiroi.Eunomia.NightWorker}]},
+      # After the card audit (03:00 Sunday, proteus): weekly, card then memory (spec §6.7).
+      {:eunomia_weekly, cron: [{"0 4 * * 0", Oneiroi.Eunomia.AuditWorker}]}
+    ]
   end
 
   @impl Oneiroi.Component
@@ -170,7 +196,12 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.Judgement.NightFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionLogged, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionResolved, 1},
-      {Oneiroi.Eunomia.Events.Judgement.JudgeModelChanged, 1}
+      {Oneiroi.Eunomia.Events.Judgement.JudgeModelChanged, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditRun, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditFailed, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditFlagRaised, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditFlagApproved, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditFlagDeleted, 1}
     ]
   end
 
@@ -219,7 +250,13 @@ defmodule Oneiroi.Eunomia do
        remedy: "give a day from yesterday back to the bound"},
       {:eunomia_night_failed,
        "the judge's reply named a message it was not shown, so the night failed rather than be guessed at",
-       remedy: "run the night again"}
+       remedy: "run the night again"},
+      {:eunomia_audit_failed,
+       "the judge's reply flagged a conclusion it was not shown, so the audit failed rather than be guessed at",
+       remedy: "run the audit again"},
+      {:eunomia_no_such_flag, "no audit flag has that ref", remedy: "read the audits"},
+      {:eunomia_flag_decided, "that flag was already approved or deleted",
+       remedy: "read the audits"}
     ]
   end
 
@@ -359,4 +396,26 @@ defmodule Oneiroi.Eunomia do
   @doc "The nights, newest first."
   @spec nights(String.t()) :: [Oneiroi.Eunomia.Store.Night.t()]
   defexport(nights(resident_id), do: Judgements.nights(resident_id))
+
+  @doc "Runs the weekly memory audit now: the judge over Honcho's conclusions; what the weekly job does for each resident."
+  @spec run_audit(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(run_audit(resident_id, actor), do: MemoryAudit.run(resident_id, actor))
+
+  @doc "The steward approves a flag: the conclusion is deleted from Honcho; with a note."
+  @spec approve_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(approve_flag(resident_id, ref, note, actor),
+    do: MemoryAudit.approve(resident_id, ref, note, actor)
+  )
+
+  @doc "The steward deletes a flag: the conclusion stays; with a note."
+  @spec delete_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(delete_flag(resident_id, ref, note, actor),
+    do: MemoryAudit.delete(resident_id, ref, note, actor)
+  )
+
+  @doc "The audit runs and the flags, open first."
+  @spec audits(String.t()) :: map()
+  defexport(audits(resident_id), do: MemoryAudit.audits(resident_id))
 end

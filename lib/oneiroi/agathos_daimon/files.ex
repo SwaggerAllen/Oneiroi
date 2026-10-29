@@ -21,6 +21,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
 
+  @instructions_template "templates/honcho-custom-instructions.md"
   @agents_template "templates/AGENTS.md"
 
   @doc "Writes a file: a seed with `origin` (and `model`, `prompt` when drafted) before first contact, the resident's edit after."
@@ -128,6 +129,24 @@ defmodule Oneiroi.AgathosDaimon.Files do
 
         ordered ++ [{"AGENTS.md", agents_md(row)}]
     end
+  end
+
+  @doc """
+  The build-owned `honcho/custom-instructions.md` for a resident, from
+  `priv/templates/honcho-custom-instructions.md` with the name and the
+  two peer names filled in: rendered rather than stored, like `AGENTS.md`.
+  """
+  @spec custom_instructions(map()) :: String.t()
+  # The template is a file this repository ships, named by code.
+  # sobelow_skip ["Traversal.FileModule"]
+  def custom_instructions(%{id: id, name: name, account_id: account_id}) do
+    :oneiroi
+    |> :code.priv_dir()
+    |> Path.join(@instructions_template)
+    |> File.read!()
+    |> String.replace("{{name}}", name)
+    |> String.replace("{{resident_peer}}", "resident-" <> id)
+    |> String.replace("{{steward_peer}}", "steward-" <> account_id)
   end
 
   @doc "One file's row, or the rendered `AGENTS.md`."

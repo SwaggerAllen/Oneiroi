@@ -6,7 +6,16 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
 
   alias Ecto.Multi
   alias Oneiroi.Eunomia.Events.Judgement, as: Events
-  alias Oneiroi.Eunomia.Store.{Dispute, JudgeChange, Night, Position, Prediction}
+
+  alias Oneiroi.Eunomia.Store.{
+    Audit,
+    AuditFlag,
+    Dispute,
+    JudgeChange,
+    Night,
+    Position,
+    Prediction
+  }
 
   fold(%Events.PositionTaken{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -126,6 +135,65 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   fold(%Events.PredictionResolved{} = e, _metadata, fn multi ->
     Multi.update_all(multi, :resolved, from(p in Prediction, where: p.number == ^e.number),
       set: [outcome: e.outcome, note: e.note, resolved_at: e.at]
+    )
+  end)
+
+  fold(%Events.AuditRun{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :audit,
+      %Audit{
+        resident_id: e.id,
+        ref: e.ref,
+        outcome: "run",
+        conclusions: e.conclusions,
+        flagged: e.flagged,
+        judge_model: e.judge_model,
+        summary: e.summary,
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.AuditFailed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :audit,
+      %Audit{resident_id: e.id, ref: e.ref, outcome: "failed", reason: e.reason, at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.AuditFlagRaised{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :flag,
+      %AuditFlag{
+        resident_id: e.id,
+        ref: e.ref,
+        audit_ref: e.audit_ref,
+        conclusion_id: e.conclusion_id,
+        conclusion: e.conclusion,
+        reason: e.reason,
+        raised_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.AuditFlagApproved{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :flag, from(f in AuditFlag, where: f.ref == ^e.ref),
+      set: [decision: "approved", note: e.note, decided_at: e.at]
+    )
+  end)
+
+  fold(%Events.AuditFlagDeleted{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :flag, from(f in AuditFlag, where: f.ref == ^e.ref),
+      set: [decision: "deleted", note: e.note, decided_at: e.at]
     )
   end)
 

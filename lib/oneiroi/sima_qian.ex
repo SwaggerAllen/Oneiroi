@@ -23,6 +23,7 @@ defmodule Oneiroi.SimaQian do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Proteus,
       Commanded,
       Ecto,
       Ecto.Query,

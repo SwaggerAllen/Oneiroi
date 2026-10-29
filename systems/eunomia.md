@@ -24,8 +24,8 @@ Positions, disputes, predictions, the nightly pass, the weekly audit,
 project reviews, the regression suite. Spec §6.4. Regression is built
 (P1, slice 5) and judgement proper (P2, slice 2): positions and their
 chains, disputes live and nightly, predictions, the nightly pass, the
-judge. The weekly audit is the Honcho bridge's and project reviews wait
-on hands. The directory is the system's name (CLAUDE.md's layout rule),
+judge, and the weekly memory audit through the Honcho bridge. Project
+reviews wait on hands. The directory is the system's name (CLAUDE.md's layout rule),
 where the spec's file map said `judgement/` and `regression/`.
 
 ## #1 Owns
@@ -69,22 +69,24 @@ Carried from spec §6.4; the reason for each is there.
 - **#19 The nightly job is a cross-tenant job under the platform scope, named here.** `NightWorker` at 02:00 UTC judges yesterday in each resident's zone for every active resident, the roster read through the resident system's own platform-scoped export (agathos-daimon #18), never this system's process scope (sunna #11's lesson).
 - **#20 The judge is chosen by the steward, defaults to the platform's, and is never the resident's chat model: pinned or defaulted.** `EUNOMIA_JUDGE_MODEL` is the platform's judge (a placeholder the author pins to a dated slug, not measured); `set_judge_model/3` refuses the resident's effective chat model, which is its pin or else the brain's setting read by slug; and if the chat model is later pinned onto the judge, `judge_model/1` falls back to the platform's. Every change is `JudgeModelChanged` and a row the ratio chart reads.
 - **#21 Predictions are the resident's to log and the steward's alone to resolve.** `prediction_log` with a due instant; `resolve_prediction/5` right, wrong or void with a note, once; the read is open soonest first, then resolved, with the tally (F17).
+- **#22 The weekly memory audit is the judge over Honcho's conclusions, and a flag waits on the steward.** `run_audit/2` reads at most `EUNOMIA_AUDIT_CONCLUSIONS` (150, David's) of what Honcho concluded about the person through the bridge, shows the judge the resident's held positions and soul under `priv/prompts/judge_audit.md`, and records `AuditRun` with every `FLAG [n] | reason` as an `AuditFlagRaised` by the judge's actor; a reply naming a conclusion it was not shown fails the audit (`AuditFailed`), and nothing concluded calls no model. The steward approves a flag (the conclusion is deleted from Honcho, then `AuditFlagApproved` with the note) or deletes it (the conclusion stays, `AuditFlagDeleted` with the note); each once. `AuditWorker` runs Sunday 04:00 UTC, after the card audit, for every active resident with a workspace, under the platform scope by name (#19). The judge inspects the model and never grades the resident.
 
 ## #6 Initial vs target
 
 Initial (P1 slice 5, P2 slice 2): regression per resident, sealed, with
 trials derived from behaviours (#8, built: a run takes `behaviours:` and
 a card names which one it answers); positions, disputes, predictions,
-the nightly pass, the judge. Target: the weekly audit with the Honcho
-bridge, project reviews with hands, the Judgement and Predictions
-screens.
+the nightly pass, the judge, the weekly memory audit (P2 slice 3).
+Target: project reviews with hands, the Judgement, Predictions and
+Audits screens.
 
 ## #7 Depends on
 
 The ledger for the judge's calls and the sealed sessions; the resident
 system for the resident's row, its identity context, its pin and its
 minted numbers; memory for the behaviours a trial derives from and the
-day's messages the night reads. The brain depends on this system for
+day's messages the night reads; the bridge for Honcho's conclusions
+and their deletion. The brain depends on this system for
 the resident's tools, so nothing here reaches the brain: the seed
 context is built here from the brain's prompt file and the resident
 system's identity context (#10).

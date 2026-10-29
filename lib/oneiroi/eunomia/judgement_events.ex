@@ -78,6 +78,35 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :outcome]
   end
 
+  defmodule AuditRun do
+    # The weekly memory audit (F15): how many of Honcho's conclusions the
+    # judge read, how many it flagged, under which model.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary]
+  end
+
+  defmodule AuditFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :ref, :reason]
+  end
+
+  defmodule AuditFlagRaised do
+    # One conclusion the judge reads as drift from the resident's stated
+    # positions or soul; the steward approves the flag (the conclusion
+    # goes) or deletes it (the conclusion stays).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ref, :audit_ref, :conclusion_id, :conclusion, :reason]
+  end
+
+  defmodule AuditFlagApproved do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule AuditFlagDeleted do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
   defmodule JudgeModelChanged do
     # So the ratio chart marks it (spec §6.4).
     use Oneiroi.Event, version: 1, fields: [:id, :model, :previous]

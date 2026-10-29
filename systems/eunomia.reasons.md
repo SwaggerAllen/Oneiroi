@@ -70,3 +70,10 @@ could be set to the very model it chats on; the route test found it.
 
 ## #21
 Spec §6.4, F17: "Predictions, resolved by the steward only."
+
+## #22
+Spec §6.4: "the weekly audit reads at most 150 conclusions"; F15:
+"weekly memory audit by the judge; flags approved or deleted"; spec
+§3.2: "flags approved or deleted from Honcho". The deletion happens
+before the flag closes so a flag never reads approved over a
+conclusion Honcho still holds.

@@ -168,6 +168,51 @@ defmodule Oneiroi.Eunomia.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Audit do
+    @moduledoc "One weekly memory audit: what the judge read and flagged, or why it failed."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_audit" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:outcome, :string)
+      field(:conclusions, :integer)
+      field(:flagged, :integer)
+      field(:judge_model, :string)
+      field(:summary, :string)
+      field(:reason, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule AuditFlag do
+    @moduledoc "A conclusion the judge flagged, awaiting the steward: approved (the conclusion goes) or deleted (it stays), with a note."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_audit_flag" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:audit_ref, :string)
+      field(:conclusion_id, :string)
+      field(:conclusion, :string)
+      field(:reason, :string)
+      field(:raised_at, :utc_datetime_usec)
+      field(:decision, :string)
+      field(:note, :string)
+      field(:decided_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @spec audits() :: [Audit.t()]
+  def audits, do: Repo.all(from(a in Audit, order_by: [desc: a.at]))
+
+  @spec audit_flags() :: [AuditFlag.t()]
+  def audit_flags, do: Repo.all(from(f in AuditFlag, order_by: [asc: f.raised_at, asc: f.ref]))
+
   @spec positions() :: [Position.t()]
   def positions, do: Repo.all(from(p in Position, order_by: p.number))
 

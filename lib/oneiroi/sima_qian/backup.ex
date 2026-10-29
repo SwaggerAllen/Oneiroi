@@ -61,6 +61,12 @@ defmodule Oneiroi.SimaQian.Backup do
         resident_id: resident_id
       })
 
+      # The card comes from git, always (spec §6.9): set after the soul
+      # commit; a bridge not yet provisioned, or a Honcho that is down,
+      # is the bridge's to record and never the backup's to fail on.
+      if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
+        do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
+
       case Git.stray(dir, Enum.flat_map(@classes, &elem(&1, 1))) do
         [] -> {:ok, %{through: export.through, root: root, commits: commits}}
         stray -> {:error, Error.new(:sima_qian_stray_files, paths: stray)}

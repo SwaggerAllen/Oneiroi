@@ -22,6 +22,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
+      Oneiroi.Proteus,
       Oneiroi.Sunna,
       Jason
     ],
