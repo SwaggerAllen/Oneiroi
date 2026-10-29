@@ -200,6 +200,16 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  @doc "The adapter's open turn: `{session_key, turn_ref}` of its latest started, uncaptured turn, or nil."
+  def open_turn(resident_id, adapter) do
+    Scope.resident(resident_id, fn ->
+      case Store.open_turn(adapter) do
+        nil -> nil
+        s -> {s.key, s.open_turn_ref}
+      end
+    end)
+  end
+
   @doc "Every message after the compaction, in order."
   def since_compaction(resident_id, key) do
     Scope.resident(resident_id, fn ->

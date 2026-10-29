@@ -64,6 +64,22 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :ref]
   end
 
+  defmodule PinModel do
+    use Oneiroi.Command, fields: [:id, :model, :reason]
+  end
+
+  defmodule RecordModelTold do
+    use Oneiroi.Command, fields: [:id, :model]
+  end
+
+  defmodule RegisterAdapter do
+    use Oneiroi.Command, fields: [:id, :adapter, :role, :token_hash]
+  end
+
+  defmodule RevokeAdapter do
+    use Oneiroi.Command, fields: [:id, :adapter]
+  end
+
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
   end

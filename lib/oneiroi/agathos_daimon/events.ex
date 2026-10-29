@@ -83,6 +83,35 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :ref, :file, :content]
   end
 
+  defmodule ModelPinChanged do
+    # The chat model the steward pinned (spec §6.4): freely before first
+    # contact, as an honestly told change after; `reason` is `run` when a
+    # regression favourite was pinned, else `steward`. On the resident's
+    # stream and exported as spec §3.1 draws it.
+    use Oneiroi.Event, version: 1, fields: [:id, :model, :reason]
+  end
+
+  defmodule ModelChangeTold do
+    # The resident was told, on its next turn, that its steward chose a
+    # new model: orientation without impersonation (spec §6.2).
+    use Oneiroi.Event, version: 1, fields: [:id, :model]
+  end
+
+  defmodule AdapterRegistered do
+    # A runtime that hosts the resident's brain or acts as its hands
+    # (spec §8): its name, its role (`brain`, `reader`, `worker`) and the
+    # hash of the bearer token it presents; the token itself is shown
+    # once and never stored. The hash is redacted from the export.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :adapter, :role, :token_hash],
+      redact: [:token_hash]
+  end
+
+  defmodule AdapterRevoked do
+    use Oneiroi.Event, version: 1, fields: [:id, :adapter]
+  end
+
   defmodule RecordsRemoteSet do
     use Oneiroi.Event,
       version: 1,

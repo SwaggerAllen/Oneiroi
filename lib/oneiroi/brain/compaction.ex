@@ -21,6 +21,8 @@ defmodule Oneiroi.Brain.Compaction do
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
 
+  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
+
   @doc "Compacts the turn's session if it has outgrown its window; `:ok`, `:skipped`, or the failure."
   @spec maybe(map()) :: :ok | :skipped | {:error, term()}
   def maybe(turn) do
@@ -37,7 +39,7 @@ defmodule Oneiroi.Brain.Compaction do
     through = messages |> Enum.map(& &1.sequence) |> Enum.max(fn -> 0 end)
 
     transcript =
-      Enum.map(messages, &%{role: String.to_existing_atom(&1.role), content: &1.content})
+      Enum.map(messages, &%{role: Map.fetch!(@roles, &1.role), content: &1.content})
 
     with :ok <- flush(turn, transcript),
          {:ok, summary} <- summarise(turn, session, transcript) do

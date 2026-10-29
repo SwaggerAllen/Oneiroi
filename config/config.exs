@@ -9,7 +9,8 @@ config :oneiroi, :components, [
   Oneiroi.SimaQian,
   Oneiroi.Nisaba,
   Oneiroi.Kumbukumbu,
-  Oneiroi.Brain
+  Oneiroi.Brain,
+  Oneiroi.Eunomia
 ]
 
 # One event log, Postgres in every environment (plan P0.2); named here

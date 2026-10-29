@@ -47,7 +47,7 @@ defmodule Oneiroi.Brain.Turn do
   defp run_for(row, resident_id, session_key, text, steward) do
     turn_ref = Kumbukumbu.turn_ref()
     started_at = Clock.now()
-    model = Config.fetch!(:brain, :chat_model)
+    model = row.chat_model || Config.fetch!(:brain, :chat_model)
     resident = Actor.new(:resident, resident_id, model)
 
     turn = %{
@@ -59,7 +59,8 @@ defmodule Oneiroi.Brain.Turn do
       resident: resident,
       user: %{role: :user, content: text, sent_at: started_at, actor: steward},
       injections: [],
-      tools: []
+      tools: [],
+      notices: model_change_notice(row)
     }
 
     Compaction.maybe(turn)
@@ -128,7 +129,7 @@ defmodule Oneiroi.Brain.Turn do
       refusal: result.refusal?
     }
 
-    finish(turn, [turn.user | turn.tools] ++ [reply])
+    finish(turn, turn.notices ++ [turn.user | turn.tools] ++ [reply])
   end
 
   # A budget stop: the message and an honest notice, kept where both read.
@@ -140,7 +141,7 @@ defmodule Oneiroi.Brain.Turn do
       actor: Actor.platform()
     }
 
-    case finish(turn, [turn.user | turn.tools] ++ [notice]) do
+    case finish(turn, turn.notices ++ [turn.user | turn.tools] ++ [notice]) do
       {:ok, captured} -> {:error, {stop, captured}}
       other -> other
     end
@@ -177,8 +178,45 @@ defmodule Oneiroi.Brain.Turn do
       # regression session; the command is idempotent, so every turn says
       # so and only the first is recorded.
       :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
+      if turn.notices != [], do: :ok = Oneiroi.AgathosDaimon.model_told(resident_id, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
       {:ok, captured}
+    end
+  end
+
+  # A model change after first contact is told honestly, on the next turn,
+  # as a system message both parties read (spec §6.4): the steward chose
+  # it, not why. Captured ahead of the steward's message, once.
+  defp model_change_notice(%{model_told: false, chat_model: model}) when is_binary(model) do
+    [
+      %{
+        role: :system,
+        content: Prompt.render!("model_changed", %{model: model}),
+        sent_at: Clock.now(),
+        actor: Actor.platform()
+      }
+    ]
+  end
+
+  defp model_change_notice(_row), do: []
+
+  @doc false
+  # The sealed session's context (spec §6.4): the brain's prompt and the
+  # identity files, nothing of memory and nothing of the run's purpose.
+  def seed_context(resident_id) do
+    case Oneiroi.AgathosDaimon.fetch(resident_id) do
+      {:ok, row} ->
+        prompt = Prompt.message("brain", %{name: row.name, formation: ""})
+
+        files =
+          Enum.map(identity_files(resident_id, row), fn {name, content} ->
+            %{role: :system, content: "# " <> name <> "\n\n" <> content}
+          end)
+
+        [prompt | files]
+
+      :error ->
+        []
     end
   end
 
@@ -319,9 +357,10 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  defp history_message(%{role: role, content: content}) do
-    %{role: role |> String.to_existing_atom(), content: content}
-  end
+  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
+
+  defp history_message(%{role: role, content: content}),
+    do: %{role: Map.fetch!(@roles, role), content: content}
 
   defp public_message(m) do
     %{

@@ -523,6 +523,88 @@ defmodule OneiroiWeb.ContractTest do
              conn |> get("/v1/residents/#{id}/behaviours") |> json_response(200)
   end
 
+  test "regression is the steward's: tests, a run, blind cards, grades, and the pin", ctx do
+    id = ctx.resident.id
+
+    :ok =
+      Oneiroi.Gaia.store_key(
+        ctx.account.id,
+        "sk-or-x",
+        Oneiroi.Actor.new(:steward, ctx.account.id)
+      )
+
+    conn = login(ctx.conn, ctx.account)
+    body = %{prompt: "When I am late?", passes_if: "asks why", fails_if: "scolds"}
+
+    assert %{"number" => 1} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/regression/tests", body)
+             |> json_response(201)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/regression/tests", %{prompt: "x"})
+           |> json_response(422)
+
+    assert [%{"number" => 1, "prompt" => "When I am late?"}] =
+             conn |> get("/v1/residents/#{id}/regression/tests") |> json_response(200)
+
+    assert %{"ref" => ref} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/regression/runs", %{models: ["m1", "m2"]})
+             |> json_response(201)
+
+    assert %{
+             "run" => %{"cards" => 2},
+             "cards" => [%{"model" => nil, "card_ref" => c1}, %{"model" => nil, "card_ref" => c2}],
+             "results" => []
+           } =
+             conn |> get("/v1/residents/#{id}/regression/runs/#{ref}") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/regression/runs/#{ref}/cards/#{c1}/grade", %{
+             grade: "pass"
+           })
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/regression/runs/#{ref}/cards/#{c2}/grade", %{
+             grade: "fail"
+           })
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/regression/runs/#{ref}/cards/#{c1}/favourite", %{})
+           |> response(204)
+
+    # The deck's order is by card ref, which says nothing of the model.
+    assert %{"cards" => revealed, "results" => [%{"favourites" => 1, "pass_rate" => 1.0} | _]} =
+             conn |> get("/v1/residents/#{id}/regression/runs/#{ref}") |> json_response(200)
+
+    assert ["m1", "m2"] = revealed |> Enum.map(& &1["model"]) |> Enum.sort()
+
+    assert conn |> get("/v1/residents/#{id}/regression/runs/nope") |> json_response(404)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/model-pin", %{model: "m1", reason: "run"})
+           |> response(204)
+
+    assert %{"chat_model" => "m1"} = conn |> get("/v1/residents/#{id}") |> json_response(200)
+
+    other = Fixtures.account!()
+
+    assert ctx.conn
+           |> login(other)
+           |> get("/v1/residents/#{id}/regression/tests")
+           |> json_response(404)
+  end
+
   test "a wrong password answers 401 with the registered kind and no clue which part failed",
        ctx do
     conn =

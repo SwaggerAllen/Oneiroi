@@ -30,6 +30,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:turns, :integer, default: 0)
       field(:summary, :string)
       field(:compacted_through, :integer, default: 0)
+      field(:open_turn_ref, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -243,6 +244,18 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "One session by key, under whatever scope the caller holds."
   @spec session(String.t()) :: Session.t() | nil
   def session(key), do: Repo.one(from(s in Session, where: s.key == ^key))
+
+  @doc "The session of `adapter` with a turn started and not yet captured, newest first."
+  @spec open_turn(String.t()) :: Session.t() | nil
+  def open_turn(adapter),
+    do:
+      Repo.one(
+        from(s in Session,
+          where: s.adapter == ^adapter and not is_nil(s.open_turn_ref),
+          order_by: [desc: s.last_turn_at, desc: s.opened_at],
+          limit: 1
+        )
+      )
 
   @doc "The sessions the scope sees, newest first."
   @spec sessions() :: [Session.t()]
