@@ -8,6 +8,7 @@ defmodule Oneiroi.Brain.Session do
   """
   use GenServer
 
+  alias Oneiroi.Actor
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Config
 
@@ -20,6 +21,14 @@ defmodule Oneiroi.Brain.Session do
   def turn(resident_id, session_key, text, actor) do
     with {:ok, pid} <- ensure(resident_id, session_key) do
       GenServer.call(pid, {:turn, text, actor}, Config.fetch!(:brain, :turn_timeout_ms))
+    end
+  end
+
+  @doc "Runs a wake on the session's process: the core's note, answered under its purpose."
+  @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
+  def wake(resident_id, session_key, note, purpose) do
+    with {:ok, pid} <- ensure(resident_id, session_key) do
+      GenServer.call(pid, {:wake, note, purpose}, Config.fetch!(:brain, :turn_timeout_ms))
     end
   end
 
@@ -36,6 +45,11 @@ defmodule Oneiroi.Brain.Session do
   @impl GenServer
   def handle_call({:turn, text, actor}, _from, state) do
     {:reply, Turn.run(state.resident_id, state.session_key, text, actor), state}
+  end
+
+  def handle_call({:wake, note, purpose}, _from, state) do
+    opts = [as: :note, purpose: purpose]
+    {:reply, Turn.run(state.resident_id, state.session_key, note, Actor.platform(), opts), state}
   end
 
   defp ensure(resident_id, session_key) do

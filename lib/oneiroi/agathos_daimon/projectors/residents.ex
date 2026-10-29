@@ -101,6 +101,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, model_told: true)
   end)
 
+  fold(%Events.TimezoneSet{} = e, _metadata, fn multi ->
+    set(multi, e.id, timezone: e.timezone)
+  end)
+
   fold(%Events.AdapterRegistered{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

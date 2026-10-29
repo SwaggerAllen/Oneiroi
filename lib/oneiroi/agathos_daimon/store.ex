@@ -29,6 +29,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:chat_model, :string)
       field(:model_pinned_at, :utc_datetime_usec)
       field(:model_told, :boolean, default: true)
+      field(:timezone, :string, default: "Etc/UTC")
       field(:created_at, :utc_datetime_usec)
     end
 

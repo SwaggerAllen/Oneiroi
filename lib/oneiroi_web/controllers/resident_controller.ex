@@ -87,6 +87,31 @@ defmodule OneiroiWeb.ResidentController do
     end
   end
 
+  operation(:timezone,
+    summary:
+      "Set the resident's time zone, an IANA name; its days and times of day are read in it",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"time zone", "application/json",
+       %Schema{
+         type: :object,
+         required: [:timezone],
+         properties: %{timezone: %Schema{type: :string, example: "Europe/London"}}
+       }},
+    responses: [no_content: "set"]
+  )
+
+  def timezone(conn, %{"id" => id} = params) do
+    with true <- stewards?(conn, id),
+         :ok <- Oneiroi.AgathosDaimon.set_timezone(id, params["timezone"], actor(conn)) do
+      send_resp(conn, 204, "")
+    else
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+      {:error, reason} -> problem(conn, 422, :refused, inspect(reason))
+    end
+  end
+
   operation(:adapters,
     summary: "The resident's adapters with their role and state",
     parameters: [id: [in: :path, type: :string]],
@@ -174,6 +199,7 @@ defmodule OneiroiWeb.ResidentController do
       first_contact_at: r.first_contact_at,
       formation_until: r.formation_until,
       chat_model: r.chat_model,
+      timezone: r.timezone,
       model_pinned_at: r.model_pinned_at,
       exported_through: r.exported_through,
       last_backup: %{

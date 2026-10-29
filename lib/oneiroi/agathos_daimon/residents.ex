@@ -86,6 +86,23 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch(command), do: :ok
   end
 
+  @doc "Sets the resident's time zone (spec §6.7): an IANA name the database knows, checked by shifting a known instant into it."
+  def set_timezone(id, zone, %Actor{} = actor) do
+    with :ok <- zone_ok(zone) do
+      command = %Commands.SetTimezone{actor: actor, at: Clock.now(), id: id, timezone: zone}
+      with {:ok, _} <- Router.dispatch(command), do: :ok
+    end
+  end
+
+  defp zone_ok(zone) when is_binary(zone) do
+    case DateTime.shift_zone(~U[2026-01-01 00:00:00Z], zone) do
+      {:ok, _} -> :ok
+      {:error, _} -> {:error, Error.new(:agathos_daimon_timezone_invalid)}
+    end
+  end
+
+  defp zone_ok(_zone), do: {:error, Error.new(:agathos_daimon_timezone_invalid)}
+
   @doc "Registers an adapter with a role; returns the token, shown once. Registering again rotates it."
   def register_adapter(id, adapter, role, %Actor{} = actor) do
     raw = 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)

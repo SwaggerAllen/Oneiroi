@@ -433,3 +433,27 @@ and nothing personal turned up; what follows is what changed.
   took the handler tree down (kumbukumbu #26), and a role converted
   with `String.to_existing_atom` raised in a process that had not
   loaded the code naming it; both are closed lists now.
+
+## Round 14: the schedule (2026-10-29)
+
+- The schedule is built under `Oneiroi.Sunna` (the system's name, not
+  the spec's `schedule/`): its own stream per resident, a firing as an
+  event before the wake, a day's outcome one of fired, missed or
+  deferred, and a check-in set or changed after its time today waiting
+  for tomorrow (systems/sunna.md #13). Times of day are the resident's,
+  in a zone on the resident's row that Agathos Daimon owns and the `tz`
+  database resolves (sunna #10, agathos-daimon #17). `tz` (Apache-2.0)
+  is the one new direct dependency, taken because Erlang ships no zone
+  data and a check-in at 06:00 is nothing without it.
+- The wake is a port, `Oneiroi.Sunna.Wake`, with the brain named in
+  `SUNNA_WAKE`: the brain reads the schedule's dates on every turn and
+  the schedule wakes the brain, and a call each way is the cycle both
+  gates reject (sunna #12, brain #17). Free time is a session of its own
+  kind under its own purpose, once a day, a failure said (sunna #14).
+  Dates are rows and the brain is shown their countdowns as a section
+  derived on the read (sunna #15).
+- Two defects the tests found before the gates ran, recorded beside the
+  code: a deferred wake never fired at the end of quiet hours (the
+  aggregate answered every recorded outcome with no event), and the
+  tick's roster read under the worker's process scope alone would have
+  answered no rows on the live policy (sunna #11).

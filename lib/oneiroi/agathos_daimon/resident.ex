@@ -31,7 +31,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     proposals: %{},
     chat_model: nil,
     model_told: true,
-    adapters: %{}
+    adapters: %{},
+    timezone: "Etc/UTC"
   ]
 
   @roles ~w(brain reader worker)
@@ -260,6 +261,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       else: {:error, :no_such_adapter}
   end
 
+  # The zone is checked against the database at the command edge, where
+  # the shift is tried; here only the no-change case is decided.
+  def execute(%__MODULE__{timezone: tz}, %Commands.SetTimezone{timezone: tz}), do: []
+
+  def execute(%__MODULE__{}, %Commands.SetTimezone{} = c),
+    do: %Events.TimezoneSet{actor: c.actor, at: c.at, id: c.id, timezone: c.timezone}
+
   def execute(%__MODULE__{}, %Commands.RecordExport{} = c),
     do: %Events.ExportWritten{
       actor: c.actor,
@@ -366,6 +374,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.AdapterRevoked{} = e),
     do: %{r | adapters: Map.delete(r.adapters, e.adapter)}
+
+  def apply(%__MODULE__{} = r, %Events.TimezoneSet{} = e), do: %{r | timezone: e.timezone}
 
   def apply(%__MODULE__{} = r, %Events.RootMismatchDetected{}), do: r
   def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}

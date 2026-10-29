@@ -108,6 +108,18 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/behaviours", MemoryController, :behaviours)
       post("/residents/:id/behaviours", MemoryController, :define_behaviour)
       post("/residents/:id/behaviours/:number/affirm", MemoryController, :affirm_behaviour)
+      put("/residents/:id/timezone", ResidentController, :timezone)
+      get("/residents/:id/schedule", ScheduleController, :today)
+      get("/residents/:id/schedule/days", ScheduleController, :days)
+      post("/residents/:id/schedule/checkins", ScheduleController, :set_checkin)
+      put("/residents/:id/schedule/checkins/:key", ScheduleController, :change_checkin)
+      delete("/residents/:id/schedule/checkins/:key", ScheduleController, :delete_checkin)
+      put("/residents/:id/schedule/free-time", ScheduleController, :set_free_time)
+      put("/residents/:id/schedule/quiet-hours", ScheduleController, :set_quiet_hours)
+      get("/residents/:id/dates", ScheduleController, :dates)
+      post("/residents/:id/dates", ScheduleController, :set_date)
+      put("/residents/:id/dates/:number", ScheduleController, :change_date)
+      delete("/residents/:id/dates/:number", ScheduleController, :remove_date)
     end
   end
 end

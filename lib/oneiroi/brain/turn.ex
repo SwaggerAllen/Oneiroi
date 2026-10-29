@@ -12,6 +12,11 @@ defmodule Oneiroi.Brain.Turn do
   build them, each as another recorded injection. Token counts on the
   injections are estimated at four bytes a token and the reason says so.
 
+  A turn opens with the steward's words or with a note of the core's: a
+  wake (spec §6.7, §8) is the same turn with a system message in the
+  steward's place, answered under the purpose the caller names, so a
+  check-in's answer bills as chat and free time as free time.
+
   Three endings. A reply, refusal included, is captured as an ordinary
   turn, with each tool call the model made captured as a `tool` message
   before it. A budget stop captures the steward's message and an honest
@@ -35,20 +40,27 @@ defmodule Oneiroi.Brain.Turn do
 
   @bytes_per_token 4
 
-  @doc "Runs the turn; see the moduledoc for its three endings."
-  @spec run(String.t(), String.t(), String.t(), Actor.t()) :: {:ok, map()} | {:error, term()}
-  def run(resident_id, session_key, text, %Actor{} = steward) when is_binary(text) do
+  @doc """
+  Runs the turn; see the moduledoc for its three endings. `as: :note`
+  opens it with the core's note as a system message rather than the
+  steward's words, and `purpose:` names the budget line (chat unless
+  given).
+  """
+  @spec run(String.t(), String.t(), String.t(), Actor.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def run(resident_id, session_key, text, %Actor{} = actor, opts \\ []) when is_binary(text) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, row} -> run_for(row, resident_id, session_key, text, steward)
+      {:ok, row} -> run_for(row, resident_id, session_key, text, actor, opts)
       :error -> {:error, :no_such_resident}
     end
   end
 
-  defp run_for(row, resident_id, session_key, text, steward) do
+  defp run_for(row, resident_id, session_key, text, actor, opts) do
     turn_ref = Kumbukumbu.turn_ref()
     started_at = Clock.now()
     model = row.chat_model || Config.fetch!(:brain, :chat_model)
     resident = Actor.new(:resident, resident_id, model)
+    as = Keyword.get(opts, :as, :user)
 
     turn = %{
       resident_id: resident_id,
@@ -57,7 +69,9 @@ defmodule Oneiroi.Brain.Turn do
       started_at: started_at,
       model: model,
       resident: resident,
-      user: %{role: :user, content: text, sent_at: started_at, actor: steward},
+      as: as,
+      purpose: Keyword.get(opts, :purpose, :chat),
+      opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       injections: [],
       tools: [],
       notices: model_change_notice(row)
@@ -85,7 +99,7 @@ defmodule Oneiroi.Brain.Turn do
     request = Request.new(turn.model, messages, tools: Tools.definitions())
     rounds = Config.fetch!(:brain, :tool_rounds)
 
-    case Nisaba.stream(turn.resident_id, :chat, request, turn.resident, sink) do
+    case Nisaba.stream(turn.resident_id, turn.purpose, request, turn.resident, sink) do
       {:ok, %Result{tool_calls: [_ | _] = calls} = result} when round < rounds ->
         {results, captured} = run_tools(turn, calls)
         assistant = %{role: :assistant, content: result.content, tool_calls: wire_calls(calls)}
@@ -129,7 +143,7 @@ defmodule Oneiroi.Brain.Turn do
       refusal: result.refusal?
     }
 
-    finish(turn, turn.notices ++ [turn.user | turn.tools] ++ [reply])
+    finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [reply])
   end
 
   # A budget stop: the message and an honest notice, kept where both read.
@@ -141,7 +155,7 @@ defmodule Oneiroi.Brain.Turn do
       actor: Actor.platform()
     }
 
-    case finish(turn, turn.notices ++ [turn.user | turn.tools] ++ [notice]) do
+    case finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [notice]) do
       {:ok, captured} -> {:error, {stop, captured}}
       other -> other
     end
@@ -229,88 +243,83 @@ defmodule Oneiroi.Brain.Turn do
     acting = how_i_act(turn, text)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
+    summary = session && session.summary
 
     history =
       turn.resident_id
       |> Kumbukumbu.recent(turn.session_key, count)
       |> Enum.map(&history_message/1)
 
-    index_message = %{role: :system, content: index.text}
-    acting_messages = if acting.count > 0, do: [%{role: :system, content: acting.text}], else: []
-    summary = session && session.summary
-    summary_messages = if summary, do: [%{role: :system, content: summary}], else: []
-
-    injections =
-      [
-        %{
-          label: "prompt",
-          tokens: tokens(prompt.content),
-          reason:
-            "the brain's prompt file with the resident's name, estimated at four bytes a token"
-        }
-        | Enum.map(files, fn {name, content} ->
-            %{
-              label: name,
-              tokens: tokens(content),
-              reason:
-                "the identity file as last written (spec §6.2), estimated at four bytes a token"
-            }
-          end)
-      ] ++
-        [
-          %{
-            label: "index",
-            tokens: index.tokens,
-            reason:
-              "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
-            text: index.text,
-            refs: index.included
-          }
-        ] ++
-        if(acting.count > 0,
-          do: [
-            %{
-              label: "behaviours",
-              tokens: tokens(acting.text),
-              reason:
-                "how I act: #{acting.count} behaviours whose trigger this situation matched (the steward's words, the conversation's tags, the time of day), with their scores and enacting turns",
-              refs: acting.numbers
-            }
-          ],
-          else: []
+    sections =
+      section(
+        "prompt",
+        prompt.content,
+        "the brain's prompt file with the resident's name, estimated at four bytes a token"
+      ) ++
+        Enum.flat_map(files, fn {name, content} ->
+          section(
+            name,
+            "# " <> name <> "\n\n" <> content,
+            "the identity file as last written (spec §6.2), estimated at four bytes a token"
+          )
+        end) ++
+        section(
+          "index",
+          index.text,
+          "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
+          %{tokens: index.tokens, text: index.text, refs: index.included}
         ) ++
-        if(summary,
-          do: [
-            %{
-              label: "summary",
-              tokens: tokens(summary),
-              reason:
-                "the compaction summary covering this session through store sequence #{session.compacted_through}"
-            }
-          ],
-          else: []
+        section(
+          "behaviours",
+          acting.count > 0 and acting.text,
+          "how I act: #{acting.count} behaviours whose trigger this situation matched (the steward's words, the conversation's tags, the time of day), with their scores and enacting turns",
+          %{refs: acting.numbers}
         ) ++
-        [
-          %{
-            label: "transcript",
-            tokens: history |> Enum.map(&tokens(&1.content)) |> Enum.sum(),
-            reason:
-              "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
-          }
-        ]
+        section(
+          "dates",
+          Oneiroi.Sunna.dates_text(turn.resident_id),
+          "the important dates with each countdown derived on this read (spec §6.7, F56): a figure never written down"
+        ) ++
+        section(
+          "summary",
+          summary,
+          "the compaction summary covering this session through store sequence #{session && session.compacted_through}"
+        )
 
-    file_messages =
-      Enum.map(files, fn {name, content} ->
-        %{role: :system, content: "# " <> name <> "\n\n" <> content}
-      end)
+    transcript = %{
+      label: "transcript",
+      tokens: history |> Enum.map(&tokens(&1.content)) |> Enum.sum(),
+      reason:
+        "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
+    }
 
-    messages =
-      [prompt | file_messages] ++
-        [index_message | acting_messages] ++
-        summary_messages ++ history ++ [%{role: :user, content: text}]
+    injections = Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++ [transcript]
+
+    opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
+    messages = Enum.map(sections, & &1.message) ++ history ++ [opening]
 
     {messages, injections}
   end
+
+  # A section of the context: a system message and the injection that
+  # records it; nothing when the text is empty, so an absent section is
+  # absent from both.
+  defp section(label, text, reason, extra \\ %{})
+
+  defp section(label, text, reason, extra) when is_binary(text) and text != "" do
+    [
+      %{
+        label: label,
+        message: %{role: :system, content: text},
+        injection: Map.merge(%{tokens: tokens(text), reason: reason}, extra)
+      }
+    ]
+  end
+
+  defp section(_label, _text, _reason, _extra), do: []
+
+  defp opening_role(:note), do: :system
+  defp opening_role(_as), do: :user
 
   # Retrieval is memory's and choice is the brain's (kumbukumbu #11): the
   # situation is the steward's words, the conversation's tags and the

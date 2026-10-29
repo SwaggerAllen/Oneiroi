@@ -1,5 +1,8 @@
 import Config
 
+# The time zone database for `DateTime.shift_zone/3` (systems/sunna.md #10).
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # The system roster the composer validates and composes (conventions §4).
 # Grows one entry per system as they land; `Oneiroi.Boot` reads it.
 config :oneiroi, :components, [
@@ -10,7 +13,8 @@ config :oneiroi, :components, [
   Oneiroi.Nisaba,
   Oneiroi.Kumbukumbu,
   Oneiroi.Brain,
-  Oneiroi.Eunomia
+  Oneiroi.Eunomia,
+  Oneiroi.Sunna
 ]
 
 # One event log, Postgres in every environment (plan P0.2); named here
