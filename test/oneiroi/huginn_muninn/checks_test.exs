@@ -119,7 +119,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures missed_checkins overdue_predictions sync_failures)
+             ~w(attestation capture_failures citation_drift journal_delta missed_checkins overdue_predictions sync_failures)
 
     assert Enum.all?(results, &(&1.tone == "ok"))
 
@@ -253,7 +253,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 5
+    assert Enum.count(audits, & &1.builtin) == 7
 
     assert %{builtin: false, counts: true, last: %{tone: "ok", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -266,7 +266,54 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     Oneiroi.Scope.resident(other.id, fn -> :ok end)
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
-    assert %{results: [_, _, _, _, _]} = HuginnMuninn.light(ctx.id)
-    assert %{results: [_, _, _, _, _]} = HuginnMuninn.light(other.id)
+    assert %{results: [_, _, _, _, _, _, _]} = HuginnMuninn.light(ctx.id)
+    assert %{results: [_, _, _, _, _, _, _]} = HuginnMuninn.light(other.id)
+  end
+
+  test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",
+       ctx do
+    id = ctx.id
+    {:ok, dir} = Oneiroi.SimaQian.repository_dir(id)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    {:ok, resident} = AgathosDaimon.fetch(id)
+
+    assert {:ok, _} = Oneiroi.Seshat.write(id, "design/oven.md", "# Oven\n\nHot.", ctx.brain)
+
+    assert {:ok, _} =
+             Oneiroi.Seshat.write(
+               id,
+               "writing/piece.md",
+               "See #{resident.slug}:design/oven.",
+               ctx.brain
+             )
+
+    assert [%{resolved: true}] = Oneiroi.Seshat.references(id, "writing/piece.md")
+    assert {:ok, _} = Oneiroi.Seshat.journal_add(id, "2026-10-25", "plan", "Rest.", ctx.brain)
+
+    # The delta warns and does not count: the light stays ok with it alone warning.
+    assert {:ok, %{state: "ok", findings: [], results: results}} =
+             HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "ok", value: 0} = Enum.find(results, &(&1.key == "citation_drift"))
+
+    assert %{tone: "warn", value: 1, finding: finding} =
+             Enum.find(results, &(&1.key == "journal_delta"))
+
+    assert finding =~ "2026-10-25"
+
+    File.rm!(Path.join(dir, "design/oven.md"))
+    assert {:ok, %{missing: 1}} = Oneiroi.Seshat.index(id, ctx.actor)
+    assert {:ok, _} = Oneiroi.Seshat.journal_add(id, "2026-10-25", "wrap", "Rested.", ctx.brain)
+
+    assert {:ok, %{state: "warn", findings: findings, results: results}} =
+             HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "warn", value: 1, finding: drift} =
+             Enum.find(results, &(&1.key == "citation_drift"))
+
+    assert drift =~ "#{resident.slug}:design/oven"
+    assert %{tone: "ok"} = Enum.find(results, &(&1.key == "journal_delta"))
+    # Drift counts toward the light; the delta does not.
+    assert Enum.map(findings, & &1.key) == ["citation_drift"]
   end
 end

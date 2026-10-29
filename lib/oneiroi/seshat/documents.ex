@@ -34,10 +34,10 @@ defmodule Oneiroi.Seshat.Documents do
   # leading slash. A request value reaches the filesystem only through
   # that check.
   # sobelow_skip ["Traversal.FileModule"]
-  @doc "Writes a file through the flow; returns the path, the kind, whether anything changed, and whether the index ran clean."
-  def write(resident_id, path, content, %Actor{} = actor) when is_binary(content) do
+  @doc "Writes a file through the flow (`core: true` for a kind the platform writes); returns the path, the kind, whether anything changed, and whether the index ran clean."
+  def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
     with {:ok, path} <- normalize(path),
-         {:ok, kind} <- writable_kind(path),
+         {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false)),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, events} <-
@@ -187,13 +187,18 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  defp writable_kind(path) do
+  defp writable_kind(path, core?) do
     kind = Kinds.kind_of(path)
 
     cond do
-      kind.access != :resident -> {:error, Error.new(:seshat_kind_not_writable, kind: kind.kind)}
-      not Kinds.text?(path) -> {:error, Error.new(:seshat_path_invalid, path: path)}
-      true -> {:ok, kind}
+      kind.access != :resident and not core? ->
+        {:error, Error.new(:seshat_kind_not_writable, kind: kind.kind)}
+
+      not Kinds.text?(path) ->
+        {:error, Error.new(:seshat_path_invalid, path: path)}
+
+      true ->
+        {:ok, kind}
     end
   end
 

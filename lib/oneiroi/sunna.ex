@@ -136,7 +136,8 @@ defmodule Oneiroi.Sunna do
       {:sunna_kind_invalid, "a date's kind is deadline, anniversary, window or recurring",
        remedy: "say which"},
       {:sunna_no_such_checkin, "no check-in has that key", remedy: "read the schedule"},
-      {:sunna_no_such_date, "no date has that number", remedy: "read the dates"}
+      {:sunna_no_such_date, "no date has that number", remedy: "read the dates"},
+      {:sunna_day_invalid, "a day is an ISO date", remedy: "name the day as YYYY-MM-DD"}
     ]
   end
 
@@ -197,6 +198,14 @@ defmodule Oneiroi.Sunna do
   @doc "The journal's day rows, newest first."
   @spec days(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Day.t()]
   defexport(days(resident_id, limit), do: Schedules.days(resident_id, limit))
+
+  @doc "One day row, or nil."
+  @spec day(String.t(), String.t()) :: Oneiroi.Sunna.Store.Day.t() | nil
+  defexport(day(resident_id, day), do: Schedules.day(resident_id, day))
+
+  @doc "Opens a day row the journal reached first (seshat #21); the schedule's row still, minted here."
+  @spec open_day(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(open_day(resident_id, day, actor), do: Schedules.open_day(resident_id, day, actor))
 
   @doc "Runs one resident's tick now; what the minute job does for each."
   @spec tick(String.t()) :: :ok | :skipped

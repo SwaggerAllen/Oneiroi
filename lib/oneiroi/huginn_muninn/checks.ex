@@ -25,6 +25,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Proteus
   alias Oneiroi.Scope
+  alias Oneiroi.Seshat
   alias Oneiroi.Sunna
 
   @builtin [
@@ -32,7 +33,9 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{key: "capture_failures", label: "No capture failure is waiting on you", counts: true},
     %{key: "sync_failures", label: "The last turns reached Honcho", counts: true},
     %{key: "missed_checkins", label: "Check-ins fired this week", counts: false},
-    %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false}
+    %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false},
+    %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
+    %{key: "journal_delta", label: "Planned days were wrapped", counts: false}
   ]
 
   @doc "The built-in audits: key, label, whether each counts toward the light."
@@ -164,6 +167,46 @@ defmodule Oneiroi.HuginnMuninn.Checks do
           overdue,
           "#{overdue} #{plural(overdue, "prediction")} past due and unresolved; resolve them right, wrong or void"
         )
+  end
+
+  # The first two built-in coherence audits (spec §6.13, #5), reading
+  # the library's rows (seshat #14, #21): a citation that resolved once
+  # and does not now, and a day planned and never wrapped.
+  defp builtin_result(%{key: "citation_drift"} = a, resident_id, _row) do
+    drifted = Seshat.drift(resident_id)
+
+    case length(drifted) do
+      0 ->
+        result(a, "ok", 0, "every citation that once resolved still does")
+
+      n ->
+        targets = drifted |> Enum.map(& &1.target) |> Enum.uniq() |> Enum.take(5)
+        verb = if n == 1, do: "resolves", else: "resolve"
+
+        result(
+          a,
+          "warn",
+          n,
+          "#{n} #{plural(n, "citation")} no longer #{verb}: #{Enum.join(targets, ", ")}"
+        )
+    end
+  end
+
+  defp builtin_result(%{key: "journal_delta"} = a, resident_id, _row) do
+    case Seshat.unwrapped_days(resident_id, 7) do
+      [] ->
+        result(a, "ok", 0, "every planned day this week was wrapped")
+
+      days ->
+        n = length(days)
+
+        result(
+          a,
+          "warn",
+          n,
+          "#{n} planned #{plural(n, "day")} this week never wrapped: #{Enum.join(days, ", ")}"
+        )
+    end
   end
 
   defp user_results(resident_id) do

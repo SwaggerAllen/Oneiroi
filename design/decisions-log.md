@@ -584,3 +584,27 @@ and nothing personal turned up; what follows is what changed.
   claim until a live run; the adoption unit by directory (research)
   waits on inbound; external doc sources (F30) wait on inbound;
   rebuild does not yet run the index over the restored files.
+
+## Round 20: the journal and the first two built-in audits (2026-10-29)
+
+- The journal is rows on its own stream under the library
+  (systems/seshat.md #21 to #24): plan, note, todo and wrap entries
+  numbered within their day; the day row stays the schedule's, opened
+  on the journal's ask when an entry comes before any check-in (sunna
+  #18); the day's file is rendered from the rows through the library's
+  core write, so it is a registered, indexed document that mints and
+  resolves; the delta is counted from the rows and today is never a
+  finding; drift is read by resolving again. The brain reads today's
+  rows as a section and writes through three tools (brain #23);
+  `journal` joins the tagging kinds (kumbukumbu #27).
+- Citation drift and the journal delta are built in (huginn-muninn
+  #15): drift warns and counts toward the light, the delta warns and
+  does not; the reason for each is beside the rule.
+- Four probes printed ok on their first run and each pointed at a
+  test that could not see its guard: the aggregate's once-per-day
+  guard (the row's idempotent insert forgave the duplicate event; the
+  test reads the stream now), the schedule's own day check (reached
+  through the journal's translation; called directly now), today's
+  exclusion from the delta (today was already wrapped; asserted before
+  the wrap now), and whether the delta counts (asserted while it alone
+  warns now).

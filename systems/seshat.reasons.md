@@ -59,3 +59,28 @@ the brain's tool table (spec §8) has no publish.
 F27: "document types registry and adoption of files made outside the
 flow". Adoption as the file was found, hash included, so the index
 cannot mistake a hand-edited adoption for an unchanged one.
+
+## #21
+F29: "rows as the queryable spine"; spec §3.2's `journal` projection
+("day, entry kind (plan, note, todo, wrap) as data, time, text,
+links"). Numbered within the day because the resident's id sequences
+are for things cited across days, and a journal row is cited by its
+day. The schedule mints the row (sunna #9) so one system says what a
+day is.
+
+## #22
+Spec §6.5: "`journal/<day>.md` as the narrative"; #13: a `:core` kind
+is written by its system. Rendered rather than hand-written because a
+file edited beside the rows would be two records of one day with no
+rule for which is right.
+
+## #23
+F29: "plan-vs-actuals delta; the delta feeds audits". Today is excluded
+because a wrap written at the day's last check-in has not happened at
+noon, and an audit that warned every afternoon would be ignored by the
+evening.
+
+## #24
+Spec §6.5: "resolution when read, not when indexed". The audit is a
+read; without it a citation whose target went after its last read
+would never be found to have gone.

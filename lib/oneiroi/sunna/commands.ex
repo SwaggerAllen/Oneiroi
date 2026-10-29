@@ -25,6 +25,12 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :time]
   end
 
+  defmodule OpenDay do
+    # The journal's day row, opened by the journal when it writes a day
+    # the schedule has not yet (seshat #21); idempotent.
+    use Oneiroi.Command, fields: [:id, :day]
+  end
+
   defmodule RecordFreeTime do
     use Oneiroi.Command, fields: [:id, :day, :session_key, :reason]
   end

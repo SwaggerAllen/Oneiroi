@@ -29,3 +29,13 @@ leaderboard."
 ## #13
 Spec §8: `figure_*` in the brain's tool table; §6.13: counters are
 steward-defined keys.
+
+## #14
+seshat #14: the audits read the library for the drift audit, so the
+library cannot read the audits back; a port is sunna #12's answer.
+
+## #15
+Spec §6.13: "citation drift (§6.5) and the journal's plan-vs-actuals
+delta are the first two built-in audits"; "each audit declares whether
+it counts toward the check-engine light". Whether each counts is the
+build's call, with its reason beside it.

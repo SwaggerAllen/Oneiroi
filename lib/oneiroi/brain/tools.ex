@@ -243,6 +243,28 @@ defmodule Oneiroi.Brain.Tools do
         "Files in your repository the library does not yet hold.",
         %{},
         []
+      ),
+      tool(
+        "journal_add",
+        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last. Rows are the record; the day's file is rendered from them.",
+        %{
+          kind: %{type: "string", enum: ["plan", "note", "todo", "wrap"]},
+          text: %{type: "string"},
+          day: %{type: "string"}
+        },
+        [:kind, :text]
+      ),
+      tool(
+        "journal_done",
+        "Mark a todo done by its number on its day (today when not given).",
+        %{number: %{type: "integer"}, day: %{type: "string"}},
+        [:number]
+      ),
+      tool(
+        "journal_read",
+        "Read a day of your journal by its ISO date: the rows and the plan-versus-actuals delta.",
+        %{day: %{type: "string"}},
+        [:day]
       )
     ]
   end
@@ -616,6 +638,36 @@ defmodule Oneiroi.Brain.Tools do
     case Seshat.unadopted(turn.resident_id) do
       [] -> "Nothing is waiting to be adopted."
       paths -> Enum.join(paths, "\n")
+    end
+  end
+
+  defp call("journal_add", args, turn) do
+    case Seshat.journal_add(
+           turn.resident_id,
+           args["day"],
+           to_string(args["kind"] || ""),
+           to_string(args["text"] || ""),
+           turn.resident
+         ) do
+      {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
+      other -> other
+    end
+  end
+
+  defp call("journal_done", args, turn) do
+    day = args["day"] || Oneiroi.Sunna.today(turn.resident_id).day
+    Seshat.journal_done(turn.resident_id, day, args["number"], turn.resident)
+  end
+
+  defp call("journal_read", args, turn) do
+    case Seshat.journal_day(turn.resident_id, to_string(args["day"] || "")) do
+      nil ->
+        "That day was never opened."
+
+      %{entries: entries, delta: delta} = d ->
+        Seshat.Journals.render(d.day, entries) <>
+          "\nDelta: #{delta.plan} planned, #{delta.done} of #{delta.todo} todos done, #{delta.wrap} wrap " <>
+          if(delta.unwrapped, do: "(planned and not wrapped).", else: "lines.")
     end
   end
 

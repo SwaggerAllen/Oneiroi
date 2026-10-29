@@ -120,6 +120,16 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
+  # ---- the day row ----
+
+  def execute(%__MODULE__{days: days}, %Commands.OpenDay{} = c) do
+    cond do
+      not day_ok?(c.day) -> {:error, :day_invalid}
+      MapSet.member?(days, c.day) -> []
+      true -> %Events.DayOpened{actor: c.actor, at: c.at, id: c.id, day: c.day}
+    end
+  end
+
   # ---- free time ----
 
   def execute(%__MODULE__{free_time: current}, %Commands.SetFreeTime{} = c) do
@@ -295,6 +305,8 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   defp same_checkin?(%{label: label, time: time}, c), do: label == c.label and time == c.time
+
+  defp day_ok?(day), do: is_binary(day) and match?({:ok, _}, Date.from_iso8601(day))
 
   defp label_ok?(label),
     do: is_binary(label) and String.trim(label) != "" and String.length(label) <= @label_limit
