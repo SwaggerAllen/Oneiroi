@@ -295,6 +295,11 @@ defmodule Oneiroi.Brain.Turn do
           "the counters as the fold of their increments, derived on this read (spec §6.13, F57): never written down"
         ) ++
         section(
+          "contract",
+          Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
+          "the dyad contract (spec §6.12): the terms in force and an open proposal to answer, read on this turn"
+        ) ++
+        section(
           "journal",
           Oneiroi.Seshat.journal_text(turn.resident_id),
           "today's journal rows (spec §6.5, F29): the plan, notes, todos and wrap so far, rendered on this read"

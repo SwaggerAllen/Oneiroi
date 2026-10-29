@@ -20,6 +20,13 @@ defmodule Oneiroi.Kumbukumbu.Events do
       fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants]
   end
 
+  defmodule SessionMadePrivate do
+    # Opened under a contract that keeps solo sessions private (spec
+    # §6.3, §6.12): the steward sees the row as locked and reads the
+    # messages only once the resident shares the session (kumbukumbu #28).
+    use Oneiroi.Event, version: 1, fields: [:id, :resident_id, :session_key]
+  end
+
   defmodule TurnStarted do
     # The adapter contract's `turn-start` (spec §8): the session the next
     # tool calls are attributed to, and the id the capture will carry.

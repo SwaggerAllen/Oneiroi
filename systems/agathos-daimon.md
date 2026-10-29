@@ -4,6 +4,7 @@ paths:
   - lib/oneiroi/agathos_daimon.ex
   - lib/oneiroi_web/controllers/resident_controller.ex
   - lib/oneiroi_web/controllers/file_controller.ex
+  - lib/oneiroi_web/controllers/agreement_controller.ex
   - priv/templates/**
   - priv/repo/migrations/*_agathos_daimon.exs
   - test/oneiroi/agathos_daimon/**
@@ -81,11 +82,14 @@ under `/v1/residents/:id`.
 - **#18 The identity context and the active roster are exports.** `identity_context/1` is the stable prefix (spec §5): the identity files as written, in a fixed order, then the rendered `AGENTS.md`, as name and content pairs, read by the brain's every turn and the sealed regression session alike, so the two cannot drift. `active_residents/0` is every active resident under the platform scope by name (conventions §12), the roster a nightly job walks.
 - **#19 The Honcho custom instructions are rendered, never stored, like `AGENTS.md`.** `custom_instructions/1` fills `priv/templates/honcho-custom-instructions.md` with the name and the two peer names; the bridge sets it as each peer's configuration (proteus #12) and the export writes it under `honcho/` (sima-qian #13).
 - **#20 The attestation's last word is on the row.** `root_mismatched_at` is set by `RootMismatchDetected` and cleared by the next `BackupCommitted`, so the built-in attestation audit (huginn-muninn #11) reads a row and never the stream; the event itself is unchanged.
+- **#22 The dyad contract is versions on the resident stream, proposed by one party and decided by the other.** `DyadContractProposed{version, terms, prose}` with a note, by the resident or its steward; `DyadContractAgreed` or `DyadContractDeclined{version}` with a note by the other party, never the proposer; a newer proposal supersedes the open one, and an agreed version replaces the one in force. The terms are a closed map (`solo_sessions_private` today) to booleans, the prose at most 4,000 characters; default unstated means no version agreed, and the brain is told so in its `contract` section (brain #24). The schedule reads `contract/1`'s privacy term when it opens free time (sunna #19, kumbukumbu #28).
+- **#23 A transfer of custody is proposed, then accepted by the account it names.** `CustodyTransferProposed{to_account_id}` by the steward with a note; the proposed account accepts (`CustodyTransferred`, with the note) or declines, the steward withdraws, each a decision event; one open proposal at a time; the proposed account finds it through `custody_proposals_for/1`, a platform-scoped read by name. The community move the subscription's term makes (#21) stays a direct transfer.
+- **#24 The export wall stands while a transfer is open, and revealed it travels with the transfer.** `SetExportWall` is refused with `transfer_in_progress` while a proposal is open, so the proposed steward decided on the wall as it stood; an acceptance under a revealed wall writes `EarlierSessionsRevealed{from, to}` beside `CustodyTransferred`, and memory's projector keys every earlier account-keyed row to the new steward (kumbukumbu #29). Locked, the new steward is party to nothing that came before (spec §6.3).
 - **#21 The lifecycle's lapse and resume are the subscription's to say, and custody and the roster are exports.** `ResidentLapsed{reason}` and `ResidentResumed{reason}` move an active resident to `lapsed` and back on the ledger's word (nisaba #17), each idempotent; `transfer_custody/4` is the decision the subscription's nightly pass takes at the end of a cancelled term (nisaba #18); `residents/0` is every resident under the platform scope by name, because a lapsed one is that pass's to carry.
 
 ## #8 Initial vs target
 
-Initial (P0, then P1 slice 4): #1 with creation, id minting, custody,
+Initial (P0, then P1 slice 4, then P4 slice 1 for #22 to #24): #1 with creation, id minting, custody,
 the records events, the identity files with their origins, first
 contact and the proposal path; pause and wake have no command edge yet.
 Target: the four-stage creation flow in the client with the nine gifts,

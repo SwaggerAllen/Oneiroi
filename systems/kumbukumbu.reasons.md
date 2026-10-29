@@ -101,3 +101,15 @@ prediction, conversation, journal entry, research task, document,
 date, figure, behaviour)". Checking another system's rows from here is
 a dependency on every system that has rows, which is the cycle the
 cycles gate refuses.
+
+## #28
+Spec §6.3: "while it holds, a solo session lists as a locked row (kind,
+parties, no open), the resident may still share one (`SessionShared`)";
+"enforced as the RLS policy on `message` and `session`, not in the
+client". Keying the messages away is the policy doing it; the refusal
+on the read says the same thing in words.
+
+## #29
+Spec §6.3: "revealing it grants read on the earlier sessions, locking
+it does not". Every earlier session, because a steward who handed over
+no longer stewards and the wall is all or nothing (spec §6.12).

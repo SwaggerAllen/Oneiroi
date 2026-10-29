@@ -316,7 +316,8 @@ defmodule Oneiroi.Sunna.Schedules do
              "free_time",
              "brain",
              List.wrap(row.account_id),
-             actor
+             actor,
+             private: AgathosDaimon.contract(resident_id).solo_sessions_private
            ),
          {:ok, _} <-
            wake(resident_id, key, Prompt.render!("free_time", %{name: row.name}), :free_time) do

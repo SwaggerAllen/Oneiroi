@@ -34,7 +34,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
 
   def execute(%__MODULE__{state: :absent}, %Commands.OpenSession{} = c) do
     if c.kind in @kinds do
-      %Events.SessionOpened{
+      opened = %Events.SessionOpened{
         actor: c.actor,
         at: c.at,
         id: c.id,
@@ -44,6 +44,19 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
         adapter: c.adapter,
         participants: c.participants
       }
+
+      if c.private == true,
+        do: [
+          opened,
+          %Events.SessionMadePrivate{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            resident_id: c.resident_id,
+            session_key: c.session_key
+          }
+        ],
+        else: opened
     else
       {:error, :kind_invalid}
     end
@@ -197,6 +210,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     do: %{s | failures: Map.delete(s.failures, e.turn_ref)}
 
   def apply(%__MODULE__{} = s, %Events.SessionShared{}), do: s
+  def apply(%__MODULE__{} = s, %Events.SessionMadePrivate{}), do: s
 
   @doc "The idempotency key of a turn: when it started and the hash of its messages' hashes, in order."
   @spec turn_key(DateTime.t(), [map()]) :: {String.t(), String.t()}

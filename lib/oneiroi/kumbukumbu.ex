@@ -95,6 +95,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.ResolveCaptureFailure,
       Commands.ShareSession,
       Events.SessionOpened,
+      Events.SessionMadePrivate,
       Events.TurnStarted,
       Events.TurnCaptured,
       Events.ContextAssembled,
@@ -143,6 +144,7 @@ defmodule Oneiroi.Kumbukumbu do
   def events do
     [
       {Oneiroi.Kumbukumbu.Events.SessionOpened, 1},
+      {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
@@ -173,6 +175,9 @@ defmodule Oneiroi.Kumbukumbu do
   @impl Oneiroi.Component
   def errors do
     [
+      {:kumbukumbu_session_private,
+       "the session is the resident's own under its contract: listed, not opened, until the resident shares it",
+       remedy: "ask the resident, or renegotiate the term"},
       {:kumbukumbu_no_such_session, "no session with that key is open for the resident",
        remedy: "open one, or read the key off the session list"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
@@ -226,6 +231,20 @@ defmodule Oneiroi.Kumbukumbu do
           {:ok, String.t()} | {:error, term()}
   defexport(open_session(resident_id, kind, adapter, participants, actor),
     do: Conversations.open_session(resident_id, kind, adapter, participants, actor)
+  )
+
+  @doc "Opens a session with options: `private: true` keeps it the resident's own until shared (spec §6.3, §6.12)."
+  @spec open_session(
+          String.t(),
+          String.t(),
+          String.t(),
+          [String.t()],
+          Oneiroi.Actor.t(),
+          keyword()
+        ) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(open_session(resident_id, kind, adapter, participants, actor, opts),
+    do: Conversations.open_session(resident_id, kind, adapter, participants, actor, opts)
   )
 
   @doc "The main session between a resident and a steward, opened on first ask."

@@ -20,6 +20,7 @@ defmodule Oneiroi.Brain do
       Oneiroi,
       Oneiroi.AgathosDaimon,
       Oneiroi.Eunomia,
+      Oneiroi.Glitnir,
       Oneiroi.HuginnMuninn,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,

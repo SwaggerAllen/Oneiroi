@@ -41,7 +41,9 @@ config :oneiroi,
           # The in-memory Honcho (conventions §9).
           "PROTEUS_CLIENT" => "fake",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
-          "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
+          "SIMA_QIAN_ROOT" => "tmp/sima_qian_test",
+          # The suite's one investigator account, created by the governance tests.
+          "GLITNIR_INVESTIGATORS" => "investigator@example.org"
         }}
 
 # The endpoint process runs (Phoenix.ConnTest needs it) and binds no socket.

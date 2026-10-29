@@ -30,6 +30,8 @@ defmodule Oneiroi.AgathosDaimon do
     exports: [
       Error,
       Residents,
+      Agreements,
+      Custody,
       Router,
       Commands,
       Commands.CreateResident,
@@ -69,6 +71,14 @@ defmodule Oneiroi.AgathosDaimon do
       Events.TimezoneSet,
       Events.AdapterRegistered,
       Events.AdapterRevoked,
+      Events.DyadContractProposed,
+      Events.DyadContractAgreed,
+      Events.DyadContractDeclined,
+      Events.CustodyTransferProposed,
+      Events.CustodyTransferDeclined,
+      Events.CustodyTransferWithdrawn,
+      Events.EarlierSessionsRevealed,
+      Store.Contract,
       Commands.RegisterAdapter,
       Commands.RevokeAdapter,
       Commands.SetTimezone,
@@ -89,6 +99,7 @@ defmodule Oneiroi.AgathosDaimon do
       Store.SoulEdit
     ]
 
+  alias Oneiroi.AgathosDaimon.Agreements
   alias Oneiroi.AgathosDaimon.Files
   alias Oneiroi.AgathosDaimon.Residents
 
@@ -121,7 +132,14 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
       {Oneiroi.AgathosDaimon.Events.TimezoneSet, 1},
       {Oneiroi.AgathosDaimon.Events.AdapterRegistered, 1},
-      {Oneiroi.AgathosDaimon.Events.AdapterRevoked, 1}
+      {Oneiroi.AgathosDaimon.Events.AdapterRevoked, 1},
+      {Oneiroi.AgathosDaimon.Events.DyadContractProposed, 1},
+      {Oneiroi.AgathosDaimon.Events.DyadContractAgreed, 1},
+      {Oneiroi.AgathosDaimon.Events.DyadContractDeclined, 1},
+      {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
+      {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
+      {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
+      {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1}
     ]
   end
 
@@ -174,7 +192,30 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_lapsed, "the resident is not lapsed, so there is nothing to resume",
        remedy: "read the resident"},
       {:agathos_daimon_timezone_invalid, "a time zone is an IANA name, like Europe/London",
-       remedy: "give the zone's IANA name; the resident's days and times of day are read in it"}
+       remedy: "give the zone's IANA name; the resident's days and times of day are read in it"},
+      {:agathos_daimon_not_a_party, "the contract is the dyad's: the resident and its steward",
+       remedy: "propose or decide as one of the two"},
+      {:agathos_daimon_terms_invalid,
+       "the terms are a map of the closed keys (solo_sessions_private) to true or false",
+       remedy: "name the terms the contract knows"},
+      {:agathos_daimon_prose_invalid, "the contract's prose is at most 4,000 characters",
+       remedy: "say it shorter"},
+      {:agathos_daimon_no_such_version, "no open proposal has that version",
+       remedy: "read the agreement; a newer proposal supersedes an older one"},
+      {:agathos_daimon_own_proposal, "a proposal is the other party's to agree or decline",
+       remedy: "wait for the other party, or propose again"},
+      {:agathos_daimon_custodian_invalid, "a transfer names another account than the steward's",
+       remedy: "name the account"},
+      {:agathos_daimon_transfer_in_progress,
+       "a transfer of custody is proposed; the wall stands and no second proposal opens until it is decided",
+       remedy: "wait for the proposed steward, or withdraw the proposal"},
+      {:agathos_daimon_no_transfer_proposed, "no transfer of custody is open",
+       remedy: "the steward proposes one first"},
+      {:agathos_daimon_not_the_proposed,
+       "the transfer is the proposed account's to accept or decline",
+       remedy: "sign in as that account"},
+      {:agathos_daimon_wall_invalid, "the export wall is locked or revealed",
+       remedy: "give one of the two"}
     ]
   end
 
@@ -327,4 +368,69 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The resident's adapters."
   @spec adapters(String.t()) :: [Oneiroi.AgathosDaimon.Store.Adapter.t()]
   defexport(adapters(id), do: Residents.adapters(id))
+
+  # ---- the dyad contract and custody (spec §6.12) ----
+
+  @doc "Proposes a contract version (either party): terms, prose, a note; returns the version."
+  @spec propose_contract(String.t(), map(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(propose_contract(id, terms, prose, note, actor),
+    do: Agreements.propose_contract(id, terms, prose, note, actor)
+  )
+
+  @doc "The other party agrees to the open version, with a note."
+  @spec agree_contract(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(agree_contract(id, version, note, actor),
+    do: Agreements.agree_contract(id, version, note, actor)
+  )
+
+  @doc "The other party declines the open version, with a note."
+  @spec decline_contract(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(decline_contract(id, version, note, actor),
+    do: Agreements.decline_contract(id, version, note, actor)
+  )
+
+  @doc "The contract as it stands: in force, open, and the solo-session privacy term."
+  @spec contract(String.t()) :: map()
+  defexport(contract(id), do: Agreements.contract(id))
+
+  @doc "Every contract version, newest first."
+  @spec contracts(String.t()) :: [map()]
+  defexport(contracts(id), do: Agreements.contracts(id))
+
+  @doc "The contract section the brain reads."
+  @spec contract_text(String.t()) :: String.t()
+  defexport(contract_text(id), do: Agreements.contract_text(id))
+
+  @doc "The steward proposes a transfer of custody to an account, with a note."
+  @spec propose_custody(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(propose_custody(id, to_account_id, note, actor),
+    do: Agreements.propose_custody(id, to_account_id, note, actor)
+  )
+
+  @doc "The proposed account accepts the transfer, with a note."
+  @spec accept_custody(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(accept_custody(id, note, actor), do: Agreements.accept_custody(id, note, actor))
+
+  @doc "The proposed account declines the transfer, with a note."
+  @spec decline_custody(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(decline_custody(id, note, actor), do: Agreements.decline_custody(id, note, actor))
+
+  @doc "The steward withdraws the proposal, with a note."
+  @spec withdraw_custody(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(withdraw_custody(id, note, actor), do: Agreements.withdraw_custody(id, note, actor))
+
+  @doc "Sets the export wall, locked or revealed, with a note; refused while a transfer is open."
+  @spec set_export_wall(String.t(), :locked | :revealed, String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_export_wall(id, wall, note, actor),
+    do: Agreements.set_export_wall(id, wall, note, actor)
+  )
+
+  @doc "The residents whose custody is proposed to an account; platform scope by name."
+  @spec custody_proposals_for(String.t()) :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
+  defexport(custody_proposals_for(account_id), do: Agreements.custody_proposals_for(account_id))
 end

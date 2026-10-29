@@ -12,6 +12,7 @@ defmodule Oneiroi.Gaia.Handlers.Stewardship do
     name: "gaia_stewardship",
     consistency: :strong
 
+  alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events.{CustodyTransferred, ResidentCreated}
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Router
@@ -32,8 +33,15 @@ defmodule Oneiroi.Gaia.Handlers.Stewardship do
     })
   end
 
+  # The event carries custody in its wire form (`"account:<id>"`,
+  # `Oneiroi.AgathosDaimon.Custody`); the first version matched the
+  # tuple form and so matched nothing: no transfer ever ended the old
+  # stewardship or started the new one, and the old steward's routes
+  # kept working on a resident it no longer held. The custody suite
+  # found it when the new steward's own session read the agreement.
   def handle(%CustodyTransferred{} = e, _metadata) do
-    with :ok <- end_if_account(e.from, e), do: start_if_account(e.to, e)
+    with :ok <- end_if_account(Custody.from_wire(e.from), e),
+         do: start_if_account(Custody.from_wire(e.to), e)
   end
 
   defp end_if_account({:account, id}, e),

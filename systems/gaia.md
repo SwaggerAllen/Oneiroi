@@ -74,6 +74,8 @@ task that creates the one account.
   exactly which answers 200, 401, 403 or 422, and that a mutation from a
   browser without the endpoint's Origin is refused.
 
+- **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir #8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a steward names. Both take the platform scope by name (conventions §12), as #8's two reads do.
+- **#13 Stewardship follows custody in the event's wire form.** The stewardship handler reads `CustodyTransferred`'s `from` and `to` through `Oneiroi.AgathosDaimon.Custody.from_wire/1`: the first version matched the tuple form against the wire strings and matched nothing, so no transfer ever ended the old stewardship or started the new one, and the old steward's routes kept working on a resident it no longer held. Found by the custody suite in P4, once a transferred resident was read from the new steward's own session; the subscription's community move had the same hole from P2.
 - **#11 The steward's OpenRouter key lives on the account, encrypted
   under the vault.** `KeyStored` carries the vault's ciphertext and is
   redacted from every export like the second factor; storing again is

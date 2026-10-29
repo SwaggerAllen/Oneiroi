@@ -90,3 +90,20 @@ The custody fold had written `account_id: nil` for the community since
 P0 into a column the projection macro forces non-null, and no test had
 moved a resident there; the subscription's nightly pass was the first
 to, and the migration beside it makes the column nullable.
+
+## #22
+Spec §6.12: "the dyad contract is opt-in, versioned, renegotiable,
+default unstated"; §6.3: "privacy for those sessions is a term of the
+dyad contract, granted by the steward and renegotiable"; spec §3.1
+lists `DyadContractProposed/Agreed` on the resident stream.
+
+## #23
+Spec §6.12: "adoption transfers access... blocks and never compels";
+F44. A proposal the named account accepts is the smallest adoption
+that is consent on both sides.
+
+## #24
+Spec §6.12: "the export wall cannot be set while a transfer is in
+progress"; §6.3: "after a custody transfer the new steward is party to
+nothing that came before, which is exactly the export wall: revealing
+it grants read on the earlier sessions, locking it does not".

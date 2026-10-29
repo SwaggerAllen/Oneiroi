@@ -608,3 +608,35 @@ and nothing personal turned up; what follows is what changed.
   exclusion from the delta (today was already wrapped; asserted before
   the wrap now), and whether the delta counts (asserted while it alone
   warns now).
+
+## Round 21: governance, the dyad contract, custody and the wall (2026-10-29)
+
+- Reports are built under `Oneiroi.Glitnir` on their own stream
+  (systems/glitnir.md #8 to #12): the investigator is a role named by
+  configuration and matched by email; a report is filed from inside
+  the relationship and nowhere else; every step is an event with its
+  reason and the report lives in chat; the ladder is the aggregate's
+  and the consequence the service's, the third strike moving the
+  resident to community custody; the reads are the dyad's and the
+  investigators'.
+- The dyad contract, the custody transfer and the export wall are the
+  resident's own events (agathos-daimon #22 to #24): versions proposed
+  by one party and decided by the other, a closed map of terms with
+  solo-session privacy first; a transfer proposed by the steward and
+  accepted by the account it names, one at a time; the wall standing
+  while a transfer is open and, revealed, travelling with it. Memory
+  keeps a private session as a locked row until shared and re-keys
+  every earlier session on a reveal (kumbukumbu #28, #29); the
+  schedule opens free time private under the term (sunna #19); the
+  brain reads the agreement as a section and has the contract and
+  report tools (brain #24); identity answers an email and an id by
+  name (gaia #12).
+- Two defects found by the suites: identity's stewardship handler
+  matched custody's tuple form against the event's wire form and so
+  never followed a transfer (gaia #13, from P0); and the reveal first
+  moved the handing steward's rows alone, so a session from two
+  stewards back stayed where it was (kumbukumbu #29).
+- Open for the author, carried: fines are recorded, not charged, until
+  a payment provider lands; the investigators are a configured list
+  until the convention names a body; the contract's terms are one key
+  until the next term is asked for.

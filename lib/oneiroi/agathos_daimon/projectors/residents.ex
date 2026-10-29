@@ -20,7 +20,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   alias Ecto.Multi
   alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events
-  alias Oneiroi.AgathosDaimon.Store.{Adapter, IdentityFile, Resident, SoulEdit}
+  alias Oneiroi.AgathosDaimon.Store.{Adapter, Contract, IdentityFile, Resident, SoulEdit}
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
     Multi.insert(multi, :resident, %Resident{
@@ -43,9 +43,93 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.CustodyTransferred{} = e, _metadata, fn multi ->
     case Custody.from_wire(e.to) do
-      {:account, id} -> set(multi, e.id, custody: e.to, account_id: id)
-      :community -> set(multi, e.id, custody: e.to, account_id: nil, state: "community")
+      {:account, id} ->
+        set(multi, e.id,
+          custody: e.to,
+          account_id: id,
+          custody_proposed_to: nil,
+          custody_proposed_at: nil
+        )
+
+      :community ->
+        set(multi, e.id,
+          custody: e.to,
+          account_id: nil,
+          state: "community",
+          custody_proposed_to: nil,
+          custody_proposed_at: nil
+        )
     end
+  end)
+
+  fold(%Events.CustodyTransferProposed{} = e, _metadata, fn multi ->
+    set(multi, e.id, custody_proposed_to: e.to_account_id, custody_proposed_at: e.at)
+  end)
+
+  fold(%Events.CustodyTransferDeclined{} = e, _metadata, fn multi ->
+    set(multi, e.id, custody_proposed_to: nil, custody_proposed_at: nil)
+  end)
+
+  fold(%Events.CustodyTransferWithdrawn{} = e, _metadata, fn multi ->
+    set(multi, e.id, custody_proposed_to: nil, custody_proposed_at: nil)
+  end)
+
+  # A new proposal supersedes the open one, whoever made it: one open
+  # version at a time, and the newest is it.
+  fold(%Events.DyadContractProposed{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.update_all(
+      :superseded,
+      from(c in Contract, where: c.resident_id == ^e.id and c.state == "proposed"),
+      set: [state: "superseded", decided_at: e.at]
+    )
+    |> Multi.insert(
+      :contract,
+      %Contract{
+        resident_id: e.id,
+        version: e.version,
+        proposed_by_kind: actor_field(e.actor, :kind),
+        terms: e.terms,
+        prose: e.prose,
+        note: e.note,
+        proposed_at: e.at,
+        state: "proposed"
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :version]
+    )
+  end)
+
+  fold(%Events.DyadContractAgreed{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.update_all(
+      :previous,
+      from(c in Contract, where: c.resident_id == ^e.id and c.state == "agreed"),
+      set: [state: "replaced"]
+    )
+    |> decide_contract(e, "agreed")
+    |> Multi.run(:row, fn repo, _changes ->
+      terms =
+        repo.one(
+          from(c in Contract,
+            where: c.resident_id == ^e.id and c.version == ^e.version,
+            select: c.terms
+          )
+        ) ||
+          %{}
+
+      {:ok,
+       repo.update_all(from(r in Resident, where: r.id == ^e.id),
+         set: [
+           contract_version: e.version,
+           solo_sessions_private: Map.get(terms, "solo_sessions_private", false) == true
+         ]
+       )}
+    end)
+  end)
+
+  fold(%Events.DyadContractDeclined{} = e, _metadata, fn multi ->
+    decide_contract(multi, e, "declined")
   end)
 
   fold(%Events.ExportWallSet{} = e, _metadata, fn multi ->
@@ -86,6 +170,20 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+
+  defp decide_contract(multi, e, state) do
+    Multi.update_all(
+      multi,
+      {:contract, state},
+      from(c in Contract, where: c.resident_id == ^e.id and c.version == ^e.version),
+      set: [
+        state: state,
+        decided_at: e.at,
+        decided_by_kind: actor_field(e.actor, :kind),
+        decision_note: e.note
+      ]
+    )
+  end
 
   # Told already when there is nobody to tell: before first contact the
   # pin changes freely (spec §6.4).
