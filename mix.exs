@@ -79,6 +79,7 @@ defmodule Oneiroi.MixProject do
             :open_api_spex,
             :phoenix,
             :phoenix_pubsub,
+            :pgvector,
             :phoenix_template,
             :plug,
             :plug_crypto,
@@ -117,6 +118,9 @@ defmodule Oneiroi.MixProject do
       # Ecto projections, Oban for jobs.
       {:ecto_sql, "~> 3.13"},
       {:postgrex, "~> 0.22"},
+      # The vector column and its distance operators for the library's
+      # index (spec §6.5; conventions §1's blessed list names pgvector).
+      {:pgvector, "~> 0.4.2"},
       {:commanded, "~> 1.4"},
       {:commanded_eventstore_adapter, "~> 1.4"},
       {:eventstore, "~> 1.4"},

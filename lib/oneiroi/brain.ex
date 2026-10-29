@@ -24,6 +24,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
       Oneiroi.Proteus,
+      Oneiroi.Seshat,
       Oneiroi.Sunna,
       Jason
     ],

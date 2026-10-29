@@ -34,6 +34,7 @@ defmodule Oneiroi.Repo do
      |> Keyword.merge(Secret.unwrap(Config.fetch!(:apsu, :database_url)))
      |> Keyword.put(:pool_size, Config.fetch!(:apsu, :pool_size))
      |> Keyword.put(:after_connect, {__MODULE__, :set_role, []})
+     |> Keyword.put(:types, Oneiroi.PostgrexTypes)
      |> Keyword.put(:telemetry_prefix, [:oneiroi, :apsu, :repo])}
   end
 

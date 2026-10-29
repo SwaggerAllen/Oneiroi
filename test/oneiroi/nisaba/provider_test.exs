@@ -9,7 +9,7 @@ defmodule Oneiroi.Nisaba.ProviderTest do
   """
   use ExUnit.Case, async: true
 
-  alias Oneiroi.Nisaba.Provider.{Fake, OpenRouter, Request, Result, Usage}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Fake, OpenRouter, Request, Result, Usage}
   alias Oneiroi.Nisaba.Provider.OpenRouter.SSE
 
   @request Request.new("fake/model", [
@@ -43,6 +43,37 @@ defmodule Oneiroi.Nisaba.ProviderTest do
 
       assert {:ok, %Result{content: "The fake provider heard: " <> _}} =
                Fake.complete(@request, "k")
+    end
+
+    test "embeds deterministically at the pinned width, unit length, near for shared words, and fails when scripted" do
+      assert {:ok, %Embedding{model: "fake/embed", vectors: [a, b, c], usage: usage}} =
+               Fake.embed(
+                 "fake/embed",
+                 ["roses by the gate", "roses by the wall", "salt and gulls"],
+                 "k"
+               )
+
+      assert length(a) == Fake.width() and Fake.width() == 1536
+      assert_in_delta Enum.sum(Enum.map(a, &(&1 * &1))), 1.0, 1.0e-9
+
+      assert a ==
+               elem(
+                 Fake.embed("fake/embed", ["roses by the gate"], "k")
+                 |> elem(1)
+                 |> Map.fetch!(:vectors)
+                 |> List.pop_at(0),
+                 0
+               )
+
+      dot = fn x, y -> Enum.zip(x, y) |> Enum.map(fn {p, q} -> p * q end) |> Enum.sum() end
+      assert dot.(a, b) > dot.(a, c)
+      assert usage.prompt_tokens == 11 and usage.completion_tokens == 0
+      assert usage.cost_nanos == 11 * Fake.nanos_per_token()
+
+      Fake.embed_fail(:transport)
+      assert {:error, {:transport, :scripted}} = Fake.embed("fake/embed", ["x"], "k")
+      Fake.clear()
+      assert {:ok, _} = Fake.embed("fake/embed", ["x"], "k")
     end
 
     test "streams the reply in pieces to the sink and returns the same result" do
@@ -197,6 +228,35 @@ defmodule Oneiroi.Nisaba.ProviderTest do
                tool_calls: [%{id: "c1", name: "f", arguments: "{\"a\":1}"}],
                finish_reason: "tool_calls"
              } = SSE.result(state)
+    end
+  end
+
+  describe "the OpenRouter embeddings reply" do
+    test "is parsed in input order with its usage, and a wrong shape is a refused request" do
+      body = %{
+        "model" => "openai/text-embedding-3-small",
+        "data" => [
+          %{"index" => 1, "embedding" => [0.5, 0.5]},
+          %{"index" => 0, "embedding" => [1.0, 0.0]}
+        ],
+        "usage" => %{"prompt_tokens" => 6, "total_tokens" => 6}
+      }
+
+      assert {:ok,
+              %Embedding{
+                model: "openai/text-embedding-3-small",
+                vectors: vectors,
+                usage: %Usage{prompt_tokens: 6, cost_nanos: 0, estimated: true}
+              }} =
+               OpenRouter.parse_embedding(body, "asked/model")
+
+      assert vectors == [[1.0, 0.0], [0.5, 0.5]]
+
+      assert {:error, {:schema_invalid, :embedding_shape}} =
+               OpenRouter.parse_embedding(%{"data" => [%{"embedding" => "no"}]}, "m")
+
+      assert {:error, {:schema_invalid, {:unexpected_body, _}}} =
+               OpenRouter.parse_embedding(%{"error" => %{"message" => "nope"}}, "m")
     end
   end
 end

@@ -15,6 +15,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Eunomia
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
 
   @type turn :: %{
           resident_id: String.t(),
@@ -200,7 +201,49 @@ defmodule Oneiroi.Brain.Tools do
         %{number: %{type: "integer"}},
         [:number]
       ),
-      tool("behaviour_list", "Your behaviours with their habit and connection scores.", %{}, [])
+      tool("behaviour_list", "Your behaviours with their habit and connection scores.", %{}, []),
+      tool(
+        "library_search",
+        "Search your library: the nearest passages to a query across everything written, with their files.",
+        %{q: %{type: "string"}},
+        [:q]
+      ),
+      tool(
+        "library_cited_by",
+        "Which of your documents cite a target, written as you cite it (for example lily:bookmark/42 or lily:writing/the-bake-off).",
+        %{target: %{type: "string"}},
+        [:target]
+      ),
+      tool(
+        "writing_get",
+        "Read a writing piece by its slug (writing/<slug>.md): the content and every reference it makes, resolved now.",
+        %{slug: %{type: "string"}},
+        [:slug]
+      ),
+      tool(
+        "writing_discuss",
+        "Link this conversation to a writing piece as its discussion.",
+        %{slug: %{type: "string"}},
+        [:slug]
+      ),
+      tool(
+        "document_write",
+        "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md. A writing piece carries status: draft, review or final in its frontmatter. Cite with <your slug>:<kind>/<id>.",
+        %{path: %{type: "string"}, content: %{type: "string"}},
+        [:path, :content]
+      ),
+      tool(
+        "document_adopt",
+        "Adopt a file made outside the flow into the library, as it is.",
+        %{path: %{type: "string"}},
+        [:path]
+      ),
+      tool(
+        "document_unadopted",
+        "Files in your repository the library does not yet hold.",
+        %{},
+        []
+      )
     ]
   end
 
@@ -505,6 +548,76 @@ defmodule Oneiroi.Brain.Tools do
         args["note"],
         turn.resident
       )
+
+  defp call("library_search", args, turn) do
+    case Seshat.search(turn.resident_id, to_string(args["q"] || ""), turn.resident) do
+      {:ok, []} ->
+        "Nothing in the library is near that."
+
+      {:ok, hits} ->
+        Enum.map_join(hits, "\n", &"[#{&1.path}##{&1.ordinal}] #{&1.title}: #{&1.text}")
+
+      other ->
+        other
+    end
+  end
+
+  defp call("library_cited_by", args, turn) do
+    case Seshat.cited_by(turn.resident_id, to_string(args["target"] || "")) do
+      [] -> "Nothing cites that."
+      refs -> Enum.map_join(refs, "\n", &"#{&1.from_path} cites #{&1.target}")
+    end
+  end
+
+  defp call("writing_get", args, turn) do
+    case Seshat.review(turn.resident_id, "writing/#{args["slug"]}.md") do
+      {:ok, review} -> review.rendered
+      other -> other
+    end
+  end
+
+  defp call("writing_discuss", args, turn),
+    do:
+      Seshat.discuss(
+        turn.resident_id,
+        "writing/#{args["slug"]}.md",
+        turn.session_key,
+        turn.resident
+      )
+
+  defp call("document_write", args, turn) do
+    case Seshat.write(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           to_string(args["content"] || ""),
+           turn.resident
+         ) do
+      {:ok, %{path: path, changed: changed, indexed: indexed}} ->
+        "Written #{path}" <>
+          if(changed, do: "", else: " (unchanged)") <>
+          if(indexed,
+            do: " and indexed.",
+            else: "; the index did not run clean, it will again tonight."
+          )
+
+      other ->
+        other
+    end
+  end
+
+  defp call("document_adopt", args, turn) do
+    case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
+      {:ok, %{path: path}} -> "Adopted #{path}."
+      other -> other
+    end
+  end
+
+  defp call("document_unadopted", _args, turn) do
+    case Seshat.unadopted(turn.resident_id) do
+      [] -> "Nothing is waiting to be adopted."
+      paths -> Enum.join(paths, "\n")
+    end
+  end
 
   defp call(name, _args, _turn), do: "There is no tool named #{name}."
 

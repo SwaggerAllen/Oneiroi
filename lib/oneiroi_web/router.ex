@@ -151,6 +151,17 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/subscription/lapse", SubscriptionController, :lapse)
       post("/residents/:id/subscription/cancel", SubscriptionController, :cancel)
       post("/residents/:id/subscription/prepay", SubscriptionController, :prepay)
+      get("/residents/:id/library", LibraryController, :index)
+      get("/residents/:id/library/search", LibraryController, :search)
+      get("/residents/:id/library/cited-by", LibraryController, :cited_by)
+      post("/residents/:id/library/adopt", LibraryController, :adopt)
+      post("/residents/:id/library/publish", LibraryController, :publish)
+      post("/residents/:id/library/discussions", LibraryController, :discuss)
+      post("/residents/:id/library/index", LibraryController, :run_index)
+      get("/residents/:id/library/review/*path", LibraryController, :review)
+      get("/residents/:id/library/publish-copy/*path", LibraryController, :publish_copy)
+      get("/residents/:id/library/documents/*path", LibraryController, :show)
+      put("/residents/:id/library/documents/*path", LibraryController, :write)
     end
   end
 end

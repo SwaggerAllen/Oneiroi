@@ -70,6 +70,7 @@ check, the two nightly workers on the `sima_qian_nightly` queue, and the
   recomputes the root over the working export and raises
   `RootMismatchDetected` with both roots and the commit; the steward
   sees it on the stream.
+- **#14 The working repository is an export, made a repository on first ask.** `repository_dir/1` is the resident's directory under `SIMA_QIAN_ROOT`, initialised if it is not one yet: where the library writes its files between backups (seshat #12), under the folders the classes of #7 already commit. Nothing else about the repository leaves this system; the export and the backup read the same path.
 - **#13 The Honcho instructions ride in the soul class, and a soul commit sets the card.** The export renders `honcho/custom-instructions.md` beside the identity files on every run (agathos-daimon #19), so the soul class commits it with the soul and the first backup of any resident makes a soul commit; after a run that committed the soul class the backup calls `Oneiroi.Proteus.set_card/3` with source `commit` (proteus #14), and a bridge not yet provisioned or a Honcho that is down is the bridge's to record, never the backup's to fail on.
 
 ## #11 Initial vs target

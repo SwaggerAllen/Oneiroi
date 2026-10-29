@@ -32,7 +32,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @line_limit 120
   # Positions, predictions and dates are other systems' rows (spec §6.3's
   # list); a tagging on them is checked for the kind alone, as a turn is.
-  @target_kinds ~w(bookmark conversation turn position prediction date figure)
+  @target_kinds ~w(bookmark conversation turn position prediction date figure document)
   @stances ~w(keep change)
   # The situation tags a trigger may name (spec §6.3): the closed set the
   # assembler can match without a model call. `words` are the steward's

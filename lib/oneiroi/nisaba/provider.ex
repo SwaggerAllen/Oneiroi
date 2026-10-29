@@ -75,6 +75,13 @@ defmodule Oneiroi.Nisaba.Provider do
           }
   end
 
+  defmodule Embedding do
+    @moduledoc "What an embeddings call returned: one vector per input text, in order, the model, and what it cost."
+    defstruct [:model, vectors: [], usage: %Usage{}]
+
+    @type t :: %__MODULE__{model: String.t() | nil, vectors: [[float()]], usage: Usage.t()}
+  end
+
   @type failure :: {:transport, term()} | {:schema_invalid, term()}
   @type sink :: (String.t() -> any())
 
@@ -84,4 +91,8 @@ defmodule Oneiroi.Nisaba.Provider do
   @doc "Completes the request, calling `sink` with each delta of the reply as it arrives."
   @callback stream(Request.t(), key :: String.t(), sink()) ::
               {:ok, Result.t()} | {:error, failure()}
+
+  @doc "Embeds the texts on the steward's key, one vector per text in order (spec §6.5: the library's index)."
+  @callback embed(model :: String.t(), [String.t()], key :: String.t()) ::
+              {:ok, Embedding.t()} | {:error, failure()}
 end

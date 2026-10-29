@@ -124,6 +124,11 @@ way before trusting a local green.
 ## Where things actually run
 
 - **Agent runs have no BEAM**; the gates run in `ci.yml` on the PR.
+- **The library's migration needs pgvector on the local Postgres.** CI
+  runs the `pgvector/pgvector:pg16` image and Render's Postgres carries
+  it; a local 16 needs `postgresql-16-pgvector` installed before
+  `mix test` migrates, or the Seshat migration fails on
+  `CREATE EXTENSION vector` and every test after it.
 - **The pipeline audit only runs on ticket branches** (a key in the branch
   name and `PIPELINE_REPO_TOKEN`); a clean run on an author branch is not
   evidence it passed.

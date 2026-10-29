@@ -20,7 +20,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   alias Oneiroi.Nisaba.Error
   alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Period
-  alias Oneiroi.Nisaba.Provider.{Request, Result}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
   alias Oneiroi.Nisaba.Purpose
   alias Oneiroi.Nisaba.Router
   alias Oneiroi.Nisaba.Store
@@ -96,6 +96,14 @@ defmodule Oneiroi.Nisaba.Ledgers do
     end)
   end
 
+  @doc "Embeds the texts under the `embeddings` purpose on the platform-pinned model; metered and recorded like a call."
+  def embed(resident_id, model, texts, %Actor{} = actor)
+      when is_binary(model) and is_list(texts) do
+    metered(resident_id, :embeddings, actor, fn provider, key ->
+      provider.embed(model, texts, key)
+    end)
+  end
+
   # The resident rides on the request's metadata so a provider can tell
   # whose call it is: the fake finds a per-resident script by it, and the
   # OpenRouter adapter does not send metadata at all.
@@ -107,7 +115,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
          {:ok, steward} <- steward_of(resident_id),
          {:ok, secret} <- Oneiroi.Gaia.key_for(steward),
          :ok <- within_budget(resident_id, purpose),
-         {:ok, %Result{} = result} <- taxonomy(run.(provider(), Secret.unwrap(secret))),
+         {:ok, %{usage: %Usage{}} = result} <- taxonomy(run.(provider(), Secret.unwrap(secret))),
          :ok <- record(resident_id, purpose, result, actor) do
       {:ok, result}
     end
@@ -177,6 +185,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   defp provider, do: Config.fetch!(:nisaba, :provider)
 
   defp taxonomy({:ok, %Result{}} = ok), do: ok
+  defp taxonomy({:ok, %Embedding{}} = ok), do: ok
 
   defp taxonomy({:error, {:transport, reason}}),
     do: {:error, Error.new(:nisaba_provider_failed, reason: reason)}
@@ -184,7 +193,9 @@ defmodule Oneiroi.Nisaba.Ledgers do
   defp taxonomy({:error, {:schema_invalid, reason}}),
     do: {:error, Error.new(:nisaba_request_refused, reason: reason)}
 
-  defp record(resident_id, purpose, %Result{} = result, actor) do
+  # A completion or an embedding: both carry a model and a usage, and the
+  # ledger records them the same way (an embedding has no completion).
+  defp record(resident_id, purpose, %{usage: %Usage{}} = result, actor) do
     command = %Commands.RecordModelCall{
       actor: actor,
       at: Clock.now(),

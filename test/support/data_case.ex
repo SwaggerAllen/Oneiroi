@@ -17,7 +17,9 @@ defmodule Oneiroi.DataCase do
     quote do
       alias Oneiroi.Repo
       import Oneiroi.DataCase
-      import Oneiroi.StatementBudget, only: [assert_statements: 2, count_statements: 1]
+
+      import Oneiroi.StatementBudget,
+        only: [assert_statements: 2, count_statements: 1, statements: 1]
     end
   end
 

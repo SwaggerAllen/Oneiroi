@@ -283,6 +283,13 @@ defmodule Oneiroi.Nisaba do
     do: Ledgers.stream(resident_id, purpose, request, actor, sink)
   )
 
+  @doc "Embeds the texts on `model` under the `embeddings` purpose: the library's index (spec §6.5), metered and recorded like a call."
+  @spec embed(String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
+          {:ok, Oneiroi.Nisaba.Provider.Embedding.t()} | {:error, term()}
+  defexport(embed(resident_id, model, texts, actor),
+    do: Ledgers.embed(resident_id, model, texts, actor)
+  )
+
   # ---- the subscription and the insurance floor (spec §6.2 F53, §6.11 F46) ----
 
   @doc "Starts the subscription with the floor policy; the steward's, once."

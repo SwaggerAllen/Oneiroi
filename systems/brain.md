@@ -72,6 +72,7 @@ and the session channel.
 - **#18 The judgement tools are the resident's.** `position_take`, `position_replace`, `position_list`, `dispute_check`, `dispute_settle`, `prediction_log` and `prediction_list` (spec §8's table) run against Eunomia's exports under the resident's actor on the turn in flight, so a position names the session and turn it was taken in; a live check answers in words with the judge's advice and the dispute's ref, or says the judge did not answer in time, and the resident settles it afterwards.
 - **#19 Honcho's context is a section, and every captured turn is synced through the bridge.** `Oneiroi.Proteus.context/1` is injected as `honcho` between the dates and the summary when there is any (proteus #15); after capture the turn calls `Oneiroi.Proteus.sync_turn/5` and goes on whatever it answers, because the bridge records its own failure (proteus #13) and a turn captured already is not the bridge's to fail.
 - **#20 The figures are a section and two tools.** `Oneiroi.HuginnMuninn.figures_text/1` is injected as `figures` when there is a counter, derived on the read (huginn-muninn #10); `figure_list` and `figure_increment` are the resident's, the increment carrying the resident's actor (huginn-muninn #9, #13).
+- **#22 The library's tools are the resident's, and the kinds come from the registry.** `library_search`, `library_cited_by`, `writing_get` (the review copy with references resolved), `writing_discuss` (this session linked to the piece), `document_write`, `document_adopt` and `document_unadopted` (spec §8's table) run against the library's exports under the resident's actor; `document_write`'s description lists the writable kinds from `Oneiroi.Seshat.Kinds` so a new kind reaches the model with its row (seshat #13). Publishing is not a tool: it is the steward's (seshat #19).
 - **#21 Under a lapse the policy's model stands in for the pin, and the lapse is told once.** `Oneiroi.Nisaba.lapse/1` on every turn: its model over the pin and the setting, and `priv/prompts/lapsed.md` captured as a system message by the platform ahead of the turn, once per lapse, naming the model, the free time, the term and the day it began (nisaba #17): orientation without impersonation.
 
 ## #8 Initial vs target
@@ -91,4 +92,5 @@ and the schedule reaches back only through its wake port; judgement for
 the resident's positions, disputes and predictions, and judgement never
 reaches back; the bridge for Honcho's context and the sync, and the
 bridge never reaches back; the audits for the figures, and the audits
-never reach back.
+never reach back; the library for its tools, and the library never
+reaches back.

@@ -13,9 +13,13 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   """
   @behaviour Oneiroi.Nisaba.Provider
 
-  alias Oneiroi.Nisaba.Provider.{Request, Result, Usage}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
   @key :nisaba_fake_script
+  @embed_key :nisaba_fake_embed
+  # The width spec §6.5 names for the pinned model (1,536); the library's
+  # column is declared at the same width and the suite proves they agree.
+  @width 1536
   @table :nisaba_fake_scripts
   # A flat fake price: one micro-dollar a token, so a 30-token call costs
   # 30,000 nano-dollars and the arithmetic in a test is legible.
@@ -73,10 +77,18 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   def fail(kind, opts \\ []) when kind in [:transport, :schema_invalid],
     do: script(fn _request -> {:error, {kind, :scripted}} end, opts)
 
+  @doc "Scripts the next embeddings calls from this process to fail."
+  @spec embed_fail(:transport | :schema_invalid) :: :ok
+  def embed_fail(kind) when kind in [:transport, :schema_invalid] do
+    Process.put(@embed_key, {:error, {kind, :scripted}})
+    :ok
+  end
+
   @doc "Forgets this process's script and, with `for:`, a resident's."
   @spec clear(keyword()) :: :ok
   def clear(opts \\ []) do
     Process.delete(@key)
+    Process.delete(@embed_key)
     if resident_id = Keyword.get(opts, :for), do: :ets.delete(table(), resident_id)
     :ok
   end
@@ -101,6 +113,53 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
       result.content |> String.split(~r/(?<=\s)/) |> Enum.each(sink)
       {:ok, result}
     end
+  end
+
+  # A deterministic vector per text: a bag of words hashed into the
+  # width and normalised to unit length, so two texts sharing words sit
+  # close under cosine distance and a search test can know its answer.
+  # Not an embedding model's geometry; enough for the library's ranking
+  # to be asserted rather than trusted.
+  @impl Oneiroi.Nisaba.Provider
+  def embed(model, texts, key) when is_binary(model) and is_list(texts) and is_binary(key) do
+    case Process.get(@embed_key) do
+      {:error, failure} ->
+        {:error, failure}
+
+      _unscripted ->
+        prompt = texts |> Enum.map(&tokens/1) |> Enum.sum()
+
+        {:ok,
+         %Embedding{
+           model: model,
+           vectors: Enum.map(texts, &vector/1),
+           usage: %Usage{
+             prompt_tokens: prompt,
+             completion_tokens: 0,
+             cost_nanos: prompt * @nanos_per_token,
+             estimated: false
+           }
+         }}
+    end
+  end
+
+  @doc "The width of the fake's vectors."
+  @spec width() :: pos_integer()
+  def width, do: @width
+
+  defp vector(text) do
+    counts =
+      text
+      |> String.downcase()
+      |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
+      |> Enum.frequencies()
+      |> Enum.reduce(%{}, fn {word, n}, acc ->
+        Map.update(acc, :erlang.phash2(word, @width), n, &(&1 + n))
+      end)
+
+    norm = counts |> Map.values() |> Enum.map(&(&1 * &1)) |> Enum.sum() |> :math.sqrt()
+    norm = if norm == 0, do: 1.0, else: norm
+    for i <- 0..(@width - 1), do: Map.get(counts, i, 0) / norm
   end
 
   defp answer(request) do
