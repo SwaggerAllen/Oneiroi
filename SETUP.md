@@ -59,11 +59,21 @@ secret (`sync: false`).
    for Oban and the store share the limit, and a rolling deploy runs two
    containers), and whether a preview environment can take a smaller
    database plan than production.
-5. Run the one account's creation once the service answers `/health`:
-   `mix oneiroi.setup --email <you> --password <...>` from a shell on the
-   service, or the same through the Render shell. Autodeploy stays on;
-   the image's own `CMD` runs the migrator ahead of `start`, so a failed
-   migration fails the deploy with the previous one still serving.
+5. Run the one account's creation once the service answers `/health`,
+   from a shell on the service (the Render shell, or SSH as user
+   `srv-…` to `ssh.<region>.render.com` with a key added under Account
+   Settings → SSH Public Keys). The image is an OTP release with no Mix
+   in it, so `mix oneiroi.setup` exists only in a checkout; on the
+   service, the release calls the same function on the running node:
+
+   ```sh
+   /app/bin/oneiroi rpc 'IO.inspect(Oneiroi.Gaia.create_account("<you>", "<password>", Oneiroi.Actor.platform()))'
+   ```
+
+   It prints `{:ok, <account id>}`; clear the shell's history after,
+   since the password is in it. Autodeploy stays on; the image's own
+   `CMD` runs the migrator ahead of `start`, so a failed migration fails
+   the deploy with the previous one still serving.
 
 ## 2. Orchestration's court
 
@@ -136,8 +146,8 @@ and **Deployment statuses**; without it every CI hop waits for the
 hourly cron); Settings → Actions → General → allow GitHub Actions to
 create and approve pull requests; branch protection on `main` requiring
 the `ci` check and pull requests, your own pushes as the deliberate admin
-bypass; the repo variable `PIPELINE_KILL_SWITCH=true` parks the project
-and clears it before expecting work.
+bypass. The repo variable `PIPELINE_KILL_SWITCH=true` parks the
+project; clear it before expecting any work.
 
 Run `pipeline-preflight` once everything above is set: it exercises
 every credential-bearing read and names the write scopes it did not.
@@ -156,7 +166,9 @@ plan's drafts for them become follow-ups rather than the first work.
 
 Once a resident exists: `PUT /v1/residents/:id/remote` with a GitHub
 repository you created and a fine-grained token scoped to it (Contents
-read and write), then `Oneiroi.SimaQian.backup/2` from a shell, read the
+read and write), then the backup from a shell on the service through
+the release (`/app/bin/oneiroi rpc 'IO.inspect(Oneiroi.SimaQian.backup(<resident id>, Oneiroi.Actor.platform()))'`,
+as in §1 step 5), read the
 `Oneiroi-Sequence` and `Oneiroi-Root` trailers off the commit on GitHub,
 and `mix oneiroi.sima_qian.rebuild <repo> --steward <account id>` against
 a second database. The export of the rebuilt resident is byte-identical
