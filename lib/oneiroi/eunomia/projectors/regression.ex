@@ -35,7 +35,14 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
     Multi.insert(
       multi,
       :run,
-      %Run{resident_id: e.id, ref: e.run_ref, models: e.models, tests: e.tests, started_at: e.at},
+      %Run{
+        resident_id: e.id,
+        ref: e.run_ref,
+        models: e.models,
+        tests: e.tests,
+        behaviours: e.behaviours || [],
+        started_at: e.at
+      },
       on_conflict: :nothing,
       conflict_target: [:resident_id, :ref]
     )
@@ -51,6 +58,7 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
         card_ref: e.card_ref,
         model: e.model,
         test_number: e.test_number,
+        behaviour_number: e.behaviour_number,
         content: e.content,
         refusal: e.refusal == true,
         failure: e.failure,

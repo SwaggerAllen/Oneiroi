@@ -28,8 +28,12 @@ defmodule Oneiroi.Eunomia.Events do
   end
 
   defmodule RunStarted do
-    # A run is models x tests: every candidate answers every test.
-    use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :models, :tests], export: false
+    # A run is models x trials: every candidate answers every test and
+    # every trial derived from a behaviour (spec §6.4).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :run_ref, :models, :tests, :behaviours],
+      export: false
   end
 
   defmodule AnswerRecorded do
@@ -38,7 +42,17 @@ defmodule Oneiroi.Eunomia.Events do
     # no content, so a model that would not answer is graded as such.
     use Oneiroi.Event,
       version: 1,
-      fields: [:id, :run_ref, :card_ref, :model, :test_number, :content, :refusal, :failure],
+      fields: [
+        :id,
+        :run_ref,
+        :card_ref,
+        :model,
+        :test_number,
+        :behaviour_number,
+        :content,
+        :refusal,
+        :failure
+      ],
       export: false
   end
 

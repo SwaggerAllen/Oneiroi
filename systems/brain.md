@@ -66,9 +66,10 @@ and the session channel.
 - **#13 The behaviours are retrieved by memory and shown, never enforced.** The situation is the steward's words, the conversation's tags and the clock; a match injects memory's "how I act" section as `behaviours` with the numbers as refs (kumbukumbu #25). `behaviour_define`, `behaviour_enact` (on the turn in flight) and `behaviour_list` are the resident's; the brain self-tags at turn time, which is cheap and in character.
 - **#14 Drafting lives here.** "Write it with me" (spec §6.2) is a call under the `drafting` purpose from `priv/prompts/draft.md` with the files written so far; it returns the content with its model and prompt and writes nothing, so the seed the steward saves names where it came from. It is the brain's because the ledger reaches the resident system for the key, and a system cannot depend on one that depends on it.
 - **#15 The chat model is the resident's pin, and a change is told on the next turn.** `row.chat_model` over `BRAIN_CHAT_MODEL` (#7); when `model_told` is false the turn captures `priv/prompts/model_changed.md` as a system message by the platform ahead of the steward's message, once, and records it told (agathos-daimon #15).
-- **#16 The sealed session's context is the prefix and nothing else.** `seed_context/1` returns the prompt file (with no formation line) and the identity files, for the regression run (eunomia #10): no index, no behaviours, no transcript, nothing naming a run.
+- **#16 The sealed session's context is the prefix and nothing else.** The regression run builds it (eunomia #10) from this system's prompt file, with no formation line, and the resident system's identity context (agathos-daimon #18): no index, no behaviours, no transcript, nothing naming a run. It was this system's function until the judgement tools made the brain depend on Eunomia, and a system cannot depend on one that depends on it.
 - **#11 Compaction opens the turn that finds the session over the line, with a memory flush first.** When the messages since the last compaction reach `BRAIN_COMPACT_AFTER_MESSAGES` (80, twice the live window, a guess), the turn opens by giving the resident those messages and its tools under `memory_flush.md`, then asks for a summary under `compaction.md` folding in the previous one, and records `Compacted` with the watermark (kumbukumbu #23). Both calls are chat on the ledger. If either fails the turn goes on uncompacted and the next one tries again. Compaction never deletes a message.
 - **#17 A wake is a turn opened by the core's note, and the dates are a section of every turn.** `wake/4` implements `Oneiroi.Sunna.Wake` (sunna #12): the note is captured as a system message by the platform in the steward's place, answered under the purpose the caller names (`chat` for a check-in, `free_time` for free time), streamed and captured like any turn. Every turn injects the schedule's `dates_text/1` as `dates` when there is one, with the countdowns derived on that read (sunna #15).
+- **#18 The judgement tools are the resident's.** `position_take`, `position_replace`, `position_list`, `dispute_check`, `dispute_settle`, `prediction_log` and `prediction_list` (spec §8's table) run against Eunomia's exports under the resident's actor on the turn in flight, so a position names the session and turn it was taken in; a live check answers in words with the judge's advice and the dispute's ref, or says the judge did not answer in time, and the resident settles it afterwards.
 
 ## #8 Initial vs target
 
@@ -82,5 +83,7 @@ table by role, the pinned chat model (spec §5).
 
 The ledger for every model call; memory for capture, the transcript and
 the context record; the resident system for the resident's name, its
-files and its pin; the schedule for the dates, and the schedule reaches
-back only through its wake port.
+files, its pin and its identity context; the schedule for the dates,
+and the schedule reaches back only through its wake port; judgement for
+the resident's positions, disputes and predictions, and judgement never
+reaches back.

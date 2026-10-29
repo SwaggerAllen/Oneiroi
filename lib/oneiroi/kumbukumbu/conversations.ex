@@ -182,6 +182,10 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  @doc "Every message sent in [from, to) across the resident's sessions: the nightly pass's read."
+  def messages_between(resident_id, from, to),
+    do: Scope.resident(resident_id, fn -> Store.messages_between(from, to) end)
+
   @doc "The live transcript: the last `count` messages since the session's compaction."
   def recent(resident_id, key, count),
     do: Scope.resident(resident_id, fn -> Store.recent_messages(key, count) end)

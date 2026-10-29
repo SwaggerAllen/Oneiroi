@@ -46,6 +46,9 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
+  @doc "Every active resident, under the platform scope by name: the roster a nightly job walks."
+  def active, do: Scope.platform(fn -> Enum.filter(Store.all(), &(&1.state == "active")) end)
+
   def mint_id(id, kind, %Actor{} = actor) when is_binary(kind) do
     command = %Commands.MintId{actor: actor, at: Clock.now(), id: id, kind: kind}
 

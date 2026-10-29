@@ -74,3 +74,7 @@ Spec §5: "sessions opened by wake (a check-in lands in main)" and §8:
 a system message by the platform and not a user message by anyone; the
 purpose is the caller's because the ledger bills free time on its own
 line (spec §6.11).
+
+## #18
+Spec §8: "the tool set is the role's: brain gets everything the
+resident has (... position_*, dispute_check, prediction_* ...)".

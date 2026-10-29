@@ -68,3 +68,8 @@ Spec §6.7: "in the resident's timezone." It is on the resident's stream
 because it is the resident's state, like its name, and a schedule that
 carried its own copy would disagree with the resident the day one of
 them was changed.
+
+## #18
+Two readers of the same prefix were two copies of the ordering rule
+(brain #12), and a cross-tenant roster read belongs to the system that
+owns the rows, named, rather than to each job that needs it.

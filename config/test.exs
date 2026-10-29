@@ -34,6 +34,11 @@ config :oneiroi,
           # Low enough for one captured turn to cross it, high enough that
           # no other brain test (at most two turns, four messages) does.
           "BRAIN_COMPACT_AFTER_MESSAGES" => "8",
+          # The judge answers from the same fake, under a model of its own
+          # so a script can tell the judge's call from the resident's; the
+          # live-check bound is short so a timed-out check is a quick test.
+          "EUNOMIA_JUDGE_MODEL" => "fake/judge",
+          "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 

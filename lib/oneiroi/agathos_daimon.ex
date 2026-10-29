@@ -240,6 +240,14 @@ defmodule Oneiroi.AgathosDaimon do
   @spec identity_files() :: [String.t()]
   defexport(identity_files(), do: Oneiroi.AgathosDaimon.Resident.files())
 
+  @doc "The stable prefix: the identity files as written, in order, then the rendered AGENTS.md, as name and content pairs."
+  @spec identity_context(String.t()) :: [{String.t(), String.t()}]
+  defexport(identity_context(id), do: Files.context(id))
+
+  @doc "Every active resident, for a nightly job: a cross-tenant read under the platform scope, by name (conventions §12)."
+  @spec active_residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
+  defexport(active_residents(), do: Residents.active())
+
   @doc "Pins the resident's chat model (spec §6.4); reason is run or steward."
   @spec pin_model(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(pin_model(id, model, reason, actor),

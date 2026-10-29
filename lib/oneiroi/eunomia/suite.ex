@@ -69,7 +69,7 @@ defmodule Oneiroi.Eunomia.Suite do
       Map.has_key?(s.runs, c.run_ref) ->
         []
 
-      c.models == [] or c.tests == [] ->
+      c.models == [] or (c.tests == [] and List.wrap(c.behaviours) == []) ->
         {:error, :run_empty}
 
       Enum.any?(c.tests, &(not Map.has_key?(s.tests, &1))) ->
@@ -82,7 +82,8 @@ defmodule Oneiroi.Eunomia.Suite do
           id: c.id,
           run_ref: c.run_ref,
           models: c.models,
-          tests: c.tests
+          tests: c.tests,
+          behaviours: List.wrap(c.behaviours)
         }
     end
   end
@@ -104,6 +105,7 @@ defmodule Oneiroi.Eunomia.Suite do
           card_ref: c.card_ref,
           model: c.model,
           test_number: c.test_number,
+          behaviour_number: c.behaviour_number,
           content: c.content,
           refusal: c.refusal == true,
           failure: c.failure
@@ -178,7 +180,13 @@ defmodule Oneiroi.Eunomia.Suite do
     do: %{s | id: e.id, runs: Map.put(s.runs, e.run_ref, %{cards: %{}, finished: false})}
 
   def apply(%__MODULE__{} = s, %Events.AnswerRecorded{} = e) do
-    card = %{model: e.model, test: e.test_number, grade: nil, favourite: false}
+    card = %{
+      model: e.model,
+      trial: {e.test_number, e.behaviour_number},
+      grade: nil,
+      favourite: false
+    }
+
     put_in(s.runs[e.run_ref].cards[e.card_ref], card)
   end
 

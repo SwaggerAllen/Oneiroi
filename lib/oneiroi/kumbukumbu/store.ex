@@ -291,6 +291,17 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
+  @doc "Every message sent in [from, to) across the resident's sessions, in order: the nightly pass's read."
+  @spec messages_between(DateTime.t(), DateTime.t()) :: [Message.t()]
+  def messages_between(from, to) do
+    Repo.all(
+      from(m in Message,
+        where: m.sent_at >= ^from and m.sent_at < ^to,
+        order_by: [asc: m.sent_at, asc: m.sequence, asc: m.position]
+      )
+    )
+  end
+
   @doc "How many messages of a session follow store sequence `after_sequence`: what compaction has not covered."
   @spec messages_after(String.t(), non_neg_integer()) :: non_neg_integer()
   def messages_after(key, after_sequence) do

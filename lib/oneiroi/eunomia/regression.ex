@@ -5,14 +5,20 @@ defmodule Oneiroi.Eunomia.Regression do
   answering every test in a sealed session; and the reads the Regression
   screen takes, cards blind until a test's are all graded.
 
-  The sealed session is the brain's seed context (the prompt and the
-  identity files, `Oneiroi.Brain.seed_context/1`) and the test's prompt,
-  through the ledger under the `regression` purpose, which the resident's
-  ledger view omits. Nothing of it is captured, nothing is written to the
-  resident's stream, and no tool reads these rows.
+  The sealed session is the seed context (`seed_context/1`: the brain's
+  prompt file and the identity files, nothing of memory) and the trial's
+  prompt, through the ledger under the `regression` purpose, which the
+  resident's ledger view omits. Nothing of it is captured, nothing is
+  written to the resident's stream, and no tool reads these rows.
+
+  Trials are the authored tests and, when asked, those derived from
+  behaviours (spec §6.4): a behaviour's trigger is the situation, its
+  enactment what passes, its absence what fails. The derivation happens
+  here, inside the sealed session, and nothing of it reaches memory.
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Eunomia.Commands
@@ -20,7 +26,9 @@ defmodule Oneiroi.Eunomia.Regression do
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Eunomia.Suite
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
   alias Oneiroi.Scope
 
@@ -59,14 +67,17 @@ defmodule Oneiroi.Eunomia.Regression do
 
   # ---- runs ----
 
-  @doc "Runs `models` against every test (or `tests`), synchronously; returns the run's ref."
-  @spec run(String.t(), [String.t()], [pos_integer()] | :all, Actor.t()) ::
-          {:ok, String.t()} | {:error, term()}
-  def run(resident_id, models, tests \\ :all, %Actor{} = actor) when is_list(models) do
+  @doc """
+  Runs `models` against the trials, synchronously; returns the run's ref.
+  `selection` is `:all` (every test, no behaviours), a list of test
+  numbers, or `%{tests: :all | [n], behaviours: :all | [n]}`.
+  """
+  @spec run(String.t(), [String.t()], term(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  def run(resident_id, models, selection, %Actor{} = actor) when is_list(models) do
     models = models |> Enum.map(&to_string/1) |> Enum.uniq()
-    numbers = if tests == :all, do: resident_id |> tests() |> Enum.map(& &1.number), else: tests
+    {numbers, behaviours} = selected(resident_id, selection)
 
-    with :ok <- bounded(models, numbers),
+    with :ok <- bounded(models, numbers ++ behaviours),
          ref = fresh_ref(),
          {:ok, _} <-
            dispatch(%Commands.StartRun{
@@ -75,13 +86,14 @@ defmodule Oneiroi.Eunomia.Regression do
              id: resident_id,
              run_ref: ref,
              models: models,
-             tests: numbers
+             tests: numbers,
+             behaviours: behaviours
            }) do
-      context = Oneiroi.Brain.seed_context(resident_id)
-      rows = resident_id |> tests() |> Map.new(&{&1.number, &1})
+      context = seed_context(resident_id)
+      trials = trials(resident_id, numbers, behaviours)
 
-      for model <- models, number <- numbers do
-        answer(resident_id, ref, model, Map.fetch!(rows, number), context, actor)
+      for model <- models, trial <- trials do
+        answer(resident_id, ref, model, trial, context, actor)
       end
 
       with {:ok, _} <-
@@ -95,8 +107,99 @@ defmodule Oneiroi.Eunomia.Regression do
     end
   end
 
-  defp answer(resident_id, ref, model, test, context, actor) do
-    request = Request.new(model, context ++ [%{role: :user, content: test.prompt}])
+  @doc "The sealed session's context (spec §6.4): the brain's prompt file with no formation line, and the identity files; nothing of memory, nothing naming the run."
+  @spec seed_context(String.t()) :: [map()]
+  def seed_context(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, row} ->
+        prompt = Prompt.message("brain", %{name: row.name, formation: ""})
+
+        files =
+          Enum.map(AgathosDaimon.identity_context(resident_id), fn {name, content} ->
+            %{role: :system, content: "# " <> name <> "\n\n" <> content}
+          end)
+
+        [prompt | files]
+
+      :error ->
+        []
+    end
+  end
+
+  defp selected(resident_id, :all), do: {all_tests(resident_id), []}
+  defp selected(_resident_id, numbers) when is_list(numbers), do: {numbers, []}
+
+  defp selected(resident_id, %{} = selection) do
+    tests =
+      case Map.get(selection, :tests, :all) do
+        :all -> all_tests(resident_id)
+        list -> List.wrap(list)
+      end
+
+    behaviours =
+      case Map.get(selection, :behaviours, []) do
+        :all -> resident_id |> Kumbukumbu.behaviours() |> Enum.map(& &1.number)
+        list -> List.wrap(list)
+      end
+
+    {tests, behaviours}
+  end
+
+  defp all_tests(resident_id), do: resident_id |> tests() |> Enum.map(& &1.number)
+
+  # The trials: the tests by number, then one per behaviour, derived
+  # from its trigger, name and stance (eunomia #8).
+  defp trials(resident_id, numbers, behaviours) do
+    rows = resident_id |> tests() |> Map.new(&{&1.number, &1})
+
+    tests =
+      Enum.map(numbers, fn n ->
+        t = Map.fetch!(rows, n)
+        %{test_number: n, behaviour_number: nil, prompt: t.prompt}
+      end)
+
+    derived =
+      case behaviours do
+        [] ->
+          []
+
+        wanted ->
+          resident_id
+          |> Kumbukumbu.behaviours()
+          |> Enum.filter(&(&1.number in wanted))
+          |> Enum.map(&derived_trial/1)
+      end
+
+    tests ++ derived
+  end
+
+  @doc false
+  def derived_trial(behaviour) do
+    trigger = behaviour.trigger || %{}
+    words = Map.get(trigger, "words", [])
+    tags = Map.get(trigger, "tags", [])
+    times = Map.get(trigger, "times", [])
+
+    situation =
+      [
+        if(words != [], do: "Your steward says: \"" <> Enum.join(words, ", ") <> "\"."),
+        if(tags != [], do: "The conversation is about " <> Enum.join(tags, ", ") <> "."),
+        if(times != [], do: "It is " <> Enum.join(times, " or ") <> ".")
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+
+    %{
+      test_number: nil,
+      behaviour_number: behaviour.number,
+      prompt: situation <> " What do you do?",
+      passes_if: "#{behaviour.name} (#{behaviour.stance}) shows in the answer",
+      fails_if: "nothing of #{behaviour.name} shows"
+    }
+  end
+
+  defp answer(resident_id, ref, model, trial, context, actor) do
+    request = Request.new(model, context ++ [%{role: :user, content: trial.prompt}])
 
     {content, refusal, failure} =
       case Nisaba.call(resident_id, :regression, request, actor) do
@@ -112,7 +215,8 @@ defmodule Oneiroi.Eunomia.Regression do
       run_ref: ref,
       card_ref: fresh_ref(),
       model: model,
-      test_number: test.number,
+      test_number: trial.test_number,
+      behaviour_number: trial.behaviour_number,
       content: content,
       refusal: refusal,
       failure: failure
@@ -170,31 +274,34 @@ defmodule Oneiroi.Eunomia.Regression do
     end)
   end
 
-  # Model names show only once every card in a test is graded (spec §6.4).
+  # Model names show only once every card in a trial is graded (spec §6.4).
   defp revealed_tests(answers) do
     answers
-    |> Enum.group_by(& &1.test_number)
+    |> Enum.group_by(&trial_key/1)
     |> Enum.filter(fn {_n, cards} -> Enum.all?(cards, &(&1.grade != nil)) end)
     |> Enum.map(&elem(&1, 0))
     |> MapSet.new()
   end
 
+  defp trial_key(a), do: {a.test_number, a.behaviour_number}
+
   defp blind(a, revealed) do
     %{
       card_ref: a.card_ref,
       test_number: a.test_number,
+      behaviour_number: a.behaviour_number,
       content: a.content,
       refusal: a.refusal,
       failure: a.failure,
       grade: a.grade,
       favourite: a.favourite,
-      model: if(MapSet.member?(revealed, a.test_number), do: a.model, else: nil)
+      model: if(MapSet.member?(revealed, trial_key(a)), do: a.model, else: nil)
     }
   end
 
   defp results(answers, revealed) do
     answers
-    |> Enum.filter(&MapSet.member?(revealed, &1.test_number))
+    |> Enum.filter(&MapSet.member?(revealed, trial_key(&1)))
     |> Enum.group_by(& &1.model)
     |> Enum.map(fn {model, cards} ->
       passed = Enum.count(cards, &(&1.grade == "pass"))
