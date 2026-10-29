@@ -31,6 +31,9 @@ config :oneiroi,
           # The in-memory provider: no test crosses the network (conventions §9).
           "NISABA_PROVIDER" => "fake",
           "BRAIN_CHAT_MODEL" => "fake/model",
+          # Low enough for one captured turn to cross it, high enough that
+          # no other brain test (at most two turns, four messages) does.
+          "BRAIN_COMPACT_AFTER_MESSAGES" => "8",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 

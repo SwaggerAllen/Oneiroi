@@ -44,6 +44,15 @@ defmodule Oneiroi.Kumbukumbu.Events do
       fields: [:id, :resident_id, :session_key, :turn_ref, :injections]
   end
 
+  defmodule Compacted do
+    # Compaction is ours (spec §5): a summary that never deletes history,
+    # covering the session's messages through store sequence
+    # `through_sequence`; the live transcript is what follows it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :through_sequence, :summary]
+  end
+
   defmodule CaptureFailed do
     # Loud on failure (spec §6.3): the turn the adapter could not deliver
     # whole, with the reason and nothing of the content.

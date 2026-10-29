@@ -24,6 +24,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @type answer ::
           {:ok, String.t()}
           | {:refusal, String.t()}
+          | {:calls, [map()]}
           | {:error, Oneiroi.Nisaba.Provider.failure()}
 
   @doc "Scripts the answers: a function of the request, for this process or, with `for:`, for a resident from any process."
@@ -50,6 +51,23 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   def refuse(text, opts \\ []) when is_binary(text),
     do: script(fn _request -> {:refusal, text} end, opts)
 
+  @doc """
+  Scripts tool calls on the first round and a reply once the tool results
+  are back: `calls` are maps with `name` and `arguments` (a map, encoded
+  here as the JSON string a model writes).
+  """
+  @spec calls([map()], String.t(), keyword()) :: :ok
+  def calls(calls, reply, opts \\ []) when is_list(calls) and is_binary(reply) do
+    script(
+      fn %Request{messages: messages} ->
+        if Enum.any?(messages, &(&1[:role] == :tool)),
+          do: {:ok, reply},
+          else: {:calls, calls}
+      end,
+      opts
+    )
+  end
+
   @doc "Scripts a failure of the given kind (`:transport` or `:schema_invalid`)."
   @spec fail(:transport | :schema_invalid, keyword()) :: :ok
   def fail(kind, opts \\ []) when kind in [:transport, :schema_invalid],
@@ -72,6 +90,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     case answer(request) do
       {:ok, text} -> {:ok, result(request, text, false)}
       {:refusal, text} -> {:ok, result(request, text, true)}
+      {:calls, calls} -> {:ok, calls_result(request, calls)}
       {:error, failure} -> {:error, failure}
     end
   end
@@ -144,6 +163,23 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
         estimated: false
       }
     }
+  end
+
+  defp calls_result(request, calls) do
+    tool_calls =
+      calls
+      |> Enum.with_index()
+      |> Enum.map(fn {call, i} ->
+        arguments = Map.get(call, :arguments) || %{}
+
+        %{
+          id: Map.get(call, :id) || "call_#{i}",
+          name: Map.fetch!(call, :name),
+          arguments: if(is_binary(arguments), do: arguments, else: Jason.encode!(arguments))
+        }
+      end)
+
+    %{result(request, "", false) | finish_reason: "tool_calls", tool_calls: tool_calls}
   end
 
   defp tokens(nil), do: 0

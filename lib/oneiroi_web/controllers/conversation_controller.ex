@@ -169,7 +169,13 @@ defmodule OneiroiWeb.ConversationController do
       conn,
       Enum.map(
         rows,
-        &%{label: &1.label, tokens: &1.tokens, reason: &1.reason, position: &1.position}
+        &%{
+          label: &1.label,
+          tokens: &1.tokens,
+          reason: &1.reason,
+          position: &1.position,
+          text: &1.text
+        }
       )
     )
   end
@@ -301,7 +307,9 @@ defmodule OneiroiWeb.ConversationController do
       shared: s.shared,
       opened_at: s.opened_at,
       last_turn_at: s.last_turn_at,
-      turns: s.turns
+      turns: s.turns,
+      summary: s.summary,
+      compacted_through: s.compacted_through
     }
   end
 

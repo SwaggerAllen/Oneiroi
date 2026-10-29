@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/kumbukumbu/**
   - lib/oneiroi/kumbukumbu.ex
   - lib/oneiroi_web/controllers/conversation_controller.ex
+  - lib/oneiroi_web/controllers/memory_controller.ex
   - priv/repo/migrations/*_kumbukumbu.exs
   - test/oneiroi/kumbukumbu/**
 ---
@@ -18,20 +19,31 @@ In Swahili, *kumbukumbu* names the act of keeping: remembrance, commemoration, t
 The memory subsystem is named for what it does rather than what it stores: it remembers, commemorates, and keeps the minutes. Remembering is something you do for someone; storage is something you do to something. That difference is the design.
 
 Transcripts, bookmarks, tags, search, weighting, the memory agent's
-record. Spec §6.3. Transcripts are built (P1, slice 2); the rest is this
-doc's file map and the standing decisions the spec records, so a pass
-reaching for it finds a record rather than a gap.
+record. Spec §6.3. Transcripts (P1, slice 2), then bookmarks, tags,
+taggings, the index and compaction (slice 3) are built; weighting,
+revision and the behaviours are this doc's file map and the standing
+decisions the spec records, so a pass reaching for them finds a record
+rather than a gap.
 
 ## #1 Owns
 
 The conversation aggregate on `conversation-<resident_id>-<session_key>`
 and its v1 events (`SessionOpened`, `TurnStarted`, `TurnCaptured`,
-`ContextAssembled`, `CaptureFailed`, `CaptureFailureResolved`,
-`SessionShared`); the `kumbukumbu_session`, `kumbukumbu_message`,
+`ContextAssembled`, `Compacted`, `CaptureFailed`,
+`CaptureFailureResolved`, `SessionShared`); the memory aggregate on
+`memory-<resident_id>` and its v1 events (`BookmarkAdded`,
+`BookmarkExtended`, `BookmarkPinned`, `BookmarkUnpinned`,
+`BookmarkProposed`, `BookmarkProposalDeclined`, `TagProposed`,
+`TagApproved`, `TagRejected`, `TagCreated`, `TagRetired`, `TagApplied`,
+`TaggingRemoved`); the `kumbukumbu_session`, `kumbukumbu_message`,
 `kumbukumbu_capture_failure` and `kumbukumbu_context_injection`
 projections, scoped by the resident and by the account party to the
-session; the session, transcript, search, capture-failure, injection and
-adapter capture routes under `/v1/residents/:id`.
+session, and the `kumbukumbu_bookmark`, `kumbukumbu_bookmark_proposal`,
+`kumbukumbu_tag` and `kumbukumbu_tagging` projections under the
+resident's scope; the index builder (`Oneiroi.Kumbukumbu.Index`); the
+session, transcript, search, capture-failure, injection and adapter
+capture routes, and the bookmark, proposal, tag and tagging routes,
+under `/v1/residents/:id`.
 
 ## #2 Standing decisions
 
@@ -51,6 +63,11 @@ Carried from spec §6.3; the reason for each is there.
 - **#16 A capture failure is a row until retried or marked lost, and the resolution carries a note.** The brain writes one when the provider failed and nothing was captured; an adapter writes one when it could not deliver a turn whole. The steward resolves it from the transcript screen; `CaptureFailureResolved` is a decision event.
 - **#17 Transcript search is unweighted and substring**, as spec §6.3 asks of search; the FTS index of David's `message` table is a later measurement, not a line to add now.
 - **#18 A transcript is ordered by the store's event number and the message's position in its turn, never by `sent_at`.** `sent_at` is what the adapter or the brain said, and two messages of one turn, or two turns under a fixed clock, share it; the projector writes `sequence` from the event's `event_number` and `position` from the message's index, and every read orders by the pair.
+- **#19 Bookmarks, tags and taggings have their own stream, `memory-<resident_id>`, and a bookmark's number is minted by the resident aggregate.** Spec §3.1 places memory's events within `resident-<id>`; Commanded holds one aggregate per stream, and the resident aggregate is another system's. `mint_id` was built for this (agathos-daimon #4): the number is the resident's sequence, so `lily:bookmark/42` survives a rebuild and two residents never interleave, and the stream is memory's own. The records export reads the resident stream only, so bookmarks are not exported yet; the same open question as the ledger's (nisaba #9), now with the one store a resident would most want in its repository.
+- **#20 The index is pins first and at most half the budget, then the rest by weight and recency, and it says how many it left out.** Built pure from the bookmark rows under `KUMBUKUMBU_INDEX_TOKENS` (1,500, the plan's guess), one line a bookmark: number, day, pin, tags, the resident's line. The injection carries the verbatim text, which is seen only in the turn's inspector (spec §5), and the numbers it listed, from which each row's `last_indexed_at` is derived. Every weight is 1.0 until weighting (F11) is measured, so the rest order by recency.
+- **#21 A bookmark's words are the resident's; the tag set is the steward's; pins and taggings are either's.** Held at the command edge by the actor's kind: only the resident's actor adds, extends or declines; only the steward's creates, approves, rejects or retires a tag; a tag is a slug of at most 40 characters, a bookmark's line at most 120, and a tagging targets a bookmark by number, a conversation by key or a turn by ref, each checked to exist. The steward's proposal (`BookmarkProposed`, with a note) becomes a bookmark only when the resident writes one naming it, and the bookmark records who proposed.
+- **#22 The span is turns, not instants, and the anchor may be the turn in flight.** `turns_back` counts captured turns back from the anchor, so a span never cuts a turn in half; the brain bookmarks mid-turn with the turn's ref and start instant, and the span resolves once the turn is captured at its end.
+- **#23 Compaction is a summary on the session with the store sequence it covers, and the live transcript is what follows.** `Compacted` is the conversation stream's; the session row holds the latest summary and watermark; the brain's live window reads messages after the watermark in one statement, joined on it, because the capture-cost test budgets that read. Nothing is deleted: the transcript, search and the spans read every message.
 
 ## #8 Initial vs target
 

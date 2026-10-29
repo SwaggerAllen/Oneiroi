@@ -395,3 +395,16 @@ and nothing personal turned up; what follows is what changed.
   resident system for ids, so the loop that depends on memory cannot
   live in the resident system without a cycle. The socket takes a token
   rather than the cookie (systems/brain.md #6).
+- Memory's bookmarks, tags and taggings have their own stream,
+  `memory-<resident_id>`, with the bookmark number minted by the
+  resident aggregate (systems/kumbukumbu.md #19): the same reasoning as
+  the ledger's, and the same open question about the export, now
+  covering the store a resident would most want in its repository. The
+  index is pins first and at most half the budget, saying what it left
+  out (#20); the words are the resident's and the tag set the steward's,
+  held by the actor's kind at the command edge (#21); compaction is a
+  summary on the session with a watermark, deleting nothing (#23). The
+  brain's tools are the memory functions built so far, every call
+  captured as a `tool` message (systems/brain.md #10), and compaction
+  opens the turn that finds the session over the line, flush first
+  (#11).

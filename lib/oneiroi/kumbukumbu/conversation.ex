@@ -20,7 +20,8 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     state: :absent,
     turns: MapSet.new(),
     started: MapSet.new(),
-    failures: %{}
+    failures: %{},
+    compacted_through: 0
   ]
 
   @kinds ~w(main free_time hands)
@@ -100,6 +101,30 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     }
   end
 
+  # A summary covering nothing new is no event: the brain that compacts
+  # twice over the same messages leaves one record.
+  def execute(%__MODULE__{compacted_through: through}, %Commands.CompactSession{} = c) do
+    cond do
+      not is_integer(c.through_sequence) or c.through_sequence <= through ->
+        []
+
+      not is_binary(c.summary) or String.trim(c.summary) == "" ->
+        {:error, :summary_empty}
+
+      true ->
+        %Events.Compacted{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: c.resident_id,
+          session_key: c.session_key,
+          turn_ref: c.turn_ref,
+          through_sequence: c.through_sequence,
+          summary: c.summary
+        }
+    end
+  end
+
   def execute(%__MODULE__{}, %Commands.FailCapture{} = c) do
     %Events.CaptureFailed{
       actor: c.actor,
@@ -161,6 +186,9 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   end
 
   def apply(%__MODULE__{} = s, %Events.ContextAssembled{}), do: s
+
+  def apply(%__MODULE__{} = s, %Events.Compacted{} = e),
+    do: %{s | compacted_through: e.through_sequence}
 
   def apply(%__MODULE__{} = s, %Events.CaptureFailed{} = e),
     do: %{s | failures: Map.put(s.failures, e.turn_ref, e.reason)}
