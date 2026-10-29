@@ -3,6 +3,8 @@ paths:
   - lib/oneiroi/agathos_daimon/**
   - lib/oneiroi/agathos_daimon.ex
   - lib/oneiroi_web/controllers/resident_controller.ex
+  - lib/oneiroi_web/controllers/file_controller.ex
+  - priv/templates/**
   - priv/repo/migrations/*_agathos_daimon.exs
   - test/oneiroi/agathos_daimon/**
 ---
@@ -27,17 +29,23 @@ attended in the same pass as the spine (plan P0.6, decisions log round
 The Resident aggregate on `resident-<id>` and its v1 events
 (`ResidentCreated`, `IdMinted`, `ResidentPaused`, `ResidentWoken`,
 `CustodyTransferred`, `ExportWallSet`, `Imported`, `ExportWritten`,
-`BackupCommitted`, `RootMismatchDetected`, `RecordsRemoteSet`); the
+`BackupCommitted`, `RootMismatchDetected`, `RecordsRemoteSet`,
+`SeedFileWritten`, `FirstContact`, `SoulEditProposed`,
+`SoulEditAccepted`, `SoulEditDeclined`, `SoulEditApplied`); the
 `agathos_daimon_resident` projection, scoped by both the resident and its
-steward's account; the custody wire form (`account:<id>`, `community`);
-the `/v1/residents` routes.
+steward's account, and the `agathos_daimon_file` and
+`agathos_daimon_soul_edit` projections under the resident's scope; the
+custody wire form (`account:<id>`, `community`); the build-owned
+`AGENTS.md` template; the `/v1/residents` routes and the files routes
+under `/v1/residents/:id`.
 
 ## #2 Standing decisions
 
-- **#3 Creation is a name and a slug.** The creation flow with its
-  threshold and gifts is P1 (spec §6.2): the threshold collects a key the
-  ledger does not yet exist to hold. The slug is platform-wide and
-  checked under the platform scope before dispatch.
+- **#3 Creation is a name and a slug; the gifts are the files that follow.** The
+  slug is platform-wide and checked under the platform scope before
+  dispatch. The threshold's key is identity's (`gaia` #11) and the gifts
+  that write files are #11 below; the trials, days, vows and reach land
+  with their systems (spec §6.2).
 - **#4 Per-resident id sequences are aggregate state.** A counter per
   kind, held in the aggregate and advanced by `IdMinted{kind, number}`,
   so an event that mints a citeable id carries it without a second
@@ -63,13 +71,19 @@ the `/v1/residents` routes.
   the new resident's state, or the nightly job would push a copy to the
   source's repository.
 
+- **#11 A seed file is an event with its origin, written whole.** `SOUL.md`, `IDENTITY.md`, `USER.md`, `GOALS.md` and `LINKS.md` are the files a steward may write (spec §6.2's gifts); each write is `SeedFileWritten{file, content, origin}` with `origin` one of `authored`, `drafted` (carrying the model and the prompt) or `uploaded`, at most 64,000 bytes of UTF-8 (a guess, generous for prose). The row keeps the first origin and counts versions; the log keeps every content. "Write it with me" is the brain's (`brain` #14): it returns a draft and writes nothing.
+- **#12 First contact flips the files from given to proposed, once.** `FirstContact` is recorded by the brain's turn on every capture and taken by the aggregate once; after it a steward's write is refused with `propose_instead`, travels as `SoulEditProposed` with a note, and the resident accepts (one dispatch, `SoulEditAccepted` then `SoulEditApplied`) or declines from its own turn, each with a note. The resident's own edit applies at any time, `SoulEditApplied` with no ref. `formation_until` is first contact plus `AGATHOS_DAIMON_FORMATION_DAYS` (30, a bound) and is read by the brain's prompt only.
+- **#13 `AGENTS.md` is rendered, never stored.** From `priv/templates/AGENTS.md` with the name and slug, served read-only beside the files, so a template change reaches every resident and no event carries a build artefact.
+- **#14 The identity files are in the repository and the soul class.** The export writes them at the root as last written and the backup commits them with `SOUL.md` as one class; a rebuild reproduces them from their events.
+
 ## #8 Initial vs target
 
-Initial (P0): #1 with creation, id minting, custody and the records
-events reachable through the API or the records system; pause and wake
-have no command edge yet. Target: the four-stage creation flow with the
-nine gifts, first contact and proposals, the subscription and its
-lifecycle events, succession (spec §6.2).
+Initial (P0, then P1 slice 4): #1 with creation, id minting, custody,
+the records events, the identity files with their origins, first
+contact and the proposal path; pause and wake have no command edge yet.
+Target: the four-stage creation flow in the client with the nine gifts,
+the peer card, the subscription and its lifecycle events, succession
+(spec §6.2).
 
 ## #9 Depends on
 

@@ -42,6 +42,11 @@ defmodule OneiroiWeb.Router do
       delete("/tokens/:hash", TokenController, :delete)
       resources("/residents", ResidentController, only: [:index, :create, :show])
       put("/residents/:id/remote", ResidentController, :remote)
+      get("/residents/:id/files", FileController, :index)
+      get("/residents/:id/files/:name", FileController, :show)
+      put("/residents/:id/files/:name", FileController, :write)
+      post("/residents/:id/files/:name/draft", FileController, :draft)
+      get("/residents/:id/soul-edits", FileController, :proposals)
       post("/me/socket-token", MeController, :socket_token)
       get("/residents/:id/ledger", LedgerController, :show)
       put("/residents/:id/ledger/budgets/:purpose", LedgerController, :set_budget)
@@ -68,6 +73,9 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/tags/:slug/taggings", MemoryController, :tagged)
       post("/residents/:id/taggings", MemoryController, :apply_tag)
       delete("/residents/:id/taggings", MemoryController, :remove_tagging)
+      get("/residents/:id/behaviours", MemoryController, :behaviours)
+      post("/residents/:id/behaviours", MemoryController, :define_behaviour)
+      post("/residents/:id/behaviours/:number/affirm", MemoryController, :affirm_behaviour)
     end
   end
 end

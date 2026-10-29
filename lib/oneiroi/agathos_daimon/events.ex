@@ -47,6 +47,42 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :expected_root, :actual_root, :commit]
   end
 
+  defmodule SeedFileWritten do
+    # A seed file given before first contact (spec §6.2, F2): the file's
+    # name, its whole content, and its origin: `authored`, `drafted` (with
+    # the model and the prompt the draft came from) or `uploaded`. The
+    # resident reads its own becoming from these.
+    use Oneiroi.Event, version: 1, fields: [:id, :file, :content, :origin, :model, :prompt]
+  end
+
+  defmodule FirstContact do
+    # The first captured turn in a session that is not a regression
+    # session (spec §6.2): from here the files are proposed, not given,
+    # and the formation clock runs.
+    use Oneiroi.Event, version: 1, fields: [:id, :session_key, :turn_ref]
+  end
+
+  defmodule SoulEditProposed do
+    # After first contact a steward's edit travels as a proposal; the
+    # note is what the resident reads first.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref, :file, :content]
+  end
+
+  defmodule SoulEditAccepted do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule SoulEditDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule SoulEditApplied do
+    # The file as written after first contact: by the resident accepting
+    # a proposal (`ref` set) or editing on its own (`ref` nil). One
+    # commit each; rare, visible, reversible.
+    use Oneiroi.Event, version: 1, fields: [:id, :ref, :file, :content]
+  end
+
   defmodule RecordsRemoteSet do
     use Oneiroi.Event,
       version: 1,

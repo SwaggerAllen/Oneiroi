@@ -15,7 +15,15 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
 
-  defstruct [:id, bookmarks: %{}, tags: %{}, taggings: MapSet.new(), proposals: %{}]
+  defstruct [
+    :id,
+    bookmarks: %{},
+    tags: %{},
+    taggings: MapSet.new(),
+    proposals: %{},
+    behaviours: %{},
+    enactments: MapSet.new()
+  ]
 
   # A tag is a slug (spec §3.2): the bounds are this codebase's guess,
   # long enough for "small-practical-suggestions" and short enough to
@@ -23,6 +31,14 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @slug ~r/\A[a-z0-9][a-z0-9-]{0,39}\z/
   @line_limit 120
   @target_kinds ~w(bookmark conversation turn)
+  @stances ~w(keep change)
+  # The situation tags a trigger may name (spec §6.3): the closed set the
+  # assembler can match without a model call. `words` are the steward's
+  # words, `tags` a tag present on the conversation, `times` the time of
+  # day. The resident proposes additions to the set, and that is a code
+  # change here.
+  @trigger_keys ~w(words tags times)
+  @times ~w(morning afternoon evening night)
 
   @doc "The slug a tag must match."
   @spec slug_pattern() :: Regex.t()
@@ -35,6 +51,28 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @doc "What a tagging may target in this slice."
   @spec target_kinds() :: [String.t()]
   def target_kinds, do: @target_kinds
+
+  @doc "The stances a behaviour takes: `keep` or `change`."
+  @spec stances() :: [String.t()]
+  def stances, do: @stances
+
+  @doc "The times of day a trigger may name."
+  @spec times() :: [String.t()]
+  def times, do: @times
+
+  @doc "Whether a trigger is well formed: a map of `words`, `tags` and `times` lists, at least one non-empty."
+  @spec trigger_ok?(term()) :: boolean()
+  def trigger_ok?(%{} = trigger) do
+    keys = Map.keys(trigger)
+    lists = Enum.map(@trigger_keys, &Map.get(trigger, &1, []))
+
+    Enum.all?(keys, &(&1 in @trigger_keys)) and
+      Enum.all?(lists, &(is_list(&1) and Enum.all?(&1, fn v -> is_binary(v) end))) and
+      Enum.any?(lists, &(&1 != [])) and
+      Enum.all?(Map.get(trigger, "times", []), &(&1 in @times))
+  end
+
+  def trigger_ok?(_other), do: false
 
   # ---- bookmarks ----
 
@@ -198,7 +236,79 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       else: []
   end
 
+  # ---- behaviours (Ethos) ----
+
+  def execute(%__MODULE__{behaviours: behaviours}, %Commands.DefineBehaviour{} = c) do
+    cond do
+      Map.has_key?(behaviours, c.number) -> []
+      not name_ok?(c.name) -> {:error, :name_invalid}
+      c.stance not in @stances -> {:error, :stance_invalid}
+      not trigger_ok?(c.trigger) -> {:error, :trigger_invalid}
+      true -> behaviour_event(Events.BehaviourDefined, c)
+    end
+  end
+
+  def execute(%__MODULE__{behaviours: behaviours}, %Commands.ChangeBehaviour{} = c) do
+    cond do
+      not Map.has_key?(behaviours, c.number) -> {:error, :no_such_behaviour}
+      not name_ok?(c.name) -> {:error, :name_invalid}
+      c.stance not in @stances -> {:error, :stance_invalid}
+      not trigger_ok?(c.trigger) -> {:error, :trigger_invalid}
+      Map.get(behaviours, c.number) == %{name: c.name, trigger: c.trigger, stance: c.stance} -> []
+      true -> behaviour_event(Events.BehaviourChanged, c)
+    end
+  end
+
+  def execute(%__MODULE__{behaviours: behaviours}, %Commands.AffirmBehaviour{} = c) do
+    if Map.has_key?(behaviours, c.number),
+      do: %Events.BehaviourAffirmed{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        number: c.number
+      },
+      else: {:error, :no_such_behaviour}
+  end
+
+  def execute(%__MODULE__{} = m, %Commands.EnactBehaviour{} = c) do
+    cond do
+      not Map.has_key?(m.behaviours, c.number) ->
+        {:error, :no_such_behaviour}
+
+      c.target_kind not in ["turn", "bookmark"] ->
+        {:error, :target_invalid}
+
+      c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
+        {:error, :target_invalid}
+
+      MapSet.member?(m.enactments, enactment_key(c)) ->
+        []
+
+      true ->
+        %Events.BehaviourEnacted{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          target_kind: c.target_kind,
+          target_id: to_string(c.target_id)
+        }
+    end
+  end
+
   # ---- apply ----
+
+  def apply(%__MODULE__{} = m, %Events.BehaviourDefined{} = e),
+    do: %{m | id: e.id, behaviours: Map.put(m.behaviours, e.number, behaviour_state(e))}
+
+  def apply(%__MODULE__{} = m, %Events.BehaviourChanged{} = e),
+    do: %{m | behaviours: Map.put(m.behaviours, e.number, behaviour_state(e))}
+
+  def apply(%__MODULE__{} = m, %Events.BehaviourAffirmed{}), do: m
+
+  def apply(%__MODULE__{} = m, %Events.BehaviourEnacted{} = e),
+    do: %{m | enactments: MapSet.put(m.enactments, enactment_key(e))}
 
   def apply(%__MODULE__{} = m, %Events.BookmarkAdded{} = e) do
     %{
@@ -265,6 +375,26 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       proposed_by: proposal && proposal.by
     }
   end
+
+  defp behaviour_event(module, c) do
+    struct!(module,
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      number: c.number,
+      name: c.name,
+      trigger: c.trigger,
+      stance: c.stance
+    )
+  end
+
+  defp behaviour_state(e), do: %{name: e.name, trigger: e.trigger, stance: e.stance}
+
+  defp enactment_key(%{number: number, target_kind: kind, target_id: id}),
+    do: {number, kind, to_string(id)}
+
+  defp name_ok?(name),
+    do: is_binary(name) and String.trim(name) != "" and String.length(name) <= @line_limit
 
   # A bookmark naming a proposal accepts it, and only an open one.
   defp with_proposal(_m, %{proposal_ref: nil} = c), do: bookmark_added(c, nil)

@@ -190,7 +190,7 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/sessions", %{})
              |> json_response(201)
 
-    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 3} =
+    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 4} =
              conn
              |> put_req_header("origin", origin())
              |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
@@ -210,6 +210,7 @@ defmodule OneiroiWeb.ContractTest do
 
     assert [
              %{"label" => "prompt"},
+             %{"label" => "AGENTS.md"},
              %{"label" => "index", "text" => _},
              %{"label" => "transcript"}
            ] =
@@ -392,6 +393,134 @@ defmodule OneiroiWeb.ContractTest do
 
     other = Fixtures.account!()
     assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/bookmarks") |> json_response(404)
+  end
+
+  test "the identity files are the steward's to seed, draft and read; after first contact a write is a proposal",
+       ctx do
+    id = ctx.resident.id
+
+    :ok =
+      Oneiroi.Gaia.store_key(
+        ctx.account.id,
+        "sk-or-x",
+        Oneiroi.Actor.new(:steward, ctx.account.id)
+      )
+
+    conn = login(ctx.conn, ctx.account)
+
+    assert [%{"name" => "AGENTS.md", "origin" => "build"}] =
+             conn |> get("/v1/residents/#{id}/files") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/files/SOUL.md", %{
+             content: "# Soul\n\nCurious.",
+             origin: "authored"
+           })
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/files/NOPE.md", %{content: "x"})
+           |> json_response(422)
+
+    assert %{
+             "content" => "The fake provider heard: make it kind",
+             "model" => "fake/model",
+             "prompt" => "make it kind"
+           } =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/files/USER.md/draft", %{prompt: "make it kind"})
+             |> json_response(200)
+
+    assert %{
+             "name" => "SOUL.md",
+             "origin" => "authored",
+             "version" => 1,
+             "content" => "# Soul\n\nCurious."
+           } =
+             conn |> get("/v1/residents/#{id}/files/SOUL.md") |> json_response(200)
+
+    assert %{"first_contact_at" => nil} = conn |> get("/v1/residents/#{id}") |> json_response(200)
+
+    assert %{"key" => key} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions", %{})
+             |> json_response(201)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hello"})
+           |> json_response(201)
+
+    assert %{"first_contact_at" => at, "formation_until" => until} =
+             conn |> get("/v1/residents/#{id}") |> json_response(200)
+
+    assert is_binary(at) and is_binary(until)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/files/SOUL.md", %{content: "# Soul\n\nBolder."})
+           |> json_response(422)
+
+    assert %{"ref" => ref} =
+             conn
+             |> put_req_header("origin", origin())
+             |> put("/v1/residents/#{id}/files/SOUL.md", %{
+               content: "# Soul\n\nBolder.",
+               note: "you have grown"
+             })
+             |> json_response(202)
+
+    assert [%{"ref" => ^ref, "file" => "SOUL.md", "state" => "open"}] =
+             conn |> get("/v1/residents/#{id}/soul-edits") |> json_response(200)
+
+    other = Fixtures.account!()
+    assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/files") |> json_response(404)
+  end
+
+  test "behaviours: the steward gives a first one, reads the list with scores, and affirms",
+       ctx do
+    id = ctx.resident.id
+    conn = login(ctx.conn, ctx.account)
+
+    assert %{"number" => 1} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/behaviours", %{
+               name: "care",
+               trigger: %{words: ["garden"]},
+               stance: "keep"
+             })
+             |> json_response(201)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/behaviours", %{name: "x", trigger: %{}})
+           |> json_response(422)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/behaviours/1/affirm", %{note: "I like it"})
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/behaviours/9/affirm", %{note: "x"})
+           |> json_response(404)
+
+    assert [
+             %{
+               "number" => 1,
+               "name" => "care",
+               "habit" => 0.0,
+               "connection" => 1.0,
+               "affirmations" => 1
+             }
+           ] =
+             conn |> get("/v1/residents/#{id}/behaviours") |> json_response(200)
   end
 
   test "a wrong password answers 401 with the registered kind and no clue which part failed",

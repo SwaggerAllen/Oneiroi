@@ -34,6 +34,35 @@ defmodule Oneiroi.SimaQian.ExportTest do
     |> String.split("\n", trim: true)
   end
 
+  test "the identity files land at the repository root as last written", %{
+    r: r,
+    actor: actor,
+    dir: dir
+  } do
+    :ok =
+      Oneiroi.AgathosDaimon.write_file(r.id, "SOUL.md", "# Soul\n", %{origin: "authored"}, actor)
+
+    :ok =
+      Oneiroi.AgathosDaimon.write_file(r.id, "USER.md", "# You\n", %{origin: "uploaded"}, actor)
+
+    :ok =
+      Oneiroi.AgathosDaimon.write_file(
+        r.id,
+        "SOUL.md",
+        "# Soul\n\nRevised.\n",
+        %{origin: "authored"},
+        actor
+      )
+
+    Clock.Fake.advance(120)
+
+    assert {:ok, %{files: ["SOUL.md", "USER.md", "records/README.md" | _]}} =
+             Export.write(r.id, dir)
+
+    assert File.read!(Path.join(dir, "SOUL.md")) == "# Soul\n\nRevised.\n"
+    assert File.read!(Path.join(dir, "USER.md")) == "# You\n"
+  end
+
   test "identical bytes twice, keys in order, lines numbered from 1, the id as $self", %{
     r: r,
     dir: dir

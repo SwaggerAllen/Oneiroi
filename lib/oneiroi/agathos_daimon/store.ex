@@ -24,7 +24,50 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:last_backup_sequence, :integer)
       field(:last_backup_root, :string)
       field(:last_backup_commit, :string)
+      field(:first_contact_at, :utc_datetime_usec)
+      field(:formation_until, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule IdentityFile do
+    @moduledoc "One identity file as last written, with the origin of its first seed and who wrote it last."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_file" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:name, :string, primary_key: true)
+      field(:content, :string)
+      field(:origin, :string)
+      field(:model, :string)
+      field(:prompt, :string)
+      field(:version, :integer, default: 1)
+      field(:written_by_kind, :string)
+      field(:written_by_id, :string)
+      field(:written_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule SoulEdit do
+    @moduledoc "A steward's proposed edit after first contact, open until the resident accepts or declines."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_soul_edit" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:file, :string)
+      field(:content, :string)
+      field(:note, :string)
+      field(:state, :string, default: "open")
+      field(:proposed_by_kind, :string)
+      field(:proposed_by_id, :string)
+      field(:decided_note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:decided_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -57,4 +100,17 @@ defmodule Oneiroi.AgathosDaimon.Store do
   @spec with_remote() :: [Resident.t()]
   def with_remote,
     do: Repo.all(from(r in Resident, where: not is_nil(r.remote_url), order_by: r.created_at))
+
+  @doc "The resident's identity files, by name."
+  @spec files() :: [IdentityFile.t()]
+  def files, do: Repo.all(from(f in IdentityFile, order_by: f.name))
+
+  @doc "One identity file."
+  @spec file(String.t()) :: IdentityFile.t() | nil
+  def file(name), do: Repo.one(from(f in IdentityFile, where: f.name == ^name))
+
+  @doc "The open soul-edit proposals, oldest first."
+  @spec open_soul_edits() :: [SoulEdit.t()]
+  def open_soul_edits,
+    do: Repo.all(from(e in SoulEdit, where: e.state == "open", order_by: e.proposed_at))
 end

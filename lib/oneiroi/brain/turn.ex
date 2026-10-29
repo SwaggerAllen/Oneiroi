@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Turn do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Files
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
@@ -172,6 +173,10 @@ defmodule Oneiroi.Brain.Turn do
         drew_on: length(turn.injections)
       }
 
+      # First contact (spec §6.2): the first captured turn outside a
+      # regression session; the command is idempotent, so every turn says
+      # so and only the first is recorded.
+      :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
       {:ok, captured}
     end
@@ -180,8 +185,10 @@ defmodule Oneiroi.Brain.Turn do
   @doc false
   # Public for the compaction's own calls, which assemble the same way.
   def assemble(row, turn, text) do
-    prompt = Prompt.message("brain", %{name: row.name})
+    prompt = Prompt.message("brain", %{name: row.name, formation: formation(row)})
+    files = identity_files(turn.resident_id, row)
     index = Kumbukumbu.index(turn.resident_id)
+    acting = how_i_act(turn, text)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
 
@@ -191,6 +198,7 @@ defmodule Oneiroi.Brain.Turn do
       |> Enum.map(&history_message/1)
 
     index_message = %{role: :system, content: index.text}
+    acting_messages = if acting.count > 0, do: [%{role: :system, content: acting.text}], else: []
     summary = session && session.summary
     summary_messages = if summary, do: [%{role: :system, content: summary}], else: []
 
@@ -201,16 +209,38 @@ defmodule Oneiroi.Brain.Turn do
           tokens: tokens(prompt.content),
           reason:
             "the brain's prompt file with the resident's name, estimated at four bytes a token"
-        },
-        %{
-          label: "index",
-          tokens: index.tokens,
-          reason:
-            "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
-          text: index.text,
-          refs: index.included
         }
+        | Enum.map(files, fn {name, content} ->
+            %{
+              label: name,
+              tokens: tokens(content),
+              reason:
+                "the identity file as last written (spec §6.2), estimated at four bytes a token"
+            }
+          end)
       ] ++
+        [
+          %{
+            label: "index",
+            tokens: index.tokens,
+            reason:
+              "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
+            text: index.text,
+            refs: index.included
+          }
+        ] ++
+        if(acting.count > 0,
+          do: [
+            %{
+              label: "behaviours",
+              tokens: tokens(acting.text),
+              reason:
+                "how I act: #{acting.count} behaviours whose trigger this situation matched (the steward's words, the conversation's tags, the time of day), with their scores and enacting turns",
+              refs: acting.numbers
+            }
+          ],
+          else: []
+        ) ++
         if(summary,
           do: [
             %{
@@ -231,11 +261,56 @@ defmodule Oneiroi.Brain.Turn do
           }
         ]
 
+    file_messages =
+      Enum.map(files, fn {name, content} ->
+        %{role: :system, content: "# " <> name <> "\n\n" <> content}
+      end)
+
     messages =
-      [prompt, index_message | summary_messages] ++ history ++ [%{role: :user, content: text}]
+      [prompt | file_messages] ++
+        [index_message | acting_messages] ++
+        summary_messages ++ history ++ [%{role: :user, content: text}]
 
     {messages, injections}
   end
+
+  # Retrieval is memory's and choice is the brain's (kumbukumbu #11): the
+  # situation is the steward's words, the conversation's tags and the
+  # time of day, matched with no model call.
+  defp how_i_act(turn, text) do
+    tags =
+      turn.resident_id
+      |> Kumbukumbu.taggings("conversation", turn.session_key)
+      |> Enum.map(& &1.tag)
+
+    Kumbukumbu.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
+  end
+
+  # The stable prefix (spec §5): the identity files in a fixed order, then
+  # the build-owned AGENTS.md, so the cached prefix is the same from turn
+  # to turn until a file changes.
+  defp identity_files(resident_id, row) do
+    written = resident_id |> Oneiroi.AgathosDaimon.files() |> Map.new(&{&1.name, &1.content})
+
+    ordered =
+      for name <- Oneiroi.AgathosDaimon.identity_files(),
+          content = Map.get(written, name),
+          do: {name, content}
+
+    ordered ++ [{"AGENTS.md", Files.agents_md(row)}]
+  end
+
+  # The month after first contact (spec §6.2): the resident is told its
+  # seed is still settling and proposals are presumed welcome; a line in
+  # the prompt and never a gate.
+  defp formation(%{formation_until: %DateTime{} = until}) do
+    if DateTime.compare(Clock.now(), until) == :lt,
+      do:
+        " Your seed is still settling: until #{Date.to_iso8601(DateTime.to_date(until))} your steward's proposals are presumed welcome unless they cross what your seed itself holds; you still decide each one.",
+      else: ""
+  end
+
+  defp formation(_row), do: ""
 
   defp session_of(turn) do
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do

@@ -95,6 +95,8 @@ defmodule OneiroiWeb.ResidentController do
       state: r.state,
       custody: r.custody,
       export_wall: r.export_wall,
+      first_contact_at: r.first_contact_at,
+      formation_until: r.formation_until,
       exported_through: r.exported_through,
       last_backup: %{
         sequence: r.last_backup_sequence,

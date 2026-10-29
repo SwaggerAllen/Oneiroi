@@ -168,6 +168,61 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Behaviour do
+    @moduledoc "How the resident tends to act (spec §6.3, F55): its words, the trigger, the stance, as last revised."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_behaviour" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:name, :string)
+      field(:trigger, :map, default: %{})
+      field(:stance, :string)
+      field(:defined_by_kind, :string)
+      field(:defined_by_id, :string)
+      field(:defined_at, :utc_datetime_usec)
+      field(:revised_at, :utc_datetime_usec)
+      field(:revisions, :integer, default: 0)
+      field(:habit, :float, virtual: true, default: 0.0)
+      field(:connection, :float, virtual: true, default: 0.0)
+      field(:affirmations, :integer, virtual: true, default: 0)
+      field(:enactments, :integer, virtual: true, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Enactment do
+    @moduledoc "One enactment: the behaviour and the turn or bookmark that was one."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_enactment" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:target_kind, :string, primary_key: true)
+      field(:target_id, :string, primary_key: true)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Affirmation do
+    @moduledoc "One affirmation of a behaviour by the steward, with its note."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_affirmation" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:note, :string)
+      field(:by_kind, :string)
+      field(:by_id, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Tagging do
     @moduledoc "A tag on a target of any record kind (spec §6.3)."
     use Ecto.Schema
@@ -339,4 +394,23 @@ defmodule Oneiroi.Kumbukumbu.Store do
       %{b | tags: tags |> Map.get(Integer.to_string(b.number), []) |> Enum.sort()}
     end)
   end
+
+  # ---- behaviours ----
+
+  @doc "The resident's behaviours by number."
+  @spec behaviours() :: [Behaviour.t()]
+  def behaviours, do: Repo.all(from(b in Behaviour, order_by: b.number))
+
+  @doc "Every enactment, newest first."
+  @spec enactments() :: [Enactment.t()]
+  def enactments, do: Repo.all(from(e in Enactment, order_by: [desc: e.at]))
+
+  @doc "Every affirmation, newest first."
+  @spec affirmations() :: [Affirmation.t()]
+  def affirmations, do: Repo.all(from(a in Affirmation, order_by: [desc: a.at]))
+
+  @doc "The numbers of the pinned bookmarks."
+  @spec pinned_numbers() :: [pos_integer()]
+  def pinned_numbers,
+    do: Repo.all(from(b in Bookmark, where: not is_nil(b.pinned_at), select: b.number))
 end

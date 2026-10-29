@@ -22,8 +22,9 @@ defmodule Oneiroi.Brain do
       Oneiroi.Nisaba,
       Jason
     ],
-    exports: [Error, Session, Turn, Tools, Compaction]
+    exports: [Error, Session, Turn, Tools, Compaction, Drafting]
 
+  alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Session
 
   @impl Oneiroi.Component
@@ -91,5 +92,12 @@ defmodule Oneiroi.Brain do
           {:ok, map()} | {:error, term()}
   defexport(turn(resident_id, session_key, text, actor),
     do: Session.turn(resident_id, session_key, text, actor)
+  )
+
+  @doc "Drafts an identity file from the steward's prompt under the drafting purpose; returned, not written."
+  @spec draft(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, Oneiroi.Brain.Drafting.draft()} | {:error, term()}
+  defexport(draft(resident_id, file, prompt, actor),
+    do: Drafting.draft(resident_id, file, prompt, actor)
   )
 end
