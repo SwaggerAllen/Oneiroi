@@ -59,11 +59,21 @@ secret (`sync: false`).
    for Oban and the store share the limit, and a rolling deploy runs two
    containers), and whether a preview environment can take a smaller
    database plan than production.
-5. Run the one account's creation once the service answers `/health`:
-   `mix oneiroi.setup --email <you> --password <...>` from a shell on the
-   service, or the same through the Render shell. Autodeploy stays on;
-   the image's own `CMD` runs the migrator ahead of `start`, so a failed
-   migration fails the deploy with the previous one still serving.
+5. Run the one account's creation once the service answers `/health`,
+   from a shell on the service (the Render shell, or SSH as user
+   `srv-…` to `ssh.<region>.render.com` with a key added under Account
+   Settings → SSH Public Keys). The image is an OTP release with no Mix
+   in it, so `mix oneiroi.setup` exists only in a checkout; on the
+   service, the release calls the same function on the running node:
+
+   ```sh
+   /app/bin/oneiroi rpc 'IO.inspect(Oneiroi.Gaia.create_account("<you>", "<password>", Oneiroi.Actor.platform()))'
+   ```
+
+   It prints `{:ok, <account id>}`; clear the shell's history after,
+   since the password is in it. Autodeploy stays on; the image's own
+   `CMD` runs the migrator ahead of `start`, so a failed migration fails
+   the deploy with the previous one still serving.
 
 ## 2. Orchestration's court
 
