@@ -89,6 +89,46 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
+  @doc """
+  Adopts every unadopted file under the kinds' folders and runs the index
+  once: the library half of an import (sima-qian #15). A path the
+  library cannot name (a segment the registry refuses) is skipped and
+  returned, so the import can say it did not transfer; the index runs
+  once over everything adopted rather than once per file, because an
+  import of a repository with hundreds of files is the case this exists
+  for and each run reads every document row.
+  """
+  def adopt_all(resident_id, %Actor{} = actor) do
+    with paths when is_list(paths) <- unadopted(resident_id),
+         {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+      {adopted, skipped} =
+        Enum.split_with(paths, &(register(resident_id, dir, &1, actor) == :ok))
+
+      indexed = adopted == [] or match?({:ok, _}, Index.run(resident_id, actor))
+      {:ok, %{adopted: adopted, skipped: skipped, indexed: indexed}}
+    end
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp register(resident_id, dir, path, actor) do
+    with {:ok, path} <- normalize(path),
+         {:ok, content} <- read_file(Path.join(dir, path)),
+         {:ok, _events} <-
+           dispatch(%Commands.AdoptDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             path: path,
+             kind: Kinds.kind_of(path).kind,
+             hash: hash(content),
+             bytes: byte_size(content)
+           }) do
+      :ok
+    else
+      _refused -> :error
+    end
+  end
+
   @doc "Files under a kind's folder that no document registers, sorted; what the Library screen offers to adopt."
   # sobelow_skip ["Traversal.FileModule"]
   def unadopted(resident_id) do

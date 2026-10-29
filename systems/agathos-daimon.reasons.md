@@ -107,3 +107,11 @@ Spec §6.12: "the export wall cannot be set while a transfer is in
 progress"; §6.3: "after a custody transfer the new steward is party to
 nothing that came before, which is exactly the export wall: revealing
 it grants read on the earlier sessions, locking it does not".
+
+## #25
+Spec §6.2: "a new resident woken and told where it woke up: that it is
+on Oneiroi, from which repository, whether the attestation held, and
+what did not transfer". Told once for the reason the model change is
+told once (#16, brain #21): orientation without impersonation, and a
+notice repeated every turn is a notice ignored. On the row rather than
+read off the stream because the brain reads the row on every turn.

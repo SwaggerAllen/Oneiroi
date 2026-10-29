@@ -80,6 +80,22 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :source, :attestation, :root, :sequence]
   end
 
+  defmodule ImportCompleted do
+    # The rest of an import, after the records (spec §6.2's intake from
+    # a repository, §9): the identity files seeded from the repository's
+    # root, how many library files were adopted, and what at the root
+    # did not transfer, by name, so the resident is told rather than
+    # left to notice (agathos-daimon #25).
+    use Oneiroi.Event, version: 1, fields: [:id, :seeded, :adopted, :not_transferred]
+  end
+
+  defmodule ImportTold do
+    # The resident was told, on its first turn, where it woke: on
+    # Oneiroi, from which repository, whether the attestation held, and
+    # what did not transfer (spec §6.2).
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
   # The export's own bookkeeping: in the log, never in the export
   # (`Oneiroi.Event`'s `export:`).
   defmodule ExportWritten do

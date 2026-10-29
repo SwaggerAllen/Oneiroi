@@ -48,6 +48,61 @@ defmodule OneiroiWeb.ResidentController do
   def create(conn, _params),
     do: problem(conn, 422, :name_and_slug_required, "name and slug are required")
 
+  operation(:import_resident,
+    summary:
+      "Import a repository as a new resident under this account (spec §6.2's intake from a git repository): its records replayed, the root's identity files seeded, its folders adopted and indexed, and what did not transfer named. A repository without records needs a name and a slug",
+    request_body:
+      {"the repository", "application/json",
+       %Schema{
+         type: :object,
+         required: [:url],
+         properties: %{
+           url: %Schema{
+             type: :string,
+             description: "an https URL; a token may ride in its userinfo and is never recorded"
+           },
+           name: %Schema{type: :string},
+           slug: %Schema{type: :string, pattern: "^[a-z][a-z0-9-]{1,39}$"}
+         }
+       }},
+    responses: [
+      created: {"the resident, with its import", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def import_resident(%{assigns: %{principal: p}} = conn, %{"url" => url} = params) do
+    attrs = %{name: params["name"], slug: params["slug"]}
+
+    case Oneiroi.SimaQian.import_resident(url, attrs, p.account_id, actor(conn)) do
+      {:ok, %{id: id} = result} ->
+        {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
+        conn |> put_status(201) |> json(Map.put(row(resident), :import, import_row(result)))
+
+      {:error, :agathos_daimon_slug_taken} ->
+        error(conn, 409, ResidentError.new(:agathos_daimon_slug_taken))
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      {:error, reason} ->
+        problem(conn, 422, :not_imported, inspect(reason))
+    end
+  end
+
+  def import_resident(conn, _params), do: problem(conn, 422, :url_required, "url is required")
+
+  defp import_row(result) do
+    %{
+      attestation: result.attestation,
+      events: result.events,
+      seeded: result.seeded,
+      proposed: result.proposed,
+      adopted: result.adopted,
+      indexed: result.indexed,
+      not_transferred: result.not_transferred
+    }
+  end
+
   operation(:show,
     summary: "One resident",
     parameters: [id: [in: :path, type: :string]],
@@ -202,6 +257,12 @@ defmodule OneiroiWeb.ResidentController do
       timezone: r.timezone,
       model_pinned_at: r.model_pinned_at,
       exported_through: r.exported_through,
+      import: %{
+        source: r.import_source,
+        attestation: r.import_attestation,
+        not_transferred: r.import_not_transferred,
+        told: r.import_told
+      },
       last_backup: %{
         sequence: r.last_backup_sequence,
         root: r.last_backup_root,

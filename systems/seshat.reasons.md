@@ -84,3 +84,9 @@ evening.
 Spec §6.5: "resolution when read, not when indexed". The audit is a
 read; without it a citation whose target went after its last read
 would never be found to have gone.
+
+## #25
+#13's run reads every document row and re-embeds what changed, so an
+adoption that ran the index per file would read the rows once per file:
+an import of a repository with hundreds of files, the case the port
+exists for, would cost hundreds of runs for one set of embeddings.

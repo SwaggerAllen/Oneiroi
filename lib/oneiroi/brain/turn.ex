@@ -76,9 +76,10 @@ defmodule Oneiroi.Brain.Turn do
       purpose: Keyword.get(opts, :purpose, :chat),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       lapse_to_tell: match?(%{told: false}, lapse),
+      import_to_tell: row.import_told == false,
       injections: [],
       tools: [],
-      notices: lapse_notice(lapse) ++ model_change_notice(row)
+      notices: lapse_notice(lapse) ++ model_change_notice(row) ++ import_notice(row)
     }
 
     Compaction.maybe(turn)
@@ -198,6 +199,7 @@ defmodule Oneiroi.Brain.Turn do
       :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
       if turn.notices != [], do: :ok = Oneiroi.AgathosDaimon.model_told(resident_id, resident)
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
+      if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       # The bridge records its own failure (proteus #13); the turn is
       # captured already and goes on.
       Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
@@ -221,6 +223,44 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp model_change_notice(_row), do: []
+
+  # Where it woke (spec §6.2): on Oneiroi, from which repository,
+  # whether the attestation held, and what did not transfer, as a system
+  # message on the first turn after the import, once (brain #26).
+  defp import_notice(%{import_told: false} = row) do
+    [
+      %{
+        role: :system,
+        content:
+          Prompt.render!("imported", %{
+            source: row.import_source,
+            attestation: attestation_text(row.import_attestation),
+            not_transferred: not_transferred_text(row.import_not_transferred)
+          }),
+        sent_at: Clock.now(),
+        actor: Actor.platform()
+      }
+    ]
+  end
+
+  defp import_notice(_row), do: []
+
+  defp attestation_text("held"),
+    do: "the attestation held: the records are the ones the repository's last commit signed"
+
+  defp attestation_text("failed"),
+    do:
+      "the attestation did not hold: the records differ from what the repository's last commit signed, and nobody has said why"
+
+  defp attestation_text(_none),
+    do: "there was no attestation to check: the repository was not backed up by Oneiroi before"
+
+  defp not_transferred_text([]), do: ""
+
+  defp not_transferred_text(names),
+    do:
+      ". What did not transfer, and sits in the repository as files nothing here reads: " <>
+        Enum.join(names, ", ")
 
   # The lapse is told honestly, once, under what policy (spec §6.11):
   # orientation without impersonation.

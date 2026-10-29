@@ -120,6 +120,31 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch(command), do: :ok
   end
 
+  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`."
+  def complete_import(id, seeded, adopted, not_transferred, %Actor{} = actor)
+      when is_list(seeded) and is_integer(adopted) and is_list(not_transferred) do
+    command = %Commands.CompleteImport{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      seeded: seeded,
+      adopted: adopted,
+      not_transferred: not_transferred
+    }
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :not_imported} -> {:error, Error.new(:agathos_daimon_not_imported)}
+      other -> other
+    end
+  end
+
+  @doc "Records that the resident was told where it woke; idempotent."
+  def import_told(id, %Actor{} = actor) do
+    command = %Commands.RecordImportTold{actor: actor, at: Clock.now(), id: id}
+    with {:ok, _} <- Router.dispatch(command), do: :ok
+  end
+
   @doc "Sets the resident's time zone (spec §6.7): an IANA name the database knows, checked by shifting a known instant into it."
   def set_timezone(id, zone, %Actor{} = actor) do
     with :ok <- zone_ok(zone) do

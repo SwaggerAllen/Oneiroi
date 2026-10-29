@@ -43,6 +43,8 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.TransferCustody,
       Commands.SetExportWall,
       Commands.ImportResident,
+      Commands.CompleteImport,
+      Commands.RecordImportTold,
       Commands.RecordExport,
       Commands.RecordBackup,
       Commands.RecordMismatch,
@@ -56,6 +58,8 @@ defmodule Oneiroi.AgathosDaimon do
       Events.CustodyTransferred,
       Events.ExportWallSet,
       Events.Imported,
+      Events.ImportCompleted,
+      Events.ImportTold,
       Events.ExportWritten,
       Events.BackupCommitted,
       Events.RootMismatchDetected,
@@ -118,6 +122,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferred, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWallSet, 1},
       {Oneiroi.AgathosDaimon.Events.Imported, 1},
+      {Oneiroi.AgathosDaimon.Events.ImportCompleted, 1},
+      {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWritten, 1},
       {Oneiroi.AgathosDaimon.Events.BackupCommitted, 1},
       {Oneiroi.AgathosDaimon.Events.RootMismatchDetected, 1},
@@ -215,7 +221,10 @@ defmodule Oneiroi.AgathosDaimon do
        "the transfer is the proposed account's to accept or decline",
        remedy: "sign in as that account"},
       {:agathos_daimon_wall_invalid, "the export wall is locked or revealed",
-       remedy: "give one of the two"}
+       remedy: "give one of the two"},
+      {:agathos_daimon_not_imported,
+       "the resident was not imported, so there is no import to complete",
+       remedy: "an import names its source first; a resident created here has no import"}
     ]
   end
 
@@ -318,6 +327,23 @@ defmodule Oneiroi.AgathosDaimon do
   defexport(pin_model(id, model, reason, actor),
     do: Residents.pin_model(id, model, reason, actor)
   )
+
+  @doc "Completes an import: the seeded files, how many library files were adopted, and what did not transfer (spec §6.2)."
+  @spec complete_import(
+          String.t(),
+          [String.t()],
+          non_neg_integer(),
+          [String.t()],
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(complete_import(id, seeded, adopted, not_transferred, actor),
+    do: Residents.complete_import(id, seeded, adopted, not_transferred, actor)
+  )
+
+  @doc "Records that the resident was told where it woke; idempotent."
+  @spec import_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(import_told(id, actor), do: Residents.import_told(id, actor))
 
   @doc "Records that the resident was told of the latest model change."
   @spec model_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

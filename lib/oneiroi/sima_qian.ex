@@ -31,9 +31,10 @@ defmodule Oneiroi.SimaQian do
       Jason,
       Oban
     ],
-    exports: [Backup, Error, Export, Git, Merkle, Rebuild]
+    exports: [Backup, Error, Export, Git, Import, Library, Merkle, Rebuild]
 
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Rebuild
 
   @impl Oneiroi.Component
@@ -51,9 +52,37 @@ defmodule Oneiroi.SimaQian do
        default: "60",
        tag: :bound,
        usage:
-         "how far behind capture the export stays, so a turn still being written is never half-exported (spec §6.10)"}
+         "how far behind capture the export stays, so a turn still being written is never half-exported (spec §6.10)"},
+      {:import_schemes, "SIMA_QIAN_IMPORT_SCHEMES",
+       cast: &__MODULE__.cast_schemes/1,
+       default: "https",
+       usage:
+         "the URL schemes an import may clone from, comma-separated: https alone in production, because a bare path or file URL from a request would clone a directory on this host, another resident's working repository among them; a self-hoster importing from disk adds file"},
+      {:library, "SIMA_QIAN_LIBRARY",
+       cast: &__MODULE__.cast_library/1,
+       default: "seshat",
+       usage:
+         "which library port implementation adopts an imported repository's files (`Oneiroi.SimaQian.Library`): seshat, the library, in every build so far"}
     ]
   end
+
+  @doc false
+  def cast_schemes(value) when is_binary(value) do
+    schemes = value |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+
+    if schemes == [],
+      do: {:error, "is empty, expected a comma-separated list"},
+      else: {:ok, schemes}
+  end
+
+  def cast_schemes(other), do: {:error, "is #{inspect(other)}, expected a comma-separated list"}
+
+  # The module as an atom rather than an alias, as the schedule names
+  # its wake (sunna #12): the library reads this system for the
+  # repository's path, so an alias here is the cycle the port avoids.
+  @doc false
+  def cast_library("seshat"), do: {:ok, :"Elixir.Oneiroi.Seshat"}
+  def cast_library(other), do: {:error, "is #{inspect(other)}, expected \"seshat\""}
 
   @impl Oneiroi.Component
   def oban_queues do
@@ -75,12 +104,23 @@ defmodule Oneiroi.SimaQian do
          "an import is always a new resident; to try again, back up the source to a new root first"},
       {:sima_qian_stray_files, "something wrote outside the paths the backup commits",
        remedy:
-         "read the listed paths; the rest of the backup landed and the run failed after it, on purpose"}
+         "read the listed paths; the rest of the backup landed and the run failed after it, on purpose"},
+      {:sima_qian_scheme_refused,
+       "an import clones from a URL with one of the configured schemes",
+       remedy: "give an https URL; a path on this host is never cloned from a request"},
+      {:sima_qian_name_required,
+       "a repository without records is a new resident and needs a name and a slug",
+       remedy: "give both; a repository with records names itself"}
     ]
   end
 
   @impl Oneiroi.Component
-  def telemetry_events, do: [[:oneiroi, :sima_qian, :backup], [:oneiroi, :sima_qian, :rebuild]]
+  def telemetry_events,
+    do: [
+      [:oneiroi, :sima_qian, :backup],
+      [:oneiroi, :sima_qian, :rebuild],
+      [:oneiroi, :sima_qian, :import]
+    ]
 
   @doc "Sets the resident's remote; the token is encrypted before it enters the log and redacted from every export."
   @spec set_remote(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
@@ -97,6 +137,13 @@ defmodule Oneiroi.SimaQian do
   @spec rebuild(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(rebuild(url, steward_account_id, actor),
     do: Rebuild.run(url, steward_account_id, actor)
+  )
+
+  @doc "Imports a repository as a new resident under `steward_account_id`: the rebuild, then the root's files seeded, the folders adopted and indexed, and what did not transfer named (spec §6.2, §9)."
+  @spec import_resident(String.t(), map(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(import_resident(url, attrs, steward_account_id, actor),
+    do: Import.run(url, attrs, steward_account_id, actor)
   )
 
   @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."

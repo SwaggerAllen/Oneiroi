@@ -14,6 +14,11 @@ defmodule Oneiroi.Seshat do
   """
   use Oneiroi.System, slug: :seshat
 
+  # The records system's library port (sima-qian #15): an import adopts
+  # the repository's files through it, because the library depends on
+  # records for the repository's path and the import is records'.
+  @behaviour Oneiroi.SimaQian.Library
+
   use Boundary,
     top_level?: true,
     deps: [
@@ -198,6 +203,16 @@ defmodule Oneiroi.Seshat do
   @doc "Adopts a file made outside the flow, registering it; the index runs."
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt(resident_id, path, actor), do: Documents.adopt(resident_id, path, actor))
+
+  @doc "Adopts every unadopted file under the kinds' folders and runs the index once; the records system's library port, so an import lands its files here (sima-qian #15)."
+  @impl Oneiroi.SimaQian.Library
+  @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
+
+  @doc "The kinds' folders: what an import treats as transferred (sima-qian #15)."
+  @impl Oneiroi.SimaQian.Library
+  @spec folders() :: [String.t()]
+  defexport(folders(), do: Enum.map(Kinds.all(), & &1.folder))
 
   @doc "Files in the repository under a kind's folder that no document registers."
   @spec unadopted(String.t()) :: [String.t()]

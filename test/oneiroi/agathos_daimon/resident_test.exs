@@ -59,6 +59,43 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
              })
   end
 
+  test "an import completes only after Imported named the source, and is told once" do
+    complete = %Commands.CompleteImport{
+      actor: @actor,
+      at: @at,
+      id: "r1",
+      seeded: ["SOUL.md"],
+      adopted: 2,
+      not_transferred: ["memory"]
+    }
+
+    told = %Commands.RecordImportTold{actor: @actor, at: @at, id: "r1"}
+
+    assert {:error, :not_imported} = Resident.execute(created(), complete)
+    assert [] = Resident.execute(created(), told)
+
+    imported =
+      Resident.apply(created(), %Events.Imported{
+        actor: @actor,
+        at: @at,
+        id: "r1",
+        source: "https://example.org/lily.git",
+        attestation: "none",
+        root: "abc",
+        sequence: nil
+      })
+
+    # Rebuilt from records alone: nothing to tell.
+    assert [] = Resident.execute(imported, told)
+
+    assert %Events.ImportCompleted{seeded: ["SOUL.md"], adopted: 2, not_transferred: ["memory"]} =
+             event = Resident.execute(imported, complete)
+
+    completed = Resident.apply(imported, event)
+    assert %Events.ImportTold{id: "r1"} = event = Resident.execute(completed, told)
+    assert [] = Resident.execute(Resident.apply(completed, event), told)
+  end
+
   test "a decision carries its note on the event and custody moves the steward" do
     event =
       Resident.execute(created(), %Commands.TransferCustody{
