@@ -128,6 +128,11 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/predictions/:number/resolve", JudgementController, :resolve)
       get("/residents/:id/nights", JudgementController, :nights)
       post("/residents/:id/nights/:day", JudgementController, :judge_night)
+      get("/residents/:id/audits", JudgementController, :audits)
+      post("/residents/:id/audits/run", JudgementController, :run_audit)
+      post("/residents/:id/audits/flags/:ref", JudgementController, :decide_flag)
+      get("/residents/:id/honcho", HonchoController, :show)
+      post("/residents/:id/honcho/card-audit", HonchoController, :audit_card)
     end
   end
 end

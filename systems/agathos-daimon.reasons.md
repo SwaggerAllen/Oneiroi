@@ -73,3 +73,7 @@ them was changed.
 Two readers of the same prefix were two copies of the ordering rule
 (brain #12), and a cross-tenant roster read belongs to the system that
 owns the rows, named, rather than to each job that needs it.
+
+## #19
+Spec §6.2: build-owned, rendered from templates, read-only in the
+client; #13's reason holds for the second template as for the first.

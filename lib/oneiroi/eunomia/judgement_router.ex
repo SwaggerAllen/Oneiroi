@@ -5,5 +5,5 @@ defmodule Oneiroi.Eunomia.JudgementRouter do
     prefix: "judgement-",
     commands: "Oneiroi.Eunomia.JudgementCommands",
     dispatching:
-      ~w(TakePosition ReplacePosition CheckDispute SettleDispute RecordNight FailNight LogPrediction ResolvePrediction SetJudgeModel)
+      ~w(TakePosition ReplacePosition CheckDispute SettleDispute RecordNight FailNight LogPrediction ResolvePrediction SetJudgeModel RunAudit FailAudit RaiseAuditFlag ApproveAuditFlag DeleteAuditFlag)
 end

@@ -33,3 +33,8 @@ a broken trailer is still the resident's record.
 
 ## #10
 Spec §6.10 hangs the check on wake, and there is no wake before P1.
+
+## #13
+Spec §6.2: "`honcho/custom-instructions.md` [is] build-owned, rendered
+from templates"; spec §6.9: "the card comes from git, always: set after
+a soul commit." The backup's commit is the soul commit the spec means.

@@ -78,3 +78,7 @@ line (spec §6.11).
 ## #18
 Spec §8: "the tool set is the role's: brain gets everything the
 resident has (... position_*, dispute_check, prediction_* ...)".
+
+## #19
+Spec §5 lists Honcho's context in the assembly order; conventions §8
+makes an external's failure retryable and not the caller's.

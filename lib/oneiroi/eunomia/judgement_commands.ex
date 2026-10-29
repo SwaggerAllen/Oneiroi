@@ -47,6 +47,26 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
     use Oneiroi.Command, decision: true, fields: [:id, :number, :outcome]
   end
 
+  defmodule RunAudit do
+    use Oneiroi.Command, fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary]
+  end
+
+  defmodule FailAudit do
+    use Oneiroi.Command, fields: [:id, :ref, :reason]
+  end
+
+  defmodule RaiseAuditFlag do
+    use Oneiroi.Command, fields: [:id, :ref, :audit_ref, :conclusion_id, :conclusion, :reason]
+  end
+
+  defmodule ApproveAuditFlag do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule DeleteAuditFlag do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+  end
+
   defmodule SetJudgeModel do
     use Oneiroi.Command, fields: [:id, :model]
   end

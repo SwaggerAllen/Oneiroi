@@ -43,7 +43,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     bare: bare,
     working: working
   } do
-    assert {:ok, %{through: 3, root: root, commits: [{"machine", sha}]}} =
+    assert {:ok, %{through: 3, root: root, commits: [{"soul", _}, {"machine", sha}]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     assert root == Merkle.root(Path.join(working, "records"))
@@ -65,8 +65,19 @@ defmodule Oneiroi.SimaQian.BackupTest do
              row(r.id)
   end
 
+  test "a soul commit sets the card from git", %{r: r, actor: actor} do
+    :ok = Oneiroi.Proteus.provision(r.id, actor)
+    on_exit(fn -> Oneiroi.Proteus.Honcho.Fake.clear(for: r.id) end)
+    assert %{card_source: "provision", card_lines: 0} = Oneiroi.Proteus.bridge(r.id)
+    :ok = Oneiroi.AgathosDaimon.write_file(r.id, "SOUL.md", "# Soul\n\nSteady.", %{}, actor)
+    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert %{card_source: "commit", card_lines: 1} = Oneiroi.Proteus.bridge(r.id)
+  end
+
   test "a night with nothing new makes no commit", %{r: r, actor: actor} do
-    assert {:ok, %{commits: [{"machine", sha}]}} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert {:ok, %{commits: [{"soul", _}, {"machine", sha}]}} =
+             Oneiroi.SimaQian.backup(r.id, actor)
+
     Clock.Fake.advance(120)
     # The bookkeeping of the first run is now under the watermark, so the
     # export runs through it and still writes nothing new.
@@ -99,7 +110,10 @@ defmodule Oneiroi.SimaQian.BackupTest do
   } do
     other = Fixtures.resident!(a)
     on_exit(fn -> File.rm_rf!(Backup.dir(other.id)) end)
-    assert {:ok, %{commits: [{"machine", _}]}} = Oneiroi.SimaQian.backup(other.id, actor)
+
+    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} =
+             Oneiroi.SimaQian.backup(other.id, actor)
+
     refute other.id in Enum.map(Backup.residents_with_remote(), & &1.id)
   end
 
@@ -110,7 +124,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
   } do
     assert {:ok, :none} = Oneiroi.SimaQian.attest(r.id, actor)
 
-    assert {:ok, %{root: root, commits: [{"machine", sha}]}} =
+    assert {:ok, %{root: root, commits: [{"soul", _}, {"machine", sha}]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     assert {:ok, :held} = Oneiroi.SimaQian.attest(r.id, actor)

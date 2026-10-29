@@ -485,3 +485,31 @@ and nothing personal turned up; what follows is what changed.
 - Open for the author, carried: the judge's calls bill to the
   resident's ledger under `judge` (critique 17 asked to whom); the
   platform's judge slug is a placeholder until a dated one is pinned.
+
+## Round 16: the Honcho bridge and the weekly audits (2026-10-29)
+
+- The bridge is built under `Oneiroi.Proteus` on its own stream,
+  everything through a port with Honcho's HTTP API behind it and an
+  in-memory Honcho in the suite (systems/proteus.md #8). The HTTP
+  bodies are claims until the pinned image answers them (#9) and the
+  table reads wait on that image (#10). Provisioning is the first
+  captured turn's, with the two peers and the rendered instructions
+  (#12); a turn syncs once as the two peers' words and a failure is
+  the bridge's, never the turn's (#13); the card is the soul's
+  paragraphs, set from git on provision, after a soul commit and by
+  the weekly audit when a dream moved it (#14, sima-qian #13);
+  Honcho's context is a bounded section of the brain's turn (#15,
+  brain #19). The custom instructions are the resident system's second
+  rendered template (agathos-daimon #19).
+- The weekly memory audit is judgement's through the bridge (eunomia
+  #22): the judge over Honcho's conclusions against positions and the
+  soul, flags the steward approves (the conclusion leaves Honcho) or
+  deletes, each with a note; Sunday, after the card audit.
+- One defect the tests found before the gates ran: a retried turn was
+  sent to Honcho twice and recorded once, because the aggregate's
+  once-a-turn answer came after the send (proteus #13), the night's
+  lesson at a second port.
+- Open for the author, carried: a person's own peer past the threshold
+  and the steward's promotion wait on inbound; `PROTEUS_HONCHO_URL`
+  and `PROTEUS_HONCHO_ADMIN_KEY` are unset until a Honcho is deployed
+  beside the instance, and the port fails with them unset.

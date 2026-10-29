@@ -121,7 +121,89 @@ defmodule OneiroiWeb.JudgementController do
     end
   end
 
+  operation(:audits,
+    summary: "The weekly memory audits and their flags, open first",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"audits", "application/json", %Schema{type: :object}}]
+  )
+
+  def audits(conn, %{"id" => id}) do
+    a = Eunomia.audits(id)
+
+    json(conn, %{
+      runs: Enum.map(a.runs, &audit/1),
+      open: Enum.map(a.open, &flag/1),
+      decided: Enum.map(a.decided, &flag/1)
+    })
+  end
+
+  operation(:run_audit,
+    summary: "Run the weekly memory audit by hand",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [created: {"the audit's ref", "application/json", %Schema{type: :object}}]
+  )
+
+  def run_audit(conn, %{"id" => id}) do
+    case Eunomia.run_audit(id, actor(conn)) do
+      {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:decide_flag,
+    summary:
+      "Approve a flag (the conclusion is deleted from Honcho) or delete it (the conclusion stays), with a note",
+    parameters: [id: [in: :path, type: :string], ref: [in: :path, type: :string]],
+    request_body:
+      {"the decision", "application/json",
+       %Schema{
+         type: :object,
+         required: [:decision, :note],
+         properties: %{
+           decision: %Schema{type: :string, enum: ~w(approve delete)},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [no_content: "decided"]
+  )
+
+  def decide_flag(conn, %{"id" => id, "ref" => ref, "decision" => "approve", "note" => note}),
+    do: respond(conn, Eunomia.approve_flag(id, ref, note, actor(conn)))
+
+  def decide_flag(conn, %{"id" => id, "ref" => ref, "decision" => "delete", "note" => note}),
+    do: respond(conn, Eunomia.delete_flag(id, ref, note, actor(conn)))
+
+  def decide_flag(conn, _params),
+    do:
+      problem(conn, 422, :decision_required, "decision (approve or delete) and note are required")
+
   # ---- shapes ----
+
+  defp audit(a) do
+    %{
+      ref: a.ref,
+      outcome: a.outcome,
+      conclusions: a.conclusions,
+      flagged: a.flagged,
+      judge_model: a.judge_model,
+      summary: a.summary,
+      reason: a.reason,
+      at: a.at
+    }
+  end
+
+  defp flag(f) do
+    %{
+      ref: f.ref,
+      audit_ref: f.audit_ref,
+      conclusion: f.conclusion,
+      reason: f.reason,
+      raised_at: f.raised_at,
+      decision: f.decision,
+      note: f.note,
+      decided_at: f.decided_at
+    }
+  end
 
   defp position(p) do
     %{
@@ -196,7 +278,8 @@ defmodule OneiroiWeb.JudgementController do
        when kind in [
               :eunomia_no_such_prediction,
               :eunomia_no_such_position,
-              :eunomia_no_such_dispute
+              :eunomia_no_such_dispute,
+              :eunomia_no_such_flag
             ],
        do: error(conn, 404, e)
 

@@ -244,6 +244,16 @@ defmodule Oneiroi.AgathosDaimon do
   @spec identity_context(String.t()) :: [{String.t(), String.t()}]
   defexport(identity_context(id), do: Files.context(id))
 
+  @doc "The build-owned Honcho custom instructions for the resident, rendered from the template (spec §6.2, §6.9)."
+  @spec custom_instructions(String.t()) :: String.t()
+  defexport(custom_instructions(id),
+    do:
+      case Residents.fetch(id) do
+        {:ok, row} -> Files.custom_instructions(row)
+        :error -> ""
+      end
+  )
+
   @doc "Every active resident, for a nightly job: a cross-tenant read under the platform scope, by name (conventions §12)."
   @spec active_residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
   defexport(active_residents(), do: Residents.active())
