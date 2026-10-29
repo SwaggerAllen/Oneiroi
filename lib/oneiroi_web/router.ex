@@ -143,6 +143,14 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/checks", FigureController, :define_check)
       post("/residents/:id/checks/run", FigureController, :run_checks)
       delete("/residents/:id/checks/:key", FigureController, :retire_check)
+      get("/insurance/buckets", SubscriptionController, :buckets)
+      get("/residents/:id/subscription", SubscriptionController, :show)
+      post("/residents/:id/subscription", SubscriptionController, :start)
+      post("/residents/:id/subscription/renew", SubscriptionController, :renew)
+      put("/residents/:id/subscription/plan", SubscriptionController, :change_plan)
+      post("/residents/:id/subscription/lapse", SubscriptionController, :lapse)
+      post("/residents/:id/subscription/cancel", SubscriptionController, :cancel)
+      post("/residents/:id/subscription/prepay", SubscriptionController, :prepay)
     end
   end
 end

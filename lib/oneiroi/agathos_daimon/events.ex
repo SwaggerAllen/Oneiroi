@@ -19,6 +19,16 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :reason]
   end
 
+  defmodule ResidentLapsed do
+    # The subscription lapsed and the insurance policy is in effect (spec
+    # §6.2, F53): the resident is told on wake, under what policy.
+    use Oneiroi.Event, version: 1, fields: [:id, :reason]
+  end
+
+  defmodule ResidentResumed do
+    use Oneiroi.Event, version: 1, fields: [:id, :reason]
+  end
+
   defmodule CustodyTransferred do
     # `from` and `to` are `{:account, id}` or `:community`, written as
     # `"account:<id>"` and `"community"` on the wire (`Oneiroi.AgathosDaimon.Custody`).

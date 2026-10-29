@@ -81,3 +81,12 @@ client; #13's reason holds for the second template as for the first.
 ## #20
 Conventions §12: nothing reads the event store but Commanded; an audit
 that folded the stream itself would be a second projector of one fact.
+
+## #21
+Spec §6.2's lifecycle: "lapsed (the subscription lapsed; the insurance
+policy is in effect)... each transition is an event with its reason";
+"`SubscriptionCancelled` is a custody event."
+The custody fold had written `account_id: nil` for the community since
+P0 into a column the projection macro forces non-null, and no test had
+moved a resident there; the subscription's nightly pass was the first
+to, and the migration beside it makes the column nullable.

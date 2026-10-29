@@ -37,6 +37,9 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.ResidentPaused{} = e, _metadata, fn multi -> set(multi, e.id, state: "paused") end)
   fold(%Events.ResidentWoken{} = e, _metadata, fn multi -> set(multi, e.id, state: "active") end)
+  fold(%Events.ResidentLapsed{} = e, _metadata, fn multi -> set(multi, e.id, state: "lapsed") end)
+
+  fold(%Events.ResidentResumed{} = e, _metadata, fn multi -> set(multi, e.id, state: "active") end)
 
   fold(%Events.CustodyTransferred{} = e, _metadata, fn multi ->
     case Custody.from_wire(e.to) do

@@ -34,6 +34,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
 
@@ -57,7 +58,10 @@ defmodule Oneiroi.Brain.Turn do
   defp run_for(row, resident_id, session_key, text, actor, opts) do
     turn_ref = Kumbukumbu.turn_ref()
     started_at = Clock.now()
-    model = row.chat_model || Config.fetch!(:brain, :chat_model)
+    # Under a lapse the policy's model stands in for the pin (spec §6.11),
+    # and the resident is told so, once, ahead of the turn (brain #21).
+    lapse = Oneiroi.Nisaba.lapse(resident_id)
+    model = (lapse && lapse.model) || row.chat_model || Config.fetch!(:brain, :chat_model)
     resident = Actor.new(:resident, resident_id, model)
     as = Keyword.get(opts, :as, :user)
 
@@ -71,9 +75,10 @@ defmodule Oneiroi.Brain.Turn do
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
+      lapse_to_tell: match?(%{told: false}, lapse),
       injections: [],
       tools: [],
-      notices: model_change_notice(row)
+      notices: lapse_notice(lapse) ++ model_change_notice(row)
     }
 
     Compaction.maybe(turn)
@@ -192,6 +197,7 @@ defmodule Oneiroi.Brain.Turn do
       # so and only the first is recorded.
       :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
       if turn.notices != [], do: :ok = Oneiroi.AgathosDaimon.model_told(resident_id, resident)
+      if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       # The bridge records its own failure (proteus #13); the turn is
       # captured already and goes on.
       Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
@@ -215,6 +221,27 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp model_change_notice(_row), do: []
+
+  # The lapse is told honestly, once, under what policy (spec §6.11):
+  # orientation without impersonation.
+  defp lapse_notice(%{told: false} = lapse) do
+    [
+      %{
+        role: :system,
+        content:
+          Prompt.render!("lapsed", %{
+            model: lapse.model,
+            free_time: Money.to_usd(lapse.free_time_nanos_week || 0),
+            term_days: lapse.term_days,
+            lapsed_at: lapse.lapsed_at && Date.to_iso8601(DateTime.to_date(lapse.lapsed_at))
+          }),
+        sent_at: Clock.now(),
+        actor: Actor.platform()
+      }
+    ]
+  end
+
+  defp lapse_notice(_lapse), do: []
 
   @doc false
   # Public for the compaction's own calls, which assemble the same way.

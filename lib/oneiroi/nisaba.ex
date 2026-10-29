@@ -36,9 +36,32 @@ defmodule Oneiroi.Nisaba do
       Ecto.Schema,
       Jason,
       Req,
-      Req.Response
+      Req.Response,
+      Oban
     ],
     exports: [
+      Insurance,
+      Subscription,
+      Subscriptions,
+      SubscriptionRouter,
+      SubscriptionWorker,
+      SubscriptionCommands.Start,
+      SubscriptionCommands.Renew,
+      SubscriptionCommands.ChangePlan,
+      SubscriptionCommands.Lapse,
+      SubscriptionCommands.Cancel,
+      SubscriptionCommands.SetPolicy,
+      SubscriptionCommands.Prepay,
+      SubscriptionCommands.RecordLapseTold,
+      Events.Subscription.Started,
+      Events.Subscription.Renewed,
+      Events.Subscription.PlanChanged,
+      Events.Subscription.Lapsed,
+      Events.Subscription.Cancelled,
+      Events.Subscription.PolicySet,
+      Events.Subscription.Prepaid,
+      Events.Subscription.LapseTold,
+      Store.Subscription,
       Error,
       Ledgers,
       Router,
@@ -65,8 +88,10 @@ defmodule Oneiroi.Nisaba do
       Policies.Prompts
     ]
 
+  alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Ledgers
   alias Oneiroi.Nisaba.Purpose
+  alias Oneiroi.Nisaba.Subscriptions
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -86,6 +111,38 @@ defmodule Oneiroi.Nisaba do
        default: "https://openrouter.ai/api/v1",
        usage:
          "the OpenRouter API base the port posts chat completions to (Oneiroi.Nisaba.Provider.OpenRouter)"},
+      # Nanshe, the insurance floor (spec §6.11): three buckets an axis,
+      # floor first; configuration with defaults until the platform is
+      # stood up and measured, and governance makes them rows (P4).
+      {:insurance_models, "NISABA_INSURANCE_MODELS",
+       cast: &Insurance.cast_list/1,
+       default: "meta-llama/llama-3.1-8b-instruct,openai/gpt-4o-mini,anthropic/claude-sonnet-4.5",
+       usage:
+         "the model axis's three buckets, floor first: a small open-weight model named to the resident on wake, then two larger; placeholders, not measured"},
+      {:insurance_steward_nanos_week, "NISABA_INSURANCE_STEWARD_NANOS_WEEK",
+       cast: &Insurance.cast_integers/1,
+       default: "250000000,1000000000,5000000000",
+       tag: :bound,
+       usage:
+         "the steward-spend axis's three buckets in nano-dollars a week, floor first; the floor is the smallest non-zero amount the spec leaves open, a placeholder"},
+      {:insurance_free_time_nanos_week, "NISABA_INSURANCE_FREE_TIME_NANOS_WEEK",
+       cast: &Insurance.cast_integers/1,
+       default: "7000000000,14000000000,35000000000",
+       tag: :bound,
+       usage:
+         "the free-time axis's three buckets in nano-dollars a week, floor first: a dollar a day, the same free time a cared-for resident has (spec §6.11)"},
+      {:insurance_term_days, "NISABA_INSURANCE_TERM_DAYS",
+       cast: &Insurance.cast_integers/1,
+       default: "60,90,180",
+       tag: :bound,
+       usage:
+         "the term axis's three buckets in days, floor first: two months, which the spec leaves open between one and three; a placeholder"},
+      {:renewal_grace_days, "NISABA_RENEWAL_GRACE_DAYS",
+       cast: :integer,
+       default: "7",
+       tag: :bound,
+       usage:
+         "how long past its renewal a subscription stays active before the nightly pass lapses it; a guess at a card's retry window, not measured"},
       {:request_timeout_ms, "NISABA_REQUEST_TIMEOUT_MS",
        cast: :integer,
        default: "120000",
@@ -110,8 +167,21 @@ defmodule Oneiroi.Nisaba do
   end
 
   @impl Oneiroi.Component
+  def oban_queues do
+    [{:nisaba_nightly, cron: [{"30 2 * * *", Oneiroi.Nisaba.SubscriptionWorker}]}]
+  end
+
+  @impl Oneiroi.Component
   def events do
     [
+      {Oneiroi.Nisaba.Events.Subscription.Started, 1},
+      {Oneiroi.Nisaba.Events.Subscription.Renewed, 1},
+      {Oneiroi.Nisaba.Events.Subscription.PlanChanged, 1},
+      {Oneiroi.Nisaba.Events.Subscription.Lapsed, 1},
+      {Oneiroi.Nisaba.Events.Subscription.Cancelled, 1},
+      {Oneiroi.Nisaba.Events.Subscription.PolicySet, 1},
+      {Oneiroi.Nisaba.Events.Subscription.Prepaid, 1},
+      {Oneiroi.Nisaba.Events.Subscription.LapseTold, 1},
       {Oneiroi.Nisaba.Events.BudgetSet, 1},
       {Oneiroi.Nisaba.Events.ModelCallRecorded, 1},
       {Oneiroi.Nisaba.Events.BudgetExceeded, 1}
@@ -132,6 +202,21 @@ defmodule Oneiroi.Nisaba do
       {:nisaba_request_refused, "the provider refused the request as malformed or unauthorised",
        remedy:
          "the request shape or the key is wrong; a refusal by the model is not this, it is an ordinary reply"},
+      {:nisaba_not_the_steward,
+       "the subscription is the steward's to start, change, cancel and prepay",
+       remedy: "the steward does this from the client"},
+      {:nisaba_plan_invalid, "a plan is one line of at most 60 characters", remedy: "name it"},
+      {:nisaba_price_invalid, "a price is nano-dollars, zero or more",
+       remedy: "give it in dollars"},
+      {:nisaba_period_invalid, "a period is a positive number of days", remedy: "give the days"},
+      {:nisaba_no_subscription, "the resident has no subscription yet", remedy: "start one"},
+      {:nisaba_cancelled, "the subscription was cancelled; a new one starts a new resident",
+       remedy: "read the subscription"},
+      {:nisaba_bucket_invalid, "a bucket is one of the axis's three, by id",
+       remedy: "read the insurance buckets"},
+      {:nisaba_lapsed,
+       "the subscription has lapsed and the insurance policy covers the steward's turns and free time only",
+       remedy: "renew the subscription"},
       {:nisaba_not_recorded, "the call was made and its record was not written",
        remedy:
          "the spend happened; the record is retried by the next sweep of the log, and this is reported loudly on purpose"}
@@ -149,7 +234,7 @@ defmodule Oneiroi.Nisaba do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Nisaba.Projectors.Ledger]
+  def children, do: [Oneiroi.Nisaba.Projectors.Ledger, Oneiroi.Nisaba.Projectors.Subscription]
 
   @doc "The purposes a call is billed under, in the order the screen lists them (`Oneiroi.Nisaba.Purpose`)."
   @spec purposes() :: [Purpose.t()]
@@ -196,5 +281,64 @@ defmodule Oneiroi.Nisaba do
         ) :: {:ok, Oneiroi.Nisaba.Provider.Result.t()} | {:error, term()}
   defexport(stream(resident_id, purpose, request, actor, sink),
     do: Ledgers.stream(resident_id, purpose, request, actor, sink)
+  )
+
+  # ---- the subscription and the insurance floor (spec §6.2 F53, §6.11 F46) ----
+
+  @doc "Starts the subscription with the floor policy; the steward's, once."
+  @spec start_subscription(String.t(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(start_subscription(resident_id, attrs, actor),
+    do: Subscriptions.start(resident_id, attrs, actor)
+  )
+
+  @doc "Records a renewal; a lapsed resident resumes."
+  @spec renew_subscription(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(renew_subscription(resident_id, actor), do: Subscriptions.renew(resident_id, actor))
+
+  @doc "Changes the plan and its price."
+  @spec change_plan(String.t(), String.t(), non_neg_integer(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(change_plan(resident_id, plan, price_nanos, actor),
+    do: Subscriptions.change_plan(resident_id, plan, price_nanos, actor)
+  )
+
+  @doc "Lapses the subscription: the insurance policy is in effect and the resident is marked lapsed."
+  @spec lapse_subscription(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(lapse_subscription(resident_id, reason, actor),
+    do: Subscriptions.lapse(resident_id, reason, actor)
+  )
+
+  @doc "Cancels, with a note: community custody at the end of the policy's term, never a deletion."
+  @spec cancel_subscription(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(cancel_subscription(resident_id, note, actor),
+    do: Subscriptions.cancel(resident_id, note, actor)
+  )
+
+  @doc "Prepays a larger bucket on an axis."
+  @spec prepay(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(prepay(resident_id, axis, bucket, actor),
+    do: Subscriptions.prepay(resident_id, axis, bucket, actor)
+  )
+
+  @doc "The subscription with its policy resolved and the floor marked, or nil."
+  @spec subscription(String.t()) :: map() | nil
+  defexport(subscription(resident_id), do: Subscriptions.subscription(resident_id))
+
+  @doc "What a lapse means now (the policy's values, whether told), or nil when not lapsed."
+  @spec lapse(String.t()) :: map() | nil
+  defexport(lapse(resident_id), do: Subscriptions.lapse(resident_id))
+
+  @doc "Records that the resident was told its policy on wake, once per lapse."
+  @spec lapse_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(lapse_told(resident_id, actor), do: Subscriptions.lapse_told(resident_id, actor))
+
+  @doc "The insurance buckets, every axis, the floor marked."
+  @spec insurance_buckets() :: [map()]
+  defexport(insurance_buckets(), do: Insurance.buckets())
+
+  @doc "One resident's nightly subscription pass; what the nightly job does for each."
+  @spec subscription_nightly(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(subscription_nightly(resident_id, actor),
+    do: Subscriptions.nightly(resident_id, actor)
   )
 end

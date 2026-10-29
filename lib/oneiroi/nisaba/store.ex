@@ -51,6 +51,35 @@ defmodule Oneiroi.Nisaba.Store do
   def budgets, do: Repo.all(from(b in Budget, order_by: b.purpose))
 
   @doc "The budget line for a purpose, or nil."
+  defmodule Subscription do
+    @moduledoc "The resident's one subscription row: the plan, its renewal, the state, the policy's buckets."
+    use Ecto.Schema
+    @primary_key false
+    schema "nisaba_subscription" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:plan, :string)
+      field(:price_nanos, :integer)
+      field(:period_days, :integer)
+      field(:state, :string)
+      field(:started_at, :utc_datetime_usec)
+      field(:renews_at, :utc_datetime_usec)
+      field(:lapsed_at, :utc_datetime_usec)
+      field(:lapse_told, :boolean, default: true)
+      field(:cancelled_at, :utc_datetime_usec)
+      field(:custody_due_at, :utc_datetime_usec)
+      field(:policy_model, :string)
+      field(:policy_steward, :string)
+      field(:policy_free_time, :string)
+      field(:policy_term, :string)
+      field(:policy_set_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @spec subscription() :: Subscription.t() | nil
+  def subscription, do: Repo.one(from(s in Subscription, limit: 1))
+
   @spec budget(String.t()) :: Budget.t() | nil
   def budget(purpose), do: Repo.one(from(b in Budget, where: b.purpose == ^purpose))
 

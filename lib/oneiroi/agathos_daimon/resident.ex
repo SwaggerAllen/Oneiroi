@@ -112,6 +112,20 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def execute(%__MODULE__{}, %Commands.WakeResident{}), do: {:error, :not_paused}
 
+  # The lifecycle's lapse (spec §6.2): active to lapsed on the
+  # subscription's say-so, and back on a renewal.
+  def execute(%__MODULE__{state: :active}, %Commands.LapseResident{} = c),
+    do: %Events.ResidentLapsed{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
+
+  def execute(%__MODULE__{state: :lapsed}, %Commands.LapseResident{}), do: []
+  def execute(%__MODULE__{}, %Commands.LapseResident{}), do: {:error, :not_active}
+
+  def execute(%__MODULE__{state: :lapsed}, %Commands.ResumeResident{} = c),
+    do: %Events.ResidentResumed{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
+
+  def execute(%__MODULE__{state: :active}, %Commands.ResumeResident{}), do: []
+  def execute(%__MODULE__{}, %Commands.ResumeResident{}), do: {:error, :not_lapsed}
+
   def execute(%__MODULE__{custody: from}, %Commands.TransferCustody{} = c) do
     %Events.CustodyTransferred{
       actor: c.actor,
@@ -325,6 +339,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.ResidentPaused{}), do: %{r | state: :paused}
   def apply(%__MODULE__{} = r, %Events.ResidentWoken{}), do: %{r | state: :active}
+  def apply(%__MODULE__{} = r, %Events.ResidentLapsed{}), do: %{r | state: :lapsed}
+  def apply(%__MODULE__{} = r, %Events.ResidentResumed{}), do: %{r | state: :active}
 
   def apply(%__MODULE__{} = r, %Events.CustodyTransferred{} = e) do
     case Custody.from_wire(e.to) do
