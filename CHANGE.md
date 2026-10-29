@@ -1,12 +1,11 @@
-# P0 — the spine, identity, resident, records and the hookup
+# ORC-273 — Make a small trivial change to the readme
 
-The sketch file (orchestration's DESIGN §4): one file at the root,
-overwritten wholly by every design pass with that ticket's spec, under
-a first line naming the ticket. No ticket has written it yet; this
-entry is the author's, for the attended P0 work, so the file names
-somebody from the first branch the pipeline reads.
+A dev-pass-only edit to `README.md`: one small wording or typo-level
+change that alters no rule, no link and no document name. No screen, no
+system, no component, no table and no dependency is touched, so there is
+no story, narrative doc or `systems/*.md` diff.
 
-What was built and where: `design/p0-plan.md` is the plan and
-`systems/apsu.md`, `systems/gaia.md`, `systems/agathos-daimon.md` and
-`systems/sima-qian.md` are the record of what landed. The first pipeline
-ticket replaces this text.
+Dev picks the line. It must leave the README's pointers to
+`design/oneiroi-spec.md`, `design/conventions.md`, `design/p0-plan.md`
+and `design/decisions-log.md` intact. No code changes, so the gate block
+is unaffected beyond running as usual.
