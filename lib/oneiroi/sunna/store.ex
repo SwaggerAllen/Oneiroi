@@ -101,6 +101,9 @@ defmodule Oneiroi.Sunna.Store do
   @spec days(pos_integer()) :: [Day.t()]
   def days(limit), do: Repo.all(from(d in Day, order_by: [desc: d.day], limit: ^limit))
 
+  @spec day(String.t()) :: Day.t() | nil
+  def day(day), do: Repo.one(from(d in Day, where: d.day == ^day))
+
   @spec dates() :: [Date.t()]
   def dates, do: Repo.all(from(d in Date, order_by: d.on))
 

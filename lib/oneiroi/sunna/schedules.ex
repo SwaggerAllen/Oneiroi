@@ -92,6 +92,17 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  # ---- the day row ----
+
+  @doc "Opens the journal's day row when the journal gets to a day before the schedule does (seshat #21); no event when it is open."
+  def open_day(resident_id, day, %Actor{} = actor) do
+    command = %Commands.OpenDay{actor: actor, at: Clock.now(), id: resident_id, day: day}
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "One day row, or nil."
+  def day(resident_id, day), do: Scope.resident(resident_id, fn -> Store.day(day) end)
+
   # ---- reads ----
 
   def checkins(resident_id), do: Scope.resident(resident_id, fn -> Store.checkins() end)
@@ -415,6 +426,9 @@ defmodule Oneiroi.Sunna.Schedules do
 
       {:error, :no_such_checkin} ->
         {:error, Error.new(:sunna_no_such_checkin, key: command.key)}
+
+      {:error, :day_invalid} ->
+        {:error, Error.new(:sunna_day_invalid, day: inspect(command.day))}
 
       {:error, :no_such_date} ->
         {:error, Error.new(:sunna_no_such_date, number: command.number)}

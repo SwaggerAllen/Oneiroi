@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/seshat/**
   - lib/oneiroi/seshat.ex
   - lib/oneiroi_web/controllers/library_controller.ex
+  - lib/oneiroi_web/controllers/journal_controller.ex
   - priv/repo/migrations/*_seshat.exs
   - test/oneiroi/seshat/**
 ---
@@ -52,21 +53,26 @@ Decided in the build:
 - **#18 Search is nearest chunks by cosine distance, and an empty library calls no model.** `search/3` embeds the query once under `embeddings` and reads the nearest `SESHAT_SEARCH_LIMIT` chunks joined to their documents; a library with no chunk answers empty without the call. Chunks are paragraphs gathered up to `SESHAT_CHUNK_CHARS` (2,000, a guess), a longer paragraph split at the bound.
 - **#19 Writing's status is its frontmatter, the review copy resolves and the publish copy strips.** A writing piece's `status` (draft until it says otherwise) is read from the file by the index and shown on the row; `review/2` returns the content with every reference resolved and a footnote per reference naming its label or its reason; `publish_copy/2` is the body with the frontmatter and every citation removed, a parenthetical that was only citations and filler going whole (F25). `publish/4` is the steward's: `PiecePublished{url}` on a kind with a status, then the file's frontmatter set to `published` with the URL, which the index reads. `discuss/4` links a session to a piece (`DiscussionOpened`).
 - **#20 Adoption registers a file as it is found.** `unadopted/1` walks the registry's folders in the repository for files no document registers; `adopt/3` records `DocumentAdopted` with the file's hash and runs the index. The adoption unit in the registry (file or directory) is recorded for research and waits on inbound; in this slice every adoption is a file.
+- **#21 The journal is rows on its own stream, numbered within their day, and the day row is the schedule's on the journal's ask.** `JournalEntryAdded{day, number, kind, text}` and `JournalTodoDone` on `journal-<resident_id>`; an entry is a plan, a note, a todo or a wrap, one text of at most 2,000 characters, numbered by its position in the day so a rebuild numbers it the same, and `<slug>:journal/<day>#<n>` names it. Before the first entry of a day the journal asks the schedule to open the day (`Oneiroi.Sunna.open_day/3`, sunna #18): the row stays the schedule's to mint (#11) and a day written before any check-in is a row too. Either party adds, with their actor on the row.
+- **#22 The day's file is rendered from its rows, through the library's core write.** Every entry and every todo done re-renders `journal/<day>.md` (a heading per kind in the journal's order, todos with their box) and writes it with `core: true`, the one way a `:core` kind's file is written here (#13); so the day is a registered, indexed document whose citations are edges (journal mints, #4) and which `<slug>:journal/<day>` resolves to. A hand-written journal file is never adopted: the rows are the record and the file follows them.
+- **#23 The delta is counted from the rows, and today is never a finding.** A day's delta is how many of each kind, how many todos are done, and whether it was planned and never wrapped; `unwrapped_days/2` lists the planned, unwrapped days among the last so many opened, today excluded because the day is not over. The brain reads today's rows as the `journal` section on every turn and writes through `journal_add`, `journal_done` and `journal_read` (brain #23); the check-in prompt asks for the plan line at the day's first check-in and the wrap line at the last.
+- **#24 Drift is read by resolving again.** `drift/1` resolves every reference that resolved at least once and returns those that do not now; a reference nobody reads would otherwise keep its last word forever, and the drift audit (huginn-muninn #15) is the read that asks. One resolve per such reference, nightly.
 
 ## #7 Initial vs target
 
-Initial (P3, slice 1): #12 to #20 over the API and the brain's
-`library_search`, `library_cited_by`, `writing_get`, `writing_discuss`,
-`document_write`, `document_adopt` and `document_unadopted` (brain #22).
-Target: the journal (#11, slice 2), external doc sources with their
-heading index and resolved-at commit (F30, with inbound), research
-tasks' adoption by directory, the Library screen (`screens/library.md`).
+Initial (P3, slices 1 and 2): #12 to #24 over the API and the brain's
+library and journal tools (brain #22, #23); the citation drift and
+journal delta audits read #23 and #24 (huginn-muninn #15). Target:
+external doc sources with their heading index and resolved-at commit
+(F30, with inbound), research tasks' adoption by directory, the Library
+screen (`screens/library.md`) and the journal on the Schedule screen.
 
 ## #8 Depends on
 
 The ledger for the embeddings; records for the repository on disk;
 the resident system for the slug and the roster; memory, judgement
-and the schedule for what a citation resolves against; the audits only
+and the schedule for what a citation resolves against, and the
+schedule for the day rows the journal opens and reads; the audits only
 through the figures port, since the audits read this system.
 
 ## #9 Pinakes, the citation index

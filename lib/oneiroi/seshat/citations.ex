@@ -150,11 +150,15 @@ defmodule Oneiroi.Seshat.Citations do
     resolve_rows(resident_id, rows)
   end
 
-  @doc "References that resolved once and did not on their last check."
+  @doc """
+  References that resolved once and do not now: every reference with a
+  `resolved_at` is resolved again on this read, since resolution is the
+  read's and nobody reads a piece whose target quietly went. One resolve
+  per such reference, nightly from the audit (huginn-muninn #15).
+  """
   def drift(resident_id) do
-    resident_id
-    |> Scope.resident(fn -> Store.drifted() end)
-    |> Enum.map(&shape/1)
+    rows = Scope.resident(resident_id, fn -> Store.once_resolved() end)
+    resident_id |> resolve_rows(rows) |> Enum.reject(& &1.resolved)
   end
 
   @doc "The review copy: content, status, and the references resolved (F25)."

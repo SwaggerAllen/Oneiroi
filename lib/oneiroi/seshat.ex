@@ -62,12 +62,21 @@ defmodule Oneiroi.Seshat do
       Store.Chunk,
       Store.Reference,
       Store.IndexRun,
-      Store.Discussion
+      Store.Discussion,
+      Store.JournalEntry,
+      Journal,
+      Journals,
+      JournalRouter,
+      JournalCommands.AddJournalEntry,
+      JournalCommands.MarkTodoDone,
+      Events.JournalEntryAdded,
+      Events.JournalTodoDone
     ]
 
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Index
+  alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
 
   @impl Oneiroi.Component
@@ -129,7 +138,9 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentWritten, 1},
       {Oneiroi.Seshat.Events.DocumentAdopted, 1},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
-      {Oneiroi.Seshat.Events.DiscussionOpened, 1}
+      {Oneiroi.Seshat.Events.DiscussionOpened, 1},
+      {Oneiroi.Seshat.Events.JournalEntryAdded, 1},
+      {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
   end
 
@@ -154,12 +165,20 @@ defmodule Oneiroi.Seshat do
       {:seshat_not_the_steward, "publishing is the steward's",
        remedy: "the steward does this from the Library screen"},
       {:seshat_index_failed, "the index run did not complete; nothing of it was written",
-       remedy: "read the run's reason; the next run (nightly, or by hand) tries again"}
+       remedy: "read the run's reason; the next run (nightly, or by hand) tries again"},
+      {:seshat_day_invalid, "a journal day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
+      {:seshat_entry_kind_invalid, "a journal entry is a plan, a note, a todo or a wrap",
+       remedy: "give one of those"},
+      {:seshat_entry_text_invalid, "an entry is one text of at most 2,000 characters",
+       remedy: "say it shorter"},
+      {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
+      {:seshat_no_such_day, "the schedule never opened that day",
+       remedy: "a day opens at its first check-in or its first entry"}
     ]
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Seshat.Projectors.Library]
+  def children, do: [Oneiroi.Seshat.Projectors.Library, Oneiroi.Seshat.Projectors.Journal]
 
   # ---- the registry ----
 
@@ -243,4 +262,36 @@ defmodule Oneiroi.Seshat do
   @doc "References that resolved once and do not now: what the citation drift audit reads (spec §6.13)."
   @spec drift(String.t()) :: [map()]
   defexport(drift(resident_id), do: Citations.drift(resident_id))
+
+  # ---- the journal (spec §6.5, F29) ----
+
+  @doc "Adds a journal entry (plan, note, todo, wrap) to a day, today in the resident's zone when nil; returns its number."
+  @spec journal_add(String.t(), String.t() | nil, String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(journal_add(resident_id, day, kind, text, actor),
+    do: Journals.add(resident_id, day, kind, text, actor)
+  )
+
+  @doc "Marks a todo done."
+  @spec journal_done(String.t(), String.t(), pos_integer(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(journal_done(resident_id, day, number, actor),
+    do: Journals.done(resident_id, day, number, actor)
+  )
+
+  @doc "A day with its entries and delta, or nil when the schedule never opened it."
+  @spec journal_day(String.t(), String.t()) :: map() | nil
+  defexport(journal_day(resident_id, day), do: Journals.day(resident_id, day))
+
+  @doc "The latest days with their deltas, newest first."
+  @spec journal_days(String.t(), pos_integer()) :: [map()]
+  defexport(journal_days(resident_id, limit), do: Journals.days(resident_id, limit))
+
+  @doc "Today's journal as the section the brain reads."
+  @spec journal_text(String.t()) :: String.t()
+  defexport(journal_text(resident_id), do: Journals.text(resident_id))
+
+  @doc "Days before today, among the last `days` opened, planned and never wrapped: what the journal delta audit reads."
+  @spec unwrapped_days(String.t(), pos_integer()) :: [String.t()]
+  defexport(unwrapped_days(resident_id, days), do: Journals.unwrapped_days(resident_id, days))
 end

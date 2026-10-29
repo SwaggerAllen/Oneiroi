@@ -295,6 +295,11 @@ defmodule Oneiroi.Brain.Turn do
           "the counters as the fold of their increments, derived on this read (spec §6.13, F57): never written down"
         ) ++
         section(
+          "journal",
+          Oneiroi.Seshat.journal_text(turn.resident_id),
+          "today's journal rows (spec §6.5, F29): the plan, notes, todos and wrap so far, rendered on this read"
+        ) ++
+        section(
           "honcho",
           Oneiroi.Proteus.context(turn.resident_id),
           "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"

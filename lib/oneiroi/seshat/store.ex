@@ -114,6 +114,45 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule JournalEntry do
+    @moduledoc "One journal row: a day, its number within the day, a kind and the text (F29)."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_journal_entry" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:text, :string)
+      field(:at, :utc_datetime_usec)
+      field(:actor_kind, :string)
+      field(:done_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  # ---- the journal ----
+
+  def journal_entries(day),
+    do: Repo.all(from(j in JournalEntry, where: j.day == ^day, order_by: j.number))
+
+  @doc "Per day, how many entries of each kind and how many todos are done, for the listed days in one statement."
+  def journal_counts(days) do
+    Repo.all(
+      from(j in JournalEntry,
+        where: j.day in ^days,
+        group_by: [j.day, j.kind],
+        select: {j.day, j.kind, count(j.number), count(j.done_at)}
+      )
+    )
+    |> Enum.reduce(%{}, fn {day, kind, n, done}, acc ->
+      acc
+      |> Map.update(day, %{kind => n}, &Map.put(&1, kind, n))
+      |> update_in([day], &Map.update(&1, "done", done, fn d -> d + done end))
+    end)
+  end
+
   # ---- documents ----
 
   @spec documents() :: [Document.t()]
@@ -171,13 +210,10 @@ defmodule Oneiroi.Seshat.Store do
         from(r in Reference, where: r.target == ^target, order_by: [r.from_path, r.ordinal])
       )
 
-  @doc "Every reference that resolved once and did not on its last check: the drift."
-  def drifted do
+  @doc "Every reference that resolved at least once, for the drift read."
+  def once_resolved do
     Repo.all(
-      from(r in Reference,
-        where: not is_nil(r.resolved_at) and r.resolved == false,
-        order_by: [r.from_path, r.ordinal]
-      )
+      from(r in Reference, where: not is_nil(r.resolved_at), order_by: [r.from_path, r.ordinal])
     )
   end
 

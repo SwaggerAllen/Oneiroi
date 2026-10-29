@@ -46,3 +46,8 @@ Spec §6.7's fifteen minutes; conventions on `tag: :bound`.
 ## #17
 Spec §6.13: audits read logs and rows, never transcript text; a read
 beats a second copy of the outcome vocabulary in the audits system.
+
+## #18
+seshat #21 and #9: a resident may plan a day before its first check-in,
+and the row must exist for the day to be visible; the schedule minting
+it on ask keeps one owner for what a day is.
