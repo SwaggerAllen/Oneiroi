@@ -339,7 +339,7 @@ reported when it covers nothing, and the first set is:
 | `boundary_apps` | every application a `:prod` build can reach and Boundary can restrain is named in the apps list |
 | `license` | the SDK's dependency closure is permissive |
 | `skips` | every `@tag :skip` names a ticket |
-| `prompts` | no prompt string literal outside `priv/prompts/` (lands with the model port in P1, as a string passed to the port's call sites) |
+| `prompts` | no system prompt as a string literal anywhere in `lib/`: a system message is `Oneiroi.Nisaba.Prompt.message/2` over a file under `priv/prompts/` |
 
 ## 14. Docs and commits
 

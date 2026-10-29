@@ -44,6 +44,8 @@ defmodule OneiroiWeb.ContractTest do
     {:post, "/v1/residents", %{anonymous: 401, session: 422, token: 422}},
     {:post, "/v1/me/second-factor", %{anonymous: 401, session: 201, token: 201}},
     {:post, "/v1/tokens", %{anonymous: 401, session: 422, token: 422}},
+    {:put, "/v1/me/key", %{anonymous: 401, session: 422, token: 422}},
+    {:delete, "/v1/me/key", %{anonymous: 401, session: 404, token: 404}},
     {:delete, "/v1/session", %{anonymous: 204, session: 204, token: 204}}
   ]
 
@@ -104,6 +106,63 @@ defmodule OneiroiWeb.ContractTest do
            |> put_req_header("origin", "https://oneiroi.test")
            |> post("/v1/residents", %{name: "Lily", slug: "lily-w"})
            |> json_response(201)
+  end
+
+  test "the ledger is read and its lines set by the steward only, and a stored key shows on /me",
+       ctx do
+    conn = login(ctx.conn, ctx.account)
+    id = ctx.resident.id
+
+    assert %{"key" => %{"present" => false}} = conn |> get("/v1/me") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/me/key", %{key: "sk-or-x"})
+           |> response(204)
+
+    assert %{"key" => %{"present" => true}} = conn |> get("/v1/me") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/ledger/budgets/chat", %{cap: "0.50", period: "month"})
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/ledger/budgets/chat", %{cap: "lots", period: "month"})
+           |> json_response(422)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/ledger/budgets/bribes", %{cap: "1", period: "month"})
+           |> json_response(422)
+
+    assert %{
+             "budgets" => budgets,
+             "key" => %{"present" => true},
+             "spend" => %{"by_purpose" => []}
+           } =
+             conn |> get("/v1/residents/#{id}/ledger") |> json_response(200)
+
+    assert %{
+             "purpose" => "chat",
+             "cap" => "0.5",
+             "period" => "month",
+             "spent" => "0",
+             "exceeded" => false
+           } =
+             Enum.find(budgets, &(&1["purpose"] == "chat"))
+
+    assert length(budgets) == 7
+
+    other = Fixtures.account!()
+    assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/ledger") |> json_response(404)
+
+    assert ctx.conn
+           |> login(other)
+           |> put_req_header("origin", origin())
+           |> put("/v1/residents/#{id}/ledger/budgets/chat", %{cap: "1", period: "month"})
+           |> json_response(404)
   end
 
   test "a token needs no Origin and creates under its account", ctx do

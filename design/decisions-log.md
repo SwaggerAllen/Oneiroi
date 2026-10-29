@@ -368,3 +368,25 @@ and nothing personal turned up; what follows is what changed.
   the substrate) become Apsu and Daedalus, except in the spec, which
   keeps its function words by `design/names.md`'s rule, and in the
   glosses, where the function word is the point.
+
+## Round 13: the ledger's stream, and development from the thread (2026-10-29)
+
+- Orchestration is set up and verified (SETUP §5's ticket reached Done
+  unattended), and the author chose to develop P1 through P4 directly
+  from a session rather than through tickets, at full throttle; the
+  tracker is ignored for that stretch. The gates, the probes and the
+  one-PR-at-a-time rule stay.
+- The ledger has its own stream, `ledger-<resident_id>`, where spec
+  §3.1 drew it within `resident-<id>` (systems/nisaba.md #9): Commanded
+  holds one aggregate per stream, the ledger writes at the resident's
+  turn volume, and P0's `mint_id` was built so another system could
+  take an id and write its own stream. The records export still reads
+  the resident stream only; whether and how spend is exported is the
+  author's to decide, with the two hidden purposes in mind.
+- Money is nano-dollars as integers (#10); a missing budget line is no
+  limit (#11); a cost the provider did not report is a marked zero
+  (#13). Req joins the blessed list as the port's HTTP client.
+- The steward's OpenRouter key is identity's, on the account
+  (systems/gaia.md #11), and the ledger reads it wrapped.
+- Production answered as `http://localhost:8080` until the endpoint's
+  `url:` came from `RENDER_EXTERNAL_URL` (systems/apsu.md #19).

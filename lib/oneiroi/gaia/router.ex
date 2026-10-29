@@ -7,5 +7,5 @@ defmodule Oneiroi.Gaia.Router do
     commands: "Oneiroi.Gaia.Commands",
     dispatching:
       ~w(CreateAccount EnrollSecondFactor OpenSession CloseSession IssueToken RevokeToken
-         StartStewardship EndStewardship)
+         StoreKey RevokeKey StartStewardship EndStewardship)
 end

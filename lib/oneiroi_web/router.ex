@@ -36,10 +36,14 @@ defmodule OneiroiWeb.Router do
 
       get("/me", MeController, :show)
       post("/me/second-factor", SecondFactorController, :create)
+      put("/me/key", MeController, :store_key)
+      delete("/me/key", MeController, :revoke_key)
       post("/tokens", TokenController, :create)
       delete("/tokens/:hash", TokenController, :delete)
       resources("/residents", ResidentController, only: [:index, :create, :show])
       put("/residents/:id/remote", ResidentController, :remote)
+      get("/residents/:id/ledger", LedgerController, :show)
+      put("/residents/:id/ledger/budgets/:purpose", LedgerController, :set_budget)
     end
   end
 end

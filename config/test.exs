@@ -28,6 +28,8 @@ config :oneiroi,
           "APSU_POOL_SIZE" => "10",
           "APSU_EVENT_STORE_POOL_SIZE" => "10",
           "APSU_CLOCK" => "fake",
+          # The in-memory provider: no test crosses the network (conventions §9).
+          "NISABA_PROVIDER" => "fake",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 

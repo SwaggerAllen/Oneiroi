@@ -8,7 +8,7 @@ paths:
   - lib/oneiroi_web/controllers/second_factor_controller.ex
   - lib/oneiroi_web/controllers/token_controller.ex
   - lib/mix/tasks/oneiroi.setup.ex
-  - priv/repo/migrations/*_gaia.exs
+  - priv/repo/migrations/*_gaia*.exs
   - test/oneiroi/gaia/**
   - test/oneiroi_web/contract_test.exs
 ---
@@ -72,6 +72,14 @@ task that creates the one account.
   asserts, per route and per principal kind (anonymous, session, token),
   exactly which answers 200, 401, 403 or 422, and that a mutation from a
   browser without the endpoint's Origin is refused.
+
+- **#11 The steward's OpenRouter key lives on the account, encrypted
+  under the vault.** `KeyStored` carries the vault's ciphertext and is
+  redacted from every export like the second factor; storing again is
+  the rotation and `KeyRevoked` removes it. The ledger reads it through
+  `key_for/1`, wrapped as a secret, and holds no copy (`systems/nisaba.md`
+  #1); the routes are `PUT` and `DELETE /v1/me/key`, and `/v1/me` says
+  whether one is stored and since when.
 
 ## #10 Initial vs target
 

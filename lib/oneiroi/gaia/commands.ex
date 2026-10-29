@@ -25,6 +25,14 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :token_hash]
   end
 
+  defmodule StoreKey do
+    use Oneiroi.Command, fields: [:id, :key_ciphertext]
+  end
+
+  defmodule RevokeKey do
+    use Oneiroi.Command, fields: [:id]
+  end
+
   defmodule StartStewardship do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end

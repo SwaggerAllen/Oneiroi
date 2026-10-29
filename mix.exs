@@ -64,12 +64,16 @@ defmodule Oneiroi.MixProject do
             :ecto,
             :ecto_sql,
             :eventstore,
+            :finch,
             :fsm,
             :gen_stage,
             :hpax,
             :jason,
             :logger_json,
             :mime,
+            :mint,
+            :nimble_options,
+            :nimble_pool,
             :nimble_totp,
             :oban,
             :open_api_spex,
@@ -79,6 +83,7 @@ defmodule Oneiroi.MixProject do
             :plug,
             :plug_crypto,
             :postgrex,
+            :req,
             :telemetry_registry,
             :thousand_island,
             :websock,
@@ -121,6 +126,10 @@ defmodule Oneiroi.MixProject do
       {:nimble_totp, "~> 1.0"},
       # The OpenAPI document the client generates from (spec §2.1).
       {:open_api_spex, "~> 3.21"},
+      # The provider port's HTTP client (spec §2.1, conventions §1's
+      # blessed list): OpenRouter over Req, in `Oneiroi.Nisaba.Provider`
+      # and nowhere else, which the audit's `model_port` check holds.
+      {:req, "~> 0.5"},
       # Structured JSON logs to stdout (conventions §10), prod only.
       {:logger_json, "~> 7.0"},
       {:stream_data, "~> 1.1", only: :test},
