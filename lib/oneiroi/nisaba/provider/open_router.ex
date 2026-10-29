@@ -19,7 +19,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Money
-  alias Oneiroi.Nisaba.Provider.{Request, Result, Usage}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
   @transport_statuses [408, 409, 425, 429]
 
@@ -74,6 +74,49 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
         {:error, {:transport, reason}}
     end
   end
+
+  # The embeddings endpoint is OpenAI-shaped (`POST /embeddings` with
+  # `model` and `input`, answered by `data[].embedding` in input order and
+  # a `usage`), read from OpenRouter's documentation and not yet measured
+  # against a live reply on this build: a claim until the first index run
+  # on a steward's key (conventions §9). A cost is not expected in the
+  # reply, so the record is marked estimated with zero, as `usage/1` does.
+  @impl Oneiroi.Nisaba.Provider
+  def embed(model, texts, key) when is_binary(model) and is_list(texts) and is_binary(key) do
+    case Req.post(Config.fetch!(:nisaba, :openrouter_url) <> "/embeddings",
+           json: %{model: model, input: texts, encoding_format: "float"},
+           headers: headers(key),
+           receive_timeout: timeout()
+         ) do
+      {:ok, %Req.Response{status: 200, body: body}} -> parse_embedding(body, model)
+      {:ok, %Req.Response{status: status, body: body}} -> classify(status, body)
+      {:error, reason} -> {:error, {:transport, reason}}
+    end
+  end
+
+  @doc "An embeddings reply into the port's shape; public so the shape is testable without a network."
+  @spec parse_embedding(term(), String.t()) ::
+          {:ok, Embedding.t()} | {:error, Oneiroi.Nisaba.Provider.failure()}
+  def parse_embedding(%{"data" => data} = body, model) when is_list(data) do
+    vectors =
+      data
+      |> Enum.sort_by(&Map.get(&1, "index", 0))
+      |> Enum.map(&Map.get(&1, "embedding"))
+
+    if vectors != [] and
+         Enum.all?(vectors, &(is_list(&1) and Enum.all?(&1, fn x -> is_number(x) end))),
+       do:
+         {:ok,
+          %Embedding{
+            model: Map.get(body, "model") || model,
+            vectors: vectors,
+            usage: usage(Map.get(body, "usage"))
+          }},
+       else: {:error, {:schema_invalid, :embedding_shape}}
+  end
+
+  def parse_embedding(other, _model),
+    do: {:error, {:schema_invalid, {:unexpected_body, summarize(other)}}}
 
   @doc "The request body OpenRouter receives; public so the shape is testable without a network."
   @spec body(Request.t(), boolean()) :: map()

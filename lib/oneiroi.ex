@@ -58,6 +58,7 @@ defmodule Oneiroi do
       EventStore,
       Jason,
       Oban,
+      Pgvector,
       Phoenix.PubSub,
       Plug,
       Postgrex

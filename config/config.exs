@@ -16,7 +16,8 @@ config :oneiroi, :components, [
   Oneiroi.Eunomia,
   Oneiroi.Sunna,
   Oneiroi.Proteus,
-  Oneiroi.HuginnMuninn
+  Oneiroi.HuginnMuninn,
+  Oneiroi.Seshat
 ]
 
 # One event log, Postgres in every environment (plan P0.2); named here

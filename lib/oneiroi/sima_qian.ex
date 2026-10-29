@@ -99,6 +99,10 @@ defmodule Oneiroi.SimaQian do
     do: Rebuild.run(url, steward_account_id, actor)
   )
 
+  @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."
+  @spec repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
+  defexport(repository_dir(resident_id), do: Backup.repository_dir(resident_id))
+
   @doc "Recomputes the root over a resident's export and compares it with the last backup's."
   @spec attest(String.t(), Oneiroi.Actor.t()) ::
           {:ok, :held | :mismatch | :none} | {:error, term()}

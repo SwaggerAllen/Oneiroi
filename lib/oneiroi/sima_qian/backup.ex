@@ -107,6 +107,12 @@ defmodule Oneiroi.SimaQian.Backup do
   @doc "The resident's working repository."
   def dir(resident_id), do: Path.join(Config.fetch!(:sima_qian, :root), resident_id)
 
+  @doc "The working repository, made one if it is not yet: the library writes its files there between backups."
+  def repository_dir(resident_id) do
+    dir = dir(resident_id)
+    with :ok <- Git.ensure_repo(dir), do: {:ok, dir}
+  end
+
   defp record_export(resident_id, export, actor) do
     Router.dispatch(%Commands.RecordExport{
       actor: actor,

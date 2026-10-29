@@ -8,6 +8,7 @@ defmodule Oneiroi.HuginnMuninn do
   leaderboard.
   """
   use Oneiroi.System, slug: :huginn_muninn
+  @behaviour Oneiroi.Seshat.Figures
 
   use Boundary,
     top_level?: true,
@@ -17,6 +18,7 @@ defmodule Oneiroi.HuginnMuninn do
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Proteus,
+      Oneiroi.Seshat,
       Oneiroi.Sunna,
       Commanded,
       Commanded.Commands.Router,
@@ -141,8 +143,9 @@ defmodule Oneiroi.HuginnMuninn do
   @spec figures(String.t()) :: [map()]
   defexport(figures(resident_id), do: Figures.figures(resident_id))
 
-  @doc "One figure by key, or nil."
+  @doc "One figure by key, or nil; the library's figures port, so `<slug>:figure/<key>` resolves here (seshat #14)."
   @spec figure(String.t(), String.t()) :: map() | nil
+  @impl Oneiroi.Seshat.Figures
   defexport(figure(resident_id, key), do: Figures.figure(resident_id, key))
 
   @doc "A counter's latest increments with their actors."

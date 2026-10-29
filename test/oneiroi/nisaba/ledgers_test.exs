@@ -124,6 +124,19 @@ defmodule Oneiroi.Nisaba.LedgersTest do
     assert [] = Nisaba.spend(ctx.resident.id, :steward, :purpose, ~U[2026-10-01 00:00:00.000000Z])
   end
 
+  test "an embedding is metered under embeddings and recorded like a call", ctx do
+    assert {:ok, %Oneiroi.Nisaba.Provider.Embedding{vectors: [_, _]}} =
+             Nisaba.embed(ctx.resident.id, "fake/embed", ["one two", "three"], ctx.actor)
+
+    line = ctx.resident.id |> Nisaba.budgets(:steward) |> Enum.find(&(&1.purpose == :embeddings))
+    assert line.spent_nanos == 3 * Fake.nanos_per_token()
+
+    assert %{key: "fake/embed", calls: 1} =
+             ctx.resident.id
+             |> Nisaba.spend(:steward, :model, ~U[2026-01-01 00:00:00Z])
+             |> Enum.find(&(&1.key == "fake/embed"))
+  end
+
   test "a refusal is an ordinary, recorded result in the model's words", ctx do
     Fake.refuse("I would rather not say.")
 

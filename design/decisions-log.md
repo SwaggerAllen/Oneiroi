@@ -552,3 +552,35 @@ and nothing personal turned up; what follows is what changed.
   spec has the platform carry the floor's cost, which needs one
   (`NISABA_PLATFORM_KEY`, not declared until it exists). Payment
   method and invoices wait on a provider.
+
+## Round 19: the library (2026-10-29)
+
+- The library is built under `Oneiroi.Seshat` on its own stream
+  (systems/seshat.md #12 to #20): the file is the record in the
+  resident's repository and the event is its provenance, a hash and
+  not a content; the kinds registry is a table in one module with who
+  writes each kind; references resolve when read against the other
+  systems and reach the figures through a port, since the audits read
+  the library; the index run is one model call for everything whose
+  hash or model changed and three statements of its own when nothing
+  did, listed by the suite rather than counted; the width is a bound
+  the column is declared at; runs are ordered by sequence; search is
+  nearest chunks and an empty library calls no model; writing's status
+  is its frontmatter, the review resolves, the publish copy strips,
+  publishing is the steward's; adoption registers a file as found.
+- The ledger's port gains `embed` (nisaba #19), records' working
+  repository is an export (sima-qian #14), the audits implement the
+  figures port (huginn-muninn #14), `document` joins the tagging kinds
+  (kumbukumbu #27), and the brain gets the library's seven tools
+  (brain #22). pgvector is the one new dependency, on the blessed list.
+- Two defects the tests found before the gates ran: the projector set
+  the file's hash on the row, so a rewrite's run embedded nothing; and
+  the aggregate's publish wrote the whole struct into its documents
+  map, losing every other document on the first publish. One probe
+  printed ok on its first run: the minting guard was covered by the
+  index's delete of edges from non-minting kinds, so the hostile test
+  now lists the run's statements and refutes a reference insert.
+- Open for the author, carried: the OpenRouter embeddings body is a
+  claim until a live run; the adoption unit by directory (research)
+  waits on inbound; external doc sources (F30) wait on inbound;
+  rebuild does not yet run the index over the restored files.
