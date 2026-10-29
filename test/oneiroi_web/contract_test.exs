@@ -83,6 +83,29 @@ defmodule OneiroiWeb.ContractTest do
            |> json_response(201)
   end
 
+  test "the Origin accepted is the declared public URL, not the listener's name", ctx do
+    # config/test.exs declares RENDER_EXTERNAL_URL as https://oneiroi.test
+    # while the listener is localhost:4002. The literal is asserted, not
+    # read back from the endpoint: production answered as
+    # http://localhost:8080 and refused its own origin for a day while
+    # this file passed, because `origin/0` and the plug read the same
+    # config and agreed about a value nobody had set (Oneiroi.Apsu's
+    # `public_url` has the measurement).
+    assert OneiroiWeb.Endpoint.url() == "https://oneiroi.test"
+
+    conn = login(ctx.conn, ctx.account)
+
+    assert conn
+           |> put_req_header("origin", "http://localhost:4002")
+           |> post("/v1/residents", %{name: "Lily", slug: "lily-w"})
+           |> json_response(403)
+
+    assert conn
+           |> put_req_header("origin", "https://oneiroi.test")
+           |> post("/v1/residents", %{name: "Lily", slug: "lily-w"})
+           |> json_response(201)
+  end
+
   test "a token needs no Origin and creates under its account", ctx do
     assert %{"slug" => "lily-z"} =
              ctx.conn

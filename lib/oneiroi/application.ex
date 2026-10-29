@@ -39,14 +39,23 @@ defmodule Oneiroi.Application do
     :ok
   end
 
+  # A list rather than the options written inline in the tuple, because
+  # the formatter lifts a comment inside `{Mod, key: ...}` above the
+  # whole keyword list, and the comment on `url:` belongs beside it.
   defp endpoint_child do
-    {
-      OneiroiWeb.Endpoint,
+    opts = [
+      server: Application.get_env(:oneiroi, :serve, false),
       # The one unwrap in the tree today: the secret is declared
       # `secret: true`, and reaching its contents is a word a reviewer sees.
-      server: Application.get_env(:oneiroi, :serve, false),
       secret_key_base: Secret.unwrap(Config.fetch!(:apsu, :secret_key_base)),
+      # The origin the endpoint answers as. Without this line Phoenix
+      # keeps its default localhost and the Origin check holds a browser
+      # to the listener's name, which production did for a day (the
+      # `public_url` declaration in Oneiroi.Apsu has the measurement).
+      url: Config.fetch!(:apsu, :public_url),
       http: [ip: {0, 0, 0, 0}, port: Config.fetch!(:apsu, :http_port)]
-    }
+    ]
+
+    {OneiroiWeb.Endpoint, opts}
   end
 end

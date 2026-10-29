@@ -22,12 +22,15 @@ config :oneiroi, Oneiroi.Commanded,
 # connects as the application role and never migrates (conventions §12).
 config :oneiroi, ecto_repos: [Oneiroi.Repo.Migrator]
 
-# Build-shape endpoint config: the port and the secret are instance
-# shape and come from Apsu's `config/0` at boot instead
+# Build-shape endpoint config: the port, the secret and the public URL
+# are instance shape and come from Apsu's `config/0` at boot instead
 # (`Oneiroi.Application`), so this file names no value a deployment
-# differs on.
+# differs on. No `url:` here at all, and that is load-bearing: Phoenix
+# lays this application config over the options the child spec passes,
+# deep for keyword lists (`Phoenix.Endpoint.Supervisor.init/1`), so a
+# `url: [host: "localhost"]` on this line kept its host under the boot
+# value's scheme and the endpoint answered as `https://localhost`.
 config :oneiroi, OneiroiWeb.Endpoint,
-  url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [formats: [json: OneiroiWeb.ErrorJSON], layout: false],
   pubsub_server: :apsu_pubsub

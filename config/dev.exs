@@ -11,6 +11,9 @@ config :oneiroi,
         %{
           "DATABASE_URL" => "ecto://oneiroi:oneiroi@localhost/oneiroi_dev",
           "APSU_HTTP_PORT" => "4000",
+          # Render's name for the service's own origin (Oneiroi.Apsu); in
+          # dev the listener is it.
+          "RENDER_EXTERNAL_URL" => "http://localhost:4000",
           "APSU_SECRET_KEY_BASE" =>
             "dev-secret-key-base-dev-secret-key-base-dev-secret-key-base-padded",
           # 32 zero bytes, base64: a dev key, never a deployment's.

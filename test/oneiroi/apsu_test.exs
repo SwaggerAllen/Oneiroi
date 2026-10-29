@@ -17,6 +17,29 @@ defmodule Oneiroi.ApsuTest do
     refute reason =~ "short"
   end
 
+  test "the public URL casts to the endpoint's url: options and refuses anything but an origin" do
+    assert {:ok, [scheme: "https", host: "oneiroi.onrender.com", port: 443]} =
+             Apsu.cast_public_url("https://oneiroi.onrender.com")
+
+    assert {:ok, [scheme: "http", host: "localhost", port: 4000]} =
+             Apsu.cast_public_url("http://localhost:4000")
+
+    # A trailing slash is how a value gets pasted; a path is a mistake.
+    assert {:ok, [scheme: "https", host: "oneiroi.test", port: 443]} =
+             Apsu.cast_public_url("https://oneiroi.test/")
+
+    for bad <- [
+          "oneiroi.onrender.com",
+          "https://oneiroi.test/v1",
+          "https://",
+          "ftp://x",
+          "https://x?y"
+        ] do
+      assert {:error, reason} = Apsu.cast_public_url(bad)
+      assert reason =~ "is not an origin"
+    end
+  end
+
   test "Render's generated value, base64 of 32 bytes, derives a stable 64-byte secret" do
     # What `generateValue: true` produces (render.yaml): 44 characters,
     # short of Plug's floor in length and not in entropy.

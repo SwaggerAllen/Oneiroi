@@ -133,6 +133,14 @@ schema, `projection_versions`) and the application role.
   in a `:utc_datetime_usec` column, and a coarser instant is refused by
   Ecto rather than silently widened.
 
+- **#19 The endpoint answers as `RENDER_EXTERNAL_URL`.** Render sets
+  it on every web service, previews included, to the service's own
+  origin; Apsu declares it `external: true` beside `DATABASE_URL`, casts
+  it to the endpoint's `url:` at boot, and `OneiroiWeb.Plugs.Origin`
+  compares a browser's `Origin` against the result. The test source
+  sets it to a name that is not localhost, so the suite can tell the
+  declared origin from the listener's.
+
 ## #10 Initial vs target
 
 Initial (P0): the roster, the boot, the endpoint with `/health` and the
