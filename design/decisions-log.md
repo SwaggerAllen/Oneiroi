@@ -640,3 +640,13 @@ and nothing personal turned up; what follows is what changed.
   a payment provider lands; the investigators are a configured list
   until the convention names a body; the contract's terms are one key
   until the next term is asked for.
+
+## Round 22: memory revisions (2026-10-29)
+
+- Revisions are built on the memory stream (systems/kumbukumbu.md
+  #30): a correction is an event naming who made it and why; a fact
+  by either party and a stance by the resident apply at once; a
+  stance the steward corrects is a proposal the resident accepts or
+  declines with a note shown to both; the target's words stand and the
+  revisions are read beside them. The brain has four tools and opens a
+  bookmark with its revisions (brain #25).

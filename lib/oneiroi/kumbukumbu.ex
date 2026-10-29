@@ -74,6 +74,10 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.BookmarkUnpinned,
       Events.Memory.BookmarkProposed,
       Events.Memory.BookmarkProposalDeclined,
+      Events.Memory.RevisionProposed,
+      Events.Memory.RevisionApplied,
+      Events.Memory.RevisionDeclined,
+      Store.Revision,
       Events.Memory.TagProposed,
       Events.Memory.TagApproved,
       Events.Memory.TagRejected,
@@ -158,6 +162,9 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRejected, 1},
@@ -200,6 +207,13 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_no_such_bookmark, "no bookmark has that number", remedy: "read the index"},
       {:kumbukumbu_span_not_grown, "a span is at least one turn and only ever grows",
        remedy: "extend with more turns back than the bookmark has"},
+      {:kumbukumbu_revision_kind_invalid, "a revision corrects a fact or a stance",
+       remedy: "say which"},
+      {:kumbukumbu_revision_text_invalid,
+       "a revision is one text of at most 2,000 characters, not blank",
+       remedy: "say what is right"},
+      {:kumbukumbu_no_such_revision, "no proposed revision has that number",
+       remedy: "read the revisions; an applied or declined one is decided"},
       {:kumbukumbu_no_such_proposal, "no open proposal has that ref",
        remedy: "one accepted or declined is decided; read the open proposals"},
       {:kumbukumbu_slug_invalid,
@@ -569,4 +583,34 @@ defmodule Oneiroi.Kumbukumbu do
           count: non_neg_integer()
         }
   defexport(how_i_act(resident_id, situation), do: Ethos.how_i_act(resident_id, situation))
+
+  # ---- revisions (spec §6.3, F13) ----
+
+  @doc "Revises a memory: attrs target_kind, target_id, kind (fact or stance), text, note; a fact by either party or a stance by the resident applies, a stance by the steward is proposed."
+  @spec revise(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(revise(resident_id, attrs, actor), do: Memories.revise(resident_id, attrs, actor))
+
+  @doc "The resident accepts a proposed revision, with a note."
+  @spec accept_revision(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(accept_revision(resident_id, number, note, actor),
+    do: Memories.accept_revision(resident_id, number, note, actor)
+  )
+
+  @doc "The resident declines a proposed revision, with a note."
+  @spec decline_revision(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(decline_revision(resident_id, number, note, actor),
+    do: Memories.decline_revision(resident_id, number, note, actor)
+  )
+
+  @doc "Every revision, newest first."
+  @spec revisions(String.t()) :: [Oneiroi.Kumbukumbu.Store.Revision.t()]
+  defexport(revisions(resident_id), do: Memories.revisions(resident_id))
+
+  @doc "The revisions on one target, applied and proposed, in order."
+  @spec revisions_of(String.t(), String.t(), term()) :: [Oneiroi.Kumbukumbu.Store.Revision.t()]
+  defexport(revisions_of(resident_id, kind, target_id),
+    do: Memories.revisions_of(resident_id, kind, target_id)
+  )
 end

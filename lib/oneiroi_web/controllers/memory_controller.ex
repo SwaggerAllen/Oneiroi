@@ -218,6 +218,52 @@ defmodule OneiroiWeb.MemoryController do
   def remove_tagging(conn, _params),
     do: problem(conn, 422, :fields_required, "tag, target_kind and target_id are required")
 
+  operation(:revisions,
+    summary: "Every revision (F13): corrections by either party with their reason and state",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"revisions", "application/json", %Schema{type: :array}}]
+  )
+
+  def revisions(conn, %{"id" => id}),
+    do: json(conn, id |> Kumbukumbu.revisions() |> Enum.map(&revision/1))
+
+  operation(:revise,
+    summary:
+      "Revise a memory: a fact applies at once, a stance is proposed to the resident; the note is why",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the revision", "application/json",
+       %Schema{
+         type: :object,
+         required: [:target_kind, :target_id, :kind, :text, :note],
+         properties: %{
+           target_kind: %Schema{type: :string},
+           target_id: %Schema{type: :string},
+           kind: %Schema{type: :string, enum: ~w(fact stance)},
+           text: %Schema{type: :string},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [
+      ok: {"the revision's number and state", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def revise(conn, %{"id" => id} = params) do
+    attrs = %{
+      target_kind: to_string(params["target_kind"] || ""),
+      target_id: to_string(params["target_id"] || ""),
+      kind: to_string(params["kind"] || ""),
+      text: to_string(params["text"] || ""),
+      note: params["note"]
+    }
+
+    case Kumbukumbu.revise(id, attrs, actor(conn)) do
+      {:ok, result} -> json(conn, result)
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:behaviours,
     summary: "The resident's behaviours with their habit and connection scores, ranked",
     parameters: [id: [in: :path, type: :string]],
@@ -274,6 +320,22 @@ defmodule OneiroiWeb.MemoryController do
     if stewards?(conn, id),
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+  end
+
+  defp revision(r) do
+    %{
+      number: r.number,
+      target_kind: r.target_kind,
+      target_id: r.target_id,
+      kind: r.kind,
+      text: r.text,
+      note: r.note,
+      state: r.state,
+      by: %{kind: r.by_kind, id: r.by_id},
+      at: r.at,
+      decided_at: r.decided_at,
+      decision_note: r.decision_note
+    }
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

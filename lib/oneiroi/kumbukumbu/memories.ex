@@ -20,6 +20,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Error
+  alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
   alias Oneiroi.Kumbukumbu.Memory
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
@@ -129,6 +130,65 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       with {:ok, _} <- dispatch(command), do: :ok
     end
   end
+
+  # ---- revisions (F13) ----
+
+  @doc "Revises a memory: a fact by either party applies, a stance by the resident applies, a stance by the steward is proposed; returns the number and whether it holds."
+  def revise(resident_id, attrs, %Actor{} = actor) when is_map(attrs) do
+    command = %Commands.Revise{
+      actor: actor,
+      at: Clock.now(),
+      note: attrs[:note],
+      id: resident_id,
+      target_kind: attrs[:target_kind],
+      target_id: attrs[:target_id],
+      kind: attrs[:kind],
+      text: attrs[:text]
+    }
+
+    case dispatch(command) do
+      {:ok, [%Events.RevisionApplied{number: n}]} -> {:ok, %{number: n, state: "applied"}}
+      {:ok, [%Events.RevisionProposed{number: n}]} -> {:ok, %{number: n, state: "proposed"}}
+      other -> other
+    end
+  end
+
+  @doc "The resident accepts a proposed revision, with a note; it holds."
+  def accept_revision(resident_id, number, note, %Actor{} = actor) do
+    with :ok <- resident_only(actor) do
+      command = %Commands.AcceptRevision{
+        actor: actor,
+        at: Clock.now(),
+        note: note,
+        id: resident_id,
+        number: number
+      }
+
+      with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  @doc "The resident declines a proposed revision, with a note."
+  def decline_revision(resident_id, number, note, %Actor{} = actor) do
+    with :ok <- resident_only(actor) do
+      command = %Commands.DeclineRevision{
+        actor: actor,
+        at: Clock.now(),
+        note: note,
+        id: resident_id,
+        number: number
+      }
+
+      with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  @doc "Every revision, newest first."
+  def revisions(resident_id), do: Scope.resident(resident_id, fn -> Store.revisions() end)
+
+  @doc "The revisions on one target, applied and proposed, in order."
+  def revisions_of(resident_id, kind, target_id),
+    do: Scope.resident(resident_id, fn -> Store.revisions_of(kind, to_string(target_id)) end)
 
   # ---- tags ----
 
@@ -325,6 +385,12 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   defp translate(:target_invalid, c),
     do: Error.new(:kumbukumbu_target_invalid, kind: c.target_kind, id: c.target_id)
+
+  defp translate(:revision_kind_invalid, _c), do: Error.new(:kumbukumbu_revision_kind_invalid)
+  defp translate(:revision_text_invalid, _c), do: Error.new(:kumbukumbu_revision_text_invalid)
+
+  defp translate(:no_such_revision, c),
+    do: Error.new(:kumbukumbu_no_such_revision, number: c.number)
 
   defp translate(other, _c), do: other
 

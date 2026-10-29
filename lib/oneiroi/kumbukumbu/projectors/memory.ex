@@ -7,7 +7,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Store.{Affirmation, Behaviour, Bookmark, BookmarkProposal, Enactment}
-  alias Oneiroi.Kumbukumbu.Store.{Tag, Tagging}
+  alias Oneiroi.Kumbukumbu.Store.{Revision, Tag, Tagging}
 
   fold(%Events.BookmarkAdded{} = e, _metadata, fn multi ->
     multi
@@ -77,6 +77,31 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
       :declined,
       from(p in BookmarkProposal, where: p.ref == ^e.ref),
       set: [state: "declined", decided_note: e.note, decided_at: e.at]
+    )
+  end)
+
+  fold(%Events.RevisionProposed{} = e, _metadata, fn multi ->
+    put_revision(multi, e, "proposed")
+  end)
+
+  # Applied straight, or applied from a proposal: the row keeps the
+  # proposal's reason as `note` and takes the acceptance as the decision.
+  fold(%Events.RevisionApplied{} = e, _metadata, fn multi ->
+    multi
+    |> put_revision(multi_key(e), e, "applied")
+    |> Multi.update_all(
+      {:accepted, e.number},
+      from(r in Revision, where: r.number == ^e.number and r.state == "proposed"),
+      set: [state: "applied", decided_at: e.at, decision_note: e.note]
+    )
+  end)
+
+  fold(%Events.RevisionDeclined{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :declined_revision,
+      from(r in Revision, where: r.number == ^e.number),
+      set: [state: "declined", decided_at: e.at, decision_note: e.note]
     )
   end)
 
@@ -250,4 +275,30 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
   end
 
   defp actor_field(_other, _key), do: nil
+
+  defp put_revision(multi, e, state), do: put_revision(multi, {:revision, e.number}, e, state)
+
+  defp put_revision(multi, key, e, state) do
+    Multi.insert(
+      multi,
+      key,
+      %Revision{
+        resident_id: e.id,
+        number: e.number,
+        target_kind: e.target_kind,
+        target_id: e.target_id,
+        kind: e.kind,
+        text: e.text,
+        note: e.note,
+        state: state,
+        by_kind: actor_field(e.actor, :kind),
+        by_id: actor_field(e.actor, :id),
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end
+
+  defp multi_key(e), do: {:revision, e.number}
 end

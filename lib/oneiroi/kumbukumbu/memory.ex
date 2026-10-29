@@ -22,8 +22,13 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     taggings: MapSet.new(),
     proposals: %{},
     behaviours: %{},
-    enactments: MapSet.new()
+    enactments: MapSet.new(),
+    revisions: %{},
+    revision_count: 0
   ]
+
+  @revision_kinds ~w(fact stance)
+  @revision_limit 2_000
 
   # A tag is a slug (spec §3.2): the bounds are this codebase's guess,
   # long enough for "small-practical-suggestions" and short enough to
@@ -238,6 +243,68 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       else: []
   end
 
+  # ---- revisions (F13) ----
+
+  # A fact is corrected by either party and a stance by the resident;
+  # the steward's revision of a stance is a proposal (spec §6.3).
+  def execute(%__MODULE__{} = m, %Commands.Revise{} = c) do
+    cond do
+      c.kind not in @revision_kinds ->
+        {:error, :revision_kind_invalid}
+
+      not revision_text_ok?(c.text) ->
+        {:error, :revision_text_invalid}
+
+      c.target_kind not in @target_kinds ->
+        {:error, :target_invalid}
+
+      c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
+        {:error, :target_invalid}
+
+      c.kind == "stance" and c.actor.kind == :steward ->
+        revision_event(Events.RevisionProposed, c, m.revision_count + 1)
+
+      true ->
+        revision_event(Events.RevisionApplied, c, m.revision_count + 1)
+    end
+  end
+
+  def execute(%__MODULE__{revisions: revisions}, %Commands.AcceptRevision{} = c) do
+    case Map.get(revisions, c.number) do
+      %{state: :proposed} = r ->
+        %Events.RevisionApplied{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          number: c.number,
+          target_kind: r.target_kind,
+          target_id: r.target_id,
+          kind: r.kind,
+          text: r.text
+        }
+
+      _other ->
+        {:error, :no_such_revision}
+    end
+  end
+
+  def execute(%__MODULE__{revisions: revisions}, %Commands.DeclineRevision{} = c) do
+    case Map.get(revisions, c.number) do
+      %{state: :proposed} ->
+        %Events.RevisionDeclined{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          number: c.number
+        }
+
+      _other ->
+        {:error, :no_such_revision}
+    end
+  end
+
   # ---- behaviours (Ethos) ----
 
   def execute(%__MODULE__{behaviours: behaviours}, %Commands.DefineBehaviour{} = c) do
@@ -338,6 +405,15 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   def apply(%__MODULE__{} = m, %Events.BookmarkProposalDeclined{} = e),
     do: put_in(m.proposals[e.ref].state, :declined)
 
+  def apply(%__MODULE__{} = m, %Events.RevisionProposed{} = e),
+    do: put_revision(m, e, :proposed)
+
+  def apply(%__MODULE__{} = m, %Events.RevisionApplied{} = e),
+    do: put_revision(m, e, :applied)
+
+  def apply(%__MODULE__{} = m, %Events.RevisionDeclined{} = e),
+    do: %{m | revisions: Map.update!(m.revisions, e.number, &%{&1 | state: :declined})}
+
   def apply(%__MODULE__{} = m, %Events.TagProposed{} = e),
     do: %{m | id: e.id, tags: Map.put(m.tags, e.slug, :proposed)}
 
@@ -423,6 +499,40 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   # A bookmark target arrives as the number or its string: the wire
   # carries strings and the aggregate keys on integers.
+  defp revision_event(module, c, number) do
+    struct!(module, %{
+      actor: c.actor,
+      at: c.at,
+      note: c.note,
+      id: c.id,
+      number: number,
+      target_kind: c.target_kind,
+      target_id: to_string(c.target_id),
+      kind: c.kind,
+      text: String.trim(c.text)
+    })
+  end
+
+  defp put_revision(m, e, state) do
+    revision = %{
+      state: state,
+      target_kind: e.target_kind,
+      target_id: e.target_id,
+      kind: e.kind,
+      text: e.text
+    }
+
+    %{
+      m
+      | id: e.id,
+        revisions: Map.put(m.revisions, e.number, revision),
+        revision_count: max(m.revision_count, e.number)
+    }
+  end
+
+  defp revision_text_ok?(text),
+    do: is_binary(text) and String.trim(text) != "" and String.length(text) <= @revision_limit
+
   defp number(n) when is_integer(n), do: n
 
   defp number(s) when is_binary(s) do

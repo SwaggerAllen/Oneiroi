@@ -129,6 +129,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Revision do
+    @moduledoc "A correction to memory (F13): who made it, why, to what, and whether it holds, is proposed or was declined."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_revision" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:target_kind, :string)
+      field(:target_id, :string)
+      field(:kind, :string)
+      field(:text, :string)
+      field(:note, :string)
+      field(:state, :string)
+      field(:by_kind, :string)
+      field(:by_id, :string)
+      field(:at, :utc_datetime_usec)
+      field(:decided_at, :utc_datetime_usec)
+      field(:decision_note, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule BookmarkProposal do
     @moduledoc "The steward's proposed bookmark, open until the resident accepts or declines it."
     use Ecto.Schema
@@ -438,4 +461,19 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec pinned_numbers() :: [pos_integer()]
   def pinned_numbers,
     do: Repo.all(from(b in Bookmark, where: not is_nil(b.pinned_at), select: b.number))
+
+  # ---- revisions ----
+
+  @doc "Every revision, newest first."
+  def revisions, do: Repo.all(from(r in Revision, order_by: [desc: r.number]))
+
+  @doc "The revisions on one target, applied and proposed, in order."
+  def revisions_of(kind, target_id) do
+    Repo.all(
+      from(r in Revision,
+        where: r.target_kind == ^kind and r.target_id == ^target_id and r.state != "declined",
+        order_by: r.number
+      )
+    )
+  end
 end

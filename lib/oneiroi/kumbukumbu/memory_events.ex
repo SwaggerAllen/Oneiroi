@@ -126,4 +126,29 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # record without the resident's actor on it.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule RevisionProposed do
+    # Revision (spec §6.3, F13): a stance is revised only with the
+    # resident's agreement, so the steward's revision of one is a
+    # proposal with its reason as the note (kumbukumbu #30).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :number, :target_kind, :target_id, :kind, :text]
+  end
+
+  defmodule RevisionApplied do
+    # A correction that holds: a fact by either party, a stance by the
+    # resident, or a proposal the resident accepted; the note is the
+    # reason, or the acceptance's. Revision adds and never overwrites:
+    # the target's words stand and the revision sits beside them.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :number, :target_kind, :target_id, :kind, :text]
+  end
+
+  defmodule RevisionDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
+  end
 end

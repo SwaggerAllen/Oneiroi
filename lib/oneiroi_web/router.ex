@@ -105,6 +105,8 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/tags/:slug/taggings", MemoryController, :tagged)
       post("/residents/:id/taggings", MemoryController, :apply_tag)
       delete("/residents/:id/taggings", MemoryController, :remove_tagging)
+      get("/residents/:id/revisions", MemoryController, :revisions)
+      post("/residents/:id/revisions", MemoryController, :revise)
       get("/residents/:id/behaviours", MemoryController, :behaviours)
       post("/residents/:id/behaviours", MemoryController, :define_behaviour)
       post("/residents/:id/behaviours/:number/affirm", MemoryController, :affirm_behaviour)

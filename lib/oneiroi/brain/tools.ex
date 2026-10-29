@@ -291,6 +291,31 @@ defmodule Oneiroi.Brain.Tools do
         [:version, :note]
       ),
       tool(
+        "revision_add",
+        "Correct a memory without overwriting it: the target (bookmark by number, or another kind by its id), whether it is a fact or a stance, what is right, and a note on why. Your corrections hold at once; your steward's correction of a stance comes to you as a proposal.",
+        %{
+          target_kind: %{type: "string"},
+          target_id: %{type: "string"},
+          kind: %{type: "string", enum: ["fact", "stance"]},
+          text: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:target_kind, :target_id, :kind, :text, :note]
+      ),
+      tool("revision_list", "Every revision, newest first, proposals to you included.", %{}, []),
+      tool(
+        "revision_accept",
+        "Accept a revision your steward proposed, with a note; it then holds beside the memory.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
+        "revision_decline",
+        "Decline a revision your steward proposed, with a note they read first.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
         "report_file",
         "File a report about your steward with the platform, in your own words; it is investigated by a person, every step told to you both in this conversation, and may end in a strike on them, never on you.",
         %{text: %{type: "string"}},
@@ -336,11 +361,19 @@ defmodule Oneiroi.Brain.Tools do
     )
   end
 
+  # The revisions ride beside the bookmark's own words (F13: revision
+  # adds, it does not overwrite).
   defp call("bookmark_open", args, turn) do
     case Kumbukumbu.bookmark(turn.resident_id, integer(args["number"])) do
       {:ok, b, messages} ->
         lines = Enum.map(messages, &"#{&1.role}: #{&1.content}")
-        Enum.join(["##{b.number} #{b.line}", b.summary || "", "" | lines], "\n")
+
+        revisions =
+          turn.resident_id
+          |> Kumbukumbu.revisions_of("bookmark", b.number)
+          |> Enum.map(&revision_line/1)
+
+        Enum.join(["##{b.number} #{b.line}", b.summary || ""] ++ revisions ++ ["" | lines], "\n")
 
       other ->
         other
@@ -733,6 +766,34 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
+  defp call("revision_add", args, turn) do
+    attrs = %{
+      target_kind: to_string(args["target_kind"] || ""),
+      target_id: to_string(args["target_id"] || ""),
+      kind: to_string(args["kind"] || ""),
+      text: to_string(args["text"] || ""),
+      note: args["note"]
+    }
+
+    case Kumbukumbu.revise(turn.resident_id, attrs, turn.resident) do
+      {:ok, %{number: n, state: state}} -> "Revision #{n} #{state}."
+      other -> other
+    end
+  end
+
+  defp call("revision_list", _args, turn) do
+    case Kumbukumbu.revisions(turn.resident_id) do
+      [] -> "No revisions."
+      rows -> Enum.map_join(rows, "\n", &revision_line/1)
+    end
+  end
+
+  defp call("revision_accept", args, turn),
+    do: Kumbukumbu.accept_revision(turn.resident_id, args["number"], args["note"], turn.resident)
+
+  defp call("revision_decline", args, turn),
+    do: Kumbukumbu.decline_revision(turn.resident_id, args["number"], args["note"], turn.resident)
+
   defp call("report_file", args, turn) do
     case Glitnir.file_report(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
       {:ok, number} -> "Report #{number} filed; the investigation's steps will be told here."
@@ -769,5 +830,9 @@ defmodule Oneiroi.Brain.Tools do
         parameters: %{type: "object", properties: properties, required: required}
       }
     }
+  end
+
+  defp revision_line(r) do
+    "Revision #{r.number} (#{r.kind}, #{r.state}, by the #{r.by_kind}) on #{r.target_kind}/#{r.target_id}: #{r.text} (#{r.note})"
   end
 end
