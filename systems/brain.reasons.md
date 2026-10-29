@@ -23,3 +23,18 @@ Origin-checked API is the same proof, five minutes long.
 ## #7
 A pin that does not exist yet cannot be read; a setting with a stated
 placeholder is replaced by the pin in the regression slice.
+
+## #10
+Spec §5: "Tools are the same core functions the MCP server exposes,
+chosen by role; it never gets steward operations." Capturing the calls
+is spec §6.3's full capture: a transcript showing a reply that "just
+knew" something the resident looked up is a transcript with a hole. A
+turn that dies on a misnamed tool loses the reply the steward is waiting
+for; the model reads the error and tries again or answers without it.
+
+## #11
+Spec §5: "a memory flush before it (the resident writes what it wants to
+keep), a summary that never deletes history", the knobs the OpenClaw
+audit named, re-owned. The threshold is a guess, said so in its usage
+line; the honest measurement is a model's context against real
+sessions, which no one here has taken.

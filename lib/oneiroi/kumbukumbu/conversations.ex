@@ -90,10 +90,31 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       resident_id: resident_id,
       session_key: key,
       turn_ref: turn_ref,
-      injections: Enum.map(injections, &Map.take(&1, [:label, :tokens, :reason]))
+      injections: Enum.map(injections, &Map.take(&1, [:label, :tokens, :reason, :text, :refs]))
     }
 
     with {:ok, _} <- Router.dispatch(command), do: :ok
+  end
+
+  @doc "Records a compaction: the summary covering the session's messages through a store sequence (spec §5)."
+  def compact(resident_id, key, turn_ref, through_sequence, summary, %Actor{} = actor) do
+    command = %Commands.CompactSession{
+      actor: actor,
+      at: Clock.now(),
+      id: stream(resident_id, key),
+      resident_id: resident_id,
+      session_key: key,
+      turn_ref: turn_ref,
+      through_sequence: through_sequence,
+      summary: summary
+    }
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :summary_empty} -> {:error, Error.new(:kumbukumbu_summary_empty)}
+      {:error, :no_such_session} -> {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   def fail_capture(resident_id, key, turn_ref, reason, %Actor{} = actor) when is_binary(reason) do
@@ -161,8 +182,33 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  @doc "The live transcript: the last `count` messages since the session's compaction."
   def recent(resident_id, key, count),
     do: Scope.resident(resident_id, fn -> Store.recent_messages(key, count) end)
+
+  @doc "The session and what compaction has not covered: the count of messages after it, and those messages."
+  def uncompacted(resident_id, key) do
+    Scope.resident(resident_id, fn ->
+      case Store.session(key) do
+        nil ->
+          {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+
+        s ->
+          count = Store.messages_after(key, s.compacted_through)
+          {:ok, s, count}
+      end
+    end)
+  end
+
+  @doc "Every message after the compaction, in order."
+  def since_compaction(resident_id, key) do
+    Scope.resident(resident_id, fn ->
+      case Store.session(key) do
+        nil -> []
+        s -> key |> Store.messages() |> Enum.filter(&(&1.sequence > s.compacted_through))
+      end
+    end)
+  end
 
   def search(scope, text, limit), do: Scope.run(scope, fn -> Store.search(text, limit) end)
 

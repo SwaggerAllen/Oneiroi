@@ -30,7 +30,7 @@ defmodule Oneiroi.Brain.TurnTest do
   end
 
   test "a turn is answered, captured as user and assistant, recorded, and streamed", ctx do
-    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 2}} =
+    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 3}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello there", ctx.actor)
 
     assert user.role == :user and user.actor.kind == :steward
@@ -40,7 +40,7 @@ defmodule Oneiroi.Brain.TurnTest do
     {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
     assert ["user", "assistant"] = Enum.map(messages, & &1.role)
 
-    assert [%{label: "prompt"}, %{label: "transcript", tokens: 0}] =
+    assert [%{label: "prompt"}, %{label: "index"}, %{label: "transcript", tokens: 0}] =
              Kumbukumbu.injections({:account, ctx.steward.id}, ref)
 
     assert [%{calls: 1}] =
@@ -49,7 +49,7 @@ defmodule Oneiroi.Brain.TurnTest do
     payloads = events(ctx.resident.id, ctx.key)
     assert {:turn_started, ^ref} = hd(payloads)
     assert Enum.any?(payloads, &match?({:delta, ^ref, _}, &1))
-    assert {:turn, ^ref, %{drew_on: 2}} = List.last(payloads)
+    assert {:turn, ^ref, %{drew_on: 3}} = List.last(payloads)
   end
 
   test "the next turn is shown the transcript so far, and the fake answers the last user message",
@@ -59,7 +59,7 @@ defmodule Oneiroi.Brain.TurnTest do
     assert {:ok, %{turn_ref: ref}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "second", ctx.actor)
 
-    assert [_, %{label: "transcript", tokens: tokens}] =
+    assert [_, _, %{label: "transcript", tokens: tokens}] =
              Kumbukumbu.injections({:account, ctx.steward.id}, ref)
 
     assert tokens > 0

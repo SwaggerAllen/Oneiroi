@@ -1,0 +1,102 @@
+defmodule Oneiroi.Kumbukumbu.Events.Memory do
+  @moduledoc """
+  The memory stream's events, version 1: `memory-<resident_id>`, one per
+  resident, holding its bookmarks, their pins and spans, the closed tag
+  set and the taggings across every record kind (spec §3.1, §6.3). The
+  stream is memory's own where the spec drew it within the resident's,
+  for the reason `systems/kumbukumbu.md` #19 gives.
+
+  A bookmark's `number` is minted by the resident aggregate
+  (`Oneiroi.AgathosDaimon.mint_id/3`), so `lily:bookmark/42` survives a
+  rebuild; an actor carried as a field (`proposed_by`) is a map of kind,
+  id and model, the same shape the event's own `actor` takes on the wire.
+  """
+
+  defmodule BookmarkAdded do
+    # The resident's words about why a moment mattered (spec §6.3): a
+    # line of at most 120 characters, a summary, the turn it was in
+    # (`anchor_ref`, `anchor_at`) and a span of `turns_back` turns ending
+    # there. `proposal_ref` and `proposed_by` are set when the steward
+    # proposed it; the words are still the resident's.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [
+        :id,
+        :number,
+        :session_key,
+        :anchor_ref,
+        :anchor_at,
+        :turns_back,
+        :line,
+        :summary,
+        :proposal_ref,
+        :proposed_by
+      ],
+      instants: [:anchor_at]
+  end
+
+  defmodule BookmarkExtended do
+    # A scene is rarely known to be one at its start: the span grows
+    # later, as an event, rather than a second bookmark being made.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :turns_back]
+  end
+
+  defmodule BookmarkPinned do
+    # A pin is a decision trace, never a measurement (spec §6.3); the
+    # actor is who pinned, which the row shows as `pinned_by`.
+    use Oneiroi.Event, version: 1, fields: [:id, :number]
+  end
+
+  defmodule BookmarkUnpinned do
+    use Oneiroi.Event, version: 1, fields: [:id, :number]
+  end
+
+  defmodule BookmarkProposed do
+    # The steward may propose a bookmark with a suggested line and never
+    # author one (spec §6.3); the note is what the resident reads first.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :ref, :session_key, :anchor_ref, :line]
+  end
+
+  defmodule BookmarkProposalDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule TagProposed do
+    # Either party proposes; only the steward decides the set.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
+  end
+
+  defmodule TagApproved do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
+  end
+
+  defmodule TagRejected do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
+  end
+
+  defmodule TagCreated do
+    # The steward adds a tag to the set directly.
+    use Oneiroi.Event, version: 1, fields: [:id, :slug]
+  end
+
+  defmodule TagRetired do
+    # Retiring never removes a tagging: the rows that carried the tag
+    # keep it, and the tag stops being applicable.
+    use Oneiroi.Event, version: 1, fields: [:id, :slug]
+  end
+
+  defmodule TagApplied do
+    # One tagging names a tag and a target of any record kind (spec
+    # §6.3): `target_kind` is `bookmark`, `conversation` or `turn` in
+    # this slice; `target_id` the bookmark's number, the session key or
+    # the turn ref.
+    use Oneiroi.Event, version: 1, fields: [:id, :slug, :target_kind, :target_id]
+  end
+
+  defmodule TaggingRemoved do
+    use Oneiroi.Event, version: 1, fields: [:id, :slug, :target_kind, :target_id]
+  end
+end

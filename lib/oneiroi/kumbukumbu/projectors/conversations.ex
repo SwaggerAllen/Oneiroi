@@ -6,7 +6,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
 
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events
-  alias Oneiroi.Kumbukumbu.Store.{CaptureFailure, ContextInjection, Message, Session}
+  alias Oneiroi.Kumbukumbu.Store.{Bookmark, CaptureFailure, ContextInjection, Message, Session}
 
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -99,6 +99,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
             label: field(inj, :label),
             tokens: field(inj, :tokens) || 0,
             reason: field(inj, :reason),
+            text: field(inj, :text),
             at: e.at
           }
         end,
@@ -106,6 +107,16 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
         conflict_target: [:resident_id, :turn_ref, :position]
       )
     end)
+    |> mark_indexed(e)
+  end)
+
+  fold(%Events.Compacted{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :compacted,
+      from(s in Session, where: s.key == ^e.session_key),
+      set: [summary: e.summary, compacted_through: e.through_sequence]
+    )
   end)
 
   fold(%Events.CaptureFailed{} = e, _metadata, fn multi ->
@@ -144,6 +155,41 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       set: [shared: true]
     )
   end)
+
+  # Whether a bookmark was in the index this turn is derived from the last
+  # `ContextAssembled` (spec §6.3): the index injection carries the
+  # numbers it listed under `refs`, and each one's row takes the instant.
+  defp mark_indexed(multi, e) do
+    refs =
+      e.injections
+      |> Enum.flat_map(&List.wrap(field(&1, :refs)))
+      |> Enum.map(&to_integer/1)
+      |> Enum.reject(&is_nil/1)
+
+    case refs do
+      [] ->
+        multi
+
+      numbers ->
+        Multi.update_all(
+          multi,
+          :indexed,
+          from(b in Bookmark, where: b.number in ^numbers),
+          set: [last_indexed_at: e.at]
+        )
+    end
+  end
+
+  defp to_integer(n) when is_integer(n), do: n
+
+  defp to_integer(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} -> n
+      _other -> nil
+    end
+  end
+
+  defp to_integer(_other), do: nil
 
   # The first account among the participants is the party the policy
   # keys on; a session with no account party (none exist yet: solo

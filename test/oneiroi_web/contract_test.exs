@@ -190,7 +190,7 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/sessions", %{})
              |> json_response(201)
 
-    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 2} =
+    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 3} =
              conn
              |> put_req_header("origin", origin())
              |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
@@ -208,7 +208,11 @@ defmodule OneiroiWeb.ContractTest do
              |> get("/v1/residents/#{id}/transcripts/search", %{q: "hi"})
              |> json_response(200)
 
-    assert [%{"label" => "prompt"}, %{"label" => "transcript"}] =
+    assert [
+             %{"label" => "prompt"},
+             %{"label" => "index", "text" => _},
+             %{"label" => "transcript"}
+           ] =
              conn |> get("/v1/residents/#{id}/turns/#{ref}/context") |> json_response(200)
 
     # An adapter's capture: the same turn twice is one.
@@ -286,6 +290,108 @@ defmodule OneiroiWeb.ContractTest do
     assert cookie =~ "secure"
     assert cookie =~ "HttpOnly"
     assert cookie =~ "SameSite=Strict"
+  end
+
+  test "the memory routes are the steward's: bookmarks, proposals, the tag set, taggings", ctx do
+    id = ctx.resident.id
+
+    :ok =
+      Oneiroi.Gaia.store_key(
+        ctx.account.id,
+        "sk-or-x",
+        Oneiroi.Actor.new(:steward, ctx.account.id)
+      )
+
+    conn = login(ctx.conn, ctx.account)
+
+    assert %{"key" => key} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions", %{})
+             |> json_response(201)
+
+    assert %{"turn_ref" => ref} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
+             |> json_response(201)
+
+    assert [] = conn |> get("/v1/residents/#{id}/bookmarks") |> json_response(200)
+
+    assert %{"ref" => pref} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/bookmark-proposals", %{
+               session_key: key,
+               anchor_ref: ref,
+               line: "this one",
+               note: "it mattered"
+             })
+             |> json_response(201)
+
+    assert [%{"ref" => ^pref, "state" => "open"}] =
+             conn |> get("/v1/residents/#{id}/bookmark-proposals") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/bookmark-proposals", %{})
+           |> json_response(422)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/tags", %{slug: "haven"})
+           |> response(201)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/tags", %{slug: "Bad Slug"})
+           |> json_response(422)
+
+    assert [%{"slug" => "haven", "state" => "active"}] =
+             conn |> get("/v1/residents/#{id}/tags") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/taggings", %{
+             tag: "haven",
+             target_kind: "conversation",
+             target_id: key
+           })
+           |> response(201)
+
+    assert [%{"target_kind" => "conversation", "target_id" => ^key}] =
+             conn |> get("/v1/residents/#{id}/tags/haven/taggings") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> delete("/v1/residents/#{id}/taggings", %{
+             tag: "haven",
+             target_kind: "conversation",
+             target_id: key
+           })
+           |> response(204)
+
+    assert [] = conn |> get("/v1/residents/#{id}/tags/haven/taggings") |> json_response(200)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> delete("/v1/residents/#{id}/tags/haven")
+           |> response(204)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> delete("/v1/residents/#{id}/tags/haven")
+           |> json_response(404)
+
+    assert conn |> get("/v1/residents/#{id}/bookmarks/1") |> json_response(404)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/bookmarks/1/pin", %{})
+           |> json_response(404)
+
+    other = Fixtures.account!()
+    assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/bookmarks") |> json_response(404)
   end
 
   test "a wrong password answers 401 with the registered kind and no clue which part failed",

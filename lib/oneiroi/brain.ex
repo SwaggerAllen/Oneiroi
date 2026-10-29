@@ -19,9 +19,10 @@ defmodule Oneiroi.Brain do
       Oneiroi,
       Oneiroi.AgathosDaimon,
       Oneiroi.Kumbukumbu,
-      Oneiroi.Nisaba
+      Oneiroi.Nisaba,
+      Jason
     ],
-    exports: [Error, Session, Turn]
+    exports: [Error, Session, Turn, Tools, Compaction]
 
   alias Oneiroi.Brain.Session
 
@@ -40,7 +41,19 @@ defmodule Oneiroi.Brain do
        default: "40",
        tag: :bound,
        usage:
-         "how many of the session's last messages a turn is shown as its live transcript; a bound until compaction lands"},
+         "how many of the session's messages since its compaction a turn is shown as its live transcript; a bound"},
+      {:compact_after_messages, "BRAIN_COMPACT_AFTER_MESSAGES",
+       cast: :integer,
+       default: "80",
+       tag: :bound,
+       usage:
+         "how many messages a session gathers since its last compaction before a turn opens by compacting it (spec §5); twice the live window, a guess until a model's context is measured against real sessions"},
+      {:tool_rounds, "BRAIN_TOOL_ROUNDS",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many rounds of tool calls one turn may make before the model's last words stand as the reply; a bound against a model that loops"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",

@@ -55,6 +55,19 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/turns/:turn_ref/context", ConversationController, :injections)
       post("/residents/:id/turns", ConversationController, :capture)
       post("/residents/:id/turn-start", ConversationController, :turn_start)
+      get("/residents/:id/bookmarks", MemoryController, :bookmarks)
+      get("/residents/:id/bookmarks/:number", MemoryController, :bookmark)
+      post("/residents/:id/bookmarks/:number/pin", MemoryController, :pin)
+      delete("/residents/:id/bookmarks/:number/pin", MemoryController, :unpin)
+      get("/residents/:id/bookmark-proposals", MemoryController, :proposals)
+      post("/residents/:id/bookmark-proposals", MemoryController, :propose)
+      get("/residents/:id/tags", MemoryController, :tags)
+      post("/residents/:id/tags", MemoryController, :create_tag)
+      post("/residents/:id/tags/:slug/decision", MemoryController, :decide_tag)
+      delete("/residents/:id/tags/:slug", MemoryController, :retire_tag)
+      get("/residents/:id/tags/:slug/taggings", MemoryController, :tagged)
+      post("/residents/:id/taggings", MemoryController, :apply_tag)
+      delete("/residents/:id/taggings", MemoryController, :remove_tagging)
     end
   end
 end
