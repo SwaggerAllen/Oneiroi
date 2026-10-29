@@ -83,6 +83,12 @@ defmodule Oneiroi.SimaQian.Git do
          do: :ok
   end
 
+  @doc "Removes the `origin` remote a clone carries, and with it the clone URL in the repository's config."
+  @spec forget_remote(Path.t()) :: :ok | {:error, String.t()}
+  def forget_remote(dir) do
+    with {:ok, _} <- git(dir, ["remote", "remove", "origin"]), do: :ok
+  end
+
   @doc "The trailers on `HEAD`'s message, as `%{\"Oneiroi-Root\" => ...}`."
   @spec head_trailers(Path.t()) :: %{optional(String.t()) => String.t()}
   def head_trailers(dir) do

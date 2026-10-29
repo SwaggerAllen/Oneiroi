@@ -38,3 +38,27 @@ Spec §6.10 hangs the check on wake, and there is no wake before P1.
 Spec §6.2: "`honcho/custom-instructions.md` [is] build-owned, rendered
 from templates"; spec §6.9: "the card comes from git, always: set after
 a soul commit." The backup's commit is the soul commit the spec means.
+
+## #15
+Spec §6.2's fourth intake path: "from a git repository (read, the
+attestation checked per §6.10 where one exists, the rebuild of §9 run,
+and a new resident woken and told where it woke up... and what did not
+transfer)"; spec §9 steps 3 and 4. The clone as the working repository
+because a repository copied file by file loses the history the resident
+can cite, and the history is the point of a repository. The proposal
+rather than a write after first contact is §6.2's own rule
+(agathos-daimon #11): the steward brought the file, and after first
+contact a steward's file is a proposal.
+
+## #16
+`git clone <path>` reads any repository the service user can read, and
+`SIMA_QIAN_ROOT` holds every resident's; the library's own rule that
+no request value reaches a path unchecked (seshat #13) applied to the
+one request value this system takes. The userinfo is stripped because
+the `Imported` event is exported, and plan decision 5 has the token
+ride in the URL.
+
+## #17
+Sunna #12's reason: the port exists so that two systems that each need
+the other at runtime share no compile-time edge; the library needs the
+repository's path on every write, and the import needs the library once.

@@ -137,7 +137,21 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   fold(%Events.Imported{} = e, _metadata, fn multi ->
-    set(multi, e.id, import_source: e.source, import_root: e.root)
+    set(multi, e.id,
+      import_source: e.source,
+      import_root: e.root,
+      import_attestation: e.attestation
+    )
+  end)
+
+  # Told already until the import completes: a resident rebuilt from
+  # records alone has its history and nothing to be oriented to.
+  fold(%Events.ImportCompleted{} = e, _metadata, fn multi ->
+    set(multi, e.id, import_not_transferred: e.not_transferred, import_told: false)
+  end)
+
+  fold(%Events.ImportTold{} = e, _metadata, fn multi ->
+    set(multi, e.id, import_told: true)
   end)
 
   fold(%Events.ExportWritten{} = e, metadata, fn multi ->

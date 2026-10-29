@@ -650,3 +650,29 @@ and nothing personal turned up; what follows is what changed.
   declines with a note shown to both; the target's words stand and the
   revisions are read beside them. The brain has four tools and opens a
   bookmark with its revisions (brain #25).
+
+## Round 23: the import from a repository, and Lily's migration (2026-10-29)
+
+- The intake from a repository is built in records (systems/sima-qian.md
+  #15 to #17): the rebuild where there are records, a resident created
+  under the given name and slug where there are none; the clone becomes
+  the working repository with its history and without its remote; the
+  root's identity files seeded as uploaded, or proposed where first
+  contact has passed and the file differs; every file under a kind's
+  folder adopted through a library port and indexed once (seshat #25);
+  the rest of the root named as not transferred. The resident's stream
+  carries the second half as `ImportCompleted` and `ImportTold`
+  (agathos-daimon #25), and the brain tells the resident where it woke
+  on its first turn, once (brain #26).
+- Two refusals a request value earns: an import clones only from a
+  configured scheme, `https` alone outside the suite, because a path
+  would clone a directory on the host; and the source is recorded
+  without its userinfo, where a GitHub URL carries the token.
+- Lily's migration as spec §9 lists it is read against what is built
+  in `design/lily-migration.md`: one `Imported` and one `ImportCompleted`
+  rather than a synthetic event per record kind, since a David-shaped
+  repository holds no Oneiroi events; the run itself is the author's
+  (a token, a production URL, a remote to set afterwards).
+- Open for the author: whether the migrated resident's remote is the
+  source repository (a move: the next backup commits on top of Lily's
+  history) or a new one (a copy, the source left as it was).

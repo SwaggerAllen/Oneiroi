@@ -90,3 +90,10 @@ Spec §6.13: "both render fresh in the index"; spec §8's tool table.
 Spec §6.11: "the resident knows its policy on wake and says so"; §6.2:
 "the resident is told on wake what happened and under what policy:
 orientation without impersonation."
+
+## #26
+Spec §6.2: "a new resident woken and told where it woke up: that it is
+on Oneiroi, from which repository, whether the attestation held, and
+what did not transfer"; spec §9 step 4: "she wakes oriented, told what
+moved". The three attestation values are spelled out because `failed`
+is the one the resident should ask about and a bare word says nothing.

@@ -23,9 +23,10 @@ attended with the spine (plan P0.7, decisions log round 9).
 ## #1 Owns
 
 The export (`records/events/<day>.jsonl` and `records/README.md`), the
-Merkle root, the git port, the backup run, the rebuild, the attestation
-check, the two nightly workers on the `sima_qian_nightly` queue, and the
-`mix oneiroi.sima_qian.rebuild` task. The fixture log under
+Merkle root, the git port, the backup run, the rebuild, the import (the
+intake from a repository, with the library port it adopts through), the
+attestation check, the two nightly workers on the `sima_qian_nightly`
+queue, and the `mix oneiroi.sima_qian.rebuild` task. The fixture log under
 `test/fixtures/sima_qian/` and its replay test.
 
 ## #2 Standing decisions
@@ -71,15 +72,20 @@ check, the two nightly workers on the `sima_qian_nightly` queue, and the
   `RootMismatchDetected` with both roots and the commit; the steward
   sees it on the stream.
 - **#14 The working repository is an export, made a repository on first ask.** `repository_dir/1` is the resident's directory under `SIMA_QIAN_ROOT`, initialised if it is not one yet: where the library writes its files between backups (seshat #12), under the folders the classes of #7 already commit. Nothing else about the repository leaves this system; the export and the backup read the same path.
+- **#15 An import is the rebuild and then the rest of the repository, and the clone becomes the working repository.** `import_resident/4` (`POST /v1/residents/import`): a repository with `records/events/` replays as #9 does, under the records' own name and slug; one without is created under the name and slug the steward gives, and refused without them (`sima_qian_name_required`). Either way the clone is copied to the resident's directory under `SIMA_QIAN_ROOT` with its history, so the next backup commits on top of the source's commits, and its `origin` remote is removed with it. The identity files at the root are seeded as `uploaded` (agathos-daimon #11), or proposed with a note where the records say first contact has passed and the file differs from them: never overwritten, never dropped. Every file under a kind's folder is adopted through the library port and indexed once (seshat #25). What at the root is none of those is listed by name, with any file the aggregate refused for its content and any path the library could not name, as `ImportCompleted`'s `not_transferred` (agathos-daimon #25), and the brain tells the resident on its first turn (brain #26). `rebuild/3` stays the replay alone: the operator's primitive and the round-trip tests' subject.
+- **#16 An import clones only from a configured scheme, and records the URL without its userinfo.** `SIMA_QIAN_IMPORT_SCHEMES` is `https` alone by default: a bare path or a `file` URL from a request is refused before anything is cloned (`sima_qian_scheme_refused`), because `git clone` of a path reads a directory on this host, another resident's working repository among them. The suite adds `file` to import from local bare repositories, and a bare path stays refused there. The source the log keeps (`Imported.source`, exported, and the key `Store.imported/2` refuses a second import on) is the URL with its userinfo stripped, where a GitHub URL carries the token; the clone itself uses the URL as given.
+- **#17 The library is reached through a port.** `Oneiroi.SimaQian.Library` (`adopt_all/2`, `folders/0`) is named in `SIMA_QIAN_LIBRARY` and read at the call, as the schedule names its wake (sunna #12); the library implements it, because it depends on this system for the repository's path (seshat #12) and an alias back would be the cycle the gate refuses.
 - **#13 The Honcho instructions ride in the soul class, and a soul commit sets the card.** The export renders `honcho/custom-instructions.md` beside the identity files on every run (agathos-daimon #19), so the soul class commits it with the soul and the first backup of any resident makes a soul commit; after a run that committed the soul class the backup calls `Oneiroi.Proteus.set_card/3` with source `commit` (proteus #14), and a bridge not yet provisioned or a Honcho that is down is the bridge's to record, never the backup's to fail on.
 
 ## #11 Initial vs target
 
-Initial (P0): the event log only, under `records/events/`, with the
-round trip (export, rebuild, export again, byte-identical before the
-`Imported` line) green in CI against a local bare repository. Target:
-every record kind of spec §6.10, the GitHub run by hand against a real
-repository, Gitea, attestation on wake.
+Initial (P0, then P4 slice 3 for #15 to #17): the event log only, under
+`records/events/`, with the round trip (export, rebuild, export again,
+byte-identical before the `Imported` line) green in CI against a local
+bare repository; the import over the API from a repository with or
+without records. Target: every record kind of spec §6.10, the GitHub
+run by hand against a real repository (Lily's migration,
+`design/lily-migration.md`), Gitea, attestation on wake.
 
 ## #12 Depends on
 

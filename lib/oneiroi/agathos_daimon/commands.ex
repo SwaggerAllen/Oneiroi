@@ -66,6 +66,14 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :source, :attestation, :root, :sequence]
   end
 
+  defmodule CompleteImport do
+    use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred]
+  end
+
+  defmodule RecordImportTold do
+    use Oneiroi.Command, fields: [:id]
+  end
+
   defmodule RecordExport do
     use Oneiroi.Command, fields: [:id, :through, :files]
   end

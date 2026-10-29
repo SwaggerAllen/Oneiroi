@@ -10,6 +10,11 @@ defmodule Oneiroi.SimaQian.Rebuild do
 
   What cannot come back is printed by name: nothing in P0, since the only
   state is the log; the migration's transfer list grows with the systems.
+
+  This is the replay alone, the operator's primitive and the round-trip
+  tests' subject; the steward's intake path, which does this and then
+  the rest of the repository, is `Oneiroi.SimaQian.Import` and shares
+  the steps below.
   """
 
   alias Oneiroi.Actor
@@ -77,7 +82,8 @@ defmodule Oneiroi.SimaQian.Rebuild do
     end
   end
 
-  defp refuse_if_imported(url, root) do
+  @doc false
+  def refuse_if_imported(url, root) do
     case Scope.platform(fn -> Store.imported(url, root) end) do
       nil -> :ok
       _row -> {:error, Error.new(:sima_qian_already_imported, source: url, root: root)}
@@ -87,7 +93,8 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # The paths are a wildcard over the clone this function's caller just
   # made under the system temp dir, never a request value.
   # sobelow_skip ["Traversal.FileModule"]
-  defp read_lines(clone) do
+  @doc false
+  def read_lines(clone) do
     lines =
       [clone, "records", "events", "*.jsonl"]
       |> Path.join()
@@ -103,7 +110,8 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # The events as recorded, re-keyed to the new resident; the serializer
   # upcasts an older version on read, so the data is written as the file
   # holds it and never reshaped here.
-  defp append(id, lines) do
+  @doc false
+  def append(id, lines) do
     lines
     |> Enum.map(&event_data(&1, id))
     |> Enum.chunk_every(@chunk)
@@ -134,7 +142,8 @@ defmodule Oneiroi.SimaQian.Rebuild do
   defp self(list, id) when is_list(list), do: Enum.map(list, &self(&1, id))
   defp self(other, _id), do: other
 
-  defp import_event(id, url, attestation, root, sequence, actor) do
+  @doc false
+  def import_event(id, url, attestation, root, sequence, actor) do
     Router.dispatch(%Commands.ImportResident{
       actor: actor,
       at: Clock.now(),
@@ -146,7 +155,8 @@ defmodule Oneiroi.SimaQian.Rebuild do
     })
   end
 
-  defp custody(id, steward_account_id, actor) do
+  @doc false
+  def custody(id, steward_account_id, actor) do
     Router.dispatch(%Commands.TransferCustody{
       actor: actor,
       at: Clock.now(),
