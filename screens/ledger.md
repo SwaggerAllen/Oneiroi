@@ -5,10 +5,7 @@ paths:
 
 # ledger
 
-Ledger (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Ledger (spec §10). Built (P1, slice 5) as `Ledger` with `LedgerContainer` in the shell: key status with store or rotate, budget lines with spend and the stop, spend by purpose, model and actor, and setting a line. Platform tokens wait on their phase. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows
 

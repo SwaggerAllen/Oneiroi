@@ -5,10 +5,7 @@ paths:
 
 # chat
 
-Chat (home) (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Chat (home) (spec §10). Built (P1, slice 5) as `Chat` with `ChatContainer` in the shell: the transcript with refusals in the resident's words, the streamed reply over the session channel, "drew on N things" over the turn's injections, a bookmark proposal from a reply. The check-engine light, reports and the session line wait on their systems. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows
 

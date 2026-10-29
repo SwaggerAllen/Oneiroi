@@ -5,10 +5,7 @@ paths:
 
 # memory
 
-Memory (bookmarks) (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Memory (bookmarks) (spec §10). Built (P1, slice 5) as `Memory` with `MemoryContainer` in the shell: rows as `BookmarkCard` with pin, index marker, the line, when, who bookmarked, who pinned, the span and tags; tabs In the index (with the budget as a caption), All, Pinned, one per active tag; search over the line and summary; pin and unpin. Opening the transcript at the anchor and proposing a revision wait on the transcripts and revisions screens. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows
 
