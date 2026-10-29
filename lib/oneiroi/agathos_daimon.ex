@@ -62,10 +62,12 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulEditApplied,
       Events.ModelPinChanged,
       Events.ModelChangeTold,
+      Events.TimezoneSet,
       Events.AdapterRegistered,
       Events.AdapterRevoked,
       Commands.RegisterAdapter,
       Commands.RevokeAdapter,
+      Commands.SetTimezone,
       AdapterPrincipal,
       Store.Adapter,
       Commands.PinModel,
@@ -111,6 +113,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulEditApplied, 1},
       {Oneiroi.AgathosDaimon.Events.ModelPinChanged, 1},
       {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
+      {Oneiroi.AgathosDaimon.Events.TimezoneSet, 1},
       {Oneiroi.AgathosDaimon.Events.AdapterRegistered, 1},
       {Oneiroi.AgathosDaimon.Events.AdapterRevoked, 1}
     ]
@@ -159,7 +162,9 @@ defmodule Oneiroi.AgathosDaimon do
        "an adapter is a slug with a role of brain, reader or worker",
        remedy: "name it as a slug and say which role it holds (spec §8)"},
       {:agathos_daimon_no_such_adapter, "no adapter of that name is registered",
-       remedy: "read the adapters"}
+       remedy: "read the adapters"},
+      {:agathos_daimon_timezone_invalid, "a time zone is an IANA name, like Europe/London",
+       remedy: "give the zone's IANA name; the resident's days and times of day are read in it"}
     ]
   end
 
@@ -244,6 +249,10 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Records that the resident was told of the latest model change."
   @spec model_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(model_told(id, actor), do: Residents.model_told(id, actor))
+
+  @doc "Sets the resident's time zone, an IANA name (spec §6.7)."
+  @spec set_timezone(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(set_timezone(id, zone, actor), do: Residents.set_timezone(id, zone, actor))
 
   # ---- adapters (spec §8) ----
 

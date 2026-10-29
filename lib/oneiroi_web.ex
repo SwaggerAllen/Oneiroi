@@ -14,6 +14,7 @@ defmodule OneiroiWeb do
       Oneiroi.Kumbukumbu,
       Oneiroi.Brain,
       Oneiroi.Eunomia,
+      Oneiroi.Sunna,
       OpenApiSpex,
       OpenApiSpex.Plug.PutApiSpec,
       OpenApiSpex.Plug.RenderSpec,

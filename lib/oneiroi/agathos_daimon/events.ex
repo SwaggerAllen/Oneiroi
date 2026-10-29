@@ -112,6 +112,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :adapter]
   end
 
+  defmodule TimezoneSet do
+    # The resident's zone (spec §6.7): every check-in, date and day is
+    # counted in it.
+    use Oneiroi.Event, version: 1, fields: [:id, :timezone]
+  end
+
   defmodule RecordsRemoteSet do
     use Oneiroi.Event,
       version: 1,

@@ -86,6 +86,7 @@ defmodule Oneiroi.MixProject do
             :req,
             :telemetry_registry,
             :thousand_island,
+            :tz,
             :websock,
             :websock_adapter,
             :ymlr
@@ -130,6 +131,11 @@ defmodule Oneiroi.MixProject do
       # blessed list): OpenRouter over Req, in `Oneiroi.Nisaba.Provider`
       # and nowhere else, which the audit's `model_port` check holds.
       {:req, "~> 0.5"},
+      # The IANA time zone database (spec §6.7: per resident, in the
+      # resident's timezone). A new direct dependency, decided in
+      # systems/sunna.md #10: `tz` bundles its data and takes no network
+      # at runtime, which is what a gate with no network needs.
+      {:tz, "~> 0.28"},
       # Structured JSON logs to stdout (conventions §10), prod only.
       {:logger_json, "~> 7.0"},
       {:stream_data, "~> 1.1", only: :test},

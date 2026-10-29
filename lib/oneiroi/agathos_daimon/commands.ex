@@ -80,6 +80,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :adapter]
   end
 
+  defmodule SetTimezone do
+    use Oneiroi.Command, fields: [:id, :timezone]
+  end
+
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
   end

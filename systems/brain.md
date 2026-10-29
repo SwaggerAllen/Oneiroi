@@ -68,6 +68,7 @@ and the session channel.
 - **#15 The chat model is the resident's pin, and a change is told on the next turn.** `row.chat_model` over `BRAIN_CHAT_MODEL` (#7); when `model_told` is false the turn captures `priv/prompts/model_changed.md` as a system message by the platform ahead of the steward's message, once, and records it told (agathos-daimon #15).
 - **#16 The sealed session's context is the prefix and nothing else.** `seed_context/1` returns the prompt file (with no formation line) and the identity files, for the regression run (eunomia #10): no index, no behaviours, no transcript, nothing naming a run.
 - **#11 Compaction opens the turn that finds the session over the line, with a memory flush first.** When the messages since the last compaction reach `BRAIN_COMPACT_AFTER_MESSAGES` (80, twice the live window, a guess), the turn opens by giving the resident those messages and its tools under `memory_flush.md`, then asks for a summary under `compaction.md` folding in the previous one, and records `Compacted` with the watermark (kumbukumbu #23). Both calls are chat on the ledger. If either fails the turn goes on uncompacted and the next one tries again. Compaction never deletes a message.
+- **#17 A wake is a turn opened by the core's note, and the dates are a section of every turn.** `wake/4` implements `Oneiroi.Sunna.Wake` (sunna #12): the note is captured as a system message by the platform in the steward's place, answered under the purpose the caller names (`chat` for a check-in, `free_time` for free time), streamed and captured like any turn. Every turn injects the schedule's `dates_text/1` as `dates` when there is one, with the countdowns derived on that read (sunna #15).
 
 ## #8 Initial vs target
 
@@ -80,5 +81,6 @@ table by role, the pinned chat model (spec §5).
 ## #9 Depends on
 
 The ledger for every model call; memory for capture, the transcript and
-the context record; the resident system for the resident's name and,
-later, its files and pin.
+the context record; the resident system for the resident's name, its
+files and its pin; the schedule for the dates, and the schedule reaches
+back only through its wake port.

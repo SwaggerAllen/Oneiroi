@@ -12,6 +12,7 @@ defmodule Oneiroi.Brain do
   read in the same place (spec §5, §6.11).
   """
   use Oneiroi.System, slug: :brain
+  @behaviour Oneiroi.Sunna.Wake
 
   use Boundary,
     top_level?: true,
@@ -20,6 +21,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.AgathosDaimon,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
+      Oneiroi.Sunna,
       Jason
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting]
@@ -93,6 +95,13 @@ defmodule Oneiroi.Brain do
           {:ok, map()} | {:error, term()}
   defexport(turn(resident_id, session_key, text, actor),
     do: Session.turn(resident_id, session_key, text, actor)
+  )
+
+  @doc "Wakes the resident in a session with the core's note (spec §6.7, §8): a turn answered under the purpose given, the note captured as a system message ahead of the reply."
+  @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
+  @impl Oneiroi.Sunna.Wake
+  defexport(wake(resident_id, session_key, note, purpose),
+    do: Session.wake(resident_id, session_key, note, purpose)
   )
 
   @doc "Drafts an identity file from the steward's prompt under the drafting purpose; returned, not written."

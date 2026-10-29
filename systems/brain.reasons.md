@@ -67,3 +67,10 @@ purpose." The index would carry the resident's memory into a session
 that is never captured, and the formation line names a date the run
 has no business knowing.
 
+
+## #17
+Spec §5: "sessions opened by wake (a check-in lands in main)" and §8:
+"wake text never carries the words." The note is the core's, so it is
+a system message by the platform and not a user message by anyone; the
+purpose is the caller's because the ledger bills free time on its own
+line (spec §6.11).

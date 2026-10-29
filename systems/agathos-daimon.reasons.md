@@ -62,3 +62,9 @@ a credential's shadow in a repository. An explicit path list is a claim
 a test can assert; a per-controller check was the shape that raised on
 an adapter's token in three controllers before it was centralised.
 
+
+## #17
+Spec §6.7: "in the resident's timezone." It is on the resident's stream
+because it is the resident's state, like its name, and a schedule that
+carried its own copy would disagree with the resident the day one of
+them was changed.
