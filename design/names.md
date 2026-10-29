@@ -44,9 +44,10 @@ out.
 | Nisaba | the ledger | Sumerian | NISS-ah-bah | `systems/nisaba.md` |
 | Nanshe | the insurance floor | Sumerian | NAHN-sheh | in `systems/nisaba.md` |
 
-Still named for its function, waiting on a name: `client`, the React
-application. The rule for choosing is the author's: no, or very little,
-living veneration tradition behind the figure.
+Still named for their function, waiting on a name: `client`, the React
+application, and `brain`, the resident's agent loop (spec §5, built in
+P1 as `Oneiroi.Brain`). The rule for choosing is the author's: no, or
+very little, living veneration tradition behind the figure.
 
 The mutex labels orchestration reads are the doc names (`system:gaia`),
 and the spec keeps its function words (spec §6.1 is identity), so a

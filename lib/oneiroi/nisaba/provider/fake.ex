@@ -2,19 +2,21 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @moduledoc """
   The in-memory provider (conventions §9): what every test calls, and
   what `NISABA_PROVIDER=fake` selects. It answers deterministically from
-  the request unless the calling process scripted an answer, and it
-  prices every token the same, so a test can assert a cost it can
-  compute by hand.
+  the request unless scripted, and it prices every token the same, so a
+  test can assert a cost it can compute by hand.
 
-  Scripts are per process: a test sets one and the call runs in the test's
-  own process. A brain process of its own, later, sees the default answer
-  unless the test scripts through it.
+  Two places a script lives. The calling process, for a test that calls
+  the port in its own process; and a table keyed by resident, for a test
+  whose call runs on another process (the brain's session process), set
+  with `for: resident_id` and found through the resident the ledger puts
+  on the request's metadata. The process script wins where both exist.
   """
   @behaviour Oneiroi.Nisaba.Provider
 
   alias Oneiroi.Nisaba.Provider.{Request, Result, Usage}
 
   @key :nisaba_fake_script
+  @table :nisaba_fake_scripts
   # A flat fake price: one micro-dollar a token, so a 30-token call costs
   # 30,000 nano-dollars and the arithmetic in a test is legible.
   @nanos_per_token 1_000
@@ -24,30 +26,40 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
           | {:refusal, String.t()}
           | {:error, Oneiroi.Nisaba.Provider.failure()}
 
-  @doc "Scripts the next answers for this process: a function of the request."
-  @spec script((Request.t() -> answer())) :: :ok
-  def script(fun) when is_function(fun, 1) do
-    Process.put(@key, fun)
+  @doc "Scripts the answers: a function of the request, for this process or, with `for:`, for a resident from any process."
+  @spec script((Request.t() -> answer()), keyword()) :: :ok
+  def script(fun, opts \\ []) when is_function(fun, 1) do
+    case Keyword.get(opts, :for) do
+      nil ->
+        Process.put(@key, fun)
+
+      resident_id ->
+        :ets.insert(table(), {resident_id, fun})
+    end
+
     :ok
   end
 
   @doc "Scripts a fixed reply."
-  @spec reply(String.t()) :: :ok
-  def reply(text) when is_binary(text), do: script(fn _request -> {:ok, text} end)
+  @spec reply(String.t(), keyword()) :: :ok
+  def reply(text, opts \\ []) when is_binary(text),
+    do: script(fn _request -> {:ok, text} end, opts)
 
   @doc "Scripts a refusal, in the model's words."
-  @spec refuse(String.t()) :: :ok
-  def refuse(text) when is_binary(text), do: script(fn _request -> {:refusal, text} end)
+  @spec refuse(String.t(), keyword()) :: :ok
+  def refuse(text, opts \\ []) when is_binary(text),
+    do: script(fn _request -> {:refusal, text} end, opts)
 
   @doc "Scripts a failure of the given kind (`:transport` or `:schema_invalid`)."
-  @spec fail(:transport | :schema_invalid) :: :ok
-  def fail(kind) when kind in [:transport, :schema_invalid],
-    do: script(fn _request -> {:error, {kind, :scripted}} end)
+  @spec fail(:transport | :schema_invalid, keyword()) :: :ok
+  def fail(kind, opts \\ []) when kind in [:transport, :schema_invalid],
+    do: script(fn _request -> {:error, {kind, :scripted}} end, opts)
 
-  @doc "Forgets this process's script."
-  @spec clear() :: :ok
-  def clear do
+  @doc "Forgets this process's script and, with `for:`, a resident's."
+  @spec clear(keyword()) :: :ok
+  def clear(opts \\ []) do
     Process.delete(@key)
+    if resident_id = Keyword.get(opts, :for), do: :ets.delete(table(), resident_id)
     :ok
   end
 
@@ -73,9 +85,34 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   end
 
   defp answer(request) do
-    case Process.get(@key) do
+    case Process.get(@key) || resident_script(request) do
       nil -> {:ok, default(request)}
       fun -> fun.(request)
+    end
+  end
+
+  defp resident_script(%Request{metadata: %{resident_id: resident_id}}) do
+    case :ets.lookup(table(), resident_id) do
+      [{_id, fun}] -> fun
+      [] -> nil
+    end
+  end
+
+  defp resident_script(_request), do: nil
+
+  # Created on first use by whichever process gets there; a second
+  # creator finds it made and uses it.
+  defp table do
+    case :ets.whereis(@table) do
+      :undefined ->
+        try do
+          :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
+        rescue
+          ArgumentError -> @table
+        end
+
+      _ref ->
+        @table
     end
   end
 

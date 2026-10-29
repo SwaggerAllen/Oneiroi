@@ -26,6 +26,11 @@ defmodule OneiroiWeb.Endpoint do
     http_only: true
   ]
 
+  # The streamed conversation (spec §5). Origin is checked against the
+  # endpoint's own host by default, which is the socket's CSRF defence;
+  # the principal comes from a `token` param (`OneiroiWeb.UserSocket`).
+  socket "/socket", OneiroiWeb.UserSocket, websocket: true, longpoll: false
+
   plug Plug.Static,
     at: "/",
     from: :oneiroi,

@@ -11,14 +11,19 @@ defmodule OneiroiWeb do
       Oneiroi.SimaQian,
       Oneiroi.AgathosDaimon,
       Oneiroi.Nisaba,
+      Oneiroi.Kumbukumbu,
+      Oneiroi.Brain,
       OpenApiSpex,
       OpenApiSpex.Plug.PutApiSpec,
       OpenApiSpex.Plug.RenderSpec,
       Phoenix,
+      Phoenix.Channel,
       Phoenix.PubSub,
+      Phoenix.Socket,
+      Phoenix.Token,
       Plug
     ],
-    exports: [Endpoint]
+    exports: [Endpoint, UserSocket]
 
   @doc "The router macros: `use OneiroiWeb, :router`."
   def router do

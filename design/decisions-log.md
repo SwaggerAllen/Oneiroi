@@ -390,3 +390,8 @@ and nothing personal turned up; what follows is what changed.
   (systems/gaia.md #11), and the ledger reads it wrapped.
 - Production answered as `http://localhost:8080` until the endpoint's
   `url:` came from `RENDER_EXTERNAL_URL` (systems/apsu.md #19).
+- The brain is a system of its own, `Oneiroi.Brain`, function-named
+  until the author names it (systems/brain.md): memory depends on the
+  resident system for ids, so the loop that depends on memory cannot
+  live in the resident system without a cycle. The socket takes a token
+  rather than the cookie (systems/brain.md #6).

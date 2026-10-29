@@ -1,0 +1,1 @@
+The budget line for {{purpose}} is spent for this {{period}}. The last message was kept and not answered; it will be answered when the line is raised or the {{period}} turns. Both of you see this notice here.
