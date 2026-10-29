@@ -146,8 +146,8 @@ and **Deployment statuses**; without it every CI hop waits for the
 hourly cron); Settings → Actions → General → allow GitHub Actions to
 create and approve pull requests; branch protection on `main` requiring
 the `ci` check and pull requests, your own pushes as the deliberate admin
-bypass; the repo variable `PIPELINE_KILL_SWITCH=true` parks the project
-and clears it before expecting work.
+bypass. The repo variable `PIPELINE_KILL_SWITCH=true` parks the
+project; clear it before expecting any work.
 
 Run `pipeline-preflight` once everything above is set: it exercises
 every credential-bearing read and names the write scopes it did not.
@@ -166,7 +166,9 @@ plan's drafts for them become follow-ups rather than the first work.
 
 Once a resident exists: `PUT /v1/residents/:id/remote` with a GitHub
 repository you created and a fine-grained token scoped to it (Contents
-read and write), then `Oneiroi.SimaQian.backup/2` from a shell, read the
+read and write), then the backup from a shell on the service through
+the release (`/app/bin/oneiroi rpc 'IO.inspect(Oneiroi.SimaQian.backup(<resident id>, Oneiroi.Actor.platform()))'`,
+as in §1 step 5), read the
 `Oneiroi-Sequence` and `Oneiroi-Root` trailers off the commit on GitHub,
 and `mix oneiroi.sima_qian.rebuild <repo> --steward <account id>` against
 a second database. The export of the rebuilt resident is byte-identical
