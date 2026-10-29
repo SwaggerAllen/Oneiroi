@@ -15,6 +15,11 @@ config :oneiroi,
         %{
           "DATABASE_URL" => database_url,
           "APSU_HTTP_PORT" => "4002",
+          # Not localhost, on purpose: the contract test proves the Origin
+          # check reads this value and not the listener's name, and a
+          # localhost value could not tell the two apart. That is how
+          # production shipped answering as localhost with a green suite.
+          "RENDER_EXTERNAL_URL" => "https://oneiroi.test",
           "APSU_SECRET_KEY_BASE" =>
             "test-secret-key-base-test-secret-key-base-test-secret-key-base-64",
           "APSU_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",

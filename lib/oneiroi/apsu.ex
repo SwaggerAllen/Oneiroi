@@ -25,15 +25,37 @@ defmodule Oneiroi.Apsu do
        default: "8080",
        tag: :bound,
        usage: "the port the endpoint binds; the health probe reaches it directly"},
+      # The origin the endpoint answers as, under the name Render gives
+      # it: set on every web service, previews included, to the
+      # service's own `https://…` URL, so a preview answers as itself and
+      # never as production. A self-hosted instance sets the same name.
+      #
+      # Until this was declared nothing set the endpoint's `url:`, so
+      # `OneiroiWeb.Endpoint.url/0` was `config.exs`'s localhost plus
+      # the listener's port, and `OneiroiWeb.Plugs.Origin` held every
+      # browser mutation to it. Measured on production, 2026-10-29: a
+      # login carrying `Origin: https://oneiroi.onrender.com` was
+      # refused 403, and one carrying `Origin: http://localhost:8080`
+      # was answered 201. No browser can send the second, so no browser
+      # could log in. The suite had not seen it because the contract
+      # test read the expected origin from the same endpoint config the
+      # plug did, and the two agreed with each other about a value
+      # neither had been given (`config/test.exs` now sets one that is
+      # not localhost for exactly that reason).
+      {:public_url, "RENDER_EXTERNAL_URL",
+       cast: &__MODULE__.cast_public_url/1,
+       external: true,
+       usage:
+         "the origin the endpoint answers as (its url: at boot), which every browser mutation's Origin is checked against"},
       {:secret_key_base, "APSU_SECRET_KEY_BASE",
        cast: &__MODULE__.cast_secret_key_base/1,
        secret: true,
        usage: "signs the session cookie and every token the endpoint issues"},
-      # The one name imposed from outside: the platform supplies the
-      # connection string under DATABASE_URL (render.yaml binds it from
-      # the database) and every Postgres client expects this key. The
-      # credential is the migrator's; the application takes its own role
-      # on connect (Oneiroi.Repo).
+      # A name imposed from outside, like RENDER_EXTERNAL_URL above: the
+      # platform supplies the connection string under DATABASE_URL
+      # (render.yaml binds it from the database) and every Postgres
+      # client expects this key. The credential is the migrator's; the
+      # application takes its own role on connect (Oneiroi.Repo).
       {:database_url, "DATABASE_URL",
        cast: &__MODULE__.cast_database_url/1,
        secret: true,
@@ -88,6 +110,29 @@ defmodule Oneiroi.Apsu do
         {:error,
          "must be at least 64 bytes (Plug.Session.Cookie's minimum), or base64 of at least 32, " <>
            "is #{byte_size(raw)} bytes"}
+    end
+  end
+
+  @doc """
+  Casts the public URL into the endpoint's `url:` options: the scheme,
+  host and port `Phoenix.Endpoint.url/0` is built from, which is the
+  string `OneiroiWeb.Plugs.Origin` compares a browser's `Origin` against.
+  A path, query or fragment is refused rather than dropped: an origin has
+  none, so a value carrying one was not the origin and dropping the rest
+  would accept a mistake silently. The reason names no part of the value
+  because the declaration is not a secret, but the report is one line
+  per problem and the value is in the environment already.
+  """
+  @spec cast_public_url(String.t()) :: {:ok, keyword()} | {:error, String.t()}
+  def cast_public_url(raw) do
+    case URI.parse(raw) do
+      %URI{scheme: scheme, host: host, port: port, path: path, query: nil, fragment: nil}
+      when scheme in ["http", "https"] and is_binary(host) and host != "" and
+             path in [nil, "", "/"] ->
+        {:ok, [scheme: scheme, host: host, port: port]}
+
+      _ ->
+        {:error, "is not an origin (expected https://host, or http://host:port, with no path)"}
     end
   end
 

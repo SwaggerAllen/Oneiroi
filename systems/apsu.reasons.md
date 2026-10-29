@@ -70,3 +70,13 @@ CVE-2026-94206, no fixed release at the time); forty lines over
 ## #18
 A second-precision fake broke the first `:utc_datetime_usec` insert;
 per-process because a projector's clock is not the test's.
+
+## #19
+Measured on production, 2026-10-29: with nothing setting the endpoint's
+`url:`, it answered as `http://localhost:8080`, a login carrying the
+service's own `Origin` was refused 403 and one carrying the listener's
+name was answered 201, so no browser could log in. The contract test had
+passed throughout, because its expected origin and the plug's were read
+from the same unset config and agreed with each other: a fake agreeing
+with the code under test, the shape orchestration's `CLAUDE.md` records
+for its tracker fake.

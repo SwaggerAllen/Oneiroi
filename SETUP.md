@@ -21,9 +21,12 @@ APSU_SECRET_KEY_BASE   # the endpoint's cookie-signing secret, 64 bytes or more
 APSU_VAULT_KEY         # 32 random bytes, base64: what secrets at rest are encrypted under
 ```
 
-`DATABASE_URL` is deliberately absent: it is declared `external: true`
-because Render supplies it under a name this codebase does not choose,
-and `render.yaml` binds it from the database.
+`DATABASE_URL` and `RENDER_EXTERNAL_URL` are deliberately absent: both
+are declared `external: true` because Render supplies them under names
+this codebase does not choose. `render.yaml` binds the first from the
+database; Render sets the second on every web service, previews
+included, to the service's own origin, and the endpoint answers as it
+(`systems/apsu.md` #19). A self-hosted instance sets both by hand.
 
 ## 1. The reference instance (Render)
 
