@@ -42,8 +42,19 @@ defmodule OneiroiWeb.Router do
       delete("/tokens/:hash", TokenController, :delete)
       resources("/residents", ResidentController, only: [:index, :create, :show])
       put("/residents/:id/remote", ResidentController, :remote)
+      post("/me/socket-token", MeController, :socket_token)
       get("/residents/:id/ledger", LedgerController, :show)
       put("/residents/:id/ledger/budgets/:purpose", LedgerController, :set_budget)
+      get("/residents/:id/sessions", ConversationController, :index)
+      post("/residents/:id/sessions", ConversationController, :create)
+      get("/residents/:id/sessions/:key", ConversationController, :show)
+      post("/residents/:id/sessions/:key/turns", ConversationController, :turn)
+      get("/residents/:id/transcripts/search", ConversationController, :search)
+      get("/residents/:id/capture-failures", ConversationController, :failures)
+      post("/residents/:id/capture-failures/:turn_ref", ConversationController, :resolve)
+      get("/residents/:id/turns/:turn_ref/context", ConversationController, :injections)
+      post("/residents/:id/turns", ConversationController, :capture)
+      post("/residents/:id/turn-start", ConversationController, :turn_start)
     end
   end
 end

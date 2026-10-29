@@ -21,6 +21,15 @@ defmodule OneiroiWeb.MeController do
     })
   end
 
+  operation(:socket_token,
+    summary: "A short-lived token the client opens the socket with",
+    responses: [created: {"the token", "application/json", %Schema{type: :object}}]
+  )
+
+  def socket_token(%{assigns: %{principal: p}} = conn, _params) do
+    conn |> put_status(201) |> json(%{token: OneiroiWeb.UserSocket.token(conn, p.account_id)})
+  end
+
   operation(:store_key,
     summary:
       "Store the OpenRouter key every model call for this account's residents spends; storing again rotates it",

@@ -45,6 +45,7 @@ defmodule OneiroiWeb.ContractTest do
     {:post, "/v1/me/second-factor", %{anonymous: 401, session: 201, token: 201}},
     {:post, "/v1/tokens", %{anonymous: 401, session: 422, token: 422}},
     {:put, "/v1/me/key", %{anonymous: 401, session: 422, token: 422}},
+    {:post, "/v1/me/socket-token", %{anonymous: 401, session: 201, token: 201}},
     {:delete, "/v1/me/key", %{anonymous: 401, session: 404, token: 404}},
     {:delete, "/v1/session", %{anonymous: 204, session: 204, token: 204}}
   ]
@@ -162,6 +163,99 @@ defmodule OneiroiWeb.ContractTest do
            |> login(other)
            |> put_req_header("origin", origin())
            |> put("/v1/residents/#{id}/ledger/budgets/chat", %{cap: "1", period: "month"})
+           |> json_response(404)
+  end
+
+  test "the conversation routes are the steward's: open, send, read, search, resolve, and an adapter's capture",
+       ctx do
+    conn = login(ctx.conn, ctx.account)
+    id = ctx.resident.id
+
+    :ok =
+      Oneiroi.Gaia.store_key(
+        ctx.account.id,
+        "sk-or-x",
+        Oneiroi.Actor.new(:steward, ctx.account.id)
+      )
+
+    assert %{"key" => key} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions", %{})
+             |> json_response(201)
+
+    assert %{"key" => ^key} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions", %{})
+             |> json_response(201)
+
+    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 2} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
+             |> json_response(201)
+
+    assert [%{"key" => ^key, "turns" => 1}] =
+             conn |> get("/v1/residents/#{id}/sessions") |> json_response(200)
+
+    assert %{"messages" => [%{"content" => "hi"}, _]} =
+             conn |> get("/v1/residents/#{id}/sessions/#{key}") |> json_response(200)
+
+    # Newest first, so the reply that quotes "hi" leads and the message follows.
+    assert [%{"role" => "assistant"}, %{"content" => "hi"}] =
+             conn
+             |> get("/v1/residents/#{id}/transcripts/search", %{q: "hi"})
+             |> json_response(200)
+
+    assert [%{"label" => "prompt"}, %{"label" => "transcript"}] =
+             conn |> get("/v1/residents/#{id}/turns/#{ref}/context") |> json_response(200)
+
+    # An adapter's capture: the same turn twice is one.
+    turn = %{
+      session_key: key,
+      started_at: "2026-10-29T12:00:00Z",
+      messages: [
+        %{role: "user", content: "from claude code"},
+        %{role: "assistant", content: "noted"}
+      ]
+    }
+
+    assert %{"turn_ref" => _} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/turns", turn)
+             |> json_response(201)
+
+    assert %{"turn_ref" => _} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/turns", turn)
+             |> json_response(201)
+
+    assert [%{"turns" => 2}] = conn |> get("/v1/residents/#{id}/sessions") |> json_response(200)
+
+    assert %{"turn_ref" => _} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/turn-start", %{session_key: key})
+             |> json_response(201)
+
+    assert conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/residents/#{id}/capture-failures/nope", %{
+             key: key,
+             how: "marked_lost",
+             note: "n"
+           })
+           |> json_response(404)
+
+    other = Fixtures.account!()
+    assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/sessions") |> json_response(404)
+
+    assert ctx.conn
+           |> login(other)
+           |> get("/v1/residents/#{id}/sessions/#{key}")
            |> json_response(404)
   end
 

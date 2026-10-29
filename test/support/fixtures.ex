@@ -5,7 +5,7 @@ defmodule Oneiroi.Fixtures do
   # the core never depends on it.
   use Boundary,
     top_level?: true,
-    deps: [Oneiroi, Oneiroi.Gaia, Oneiroi.SimaQian, Oneiroi.AgathosDaimon]
+    deps: [Oneiroi, Oneiroi.Gaia, Oneiroi.SimaQian, Oneiroi.AgathosDaimon, Oneiroi.Kumbukumbu]
 
   alias Oneiroi.Actor
 

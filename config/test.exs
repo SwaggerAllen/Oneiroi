@@ -30,6 +30,7 @@ config :oneiroi,
           "APSU_CLOCK" => "fake",
           # The in-memory provider: no test crosses the network (conventions §9).
           "NISABA_PROVIDER" => "fake",
+          "BRAIN_CHAT_MODEL" => "fake/model",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test"
         }}
 

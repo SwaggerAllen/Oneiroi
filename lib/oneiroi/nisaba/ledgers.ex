@@ -82,15 +82,24 @@ defmodule Oneiroi.Nisaba.Ledgers do
   end
 
   def call(resident_id, purpose, %Request{} = request, %Actor{} = actor) do
+    request = tag(request, resident_id)
     metered(resident_id, purpose, actor, fn provider, key -> provider.complete(request, key) end)
   end
 
   def stream(resident_id, purpose, %Request{} = request, %Actor{} = actor, sink)
       when is_function(sink, 1) do
+    request = tag(request, resident_id)
+
     metered(resident_id, purpose, actor, fn provider, key ->
       provider.stream(request, key, sink)
     end)
   end
+
+  # The resident rides on the request's metadata so a provider can tell
+  # whose call it is: the fake finds a per-resident script by it, and the
+  # OpenRouter adapter does not send metadata at all.
+  defp tag(%Request{metadata: metadata} = request, resident_id),
+    do: %{request | metadata: Map.put(metadata || %{}, :resident_id, resident_id)}
 
   defp metered(resident_id, purpose, actor, run) do
     with :ok <- purpose_ok(purpose),
