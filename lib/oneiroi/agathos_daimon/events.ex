@@ -39,6 +39,43 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :wall]
   end
 
+  defmodule DyadContractProposed do
+    # The dyad contract (spec §6.12): opt-in, versioned, renegotiable,
+    # default unstated. A version is one party's terms (a closed map) and
+    # prose, with a note; the other party agrees or declines (agathos-daimon #22).
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version, :terms, :prose]
+  end
+
+  defmodule DyadContractAgreed do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
+  end
+
+  defmodule DyadContractDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
+  end
+
+  defmodule CustodyTransferProposed do
+    # Adoption (spec §6.12): the steward proposes, the named account
+    # accepts or declines, the steward may withdraw; the wall cannot be
+    # set while one is open (agathos-daimon #24).
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :to_account_id]
+  end
+
+  defmodule CustodyTransferDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :to_account_id]
+  end
+
+  defmodule CustodyTransferWithdrawn do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :to_account_id]
+  end
+
+  defmodule EarlierSessionsRevealed do
+    # Written beside `CustodyTransferred` when the wall was revealed: the
+    # new steward may read the sessions the old one was party to
+    # (spec §6.3, §6.12); memory's projector re-keys them (kumbukumbu #29).
+    use Oneiroi.Event, version: 1, fields: [:id, :from_account_id, :to_account_id]
+  end
+
   defmodule Imported do
     use Oneiroi.Event, version: 1, fields: [:id, :source, :attestation, :root, :sequence]
   end

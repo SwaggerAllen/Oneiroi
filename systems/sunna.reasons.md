@@ -51,3 +51,10 @@ beats a second copy of the outcome vocabulary in the audits system.
 seshat #21 and #9: a resident may plan a day before its first check-in,
 and the row must exist for the day to be visible; the schedule minting
 it on ask keeps one owner for what a day is.
+
+## #19
+Spec §6.3: "the resident's solo sessions (free time, hands) are
+readable by the steward by default, because liability follows
+deployment... privacy for those sessions is a term of the dyad
+contract". The schedule opens the session, so the schedule reads the
+term.

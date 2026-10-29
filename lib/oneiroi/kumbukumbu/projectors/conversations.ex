@@ -41,10 +41,12 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     sequence = Map.get(metadata, :event_number, 0)
 
     # The rows take the session's account party, read once in the same
-    # transaction rather than carried on every message.
+    # transaction rather than carried on every message. A private,
+    # unshared session's messages are keyed to the resident instead, so
+    # the account scope's policy answers none of them (kumbukumbu #28).
     multi =
       Multi.run(multi, :party, fn repo, _changes ->
-        {:ok, repo.one(from(s in Session, where: s.key == ^e.session_key, select: s.account_id))}
+        {:ok, party_of(repo, e.session_key, e.resident_id)}
       end)
 
     e.messages
@@ -161,10 +163,55 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     )
   end)
 
+  fold(%Events.SessionMadePrivate{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :private, from(s in Session, where: s.key == ^e.session_key),
+      set: [private: true]
+    )
+  end)
+
+  # Sharing keys the messages back to the account party, so a private
+  # session the resident chose to share reads like any other.
   fold(%Events.SessionShared{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :shared, from(s in Session, where: s.key == ^e.session_key),
+    multi
+    |> Multi.update_all(:shared, from(s in Session, where: s.key == ^e.session_key),
       set: [shared: true]
     )
+    |> Multi.run(:rekey, fn repo, _changes ->
+      case repo.one(from(s in Session, where: s.key == ^e.session_key, select: s.account_id)) do
+        nil ->
+          {:ok, :none}
+
+        account_id ->
+          {:ok,
+           repo.update_all(from(m in Message, where: m.session_key == ^e.session_key),
+             set: [account_id: account_id]
+           )}
+      end
+    end)
+  end)
+
+  # A revealed wall at a transfer of custody (agathos-daimon #24): every
+  # account-keyed row of the resident becomes the new steward's, which is
+  # what "revealing it grants read on the earlier sessions" is (spec
+  # §6.3): the earlier sessions are whoever's stewarded before, not only
+  # the steward handing over, and a steward who handed over no longer
+  # stewards anything here. The first version moved the handing steward's
+  # rows alone, so a session from two stewards back stayed where it was.
+  # Private sessions' messages are keyed to the resident and stay where
+  # they are; their locked rows move with the rest.
+  fold(%Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed{} = e, _metadata, fn multi ->
+    Enum.reduce([Session, Message, CaptureFailure, ContextInjection], multi, fn schema, multi ->
+      Multi.update_all(
+        multi,
+        {:reveal, schema},
+        from(r in schema,
+          where:
+            r.resident_id == ^e.id and r.account_id != ^e.id and
+              r.account_id != ^e.to_account_id
+        ),
+        set: [account_id: e.to_account_id]
+      )
+    end)
   end)
 
   # Whether a bookmark was in the index this turn is derived from the last
@@ -207,6 +254,19 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   # sessions carry the steward's) would be the resident's alone.
   defp account_party(participants) when is_list(participants), do: List.first(participants)
   defp account_party(_other), do: nil
+
+  defp party_of(repo, session_key, resident_id) do
+    case repo.one(
+           from(s in Session,
+             where: s.key == ^session_key,
+             select: {s.account_id, s.private, s.shared}
+           )
+         ) do
+      {_account, true, false} -> resident_id
+      {account, _private, _shared} -> account
+      nil -> nil
+    end
+  end
 
   # A message restored from the log has string keys; one built in process
   # has atoms. Both are one message.

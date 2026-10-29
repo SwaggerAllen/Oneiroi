@@ -2,7 +2,8 @@ defmodule Oneiroi.Kumbukumbu.Commands do
   @moduledoc "The conversation aggregate's commands."
 
   defmodule OpenSession do
-    use Oneiroi.Command, fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants]
+    use Oneiroi.Command,
+      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants, :private]
   end
 
   defmodule StartTurn do

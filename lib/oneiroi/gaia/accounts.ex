@@ -260,4 +260,28 @@ defmodule Oneiroi.Gaia.Accounts do
     if delay > 0, do: Process.sleep(delay)
     :ok
   end
+
+  @doc "The email of an account by id, platform scope by name."
+  def email(account_id) when is_binary(account_id) do
+    Scope.platform(fn ->
+      case Store.account(account_id) do
+        nil -> nil
+        account -> account.email
+      end
+    end)
+  end
+
+  def email(_other), do: nil
+
+  @doc "The id of the account with an email, platform scope by name."
+  def id_for(email) when is_binary(email) do
+    Scope.platform(fn ->
+      case Store.account_by_email(email) do
+        nil -> nil
+        account -> account.id
+      end
+    end)
+  end
+
+  def id_for(_other), do: nil
 end

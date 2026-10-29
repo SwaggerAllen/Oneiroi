@@ -192,4 +192,12 @@ defmodule Oneiroi.Gaia do
   @doc "The resident ids an account currently stewards."
   @spec stewarded_residents(String.t()) :: [String.t()]
   defexport(stewarded_residents(account_id), do: Accounts.stewarded_residents(account_id))
+
+  @doc "An account's email by id, under the platform scope by name (conventions §12): what names an investigator (glitnir #8) and a proposed steward."
+  @spec account_email(String.t()) :: String.t() | nil
+  defexport(account_email(account_id), do: Accounts.email(account_id))
+
+  @doc "An account's id by email, case-insensitively, under the platform scope by name; nil when none."
+  @spec account_id_for(String.t()) :: String.t() | nil
+  defexport(account_id_for(email), do: Accounts.id_for(email))
 end

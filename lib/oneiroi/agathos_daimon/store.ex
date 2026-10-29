@@ -31,7 +31,32 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:model_pinned_at, :utc_datetime_usec)
       field(:model_told, :boolean, default: true)
       field(:timezone, :string, default: "Etc/UTC")
+      field(:contract_version, :integer)
+      field(:solo_sessions_private, :boolean, default: false)
+      field(:custody_proposed_to, :binary_id)
+      field(:custody_proposed_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Contract do
+    @moduledoc "A version of the dyad contract (spec §6.12): proposed by one party, agreed or declined by the other, or superseded by a later proposal."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_contract" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:version, :integer, primary_key: true)
+      field(:proposed_by_kind, :string)
+      field(:terms, :map)
+      field(:prose, :string)
+      field(:note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:state, :string)
+      field(:decided_at, :utc_datetime_usec)
+      field(:decided_by_kind, :string)
+      field(:decision_note, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -146,4 +171,15 @@ defmodule Oneiroi.AgathosDaimon.Store do
       Repo.one(
         from(a in Adapter, where: a.token_hash == ^hash and is_nil(a.revoked_at), limit: 1)
       )
+
+  # ---- the agreement ----
+
+  @doc "Every contract version, newest first."
+  @spec contracts() :: [Contract.t()]
+  def contracts, do: Repo.all(from(c in Contract, order_by: [desc: c.version]))
+
+  @doc "The residents whose custody is proposed to an account."
+  @spec custody_proposed_to(String.t()) :: [Resident.t()]
+  def custody_proposed_to(account_id),
+    do: Repo.all(from(r in Resident, where: r.custody_proposed_to == ^account_id))
 end

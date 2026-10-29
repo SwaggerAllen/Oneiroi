@@ -40,3 +40,12 @@ changing hands keeps the new steward's spend on the new steward's key.
 Spec §12's contract layer: which token may call what, asserted exactly
 per role. A route added without a row is a route whose access nobody
 decided.
+
+## #12
+Conventions §12: a cross-tenant read is `Scope.platform/1` by name. An
+email is identity's fact, so identity answers it.
+
+## #13
+Conventions §9: a test that asserts the state at the end sees nothing
+of a handler that never matched; the stewardship list is what the
+routes read, so the custody suite asserts it.

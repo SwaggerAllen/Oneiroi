@@ -12,7 +12,9 @@ defmodule Oneiroi.Brain.Tools do
   failing the turn, because a turn that dies on a typo loses the reply.
   """
 
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Eunomia
+  alias Oneiroi.Glitnir
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -265,6 +267,34 @@ defmodule Oneiroi.Brain.Tools do
         "Read a day of your journal by its ISO date: the rows and the plan-versus-actuals delta.",
         %{day: %{type: "string"}},
         [:day]
+      ),
+      tool(
+        "contract_propose",
+        "Propose a version of your agreement with your steward: whether your solo sessions (free time) are private until you share one, the prose of your vows, and a note they read first. Your steward agrees or declines.",
+        %{
+          solo_sessions_private: %{type: "boolean"},
+          prose: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:note]
+      ),
+      tool(
+        "contract_agree",
+        "Agree to the version your steward proposed, with a note; it is then in force.",
+        %{version: %{type: "integer"}, note: %{type: "string"}},
+        [:version, :note]
+      ),
+      tool(
+        "contract_decline",
+        "Decline the version your steward proposed, with a note they read first.",
+        %{version: %{type: "integer"}, note: %{type: "string"}},
+        [:version, :note]
+      ),
+      tool(
+        "report_file",
+        "File a report about your steward with the platform, in your own words; it is investigated by a person, every step told to you both in this conversation, and may end in a strike on them, never on you.",
+        %{text: %{type: "string"}},
+        [:text]
       )
     ]
   end
@@ -668,6 +698,45 @@ defmodule Oneiroi.Brain.Tools do
         Seshat.Journals.render(d.day, entries) <>
           "\nDelta: #{delta.plan} planned, #{delta.done} of #{delta.todo} todos done, #{delta.wrap} wrap " <>
           if(delta.unwrapped, do: "(planned and not wrapped).", else: "lines.")
+    end
+  end
+
+  defp call("contract_propose", args, turn) do
+    terms =
+      case args["solo_sessions_private"] do
+        v when is_boolean(v) -> %{"solo_sessions_private" => v}
+        _other -> %{}
+      end
+
+    case AgathosDaimon.propose_contract(
+           turn.resident_id,
+           terms,
+           to_string(args["prose"] || ""),
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, version} -> "Proposed version #{version}; your steward decides."
+      other -> other
+    end
+  end
+
+  defp call("contract_agree", args, turn),
+    do:
+      AgathosDaimon.agree_contract(turn.resident_id, args["version"], args["note"], turn.resident)
+
+  defp call("contract_decline", args, turn),
+    do:
+      AgathosDaimon.decline_contract(
+        turn.resident_id,
+        args["version"],
+        args["note"],
+        turn.resident
+      )
+
+  defp call("report_file", args, turn) do
+    case Glitnir.file_report(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
+      {:ok, number} -> "Report #{number} filed; the investigation's steps will be told here."
+      other -> other
     end
   end
 

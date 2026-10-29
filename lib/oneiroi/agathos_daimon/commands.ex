@@ -30,6 +30,34 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :to]
   end
 
+  defmodule ProposeContract do
+    use Oneiroi.Command, decision: true, fields: [:id, :terms, :prose]
+  end
+
+  defmodule AgreeContract do
+    use Oneiroi.Command, decision: true, fields: [:id, :version]
+  end
+
+  defmodule DeclineContract do
+    use Oneiroi.Command, decision: true, fields: [:id, :version]
+  end
+
+  defmodule ProposeCustodyTransfer do
+    use Oneiroi.Command, decision: true, fields: [:id, :to_account_id]
+  end
+
+  defmodule AcceptCustodyTransfer do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  defmodule DeclineCustodyTransfer do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  defmodule WithdrawCustodyTransfer do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
   defmodule SetExportWall do
     use Oneiroi.Command, decision: true, fields: [:id, :wall]
   end

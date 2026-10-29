@@ -25,6 +25,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:adapter, :string)
       field(:participants, {:array, :string})
       field(:shared, :boolean, default: false)
+      field(:private, :boolean, default: false)
       field(:opened_at, :utc_datetime_usec)
       field(:last_turn_at, :utc_datetime_usec)
       field(:turns, :integer, default: 0)

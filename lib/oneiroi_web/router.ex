@@ -166,6 +166,17 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/journal/:day", JournalController, :show)
       post("/residents/:id/journal/:day/entries", JournalController, :add)
       post("/residents/:id/journal/:day/entries/:number/done", JournalController, :done)
+      get("/me/custody-proposals", AgreementController, :proposals)
+      get("/residents/:id/agreement", AgreementController, :show)
+      post("/residents/:id/agreement/proposals", AgreementController, :propose)
+      post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)
+      put("/residents/:id/export-wall", AgreementController, :set_wall)
+      post("/residents/:id/custody/proposals", AgreementController, :propose_custody)
+      post("/residents/:id/custody/decision", AgreementController, :decide_custody)
+      get("/residents/:id/reports", ReportController, :index)
+      post("/residents/:id/reports", ReportController, :create)
+      post("/residents/:id/reports/:number/steps", ReportController, :step)
+      post("/residents/:id/reports/:number/resolve", ReportController, :resolve)
     end
   end
 end

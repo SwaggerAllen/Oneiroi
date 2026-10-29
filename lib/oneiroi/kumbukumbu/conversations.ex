@@ -19,12 +19,13 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
 
-  @doc "Opens a session of `kind` for the resident with the accounts party to it; returns its key."
-  def open_session(resident_id, kind, adapter, participants, %Actor{} = actor)
+  @doc "Opens a session of `kind` for the resident with the accounts party to it (`private: true` under a contract that keeps solo sessions private); returns its key."
+  def open_session(resident_id, kind, adapter, participants, %Actor{} = actor, opts \\ [])
       when is_list(participants) do
     key = 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+    private? = Keyword.get(opts, :private, false) == true
 
-    with :ok <- dispatch_open(resident_id, key, kind, adapter, participants, actor),
+    with :ok <- dispatch_open(resident_id, key, kind, adapter, participants, private?, actor),
          do: {:ok, key}
   end
 
@@ -173,11 +174,21 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @doc "The sessions a scope sees: `{:account, id}` for a steward, `{:resident, id}` for the brain."
   def sessions(scope), do: Scope.run(scope, fn -> Store.sessions() end)
 
+  # A private, unshared session is a locked row to the account party:
+  # listed, never opened (spec §6.3). The messages are keyed away from
+  # the account by the projector too (kumbukumbu #28), so the policy and
+  # this refusal say the same thing.
   def transcript(scope, key) do
     Scope.run(scope, fn ->
-      case Store.session(key) do
-        nil -> {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
-        session -> {:ok, session, Store.messages(key)}
+      case {scope, Store.session(key)} do
+        {_scope, nil} ->
+          {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+
+        {{:account, _}, %{private: true, shared: false}} ->
+          {:error, Error.new(:kumbukumbu_session_private, key: key)}
+
+        {_scope, session} ->
+          {:ok, session, Store.messages(key)}
       end
     end)
   end
@@ -243,7 +254,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @spec stream(String.t(), String.t()) :: String.t()
   def stream(resident_id, key), do: resident_id <> "-" <> key
 
-  defp dispatch_open(resident_id, key, kind, adapter, participants, actor) do
+  defp dispatch_open(resident_id, key, kind, adapter, participants, private?, actor) do
     command = %Commands.OpenSession{
       actor: actor,
       at: Clock.now(),
@@ -252,7 +263,8 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       session_key: key,
       kind: kind,
       adapter: adapter,
-      participants: participants
+      participants: participants,
+      private: private?
     }
 
     case Router.dispatch(command) do

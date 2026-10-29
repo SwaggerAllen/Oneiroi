@@ -14,6 +14,7 @@ defmodule OneiroiWeb do
       Oneiroi.Kumbukumbu,
       Oneiroi.Brain,
       Oneiroi.Eunomia,
+      Oneiroi.Glitnir,
       Oneiroi.Proteus,
       Oneiroi.Seshat,
       Oneiroi.HuginnMuninn,

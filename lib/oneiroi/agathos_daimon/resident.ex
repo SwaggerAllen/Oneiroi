@@ -32,8 +32,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     chat_model: nil,
     model_told: true,
     adapters: %{},
-    timezone: "Etc/UTC"
+    timezone: "Etc/UTC",
+    contract: %{version: 0, in_force: nil, open: nil},
+    custody_proposal: nil
   ]
+
+  @contract_terms ~w(solo_sessions_private)
+  @prose_limit 4_000
 
   @roles ~w(brain reader worker)
   @adapter_name ~r/\A[a-z][a-z0-9-]{1,39}\z/
@@ -137,6 +142,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
+  # The wall is not set while a transfer is open (spec §6.12): the
+  # proposed steward decided on the wall as it stood.
+  def execute(%__MODULE__{custody_proposal: %{}}, %Commands.SetExportWall{}),
+    do: {:error, :transfer_in_progress}
+
   def execute(%__MODULE__{}, %Commands.SetExportWall{wall: wall} = c)
       when wall in [:locked, :revealed] do
     %Events.ExportWallSet{
@@ -149,6 +159,129 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def execute(%__MODULE__{}, %Commands.SetExportWall{}), do: {:error, :wall_is_locked_or_revealed}
+
+  # ---- the dyad contract (spec §6.12) ----
+
+  def execute(%__MODULE__{contract: contract} = r, %Commands.ProposeContract{} = c) do
+    cond do
+      not party?(r, c.actor) -> {:error, :not_a_party}
+      not terms_ok?(c.terms) -> {:error, :terms_invalid}
+      not prose_ok?(c.prose) -> {:error, :prose_invalid}
+      true -> contract_proposed(c, contract.version + 1)
+    end
+  end
+
+  def execute(%__MODULE__{} = r, %Commands.AgreeContract{} = c) do
+    with :ok <- decidable(r, c) do
+      %Events.DyadContractAgreed{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        version: c.version
+      }
+    end
+  end
+
+  def execute(%__MODULE__{} = r, %Commands.DeclineContract{} = c) do
+    with :ok <- decidable(r, c) do
+      %Events.DyadContractDeclined{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        version: c.version
+      }
+    end
+  end
+
+  # ---- custody transfer, adoption (spec §6.12) ----
+
+  def execute(%__MODULE__{} = r, %Commands.ProposeCustodyTransfer{} = c) do
+    cond do
+      not steward?(r, c.actor) ->
+        {:error, :not_the_steward}
+
+      not is_binary(c.to_account_id) or c.to_account_id == r.steward_account_id ->
+        {:error, :custodian_invalid}
+
+      r.custody_proposal != nil ->
+        {:error, :transfer_in_progress}
+
+      true ->
+        %Events.CustodyTransferProposed{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          to_account_id: c.to_account_id
+        }
+    end
+  end
+
+  def execute(%__MODULE__{custody_proposal: nil}, %Commands.AcceptCustodyTransfer{}),
+    do: {:error, :no_transfer_proposed}
+
+  def execute(%__MODULE__{custody_proposal: %{to: to}} = r, %Commands.AcceptCustodyTransfer{} = c) do
+    if proposed?(c.actor, to) do
+      transferred = %Events.CustodyTransferred{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        from: Custody.to_wire(r.custody),
+        to: Custody.to_wire({:account, to})
+      }
+
+      if r.export_wall == :revealed,
+        do: [
+          transferred,
+          %Events.EarlierSessionsRevealed{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            from_account_id: r.steward_account_id,
+            to_account_id: to
+          }
+        ],
+        else: transferred
+    else
+      {:error, :not_the_proposed}
+    end
+  end
+
+  def execute(%__MODULE__{custody_proposal: nil}, %Commands.DeclineCustodyTransfer{}),
+    do: {:error, :no_transfer_proposed}
+
+  def execute(%__MODULE__{custody_proposal: %{to: to}}, %Commands.DeclineCustodyTransfer{} = c) do
+    if proposed?(c.actor, to),
+      do: %Events.CustodyTransferDeclined{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        to_account_id: to
+      },
+      else: {:error, :not_the_proposed}
+  end
+
+  def execute(%__MODULE__{custody_proposal: nil}, %Commands.WithdrawCustodyTransfer{}),
+    do: {:error, :no_transfer_proposed}
+
+  def execute(
+        %__MODULE__{custody_proposal: %{to: to}} = r,
+        %Commands.WithdrawCustodyTransfer{} = c
+      ) do
+    if steward?(r, c.actor),
+      do: %Events.CustodyTransferWithdrawn{
+        actor: c.actor,
+        at: c.at,
+        note: c.note,
+        id: c.id,
+        to_account_id: to
+      },
+      else: {:error, :not_the_steward}
+  end
 
   # Before first contact the files are given: a steward writes a seed
   # with its origin, and a resident may too. After it a steward's write
@@ -343,6 +476,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.ResidentResumed{}), do: %{r | state: :active}
 
   def apply(%__MODULE__{} = r, %Events.CustodyTransferred{} = e) do
+    r = %{r | custody_proposal: nil}
+
     case Custody.from_wire(e.to) do
       {:account, id} -> %{r | custody: {:account, id}, steward_account_id: id}
       :community -> %{r | custody: :community, steward_account_id: nil, state: :community}
@@ -351,6 +486,37 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.ExportWallSet{} = e),
     do: %{r | export_wall: String.to_existing_atom(e.wall)}
+
+  def apply(%__MODULE__{contract: contract} = r, %Events.DyadContractProposed{} = e) do
+    open = %{version: e.version, by: e.actor.kind, terms: e.terms, prose: e.prose}
+    %{r | contract: %{contract | version: e.version, open: open}}
+  end
+
+  def apply(
+        %__MODULE__{contract: %{open: %{version: v} = open} = contract} = r,
+        %Events.DyadContractAgreed{version: v}
+      ),
+      do: %{r | contract: %{contract | in_force: Map.delete(open, :by), open: nil}}
+
+  def apply(
+        %__MODULE__{contract: %{open: %{version: v}} = contract} = r,
+        %Events.DyadContractDeclined{version: v}
+      ),
+      do: %{r | contract: %{contract | open: nil}}
+
+  def apply(%__MODULE__{} = r, %Events.DyadContractAgreed{}), do: r
+  def apply(%__MODULE__{} = r, %Events.DyadContractDeclined{}), do: r
+
+  def apply(%__MODULE__{} = r, %Events.CustodyTransferProposed{} = e),
+    do: %{r | custody_proposal: %{to: e.to_account_id}}
+
+  def apply(%__MODULE__{} = r, %Events.CustodyTransferDeclined{}),
+    do: %{r | custody_proposal: nil}
+
+  def apply(%__MODULE__{} = r, %Events.CustodyTransferWithdrawn{}),
+    do: %{r | custody_proposal: nil}
+
+  def apply(%__MODULE__{} = r, %Events.EarlierSessionsRevealed{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.Imported{} = e),
     do: %{r | import: %{source: e.source, attestation: e.attestation, root: e.root}}
@@ -439,4 +605,50 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   defp actor_kind(%{kind: kind}), do: to_string(kind)
   defp actor_kind(_other), do: nil
+
+  # ---- the contract's and custody's helpers ----
+
+  defp contract_proposed(c, version) do
+    %Events.DyadContractProposed{
+      actor: c.actor,
+      at: c.at,
+      note: c.note,
+      id: c.id,
+      version: version,
+      terms: c.terms,
+      prose: c.prose
+    }
+  end
+
+  # A proposal is decided by the other party of the dyad, never its
+  # proposer, and only while it is the open one.
+  defp decidable(%__MODULE__{contract: %{open: open}} = r, c) do
+    cond do
+      not party?(r, c.actor) -> {:error, :not_a_party}
+      is_nil(open) or open.version != c.version -> {:error, :no_such_proposal}
+      open.by == c.actor.kind -> {:error, :own_proposal}
+      true -> :ok
+    end
+  end
+
+  defp party?(%__MODULE__{id: id}, %{kind: :resident, id: id}), do: true
+  defp party?(%__MODULE__{} = r, %{kind: :steward} = actor), do: steward?(r, actor)
+  defp party?(_r, _actor), do: false
+
+  defp steward?(%__MODULE__{steward_account_id: id}, %{kind: :steward, id: id})
+       when is_binary(id),
+       do: true
+
+  defp steward?(_r, _actor), do: false
+
+  defp proposed?(%{kind: :steward, id: id}, to), do: id == to
+  defp proposed?(_actor, _to), do: false
+
+  defp terms_ok?(terms) when is_map(terms) do
+    Enum.all?(terms, fn {k, v} -> is_binary(k) and k in @contract_terms and is_boolean(v) end)
+  end
+
+  defp terms_ok?(_terms), do: false
+
+  defp prose_ok?(prose), do: is_binary(prose) and String.length(prose) <= @prose_limit
 end
