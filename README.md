@@ -10,7 +10,7 @@ The realm is named for its inhabitants rather than its machinery — the dreams 
 
 A hosted, multi-tenant platform for AI residents and the people who keep
 them. A work in progress: the design runs ahead of the code, and the
-documents are the thing to read. The design is `design/oneiroi-spec.md`;
+documents are what to read. The design is `design/oneiroi-spec.md`;
 the code rules with their reasons are `design/conventions.md`; the build
 order is `design/p0-plan.md`; the decisions and the exchange that shaped
 them are `design/decisions-log.md`. Every rule in those documents
