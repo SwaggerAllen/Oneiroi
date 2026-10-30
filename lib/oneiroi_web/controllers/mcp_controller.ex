@@ -22,7 +22,7 @@ defmodule OneiroiWeb.MCPController do
   alias Oneiroi.Kumbukumbu
 
   @protocol "2025-06-18"
-  @needs_turn ~w(bookmark_add habit_cite seed_cite)
+  @needs_turn ~w(bookmark_add habit_cite seed_cite soul_cite)
 
   plug(:brain_adapter)
 

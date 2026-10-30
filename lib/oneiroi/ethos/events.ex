@@ -64,4 +64,14 @@ defmodule Oneiroi.Ethos.Events do
     # habit's record without the resident's actor on it.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule SoulLineCited do
+    # A soul line cites the moment that evidenced it (spec §6.17, P39:
+    # tags are citations): the moment's tag is the line it evidences,
+    # and a pin naming a line writes this beside the pin. By either
+    # party, as a tagging is (spec §6.3); the line itself stays the
+    # resident's words (agathos-daimon #27). The line's existence is the
+    # edge's to check, since the lines are the resident system's rows.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
+  end
 end

@@ -58,3 +58,13 @@ parser's list was never exercised and the green said nothing about it.
 ## #11
 Spec §6.4: "trials are derived from behaviours"; the event field keeps
 its name because conventions §6 makes a shape change a new version.
+
+## #14
+Spec §6.17 (P39): "a moment or bookmark is tagged by the tree node it
+evidences... A pin is leaf-evidence of a soul line, and which line it
+evidences is the pin's tag." Either party because spec §6.3 makes
+taggings both parties' and tags are citations now; the line's words
+stay the resident's (agathos-daimon #27) and only the evidence is
+shared. The order in `pin_as_evidence/4` because the first draft pinned
+first and would have left a pin naming a line that failed the check.
+

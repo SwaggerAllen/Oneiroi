@@ -43,8 +43,16 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
 
   defmodule BookmarkPinned do
     # A pin is a decision trace, never a measurement (spec §6.3); the
-    # actor is who pinned, which the row shows as `pinned_by`.
-    use Oneiroi.Event, version: 1, fields: [:id, :number]
+    # actor is who pinned, which the row shows as `pinned_by`. Version 2
+    # adds `evidences`, the soul line the pin is leaf-evidence of (spec
+    # §6.17, P39: which line it evidences is the pin's tag), nil when
+    # none; the identity upcaster is the shape the store's restart for
+    # v0.2 allows (decisions round 24).
+    use Oneiroi.Event, version: 2, fields: [:id, :number, :evidences]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: BookmarkPinned do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule BookmarkUnpinned do

@@ -209,6 +209,24 @@ defmodule Oneiroi.Ethos.Character do
     end
   end
 
+  # A soul line's citation: the target's kind is checked here, the line
+  # at the edge (it is not this aggregate's state), and a citation is a
+  # set, so the same moment cited twice is once.
+  def execute(%__MODULE__{} = s, %Commands.CiteSoulLine{} = c) do
+    with :ok <- target_ok(c) do
+      if MapSet.member?(s.citations, citation_key(:soul, c)),
+        do: [],
+        else: %Events.SoulLineCited{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          target_kind: c.target_kind,
+          target_id: to_string(c.target_id)
+        }
+    end
+  end
+
   # ---- apply ----
 
   def apply(%__MODULE__{} = s, %Events.SeedPlanted{} = e),
@@ -239,6 +257,9 @@ defmodule Oneiroi.Ethos.Character do
 
   def apply(%__MODULE__{} = s, %Events.HabitCited{} = e),
     do: %{s | citations: MapSet.put(s.citations, citation_key(:habit, e))}
+
+  def apply(%__MODULE__{} = s, %Events.SoulLineCited{} = e),
+    do: %{s | citations: MapSet.put(s.citations, citation_key(:soul, e))}
 
   # ---- helpers ----
 

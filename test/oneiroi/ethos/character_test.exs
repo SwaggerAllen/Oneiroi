@@ -391,4 +391,81 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     assert {:error, :seed_closed} = Character.execute(wilted, graduate)
   end
+
+  test "tags are citations: a soul line cites a moment by either party, a pin names the line it evidences, and memory shows the tree's tags through its port",
+       ctx do
+    id = ctx.resident.id
+
+    :ok =
+      AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\nI check on the garden.",
+        %{},
+        ctx.witness
+      )
+
+    assert {:error, %Ethos.Error{kind: :ethos_not_a_party}} =
+             Ethos.cite_soul_line(id, 1, "turn", "t1", Actor.new(:judge, "j", "fake/judge"))
+
+    assert {:error, %Ethos.Error{kind: :ethos_target_invalid}} =
+             Ethos.cite_soul_line(id, 9, "turn", "t1", ctx.brain)
+
+    assert {:error, %Ethos.Error{kind: :ethos_target_invalid}} =
+             Ethos.cite_soul_line(id, 1, "bookmark", 99, ctx.brain)
+
+    assert :ok = Ethos.cite_soul_line(id, 1, "turn", "t1", ctx.brain)
+    assert :ok = Ethos.cite_soul_line(id, 1, "turn", "t1", ctx.witness)
+    assert [%{target_kind: "turn", target_id: "t1"}] = Ethos.soul_line_citations(id, 1)
+
+    {:ok, n} =
+      Kumbukumbu.add_bookmark(
+        id,
+        %{
+          session_key: ctx.key,
+          anchor_ref: "t1",
+          anchor_at: Clock.now(),
+          line: "the tomatoes",
+          summary: "s",
+          turns_back: 1
+        },
+        ctx.brain
+      )
+
+    # A pin as evidence: the pin carries the line, the line cites the bookmark.
+    assert {:error, %Ethos.Error{kind: :ethos_target_invalid}} =
+             Ethos.pin_as_evidence(id, n, 9, ctx.witness)
+
+    assert [%{number: ^n, pinned_at: nil, tags: []}] = Kumbukumbu.bookmarks(id)
+    assert :ok = Ethos.pin_as_evidence(id, n, 1, ctx.witness)
+
+    assert [%{number: ^n, pinned_by_kind: "witness", pin_evidences: 1, tags: ["soul/1"]}] =
+             Kumbukumbu.bookmarks(id)
+
+    assert ["bookmark", "turn"] = id |> Ethos.soul_line_citations(1) |> Enum.map(& &1.target_kind)
+
+    # The tree's tags beside the closed set's, in the index too.
+    {:ok, 1} = Ethos.plant_seed(id, "I might be becoming a gardener.", ctx.brain)
+    :ok = Ethos.cite_seed(id, 1, "bookmark", n, ctx.brain)
+
+    assert %{to_string(n) => ["seed/1", "soul/1"]} ==
+             Ethos.tags_of(id, "bookmark", [to_string(n)])
+
+    assert %{} == Ethos.tags_of(id, "bookmark", ["99"])
+    assert Kumbukumbu.index(id).text =~ "[seed/1, soul/1] the tomatoes"
+
+    # Pure: a citation is a set, and the target's kind is the aggregate's to check.
+    cite = %Commands.CiteSoulLine{
+      actor: ctx.brain,
+      at: Clock.now(),
+      id: "r1",
+      number: 1,
+      target_kind: "turn",
+      target_id: "t9"
+    }
+
+    s = Character.apply(%Character{}, Character.execute(%Character{}, cite))
+    assert [] = Character.execute(s, cite)
+    assert {:error, :target_invalid} = Character.execute(s, %{cite | target_kind: "mood"})
+  end
 end

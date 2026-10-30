@@ -93,8 +93,27 @@ defmodule Oneiroi.Ethos.Store do
 
   @doc "Every citation of one kind, newest first."
   @spec citations(String.t()) :: [Citation.t()]
+  # Ties on the instant (one dispatch's worth, or the suite's fixed clock)
+  # are broken by the target, so a read is the same read twice.
   def citations(kind),
-    do: Repo.all(from(c in Citation, where: c.kind == ^kind, order_by: [desc: c.at]))
+    do:
+      Repo.all(
+        from(c in Citation,
+          where: c.kind == ^kind,
+          order_by: [desc: c.at, asc: c.target_kind, asc: c.target_id]
+        )
+      )
+
+  @doc "Every citation, of any kind, of the targets named: the tree's tags on those moments (spec §6.17, P39)."
+  @spec citations_of(String.t(), [String.t()]) :: [Citation.t()]
+  def citations_of(target_kind, target_ids),
+    do:
+      Repo.all(
+        from(c in Citation,
+          where: c.target_kind == ^target_kind and c.target_id in ^target_ids,
+          order_by: [c.kind, c.number]
+        )
+      )
 
   @doc "Every affirmation, newest first."
   @spec affirmations() :: [Affirmation.t()]

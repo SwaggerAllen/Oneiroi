@@ -82,11 +82,29 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     end
   end
 
+  # A pin already standing is no event, unless it now names a different
+  # soul line: the pin's tag changed, so the pin is recorded again.
   def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.PinBookmark{} = c) do
-    case Map.fetch(bookmarks, c.number) do
-      :error -> {:error, :no_such_bookmark}
-      {:ok, %{pinned: true}} -> []
-      {:ok, _} -> %Events.BookmarkPinned{actor: c.actor, at: c.at, id: c.id, number: c.number}
+    bookmark = Map.get(bookmarks, c.number)
+
+    cond do
+      is_nil(bookmark) ->
+        {:error, :no_such_bookmark}
+
+      not evidence_ok?(c.evidences) ->
+        {:error, :evidence_invalid}
+
+      bookmark.pinned and Map.get(bookmark, :evidences) == c.evidences ->
+        []
+
+      true ->
+        %Events.BookmarkPinned{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          evidences: c.evidences
+        }
     end
   end
 
@@ -290,10 +308,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     do: put_in(m.bookmarks[e.number].turns_back, e.turns_back)
 
   def apply(%__MODULE__{} = m, %Events.BookmarkPinned{} = e),
-    do: put_in(m.bookmarks[e.number].pinned, true)
+    do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: true, evidences: e.evidences}))
 
   def apply(%__MODULE__{} = m, %Events.BookmarkUnpinned{} = e),
-    do: put_in(m.bookmarks[e.number].pinned, false)
+    do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: false, evidences: nil}))
 
   def apply(%__MODULE__{} = m, %Events.BookmarkProposed{} = e) do
     proposal = %{state: :open, by: actor_map(e.actor)}
@@ -434,4 +452,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   end
 
   defp actor_map(_other), do: nil
+
+  defp evidence_ok?(nil), do: true
+  defp evidence_ok?(n) when is_integer(n) and n > 0, do: true
+  defp evidence_ok?(_other), do: false
 end

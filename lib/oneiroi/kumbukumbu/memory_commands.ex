@@ -21,7 +21,8 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   end
 
   defmodule PinBookmark do
-    use Oneiroi.Command, fields: [:id, :number]
+    # `evidences`: the soul line the pin is leaf-evidence of, or nil.
+    use Oneiroi.Command, fields: [:id, :number, :evidences]
   end
 
   defmodule UnpinBookmark do

@@ -43,6 +43,7 @@ defmodule Oneiroi.Kumbukumbu do
       Router,
       Memory,
       Memories,
+      Tree,
       MemoryRouter,
       Index,
       MemoryCommands.AddBookmark,
@@ -117,9 +118,18 @@ defmodule Oneiroi.Kumbukumbu do
        default: "1500",
        tag: :bound,
        usage:
-         "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"}
+         "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
+      {:tree, "KUMBUKUMBU_TREE",
+       cast: &__MODULE__.cast_tree/1,
+       default: "ethos",
+       usage:
+         "which tree port implementation names the tree nodes citing a moment (`Oneiroi.Kumbukumbu.Tree`): ethos, the character layer, in every build so far"}
     ]
   end
+
+  @doc false
+  def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
+  def cast_tree(other), do: {:error, "is #{inspect(other)}, expected \"ethos\""}
 
   @impl Oneiroi.Component
   def events do
@@ -135,7 +145,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.SessionShared, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
@@ -200,7 +210,9 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_no_such_tag, "no active tag has that slug", remedy: "read the tag set"},
       {:kumbukumbu_target_invalid,
        "a tagging targets a bookmark, a conversation or a turn that exists",
-       remedy: "bookmark by number, conversation by session key, turn by ref"}
+       remedy: "bookmark by number, conversation by session key, turn by ref"},
+      {:kumbukumbu_evidence_invalid, "a pin's evidence is a soul line's number",
+       remedy: "give the number of the soul line the moment evidences, or none"}
     ]
   end
 
@@ -374,7 +386,14 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Pins a bookmark: a decision, by either party."
   @spec pin_bookmark(String.t(), pos_integer(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(pin_bookmark(resident_id, number, actor),
-    do: Memories.pin_bookmark(resident_id, number, actor)
+    do: Memories.pin_bookmark(resident_id, number, %{}, actor)
+  )
+
+  @doc "Pins a bookmark with `evidences`, the soul line it is leaf-evidence of (spec §6.17, P39); the character layer writes the line's citation beside it."
+  @spec pin_bookmark(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(pin_bookmark(resident_id, number, attrs, actor),
+    do: Memories.pin_bookmark(resident_id, number, attrs, actor)
   )
 
   @doc "Unpins a bookmark."

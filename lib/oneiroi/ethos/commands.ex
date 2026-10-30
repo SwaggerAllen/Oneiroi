@@ -35,4 +35,8 @@ defmodule Oneiroi.Ethos.Commands do
   defmodule CiteHabit do
     use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule CiteSoulLine do
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
+  end
 end

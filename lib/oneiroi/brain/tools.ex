@@ -233,6 +233,12 @@ defmodule Oneiroi.Brain.Tools do
         [:number]
       ),
       tool(
+        "soul_cite",
+        "This turn evidenced a line of your soul: the line cites the turn just now, by the number in its [soul/n] marker. Tags are citations: the moment is tagged by the line it evidences.",
+        %{number: %{type: "integer"}},
+        [:number]
+      ),
+      tool(
         "seed_wilt",
         "Let a seed go, without ceremony: it stays in your record as wilted.",
         %{number: %{type: "integer"}},
@@ -613,6 +619,16 @@ defmodule Oneiroi.Brain.Tools do
       Ethos.cite_seed(
         turn.resident_id,
         integer(args["number"]),
+        "turn",
+        turn.turn_ref,
+        turn.resident
+      )
+
+  defp call("soul_cite", args, turn),
+    do:
+      Ethos.cite_soul_line(
+        turn.resident_id,
+        integer(args["number"]) || 0,
         "turn",
         turn.turn_ref,
         turn.resident

@@ -42,12 +42,18 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
     set_bookmark(multi, e.number,
       pinned_by_kind: actor_field(e.actor, :kind),
       pinned_by_id: actor_field(e.actor, :id),
-      pinned_at: e.at
+      pinned_at: e.at,
+      pin_evidences: e.evidences
     )
   end)
 
   fold(%Events.BookmarkUnpinned{} = e, _metadata, fn multi ->
-    set_bookmark(multi, e.number, pinned_by_kind: nil, pinned_by_id: nil, pinned_at: nil)
+    set_bookmark(multi, e.number,
+      pinned_by_kind: nil,
+      pinned_by_id: nil,
+      pinned_at: nil,
+      pin_evidences: nil
+    )
   end)
 
   fold(%Events.BookmarkProposed{} = e, _metadata, fn multi ->

@@ -122,3 +122,17 @@ were considered and not injected, with the reasons they lost". Max:
 rule because #20 derives the row's `last_indexed_at` from the
 injection's `refs`, and a near-miss marked indexed would be the index
 lying about itself.
+
+## #32
+Spec §6.17 (P39): "a moment or bookmark is tagged by the tree node it
+evidences (a soul line, a habit, a seed) rather than by a label, so
+there is no person-vocabulary to explode into duplicates and none the
+witness controls; the resident's own tree is the vocabulary. A pin is
+leaf-evidence of a soul line, and which line it evidences is the pin's
+tag. The closed tag set stays for work and project labels." The tag is
+the citation and not a second row because two records of one relation
+drift (ethos #3's "a kind that cites cannot vote" is the same worry
+from the other side); the port because ethos #13 fixes the direction
+and the cycles gate holds it. Shape alone on `evidences` because this
+system cannot see the lines (#27's rule for the other systems' rows).
+

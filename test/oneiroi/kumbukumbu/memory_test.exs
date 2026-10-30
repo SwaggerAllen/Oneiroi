@@ -183,4 +183,23 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     assert [] = Memory.execute(m, remove)
     assert %Events.TaggingRemoved{} = Memory.execute(fold([create, add(1), apply_tag]), remove)
   end
+
+  test "a pin names the soul line it evidences; the same pin again is nothing, a different line is a new pin, and unpinning clears it" do
+    m = fold([add(1)])
+    pin = %Commands.PinBookmark{actor: @witness, at: @at, id: "r1", number: 1, evidences: 3}
+    assert %Events.BookmarkPinned{number: 1, evidences: 3} = Memory.execute(m, pin)
+    assert {:error, :evidence_invalid} = Memory.execute(m, %{pin | evidences: 0})
+    assert {:error, :evidence_invalid} = Memory.execute(m, %{pin | evidences: "3"})
+    assert {:error, :no_such_bookmark} = Memory.execute(m, %{pin | number: 2})
+
+    pinned = fold([add(1), pin])
+    assert [] = Memory.execute(pinned, pin)
+    assert %Events.BookmarkPinned{evidences: 4} = Memory.execute(pinned, %{pin | evidences: 4})
+
+    assert %Events.BookmarkPinned{evidences: nil} =
+             Memory.execute(pinned, %{pin | evidences: nil})
+
+    unpin = %Commands.UnpinBookmark{actor: @witness, at: @at, id: "r1", number: 1}
+    assert %{bookmarks: %{1 => %{pinned: false, evidences: nil}}} = fold([add(1), pin, unpin])
+  end
 end

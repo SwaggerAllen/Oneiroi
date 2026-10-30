@@ -121,6 +121,15 @@ defmodule Oneiroi.Brain.IdentityTest do
            ] =
              AgathosDaimon.soul_lines(id)
 
+    # The turn evidenced a line: the line cites the turn (tags are citations).
+    Fake.calls([%{name: "soul_cite", arguments: %{number: 2}}], "Noted.", for: id)
+
+    assert {:ok, %{turn_ref: ref2, messages: [_, cited, _]}} =
+             Oneiroi.Brain.turn(id, ctx.key, "kind of you", ctx.actor)
+
+    assert cited.content =~ "Done."
+    assert [%{target_kind: "turn", target_id: ^ref2}] = Oneiroi.Ethos.soul_line_citations(id, 2)
+
     assert {:ok, %{content: "# Goals\n\nTo keep going.", origin: "authored"}} =
              AgathosDaimon.file(id, "GOALS.md")
 

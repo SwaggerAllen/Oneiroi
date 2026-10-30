@@ -2,6 +2,7 @@ defmodule OneiroiWeb.MemoryController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Ethos
   alias Oneiroi.Kumbukumbu
   alias OpenApiSpex.Schema
 
@@ -32,13 +33,24 @@ defmodule OneiroiWeb.MemoryController do
   end
 
   operation(:pin,
-    summary: "Pin a bookmark: a decision, recorded with who made it",
+    summary:
+      "Pin a bookmark: a decision, recorded with who made it; with `evidences`, the soul line it is leaf-evidence of (spec §6.17)",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"the evidence", "application/json",
+       %Schema{type: :object, properties: %{evidences: %Schema{type: :integer}}}},
     responses: [no_content: "pinned"]
   )
 
-  def pin(conn, %{"id" => id, "number" => number}),
-    do: respond(conn, Kumbukumbu.pin_bookmark(id, integer(number), actor(conn)))
+  def pin(conn, %{"id" => id, "number" => number} = params) do
+    case params["evidences"] do
+      nil ->
+        respond(conn, Kumbukumbu.pin_bookmark(id, integer(number), actor(conn)))
+
+      line ->
+        respond(conn, Ethos.pin_as_evidence(id, integer(number), integer(line), actor(conn)))
+    end
+  end
 
   operation(:unpin,
     summary: "Unpin a bookmark",
@@ -323,6 +335,7 @@ defmodule OneiroiWeb.MemoryController do
       added_by: %{kind: b.added_by_kind, id: b.added_by_id, model: b.added_by_model},
       proposed_by: b.proposed_by_kind && %{kind: b.proposed_by_kind, id: b.proposed_by_id},
       pinned_by: b.pinned_by_kind && %{kind: b.pinned_by_kind, id: b.pinned_by_id},
+      pin_evidences: b.pin_evidences,
       pinned_at: b.pinned_at,
       weight: b.weight,
       last_indexed_at: b.last_indexed_at,

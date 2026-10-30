@@ -3,6 +3,7 @@ defmodule OneiroiWeb.FileController do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Ethos
   alias OpenApiSpex.Schema
 
   tags(["resident"])
@@ -137,8 +138,10 @@ defmodule OneiroiWeb.FileController do
     responses: [ok: {"lines", "application/json", %Schema{type: :array}}]
   )
 
-  def soul_lines(conn, %{"id" => id}),
-    do: json(conn, id |> AgathosDaimon.soul_lines() |> Enum.map(&soul_line/1))
+  def soul_lines(conn, %{"id" => id}) do
+    evidence = id |> Ethos.soul_evidence() |> Enum.group_by(& &1.number)
+    json(conn, id |> AgathosDaimon.soul_lines() |> Enum.map(&soul_line(&1, evidence)))
+  end
 
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
@@ -146,7 +149,9 @@ defmodule OneiroiWeb.FileController do
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
-  defp soul_line(l) do
+  defp soul_line(l, evidence) do
+    cited = Map.get(evidence, l.number, [])
+
     %{
       number: l.number,
       text: l.text,
@@ -154,7 +159,9 @@ defmodule OneiroiWeb.FileController do
       cites: l.cites,
       version: l.version,
       written_at: l.written_at,
-      reworded_at: l.reworded_at
+      reworded_at: l.reworded_at,
+      citations: length(cited),
+      days: cited |> Enum.map(&DateTime.to_date(&1.at)) |> Enum.uniq() |> length()
     }
   end
 

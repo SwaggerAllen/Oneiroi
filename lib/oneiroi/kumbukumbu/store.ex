@@ -120,6 +120,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:pinned_by_kind, :string)
       field(:pinned_by_id, :string)
       field(:pinned_at, :utc_datetime_usec)
+      field(:pin_evidences, :integer)
       field(:weight, :float, default: 1.0)
       field(:last_indexed_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)

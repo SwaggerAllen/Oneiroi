@@ -20,6 +20,8 @@ defmodule Oneiroi.Ethos do
   """
   use Oneiroi.System, slug: :ethos
 
+  @behaviour Oneiroi.Kumbukumbu.Tree
+
   use Boundary,
     top_level?: true,
     deps: [
@@ -67,6 +69,9 @@ defmodule Oneiroi.Ethos do
       Events.HabitChanged,
       Events.HabitAffirmed,
       Events.HabitCited,
+      Events.SoulLineCited,
+      Commands.CiteSoulLine,
+      Evidence,
       Store,
       Store.Seed,
       Store.Habit,
@@ -74,6 +79,7 @@ defmodule Oneiroi.Ethos do
       Store.Affirmation
     ]
 
+  alias Oneiroi.Ethos.Evidence
   alias Oneiroi.Ethos.Habits
   alias Oneiroi.Ethos.Seeds
 
@@ -90,7 +96,8 @@ defmodule Oneiroi.Ethos do
       {Oneiroi.Ethos.Events.HabitDefined, 1},
       {Oneiroi.Ethos.Events.HabitChanged, 1},
       {Oneiroi.Ethos.Events.HabitAffirmed, 1},
-      {Oneiroi.Ethos.Events.HabitCited, 1}
+      {Oneiroi.Ethos.Events.HabitCited, 1},
+      {Oneiroi.Ethos.Events.SoulLineCited, 1}
     ]
   end
 
@@ -146,7 +153,10 @@ defmodule Oneiroi.Ethos do
        remedy: "give the situation that calls for it in one of those three"},
       {:ethos_target_invalid,
        "a citation targets a turn by ref or a bookmark by number that exists",
-       remedy: "cite the turn in flight, or a bookmark's number"}
+       remedy: "cite the turn in flight, or a bookmark's number"},
+      {:ethos_not_a_party,
+       "a soul line's evidence is cited by the resident or its witness, as a tagging is",
+       remedy: "one of the two parties cites it"}
     ]
   end
 
@@ -236,6 +246,45 @@ defmodule Oneiroi.Ethos do
   @doc "The citations of one habit, newest first."
   @spec habit_citations(String.t(), pos_integer()) :: [Oneiroi.Ethos.Store.Citation.t()]
   defexport(habit_citations(resident_id, number), do: Habits.citations(resident_id, number))
+
+  # ---- tags as citations (spec §6.17, P39) ----
+
+  @doc "A soul line cites a moment that evidenced it, by either party: a turn by ref or a bookmark by number."
+  @spec cite_soul_line(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | pos_integer(),
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(cite_soul_line(resident_id, number, kind, target_id, actor),
+    do: Evidence.cite_soul_line(resident_id, number, kind, target_id, actor)
+  )
+
+  @doc "Pins a bookmark as evidence of a soul line: the pin carries the line and the line cites the bookmark."
+  @spec pin_as_evidence(String.t(), pos_integer(), pos_integer(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(pin_as_evidence(resident_id, bookmark, soul_line, actor),
+    do: Evidence.pin_as_evidence(resident_id, bookmark, soul_line, actor)
+  )
+
+  @doc "The citations of one soul line, newest first."
+  @spec soul_line_citations(String.t(), pos_integer()) :: [Oneiroi.Ethos.Store.Citation.t()]
+  defexport(soul_line_citations(resident_id, number),
+    do: Evidence.soul_line_citations(resident_id, number)
+  )
+
+  @doc "Every soul line's citations, newest first."
+  @spec soul_evidence(String.t()) :: [Oneiroi.Ethos.Store.Citation.t()]
+  defexport(soul_evidence(resident_id), do: Evidence.soul_evidence(resident_id))
+
+  @doc "Memory's tree port: the tree's tags (`soul/3`, `habit/2`, `seed/1`) on the moments named."
+  @spec tags_of(String.t(), String.t(), [String.t()]) :: %{String.t() => [String.t()]}
+  @impl Oneiroi.Kumbukumbu.Tree
+  defexport(tags_of(resident_id, target_kind, target_ids),
+    do: Evidence.tags_of(resident_id, target_kind, target_ids)
+  )
 
   @doc "The 'how I act' section for a situation, the trigger lane: text, the numbers it names, the count, the open seeds."
   @spec how_i_act(String.t(), map()) :: %{

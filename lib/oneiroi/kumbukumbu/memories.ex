@@ -74,12 +74,13 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
-  def pin_bookmark(resident_id, number, %Actor{} = actor) do
+  def pin_bookmark(resident_id, number, attrs, %Actor{} = actor) when is_map(attrs) do
     command = %Commands.PinBookmark{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
-      number: number
+      number: number,
+      evidences: Map.get(attrs, :evidences)
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
@@ -247,17 +248,34 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   # ---- reads ----
 
-  def bookmarks(resident_id), do: Scope.resident(resident_id, fn -> Store.bookmarks() end)
+  @doc "The resident's bookmarks, newest first, each with its closed-set tags and then the tree's (spec §6.17, P39), through the tree port."
+  def bookmarks(resident_id),
+    do: tree_tags(resident_id, Scope.resident(resident_id, fn -> Store.bookmarks() end))
 
   @doc "One bookmark with the messages of its span: the anchor turn and the `turns_back - 1` before it."
   @spec bookmark(String.t(), pos_integer()) :: {:ok, map(), [map()]} | {:error, Error.t()}
   def bookmark(resident_id, number) do
-    Scope.resident(resident_id, fn ->
-      case Store.bookmark(number) do
-        nil -> {:error, Error.new(:kumbukumbu_no_such_bookmark, number: number)}
-        b -> {:ok, b, span(b)}
-      end
-    end)
+    read =
+      Scope.resident(resident_id, fn ->
+        case Store.bookmark(number) do
+          nil -> {:error, Error.new(:kumbukumbu_no_such_bookmark, number: number)}
+          b -> {:ok, b, span(b)}
+        end
+      end)
+
+    with {:ok, b, span} <- read, do: {:ok, hd(tree_tags(resident_id, [b])), span}
+  end
+
+  # The tree's tags (`soul/3`, `habit/2`, `seed/1`) after the closed
+  # set's, through the port, so the resident's own tree is a vocabulary
+  # beside the witness's labels (spec §6.17, P39). Outside the store's
+  # scope: the port's implementation takes its own.
+  defp tree_tags(_resident_id, []), do: []
+
+  defp tree_tags(resident_id, rows) do
+    ids = Enum.map(rows, &Integer.to_string(&1.number))
+    tree = Config.fetch!(:kumbukumbu, :tree).tags_of(resident_id, "bookmark", ids)
+    Enum.map(rows, &%{&1 | tags: &1.tags ++ Map.get(tree, Integer.to_string(&1.number), [])})
   end
 
   def proposals(resident_id), do: Scope.resident(resident_id, fn -> Store.open_proposals() end)
@@ -370,6 +388,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   defp translate(:no_such_bookmark, c),
     do: Error.new(:kumbukumbu_no_such_bookmark, number: c.number)
+
+  defp translate(:evidence_invalid, _c), do: Error.new(:kumbukumbu_evidence_invalid)
 
   defp translate(:no_such_proposal, c),
     do: Error.new(:kumbukumbu_no_such_proposal, ref: ref_of(c))

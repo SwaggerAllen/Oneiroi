@@ -133,6 +133,15 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     assert text =~ "##{a} 2026-10-26 (pinned) first"
     assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.witness_actor)
     assert %{included: [^b, ^a]} = Kumbukumbu.index(ctx.resident.id)
+
+    # A pin with its evidence: the soul line's number on the row, checked for shape here.
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_evidence_invalid}} =
+             Kumbukumbu.pin_bookmark(ctx.resident.id, a, %{evidences: 0}, ctx.witness_actor)
+
+    assert :ok = Kumbukumbu.pin_bookmark(ctx.resident.id, a, %{evidences: 7}, ctx.witness_actor)
+    assert [_, %{number: ^a, pin_evidences: 7}] = Kumbukumbu.bookmarks(ctx.resident.id)
+    assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.witness_actor)
+    assert [_, %{number: ^a, pin_evidences: nil}] = Kumbukumbu.bookmarks(ctx.resident.id)
   end
 
   test "the witness proposes; the resident accepts in its own words or declines with a note",

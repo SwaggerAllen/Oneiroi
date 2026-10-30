@@ -785,3 +785,24 @@ and nothing personal turned up; what follows is what changed.
 - Open: tags as citations to the tree (P39's second half, in memory);
   the client's Files screen showing the markers it already receives.
 
+## Round 27: tags as citations (2026-10-30)
+
+- P39's second half (ethos #14, kumbukumbu #32): a moment is tagged by
+  the tree node it evidences, and the tag is the node's citation of the
+  moment in the character layer, never a second row in memory. Memory
+  shows the tree's tags (`soul/3`, `habit/2`, `seed/1`) after the closed
+  set's on every bookmark and in the index, through a port
+  (`KUMBUKUMBU_TREE`, ethos) read at the call, because the direction
+  between the two systems is fixed and the cycles gate holds it.
+- A soul line's evidence is either party's to cite, as a tagging is;
+  the line's words stay the resident's. A pin is leaf-evidence of a
+  soul line: `BookmarkPinned` is version 2 with `evidences`, the pin's
+  tag, checked for shape in memory and for the line's existence in the
+  character layer, which also writes the line's citation of the
+  bookmark, after the pin and only once the line is checked live.
+- The closed tag set stays for work and project labels, untouched; the
+  project view of a tree tag is the line's, habit's or seed's citations
+  and not a tagging query.
+- Open: the corpus-shape report reads the tree (P8); the client's
+  Memory screen showing tree tags as citations rather than chips.
+

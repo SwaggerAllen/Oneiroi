@@ -91,6 +91,7 @@ defmodule Oneiroi.Ethos.Projectors.Character do
   end)
 
   fold(%Events.HabitCited{} = e, _metadata, fn multi -> cite(multi, "habit", e) end)
+  fold(%Events.SoulLineCited{} = e, _metadata, fn multi -> cite(multi, "soul", e) end)
 
   defp cite(multi, kind, e) do
     Multi.insert(
