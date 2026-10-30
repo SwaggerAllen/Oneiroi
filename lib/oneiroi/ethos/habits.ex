@@ -95,17 +95,19 @@ defmodule Oneiroi.Ethos.Habits do
     end
   end
 
-  @doc "The habit cites a moment that was one: a turn (by ref) or a bookmark (by number, which must exist)."
-  def cite(resident_id, number, kind, target_id, %Actor{} = actor) do
+  @doc "The habit cites a moment that was one: a turn (by ref) or a bookmark (by number, which must exist), with what the moment changed (P34) or nil."
+  def cite(resident_id, number, kind, target_id, %Actor{} = actor, movement \\ nil) do
     with :ok <- resident_only(actor),
-         :ok <- Edge.target_exists(resident_id, kind, target_id) do
+         :ok <- Edge.target_exists(resident_id, kind, target_id),
+         {:ok, movement} <- Edge.movement(movement) do
       command = %Commands.CiteHabit{
         actor: actor,
         at: Clock.now(),
         id: resident_id,
         number: number,
         target_kind: kind,
-        target_id: to_string(target_id)
+        target_id: to_string(target_id),
+        movement: movement
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok
@@ -317,19 +319,37 @@ defmodule Oneiroi.Ethos.Habits do
   defp exemplars({header, turns}, resident_id) do
     lines =
       turns
-      |> Enum.map(&exemplar(resident_id, &1.target_id))
+      |> Enum.map(&exemplar(resident_id, &1))
       |> Enum.reject(&is_nil/1)
 
     Enum.join([header | lines], "\n")
   end
 
-  defp exemplar(resident_id, turn_ref) do
+  defp exemplar(resident_id, %{target_id: turn_ref} = citation) do
     case resident_id
          |> Kumbukumbu.turn_messages(turn_ref)
          |> Enum.find(&(&1.role == "assistant")) do
-      nil -> nil
-      m -> "- turn #{turn_ref}: \"#{String.slice(m.content, 0, @exemplar_chars)}\""
+      nil ->
+        nil
+
+      m ->
+        "- turn #{turn_ref}: \"#{String.slice(m.content, 0, @exemplar_chars)}\"" <>
+          movement_line(citation.movement)
     end
+  end
+
+  # What the cited moment changed (P34), on the line under the words,
+  # so the brain reads the movement beside the moment and never in its
+  # place.
+  defp movement_line(nil), do: ""
+
+  defp movement_line(%{} = movement) do
+    parts =
+      [{"Stance: ", "stance"}, {"Intention: ", "intention"}, {"Resumes at: ", "resume"}]
+      |> Enum.reject(fn {_label, k} -> movement[k] in [nil, ""] end)
+      |> Enum.map(fn {label, k} -> label <> movement[k] end)
+
+    if parts == [], do: "", else: "\n  Moved: " <> Enum.join(parts, ". ") <> "."
   end
 
   defp seeds_line(0, _near), do: []

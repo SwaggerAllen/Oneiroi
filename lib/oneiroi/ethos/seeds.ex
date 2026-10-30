@@ -66,17 +66,19 @@ defmodule Oneiroi.Ethos.Seeds do
     end
   end
 
-  @doc "The seed cites a moment that evidenced it: a turn (by ref) or a bookmark (by number, which must exist)."
-  def cite(resident_id, number, kind, target_id, %Actor{} = actor) do
+  @doc "The seed cites a moment that evidenced it: a turn (by ref) or a bookmark (by number, which must exist), with what the moment changed (P34) or nil."
+  def cite(resident_id, number, kind, target_id, %Actor{} = actor, movement \\ nil) do
     with :ok <- resident_only(actor),
-         :ok <- Edge.target_exists(resident_id, kind, target_id) do
+         :ok <- Edge.target_exists(resident_id, kind, target_id),
+         {:ok, movement} <- Edge.movement(movement) do
       command = %Commands.CiteSeed{
         actor: actor,
         at: Clock.now(),
         id: resident_id,
         number: number,
         target_kind: kind,
-        target_id: to_string(target_id)
+        target_id: to_string(target_id),
+        movement: movement
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok

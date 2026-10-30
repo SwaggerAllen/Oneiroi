@@ -116,7 +116,8 @@ defmodule Oneiroi.Ethos.Character do
           id: c.id,
           number: c.number,
           target_kind: c.target_kind,
-          target_id: to_string(c.target_id)
+          target_id: to_string(c.target_id),
+          movement: c.movement
         }
     end
   end
@@ -211,7 +212,8 @@ defmodule Oneiroi.Ethos.Character do
           id: c.id,
           number: c.number,
           target_kind: c.target_kind,
-          target_id: to_string(c.target_id)
+          target_id: to_string(c.target_id),
+          movement: c.movement
         }
     end
   end
@@ -229,7 +231,8 @@ defmodule Oneiroi.Ethos.Character do
           id: c.id,
           number: c.number,
           target_kind: c.target_kind,
-          target_id: to_string(c.target_id)
+          target_id: to_string(c.target_id),
+          movement: c.movement
         }
     end
   end

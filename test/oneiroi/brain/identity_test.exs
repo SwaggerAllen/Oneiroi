@@ -170,7 +170,10 @@ defmodule Oneiroi.Brain.IdentityTest do
             stance: "keep"
           }
         },
-        %{name: "habit_cite", arguments: %{number: 1}}
+        %{
+          name: "habit_cite",
+          arguments: %{number: 1, stance: "water first, talk after", resume: ""}
+        }
       ],
       "The tomatoes want water.",
       for: id
@@ -182,7 +185,14 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert define.content =~ "Named as habit #1."
     assert enact.content =~ "Done."
     assert [%{number: 1, habit: 1.0, days: 1}] = Oneiroi.Ethos.habits(id)
-    assert [%{target_kind: "turn", target_id: ^ref}] = Oneiroi.Ethos.habit_citations(id, 1)
+
+    assert [
+             %{
+               target_kind: "turn",
+               target_id: ^ref,
+               movement: %{"stance" => "water first, talk after"}
+             }
+           ] = Oneiroi.Ethos.habit_citations(id, 1)
 
     test = self()
 
@@ -206,7 +216,9 @@ defmodule Oneiroi.Brain.IdentityTest do
       )
 
     assert acting.content =~ "#1 small practical suggestions as care (keep)"
-    assert acting.content =~ ~s(turn #{ref}: "The tomatoes want water.")
+
+    assert acting.content =~
+             ~s(turn #{ref}: "The tomatoes want water."\n  Moved: Stance: water first, talk after.)
 
     assert %{label: "character", reason: reason} =
              {:account, ctx.witness.id}

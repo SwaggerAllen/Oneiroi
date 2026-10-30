@@ -152,6 +152,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:judge_model, :string)
       field(:criteria, :string)
       field(:summary, :string)
+      field(:movements, {:array, :map}, default: [])
       field(:reason, :string)
     end
 

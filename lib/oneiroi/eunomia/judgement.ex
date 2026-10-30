@@ -169,7 +169,8 @@ defmodule Oneiroi.Eunomia.Judgement do
         found: c.found,
         judge_model: c.judge_model,
         summary: c.summary,
-        criteria: c.criteria
+        criteria: c.criteria,
+        movements: c.movements || []
       }
   end
 

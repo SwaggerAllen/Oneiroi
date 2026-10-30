@@ -710,6 +710,15 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   judge's corrective pass** (v0.2, P28): a broken agreement may warrant
   review; being less like last week's self does not, and a refusal is
   never a repair target (§1.12).
+- **Integration carries movement** (v0.2, P34, built: eunomia #27, ethos
+  #18, brain #33): the nightly pass records, beside the disputes and the
+  summary, each thread that moved as four fields, what happened, what
+  stance followed, what intention was adopted, where it can resume; the
+  ones with a resume point ride the brain's prefix, bounded, newest
+  first, never expired by age; a citation in the character layer may
+  carry the same fields as what the cited moment changed; the compaction
+  summary is asked for the movement of each thread. Completed attention
+  is not completed interest; dormant is not abandoned.
 - **Project reviews** read the witness's repositories with the resident's
   own read token; the regression repository can never be listed.
 - **A judge change is an event** (`JudgeModelChanged`), so the ratio chart

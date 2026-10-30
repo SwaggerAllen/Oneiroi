@@ -182,7 +182,13 @@ defmodule Oneiroi.Eunomia do
        default: "150",
        tag: :bound,
        usage:
-         "how many entries of the identity files the weekly wash pass reads (spec §6.13, P18: judge-bounded at 150, the proposal's figure)"}
+         "how many entries of the identity files the weekly wash pass reads (spec §6.13, P18: judge-bounded at 150, the proposal's figure)"},
+      {:resumes_shown, "EUNOMIA_RESUMES_SHOWN",
+       cast: :integer,
+       default: "5",
+       tag: :bound,
+       usage:
+         "how many of the nightly pass's resume points the brain is shown each turn, newest first (spec §6.4, P34: dormant is not abandoned); a guess at what a prefix can carry without growing with the person"}
     ]
   end
 
@@ -214,7 +220,7 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.Judgement.PositionReplaced, 1},
       {Oneiroi.Eunomia.Events.Judgement.DisputeChecked, 2},
       {Oneiroi.Eunomia.Events.Judgement.DisputeSettled, 1},
-      {Oneiroi.Eunomia.Events.Judgement.NightJudged, 2},
+      {Oneiroi.Eunomia.Events.Judgement.NightJudged, 3},
       {Oneiroi.Eunomia.Events.Judgement.NightFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionLogged, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionResolved, 1},
@@ -275,7 +281,7 @@ defmodule Oneiroi.Eunomia do
        "the nightly pass reads a past day within its reach (EUNOMIA_NIGHT_DAYS)",
        remedy: "give a day from yesterday back to the bound"},
       {:eunomia_night_failed,
-       "the judge's reply named a message it was not shown, so the night failed rather than be guessed at",
+       "the judge's reply named a message it was not shown or a movement line the pass could not read, so the night failed rather than be guessed at",
        remedy: "run the night again"},
       {:eunomia_audit_failed,
        "the judge's reply flagged a conclusion it was not shown, so the audit failed rather than be guessed at",
@@ -427,6 +433,15 @@ defmodule Oneiroi.Eunomia do
   @doc "The nights, newest first."
   @spec nights(String.t()) :: [Oneiroi.Eunomia.Store.Night.t()]
   defexport(nights(resident_id), do: Judgements.nights(resident_id))
+
+  @doc "Where things can resume: the nightly pass's movements that name a resume point, newest first, up to EUNOMIA_RESUMES_SHOWN, as the brain's section (P34)."
+  @spec resumable(String.t()) :: %{
+          text: String.t(),
+          refs: [String.t()],
+          shown: non_neg_integer(),
+          total: non_neg_integer()
+        }
+  defexport(resumable(resident_id), do: Judgements.resumable(resident_id))
 
   @doc "Runs the weekly memory audit now: the judge over Honcho's conclusions; what the weekly job does for each resident."
   @spec run_audit(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}

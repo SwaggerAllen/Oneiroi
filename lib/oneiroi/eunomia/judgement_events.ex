@@ -65,10 +65,24 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
     # One per day: how much the judge read, what it found, under which
     # model. A quiet day is recorded with no messages and no model.
     # Version 2 adds `criteria` as `DisputeChecked` does; a quiet day,
-    # judged by nobody, carries none.
+    # judged by nobody, carries none. Version 3 adds `movements` (spec
+    # §6.4, P34): the day's threads that moved, each string-keyed with
+    # `numbers`, `turn_ref`, `happened`, `stance`, `intention` and
+    # `resume`, so the record keeps what changed and not only what
+    # stood; the store restarts for v0.2, so the upcaster is identity.
     use Oneiroi.Event,
-      version: 2,
-      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary, :criteria]
+      version: 3,
+      fields: [
+        :id,
+        :day,
+        :messages,
+        :chars,
+        :found,
+        :judge_model,
+        :summary,
+        :criteria,
+        :movements
+      ]
   end
 
   defimpl Commanded.Event.Upcaster, for: NightJudged do

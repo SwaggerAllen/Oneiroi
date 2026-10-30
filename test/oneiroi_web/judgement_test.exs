@@ -111,7 +111,7 @@ defmodule OneiroiWeb.JudgementTest do
     assert %{"error" => %{"kind" => "eunomia_night_out_of_reach"}} =
              conn |> post("/v1/residents/#{id}/nights/2027-01-01", %{}) |> json_response(422)
 
-    assert [%{"day" => "2026-10-25", "outcome" => "judged", "messages" => 0}] =
+    assert [%{"day" => "2026-10-25", "outcome" => "judged", "messages" => 0, "movements" => []}] =
              conn |> get("/v1/residents/#{id}/nights") |> json_response(200)
   end
 

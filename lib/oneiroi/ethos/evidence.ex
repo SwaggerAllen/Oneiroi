@@ -20,19 +20,21 @@ defmodule Oneiroi.Ethos.Evidence do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
 
-  @doc "A soul line cites a moment that evidenced it: a turn by ref or a bookmark by number, by the resident or its witness; the line must be live."
-  def cite_soul_line(resident_id, number, kind, target_id, %Actor{} = actor)
+  @doc "A soul line cites a moment that evidenced it: a turn by ref or a bookmark by number, by the resident or its witness, with what the moment changed (P34) or nil; the line must be live."
+  def cite_soul_line(resident_id, number, kind, target_id, %Actor{} = actor, movement \\ nil)
       when is_integer(number) do
     with :ok <- party(actor),
          :ok <- Edge.target_exists(resident_id, "soul", number),
-         :ok <- Edge.target_exists(resident_id, kind, target_id) do
+         :ok <- Edge.target_exists(resident_id, kind, target_id),
+         {:ok, movement} <- Edge.movement(movement) do
       command = %Commands.CiteSoulLine{
         actor: actor,
         at: Clock.now(),
         id: resident_id,
         number: number,
         target_kind: kind,
-        target_id: to_string(target_id)
+        target_id: to_string(target_id),
+        movement: movement
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok

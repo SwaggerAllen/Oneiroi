@@ -118,3 +118,15 @@ and the person may let it go; kept by the resident alone because
 keeping is the resident's act. The 95/60/5 figures are a commenter's
 and unverified; the trials do not need them exact.
 
+
+## #18
+P38's sentence, "P34's movement fields become the citation's
+annotation: what the cited moment changed", read literally: the
+ladder cites moments, and a moment cited as evidence of a habit is
+also the moment a stance followed from, so the annotation sits on the
+pointer and not on a row of its own. Three fields and not four because
+the fourth, what happened, is the cited moment. Optional because the
+brain cites in flight and a required paragraph would stop it citing;
+bounded as a phrase because it rides an exemplar line in the prefix.
+Recorded once with the cite because a citation is a set (#5) and a
+second cite of the same moment is nothing.

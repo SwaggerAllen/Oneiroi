@@ -299,6 +299,7 @@ defmodule Oneiroi.Brain.Turn do
     acting = how_i_act(turn, text)
     recall = madeleine(turn, text)
     promised = Oneiroi.Ethos.promised(turn.resident_id)
+    resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
     summary = session && session.summary
@@ -346,6 +347,12 @@ defmodule Oneiroi.Brain.Turn do
           promised.text,
           "what the resident has promised and not yet kept or been released from (spec §3.1, P19): #{length(promised.numbers)} open commitments named, loaded every turn because a promise that has to be retrieved is one that can be lost",
           %{text: promised.text, refs: promised.numbers}
+        ) ++
+        section(
+          "movement",
+          resumable.text,
+          "where things can resume (spec §6.4, P34): #{resumable.shown} of #{resumable.total} resume points from the nightly pass, newest first, loaded every turn because dormant is not abandoned",
+          %{text: resumable.text, refs: resumable.refs}
         ) ++
         section(
           "madeleine",

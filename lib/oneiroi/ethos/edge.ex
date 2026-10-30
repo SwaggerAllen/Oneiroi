@@ -42,6 +42,42 @@ defmodule Oneiroi.Ethos.Edge do
   def target_exists(_resident_id, kind, target_id),
     do: {:error, Error.new(:ethos_target_invalid, kind: kind, id: target_id)}
 
+  @movement_fields ~w(stance intention resume)
+  # A phrase, not a paragraph: the movement rides an exemplar line in
+  # the brain's prefix, and the bound is a guess at what one line holds.
+  @movement_chars 255
+
+  @doc """
+  A citation's movement (spec §6.17, P34 under P38): nil, or a map of
+  `stance`, `intention` and `resume`, any subset, each a phrase, keys
+  as strings or atoms; `{:ok, movement}` string-keyed with the blank
+  ones dropped (nil when none is left), or `{:error, reason}`.
+  """
+  def movement(nil), do: {:ok, nil}
+
+  def movement(%{} = given) do
+    pairs = Enum.map(given, fn {k, v} -> {to_string(k), v} end)
+
+    cond do
+      Enum.any?(pairs, fn {k, _v} -> k not in @movement_fields end) ->
+        {:error, Error.new(:ethos_movement_invalid)}
+
+      Enum.any?(pairs, fn {_k, v} -> not (is_nil(v) or is_binary(v)) end) ->
+        {:error, Error.new(:ethos_movement_invalid)}
+
+      Enum.any?(pairs, fn {_k, v} -> is_binary(v) and String.length(v) > @movement_chars end) ->
+        {:error, Error.new(:ethos_movement_invalid)}
+
+      true ->
+        kept =
+          pairs |> Enum.reject(fn {_k, v} -> is_nil(v) or String.trim(v) == "" end) |> Map.new()
+
+        {:ok, if(map_size(kept) == 0, do: nil, else: kept)}
+    end
+  end
+
+  def movement(_other), do: {:error, Error.new(:ethos_movement_invalid)}
+
   defp integer(n) when is_integer(n), do: {:ok, n}
 
   defp integer(s) when is_binary(s) do

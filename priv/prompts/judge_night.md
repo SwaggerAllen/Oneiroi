@@ -9,4 +9,12 @@ Answer with one line per disagreement you find, in exactly this form, citing the
 DISPUTE [n, m] conceded | why, in a sentence
 DISPUTE [n-m] held | why, in a sentence
 
-Cite only numbers that appear above. If there was no disagreement, write no DISPUTE lines. End with one line `SUMMARY: ` and a sentence on the day.
+Cite only numbers that appear above. If there was no disagreement, write no DISPUTE lines.
+
+Then the day's movement, one line per thread that moved, in exactly this form, four fields, citing the message numbers you read it in:
+
+MOVED [n-m] what happened | what stance followed | what intention was adopted | where it can resume
+
+Each field is a short phrase; a field with nothing to say is a single `-`. A thread that went quiet is dormant, not abandoned, so say where it can resume; completed attention is not completed interest. If nothing moved, write no MOVED lines.
+
+End with one line `SUMMARY: ` and a sentence on the day.

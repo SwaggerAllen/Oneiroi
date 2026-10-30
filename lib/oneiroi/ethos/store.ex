@@ -63,6 +63,7 @@ defmodule Oneiroi.Ethos.Store do
       field(:target_kind, :string, primary_key: true)
       field(:target_id, :string, primary_key: true)
       field(:at, :utc_datetime_usec)
+      field(:movement, :map)
     end
 
     @type t :: %__MODULE__{}

@@ -113,12 +113,12 @@ defmodule Oneiroi.Ethos do
       {Oneiroi.Ethos.Events.SeedPlanted, 1},
       {Oneiroi.Ethos.Events.SeedWilted, 1},
       {Oneiroi.Ethos.Events.SeedGraduated, 1},
-      {Oneiroi.Ethos.Events.SeedCited, 1},
+      {Oneiroi.Ethos.Events.SeedCited, 2},
       {Oneiroi.Ethos.Events.HabitDefined, 1},
       {Oneiroi.Ethos.Events.HabitChanged, 1},
       {Oneiroi.Ethos.Events.HabitAffirmed, 1},
-      {Oneiroi.Ethos.Events.HabitCited, 1},
-      {Oneiroi.Ethos.Events.SoulLineCited, 1},
+      {Oneiroi.Ethos.Events.HabitCited, 2},
+      {Oneiroi.Ethos.Events.SoulLineCited, 2},
       {Oneiroi.Ethos.Events.BaselineTaken, 1},
       {Oneiroi.Ethos.Events.CommitmentMade, 1},
       {Oneiroi.Ethos.Events.CommitmentKept, 1},
@@ -234,6 +234,9 @@ defmodule Oneiroi.Ethos do
       {:ethos_not_a_party,
        "a soul line's evidence is cited by the resident or its witness, as a tagging is",
        remedy: "one of the two parties cites it"},
+      {:ethos_movement_invalid,
+       "a citation's movement says what stance followed, what intention was adopted and where it can resume, each a phrase",
+       remedy: "give any of the three as a short phrase, or none"},
       {:ethos_baseline_fresh, "a baseline stands for its interval before another is taken",
        remedy: "the nightly pass takes the next one when the interval has passed"},
       {:ethos_no_such_commitment, "no commitment has that number",
@@ -286,6 +289,20 @@ defmodule Oneiroi.Ethos do
     do: Seeds.cite(resident_id, number, kind, target_id, actor)
   )
 
+  @doc "The same, with the movement the moment made (P34): stance, intention, resume, any subset, or nil."
+  @spec cite_seed(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | pos_integer(),
+          Oneiroi.Actor.t(),
+          map() | nil
+        ) ::
+          :ok | {:error, term()}
+  defexport(cite_seed(resident_id, number, kind, target_id, actor, movement),
+    do: Seeds.cite(resident_id, number, kind, target_id, actor, movement)
+  )
+
   @doc "Every seed with its citations and the days it was cited."
   @spec seeds(String.t()) :: [Oneiroi.Ethos.Store.Seed.t()]
   defexport(seeds(resident_id), do: Seeds.seeds(resident_id))
@@ -324,6 +341,20 @@ defmodule Oneiroi.Ethos do
     do: Habits.cite(resident_id, number, kind, target_id, actor)
   )
 
+  @doc "The same, with the movement the moment made (P34): stance, intention, resume, any subset, or nil."
+  @spec cite_habit(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | pos_integer(),
+          Oneiroi.Actor.t(),
+          map() | nil
+        ) ::
+          :ok | {:error, term()}
+  defexport(cite_habit(resident_id, number, kind, target_id, actor, movement),
+    do: Habits.cite(resident_id, number, kind, target_id, actor, movement)
+  )
+
   @doc "The habits with their two scores, ranked."
   @spec habits(String.t()) :: [Oneiroi.Ethos.Store.Habit.t()]
   defexport(habits(resident_id), do: Habits.habits(resident_id))
@@ -343,6 +374,10 @@ defmodule Oneiroi.Ethos do
           Oneiroi.Actor.t()
         ) ::
           :ok | {:error, term()}
+  defexport(cite_soul_line(resident_id, number, kind, target_id, actor, movement),
+    do: Evidence.cite_soul_line(resident_id, number, kind, target_id, actor, movement)
+  )
+
   defexport(cite_soul_line(resident_id, number, kind, target_id, actor),
     do: Evidence.cite_soul_line(resident_id, number, kind, target_id, actor)
   )

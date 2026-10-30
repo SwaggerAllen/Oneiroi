@@ -104,7 +104,8 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
       found: e.found,
       judge_model: e.judge_model,
       criteria: e.criteria,
-      summary: e.summary
+      summary: e.summary,
+      movements: e.movements || []
     })
   end)
 

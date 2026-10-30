@@ -33,7 +33,17 @@ defmodule Oneiroi.Ethos.Events do
     # A seed cites a moment (a turn or a bookmark) that evidenced it; the
     # distinct days of its citations are the confirmations the fork
     # counts (research §3: a recorded contingency is a hypothesis).
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
+    # Version 2 adds `movement` (spec §6.17, P34 under P38): what the
+    # cited moment changed, `stance`, `intention` and `resume` as a
+    # string-keyed map, or nil; the store restarts for v0.2, so the
+    # upcaster is identity.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :number, :target_kind, :target_id, :movement]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: SeedCited do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HabitDefined do
@@ -62,7 +72,17 @@ defmodule Oneiroi.Ethos.Events do
     # the resident's actor at turn time; the direction is the habit's to
     # the moment, never a tag on the moment (P38, P39). Nothing enters a
     # habit's record without the resident's actor on it.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
+    # Version 2 adds `movement` (spec §6.17, P34 under P38): what the
+    # cited moment changed, `stance`, `intention` and `resume` as a
+    # string-keyed map, or nil; the store restarts for v0.2, so the
+    # upcaster is identity.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :number, :target_kind, :target_id, :movement]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HabitCited do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule SoulLineCited do
@@ -72,7 +92,17 @@ defmodule Oneiroi.Ethos.Events do
     # party, as a tagging is (spec §6.3); the line itself stays the
     # resident's words (agathos-daimon #27). The line's existence is the
     # edge's to check, since the lines are the resident system's rows.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
+    # Version 2 adds `movement` (spec §6.17, P34 under P38): what the
+    # cited moment changed, `stance`, `intention` and `resume` as a
+    # string-keyed map, or nil; the store restarts for v0.2, so the
+    # upcaster is identity.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :number, :target_kind, :target_id, :movement]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: SoulLineCited do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule CommitmentMade do

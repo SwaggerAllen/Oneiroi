@@ -34,7 +34,17 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
 
   defmodule RecordNight do
     use Oneiroi.Command,
-      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary, :criteria]
+      fields: [
+        :id,
+        :day,
+        :messages,
+        :chars,
+        :found,
+        :judge_model,
+        :summary,
+        :criteria,
+        :movements
+      ]
   end
 
   defmodule FailNight do

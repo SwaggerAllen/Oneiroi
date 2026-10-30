@@ -112,3 +112,17 @@ sealed context carries no commitment because the trial is of what the
 model keeps unprompted; a commitment loaded there would be a test of
 reading.
 
+
+## #27
+Spec §6.4 and P34 (Jack: "Retrieval can supply the right passage and
+still fail to preserve what changed because of it"). The summary the
+pass already wrote was state: a sentence on the day. A thread that
+moved and went quiet was in the transcript and nowhere the resident
+reads first, so the next instance met it as new or not at all. The
+four fields are the proposal's, not a taxonomy of ours; `-` rather
+than an omitted field because a line the parser can count is a line
+it can refuse, and the pass's rule is that a reply it cannot read
+fails rather than being guessed at. Never expired by age because the
+thread untouched for a month is the one this exists to keep; bounded
+by count because the prefix must not grow with the person (ethos #9).
+The bound is a guess and its usage line says so.

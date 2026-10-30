@@ -955,3 +955,26 @@ and nothing personal turned up; what follows is what changed.
 - Open: the client's screens for the commitments and the three figures;
   P34, integration carrying movement, next.
 
+
+## Round 34: integration carries movement (2026-10-30)
+
+- P34 lands in three places that share one shape (eunomia #27, ethos
+  #18, brain #33): the nightly pass writes a `MOVED` line per thread
+  that moved, four fields, parsed as strictly as the disputes, on
+  `NightJudged` version 3; the movements with a resume point ride the
+  brain's prefix as `movement`, newest first, bounded by
+  `EUNOMIA_RESUMES_SHOWN` and never expired by age; a citation in the
+  character layer may carry stance, intention and resume as what the
+  cited moment changed, which is P38's reading of P34; the compaction
+  prompt asks for the movement of each thread. The spec's "memory
+  agent's integration pass" that proposes enactments is still not
+  built; the pass that exists and reads the day is the judge's, and
+  the fields ride it.
+- The judge records movement and decides nothing from it: whether a
+  thread resumes is the brain's, with the resume point in front of it.
+  A `-` field rather than an omitted one, so a line the parser can
+  count is a line it can refuse.
+- Open: the memory pass proposing enactments (spec §6.17's paragraph,
+  unbuilt); the client's turn inspector showing the movement section
+  and the nights' movements; P41, the self-conversation with its
+  receipts, next.

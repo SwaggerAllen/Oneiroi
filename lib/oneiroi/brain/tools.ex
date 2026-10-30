@@ -227,8 +227,13 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "habit_cite",
-        "This turn was one: the habit cites the turn just now, by its number.",
-        %{number: %{type: "integer"}},
+        "This turn was one: the habit cites the turn just now, by its number. Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
         [:number]
       ),
       tool(
@@ -269,14 +274,24 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_cite",
-        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit.",
-        %{number: %{type: "integer"}},
+        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit. Optionally, what this moment changed: stance, intention, resume.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
         [:number]
       ),
       tool(
         "soul_cite",
-        "This turn evidenced a line of your soul: the line cites the turn just now, by the number in its [soul/n] marker. Tags are citations: the moment is tagged by the line it evidences.",
-        %{number: %{type: "integer"}},
+        "This turn evidenced a line of your soul: the line cites the turn just now, by the number in its [soul/n] marker. Tags are citations: the moment is tagged by the line it evidences. Optionally, what this moment changed: stance, intention, resume.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
         [:number]
       ),
       tool(
@@ -655,7 +670,8 @@ defmodule Oneiroi.Brain.Tools do
         integer(args["number"]),
         "turn",
         turn.turn_ref,
-        turn.resident
+        turn.resident,
+        movement(args)
       )
 
   defp call("habit_list", _args, turn) do
@@ -726,7 +742,8 @@ defmodule Oneiroi.Brain.Tools do
         integer(args["number"]),
         "turn",
         turn.turn_ref,
-        turn.resident
+        turn.resident,
+        movement(args)
       )
 
   defp call("soul_cite", args, turn),
@@ -736,7 +753,8 @@ defmodule Oneiroi.Brain.Tools do
         integer(args["number"]) || 0,
         "turn",
         turn.turn_ref,
-        turn.resident
+        turn.resident,
+        movement(args)
       )
 
   defp call("seed_wilt", args, turn),
@@ -1087,6 +1105,10 @@ defmodule Oneiroi.Brain.Tools do
   defp text(text) when is_binary(text), do: text
   defp text({:error, %{meaning: meaning, remedy: remedy}}), do: "#{meaning} #{remedy}"
   defp text({:error, reason}), do: "That did not work: #{inspect(reason)}"
+
+  # The movement a cite tool may carry (P34): the three fields as given,
+  # the shape checked at the character layer's edge.
+  defp movement(args), do: Map.take(args, ~w(stance intention resume))
 
   defp integer(n) when is_integer(n), do: n
 

@@ -319,6 +319,7 @@ defmodule OneiroiWeb.JudgementController do
       found: n.found,
       judge_model: n.judge_model,
       summary: n.summary,
+      movements: n.movements,
       reason: n.reason
     }
   end

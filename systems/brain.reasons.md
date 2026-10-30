@@ -146,3 +146,15 @@ can be lost, and a promise is what the corridor saw lost first.
 Bounded so the prefix does not grow with the person (the load
 question, ethos #9).
 
+
+## #33
+Spec §6.4 (P34): "completed attention is not completed interest;
+dormant is not abandoned". The transcript keeps the thread and the
+summary kept the state; nothing the next instance read first said
+where a quiet thread could be picked up, so it was met as new. Shown
+every turn and not retrieved for the reason #32 gives: what has to be
+retrieved can be lost. Bounded by count so the prefix does not grow
+with the person (ethos #9). The compaction prompt carries the same
+ask because the summary stands in for the transcript at the start of
+the context, and a summary of states is where the movement was being
+lost.

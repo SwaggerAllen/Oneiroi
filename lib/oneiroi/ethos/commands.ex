@@ -16,8 +16,10 @@ defmodule Oneiroi.Ethos.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :number, :to_kind, :to_id, :required]
   end
 
+  # A citation may carry its movement (P34 under P38): what the cited
+  # moment changed, as `stance`, `intention` and `resume`, string-keyed.
   defmodule CiteSeed do
-    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id, :movement]
   end
 
   defmodule DefineHabit do
@@ -33,11 +35,11 @@ defmodule Oneiroi.Ethos.Commands do
   end
 
   defmodule CiteHabit do
-    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id, :movement]
   end
 
   defmodule CiteSoulLine do
-    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id, :movement]
   end
 
   # Commitments (spec §3.1, P19): a promise to a person, the self that

@@ -108,9 +108,33 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     assert [%{habit: +0.0, connection: +0.0}] = Ethos.habits(id)
 
-    assert :ok = Ethos.cite_habit(id, n, "turn", "t1", ctx.brain)
+    # A citation may carry what the moment changed (P34): the three
+    # fields, any subset, blanks dropped; another shape is refused.
+    assert :ok =
+             Ethos.cite_habit(id, n, "turn", "t1", ctx.brain, %{
+               stance: "kept watering",
+               intention: " ",
+               resume: "the tomatoes"
+             })
+
     assert :ok = Ethos.cite_habit(id, n, "turn", "t1", ctx.brain)
     assert [%{habit: 1.0, connection: 0.0, citations: 1, days: 1}] = Ethos.habits(id)
+
+    # Exact, not a pattern: a map pattern matches a subset, and the probe
+    # that kept the blank intention passed against one.
+    assert [%{movement: movement}] = Ethos.habit_citations(id, n)
+    assert movement == %{"stance" => "kept watering", "resume" => "the tomatoes"}
+
+    assert {:error, %Ethos.Error{kind: :ethos_movement_invalid}} =
+             Ethos.cite_habit(id, n, "turn", "t2", ctx.brain, %{mood: "x"})
+
+    assert {:error, %Ethos.Error{kind: :ethos_movement_invalid}} =
+             Ethos.cite_habit(id, n, "turn", "t2", ctx.brain, %{
+               stance: String.duplicate("x", 256)
+             })
+
+    assert {:error, %Ethos.Error{kind: :ethos_movement_invalid}} =
+             Ethos.cite_habit(id, n, "turn", "t2", ctx.brain, %{stance: 7})
 
     assert {:error, %Ethos.Error{kind: :ethos_not_the_resident}} =
              Ethos.cite_habit(id, n, "turn", "t1", ctx.witness)
@@ -149,7 +173,7 @@ defmodule Oneiroi.Ethos.CharacterTest do
     {:ok, _} =
       Ethos.define_habit(id, %{name: "night owl", trigger: %{"times" => ["night"]}}, ctx.brain)
 
-    :ok = Ethos.cite_habit(id, n, "turn", "t1", ctx.brain)
+    :ok = Ethos.cite_habit(id, n, "turn", "t1", ctx.brain, %{intention: "water before talk"})
     :ok = Ethos.affirm_habit(id, n, "yes", ctx.witness)
 
     noon = ~U[2026-10-26 12:00:00Z]
@@ -163,7 +187,10 @@ defmodule Oneiroi.Ethos.CharacterTest do
     assert text =~ "# How I act" and text =~ "##{n} care (keep)"
     assert text =~ "cited 1x over 1 day"
     assert text =~ "affirmed 1x by my witness"
-    assert text =~ ~s(turn t1: "Already did: the tomatoes want water.")
+
+    assert text =~
+             ~s(turn t1: "Already did: the tomatoes want water."\n  Moved: Intention: water before talk.)
+
     refute text =~ "open seed"
 
     assert %{count: 1} = Ethos.how_i_act(id, %{text: "x", tags: ["haven"], at: noon})
