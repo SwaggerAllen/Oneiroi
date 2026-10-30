@@ -21,6 +21,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.HuginnMuninn.Commands
   alias Oneiroi.HuginnMuninn.Error
   alias Oneiroi.HuginnMuninn.Figures
+  alias Oneiroi.HuginnMuninn.Quietcheck
   alias Oneiroi.HuginnMuninn.Router
   alias Oneiroi.HuginnMuninn.Store
   alias Oneiroi.Kumbukumbu
@@ -44,6 +45,10 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       counts: false
     },
     %{key: "wash_flags", label: "No wash flag waits on the resident", counts: false},
+    # quietcheck (spec §6.13, P21): liveness over the expected events
+    # alone; counts, because a pulse that stopped is a failure of the
+    # platform the witness must hear about.
+    %{key: "quietcheck", label: "What is supposed to be regular happened", counts: true},
     # The measurement layer (spec §6.17, P42, P43; ethos #15): the
     # character layer answers these, flag or silence; none counts toward
     # the light, because the clinical material is a design warning for
@@ -345,6 +350,34 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   # The wash pass's open flags (spec §6.13, P18; eunomia #25): proposals
   # on the identity files the resident has not yet decided, told to
   # both parties and never cleared by anyone else.
+  defp builtin_result(%{key: "quietcheck"} = a, resident_id, _row) do
+    case Quietcheck.guarded(fn -> Quietcheck.verdict(resident_id) end) do
+      {:ok, {:ok, expectations}} ->
+        silent(
+          a,
+          length(expectations),
+          "read #{length(expectations)} expected #{plural(length(expectations), "event")}, each within its cadence; not read: #{Quietcheck.unwatched()}"
+        )
+
+      {:ok, {:missing, missing, _expectations}} ->
+        result(
+          a,
+          "fail",
+          length(missing),
+          "quiet where regularity was due: " <>
+            Enum.map_join(missing, "; ", &Quietcheck.describe/1)
+        )
+
+      {:crashed, message} ->
+        result(
+          a,
+          "fail",
+          nil,
+          "quietcheck itself failed: #{message}; a checker that cannot check reports, never stays quiet"
+        )
+    end
+  end
+
   defp builtin_result(%{key: "wash_flags"} = a, resident_id, _row) do
     case Eunomia.washes(resident_id).open do
       [] ->

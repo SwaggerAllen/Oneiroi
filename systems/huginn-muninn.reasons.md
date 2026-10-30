@@ -74,3 +74,15 @@ read the audits, and a flag the resident has not seen is one the
 witness should know is waiting. Not the light because the light is
 coherence failures (#12) and an unanswered proposal is not one.
 
+
+## #20
+P21 (Bennett): liveness is the question "did what was supposed to
+happen happen", and a checker that lists the unscheduled would be
+surveillance of a life. Expected only past the cadence because a
+resident met this morning has no nightly pass to miss, and a flag on
+it would be the clean-bill problem in reverse: noise the witness
+learns to ignore. Counts toward the light because the other flags
+are about the resident and this one is about the platform keeping
+its word. Fail-loud because the failure this exists to find is
+silence, and a checker that fails silently is the same silence with
+a name on it; the exit codes because a cron reads nothing else.

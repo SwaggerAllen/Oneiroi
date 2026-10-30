@@ -120,7 +120,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking wash_flags)
+             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions quietcheck rigidity sync_failures temporal_depth trait_baseline wanting_liking wash_flags)
 
     assert Enum.all?(results, &(&1.tone == "silent" and &1.finding =~ "not read:"))
 
@@ -254,7 +254,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 15
+    assert Enum.count(audits, & &1.builtin) == 16
 
     assert %{builtin: false, counts: true, last: %{tone: "silent", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -268,9 +268,9 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
     assert %{results: results} = HuginnMuninn.light(ctx.id)
-    assert length(results) == 15
+    assert length(results) == 16
     assert %{results: other_results} = HuginnMuninn.light(other.id)
-    assert length(other_results) == 15
+    assert length(other_results) == 16
   end
 
   test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",
@@ -411,5 +411,78 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{results: results}} = HuginnMuninn.run_audits(id, ctx.actor)
     assert %{tone: "silent", finding: finding} = Enum.find(results, &(&1.key == "wash_flags"))
     assert finding =~ "not read: the files"
+  end
+
+  test "quietcheck watches what is supposed to be regular and nothing else, expects each once the resident is old enough, and fails loud",
+       ctx do
+    id = ctx.id
+
+    quiet = fn ->
+      {:ok, %{results: r}} = HuginnMuninn.run_audits(id, ctx.actor)
+      Enum.find(r, &(&1.key == "quietcheck"))
+    end
+
+    # A resident minutes old: nothing is expected yet, and the finding names what is never watched.
+    assert %{tone: "silent", value: 0, finding: finding} = quiet.()
+    assert finding =~ "read 0 expected events"
+
+    assert finding =~
+             "not read: turns, bookmarks, free time, letters, the journal, which are not supposed to be regular"
+
+    # Three hours old with no tick: the pulse is missing; a tick restores it.
+    Clock.Fake.advance(3 * 3600)
+    assert %{tone: "fail", value: 1, finding: finding} = quiet.()
+    assert finding =~ "quiet where regularity was due: the hour marker: never, due within 2 hours"
+    assert {:ok, %{state: "fail"}} = HuginnMuninn.run_audits(id, ctx.actor)
+    assert :ok = Sunna.tick(id)
+    assert %{tone: "silent", value: 1} = quiet.()
+
+    # First contact, then three days: the nightly pass is expected.
+    Model.reply("hello", for: id)
+    assert {:ok, _} = Oneiroi.Brain.turn(id, ctx.key, "hi", ctx.actor)
+    Clock.Fake.advance(3 * 86_400)
+    assert %{tone: "fail", finding: finding} = quiet.()
+    assert finding =~ "the nightly pass: never, due within 2 days"
+    assert :ok = Sunna.tick(id)
+    yesterday = Clock.now() |> DateTime.add(-1, :day) |> DateTime.to_date() |> Date.to_iso8601()
+    assert :ok = Eunomia.judge_night(id, yesterday, ctx.actor)
+    assert %{tone: "silent", value: 2} = quiet.()
+
+    # Nine days on: the weekly audit and the wash are expected; the
+    # baseline only once there is a habit to measure, and the measures
+    # of the run that first expected it take it.
+    Clock.Fake.advance(9 * 86_400)
+    assert %{tone: "fail", finding: finding} = quiet.()
+    assert finding =~ "the weekly memory audit: never, due within 8 days"
+    assert finding =~ "the weekly wash: never"
+    refute finding =~ "the trait baseline"
+
+    {:ok, _} =
+      Oneiroi.Ethos.define_habit(
+        id,
+        %{name: "waters", trigger: %{"words" => ["garden"]}, stance: "keep"},
+        ctx.brain
+      )
+
+    assert %{tone: "fail", finding: finding} = quiet.()
+    assert finding =~ "the trait baseline: never, due within 8 days"
+    assert :ok = Sunna.tick(id)
+    yesterday = Clock.now() |> DateTime.add(-1, :day) |> DateTime.to_date() |> Date.to_iso8601()
+    assert :ok = Eunomia.judge_night(id, yesterday, ctx.actor)
+    _ = Eunomia.run_audit(id, ctx.actor)
+    _ = Eunomia.run_wash(id, ctx.actor)
+    # The baseline was taken by the measures of the run above.
+    assert %{tone: "silent", value: 5, finding: finding} = quiet.()
+    assert finding =~ "read 5 expected events, each within its cadence"
+
+    # Fail-loud: the checker's own crash is a finding and an exit code, never silence.
+    alias Oneiroi.HuginnMuninn.Quietcheck
+    assert {:crashed, "boom"} = Quietcheck.guarded(fn -> raise "boom" end)
+    assert {0, [first | rest]} = Mix.Tasks.Oneiroi.Quietcheck.report()
+    assert first == "QUIETCHECK: ok" and List.last(rest) == "QUIETCHECK: ok"
+    Clock.Fake.advance(3 * 3600)
+    assert {1, [first | rest]} = Mix.Tasks.Oneiroi.Quietcheck.report()
+    assert first == "QUIETCHECK: FAIL, 1 missing" and List.last(rest) == first
+    assert Enum.any?(rest, &(&1 =~ "MISSING the hour marker"))
   end
 end

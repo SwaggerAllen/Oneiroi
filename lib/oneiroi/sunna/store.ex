@@ -52,6 +52,19 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Hour do
+    @moduledoc "One marked local hour (spec §6.7, P20 as amended): the pulse."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_hour" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:hour, :string, primary_key: true)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Date do
     @moduledoc "An important date as a row (spec §6.7, F56); the countdown is derived when read, never stored."
     use Ecto.Schema
@@ -97,6 +110,15 @@ defmodule Oneiroi.Sunna.Store do
   def firings_between(from, to),
     do:
       Repo.all(from(f in Firing, where: f.day >= ^from and f.day <= ^to, order_by: [f.day, f.at]))
+
+  @spec hour(String.t()) :: Hour.t() | nil
+  def hour(key), do: Repo.one(from(h in Hour, where: h.hour == ^key))
+
+  @spec hours(pos_integer()) :: [Hour.t()]
+  def hours(limit), do: Repo.all(from(h in Hour, order_by: [desc: h.hour], limit: ^limit))
+
+  @spec last_hour() :: Hour.t() | nil
+  def last_hour, do: Repo.one(from(h in Hour, order_by: [desc: h.hour], limit: 1))
 
   @spec days(pos_integer()) :: [Day.t()]
   def days(limit), do: Repo.all(from(d in Day, order_by: [desc: d.day], limit: ^limit))

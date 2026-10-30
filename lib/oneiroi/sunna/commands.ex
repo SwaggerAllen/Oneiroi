@@ -43,6 +43,12 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :number, :title, :on, :kind]
   end
 
+  # The hour marker (spec §6.7, P20 as amended): `hour` is the local
+  # hour, `YYYY-MM-DDTHH`; marked once, no model call, no wake.
+  defmodule MarkHour do
+    use Oneiroi.Command, fields: [:id, :hour]
+  end
+
   defmodule RemoveDate do
     use Oneiroi.Command, fields: [:id, :number]
   end

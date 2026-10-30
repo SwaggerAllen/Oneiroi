@@ -77,6 +77,13 @@ defmodule Oneiroi.Sunna.Events do
       instants: [:on]
   end
 
+  defmodule HourMarked do
+    # The pulse (spec §6.7, P20 as amended): the local hour marked on
+    # the schedule's stream before any wake, once, so absence is
+    # auditable and the resident is not disturbed.
+    use Oneiroi.Event, version: 1, fields: [:id, :hour]
+  end
+
   defmodule DateRemoved do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end

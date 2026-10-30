@@ -48,6 +48,7 @@ defmodule Oneiroi.Sunna do
       Commands.SetQuietHours,
       Commands.SetDate,
       Commands.RemoveDate,
+      Commands.MarkHour,
       Events.CheckinSet,
       Events.CheckinChanged,
       Events.CheckinDeleted,
@@ -66,6 +67,7 @@ defmodule Oneiroi.Sunna do
       Store.Checkin,
       Store.Firing,
       Store.Day,
+      Store.Hour,
       Store.Date,
       Store.Settings
     ]
@@ -121,7 +123,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
-      {Oneiroi.Sunna.Events.DateRemoved, 1}
+      {Oneiroi.Sunna.Events.DateRemoved, 1},
+      {Oneiroi.Sunna.Events.HourMarked, 1}
     ]
   end
 
@@ -133,6 +136,8 @@ defmodule Oneiroi.Sunna do
        remedy: "give it as HH:MM"},
       {:sunna_label_invalid, "a label or a title is one line of at most 60 characters",
        remedy: "shorten it"},
+      {:sunna_hour_invalid, "an hour marker is the local hour as YYYY-MM-DDTHH",
+       remedy: "the tick builds it; a hand-made one is a bug"},
       {:sunna_kind_invalid, "a date's kind is deadline, anniversary, window or recurring",
        remedy: "say which"},
       {:sunna_no_such_checkin, "no check-in has that key", remedy: "read the schedule"},
@@ -210,4 +215,12 @@ defmodule Oneiroi.Sunna do
   @doc "Runs one resident's tick now; what the minute job does for each."
   @spec tick(String.t()) :: :ok | :skipped
   defexport(tick(resident_id), do: TickWorker.tick(resident_id))
+
+  @doc "The marked hours, newest first (spec §6.7, P20 as amended): the pulse, one row per local hour the tick reached."
+  @spec hours(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Hour.t()]
+  defexport(hours(resident_id, limit), do: Schedules.hours(resident_id, limit))
+
+  @doc "The newest marked hour, or nil."
+  @spec last_hour(String.t()) :: Oneiroi.Sunna.Store.Hour.t() | nil
+  defexport(last_hour(resident_id), do: Schedules.last_hour(resident_id))
 end

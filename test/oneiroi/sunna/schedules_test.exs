@@ -33,6 +33,46 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     messages
   end
 
+  test "the tick marks the local hour once, before anything else, for every active resident and never a paused one",
+       ctx do
+    id = ctx.id
+    # Nothing scheduled: the pulse is the floor's resident's too.
+    assert :ok = Sunna.tick(id)
+    assert [%{hour: "2026-10-26T08", at: %DateTime{}}] = Sunna.hours(id, 5)
+    assert :ok = Sunna.tick(id)
+    assert [_one] = Sunna.hours(id, 5)
+
+    Clock.Fake.advance(3600)
+    assert :ok = Sunna.tick(id)
+    assert [%{hour: "2026-10-26T09"}, %{hour: "2026-10-26T08"}] = Sunna.hours(id, 5)
+    assert %{hour: "2026-10-26T09"} = Sunna.last_hour(id)
+
+    # The worker's roster is every active resident, with or without a schedule; a paused one is skipped.
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
+    paused_witness = Fixtures.account!()
+    paused = Fixtures.resident!(paused_witness)
+
+    {:ok, _} =
+      AgathosDaimon.Router.dispatch(%AgathosDaimon.Commands.PauseResident{
+        actor: Actor.new(:witness, paused_witness.id),
+        at: Clock.now(),
+        id: paused.id,
+        reason: "away"
+      })
+
+    # The sandbox keeps the last scope set on the connection; pin it to
+    # the paused resident's so a roster read without its own platform
+    # transaction would see the wrong one row and the probe fails.
+    Oneiroi.Scope.resident(paused.id, fn -> :ok end)
+    :ok = Oneiroi.Scope.put(:platform)
+    Clock.Fake.advance(3600)
+    assert :ok = TickWorker.run(%{})
+    assert [%{hour: "2026-10-26T10"} | _] = Sunna.hours(id, 5)
+    assert [%{hour: "2026-10-26T14"}] = Sunna.hours(other.id, 5)
+    assert [] = Sunna.hours(paused.id, 5)
+  end
+
   test "a check-in fires once inside its window, opens the day, and wakes the main session with the core's note",
        ctx do
     {:ok, key} = Sunna.set_checkin(ctx.id, nil, "morning", "08:05", ctx.actor)

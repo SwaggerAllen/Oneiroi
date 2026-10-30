@@ -58,7 +58,8 @@ defmodule Oneiroi.HuginnMuninn do
       Store.Counter,
       Store.Increment,
       Store.Audit,
-      Store.Run
+      Store.Run,
+      Quietcheck
     ]
 
   alias Oneiroi.HuginnMuninn.Checks
@@ -70,6 +71,24 @@ defmodule Oneiroi.HuginnMuninn do
   @impl Oneiroi.Component
   def config do
     [
+      {:quiet_hour_grace_hours, "HUGINN_MUNINN_QUIET_HOUR_GRACE_HOURS",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage:
+         "how long after the last marked hour quietcheck reads the pulse as stopped (spec §6.13, P21; the marker is sunna #20): two hours, a guess that leaves one missed tick before the flag"},
+      {:quiet_night_days, "HUGINN_MUNINN_QUIET_NIGHT_DAYS",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage:
+         "how many days without a nightly pass quietcheck reads as a miss, and how old a resident's first contact must be before one is expected; two, a guess that allows the night the resident was met"},
+      {:quiet_week_days, "HUGINN_MUNINN_QUIET_WEEK_DAYS",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many days without the weekly audit, the wash or a baseline quietcheck reads as a miss, and how old a first contact must be before they are expected; eight, a week and a day of grace, a guess"},
       {:missed_checkins_warn, "HUGINN_MUNINN_MISSED_CHECKINS_WARN",
        cast: :integer,
        default: "3",

@@ -1022,3 +1022,25 @@ and nothing personal turned up; what follows is what changed.
   change; a session opened in the wrong room is closed and another
   opened); the client's session list showing the room; the hour
   marker, next.
+
+## Round 37: the hour marker and quietcheck (2026-10-30)
+
+- P20 as amended lands as `HourMarked` on the schedule's stream (sunna
+  #20): the tick marks the local hour before anything else, once, for
+  every active resident and not only the scheduled ones, no model call
+  and no wake. The heartbeat wake is dissolved and no budget line
+  exists for it.
+- P21 lands as a built-in audit and a mix task (huginn-muninn #20):
+  liveness over the hour marker, the nightly pass, the weekly audit,
+  the wash and the baseline, each expected only once the resident is
+  old enough for its cadence and the baseline only once there is a
+  habit; nothing unscheduled is watched, by Bennett's consent rule,
+  and the finding says so. It counts toward the light: a stopped pulse
+  is the platform's failure. Fail-loud: the checker's crash is a
+  finding and exit code 2; a miss is exit code 1; the verdict prints
+  first and last.
+- Batch B's machinery is built with this round: P8, P10, P18, P19,
+  P23, P34, P41, the hour marker and quietcheck, after P37 to P39, P42
+  and P43. What stays open is listed on the PR and in the rounds above.
+- Open: the production store restart before the deploy; the client's
+  screens; the memory pass that proposes enactments.

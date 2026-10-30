@@ -913,11 +913,12 @@ Owns `lib/oneiroi/schedule/**`.
   check-ins announce an approaching date by the same derivation.
 - **The journal's day row** is this system's to create, at the day's
   first check-in (§6.5), which is what makes a missing day visible.
-- **The hour marker** (v0.2, P20 as amended, planned): before any hourly
-  wake the hour is marked on the schedule's stream, an event with no
-  model call and no wake, so absence is auditable and the resident is
-  not disturbed; a wake happens only when there is something to do.
-  "Nothing is allowed" idle windows are a rest state, not a fault.
+- **The hour marker** (v0.2, P20 as amended, built: sunna #20): before
+  any wake the tick marks the local hour on the schedule's stream, an
+  event with no model call and no wake, once, for every active resident,
+  so absence is auditable and the resident is not disturbed; a wake
+  happens only when there is something to do. "Nothing is allowed" idle
+  windows are a rest state, not a fault; quietcheck reads the marker.
 
 ### 6.8 hands
 
@@ -1177,8 +1178,12 @@ Owns `lib/oneiroi/audits/**`.
   judge-bounded lint of the loaded identity files for expired decisions,
   contradictions, tense words and defensive sentences, flags only, the
   resident deciding each with a note; proposer is never decider.
-- Planned under this section in v0.2: quietcheck (P21, liveness over expected events only, fail-loud,
-  self-tested: "only list things that are supposed to be regular").
+- **quietcheck** (v0.2, P21, built: huginn-muninn #20): liveness over
+  the expected events alone (the hour marker, the nightly pass, the
+  weekly audit, the wash, the baseline), each expected once the resident
+  is old enough for its cadence; fail-loud, the checker's own crash a
+  finding and an exit code, the verdict printed first and last;
+  self-tested. "Only list things that are supposed to be regular."
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's
   value is the fold of its increment events, each with its actor, from a

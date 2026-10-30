@@ -6,7 +6,7 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
 
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
-  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, Settings}
+  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, Hour, Settings}
 
   fold(%Events.CheckinSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -44,6 +44,13 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     Multi.insert(multi, :day, %Day{resident_id: e.id, day: e.day, opened_at: e.at},
       on_conflict: :nothing,
       conflict_target: [:resident_id, :day]
+    )
+  end)
+
+  fold(%Events.HourMarked{} = e, _metadata, fn multi ->
+    Multi.insert(multi, :hour, %Hour{resident_id: e.id, hour: e.hour, at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :hour]
     )
   end)
 
