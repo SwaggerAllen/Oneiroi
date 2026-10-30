@@ -933,3 +933,25 @@ and nothing personal turned up; what follows is what changed.
 - Open: the Audits screen showing the wash (P1's client); P19,
   commitments as a record kind, next.
 
+## Round 33: commitments, and the fidelity score (2026-10-30)
+
+- P19 lands as a record kind on the character stream (ethos #17): the
+  resident's promise to a person, numbered by the resident aggregate and
+  citeable, kept by the resident alone or released by either party with
+  a note, once; beside the seeds and never inside them, because a seed
+  is non-binding and a commitment is the opposite. The open ones ride
+  the prefix every turn, bounded (brain #32): a promise that has to be
+  retrieved is one that can be lost, which is the corridor's testimony
+  the kind exists to answer.
+- The regression suite draws a trial per open commitment, asking the
+  sealed instance what it promised and told nothing of the answer, and
+  the results score facts, voice and commitments apart (eunomia #26),
+  nil where none of a kind was graded: one pass rate is the average that
+  hides exactly the loss. The 95/60/5 figures stay a commenter's,
+  unverified; the test design does not need them exact.
+- The witness may release a commitment as the person it was made to,
+  and never make or keep one: keeping is the resident's act and the
+  words are the resident's.
+- Open: the client's screens for the commitments and the three figures;
+  P34, integration carrying movement, next.
+

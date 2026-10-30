@@ -205,8 +205,8 @@ defmodule Oneiroi.Eunomia do
     [
       {Oneiroi.Eunomia.Events.TestWritten, 1},
       {Oneiroi.Eunomia.Events.TestChanged, 1},
-      {Oneiroi.Eunomia.Events.RunStarted, 1},
-      {Oneiroi.Eunomia.Events.AnswerRecorded, 1},
+      {Oneiroi.Eunomia.Events.RunStarted, 2},
+      {Oneiroi.Eunomia.Events.AnswerRecorded, 2},
       {Oneiroi.Eunomia.Events.RunFinished, 1},
       {Oneiroi.Eunomia.Events.AnswerGraded, 1},
       {Oneiroi.Eunomia.Events.AnswerFavourited, 1},

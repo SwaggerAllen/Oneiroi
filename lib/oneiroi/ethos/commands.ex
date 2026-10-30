@@ -40,6 +40,20 @@ defmodule Oneiroi.Ethos.Commands do
     use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
   end
 
+  # Commitments (spec §3.1, P19): a promise to a person, the self that
+  # keeps its word; numbered by the resident aggregate like the rest.
+  defmodule MakeCommitment do
+    use Oneiroi.Command, fields: [:id, :number, :to, :text]
+  end
+
+  defmodule KeepCommitment do
+    use Oneiroi.Command, decision: true, fields: [:id, :number]
+  end
+
+  defmodule ReleaseCommitment do
+    use Oneiroi.Command, decision: true, fields: [:id, :number]
+  end
+
   defmodule TakeBaseline do
     # `interval_days` travels on the command so the freshness rule is pure.
     use Oneiroi.Command, fields: [:id, :habits, :spread, :breadth, :interval_days]

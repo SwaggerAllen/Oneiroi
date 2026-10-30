@@ -41,6 +41,7 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
         models: e.models,
         tests: e.tests,
         behaviours: e.behaviours || [],
+        commitments: e.commitments || [],
         started_at: e.at
       },
       on_conflict: :nothing,
@@ -59,6 +60,7 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
         model: e.model,
         test_number: e.test_number,
         behaviour_number: e.behaviour_number,
+        commitment_number: e.commitment_number,
         content: e.content,
         refusal: e.refusal == true,
         failure: e.failure,

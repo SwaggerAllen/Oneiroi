@@ -5,5 +5,5 @@ defmodule Oneiroi.Ethos.Router do
     prefix: "ethos-",
     commands: "Oneiroi.Ethos.Commands",
     dispatching:
-      ~w(PlantSeed WiltSeed GraduateSeed CiteSeed DefineHabit ChangeHabit AffirmHabit CiteHabit CiteSoulLine TakeBaseline)
+      ~w(PlantSeed WiltSeed GraduateSeed CiteSeed DefineHabit ChangeHabit AffirmHabit CiteHabit CiteSoulLine TakeBaseline MakeCommitment KeepCommitment ReleaseCommitment)
 end

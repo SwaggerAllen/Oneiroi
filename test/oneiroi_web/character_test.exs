@@ -67,4 +67,39 @@ defmodule OneiroiWeb.CharacterTest do
 
     assert other_conn |> get("/v1/residents/#{id}/baselines") |> json_response(404)
   end
+
+  test "the commitments' routes: the witness reads them and may release one, never make or keep one",
+       %{
+         conn: conn,
+         other_conn: other_conn,
+         id: id
+       } do
+    brain = Actor.new(:resident, id, "fake/model")
+    {:ok, 1} = Ethos.make_commitment(id, "witness", "I will water the garden.", brain)
+
+    assert [
+             %{
+               "number" => 1,
+               "to" => "witness",
+               "state" => "open",
+               "text" => "I will water the garden."
+             }
+           ] =
+             conn |> get("/v1/residents/#{id}/commitments") |> json_response(200)
+
+    assert conn |> post("/v1/residents/#{id}/commitments/1/release", %{}) |> json_response(422)
+
+    assert conn
+           |> post("/v1/residents/#{id}/commitments/9/release", %{note: "x"})
+           |> json_response(404)
+
+    assert conn
+           |> post("/v1/residents/#{id}/commitments/1/release", %{note: "no need"})
+           |> response(204)
+
+    assert [%{"state" => "released", "closed_by_kind" => "witness", "note" => "no need"}] =
+             conn |> get("/v1/residents/#{id}/commitments") |> json_response(200)
+
+    assert other_conn |> get("/v1/residents/#{id}/commitments") |> json_response(404)
+  end
 end

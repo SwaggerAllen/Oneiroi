@@ -75,13 +75,21 @@ defmodule Oneiroi.Ethos do
       Events.HabitCited,
       Events.SoulLineCited,
       Events.BaselineTaken,
+      Events.CommitmentMade,
+      Events.CommitmentKept,
+      Events.CommitmentReleased,
       Commands.CiteSoulLine,
       Commands.TakeBaseline,
+      Commands.MakeCommitment,
+      Commands.KeepCommitment,
+      Commands.ReleaseCommitment,
+      Commitments,
       Evidence,
       Lane,
       Measure,
       Store,
       Store.Baseline,
+      Store.Commitment,
       Store.Vector,
       Store.Seed,
       Store.Habit,
@@ -89,6 +97,7 @@ defmodule Oneiroi.Ethos do
       Store.Affirmation
     ]
 
+  alias Oneiroi.Ethos.Commitments
   alias Oneiroi.Ethos.Evidence
   alias Oneiroi.Ethos.Habits
   alias Oneiroi.Ethos.Lane
@@ -110,7 +119,10 @@ defmodule Oneiroi.Ethos do
       {Oneiroi.Ethos.Events.HabitAffirmed, 1},
       {Oneiroi.Ethos.Events.HabitCited, 1},
       {Oneiroi.Ethos.Events.SoulLineCited, 1},
-      {Oneiroi.Ethos.Events.BaselineTaken, 1}
+      {Oneiroi.Ethos.Events.BaselineTaken, 1},
+      {Oneiroi.Ethos.Events.CommitmentMade, 1},
+      {Oneiroi.Ethos.Events.CommitmentKept, 1},
+      {Oneiroi.Ethos.Events.CommitmentReleased, 1}
     ]
   end
 
@@ -180,7 +192,13 @@ defmodule Oneiroi.Ethos do
        default: "2",
        tag: :bound,
        usage:
-         "how many open seeds the lane names near a situation, so the prefix does not grow with the person (spec §6.17); a guess"}
+         "how many open seeds the lane names near a situation, so the prefix does not grow with the person (spec §6.17); a guess"},
+      {:commitments_shown, "ETHOS_COMMITMENTS_SHOWN",
+       cast: :integer,
+       default: "10",
+       tag: :bound,
+       usage:
+         "how many open commitments the prefix names each turn (spec §3.1, P19), the rest counted; a guess at what a person holds at once"}
     ]
   end
 
@@ -217,7 +235,13 @@ defmodule Oneiroi.Ethos do
        "a soul line's evidence is cited by the resident or its witness, as a tagging is",
        remedy: "one of the two parties cites it"},
       {:ethos_baseline_fresh, "a baseline stands for its interval before another is taken",
-       remedy: "the nightly pass takes the next one when the interval has passed"}
+       remedy: "the nightly pass takes the next one when the interval has passed"},
+      {:ethos_no_such_commitment, "no commitment has that number",
+       remedy: "read the commitments"},
+      {:ethos_commitment_closed, "that commitment was kept or released already",
+       remedy: "a closed commitment stays as what it became; make a new one"},
+      {:ethos_commitment_invalid, "a commitment names a person and says what is promised",
+       remedy: "give both, in your own words"}
     ]
   end
 
@@ -361,6 +385,37 @@ defmodule Oneiroi.Ethos do
   @doc "The trait baselines taken, newest first."
   @spec baselines(String.t()) :: [Oneiroi.Ethos.Store.Baseline.t()]
   defexport(baselines(resident_id), do: Measure.baselines(resident_id))
+
+  # ---- commitments (spec §3.1, P19) ----
+
+  @doc "The resident commits, in its own words, to a person; returns the number."
+  @spec make_commitment(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(make_commitment(resident_id, to, text, actor),
+    do: Commitments.make(resident_id, to, text, actor)
+  )
+
+  @doc "The resident keeps a commitment, with a note."
+  @spec keep_commitment(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(keep_commitment(resident_id, number, note, actor),
+    do: Commitments.keep(resident_id, number, note, actor)
+  )
+
+  @doc "A commitment is released, by the resident or the witness, with a note."
+  @spec release_commitment(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(release_commitment(resident_id, number, note, actor),
+    do: Commitments.release(resident_id, number, note, actor)
+  )
+
+  @doc "Every commitment, by number."
+  @spec commitments(String.t()) :: [Oneiroi.Ethos.Store.Commitment.t()]
+  defexport(commitments(resident_id), do: Commitments.all(resident_id))
+
+  @doc "The prefix's section: the open commitments, bounded, with their numbers."
+  @spec promised(String.t()) :: %{text: String.t(), numbers: [pos_integer()]}
+  defexport(promised(resident_id), do: Commitments.promised(resident_id))
 
   @doc "The 'how I act' section for a situation, the trigger lane: text, the numbers it names, the count, the open seeds."
   @spec how_i_act(String.t(), map()) :: %{

@@ -226,6 +226,9 @@ defmodule Oneiroi.Seshat.DocumentsTest do
         ctx.actor
       )
 
+    {:ok, 1} =
+      Oneiroi.Ethos.make_commitment(id, "witness", "I will bake for the fair.", ctx.brain)
+
     piece = """
     ---
     status: final
@@ -237,7 +240,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     (#{slug}:figure/date/1), in the oven notes (#{slug}:design/oven) and our talk
     (#{slug}:transcript/#{ctx.key}). Lost ones (#{slug}:bookmark/99, #{slug}:writing/gone,
     #{slug}:position/9), and one bare #{slug}:bookmark/99 again. Who I am (#{slug}:habit/1,
-    #{slug}:seed/1, #{slug}:soul/1, and #{slug}:soul/9) is here.
+    #{slug}:seed/1, #{slug}:soul/1, #{slug}:commitment/1 and #{slug}:soul/9) is here.
     """
 
     assert {:ok, _} = Seshat.write(id, "writing/the-bake-off.md", piece, ctx.brain)
@@ -269,6 +272,9 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
     assert %{resolved: true, label: "Bread needs time."} = by_target["#{slug}:soul/1"]
     assert %{resolved: false, reason: "no soul line 9"} = by_target["#{slug}:soul/9"]
+
+    assert %{resolved: true, label: "I will bake for the fair. (to witness, open)"} =
+             by_target["#{slug}:commitment/1"]
 
     assert review.rendered =~ "[1] #{slug}:position/1: Bread needs time." and
              review.rendered =~ "unresolved, no bookmark 99"

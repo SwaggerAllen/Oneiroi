@@ -298,6 +298,7 @@ defmodule Oneiroi.Brain.Turn do
     index = Kumbukumbu.index(turn.resident_id)
     acting = how_i_act(turn, text)
     recall = madeleine(turn, text)
+    promised = Oneiroi.Ethos.promised(turn.resident_id)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
     summary = session && session.summary
@@ -339,6 +340,12 @@ defmodule Oneiroi.Brain.Turn do
           # projector down on the first turn the lane ran.
           "the trigger lane (spec §6.17): #{acting.count} habits matched by the witness's words, the conversation's tags or the time of day, #{length(acting.near)} by the vector lane's nearness, with scores and cited turns; #{acting.seeds} open seeds counted, #{length(acting.near_seeds)} named as near, never loaded whole",
           %{refs: acting.numbers}
+        ) ++
+        section(
+          "promised",
+          promised.text,
+          "what the resident has promised and not yet kept or been released from (spec §3.1, P19): #{length(promised.numbers)} open commitments named, loaded every turn because a promise that has to be retrieved is one that can be lost",
+          %{text: promised.text, refs: promised.numbers}
         ) ++
         section(
           "madeleine",

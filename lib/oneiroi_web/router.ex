@@ -114,6 +114,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/habits/:number/affirm", CharacterController, :affirm_habit)
       get("/residents/:id/seeds", CharacterController, :seeds)
       get("/residents/:id/baselines", CharacterController, :baselines)
+      get("/residents/:id/commitments", CharacterController, :commitments)
+      post("/residents/:id/commitments/:number/release", CharacterController, :release_commitment)
       put("/residents/:id/timezone", ResidentController, :timezone)
       get("/residents/:id/schedule", ScheduleController, :today)
       get("/residents/:id/schedule/days", ScheduleController, :days)

@@ -75,6 +75,26 @@ defmodule Oneiroi.Ethos.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
   end
 
+  defmodule CommitmentMade do
+    # A promise to a person (spec §3.1, P19; research §4: ipse made
+    # record, the self that keeps its word, what a model transition
+    # drops first): the resident's words, to whom, numbered so
+    # `<slug>:commitment/<n>` survives a rebuild. Beside the seeds, not
+    # inside them: a commitment binds where a seed does not.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :to, :text]
+  end
+
+  defmodule CommitmentKept do
+    # Kept, by the resident with a note; the row stays as kept.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
+  end
+
+  defmodule CommitmentReleased do
+    # Released, by the resident or by the witness as the person it was
+    # made to, with a note; the row stays as released.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
+  end
+
   defmodule BaselineTaken do
     # The trait baseline (spec §6.17, P42): the dispositional profile as
     # measured, the habits with their two scores and their enactments in

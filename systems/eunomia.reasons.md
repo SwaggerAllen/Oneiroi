@@ -102,3 +102,13 @@ at. The resident's decision rather than the witness's because the
 words are the resident's (spec §6.2) and a flag the witness could
 close would be the witness editing by another door.
 
+## #26
+P19: "the rebuild test (§12's rebuild layer) scores what survives on
+facts vs. voice vs. commitments... Commitments die first". Research
+§4: the rebuild test measures Relation R, "how much R survived", not
+"same person?"; three figures apart because one pass rate is the
+average that hides exactly the loss the kind exists to see. The
+sealed context carries no commitment because the trial is of what the
+model keeps unprompted; a commitment loaded there would be a test of
+reading.
+

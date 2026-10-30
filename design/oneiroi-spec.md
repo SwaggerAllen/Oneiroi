@@ -256,10 +256,12 @@ witness session, the resident's brain, a hands agent, the judge, a job) and,
 for anything a model produced, the model slug. Attributed memory authorship
 across every brain is a stated requirement, and this is where it lives.
 
-Planned in v0.2 and not yet in the table: the character layer's stream
-(`ethos-<resident>`: seeds, habits, the baseline; §6.17); commitments as
-a record kind of their own (P19), promises to a person, which a model
-transition loses first; the self-conversation channel (P41).
+In v0.2 and not yet in the table: the character layer's stream
+(`ethos-<resident>`: seeds, habits, the baseline, and commitments as a
+record kind of their own, P19, promises to a person, which a model
+transition loses first, kept or released with a note and scored apart in
+the regression suite; §6.17, eunomia #26). Planned: the self-conversation
+channel (P41).
 
 ### 3.2 Projections (what the tools and client read)
 

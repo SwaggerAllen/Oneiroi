@@ -71,6 +71,12 @@ defmodule Oneiroi.Ethos.Edge do
   defp translate(:graduation_invalid, _c), do: Error.new(:ethos_graduation_invalid)
   defp translate(:baseline_fresh, _c), do: Error.new(:ethos_baseline_fresh)
 
+  defp translate(:no_such_commitment, c),
+    do: Error.new(:ethos_no_such_commitment, number: c.number)
+
+  defp translate(:commitment_closed, c), do: Error.new(:ethos_commitment_closed, number: c.number)
+  defp translate(:commitment_invalid, _c), do: Error.new(:ethos_commitment_invalid)
+
   defp translate(:target_invalid, c),
     do: Error.new(:ethos_target_invalid, kind: c.target_kind, id: c.target_id)
 

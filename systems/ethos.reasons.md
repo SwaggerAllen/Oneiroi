@@ -103,3 +103,18 @@ and never the record (conventions §6 on what the log is for). The
 distance bound is a guess and says so; the suite's geometry is bags of
 words, so its passes say the plumbing holds and nothing about a model.
 
+## #17
+Spec §3.1 (P19): "commitments as a record kind of their own, promises
+to a person, which a model transition loses first"; the proposal:
+"the 95/60/5 testimony: a model transition kept facts ~95%, her voice
+~60%, his own voice <5%, and 'a promise made in love-language left no
+trace.' Commitments die first; they need their own kind"; research
+§4: "Commitments (P19) are ipse made record... it lives in neither
+trait nor story... The commitments kind lands beside seeds, not inside
+them." Loaded every turn for Max's reason on P2: a safeword that has
+to be retrieved is a document about a safeword, and a promise the
+same. Released by the witness too because a promise is to a person
+and the person may let it go; kept by the resident alone because
+keeping is the resident's act. The 95/60/5 figures are a commenter's
+and unverified; the trials do not need them exact.
+

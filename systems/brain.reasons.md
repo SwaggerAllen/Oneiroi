@@ -140,3 +140,9 @@ Spec §6.13 (P18): "the resident reads the flags and decides". Two
 tools and not one because reading and deciding are two acts, and the
 edit is a third the resident already has.
 
+## #32
+Spec §3.1 (P19) and P2's reason generalised: what has to be retrieved
+can be lost, and a promise is what the corridor saw lost first.
+Bounded so the prefix does not grow with the person (the load
+question, ethos #9).
+

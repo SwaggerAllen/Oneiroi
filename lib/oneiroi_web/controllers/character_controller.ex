@@ -68,6 +68,31 @@ defmodule OneiroiWeb.CharacterController do
 
   def seeds(conn, %{"id" => id}), do: json(conn, id |> Ethos.seeds() |> Enum.map(&seed/1))
 
+  operation(:commitments,
+    summary:
+      "The resident's commitments, open and closed (spec §3.1, P19): the witness reads them and may release one",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"commitments", "application/json", %Schema{type: :array}}]
+  )
+
+  def commitments(conn, %{"id" => id}),
+    do: json(conn, id |> Ethos.commitments() |> Enum.map(&commitment/1))
+
+  operation(:release_commitment,
+    summary: "Release the resident from a commitment made to you, with a note",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"the note", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "released"]
+  )
+
+  def release_commitment(conn, %{"id" => id, "number" => number, "note" => note}),
+    do: respond(conn, Ethos.release_commitment(id, integer(number), note, actor(conn)))
+
+  def release_commitment(conn, _params),
+    do: problem(conn, 422, :note_required, "note is required")
+
   operation(:baselines,
     summary:
       "The trait baselines, newest first: the habits' profile as measured, the spread and the breadth (spec §6.17, P42)",
@@ -110,6 +135,19 @@ defmodule OneiroiWeb.CharacterController do
     }
   end
 
+  defp commitment(c) do
+    %{
+      number: c.number,
+      to: c.to,
+      text: c.text,
+      state: c.state,
+      made_at: c.made_at,
+      closed_at: c.closed_at,
+      closed_by_kind: c.closed_by_kind,
+      note: c.note
+    }
+  end
+
   defp seed(s) do
     %{
       number: s.number,
@@ -125,7 +163,11 @@ defmodule OneiroiWeb.CharacterController do
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
-  defp respond(conn, {:error, %{kind: :ethos_no_such_habit} = e}), do: error(conn, 404, e)
+
+  defp respond(conn, {:error, %{kind: kind} = e})
+       when kind in [:ethos_no_such_habit, :ethos_no_such_commitment],
+       do: error(conn, 404, e)
+
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
   defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
 

@@ -29,7 +29,7 @@ defmodule Oneiroi.Seshat.Citations do
   # were in this list, so `<slug>:habit/<n>` never parsed as a citation
   # and their resolver clauses were unreachable; found when the soul
   # lines landed, by the test that cites all three.
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts habit seed soul)
+  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts habit seed soul commitment)
   # A ref ends on a letter, digit or `#`-less anchor character, so the full
   # stop closing a sentence stays with the sentence.
   @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/
@@ -246,6 +246,15 @@ defmodule Oneiroi.Seshat.Citations do
       {:ok, l.text}
     else
       _other -> {:unresolved, "no soul line #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "commitment", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = c <- Enum.find(Ethos.commitments(resident_id), &(&1.number == number)) do
+      {:ok, "#{c.text} (to #{c.to}, #{c.state})"}
+    else
+      _other -> {:unresolved, "no commitment #{ref}"}
     end
   end
 

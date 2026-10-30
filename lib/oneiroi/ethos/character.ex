@@ -11,7 +11,14 @@ defmodule Oneiroi.Ethos.Character do
   alias Oneiroi.Ethos.Commands
   alias Oneiroi.Ethos.Events
 
-  defstruct [:id, seeds: %{}, habits: %{}, citations: MapSet.new(), baseline_at: nil]
+  defstruct [
+    :id,
+    seeds: %{},
+    habits: %{},
+    citations: MapSet.new(),
+    commitments: %{},
+    baseline_at: nil
+  ]
 
   @type t :: %__MODULE__{}
 
@@ -227,6 +234,51 @@ defmodule Oneiroi.Ethos.Character do
     end
   end
 
+  # ---- commitments (spec §3.1, P19) ----
+
+  # Once per number; the words and the person both present.
+  def execute(%__MODULE__{commitments: commitments}, %Commands.MakeCommitment{} = c) do
+    cond do
+      Map.has_key?(commitments, c.number) ->
+        []
+
+      not present?(c.to) or not present?(c.text) ->
+        {:error, :commitment_invalid}
+
+      true ->
+        %Events.CommitmentMade{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          to: c.to,
+          text: c.text
+        }
+    end
+  end
+
+  def execute(%__MODULE__{commitments: commitments}, %Commands.KeepCommitment{} = c) do
+    with :ok <- open_commitment(commitments, c.number),
+         do: %Events.CommitmentKept{
+           actor: c.actor,
+           at: c.at,
+           note: c.note,
+           id: c.id,
+           number: c.number
+         }
+  end
+
+  def execute(%__MODULE__{commitments: commitments}, %Commands.ReleaseCommitment{} = c) do
+    with :ok <- open_commitment(commitments, c.number),
+         do: %Events.CommitmentReleased{
+           actor: c.actor,
+           at: c.at,
+           note: c.note,
+           id: c.id,
+           number: c.number
+         }
+  end
+
   # A baseline is taken once per interval: the second within it is
   # refused, so the nightly pass asking every day lands one a week.
   def execute(%__MODULE__{baseline_at: last}, %Commands.TakeBaseline{} = c) do
@@ -276,6 +328,15 @@ defmodule Oneiroi.Ethos.Character do
   def apply(%__MODULE__{} = s, %Events.SoulLineCited{} = e),
     do: %{s | citations: MapSet.put(s.citations, citation_key(:soul, e))}
 
+  def apply(%__MODULE__{} = s, %Events.CommitmentMade{} = e),
+    do: %{s | id: e.id, commitments: Map.put(s.commitments, e.number, :open)}
+
+  def apply(%__MODULE__{} = s, %Events.CommitmentKept{} = e),
+    do: %{s | commitments: Map.put(s.commitments, e.number, :kept)}
+
+  def apply(%__MODULE__{} = s, %Events.CommitmentReleased{} = e),
+    do: %{s | commitments: Map.put(s.commitments, e.number, :released)}
+
   def apply(%__MODULE__{} = s, %Events.BaselineTaken{} = e), do: %{s | baseline_at: e.at}
 
   # ---- helpers ----
@@ -287,6 +348,16 @@ defmodule Oneiroi.Ethos.Character do
       _closed -> {:error, :seed_closed}
     end
   end
+
+  defp open_commitment(commitments, number) do
+    case Map.get(commitments, number) do
+      nil -> {:error, :no_such_commitment}
+      :open -> :ok
+      _closed -> {:error, :commitment_closed}
+    end
+  end
+
+  defp present?(text), do: is_binary(text) and String.trim(text) != ""
 
   defp graduation_ok(kind),
     do: if(kind in @graduations, do: :ok, else: {:error, :graduation_invalid})

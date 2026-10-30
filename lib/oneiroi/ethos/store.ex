@@ -188,6 +188,29 @@ defmodule Oneiroi.Ethos.Store do
     )
   end
 
+  defmodule Commitment do
+    @moduledoc "A promise to a person (spec §3.1, P19): the resident's words, to whom, its state, and the note it closed with."
+    use Ecto.Schema
+    @primary_key false
+    schema "ethos_commitment" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:to, :string)
+      field(:text, :string)
+      field(:state, :string, default: "open")
+      field(:made_at, :utc_datetime_usec)
+      field(:closed_at, :utc_datetime_usec)
+      field(:closed_by_kind, :string)
+      field(:note, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "Every commitment, by number."
+  @spec commitments() :: [Commitment.t()]
+  def commitments, do: Repo.all(from(c in Commitment, order_by: c.number))
+
   @doc "The baselines, newest first."
   @spec baselines() :: [Baseline.t()]
   def baselines, do: Repo.all(from(b in Baseline, order_by: [desc: b.at]))

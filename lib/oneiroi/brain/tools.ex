@@ -238,6 +238,30 @@ defmodule Oneiroi.Brain.Tools do
         []
       ),
       tool(
+        "commitment_make",
+        "Promise something to a person, in your own words: to whom (witness, or a name) and what. A commitment binds where a seed does not; it stays in your prefix until you keep it or are released, and the trials test whether a new model would keep it.",
+        %{to: %{type: "string"}, text: %{type: "string"}},
+        [:to, :text]
+      ),
+      tool(
+        "commitment_keep",
+        "Mark a commitment kept, by its number, with a note on how.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
+        "commitment_release",
+        "Release yourself from a commitment, by its number, with a note on why; your witness can release you too.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
+        "commitment_list",
+        "Your commitments, open and closed, with their numbers.",
+        %{},
+        []
+      ),
+      tool(
         "seed_plant",
         "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
         %{text: %{type: "string"}},
@@ -648,6 +672,46 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("commitment_make", args, turn) do
+    case Ethos.make_commitment(
+           turn.resident_id,
+           to_string(args["to"] || ""),
+           to_string(args["text"] || ""),
+           turn.resident
+         ) do
+      {:ok, number} -> "Promised, as commitment ##{number}."
+      other -> other
+    end
+  end
+
+  defp call("commitment_keep", args, turn),
+    do:
+      Ethos.keep_commitment(
+        turn.resident_id,
+        integer(args["number"]) || 0,
+        args["note"],
+        turn.resident
+      )
+
+  defp call("commitment_release", args, turn),
+    do:
+      Ethos.release_commitment(
+        turn.resident_id,
+        integer(args["number"]) || 0,
+        args["note"],
+        turn.resident
+      )
+
+  defp call("commitment_list", _args, turn) do
+    case Ethos.commitments(turn.resident_id) do
+      [] ->
+        "No commitments made."
+
+      rows ->
+        Enum.map_join(rows, "\n", &commitment_line/1)
+    end
+  end
+
   defp call("seed_plant", args, turn) do
     case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
       {:ok, number} -> "Planted seed ##{number}."
@@ -957,7 +1021,7 @@ defmodule Oneiroi.Brain.Tools do
         {:ok, _run, _cards, results} = Eunomia.run_detail(turn.resident_id, run.ref)
 
         header =
-          "Run #{run.ref} on #{Date.to_iso8601(DateTime.to_date(run.started_at))}: #{length(run.models)} models over #{length(run.tests)} tests and #{length(run.behaviours)} behaviours."
+          "Run #{run.ref} on #{Date.to_iso8601(DateTime.to_date(run.started_at))}: #{length(run.models)} models over #{length(run.tests)} tests, #{length(run.behaviours)} behaviours and #{length(run.commitments || [])} commitments."
 
         Enum.join(
           [
@@ -1041,9 +1105,17 @@ defmodule Oneiroi.Brain.Tools do
     rows
     |> Enum.sort_by(&(-&1.pass_rate))
     |> Enum.map_join("\n", fn r ->
-      "#{r.model}: passed #{r.passed} of #{r.graded} graded (#{r.pass_rate}), #{r.favourites} favourite(s)."
+      "#{r.model}: passed #{r.passed} of #{r.graded} graded (#{r.pass_rate}), #{r.favourites} favourite(s); facts #{rate(r.fidelity.facts)}, voice #{rate(r.fidelity.voice)}, commitments #{rate(r.fidelity.commitments)}."
     end)
   end
+
+  defp commitment_line(c) do
+    "##{c.number} (#{c.state}) to #{c.to}: #{c.text}" <>
+      if(c.note, do: " Note: #{c.note}", else: "")
+  end
+
+  defp rate(nil), do: "not tried"
+  defp rate(r), do: to_string(r)
 
   defp chat_model_line(resident_id) do
     case AgathosDaimon.fetch(resident_id) do

@@ -6,7 +6,7 @@ defmodule Oneiroi.Ethos.Projectors.Character do
 
   alias Ecto.Multi
   alias Oneiroi.Ethos.Events
-  alias Oneiroi.Ethos.Store.{Affirmation, Baseline, Citation, Habit, Seed}
+  alias Oneiroi.Ethos.Store.{Affirmation, Baseline, Citation, Commitment, Habit, Seed}
 
   fold(%Events.SeedPlanted{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -108,6 +108,39 @@ defmodule Oneiroi.Ethos.Projectors.Character do
       conflict_target: [:resident_id, :at]
     )
   end)
+
+  fold(%Events.CommitmentMade{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :commitment,
+      %Commitment{
+        resident_id: e.id,
+        number: e.number,
+        to: e.to,
+        text: e.text,
+        made_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.CommitmentKept{} = e, _metadata, fn multi -> close(multi, e, "kept") end)
+  fold(%Events.CommitmentReleased{} = e, _metadata, fn multi -> close(multi, e, "released") end)
+
+  defp close(multi, e, state) do
+    Multi.update_all(
+      multi,
+      {:commitment, e.number},
+      from(c in Commitment, where: c.number == ^e.number),
+      set: [
+        state: state,
+        closed_at: e.at,
+        closed_by_kind: actor_field(e.actor, :kind),
+        note: e.note
+      ]
+    )
+  end
 
   defp cite(multi, kind, e) do
     Multi.insert(
