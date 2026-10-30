@@ -135,3 +135,8 @@ The fit at the write because round 29 left it open and the lane's
 first turn had already shown the failure mode: the turn answers, the
 projector dies after, and nothing in the test says why.
 
+## #31
+Spec §6.13 (P18): "the resident reads the flags and decides". Two
+tools and not one because reading and deciding are two acts, and the
+edit is a third the resident already has.
+

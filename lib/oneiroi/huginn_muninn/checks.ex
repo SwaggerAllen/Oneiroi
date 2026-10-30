@@ -43,6 +43,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       label: "The month's memory holds more than corrections",
       counts: false
     },
+    %{key: "wash_flags", label: "No wash flag waits on the resident", counts: false},
     # The measurement layer (spec §6.17, P42, P43; ethos #15): the
     # character layer answers these, flag or silence; none counts toward
     # the light, because the clinical material is a design warning for
@@ -338,6 +339,24 @@ defmodule Oneiroi.HuginnMuninn.Checks do
 
       _other ->
         silent(a, length(tagged), report)
+    end
+  end
+
+  # The wash pass's open flags (spec §6.13, P18; eunomia #25): proposals
+  # on the identity files the resident has not yet decided, told to
+  # both parties and never cleared by anyone else.
+  defp builtin_result(%{key: "wash_flags"} = a, resident_id, _row) do
+    case Eunomia.washes(resident_id).open do
+      [] ->
+        silent(a, 0, "read the wash flags' rows; not read: the files, or the judge's reasons")
+
+      open ->
+        result(
+          a,
+          "warn",
+          length(open),
+          "#{length(open)} wash #{plural(length(open), "flag")} await the resident's decision (expired, contradiction, tense or defensive); read with wash_list, decided with wash_resolve"
+        )
     end
   end
 

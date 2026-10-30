@@ -916,3 +916,20 @@ and nothing personal turned up; what follows is what changed.
   the madeleine), two calls where one would do; sharing the vector is a
   port's shape and waits. P18, the wash pass, next.
 
+## Round 32: the wash pass (2026-10-30)
+
+- P18 lands as the judge's weekly lint of the loaded identity files
+  (eunomia #25, brain #31, huginn-muninn #19): the files as the brain
+  sees them, paragraph by paragraph up to the proposal's 150, shown
+  numbered with their file; a flag per finding with its kind (expired,
+  contradiction, tense, defensive) and reason, recorded with the
+  prompt's hash as the run's criteria; a reply naming an entry or a
+  kind it was not given fails the run; nothing written calls no model.
+- Proposer is never decider: the resident alone decides a flag, keep
+  or edit with a note, once; an edit is the resident's own soul edit and
+  never the judge's or the witness's hand. The witness reads the runs
+  and flags on the wash route and the audits warn while any flag waits,
+  off the light, because an unanswered proposal is not a failure.
+- Open: the Audits screen showing the wash (P1's client); P19,
+  commitments as a record kind, next.
+

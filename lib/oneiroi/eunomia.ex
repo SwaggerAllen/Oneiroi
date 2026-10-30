@@ -62,11 +62,20 @@ defmodule Oneiroi.Eunomia do
       JudgementCommands.RaiseAuditFlag,
       JudgementCommands.ApproveAuditFlag,
       JudgementCommands.DeleteAuditFlag,
+      JudgementCommands.RunWash,
+      JudgementCommands.FailWash,
+      JudgementCommands.RaiseWashFlag,
+      JudgementCommands.ResolveWashFlag,
+      Wash,
       Events.Judgement.AuditRun,
       Events.Judgement.AuditFailed,
       Events.Judgement.AuditFlagRaised,
       Events.Judgement.AuditFlagApproved,
       Events.Judgement.AuditFlagDeleted,
+      Events.Judgement.WashRun,
+      Events.Judgement.WashFailed,
+      Events.Judgement.WashFlagRaised,
+      Events.Judgement.WashFlagResolved,
       Store.Audit,
       Store.AuditFlag,
       JudgementCommands.TakePosition,
@@ -115,6 +124,7 @@ defmodule Oneiroi.Eunomia do
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
+  alias Oneiroi.Eunomia.Wash
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -166,7 +176,13 @@ defmodule Oneiroi.Eunomia do
        default: "150",
        tag: :bound,
        usage:
-         "how many of Honcho's conclusions the weekly memory audit reads (spec §6.4, carried from David)"}
+         "how many of Honcho's conclusions the weekly memory audit reads (spec §6.4, carried from David)"},
+      {:wash_entries, "EUNOMIA_WASH_ENTRIES",
+       cast: :integer,
+       default: "150",
+       tag: :bound,
+       usage:
+         "how many entries of the identity files the weekly wash pass reads (spec §6.13, P18: judge-bounded at 150, the proposal's figure)"}
     ]
   end
 
@@ -175,7 +191,12 @@ defmodule Oneiroi.Eunomia do
     [
       {:eunomia_nightly, cron: [{"0 2 * * *", Oneiroi.Eunomia.NightWorker}]},
       # After the card audit (03:00 Sunday, proteus): weekly, card then memory (spec §6.7).
-      {:eunomia_weekly, cron: [{"0 4 * * 0", Oneiroi.Eunomia.AuditWorker}]}
+      {:eunomia_weekly,
+       cron: [
+         {"0 4 * * 0", Oneiroi.Eunomia.AuditWorker},
+         # The wash pass an hour after the memory audit (spec §6.13, P18).
+         {"0 5 * * 0", Oneiroi.Eunomia.WashWorker}
+       ]}
     ]
   end
 
@@ -202,7 +223,11 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.Judgement.AuditFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.AuditFlagRaised, 1},
       {Oneiroi.Eunomia.Events.Judgement.AuditFlagApproved, 1},
-      {Oneiroi.Eunomia.Events.Judgement.AuditFlagDeleted, 1}
+      {Oneiroi.Eunomia.Events.Judgement.AuditFlagDeleted, 1},
+      {Oneiroi.Eunomia.Events.Judgement.WashRun, 1},
+      {Oneiroi.Eunomia.Events.Judgement.WashFailed, 1},
+      {Oneiroi.Eunomia.Events.Judgement.WashFlagRaised, 1},
+      {Oneiroi.Eunomia.Events.Judgement.WashFlagResolved, 1}
     ]
   end
 
@@ -256,6 +281,11 @@ defmodule Oneiroi.Eunomia do
        "the judge's reply flagged a conclusion it was not shown, so the audit failed rather than be guessed at",
        remedy: "run the audit again"},
       {:eunomia_no_such_flag, "no audit flag has that ref", remedy: "read the audits"},
+      {:eunomia_no_such_wash_flag, "no wash flag has that ref", remedy: "read the wash"},
+      {:eunomia_wash_decision_invalid, "a wash flag is kept or edited",
+       remedy: "decide keep, or edit and then make the edit yourself"},
+      {:eunomia_wash_failed, "the wash pass failed and was recorded as such",
+       remedy: "read the run's reason; the next week runs again"},
       {:eunomia_flag_decided, "that flag was already approved or deleted",
        remedy: "read the audits"}
     ]
@@ -419,4 +449,21 @@ defmodule Oneiroi.Eunomia do
   @doc "The audit runs and the flags, open first."
   @spec audits(String.t()) :: map()
   defexport(audits(resident_id), do: MemoryAudit.audits(resident_id))
+
+  # ---- the wash pass (spec §6.13, P18) ----
+
+  @doc "Runs the weekly wash pass now: the judge over the identity files' entries; what the weekly job does for each resident."
+  @spec run_wash(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(run_wash(resident_id, actor), do: Wash.run(resident_id, actor))
+
+  @doc "The resident decides a wash flag, keep or edit, with a note; the edit itself is the resident's soul edit."
+  @spec resolve_wash_flag(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(resolve_wash_flag(resident_id, ref, decision, note, actor),
+    do: Wash.resolve(resident_id, ref, decision, note, actor)
+  )
+
+  @doc "The wash runs and the flags, open first."
+  @spec washes(String.t()) :: map()
+  defexport(washes(resident_id), do: Wash.washes(resident_id))
 end

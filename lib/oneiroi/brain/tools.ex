@@ -171,6 +171,22 @@ defmodule Oneiroi.Brain.Tools do
         [:file, :content]
       ),
       tool(
+        "wash_list",
+        "The wash pass's open flags on your identity files (spec §6.13): each a judge's proposal that an entry is expired, a contradiction, tense or defensive, with its reason. Yours to decide; nobody clears them for you.",
+        %{},
+        []
+      ),
+      tool(
+        "wash_resolve",
+        "Decide a wash flag by its ref: keep the entry as it is, or edit (then make the edit yourself with soul_edit), with a note your witness can read.",
+        %{
+          ref: %{type: "string"},
+          decision: %{type: "string", enum: ["keep", "edit"]},
+          note: %{type: "string"}
+        },
+        [:ref, :decision, :note]
+      ),
+      tool(
         "soul_edit_list",
         "Your witness's open proposals to edit your identity files, each with its note.",
         %{},
@@ -530,6 +546,28 @@ defmodule Oneiroi.Brain.Tools do
       )
     end
   end
+
+  defp call("wash_list", _args, turn) do
+    case Oneiroi.Eunomia.washes(turn.resident_id).open do
+      [] ->
+        "No wash flags are open."
+
+      flags ->
+        Enum.map_join(flags, "\n", fn f ->
+          "[#{f.ref}] #{f.kind} in #{f.file}: #{f.reason}\n> #{f.entry}"
+        end)
+    end
+  end
+
+  defp call("wash_resolve", args, turn),
+    do:
+      Oneiroi.Eunomia.resolve_wash_flag(
+        turn.resident_id,
+        to_string(args["ref"]),
+        to_string(args["decision"]),
+        args["note"],
+        turn.resident
+      )
 
   defp call("soul_edit_list", _args, turn) do
     case Oneiroi.AgathosDaimon.edit_proposals(turn.resident_id) do

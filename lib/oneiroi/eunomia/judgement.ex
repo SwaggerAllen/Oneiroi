@@ -18,8 +18,15 @@ defmodule Oneiroi.Eunomia.Judgement do
     nights: MapSet.new(),
     audits: MapSet.new(),
     flags: %{},
+    washes: MapSet.new(),
+    wash_flags: %{},
     judge_model: nil
   ]
+
+  @wash_decisions ~w(keep edit)
+
+  @doc "What the resident may decide on a wash flag: keep the entry, or edit it (the edit is a soul edit of its own)."
+  def wash_decisions, do: @wash_decisions
 
   @statement_limit 1_000
   @sources ~w(live night)
@@ -283,6 +290,67 @@ defmodule Oneiroi.Eunomia.Judgement do
     end
   end
 
+  # ---- the wash pass (spec §6.13, P18) ----
+
+  def execute(%__MODULE__{washes: washes}, %Commands.RunWash{} = c) do
+    if MapSet.member?(washes, c.ref),
+      do: [],
+      else: %Events.WashRun{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        ref: c.ref,
+        entries: c.entries,
+        flagged: c.flagged,
+        judge_model: c.judge_model,
+        summary: c.summary,
+        criteria: c.criteria
+      }
+  end
+
+  def execute(%__MODULE__{}, %Commands.FailWash{} = c),
+    do: %Events.WashFailed{actor: c.actor, at: c.at, id: c.id, ref: c.ref, reason: c.reason}
+
+  def execute(%__MODULE__{wash_flags: flags}, %Commands.RaiseWashFlag{} = c) do
+    if Map.has_key?(flags, c.ref),
+      do: [],
+      else: %Events.WashFlagRaised{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        ref: c.ref,
+        wash_ref: c.wash_ref,
+        file: c.file,
+        entry: c.entry,
+        kind: c.kind,
+        reason: c.reason
+      }
+  end
+
+  # The resident alone decides (proposer is never decider), once.
+  def execute(%__MODULE__{wash_flags: flags}, %Commands.ResolveWashFlag{} = c) do
+    cond do
+      not Map.has_key?(flags, c.ref) ->
+        {:error, :no_such_wash_flag}
+
+      c.decision not in @wash_decisions ->
+        {:error, :wash_decision_invalid}
+
+      flags[c.ref].decided ->
+        []
+
+      true ->
+        %Events.WashFlagResolved{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          ref: c.ref,
+          decision: c.decision
+        }
+    end
+  end
+
   # ---- the judge ----
 
   def execute(%__MODULE__{judge_model: current}, %Commands.SetJudgeModel{} = c) do
@@ -345,6 +413,17 @@ defmodule Oneiroi.Eunomia.Judgement do
 
   def apply(%__MODULE__{} = s, %Events.AuditFlagDeleted{} = e),
     do: put_in(s.flags[e.ref].decided, true)
+
+  def apply(%__MODULE__{} = s, %Events.WashRun{} = e),
+    do: %{s | id: e.id, washes: MapSet.put(s.washes, e.ref)}
+
+  def apply(%__MODULE__{} = s, %Events.WashFailed{}), do: s
+
+  def apply(%__MODULE__{} = s, %Events.WashFlagRaised{} = e),
+    do: %{s | wash_flags: Map.put(s.wash_flags, e.ref, %{decided: false})}
+
+  def apply(%__MODULE__{} = s, %Events.WashFlagResolved{} = e),
+    do: put_in(s.wash_flags[e.ref].decided, true)
 
   def apply(%__MODULE__{} = s, %Events.JudgeModelChanged{} = e),
     do: %{s | id: e.id, judge_model: e.model}

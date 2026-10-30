@@ -120,7 +120,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking)
+             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking wash_flags)
 
     assert Enum.all?(results, &(&1.tone == "silent" and &1.finding =~ "not read:"))
 
@@ -254,7 +254,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 14
+    assert Enum.count(audits, & &1.builtin) == 15
 
     assert %{builtin: false, counts: true, last: %{tone: "silent", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -268,9 +268,9 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
     assert %{results: results} = HuginnMuninn.light(ctx.id)
-    assert length(results) == 14
+    assert length(results) == 15
     assert %{results: other_results} = HuginnMuninn.light(other.id)
-    assert length(other_results) == 14
+    assert length(other_results) == 15
   end
 
   test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",
@@ -379,5 +379,37 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
 
     assert finding =~ "the shape leans: correction holds 75% of what was written down this month"
     assert finding =~ "17 resident-authored records"
+  end
+
+  test "open wash flags are a warning until the resident decides them, off the light", ctx do
+    id = ctx.id
+
+    :ok =
+      AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\nI will have left by spring.",
+        %{},
+        ctx.actor
+      )
+
+    Model.script(fn _request -> {:ok, "FLAG [2] | expired | spring has passed\nSUMMARY: one"} end,
+      for: id
+    )
+
+    assert {:ok, _} = Eunomia.run_wash(id, ctx.actor)
+
+    assert {:ok, %{state: "silent", results: results}} = HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "warn", value: 1, finding: finding} =
+             Enum.find(results, &(&1.key == "wash_flags"))
+
+    assert finding =~ "1 wash flag await" and finding =~ "wash_resolve"
+
+    [%{ref: ref}] = Eunomia.washes(id).open
+    :ok = Eunomia.resolve_wash_flag(id, ref, "keep", "I did leave", ctx.brain)
+    assert {:ok, %{results: results}} = HuginnMuninn.run_audits(id, ctx.actor)
+    assert %{tone: "silent", finding: finding} = Enum.find(results, &(&1.key == "wash_flags"))
+    assert finding =~ "not read: the files"
   end
 end

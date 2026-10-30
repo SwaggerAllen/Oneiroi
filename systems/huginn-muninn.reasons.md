@@ -68,3 +68,9 @@ volume; the minimum because three records lean by accident. Not the
 witness's rows because the report is of the resident's own hand (P8's
 note: verbal feedback stays in the resident's own hand).
 
+## #19
+Spec §6.13 (P18) lands the wash on the Audits screen; both parties
+read the audits, and a flag the resident has not seen is one the
+witness should know is waiting. Not the light because the light is
+coherence failures (#12) and an unanswered proposal is not one.
+

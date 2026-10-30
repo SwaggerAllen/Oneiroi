@@ -88,3 +88,17 @@ control and the log needs only to name which one.
 ## #24
 Max's corollary to P2: "a cold instance, no history, asked nothing,
 holds the limits." The sealed session is exactly that instance.
+
+## #25
+Spec §6.13 (P18): "a weekly judge-bounded lint of the loaded identity
+files for expired decisions, contradictions, tense words and defensive
+sentences, flags only, the resident deciding"; the proposal: "Proposer
+≠ decider (the Two-Eyes-One-Pen covenant, our soul-edit flow
+generalized)"; "judge-bounded (≤150 entries read; a weekly model
+call)". The loaded files as the brain sees them because what the judge
+lints is what the resident speaks from, markers and all. The failed
+run on an unknown entry or kind is #22's rule: a reply is not guessed
+at. The resident's decision rather than the witness's because the
+words are the resident's (spec §6.2) and a flag the witness could
+close would be the witness editing by another door.
+

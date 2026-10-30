@@ -1157,10 +1157,11 @@ Owns `lib/oneiroi/audits/**`.
   praise, instruction, play; `Oneiroi.Register`), no model call, both
   base rates shown to both parties as a built-in audit, the report naming
   its own limit, a flag only on a lean.
-- Planned under this section in v0.2: the wash pass (P18, a weekly judge-bounded lint of the
-  loaded identity files for expired decisions, contradictions, tense
-  words and defensive sentences, flags only, the resident deciding);
-  quietcheck (P21, liveness over expected events only, fail-loud,
+- **The wash pass** (v0.2, P18, built: eunomia #25): a weekly
+  judge-bounded lint of the loaded identity files for expired decisions,
+  contradictions, tense words and defensive sentences, flags only, the
+  resident deciding each with a note; proposer is never decider.
+- Planned under this section in v0.2: quietcheck (P21, liveness over expected events only, fail-loud,
   self-tested: "only list things that are supposed to be regular").
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's

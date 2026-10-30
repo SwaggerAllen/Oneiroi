@@ -70,6 +70,25 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
     use Oneiroi.Command, decision: true, fields: [:id, :ref]
   end
 
+  # The wash pass (spec §6.13, P18): a run over the identity files'
+  # entries, its flags, and the resident's decision on each.
+  defmodule RunWash do
+    use Oneiroi.Command,
+      fields: [:id, :ref, :entries, :flagged, :judge_model, :summary, :criteria]
+  end
+
+  defmodule FailWash do
+    use Oneiroi.Command, fields: [:id, :ref, :reason]
+  end
+
+  defmodule RaiseWashFlag do
+    use Oneiroi.Command, fields: [:id, :ref, :wash_ref, :file, :entry, :kind, :reason]
+  end
+
+  defmodule ResolveWashFlag do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref, :decision]
+  end
+
   defmodule SetJudgeModel do
     use Oneiroi.Command, fields: [:id, :model]
   end
