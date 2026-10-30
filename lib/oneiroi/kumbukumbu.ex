@@ -170,7 +170,7 @@ defmodule Oneiroi.Kumbukumbu do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Kumbukumbu.Events.SessionOpened, 1},
+      {Oneiroi.Kumbukumbu.Events.SessionOpened, 2},
       {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
@@ -208,6 +208,10 @@ defmodule Oneiroi.Kumbukumbu do
        remedy: "open one, or read the key off the session list"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
        remedy: "main, free_time or hands; a regression session is never captured (spec §6.4)"},
+      {:kumbukumbu_domain_invalid,
+       "a session's domain is a slug: a letter, then letters, digits or hyphens, at most 32",
+       remedy:
+         "name the room as a slug (intimate, business, family), or leave it for the common room"},
       {:kumbukumbu_empty_turn, "a turn with no messages cannot be captured",
        remedy:
          "send the turn's messages; a turn that produced nothing is a capture failure, not an empty capture"},
@@ -343,6 +347,10 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.messages_between(resident_id, from, to)
   )
 
+  @doc "The room a session is in (spec §6.3, P23): its domain (nil for the common room) and the keys of the sessions retrieval may reach from it."
+  @spec room(String.t(), String.t()) :: %{domain: String.t() | nil, keys: [String.t()]}
+  defexport(room(resident_id, session_key), do: Conversations.room(resident_id, session_key))
+
   @doc "The sessions a scope sees, newest first."
   @spec sessions(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.Session.t()]
   defexport(sessions(scope), do: Conversations.sessions(scope))
@@ -362,6 +370,14 @@ defmodule Oneiroi.Kumbukumbu do
           Oneiroi.Kumbukumbu.Store.Message.t()
         ]
   defexport(search(scope, text, limit), do: Conversations.search(scope, text, limit))
+
+  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @spec search(Oneiroi.Scope.t(), String.t(), pos_integer(), String.t(), String.t()) :: [
+          Oneiroi.Kumbukumbu.Store.Message.t()
+        ]
+  defexport(search(scope, text, limit, resident_id, session_key),
+    do: Conversations.search(scope, text, limit, resident_id, session_key)
+  )
 
   @doc "The open capture failures a scope sees, oldest first."
   @spec failures(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.CaptureFailure.t()]
@@ -563,6 +579,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.madeleine(resident_id, text, actor)
   )
 
+  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+          Oneiroi.Kumbukumbu.Madeleine.recall() | nil
+  defexport(madeleine(resident_id, text, actor, session_key),
+    do: Memories.madeleine(resident_id, text, actor, session_key)
+  )
+
   @doc "Re-embeds the madeleine's changed rows and drops the gone ones."
   @spec refresh_madeleine(String.t(), Oneiroi.Actor.t()) ::
           {:ok, %{embedded: non_neg_integer(), removed: non_neg_integer()}} | {:error, term()}
@@ -571,6 +594,10 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The bookmark index for this turn: text, the numbers it lists, how many it left out, its tokens."
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id), do: Memories.index(resident_id))
+
+  @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line."
+  @spec index(String.t(), String.t()) :: Oneiroi.Kumbukumbu.Index.built()
+  defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
 
   # ---- revisions (spec §6.3, F13) ----
 

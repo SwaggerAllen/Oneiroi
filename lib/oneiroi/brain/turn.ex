@@ -376,7 +376,7 @@ defmodule Oneiroi.Brain.Turn do
   def assemble(row, turn, text) do
     prompt = Prompt.message("brain", %{name: row.name, formation: formation(row)})
     files = Oneiroi.AgathosDaimon.identity_context(turn.resident_id)
-    index = Kumbukumbu.index(turn.resident_id)
+    index = Kumbukumbu.index(turn.resident_id, turn.session_key)
     acting = how_i_act(turn, text)
     recall = madeleine(turn, text)
     promised = Oneiroi.Ethos.promised(turn.resident_id)
@@ -594,6 +594,7 @@ defmodule Oneiroi.Brain.Turn do
       text: text,
       tags: tags,
       at: Clock.now(),
+      session_key: turn.session_key,
       actor: Map.get(turn, :resident)
     })
   end
@@ -602,7 +603,7 @@ defmodule Oneiroi.Brain.Turn do
   # the turn's words, with the resident's actor for the embedding; a
   # turn without one (the assembly read in a test) asks nothing.
   defp madeleine(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
-    do: Kumbukumbu.madeleine(turn.resident_id, text, actor)
+    do: Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key)
 
   defp madeleine(_turn, _text), do: nil
 

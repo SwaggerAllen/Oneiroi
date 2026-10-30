@@ -201,7 +201,8 @@ defmodule Oneiroi.Ethos.Habits do
          ), Enum.count(Store.seeds(), &(&1.state == "open"))}
       end)
 
-    sections = sections |> Enum.map(&exemplars(&1, resident_id)) |> mark_near(matches, near)
+    room = room_keys(resident_id, situation)
+    sections = sections |> Enum.map(&exemplars(&1, resident_id, room)) |> mark_near(matches, near)
 
     text =
       case {sections, open} do
@@ -316,19 +317,27 @@ defmodule Oneiroi.Ethos.Habits do
     {header, turns}
   end
 
-  defp exemplars({header, turns}, resident_id) do
+  # The room (spec §6.3, P23): a situation with a session names it, and
+  # a cited turn from a session outside it is not shown, however strong
+  # the habit; without one, every cited turn may be.
+  defp room_keys(resident_id, %{session_key: key}) when is_binary(key),
+    do: Kumbukumbu.room(resident_id, key).keys
+
+  defp room_keys(_resident_id, _situation), do: nil
+
+  defp exemplars({header, turns}, resident_id, room) do
     lines =
       turns
-      |> Enum.map(&exemplar(resident_id, &1))
+      |> Enum.map(&exemplar(resident_id, &1, room))
       |> Enum.reject(&is_nil/1)
 
     Enum.join([header | lines], "\n")
   end
 
-  defp exemplar(resident_id, %{target_id: turn_ref} = citation) do
+  defp exemplar(resident_id, %{target_id: turn_ref} = citation, room) do
     case resident_id
          |> Kumbukumbu.turn_messages(turn_ref)
-         |> Enum.find(&(&1.role == "assistant")) do
+         |> Enum.find(&(&1.role == "assistant" and (is_nil(room) or &1.session_key in room))) do
       nil ->
         nil
 

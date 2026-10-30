@@ -1000,3 +1000,25 @@ and nothing personal turned up; what follows is what changed.
   letters with the receipts shown to both; the export leaves the
   letters out until a receipt rides the export too; P23, memory
   domains, next.
+
+## Round 36: memory domains, the room (2026-10-30)
+
+- P23 lands as the session's room (kumbukumbu #36, brain #35, ethos
+  #19): a domain slug named at the opening, nil for the common room,
+  `SessionOpened` version 2; `room/2` is the rule in one place, the
+  sessions of the same domain and the common room's, the common room
+  seeing itself alone; the index, the search, the madeleine and the
+  lane's exemplars take the room through the turn's session key, and a
+  bookmark of another domain that would have ranked in is a near-miss
+  row saying it was held behind the domain line.
+- An intent with an audit, as Red asked: a bookmark read by its
+  number, `bookmark_open`, the unscoped `index/1` and the transcript
+  routes are not room-scoped, and the rule says so; the room binds
+  retrieval, not the resident's own asking.
+- No closed set of domains: a slug the witness names, because the
+  rooms are the person's and a vocabulary the platform fixed would be
+  the platform naming their life.
+- Open: a domain on a session that exists already (a room does not
+  change; a session opened in the wrong room is closed and another
+  opened); the client's session list showing the room; the hour
+  marker, next.

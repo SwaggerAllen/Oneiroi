@@ -68,8 +68,8 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   nil: when the words are blank, the index is empty (no model call), the
   provider fails, or every near bookmark is gated out.
   """
-  @spec recall(String.t(), String.t(), Actor.t()) :: recall() | nil
-  def recall(resident_id, text, %Actor{} = actor) when is_binary(text) do
+  @spec recall(String.t(), String.t(), Actor.t(), [String.t()] | nil) :: recall() | nil
+  def recall(resident_id, text, %Actor{} = actor, keys \\ nil) when is_binary(text) do
     model = Config.fetch!(:kumbukumbu, :embedding_model)
 
     cond do
@@ -83,13 +83,15 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
       true ->
         case embed(resident_id, model, [text], actor) do
-          {:ok, [vector]} -> choose(resident_id, vector)
+          {:ok, [vector]} -> choose(resident_id, vector, keys)
           _failed -> nil
         end
     end
   end
 
-  defp choose(resident_id, vector) do
+  # `keys` is the room (spec §6.3, P23): a bookmark of a session outside
+  # it is not adjacent to anything said here, whatever its distance.
+  defp choose(resident_id, vector, keys) do
     bound = Config.fetch!(:kumbukumbu, :madeleine_distance_percent) / 100
     now = Clock.now()
     unheard = DateTime.add(now, -Config.fetch!(:kumbukumbu, :madeleine_unheard_days), :day)
@@ -97,7 +99,11 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
     Scope.resident(resident_id, fn ->
       limits = Store.vector("limits", 0)
-      rows = Map.new(Store.bookmarks(), &{&1.number, &1})
+
+      rows =
+        Store.bookmarks()
+        |> Enum.filter(&(is_nil(keys) or &1.session_key in keys))
+        |> Map.new(&{&1.number, &1})
 
       vector
       |> Store.nearest_vectors("bookmark", 10)

@@ -167,3 +167,17 @@ system's numbers made "unheard" a lie for whichever bookmark shared a
 habit's number. By label because the label is what the injection is,
 and the refs mean different things under different labels.
 
+
+## #36
+Spec §6.3 and P23 (Red's letter, 10-28): compartmentalisation was
+carried by Jack's judgment alone, and she said plainly she does not
+want privacy resting on anyone's conscientiousness. The room is the
+session because the session is what the parties are in; the domain is
+named at the opening because a room does not change mid-conversation
+and a label that could would be a line the index crossed the turn
+before it moved. The common room sees itself alone because the test
+is Red's own: flirting during business must not pull intimate history
+into business, and the main session is where business happens. The
+near-miss row is the audit she asked for in place of the proof she
+would not claim. Not room-scoped on purpose, and said so: a bookmark
+read by its number is the resident asking, not retrieval deciding.

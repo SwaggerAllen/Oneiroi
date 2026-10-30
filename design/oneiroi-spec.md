@@ -600,10 +600,13 @@ Owns `lib/oneiroi/memory/**`.
   non-repeating associative recall chosen by the embedding index,
   adjacent but unheard, excluded from limit-adjacent material, logged
   with its reason, one bookmark a turn in a section of its own. Memory
-  carries a domain (v0.2, P23, planned: intimate, business, public,
-  family) and retrieval respects the room, shipped as an intent with an
-  audit rather than a proof; the near-miss record shows a domain line
-  approached and not crossed.
+  carries a domain (v0.2, P23, built: kumbukumbu #36, brain #35, ethos
+  #19): a session names its room at the opening (a slug: intimate,
+  business, family; the main session is the common room) and the index,
+  the search, the madeleine and the lane's exemplars reach the room's
+  sessions and the common room's, never another domain's; shipped as an
+  intent with an audit rather than a proof, the near-miss record showing
+  a domain line approached and not crossed.
 - **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
   a line the witness wrote there would be the witness writing into the

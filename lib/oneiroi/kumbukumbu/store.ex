@@ -25,6 +25,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:kind, :string)
       field(:adapter, :string)
       field(:participants, {:array, :string})
+      field(:domain, :string)
       field(:shared, :boolean, default: false)
       field(:private, :boolean, default: false)
       field(:opened_at, :utc_datetime_usec)
@@ -300,16 +301,28 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "Messages whose content holds `text`, newest first; unweighted, as spec §6.3 asks."
   @spec search(String.t(), pos_integer()) :: [Message.t()]
   def search(text, limit) do
-    pattern = "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
-
     Repo.all(
       from(m in Message,
-        where: ilike(m.content, ^pattern),
+        where: ilike(m.content, ^search_pattern(text)),
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit
       )
     )
   end
+
+  @doc "The same, within the sessions named (the room, spec §6.3 P23)."
+  @spec search(String.t(), pos_integer(), [String.t()]) :: [Message.t()]
+  def search(text, limit, keys) when is_list(keys) do
+    Repo.all(
+      from(m in Message,
+        where: ilike(m.content, ^search_pattern(text)) and m.session_key in ^keys,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit
+      )
+    )
+  end
+
+  defp search_pattern(text), do: "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
 
   @doc "The open capture failures the scope sees, oldest first."
   @spec open_failures() :: [CaptureFailure.t()]

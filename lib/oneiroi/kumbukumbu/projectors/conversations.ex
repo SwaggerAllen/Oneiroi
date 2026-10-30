@@ -19,6 +19,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
         kind: e.kind,
         adapter: e.adapter,
         participants: e.participants,
+        domain: Map.get(e, :domain),
         opened_at: e.at
       },
       on_conflict: :nothing,

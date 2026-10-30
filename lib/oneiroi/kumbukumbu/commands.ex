@@ -2,8 +2,10 @@ defmodule Oneiroi.Kumbukumbu.Commands do
   @moduledoc "The conversation aggregate's commands."
 
   defmodule OpenSession do
+    # `domain` (spec §6.3, P23): the room the session is in, a slug or
+    # nil for the common room; retrieval respects it.
     use Oneiroi.Command,
-      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants, :private]
+      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants, :private, :domain]
   end
 
   defmodule StartTurn do

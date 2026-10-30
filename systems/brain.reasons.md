@@ -168,3 +168,10 @@ their own turn now, for every notice, because the rule is one. The
 prefix line carries receipts and never words so the resident sees
 every turn whether anyone read, which is the guarantee, and the
 content stays where the resident put it.
+
+## #35
+Spec §6.3 (P23): the room is the session's, and the turn is the one
+place that knows which session it is in, so every retrieval the turn
+asks for carries the key rather than each system guessing. The
+near-miss row because the audit is the deliverable Red asked for and
+the row is where the inspector already looks.

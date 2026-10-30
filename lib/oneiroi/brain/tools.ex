@@ -577,7 +577,13 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("transcript_search", args, turn) do
-    case Kumbukumbu.search({:resident, turn.resident_id}, to_string(args["q"] || ""), 20) do
+    case Kumbukumbu.search(
+           {:resident, turn.resident_id},
+           to_string(args["q"] || ""),
+           20,
+           turn.resident_id,
+           turn.session_key
+         ) do
       [] ->
         "Nothing in the transcripts holds that."
 

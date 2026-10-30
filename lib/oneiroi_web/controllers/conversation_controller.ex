@@ -34,7 +34,14 @@ defmodule OneiroiWeb.ConversationController do
       {"the kind", "application/json",
        %Schema{
          type: :object,
-         properties: %{kind: %Schema{type: :string, enum: ["main", "free_time", "hands"]}}
+         properties: %{
+           kind: %Schema{type: :string, enum: ["main", "free_time", "hands"]},
+           domain: %Schema{
+             type: :string,
+             description:
+               "the room (spec §6.3, P23): a slug such as intimate, business or family; absent for the common room"
+           }
+         }
        }},
     responses: [created: {"the session key", "application/json", %Schema{type: :object}}]
   )
@@ -44,8 +51,13 @@ defmodule OneiroiWeb.ConversationController do
 
     result =
       case {Map.get(params, "kind", "main"), adapter(conn)} do
-        {"main", nil} -> Kumbukumbu.main_session(id, party, actor(conn))
-        {kind, _} -> Kumbukumbu.open_session(id, kind, adapter_name, [party], actor(conn))
+        {"main", nil} ->
+          Kumbukumbu.main_session(id, party, actor(conn))
+
+        {kind, _} ->
+          Kumbukumbu.open_session(id, kind, adapter_name, [party], actor(conn),
+            domain: Map.get(params, "domain")
+          )
       end
 
     case result do
@@ -358,6 +370,7 @@ defmodule OneiroiWeb.ConversationController do
       kind: s.kind,
       adapter: s.adapter,
       participants: s.participants,
+      domain: s.domain,
       shared: s.shared,
       opened_at: s.opened_at,
       last_turn_at: s.last_turn_at,

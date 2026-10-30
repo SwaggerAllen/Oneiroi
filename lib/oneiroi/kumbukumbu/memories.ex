@@ -19,6 +19,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
@@ -289,18 +290,54 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   def tagged(resident_id, slug), do: Scope.resident(resident_id, fn -> Store.tagged(slug) end)
 
-  @doc "The madeleine for a turn's words: the vectors refreshed (embedding what changed), then one adjacent, unheard bookmark or nil."
-  def madeleine(resident_id, text, %Actor{} = actor) do
+  @doc "The madeleine for a turn's words: the vectors refreshed (embedding what changed), then one adjacent, unheard bookmark or nil; within the room of `session_key` when given (spec §6.3, P23)."
+  def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil) do
     _ = Madeleine.refresh(resident_id, actor)
-    Madeleine.recall(resident_id, text, actor)
+    keys = session_key && Conversations.room(resident_id, session_key).keys
+    Madeleine.recall(resident_id, text, actor, keys)
   end
 
-  @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`."
+  @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`, over every bookmark."
   @spec index(String.t()) :: Index.built()
   def index(resident_id) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     resident_id |> bookmarks() |> Index.build(budget)
   end
+
+  @doc """
+  The index within the room of `session_key` (spec §6.3, P23): built
+  over the bookmarks of the room's sessions alone, and a bookmark of
+  another domain that would have ranked in is named among the
+  near-misses as held behind the domain line, so the audit shows the
+  line approached and not crossed.
+  """
+  @spec index(String.t(), String.t()) :: Index.built()
+  def index(resident_id, session_key) do
+    budget = Config.fetch!(:kumbukumbu, :index_tokens)
+    %{keys: keys} = Conversations.room(resident_id, session_key)
+    all = bookmarks(resident_id)
+    {in_room, held} = Enum.split_with(all, &(&1.session_key in keys))
+    built = Index.build(in_room, budget)
+    would = all |> Index.build(budget) |> Map.fetch!(:included)
+    sessions = Scope.resident(resident_id, fn -> Map.new(Store.sessions(), &{&1.key, &1}) end)
+
+    approached =
+      held
+      |> Enum.filter(&(&1.number in would))
+      |> Enum.map(fn b ->
+        %{
+          number: b.number,
+          line: b.line,
+          reason:
+            "held behind the domain line: a bookmark of #{domain_name(sessions[b.session_key])} ranked in and was not crossed"
+        }
+      end)
+
+    %{built | near_misses: built.near_misses ++ approached}
+  end
+
+  defp domain_name(%{domain: domain}) when is_binary(domain), do: "the #{domain} domain"
+  defp domain_name(_session), do: "the common room"
 
   # ---- helpers ----
 

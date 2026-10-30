@@ -130,3 +130,11 @@ brain cites in flight and a required paragraph would stop it citing;
 bounded as a phrase because it rides an exemplar line in the prefix.
 Recorded once with the cite because a citation is a set (#5) and a
 second cite of the same moment is nothing.
+
+## #19
+P23 under the character layer: an exemplar turn is the resident's own
+voice doing the thing, read out in the prefix, and a turn from the
+intimate room read out in business is the leak Red described, through
+a door the index does not guard. The habit stays matched because the
+disposition is the person's everywhere; only the quoted moment is
+held.

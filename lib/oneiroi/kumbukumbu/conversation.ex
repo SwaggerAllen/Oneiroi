@@ -25,6 +25,9 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   ]
 
   @kinds ~w(main free_time hands)
+  # A domain is a slug the witness names at the session's opening (spec
+  # §6.3, P23): the room, and the common room when nil.
+  @domain ~r/\A[a-z][a-z0-9-]{1,31}\z/
 
   @doc "The session kinds a conversation may be; regression sessions are never captured (spec §6.4)."
   @spec kinds() :: [String.t()]
@@ -33,32 +36,10 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   # ---- execute ----
 
   def execute(%__MODULE__{state: :absent}, %Commands.OpenSession{} = c) do
-    if c.kind in @kinds do
-      opened = %Events.SessionOpened{
-        actor: c.actor,
-        at: c.at,
-        id: c.id,
-        resident_id: c.resident_id,
-        session_key: c.session_key,
-        kind: c.kind,
-        adapter: c.adapter,
-        participants: c.participants
-      }
-
-      if c.private == true,
-        do: [
-          opened,
-          %Events.SessionMadePrivate{
-            actor: c.actor,
-            at: c.at,
-            id: c.id,
-            resident_id: c.resident_id,
-            session_key: c.session_key
-          }
-        ],
-        else: opened
-    else
-      {:error, :kind_invalid}
+    cond do
+      c.kind not in @kinds -> {:error, :kind_invalid}
+      not domain_ok?(c.domain) -> {:error, :domain_invalid}
+      true -> open(c)
     end
   end
 
@@ -181,6 +162,37 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
       resident_id: c.resident_id,
       session_key: c.session_key
     }
+
+  defp domain_ok?(nil), do: true
+  defp domain_ok?(domain) when is_binary(domain), do: Regex.match?(@domain, domain)
+  defp domain_ok?(_other), do: false
+
+  defp open(c) do
+    opened = %Events.SessionOpened{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      resident_id: c.resident_id,
+      session_key: c.session_key,
+      kind: c.kind,
+      adapter: c.adapter,
+      participants: c.participants,
+      domain: c.domain
+    }
+
+    if c.private == true,
+      do: [
+        opened,
+        %Events.SessionMadePrivate{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: c.resident_id,
+          session_key: c.session_key
+        }
+      ],
+      else: opened
+  end
 
   # ---- apply ----
 
