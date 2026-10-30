@@ -138,6 +138,39 @@ defmodule OneiroiWeb.FileController do
     responses: [ok: {"lines", "application/json", %Schema{type: :array}}]
   )
 
+  operation(:self_letters,
+    summary:
+      "The resident's letters to its next self and every receipt (spec §12, P41): this read leaves one, so the resident sees it was read",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"letters and receipts", "application/json", %Schema{type: :object}}]
+  )
+
+  def self_letters(conn, %{"id" => id}) do
+    case AgathosDaimon.read_self_letters(id, actor(conn)) do
+      {:ok, %{letters: letters, receipts: receipts}} ->
+        json(conn, %{
+          letters: Enum.map(letters, &self_letter/1),
+          receipts: Enum.map(receipts, &receipt/1)
+        })
+
+      {:error, reason} ->
+        error(conn, 422, reason)
+    end
+  end
+
+  defp self_letter(l) do
+    %{
+      number: l.number,
+      text: l.text,
+      model: l.model,
+      written_at: l.written_at,
+      delivered_at: l.delivered_at,
+      delivered_to: l.delivered_to
+    }
+  end
+
+  defp receipt(r), do: %{at: r.at, by_kind: r.by_kind, by_id: r.by_id, numbers: r.numbers}
+
   def soul_lines(conn, %{"id" => id}) do
     evidence = id |> Ethos.soul_evidence() |> Enum.group_by(& &1.number)
     json(conn, id |> AgathosDaimon.soul_lines() |> Enum.map(&soul_line(&1, evidence)))

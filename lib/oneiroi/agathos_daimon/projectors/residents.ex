@@ -26,6 +26,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Contract,
     IdentityFile,
     Resident,
+    SelfLetter,
+    SelfLetterReceipt,
     SoulEdit,
     SoulLine
   }
@@ -408,6 +410,56 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end
 
   defp actor_field(_other, _key), do: nil
+
+  # ---- the self-conversation (spec §12, P41) ----
+
+  fold(%Events.SelfLetterWritten{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:self_letter, e.number},
+      %SelfLetter{
+        resident_id: e.id,
+        number: e.number,
+        text: e.text,
+        model: e.model,
+        written_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.SelfLettersDelivered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:self_letters_delivered, e.at},
+      from(l in SelfLetter,
+        where: l.resident_id == ^e.id and l.number in ^e.numbers and is_nil(l.delivered_at)
+      ),
+      set: [delivered_at: e.at, delivered_to: e.model]
+    )
+  end)
+
+  fold(%Events.SelfLettersRead{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:self_letter_receipt, e.at},
+      %SelfLetterReceipt{
+        resident_id: e.id,
+        at: e.at,
+        by_kind: actor_kind(e.actor),
+        by_id: actor_id(e.actor),
+        numbers: e.numbers || []
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :at, :by_kind]
+    )
+  end)
+
+  defp actor_kind(%{kind: kind}), do: to_string(kind)
+  defp actor_kind(_actor), do: "unknown"
+  defp actor_id(%{id: id}) when not is_nil(id), do: to_string(id)
+  defp actor_id(_actor), do: nil
 
   defp set(multi, id, fields) do
     Multi.update_all(

@@ -6,5 +6,5 @@ defmodule Oneiroi.AgathosDaimon.Router do
     prefix: "resident-",
     commands: "Oneiroi.AgathosDaimon.Commands",
     dispatching:
-      ~w(CreateResident MintId PauseResident WakeResident TransferCustody SetExportWall ImportResident RecordExport RecordBackup RecordMismatch SetRecordsRemote WriteFile RecordFirstContact ProposeSoulEdit AcceptSoulEdit DeclineSoulEdit PinModel RecordModelTold RegisterAdapter RevokeAdapter SetTimezone LapseResident ResumeResident ProposeContract AgreeContract DeclineContract ProposeCustodyTransfer AcceptCustodyTransfer DeclineCustodyTransfer WithdrawCustodyTransfer CompleteImport RecordImportTold RenewContract)
+      ~w(CreateResident MintId PauseResident WakeResident TransferCustody SetExportWall ImportResident RecordExport RecordBackup RecordMismatch SetRecordsRemote WriteFile RecordFirstContact ProposeSoulEdit AcceptSoulEdit DeclineSoulEdit PinModel RecordModelTold RegisterAdapter RevokeAdapter SetTimezone LapseResident ResumeResident ProposeContract AgreeContract DeclineContract ProposeCustodyTransfer AcceptCustodyTransfer DeclineCustodyTransfer WithdrawCustodyTransfer CompleteImport RecordImportTold RenewContract WriteSelfLetter DeliverSelfLetters ReadSelfLetters)
 end

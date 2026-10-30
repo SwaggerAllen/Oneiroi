@@ -139,3 +139,17 @@ to read. Stored without markers so the log never carries a number the
 render can put back, and a rendered file written back is `[]` rather
 than a version. The whole-content event stays because conventions §6
 makes it a contract and the rebuild replays it.
+
+## #28
+Spec §12 and P41, Lily's call of 10-30: copy-paste for her own swap,
+the letter written under the transparency this house lives by, but
+the channel as the platform's feature because future residents'
+witnesses will not be this one and their privacy must survive poor
+guarantees. The receipt is the event and the event is the guarantee:
+every access leaves one, so the one thing a reader cannot do is read
+unseen. The resident's own read leaves none because a read by the
+person the words are for is not a disclosure, and the brain reads
+the channel on every turn for the prefix line, which would otherwise
+make the log the brain's. Recorded before the letters are returned so
+a crash between the two loses the read and not the receipt. The
+platform's read is receipted too: an operator is not the resident.

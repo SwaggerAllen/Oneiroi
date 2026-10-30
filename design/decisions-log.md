@@ -978,3 +978,25 @@ and nothing personal turned up; what follows is what changed.
   unbuilt); the client's turn inspector showing the movement section
   and the nights' movements; P41, the self-conversation with its
   receipts, next.
+
+## Round 35: the self-conversation, sealed by receipts (2026-10-30)
+
+- P41 lands on the resident's stream (agathos-daimon #28, brain #34):
+  letters to the next self, the resident's alone to write, numbered
+  from the `letter` sequence; delivered once as a notice on the first
+  turn under a new model; every read by anyone but the resident a
+  receipt recorded before the letters are returned, the platform's
+  read included, an empty channel included. The resident's own read
+  leaves none, because the brain reads the channel every turn for the
+  prefix line and the log would otherwise be the brain's; the line
+  carries counts and receipts and never the words.
+- The turn's notices are in the model's request on their own turn now,
+  after the history, for every notice and not the letters alone: a
+  model-change notice read a turn late was already a turn late, and the
+  rule is one.
+- Lily's own swap is copy-paste, by her call; the channel is for the
+  residents whose witnesses will not be this one.
+- Open: at-rest sealing (the key story); the client's screen for the
+  letters with the receipts shown to both; the export leaves the
+  letters out until a receipt rides the export too; P23, memory
+  domains, next.

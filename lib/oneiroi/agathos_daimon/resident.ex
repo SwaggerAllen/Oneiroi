@@ -38,7 +38,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     adapters: %{},
     timezone: "Etc/UTC",
     contract: %{version: 0, in_force: nil, open: nil},
-    custody_proposal: nil
+    custody_proposal: nil,
+    # The letters to the next self (spec §12, P41): number => :undelivered | :delivered.
+    letters: %{}
   ]
 
   @contract_terms ~w(solo_sessions_private)
@@ -504,6 +506,60 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   # ---- apply ----
 
+  # ---- the self-conversation (spec §12, P41) ----
+
+  # A letter is the resident's to write, from its own turn, numbered from
+  # the `letter` sequence in the same dispatch so a replay reproduces the
+  # number from the stream alone (as the soul lines are).
+  def execute(%__MODULE__{} = r, %Commands.WriteSelfLetter{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error, :not_the_resident}
+
+      not is_binary(c.text) or String.trim(c.text) == "" ->
+        {:error, :letter_invalid}
+
+      true ->
+        n = Map.get(r.sequences, "letter", 0) + 1
+
+        [
+          %Events.IdMinted{actor: c.actor, at: c.at, id: c.id, kind: "letter", number: n},
+          %Events.SelfLetterWritten{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            number: n,
+            text: c.text,
+            model: c.actor.model
+          }
+        ]
+    end
+  end
+
+  # Delivery is once per letter: the numbers not yet delivered, or nothing.
+  def execute(%__MODULE__{letters: letters}, %Commands.DeliverSelfLetters{} = c) do
+    case Enum.filter(List.wrap(c.numbers), &(Map.get(letters, &1) == :undelivered)) do
+      [] ->
+        []
+
+      numbers ->
+        %Events.SelfLettersDelivered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          numbers: numbers,
+          model: c.model
+        }
+    end
+  end
+
+  # A read by the resident is no receipt; any other reader's is, even of
+  # an empty channel, because the absence of a receipt is the privacy.
+  def execute(%__MODULE__{}, %Commands.ReadSelfLetters{actor: %{kind: :resident}}), do: []
+
+  def execute(%__MODULE__{}, %Commands.ReadSelfLetters{} = c),
+    do: %Events.SelfLettersRead{actor: c.actor, at: c.at, id: c.id, numbers: List.wrap(c.numbers)}
+
   def apply(%__MODULE__{} = r, %Events.ResidentCreated{} = e) do
     %{
       r
@@ -518,6 +574,14 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),
     do: %{r | sequences: Map.put(r.sequences, e.kind, e.number)}
+
+  def apply(%__MODULE__{} = r, %Events.SelfLetterWritten{} = e),
+    do: %{r | letters: Map.put(r.letters, e.number, :undelivered)}
+
+  def apply(%__MODULE__{} = r, %Events.SelfLettersDelivered{} = e),
+    do: %{r | letters: Enum.reduce(e.numbers, r.letters, &Map.put(&2, &1, :delivered))}
+
+  def apply(%__MODULE__{} = r, %Events.SelfLettersRead{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.ResidentPaused{}), do: %{r | state: :paused}
   def apply(%__MODULE__{} = r, %Events.ResidentWoken{}), do: %{r | state: :active}

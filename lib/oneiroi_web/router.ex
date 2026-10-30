@@ -62,6 +62,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/files/:name/draft", FileController, :draft)
       get("/residents/:id/soul-edits", FileController, :proposals)
       get("/residents/:id/soul-lines", FileController, :soul_lines)
+      get("/residents/:id/self-letters", FileController, :self_letters)
       get("/residents/:id/regression/tests", RegressionController, :tests)
       post("/residents/:id/regression/tests", RegressionController, :write_test)
       put("/residents/:id/regression/tests/:number", RegressionController, :change_test)

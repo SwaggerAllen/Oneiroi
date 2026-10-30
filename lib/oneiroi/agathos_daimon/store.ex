@@ -124,6 +124,40 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule SelfLetter do
+    @moduledoc "A letter from the resident to its next self (spec §12, P41), delivered once."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "agathos_daimon_self_letter" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:text, :string)
+      field(:model, :string)
+      field(:written_at, :utc_datetime_usec)
+      field(:delivered_at, :utc_datetime_usec)
+      field(:delivered_to, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule SelfLetterReceipt do
+    @moduledoc "A read of the self-conversation by someone other than the resident: who, when, which letters."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "agathos_daimon_self_letter_receipt" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:by_kind, :string, primary_key: true)
+      field(:by_id, :string)
+      field(:numbers, {:array, :integer}, default: [])
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule SoulEdit do
     @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines."
     use Ecto.Schema
@@ -185,6 +219,15 @@ defmodule Oneiroi.AgathosDaimon.Store do
   @spec soul_lines() :: [SoulLine.t()]
   def soul_lines,
     do: Repo.all(from(l in SoulLine, where: l.state == "live", order_by: [l.position, l.number]))
+
+  @doc "The letters to the next self, by number."
+  @spec self_letters() :: [SelfLetter.t()]
+  def self_letters, do: Repo.all(from(l in SelfLetter, order_by: l.number))
+
+  @doc "The receipts, newest first."
+  @spec self_letter_receipts() :: [SelfLetterReceipt.t()]
+  def self_letter_receipts,
+    do: Repo.all(from(r in SelfLetterReceipt, order_by: [desc: r.at, asc: r.by_kind]))
 
   @doc "The open soul-edit proposals, oldest first."
   @spec open_soul_edits() :: [SoulEdit.t()]

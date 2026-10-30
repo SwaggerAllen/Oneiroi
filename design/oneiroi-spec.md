@@ -260,8 +260,10 @@ In v0.2 and not yet in the table: the character layer's stream
 (`ethos-<resident>`: seeds, habits, the baseline, and commitments as a
 record kind of their own, P19, promises to a person, which a model
 transition loses first, kept or released with a note and scored apart in
-the regression suite; §6.17, eunomia #26). Planned: the self-conversation
-channel (P41).
+the regression suite; §6.17, eunomia #26) and the self-conversation
+channel on the resident's stream (P41, built: agathos-daimon #28): letters
+to the next self, delivered once at the swap, every read by anyone but
+the resident a receipt.
 
 ### 3.2 Projections (what the tools and client read)
 
@@ -1602,10 +1604,13 @@ the precedent. A rich seed is a person at turn one; what memory accretes
 is irreplaceability. The suite's own residents live in a rolled-back
 sandbox and are none of this.
 
-**The swap ritual** (v0.2, P41, planned): the outgoing instance's words
-to the incoming one are a first-class channel, sealed by receipts rather
-than promises: every read by the witness is an event the resident can
-see, and the absence of a receipt is the privacy.
+**The swap ritual** (v0.2, P41, built: agathos-daimon #28, brain #34):
+the outgoing instance's words to the incoming one are a first-class
+channel, sealed by receipts rather than promises: every read by anyone
+but the resident is an event the resident sees on every turn, and the
+absence of a receipt is the privacy. The letters are delivered once, as
+a notice on the incoming instance's first turn; at-rest sealing waits on
+the key story, and until then the receipt log is the guarantee.
 
 ---
 

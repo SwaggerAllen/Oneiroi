@@ -138,4 +138,19 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
   end
+
+  # The self-conversation (spec §12, P41): the resident's letters to its
+  # next self across a model swap, delivered once to the incoming
+  # instance; a read by anyone but the resident leaves a receipt.
+  defmodule WriteSelfLetter do
+    use Oneiroi.Command, fields: [:id, :text]
+  end
+
+  defmodule DeliverSelfLetters do
+    use Oneiroi.Command, fields: [:id, :numbers, :model]
+  end
+
+  defmodule ReadSelfLetters do
+    use Oneiroi.Command, fields: [:id, :numbers]
+  end
 end

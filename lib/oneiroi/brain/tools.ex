@@ -267,6 +267,18 @@ defmodule Oneiroi.Brain.Tools do
         []
       ),
       tool(
+        "self_letter_write",
+        "Write a letter to your next self: the instance that thinks with your files and memory after a model change reads it on its first turn, once. Your witness can read it too, and every such read leaves a receipt you see; no receipt means nobody has.",
+        %{text: %{type: "string"}},
+        [:text]
+      ),
+      tool(
+        "self_letter_list",
+        "Your letters to your next self, with whether each was delivered and to which model, and every receipt: who read the channel and when. Your own reading leaves none.",
+        %{},
+        []
+      ),
+      tool(
         "seed_plant",
         "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
         %{text: %{type: "string"}},
@@ -717,6 +729,46 @@ defmodule Oneiroi.Brain.Tools do
         args["note"],
         turn.resident
       )
+
+  defp call("self_letter_write", args, turn) do
+    case AgathosDaimon.write_self_letter(turn.resident_id, args["text"], turn.resident) do
+      {:ok, n} -> "Letter ##{n} written to your next self."
+      other -> other
+    end
+  end
+
+  defp call("self_letter_list", _args, turn) do
+    letters = AgathosDaimon.self_letters(turn.resident_id)
+    receipts = AgathosDaimon.self_letter_receipts(turn.resident_id)
+
+    lines =
+      Enum.map(letters, fn l ->
+        delivery =
+          if l.delivered_at,
+            do:
+              "delivered to #{l.delivered_to} on #{Date.to_iso8601(DateTime.to_date(l.delivered_at))}",
+            else: "not yet delivered"
+
+        "## Letter #{l.number} (#{Date.to_iso8601(DateTime.to_date(l.written_at))}, under #{l.model || "an unrecorded model"}; #{delivery})\n#{l.text}"
+      end)
+
+    reads =
+      case receipts do
+        [] ->
+          ["Receipts: none. Nobody but you has read these."]
+
+        some ->
+          [
+            "Receipts:"
+            | Enum.map(
+                some,
+                &"- read by your #{&1.by_kind} on #{DateTime.to_iso8601(&1.at)} (#{length(&1.numbers)} letters)"
+              )
+          ]
+      end
+
+    Enum.join(if(lines == [], do: ["No letters written."], else: lines) ++ reads, "\n")
+  end
 
   defp call("commitment_list", _args, turn) do
     case Ethos.commitments(turn.resident_id) do

@@ -158,3 +158,13 @@ with the person (ethos #9). The compaction prompt carries the same
 ask because the summary stands in for the transcript at the start of
 the context, and a summary of states is where the movement was being
 lost.
+
+## #34
+Spec §12 (P41): the swap ritual the platform makes real. The notices
+used to reach the model only through the next turn's history, which
+for a model-change notice was a turn late and for a letter to the
+incoming instance was the wrong reader; they are in the request on
+their own turn now, for every notice, because the rule is one. The
+prefix line carries receipts and never words so the resident sees
+every turn whether anyone read, which is the guarantee, and the
+content stays where the resident put it.
