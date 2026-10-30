@@ -109,7 +109,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert custody == "account:" <> ctx.witness.id
 
     assert [
-             %{name: "SOUL.md", origin: "uploaded", content: "# Lily\n\nI am Lily."},
+             %{name: "SOUL.md", origin: "uploaded", content: "# Lily\n\n[soul/1] I am Lily."},
              %{name: "USER.md"}
            ] = AgathosDaimon.files(id)
 
@@ -219,7 +219,8 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert slug == r.slug <> "-" <> String.slice(id, 0, 8)
     assert custody == "account:" <> ctx.witness.id
 
-    assert [%{name: "SOUL.md", content: "# Lily\n\nthe seed", origin: "authored"}] =
+    # The replayed stream carries the line events, so the rebuilt soul renders its markers.
+    assert [%{name: "SOUL.md", content: "# Lily\n\n[soul/1] the seed", origin: "authored"}] =
              AgathosDaimon.files(id)
 
     assert [%{file: "SOUL.md", content: "# Lily\n\nedited by hand", note: note}] =

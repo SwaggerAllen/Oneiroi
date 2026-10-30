@@ -17,6 +17,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
   alias Oneiroi.AgathosDaimon.Error
   alias Oneiroi.AgathosDaimon.Resident
   alias Oneiroi.AgathosDaimon.Router
+  alias Oneiroi.AgathosDaimon.SoulLines
   alias Oneiroi.AgathosDaimon.Store
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
@@ -24,7 +25,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
   @instructions_template "templates/honcho-custom-instructions.md"
   @agents_template "templates/AGENTS.md"
 
-  @doc "Writes a file: a seed with `origin` (and `model`, `prompt` when drafted) before first contact, the resident's edit after."
+  @doc "Writes a file: a seed with `origin` (and `model`, `prompt` when drafted) before first contact, the resident's edit after; `cites` the seeds its new soul lines grew from."
   @spec write(String.t(), String.t(), String.t(), map(), Actor.t()) :: :ok | {:error, term()}
   def write(resident_id, file, content, attrs, %Actor{} = actor) when is_map(attrs) do
     command = %Commands.WriteFile{
@@ -35,7 +36,8 @@ defmodule Oneiroi.AgathosDaimon.Files do
       content: content,
       origin: Map.get(attrs, :origin, "authored"),
       model: Map.get(attrs, :model),
-      prompt: Map.get(attrs, :prompt)
+      prompt: Map.get(attrs, :prompt),
+      cites: Map.get(attrs, :cites, [])
     }
 
     with {:ok, _} <- dispatch(command, file), do: :ok
@@ -58,20 +60,21 @@ defmodule Oneiroi.AgathosDaimon.Files do
     with {:ok, _} <- dispatch(command, file), do: {:ok, ref}
   end
 
-  @doc "The resident accepts a proposal, applying it, with a note."
-  def accept(resident_id, ref, note, %Actor{kind: :resident} = actor) do
+  @doc "The resident accepts a proposal, applying it, with a note and the seeds its new soul lines cite."
+  def accept(resident_id, ref, note, cites, %Actor{kind: :resident} = actor) do
     command = %Commands.AcceptSoulEdit{
       actor: actor,
       at: Clock.now(),
       note: note,
       id: resident_id,
-      ref: ref
+      ref: ref,
+      cites: cites
     }
 
     with {:ok, _} <- dispatch(command, nil), do: :ok
   end
 
-  def accept(_resident_id, _ref, _note, %Actor{}),
+  def accept(_resident_id, _ref, _note, _cites, %Actor{}),
     do: {:error, Error.new(:agathos_daimon_not_the_resident)}
 
   @doc "The resident declines a proposal, with a note."
@@ -105,8 +108,14 @@ defmodule Oneiroi.AgathosDaimon.Files do
 
   # ---- reads ----
 
-  @doc "The resident's identity files as rows, by name."
-  def files(resident_id), do: Scope.resident(resident_id, fn -> Store.files() end)
+  @doc "The resident's identity files as rows, by name, the soul rendered with its line markers."
+  def files(resident_id) do
+    Scope.resident(resident_id, fn -> Enum.map(Store.files(), &rendered/1) end)
+  end
+
+  @doc "The soul file's live lines in the file's order (spec §6.17, P39)."
+  @spec soul_lines(String.t()) :: [Store.SoulLine.t()]
+  def soul_lines(resident_id), do: Scope.resident(resident_id, fn -> Store.soul_lines() end)
 
   @doc """
   The stable prefix (spec §5): the identity files written so far in a
@@ -117,7 +126,9 @@ defmodule Oneiroi.AgathosDaimon.Files do
   """
   @spec context(String.t()) :: [{String.t(), String.t()}]
   def context(resident_id) do
-    case Scope.resident(resident_id, fn -> {Store.get(resident_id), Store.files()} end) do
+    read = fn -> {Store.get(resident_id), Enum.map(Store.files(), &rendered/1)} end
+
+    case Scope.resident(resident_id, read) do
       {nil, _files} ->
         []
 
@@ -160,9 +171,18 @@ defmodule Oneiroi.AgathosDaimon.Files do
   def file(resident_id, name) do
     case Scope.resident(resident_id, fn -> Store.file(name) end) do
       nil -> {:error, Error.new(:agathos_daimon_no_such_file, file: name)}
-      row -> {:ok, row}
+      row -> {:ok, Scope.resident(resident_id, fn -> rendered(row) end)}
     end
   end
+
+  # The soul is read with its markers so a line can be cited by what the
+  # reader sees (`<slug>:soul/<n>`) and an edit of the rendered file
+  # keeps every line's number; the row keeps the words alone. Under the
+  # caller's resident scope already.
+  defp rendered(%{name: "SOUL.md"} = row),
+    do: %{row | content: SoulLines.render(row.content, Store.soul_lines())}
+
+  defp rendered(row), do: row
 
   @doc "The open soul-edit proposals, oldest first."
   def proposals(resident_id), do: Scope.resident(resident_id, fn -> Store.open_soul_edits() end)
@@ -184,31 +204,31 @@ defmodule Oneiroi.AgathosDaimon.Files do
     |> String.replace("{{slug}}", slug)
   end
 
-  defp dispatch(command, file) do
-    case Router.dispatch(command) do
-      {:ok, events} ->
-        {:ok, events}
+  defp dispatch(command, file), do: command |> Router.dispatch() |> translate(file)
 
-      {:error, :file_unknown} ->
-        {:error, Error.new(:agathos_daimon_file_unknown, file: file, files: Resident.files())}
+  # The aggregate's refusals, each as the error the edge names.
+  defp translate({:ok, events}, _file), do: {:ok, events}
 
-      {:error, :content_invalid} ->
-        {:error, Error.new(:agathos_daimon_content_invalid, file: file)}
+  defp translate({:error, :file_unknown}, file),
+    do: {:error, Error.new(:agathos_daimon_file_unknown, file: file, files: Resident.files())}
 
-      {:error, :origin_invalid} ->
-        {:error, Error.new(:agathos_daimon_origin_invalid)}
+  defp translate({:error, :content_invalid}, file),
+    do: {:error, Error.new(:agathos_daimon_content_invalid, file: file)}
 
-      {:error, :propose_instead} ->
-        {:error, Error.new(:agathos_daimon_propose_instead, file: file)}
+  defp translate({:error, :origin_invalid}, _file),
+    do: {:error, Error.new(:agathos_daimon_origin_invalid)}
 
-      {:error, :write_instead} ->
-        {:error, Error.new(:agathos_daimon_write_instead, file: file)}
+  defp translate({:error, :propose_instead}, file),
+    do: {:error, Error.new(:agathos_daimon_propose_instead, file: file)}
 
-      {:error, :no_such_proposal} ->
-        {:error, Error.new(:agathos_daimon_no_such_proposal)}
+  defp translate({:error, :write_instead}, file),
+    do: {:error, Error.new(:agathos_daimon_write_instead, file: file)}
 
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
+  defp translate({:error, :no_such_proposal}, _file),
+    do: {:error, Error.new(:agathos_daimon_no_such_proposal)}
+
+  defp translate({:error, :cites_invalid}, _file),
+    do: {:error, Error.new(:agathos_daimon_cites_invalid)}
+
+  defp translate({:error, reason}, _file), do: {:error, reason}
 end

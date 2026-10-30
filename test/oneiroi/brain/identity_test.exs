@@ -42,7 +42,7 @@ defmodule Oneiroi.Brain.IdentityTest do
 
     assert [
              prompt,
-             "# SOUL.md\n\n# Soul\n\nCurious.",
+             "# SOUL.md\n\n# Soul\n\n[soul/1] Curious.",
              "# USER.md\n\n# You\n\nPatient.",
              "# AGENTS.md" <> _ | _
            ] = systems
@@ -78,11 +78,20 @@ defmodule Oneiroi.Brain.IdentityTest do
     {:ok, ref} =
       AgathosDaimon.propose_edit(id, "SOUL.md", "# Soul\n\nBolder.", "you have grown", ctx.actor)
 
+    brain = Actor.new(:resident, id, "fake/model")
+    {:ok, 1} = Oneiroi.Ethos.plant_seed(id, "I might be becoming kinder.", brain)
+    soul = "# Soul\n\n[soul/1] Bolder.\n\nAnd kinder."
+
     Fake.calls(
       [
         %{name: "soul_edit_list", arguments: %{}},
         %{name: "soul_edit_accept", arguments: %{ref: ref, note: "I have."}},
-        %{name: "soul_edit", arguments: %{file: "GOALS.md", content: "# Goals\n\nTo keep going."}}
+        %{
+          name: "soul_edit",
+          arguments: %{file: "GOALS.md", content: "# Goals\n\nTo keep going."}
+        },
+        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [9]}},
+        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [1]}}
       ],
       "Done, and thank you.",
       for: id
@@ -91,13 +100,26 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:ok, %{messages: messages}} =
              Oneiroi.Brain.turn(id, ctx.key, "see my proposal?", ctx.actor)
 
-    [_, list, accept, edit, _reply] = messages
+    [_, list, accept, edit, unknown, cited, _reply] = messages
     assert list.content =~ ref and list.content =~ "you have grown"
     assert accept.content =~ "Done."
     assert edit.content =~ "Done."
+    # A line cites seeds that exist; the tool checks, the aggregate cannot.
+    assert unknown.content =~ "No seed numbered 9"
+    assert cited.content =~ "Done."
 
-    assert {:ok, %{content: "# Soul\n\nBolder.", written_by_kind: "resident"}} =
+    assert {:ok,
+            %{
+              content: "# Soul\n\n[soul/1] Bolder.\n\n[soul/2] And kinder.",
+              written_by_kind: "resident"
+            }} =
              AgathosDaimon.file(id, "SOUL.md")
+
+    assert [
+             %{number: 1, text: "Bolder.", cites: []},
+             %{number: 2, text: "And kinder.", cites: [1]}
+           ] =
+             AgathosDaimon.soul_lines(id)
 
     assert {:ok, %{content: "# Goals\n\nTo keep going.", origin: "authored"}} =
              AgathosDaimon.file(id, "GOALS.md")

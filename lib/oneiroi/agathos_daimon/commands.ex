@@ -93,7 +93,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule WriteFile do
     # Before first contact: a seed, with its origin. After: the resident's
     # own edit, and a witness's is refused in favour of a proposal.
-    use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt]
+    # `cites`: the seed numbers a new or reworded soul line grew from
+    # (spec §6.17); checked against the seeds at the brain's tool, since
+    # the seeds are the character system's and this one cannot read it.
+    use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt, :cites]
   end
 
   defmodule RecordFirstContact do
@@ -105,7 +108,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   end
 
   defmodule AcceptSoulEdit do
-    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+    use Oneiroi.Command, decision: true, fields: [:id, :ref, :cites]
   end
 
   defmodule DeclineSoulEdit do

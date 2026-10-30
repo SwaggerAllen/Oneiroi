@@ -67,7 +67,8 @@ defmodule Oneiroi.SimaQian.ExportTest do
             }} =
              Export.write(r.id, dir)
 
-    assert File.read!(Path.join(dir, "SOUL.md")) == "# Soul\n\nRevised.\n"
+    # The soul lands rendered with its line markers (agathos-daimon #27).
+    assert File.read!(Path.join(dir, "SOUL.md")) == "# Soul\n\n[soul/1] Revised.\n"
     assert File.read!(Path.join(dir, "USER.md")) == "# You\n"
   end
 

@@ -87,6 +87,27 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule SoulLine do
+    @moduledoc false
+    use Ecto.Schema
+
+    @primary_key false
+    schema "agathos_daimon_soul_line" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:text, :string)
+      field(:position, :integer, default: 0)
+      field(:state, :string, default: "live")
+      field(:cites, {:array, :integer}, default: [])
+      field(:version, :integer, default: 1)
+      field(:written_at, :utc_datetime_usec)
+      field(:reworded_at, :utc_datetime_usec)
+      field(:retired_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Adapter do
     @moduledoc "A registered adapter: its role and the hash of its token, live until revoked."
     use Ecto.Schema
@@ -159,6 +180,11 @@ defmodule Oneiroi.AgathosDaimon.Store do
   @doc "One identity file."
   @spec file(String.t()) :: IdentityFile.t() | nil
   def file(name), do: Repo.one(from(f in IdentityFile, where: f.name == ^name))
+
+  @doc "The soul file's live lines in the file's order."
+  @spec soul_lines() :: [SoulLine.t()]
+  def soul_lines,
+    do: Repo.all(from(l in SoulLine, where: l.state == "live", order_by: [l.position, l.number]))
 
   @doc "The open soul-edit proposals, oldest first."
   @spec open_soul_edits() :: [SoulEdit.t()]

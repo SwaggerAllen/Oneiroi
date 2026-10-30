@@ -264,6 +264,10 @@ defmodule Oneiroi.Ethos.CharacterTest do
     assert {:error, %Ethos.Error{kind: :ethos_graduation_invalid}} =
              Ethos.graduate_seed(id, 2, "mood", "x", "no", ctx.brain)
 
+    # Toward a soul line the line must be live; toward a position nothing is checked here.
+    assert {:error, %Ethos.Error{kind: :ethos_target_invalid}} =
+             Ethos.graduate_seed(id, 2, "soul", 9, "a line of me", ctx.brain)
+
     assert :ok =
              Ethos.graduate_seed(id, 2, "position", 4, "a taste, not a disposition", ctx.brain)
 
@@ -278,6 +282,21 @@ defmodule Oneiroi.Ethos.CharacterTest do
     assert :ok = Ethos.wilt_seed(id, 3, ctx.brain)
     assert [_, _, %{number: 3, state: "wilted", closed_at: %DateTime{}}] = Ethos.seeds(id)
     assert {:error, %Ethos.Error{kind: :ethos_no_such_seed}} = Ethos.wilt_seed(id, 9, ctx.brain)
+
+    # Toward a soul line that is live, by its number (agathos-daimon #27).
+    assert {:ok, 4} = Ethos.plant_seed(id, "I might be someone who waits.", ctx.brain)
+    :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nI wait.", %{cites: [4]}, ctx.brain)
+    assert :ok = Ethos.graduate_seed(id, 4, "soul", 1, "it is a line of me now", ctx.brain)
+
+    assert [
+             _,
+             _,
+             _,
+             %{number: 4, state: "graduated", graduated_to_kind: "soul", graduated_to_id: "1"}
+           ] =
+             Ethos.seeds(id)
+
+    assert [%{number: 1, text: "I wait.", cites: [4]}] = AgathosDaimon.soul_lines(id)
 
     # Citeable by number, with its state (seshat #14).
     assert {:ok, "maybe mornings (wilted)"} =

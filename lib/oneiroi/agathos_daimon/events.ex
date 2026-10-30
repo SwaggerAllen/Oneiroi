@@ -154,6 +154,29 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :ref, :file, :content]
   end
 
+  # The soul file as rows (spec §6.17, P39): every non-heading paragraph
+  # of `SOUL.md` is a line with a number minted from the resident's
+  # `soul` sequence, so `<slug>:soul/<n>` is stable and granular. A
+  # write of the file is diffed against the live lines in the same
+  # dispatch: a new paragraph is written, a changed one reworded under
+  # its number, a dropped one retired, and the order is restated when it
+  # moved. `cites` names the seeds a line grew from (ethos #4).
+  defmodule SoulLineWritten do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :cites]
+  end
+
+  defmodule SoulLineReworded do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :cites]
+  end
+
+  defmodule SoulLineRetired do
+    use Oneiroi.Event, version: 1, fields: [:id, :number]
+  end
+
+  defmodule SoulLinesOrdered do
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers]
+  end
+
   defmodule ModelPinChanged do
     # The chat model the witness pinned (spec §6.4): freely before first
     # contact, as an honestly told change after; `reason` is `run` when a

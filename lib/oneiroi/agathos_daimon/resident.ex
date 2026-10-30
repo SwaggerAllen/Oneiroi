@@ -12,6 +12,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events
+  alias Oneiroi.AgathosDaimon.SoulLines
 
   defstruct [
     :id,
@@ -27,6 +28,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     exported_through: 0,
     last_backup: nil,
     files: %{},
+    # The live soul lines in the file's order, `{number, text}`: what a
+    # write of `SOUL.md` is diffed against (spec §6.17, P39).
+    soul: [],
     first_contact: nil,
     proposals: %{},
     chat_model: nil,
@@ -330,16 +334,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # Before first contact the files are given: a witness writes a seed
   # with its origin, and a resident may too. After it a witness's write
   # is a proposal (spec §6.2); the resident's own edit applies.
+  #
+  # `SOUL.md` is stored as its words, markers stripped, and the same
+  # dispatch diffs its paragraphs against the live lines (`soul_events/4`):
+  # a rendered file written back unchanged is no event at all.
   def execute(%__MODULE__{} = r, %Commands.WriteFile{} = c) do
-    cond do
-      c.file not in @files -> {:error, :file_unknown}
-      not content_ok?(c.content) -> {:error, :content_invalid}
-      Map.get(r.files, c.file) == c.content -> []
-      first_contact?(r) and actor_kind(c.actor) != "resident" -> {:error, :propose_instead}
-      first_contact?(r) -> soul_edit_applied(c, nil)
-      c.origin not in @origins -> {:error, :origin_invalid}
-      true -> seed_file_written(c)
-    end
+    with :ok <- write_ok(c), do: write_file(r, c, soul_content(c.file, c.content))
   end
 
   # Once: the second captured turn is not a second first contact.
@@ -364,10 +364,14 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
-  # Accepting applies in the same dispatch: two events, one decision.
-  def execute(%__MODULE__{proposals: proposals}, %Commands.AcceptSoulEdit{} = c) do
-    case Map.get(proposals, c.ref) do
-      %{state: :open, file: file, content: content} ->
+  # Accepting applies in the same dispatch: two events, one decision,
+  # and the soul lines' verdict after them when the file is the soul.
+  def execute(%__MODULE__{proposals: proposals} = r, %Commands.AcceptSoulEdit{} = c) do
+    case {cites_ok?(c.cites), Map.get(proposals, c.ref)} do
+      {false, _proposal} ->
+        {:error, :cites_invalid}
+
+      {true, %{state: :open, file: file, content: content}} ->
         [
           %Events.SoulEditAccepted{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref},
           %Events.SoulEditApplied{
@@ -376,8 +380,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
             id: c.id,
             ref: c.ref,
             file: file,
-            content: content
+            content: soul_content(file, content)
           }
+          | soul_events(r, file, content, c)
         ]
 
       _other ->
@@ -598,6 +603,20 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.SoulEditApplied{} = e),
     do: %{r | files: Map.put(r.files, e.file, e.content)}
 
+  def apply(%__MODULE__{} = r, %Events.SoulLineWritten{} = e),
+    do: %{r | soul: r.soul ++ [{e.number, e.text}]}
+
+  def apply(%__MODULE__{} = r, %Events.SoulLineReworded{} = e),
+    do: %{r | soul: List.keyreplace(r.soul, e.number, 0, {e.number, e.text})}
+
+  def apply(%__MODULE__{} = r, %Events.SoulLineRetired{} = e),
+    do: %{r | soul: List.keydelete(r.soul, e.number, 0)}
+
+  def apply(%__MODULE__{} = r, %Events.SoulLinesOrdered{} = e) do
+    lines = for n <- e.numbers, line = List.keyfind(r.soul, n, 0), do: line
+    %{r | soul: lines}
+  end
+
   def apply(%__MODULE__{} = r, %Events.ModelPinChanged{} = e),
     do: %{r | chat_model: e.model, model_told: not first_contact?(r)}
 
@@ -616,29 +635,112 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   # ---- helpers ----
 
-  defp seed_file_written(c) do
+  defp write_ok(c) do
+    cond do
+      c.file not in @files -> {:error, :file_unknown}
+      not content_ok?(c.content) -> {:error, :content_invalid}
+      not cites_ok?(c.cites) -> {:error, :cites_invalid}
+      true -> :ok
+    end
+  end
+
+  defp write_file(r, c, content) do
+    cond do
+      Map.get(r.files, c.file) == content ->
+        []
+
+      first_contact?(r) and actor_kind(c.actor) != "resident" ->
+        {:error, :propose_instead}
+
+      first_contact?(r) ->
+        [soul_edit_applied(c, nil, content) | soul_events(r, c.file, c.content, c)]
+
+      c.origin not in @origins ->
+        {:error, :origin_invalid}
+
+      true ->
+        [seed_file_written(c, content) | soul_events(r, c.file, c.content, c)]
+    end
+  end
+
+  defp seed_file_written(c, content) do
     %Events.SeedFileWritten{
       actor: c.actor,
       at: c.at,
       id: c.id,
       file: c.file,
-      content: c.content,
+      content: content,
       origin: c.origin,
       model: c.model,
       prompt: c.prompt
     }
   end
 
-  defp soul_edit_applied(c, ref) do
+  defp soul_edit_applied(c, ref, content) do
     %Events.SoulEditApplied{
       actor: c.actor,
       at: c.at,
       id: c.id,
       ref: ref,
       file: c.file,
-      content: c.content
+      content: content
     }
   end
+
+  # The soul's words are stored without their markers, so a rendered
+  # file written back is the same content and the numbers never enter
+  # the log as text. A proposal keeps its markers until it is applied:
+  # they are the witness's claims, and the resident reads them as such.
+  defp soul_content("SOUL.md", content) when is_binary(content), do: SoulLines.strip(content)
+  defp soul_content(_file, content), do: content
+
+  # The soul lines' verdict on a write of `SOUL.md` (spec §6.17, P39):
+  # each new paragraph mints a `soul` number and is written, a paragraph
+  # claiming a line by its marker is reworded under that number, a
+  # dropped line is retired, and the order is restated when it moved
+  # (`SoulLines.diff/2` has the rules). Any other file
+  # has no lines. The numbers are minted here rather than by `MintId`
+  # because the write and its lines are one dispatch, and a replay must
+  # reproduce every number from the stream alone.
+  defp soul_events(%__MODULE__{} = r, "SOUL.md", content, c) do
+    %{order: order, retired: retired} = SoulLines.diff(r.soul, SoulLines.marked(content))
+    base = %{actor: c.actor, at: c.at, id: c.id, cites: c.cites || []}
+    start = Map.get(r.sequences, "soul", 0)
+
+    {events, _next, numbers} =
+      Enum.reduce(order, {[], start, []}, fn
+        {:kept, n}, {events, next, numbers} ->
+          {events, next, [n | numbers]}
+
+        {:reworded, n, text}, {events, next, numbers} ->
+          reworded = struct!(Events.SoulLineReworded, Map.merge(base, %{number: n, text: text}))
+          {[reworded | events], next, [n | numbers]}
+
+        {:written, text}, {events, next, numbers} ->
+          n = next + 1
+          minted = %Events.IdMinted{actor: c.actor, at: c.at, id: c.id, kind: "soul", number: n}
+          written = struct!(Events.SoulLineWritten, Map.merge(base, %{number: n, text: text}))
+          {[written, minted | events], n, [n | numbers]}
+      end)
+
+    numbers = Enum.reverse(numbers)
+
+    retirements =
+      for n <- retired, do: %Events.SoulLineRetired{actor: c.actor, at: c.at, id: c.id, number: n}
+
+    ordered =
+      if numbers == Enum.map(r.soul, &elem(&1, 0)),
+        do: [],
+        else: [%Events.SoulLinesOrdered{actor: c.actor, at: c.at, id: c.id, numbers: numbers}]
+
+    Enum.reverse(events) ++ retirements ++ ordered
+  end
+
+  defp soul_events(_r, _file, _content, _c), do: []
+
+  defp cites_ok?(nil), do: true
+  defp cites_ok?(cites) when is_list(cites), do: Enum.all?(cites, &(is_integer(&1) and &1 > 0))
+  defp cites_ok?(_other), do: false
 
   defp soul_edit_proposed(c) do
     %Events.SoulEditProposed{

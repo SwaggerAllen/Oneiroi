@@ -13,6 +13,7 @@ defmodule Oneiroi.Proteus.Bridges do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.AgathosDaimon.SoulLines
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Proteus.Commands
@@ -97,8 +98,9 @@ defmodule Oneiroi.Proteus.Bridges do
 
   @doc """
   The card from git (spec §6.9): the soul and identity files as written,
-  one line per paragraph, each cut at #{@card_line_limit} characters.
-  Never from conversation.
+  one line per paragraph, the soul lines' markers stripped (a number is
+  for citing, not for the peer to read), each cut at #{@card_line_limit}
+  characters. Never from conversation.
   """
   @spec card(String.t()) :: [String.t()]
   def card(resident_id) do
@@ -108,6 +110,7 @@ defmodule Oneiroi.Proteus.Bridges do
     |> Enum.flat_map(fn {_name, content} ->
       # A heading names a file, not the resident; the paragraphs are the card.
       content
+      |> SoulLines.strip()
       |> String.split(~r/\n\s*\n/)
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))

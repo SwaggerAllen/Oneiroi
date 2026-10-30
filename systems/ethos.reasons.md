@@ -50,7 +50,10 @@ waits on indexing this system's rows through the library.
 
 ## #10
 Spec §6.17 (P37): "soul edits cite their seeds"; seshat #14 resolves
-when read.
+when read. The unreachable clauses are this repo's rule about a probe
+that passes: the Ethos slice's test resolved a seed through
+`Citations.resolve/2` directly and never through a document, so the
+parser's list was never exercised and the green said nothing about it.
 
 ## #11
 Spec §6.4: "trials are derived from behaviours"; the event field keeps

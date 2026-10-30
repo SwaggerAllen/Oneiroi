@@ -25,7 +25,11 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.SimaQian
   alias Oneiroi.Sunna
 
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts)
+  # The character kinds (habit, seed, soul) were resolvable before they
+  # were in this list, so `<slug>:habit/<n>` never parsed as a citation
+  # and their resolver clauses were unreachable; found when the soul
+  # lines landed, by the test that cites all three.
+  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts habit seed soul)
   # A ref ends on a letter, digit or `#`-less anchor character, so the full
   # stop closing a sentence stays with the sentence.
   @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/
@@ -233,6 +237,15 @@ defmodule Oneiroi.Seshat.Citations do
       {:ok, "#{s.text} (#{s.state})"}
     else
       _other -> {:unresolved, "no seed #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "soul", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = l <- Enum.find(AgathosDaimon.soul_lines(resident_id), &(&1.number == number)) do
+      {:ok, l.text}
+    else
+      _other -> {:unresolved, "no soul line #{ref}"}
     end
   end
 

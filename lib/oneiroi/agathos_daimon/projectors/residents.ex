@@ -20,7 +20,15 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   alias Ecto.Multi
   alias Oneiroi.AgathosDaimon.Custody
   alias Oneiroi.AgathosDaimon.Events
-  alias Oneiroi.AgathosDaimon.Store.{Adapter, Contract, IdentityFile, Resident, SoulEdit}
+
+  alias Oneiroi.AgathosDaimon.Store.{
+    Adapter,
+    Contract,
+    IdentityFile,
+    Resident,
+    SoulEdit,
+    SoulLine
+  }
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
     Multi.insert(multi, :resident, %Resident{
@@ -301,6 +309,58 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   # first came from and who wrote it last; the log says everything.
   fold(%Events.SoulEditApplied{} = e, _metadata, fn multi ->
     put_file(multi, e, "authored", nil, nil)
+  end)
+
+  # The soul lines (spec §6.17, P39): a row per number, live or retired,
+  # its position restated by `SoulLinesOrdered` when the order moved. The
+  # order lands as one update per line because the file is tens of
+  # lines at most; a soul file of hundreds would be the thing to fix.
+  fold(%Events.SoulLineWritten{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:soul_line, e.number},
+      %SoulLine{
+        resident_id: e.id,
+        number: e.number,
+        text: e.text,
+        cites: e.cites || [],
+        written_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.SoulLineReworded{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:soul_line, e.number},
+      from(l in SoulLine, where: l.number == ^e.number),
+      set: [text: e.text, cites: e.cites || [], reworded_at: e.at],
+      inc: [version: 1]
+    )
+  end)
+
+  fold(%Events.SoulLineRetired{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:soul_line, e.number},
+      from(l in SoulLine, where: l.number == ^e.number),
+      set: [state: "retired", retired_at: e.at]
+    )
+  end)
+
+  fold(%Events.SoulLinesOrdered{} = e, _metadata, fn multi ->
+    e.numbers
+    |> Enum.with_index(1)
+    |> Enum.reduce(multi, fn {number, position}, multi ->
+      Multi.update_all(
+        multi,
+        {:soul_line, number},
+        from(l in SoulLine, where: l.number == ^number),
+        set: [position: position]
+      )
+    end)
   end)
 
   defp put_file(multi, e, origin, model, prompt) do

@@ -161,8 +161,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit",
-        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time.",
-        %{file: %{type: "string"}, content: %{type: "string"}},
+        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
+        %{
+          file: %{type: "string"},
+          content: %{type: "string"},
+          cites: %{type: "array", items: %{type: "integer"}}
+        },
         [:file, :content]
       ),
       tool(
@@ -173,8 +177,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit_accept",
-        "Accept a proposed edit, with a note your witness reads first.",
-        %{ref: %{type: "string"}, note: %{type: "string"}},
+        "Accept a proposed edit, with a note your witness reads first; cites: the seed numbers any new soul line grew from.",
+        %{
+          ref: %{type: "string"},
+          note: %{type: "string"},
+          cites: %{type: "array", items: %{type: "integer"}}
+        },
         [:ref, :note]
       ),
       tool(
@@ -502,15 +510,17 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp call("soul_edit", args, turn),
-    do:
+  defp call("soul_edit", args, turn) do
+    with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.write_file(
         turn.resident_id,
         to_string(args["file"]),
         to_string(args["content"]),
-        %{},
+        %{cites: cites},
         turn.resident
       )
+    end
+  end
 
   defp call("soul_edit_list", _args, turn) do
     case Oneiroi.AgathosDaimon.edit_proposals(turn.resident_id) do
@@ -524,14 +534,17 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp call("soul_edit_accept", args, turn),
-    do:
+  defp call("soul_edit_accept", args, turn) do
+    with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.accept_edit(
         turn.resident_id,
         args["ref"],
         args["note"],
+        cites,
         turn.resident
       )
+    end
+  end
 
   defp call("soul_edit_decline", args, turn),
     do:
@@ -987,6 +1000,24 @@ defmodule Oneiroi.Brain.Tools do
 
     "##{s.number} (#{s.state}#{became}) cited on #{s.days} day(s): #{s.text}"
   end
+
+  # A soul line's cites name seeds that exist, open or closed (a line
+  # cites the seed it grew from, which has usually graduated into it);
+  # checked here because the resident system cannot read the character
+  # system's rows (ethos #13).
+  defp seeds_cited(_resident_id, nil), do: {:ok, []}
+
+  defp seeds_cited(resident_id, cites) when is_list(cites) do
+    numbers = Enum.map(cites, &integer/1)
+    known = MapSet.new(Oneiroi.Ethos.seeds(resident_id), & &1.number)
+
+    case Enum.reject(numbers, &(is_integer(&1) and MapSet.member?(known, &1))) do
+      [] -> {:ok, numbers}
+      unknown -> "No seed numbered #{Enum.join(unknown, ", ")}; seed_list reads them."
+    end
+  end
+
+  defp seeds_cited(_resident_id, _cites), do: "cites is a list of seed numbers."
 
   defp tool(name, description, properties, required) do
     %{

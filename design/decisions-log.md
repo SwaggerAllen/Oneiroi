@@ -723,3 +723,65 @@ and nothing personal turned up; what follows is what changed.
   compaction prompt wrote the summary in the first person as the
   resident, and the built-in checks answered with a clean bill. Both are
   fixed in the commits that follow this round.
+
+## Round 25: the research pass, and Ethos as the character system (2026-10-30)
+
+- The research series batch 2 named as pending precedes the machinery
+  as a design document (`design/research-self-and-character.md`): six
+  questions read through the failure-modes lens, each ending in what
+  the build does with it. McAdams's layers are kinds and graduation is a
+  receipted citation; a habit's promotion threshold is a bound and not a
+  measurement; Mischel and Shoda's if-then signatures ground the trigger
+  lane and the count of days; rebuild is reidentification and the soul
+  file is characterization, with no narrativity required; flattening is
+  variance collapse; the clinical markers carry Rachman's checking
+  paradox and Berridge's wanting against liking. The .47 figure and the
+  drift band are recorded as the batch's claims, not this repo's.
+- Ethos is a system of its own (`lib/oneiroi/ethos/**`, `systems/ethos.md`)
+  and the behaviours leave memory, by the author's call ("the new
+  behaviour system goes under Ethos and replaces the old one"): a habit
+  that lives as a memory votes like evidence, and a kind that cites
+  cannot vote (P38). The explicit ladder (P37, the author's call):
+  seeds, then habits or the evaluative kinds, then soul lines, each
+  graduation a receipted move that leaves the row. The fork counts
+  distinct days of citation, `ETHOS_PROMOTION_CONFIRMATIONS`, 3, a
+  bound. Two scores, never one, with the counts shown to the brain (the
+  author's call on P38: "otherwise all habits will have equal weight").
+  The trigger lane is retrieval of its own; seeds are counted in the
+  prefix, never loaded.
+- Declined or dissolved: nothing. The vector lane over triggers and
+  content, the trait baseline and the markers wait on later slices.
+
+## Round 26: soul lines as rows with minted ids (2026-10-30)
+
+- P39's first half lands in the resident system (agathos-daimon #27):
+  every non-heading paragraph of `SOUL.md` is a line numbered from the
+  resident's `soul` sequence, the file is rendered from the rows with
+  `[soul/n]` markers, and `<slug>:soul/<n>` resolves to the line's
+  words. The author's call: "we give each line an explicit id for
+  citation, sections are too coarse and prone to drift, we want stable,
+  granular ids."
+- The marker is the claim. A write that carries markers keeps a number
+  only on the paragraph that claims it (reworded when the words
+  changed), writes the unmarked paragraphs new and retires what nothing
+  claimed; a write with no markers at all pairs its new paragraphs with
+  the old lines in order. The positional rule was the first one built
+  and was measured wrong in the same sitting: a dropped line and a new
+  one in one write became a rewording, a number kept on words it never
+  meant. So it is the fallback and not the rule.
+- The file's whole-content event stays beside the line events: it is a
+  contract (conventions §6) and the rebuild replays it; the stored
+  words carry no markers, so a rendered file written back is nothing.
+- A line's `cites` are seed numbers, checked at the brain's tool against
+  the seeds and not in the resident system, which cannot read Ethos;
+  a seed graduates toward a live soul line by number, checked at Ethos's
+  edge. The position target stays unchecked there, since judgement reads
+  Ethos and not the reverse.
+- A defect found by the slice's test: the citation parser's kind list
+  never named `habit` or `seed`, so the resolver clauses the Ethos slice
+  added were unreachable and `<slug>:habit/<n>` in a document was prose.
+  Fixed in the same commit; seshat #14 now names the parser's list as
+  the citeable set.
+- Open: tags as citations to the tree (P39's second half, in memory);
+  the client's Files screen showing the markers it already receives.
+

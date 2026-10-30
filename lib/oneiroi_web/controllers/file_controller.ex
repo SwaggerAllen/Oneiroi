@@ -130,10 +130,32 @@ defmodule OneiroiWeb.FileController do
   def proposals(conn, %{"id" => id}),
     do: json(conn, id |> AgathosDaimon.edit_proposals() |> Enum.map(&proposal/1))
 
+  operation(:soul_lines,
+    summary:
+      "The soul file's lines in order, each with its stable number, its words and the seeds it cites (spec §6.17)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"lines", "application/json", %Schema{type: :array}}]
+  )
+
+  def soul_lines(conn, %{"id" => id}),
+    do: json(conn, id |> AgathosDaimon.soul_lines() |> Enum.map(&soul_line/1))
+
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+  end
+
+  defp soul_line(l) do
+    %{
+      number: l.number,
+      text: l.text,
+      position: l.position,
+      cites: l.cites,
+      version: l.version,
+      written_at: l.written_at,
+      reworded_at: l.reworded_at
+    }
   end
 
   defp file(f) do

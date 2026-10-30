@@ -49,7 +49,8 @@ defmodule Oneiroi.Ethos.Seeds do
 
   @doc "Graduates an open seed toward a habit (confirmed across `ETHOS_PROMOTION_CONFIRMATIONS` days) or an evaluative kind, with a note."
   def graduate(resident_id, number, to_kind, to_id, note, %Actor{} = actor) do
-    with :ok <- resident_only(actor) do
+    with :ok <- resident_only(actor),
+         :ok <- graduation_target(resident_id, to_kind, to_id) do
       command = %Commands.GraduateSeed{
         actor: actor,
         at: Clock.now(),
@@ -99,6 +100,13 @@ defmodule Oneiroi.Ethos.Seeds do
       end)
     end)
   end
+
+  # Toward a soul line the target is checked at the edge (a live line by
+  # number); toward a position it cannot be, see `Edge.target_exists/3`.
+  defp graduation_target(resident_id, "soul", to_id),
+    do: Edge.target_exists(resident_id, "soul", to_id)
+
+  defp graduation_target(_resident_id, _to_kind, _to_id), do: :ok
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
   defp resident_only(%Actor{}), do: {:error, Error.new(:ethos_not_the_resident)}

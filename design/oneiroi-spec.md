@@ -1269,9 +1269,9 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 Seeds, habits, the trait baseline and the measurement layer: who the
 resident is becoming and how it tends to act, kept apart from what
 happened. Owns `lib/oneiroi/ethos/**` (v0.2, P37 to P39, P42, P43;
-seeds and habits built in the first machinery slice, `systems/ethos.md`;
-the baseline, the markers, the vector lane, soul lines as rows and tags
-as citations follow).
+seeds and habits built in the first machinery slice, `systems/ethos.md`,
+and soul lines as rows in the second, in the resident system; the
+baseline, the markers, the vector lane and tags as citations follow).
 
 - **Habits and becomings are not memories** (P38). The memory web is the
   single evidence substrate; nothing person-shaped is stored as an event

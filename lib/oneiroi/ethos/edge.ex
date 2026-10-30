@@ -8,6 +8,7 @@ defmodule Oneiroi.Ethos.Edge do
   cycles gate refuses.
   """
 
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Ethos.Error
   alias Oneiroi.Ethos.Router
   alias Oneiroi.Kumbukumbu
@@ -25,6 +26,18 @@ defmodule Oneiroi.Ethos.Edge do
   end
 
   def target_exists(_resident_id, "turn", target_id) when is_binary(target_id), do: :ok
+
+  # A graduation toward a soul line names a live line of the soul file
+  # (agathos-daimon #27); a position cannot be checked the same way, since
+  # judgement reads this system and not the reverse.
+  def target_exists(resident_id, "soul", target_id) do
+    with {:ok, number} <- integer(target_id),
+         %{} <- Enum.find(AgathosDaimon.soul_lines(resident_id), &(&1.number == number)) do
+      :ok
+    else
+      _other -> {:error, Error.new(:ethos_target_invalid, kind: "soul", id: target_id)}
+    end
+  end
 
   def target_exists(_resident_id, kind, target_id),
     do: {:error, Error.new(:ethos_target_invalid, kind: kind, id: target_id)}

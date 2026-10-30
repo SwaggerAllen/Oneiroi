@@ -438,7 +438,7 @@ defmodule OneiroiWeb.ContractTest do
              "name" => "SOUL.md",
              "origin" => "authored",
              "version" => 1,
-             "content" => "# Soul\n\nCurious."
+             "content" => "# Soul\n\n[soul/1] Curious."
            } =
              conn |> get("/v1/residents/#{id}/files/SOUL.md") |> json_response(200)
 
