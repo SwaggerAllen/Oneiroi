@@ -10,6 +10,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.Fake
 
   @since ~U[2026-10-01 00:00:00.000000Z]
@@ -103,8 +104,21 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
 
     disputes = Eunomia.disputes(ctx.id)
 
-    assert %{settlement: "conceded", advice: "hold", judge_model: "fake/judge"} =
+    assert %{
+             settlement: "conceded",
+             advice: "hold",
+             judge_model: "fake/judge",
+             criteria: criteria
+           } =
              Enum.find(disputes, &(&1.ref == ref2))
+
+    # The criteria on the verdict (spec §6.4, P12): the judge's prompt as shipped.
+    # Computed here from the file itself, not through the function under test.
+    assert criteria ==
+             :crypto.hash(:sha256, File.read!(Prompt.path("judge_dispute")))
+             |> Base.encode16(case: :lower)
+
+    assert criteria == Prompt.hash("judge_dispute")
 
     assert %{settlement: "conceded", advice: "concede"} = Enum.find(disputes, &(&1.ref == ref))
 
@@ -281,8 +295,13 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
     # A day with nothing said calls no model and is recorded as such.
     assert :ok = Eunomia.judge_night(id, "2026-10-24", ctx.actor)
 
-    assert [%{day: "2026-10-25"}, %{day: "2026-10-24", messages: 0, judge_model: nil}] =
+    assert [
+             %{day: "2026-10-25", criteria: criteria},
+             %{day: "2026-10-24", messages: 0, judge_model: nil, criteria: nil}
+           ] =
              Eunomia.nights(id)
+
+    assert criteria == Prompt.hash("judge_night")
 
     assert [%{calls: 1}] = Nisaba.spend(id, :witness, :purpose, @since)
 

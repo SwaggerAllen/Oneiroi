@@ -62,6 +62,18 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many rounds of tool calls one turn may make before the model's last words stand as the reply; a bound against a model that loops"},
+      {:context_tokens, "BRAIN_CONTEXT_TOKENS",
+       cast: :integer,
+       default: "128000",
+       tag: :bound,
+       usage:
+         "the model window the capacity alarm (spec §5, P9) measures the always-loaded prefix against, in tokens estimated at four bytes each; a bound, the smallest window among the models the platform expects, not measured per model"},
+      {:capacity_alarm_percent, "BRAIN_CAPACITY_ALARM_PERCENT",
+       cast: :integer,
+       default: "90",
+       tag: :bound,
+       usage:
+         "the share of the window at which the prefix is flagged on the turn (spec §5, P9): a bound from the proposal, not measured"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",

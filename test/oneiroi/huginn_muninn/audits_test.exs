@@ -65,12 +65,13 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
       cmd(Commands.RecordRun,
         key: "attestation",
         builtin: true,
-        tone: "ok",
+        tone: "silent",
         value: 0,
-        finding: "matched"
+        finding: "nothing flagged: matched"
       )
 
-    assert %Events.AuditRun{tone: "ok", builtin: true} = Audits.execute(s, run)
+    assert %Events.AuditRun{tone: "silent", builtin: true} = Audits.execute(s, run)
+    assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "ok"})
     assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "fine"})
   end
 end

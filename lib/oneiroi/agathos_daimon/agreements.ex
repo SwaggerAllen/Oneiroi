@@ -16,6 +16,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Config
   alias Oneiroi.Scope
 
   # ---- the contract ----
@@ -47,6 +48,19 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc "Either party renews the version in force, with a note."
+  def renew_contract(resident_id, version, note, %Actor{} = actor) do
+    command = %Commands.RenewContract{
+      actor: actor,
+      at: Clock.now(),
+      note: note,
+      id: resident_id,
+      version: version
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
   @doc "The other party declines the open version, with a note."
   def decline_contract(resident_id, version, note, %Actor{} = actor) do
     command = %Commands.DeclineContract{
@@ -66,11 +80,19 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       versions = Store.contracts()
       in_force = Enum.find(versions, &(&1.state == "agreed"))
       open = Enum.find(versions, &(&1.state == "proposed"))
+      # Due a year after the agreement or the last renewal (spec §6.12,
+      # P5): derived on every read, a flag to both parties, never a lapse,
+      # since a lapsed contract would drop its privacy term with it.
+      since = in_force && (in_force.renewed_at || in_force.decided_at)
+      term = Config.fetch!(:agathos_daimon, :contract_term_days)
 
       %{
         in_force: in_force && shape(in_force),
         open: open && shape(open),
-        solo_sessions_private: solo_private?(in_force)
+        solo_sessions_private: solo_private?(in_force),
+        since: since,
+        due:
+          since != nil and DateTime.compare(DateTime.add(since, term, :day), Clock.now()) != :gt
       }
     end)
   end
@@ -79,30 +101,45 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   def contracts(resident_id),
     do: Scope.resident(resident_id, fn -> Enum.map(Store.contracts(), &shape/1) end)
 
+  # The words when no version is agreed (spec §6.3 as amended in v0.2).
+  @unstated "Unstated: no version has been agreed. Your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
+
   @doc "The contract section the brain reads: the terms in force in words, and an open proposal to answer; empty when unstated and nothing is open."
   @spec contract_text(String.t()) :: String.t()
   def contract_text(resident_id) do
-    %{in_force: in_force, open: open} = contract(resident_id)
+    %{in_force: in_force, open: open, since: since, due: due} = contract(resident_id)
 
     lines =
       [
         "# Your agreement with your witness",
-        in_force &&
-          "In force, version #{in_force.version}: #{terms_words(in_force.terms)}" <>
-            if(in_force.prose == "", do: "", else: " " <> in_force.prose),
-        is_nil(in_force) &&
-          "Unstated: no version has been agreed. Your solo sessions are readable by your witness.",
-        open &&
-          "Open, version #{open.version}, proposed by the #{open.proposed_by}: #{terms_words(open.terms)}" <>
-            if(open.prose == "", do: "", else: " " <> open.prose) <>
-            if(open.proposed_by == "witness",
-              do: " Answer it with contract_agree or contract_decline, with a note.",
-              else: " Waiting on your witness."
-            )
+        in_force_line(in_force),
+        due && due_line(in_force, since),
+        is_nil(in_force) && @unstated,
+        open && open_line(open)
       ]
       |> Enum.filter(&is_binary/1)
 
     if in_force || open, do: Enum.join(lines, "\n\n"), else: ""
+  end
+
+  defp in_force_line(nil), do: nil
+
+  defp in_force_line(in_force),
+    do:
+      "In force, version #{in_force.version}: #{terms_words(in_force.terms)}" <>
+        if(in_force.prose == "", do: "", else: " " <> in_force.prose)
+
+  defp due_line(in_force, since),
+    do:
+      "Due for renewal: version #{in_force.version} has stood since #{Date.to_iso8601(DateTime.to_date(since))}, a year and more. It stands until renewed; renew it with contract_renew, with a note, or propose a new version."
+
+  defp open_line(open) do
+    "Open, version #{open.version}, proposed by the #{open.proposed_by}: #{terms_words(open.terms)}" <>
+      if(open.prose == "", do: "", else: " " <> open.prose) <>
+      if(open.proposed_by == "witness",
+        do: " Answer it with contract_agree or contract_decline, with a note.",
+        else: " Waiting on your witness."
+      )
   end
 
   # ---- custody ----
@@ -185,10 +222,10 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp terms_words(terms) do
     case Map.get(terms || %{}, "solo_sessions_private") do
       true ->
-        "your solo sessions (free time, hands) are private; your witness reads one only when you share it."
+        "your solo sessions (free time, hands) are hidden from your witness entirely, their receipts included, until you share one."
 
       _other ->
-        "your solo sessions are readable by your witness."
+        "your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
     end
   end
 
@@ -203,7 +240,9 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       state: c.state,
       decided_at: c.decided_at,
       decided_by: c.decided_by_kind,
-      decision_note: c.decision_note
+      decision_note: c.decision_note,
+      renewed_at: c.renewed_at,
+      renewal_note: c.renewal_note
     }
   end
 
@@ -221,6 +260,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp translate(:terms_invalid, _c), do: Error.new(:agathos_daimon_terms_invalid)
   defp translate(:prose_invalid, _c), do: Error.new(:agathos_daimon_prose_invalid)
   defp translate(:own_proposal, _c), do: Error.new(:agathos_daimon_own_proposal)
+  defp translate(:not_in_force, _c), do: Error.new(:agathos_daimon_not_in_force)
   defp translate(:not_the_witness, _c), do: Error.new(:agathos_daimon_not_witnessed)
   defp translate(:custodian_invalid, _c), do: Error.new(:agathos_daimon_custodian_invalid)
   defp translate(:transfer_in_progress, _c), do: Error.new(:agathos_daimon_transfer_in_progress)

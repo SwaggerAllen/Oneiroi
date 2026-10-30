@@ -72,6 +72,7 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
         advice: e.advice,
         advice_text: e.advice_text,
         judge_model: e.judge_model,
+        criteria: e.criteria,
         checked_at: e.at
       },
       on_conflict: :nothing,
@@ -100,6 +101,7 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
       chars: e.chars,
       found: e.found,
       judge_model: e.judge_model,
+      criteria: e.criteria,
       summary: e.summary
     })
   end)
@@ -149,6 +151,7 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
         conclusions: e.conclusions,
         flagged: e.flagged,
         judge_model: e.judge_model,
+        criteria: e.criteria,
         summary: e.summary,
         at: e.at
       },

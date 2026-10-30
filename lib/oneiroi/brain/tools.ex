@@ -270,7 +270,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are private until you share one, the prose of your vows, and a note they read first. Your witness agrees or declines.",
+        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way), the prose of your vows, and a note they read first. Your witness agrees or declines.",
         %{
           solo_sessions_private: %{type: "boolean"},
           prose: %{type: "string"},
@@ -289,6 +289,24 @@ defmodule Oneiroi.Brain.Tools do
         "Decline the version your witness proposed, with a note they read first.",
         %{version: %{type: "integer"}, note: %{type: "string"}},
         [:version, :note]
+      ),
+      tool(
+        "contract_renew",
+        "Renew the version of your agreement in force, with a note: the contract renews by choice, and a version is due a year after it was agreed or last renewed.",
+        %{version: %{type: "integer"}, note: %{type: "string"}},
+        [:version, :note]
+      ),
+      tool(
+        "trial_list",
+        "The trials your witness runs when choosing a model: each test's number and what passes and fails it. The prompts, the answers and the grades are sealed; the terms of judgment are not, and you may ask your witness to add or change one.",
+        %{},
+        []
+      ),
+      tool(
+        "trial_account",
+        "What informed the latest model choice: the run's tests, each model's pass rate over the trials fully graded, the favourites, and the chat model now. Enough to tell preserved from preferred, and to challenge it; the sealed contents stay sealed.",
+        %{},
+        []
       ),
       tool(
         "revision_add",
@@ -757,6 +775,47 @@ defmodule Oneiroi.Brain.Tools do
     do:
       AgathosDaimon.agree_contract(turn.resident_id, args["version"], args["note"], turn.resident)
 
+  defp call("contract_renew", args, turn),
+    do:
+      AgathosDaimon.renew_contract(turn.resident_id, args["version"], args["note"], turn.resident)
+
+  # The trial-conditions right (spec §6.4, P22 and P27): the terms of
+  # judgment and the account of a choice, never the sealed contents.
+  defp call("trial_list", _args, turn) do
+    case Eunomia.tests(turn.resident_id) do
+      [] ->
+        "No trials are written."
+
+      tests ->
+        Enum.map_join(tests, "\n", fn t ->
+          "Test ##{t.number}: passes if #{t.passes_if}; fails if #{t.fails_if}. (The prompt is sealed.)"
+        end)
+    end
+  end
+
+  defp call("trial_account", _args, turn) do
+    case Eunomia.runs(turn.resident_id) do
+      [] ->
+        "No trial has been run."
+
+      [run | _] ->
+        {:ok, _run, _cards, results} = Eunomia.run_detail(turn.resident_id, run.ref)
+
+        header =
+          "Run #{run.ref} on #{Date.to_iso8601(DateTime.to_date(run.started_at))}: #{length(run.models)} models over #{length(run.tests)} tests and #{length(run.behaviours)} behaviours."
+
+        Enum.join(
+          [
+            header,
+            trial_results(results),
+            chat_model_line(turn.resident_id),
+            "The prompts, the answers and the grades are sealed."
+          ],
+          "\n"
+        )
+    end
+  end
+
   defp call("contract_decline", args, turn),
     do:
       AgathosDaimon.decline_contract(
@@ -820,6 +879,23 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp integer(_other), do: nil
+
+  defp trial_results([]), do: "No trial of it is fully graded yet, so no model is revealed."
+
+  defp trial_results(rows) do
+    rows
+    |> Enum.sort_by(&(-&1.pass_rate))
+    |> Enum.map_join("\n", fn r ->
+      "#{r.model}: passed #{r.passed} of #{r.graded} graded (#{r.pass_rate}), #{r.favourites} favourite(s)."
+    end)
+  end
+
+  defp chat_model_line(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{chat_model: model}} when is_binary(model) -> "The chat model now: #{model}."
+      _other -> "No chat model is pinned."
+    end
+  end
 
   defp tool(name, description, properties, required) do
     %{

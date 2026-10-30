@@ -22,6 +22,7 @@ defmodule Oneiroi.Eunomia.Judgements do
   alias Oneiroi.Eunomia.JudgementRouter, as: Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Scope
 
   # ---- positions ----
@@ -103,7 +104,9 @@ defmodule Oneiroi.Eunomia.Judgements do
         outcome: outcome,
         advice: advice,
         advice_text: text,
-        judge_model: model
+        judge_model: model,
+        # The criteria on the log with the verdict (spec §6.4, P12).
+        criteria: Prompt.hash("judge_dispute")
       }
 
       with {:ok, _} <- dispatch(command),
@@ -339,7 +342,8 @@ defmodule Oneiroi.Eunomia.Judgements do
       chars: chars,
       found: found,
       judge_model: model,
-      summary: summary
+      summary: summary,
+      criteria: model && Prompt.hash("judge_night")
     }
 
     case dispatch(command) do

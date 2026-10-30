@@ -60,6 +60,8 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:decided_at, :utc_datetime_usec)
       field(:decided_by_kind, :string)
       field(:decision_note, :string)
+      field(:renewed_at, :utc_datetime_usec)
+      field(:renewal_note, :string)
     end
 
     @type t :: %__MODULE__{}

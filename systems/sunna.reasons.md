@@ -53,8 +53,9 @@ and the row must exist for the day to be visible; the schedule minting
 it on ask keeps one owner for what a day is.
 
 ## #19
-Spec §6.3: "the resident's solo sessions (free time, hands) are
-readable by the witness by default, because liability follows
-deployment... privacy for those sessions is a term of the dyad
-contract". The schedule opens the session, so the schedule reads the
-term.
+Spec §6.3 as amended in v0.2 (P2, the author's call): "the resident's
+solo sessions (free time, hands) are private by default as to their
+words, and their external actions are visible as receipts", reversing
+v0.1's "readable by the witness by default". The schedule opens the
+session, so the default is the schedule's to apply.
+

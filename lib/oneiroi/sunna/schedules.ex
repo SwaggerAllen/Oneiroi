@@ -317,7 +317,11 @@ defmodule Oneiroi.Sunna.Schedules do
              "brain",
              List.wrap(row.account_id),
              actor,
-             private: AgathosDaimon.contract(resident_id).solo_sessions_private
+             # Private as to its words by default (spec §6.3, v0.2 P2): the
+             # witness sees what a solo session did, as receipts, never
+             # what it said; the contract's term hides the receipts too,
+             # which is nothing to hide until hands exist (P26).
+             private: true
            ),
          {:ok, _} <-
            wake(resident_id, key, Prompt.render!("free_time", %{name: row.name}), :free_time) do

@@ -142,7 +142,7 @@ defmodule Oneiroi.Brain.ToolsTest do
                }
              ]}
 
-          system.("Summarise the conversation") ->
+          system.("You are the compaction machinery") ->
             {:ok, "SUMMARY: eight lines were said."}
 
           true ->
@@ -174,6 +174,26 @@ defmodule Oneiroi.Brain.ToolsTest do
 
     assert ["user", "assistant"] =
              ctx.resident.id |> Kumbukumbu.recent(ctx.key, 40) |> Enum.map(& &1.role)
+
+    # The summary reaches the next turn as machine-state, marked as the
+    # machinery's in the context itself (spec §5, P1 and P24).
+    test = self()
+
+    Fake.script(
+      fn %{messages: shown} ->
+        send(test, {:shown, shown})
+        {:ok, "read it"}
+      end,
+      for: ctx.resident.id
+    )
+
+    assert {:ok, _} = Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "tenth", ctx.actor)
+    assert_received {:shown, shown}
+
+    assert [%{content: summary}] =
+             Enum.filter(shown, &(&1.role == :system and &1.content =~ "SUMMARY: eight lines"))
+
+    assert String.starts_with?(summary, "# Compaction summary: machine-state")
   end
 
   test "a flush that fails leaves the session uncompacted and the turn goes on", ctx do

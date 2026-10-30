@@ -39,3 +39,12 @@ Spec §6.13: "citation drift (§6.5) and the journal's plan-vs-actuals
 delta are the first two built-in audits"; "each audit declares whether
 it counts toward the check-engine light". Whether each counts is the
 build's call, with its reason beside it.
+
+## #16
+Spec §6.13 as amended (P3): "no test, audit or checklist returns
+'genuine', 'healthy' or 'clean'; a result is a flag or silence, every
+audit surface states what it did not look at". Max: "a clean bill of
+health exists to be worn as armour"; Verdane: "training can
+manufacture a denial, it can manufacture an affirmation". The word
+`ok` was the build's before the batch was read, and the aggregate
+accepted it.

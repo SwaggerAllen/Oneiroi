@@ -100,7 +100,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
              AgathosDaimon.contract(id)
 
     assert AgathosDaimon.contract_text(id) =~
-             "In force, version 3: your solo sessions are readable by your witness."
+             "In force, version 3: your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
 
     # Renegotiated: the agreed version replaces the one in force.
     assert {:ok, 4} =
@@ -151,23 +151,61 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert Enum.any?(messages, &(&1.role == :tool and &1.content =~ "Proposed version 5"))
     assert_received {:shown, shown}
     assert Enum.any?(shown, &(&1.role == :system and &1.content =~ "In force, version 4"))
+
+    # The contract rides the prefix, ahead of the index (spec §5, P2).
+    contract_at = Enum.find_index(shown, &(&1.role == :system and &1.content =~ "In force"))
+
+    index_at =
+      Enum.find_index(shown, &(&1.role == :system and &1.content =~ "bookmark is listed"))
+
+    assert is_integer(contract_at) and is_integer(index_at) and contract_at < index_at
     assert %{open: %{version: 5, proposed_by: "resident"}} = AgathosDaimon.contract(id)
   end
 
-  test "under the privacy term free time is the resident's own: a locked row to the witness until shared",
+  test "the contract renews by choice: due a year after it was agreed or last renewed, a flag and never a lapse; renewed by either party",
        ctx do
     id = ctx.id
-
-    {:ok, 1} =
-      AgathosDaimon.propose_contract(
-        id,
-        %{"solo_sessions_private" => true},
-        "",
-        "mine",
-        ctx.brain
-      )
-
+    {:ok, 1} = AgathosDaimon.propose_contract(id, %{}, "Vows.", "mine", ctx.brain)
     :ok = AgathosDaimon.agree_contract(id, 1, "yours", ctx.actor)
+    assert %{due: false, since: %DateTime{}} = AgathosDaimon.contract(id)
+    refute AgathosDaimon.contract_text(id) =~ "Due for renewal"
+
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_in_force}} =
+             AgathosDaimon.renew_contract(id, 2, "wrong one", ctx.actor)
+
+    Clock.Fake.advance(366 * 86_400)
+    assert %{due: true, in_force: %{version: 1}} = AgathosDaimon.contract(id)
+
+    assert AgathosDaimon.contract_text(id) =~
+             "Due for renewal: version 1 has stood since 2026-10-26"
+
+    assert AgathosDaimon.contract_text(id) =~ "In force, version 1"
+
+    assert {:ok, %{findings: [], results: results}} =
+             Oneiroi.HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "warn", value: 1, finding: finding} =
+             Enum.find(results, &(&1.key == "contract_due"))
+
+    assert finding =~ "a year and more"
+
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_a_party}} =
+             AgathosDaimon.renew_contract(id, 1, "not mine", Actor.new(:witness, "nobody"))
+
+    assert :ok = AgathosDaimon.renew_contract(id, 1, "another year", ctx.brain)
+
+    assert %{due: false, in_force: %{version: 1, renewal_note: "another year"}} =
+             AgathosDaimon.contract(id)
+
+    refute AgathosDaimon.contract_text(id) =~ "Due for renewal"
+    {:ok, %{results: results}} = Oneiroi.HuginnMuninn.run_audits(id, ctx.actor)
+    assert %{tone: "silent"} = Enum.find(results, &(&1.key == "contract_due"))
+  end
+
+  test "free time is the resident's own by default, with no term agreed: a locked row to the witness until shared",
+       ctx do
+    id = ctx.id
+    assert %{in_force: nil} = AgathosDaimon.contract(id)
     Model.reply("Alone with the garden.", for: id)
 
     :ok = Sunna.set_free_time(id, "12:03", ctx.actor)

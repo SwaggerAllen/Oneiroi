@@ -99,6 +99,28 @@ defmodule OneiroiWeb.AgreementController do
     end
   end
 
+  operation(:renew,
+    summary:
+      "Renew the version in force, with a note (spec §6.12, P5): the contract renews by choice and comes due a year after it was agreed or last renewed",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the renewal", "application/json",
+       %Schema{
+         type: :object,
+         required: [:version, :note],
+         properties: %{version: %Schema{type: :integer}, note: %Schema{type: :string}}
+       }},
+    responses: [no_content: "renewed"]
+  )
+
+  def renew(conn, %{"id" => id} = params) do
+    with :ok <- witnessed(conn, id), {v, ""} <- Integer.parse(to_string(params["version"])) do
+      respond(conn, AgathosDaimon.renew_contract(id, v, params["note"], actor(conn)))
+    else
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:set_wall,
     summary:
       "Set the export wall, locked or revealed, with a note; refused while a transfer is open",

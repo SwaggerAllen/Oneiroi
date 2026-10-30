@@ -119,7 +119,8 @@ defmodule Oneiroi.Eunomia.Judgement do
           outcome: c.outcome,
           advice: c.advice,
           advice_text: c.advice_text,
-          judge_model: c.judge_model
+          judge_model: c.judge_model,
+          criteria: c.criteria
         }
     end
   end
@@ -160,7 +161,8 @@ defmodule Oneiroi.Eunomia.Judgement do
         chars: c.chars,
         found: c.found,
         judge_model: c.judge_model,
-        summary: c.summary
+        summary: c.summary,
+        criteria: c.criteria
       }
   end
 
@@ -232,7 +234,8 @@ defmodule Oneiroi.Eunomia.Judgement do
         conclusions: c.conclusions,
         flagged: c.flagged,
         judge_model: c.judge_model,
-        summary: c.summary
+        summary: c.summary,
+        criteria: c.criteria
       }
   end
 

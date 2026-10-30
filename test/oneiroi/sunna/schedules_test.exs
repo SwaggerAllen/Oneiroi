@@ -150,8 +150,12 @@ defmodule Oneiroi.Sunna.SchedulesTest do
        ctx do
     :ok = Sunna.set_free_time(ctx.id, "08:00", ctx.actor)
     assert :ok = Sunna.tick(ctx.id)
-    assert [%{kind: "free_time", key: key}] = Kumbukumbu.sessions({:resident, ctx.id})
-    assert [note, reply] = transcript(ctx, key)
+
+    assert [%{kind: "free_time", key: key, private: true}] =
+             Kumbukumbu.sessions({:resident, ctx.id})
+
+    # Private as to its words by default (spec §6.3, v0.2): the resident's read.
+    {:ok, _session, [note, reply]} = Kumbukumbu.transcript({:resident, ctx.id}, key)
     assert note.role == "system" and note.content =~ "This is your free time, Lily"
     assert reply.content == "Good morning."
     assert [%{key: "free_time", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)

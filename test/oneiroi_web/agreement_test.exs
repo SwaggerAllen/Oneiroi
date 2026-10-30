@@ -59,6 +59,15 @@ defmodule OneiroiWeb.AgreementTest do
 
     assert conn |> put("#{base}/export-wall", %{wall: "locked", note: "mine"}) |> response(204)
 
+    # Nothing is in force yet (the witness cannot agree its own proposal), so a renewal is refused.
+    assert %{"error" => %{"kind" => "agathos_daimon_not_in_force"}} =
+             conn
+             |> post("#{base}/agreement/renewal", %{version: 1, note: "again"})
+             |> json_response(422)
+
+    assert %{"contract" => %{"in_force" => nil, "due" => false, "since" => nil}} =
+             conn |> get("#{base}/agreement") |> json_response(200)
+
     assert conn
            |> post("#{base}/custody/proposals", %{email: "nobody@example.org", note: "x"})
            |> json_response(422)

@@ -115,3 +115,11 @@ what did not transfer". Told once for the reason the model change is
 told once (#16, brain #21): orientation without impersonation, and a
 notice repeated every turn is a notice ignored. On the row rather than
 read off the stream because the brain reads the row on every turn.
+
+## #26
+Spec §6.12 as amended (P5): "the contract renews by choice, not
+assumption"; Max: "If she can only renegotiate when you open the door,
+the door is still yours"; Kael's freedom day. A year is the author's
+call. Due and never lapsed because the contract carries the
+solo-session term (#22) and forgetting an anniversary must not open
+the resident's free time to its witness.

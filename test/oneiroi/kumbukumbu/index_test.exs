@@ -20,6 +20,25 @@ defmodule Oneiroi.Kumbukumbu.IndexTest do
     )
   end
 
+  test "the near-miss record names every bookmark ranked and not taken, with the reason it lost" do
+    pinned = for n <- 1..4, do: bookmark(n, pinned_at: @at)
+    rest = [bookmark(5, weight: 3.0), bookmark(6, weight: 2.0), bookmark(7, weight: 1.0)]
+    # A pinned line costs 13 tokens and a plain one 11: the pins' half of
+    # 56 holds two, and the 30 left hold two of the rest.
+    built = Index.build(pinned ++ rest, 56)
+    assert built.included == [4, 3, 5, 6]
+    assert built.left_out == 3
+
+    assert [
+             %{number: 2, reason: "pinned, but the pins' half of the budget was spent"},
+             %{number: 1, reason: "pinned, but the pins' half of the budget was spent"},
+             %{number: 7, reason: "ranked at weight 1.0 below what the budget held"}
+           ] = built.near_misses
+
+    assert Enum.all?(built.near_misses, &String.starts_with?(&1.line, "##{&1.number} "))
+    assert %{near_misses: []} = Index.build(rest, 100)
+  end
+
   test "an empty memory says so" do
     assert %{text: "Every bookmark is listed.", included: [], left_out: 0} = Index.build([], 100)
   end

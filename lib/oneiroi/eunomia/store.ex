@@ -104,6 +104,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:advice, :string)
       field(:advice_text, :string)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:checked_at, :utc_datetime_usec)
       field(:settlement, :string)
       field(:settled_note, :string)
@@ -147,6 +148,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:chars, :integer)
       field(:found, :integer)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:summary, :string)
       field(:reason, :string)
     end
@@ -179,6 +181,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:conclusions, :integer)
       field(:flagged, :integer)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:summary, :string)
       field(:reason, :string)
       field(:at, :utc_datetime_usec)

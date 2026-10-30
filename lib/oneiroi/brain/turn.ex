@@ -36,6 +36,13 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Prompt
+
+  require Logger
+
+  # The summary is machine-state (spec §5, P1 and P24): the header marks
+  # it as the machinery's in the context itself, so the resident reads it
+  # as a record and never as its own words.
+  @summary_header "# Compaction summary: machine-state in the machinery's register, not your words\n\n"
   alias Oneiroi.Nisaba.Provider.{Request, Result}
 
   @bytes_per_token 4
@@ -313,6 +320,11 @@ defmodule Oneiroi.Brain.Turn do
           )
         end) ++
         section(
+          "contract",
+          Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
+          "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
+        ) ++
+        section(
           "index",
           index.text,
           "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
@@ -335,11 +347,6 @@ defmodule Oneiroi.Brain.Turn do
           "the counters as the fold of their increments, derived on this read (spec §6.13, F57): never written down"
         ) ++
         section(
-          "contract",
-          Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
-          "the dyad contract (spec §6.12): the terms in force and an open proposal to answer, read on this turn"
-        ) ++
-        section(
           "journal",
           Oneiroi.Seshat.journal_text(turn.resident_id),
           "today's journal rows (spec §6.5, F29): the plan, notes, todos and wrap so far, rendered on this read"
@@ -351,8 +358,8 @@ defmodule Oneiroi.Brain.Turn do
         ) ++
         section(
           "summary",
-          summary,
-          "the compaction summary covering this session through store sequence #{session && session.compacted_through}"
+          summary && @summary_header <> summary,
+          "the compaction summary, machine-state in the machinery's register and never the resident's words (spec §5, §1.13), covering this session through store sequence #{session && session.compacted_through}"
         )
 
     transcript = %{
@@ -362,12 +369,63 @@ defmodule Oneiroi.Brain.Turn do
         "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
     }
 
-    injections = Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++ [transcript]
+    injections =
+      Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++
+        near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
 
     opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
     messages = Enum.map(sections, & &1.message) ++ history ++ [opening]
 
     {messages, injections}
+  end
+
+  # The near-miss record (spec §5, P6): the bookmarks the index ranked
+  # and did not inject, each with the reason it lost, as injection rows
+  # that carry no message and no `refs`, so a near-miss never counts as
+  # indexed. Max: "the near-misses are where a character quietly bends."
+  defp near_misses(index) do
+    Enum.map(index.near_misses, fn m ->
+      %{
+        label: "near-miss",
+        tokens: 0,
+        reason: "considered and not injected: bookmark ##{m.number}, #{m.reason}",
+        text: m.line
+      }
+    end)
+  end
+
+  # The capacity alarm (spec §5, P9): the always-loaded prefix (the
+  # prompt, the identity files, the contract) against the model's window,
+  # flagged on the turn at the configured share. A successful write is
+  # not an arrival, and a tail the model never loads tells nobody.
+  # The file names are read at the call: a module attribute would make
+  # the resident system a compile-time dependency of the brain, which
+  # the compile-connected ratchet refuses.
+  defp capacity_alarm(sections) do
+    limit = Config.fetch!(:brain, :context_tokens)
+    percent = Config.fetch!(:brain, :capacity_alarm_percent)
+    prefix = ["prompt", "contract", "AGENTS.md" | Oneiroi.AgathosDaimon.identity_files()]
+
+    used =
+      sections
+      |> Enum.filter(&(&1.label in prefix))
+      |> Enum.map(& &1.injection.tokens)
+      |> Enum.sum()
+
+    if used * 100 >= percent * limit do
+      Logger.warning("brain prefix at #{used} of #{limit} tokens, over the #{percent}% alarm")
+
+      [
+        %{
+          label: "capacity",
+          tokens: used,
+          reason:
+            "the always-loaded prefix is #{used} tokens of a #{limit}-token window, at or over the #{percent}% alarm (spec §5, P9): the identity files or the contract need trimming before the tail stops arriving"
+        }
+      ]
+    else
+      []
+    end
   end
 
   # A section of the context: a system message and the injection that

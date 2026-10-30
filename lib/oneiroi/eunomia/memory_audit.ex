@@ -134,7 +134,8 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
       conclusions: conclusions,
       flagged: flagged,
       judge_model: model,
-      summary: summary
+      summary: summary,
+      criteria: Prompt.hash("judge_audit")
     }
 
     with {:ok, _} <- dispatch(command), do: {:ok, ref}

@@ -42,6 +42,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :version]
   end
 
+  defmodule RenewContract do
+    use Oneiroi.Command, decision: true, fields: [:id, :version]
+  end
+
   defmodule ProposeCustodyTransfer do
     use Oneiroi.Command, decision: true, fields: [:id, :to_account_id]
   end

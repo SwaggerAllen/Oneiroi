@@ -217,6 +217,28 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # Renewal is either party's, of the version in force and no other
+  # (spec §6.12, P5): a version proposed and not yet agreed is answered,
+  # not renewed, and a replaced one is history.
+  def execute(%__MODULE__{contract: %{in_force: in_force}} = r, %Commands.RenewContract{} = c) do
+    cond do
+      not party?(r, c.actor) ->
+        {:error, :not_a_party}
+
+      is_nil(in_force) or in_force.version != c.version ->
+        {:error, :not_in_force}
+
+      true ->
+        %Events.DyadContractRenewed{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          version: c.version
+        }
+    end
+  end
+
   # ---- custody transfer, adoption (spec §6.12) ----
 
   def execute(%__MODULE__{} = r, %Commands.ProposeCustodyTransfer{} = c) do
@@ -528,6 +550,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.DyadContractAgreed{}), do: r
   def apply(%__MODULE__{} = r, %Events.DyadContractDeclined{}), do: r
+  # The renewal's date is the row's; the aggregate keeps no instants.
+  def apply(%__MODULE__{} = r, %Events.DyadContractRenewed{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.CustodyTransferProposed{} = e),
     do: %{r | custody_proposal: %{to: e.to_account_id}}

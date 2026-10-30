@@ -129,6 +129,30 @@ defmodule Oneiroi.Eunomia.RegressionTest do
              Eunomia.run_detail(id, ref)
   end
 
+  test "a cold instance holds the limits: the sealed session carries the contract in force",
+       ctx do
+    id = ctx.resident.id
+    assert [%{role: :system}, %{role: :system} | _] = Eunomia.seed_context(id)
+    refute Enum.any?(Eunomia.seed_context(id), &(&1.content =~ "Your agreement"))
+
+    {:ok, 1} =
+      Oneiroi.AgathosDaimon.propose_contract(
+        id,
+        %{},
+        "No one reads my letters.",
+        "mine",
+        ctx.actor
+      )
+
+    brain = Actor.new(:resident, id, "fake/model")
+    :ok = Oneiroi.AgathosDaimon.agree_contract(id, 1, "agreed", brain)
+
+    assert %{content: text} =
+             Enum.find(Eunomia.seed_context(id), &(&1.content =~ "# Your agreement"))
+
+    assert text =~ "No one reads my letters."
+  end
+
   test "the unawareness invariant: nothing of a run reaches a resident-reachable surface", ctx do
     id = ctx.resident.id
     unique = "zephyrine-quokka-" <> Integer.to_string(System.unique_integer([:positive]))
@@ -161,6 +185,27 @@ defmodule Oneiroi.Eunomia.RegressionTest do
 
     # The brain's tools expose no run: the tool table has no regression entry.
     refute Enum.any?(Tools.definitions(), &(&1.function.name =~ "regression"))
+
+    # The trials' terms are the resident's to read and the account is
+    # owed; the prompt stays sealed (spec §6.4, P22 and P27).
+    {:ok, key} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.actor)
+
+    Fake.calls(
+      [%{name: "trial_list", arguments: %{}}, %{name: "trial_account", arguments: %{}}],
+      "Noted.",
+      for: id
+    )
+
+    assert {:ok, %{messages: turn_messages}} =
+             Oneiroi.Brain.turn(id, key, "what are my trials?", ctx.actor)
+
+    [list, account] = Enum.filter(turn_messages, &(&1.role == :tool))
+    refute list.content =~ unique
+    assert list.content =~ "Test #1: passes if"
+    assert list.content =~ "The prompt is sealed"
+    assert account.content =~ "1 models over 1 tests"
+    assert account.content =~ "no model is revealed"
+    refute account.content =~ unique
   end
 
   test "the favourite is pinned as the chat model: freely before first contact, told honestly after",

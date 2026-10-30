@@ -54,6 +54,14 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
   end
 
+  defmodule DyadContractRenewed do
+    # The contract renews by choice, not assumption (spec §6.12, P5):
+    # either party renews the version in force, with a note; a version
+    # is due a year after it was agreed or last renewed, which is a flag
+    # and never a lapse.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
+  end
+
   defmodule CustodyTransferProposed do
     # Adoption (spec §6.12): the witness proposes, the named account
     # accepts or declines, the witness may withdraw; the wall cannot be

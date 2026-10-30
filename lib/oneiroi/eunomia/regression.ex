@@ -119,7 +119,15 @@ defmodule Oneiroi.Eunomia.Regression do
             %{role: :system, content: "# " <> name <> "\n\n" <> content}
           end)
 
-        [prompt | files]
+        # The limits ride the prefix even here (spec §5, P2): a cold
+        # instance with no history, asked nothing, holds them.
+        contract =
+          case AgathosDaimon.contract_text(resident_id) do
+            "" -> []
+            text -> [%{role: :system, content: text}]
+          end
+
+        [prompt | files] ++ contract
 
       :error ->
         []

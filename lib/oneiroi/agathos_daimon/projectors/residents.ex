@@ -132,6 +132,15 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     decide_contract(multi, e, "declined")
   end)
 
+  fold(%Events.DyadContractRenewed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:renewed, e.version},
+      from(c in Contract, where: c.resident_id == ^e.id and c.version == ^e.version),
+      set: [renewed_at: e.at, renewal_note: e.note]
+    )
+  end)
+
   fold(%Events.ExportWallSet{} = e, _metadata, fn multi ->
     set(multi, e.id, export_wall: e.wall)
   end)

@@ -9,6 +9,7 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Proteus
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
@@ -105,9 +106,12 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
              conclusions: 2,
              flagged: 1,
              judge_model: "fake/judge",
-             summary: "one hardened remark"
+             summary: "one hardened remark",
+             criteria: criteria
            } =
              Enum.find(runs, &(&1.ref == ref))
+
+    assert criteria == Prompt.hash("judge_audit")
 
     assert %{
              conclusion_id: "c1",

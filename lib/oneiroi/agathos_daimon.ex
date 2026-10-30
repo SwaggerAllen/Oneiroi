@@ -78,6 +78,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.DyadContractProposed,
       Events.DyadContractAgreed,
       Events.DyadContractDeclined,
+      Events.DyadContractRenewed,
       Events.CustodyTransferProposed,
       Events.CustodyTransferDeclined,
       Events.CustodyTransferWithdrawn,
@@ -142,6 +143,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.DyadContractProposed, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractAgreed, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractDeclined, 1},
+      {Oneiroi.AgathosDaimon.Events.DyadContractRenewed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
@@ -157,7 +159,13 @@ defmodule Oneiroi.AgathosDaimon do
        default: "30",
        tag: :bound,
        usage:
-         "how long after first contact the resident is told its seed is still settling and proposals are presumed welcome (spec §6.2's first month); read by the brain's prompt and the client, never a gate"}
+         "how long after first contact the resident is told its seed is still settling and proposals are presumed welcome (spec §6.2's first month); read by the brain's prompt and the client, never a gate"},
+      {:contract_term_days, "AGATHOS_DAIMON_CONTRACT_TERM_DAYS",
+       cast: :integer,
+       default: "365",
+       tag: :bound,
+       usage:
+         "how long after the dyad contract's version in force was agreed or last renewed it comes due (spec §6.12, P5): a year, the author's call; a flag to both parties, never a lapse"}
     ]
   end
 
@@ -222,6 +230,8 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "sign in as that account"},
       {:agathos_daimon_wall_invalid, "the export wall is locked or revealed",
        remedy: "give one of the two"},
+      {:agathos_daimon_not_in_force, "that version of the agreement is not the one in force",
+       remedy: "renew the version in force, or propose a new one"},
       {:agathos_daimon_not_imported,
        "the resident was not imported, so there is no import to complete",
        remedy: "an import names its source first; a resident created here has no import"}
@@ -418,7 +428,14 @@ defmodule Oneiroi.AgathosDaimon do
     do: Agreements.decline_contract(id, version, note, actor)
   )
 
-  @doc "The contract as it stands: in force, open, and the solo-session privacy term."
+  @doc "Either party renews the version in force, with a note (spec §6.12, P5); a version is due a year after it was agreed or last renewed."
+  @spec renew_contract(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(renew_contract(id, version, note, actor),
+    do: Agreements.renew_contract(id, version, note, actor)
+  )
+
+  @doc "The contract as it stands: in force, open, the solo-session privacy term, and whether the version in force is due."
   @spec contract(String.t()) :: map()
   defexport(contract(id), do: Agreements.contract(id))
 

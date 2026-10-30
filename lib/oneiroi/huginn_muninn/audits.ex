@@ -93,7 +93,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   end
 
   def execute(%__MODULE__{}, %Commands.RecordRun{} = c) do
-    if c.tone in ["ok" | @tones],
+    if c.tone in ["silent" | @tones],
       do: %Events.AuditRun{
         actor: c.actor,
         at: c.at,

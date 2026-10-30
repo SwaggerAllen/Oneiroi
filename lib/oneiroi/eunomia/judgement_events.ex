@@ -28,8 +28,12 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
     # before answering; `timed_out` is unjudged, not failed (spec §6.4).
     # A nightly one (`source: night`) is the judge reading the day and
     # finding a disagreement settled in conversation.
+    # Version 2 adds `criteria`: the hash of the judge's prompt file as
+    # shipped when the verdict was asked for, so a criterion is on the log
+    # before it can be invoked (spec §6.4, P12). A version-1 line carries
+    # none and reads as nil, which is the truth about it.
     use Oneiroi.Event,
-      version: 1,
+      version: 2,
       fields: [
         :id,
         :ref,
@@ -42,8 +46,13 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
         :outcome,
         :advice,
         :advice_text,
-        :judge_model
+        :judge_model,
+        :criteria
       ]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: DisputeChecked do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule DisputeSettled do
@@ -55,9 +64,15 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
   defmodule NightJudged do
     # One per day: how much the judge read, what it found, under which
     # model. A quiet day is recorded with no messages and no model.
+    # Version 2 adds `criteria` as `DisputeChecked` does; a quiet day,
+    # judged by nobody, carries none.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary]
+      version: 2,
+      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary, :criteria]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: NightJudged do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule NightFailed do
@@ -81,9 +96,14 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
   defmodule AuditRun do
     # The weekly memory audit (F15): how many of Honcho's conclusions the
     # judge read, how many it flagged, under which model.
+    # Version 2 adds `criteria` as `DisputeChecked` does.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary]
+      version: 2,
+      fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary, :criteria]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: AuditRun do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule AuditFailed do

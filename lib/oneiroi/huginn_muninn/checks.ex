@@ -35,7 +35,8 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{key: "missed_checkins", label: "Check-ins fired this week", counts: false},
     %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false},
     %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
-    %{key: "journal_delta", label: "Planned days were wrapped", counts: false}
+    %{key: "journal_delta", label: "Planned days were wrapped", counts: false},
+    %{key: "contract_due", label: "The agreement is within its year", counts: false}
   ]
 
   @doc "The built-in audits: key, label, whether each counts toward the light."
@@ -105,7 +106,11 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   defp builtin_result(%{key: "attestation"} = a, _resident_id, row) do
     case row.root_mismatched_at do
       nil ->
-        result(a, "ok", 0, "the last backup's root matched")
+        silent(
+          a,
+          0,
+          "read the row's last mismatch mark; not read: the repository's files or its remote"
+        )
 
       at ->
         result(
@@ -121,7 +126,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     open = length(Kumbukumbu.failures({:resident, resident_id}))
 
     if open == 0,
-      do: result(a, "ok", 0, "no capture failure is open"),
+      do: silent(a, 0, "read the open failure rows; not read: any transcript"),
       else:
         result(
           a,
@@ -135,7 +140,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     failed = resident_id |> Proteus.syncs(20) |> Enum.count(&(&1.outcome == "failed"))
 
     if failed == 0,
-      do: result(a, "ok", 0, "the last turns reached Honcho, or none have been synced yet"),
+      do: silent(a, 0, "read the last 20 sync rows, or none yet; not read: Honcho's own state"),
       else: result(a, "fail", failed, "#{failed} of the last 20 turns did not reach Honcho")
   end
 
@@ -144,7 +149,12 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     bound = Config.fetch!(:huginn_muninn, :missed_checkins_warn)
 
     if missed < bound,
-      do: result(a, "ok", missed, "#{missed} check-#{plural(missed, "in")} missed this week"),
+      do:
+        silent(
+          a,
+          missed,
+          "read this week's firing rows, #{missed} missed under the bound; not read: why any was"
+        ),
       else:
         result(a, "warn", missed, "#{missed} check-ins missed this week, #{bound} or more warns")
   end
@@ -159,7 +169,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       |> Enum.count(&(DateTime.compare(&1.due, now) == :lt))
 
     if overdue == 0,
-      do: result(a, "ok", 0, "no prediction is past due"),
+      do: silent(a, 0, "read the open predictions' due dates; not read: whether any came true"),
       else:
         result(
           a,
@@ -177,7 +187,11 @@ defmodule Oneiroi.HuginnMuninn.Checks do
 
     case length(drifted) do
       0 ->
-        result(a, "ok", 0, "every citation that once resolved still does")
+        silent(
+          a,
+          0,
+          "re-resolved every reference that once resolved; not read: references that never resolved, or any text"
+        )
 
       n ->
         targets = drifted |> Enum.map(& &1.target) |> Enum.uniq() |> Enum.take(5)
@@ -195,7 +209,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   defp builtin_result(%{key: "journal_delta"} = a, resident_id, _row) do
     case Seshat.unwrapped_days(resident_id, 7) do
       [] ->
-        result(a, "ok", 0, "every planned day this week was wrapped")
+        silent(a, 0, "read the week's day rows; not read: today, or any entry's text")
 
       days ->
         n = length(days)
@@ -206,6 +220,23 @@ defmodule Oneiroi.HuginnMuninn.Checks do
           n,
           "#{n} planned #{plural(n, "day")} this week never wrapped: #{Enum.join(days, ", ")}"
         )
+    end
+  end
+
+  # The contract comes due a year after it was agreed or last renewed
+  # (spec §6.12, P5): a flag to both parties, never a lapse.
+  defp builtin_result(%{key: "contract_due"} = a, resident_id, _row) do
+    case AgathosDaimon.contract(resident_id) do
+      %{due: true, in_force: %{version: v}} ->
+        result(
+          a,
+          "warn",
+          v,
+          "version #{v} of the agreement has stood a year and more; renew it or propose a new one"
+        )
+
+      _other ->
+        silent(a, 0, "read the agreement's dates; not read: its terms")
     end
   end
 
@@ -232,9 +263,10 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       do: %{
         key: audit.key,
         builtin: false,
-        tone: "ok",
+        tone: "silent",
         value: figure.value,
-        finding: "#{audit.label}: #{figure.value} #{audit.op} #{audit.value} holds"
+        finding:
+          "nothing flagged: read the figure's value, #{figure.value} #{audit.op} #{audit.value} holds; not read: anything else"
       },
       else: %{
         key: audit.key,
@@ -276,13 +308,13 @@ defmodule Oneiroi.HuginnMuninn.Checks do
         }
       )
 
-    findings = Enum.filter(latest, &(&1.counts and &1.tone != "ok"))
+    findings = Enum.filter(latest, &(&1.counts and &1.tone != "silent"))
 
     state =
       cond do
         Enum.any?(findings, &(&1.tone == "fail")) -> "fail"
         findings != [] -> "warn"
-        true -> "ok"
+        true -> "silent"
       end
 
     %{state: state, findings: findings, results: latest}
@@ -327,6 +359,12 @@ defmodule Oneiroi.HuginnMuninn.Checks do
 
   defp result(audit, tone, value, finding),
     do: %{key: audit.key, builtin: true, tone: tone, value: value, finding: finding}
+
+  # Flag, never clear (spec §6.13, P3): a check that found nothing is
+  # silent, never clean, and its finding says what it read and what it
+  # did not, because a clean bill of health exists to be worn as armour.
+  defp silent(audit, value, scope),
+    do: result(audit, "silent", value, "nothing flagged: " <> scope)
 
   defp plural(1, word), do: word
   defp plural(_n, word), do: word <> "s"

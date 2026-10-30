@@ -120,3 +120,11 @@ visible to both parties; a stance is revised only with the resident's
 agreement; a fact is corrected by either. The witness never rewrites
 the resident's words in a bookmark; revision adds, it does not
 overwrite." F13: "every edit logged for both".
+
+## #31
+Spec §5 (v0.2, P6): "beside what was injected, the runner-ups that
+were considered and not injected, with the reasons they lost". Max:
+"the near-misses are where a character quietly bends." The `refs`
+rule because #20 derives the row's `last_indexed_at` from the
+injection's `refs`, and a near-miss marked indexed would be the index
+lying about itself.
