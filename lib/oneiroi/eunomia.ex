@@ -27,6 +27,7 @@ defmodule Oneiroi.Eunomia do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Ethos,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
       Oneiroi.Proteus,

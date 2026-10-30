@@ -125,21 +125,21 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:error, :file_unknown} = Oneiroi.Brain.draft(id, "AGENTS.md", "x", ctx.actor)
   end
 
-  test "the brain names and enacts a behaviour, and the next matching turn is shown how it acts",
+  test "the brain names a habit and cites the turn, and the next matching turn is shown how it acts",
        ctx do
     id = ctx.resident.id
 
     Fake.calls(
       [
         %{
-          name: "behaviour_define",
+          name: "habit_define",
           arguments: %{
             name: "small practical suggestions as care",
             words: ["garden"],
             stance: "keep"
           }
         },
-        %{name: "behaviour_enact", arguments: %{number: 1}}
+        %{name: "habit_cite", arguments: %{number: 1}}
       ],
       "The tomatoes want water.",
       for: id
@@ -148,10 +148,10 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:ok, %{turn_ref: ref, messages: [_, define, enact, _]}} =
              Oneiroi.Brain.turn(id, ctx.key, "how is the garden?", ctx.actor)
 
-    assert define.content =~ "Named as behaviour #1."
+    assert define.content =~ "Named as habit #1."
     assert enact.content =~ "Done."
-    assert [%{number: 1, habit: 1.0}] = Kumbukumbu.behaviours(id)
-    assert [%{target_kind: "turn", target_id: ^ref}] = Kumbukumbu.behaviour_enactments(id, 1)
+    assert [%{number: 1, habit: 1.0, days: 1}] = Oneiroi.Ethos.habits(id)
+    assert [%{target_kind: "turn", target_id: ^ref}] = Oneiroi.Ethos.habit_citations(id, 1)
 
     test = self()
 
@@ -177,17 +177,17 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert acting.content =~ "#1 small practical suggestions as care (keep)"
     assert acting.content =~ ~s(turn #{ref}: "The tomatoes want water.")
 
-    assert %{label: "behaviours", reason: reason} =
+    assert %{label: "character", reason: reason} =
              {:account, ctx.witness.id}
              |> Kumbukumbu.injections(ref2)
-             |> Enum.find(&(&1.label == "behaviours"))
+             |> Enum.find(&(&1.label == "character"))
 
-    assert reason =~ "1 behaviours"
+    assert reason =~ "1 habits"
 
     assert {:ok, %{turn_ref: ref3}} = Oneiroi.Brain.turn(id, ctx.key, "unrelated", ctx.actor)
 
     refute {:account, ctx.witness.id}
            |> Kumbukumbu.injections(ref3)
-           |> Enum.any?(&(&1.label == "behaviours"))
+           |> Enum.any?(&(&1.label == "character"))
   end
 end

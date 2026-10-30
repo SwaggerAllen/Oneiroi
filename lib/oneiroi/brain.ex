@@ -19,6 +19,7 @@ defmodule Oneiroi.Brain do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Glitnir,
       Oneiroi.HuginnMuninn,

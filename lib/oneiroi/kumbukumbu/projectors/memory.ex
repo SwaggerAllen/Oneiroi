@@ -6,8 +6,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
 
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
-  alias Oneiroi.Kumbukumbu.Store.{Affirmation, Behaviour, Bookmark, BookmarkProposal, Enactment}
-  alias Oneiroi.Kumbukumbu.Store.{Revision, Tag, Tagging}
+  alias Oneiroi.Kumbukumbu.Store.{Bookmark, BookmarkProposal, Revision, Tag, Tagging}
 
   fold(%Events.BookmarkAdded{} = e, _metadata, fn multi ->
     multi
@@ -152,67 +151,6 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
       from(t in Tagging,
         where: t.tag == ^e.slug and t.target_kind == ^e.target_kind and t.target_id == ^id
       )
-    )
-  end)
-
-  fold(%Events.BehaviourDefined{} = e, _metadata, fn multi ->
-    Multi.insert(
-      multi,
-      :behaviour,
-      %Behaviour{
-        resident_id: e.id,
-        number: e.number,
-        name: e.name,
-        trigger: e.trigger,
-        stance: e.stance,
-        defined_by_kind: actor_field(e.actor, :kind),
-        defined_by_id: actor_field(e.actor, :id),
-        defined_at: e.at
-      },
-      on_conflict: :nothing,
-      conflict_target: [:resident_id, :number]
-    )
-  end)
-
-  fold(%Events.BehaviourChanged{} = e, _metadata, fn multi ->
-    Multi.update_all(
-      multi,
-      :behaviour,
-      from(b in Behaviour, where: b.number == ^e.number),
-      set: [name: e.name, trigger: e.trigger, stance: e.stance, revised_at: e.at],
-      inc: [revisions: 1]
-    )
-  end)
-
-  fold(%Events.BehaviourAffirmed{} = e, _metadata, fn multi ->
-    Multi.insert(
-      multi,
-      :affirmation,
-      %Affirmation{
-        resident_id: e.id,
-        number: e.number,
-        at: e.at,
-        note: e.note,
-        by_kind: actor_field(e.actor, :kind),
-        by_id: actor_field(e.actor, :id)
-      },
-      on_conflict: :nothing
-    )
-  end)
-
-  fold(%Events.BehaviourEnacted{} = e, _metadata, fn multi ->
-    Multi.insert(
-      multi,
-      :enactment,
-      %Enactment{
-        resident_id: e.id,
-        number: e.number,
-        target_kind: e.target_kind,
-        target_id: to_string(e.target_id),
-        at: e.at
-      },
-      on_conflict: :nothing,
-      conflict_target: [:resident_id, :number, :target_kind, :target_id]
     )
   end)
 

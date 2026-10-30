@@ -119,3 +119,10 @@ exists and have a say in its criteria, not its sealed prompts"; and
 "an intelligible account of what informed the eventual model choice...
 enough to challenge 'we preserved you'". The prompt stays sealed
 because the prompt is the trial.
+
+## #29
+Spec §6.17 and spec §8's tool table; P37: seeds "writable by the
+resident alone"; the load question: "the character layer is NOT loaded
+whole". Eight names because the resident has two kinds to tend, and a
+graduation toward a habit is a definition rather than a separate move
+(ethos #4).

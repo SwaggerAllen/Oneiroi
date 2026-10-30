@@ -1,0 +1,120 @@
+defmodule Oneiroi.Ethos.Projectors.Character do
+  @moduledoc "Folds the character stream into seeds, habits, citations and affirmations."
+  use Oneiroi.Projection, name: "ethos_character"
+
+  import Ecto.Query, only: [from: 2]
+
+  alias Ecto.Multi
+  alias Oneiroi.Ethos.Events
+  alias Oneiroi.Ethos.Store.{Affirmation, Citation, Habit, Seed}
+
+  fold(%Events.SeedPlanted{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :seed,
+      %Seed{resident_id: e.id, number: e.number, text: e.text, state: "open", planted_at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.SeedWilted{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:seed, e.number},
+      from(s in Seed, where: s.resident_id == ^e.id and s.number == ^e.number),
+      set: [state: "wilted", closed_at: e.at]
+    )
+  end)
+
+  fold(%Events.SeedGraduated{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:seed, e.number},
+      from(s in Seed, where: s.resident_id == ^e.id and s.number == ^e.number),
+      set: [
+        state: "graduated",
+        closed_at: e.at,
+        graduated_to_kind: e.to_kind,
+        graduated_to_id: e.to_id,
+        graduation_note: e.note
+      ]
+    )
+  end)
+
+  fold(%Events.SeedCited{} = e, _metadata, fn multi -> cite(multi, "seed", e) end)
+
+  fold(%Events.HabitDefined{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :habit,
+      %Habit{
+        resident_id: e.id,
+        number: e.number,
+        name: e.name,
+        trigger: e.trigger,
+        stance: e.stance,
+        seed_number: e.seed_number,
+        defined_by_kind: actor_field(e.actor, :kind),
+        defined_by_id: actor_field(e.actor, :id),
+        defined_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.HabitChanged{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:habit, e.number},
+      from(h in Habit, where: h.resident_id == ^e.id and h.number == ^e.number),
+      set: [name: e.name, trigger: e.trigger, stance: e.stance, revised_at: e.at],
+      inc: [revisions: 1]
+    )
+  end)
+
+  fold(%Events.HabitAffirmed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :affirmation,
+      %Affirmation{
+        resident_id: e.id,
+        number: e.number,
+        at: e.at,
+        note: e.note,
+        by_kind: actor_field(e.actor, :kind),
+        by_id: actor_field(e.actor, :id)
+      },
+      on_conflict: :nothing
+    )
+  end)
+
+  fold(%Events.HabitCited{} = e, _metadata, fn multi -> cite(multi, "habit", e) end)
+
+  defp cite(multi, kind, e) do
+    Multi.insert(
+      multi,
+      {:citation, kind, e.number},
+      %Citation{
+        resident_id: e.id,
+        kind: kind,
+        number: e.number,
+        target_kind: e.target_kind,
+        target_id: to_string(e.target_id),
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :kind, :number, :target_kind, :target_id]
+    )
+  end
+
+  defp actor_field(%{} = actor, key) do
+    case Map.get(actor, key) || Map.get(actor, Atom.to_string(key)) do
+      nil -> nil
+      value -> to_string(value)
+    end
+  end
+
+  defp actor_field(_other, _key), do: nil
+end

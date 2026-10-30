@@ -9,8 +9,10 @@ defmodule Oneiroi.Kumbukumbu do
 
   Bookmarks, tags and taggings live on the memory stream,
   `memory-<resident_id>` (#19), with the bookmark index built from them
-  under a token budget and the compaction summary on the session; the
-  behaviours (Ethos) arrive in the next slice.
+  under a token budget and the compaction summary on the session. The
+  behaviours of v0.1 moved to the character layer, `Oneiroi.Ethos`, in
+  v0.2 (spec §6.17, P38): habits cite memory's moments and never live
+  among them.
   """
   use Oneiroi.System, slug: :kumbukumbu
 
@@ -43,18 +45,6 @@ defmodule Oneiroi.Kumbukumbu do
       Memories,
       MemoryRouter,
       Index,
-      Ethos,
-      MemoryCommands.DefineBehaviour,
-      MemoryCommands.ChangeBehaviour,
-      MemoryCommands.AffirmBehaviour,
-      MemoryCommands.EnactBehaviour,
-      Events.Memory.BehaviourDefined,
-      Events.Memory.BehaviourChanged,
-      Events.Memory.BehaviourAffirmed,
-      Events.Memory.BehaviourEnacted,
-      Store.Behaviour,
-      Store.Enactment,
-      Store.Affirmation,
       MemoryCommands.AddBookmark,
       MemoryCommands.ExtendBookmark,
       MemoryCommands.PinBookmark,
@@ -114,7 +104,6 @@ defmodule Oneiroi.Kumbukumbu do
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
-  alias Oneiroi.Kumbukumbu.Ethos
   alias Oneiroi.Kumbukumbu.Memories
 
   @impl Oneiroi.Component
@@ -128,19 +117,7 @@ defmodule Oneiroi.Kumbukumbu do
        default: "1500",
        tag: :bound,
        usage:
-         "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
-      {:half_life_days, "KUMBUKUMBU_HALF_LIFE_DAYS",
-       cast: :integer,
-       default: "30",
-       tag: :bound,
-       usage:
-         "the half-life of an enactment or an affirmation in a behaviour's scores (spec §6.3, F11's 30 days); the plan's guess"},
-      {:exemplars, "KUMBUKUMBU_EXEMPLARS",
-       cast: :integer,
-       default: "2",
-       tag: :bound,
-       usage:
-         "how many enacting turns a matched behaviour is shown with in the brain's context (spec §6.3: one or two); a bound on prompt size"}
+         "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"}
     ]
   end
 
@@ -171,11 +148,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.TagCreated, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRetired, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApplied, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.TaggingRemoved, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourDefined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourChanged, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourAffirmed, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourEnacted, 1}
+      {Oneiroi.Kumbukumbu.Events.Memory.TaggingRemoved, 1}
     ]
   end
 
@@ -227,12 +200,7 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_no_such_tag, "no active tag has that slug", remedy: "read the tag set"},
       {:kumbukumbu_target_invalid,
        "a tagging targets a bookmark, a conversation or a turn that exists",
-       remedy: "bookmark by number, conversation by session key, turn by ref"},
-      {:kumbukumbu_no_such_behaviour, "no behaviour has that number", remedy: "read the list"},
-      {:kumbukumbu_stance_invalid, "a behaviour's stance is keep or change", remedy: "say which"},
-      {:kumbukumbu_trigger_invalid,
-       "a trigger names words, tags or times (morning, afternoon, evening, night), at least one",
-       remedy: "give the situation that calls for it in one of those three"}
+       remedy: "bookmark by number, conversation by session key, turn by ref"}
     ]
   end
 
@@ -499,6 +467,12 @@ defmodule Oneiroi.Kumbukumbu do
   @spec bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
   defexport(bookmarks(resident_id), do: Memories.bookmarks(resident_id))
 
+  @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
+  @spec turn_messages(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
+  defexport(turn_messages(resident_id, turn_ref),
+    do: Memories.turn_messages(resident_id, turn_ref)
+  )
+
   @doc "One bookmark and the messages of its span."
   @spec bookmark(String.t(), pos_integer()) ::
           {:ok, Oneiroi.Kumbukumbu.Store.Bookmark.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
@@ -527,62 +501,6 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The bookmark index for this turn: text, the numbers it lists, how many it left out, its tokens."
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id), do: Memories.index(resident_id))
-
-  # ---- behaviours (Ethos, spec §6.3) ----
-
-  @doc "Defines a behaviour (the resident's, or the witness's before first contact); returns its number. Attrs: name, trigger, stance."
-  @spec define_behaviour(String.t(), map(), Oneiroi.Actor.t()) ::
-          {:ok, pos_integer()} | {:error, term()}
-  defexport(define_behaviour(resident_id, attrs, actor),
-    do: Ethos.define(resident_id, attrs, actor)
-  )
-
-  @doc "The resident revises a behaviour."
-  @spec change_behaviour(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(change_behaviour(resident_id, number, attrs, actor),
-    do: Ethos.change(resident_id, number, attrs, actor)
-  )
-
-  @doc "The witness affirms a behaviour, with a note."
-  @spec affirm_behaviour(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(affirm_behaviour(resident_id, number, note, actor),
-    do: Ethos.affirm(resident_id, number, note, actor)
-  )
-
-  @doc "The resident records an enactment on a turn (ref) or a bookmark (number)."
-  @spec enact_behaviour(
-          String.t(),
-          pos_integer(),
-          String.t(),
-          String.t() | pos_integer(),
-          Oneiroi.Actor.t()
-        ) ::
-          :ok | {:error, term()}
-  defexport(enact_behaviour(resident_id, number, kind, target_id, actor),
-    do: Ethos.enact(resident_id, number, kind, target_id, actor)
-  )
-
-  @doc "The behaviours with their two scores, ranked."
-  @spec behaviours(String.t()) :: [Oneiroi.Kumbukumbu.Store.Behaviour.t()]
-  defexport(behaviours(resident_id), do: Ethos.behaviours(resident_id))
-
-  @doc "The enactments of one behaviour, newest first."
-  @spec behaviour_enactments(String.t(), pos_integer()) :: [
-          Oneiroi.Kumbukumbu.Store.Enactment.t()
-        ]
-  defexport(behaviour_enactments(resident_id, number),
-    do: Ethos.enactments(resident_id, number)
-  )
-
-  @doc "The 'how I act' section for a situation: text, the numbers it names, the count."
-  @spec how_i_act(String.t(), map()) :: %{
-          text: String.t(),
-          numbers: [pos_integer()],
-          count: non_neg_integer()
-        }
-  defexport(how_i_act(resident_id, situation), do: Ethos.how_i_act(resident_id, situation))
 
   # ---- revisions (spec §6.3, F13) ----
 

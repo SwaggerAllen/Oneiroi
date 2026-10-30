@@ -18,7 +18,8 @@ config :oneiroi, :components, [
   Oneiroi.Proteus,
   Oneiroi.HuginnMuninn,
   Oneiroi.Seshat,
-  Oneiroi.Glitnir
+  Oneiroi.Glitnir,
+  Oneiroi.Ethos
 ]
 
 # One event log, Postgres in every environment (plan P0.2); named here

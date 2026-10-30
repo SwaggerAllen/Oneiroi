@@ -169,7 +169,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     refute Kumbukumbu.index(id).text =~ unique
 
     assert %{count: 0} =
-             Kumbukumbu.how_i_act(id, %{text: unique, tags: [], at: Clock.now()})
+             Oneiroi.Ethos.how_i_act(id, %{text: unique, tags: [], at: Clock.now()})
 
     # The resident's ledger view, and the resident's stream as exported.
     assert [] = Nisaba.spend(id, :resident, :purpose, @since)
@@ -268,7 +268,6 @@ defmodule Oneiroi.Eunomia.TrialsTest do
   alias Oneiroi.Actor
   alias Oneiroi.Eunomia
   alias Oneiroi.Fixtures
-  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
@@ -283,7 +282,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
   test "a run with behaviours answers one derived trial per behaviour, blind by trial, beside the authored tests",
        ctx do
     {:ok, 1} =
-      Kumbukumbu.define_behaviour(
+      Oneiroi.Ethos.define_habit(
         ctx.id,
         %{
           name: "checks the garden first",

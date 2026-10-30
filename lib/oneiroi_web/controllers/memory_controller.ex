@@ -264,57 +264,6 @@ defmodule OneiroiWeb.MemoryController do
     end
   end
 
-  operation(:behaviours,
-    summary: "The resident's behaviours with their habit and connection scores, ranked",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"behaviours", "application/json", %Schema{type: :array}}]
-  )
-
-  def behaviours(conn, %{"id" => id}),
-    do: json(conn, id |> Kumbukumbu.behaviours() |> Enum.map(&behaviour/1))
-
-  operation(:define_behaviour,
-    summary: "Give a first behaviour before first contact (after it the resident names its own)",
-    parameters: [id: [in: :path, type: :string]],
-    request_body:
-      {"the behaviour", "application/json",
-       %Schema{
-         type: :object,
-         required: [:name],
-         properties: %{
-           name: %Schema{type: :string},
-           trigger: %Schema{type: :object},
-           stance: %Schema{type: :string, enum: ["keep", "change"]}
-         }
-       }},
-    responses: [created: {"the number", "application/json", %Schema{type: :object}}]
-  )
-
-  def define_behaviour(conn, %{"id" => id, "name" => name} = params) do
-    attrs = %{name: name, trigger: Map.get(params, "trigger", %{}), stance: params["stance"]}
-
-    case Kumbukumbu.define_behaviour(id, attrs, actor(conn)) do
-      {:ok, number} -> conn |> put_status(201) |> json(%{number: number})
-      other -> respond(conn, other)
-    end
-  end
-
-  def define_behaviour(conn, _params), do: problem(conn, 422, :name_required, "name is required")
-
-  operation(:affirm_behaviour,
-    summary: "Affirm a behaviour, with a note the resident reads",
-    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
-    request_body:
-      {"the note", "application/json",
-       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
-    responses: [no_content: "affirmed"]
-  )
-
-  def affirm_behaviour(conn, %{"id" => id, "number" => number, "note" => note}),
-    do: respond(conn, Kumbukumbu.affirm_behaviour(id, integer(number), note, actor(conn)))
-
-  def affirm_behaviour(conn, _params), do: problem(conn, 422, :note_required, "note is required")
-
   # Every route here is a resident's, read or written by its witness.
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
@@ -391,23 +340,6 @@ defmodule OneiroiWeb.MemoryController do
       state: p.state,
       proposed_by: %{kind: p.proposed_by_kind, id: p.proposed_by_id},
       proposed_at: p.proposed_at
-    }
-  end
-
-  defp behaviour(b) do
-    %{
-      number: b.number,
-      name: b.name,
-      trigger: b.trigger,
-      stance: b.stance,
-      habit: b.habit,
-      connection: b.connection,
-      enactments: b.enactments,
-      affirmations: b.affirmations,
-      defined_by: %{kind: b.defined_by_kind, id: b.defined_by_id},
-      defined_at: b.defined_at,
-      revised_at: b.revised_at,
-      revisions: b.revisions
     }
   end
 

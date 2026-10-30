@@ -100,33 +100,6 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     use Oneiroi.Event, version: 1, fields: [:id, :slug, :target_kind, :target_id]
   end
 
-  defmodule BehaviourDefined do
-    # A behaviour is a row the resident owns (spec §6.3, F55): a name in
-    # its own words, the trigger it answers (a map of `words`, `tags` and
-    # `times`, any of which matching is a match), and a stance, `keep` or
-    # `change`. `number` is the resident's own sequence.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :name, :trigger, :stance]
-  end
-
-  defmodule BehaviourChanged do
-    # Revision adds, it does not overwrite: the new words, trigger and
-    # stance, with the old ones still in the log.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :name, :trigger, :stance]
-  end
-
-  defmodule BehaviourAffirmed do
-    # "I like when you do that": the witness's, with a note, part of the
-    # connection score and never of the habit score.
-    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
-  end
-
-  defmodule BehaviourEnacted do
-    # The tagging that says "this was one": on a turn or a bookmark, by
-    # the resident's actor at turn time. Nothing enters a behaviour's
-    # record without the resident's actor on it.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
-  end
-
   defmodule RevisionProposed do
     # Revision (spec §6.3, F13): a stance is revised only with the
     # resident's agreement, so the witness's revision of one is a

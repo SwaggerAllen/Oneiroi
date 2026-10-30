@@ -397,4 +397,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp ref_of(%{proposal_ref: ref}), do: ref
   defp ref_of(%{ref: ref}), do: ref
   defp ref_of(%{slug: slug}), do: slug
+
+  @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
+  def turn_messages(resident_id, turn_ref),
+    do: Scope.resident(resident_id, fn -> Store.turn_messages(turn_ref) end)
 end

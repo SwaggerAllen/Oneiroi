@@ -21,12 +21,12 @@ defmodule Oneiroi.Eunomia.Regression do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia.Commands
   alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Eunomia.Suite
-  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
@@ -146,7 +146,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
     behaviours =
       case Map.get(selection, :behaviours, []) do
-        :all -> resident_id |> Kumbukumbu.behaviours() |> Enum.map(& &1.number)
+        :all -> resident_id |> Ethos.habits() |> Enum.map(& &1.number)
         list -> List.wrap(list)
       end
 
@@ -173,7 +173,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
         wanted ->
           resident_id
-          |> Kumbukumbu.behaviours()
+          |> Ethos.habits()
           |> Enum.filter(&(&1.number in wanted))
           |> Enum.map(&derived_trial/1)
       end

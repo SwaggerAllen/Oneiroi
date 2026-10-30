@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -214,6 +215,24 @@ defmodule Oneiroi.Seshat.Citations do
       {:ok, b.line}
     else
       _other -> {:unresolved, "no bookmark #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "habit", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = h <- Enum.find(Ethos.habits(resident_id), &(&1.number == number)) do
+      {:ok, "#{h.name} (#{h.stance})"}
+    else
+      _other -> {:unresolved, "no habit #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "seed", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = s <- Enum.find(Ethos.seeds(resident_id), &(&1.number == number)) do
+      {:ok, "#{s.text} (#{s.state})"}
+    else
+      _other -> {:unresolved, "no seed #{ref}"}
     end
   end
 

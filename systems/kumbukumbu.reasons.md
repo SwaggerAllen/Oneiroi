@@ -62,20 +62,14 @@ budgets `recent/3` at four statements, and a constant extra read would
 spend that budget on nothing that grows.
 
 ## #24
-Spec §6.3, F55: "a behaviour is self-description, and the resident's
-words are never editable by the witness"; "two scores, never one",
-because "a behaviour with high habit and low connection is a tic". The
-closed trigger set is the spec's: "a trigger the assembler cannot match
-is a behaviour never retrieved", so an open set would be a list of
-things nothing ever matches. On read rather than nightly: the volumes of
-P1 make the sum cheap, and the nightly job belongs to the pass that
-also proposes enactments.
+Spec §6.17 (P38): "habits and becomings are not memories... the
+behavior system was largely a port of the memory system" (the author).
+The move pays that debt; the reasons for the rules themselves are in
+`systems/ethos.reasons.md`.
 
 ## #25
-Spec §6.3: "Retrieval is memory's and choice is the brain's", with
-"one or two enacting turns cited by id" because "for a new model they
-are the resident's own voice doing the thing, which is stronger than any
-description of it."
+Spec §6.17's load question: the character layer is retrieved in a lane
+of its own, never pooled with memory's scoring.
 
 ## #26
 Spec §8: "`turn-start` reporting the session so the next tool calls are

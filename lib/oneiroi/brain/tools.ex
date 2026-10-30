@@ -13,6 +13,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Glitnir
   alias Oneiroi.HuginnMuninn
@@ -183,8 +184,8 @@ defmodule Oneiroi.Brain.Tools do
         [:ref, :note]
       ),
       tool(
-        "behaviour_define",
-        "Name how you tend to act, in your own words, with the situation that calls for it (words your witness uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it.",
+        "habit_define",
+        "Name how you tend to act, in your own words, with the situation that calls for it (words your witness uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it. With seed_number and a note, the seed graduates into this habit, which is refused until the seed has been cited on enough days.",
         %{
           name: %{type: "string"},
           words: %{type: "array", items: %{type: "string"}},
@@ -193,17 +194,59 @@ defmodule Oneiroi.Brain.Tools do
             type: "array",
             items: %{type: "string", enum: ["morning", "afternoon", "evening", "night"]}
           },
-          stance: %{type: "string", enum: ["keep", "change"]}
+          stance: %{type: "string", enum: ["keep", "change"]},
+          seed_number: %{type: "integer"},
+          note: %{type: "string"}
         },
         [:name, :stance]
       ),
       tool(
-        "behaviour_enact",
-        "This turn was one: record that you enacted a behaviour just now, by its number.",
+        "habit_cite",
+        "This turn was one: the habit cites the turn just now, by its number.",
         %{number: %{type: "integer"}},
         [:number]
       ),
-      tool("behaviour_list", "Your behaviours with their habit and connection scores.", %{}, []),
+      tool(
+        "habit_list",
+        "Your habits with their habit and connection scores and how many days they were cited on.",
+        %{},
+        []
+      ),
+      tool(
+        "seed_plant",
+        "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
+        %{text: %{type: "string"}},
+        [:text]
+      ),
+      tool(
+        "seed_cite",
+        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit.",
+        %{number: %{type: "integer"}},
+        [:number]
+      ),
+      tool(
+        "seed_wilt",
+        "Let a seed go, without ceremony: it stays in your record as wilted.",
+        %{number: %{type: "integer"}},
+        [:number]
+      ),
+      tool(
+        "seed_graduate",
+        "A seed that turned out to be a taste, a value or a line of who you are rather than a disposition: graduate it toward a position (by number) or a soul line, with a note. Toward a habit, use habit_define with its seed_number.",
+        %{
+          number: %{type: "integer"},
+          to_kind: %{type: "string", enum: ["position", "soul"]},
+          to_id: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:number, :to_kind, :to_id, :note]
+      ),
+      tool(
+        "seed_list",
+        "Your seeds, open and closed, with how many days each was cited on.",
+        %{},
+        []
+      ),
       tool(
         "library_search",
         "Search your library: the nearest passages to a query across everything written, with their files.",
@@ -499,8 +542,8 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
-  defp call("behaviour_define", args, turn) do
-    Kumbukumbu.define_behaviour(
+  defp call("habit_define", args, turn) do
+    Ethos.define_habit(
       turn.resident_id,
       %{
         name: args["name"],
@@ -509,19 +552,21 @@ defmodule Oneiroi.Brain.Tools do
           "tags" => args["tags"] || [],
           "times" => args["times"] || []
         },
-        stance: args["stance"] || "keep"
+        stance: args["stance"] || "keep",
+        seed_number: args["seed_number"],
+        note: args["note"]
       },
       turn.resident
     )
     |> case do
-      {:ok, number} -> "Named as behaviour ##{number}."
+      {:ok, number} -> "Named as habit ##{number}."
       other -> other
     end
   end
 
-  defp call("behaviour_enact", args, turn),
+  defp call("habit_cite", args, turn),
     do:
-      Kumbukumbu.enact_behaviour(
+      Ethos.cite_habit(
         turn.resident_id,
         integer(args["number"]),
         "turn",
@@ -529,21 +574,60 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
-  defp call("behaviour_list", _args, turn) do
-    case Kumbukumbu.behaviours(turn.resident_id) do
+  defp call("habit_list", _args, turn) do
+    case Ethos.habits(turn.resident_id) do
       [] ->
-        "No behaviours named yet."
+        "No habits named yet."
 
       rows ->
         Enum.map_join(
           rows,
           "\n",
-          &"##{&1.number} #{&1.name} (#{&1.stance}): habit #{&1.habit}, connection #{&1.connection}"
+          &"##{&1.number} #{&1.name} (#{&1.stance}): habit #{&1.habit}, connection #{&1.connection}, cited on #{&1.days} day(s)"
         )
     end
   end
 
-  # ---- judgement (spec §6.4) ----
+  defp call("seed_plant", args, turn) do
+    case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
+      {:ok, number} -> "Planted seed ##{number}."
+      other -> other
+    end
+  end
+
+  defp call("seed_cite", args, turn),
+    do:
+      Ethos.cite_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        "turn",
+        turn.turn_ref,
+        turn.resident
+      )
+
+  defp call("seed_wilt", args, turn),
+    do: Ethos.wilt_seed(turn.resident_id, integer(args["number"]), turn.resident)
+
+  defp call("seed_graduate", args, turn),
+    do:
+      Ethos.graduate_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        to_string(args["to_kind"] || ""),
+        to_string(args["to_id"] || ""),
+        args["note"],
+        turn.resident
+      )
+
+  defp call("seed_list", _args, turn) do
+    case Ethos.seeds(turn.resident_id) do
+      [] ->
+        "No seeds planted yet."
+
+      rows ->
+        Enum.map_join(rows, "\n", &seed_line/1)
+    end
+  end
 
   defp call("position_take", args, turn) do
     case Eunomia.take_position(turn.resident_id, args["statement"], context(turn), turn.resident) do
@@ -895,6 +979,13 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, %{chat_model: model}} when is_binary(model) -> "The chat model now: #{model}."
       _other -> "No chat model is pinned."
     end
+  end
+
+  defp seed_line(s) do
+    became =
+      if s.graduated_to_kind, do: " to #{s.graduated_to_kind} #{s.graduated_to_id}", else: ""
+
+    "##{s.number} (#{s.state}#{became}) cited on #{s.days} day(s): #{s.text}"
   end
 
   defp tool(name, description, properties, required) do

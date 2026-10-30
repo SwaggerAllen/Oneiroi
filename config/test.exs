@@ -45,6 +45,8 @@ config :oneiroi,
           "PROTEUS_CLIENT" => "fake",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test",
+          # Two days of citations is enough to see the fork refuse and then allow.
+          "ETHOS_PROMOTION_CONFIRMATIONS" => "2",
           # The suite imports from local bare repositories as file URLs;
           # a bare path stays refused, which is the guard under test.
           "SIMA_QIAN_IMPORT_SCHEMES" => "https,file",

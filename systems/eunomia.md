@@ -54,7 +54,7 @@ Carried from spec §6.4; the reason for each is there.
 - **#3 David's bounds carry: the live check waits 90 seconds; the nightly pass reads at most seven days, 200,000 characters a day, 4,000 a message; a reply naming a number it was not shown fails the run; a day with nothing said calls no model.**
 - **#4 The judge is chosen by the witness, recorded on every verdict, never the resident's own chat model; a judge change is an event.**
 - **#5 Regression is per resident and sealed: never captured, never on the resident's stream, never exported, never citeable; the brain is given the seed files and nothing of the run's purpose.**
-- **#8 Trials are derived from behaviours as well as authored (spec §6.4).** A behaviour's trigger is the situation, its enactment what passes, its absence what fails, so a model change is graded on whether the character carries over; the derivation runs inside the sealed session and the unawareness invariant holds.
+- **#8 Trials are derived from habits as well as authored (spec §6.4).** A habit's trigger is the situation, its citation what passes, its absence what fails, so a model change is graded on whether the character carries over; the derivation reads the character layer (ethos #11) and runs inside the sealed session, and the unawareness invariant holds. The trial's wire field keeps the name `behaviour_number`, since the event is a contract.
 
 - **#9 The suite is its own stream and its test numbers are its own counter.** `regression-<resident_id>`, never the resident's: a number minted by the resident aggregate would put `IdMinted{kind: "regression_test"}` on the exported stream, which is the fact of a run. Every event is `export: false` as well, so the claim is on the event and not only on where the export reads.
 - **#10 The sealed session is the seed context and the trial's prompt, through the ledger as `regression`.** `seed_context/1`, built here from the brain's prompt file and the resident system's identity context (agathos-daimon #18): the prompt file and the identity files, nothing of memory, nothing naming the run; every model x test is one call, synchronous, bounded by `EUNOMIA_RUN_MODELS_MAX` (8) and `EUNOMIA_RUN_TESTS_MAX` (32), both guesses at a witness's patience and spend. A model that fails is a card with its failure and no content, graded as such.
@@ -86,7 +86,7 @@ Audits screens.
 
 The ledger for the judge's calls and the sealed sessions; the resident
 system for the resident's row, its identity context, its pin and its
-minted numbers; memory for the behaviours a trial derives from and the
+minted numbers; the character layer for the habits a trial derives from, and memory for the
 day's messages the night reads; the bridge for Honcho's conclusions
 and their deletion. The brain depends on this system for
 the resident's tools, so nothing here reaches the brain: the seed

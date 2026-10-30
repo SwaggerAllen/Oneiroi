@@ -10,6 +10,7 @@ defmodule OneiroiWeb do
       Oneiroi.Gaia,
       Oneiroi.SimaQian,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Ethos,
       Oneiroi.Nisaba,
       Oneiroi.Kumbukumbu,
       Oneiroi.Brain,

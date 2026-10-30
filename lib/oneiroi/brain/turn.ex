@@ -331,9 +331,9 @@ defmodule Oneiroi.Brain.Turn do
           %{tokens: index.tokens, text: index.text, refs: index.included}
         ) ++
         section(
-          "behaviours",
-          acting.count > 0 and acting.text,
-          "how I act: #{acting.count} behaviours whose trigger this situation matched (the witness's words, the conversation's tags, the time of day), with their scores and enacting turns",
+          "character",
+          acting.text,
+          "the character layer's trigger lane (spec §6.17): #{acting.count} habits whose trigger this situation matched (the witness's words, the conversation's tags, the time of day), with their scores and cited turns, and #{acting.seeds} open seeds counted, never loaded",
           %{refs: acting.numbers}
         ) ++
         section(
@@ -457,7 +457,7 @@ defmodule Oneiroi.Brain.Turn do
       |> Kumbukumbu.taggings("conversation", turn.session_key)
       |> Enum.map(& &1.tag)
 
-    Kumbukumbu.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
+    Oneiroi.Ethos.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
   end
 
   # The month after first contact (spec §6.2): the resident is told its
