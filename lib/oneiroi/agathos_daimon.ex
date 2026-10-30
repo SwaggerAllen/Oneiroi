@@ -90,6 +90,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SelfLetterWritten,
       Events.SelfLettersDelivered,
       Events.SelfLettersRead,
+      Events.SelfLettersExported,
       Store.SelfLetter,
       Store.SelfLetterReceipt,
       Store.Contract,
@@ -164,7 +165,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersDelivered, 1},
-      {Oneiroi.AgathosDaimon.Events.SelfLettersRead, 1}
+      {Oneiroi.AgathosDaimon.Events.SelfLettersRead, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLettersExported, 1}
     ]
   end
 
@@ -362,6 +364,12 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "A read by someone other than the resident: the receipt first, then the letters and the receipts."
   @spec read_self_letters(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(read_self_letters(id, actor), do: Residents.read_self_letters(id, actor))
+
+  @doc "The export carried the letters written by `cutoff` into the repository: a receipt of the export's kind, once per letter (sima-qian #3)."
+  @spec letters_exported(String.t(), DateTime.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(letters_exported(id, cutoff, actor),
+    do: Residents.letters_exported(id, cutoff, actor)
+  )
 
   @doc "The incoming instance read the letters on its first turn under the model: delivered once."
   @spec deliver_self_letters(String.t(), [pos_integer()], String.t() | nil, Oneiroi.Actor.t()) ::

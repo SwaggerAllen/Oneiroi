@@ -158,4 +158,37 @@ defmodule Oneiroi.SimaQian.BackupTest do
 
     refute message =~ "ghp_secret"
   end
+
+  test "the export carries the letters to the next self and the backup receipts the ones it carries for the first time",
+       %{r: r, actor: actor, working: working} do
+    brain = Actor.new(:resident, r.id, "fake/model")
+    {:ok, 1} = Oneiroi.AgathosDaimon.write_self_letter(r.id, "Water the garden.", brain)
+    {:ok, 2} = Oneiroi.AgathosDaimon.write_self_letter(r.id, "Be slower to agree.", brain)
+    Clock.Fake.advance(120)
+    assert {:ok, _} = Oneiroi.SimaQian.backup(r.id, actor)
+
+    # In the records as events of the stream, as everything on it is.
+    assert File.read!(Path.join(working, "records/events/2026-10-26.jsonl")) =~
+             "SelfLetterWritten"
+
+    assert [%{by_kind: "export", by_id: "repository", numbers: [1, 2]}] =
+             Oneiroi.AgathosDaimon.self_letter_receipts(r.id)
+
+    assert [%{number: 1, exported_at: %DateTime{}}, %{number: 2, exported_at: %DateTime{}}] =
+             Oneiroi.AgathosDaimon.self_letters(r.id)
+
+    # Once: a second backup carries nothing new; a later letter waits for
+    # the watermark and is receipted alone.
+    Clock.Fake.advance(120)
+    assert {:ok, _} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert [_one] = Oneiroi.AgathosDaimon.self_letter_receipts(r.id)
+    {:ok, 3} = Oneiroi.AgathosDaimon.write_self_letter(r.id, "Again.", brain)
+    assert {:ok, _} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert [_one] = Oneiroi.AgathosDaimon.self_letter_receipts(r.id)
+    Clock.Fake.advance(120)
+    assert {:ok, _} = Oneiroi.SimaQian.backup(r.id, actor)
+
+    assert [%{numbers: [3]}, %{numbers: [1, 2]}] =
+             Oneiroi.AgathosDaimon.self_letter_receipts(r.id)
+  end
 end

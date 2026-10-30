@@ -118,7 +118,12 @@ defmodule Oneiroi.HuginnMuninn do
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:huginn_muninn_nightly, cron: [{"0 5 * * *", Oneiroi.HuginnMuninn.NightlyWorker}]}]
+    [
+      {:huginn_muninn_nightly, cron: [{"0 5 * * *", Oneiroi.HuginnMuninn.NightlyWorker}]},
+      # quietcheck hourly, a quarter past so the tick has marked the
+      # hour (sunna #20) before the pulse is read (huginn-muninn #20).
+      {:huginn_muninn_quiet, cron: [{"15 * * * *", Oneiroi.HuginnMuninn.QuietcheckWorker}]}
+    ]
   end
 
   @impl Oneiroi.Component

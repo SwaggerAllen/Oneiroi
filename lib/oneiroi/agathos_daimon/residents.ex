@@ -156,6 +156,32 @@ defmodule Oneiroi.AgathosDaimon.Residents do
          do: {:ok, %{letters: letters, receipts: self_letter_receipts(id)}}
   end
 
+  @doc """
+  The export carried the letters written at or before `cutoff` (the
+  export's watermark) into the repository: a receipt of the export's
+  kind for the ones not carried before, or nothing when there are none.
+  """
+  def letters_exported(id, %DateTime{} = cutoff, %Actor{} = actor) do
+    numbers =
+      id
+      |> self_letters()
+      |> Enum.filter(&(is_nil(&1.exported_at) and DateTime.compare(&1.written_at, cutoff) != :gt))
+      |> Enum.map(& &1.number)
+
+    if numbers == [] do
+      :ok
+    else
+      command = %Commands.MarkSelfLettersExported{
+        actor: actor,
+        at: Clock.now(),
+        id: id,
+        numbers: numbers
+      }
+
+      with {:ok, _} <- Router.dispatch(command), do: :ok
+    end
+  end
+
   @doc "The incoming instance read the letters on its first turn under `model`: delivered once, the rest ignored."
   def deliver_self_letters(id, numbers, model, %Actor{} = actor) do
     command = %Commands.DeliverSelfLetters{

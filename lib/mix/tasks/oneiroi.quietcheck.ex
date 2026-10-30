@@ -19,37 +19,8 @@ defmodule Mix.Tasks.Oneiroi.Quietcheck do
   @impl Mix.Task
   def run(_args) do
     Mix.Task.run("app.start")
-    {status, lines} = report()
+    {status, lines} = Quietcheck.report()
     Enum.each(lines, &Mix.shell().info/1)
     if status != 0, do: exit({:shutdown, status})
-  end
-
-  @doc "The report as the task prints it: `{exit_status, lines}`, the verdict first and last."
-  @spec report() :: {0 | 1 | 2, [String.t()]}
-  def report do
-    case Quietcheck.guarded(fn -> residents() end) do
-      {:ok, {missing, body}} ->
-        verdict =
-          if missing == 0, do: "QUIETCHECK: ok", else: "QUIETCHECK: FAIL, #{missing} missing"
-
-        {if(missing == 0, do: 0, else: 1), [verdict] ++ body ++ [verdict]}
-
-      {:crashed, message} ->
-        verdict = "QUIETCHECK: CRASHED, #{message}"
-        {2, [verdict, verdict]}
-    end
-  end
-
-  defp residents do
-    Enum.reduce(Oneiroi.AgathosDaimon.active_residents(), {0, []}, fn row, {missing, lines} ->
-      case Quietcheck.verdict(row.id) do
-        {:ok, expectations} ->
-          {missing, lines ++ ["#{row.slug}: ok, #{length(expectations)} expected"]}
-
-        {:missing, misses, _expectations} ->
-          {missing + length(misses),
-           lines ++ Enum.map(misses, &"#{row.slug}: MISSING #{Quietcheck.describe(&1)}")}
-      end
-    end)
   end
 end

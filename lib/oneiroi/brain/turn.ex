@@ -294,8 +294,13 @@ defmodule Oneiroi.Brain.Turn do
   defp receipts_line([last | _] = receipts) do
     times = if length(receipts) == 1, do: "time", else: "times"
 
-    "Read by your #{last.by_kind} #{length(receipts)} #{times}, last on #{Date.to_iso8601(DateTime.to_date(last.at))}."
+    "Read #{length(receipts)} #{times}, last #{reader(last)} on #{Date.to_iso8601(DateTime.to_date(last.at))}."
   end
+
+  # Who a receipt names: the export carries the letters into the
+  # repository, whose reader is whoever holds it.
+  defp reader(%{by_kind: "export"}), do: "by the export, into your repository"
+  defp reader(%{by_kind: kind}), do: "by your #{kind}"
 
   defp self_conversation_text(resident_id) do
     letters = Oneiroi.AgathosDaimon.self_letters(resident_id)

@@ -475,14 +475,32 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert %{tone: "silent", value: 5, finding: finding} = quiet.()
     assert finding =~ "read 5 expected events, each within its cadence"
 
-    # Fail-loud: the checker's own crash is a finding and an exit code, never silence.
+    # Fail-loud: the checker's own crash is a finding and an exit code,
+    # never silence; the hourly job logs the verdict first and last and
+    # ends cancelled with it on a miss, so the row says why.
     alias Oneiroi.HuginnMuninn.Quietcheck
+    alias Oneiroi.HuginnMuninn.QuietcheckWorker
     assert {:crashed, "boom"} = Quietcheck.guarded(fn -> raise "boom" end)
-    assert {0, [first | rest]} = Mix.Tasks.Oneiroi.Quietcheck.report()
+    assert {0, [first | rest]} = Quietcheck.report()
     assert first == "QUIETCHECK: ok" and List.last(rest) == "QUIETCHECK: ok"
+    assert :ok = QuietcheckWorker.run(%{})
+
+    # Scheduled in code: the job is on this system's queue with a cron.
+    assert Enum.any?(HuginnMuninn.oban_queues(), fn {_queue, cron: crons} ->
+             Enum.any?(crons, &match?({_, QuietcheckWorker}, &1))
+           end)
+
     Clock.Fake.advance(3 * 3600)
-    assert {1, [first | rest]} = Mix.Tasks.Oneiroi.Quietcheck.report()
+    assert {1, [first | rest]} = Quietcheck.report()
     assert first == "QUIETCHECK: FAIL, 1 missing" and List.last(rest) == first
     assert Enum.any?(rest, &(&1 =~ "MISSING the hour marker"))
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:cancel, "QUIETCHECK: FAIL, 1 missing"} = QuietcheckWorker.run(%{})
+      end)
+
+    assert log =~ "[error] QUIETCHECK: FAIL, 1 missing"
+    assert log =~ "MISSING the hour marker"
   end
 end

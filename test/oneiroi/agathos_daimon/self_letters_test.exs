@@ -99,7 +99,7 @@ defmodule Oneiroi.AgathosDaimon.SelfLettersTest do
     refute section(messages, "Letters from the instance before you")
 
     assert section(messages, "# Letters to your next self").content =~
-             "1 written, 0 delivered to the instance after the one that wrote them. Read by your witness 1 time, last on 2026-10-26."
+             "1 written, 0 delivered to the instance after the one that wrote them. Read 1 time, last by your witness on 2026-10-26."
 
     assert :ok = AgathosDaimon.pin_model(id, "fake/second", "witness", ctx.actor)
 
@@ -227,5 +227,11 @@ defmodule Oneiroi.AgathosDaimon.SelfLettersTest do
                id: "r1",
                numbers: [1]
              })
+
+    # The export's receipt: the letters that exist and were not carried before, once.
+    export = %Commands.MarkSelfLettersExported{actor: brain, at: at, id: "r1", numbers: [1, 9]}
+    assert %Events.SelfLettersExported{numbers: [1]} = exported = Resident.execute(state, export)
+    state = Resident.apply(state, exported)
+    assert [] = Resident.execute(state, export)
   end
 end

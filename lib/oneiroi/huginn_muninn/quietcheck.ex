@@ -93,6 +93,40 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
     end
   end
 
+  @doc """
+  The report over every active resident, as the hourly job logs it and
+  the mix task prints it: `{exit_status, lines}`, the verdict first and
+  last so a truncated log still shows it; 0 when nothing is missing, 1
+  on a miss, 2 when the checker itself crashed.
+  """
+  @spec report() :: {0 | 1 | 2, [String.t()]}
+  def report do
+    case guarded(fn -> residents() end) do
+      {:ok, {missing, body}} ->
+        verdict =
+          if missing == 0, do: "QUIETCHECK: ok", else: "QUIETCHECK: FAIL, #{missing} missing"
+
+        {if(missing == 0, do: 0, else: 1), [verdict] ++ body ++ [verdict]}
+
+      {:crashed, message} ->
+        verdict = "QUIETCHECK: CRASHED, #{message}"
+        {2, [verdict, verdict]}
+    end
+  end
+
+  defp residents do
+    Enum.reduce(AgathosDaimon.active_residents(), {0, []}, fn row, {missing, lines} ->
+      case verdict(row.id) do
+        {:ok, expectations} ->
+          {missing, lines ++ ["#{row.slug}: ok, #{length(expectations)} expected"]}
+
+        {:missing, misses, _expectations} ->
+          {missing + length(misses),
+           lines ++ Enum.map(misses, &"#{row.slug}: MISSING #{describe(&1)}")}
+      end
+    end)
+  end
+
   @doc "The verdict for one resident: `{:ok, expectations}` or `{:missing, missing, expectations}`."
   def verdict(resident_id) do
     expectations = expectations(resident_id)

@@ -62,3 +62,9 @@ ride in the URL.
 Sunna #12's reason: the port exists so that two systems that each need
 the other at runtime share no compile-time edge; the library needs the
 repository's path on every write, and the import needs the library once.
+
+## #3, the letters' receipt
+Agathos-daimon #28's rule applied where the words leave the house: the
+export is a read by the repository's holder. The receipt sits between
+the export's record and the commit so a backup that fails to push has
+still said the words were written to disk, which they were.

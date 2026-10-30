@@ -40,7 +40,7 @@ defmodule Oneiroi.SimaQian.Export do
   # value reaches a path in this system.
   # sobelow_skip ["Traversal.FileModule"]
   def write(resident_id, dir) do
-    cutoff = DateTime.add(Clock.now(), -Config.fetch!(:sima_qian, :watermark_seconds), :second)
+    cutoff = cutoff()
 
     events =
       resident_id |> stream() |> Enum.take_while(&(DateTime.compare(&1.data.at, cutoff) != :gt))
@@ -98,6 +98,11 @@ defmodule Oneiroi.SimaQian.Export do
     File.write!(Path.join(dir, path), Oneiroi.AgathosDaimon.custom_instructions(resident_id))
     written ++ [path]
   end
+
+  @doc "The watermark: the instant an event must be at or before to be exported on this run."
+  @spec cutoff() :: DateTime.t()
+  def cutoff,
+    do: DateTime.add(Clock.now(), -Config.fetch!(:sima_qian, :watermark_seconds), :second)
 
   @doc "One export line for a recorded event, at `ordinal` among the exported lines."
   @spec line(EventStore.RecordedEvent.t(), pos_integer(), String.t()) :: String.t()

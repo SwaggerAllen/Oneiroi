@@ -153,4 +153,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule ReadSelfLetters do
     use Oneiroi.Command, fields: [:id, :numbers]
   end
+
+  # The export carried these letters into the repository (sima-qian #3):
+  # a receipt of its own kind, once per letter.
+  defmodule MarkSelfLettersExported do
+    use Oneiroi.Command, fields: [:id, :numbers]
+  end
 end

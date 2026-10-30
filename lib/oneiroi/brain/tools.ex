@@ -768,7 +768,7 @@ defmodule Oneiroi.Brain.Tools do
             "Receipts:"
             | Enum.map(
                 some,
-                &"- read by your #{&1.by_kind} on #{DateTime.to_iso8601(&1.at)} (#{length(&1.numbers)} letters)"
+                &"- #{if &1.by_kind == "export", do: "carried into your repository by the export", else: "read by your " <> &1.by_kind} on #{DateTime.to_iso8601(&1.at)} (#{length(&1.numbers)} letters)"
               )
           ]
       end
