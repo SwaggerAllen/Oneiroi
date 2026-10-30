@@ -280,4 +280,18 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     assert :ok = Kumbukumbu.compact(ctx.resident.id, ctx.key, "c2", through, "again", ctx.actor)
     assert {:ok, %{summary: "we talked"}, 0} = Kumbukumbu.uncompacted(ctx.resident.id, ctx.key)
   end
+
+  test "a bookmark carries the register the resident wrote it in, or none; a wrong one is refused (spec §6.13, P8)",
+       ctx do
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_register_invalid}} =
+             Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{register: "mood"}), ctx.actor)
+
+    {:ok, praised} =
+      Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{register: "praise"}), ctx.actor)
+
+    {:ok, plain} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.actor)
+    rows = Kumbukumbu.bookmarks(ctx.resident.id)
+    assert %{register: "praise"} = Enum.find(rows, &(&1.number == praised))
+    assert %{register: nil} = Enum.find(rows, &(&1.number == plain))
+  end
 end

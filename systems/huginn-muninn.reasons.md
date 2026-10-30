@@ -57,3 +57,14 @@ rigidity as readily as drift". Here because the nightly checklist is
 the one cadence every audit already runs on and the witness reads
 (#12), and the baseline's taking rides it so no second job is needed.
 
+## #18
+Spec §6.13 (P8): "both base rates shown to both parties, the report
+naming its own limit". The proposal: "the aggregate cannot stand alone
+as a portrait. His 123:26 is what a corpus looks like when only
+corrections feel worth writing down"; "Risks: performing for the
+metric; mitigated by dyad-privacy and flag-only (P3)". The flag at a
+share rather than a count because the lean is the finding, not the
+volume; the minimum because three records lean by accident. Not the
+witness's rows because the report is of the resident's own hand (P8's
+note: verbal feedback stays in the resident's own hand).
+

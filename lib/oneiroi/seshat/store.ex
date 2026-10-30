@@ -126,6 +126,7 @@ defmodule Oneiroi.Seshat.Store do
       field(:text, :string)
       field(:at, :utc_datetime_usec)
       field(:actor_kind, :string)
+      field(:register, :string)
       field(:done_at, :utc_datetime_usec)
     end
 
@@ -133,6 +134,10 @@ defmodule Oneiroi.Seshat.Store do
   end
 
   # ---- the journal ----
+
+  @doc "The entries written since an instant, oldest first."
+  def journal_entries_since(since),
+    do: Repo.all(from(j in JournalEntry, where: j.at >= ^since, order_by: [j.at, j.number]))
 
   def journal_entries(day),
     do: Repo.all(from(j in JournalEntry, where: j.day == ^day, order_by: j.number))

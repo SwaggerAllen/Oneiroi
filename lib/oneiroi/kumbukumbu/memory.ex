@@ -58,6 +58,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       Map.has_key?(m.bookmarks, c.number) -> []
       not line_ok?(c.line) -> {:error, :line_invalid}
       not span_ok?(c.turns_back) -> {:error, :span_invalid}
+      not Oneiroi.Register.ok?(c.register) -> {:error, :register_invalid}
       true -> with_proposal(m, c)
     end
   end
@@ -366,7 +367,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       line: c.line,
       summary: c.summary,
       proposal_ref: c.proposal_ref,
-      proposed_by: proposal && proposal.by
+      proposed_by: proposal && proposal.by,
+      register: c.register
     }
   end
 

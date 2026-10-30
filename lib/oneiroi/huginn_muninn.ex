@@ -75,7 +75,25 @@ defmodule Oneiroi.HuginnMuninn do
        default: "3",
        tag: :bound,
        usage:
-         "how many missed check-ins in a week the built-in audit warns at; a guess at what a witness would want told, not measured"}
+         "how many missed check-ins in a week the built-in audit warns at; a guess at what a witness would want told, not measured"},
+      {:corpus_days, "HUGINN_MUNINN_CORPUS_DAYS",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "how many days the corpus-shape report counts over (spec §6.13, P8: the shape of the month's memory); a month, the proposal's word"},
+      {:corpus_min, "HUGINN_MUNINN_CORPUS_MIN",
+       cast: :integer,
+       default: "10",
+       tag: :bound,
+       usage:
+         "how many tagged records the corpus-shape report needs before a skew is a flag rather than a figure; a guess at when a share means anything"},
+      {:corpus_skew_percent, "HUGINN_MUNINN_CORPUS_SKEW_PERCENT",
+       cast: :integer,
+       default: "75",
+       tag: :bound,
+       usage:
+         "the share of the tagged records one register may hold before the report flags the shape as leaning (P8's 123:26); a guess"}
     ]
   end
 

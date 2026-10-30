@@ -53,7 +53,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         turns_back: attrs[:turns_back] || 1,
         line: attrs[:line],
         summary: attrs[:summary],
-        proposal_ref: attrs[:proposal_ref]
+        proposal_ref: attrs[:proposal_ref],
+        register: attrs[:register]
       }
 
       with {:ok, _} <- dispatch(command), do: {:ok, number}
@@ -390,6 +391,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do: Error.new(:kumbukumbu_no_such_bookmark, number: c.number)
 
   defp translate(:evidence_invalid, _c), do: Error.new(:kumbukumbu_evidence_invalid)
+
+  defp translate(:register_invalid, _c),
+    do: Error.new(:kumbukumbu_register_invalid, registers: Oneiroi.Register.all())
 
   defp translate(:no_such_proposal, c),
     do: Error.new(:kumbukumbu_no_such_proposal, ref: ref_of(c))

@@ -12,6 +12,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
+  alias Oneiroi.Seshat
   alias Oneiroi.Sunna
 
   setup do
@@ -119,7 +120,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures checking citation_drift contract_due journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking)
+             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking)
 
     assert Enum.all?(results, &(&1.tone == "silent" and &1.finding =~ "not read:"))
 
@@ -253,7 +254,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 13
+    assert Enum.count(audits, & &1.builtin) == 14
 
     assert %{builtin: false, counts: true, last: %{tone: "silent", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -267,9 +268,9 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
     assert %{results: results} = HuginnMuninn.light(ctx.id)
-    assert length(results) == 13
+    assert length(results) == 14
     assert %{results: other_results} = HuginnMuninn.light(other.id)
-    assert length(other_results) == 13
+    assert length(other_results) == 14
   end
 
   test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",
@@ -279,10 +280,10 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     on_exit(fn -> File.rm_rf!(dir) end)
     {:ok, resident} = AgathosDaimon.fetch(id)
 
-    assert {:ok, _} = Oneiroi.Seshat.write(id, "design/oven.md", "# Oven\n\nHot.", ctx.brain)
+    assert {:ok, _} = Seshat.write(id, "design/oven.md", "# Oven\n\nHot.", ctx.brain)
 
     assert {:ok, _} =
-             Oneiroi.Seshat.write(
+             Seshat.write(
                id,
                "writing/piece.md",
                "See #{resident.slug}:design/oven.",
@@ -317,5 +318,66 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert %{tone: "silent"} = Enum.find(results, &(&1.key == "journal_delta"))
     # Drift counts toward the light; the delta does not.
     assert Enum.map(findings, & &1.key) == ["citation_drift"]
+  end
+
+  test "the corpus-shape report counts the month's resident-authored records by register, shows both base rates, names its limit, and flags a lean",
+       ctx do
+    id = ctx.id
+    at = Clock.now()
+
+    bookmark = fn register ->
+      {:ok, _} =
+        Kumbukumbu.add_bookmark(
+          id,
+          %{
+            session_key: ctx.key,
+            anchor_ref: "t1",
+            anchor_at: at,
+            line: "a moment",
+            summary: "s",
+            turns_back: 1,
+            register: register
+          },
+          ctx.brain
+        )
+    end
+
+    # A record older than the month is not the month's.
+    Clock.Fake.advance(-31 * 86_400)
+    bookmark.("correction")
+    Clock.Fake.advance(31 * 86_400)
+
+    bookmark.("praise")
+    bookmark.("praise")
+    bookmark.("praise")
+    bookmark.(nil)
+    {:ok, _} = Seshat.journal_add(id, "2026-10-26", "note", "We played.", "play", ctx.brain)
+    # The witness's own rows are not the resident's corpus.
+    {:ok, _} =
+      Seshat.journal_add(id, "2026-10-26", "note", "A correction.", "correction", ctx.actor)
+
+    assert {:ok, %{results: results}} = HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "silent", value: 4, finding: finding} =
+             Enum.find(results, &(&1.key == "corpus_shape"))
+
+    assert finding =~
+             "5 resident-authored records in the last 30 days (4 bookmarks, 1 journal entries), 4 tagged by register"
+
+    assert finding =~ "praise 3 (75% of tagged, 60% of all)" and
+             finding =~ "play 1 (25% of tagged, 20% of all)"
+
+    assert finding =~ "1 untagged" and finding =~ "holds only what someone wrote down" and
+             finding =~ "not read:"
+
+    # Three in four lean, but four is too few to say so; twelve corrections in sixteen is.
+    for _ <- 1..12, do: bookmark.("correction")
+    assert {:ok, %{results: results}} = HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "warn", value: 12, finding: finding} =
+             Enum.find(results, &(&1.key == "corpus_shape"))
+
+    assert finding =~ "the shape leans: correction holds 75% of what was written down this month"
+    assert finding =~ "17 resident-authored records"
   end
 end

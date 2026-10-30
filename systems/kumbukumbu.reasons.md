@@ -136,3 +136,12 @@ from the other side); the port because ethos #13 fixes the direction
 and the cycles gate holds it. Shape alone on `evidences` because this
 system cannot see the lines (#27's rule for the other systems' rows).
 
+## #33
+Spec §6.13 (P8): "the resident-authored kinds counted by register,
+tagged at write time with no model call". The proposal: "behavior, not
+judged after"; Max: "the difference between a memory system and a
+slow character assassination carried out entirely with true
+sentences". At write time by the resident so that the tag is part of
+the record and not a later reading of it, which would be a judgement
+the resident never made.
+

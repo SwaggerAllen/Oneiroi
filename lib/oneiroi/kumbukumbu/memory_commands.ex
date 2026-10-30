@@ -12,7 +12,8 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
         :turns_back,
         :line,
         :summary,
-        :proposal_ref
+        :proposal_ref,
+        :register
       ]
   end
 

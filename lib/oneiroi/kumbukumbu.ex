@@ -143,7 +143,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
       {Oneiroi.Kumbukumbu.Events.SessionShared, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
@@ -212,7 +212,10 @@ defmodule Oneiroi.Kumbukumbu do
        "a tagging targets a bookmark, a conversation or a turn that exists",
        remedy: "bookmark by number, conversation by session key, turn by ref"},
       {:kumbukumbu_evidence_invalid, "a pin's evidence is a soul line's number",
-       remedy: "give the number of the soul line the moment evidences, or none"}
+       remedy: "give the number of the soul line the moment evidences, or none"},
+      {:kumbukumbu_register_invalid,
+       "a bookmark's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
+       remedy: "say which register the moment was in, or leave it"}
     ]
   end
 

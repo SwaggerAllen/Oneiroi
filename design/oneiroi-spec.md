@@ -1150,10 +1150,13 @@ Owns `lib/oneiroi/audits/**`.
   pass checks paths against the repository and names against the
   projections and flags staleness loudly. Max: "a successful write is not
   an arrival."
-- Planned under this section in v0.2: the corpus-shape report (P8, the
-  resident-authored kinds counted by register, tagged at write time with
-  no model call, both base rates shown to both parties, the report naming
-  its own limit); the wash pass (P18, a weekly judge-bounded lint of the
+- **The corpus-shape report** (v0.2, P8, built: huginn-muninn #18): the
+  resident-authored records, bookmarks and journal rows, counted by the
+  register the resident tagged them with at write time (correction,
+  praise, instruction, play; `Oneiroi.Register`), no model call, both
+  base rates shown to both parties as a built-in audit, the report naming
+  its own limit, a flag only on a lean.
+- Planned under this section in v0.2: the wash pass (P18, a weekly judge-bounded lint of the
   loaded identity files for expired decisions, contradictions, tense
   words and defensive sentences, flags only, the resident deciding);
   quietcheck (P21, liveness over expected events only, fail-loud,

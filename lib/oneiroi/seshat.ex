@@ -145,7 +145,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentAdopted, 1},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
-      {Oneiroi.Seshat.Events.JournalEntryAdded, 1},
+      {Oneiroi.Seshat.Events.JournalEntryAdded, 2},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
   end
@@ -175,6 +175,9 @@ defmodule Oneiroi.Seshat do
       {:seshat_day_invalid, "a journal day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
       {:seshat_entry_kind_invalid, "a journal entry is a plan, a note, a todo or a wrap",
        remedy: "give one of those"},
+      {:seshat_register_invalid,
+       "an entry's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
+       remedy: "say which register the entry is in, or leave it"},
       {:seshat_entry_text_invalid, "an entry is one text of at most 2,000 characters",
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
@@ -286,6 +289,26 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(journal_add(resident_id, day, kind, text, actor),
     do: Journals.add(resident_id, day, kind, text, actor)
+  )
+
+  @doc "Adds a journal entry with its register (spec §6.13, P8: correction, praise, instruction, play, or nil)."
+  @spec journal_add(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(journal_add(resident_id, day, kind, text, register, actor),
+    do: Journals.add(resident_id, day, kind, text, register, actor)
+  )
+
+  @doc "The journal entries written since an instant, oldest first, for the corpus-shape report."
+  @spec journal_entries_since(String.t(), DateTime.t()) :: [Oneiroi.Seshat.Store.JournalEntry.t()]
+  defexport(journal_entries_since(resident_id, since),
+    do: Journals.entries_since(resident_id, since)
   )
 
   @doc "Marks a todo done."

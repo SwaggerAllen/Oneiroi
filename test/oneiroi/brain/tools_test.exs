@@ -25,7 +25,11 @@ defmodule Oneiroi.Brain.ToolsTest do
       [
         %{
           name: "bookmark_add",
-          arguments: %{line: "she asked me to remember", summary: "the ask"}
+          arguments: %{
+            line: "she asked me to remember",
+            summary: "the ask",
+            register: "instruction"
+          }
         }
       ],
       "I will remember.",
@@ -47,7 +51,8 @@ defmodule Oneiroi.Brain.ToolsTest do
                number: 1,
                anchor_ref: ^ref,
                line: "she asked me to remember",
-               last_indexed_at: nil
+               last_indexed_at: nil,
+               register: "instruction"
              }
            ] =
              Kumbukumbu.bookmarks(ctx.resident.id)

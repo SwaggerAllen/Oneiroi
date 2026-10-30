@@ -78,7 +78,7 @@ defmodule OneiroiWeb.FigureTest do
 
     assert %{"state" => "fail"} = conn |> get("/v1/residents/#{id}/light") |> json_response(200)
     checks = conn |> get("/v1/residents/#{id}/checks") |> json_response(200)
-    assert Enum.count(checks, & &1["builtin"]) == 13
+    assert Enum.count(checks, & &1["builtin"]) == 14
     assert %{"last" => %{"tone" => "fail"}} = Enum.find(checks, &(&1["key"] == "tea-enough"))
 
     assert conn |> delete("/v1/residents/#{id}/checks/tea-enough") |> response(204)

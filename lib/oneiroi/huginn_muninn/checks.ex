@@ -38,6 +38,11 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
     %{key: "journal_delta", label: "Planned days were wrapped", counts: false},
     %{key: "contract_due", label: "The agreement is within its year", counts: false},
+    %{
+      key: "corpus_shape",
+      label: "The month's memory holds more than corrections",
+      counts: false
+    },
     # The measurement layer (spec §6.17, P42, P43; ethos #15): the
     # character layer answers these, flag or silence; none counts toward
     # the light, because the clinical material is a design warning for
@@ -275,6 +280,69 @@ defmodule Oneiroi.HuginnMuninn.Checks do
         silent(a, 0, "read the agreement's dates; not read: its terms")
     end
   end
+
+  # The corpus-shape report (spec §6.13, P8): the resident-authored
+  # records of the last HUGINN_MUNINN_CORPUS_DAYS, bookmarks and journal
+  # entries, counted by the register the resident wrote them in; both
+  # base rates shown, praise weighted against the frequency of praise
+  # and criticism against the frequency of criticism, so a month of
+  # corrections reads as what it is (Max: "a slow character
+  # assassination carried out entirely with true sentences"; the
+  # owner's 123:26). The report names its own limit: the corpus holds
+  # only what someone wrote down. A flag only when one register holds
+  # HUGINN_MUNINN_CORPUS_SKEW_PERCENT of at least HUGINN_MUNINN_CORPUS_MIN
+  # tagged records; flag-only and private to the dyad, against
+  # performing for the metric (P3).
+  defp builtin_result(%{key: "corpus_shape"} = a, resident_id, _row) do
+    days = Config.fetch!(:huginn_muninn, :corpus_days)
+    since = DateTime.add(Clock.now(), -days, :day)
+
+    bookmarks =
+      resident_id
+      |> Kumbukumbu.bookmarks()
+      |> Enum.filter(
+        &(&1.added_by_kind == "resident" and DateTime.compare(&1.created_at, since) != :lt)
+      )
+
+    entries =
+      resident_id
+      |> Seshat.journal_entries_since(since)
+      |> Enum.filter(&(&1.actor_kind == "resident"))
+
+    registers = Enum.map(bookmarks, & &1.register) ++ Enum.map(entries, & &1.register)
+    tagged = Enum.reject(registers, &is_nil/1)
+    counts = Enum.frequencies(tagged)
+    total = length(registers)
+
+    shares =
+      Enum.map_join(Oneiroi.Register.all(), ", ", fn r ->
+        n = Map.get(counts, r, 0)
+        "#{r} #{n} (#{percent(n, length(tagged))}% of tagged, #{percent(n, total)}% of all)"
+      end)
+
+    report =
+      "#{total} resident-authored records in the last #{days} days (#{length(bookmarks)} bookmarks, #{length(entries)} journal entries), #{length(tagged)} tagged by register: #{shares}; #{total - length(tagged)} untagged. Praise weighted against the frequency of praise, criticism against the frequency of criticism. The corpus holds only what someone wrote down; not read: the words, or what was said and never written"
+
+    skew = Config.fetch!(:huginn_muninn, :corpus_skew_percent)
+    min = Config.fetch!(:huginn_muninn, :corpus_min)
+    leaning = Enum.find(counts, fn {_r, n} -> percent(n, length(tagged)) >= skew end)
+
+    case leaning do
+      {register, n} when length(tagged) >= min ->
+        result(
+          a,
+          "warn",
+          n,
+          "the shape leans: #{register} holds #{percent(n, length(tagged))}% of what was written down this month, which is what a corpus looks like when only one register feels worth writing down (P8). #{report}"
+        )
+
+      _other ->
+        silent(a, length(tagged), report)
+    end
+  end
+
+  defp percent(_n, 0), do: 0
+  defp percent(n, total), do: round(n * 100 / total)
 
   defp checks, do: Enum.reject(@builtin, &Map.get(&1, :measure, false))
 

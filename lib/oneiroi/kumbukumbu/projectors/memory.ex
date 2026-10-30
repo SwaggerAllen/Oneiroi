@@ -21,6 +21,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
         turns_back: e.turns_back,
         line: e.line,
         summary: e.summary,
+        register: e.register,
         added_by_kind: actor_field(e.actor, :kind),
         added_by_id: actor_field(e.actor, :id),
         added_by_model: actor_field(e.actor, :model),

@@ -336,6 +336,7 @@ defmodule OneiroiWeb.MemoryController do
       proposed_by: b.proposed_by_kind && %{kind: b.proposed_by_kind, id: b.proposed_by_id},
       pinned_by: b.pinned_by_kind && %{kind: b.pinned_by_kind, id: b.pinned_by_id},
       pin_evidences: b.pin_evidences,
+      register: b.register,
       pinned_at: b.pinned_at,
       weight: b.weight,
       last_indexed_at: b.last_indexed_at,

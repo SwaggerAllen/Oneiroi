@@ -18,8 +18,11 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # (`anchor_ref`, `anchor_at`) and a span of `turns_back` turns ending
     # there. `proposal_ref` and `proposed_by` are set when the witness
     # proposed it; the words are still the resident's.
+    # Version 2 adds `register` (`Oneiroi.Register`, spec §6.13, P8): the
+    # register the resident wrote the moment down in, or nil; the
+    # identity upcaster is the shape the store's restart for v0.2 allows.
     use Oneiroi.Event,
-      version: 1,
+      version: 2,
       fields: [
         :id,
         :number,
@@ -30,9 +33,14 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :line,
         :summary,
         :proposal_ref,
-        :proposed_by
+        :proposed_by,
+        :register
       ],
       instants: [:anchor_at]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: BookmarkAdded do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule BookmarkExtended do

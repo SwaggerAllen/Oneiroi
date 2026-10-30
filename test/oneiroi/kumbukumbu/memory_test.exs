@@ -47,6 +47,10 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
              Memory.execute(%Memory{}, add(2, line: String.duplicate("x", 121)))
 
     assert {:error, :span_invalid} = Memory.execute(%Memory{}, add(2, turns_back: 0))
+    assert {:error, :register_invalid} = Memory.execute(%Memory{}, add(2, register: "mood"))
+
+    assert %Events.BookmarkAdded{register: "praise"} =
+             Memory.execute(%Memory{}, add(2, register: "praise"))
   end
 
   test "a span only grows, and a pin is a decision made once" do

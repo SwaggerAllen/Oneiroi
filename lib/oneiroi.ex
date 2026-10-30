@@ -66,6 +66,7 @@ defmodule Oneiroi do
     exports: [
       Actor,
       Boot,
+      Register,
       Commanded.Middleware.Actor,
       System,
       Command,

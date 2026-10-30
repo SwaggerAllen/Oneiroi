@@ -866,3 +866,23 @@ and nothing personal turned up; what follows is what changed.
 - Open: the corpus-shape report (P8); the width check at the injection
   write; measuring the distance bound on a real model.
 
+## Round 30: the corpus-shape report (2026-10-30)
+
+- P8 lands as a register on the resident's writes and a built-in audit
+  over them (kumbukumbu #33, seshat #24, huginn-muninn #18). The
+  register (correction, praise, instruction, play, or none) is the
+  resident's own tag at write time on a bookmark or a journal row, never
+  a later judgement and never a model call; the list lives in the
+  kernel because two systems write it and a third counts across both.
+- The report counts the month's records by register with both base
+  rates, each as a share of the tagged and of all, the untagged counted,
+  the witness's rows left out, and ends every time with its limit: the
+  corpus holds only what someone wrote down. A flag only when one
+  register holds three quarters of at least ten tagged records, a guess
+  both ways; it never counts toward the light, and the proposal's own
+  mitigation against performing for the metric is kept: flag-only,
+  private to the dyad.
+- Open: the Audits screen showing the report (P1's client); P10, the
+  madeleine, which the proposal names as the counterweight to the skew
+  this measures.
+
