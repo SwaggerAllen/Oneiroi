@@ -297,6 +297,7 @@ defmodule Oneiroi.Brain.Turn do
     files = Oneiroi.AgathosDaimon.identity_context(turn.resident_id)
     index = Kumbukumbu.index(turn.resident_id)
     acting = how_i_act(turn, text)
+    recall = madeleine(turn, text)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
     summary = session && session.summary
@@ -338,6 +339,15 @@ defmodule Oneiroi.Brain.Turn do
           # projector down on the first turn the lane ran.
           "the trigger lane (spec §6.17): #{acting.count} habits matched by the witness's words, the conversation's tags or the time of day, #{length(acting.near)} by the vector lane's nearness, with scores and cited turns; #{acting.seeds} open seeds counted, #{length(acting.near_seeds)} named as near, never loaded whole",
           %{refs: acting.numbers}
+        ) ++
+        section(
+          "madeleine",
+          madeleine_text(recall),
+          recall &&
+            "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
+          # The text rides the row, as the index's does, so the recall is
+          # read later as what was shown and not only why.
+          %{text: madeleine_text(recall), refs: (recall && [recall.bookmark.number]) || []}
         ) ++
         section(
           "dates",
@@ -441,12 +451,23 @@ defmodule Oneiroi.Brain.Turn do
       %{
         label: label,
         message: %{role: :system, content: text},
-        injection: Map.merge(%{tokens: tokens(text), reason: reason}, extra)
+        injection: Map.merge(%{tokens: tokens(text), reason: fit(reason)}, extra)
       }
     ]
   end
 
   defp section(_label, _text, _reason, _extra), do: []
+
+  # The injection row's reason column is 255 characters wide, and a
+  # longer reason takes the conversations projector down after the turn
+  # has answered (decisions round 29), so the write is cut here with a
+  # mark that says it was, rather than the projector failing quietly.
+  @reason_width 255
+  @doc false
+  def fit(reason) when is_binary(reason) and byte_size(reason) > @reason_width,
+    do: binary_part(reason, 0, @reason_width - 3) <> "..."
+
+  def fit(reason), do: reason
 
   defp opening_role(:note), do: :system
   defp opening_role(_as), do: :user
@@ -468,6 +489,21 @@ defmodule Oneiroi.Brain.Turn do
       at: Clock.now(),
       actor: Map.get(turn, :resident)
     })
+  end
+
+  # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
+  # the turn's words, with the resident's actor for the embedding; a
+  # turn without one (the assembly read in a test) asks nothing.
+  defp madeleine(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
+    do: Kumbukumbu.madeleine(turn.resident_id, text, actor)
+
+  defp madeleine(_turn, _text), do: nil
+
+  defp madeleine_text(nil), do: ""
+
+  defp madeleine_text(%{bookmark: b}) do
+    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Date.to_iso8601(DateTime.to_date(b.anchor_at))}: #{b.line}" <>
+      if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
   end
 
   # The month after first contact (spec §6.2): the resident is told its

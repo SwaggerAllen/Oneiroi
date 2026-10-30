@@ -126,3 +126,12 @@ resident alone"; the load question: "the character layer is NOT loaded
 whole". Eight names because the resident has two kinds to tend, and a
 graduation toward a habit is a definition rather than a separate move
 (ethos #4).
+
+## #30
+Spec §6.3 (P10) and §5: an injection is a recorded blob with its
+reason (F12), and the madeleine's reason is the whole point of the
+gates: a recall the resident cannot see the reason for is a haunting.
+The fit at the write because round 29 left it open and the lane's
+first turn had already shown the failure mode: the turn answers, the
+projector dies after, and nothing in the test says why.
+

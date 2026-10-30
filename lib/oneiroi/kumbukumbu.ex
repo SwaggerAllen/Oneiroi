@@ -21,9 +21,14 @@ defmodule Oneiroi.Kumbukumbu do
     deps: [
       Oneiroi,
       # For the bookmark numbers: minted by the resident aggregate so a
-      # citation survives a rebuild (agathos-daimon #4).
+      # citation survives a rebuild (agathos-daimon #4); and the contract
+      # text, the limits the madeleine keeps clear of (P2, P10).
       Oneiroi.AgathosDaimon,
+      # The madeleine's vectors come from the provider port, metered under
+      # the embeddings purpose like the library's (spec §6.3, P10).
+      Oneiroi.Nisaba,
       Commanded,
+      Pgvector,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
       Commanded.Middleware,
@@ -43,6 +48,7 @@ defmodule Oneiroi.Kumbukumbu do
       Router,
       Memory,
       Memories,
+      Madeleine,
       Tree,
       MemoryRouter,
       Index,
@@ -79,6 +85,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.CompactSession,
       Events.Compacted,
       Store.Bookmark,
+      Store.Vector,
       Store.BookmarkProposal,
       Store.Tag,
       Store.Tagging,
@@ -105,6 +112,7 @@ defmodule Oneiroi.Kumbukumbu do
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
+  alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
 
   @impl Oneiroi.Component
@@ -123,7 +131,35 @@ defmodule Oneiroi.Kumbukumbu do
        cast: &__MODULE__.cast_tree/1,
        default: "ethos",
        usage:
-         "which tree port implementation names the tree nodes citing a moment (`Oneiroi.Kumbukumbu.Tree`): ethos, the character layer, in every build so far"}
+         "which tree port implementation names the tree nodes citing a moment (`Oneiroi.Kumbukumbu.Tree`): ethos, the character layer, in every build so far"},
+      {:embedding_model, "KUMBUKUMBU_EMBEDDING_MODEL",
+       default: "openai/text-embedding-3-small",
+       usage:
+         "the embedding model the madeleine's vectors come from (spec §6.3, P10), pinned platform-wide with the library's and one model with it in every build so far; a change re-embeds every row on the next refresh"},
+      {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
+       cast: :integer,
+       default: "1536",
+       tag: :bound,
+       usage:
+         "the width of the madeleine's vectors, the library's 1,536; the column is declared at this width, so a model answering another width fails the refresh rather than the table"},
+      {:madeleine_distance_percent, "KUMBUKUMBU_MADELEINE_DISTANCE_PERCENT",
+       cast: :integer,
+       default: "80",
+       tag: :bound,
+       usage:
+         "the cosine distance, as a percentage, within which a bookmark is adjacent to a turn's words, and within which of the limits it is limit-adjacent and left alone (P2, P10); a guess, never measured on an embedding model"},
+      {:madeleine_unheard_days, "KUMBUKUMBU_MADELEINE_UNHEARD_DAYS",
+       cast: :integer,
+       default: "14",
+       tag: :bound,
+       usage:
+         "how long a bookmark must have been out of the index before the madeleine may surface it (P10: adjacent but unheard); a guess at when a memory has gone quiet"},
+      {:madeleine_repeat_days, "KUMBUKUMBU_MADELEINE_REPEAT_DAYS",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "how long after a recall the same bookmark is not recalled again (P10: non-repeating); a guess"}
     ]
   end
 
@@ -519,6 +555,18 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Everything carrying a tag, across every record kind."
   @spec tagged(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Tagging.t()]
   defexport(tagged(resident_id, slug), do: Memories.tagged(resident_id, slug))
+
+  @doc "The madeleine (spec §6.3, P10): one bookmark adjacent to the words and unheard, with its reason, or nil; refreshes the vectors first, embedding what changed."
+  @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          Oneiroi.Kumbukumbu.Madeleine.recall() | nil
+  defexport(madeleine(resident_id, text, actor),
+    do: Memories.madeleine(resident_id, text, actor)
+  )
+
+  @doc "Re-embeds the madeleine's changed rows and drops the gone ones."
+  @spec refresh_madeleine(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{embedded: non_neg_integer(), removed: non_neg_integer()}} | {:error, term()}
+  defexport(refresh_madeleine(resident_id, actor), do: Madeleine.refresh(resident_id, actor))
 
   @doc "The bookmark index for this turn: text, the numbers it lists, how many it left out, its tokens."
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()

@@ -10,6 +10,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   which is the export wall (spec §6.12).
   """
   import Ecto.Query, only: [from: 2]
+  import Pgvector.Ecto.Query, only: [cosine_distance: 2]
 
   alias Oneiroi.Repo
 
@@ -124,6 +125,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:register, :string)
       field(:weight, :float, default: 1.0)
       field(:last_indexed_at, :utc_datetime_usec)
+      field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
       field(:tags, {:array, :string}, virtual: true, default: [])
     end
@@ -321,6 +323,72 @@ defmodule Oneiroi.Kumbukumbu.Store do
       Repo.all(from(i in ContextInjection, where: i.turn_ref == ^turn_ref, order_by: i.position))
 
   # ---- memory ----
+
+  defmodule Vector do
+    @moduledoc "One row of the madeleine's index (spec §6.3, P10): a bookmark's words, or the limits, embedded; derived, rebuilt from the rows."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_vector" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:text, :string)
+      field(:hash, :string)
+      field(:model, :string)
+      field(:embedding, Pgvector.Ecto.Vector)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The madeleine's rows, by kind and number."
+  @spec vectors() :: [Vector.t()]
+  def vectors, do: Repo.all(from(v in Vector, order_by: [v.kind, v.number]))
+
+  @doc "One row of the madeleine's index."
+  def vector(kind, number),
+    do: Repo.one(from(v in Vector, where: v.kind == ^kind and v.number == ^number))
+
+  @doc "Writes rows, replacing any with the same kind and number."
+  def put_vectors([]), do: :ok
+
+  def put_vectors(rows) do
+    Repo.insert_all(Vector, rows,
+      on_conflict: {:replace, [:text, :hash, :model, :embedding, :at]},
+      conflict_target: [:resident_id, :kind, :number]
+    )
+
+    :ok
+  end
+
+  @doc "Drops rows by kind and number."
+  def delete_vectors([]), do: :ok
+
+  def delete_vectors(keys) do
+    Enum.each(keys, fn {kind, number} ->
+      Repo.delete_all(from(v in Vector, where: v.kind == ^kind and v.number == ^number))
+    end)
+
+    :ok
+  end
+
+  @doc "The nearest rows of a kind to a vector, nearest first, each with its cosine distance and its own embedding."
+  def nearest_vectors(vector, kind, limit) do
+    Repo.all(
+      from(v in Vector,
+        where: v.kind == ^kind,
+        order_by: cosine_distance(v.embedding, ^vector),
+        limit: ^limit,
+        select: %{
+          number: v.number,
+          text: v.text,
+          embedding: v.embedding,
+          distance: cosine_distance(v.embedding, ^vector)
+        }
+      )
+    )
+  end
 
   @doc "The resident's bookmarks, newest first, each with its tags."
   @spec bookmarks() :: [Bookmark.t()]

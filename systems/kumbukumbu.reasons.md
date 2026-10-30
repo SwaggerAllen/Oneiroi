@@ -145,3 +145,25 @@ sentences". At write time by the resident so that the tag is part of
 the record and not a later reading of it, which would be a judgement
 the resident never made.
 
+## #34
+Spec §6.3 (P10): "gated, non-repeating associative recall chosen by
+the embedding index, adjacent but unheard, excluded from limit-adjacent
+material, logged with its reason"; P2: "the deterministic exploration
+share and the madeleine layer exclude limit-adjacent material from
+serendipity"; Muninn's "involuntary recall". One a turn because the
+proposal costs it as "one more injection blob" and a second would be
+a ranking. Unheard measured against the index because the index is
+what the resident heard; recalled logged on the row because the near-
+miss record showed an injection's refs are the honest log of what was
+shown (#31). The limits gate void when unstated because the contract
+section is empty then and the brain never reads the unstated words
+either: a gate against words nobody loaded would be measured against
+nothing. Every figure a guess that says so (conventions §9).
+
+## #35
+The near-miss rule (#31) and the madeleine (#34) both depend on a
+bookmark's marks meaning what they say; a mark set by another
+system's numbers made "unheard" a lie for whichever bookmark shared a
+habit's number. By label because the label is what the injection is,
+and the refs mean different things under different labels.
+

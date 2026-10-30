@@ -217,9 +217,20 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   # Whether a bookmark was in the index this turn is derived from the last
   # `ContextAssembled` (spec §6.3): the index injection carries the
   # numbers it listed under `refs`, and each one's row takes the instant.
+  # The index's injection alone: the character section's refs are habit
+  # numbers, and until the madeleine landed every injection's refs were
+  # read as bookmarks, so habit #1 marked bookmark #1 as indexed. The
+  # madeleine's refs mark a recall instead (#34), so one is not repeated.
   defp mark_indexed(multi, e) do
+    multi
+    |> mark(e, "index", :indexed, :last_indexed_at)
+    |> mark(e, "madeleine", :recalled, :last_recalled_at)
+  end
+
+  defp mark(multi, e, label, name, column) do
     refs =
       e.injections
+      |> Enum.filter(&(field(&1, :label) == label))
       |> Enum.flat_map(&List.wrap(field(&1, :refs)))
       |> Enum.map(&to_integer/1)
       |> Enum.reject(&is_nil/1)
@@ -231,9 +242,9 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       numbers ->
         Multi.update_all(
           multi,
-          :indexed,
+          name,
           from(b in Bookmark, where: b.number in ^numbers),
-          set: [last_indexed_at: e.at]
+          set: [{column, e.at}]
         )
     end
   end

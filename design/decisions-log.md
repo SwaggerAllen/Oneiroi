@@ -886,3 +886,33 @@ and nothing personal turned up; what follows is what changed.
   madeleine, which the proposal names as the counterweight to the skew
   this measures.
 
+## Round 31: the madeleine (2026-10-30)
+
+- P10 lands as one bookmark a turn (kumbukumbu #34, brain #30): the
+  bookmarks' words and the limits embedded through the provider port
+  (the lane's pattern, re-embedding only what changed, nothing for a
+  resident with no bookmark), the turn's words embedded once, and the
+  nearest bookmark within the distance bound that passes every gate:
+  not pinned, not in the index for a fortnight, not recalled for a
+  month, not within the same distance of the limits. Each figure a
+  guess that says so. The section is the brain's own, surfaced by
+  nearness and never by rank, its reason on the injection row and its
+  ref marking the recall, so the log is what was shown and why.
+- Unstated limits are nothing to be adjacent to: the contract section
+  is empty then and the brain never reads the unstated words either, so
+  the gate is void and the reason says "no limits stated" rather than
+  measuring against nothing. The test pins both halves: a bookmark near
+  the contract's words is recalled before the contract and left alone
+  after.
+- A defect found by the unheard gate (kumbukumbu #35): every injection's
+  refs were read as bookmark numbers, so the character section's habit
+  numbers marked bookmarks of the same number as indexed. The marks are
+  by label now: the index's refs mark indexed, the madeleine's mark
+  recalled, the rest mark nothing.
+- The injection reason's width is enforced at the write now (brain #30):
+  cut to the column with a mark, after round 29 left it open and the
+  madeleine's first turn hit it again.
+- Open: the two systems embed the turn's words separately (the lane and
+  the madeleine), two calls where one would do; sharing the vector is a
+  port's shape and waits. P18, the wash pass, next.
+

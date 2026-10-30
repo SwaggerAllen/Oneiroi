@@ -592,9 +592,10 @@ Owns `lib/oneiroi/memory/**`.
   unweighted. All figures are the plan's guesses. The reason, in Muninn's
   words (v0.2, P7): decay the access, never the content; records are
   permanent and deletion is a tombstone. The exploration share becomes
-  the madeleine layer (v0.2, P10, planned): gated, non-repeating
-  associative recall chosen by the embedding index, adjacent but unheard,
-  excluded from limit-adjacent material, logged with its reason. Memory
+  the madeleine layer (v0.2, P10, built: kumbukumbu #34): gated,
+  non-repeating associative recall chosen by the embedding index,
+  adjacent but unheard, excluded from limit-adjacent material, logged
+  with its reason, one bookmark a turn in a section of its own. Memory
   carries a domain (v0.2, P23, planned: intimate, business, public,
   family) and retrieval respects the room, shipped as an intent with an
   audit rather than a proof; the near-miss record shows a domain line

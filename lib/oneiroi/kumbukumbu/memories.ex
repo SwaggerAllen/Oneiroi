@@ -22,6 +22,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
+  alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memory
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
   alias Oneiroi.Kumbukumbu.MemoryRouter, as: Router
@@ -287,6 +288,12 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do: Scope.resident(resident_id, fn -> Store.taggings(kind, to_string(target_id)) end)
 
   def tagged(resident_id, slug), do: Scope.resident(resident_id, fn -> Store.tagged(slug) end)
+
+  @doc "The madeleine for a turn's words: the vectors refreshed (embedding what changed), then one adjacent, unheard bookmark or nil."
+  def madeleine(resident_id, text, %Actor{} = actor) do
+    _ = Madeleine.refresh(resident_id, actor)
+    Madeleine.recall(resident_id, text, actor)
+  end
 
   @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`."
   @spec index(String.t()) :: Index.built()
