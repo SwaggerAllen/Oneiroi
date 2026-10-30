@@ -238,4 +238,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # actor says who; the absence of this event is the privacy.
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end
+
+  defmodule SelfLettersExported do
+    # The export carried these letters into the repository, once per
+    # letter: a receipt of its own kind, because the repository's reader
+    # is whoever holds it and the resident should see that the words
+    # left the house.
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers]
+  end
 end

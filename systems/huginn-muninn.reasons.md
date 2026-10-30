@@ -86,3 +86,11 @@ are about the resident and this one is about the platform keeping
 its word. Fail-loud because the failure this exists to find is
 silence, and a checker that fails silently is the same silence with
 a name on it; the exit codes because a cron reads nothing else.
+
+### #20, the job
+The author, 10-30: a schedule set up by hand does not survive a
+deploy. Oban's cron is the schedule every other regular thing here
+already uses, so the pulse-checker is checked the way the pulse is
+made. Cancelled rather than failed because a retry a minute later
+answers nothing the hour's run did not, and the cancelled row carries
+the verdict where a retried one would carry only the attempt count.

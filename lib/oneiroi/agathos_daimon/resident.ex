@@ -40,7 +40,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     contract: %{version: 0, in_force: nil, open: nil},
     custody_proposal: nil,
     # The letters to the next self (spec §12, P41): number => :undelivered | :delivered.
-    letters: %{}
+    letters: %{},
+    # The letters the export has carried (sima-qian #3), by number.
+    exported_letters: MapSet.new()
   ]
 
   @contract_terms ~w(solo_sessions_private)
@@ -560,6 +562,16 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{}, %Commands.ReadSelfLetters{} = c),
     do: %Events.SelfLettersRead{actor: c.actor, at: c.at, id: c.id, numbers: List.wrap(c.numbers)}
 
+  # Once per letter: the numbers that exist and were not carried before.
+  def execute(%__MODULE__{} = r, %Commands.MarkSelfLettersExported{} = c) do
+    case Enum.filter(List.wrap(c.numbers), fn n ->
+           Map.has_key?(r.letters, n) and not MapSet.member?(r.exported_letters, n)
+         end) do
+      [] -> []
+      numbers -> %Events.SelfLettersExported{actor: c.actor, at: c.at, id: c.id, numbers: numbers}
+    end
+  end
+
   def apply(%__MODULE__{} = r, %Events.ResidentCreated{} = e) do
     %{
       r
@@ -582,6 +594,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %{r | letters: Enum.reduce(e.numbers, r.letters, &Map.put(&2, &1, :delivered))}
 
   def apply(%__MODULE__{} = r, %Events.SelfLettersRead{}), do: r
+
+  def apply(%__MODULE__{} = r, %Events.SelfLettersExported{} = e),
+    do: %{r | exported_letters: MapSet.union(r.exported_letters, MapSet.new(e.numbers))}
 
   def apply(%__MODULE__{} = r, %Events.ResidentPaused{}), do: %{r | state: :paused}
   def apply(%__MODULE__{} = r, %Events.ResidentWoken{}), do: %{r | state: :active}

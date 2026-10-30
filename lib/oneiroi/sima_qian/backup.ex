@@ -53,6 +53,9 @@ defmodule Oneiroi.SimaQian.Backup do
     with :ok <- Git.ensure_repo(dir),
          {:ok, export} <- Export.write(resident_id, dir),
          {:ok, _} <- record_export(resident_id, export, actor),
+         # The letters the export carried for the first time get their
+         # receipt (agathos-daimon #28): the words left the house.
+         :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
          root = Merkle.root(Path.join(dir, "records")),
          {:ok, commits} <- commit_classes(dir, export.through, root),
          :ok <- push(dir, row),

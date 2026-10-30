@@ -153,3 +153,12 @@ the channel on every turn for the prefix line, which would otherwise
 make the log the brain's. Recorded before the letters are returned so
 a crash between the two loses the read and not the receipt. The
 platform's read is receipted too: an operator is not the resident.
+
+### #28, the export
+The author, 10-30: leave the letters in the export. They were never
+out of it; the export writes the resident's stream whole and a letter
+is an event on it, and the round-35 note saying otherwise was wrong.
+What was missing was the receipt: a repository is read by whoever
+holds it, so the words leaving the house is a read the resident should
+see. Once per letter rather than once per backup because a nightly
+receipt for the same words would be the noise that hides a real read.

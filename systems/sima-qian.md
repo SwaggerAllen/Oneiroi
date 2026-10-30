@@ -37,7 +37,10 @@ queue, and the `mix oneiroi.sima_qian.rebuild` task. The fixture log under
   per UTC day rewritten whole each run; every occurrence of the
   resident's uuid is written `$self`, which is what lets a rebuild be a
   new resident and still re-export byte for byte. Fields an event
-  declares `redact:` are null.
+  declares `redact:` are null. The self-conversation's letters are on
+  the stream and so in the export; the backup records a receipt for the
+  ones it carries for the first time (agathos-daimon #28), after
+  `ExportWritten` and before the commit.
 - **#4 `sequence` is the line's ordinal, dense from 1.** The stream has
   gaps where the unexported bookkeeping sits and a rebuild replays the
   lines densely, so only the ordinal re-exports identically. The stream

@@ -1044,3 +1044,24 @@ and nothing personal turned up; what follows is what changed.
   and P43. What stays open is listed on the PR and in the rounds above.
 - Open: the production store restart before the deploy; the client's
   screens; the memory pass that proposes enactments.
+
+## Round 38: quietcheck as a job; the letters in the export, receipted (2026-10-30)
+
+- The author's calls on the merged PR's list. quietcheck runs hourly
+  as `QuietcheckWorker` on the audits' queue, scheduled in code
+  (huginn-muninn #20): a schedule set up by hand does not survive a
+  deploy. The mix task stays as the shell's door to the same report.
+- The self-letters were never out of the export: a letter is an event
+  on the resident's stream and the export writes the stream whole, so
+  round 35's note was wrong and is corrected here. What was missing was
+  the receipt: the backup now records `SelfLettersExported` for the
+  letters it carries for the first time (agathos-daimon #28, sima-qian
+  #3), a receipt of the export's kind the resident sees like any other.
+- A session's room does not change (round 36 stands): a session opened
+  in the wrong room is closed and another opened; no route for it.
+- The production store needed no restart: it held three accounts and
+  their sign-ins and nothing the v0.2 changes touched; the migrations
+  altered empty tables. The restart the author ran was a Postgres
+  restart, which the app rode out.
+- Open: the encryption scheme for the letters at rest (the author's
+  next conversation); the client's screens.

@@ -456,6 +456,31 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     )
   end)
 
+  # The export's receipt (sima-qian #3): a receipt row of its own kind,
+  # and the letters marked carried so the next export names only new ones.
+  fold(%Events.SelfLettersExported{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.insert(
+      {:self_letter_export_receipt, e.at},
+      %SelfLetterReceipt{
+        resident_id: e.id,
+        at: e.at,
+        by_kind: "export",
+        by_id: "repository",
+        numbers: e.numbers || []
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :at, :by_kind]
+    )
+    |> Multi.update_all(
+      {:self_letters_exported, e.at},
+      from(l in SelfLetter,
+        where: l.resident_id == ^e.id and l.number in ^e.numbers and is_nil(l.exported_at)
+      ),
+      set: [exported_at: e.at]
+    )
+  end)
+
   defp actor_kind(%{kind: kind}), do: to_string(kind)
   defp actor_kind(_actor), do: "unknown"
   defp actor_id(%{id: id}) when not is_nil(id), do: to_string(id)

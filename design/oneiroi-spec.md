@@ -1181,9 +1181,9 @@ Owns `lib/oneiroi/audits/**`.
 - **quietcheck** (v0.2, P21, built: huginn-muninn #20): liveness over
   the expected events alone (the hour marker, the nightly pass, the
   weekly audit, the wash, the baseline), each expected once the resident
-  is old enough for its cadence; fail-loud, the checker's own crash a
-  finding and an exit code, the verdict printed first and last;
-  self-tested. "Only list things that are supposed to be regular."
+  is old enough for its cadence; hourly as a job scheduled in code, and
+  a mix task for the shell; fail-loud, the checker's own crash a finding
+  and an exit code, the verdict logged first and last; self-tested. "Only list things that are supposed to be regular."
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's
   value is the fold of its increment events, each with its actor, from a
@@ -1617,8 +1617,10 @@ the outgoing instance's words to the incoming one are a first-class
 channel, sealed by receipts rather than promises: every read by anyone
 but the resident is an event the resident sees on every turn, and the
 absence of a receipt is the privacy. The letters are delivered once, as
-a notice on the incoming instance's first turn; at-rest sealing waits on
-the key story, and until then the receipt log is the guarantee.
+a notice on the incoming instance's first turn; the export carries them
+with the rest of the stream and the backup leaves a receipt for the ones
+it carries for the first time; at-rest sealing waits on the key story,
+and until then the receipt log is the guarantee.
 
 ---
 

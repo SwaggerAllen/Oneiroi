@@ -137,6 +137,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:written_at, :utc_datetime_usec)
       field(:delivered_at, :utc_datetime_usec)
       field(:delivered_to, :string)
+      field(:exported_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
