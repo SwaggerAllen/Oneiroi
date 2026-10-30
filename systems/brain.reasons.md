@@ -26,10 +26,10 @@ placeholder is replaced by the pin in the regression slice.
 
 ## #10
 Spec §5: "Tools are the same core functions the MCP server exposes,
-chosen by role; it never gets steward operations." Capturing the calls
+chosen by role; it never gets witness operations." Capturing the calls
 is spec §6.3's full capture: a transcript showing a reply that "just
 knew" something the resident looked up is a transcript with a hole. A
-turn that dies on a misnamed tool loses the reply the steward is waiting
+turn that dies on a misnamed tool loses the reply the witness is waiting
 for; the model reads the error and tries again or answers without it.
 
 ## #11
@@ -53,7 +53,7 @@ turns in front of it"; "the brain self-tags at turn time
 ## #14
 Spec §6.2: "every authored field offers 'write it with me' (a draft
 from a prompt, billed under the `drafting` purpose)". Returned rather
-than written so the origin on the seed is the steward's statement, not
+than written so the origin on the seed is the witness's statement, not
 the model's.
 
 ## #15

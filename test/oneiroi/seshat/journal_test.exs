@@ -12,12 +12,12 @@ defmodule Oneiroi.Seshat.JournalTest do
   alias Oneiroi.Sunna
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     Model.clear()
     Honcho.clear(for: resident.id)
@@ -118,7 +118,7 @@ defmodule Oneiroi.Seshat.JournalTest do
              entries: [
                %{number: 1, kind: "plan", actor_kind: "resident"},
                %{number: 2, done_at: %DateTime{}},
-               %{number: 3, actor_kind: "steward"}
+               %{number: 3, actor_kind: "witness"}
              ],
              delta: %{plan: 1, todo: 1, done: 1, note: 1, wrap: 0, unwrapped: true}
            } =

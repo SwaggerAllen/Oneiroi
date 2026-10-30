@@ -2,8 +2,8 @@ defmodule Oneiroi.Nisaba.Store do
   @moduledoc """
   The ledger's projections and the queries over them (conventions §6):
   a budget line per purpose and a row per model call, both under the
-  resident's scope. The steward reads them through the resident's scope
-  after the stewardship check, as every resident surface is read.
+  resident's scope. The witness reads them through the resident's scope
+  after the witnessing check, as every resident surface is read.
   """
   import Ecto.Query, only: [from: 2]
 
@@ -68,7 +68,7 @@ defmodule Oneiroi.Nisaba.Store do
       field(:cancelled_at, :utc_datetime_usec)
       field(:custody_due_at, :utc_datetime_usec)
       field(:policy_model, :string)
-      field(:policy_steward, :string)
+      field(:policy_witness, :string)
       field(:policy_free_time, :string)
       field(:policy_term, :string)
       field(:policy_set_at, :utc_datetime_usec)

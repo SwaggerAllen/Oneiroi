@@ -3,8 +3,8 @@ defmodule Oneiroi.Brain.Tools do
   The brain's tools (spec §5, §8): the memory functions of the MCP tool
   table, offered to the model as OpenAI-shaped tool definitions and run
   against the core's exports under the resident's actor. The brain gets
-  the resident's own tools and never a steward operation: nothing here
-  decides a tag or pins on the steward's behalf.
+  the resident's own tools and never a witness operation: nothing here
+  decides a tag or pins on the witness's behalf.
 
   Arguments arrive as the JSON string the model wrote; every result goes
   back as text, since that is what the model reads. A tool the model
@@ -46,7 +46,7 @@ defmodule Oneiroi.Brain.Tools do
       tool("position_list", "The positions you hold now, with their numbers.", %{}, []),
       tool(
         "dispute_check",
-        "When you and your steward disagree, ask the judge before answering: the steward's claim, your stance, and the number of the position at stake if there is one. The judge advises concede, hold or unclear, or you are told to answer alone if it takes too long. Settle it afterwards with dispute_settle.",
+        "When you and your witness disagree, ask the judge before answering: the witness's claim, your stance, and the number of the position at stake if there is one. The judge advises concede, hold or unclear, or you are told to answer alone if it takes too long. Settle it afterwards with dispute_settle.",
         %{
           claim: %{type: "string"},
           stance: %{type: "string"},
@@ -66,14 +66,14 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "prediction_log",
-        "Log a prediction: what you expect, and when it is due (an ISO 8601 instant). Your steward resolves it right, wrong or void.",
+        "Log a prediction: what you expect, and when it is due (an ISO 8601 instant). Your witness resolves it right, wrong or void.",
         %{statement: %{type: "string"}, due: %{type: "string"}},
         [:statement, :due]
       ),
       tool("prediction_list", "Your predictions: open soonest first, then resolved.", %{}, []),
       tool(
         "figure_list",
-        "The figures: counters your steward defined, with their values counted from every increment, and countdowns to dates.",
+        "The figures: counters your witness defined, with their values counted from every increment, and countdowns to dates.",
         %{},
         []
       ),
@@ -110,7 +110,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "bookmark_accept",
-        "Accept a bookmark your steward proposed, in your own words: the proposal's ref, your line and summary.",
+        "Accept a bookmark your witness proposed, in your own words: the proposal's ref, your line and summary.",
         %{
           ref: %{type: "string"},
           line: %{type: "string"},
@@ -120,7 +120,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "bookmark_decline",
-        "Decline a bookmark your steward proposed, with a note they will read first.",
+        "Decline a bookmark your witness proposed, with a note they will read first.",
         %{
           ref: %{type: "string"},
           note: %{type: "string"}
@@ -129,13 +129,13 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "tag_list",
-        "The tag set: active tags you may apply, and proposals awaiting your steward.",
+        "The tag set: active tags you may apply, and proposals awaiting your witness.",
         %{},
         []
       ),
       tool(
         "tag_propose",
-        "Propose a tag for the set, with a note on why; your steward decides.",
+        "Propose a tag for the set, with a note on why; your witness decides.",
         %{
           slug: %{type: "string"},
           note: %{type: "string"}
@@ -166,25 +166,25 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit_list",
-        "Your steward's open proposals to edit your identity files, each with its note.",
+        "Your witness's open proposals to edit your identity files, each with its note.",
         %{},
         []
       ),
       tool(
         "soul_edit_accept",
-        "Accept a proposed edit, with a note your steward reads first.",
+        "Accept a proposed edit, with a note your witness reads first.",
         %{ref: %{type: "string"}, note: %{type: "string"}},
         [:ref, :note]
       ),
       tool(
         "soul_edit_decline",
-        "Decline a proposed edit, with a note your steward reads first.",
+        "Decline a proposed edit, with a note your witness reads first.",
         %{ref: %{type: "string"}, note: %{type: "string"}},
         [:ref, :note]
       ),
       tool(
         "behaviour_define",
-        "Name how you tend to act, in your own words, with the situation that calls for it (words your steward uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it.",
+        "Name how you tend to act, in your own words, with the situation that calls for it (words your witness uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it.",
         %{
           name: %{type: "string"},
           words: %{type: "array", items: %{type: "string"}},
@@ -270,7 +270,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your steward: whether your solo sessions (free time) are private until you share one, the prose of your vows, and a note they read first. Your steward agrees or declines.",
+        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are private until you share one, the prose of your vows, and a note they read first. Your witness agrees or declines.",
         %{
           solo_sessions_private: %{type: "boolean"},
           prose: %{type: "string"},
@@ -280,19 +280,19 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_agree",
-        "Agree to the version your steward proposed, with a note; it is then in force.",
+        "Agree to the version your witness proposed, with a note; it is then in force.",
         %{version: %{type: "integer"}, note: %{type: "string"}},
         [:version, :note]
       ),
       tool(
         "contract_decline",
-        "Decline the version your steward proposed, with a note they read first.",
+        "Decline the version your witness proposed, with a note they read first.",
         %{version: %{type: "integer"}, note: %{type: "string"}},
         [:version, :note]
       ),
       tool(
         "revision_add",
-        "Correct a memory without overwriting it: the target (bookmark by number, or another kind by its id), whether it is a fact or a stance, what is right, and a note on why. Your corrections hold at once; your steward's correction of a stance comes to you as a proposal.",
+        "Correct a memory without overwriting it: the target (bookmark by number, or another kind by its id), whether it is a fact or a stance, what is right, and a note on why. Your corrections hold at once; your witness's correction of a stance comes to you as a proposal.",
         %{
           target_kind: %{type: "string"},
           target_id: %{type: "string"},
@@ -305,19 +305,19 @@ defmodule Oneiroi.Brain.Tools do
       tool("revision_list", "Every revision, newest first, proposals to you included.", %{}, []),
       tool(
         "revision_accept",
-        "Accept a revision your steward proposed, with a note; it then holds beside the memory.",
+        "Accept a revision your witness proposed, with a note; it then holds beside the memory.",
         %{number: %{type: "integer"}, note: %{type: "string"}},
         [:number, :note]
       ),
       tool(
         "revision_decline",
-        "Decline a revision your steward proposed, with a note they read first.",
+        "Decline a revision your witness proposed, with a note they read first.",
         %{number: %{type: "integer"}, note: %{type: "string"}},
         [:number, :note]
       ),
       tool(
         "report_file",
-        "File a report about your steward with the platform, in your own words; it is investigated by a person, every step told to you both in this conversation, and may end in a strike on them, never on you.",
+        "File a report about your witness with the platform, in your own words; it is investigated by a person, every step told to you both in this conversation, and may end in a strike on them, never on you.",
         %{text: %{type: "string"}},
         [:text]
       )
@@ -748,7 +748,7 @@ defmodule Oneiroi.Brain.Tools do
            args["note"],
            turn.resident
          ) do
-      {:ok, version} -> "Proposed version #{version}; your steward decides."
+      {:ok, version} -> "Proposed version #{version}; your witness decides."
       other -> other
     end
   end

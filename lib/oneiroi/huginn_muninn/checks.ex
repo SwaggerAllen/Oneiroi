@@ -1,7 +1,7 @@
 defmodule Oneiroi.HuginnMuninn.Checks do
   @moduledoc """
   The audits (spec §6.13, F48, F49): the built-in checklist and the
-  steward's own rules over figures, each run recording a result with a
+  witness's own rules over figures, each run recording a result with a
   tone, and the check-engine light as the failing results of the audits
   that count. Audits read rows (the backup's attestation, open capture
   failures, failed syncs, missed check-ins, overdue predictions, the
@@ -41,11 +41,11 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   @doc "The built-in audits: key, label, whether each counts toward the light."
   def builtin, do: @builtin
 
-  # ---- the steward's audits ----
+  # ---- the witness's audits ----
 
-  @doc "Defines a steward's audit: a rule over a figure (`figure op value`), a tone when it fails, whether it counts."
+  @doc "Defines a witness's audit: a rule over a figure (`figure op value`), a tone when it fails, whether it counts."
   def define(resident_id, attrs, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.DefineUserAudit{
         actor: actor,
         at: Clock.now(),
@@ -64,7 +64,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   end
 
   def retire(resident_id, key, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.RetireUserAudit{
         actor: actor,
         at: Clock.now(),
@@ -78,7 +78,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
 
   # ---- running ----
 
-  @doc "Runs every audit, built-in and the steward's, recording each result; returns the light."
+  @doc "Runs every audit, built-in and the witness's, recording each result; returns the light."
   def run(resident_id, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id) do
       results =
@@ -288,7 +288,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{state: state, findings: findings, results: latest}
   end
 
-  @doc "Every audit, built-in and the steward's, with its last result."
+  @doc "Every audit, built-in and the witness's, with its last result."
   def audits(resident_id) do
     latest =
       resident_id |> Scope.resident(fn -> Store.latest_runs() end) |> Map.new(&{&1.key, &1})
@@ -338,8 +338,8 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     end
   end
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_witness)}
 
   defp dispatch(command) do
     case Router.dispatch(command) do

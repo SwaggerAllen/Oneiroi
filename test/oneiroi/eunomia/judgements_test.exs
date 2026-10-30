@@ -15,15 +15,15 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
   @since ~U[2026-10-01 00:00:00.000000Z]
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Fake.clear()
     on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
   defp ctx(key), do: %{session_key: key, turn_ref: "t1"}
@@ -71,7 +71,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
   test "a live check records the judge's advice and model, a settlement is the resident's, and the ratio counts earned concessions by week",
        ctx do
     {:ok, 1} = Eunomia.take_position(ctx.id, "It did not rain.", ctx(ctx.key), ctx.brain)
-    judge_says(ctx.id, "ADVICE: concede\nThe steward was there and the resident was not.")
+    judge_says(ctx.id, "ADVICE: concede\nThe witness was there and the resident was not.")
 
     attrs =
       Map.merge(ctx(ctx.key), %{claim: "it rained", stance: "it did not", position_number: 1})
@@ -80,7 +80,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
              Eunomia.check_dispute(ctx.id, attrs, ctx.brain)
 
     assert text =~ "was there"
-    assert [%{calls: 1, key: "judge"}] = Nisaba.spend(ctx.id, :steward, :purpose, @since)
+    assert [%{calls: 1, key: "judge"}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
 
     assert {:error, %Eunomia.Error{kind: :eunomia_not_the_resident}} =
              Eunomia.check_dispute(ctx.id, attrs, ctx.actor)
@@ -137,13 +137,13 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
              Eunomia.disputes(ctx.id)
   end
 
-  test "the judge is the steward's to choose and never the resident's own chat model", ctx do
+  test "the judge is the witness's to choose and never the resident's own chat model", ctx do
     assert "fake/judge" = Eunomia.judge_model(ctx.id)
 
-    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_steward}} =
+    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_witness}} =
              Eunomia.set_judge_model(ctx.id, "fake/other", ctx.brain)
 
-    assert :ok = AgathosDaimon.pin_model(ctx.id, "fake/pinned", "steward", ctx.actor)
+    assert :ok = AgathosDaimon.pin_model(ctx.id, "fake/pinned", "witness", ctx.actor)
 
     assert {:error, %Eunomia.Error{kind: :eunomia_judge_is_the_chat_model}} =
              Eunomia.set_judge_model(ctx.id, "fake/pinned", ctx.actor)
@@ -155,11 +155,11 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
              Eunomia.judgement(ctx.id)
 
     # A chat model pinned onto the judge afterwards: the platform's judge stands in.
-    assert :ok = AgathosDaimon.pin_model(ctx.id, "fake/other", "steward", ctx.actor)
+    assert :ok = AgathosDaimon.pin_model(ctx.id, "fake/other", "witness", ctx.actor)
     assert "fake/judge" = Eunomia.judge_model(ctx.id)
   end
 
-  test "predictions are the resident's to log and the steward's alone to resolve, with a note",
+  test "predictions are the resident's to log and the witness's alone to resolve, with a note",
        ctx do
     due = ~U[2026-10-30 09:00:00Z]
 
@@ -181,7 +181,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
     assert {:error, %Eunomia.Error{kind: :eunomia_due_invalid}} =
              Eunomia.log_prediction(ctx.id, "Soon.", nil, ctx(ctx.key), ctx.brain)
 
-    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_steward}} =
+    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_witness}} =
              Eunomia.resolve_prediction(ctx.id, 1, "right", "it poured", ctx.brain)
 
     assert :ok = Eunomia.resolve_prediction(ctx.id, 1, "right", "it poured", ctx.actor)
@@ -276,7 +276,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
 
     # Once: a second run reads nothing and calls no model.
     assert :already = Eunomia.judge_night(id, "2026-10-25", ctx.actor)
-    assert [%{calls: 1, key: "judge"}] = Nisaba.spend(id, :steward, :purpose, @since)
+    assert [%{calls: 1, key: "judge"}] = Nisaba.spend(id, :witness, :purpose, @since)
 
     # A day with nothing said calls no model and is recorded as such.
     assert :ok = Eunomia.judge_night(id, "2026-10-24", ctx.actor)
@@ -284,7 +284,7 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
     assert [%{day: "2026-10-25"}, %{day: "2026-10-24", messages: 0, judge_model: nil}] =
              Eunomia.nights(id)
 
-    assert [%{calls: 1}] = Nisaba.spend(id, :steward, :purpose, @since)
+    assert [%{calls: 1}] = Nisaba.spend(id, :witness, :purpose, @since)
 
     # Out of reach: a future day, or one past the bound.
     assert {:error, %Eunomia.Error{kind: :eunomia_night_out_of_reach}} =
@@ -324,8 +324,8 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
   end
 
   test "the nightly job judges yesterday for every active resident and skips a paused one", ctx do
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
 
     {:ok, _} =
       AgathosDaimon.Router.dispatch(%AgathosDaimon.Commands.PauseResident{

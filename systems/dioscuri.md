@@ -29,7 +29,7 @@ it, so a design pass reaching for it finds a record rather than a gap.
 Carried from spec §6.8; the reason for each is there.
 
 - **#3 One OpenClaw gateway per tenant, pinned by digest, hosting a reader and a worker with per-agent tool profiles; the reader never carries the worker's push token.**
-- **#4 The platform never holds a steward's Claude subscription token; Claude Code is a brain adapter where the token stays theirs.**
+- **#4 The platform never holds a witness's Claude subscription token; Claude Code is a brain adapter where the token stays theirs.**
 - **#5 One running step per tenant's hands; the resident is told by wake and never given results in the wake text.**
 - **#6 Wake fan-out is keyed and coalesced; a refused session key falls back to main and is counted, never quiet.**
 

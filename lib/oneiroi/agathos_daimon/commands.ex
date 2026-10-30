@@ -2,7 +2,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   @moduledoc "The resident aggregate's commands (spec §3.1)."
 
   defmodule CreateResident do
-    use Oneiroi.Command, fields: [:id, :name, :slug, :steward_account_id]
+    use Oneiroi.Command, fields: [:id, :name, :slug, :witness_account_id]
   end
 
   defmodule MintId do
@@ -88,7 +88,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
 
   defmodule WriteFile do
     # Before first contact: a seed, with its origin. After: the resident's
-    # own edit, and a steward's is refused in favour of a proposal.
+    # own edit, and a witness's is refused in favour of a proposal.
     use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt]
   end
 

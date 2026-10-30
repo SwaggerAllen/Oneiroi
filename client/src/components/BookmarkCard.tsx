@@ -39,7 +39,7 @@ export function BookmarkCard({
         <p style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 17, lineHeight: '24px', flex: 1 }}>
           {bookmark.line}
         </p>
-        {pinned ? <span style={{ fontSize: 12, color: 'var(--steward)' }}>pinned</span> : null}
+        {pinned ? <span style={{ fontSize: 12, color: 'var(--witness)' }}>pinned</span> : null}
         {bookmark.last_indexed_at ? (
           <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>in the index</span>
         ) : null}
@@ -55,7 +55,7 @@ export function BookmarkCard({
         {bookmark.proposed_by ? <span style={{ color: 'var(--ink-faint)' }}>proposed by you</span> : null}
         {bookmark.pinned_by ? (
           <span style={{ color: 'var(--ink-faint)' }}>
-            pinned by {bookmark.pinned_by.kind === 'steward' ? 'you' : residentName}
+            pinned by {bookmark.pinned_by.kind === 'witness' ? 'you' : residentName}
           </span>
         ) : null}
         {bookmark.tags.map((tag) => (

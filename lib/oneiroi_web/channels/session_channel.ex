@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.SessionChannel do
   @moduledoc """
   The streamed conversation (spec §5): `session:<resident_id>:<key>`. A
-  steward joins a session of a resident they steward; `send` runs a turn
+  witness joins a session of a resident they witness; `send` runs a turn
   on the brain's session process and the reply arrives as `delta`
   events, then `turn` with the captured messages, or `stopped` with the
   honest notice, or `failed`.
@@ -16,11 +16,11 @@ defmodule OneiroiWeb.SessionChannel do
     %Principal{account_id: account_id} = socket.assigns.principal
 
     with [resident_id, key] <- String.split(rest, ":", parts: 2),
-         true <- resident_id in Oneiroi.Gaia.stewarded_residents(account_id) do
+         true <- resident_id in Oneiroi.Gaia.witnessed_residents(account_id) do
       :ok = PubSub.subscribe(:brain, :session)
       {:ok, assign(socket, resident_id: resident_id, session_key: key)}
     else
-      _ -> {:error, %{reason: "not stewarded"}}
+      _ -> {:error, %{reason: "not witnessed"}}
     end
   end
 

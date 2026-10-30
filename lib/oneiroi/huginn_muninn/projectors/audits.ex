@@ -1,5 +1,5 @@
 defmodule Oneiroi.HuginnMuninn.Projectors.Audits do
-  @moduledoc "Folds the audits streams into counters with their increments, the steward's audits, and the runs."
+  @moduledoc "Folds the audits streams into counters with their increments, the witness's audits, and the runs."
   use Oneiroi.Projection, name: "huginn_muninn_audits"
 
   import Ecto.Query, only: [from: 2]

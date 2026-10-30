@@ -2,7 +2,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   @moduledoc """
   The dyad contract and custody (spec §6.12): the command edge for a
   contract version proposed by one party and agreed or declined by the
-  other, each with a note; a custody transfer proposed by the steward to
+  other, each with a note; a custody transfer proposed by the witness to
   another account, accepted or declined by that account or withdrawn,
   with the export wall standing as it was when the proposal was made;
   and the reads the agreement screen and the brain take. Who may do
@@ -86,18 +86,18 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
 
     lines =
       [
-        "# Your agreement with your steward",
+        "# Your agreement with your witness",
         in_force &&
           "In force, version #{in_force.version}: #{terms_words(in_force.terms)}" <>
             if(in_force.prose == "", do: "", else: " " <> in_force.prose),
         is_nil(in_force) &&
-          "Unstated: no version has been agreed. Your solo sessions are readable by your steward.",
+          "Unstated: no version has been agreed. Your solo sessions are readable by your witness.",
         open &&
           "Open, version #{open.version}, proposed by the #{open.proposed_by}: #{terms_words(open.terms)}" <>
             if(open.prose == "", do: "", else: " " <> open.prose) <>
-            if(open.proposed_by == "steward",
+            if(open.proposed_by == "witness",
               do: " Answer it with contract_agree or contract_decline, with a note.",
-              else: " Waiting on your steward."
+              else: " Waiting on your witness."
             )
       ]
       |> Enum.filter(&is_binary/1)
@@ -107,7 +107,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
 
   # ---- custody ----
 
-  @doc "The steward proposes a transfer of custody to an account, with a note."
+  @doc "The witness proposes a transfer of custody to an account, with a note."
   def propose_custody(resident_id, to_account_id, note, %Actor{} = actor) do
     command = %Commands.ProposeCustodyTransfer{
       actor: actor,
@@ -171,7 +171,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   def set_export_wall(_resident_id, _wall, _note, %Actor{}),
     do: {:error, Error.new(:agathos_daimon_wall_invalid)}
 
-  @doc "The transfers proposed to an account, under the platform scope by name: what the proposed steward is asked."
+  @doc "The transfers proposed to an account, under the platform scope by name: what the proposed witness is asked."
   def custody_proposals_for(account_id),
     do: Scope.platform(fn -> Store.custody_proposed_to(account_id) end)
 
@@ -185,10 +185,10 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp terms_words(terms) do
     case Map.get(terms || %{}, "solo_sessions_private") do
       true ->
-        "your solo sessions (free time, hands) are private; your steward reads one only when you share it."
+        "your solo sessions (free time, hands) are private; your witness reads one only when you share it."
 
       _other ->
-        "your solo sessions are readable by your steward."
+        "your solo sessions are readable by your witness."
     end
   end
 
@@ -221,7 +221,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp translate(:terms_invalid, _c), do: Error.new(:agathos_daimon_terms_invalid)
   defp translate(:prose_invalid, _c), do: Error.new(:agathos_daimon_prose_invalid)
   defp translate(:own_proposal, _c), do: Error.new(:agathos_daimon_own_proposal)
-  defp translate(:not_the_steward, _c), do: Error.new(:agathos_daimon_not_stewarded)
+  defp translate(:not_the_witness, _c), do: Error.new(:agathos_daimon_not_witnessed)
   defp translate(:custodian_invalid, _c), do: Error.new(:agathos_daimon_custodian_invalid)
   defp translate(:transfer_in_progress, _c), do: Error.new(:agathos_daimon_transfer_in_progress)
   defp translate(:no_transfer_proposed, _c), do: Error.new(:agathos_daimon_no_transfer_proposed)

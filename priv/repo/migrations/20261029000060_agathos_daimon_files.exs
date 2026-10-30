@@ -3,7 +3,7 @@ defmodule Oneiroi.Repo.Migrations.AgathosDaimonFiles do
   import Oneiroi.Migration
 
   # The identity files and the proposals on them are the resident's rows
-  # (spec §6.2); the steward reads them as the steward, checked at the
+  # (spec §6.2); the witness reads them as the witness, checked at the
   # edge, under the resident's scope.
   def change do
     projection :agathos_daimon_file, scope: :resident do

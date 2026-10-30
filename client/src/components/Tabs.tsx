@@ -22,7 +22,7 @@ export function Tabs<T extends string>({
               minHeight: 'var(--control-h-sm)',
               padding: '0 var(--space-3)',
               border: 'none',
-              borderBottom: selected ? '2px solid var(--steward)' : '2px solid transparent',
+              borderBottom: selected ? '2px solid var(--witness)' : '2px solid transparent',
               background: 'transparent',
               color: selected ? 'var(--ink)' : 'var(--ink-muted)',
               fontFamily: 'var(--font-sans)',

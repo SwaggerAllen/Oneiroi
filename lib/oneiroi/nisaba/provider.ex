@@ -85,14 +85,14 @@ defmodule Oneiroi.Nisaba.Provider do
   @type failure :: {:transport, term()} | {:schema_invalid, term()}
   @type sink :: (String.t() -> any())
 
-  @doc "Completes the request on the steward's key."
+  @doc "Completes the request on the witness's key."
   @callback complete(Request.t(), key :: String.t()) :: {:ok, Result.t()} | {:error, failure()}
 
   @doc "Completes the request, calling `sink` with each delta of the reply as it arrives."
   @callback stream(Request.t(), key :: String.t(), sink()) ::
               {:ok, Result.t()} | {:error, failure()}
 
-  @doc "Embeds the texts on the steward's key, one vector per text in order (spec §6.5: the library's index)."
+  @doc "Embeds the texts on the witness's key, one vector per text in order (spec §6.5: the library's index)."
   @callback embed(model :: String.t(), [String.t()], key :: String.t()) ::
               {:ok, Embedding.t()} | {:error, failure()}
 end

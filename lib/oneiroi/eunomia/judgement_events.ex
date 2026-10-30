@@ -74,7 +74,7 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
   end
 
   defmodule PredictionResolved do
-    # Right, wrong or void: the steward's alone (F17), with a note.
+    # Right, wrong or void: the witness's alone (F17), with a note.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :outcome]
   end
 
@@ -92,7 +92,7 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
 
   defmodule AuditFlagRaised do
     # One conclusion the judge reads as drift from the resident's stated
-    # positions or soul; the steward approves the flag (the conclusion
+    # positions or soul; the witness approves the flag (the conclusion
     # goes) or deletes it (the conclusion stays).
     use Oneiroi.Event,
       version: 1,

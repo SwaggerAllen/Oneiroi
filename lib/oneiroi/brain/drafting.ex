@@ -1,14 +1,14 @@
 defmodule Oneiroi.Brain.Drafting do
   @moduledoc """
   "Write it with me" (spec §6.2): a draft of an identity file from the
-  steward's prompt, billed under the `drafting` purpose, which the
+  witness's prompt, billed under the `drafting` purpose, which the
   resident's own ledger view does not show. The draft is returned, not
-  written: the steward reads it, edits it, and saves it as a seed whose
+  written: the witness reads it, edits it, and saves it as a seed whose
   origin names the model and the prompt, so the resident can read its
   own becoming.
 
   Lives in the brain rather than the resident system because the ledger
-  reaches the resident system for the steward's key, and a system cannot
+  reaches the resident system for the witness's key, and a system cannot
   depend on one that depends on it.
   """
 

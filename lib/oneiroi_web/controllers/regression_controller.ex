@@ -7,7 +7,7 @@ defmodule OneiroiWeb.RegressionController do
 
   tags(["regression"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   # A module attribute rather than a function: `operation` runs at
   # compile time, before any function of this module exists.
@@ -173,7 +173,7 @@ defmodule OneiroiWeb.RegressionController do
     do: respond(conn, Eunomia.favourite(id, ref, card, actor(conn)))
 
   operation(:pin_model,
-    summary: "Pin the chat model: a regression favourite (reason run) or the steward's choice",
+    summary: "Pin the chat model: a regression favourite (reason run) or the witness's choice",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the pin", "application/json",
@@ -182,7 +182,7 @@ defmodule OneiroiWeb.RegressionController do
          required: [:model],
          properties: %{
            model: %Schema{type: :string},
-           reason: %Schema{type: :string, enum: ["run", "steward"]}
+           reason: %Schema{type: :string, enum: ["run", "witness"]}
          }
        }},
     responses: [no_content: "pinned"]
@@ -194,7 +194,7 @@ defmodule OneiroiWeb.RegressionController do
       Oneiroi.AgathosDaimon.pin_model(
         id,
         model,
-        Map.get(params, "reason", "steward"),
+        Map.get(params, "reason", "witness"),
         actor(conn)
       )
     )
@@ -202,10 +202,10 @@ defmodule OneiroiWeb.RegressionController do
 
   def pin_model(conn, _params), do: problem(conn, 422, :model_required, "model is required")
 
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

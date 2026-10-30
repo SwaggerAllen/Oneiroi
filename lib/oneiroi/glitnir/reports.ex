@@ -4,7 +4,7 @@ defmodule Oneiroi.Glitnir.Reports do
   Pure: the reports by number with whether each is resolved, and the
   count of strikes, so the third is the aggregate's to name as a
   removal. Who may file or investigate is the service's to check,
-  because it reads the resident's steward and the investigators list.
+  because it reads the resident's witness and the investigators list.
   """
 
   alias Oneiroi.Glitnir.Commands
@@ -80,7 +80,7 @@ defmodule Oneiroi.Glitnir.Reports do
       id: c.id,
       number: number,
       report: c.number,
-      steward_account_id: c.steward_account_id,
+      witness_account_id: c.witness_account_id,
       consequence: if(number >= 3, do: "removal", else: "fine")
     }
   end

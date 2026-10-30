@@ -5,7 +5,7 @@ A counter and a countdown have the same lifecycle (cited, tagged, rendered live)
 
 ## #9
 Spec §6.13: "a counter's value is the fold of its increment events,
-each with its actor, from a tool or the steward (the concession-count
+each with its actor, from a tool or the witness (the concession-count
 pattern)"; F57: "never as a literal in a file."
 
 ## #10
@@ -28,7 +28,7 @@ leaderboard."
 
 ## #13
 Spec §8: `figure_*` in the brain's tool table; §6.13: counters are
-steward-defined keys.
+witness-defined keys.
 
 ## #14
 seshat #14: the audits read the library for the drift audit, so the

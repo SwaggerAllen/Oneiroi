@@ -13,16 +13,16 @@ defmodule Oneiroi.AgathosDaimon.Residents do
 
   @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/
 
-  def create(name, slug, steward_account_id, %Actor{} = actor) do
+  def create(name, slug, witness_account_id, %Actor{} = actor) do
     cond do
       not is_binary(name) or String.trim(name) == "" -> {:error, :name_required}
       not (is_binary(slug) and Regex.match?(@slug, slug)) -> {:error, :slug_invalid}
       Scope.platform(fn -> Store.slug_taken?(slug) end) -> {:error, :agathos_daimon_slug_taken}
-      true -> dispatch_create(name, slug, steward_account_id, actor)
+      true -> dispatch_create(name, slug, witness_account_id, actor)
     end
   end
 
-  defp dispatch_create(name, slug, steward_account_id, actor) do
+  defp dispatch_create(name, slug, witness_account_id, actor) do
     id = Ecto.UUID.generate()
 
     command = %Commands.CreateResident{
@@ -31,13 +31,13 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       id: id,
       name: String.trim(name),
       slug: slug,
-      steward_account_id: steward_account_id
+      witness_account_id: witness_account_id
     }
 
     with {:ok, _events} <- Router.dispatch(command), do: {:ok, id}
   end
 
-  def for_steward(account_id), do: Scope.account(account_id, fn -> Store.all() end)
+  def for_witness(account_id), do: Scope.account(account_id, fn -> Store.all() end)
 
   def fetch(id) do
     case Scope.resident(id, fn -> Store.get(id) end) do
@@ -89,7 +89,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
-  @doc "Pins the chat model (spec §6.4): `reason` is `run` for a regression favourite, `steward` otherwise."
+  @doc "Pins the chat model (spec §6.4): `reason` is `run` for a regression favourite, `witness` otherwise."
   def pin_model(id, model, reason, %Actor{} = actor) do
     command = %Commands.PinModel{
       actor: actor,

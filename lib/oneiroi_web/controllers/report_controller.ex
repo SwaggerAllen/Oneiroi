@@ -93,9 +93,9 @@ defmodule OneiroiWeb.ReportController do
   end
 
   defp party_or_investigator(%{assigns: %{principal: p}} = conn, id) do
-    if stewards?(conn, id) or Glitnir.investigator?(Map.get(p, :account_id)),
+    if witnesses?(conn, id) or Glitnir.investigator?(Map.get(p, :account_id)),
       do: :ok,
-      else: {:error, ResidentError.new(:agathos_daimon_not_stewarded)}
+      else: {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

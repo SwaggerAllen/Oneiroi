@@ -11,7 +11,7 @@ defmodule Oneiroi.Nisaba.Purpose do
   """
 
   @all ~w(chat free_time judge hands embeddings drafting regression)a
-  @steward_only ~w(drafting regression)a
+  @witness_only ~w(drafting regression)a
 
   @type t :: :chat | :free_time | :judge | :hands | :embeddings | :drafting | :regression
 
@@ -20,13 +20,13 @@ defmodule Oneiroi.Nisaba.Purpose do
   def all, do: @all
 
   @doc "The purposes the resident's own view never shows."
-  @spec steward_only() :: [t()]
-  def steward_only, do: @steward_only
+  @spec witness_only() :: [t()]
+  def witness_only, do: @witness_only
 
   @doc "The purposes a view may see."
-  @spec visible(:steward | :resident) :: [t()]
-  def visible(:steward), do: @all
-  def visible(:resident), do: @all -- @steward_only
+  @spec visible(:witness | :resident) :: [t()]
+  def visible(:witness), do: @all
+  def visible(:resident), do: @all -- @witness_only
 
   @doc "A purpose from its wire string, or nil."
   @spec parse(term()) :: t() | nil

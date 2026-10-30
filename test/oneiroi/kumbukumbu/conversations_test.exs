@@ -8,11 +8,11 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
   alias Oneiroi.Kumbukumbu
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
     actor = Actor.new(:resident, resident.id, "fake/model")
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
-    {:ok, steward: steward, resident: resident, actor: actor, key: key}
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
+    {:ok, witness: witness, resident: resident, actor: actor, key: key}
   end
 
   defp turn(ctx, ref, text) do
@@ -24,7 +24,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
       ref,
       at,
       [
-        %{role: :user, content: text, sent_at: at, actor: Actor.new(:steward, ctx.steward.id)},
+        %{role: :user, content: text, sent_at: at, actor: Actor.new(:witness, ctx.witness.id)},
         %{
           role: :assistant,
           content: "about " <> text,
@@ -37,22 +37,22 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
   end
 
   test "the main session is opened once and found again", ctx do
-    assert {:ok, ctx.key} == Kumbukumbu.main_session(ctx.resident.id, ctx.steward.id, ctx.actor)
+    assert {:ok, ctx.key} == Kumbukumbu.main_session(ctx.resident.id, ctx.witness.id, ctx.actor)
 
     assert [%{key: key, kind: "main", participants: [party]}] =
-             Kumbukumbu.sessions({:account, ctx.steward.id})
+             Kumbukumbu.sessions({:account, ctx.witness.id})
 
-    assert key == ctx.key and party == ctx.steward.id
+    assert key == ctx.key and party == ctx.witness.id
   end
 
   test "a turn captured twice is stored once, and the transcript reads in order", ctx do
     assert :ok = turn(ctx, "t1", "hello")
     assert :ok = turn(ctx, "t1", "hello")
-    assert {:ok, session, messages} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
+    assert {:ok, session, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
     assert session.turns == 1
     assert ["user", "assistant"] = Enum.map(messages, & &1.role)
-    assert [%{actor_kind: "steward"}, %{actor_kind: "resident", model: "fake/model"}] = messages
-    assert Enum.all?(messages, &(&1.account_id == ctx.steward.id))
+    assert [%{actor_kind: "witness"}, %{actor_kind: "resident", model: "fake/model"}] = messages
+    assert Enum.all?(messages, &(&1.account_id == ctx.witness.id))
   end
 
   test "an account reads only the sessions it was party to; the resident's scope reads all",
@@ -65,7 +65,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
              Kumbukumbu.transcript({:account, other.id}, ctx.key)
 
     assert [] = Kumbukumbu.search({:account, other.id}, "secret", 10)
-    assert [_, _] = Kumbukumbu.search({:account, ctx.steward.id}, "secret", 10)
+    assert [_, _] = Kumbukumbu.search({:account, ctx.witness.id}, "secret", 10)
 
     assert [%{content: "secret"}, %{content: "about secret"}] =
              Kumbukumbu.recent(ctx.resident.id, ctx.key, 10)
@@ -73,9 +73,9 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
 
   test "a failure is loud until retried or marked lost, and the note is required", ctx do
     assert :ok = Kumbukumbu.fail_capture(ctx.resident.id, ctx.key, "t7", "spool", ctx.actor)
-    assert [%{turn_ref: "t7", reason: "spool"}] = Kumbukumbu.failures({:account, ctx.steward.id})
+    assert [%{turn_ref: "t7", reason: "spool"}] = Kumbukumbu.failures({:account, ctx.witness.id})
 
-    steward = Actor.new(:steward, ctx.steward.id)
+    witness = Actor.new(:witness, ctx.witness.id)
 
     assert {:error, {:refused, [:note_required]}} =
              Kumbukumbu.resolve_failure(
@@ -84,7 +84,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
                "t7",
                "marked_lost",
                "",
-               steward
+               witness
              )
 
     assert :ok =
@@ -94,10 +94,10 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
                "t7",
                "marked_lost",
                "nothing came",
-               steward
+               witness
              )
 
-    assert [] = Kumbukumbu.failures({:account, ctx.steward.id})
+    assert [] = Kumbukumbu.failures({:account, ctx.witness.id})
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_no_such_failure}} =
              Kumbukumbu.resolve_failure(
@@ -106,7 +106,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
                "t7",
                "retried",
                "again",
-               steward
+               witness
              )
   end
 
@@ -117,7 +117,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
                ctx.resident.id,
                "regression",
                "brain",
-               [ctx.steward.id],
+               [ctx.witness.id],
                ctx.actor
              )
 

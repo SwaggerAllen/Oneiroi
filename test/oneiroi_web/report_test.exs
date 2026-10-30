@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.ReportTest do
-  @moduledoc "Reports over HTTP: filed by the steward, investigated and resolved by an investigator from its own session, read by both."
+  @moduledoc "Reports over HTTP: filed by the witness, investigated and resolved by an investigator from its own session, read by both."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox

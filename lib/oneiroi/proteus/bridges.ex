@@ -28,15 +28,15 @@ defmodule Oneiroi.Proteus.Bridges do
   @doc "The resident's peer name in its workspace."
   def resident_peer(resident_id), do: "resident-" <> resident_id
 
-  @doc "A steward's peer name."
-  def steward_peer(account_id), do: "steward-" <> account_id
+  @doc "A witness's peer name."
+  def witness_peer(account_id), do: "witness-" <> account_id
 
   # ---- provisioning ----
 
-  @doc "Provisions the workspace with the resident's peer and the steward's, once; sets the card from git."
+  @doc "Provisions the workspace with the resident's peer and the witness's, once; sets the card from git."
   def provision(resident_id, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id) do
-      peers = [resident_peer(resident_id), steward_peer(row.account_id)]
+      peers = [resident_peer(resident_id), witness_peer(row.account_id)]
       instructions = AgathosDaimon.custom_instructions(resident_id)
 
       with :ok <- port().ensure_workspace(resident_id),
@@ -66,18 +66,18 @@ defmodule Oneiroi.Proteus.Bridges do
     end)
   end
 
-  @doc "Adds a steward's peer when a session names an account the workspace has not met."
-  def ensure_steward(resident_id, account_id, %Actor{} = actor) do
+  @doc "Adds a witness's peer when a session names an account the workspace has not met."
+  def ensure_witness(resident_id, account_id, %Actor{} = actor) do
     case bridge(resident_id) do
       nil ->
         provision(resident_id, actor)
 
       %{peers: peers} = row ->
-        add_steward(row, resident_id, steward_peer(account_id), peers, actor)
+        add_witness(row, resident_id, witness_peer(account_id), peers, actor)
     end
   end
 
-  defp add_steward(row, resident_id, peer, peers, actor) do
+  defp add_witness(row, resident_id, peer, peers, actor) do
     if peer in peers, do: :ok, else: add_peer(row, resident_id, peer, actor)
   end
 
@@ -188,7 +188,7 @@ defmodule Oneiroi.Proteus.Bridges do
 
   @doc """
   Sends a captured turn's user and assistant messages to Honcho as the
-  steward's and the resident's peers, once per turn, provisioning on the
+  witness's and the resident's peers, once per turn, provisioning on the
   first; a failure is recorded and returned, never raised.
   """
   def sync_turn(resident_id, session_key, turn_ref, messages, %Actor{} = actor) do
@@ -227,25 +227,25 @@ defmodule Oneiroi.Proteus.Bridges do
   defp provisioned(resident_id, messages, actor) do
     case bridge(resident_id) do
       nil -> provision(resident_id, actor)
-      _row -> ensure_stewards(resident_id, messages, actor)
+      _row -> ensure_witnesses(resident_id, messages, actor)
     end
   end
 
-  defp ensure_stewards(resident_id, messages, actor) do
+  defp ensure_witnesses(resident_id, messages, actor) do
     messages
-    |> Enum.filter(&(&1.actor.kind == :steward))
+    |> Enum.filter(&(&1.actor.kind == :witness))
     |> Enum.map(& &1.actor.id)
     |> Enum.uniq()
     |> Enum.reduce_while(:ok, fn account_id, :ok ->
-      case ensure_steward(resident_id, account_id, actor) do
+      case ensure_witness(resident_id, account_id, actor) do
         :ok -> {:cont, :ok}
         error -> {:halt, error}
       end
     end)
   end
 
-  defp peer_message(%{role: :user, actor: %{kind: :steward, id: account_id}} = m, _resident_id),
-    do: [%{peer: steward_peer(account_id), content: m.content, created_at: m.sent_at}]
+  defp peer_message(%{role: :user, actor: %{kind: :witness, id: account_id}} = m, _resident_id),
+    do: [%{peer: witness_peer(account_id), content: m.content, created_at: m.sent_at}]
 
   defp peer_message(%{role: :assistant} = m, resident_id),
     do: [%{peer: resident_peer(resident_id), content: m.content, created_at: m.sent_at}]
@@ -266,16 +266,16 @@ defmodule Oneiroi.Proteus.Bridges do
 
   # ---- reads ----
 
-  @doc "Honcho's context on the steward in the resident's eyes, within the token bound; empty when there is none or Honcho is down."
+  @doc "Honcho's context on the witness in the resident's eyes, within the token bound; empty when there is none or Honcho is down."
   @spec context(String.t()) :: String.t()
   def context(resident_id) do
     with %{peers: peers} <- bridge(resident_id),
-         [steward | _] <- Enum.filter(peers, &String.starts_with?(&1, "steward-")),
+         [witness | _] <- Enum.filter(peers, &String.starts_with?(&1, "witness-")),
          {:ok, text} <-
            port().context(
              resident_id,
              resident_peer(resident_id),
-             steward,
+             witness,
              Config.fetch!(:proteus, :context_tokens)
            ) do
       String.trim(text)
@@ -284,11 +284,11 @@ defmodule Oneiroi.Proteus.Bridges do
     end
   end
 
-  @doc "What Honcho concluded about the steward in the resident's eyes, at most `limit`."
+  @doc "What Honcho concluded about the witness in the resident's eyes, at most `limit`."
   def conclusions(resident_id, limit) do
     with %{peers: peers} <- bridge(resident_id),
-         [steward | _] <- Enum.filter(peers, &String.starts_with?(&1, "steward-")) do
-      port().conclusions(resident_id, resident_peer(resident_id), steward, limit)
+         [witness | _] <- Enum.filter(peers, &String.starts_with?(&1, "witness-")) do
+      port().conclusions(resident_id, resident_peer(resident_id), witness, limit)
     else
       _none -> {:ok, []}
     end

@@ -11,7 +11,7 @@ defmodule Oneiroi.Gaia.Principal do
 
   @type t :: %__MODULE__{account_id: String.t(), email: String.t() | nil, via: :session | :token}
 
-  @doc "The actor a principal acts as: the steward, by account id."
+  @doc "The actor a principal acts as: the witness, by account id."
   @spec actor(t()) :: Oneiroi.Actor.t()
-  def actor(%__MODULE__{account_id: id}), do: Oneiroi.Actor.new(:steward, id)
+  def actor(%__MODULE__{account_id: id}), do: Oneiroi.Actor.new(:witness, id)
 end

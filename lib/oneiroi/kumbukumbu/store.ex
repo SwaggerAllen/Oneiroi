@@ -4,9 +4,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
   sessions, the messages, the capture failures and the context
   injections. Sessions and messages are scoped both ways (spec §6.3):
   `resident_id` is the resident's and `account_id` the account party to
-  the session, which for a solo session is the steward's, so the resident
+  the session, which for a solo session is the witness's, so the resident
   reads everything and an account reads what it was party to. After a
-  custody transfer the new steward is party to nothing that came before,
+  custody transfer the new witness is party to nothing that came before,
   which is the export wall (spec §6.12).
   """
   import Ecto.Query, only: [from: 2]
@@ -153,7 +153,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   defmodule BookmarkProposal do
-    @moduledoc "The steward's proposed bookmark, open until the resident accepts or declines it."
+    @moduledoc "The witness's proposed bookmark, open until the resident accepts or declines it."
     use Ecto.Schema
     @primary_key false
     schema "kumbukumbu_bookmark_proposal" do
@@ -233,7 +233,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   defmodule Affirmation do
-    @moduledoc "One affirmation of a behaviour by the steward, with its note."
+    @moduledoc "One affirmation of a behaviour by the witness, with its note."
     use Ecto.Schema
     @primary_key false
     schema "kumbukumbu_affirmation" do

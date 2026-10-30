@@ -61,7 +61,7 @@ defmodule Oneiroi.Eunomia.Events do
   end
 
   defmodule AnswerGraded do
-    # Pass or fail, the steward's, by swipe; the judge is not involved.
+    # Pass or fail, the witness's, by swipe; the judge is not involved.
     use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :card_ref, :grade], export: false
   end
 

@@ -11,7 +11,7 @@ defmodule OneiroiWeb.LibraryTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Oneiroi.Actor.new(:steward, account.id)
+    actor = Oneiroi.Actor.new(:witness, account.id)
     :ok = Oneiroi.Gaia.store_key(account.id, "sk-or-test", actor)
     {:ok, key} = Oneiroi.Kumbukumbu.main_session(resident.id, account.id, actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)

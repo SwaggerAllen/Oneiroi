@@ -12,7 +12,7 @@ than a gap. The state list lives in the stories alone once they exist
 
 ## #1 Shows
 
-The check-engine findings; the weekly memory audit's runs and flags with the judge's advice; the steward's audits and their last results; counters.
+The check-engine findings; the weekly memory audit's runs and flags with the judge's advice; the witness's audits and their last results; counters.
 
 ## #2 Does
 

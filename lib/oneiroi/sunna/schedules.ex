@@ -188,7 +188,7 @@ defmodule Oneiroi.Sunna.Schedules do
 
   # ---- the tick's arithmetic ----
 
-  @doc "Now in the resident's zone (UTC until the steward sets one)."
+  @doc "Now in the resident's zone (UTC until the witness sets one)."
   def local_now(resident_id) do
     zone =
       case AgathosDaimon.fetch(resident_id) do

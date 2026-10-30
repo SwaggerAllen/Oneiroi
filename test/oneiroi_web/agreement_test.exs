@@ -44,7 +44,7 @@ defmodule OneiroiWeb.AgreementTest do
              })
              |> json_response(200)
 
-    # The steward cannot agree to its own proposal.
+    # The witness cannot agree to its own proposal.
     assert conn
            |> post("#{base}/agreement/proposals/1/decision", %{decision: "agree", note: "x"})
            |> json_response(422)

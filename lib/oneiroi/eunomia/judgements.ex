@@ -7,7 +7,7 @@ defmodule Oneiroi.Eunomia.Judgements do
 
   Whose it is, held at the command edge by the actor's kind: positions,
   live checks, settlements and predictions are the resident's; resolving
-  a prediction and choosing the judge are the steward's; the nightly
+  a prediction and choosing the judge are the witness's; the nightly
   verdicts are the judge's.
   """
 
@@ -189,9 +189,9 @@ defmodule Oneiroi.Eunomia.Judgements do
     end
   end
 
-  @doc "The steward chooses the judge; the resident's own chat model is refused."
+  @doc "The witness chooses the judge; the resident's own chat model is refused."
   def set_judge_model(resident_id, model, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          :ok <- not_the_chat_model(resident_id, model) do
       command = %Commands.SetJudgeModel{
         actor: actor,
@@ -230,9 +230,9 @@ defmodule Oneiroi.Eunomia.Judgements do
     end
   end
 
-  @doc "Resolved by the steward only (F17): right, wrong or void, with a note."
+  @doc "Resolved by the witness only (F17): right, wrong or void, with a note."
   def resolve_prediction(resident_id, number, outcome, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.ResolvePrediction{
         actor: actor,
         at: Clock.now(),
@@ -456,8 +456,8 @@ defmodule Oneiroi.Eunomia.Judgements do
   defp resident_only(%Actor{kind: :resident}), do: :ok
   defp resident_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_resident)}
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_witness)}
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 

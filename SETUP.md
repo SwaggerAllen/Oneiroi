@@ -173,7 +173,7 @@ read and write), then the backup from a shell on the service through
 the release (`/app/bin/oneiroi rpc 'IO.inspect(Oneiroi.SimaQian.backup(<resident id>, Oneiroi.Actor.platform()))'`,
 as in §1 step 5), read the
 `Oneiroi-Sequence` and `Oneiroi-Root` trailers off the commit on GitHub,
-and `mix oneiroi.sima_qian.rebuild <repo> --steward <account id>` against
+and `mix oneiroi.sima_qian.rebuild <repo> --witness <account id>` against
 a second database. The export of the rebuilt resident is byte-identical
 up to the `Imported` line; the test suite asserts the same against a
 local bare repository on every PR.

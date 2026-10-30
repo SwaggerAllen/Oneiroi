@@ -1,5 +1,5 @@
 defmodule Oneiroi.HuginnMuninn.ChecksTest do
-  @moduledoc "Figures and audits through the exports and the brain: a counter folded with its actors, a countdown from a date, the built-in checklist over rows, the steward's rules, the light, the nightly job."
+  @moduledoc "Figures and audits through the exports and the brain: a counter folded with its actors, a countdown from a date, the built-in checklist over rows, the witness's rules, the light, the nightly job."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -15,12 +15,12 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
   alias Oneiroi.Sunna
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
     Honcho.clear(for: resident.id)
 
@@ -29,14 +29,14 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
       Honcho.clear(for: resident.id)
     end)
 
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
-  test "a counter is the steward's to define, either party's to increment with their name, and a countdown is a date read fresh; the brain is shown both",
+  test "a counter is the witness's to define, either party's to increment with their name, and a countdown is a date read fresh; the brain is shown both",
        ctx do
     id = ctx.id
 
-    assert {:error, %HuginnMuninn.Error{kind: :huginn_muninn_not_the_steward}} =
+    assert {:error, %HuginnMuninn.Error{kind: :huginn_muninn_not_the_witness}} =
              HuginnMuninn.define_counter(id, "tea", "Cups of tea", ctx.brain)
 
     assert :ok = HuginnMuninn.define_counter(id, "tea", "Cups of tea", ctx.actor)
@@ -61,7 +61,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
       )
 
     assert [
-             %{key: "tea", kind: "counter", value: 1, increments: 1, last_by: "steward"},
+             %{key: "tea", kind: "counter", value: 1, increments: 1, last_by: "witness"},
              %{key: "date/1", kind: "countdown", value: 10, label: "the interview"}
            ] = HuginnMuninn.figures(id)
 
@@ -95,7 +95,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert Enum.any?(shown, &(&1.role == :system and &1.content =~ "Cups of tea: 1 (figure/tea)"))
 
     assert Enum.any?(
-             Kumbukumbu.injections({:account, ctx.steward.id}, ref),
+             Kumbukumbu.injections({:account, ctx.witness.id}, ref),
              &(&1.label == "figures")
            )
 
@@ -103,7 +103,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
 
     assert %{value: 2, increments: 2, last_by: "resident"} = HuginnMuninn.figure(id, "tea")
 
-    assert [%{by: 1, actor_kind: "resident", note: "one more"}, %{by: 1, actor_kind: "steward"}] =
+    assert [%{by: 1, actor_kind: "resident", note: "one more"}, %{by: 1, actor_kind: "witness"}] =
              HuginnMuninn.increments(id, "tea", 10)
 
     assert :ok = HuginnMuninn.retire_counter(id, "tea", ctx.actor)
@@ -111,7 +111,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert "" == HuginnMuninn.figures_text(id)
   end
 
-  test "the built-in audits read rows, the steward's rules read figures, and the light is the failing results of the audits that count",
+  test "the built-in audits read rows, the witness's rules read figures, and the light is the failing results of the audits that count",
        ctx do
     id = ctx.id
 
@@ -172,11 +172,11 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert %{tone: "warn", value: 1} = Enum.find(results, &(&1.key == "overdue_predictions"))
     assert %{tone: "warn", value: 3} = Enum.find(results, &(&1.key == "missed_checkins"))
 
-    # The steward's rule over a figure: counts, so it reaches the light.
+    # The witness's rule over a figure: counts, so it reaches the light.
     :ok = HuginnMuninn.define_counter(id, "tea", "Cups of tea", ctx.actor)
     :ok = HuginnMuninn.increment(id, "tea", 2, "two", ctx.actor)
 
-    assert {:error, %HuginnMuninn.Error{kind: :huginn_muninn_not_the_steward}} =
+    assert {:error, %HuginnMuninn.Error{kind: :huginn_muninn_not_the_witness}} =
              HuginnMuninn.define_audit(
                id,
                %{key: "tea-enough", label: "Enough tea", figure: "tea", op: ">=", value: 3},

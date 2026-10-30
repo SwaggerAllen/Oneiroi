@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.RevisionTest do
-  @moduledoc "Revisions over HTTP: a steward's fact applies, its stance is proposed, and the list shows both."
+  @moduledoc "Revisions over HTTP: a witness's fact applies, its stance is proposed, and the list shows both."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -12,7 +12,7 @@ defmodule OneiroiWeb.RevisionTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Oneiroi.Actor.new(:steward, account.id)
+    actor = Oneiroi.Actor.new(:witness, account.id)
     brain = Oneiroi.Actor.new(:resident, resident.id)
     {:ok, key} = Oneiroi.Kumbukumbu.main_session(resident.id, account.id, actor)
 
@@ -77,7 +77,7 @@ defmodule OneiroiWeb.RevisionTest do
            |> json_response(422)
 
     assert [
-             %{"number" => 2, "state" => "proposed", "by" => %{"kind" => "steward"}},
+             %{"number" => 2, "state" => "proposed", "by" => %{"kind" => "witness"}},
              %{"number" => 1, "kind" => "fact", "note" => "why"}
            ] =
              conn |> get(base) |> json_response(200)

@@ -10,13 +10,13 @@ defmodule Oneiroi.Brain.ToolsTest do
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, steward: steward, resident: resident, key: key, actor: actor}
+    {:ok, witness: witness, resident: resident, key: key, actor: actor}
   end
 
   test "a tool call runs against memory, is captured as a tool message, and the reply stands",
@@ -52,7 +52,7 @@ defmodule Oneiroi.Brain.ToolsTest do
            ] =
              Kumbukumbu.bookmarks(ctx.resident.id)
 
-    {:ok, _s, transcript} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
+    {:ok, _s, transcript} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
     assert ["user", "tool", "assistant"] = Enum.map(transcript, & &1.role)
 
     # The next turn's index lists it, the injection carries the verbatim
@@ -68,7 +68,7 @@ defmodule Oneiroi.Brain.ToolsTest do
              %{label: "index", text: text},
              %{label: "transcript"}
            ] =
-             Kumbukumbu.injections({:account, ctx.steward.id}, ref2)
+             Kumbukumbu.injections({:account, ctx.witness.id}, ref2)
 
     assert text =~ "#1 2026-10-26 she asked me to remember"
     assert [%{last_indexed_at: %DateTime{}}] = Kumbukumbu.bookmarks(ctx.resident.id)
@@ -169,7 +169,7 @@ defmodule Oneiroi.Brain.ToolsTest do
     assert ["prompt", "AGENTS.md", "index", "summary", "transcript"] = labels
 
     # The history and the whole transcript are both intact: compaction deletes nothing.
-    {:ok, _s, transcript} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
+    {:ok, _s, transcript} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
     assert length(transcript) == 10
 
     assert ["user", "assistant"] =

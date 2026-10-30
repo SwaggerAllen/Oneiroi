@@ -5,7 +5,7 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
   of model. The command edge, the two scores, and the retrieval the
   brain's context assembly runs every turn.
 
-  The list is the resident's: it defines, revises and enacts; the steward
+  The list is the resident's: it defines, revises and enacts; the witness
   affirms, and gives the first ones before first contact as it gives
   every seed. Two scores, never one. Habit strength is a measurement:
   enactments under a half-life. Connection strength is a decision trace:
@@ -30,7 +30,7 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
 
   @exemplar_chars 400
 
-  @doc "Defines a behaviour: the resident's, or the steward's before first contact. Returns its number."
+  @doc "Defines a behaviour: the resident's, or the witness's before first contact. Returns its number."
   @spec define(String.t(), map(), Actor.t()) :: {:ok, pos_integer()} | {:error, term()}
   def define(resident_id, attrs, %Actor{} = actor) when is_map(attrs) do
     with :ok <- may_define(resident_id, actor),
@@ -66,9 +66,9 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
     end
   end
 
-  @doc "The steward affirms a behaviour, with a note."
+  @doc "The witness affirms a behaviour, with a note."
   def affirm(resident_id, number, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.AffirmBehaviour{
         actor: actor,
         at: Clock.now(),
@@ -135,7 +135,7 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
 
   @doc """
   What the brain is shown this turn (spec §6.3): the behaviours whose
-  trigger the situation matches. `situation` carries `text` (the steward's
+  trigger the situation matches. `situation` carries `text` (the witness's
   words), `tags` (on the conversation) and `at` (the instant, for the time
   of day). Each match comes with its scores, who affirmed it, and up to
   `KUMBUKUMBU_EXEMPLARS` enacting turns with the resident's own words.
@@ -235,7 +235,7 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
           "not yet affirmed"
 
         [a | _] ->
-          "affirmed #{length(affirmations)}x by my #{a.by_kind || "steward"}, last: \"#{a.note}\""
+          "affirmed #{length(affirmations)}x by my #{a.by_kind || "witness"}, last: \"#{a.note}\""
       end
 
     header =
@@ -260,11 +260,11 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
 
   # ---- helpers ----
 
-  # The resident's list (spec §6.3): a steward defines only before first
+  # The resident's list (spec §6.3): a witness defines only before first
   # contact, as it gives every seed.
   defp may_define(_resident_id, %Actor{kind: :resident}), do: :ok
 
-  defp may_define(resident_id, %Actor{kind: :steward}) do
+  defp may_define(resident_id, %Actor{kind: :witness}) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
       {:ok, %{first_contact_at: nil}} -> :ok
       _other -> {:error, Error.new(:kumbukumbu_not_the_resident, since: "first contact")}
@@ -276,8 +276,8 @@ defmodule Oneiroi.Kumbukumbu.Ethos do
   defp resident_only(%Actor{kind: :resident}), do: :ok
   defp resident_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_resident)}
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_witness)}
 
   # String keys and lists, whatever the caller sent: the aggregate and the
   # JSON column hold one shape.

@@ -13,7 +13,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
   setup do
     a = Fixtures.account!()
     r = Fixtures.resident!(a)
-    actor = Actor.new(:steward, a.id)
+    actor = Actor.new(:witness, a.id)
     {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     {:ok, 2} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     dir = Path.join(System.tmp_dir!(), "oneiroi-export-#{System.unique_integer([:positive])}")
@@ -103,7 +103,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
       assert decoded["sequence"] == n
       assert decoded["stream"] == "resident"
       assert decoded["version"] == 1
-      assert decoded["actor"]["kind"] in ["platform", "steward"]
+      assert decoded["actor"]["kind"] in ["platform", "witness"]
     end
 
     assert [created, minted, _] = Enum.map(lines, &Jason.decode!/1)

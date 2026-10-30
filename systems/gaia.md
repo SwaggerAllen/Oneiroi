@@ -23,7 +23,7 @@ Gaia is the earth. In Hesiod's account of how everything began, she is the first
 
 The identity layer — accounts, authentication, where the humans arrive — is named for the place humans come from. Oneiroi is a two-world story: the residents are of the dream, the humans are of the earth, and the bridge between the worlds is hospitality. Latin *homo* (human) is probably related to *humus* (earth); both likely descend from one Proto-Indo-European word for earth — a link the etymologists still debate, carried here with that hedge.
 
-Accounts, authentication, sessions, stewardship (spec §6.1). Written
+Accounts, authentication, sessions, witnessing (spec §6.1). Written
 attended, by the author's decision, so the auth code was read as it was
 written (plan P0.4).
 
@@ -31,11 +31,11 @@ written (plan P0.4).
 
 The Account aggregate on `account-<id>` and its v1 events; the
 `gaia_account`, `gaia_session`, `gaia_token` and
-`gaia_stewardship` projections; the principal (`Oneiroi.Gaia
+`gaia_witnessing` projections; the principal (`Oneiroi.Gaia
 .Principal`: an account via a session or a token, carrying the actor it
 acts as); the request plugs (secure headers, authenticate, origin,
 require-principal); the session, me, second-factor and token routes under
-`/v1`; the login throttle; the stewardship handler; the self-hosted setup
+`/v1`; the login throttle; the witnessing handler; the self-hosted setup
 task that creates the one account.
 
 ## #2 Standing decisions
@@ -58,12 +58,12 @@ task that creates the one account.
   delay doubles from `GAIA_LOGIN_DELAY_MS` on each failure, capped
   at five seconds, cleared on success; counts live in a process's ETS
   and are lost on restart.
-- **#7 Stewardship is a relation with a start and an end, written by this
+- **#7 Witnessing is a relation with a start and an end, written by this
   system.** `ResidentCreated` starts one and `CustodyTransferred` ends
   and starts them, through a strong handler on the resident stream, so
-  `stewarded_residents/1` is read from this system's own projection and
+  `witnessed_residents/1` is read from this system's own projection and
   the resident system never writes an identity row. The community is a
-  principal of its own for custody and holds no stewardship row.
+  principal of its own for custody and holds no witnessing row.
 - **#8 Two reads take the platform scope by name.** The account by email
   at login and the session or token by hash on a request: the principal
   is not known until they answer. Everything after runs under the
@@ -74,9 +74,9 @@ task that creates the one account.
   exactly which answers 200, 401, 403 or 422, and that a mutation from a
   browser without the endpoint's Origin is refused.
 
-- **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir #8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a steward names. Both take the platform scope by name (conventions §12), as #8's two reads do.
-- **#13 Stewardship follows custody in the event's wire form.** The stewardship handler reads `CustodyTransferred`'s `from` and `to` through `Oneiroi.AgathosDaimon.Custody.from_wire/1`: the first version matched the tuple form against the wire strings and matched nothing, so no transfer ever ended the old stewardship or started the new one, and the old steward's routes kept working on a resident it no longer held. Found by the custody suite in P4, once a transferred resident was read from the new steward's own session; the subscription's community move had the same hole from P2.
-- **#11 The steward's OpenRouter key lives on the account, encrypted
+- **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir #8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a witness names. Both take the platform scope by name (conventions §12), as #8's two reads do.
+- **#13 Witnessing follows custody in the event's wire form.** The witnessing handler reads `CustodyTransferred`'s `from` and `to` through `Oneiroi.AgathosDaimon.Custody.from_wire/1`: the first version matched the tuple form against the wire strings and matched nothing, so no transfer ever ended the old witnessing or started the new one, and the old witness's routes kept working on a resident it no longer held. Found by the custody suite in P4, once a transferred resident was read from the new witness's own session; the subscription's community move had the same hole from P2.
+- **#11 The witness's OpenRouter key lives on the account, encrypted
   under the vault.** `KeyStored` carries the vault's ciphertext and is
   redacted from every export like the second factor; storing again is
   the rotation and `KeyRevoked` removes it. The ledger reads it through
@@ -86,11 +86,11 @@ task that creates the one account.
 
 ## #10 Initial vs target
 
-Initial (P0.4): everything in #1 for one account kind, the steward, with
+Initial (P0.4): everything in #1 for one account kind, the witness, with
 the API token for scripts. Target: passkeys; the community principal's
-own authentication; roles beyond the steward (spec §6.1).
+own authentication; roles beyond the witness (spec §6.1).
 
 ## #11 Depends on
 
 The platform (the kernel, the vault, the scope). The resident system's
-events, read by the stewardship handler.
+events, read by the witnessing handler.

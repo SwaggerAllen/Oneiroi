@@ -17,8 +17,8 @@ protect nothing the Origin check does not, and the contract test proves
 the check.
 
 ## #6
-A lockout hands an attacker a way to lock the steward out; a delay costs
-them time and the steward one wait (spec §6.1). A restart is not a
+A lockout hands an attacker a way to lock the witness out; a delay costs
+them time and the witness one wait (spec §6.1). A restart is not a
 credential, so the counts need not survive one.
 
 ## #7
@@ -33,8 +33,8 @@ and these two are the whole list for this system.
 
 ## #11
 Spec §3.1 puts `KeyStored` on the account and §6.11 says one key per
-steward: the key is the steward's, not a resident's, and a resident
-changing hands keeps the new steward's spend on the new steward's key.
+witness: the key is the witness's, not a resident's, and a resident
+changing hands keeps the new witness's spend on the new witness's key.
 
 ## #9
 Spec §12's contract layer: which token may call what, asserted exactly
@@ -47,5 +47,5 @@ email is identity's fact, so identity answers it.
 
 ## #13
 Conventions §9: a test that asserts the state at the end sees nothing
-of a handler that never matched; the stewardship list is what the
+of a handler that never matched; the witnessing list is what the
 routes read, so the custody suite asserts it.

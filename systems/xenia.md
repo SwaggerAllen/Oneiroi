@@ -26,9 +26,9 @@ it, so a design pass reaching for it finds a record rather than a gap.
 Carried from spec §6.6; the reason for each is there.
 
 - **#3 The reader is a hands agent that never holds the soul, a git token or a core credential; the core copies plain `.md` files from its scratch directory, bounded.**
-- **#4 Sources are links the steward releases, never retained text.**
+- **#4 Sources are links the witness releases, never retained text.**
 - **#5 Mail and feeds are sorted by script before any model sees them, every figure a bound; account mail is a count and a lock, never a subject line.**
-- **#6 The approval queue is the steward's reading; summarising is not a security boundary; wake text names the thread, never the text. Trusted correspondents are per verified identity, revocable.**
+- **#6 The approval queue is the witness's reading; summarising is not a security boundary; wake text names the thread, never the text. Trusted correspondents are per verified identity, revocable.**
 
 ## #7 Initial vs target
 

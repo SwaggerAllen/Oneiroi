@@ -18,22 +18,22 @@ defmodule OneiroiWeb.LedgerController do
   )
 
   def show(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
-    if stewards?(conn, id) do
+    if witnesses?(conn, id) do
       {since, _to} = Period.range(:month, Clock.now())
 
       json(conn, %{
         key: Oneiroi.Gaia.key_status(p.account_id),
         purposes: Enum.map(Nisaba.purposes(), &Atom.to_string/1),
-        budgets: Enum.map(Nisaba.budgets(id, :steward), &budget/1),
+        budgets: Enum.map(Nisaba.budgets(id, :witness), &budget/1),
         spend: %{
           since: since,
-          by_purpose: Enum.map(Nisaba.spend(id, :steward, :purpose, since), &spend/1),
-          by_model: Enum.map(Nisaba.spend(id, :steward, :model, since), &spend/1),
-          by_actor: Enum.map(Nisaba.spend(id, :steward, :actor, since), &spend/1)
+          by_purpose: Enum.map(Nisaba.spend(id, :witness, :purpose, since), &spend/1),
+          by_model: Enum.map(Nisaba.spend(id, :witness, :model, since), &spend/1),
+          by_actor: Enum.map(Nisaba.spend(id, :witness, :actor, since), &spend/1)
         }
       })
     else
-      error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
     end
   end
 
@@ -61,7 +61,7 @@ defmodule OneiroiWeb.LedgerController do
     cap = Map.get(params, "cap")
     cap_nanos = if is_nil(cap), do: nil, else: Money.parse_usd(cap)
 
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          {:ok, purpose} <- purpose(purpose),
          period when not is_nil(period) <- Period.parse(Map.get(params, "period")),
          true <- is_nil(cap) or is_integer(cap_nanos),
@@ -69,9 +69,9 @@ defmodule OneiroiWeb.LedgerController do
       send_resp(conn, 204, "")
     else
       false ->
-        if stewards?(conn, id),
+        if witnesses?(conn, id),
           do: problem(conn, 422, :cap_invalid, "cap is dollars as a decimal string, or null"),
-          else: error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+          else: error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
 
       nil ->
         problem(conn, 422, :period_invalid, "period is day, week or month")

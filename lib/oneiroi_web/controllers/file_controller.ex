@@ -7,7 +7,7 @@ defmodule OneiroiWeb.FileController do
 
   tags(["resident"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:index,
     summary: "The resident's identity files as last written, and the build-owned AGENTS.md",
@@ -130,10 +130,10 @@ defmodule OneiroiWeb.FileController do
   def proposals(conn, %{"id" => id}),
     do: json(conn, id |> AgathosDaimon.edit_proposals() |> Enum.map(&proposal/1))
 
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp file(f) do

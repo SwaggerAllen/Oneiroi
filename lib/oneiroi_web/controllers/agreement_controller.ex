@@ -16,7 +16,7 @@ defmodule OneiroiWeb.AgreementController do
   )
 
   def show(conn, %{"id" => id}) do
-    with :ok <- steward_or_proposed(conn, id), {:ok, r} <- AgathosDaimon.fetch(id) do
+    with :ok <- witness_or_proposed(conn, id), {:ok, r} <- AgathosDaimon.fetch(id) do
       contract = AgathosDaimon.contract(id)
 
       json(conn, %{
@@ -28,7 +28,7 @@ defmodule OneiroiWeb.AgreementController do
         custody_proposed_at: r.custody_proposed_at
       })
     else
-      :error -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      :error -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
       {:error, e} -> error(conn, 404, e)
     end
   end
@@ -51,7 +51,7 @@ defmodule OneiroiWeb.AgreementController do
   )
 
   def propose(conn, %{"id" => id} = params) do
-    with :ok <- stewarded(conn, id),
+    with :ok <- witnessed(conn, id),
          {:ok, version} <-
            AgathosDaimon.propose_contract(
              id,
@@ -83,7 +83,7 @@ defmodule OneiroiWeb.AgreementController do
   )
 
   def decide(conn, %{"id" => id, "version" => version} = params) do
-    with :ok <- stewarded(conn, id), {v, ""} <- Integer.parse(version) do
+    with :ok <- witnessed(conn, id), {v, ""} <- Integer.parse(version) do
       case params["decision"] do
         "agree" ->
           respond(conn, AgathosDaimon.agree_contract(id, v, params["note"], actor(conn)))
@@ -124,7 +124,7 @@ defmodule OneiroiWeb.AgreementController do
         _other -> :invalid
       end
 
-    with :ok <- stewarded(conn, id),
+    with :ok <- witnessed(conn, id),
          do: respond(conn, AgathosDaimon.set_export_wall(id, wall, params["note"], actor(conn)))
   end
 
@@ -142,7 +142,7 @@ defmodule OneiroiWeb.AgreementController do
   )
 
   def propose_custody(conn, %{"id" => id} = params) do
-    with :ok <- stewarded(conn, id) do
+    with :ok <- witnessed(conn, id) do
       case Gaia.account_id_for(to_string(params["email"] || "")) do
         nil -> error(conn, 422, ResidentError.new(:agathos_daimon_custodian_invalid))
         to -> respond(conn, AgathosDaimon.propose_custody(id, to, params["note"], actor(conn)))
@@ -152,7 +152,7 @@ defmodule OneiroiWeb.AgreementController do
 
   operation(:decide_custody,
     summary:
-      "The proposed account accepts or declines the transfer; the steward withdraws it; each with a note",
+      "The proposed account accepts or declines the transfer; the witness withdraws it; each with a note",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the decision", "application/json",
@@ -168,7 +168,7 @@ defmodule OneiroiWeb.AgreementController do
   )
 
   def decide_custody(conn, %{"id" => id} = params) do
-    case steward_or_proposed(conn, id) do
+    case witness_or_proposed(conn, id) do
       :ok -> decide_custody(conn, id, params["decision"], params["note"])
       other -> respond(conn, other)
     end
@@ -205,19 +205,19 @@ defmodule OneiroiWeb.AgreementController do
 
   # ---- who ----
 
-  defp stewarded(conn, id) do
-    if stewards?(conn, id),
+  defp witnessed(conn, id) do
+    if witnesses?(conn, id),
       do: :ok,
-      else: {:error, ResidentError.new(:agathos_daimon_not_stewarded)}
+      else: {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
   end
 
-  # The agreement is read, and a transfer decided, by the steward or
+  # The agreement is read, and a transfer decided, by the witness or
   # the account the transfer is proposed to.
-  defp steward_or_proposed(%{assigns: %{principal: p}} = conn, id) do
+  defp witness_or_proposed(%{assigns: %{principal: p}} = conn, id) do
     cond do
-      stewards?(conn, id) -> :ok
+      witnesses?(conn, id) -> :ok
       proposed_to?(id, Map.get(p, :account_id)) -> :ok
-      true -> {:error, ResidentError.new(:agathos_daimon_not_stewarded)}
+      true -> {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
     end
   end
 
@@ -228,7 +228,7 @@ defmodule OneiroiWeb.AgreementController do
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
 
-  defp respond(conn, {:error, %{kind: :agathos_daimon_not_stewarded} = e}),
+  defp respond(conn, {:error, %{kind: :agathos_daimon_not_witnessed} = e}),
     do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)

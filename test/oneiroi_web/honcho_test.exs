@@ -15,7 +15,7 @@ defmodule OneiroiWeb.HonchoTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Actor.new(:steward, account.id)
+    actor = Actor.new(:witness, account.id)
     :ok = Oneiroi.Gaia.store_key(account.id, "sk-or-test", actor)
     Honcho.clear(for: resident.id)
 
@@ -48,7 +48,7 @@ defmodule OneiroiWeb.HonchoTest do
     assert %{"moved" => false} =
              conn |> post("/v1/residents/#{id}/honcho/card-audit", %{}) |> json_response(200)
 
-    Honcho.put_conclusions(id, "resident-" <> id, "steward-" <> account.id, [
+    Honcho.put_conclusions(id, "resident-" <> id, "witness-" <> account.id, [
       %{id: "c1", content: "Allergic to cats."}
     ])
 

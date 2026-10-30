@@ -40,7 +40,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @target_kinds ~w(bookmark conversation turn position prediction date figure document journal)
   @stances ~w(keep change)
   # The situation tags a trigger may name (spec §6.3): the closed set the
-  # assembler can match without a model call. `words` are the steward's
+  # assembler can match without a model call. `words` are the witness's
   # words, `tags` a tag present on the conversation, `times` the time of
   # day. The resident proposes additions to the set, and that is a code
   # change here.
@@ -246,7 +246,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   # ---- revisions (F13) ----
 
   # A fact is corrected by either party and a stance by the resident;
-  # the steward's revision of a stance is a proposal (spec §6.3).
+  # the witness's revision of a stance is a proposal (spec §6.3).
   def execute(%__MODULE__{} = m, %Commands.Revise{} = c) do
     cond do
       c.kind not in @revision_kinds ->
@@ -261,7 +261,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
         {:error, :target_invalid}
 
-      c.kind == "stance" and c.actor.kind == :steward ->
+      c.kind == "stance" and c.actor.kind == :witness ->
         revision_event(Events.RevisionProposed, c, m.revision_count + 1)
 
       true ->

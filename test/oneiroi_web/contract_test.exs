@@ -16,7 +16,7 @@ defmodule OneiroiWeb.ContractTest do
     resident = Fixtures.resident!(account)
 
     {:ok, raw_token, _hash} =
-      Oneiroi.Gaia.issue_token(account.id, "t", Oneiroi.Actor.new(:steward, account.id))
+      Oneiroi.Gaia.issue_token(account.id, "t", Oneiroi.Actor.new(:witness, account.id))
 
     {:ok, account: account, resident: resident, token: raw_token}
   end
@@ -60,14 +60,14 @@ defmodule OneiroiWeb.ContractTest do
     end
   end
 
-  test "a resident is listed and shown to its steward only", ctx do
+  test "a resident is listed and shown to its witness only", ctx do
     other = Fixtures.account!()
     conn = login(ctx.conn, ctx.account)
     assert [%{"id" => id}] = conn |> get("/v1/residents") |> json_response(200)
     assert id == ctx.resident.id
     assert %{"slug" => _} = conn |> get("/v1/residents/#{id}") |> json_response(200)
 
-    assert %{"error" => %{"kind" => "agathos_daimon_not_stewarded"}} =
+    assert %{"error" => %{"kind" => "agathos_daimon_not_witnessed"}} =
              ctx.conn |> login(other) |> get("/v1/residents/#{id}") |> json_response(404)
   end
 
@@ -109,7 +109,7 @@ defmodule OneiroiWeb.ContractTest do
            |> json_response(201)
   end
 
-  test "the ledger is read and its lines set by the steward only, and a stored key shows on /me",
+  test "the ledger is read and its lines set by the witness only, and a stored key shows on /me",
        ctx do
     conn = login(ctx.conn, ctx.account)
     id = ctx.resident.id
@@ -166,7 +166,7 @@ defmodule OneiroiWeb.ContractTest do
            |> json_response(404)
   end
 
-  test "the conversation routes are the steward's: open, send, read, search, resolve, and an adapter's capture",
+  test "the conversation routes are the witness's: open, send, read, search, resolve, and an adapter's capture",
        ctx do
     conn = login(ctx.conn, ctx.account)
     id = ctx.resident.id
@@ -175,7 +175,7 @@ defmodule OneiroiWeb.ContractTest do
       Oneiroi.Gaia.store_key(
         ctx.account.id,
         "sk-or-x",
-        Oneiroi.Actor.new(:steward, ctx.account.id)
+        Oneiroi.Actor.new(:witness, ctx.account.id)
       )
 
     assert %{"key" => key} =
@@ -293,14 +293,14 @@ defmodule OneiroiWeb.ContractTest do
     assert cookie =~ "SameSite=Strict"
   end
 
-  test "the memory routes are the steward's: bookmarks, proposals, the tag set, taggings", ctx do
+  test "the memory routes are the witness's: bookmarks, proposals, the tag set, taggings", ctx do
     id = ctx.resident.id
 
     :ok =
       Oneiroi.Gaia.store_key(
         ctx.account.id,
         "sk-or-x",
-        Oneiroi.Actor.new(:steward, ctx.account.id)
+        Oneiroi.Actor.new(:witness, ctx.account.id)
       )
 
     conn = login(ctx.conn, ctx.account)
@@ -395,7 +395,7 @@ defmodule OneiroiWeb.ContractTest do
     assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/bookmarks") |> json_response(404)
   end
 
-  test "the identity files are the steward's to seed, draft and read; after first contact a write is a proposal",
+  test "the identity files are the witness's to seed, draft and read; after first contact a write is a proposal",
        ctx do
     id = ctx.resident.id
 
@@ -403,7 +403,7 @@ defmodule OneiroiWeb.ContractTest do
       Oneiroi.Gaia.store_key(
         ctx.account.id,
         "sk-or-x",
-        Oneiroi.Actor.new(:steward, ctx.account.id)
+        Oneiroi.Actor.new(:witness, ctx.account.id)
       )
 
     conn = login(ctx.conn, ctx.account)
@@ -481,7 +481,7 @@ defmodule OneiroiWeb.ContractTest do
     assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/files") |> json_response(404)
   end
 
-  test "behaviours: the steward gives a first one, reads the list with scores, and affirms",
+  test "behaviours: the witness gives a first one, reads the list with scores, and affirms",
        ctx do
     id = ctx.resident.id
     conn = login(ctx.conn, ctx.account)
@@ -523,14 +523,14 @@ defmodule OneiroiWeb.ContractTest do
              conn |> get("/v1/residents/#{id}/behaviours") |> json_response(200)
   end
 
-  test "regression is the steward's: tests, a run, blind cards, grades, and the pin", ctx do
+  test "regression is the witness's: tests, a run, blind cards, grades, and the pin", ctx do
     id = ctx.resident.id
 
     :ok =
       Oneiroi.Gaia.store_key(
         ctx.account.id,
         "sk-or-x",
-        Oneiroi.Actor.new(:steward, ctx.account.id)
+        Oneiroi.Actor.new(:witness, ctx.account.id)
       )
 
     conn = login(ctx.conn, ctx.account)

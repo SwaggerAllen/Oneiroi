@@ -7,7 +7,7 @@ defmodule OneiroiWeb.JournalController do
 
   tags(["library"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:index,
     summary: "The journal's latest days with their plan-versus-actuals deltas, newest first",
@@ -80,10 +80,10 @@ defmodule OneiroiWeb.JournalController do
       done_at: e.done_at
     }
 
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

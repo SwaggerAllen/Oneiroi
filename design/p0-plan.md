@@ -218,7 +218,7 @@ Accounts with password and TOTP; argon2 hashes; sessions as random ids
 with the hash stored, thirty-day expiry; `__Host-` cookies, `HttpOnly`,
 `Secure`, `SameSite=Strict`; `Origin` checked on every mutation; the CSP
 allowing the client bundle and nothing else; failed logins slowed, never
-locked. The Account aggregate's v1 events. The stewardship relation with
+locked. The Account aggregate's v1 events. The witnessing relation with
 a start and an end, and the community as a principal. The JSON API token
 for scripts. `/v1/openapi.json` with its first routes, so the client
 generates. The self-hosted setup task that creates the one account.
@@ -286,7 +286,7 @@ section.
 The Resident aggregate on `resident-<id>`, with the v1 events P0 needs:
 `ResidentCreated`, the lifecycle transitions with their reasons,
 `CustodyTransferred`, `Imported`, `ExportWallSet`. The slug, bound to
-the steward's account through the stewardship relation. Per-resident id
+the witness's account through the witnessing relation. Per-resident id
 sequences allocated by the aggregate: a counter per kind held in
 aggregate state, so an event that mints a citeable id carries it without
 a second event and replay reproduces it exactly, which the property
@@ -311,7 +311,7 @@ tree; backup commits by class with the trailers `Oneiroi-Sequence` and
 `Oneiroi-Root`, and a run that fails after committing the rest when
 something wrote where nothing should (David's rule). The git port with
 two providers: a local bare repository for tests, and GitHub over HTTPS
-with a steward-supplied fine-grained token stored encrypted. Secrets at
+with a witness-supplied fine-grained token stored encrypted. Secrets at
 rest need a library, which is a decision for the author (below). Rebuild
 as `mix oneiroi.sima_qian.rebuild <repo>`: replay into a fresh store under
 a new resident with the `Imported` event appended, refusing a store that
@@ -344,7 +344,7 @@ GitHub and the rebuild done on a second database.
    `Oneiroi.Apsu.Vault` over `:crypto` took its place under the same
    key.
 5. **The GitHub provider's credential in P0** is a fine-grained token the
-   steward pastes, scoped to a repository they created; a GitHub App that
+   witness pastes, scoped to a repository they created; a GitHub App that
    creates repositories and installs deploy keys comes with Gitea.
 6. **The tracker** is a project under the `ORC` team.
 7. **Identity is written attended**, as P0.4.

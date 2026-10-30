@@ -17,9 +17,9 @@ defmodule Oneiroi.ActorEventTest do
   @at ~U[2026-10-26 12:00:00.000000Z]
 
   test "an actor is one of the platform's parties and nothing else" do
-    assert Actor.valid?(Actor.new(:steward, "a1"))
+    assert Actor.valid?(Actor.new(:witness, "a1"))
     assert Actor.valid?(Actor.new(:resident, "r1", "openai/gpt-5"))
-    refute Actor.valid?(%{kind: :steward})
+    refute Actor.valid?(%{kind: :witness})
     assert_raise FunctionClauseError, fn -> Actor.new(:someone, "x") end
   end
 

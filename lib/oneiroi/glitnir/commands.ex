@@ -10,6 +10,6 @@ defmodule Oneiroi.Glitnir.Commands do
   end
 
   defmodule ResolveReport do
-    use Oneiroi.Command, decision: true, fields: [:id, :number, :outcome, :steward_account_id]
+    use Oneiroi.Command, decision: true, fields: [:id, :number, :outcome, :witness_account_id]
   end
 end

@@ -12,13 +12,13 @@ defmodule Oneiroi.Brain.IdentityTest do
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, steward: steward, resident: resident, key: key, actor: actor}
+    {:ok, witness: witness, resident: resident, key: key, actor: actor}
   end
 
   test "the files are the prefix, first contact lands on the first turn, and the formation line follows it",
@@ -50,7 +50,7 @@ defmodule Oneiroi.Brain.IdentityTest do
     refute prompt =~ "still settling"
 
     assert ["prompt", "SOUL.md", "USER.md", "AGENTS.md", "index", "transcript"] =
-             {:account, ctx.steward.id} |> Kumbukumbu.injections(ref) |> Enum.map(& &1.label)
+             {:account, ctx.witness.id} |> Kumbukumbu.injections(ref) |> Enum.map(& &1.label)
 
     assert {:ok, %{first_contact_at: %DateTime{}}} = AgathosDaimon.fetch(id)
 
@@ -119,7 +119,7 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert [] = AgathosDaimon.files(id)
 
     assert [%{key: "drafting", calls: 1}] =
-             Nisaba.spend(id, :steward, :purpose, ~U[2026-10-01 00:00:00.000000Z])
+             Nisaba.spend(id, :witness, :purpose, ~U[2026-10-01 00:00:00.000000Z])
 
     assert [] = Nisaba.spend(id, :resident, :purpose, ~U[2026-10-01 00:00:00.000000Z])
     assert {:error, :file_unknown} = Oneiroi.Brain.draft(id, "AGENTS.md", "x", ctx.actor)
@@ -178,7 +178,7 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert acting.content =~ ~s(turn #{ref}: "The tomatoes want water.")
 
     assert %{label: "behaviours", reason: reason} =
-             {:account, ctx.steward.id}
+             {:account, ctx.witness.id}
              |> Kumbukumbu.injections(ref2)
              |> Enum.find(&(&1.label == "behaviours"))
 
@@ -186,7 +186,7 @@ defmodule Oneiroi.Brain.IdentityTest do
 
     assert {:ok, %{turn_ref: ref3}} = Oneiroi.Brain.turn(id, ctx.key, "unrelated", ctx.actor)
 
-    refute {:account, ctx.steward.id}
+    refute {:account, ctx.witness.id}
            |> Kumbukumbu.injections(ref3)
            |> Enum.any?(&(&1.label == "behaviours"))
   end

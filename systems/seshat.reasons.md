@@ -45,14 +45,14 @@ rows): two runs in one microsecond were one row with the newest unread.
 
 ## #18
 F26: "one vector index over all folders". No model call for an empty
-library because the first steward's first search is the moment the
+library because the first witness's first search is the moment the
 index is most likely empty and a charged call that can return nothing
 is the wrong first impression of the ledger.
 
 ## #19
 F25: "pieces with frontmatter status; review page; copy for publishing
-with references stripped; publish". Publishing is the steward's because
-spec §10's Library screen lists publish under what the steward does and
+with references stripped; publish". Publishing is the witness's because
+spec §10's Library screen lists publish under what the witness does and
 the brain's tool table (spec §8) has no publish.
 
 ## #20

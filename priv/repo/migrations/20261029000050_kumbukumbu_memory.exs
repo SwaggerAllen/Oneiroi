@@ -3,7 +3,7 @@ defmodule Oneiroi.Repo.Migrations.KumbukumbuMemory do
   import Oneiroi.Migration
 
   # Bookmarks, tags and taggings are the resident's rows (spec §6.3): the
-  # steward reads them as the resident's steward, checked at the edge,
+  # witness reads them as the resident's witness, checked at the edge,
   # under the resident's scope. They are not a conversation and have no
   # party; what a custody transfer reveals of them is the export wall's
   # question (spec §6.12), left for the governance phase.

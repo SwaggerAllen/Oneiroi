@@ -1,7 +1,7 @@
 defmodule Oneiroi.HuginnMuninn do
   @moduledoc """
   Audits (spec §6.13): figures (counters as the fold of their increments
-  and countdowns derived from dates, F57), the steward's own audits over
+  and countdowns derived from dates, F57), the witness's own audits over
   them (F48), the built-in checklist, and the check-engine light as the
   failing results of the audits that count (F49). Audits read rows and
   never transcript text; results are private to the dyad; never a
@@ -74,7 +74,7 @@ defmodule Oneiroi.HuginnMuninn do
        default: "3",
        tag: :bound,
        usage:
-         "how many missed check-ins in a week the built-in audit warns at; a guess at what a steward would want told, not measured"}
+         "how many missed check-ins in a week the built-in audit warns at; a guess at what a witness would want told, not measured"}
     ]
   end
 
@@ -98,9 +98,9 @@ defmodule Oneiroi.HuginnMuninn do
   @impl Oneiroi.Component
   def errors do
     [
-      {:huginn_muninn_not_the_steward,
-       "defining and retiring counters and audits are the steward's",
-       remedy: "the steward does this from the client"},
+      {:huginn_muninn_not_the_witness,
+       "defining and retiring counters and audits are the witness's",
+       remedy: "the witness does this from the client"},
       {:huginn_muninn_key_invalid, "a key is a slug of at most 40 characters",
        remedy: "name it as a slug"},
       {:huginn_muninn_label_invalid, "a label is one line of at most 80 characters",
@@ -111,7 +111,7 @@ defmodule Oneiroi.HuginnMuninn do
       {:huginn_muninn_rule_invalid,
        "an audit compares a figure with >=, <=, ==, > or < to an integer, failing warn or fail",
        remedy: "give the rule in that shape"},
-      {:huginn_muninn_no_such_audit, "no audit of the steward's has that key",
+      {:huginn_muninn_no_such_audit, "no audit of the witness's has that key",
        remedy: "read the audits"}
     ]
   end
@@ -119,7 +119,7 @@ defmodule Oneiroi.HuginnMuninn do
   @impl Oneiroi.Component
   def children, do: [Oneiroi.HuginnMuninn.Projectors.Audits]
 
-  @doc "Defines a counter (the steward's): a key and a label."
+  @doc "Defines a counter (the witness's): a key and a label."
   @spec define_counter(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(define_counter(resident_id, key, label, actor),
@@ -133,7 +133,7 @@ defmodule Oneiroi.HuginnMuninn do
     do: Figures.increment(resident_id, key, by, note, actor)
   )
 
-  @doc "Retires a counter (the steward's)."
+  @doc "Retires a counter (the witness's)."
   @spec retire_counter(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(retire_counter(resident_id, key, actor),
     do: Figures.retire_counter(resident_id, key, actor)
@@ -158,11 +158,11 @@ defmodule Oneiroi.HuginnMuninn do
   @spec figures_text(String.t()) :: String.t()
   defexport(figures_text(resident_id), do: Figures.text(resident_id))
 
-  @doc "Defines a steward's audit over a figure."
+  @doc "Defines a witness's audit over a figure."
   @spec define_audit(String.t(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(define_audit(resident_id, attrs, actor), do: Checks.define(resident_id, attrs, actor))
 
-  @doc "Retires a steward's audit."
+  @doc "Retires a witness's audit."
   @spec retire_audit(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(retire_audit(resident_id, key, actor), do: Checks.retire(resident_id, key, actor))
 

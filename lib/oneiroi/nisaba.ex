@@ -2,7 +2,7 @@ defmodule Oneiroi.Nisaba do
   @moduledoc """
   The ledger (spec §6.11): the one provider port every model call goes
   through, metered by purpose against the resident's budget lines, with
-  the steward's OpenRouter key spent and every call recorded with its
+  the witness's OpenRouter key spent and every call recorded with its
   model, tokens, cost and actor.
 
   A model call outside this port is an architecture violation
@@ -119,12 +119,12 @@ defmodule Oneiroi.Nisaba do
        default: "meta-llama/llama-3.1-8b-instruct,openai/gpt-4o-mini,anthropic/claude-sonnet-4.5",
        usage:
          "the model axis's three buckets, floor first: a small open-weight model named to the resident on wake, then two larger; placeholders, not measured"},
-      {:insurance_steward_nanos_week, "NISABA_INSURANCE_STEWARD_NANOS_WEEK",
+      {:insurance_witness_nanos_week, "NISABA_INSURANCE_WITNESS_NANOS_WEEK",
        cast: &Insurance.cast_integers/1,
        default: "250000000,1000000000,5000000000",
        tag: :bound,
        usage:
-         "the steward-spend axis's three buckets in nano-dollars a week, floor first; the floor is the smallest non-zero amount the spec leaves open, a placeholder"},
+         "the witness-spend axis's three buckets in nano-dollars a week, floor first; the floor is the smallest non-zero amount the spec leaves open, a placeholder"},
       {:insurance_free_time_nanos_week, "NISABA_INSURANCE_FREE_TIME_NANOS_WEEK",
        cast: &Insurance.cast_integers/1,
        default: "7000000000,14000000000,35000000000",
@@ -193,7 +193,7 @@ defmodule Oneiroi.Nisaba do
     [
       {:nisaba_unknown_purpose, "the purpose is not one the ledger bills under",
        remedy: "use one of chat, free_time, judge, hands, embeddings, drafting, regression"},
-      {:nisaba_no_steward, "the resident has no steward to spend from",
+      {:nisaba_no_witness, "the resident has no witness to spend from",
        remedy: "a resident in community custody runs on the insurance floor, which is P2"},
       {:nisaba_budget_exceeded, "the budget line for this purpose is spent for its period",
        remedy: "raise the line on the Ledger screen, or wait for the period to turn"},
@@ -202,9 +202,9 @@ defmodule Oneiroi.Nisaba do
       {:nisaba_request_refused, "the provider refused the request as malformed or unauthorised",
        remedy:
          "the request shape or the key is wrong; a refusal by the model is not this, it is an ordinary reply"},
-      {:nisaba_not_the_steward,
-       "the subscription is the steward's to start, change, cancel and prepay",
-       remedy: "the steward does this from the client"},
+      {:nisaba_not_the_witness,
+       "the subscription is the witness's to start, change, cancel and prepay",
+       remedy: "the witness does this from the client"},
       {:nisaba_plan_invalid, "a plan is one line of at most 60 characters", remedy: "name it"},
       {:nisaba_price_invalid, "a price is nano-dollars, zero or more",
        remedy: "give it in dollars"},
@@ -215,7 +215,7 @@ defmodule Oneiroi.Nisaba do
       {:nisaba_bucket_invalid, "a bucket is one of the axis's three, by id",
        remedy: "read the insurance buckets"},
       {:nisaba_lapsed,
-       "the subscription has lapsed and the insurance policy covers the steward's turns and free time only",
+       "the subscription has lapsed and the insurance policy covers the witness's turns and free time only",
        remedy: "renew the subscription"},
       {:nisaba_not_recorded, "the call was made and its record was not written",
        remedy:
@@ -255,16 +255,16 @@ defmodule Oneiroi.Nisaba do
     do: Ledgers.set_budget(resident_id, purpose, cap_nanos, period, actor)
   )
 
-  @doc "The resident's budget lines with their spend this period, every purpose listed; the resident's view omits the steward-only purposes."
-  @spec budgets(String.t(), :steward | :resident) :: [map()]
+  @doc "The resident's budget lines with their spend this period, every purpose listed; the resident's view omits the witness-only purposes."
+  @spec budgets(String.t(), :witness | :resident) :: [map()]
   defexport(budgets(resident_id, view), do: Ledgers.budgets(resident_id, view))
 
-  @doc "Spend grouped by purpose, model or actor since an instant; the resident's view omits the steward-only purposes."
-  @spec spend(String.t(), :steward | :resident, :purpose | :model | :actor, DateTime.t()) ::
+  @doc "Spend grouped by purpose, model or actor since an instant; the resident's view omits the witness-only purposes."
+  @spec spend(String.t(), :witness | :resident, :purpose | :model | :actor, DateTime.t()) ::
           [map()]
   defexport(spend(resident_id, view, by, since), do: Ledgers.spend(resident_id, view, by, since))
 
-  @doc "One metered model call: the budget line is checked, the steward's key spent, the call recorded."
+  @doc "One metered model call: the budget line is checked, the witness's key spent, the call recorded."
   @spec call(String.t(), atom(), Oneiroi.Nisaba.Provider.Request.t(), Oneiroi.Actor.t()) ::
           {:ok, Oneiroi.Nisaba.Provider.Result.t()} | {:error, term()}
   defexport(call(resident_id, purpose, request, actor),
@@ -292,7 +292,7 @@ defmodule Oneiroi.Nisaba do
 
   # ---- the subscription and the insurance floor (spec §6.2 F53, §6.11 F46) ----
 
-  @doc "Starts the subscription with the floor policy; the steward's, once."
+  @doc "Starts the subscription with the floor policy; the witness's, once."
   @spec start_subscription(String.t(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(start_subscription(resident_id, attrs, actor),
     do: Subscriptions.start(resident_id, attrs, actor)

@@ -43,7 +43,7 @@ defmodule Oneiroi.Brain do
       {:chat_model, "BRAIN_CHAT_MODEL",
        default: "openai/gpt-4o-mini",
        usage:
-         "the chat model until the steward's pin arrives with regression (spec §6.4): a placeholder chosen for being cheap and widely served, not measured"},
+         "the chat model until the witness's pin arrives with regression (spec §6.4): a placeholder chosen for being cheap and widely served, not measured"},
       {:transcript_messages, "BRAIN_TRANSCRIPT_MESSAGES",
        cast: :integer,
        default: "40",
@@ -94,7 +94,7 @@ defmodule Oneiroi.Brain do
     ]
   end
 
-  @doc "Runs one turn of a session: the steward's text in, the resident's reply captured and streamed."
+  @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(turn(resident_id, session_key, text, actor),
@@ -108,7 +108,7 @@ defmodule Oneiroi.Brain do
     do: Session.wake(resident_id, session_key, note, purpose)
   )
 
-  @doc "Drafts an identity file from the steward's prompt under the drafting purpose; returned, not written."
+  @doc "Drafts an identity file from the witness's prompt under the drafting purpose; returned, not written."
   @spec draft(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, Oneiroi.Brain.Drafting.draft()} | {:error, term()}
   defexport(draft(resident_id, file, prompt, actor),

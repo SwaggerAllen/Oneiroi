@@ -182,7 +182,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
     situation =
       [
-        if(words != [], do: "Your steward says: \"" <> Enum.join(words, ", ") <> "\"."),
+        if(words != [], do: "Your witness says: \"" <> Enum.join(words, ", ") <> "\"."),
         if(tags != [], do: "The conversation is about " <> Enum.join(tags, ", ") <> "."),
         if(times != [], do: "It is " <> Enum.join(times, " or ") <> ".")
       ]

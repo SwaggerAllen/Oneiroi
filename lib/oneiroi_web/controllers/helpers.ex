@@ -29,9 +29,9 @@ defmodule OneiroiWeb.Controllers.Helpers do
   def adapter(%Plug.Conn{assigns: %{principal: %AdapterPrincipal{} = a}}), do: a
   def adapter(_conn), do: nil
 
-  @doc "Whether the request's principal is an account that stewards the resident; an adapter's token never is."
-  def stewards?(%Plug.Conn{assigns: %{principal: %Principal{account_id: account_id}}}, id),
-    do: id in Oneiroi.Gaia.stewarded_residents(account_id)
+  @doc "Whether the request's principal is an account that witnesses the resident; an adapter's token never is."
+  def witnesses?(%Plug.Conn{assigns: %{principal: %Principal{account_id: account_id}}}, id),
+    do: id in Oneiroi.Gaia.witnessed_residents(account_id)
 
-  def stewards?(_conn, _id), do: false
+  def witnesses?(_conn, _id), do: false
 end

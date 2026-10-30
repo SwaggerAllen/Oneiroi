@@ -3,7 +3,7 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
   The weekly memory audit (spec §6.4, F15): the judge reads what Honcho
   concluded about the person, at most `EUNOMIA_AUDIT_CONCLUSIONS` of
   them (150, David's), against the resident's held positions and soul,
-  and flags the ones that read as drift. A flag waits on the steward:
+  and flags the ones that read as drift. A flag waits on the witness:
   approved, the conclusion is deleted from Honcho; deleted, it stays.
   Each with a note. The judge inspects and never grades the grader.
   """
@@ -155,9 +155,9 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
          do: {:error, Error.new(:eunomia_audit_failed, reason: text)}
   end
 
-  @doc "The steward approves a flag: the conclusion is deleted from Honcho, then the flag is closed with the note."
+  @doc "The witness approves a flag: the conclusion is deleted from Honcho, then the flag is closed with the note."
   def approve(resident_id, ref, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          {:ok, flag} <- open_flag(resident_id, ref),
          :ok <- Proteus.delete_conclusion(resident_id, flag.conclusion_id) do
       command = %Commands.ApproveAuditFlag{
@@ -172,9 +172,9 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
     end
   end
 
-  @doc "The steward deletes a flag: the conclusion stays; the flag is closed with the note."
+  @doc "The witness deletes a flag: the conclusion stays; the flag is closed with the note."
   def delete(resident_id, ref, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          {:ok, _flag} <- open_flag(resident_id, ref) do
       command = %Commands.DeleteAuditFlag{
         actor: actor,
@@ -209,8 +209,8 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
     end
   end
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_witness)}
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 

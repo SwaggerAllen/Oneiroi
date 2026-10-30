@@ -2,7 +2,7 @@ defmodule Oneiroi.Seshat.Documents do
   @moduledoc """
   The command edge for documents (spec §6.5, F25, F27): a write through
   the flow, the adoption of a file made outside it, the reads, a
-  steward's publish and a piece's discussion. The file is the record,
+  witness's publish and a piece's discussion. The file is the record,
   in the resident's repository where the backup commits it (sima-qian
   #14's classes already name every kind's folder); the event is its
   provenance; the index runs after every write and adoption so a search
@@ -11,7 +11,7 @@ defmodule Oneiroi.Seshat.Documents do
   Who writes: either party, through a document write, into a kind the
   registry marks `:resident`; the platform's kinds (mail, feeds,
   correspondence, the journal) are refused here and written by their
-  systems. Publishing is the steward's (spec §10's Library screen).
+  systems. Publishing is the witness's (spec §10's Library screen).
   """
 
   alias Oneiroi.Actor
@@ -170,8 +170,8 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  @doc "A steward publishes a piece at a URL: the event first, then the file's status set to published with it, which the index reads."
-  def publish(resident_id, path, url, %Actor{kind: :steward} = actor) do
+  @doc "A witness publishes a piece at a URL: the event first, then the file's status set to published with it, which the index reads."
+  def publish(resident_id, path, url, %Actor{kind: :witness} = actor) do
     with {:ok, path} <- normalize(path),
          {:ok, _} <-
            dispatch(%Commands.PublishPiece{
@@ -194,7 +194,7 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   def publish(_resident_id, _path, _url, %Actor{}),
-    do: {:error, Error.new(:seshat_not_the_steward)}
+    do: {:error, Error.new(:seshat_not_the_witness)}
 
   @doc "Links a session to a piece as its discussion."
   def discuss(resident_id, path, session_key, %Actor{} = actor) when is_binary(session_key) do

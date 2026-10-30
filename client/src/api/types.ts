@@ -5,7 +5,7 @@
 // are the claim a generated client replaces once the document carries
 // schemas (spec §6.15, open for the author).
 
-export type ActorKind = 'steward' | 'resident' | 'judge' | 'hands' | 'job' | 'platform';
+export type ActorKind = 'witness' | 'resident' | 'judge' | 'hands' | 'job' | 'platform';
 
 export interface Actor {
   kind: ActorKind | string;

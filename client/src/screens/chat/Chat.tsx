@@ -142,7 +142,7 @@ function Reply({
             margin: 0,
             padding: mine ? 'var(--space-2) var(--space-3)' : 0,
             borderRadius: 'var(--radius-lg)',
-            background: mine ? 'var(--steward-tint)' : 'transparent',
+            background: mine ? 'var(--witness-tint)' : 'transparent',
             fontFamily: mine || system ? 'var(--font-sans)' : 'var(--font-serif)',
             fontSize: mine || system ? 15 : 17,
             lineHeight: mine || system ? '22px' : '26px',

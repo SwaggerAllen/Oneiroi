@@ -41,7 +41,7 @@ defmodule Oneiroi.Gaia.AccountsTest do
     %{id: id, email: email} = Fixtures.account!()
 
     assert {:ok, %{secret: secret, uri: uri}} =
-             Gaia.enroll_second_factor(id, Actor.new(:steward, id))
+             Gaia.enroll_second_factor(id, Actor.new(:witness, id))
 
     assert uri =~ "otpauth://totp/Oneiroi:"
 
@@ -61,15 +61,15 @@ defmodule Oneiroi.Gaia.AccountsTest do
 
   test "a token resolves to its account until revoked" do
     %{id: id} = Fixtures.account!()
-    assert {:ok, raw, hash} = Gaia.issue_token(id, "script", Actor.new(:steward, id))
+    assert {:ok, raw, hash} = Gaia.issue_token(id, "script", Actor.new(:witness, id))
     assert {:ok, %{account_id: ^id, via: :token}} = Gaia.authenticate_token(raw)
-    assert :ok = Gaia.revoke_token(id, hash, Actor.new(:steward, id))
+    assert :ok = Gaia.revoke_token(id, hash, Actor.new(:witness, id))
     assert :error = Gaia.authenticate_token(raw)
   end
 
-  test "the steward's key is stored encrypted, read back wrapped, rotated by storing again, and revoked" do
+  test "the witness's key is stored encrypted, read back wrapped, rotated by storing again, and revoked" do
     %{id: id} = Fixtures.account!()
-    actor = Actor.new(:steward, id)
+    actor = Actor.new(:witness, id)
     assert %{present: false, stored_at: nil} = Gaia.key_status(id)
     assert {:error, :gaia_no_key} = Gaia.key_for(id)
     assert {:error, :gaia_key_required} = Gaia.store_key(id, "   ", actor)

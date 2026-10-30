@@ -14,7 +14,7 @@ defmodule OneiroiWeb.Router do
     plug(OneiroiWeb.Plugs.Origin)
   end
 
-  pipeline :steward do
+  pipeline :witness do
     plug(OneiroiWeb.Plugs.RequirePrincipal)
   end
 
@@ -45,7 +45,7 @@ defmodule OneiroiWeb.Router do
     delete("/session", SessionController, :delete)
 
     scope "/" do
-      pipe_through(:steward)
+      pipe_through(:witness)
 
       get("/me", MeController, :show)
       post("/me/second-factor", SecondFactorController, :create)

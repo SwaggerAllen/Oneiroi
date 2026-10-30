@@ -1,15 +1,15 @@
-defmodule Oneiroi.Gaia.Handlers.Stewardship do
+defmodule Oneiroi.Gaia.Handlers.Witnessing do
   @moduledoc """
-  The cross-system effect that keeps stewardship in step with the
-  resident (conventions §7): a resident created under a steward starts
-  that stewardship; custody transferred to another account ends one and
+  The cross-system effect that keeps witnessing in step with the
+  resident (conventions §7): a resident created under a witness starts
+  that witnessing; custody transferred to another account ends one and
   starts another. Eventual, through an event handler rather than a
   second command from the caller, and replay-safe because the account
   aggregate's start and end are idempotent.
   """
   use Commanded.Event.Handler,
     application: Oneiroi.Commanded,
-    name: "gaia_stewardship",
+    name: "gaia_witnessing",
     consistency: :strong
 
   alias Oneiroi.AgathosDaimon.Custody
@@ -25,10 +25,10 @@ defmodule Oneiroi.Gaia.Handlers.Stewardship do
 
   @impl Commanded.Event.Handler
   def handle(%ResidentCreated{} = e, _metadata) do
-    dispatch(%Commands.StartStewardship{
+    dispatch(%Commands.StartWitnessing{
       actor: e.actor,
       at: e.at,
-      id: e.steward_account_id,
+      id: e.witness_account_id,
       resident_id: e.id
     })
   end
@@ -36,21 +36,21 @@ defmodule Oneiroi.Gaia.Handlers.Stewardship do
   # The event carries custody in its wire form (`"account:<id>"`,
   # `Oneiroi.AgathosDaimon.Custody`); the first version matched the
   # tuple form and so matched nothing: no transfer ever ended the old
-  # stewardship or started the new one, and the old steward's routes
+  # witnessing or started the new one, and the old witness's routes
   # kept working on a resident it no longer held. The custody suite
-  # found it when the new steward's own session read the agreement.
+  # found it when the new witness's own session read the agreement.
   def handle(%CustodyTransferred{} = e, _metadata) do
     with :ok <- end_if_account(Custody.from_wire(e.from), e),
          do: start_if_account(Custody.from_wire(e.to), e)
   end
 
   defp end_if_account({:account, id}, e),
-    do: dispatch(%Commands.EndStewardship{actor: e.actor, at: e.at, id: id, resident_id: e.id})
+    do: dispatch(%Commands.EndWitnessing{actor: e.actor, at: e.at, id: id, resident_id: e.id})
 
   defp end_if_account(_other, _e), do: :ok
 
   defp start_if_account({:account, id}, e),
-    do: dispatch(%Commands.StartStewardship{actor: e.actor, at: e.at, id: id, resident_id: e.id})
+    do: dispatch(%Commands.StartWitnessing{actor: e.actor, at: e.at, id: id, resident_id: e.id})
 
   defp start_if_account(_other, _e), do: :ok
 

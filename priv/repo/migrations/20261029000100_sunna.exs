@@ -2,8 +2,8 @@ defmodule Oneiroi.Repo.Migrations.Sunna do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # The schedule's rows are the resident's (spec §6.7); the steward reads
-  # them as the steward under the resident's scope, and the tick reads
+  # The schedule's rows are the resident's (spec §6.7); the witness reads
+  # them as the witness under the resident's scope, and the tick reads
   # every resident's under the platform scope by name (sunna #11).
   def change do
     projection :sunna_checkin, scope: :resident do
@@ -58,7 +58,7 @@ defmodule Oneiroi.Repo.Migrations.Sunna do
 
     create(unique_index(:sunna_schedule, [:resident_id]))
 
-    # The resident's zone (spec §6.7): UTC until the steward sets one.
+    # The resident's zone (spec §6.7): UTC until the witness sets one.
     alter table(:agathos_daimon_resident) do
       add(:timezone, :string, null: false, default: "Etc/UTC")
     end

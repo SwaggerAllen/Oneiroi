@@ -45,7 +45,7 @@ defmodule Oneiroi.Nisaba.Projectors.Subscription do
   fold(%Events.PolicySet{} = e, _metadata, fn multi ->
     set(multi, e.id,
       policy_model: e.model,
-      policy_steward: e.steward,
+      policy_witness: e.witness,
       policy_free_time: e.free_time,
       policy_term: e.term,
       policy_set_at: e.at

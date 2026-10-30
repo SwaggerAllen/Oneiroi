@@ -47,4 +47,4 @@ holds, and to give the verdict the test as written produces anyway.
   the ticket.
 - **Nothing a manual test does calls a paid model on the platform's
   account.** A test that needs the resident to answer runs on the
-  steward's key, and says so in its preconditions.
+  witness's key, and says so in its preconditions.

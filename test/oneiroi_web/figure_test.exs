@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.FigureTest do
-  @moduledoc "Figures, the steward's audits and the light over HTTP."
+  @moduledoc "Figures, the witness's audits and the light over HTTP."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -44,7 +44,7 @@ defmodule OneiroiWeb.FigureTest do
 
     assert %{
              "value" => 2,
-             "recent" => [%{"by" => 2, "note" => "two", "actor" => %{"kind" => "steward"}}]
+             "recent" => [%{"by" => 2, "note" => "two", "actor" => %{"kind" => "witness"}}]
            } = conn |> get("/v1/residents/#{id}/figures/tea") |> json_response(200)
 
     assert conn |> get("/v1/residents/#{id}/figures/nope") |> json_response(404)

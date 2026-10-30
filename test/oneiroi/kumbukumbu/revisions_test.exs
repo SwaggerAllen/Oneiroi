@@ -1,5 +1,5 @@
 defmodule Oneiroi.Kumbukumbu.RevisionsTest do
-  @moduledoc "Revisions (F13) through the exports and the brain: a fact by either party holds at once, a stance by the resident too, a stance by the steward is a proposal the resident accepts or declines with a note; revision adds beside the memory and never overwrites it."
+  @moduledoc "Revisions (F13) through the exports and the brain: a fact by either party holds at once, a stance by the resident too, a stance by the witness is a proposal the resident accepts or declines with a note; revision adds beside the memory and never overwrites it."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -10,12 +10,12 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
     Honcho.clear(for: resident.id)
 
@@ -41,7 +41,7 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
     {:ok, id: resident.id, actor: actor, brain: brain, key: key, bookmark: n}
   end
 
-  test "facts apply from either party, stances from the resident; the steward's stance is proposed and the resident decides; the words stand beside the revision",
+  test "facts apply from either party, stances from the resident; the witness's stance is proposed and the resident decides; the words stand beside the revision",
        ctx do
     id = ctx.id
     n = ctx.bookmark
@@ -113,7 +113,7 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
                ctx.actor
              )
 
-    # The resident decides; the steward may not.
+    # The resident decides; the witness may not.
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_resident}} =
              Kumbukumbu.accept_revision(id, 3, "fine", ctx.actor)
 
@@ -144,13 +144,13 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
              %{
                number: 4,
                state: "applied",
-               by_kind: "steward",
+               by_kind: "witness",
                note: "softer",
                decision_note: "that is fair"
              },
              %{number: 3, state: "declined", decision_note: "I did not"},
              %{number: 2, state: "applied", by_kind: "resident"},
-             %{number: 1, state: "applied", by_kind: "steward", kind: "fact"}
+             %{number: 1, state: "applied", by_kind: "witness", kind: "fact"}
            ] =
              Kumbukumbu.revisions(id)
 
@@ -207,7 +207,7 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
     assert String.ends_with?(Enum.at(tools, 1), "-> Done.")
 
     assert Enum.at(tools, 2) =~
-             "Revision 1 (stance, applied, by the steward) on bookmark/#{n}: You loved it. (twice)"
+             "Revision 1 (stance, applied, by the witness) on bookmark/#{n}: You loved it. (twice)"
 
     assert Enum.at(tools, 3) =~ "##{n} the tea was Assam" and
              Enum.at(tools, 3) =~ "Revision 2 (fact, applied, by the resident)"

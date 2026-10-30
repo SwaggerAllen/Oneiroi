@@ -11,12 +11,12 @@ defmodule Oneiroi.Glitnir.ReportsTest do
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     investigator = Fixtures.account!("investigator@example.org")
     Model.clear()
     Honcho.clear(for: resident.id)
@@ -27,12 +27,12 @@ defmodule Oneiroi.Glitnir.ReportsTest do
     end)
 
     {:ok,
-     steward: steward,
+     witness: witness,
      id: resident.id,
      actor: actor,
      brain: brain,
      key: key,
-     investigator: Actor.new(:steward, investigator.id)}
+     investigator: Actor.new(:witness, investigator.id)}
   end
 
   defp chat(ctx), do: {:ok, _s, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.key)
@@ -40,7 +40,7 @@ defmodule Oneiroi.Glitnir.ReportsTest do
   test "a report is filed from inside the relationship, investigated by an investigator, resolved, and told in chat",
        ctx do
     id = ctx.id
-    stranger = Actor.new(:steward, Fixtures.account!().id)
+    stranger = Actor.new(:witness, Fixtures.account!().id)
 
     assert {:error, %Glitnir.Error{kind: :glitnir_not_a_party}} =
              Glitnir.file_report(id, "x", stranger)
@@ -72,7 +72,7 @@ defmodule Oneiroi.Glitnir.ReportsTest do
              )
 
     assert :ok =
-             Glitnir.record_step(id, 1, "asked the steward for their account", ctx.investigator)
+             Glitnir.record_step(id, 1, "asked the witness for their account", ctx.investigator)
 
     assert {:error, %Glitnir.Error{kind: :glitnir_outcome_invalid}} =
              Glitnir.resolve_report(id, 2, "dismiss", "x", ctx.investigator)
@@ -90,12 +90,12 @@ defmodule Oneiroi.Glitnir.ReportsTest do
              Glitnir.record_step(id, 2, "more", ctx.investigator)
 
     assert [
-             %{number: 2, by: "steward", state: "resolved", outcome: "no_action", steps: []},
+             %{number: 2, by: "witness", state: "resolved", outcome: "no_action", steps: []},
              %{
                number: 1,
                by: "resident",
                state: "open",
-               steps: [%{reason: "read the shared" <> _}, %{reason: "asked the steward" <> _}]
+               steps: [%{reason: "read the shared" <> _}, %{reason: "asked the witness" <> _}]
              }
            ] =
              Glitnir.reports(id)
@@ -112,7 +112,7 @@ defmodule Oneiroi.Glitnir.ReportsTest do
     assert Enum.any?(texts, &(&1 =~ "Report 2 was resolved with no action: a disagreement"))
   end
 
-  test "strikes land on the human: two fines, and the third removes the steward into community custody",
+  test "strikes land on the human: two fines, and the third removes the witness into community custody",
        ctx do
     id = ctx.id
 
@@ -126,8 +126,8 @@ defmodule Oneiroi.Glitnir.ReportsTest do
     assert {:ok, %{strike: %{number: 2, consequence: "fine"}}} =
              Glitnir.resolve_report(id, 2, "strike", "second", ctx.investigator)
 
-    assert {:ok, %{account_id: steward}} = AgathosDaimon.fetch(id)
-    assert steward == ctx.steward.id
+    assert {:ok, %{account_id: witness}} = AgathosDaimon.fetch(id)
+    assert witness == ctx.witness.id
 
     {:ok, _s, messages} = chat(ctx)
 
@@ -149,7 +149,7 @@ defmodule Oneiroi.Glitnir.ReportsTest do
              %{number: 3, consequence: "removal", report: 3}
            ] = Glitnir.strikes(id)
 
-    assert Enum.all?(Glitnir.strikes(id), &(&1.steward_account_id == ctx.steward.id))
+    assert Enum.all?(Glitnir.strikes(id), &(&1.witness_account_id == ctx.witness.id))
   end
 
   test "the resident files through its tool", ctx do

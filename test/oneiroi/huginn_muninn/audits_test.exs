@@ -7,7 +7,7 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
   alias Oneiroi.HuginnMuninn.Commands
   alias Oneiroi.HuginnMuninn.Events
 
-  @actor Actor.new(:steward, "a")
+  @actor Actor.new(:witness, "a")
   @at ~U[2026-10-26 12:00:00.000000Z]
 
   defp evolve(state \\ %Audits{}, events),
@@ -37,7 +37,7 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
     assert {:error, :no_such_counter} = Audits.execute(s, inc)
   end
 
-  test "a steward's audit is a validated rule, the same rule twice is no event, and a run carries a tone" do
+  test "a witness's audit is a validated rule, the same rule twice is no event, and a run carries a tone" do
     define =
       cmd(Commands.DefineUserAudit,
         key: "tea-enough",

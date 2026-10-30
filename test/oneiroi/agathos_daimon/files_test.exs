@@ -7,12 +7,12 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
   alias Oneiroi.Fixtures
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
 
     {:ok,
      resident: resident,
-     steward: Actor.new(:steward, steward.id),
+     witness: Actor.new(:witness, witness.id),
      brain: Actor.new(:resident, resident.id, "fake/model")}
   end
 
@@ -26,10 +26,10 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
                "SOUL.md",
                "# Soul",
                %{origin: "drafted", model: "fake/model", prompt: "be kind"},
-               ctx.steward
+               ctx.witness
              )
 
-    assert :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul, again", %{}, ctx.steward)
+    assert :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul, again", %{}, ctx.witness)
 
     assert [
              %{
@@ -48,18 +48,18 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
     assert content =~ "Lily" and content =~ ctx.resident.slug <> ":bookmark/42"
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_file_unknown}} =
-             AgathosDaimon.write_file(id, "AGENTS.md", "x", %{}, ctx.steward)
+             AgathosDaimon.write_file(id, "AGENTS.md", "x", %{}, ctx.witness)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_such_file}} =
              AgathosDaimon.file(id, "USER.md")
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_write_instead}} =
-             AgathosDaimon.propose_edit(id, "SOUL.md", "x", "n", ctx.steward)
+             AgathosDaimon.propose_edit(id, "SOUL.md", "x", "n", ctx.witness)
   end
 
-  test "after first contact the steward proposes and the resident decides, with notes", ctx do
+  test "after first contact the witness proposes and the resident decides, with notes", ctx do
     id = ctx.resident.id
-    :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul", %{}, ctx.steward)
+    :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul", %{}, ctx.witness)
     :ok = AgathosDaimon.first_contact(id, "s1", "t1", ctx.brain)
     :ok = AgathosDaimon.first_contact(id, "s1", "t2", ctx.brain)
 
@@ -69,16 +69,16 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
     assert DateTime.diff(until, at, :day) == 30
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_propose_instead}} =
-             AgathosDaimon.write_file(id, "SOUL.md", "# Bolder", %{}, ctx.steward)
+             AgathosDaimon.write_file(id, "SOUL.md", "# Bolder", %{}, ctx.witness)
 
     assert {:ok, ref} =
-             AgathosDaimon.propose_edit(id, "SOUL.md", "# Bolder", "you have grown", ctx.steward)
+             AgathosDaimon.propose_edit(id, "SOUL.md", "# Bolder", "you have grown", ctx.witness)
 
     assert [%{ref: ^ref, file: "SOUL.md", note: "you have grown", state: "open"}] =
              AgathosDaimon.edit_proposals(id)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_the_resident}} =
-             AgathosDaimon.accept_edit(id, ref, "yes", ctx.steward)
+             AgathosDaimon.accept_edit(id, ref, "yes", ctx.witness)
 
     assert :ok = AgathosDaimon.accept_edit(id, ref, "yes, I have", ctx.brain)
     assert [] = AgathosDaimon.edit_proposals(id)
@@ -89,7 +89,7 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_such_proposal}} =
              AgathosDaimon.accept_edit(id, ref, "again", ctx.brain)
 
-    assert {:ok, ref2} = AgathosDaimon.propose_edit(id, "SOUL.md", "# Meeker", "hm", ctx.steward)
+    assert {:ok, ref2} = AgathosDaimon.propose_edit(id, "SOUL.md", "# Meeker", "hm", ctx.witness)
     assert :ok = AgathosDaimon.decline_edit(id, ref2, "that is not me", ctx.brain)
     assert {:ok, %{content: "# Bolder"}} = AgathosDaimon.file(id, "SOUL.md")
 

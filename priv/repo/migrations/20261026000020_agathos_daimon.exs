@@ -3,8 +3,8 @@ defmodule Oneiroi.Repo.Migrations.AgathosDaimon do
   import Oneiroi.Migration
 
   def change do
-    # `resident_id` is the row's own id and `account_id` its steward's, so
-    # the resident's scope and the steward's scope each see it (spec §2.2).
+    # `resident_id` is the row's own id and `account_id` its witness's, so
+    # the resident's scope and the witness's scope each see it (spec §2.2).
     projection :agathos_daimon_resident, scope: :both do
       add(:id, :binary_id, primary_key: true)
       add(:slug, :string, null: false)

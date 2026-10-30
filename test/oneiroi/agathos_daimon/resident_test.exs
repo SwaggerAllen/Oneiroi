@@ -18,7 +18,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
       id: id,
       name: "Lily",
       slug: id,
-      steward_account_id: "a1"
+      witness_account_id: "a1"
     })
   end
 
@@ -37,7 +37,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
                id: "r1",
                name: "Lily",
                slug: "lily",
-               steward_account_id: "a1"
+               witness_account_id: "a1"
              })
 
     assert {:error, :resident_exists} =
@@ -47,7 +47,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
                id: "r1",
                name: "Lily",
                slug: "lily",
-               steward_account_id: "a1"
+               witness_account_id: "a1"
              })
 
     assert {:error, :no_such_resident} =
@@ -96,7 +96,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
     assert [] = Resident.execute(Resident.apply(completed, event), told)
   end
 
-  test "a decision carries its note on the event and custody moves the steward" do
+  test "a decision carries its note on the event and custody moves the witness" do
     event =
       Resident.execute(created(), %Commands.TransferCustody{
         actor: @actor,
@@ -109,7 +109,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
     assert %Events.CustodyTransferred{from: "account:a1", to: "account:a2", note: "moving"} =
              event
 
-    assert %Resident{steward_account_id: "a2", custody: {:account, "a2"}} =
+    assert %Resident{witness_account_id: "a2", custody: {:account, "a2"}} =
              Resident.apply(created(), event)
 
     community =
@@ -124,7 +124,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
         })
       )
 
-    assert %Resident{custody: :community, steward_account_id: nil, state: :community} = community
+    assert %Resident{custody: :community, witness_account_id: nil, state: :community} = community
   end
 
   property "replaying the minted ids reproduces 1..n per kind, in order" do

@@ -36,7 +36,7 @@ export function BottomNav({
             minHeight: 'var(--control-h)',
             border: 'none',
             background: 'transparent',
-            color: item.id === current ? 'var(--steward)' : 'var(--ink-muted)',
+            color: item.id === current ? 'var(--witness)' : 'var(--ink-muted)',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 500,

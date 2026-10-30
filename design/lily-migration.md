@@ -27,7 +27,7 @@ the repository.
 
 ## 3. Replay
 
-One call, as the steward, on production:
+One call, as the witness, on production:
 
 ```
 POST /v1/residents/import
@@ -62,7 +62,7 @@ journal's rows start empty, and a day with rows renders over its file
 She wakes on her first turn to the orientation (brain #26): on Oneiroi,
 from which repository, that there was no attestation to check, and the
 not-transferred names. The model is the pin or the platform default
-until the steward pins one (spec §6.4). The OpenClaw-native state §9
+until the witness pins one (spec §6.4). The OpenClaw-native state §9
 accepts as loss (session SQLite, the memory-core index, the dreams
 corpus) is exactly what the not-transferred list will name, if it is in
 the repository at all.

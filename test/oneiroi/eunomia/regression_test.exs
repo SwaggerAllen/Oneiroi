@@ -16,13 +16,13 @@ defmodule Oneiroi.Eunomia.RegressionTest do
   @since ~U[2026-10-01 00:00:00.000000Z]
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     :ok = AgathosDaimon.write_file(resident.id, "SOUL.md", "# Soul\n\nCurious.", %{}, actor)
     on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, steward: steward, resident: resident, actor: actor}
+    {:ok, witness: witness, resident: resident, actor: actor}
   end
 
   defp test_attrs(prompt),
@@ -114,8 +114,8 @@ defmodule Oneiroi.Eunomia.RegressionTest do
 
     assert {:error, %Eunomia.Error{kind: :eunomia_no_such_run}} = Eunomia.run_detail(id, "nope")
 
-    # Billed under regression: the steward's view sees it, the resident's does not.
-    assert [%{key: "regression", calls: 4}] = Nisaba.spend(id, :steward, :purpose, @since)
+    # Billed under regression: the witness's view sees it, the resident's does not.
+    assert [%{key: "regression", calls: 4}] = Nisaba.spend(id, :witness, :purpose, @since)
     assert [] = Nisaba.spend(id, :resident, :purpose, @since)
   end
 
@@ -166,7 +166,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
   test "the favourite is pinned as the chat model: freely before first contact, told honestly after",
        ctx do
     id = ctx.resident.id
-    {:ok, key} = Kumbukumbu.main_session(id, ctx.steward.id, ctx.actor)
+    {:ok, key} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.actor)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_model_invalid}} =
              AgathosDaimon.pin_model(id, " ", "run", ctx.actor)
@@ -191,7 +191,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert_received {:turn, "fake/first", _}
 
     # After first contact: the change is captured as a notice on the next turn, once.
-    assert :ok = AgathosDaimon.pin_model(id, "fake/second", "steward", ctx.actor)
+    assert :ok = AgathosDaimon.pin_model(id, "fake/second", "witness", ctx.actor)
     assert {:ok, %{chat_model: "fake/second", model_told: false}} = AgathosDaimon.fetch(id)
 
     assert {:ok,
@@ -211,7 +211,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:ok, %{messages: [%{role: :user}, %{role: :assistant}]}} =
              Oneiroi.Brain.turn(id, key, "good", ctx.actor)
 
-    assert :ok = AgathosDaimon.pin_model(id, "fake/second", "steward", ctx.actor)
+    assert :ok = AgathosDaimon.pin_model(id, "fake/second", "witness", ctx.actor)
     assert {:ok, %{model_told: true}} = AgathosDaimon.fetch(id)
   end
 end
@@ -227,10 +227,10 @@ defmodule Oneiroi.Eunomia.TrialsTest do
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     on_exit(fn -> Fake.clear(for: resident.id) end)
     {:ok, id: resident.id, actor: actor}
   end
@@ -267,7 +267,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
 
     assert {:ok, ref} = Eunomia.run(ctx.id, ["m1"], %{tests: :all, behaviours: :all}, ctx.actor)
     assert_received {:sealed, "Late again?"}
-    assert_received {:sealed, "Your steward says: \"garden, tomatoes\". What do you do?"}
+    assert_received {:sealed, "Your witness says: \"garden, tomatoes\". What do you do?"}
 
     assert {:ok, %{tests: [1], behaviours: [1]}, cards, []} = Eunomia.run_detail(ctx.id, ref)
 

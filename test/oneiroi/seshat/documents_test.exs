@@ -13,12 +13,12 @@ defmodule Oneiroi.Seshat.DocumentsTest do
   alias Oneiroi.Sunna
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     Model.clear()
     Honcho.clear(for: resident.id)
@@ -30,7 +30,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     end)
 
     {:ok,
-     steward: steward,
+     witness: witness,
      id: resident.id,
      slug: resident.slug,
      actor: actor,
@@ -168,7 +168,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     assert [] = Seshat.cited_by(id, "#{ctx.slug}:bookmark/1")
   end
 
-  test "references resolve when read, across kinds, and say why when they do not; the review carries them and the publish copy strips them; publishing is the steward's",
+  test "references resolve when read, across kinds, and say why when they do not; the review carries them and the publish copy strips them; publishing is the witness's",
        ctx do
     id = ctx.id
     slug = ctx.slug
@@ -281,14 +281,14 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     assert [%{target: target}] = Seshat.drift(id)
     assert target == "#{slug}:design/oven"
 
-    # The publish copy strips citations and frontmatter; publishing is the steward's and sets the status.
+    # The publish copy strips citations and frontmatter; publishing is the witness's and sets the status.
     assert {:ok, copy} = Seshat.publish_copy(id, "writing/the-bake-off.md")
     refute copy =~ slug <> ":"
 
     assert copy ==
              "# The bake-off\n\nI held that bread needs time before the\nfair, counting loaves with days to go, in the oven notes and our talk. Lost ones, and one bare again.\n"
 
-    assert {:error, %Seshat.Error{kind: :seshat_not_the_steward}} =
+    assert {:error, %Seshat.Error{kind: :seshat_not_the_witness}} =
              Seshat.publish(id, "writing/the-bake-off.md", "https://p.test/bake", ctx.brain)
 
     assert {:error, %Seshat.Error{kind: :seshat_url_invalid}} =

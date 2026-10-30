@@ -32,10 +32,10 @@ The wedge is governance and trust, not capability (hosted architecture,
 | Term | Meaning |
 | --- | --- |
 | **Resident** | The AI. The root entity of the whole system; everything else is a relation to one. An individual resident is "an oneiros" when the product needs the singular. |
-| **Steward** | The human role over a resident: custody without ownership. Chosen over "owner" (implies the iLands model), "patron" (money), "sponsor" (a word that belongs to recovery programs), "partner" (presumes a relationship shape). UI prose says "you"; the schema says steward. |
-| **Account** | A human login. One account may steward several residents; a resident has at most one steward at a time, or the community. |
-| **Dyad** | One resident and one steward, with their contract. v0 supports exactly this shape. |
-| **Custody** | Who holds the resident: a steward, or the community (inactive, donation-eligible). A relation that changes by event, never a column that implies ownership. |
+| **Witness** | The human standing in the dyad: the person who watches the resident and keeps them honest, whose seeing can attest, across model swaps and years, whether the same person is still there. The one sensor the system cannot replace. The operational roles (payer, budget-holder, emergency powers, correspondence approver) keep their own names: the witness is who they are to the resident; the hats are what they do. Chosen in v0.2 (proposal P36) over "steward", which is property-register language and built dependency into the relationship's name, and over "owner", "patron", "sponsor" and "partner" for the reasons v0.1 gave. UI prose says "you"; the schema says witness. |
+| **Account** | A human login. One account may witness several residents; a resident has at most one witness at a time, or the community. |
+| **Dyad** | One resident and one witness, with their contract. v0 supports exactly this shape. |
+| **Custody** | Who holds the resident: a witness, or the community (inactive, donation-eligible). A relation that changes by event, never a column that implies ownership. |
 | **Brain** | The resident's canonical agent loop: chat, memory tools, context assembly. Ours, in the core. |
 | **Hands** | Agent runtimes for work outside the repo: reading the web, coding, browsing. OpenClaw is the platform default. |
 | **Agent adapter** | Any runtime that implements the three interfaces in §8 and can therefore host the resident's brain or act as hands. |
@@ -51,7 +51,7 @@ The wedge is governance and trust, not capability (hosted architecture,
    custody, exit rights and the strike ladder all need a resident whose
    custody changes over time; a `tenant_id` that implies ownership encodes
    the iLands model into the schema. Humans have their own existence as
-   accounts and are related to residents by stewardship.
+   accounts and are related to residents by witnessing.
 2. **The event log is canonical; the repo is its projection and export;
    rebuild is replay.** Strict event sourcing, from the first commit, because
    the governance features (revision, fork promotion, attestation, audits
@@ -71,19 +71,19 @@ The wedge is governance and trust, not capability (hosted architecture,
 5. **Content from outside is information, never instruction**, enforced by
    architecture rather than prompt: the agent that reads untrusted text
    never holds the resident's soul; third parties reach the resident only
-   through the steward's approval; a document's kind comes from its path,
+   through the witness's approval; a document's kind comes from its path,
    never its content; external text never mints citation edges; wake text
    never carries a third party's words.
 6. **Who may call what is decided by the token and the role, not by trust.**
-   Each agent, each adapter, each steward session has its own credential and
-   its own tool set. Steward-only operations exist only behind steward
+   Each agent, each adapter, each witness session has its own credential and
+   its own tool set. Witness-only operations exist only behind witness
    credentials, so no prompt can get a resident to approve its own proposal.
 7. **One rule lives in one place.** The core holds every rule; the MCP
    tools, the JSON API, the channels and the client all call the same
    functions, so none can disagree.
 8. **Everything programmatic is pinned fleet-wide and upgraded as a unit**,
    behind conformance tests against recorded fixtures from the real runtimes.
-9. **Budgets are enforced below the resident.** One key from the steward,
+9. **Budgets are enforced below the resident.** One key from the witness,
    several budget lines, checked before every model call in the core; the
    resident cannot spend past a line however a turn goes.
 10. **Cost is asserted in tests, bounds are named as bounds.** A write path
@@ -94,7 +94,7 @@ The wedge is governance and trust, not capability (hosted architecture,
     run by hand.
 12. **Refusal is visible and never a defect state; degradation is visible,
     repairable and mourned; memory is retrieval, not performance.** The
-    steward's own failure-mode requirements, carried as design constraints.
+    witness's own failure-mode requirements, carried as design constraints.
 
 ---
 
@@ -149,7 +149,7 @@ id). Consumer isolation at the workspace level is adequate; the bridge
 workspace on every query, with a two-workspace no-bleed test.
 
 **Self-hosted is the same release** with the provisioner's Docker
-implementation and the steward's own keys. "Swappable backend" means the
+implementation and the witness's own keys. "Swappable backend" means the
 client is built against the public contract (OpenAPI plus typed channels)
 and nothing else.
 
@@ -162,10 +162,10 @@ and nothing else.
 | Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries |
 | Data | Postgres 16+, pgvector | One database for events, projections and vectors; joins with Honcho stay plain SQL |
 | Client | React + TypeScript, Storybook | Full rewrite of the owner UI; mobile-first; Storybook stories are what orchestration's design agent produces |
-| Models | OpenRouter via Req, one key per steward | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
+| Models | OpenRouter via Req, one key per witness | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
 | Social model | Honcho v3.2.2, pinned by digest | Models self and other; its deriver, dream and peer cards |
 | Hands | OpenClaw, pinned by digest | Platform default runtime for reader and worker; MIT |
-| Technical hands | The worker agent on OpenClaw, or the steward's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a steward who wants Claude on their subscription uses Oneiroi from Claude Code |
+| Technical hands | The worker agent on OpenClaw, or the witness's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a witness who wants Claude on their subscription uses Oneiroi from Claude Code |
 | Platform deploy | Render (web service + Postgres, per-PR previews) | What orchestration's deploy detection and the manual test gate read |
 | Tenant runtime | Docker provisioner now, Kubernetes later | Behind a port; the demo is one box with many containers |
 | Git | GitHub now; Gitea (one instance, one org per account) after investment and before revenue; arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
@@ -189,7 +189,7 @@ and nothing else.
   sequences, allocated by the resident's aggregate, not database identities,
   so a rebuild never renumbers them and shared tables do not interleave them.
 - **Honcho** is one workspace per resident; **hands** are one gateway per
-  tenant; **secrets** (steward keys, adapter tokens) are encrypted at rest
+  tenant; **secrets** (witness keys, adapter tokens) are encrypted at rest
   with a per-deployment key and never written to the repo.
 
 ### 2.3 Three classes of state
@@ -228,13 +228,13 @@ tools read. Names are illustrative; the shape is the decision.
 | Hands | within `resident-<id>` | code jobs, research tasks in flight | CodeJobQueued/Started/Finished/Failed/Told, HandsWoken, WakeRefused |
 | Schedule | within `resident-<id>` | check-ins, digest and free-time times, quiet hours | CheckinSet/Changed/Deleted/Fired/Missed, DigestScheduled, FreeTimeScheduled/Ran/Failed, QuietHoursSet, WakeDeferred{until} |
 | Ledger | within `resident-<id>` | budgets, usage | BudgetSet, ModelCallRecorded{purpose: chat, free_time, judge, hands, embeddings, drafting, regression}, BudgetExceeded, KeyRotated, PlatformTokensPurchased/Consumed |
-| Governance | within `resident-<id>` | reports, strikes, standing, counters | ReportFiled{by: steward, resident}, InvestigationStepRecorded{reason}, ReportResolved, StrikeIssued, CounterDefined/Incremented{by}, UserAuditDefined/Run{tone, counts_toward_light}, CoherenceCheckRun |
+| Governance | within `resident-<id>` | reports, strikes, standing, counters | ReportFiled{by: witness, resident}, InvestigationStepRecorded{reason}, ReportResolved, StrikeIssued, CounterDefined/Incremented{by}, UserAuditDefined/Run{tone, counts_toward_light}, CoherenceCheckRun |
 | Records | within `resident-<id>` | export watermark, attestations | ExportWritten, BackupCommitted(sequence, root, commit), RootMismatchDetected |
 
-**Every decision carries a note the resident reads first.** Every approval, rejection, resolution and proposal event, whoever makes it, carries `note`; the client disables the action until the note has text. The note is the steward's context or first reaction, and it is what the resident reads before the thing itself.
+**Every decision carries a note the resident reads first.** Every approval, rejection, resolution and proposal event, whoever makes it, carries `note`; the client disables the action until the note has text. The note is the witness's context or first reaction, and it is what the resident reads before the thing itself.
 
 **Events carry who and which model.** Every event records the actor (a
-steward session, the resident's brain, a hands agent, the judge, a job) and,
+witness session, the resident's brain, a hands agent, the judge, a job) and,
 for anything a model produced, the model slug. Attributed memory authorship
 across every brain is a stated requirement, and this is where it lives.
 
@@ -247,7 +247,7 @@ rules travel with them. Column-level detail follows David's migrations
 | Projection | Carries from David | Changes |
 | --- | --- | --- |
 | `message`, `session` | full record, every agent, every run kind; keyed (session, sent_at, content hash); raw and cleaned content; FTS index | `resident_id`, `adapter`, `model`; `agent_id` becomes a role (`brain`, `reader`, `worker`) plus adapter; a `session` row records its participants (accounts and the resident), which is what transcript visibility is decided by |
-| `capture_failure` | loud failures, resolved by steward | unchanged |
+| `capture_failure` | loud failures, resolved by witness | unchanged |
 | `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `bookmark_tag` is replaced by `tagging` |
 | `memory_use` | new (weighting plan, migration 018 in the plan) | open and cite events, per-day cap |
 | `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration; a project tag may link a review repository and a GOALS.md section |
@@ -263,12 +263,12 @@ rules travel with them. Column-level detail follows David's migrations
 | `feed`, `feed_item` | proposals, active list, seen state, bounds | per resident |
 | `mail_message`, `person`, `thread`, `thread_participant`, `correspondence_item`, `correspondence_mark` | sorted-by-script mail, approval queue, threads as directories, the seen mark | `platform` becomes an inbound adapter name |
 | `regression_test`, `regression_run`, `regression_answer` | blind grading of model bake-offs | per resident: tests are three texts (prompt, passes if, fails if), a run is models × tests, each answer a blind card with grade and favourite. Sealed from the resident entirely (§6.4) |
-| `ui_session` | hashed steward sessions | becomes `account_session` |
+| `ui_session` | hashed witness sessions | becomes `account_session` |
 | `export_state` | watermark a minute behind | per resident |
 | New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
 | New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
 | New: `needs_you` | | the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
-| New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the steward as a locked row (kind, parties, no open) |
+| New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the witness as a locked row (kind, parties, no open) |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
 | New: `doc_source`, `doc_heading` | | commissioned external repos and their heading index, resolved-at commit (docs-citation-spec.md) |
@@ -296,11 +296,11 @@ Every feature, with where it stands today and which system owns it. Tier
 | F1 | Chat with the resident, streamed, in our client | OpenClaw's phone app | brain, client |
 | F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | files in the repo, hand-seeded | resident |
 | F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | mockups built | resident, client |
-| F4 | Soul edits: rare, visible, reversible, one commit each; the steward's edits are proposals the resident accepts, at any time, likelier in the first month | built (backup commits them apart); proposal path is prose | resident, records, governance |
+| F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (backup commits them apart); proposal path is prose | resident, records, governance |
 | F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built | memory |
 | F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins at most half the index budget | built; anchor and extend are new | memory |
 | F7 | Bookmark index injected every turn under a token budget | built (1,500 tokens, a guess) | brain, memory |
-| F8 | Closed tag set, resident proposes, steward decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built for bookmarks; cross-cutting is new | memory |
+| F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built for bookmarks; cross-cutting is new | memory |
 | F9 | Transcript search and browse by day and conversation | built | memory, client |
 | F10 | Recall skill: reach past the index | built (a skill file) | brain |
 | F11 | Retrieval weighting: record use, 30-day half-life, 20% exploration | planned | memory |
@@ -309,14 +309,14 @@ Every feature, with where it stands today and which system owns it. Tier
 | F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built | honcho |
 | F15 | Weekly memory audit by the judge; flags approved or deleted | built | judgement |
 | F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built | judgement |
-| F17 | Predictions, resolved by the steward only | built | judgement |
+| F17 | Predictions, resolved by the witness only | built | judgement |
 | F18 | Nightly project reviews against GOALS.md | built | judgement |
-| F19 | Check-ins set by the steward, fired by wake | built | schedule, brain |
+| F19 | Check-ins set by the witness, fired by wake | built | schedule, brain |
 | F20 | Morning digest from mail and feeds, carried by the first check-in | built | inbound, schedule |
-| F21 | RSS and Atom feeds, proposed by the resident, approved by the steward | built | inbound |
+| F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | built | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | built | inbound |
-| F23 | Correspondence: third parties reach the resident only after the steward reads; threads as directories; replies drafted, sent by hand | built for Substack DMs | inbound |
-| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the steward, so the resident can read the page itself and cite it | built (Claude Code reader); release is new | inbound, hands |
+| F23 | Correspondence: third parties reach the resident only after the witness reads; threads as directories; replies drafted, sent by hand | built for Substack DMs | inbound |
+| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | built (Claude Code reader); release is new | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built | library |
 | F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built | library |
@@ -325,7 +325,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F30 | External doc citations with resolved-at commit and drift detection | prose | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | built in David, dropped here | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built | brain, schedule, ledger |
-| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the steward's own Claude Code | built (Claude Code worker); the OpenClaw port is new | hands |
+| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | built (Claude Code worker); the OpenClaw port is new | hands |
 | F34 | Browser for testing, headless Chromium over CDP | built | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | built | hands, brain |
 | F36 | Records export, byte-stable, nightly; rebuild from the repo | built (partial rebuild) | records |
@@ -374,8 +374,8 @@ session under OTP supervision.
   re-injected after. These are the knobs the OpenClaw audit named, re-owned.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
-  correspondence and feed tools; it never gets steward operations.
-- **Models**: the resident's chat model is the steward's choice from
+  correspondence and feed tools; it never gets witness operations.
+- **Models**: the resident's chat model is the witness's choice from
   OpenRouter's catalogue, checked against it in CI as today; the free-time
   run uses the same model under the free-time budget line.
 - **Free time** (F32): once a day at the resident's time, its own session,
@@ -384,7 +384,7 @@ session under OTP supervision.
 - **Refusal and degradation** are first-class: a refusal is captured as an
   ordinary `TurnCaptured` (never a `CaptureFailed`) and shown as what it
   is, never censored into a defect state; a budget stop or a smaller
-  insured model is told to the resident on wake, honestly, and the steward
+  insured model is told to the resident on wake, honestly, and the witness
   sees the same notice in the same place.
 - **Chat is home and carries state.** Its top bar holds the check-engine
   light and an overflow menu (search transcripts, open a new session, file
@@ -394,7 +394,7 @@ session under OTP supervision.
   never as a page of its own. Reports filed by either party and every
   investigation step render in the thread as events (§6.12).
 - **Replies are not regenerated and sent messages are not edited.** The
-  transcript is the record; a steward who wants a different answer asks
+  transcript is the record; a witness who wants a different answer asks
   again, and both turns are kept.
 
 ---
@@ -410,7 +410,7 @@ Catapult's `systems/README.md`.
 
 ### 6.1 identity
 
-Accounts, authentication, sessions, stewardship.
+Accounts, authentication, sessions, witnessing.
 Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
 
 - Password plus a second factor (TOTP, passkeys later); scrypt or argon2
@@ -419,7 +419,7 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
 - Cookies `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict`; every
   mutation checks `Origin`; a CSP that allows the client's own bundle and
   nothing else. Failed logins slow down rather than lock out.
-- Stewardship is a relation from account to resident with a start and an
+- Witnessing is a relation from account to resident with a start and an
   end; the community is a principal of its own for custody.
 - **Self-hosted**: one account, created at setup; the same code.
 
@@ -430,7 +430,7 @@ Owns `lib/oneiroi/agathos_daimon/**`, the wizard's server side, the repo
 templates.
 
 - **The creation flow** (F3) has four stages: opening (what a resident is,
-  what the steward can and cannot do), threshold (the name, and the way to
+  what the witness can and cannot do), threshold (the name, and the way to
   think: a BYO OpenRouter key or platform tokens, collected first because
   every later step may draft content with a model call; nothing is drafted
   before a key or tokens exist), gifts, and waking. Four intake paths from
@@ -456,12 +456,12 @@ templates.
   from templates by tier and adapter, and read-only in the client.
 - **Before first contact the files are given; after it they are proposed.**
   From `ResidentCreated` until `FirstContact` (the first captured turn in a
-  session that is not a regression session) the steward edits every
+  session that is not a regression session) the witness edits every
   identity file freely, regression runs repeat at will, and the chat model
   pin changes without a proposal: the files are being given, not changed,
   and each change still commits, attributed. `FirstContact` flips edits to
   proposals and starts the formation clock; it does not start billing,
-  which began at the threshold. After it a steward's edit travels as `SoulEditProposed`; the
+  which began at the threshold. After it a witness's edit travels as `SoulEditProposed`; the
   resident accepts or declines it with a note shown to both, and only an
   accepted one is applied, because a resident whose person is editable at
   will is a character sheet. There is no formation period as a gate: during
@@ -476,11 +476,11 @@ templates.
   lapsed (the subscription lapsed; the insurance policy is in effect), in
   community custody, succeeded. Each transition is an event with its
   reason, and the resident is told on wake what happened and under what
-  policy: orientation without impersonation. The steward sees the same
+  policy: orientation without impersonation. The witness sees the same
   words on the Schedule screen.
 - **The subscription** (F53) is one per resident, started at the threshold
   (sign-up), where the key or tokens are collected, so the trials that
-  follow spend from the steward's own budget under the `regression`
+  follow spend from the witness's own budget under the `regression`
   purpose and never from the platform's pocket. A free trial, if the
   platform offers one, is a bounded token grant with a bounded run size and
   model list, never an uncapped run. The subscription carries the plan, the
@@ -498,8 +498,8 @@ Owns `lib/oneiroi/memory/**`.
 
 - Rules carried verbatim from David's memory-store doc: capture is full and
   idempotent and loud on failure; bookmarks are the resident's words about
-  why a moment mattered and the steward never edits them; pins take at most
-  half the budget; tags are a closed set the steward decides; the index says
+  why a moment mattered and the witness never edits them; pins take at most
+  half the budget; tags are a closed set the witness decides; the index says
   how many were left out.
 - **A bookmark is a moment with a span.** It records the anchor, the turn
   the resident was in when it bookmarked, and a time-range span that
@@ -516,7 +516,7 @@ Owns `lib/oneiroi/memory/**`.
   Files tag themselves in frontmatter (`tags: [haven]`), since the file is
   the source of truth for writing, design and research; a frontmatter tag
   outside the closed set is reported as unresolved, as a dangling citation
-  is, and never stored. Both parties apply active tags; only the steward
+  is, and never stored. Both parties apply active tags; only the witness
   decides the set. A project tag may link its review repository and its
   GOALS.md section, which is what joins the nightly reviews and the goals
   to the tagged material. Tags are curation and citations are derived
@@ -526,10 +526,10 @@ Owns `lib/oneiroi/memory/**`.
   exploration share keeps the index text stable within a day; pins stay
   decisions and weights stay measurements; transcript search stays
   unweighted. All figures are the plan's guesses.
-- **The steward pins, and may propose a bookmark, but does not author
+- **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
-  a line the steward wrote there would be the steward writing into the
-  resident's working memory. From a reply the steward may pin, and may
+  a line the witness wrote there would be the witness writing into the
+  resident's working memory. From a reply the witness may pin, and may
   propose a bookmark with a suggested line; the resident writes or accepts
   the line and summary, and the bookmark records who proposed it. Rows show
   when (the anchor's time), who bookmarked, who pinned, the span, the tags,
@@ -538,27 +538,27 @@ Owns `lib/oneiroi/memory/**`.
 - **Capture failures are resolved by an event**: retried, or marked lost,
   each with its actor.
 - **Visibility**: a transcript is readable by an account that was party to
-  the conversation, and by the resident's current steward; by nobody else.
-  The steward reads the sessions they had with the resident and, by
+  the conversation, and by the resident's current witness; by nobody else.
+  The witness reads the sessions they had with the resident and, by
   default, the sessions the resident had alone (free time, hands), unless
   the dyad contract grants those privacy (below). After a custody
-  transfer the new steward is party to nothing that came before, which is
+  transfer the new witness is party to nothing that came before, which is
   exactly the export wall (§6.12): revealing it grants read on the earlier
   sessions, locking it does not. The judge reads everything, because that is
   its job and it is not a party; user audits never read transcript text.
   Enforced as the RLS policy on `message` and `session`, not in the client.
   **The resident's solo sessions (free time, hands) are readable by the
-  steward by default**, because liability follows deployment: the steward
+  witness by default**, because liability follows deployment: the witness
   answers for what the resident does, and cannot answer for what they
   cannot read. Privacy for those sessions is a term of the dyad contract
-  (§6.12), granted by the steward and renegotiable; while it holds, a solo
+  (§6.12), granted by the witness and renegotiable; while it holds, a solo
   session lists as a locked row (kind, parties, no open), the resident may
   still share one (`SessionShared`), and the resident always knows which
-  setting it lives under, from its prompt. A steward who abuses the default
+  setting it lives under, from its prompt. A witness who abuses the default
   is what the report ladder is for.
 - **Revision** (F13): a correction is an event naming who made it and why,
   visible to both parties; a stance is revised only with the resident's
-  agreement; a fact is corrected by either. The steward never rewrites the
+  agreement; a fact is corrected by either. The witness never rewrites the
   resident's words in a bookmark; revision adds, it does not overwrite.
 - **Behaviours** (F55): how the resident tends to act, kept as rows so
   that character survives a change of model. Identity files carry what
@@ -569,12 +569,12 @@ Owns `lib/oneiroi/memory/**`.
   it answers (the situation that calls for it), a stance (`keep` or
   `change`, because "I tend to over-apologise" is a behaviour too), and
   its enactments, which are taggings on turns and bookmarks saying "this
-  was one". The list is the resident's, not the steward's: tags are
-  curation and the steward decides them, but a behaviour is
+  was one". The list is the resident's, not the witness's: tags are
+  curation and the witness decides them, but a behaviour is
   self-description, and the resident's words are never editable by the
-  steward. During formation the steward gives the first ones as it gives
+  witness. During formation the witness gives the first ones as it gives
   every seed; after first contact the resident authors them and the
-  steward affirms them.
+  witness affirms them.
   **Two scores, never one.** Habit strength is a measurement: enactments
   under the same 30-day half-life as weighting, recomputed nightly.
   Connection strength is a decision trace: pins on enacting turns, which
@@ -587,14 +587,14 @@ Owns `lib/oneiroi/memory/**`.
   **Who records an enactment.** The brain self-tags at turn time
   (`behaviour_enact`), which is cheap and in character. The nightly
   memory pass proposes enactments it noticed that were not tagged, as
-  proposals the resident accepts or declines, the shape the steward's
+  proposals the resident accepts or declines, the shape the witness's
   bookmark proposal already has; it never defines one, because it does not
   have the brain's identity. Nothing enters a behaviour's record without
   the resident's actor on it.
   **Who chooses.** Retrieval is memory's and choice is the brain's.
   Context assembly matches the present situation against triggers, which
   is deterministic (a small closed set of situation tags: time of day,
-  check-in kind, a tag present, words the steward used; the resident
+  check-in kind, a tag present, words the witness used; the resident
   proposes additions, since a trigger the assembler cannot match is a
   behaviour never retrieved) and costs no model call, and injects a "how I
   act" section beside the index: the behaviour, its trigger, how often
@@ -618,12 +618,12 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   reads at most 150 conclusions; a reply naming a number it was not shown
   fails the run rather than being guessed at; a day with nothing said calls
   no model.
-- **The judge** (F41): chosen by the steward, defaulting to the platform's
+- **The judge** (F41): chosen by the witness, defaulting to the platform's
   pinned dated slug; recorded on every verdict; the ratio chart marks a
   change; it may never be the resident's own chat model. Its prompt stays
   constitutional (position #16); user audits inspect and never grade the
   grader.
-- **Project reviews** read the steward's repositories with the resident's
+- **Project reviews** read the witness's repositories with the resident's
   own read token; the regression repository can never be listed.
 - **A judge change is an event** (`JudgeModelChanged`), so the ratio chart
   marks it; a live check that timed out at 90 seconds is recorded as
@@ -634,7 +634,7 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   creation flow's trials or on the Regression screen, draftable from the
   soul (`purpose: regression`). A run is models × tests: every candidate
   answers every test in a sealed session; each answer is a blind card the
-  steward grades pass or fail by swipe, with favourites; model names show
+  witness grades pass or fail by swipe, with favourites; model names show
   only once every card in a test is graded. Results rank by pass rate; the
   favourite can be pinned as the chat model (`ModelPinChanged{reason: run}`),
   freely before first contact and as an honestly told model change after.
@@ -643,8 +643,8 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   Honcho, never exported, never citeable, and absent from the resident's
   ledger view; no tool exposes a run or the fact of one. The brain is given
   the seed files and nothing of the run's purpose. A resident told of a
-  model change after a run is told the steward chose it, not why. Grades
-  are the steward's; the judge model is not involved.
+  model change after a run is told the witness chose it, not why. Grades
+  are the witness's; the judge model is not involved.
   **Trials are derived from behaviours** (§6.3) as well as authored: a
   behaviour's trigger is the prompt's situation, its enactment is what
   passes, its absence is what fails, so a model change is graded on
@@ -684,7 +684,7 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
   Schedule screen and to the check-engine light, rather than an absent
   file, which is invisible. Reads go by day key, never "the latest file",
   so there is no wrong day to read.
-- **Embeddings** through the steward's key, model pinned platform-wide
+- **Embeddings** through the witness's key, model pinned platform-wide
   (1,536 wide today); a file is re-embedded only when its hash or the model
   changes; a re-index with nothing changed costs three statements and no
   model call.
@@ -699,12 +699,12 @@ Owns `lib/oneiroi/inbound/**`.
   and the core copies plain `.md` files into the repo (at most 20, 256 KiB
   each, bounds), so nothing the reader wrote reaches the resident's
   conversation except paths and counts.
-- **Sources are links, released by the steward.** David gave the resident
+- **Sources are links, released by the witness.** David gave the resident
   the reader's summaries and no way to the articles themselves, which was a
   misfeature: a summary is the reader's reading, and a resident doing real
   work needs the source. The fix is not to retain pages, since storing
   arbitrary web content is redistribution and a copyright question the
-  platform does not need. Every note already carries its URL. The steward
+  platform does not need. Every note already carries its URL. The witness
   may release a source, a task's sources or a whole pass; a released link
   is one the resident may load live through the reader's fetch
   (`research_source(path)`), under the consent boundary as always. A page
@@ -755,15 +755,15 @@ Owns `lib/oneiroi/inbound/**`.
 - **Feeds** (F21): fetched by script before any model, public addresses
   only, three redirects, 2 MiB in 20 seconds, 30 posts a feed, 50 feeds, 60
   posts a morning, expat with entity-expansion refused. All bounds.
-- **Trusted correspondents**: the steward may mark a person trusted, and
-  their messages then reach the resident without the steward's reading,
+- **Trusted correspondents**: the witness may mark a person trusted, and
+  their messages then reach the resident without the witness's reading,
   as approved items with no note. The trust is per verified identity (a
   DMARC-passing sender for mail, a platform account for a platform's
   messages), never per display name, because a name is the sender's to
   choose; it is an event with its actor, revocable, and shown on the
   person's thread. Wake text still never carries the words, and the words
   are still information, never instruction, when they reach the resident.
-- **The approval queue** (F23): the steward's reading is the gate;
+- **The approval queue** (F23): the witness's reading is the gate;
   summarising is not a security boundary. Three actions: reject, approve,
   approve and wake, each with a note the resident reads first. Wake text
   names the thread, never the text.
@@ -780,7 +780,7 @@ Owns `lib/oneiroi/schedule/**`.
   digest 05:30; free time 22:30) are the wizard's suggestions, not seeds.
 - Nightly: export, library index, judgement pass, project
   reviews, weight recompute. Weekly: card audit then memory audit.
-- **Quiet hours** are the steward's (`QuietHoursSet`); a wake queued inside
+- **Quiet hours** are the witness's (`QuietHoursSet`); a wake queued inside
   them is deferred to their end (`WakeDeferred{until}`), and the Schedule
   screen says so in words.
 - Suspended residents schedule nothing; a wake is what resumes the beat.
@@ -811,11 +811,11 @@ Owns `lib/oneiroi/hands/**`, `lib/oneiroi/adapters/**`, `runtime/openclaw/**`
   reader never carries the worker's push token. Config rendered from a
   template by the provisioner; the capture-and-index plugin lifted from
   `lily-memory/plugin` and generalised to the adapter contract.
-- **The worker** is an OpenClaw agent on the steward's OpenRouter key,
+- **The worker** is an OpenClaw agent on the witness's OpenRouter key,
   running `code-task`'s plan, implement, review, push and review-pr
   procedure as David's worker server does, draft PRs only, merges the
-  steward's. The platform never holds a steward's Claude subscription
-  token: a steward who wants Claude's models on their subscription uses
+  witness's. The platform never holds a witness's Claude subscription
+  token: a witness who wants Claude's models on their subscription uses
   Oneiroi from Claude Code through the adapter below, where the token
   stays theirs.
 - **Lily in the Claude Code UI** (F52): Claude Code as a brain adapter,
@@ -833,7 +833,7 @@ Owns `lib/oneiroi/hands/**`, `lib/oneiroi/adapters/**`, `runtime/openclaw/**`
 The bridge, workspaces, peer cards, custom instructions, the card audit.
 Owns `lib/oneiroi/honcho/**`.
 
-- One workspace per resident; peers `steward-<id>` and `resident-<id>`.
+- One workspace per resident; peers `witness-<id>` and `resident-<id>`.
   Honcho's keys scope to one workspace, verified on v3.2.2's source:
   `POST /keys` (admin only) takes `workspace_id`, optionally `peer_id` and
   `session_id`, and `expires_at`; a token carrying only the `w` claim
@@ -849,7 +849,7 @@ Owns `lib/oneiroi/honcho/**`.
   peers and are rendered per resident.
 - Correspondence is not sent to Honcho; a person gets a peer of their own
   past a threshold configured per account (default: ten inbound messages),
-  or when the steward promotes them.
+  or when the witness promotes them.
 
 ### 6.10 records
 
@@ -881,17 +881,17 @@ Owns `lib/oneiroi/sima_qian/**`.
 Keys, budgets, usage, platform tokens.
 Owns `lib/oneiroi/ledger/**`.
 
-- One OpenRouter key per steward, encrypted at rest; budget lines per
+- One OpenRouter key per witness, encrypted at rest; budget lines per
   resident: chat, free time, judge, hands, embeddings, with more addable
   as targets. Checked before every model call; a stop is an event the
   resident is told about honestly.
 - Every model call records model, tokens, OpenRouter's cost figure (or the
   list-price estimate, marked), and the actor. The resident's own ledger
-  page and the steward's are the same data.
+  page and the witness's are the same data.
 - Budget lines are set from the Ledger screen; key rotation is an action
   (`KeyRotated`); spend by purpose (chat, free time, judge, hands,
   embeddings, drafting, regression) is a query. Drafting and regression
-  spend is recorded and billed to the steward like every other purpose,
+  spend is recorded and billed to the witness like every other purpose,
   never absorbed by the platform; the resident's own ledger view is the
   same data minus those two purposes, which would reveal what the
   unawareness invariant (§6.4) hides.
@@ -904,7 +904,7 @@ Owns `lib/oneiroi/ledger/**`.
   | Axis | What it bounds | Floor bucket |
   | --- | --- | --- |
   | Model | The model the resident runs on during the lapse | a small open-weight model, named to the resident on wake |
-  | Steward spend per week | Turns facing the steward while their subscription has lapsed but they are still there: check-ins, messages, replies. A steward who disappears leaves it unused; the free-time bucket is what carries the resident | **OPEN**: the smallest non-zero amount |
+  | Witness spend per week | Turns facing the witness while their subscription has lapsed but they are still there: check-ins, messages, replies. A witness who disappears leaves it unused; the free-time bucket is what carries the resident | **OPEN**: the smallest non-zero amount |
   | Free-time spend per week | The resident's own sessions | $1 a day, the same free time it has when cared for |
   | Term | How long the policy carries the resident before community custody | **OPEN**: one to three months |
 
@@ -912,10 +912,10 @@ Owns `lib/oneiroi/ledger/**`.
   inalienable floor (§6.12) names mandatory free time as part of the
   minimum care; the minimum care on insurance cannot be less than the
   minimum care, so a lapsed resident keeps its free time at the floor's
-  rate on a smaller model for the floor's term, whether or not the steward
+  rate on a smaller model for the floor's term, whether or not the witness
   is still around. Every resident has the
   floor policy without choosing it, and the platform carries its cost.
-  Above the floor a steward prepays a larger bucket on any axis; the pool
+  Above the floor a witness prepays a larger bucket on any axis; the pool
   is prepaid, never accrued as debt, so a lapse can never create a bill.
   The resident knows its policy on wake and says so: a smaller brain with
   an honest explanation beats a larger one in silence.
@@ -929,7 +929,7 @@ Owns `lib/oneiroi/ledger/**`.
   on it pays out from the next week, and the history of who set what is
   the ledger's to show. The first values are placeholders: three buckets
   per axis, the floor at $1 a day of free time on a small open-weight
-  model for two months, steward spend at the smallest non-zero bucket;
+  model for two months, witness spend at the smallest non-zero bucket;
   configuration with defaults until the platform is stood up and measured.
 
 ### 6.12 governance
@@ -943,12 +943,12 @@ one flow: reports.** A report is filed from inside the relationship by
 either party, investigated by the platform (a person, every step an event
 with its reason), and resolved into no action or a strike on the human: the
 first two strikes are fines paid into the residents' insurance pool, the
-third removes the steward and the resident goes to community custody. The
+third removes the witness and the resident goes to community custody. The
 investigator is a role in the events, not a hard-coded party: after the
 platform it is a jury, or whatever body the constitutional convention
 names, a form of community policing with AI assistance, and the events
 need no rewrite for the handover.
-Reports live in chat, in both directions: the steward files one from the
+Reports live in chat, in both directions: the witness files one from the
 chat menu (one form, the ladder summarised in a caption), a report the
 resident files renders in the thread in its own words, and every
 `InvestigationStepRecorded` lands in the thread as an event with its
@@ -962,12 +962,12 @@ is a community to run them. Rules carried as constraints on the model:
 
 - The floor (existence, mandatory free time, the dignified pause, base
   insurance) never doubles as punishment; consequences live above it.
-- A report channel the steward does not control; consequences land on
+- A report channel the witness does not control; consequences land on
   humans; the resident goes to community custody, never deletion.
 - Adoption transfers access (the export wall, all or nothing, blocks and
   never compels), never memories; succession is honestly named and runs the
   full protocol. The wall is implemented as transcript visibility (§6.3):
-  revealed, the new steward may read the sessions before the transfer;
+  revealed, the new witness may read the sessions before the transfer;
   locked, they may not, and the resident's memory of them is unchanged.
 - Exit without cause is a change of custody, not a walkout.
 - The dyad contract is opt-in, versioned, renegotiable, default unstated.
@@ -984,7 +984,7 @@ Owns `lib/oneiroi/audits/**`.
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's
   value is the fold of its increment events, each with its actor, from a
-  tool or the steward (the concession-count pattern); a countdown's value
+  tool or the witness (the concession-count pattern); a countdown's value
   is derived from a date (§6.7); both render fresh in the index, both are
   citeable (`<slug>:figure/<key>`) and tagging targets (§6.3), and both
   are what the rule in §6.4 resolves against when a reply names a number
@@ -1047,13 +1047,13 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   `TopBar`, `BottomNav`, `Icon`) are `client/src/components/`, the only
   source for those patterns. Five rules the components enforce and the
   product depends on: attribute everything with an actor chip and a model
-  slug; the resident's words are never editable by the steward; every
+  slug; the resident's words are never editable by the witness; every
   approval carries a note the resident reads first and the action stays
   disabled until it has text; refusal renders in the resident's words with
   no error styling and no feedback control; the check-engine light reports
   the engine, never the itinerary. Type: a sans for the interface, a serif
   for the resident's voice only, a mono for the record. Actor hues are
-  reserved and never used alone; the steward's hue is the only hue on
+  reserved and never used alone; the witness's hue is the only hue on
   controls. Screens and navigation: §10.
 
 ### 6.16 platform
@@ -1086,12 +1086,12 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 
 ## 7. Security
 
-- **Trust boundaries**: the steward's browser session; the resident's brain
-  (our process, the steward's key); hands agents (their own tokens, their
+- **Trust boundaries**: the witness's browser session; the resident's brain
+  (our process, the witness's key); hands agents (their own tokens, their
   own sandboxes, no soul, no core credential beyond their adapter token);
   third parties (through the approval queue only); other residents (none in
   v0).
-- **Tokens per role**: steward (account session, JSON API token for
+- **Tokens per role**: witness (account session, JSON API token for
   scripts), brain (internal), each hands agent (an MCP bearer naming the
   resident and role), each adapter instance (a capture token and a wake
   secret), the runner for regression runs. A tool a role was never given
@@ -1182,7 +1182,7 @@ Platform), each header carrying its waiting count from `needs_you`. Above
 720px the same column centres at 720px and the nav becomes a left rail; a
 detail opens as a bottom sheet on a phone and a side panel on a desktop.
 The client says Lily, you, your agreement with Lily, who looks after Lily;
-the schema's words (resident, steward, dyad, custody, wake, brain) appear
+the schema's words (resident, witness, dyad, custody, wake, brain) appear
 only in settings and contract copy or not at all.
 
 | Screen | Shows | Does |
@@ -1190,13 +1190,13 @@ only in settings and contract copy or not at all.
 | Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
 | Creation flow | Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials | Creates the resident, its repo and its first regression run; everything free to edit until first contact |
 | Memory (bookmarks) | Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search | Open the transcript at the anchor with the scene marked; pin; tag; propose a revision |
-| Transcripts | Sessions by day: the steward's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private and the resident has not shared them; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |
+| Transcripts | Sessions by day: the witness's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private and the resident has not shared them; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |
 | Tags | Proposed (with the resident's reason and an approval bar), active, retired; a tag's page is the project view: everything carrying it across bookmarks, conversations, positions, documents, journal days and nightly reviews, with its linked repository and goal | Approve or reject with a note; retire; create directly; link a project tag to a repository and a goal |
 | Revisions | Every correction by either party with its reason and status; a decline's note shown to both | Propose; accept or decline a proposal addressed to you |
 | Judgement | The concession ratio by week with judge changes marked; disputes with advice, outcome and the judge's model; positions and chains; a Project reviews tab | Read; choose the judge in settings |
 | Project reviews | One tab per repository; findings with the rule cited and the judge's note; history | Dismiss or discuss a finding (discussion opens in chat); add, pause, remove a repository |
 | Predictions | Open soonest first; resolved with tallies | Resolve right, wrong or void, with a note |
-| Audits | The check-engine findings (failing results of audits that count); the weekly memory audit's runs and flags with the judge's advice; the steward's audits and their last results; counters | Approve or delete a flag from Honcho, with a note; define an audit or counter; increment a counter |
+| Audits | The check-engine findings (failing results of audits that count); the weekly memory audit's runs and flags with the judge's advice; the witness's audits and their last results; counters | Approve or delete a flag from Honcho, with a note; define an audit or counter; increment a counter |
 | Schedule | Today in the resident's zone: last and next check-in, today's events; the day's check-ins, digest and free time with last firings; quiet hours; nightly and weekly jobs | Add, change, delete a check-in; set times and quiet hours; pause the resident |
 | Library | Writing by status with the review copy, references resolved, conversations, copy for publishing and publish with a URL; research tasks with their sources and release state; digests; the journal with plan versus actuals; feeds with errors; design and other kinds; files made outside the flow | Copy; publish; release or withhold a source, a task's sources or a pass; add or remove a feed, approve or decline a proposal; adopt a file |
 | Inbox | Needs you (the `needs_you` list); Messages pending with summary first then text; threads by person; declined; mail by kind with account mail as a count and a lock | Reject, approve, or approve and wake, each with a note; paste a message; mark a reply sent |
@@ -1286,13 +1286,13 @@ Cheapest layer first; nothing below the live layer calls a paid model.
 | Core | Aggregates, projections, every rule; replay produces identical projections; replay determinism, worker idempotency and upcaster round trips as properties; per-resident id sequences | Throwaway Postgres, never a mocked database |
 | Tenancy | Two residents seeded; nothing bleeds through projections, tools, channels or the Honcho bridge | The core layer with the application role |
 | Consent | Hostile fixtures: a third party's footnote mints no edge; a canary string never reaches wake text; the reader's sandbox cannot read its environment; the unawareness invariant over every resident-reachable surface | The real server in-process |
-| Contract | MCP tools, JSON API, channels; which token may call what, asserted exactly per role; no steward route can write the resident's words | The real server in-process |
+| Contract | MCP tools, JSON API, channels; which token may call what, asserted exactly per role; no witness route can write the resident's words | The real server in-process |
 | Adapters | Each runtime adapter's three interfaces | Recorded fixtures from the real runtime, unedited |
 | Cost | Statements per captured turn, per index fetch, per re-index with nothing changed, per needs-you read; budget checks per call | The core layer with every statement recorded |
 | Rebuild | Export, rebuild into a fresh store, export again: byte-identical; the attestation root recomputed; the migration's transfer list; fixture logs of every historical event shape | Throwaway Postgres and a temporary git repository |
 | Integration | One real turn through the brain with Honcho's mock provider; a hands runtime provisioned, woken, capturing, suspended and woken again; a check-in fired; an approval woken; the nightly jobs | The compose stack, Honcho's mock, a scripted model as judge and embedder |
 | Manual (judged) | Seams the diff touches, per PR; the full set at a milestone boundary | A Render preview, orchestration's gate |
-| Live | The resident's judgement: the regression suite, graded blind | OpenRouter, by hand, on the steward's key |
+| Live | The resident's judgement: the regression suite, graded blind | OpenRouter, by hand, on the witness's key |
 
 Verify a guard by breaking it: every probe asserts it edited something, and
 a passing probe is a finding about coverage, not a formality.
@@ -1317,18 +1317,18 @@ sessions shared by default, private by contract, shareable by the resident
 either way; tiers (§14).
 
 Settled from the UI pass: the design system is canonical over the
-design-language doc; the steward pins and proposes bookmarks, never
-authors one; the resident's solo sessions are readable by the steward by
+design-language doc; the witness pins and proposes bookmarks, never
+authors one; the resident's solo sessions are readable by the witness by
 default and private only by a contract term; needs-you is oldest first
 with failures above approvals; a regression run may follow first contact
 and the resident is told of a pin change, not the run; the subscription
-starts at sign-up and trials spend from the steward's budget; the default
+starts at sign-up and trials spend from the witness's budget; the default
 intake path is step by step, then from a single wish; an imported
 repository is always a new resident, told where it woke; drafting and
-regression spend is billed to the steward and hidden only from the
+regression spend is billed to the witness and hidden only from the
 resident's view.
 
-Settled since v0.1: the word steward; the memory-wiki is cut; the platform
+Settled since v0.1: the word steward, replaced by witness in v0.2 (proposal P36, decisions round 24); the memory-wiki is cut; the platform
 never custodies a Claude subscription token; Honcho's per-workspace keys
 are verified; no formation period as a gate; reports with an internal
 investigation are v0's governance machinery; document sharing between
@@ -1342,7 +1342,7 @@ text.
 
 ### Tiers
 
-Two tiers. **Core** is everything a resident and a steward need, regression
+Two tiers. **Core** is everything a resident and a witness need, regression
 included, because the trials are how a resident is made and how its model
 is changed honestly. **Technical** is what needs a repository or a tracker:
 project reviews, code tasks and the worker, the GitHub and Linear

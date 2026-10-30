@@ -8,7 +8,7 @@ thing that is a role and not a party.
 
 ## #9
 Spec §6.12: "a report is filed from inside the relationship by either
-party"; "a report channel the steward does not control".
+party"; "a report channel the witness does not control".
 
 ## #10
 Spec §6.12: "every step an event with its reason"; "reports live in
@@ -18,12 +18,12 @@ the thread as an event with its reason. There is no Report screen."
 ## #11
 Spec §6.12: "resolved into no action or a strike on the human: the
 first two strikes are fines paid into the residents' insurance pool,
-the third removes the steward and the resident goes to community
+the third removes the witness and the resident goes to community
 custody"; "consequences land on humans; the resident goes to community
 custody, never deletion". The count lives on the stream so a rebuild
 counts the same.
 
 ## #12
-Spec §6.12's rule that the steward does not control the channel: the
-steward reads, never records; the resident reads in chat because that
+Spec §6.12's rule that the witness does not control the channel: the
+witness reads, never records; the resident reads in chat because that
 is where the spec puts reports.

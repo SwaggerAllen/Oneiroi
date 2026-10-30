@@ -5,7 +5,7 @@ defmodule Oneiroi.Glitnir do
   platform's people with every step an event carrying its reason, and
   resolved into no action or a strike on the human: the first two
   strikes are fines paid into the residents' insurance pool, the third
-  removes the steward and the resident goes to community custody. The
+  removes the witness and the resident goes to community custody. The
   investigator is a role in the events, named by configuration, never a
   hard-coded party. Reports live in chat, in both directions.
   """
@@ -92,7 +92,7 @@ defmodule Oneiroi.Glitnir do
   def errors do
     [
       {:glitnir_not_a_party,
-       "a report is filed from inside the relationship: by the resident or its steward",
+       "a report is filed from inside the relationship: by the resident or its witness",
        remedy: "file as one of the two"},
       {:glitnir_not_an_investigator, "investigation steps and resolutions are the investigators'",
        remedy: "an account named in GLITNIR_INVESTIGATORS does this"},
@@ -109,7 +109,7 @@ defmodule Oneiroi.Glitnir do
   @impl Oneiroi.Component
   def children, do: [Oneiroi.Glitnir.Projectors.Reports]
 
-  @doc "Files a report (the resident's or the steward's), rendered into the main session; returns its number."
+  @doc "Files a report (the resident's or the witness's), rendered into the main session; returns its number."
   @spec file_report(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
   defexport(file_report(resident_id, text, actor), do: Cases.file(resident_id, text, actor))
@@ -132,7 +132,7 @@ defmodule Oneiroi.Glitnir do
   @spec reports(String.t()) :: [map()]
   defexport(reports(resident_id), do: Cases.reports(resident_id))
 
-  @doc "The strikes on the resident's stewards, in order."
+  @doc "The strikes on the resident's witnesses, in order."
   @spec strikes(String.t()) :: [Oneiroi.Glitnir.Store.Strike.t()]
   defexport(strikes(resident_id), do: Cases.strikes(resident_id))
 

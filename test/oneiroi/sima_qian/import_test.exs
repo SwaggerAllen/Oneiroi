@@ -21,15 +21,15 @@ defmodule Oneiroi.SimaQian.ImportTest do
   @identity ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
 
   setup do
-    steward = Fixtures.account!()
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    witness = Fixtures.account!()
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     Model.clear()
     bare = tmp("bare")
     :ok = Git.init_bare(bare)
     created = [bare]
     on_exit(fn -> Enum.each(created, &File.rm_rf!/1) end)
-    {:ok, steward: steward, actor: actor, bare: bare}
+    {:ok, witness: witness, actor: actor, bare: bare}
   end
 
   defp tmp(name),
@@ -84,7 +84,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
              SimaQian.import_resident(
                url,
                %{name: "Lily", slug: "lily-moved"},
-               ctx.steward.id,
+               ctx.witness.id,
                ctx.actor
              )
 
@@ -106,7 +106,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
               ]
             }} = AgathosDaimon.fetch(id)
 
-    assert custody == "account:" <> ctx.steward.id
+    assert custody == "account:" <> ctx.witness.id
 
     assert [
              %{name: "SOUL.md", origin: "uploaded", content: "# Lily\n\nI am Lily."},
@@ -134,12 +134,12 @@ defmodule Oneiroi.SimaQian.ImportTest do
              SimaQian.import_resident(
                url,
                %{name: "Lily", slug: "lily-again"},
-               ctx.steward.id,
+               ctx.witness.id,
                ctx.actor
              )
 
     # Told where it woke on the first turn, as a system message, once.
-    {:ok, key} = Kumbukumbu.main_session(id, ctx.steward.id, ctx.actor)
+    {:ok, key} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.actor)
     Honcho.clear(for: id)
     on_exit(fn -> Model.clear(for: id) end)
 
@@ -168,7 +168,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
        ctx do
     b = Fixtures.account!()
     r = Fixtures.resident!(b)
-    b_actor = Actor.new(:steward, b.id)
+    b_actor = Actor.new(:witness, b.id)
 
     :ok =
       AgathosDaimon.write_file(
@@ -210,14 +210,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
               adopted: 0,
               not_transferred: []
             }} =
-             SimaQian.import_resident(url, %{}, ctx.steward.id, ctx.actor)
+             SimaQian.import_resident(url, %{}, ctx.witness.id, ctx.actor)
 
     assert events > 0
     on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
     refute id == r.id
     assert {:ok, %{slug: slug, custody: custody, import_told: false}} = AgathosDaimon.fetch(id)
     assert slug == r.slug <> "-" <> String.slice(id, 0, 8)
-    assert custody == "account:" <> ctx.steward.id
+    assert custody == "account:" <> ctx.witness.id
 
     assert [%{name: "SOUL.md", content: "# Lily\n\nthe seed", origin: "authored"}] =
              AgathosDaimon.files(id)
@@ -238,7 +238,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
              SimaQian.import_resident(
                ctx.bare,
                %{name: "Lily", slug: "lily-path"},
-               ctx.steward.id,
+               ctx.witness.id,
                ctx.actor
              )
 
@@ -250,14 +250,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
              SimaQian.import_resident(
                "http://example.invalid/x.git",
                %{name: "Lily", slug: "lily-http"},
-               ctx.steward.id,
+               ctx.witness.id,
                ctx.actor
              )
 
     lily_repo!(ctx.bare)
 
     assert {:error, %Oneiroi.SimaQian.Error{kind: :sima_qian_name_required}} =
-             SimaQian.import_resident("file://" <> ctx.bare, %{}, ctx.steward.id, ctx.actor)
+             SimaQian.import_resident("file://" <> ctx.bare, %{}, ctx.witness.id, ctx.actor)
 
     assert Scope.platform(fn ->
              Store.imported(
@@ -266,7 +266,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
              )
            end) == nil
 
-    assert AgathosDaimon.for_steward(ctx.steward.id) == []
+    assert AgathosDaimon.for_witness(ctx.witness.id) == []
   end
 
   test "the source is recorded without its userinfo, where a GitHub URL carries the token" do

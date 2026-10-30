@@ -84,25 +84,25 @@ defmodule Oneiroi.Gaia.AccountTest do
              })
   end
 
-  test "stewardship starts and ends idempotently, so a replayed handler changes nothing" do
-    start = %Commands.StartStewardship{actor: @actor, at: @at, id: "a1", resident_id: "r1"}
+  test "witnessing starts and ends idempotently, so a replayed handler changes nothing" do
+    start = %Commands.StartWitnessing{actor: @actor, at: @at, id: "a1", resident_id: "r1"}
 
-    assert %Events.StewardshipStarted{resident_id: "r1"} =
+    assert %Events.WitnessingStarted{resident_id: "r1"} =
              event = Account.execute(created(), start)
 
-    stewarding = Account.apply(created(), event)
-    assert [] == Account.execute(stewarding, start)
+    witnessing = Account.apply(created(), event)
+    assert [] == Account.execute(witnessing, start)
 
     assert [] ==
-             Account.execute(created(), %Commands.EndStewardship{
+             Account.execute(created(), %Commands.EndWitnessing{
                actor: @actor,
                at: @at,
                id: "a1",
                resident_id: "r1"
              })
 
-    assert %Events.StewardshipEnded{} =
-             Account.execute(stewarding, %Commands.EndStewardship{
+    assert %Events.WitnessingEnded{} =
+             Account.execute(witnessing, %Commands.EndWitnessing{
                actor: @actor,
                at: @at,
                id: "a1",

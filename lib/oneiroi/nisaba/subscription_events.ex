@@ -39,7 +39,7 @@ defmodule Oneiroi.Nisaba.Events.Subscription do
 
   defmodule PolicySet do
     # One bucket per axis, by id (spec §6.11).
-    use Oneiroi.Event, version: 1, fields: [:id, :model, :steward, :free_time, :term]
+    use Oneiroi.Event, version: 1, fields: [:id, :model, :witness, :free_time, :term]
   end
 
   defmodule Prepaid do

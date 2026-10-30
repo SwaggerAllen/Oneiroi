@@ -14,15 +14,15 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
   @day 86_400
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Fake.clear()
     on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
   defp attrs, do: %{plan: "core", price_nanos: 12_000_000_000, period_days: 30}
@@ -32,7 +32,7 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
     id = ctx.id
     assert nil == Nisaba.subscription(id)
 
-    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_steward}} =
+    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_witness}} =
              Nisaba.start_subscription(id, attrs(), ctx.brain)
 
     assert {:error, %Nisaba.Error{kind: :nisaba_no_subscription}} =
@@ -64,7 +64,7 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
     assert :ok = Nisaba.change_plan(id, "plus", 20_000_000_000, ctx.actor)
 
     assert {:error, %Nisaba.Error{kind: :nisaba_bucket_invalid}} =
-             Nisaba.prepay(id, "free_time", "steward/high", ctx.actor)
+             Nisaba.prepay(id, "free_time", "witness/high", ctx.actor)
 
     assert {:error, %Nisaba.Error{kind: :nisaba_bucket_invalid}} =
              Nisaba.prepay(id, "luck", "luck/high", ctx.actor)
@@ -85,18 +85,18 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
              Enum.find(Nisaba.insurance_buckets(), &(&1.id == "term/floor"))
   end
 
-  test "a lapse puts the policy into effect: the resident is lapsed, the brain runs on the floor model and is told once, the policy is the budget and covers only the steward's turns and free time; a renewal resumes",
+  test "a lapse puts the policy into effect: the resident is lapsed, the brain runs on the floor model and is told once, the policy is the budget and covers only the witness's turns and free time; a renewal resumes",
        ctx do
     id = ctx.id
     :ok = Nisaba.start_subscription(id, attrs(), ctx.actor)
-    # A line the steward set to nothing: under the lines, every chat call stops.
+    # A line the witness set to nothing: under the lines, every chat call stops.
     :ok = Nisaba.set_budget(id, :chat, 0, :month, ctx.actor)
     request = Request.new("fake/model", [%{role: :user, content: "hi"}])
 
     assert {:error, %Nisaba.Error{kind: :nisaba_budget_exceeded}} =
              Nisaba.call(id, :chat, request, ctx.brain)
 
-    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_steward}} =
+    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_witness}} =
              Nisaba.lapse_subscription(id, "x", ctx.brain)
 
     assert :ok = Nisaba.lapse_subscription(id, "card declined", ctx.actor)
@@ -105,7 +105,7 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
     assert %{model: "meta-llama/llama-3.1-8b-instruct", told: false, term_days: 60} =
              Nisaba.lapse(id)
 
-    # The policy is the budget now: the steward's turns go, the judge does not.
+    # The policy is the budget now: the witness's turns go, the judge does not.
     assert {:ok, _} = Nisaba.call(id, :chat, request, ctx.brain)
     assert {:ok, _} = Nisaba.call(id, :free_time, request, ctx.brain)
 
@@ -152,7 +152,7 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
     id = ctx.id
     :ok = Nisaba.start_subscription(id, attrs(), ctx.actor)
 
-    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_steward}} =
+    assert {:error, %Nisaba.Error{kind: :nisaba_not_the_witness}} =
              Nisaba.cancel_subscription(id, "x", ctx.brain)
 
     assert :ok = Nisaba.cancel_subscription(id, "moving on", ctx.actor)
@@ -162,9 +162,9 @@ defmodule Oneiroi.Nisaba.SubscriptionsTest do
     assert {:error, %Nisaba.Error{kind: :nisaba_cancelled}} =
              Nisaba.renew_subscription(id, ctx.actor)
 
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
-    other_actor = Actor.new(:steward, other_steward.id)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
+    other_actor = Actor.new(:witness, other_witness.id)
     :ok = Nisaba.start_subscription(other.id, attrs(), other_actor)
 
     assert :ok = Nisaba.subscription_nightly(id, ctx.actor)

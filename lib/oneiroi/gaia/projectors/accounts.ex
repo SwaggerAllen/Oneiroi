@@ -4,7 +4,7 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Account, Session, Stewardship, Token}
+  alias Oneiroi.Gaia.Store.{Account, Session, Token, Witnessing}
 
   fold(%Events.AccountCreated{} = e, _metadata, fn multi ->
     Multi.insert(multi, :account, %Account{
@@ -60,18 +60,18 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
     Multi.update_all(multi, :revoked, token(e.token_hash), set: [revoked_at: e.at])
   end)
 
-  fold(%Events.StewardshipStarted{} = e, _metadata, fn multi ->
+  fold(%Events.WitnessingStarted{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,
-      :stewardship,
-      %Stewardship{account_id: e.id, resident_id: e.resident_id, started_at: e.at},
+      :witnessing,
+      %Witnessing{account_id: e.id, resident_id: e.resident_id, started_at: e.at},
       on_conflict: [set: [started_at: e.at, ended_at: nil]],
       conflict_target: [:account_id, :resident_id]
     )
   end)
 
-  fold(%Events.StewardshipEnded{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :ended, stewardship(e.id, e.resident_id), set: [ended_at: e.at])
+  fold(%Events.WitnessingEnded{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :ended, witnessing(e.id, e.resident_id), set: [ended_at: e.at])
   end)
 
   import Ecto.Query, only: [from: 2]
@@ -80,6 +80,6 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   defp session(hash), do: from(s in Session, where: s.hash == ^hash)
   defp token(hash), do: from(t in Token, where: t.hash == ^hash)
 
-  defp stewardship(a, r),
-    do: from(s in Stewardship, where: s.account_id == ^a and s.resident_id == ^r)
+  defp witnessing(a, r),
+    do: from(s in Witnessing, where: s.account_id == ^a and s.resident_id == ^r)
 end

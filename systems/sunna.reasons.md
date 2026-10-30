@@ -8,7 +8,7 @@ An absent file is invisible and the next file is read in its place; a row with n
 
 ## #10
 Spec §6.7: "in the resident's timezone." A check-in at 06:00 is 06:00
-where the resident lives or it is nothing the steward set; Erlang ships
+where the resident lives or it is nothing the witness set; Erlang ships
 no zone data, so the database is a declared dependency rather than an
 assumption about the host.
 
@@ -33,7 +33,7 @@ shape: a time already past on the day it was made.
 
 ## #14
 Spec §5 (free-time sessions) and §6.11 (its own budget line): a session
-nobody is waiting on, billed where the steward can see it. A failure
+nobody is waiting on, billed where the witness can see it. A failure
 recorded once keeps a broken provider from being retried every minute
 until midnight.
 
@@ -54,7 +54,7 @@ it on ask keeps one owner for what a day is.
 
 ## #19
 Spec §6.3: "the resident's solo sessions (free time, hands) are
-readable by the steward by default, because liability follows
+readable by the witness by default, because liability follows
 deployment... privacy for those sessions is a term of the dyad
 contract". The schedule opens the session, so the schedule reads the
 term.

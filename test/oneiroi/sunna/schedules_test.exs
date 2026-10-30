@@ -18,18 +18,18 @@ defmodule Oneiroi.Sunna.SchedulesTest do
   @zone "America/New_York"
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     :ok = AgathosDaimon.set_timezone(resident.id, @zone, actor)
     Fake.clear()
     Fake.reply("Good morning.", for: resident.id)
-    {:ok, steward: steward, id: resident.id, actor: actor}
+    {:ok, witness: witness, id: resident.id, actor: actor}
   end
 
   defp transcript(ctx, key) do
-    {:ok, _session, messages} = Kumbukumbu.transcript({:account, ctx.steward.id}, key)
+    {:ok, _session, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, key)
     messages
   end
 
@@ -56,19 +56,19 @@ defmodule Oneiroi.Sunna.SchedulesTest do
 
     assert [%{day: "2026-10-26"}] = Sunna.days(ctx.id, 10)
 
-    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.steward.id, ctx.actor)
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
     assert [note, reply] = transcript(ctx, main)
     assert note.role == "system" and note.actor_kind == "platform"
     assert note.content =~ "This is your morning check-in, at 08:05"
     assert note.content =~ "Your next check-in is morning at 08:05"
     assert reply.role == "assistant" and reply.content == "Good morning."
-    assert [%{key: "chat", calls: 1}] = Nisaba.spend(ctx.id, :steward, :purpose, @since)
+    assert [%{key: "chat", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
 
     # Once a day whatever restarts: the next tick inside the window is no second wake.
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
     assert [_, _] = transcript(ctx, main)
-    assert [%{key: "chat", calls: 1}] = Nisaba.spend(ctx.id, :steward, :purpose, @since)
+    assert [%{key: "chat", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
   end
 
   test "one set or changed after its time today waits for tomorrow; one past the window is missed, said rather than silent",
@@ -154,7 +154,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert [note, reply] = transcript(ctx, key)
     assert note.role == "system" and note.content =~ "This is your free time, Lily"
     assert reply.content == "Good morning."
-    assert [%{key: "free_time", calls: 1}] = Nisaba.spend(ctx.id, :steward, :purpose, @since)
+    assert [%{key: "free_time", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
     assert %{free_time: "08:00", free_time_last: {"2026-10-26", "ran"}} = Sunna.today(ctx.id)
 
     Clock.Fake.advance(60)
@@ -201,12 +201,12 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     Clock.Fake.advance(24 * 3600)
     assert Sunna.dates_text(ctx.id) =~ "9 days to visa interview"
 
-    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.steward.id, ctx.actor)
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
 
     {:ok, %{turn_ref: ref}} =
       Oneiroi.Brain.turn(ctx.id, main, "when is the interview?", ctx.actor)
 
-    injections = Kumbukumbu.injections({:account, ctx.steward.id}, ref)
+    injections = Kumbukumbu.injections({:account, ctx.witness.id}, ref)
     assert %{reason: reason, tokens: tokens} = Enum.find(injections, &(&1.label == "dates"))
     assert reason =~ "never written down" and tokens > 0
 
@@ -228,10 +228,10 @@ defmodule Oneiroi.Sunna.SchedulesTest do
 
   test "a paused resident schedules nothing, and the minute job covers every resident with something scheduled",
        ctx do
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
-    other_actor = Actor.new(:steward, other_steward.id)
-    :ok = Oneiroi.Gaia.store_key(other_steward.id, "sk-or-test", other_actor)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
+    other_actor = Actor.new(:witness, other_witness.id)
+    :ok = Oneiroi.Gaia.store_key(other_witness.id, "sk-or-test", other_actor)
     Fake.reply("Hello.", for: other.id)
 
     {:ok, _} = Sunna.set_checkin(ctx.id, nil, "noon", "08:00", ctx.actor)
