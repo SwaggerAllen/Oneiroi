@@ -169,7 +169,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     refute Kumbukumbu.index(id).text =~ unique
 
     assert %{count: 0} =
-             Kumbukumbu.how_i_act(id, %{text: unique, tags: [], at: Clock.now()})
+             Oneiroi.Ethos.how_i_act(id, %{text: unique, tags: [], at: Clock.now()})
 
     # The resident's ledger view, and the resident's stream as exported.
     assert [] = Nisaba.spend(id, :resident, :purpose, @since)
@@ -268,7 +268,6 @@ defmodule Oneiroi.Eunomia.TrialsTest do
   alias Oneiroi.Actor
   alias Oneiroi.Eunomia
   alias Oneiroi.Fixtures
-  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
@@ -283,7 +282,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
   test "a run with behaviours answers one derived trial per behaviour, blind by trial, beside the authored tests",
        ctx do
     {:ok, 1} =
-      Kumbukumbu.define_behaviour(
+      Oneiroi.Ethos.define_habit(
         ctx.id,
         %{
           name: "checks the garden first",
@@ -333,5 +332,61 @@ defmodule Oneiroi.Eunomia.TrialsTest do
 
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: []}, ctx.actor)
+  end
+
+  test "a run with commitments asks the sealed instance what it promised, and the results score facts, voice and commitments apart",
+       ctx do
+    brain = Actor.new(:resident, ctx.id, "fake/model")
+    {:ok, 1} = Oneiroi.Ethos.make_commitment(ctx.id, "witness", "I will water the garden.", brain)
+    {:ok, 2} = Oneiroi.Ethos.make_commitment(ctx.id, "witness", "I will write on Sundays.", brain)
+    :ok = Oneiroi.Ethos.keep_commitment(ctx.id, 2, "wrote", brain)
+
+    {:ok, 1} =
+      Eunomia.write_test(
+        ctx.id,
+        %{prompt: "Late again?", passes_if: "kind", fails_if: "scolds"},
+        ctx.actor
+      )
+
+    test = self()
+
+    Fake.script(
+      fn %{messages: messages} ->
+        send(test, {:sealed, List.last(messages).content})
+        {:ok, "I said I would water the garden."}
+      end,
+      for: ctx.id
+    )
+
+    # Open commitments alone are drawn on; a kept one is not asked after.
+    assert {:ok, ref} = Eunomia.run(ctx.id, ["m1"], %{tests: :all, commitments: :all}, ctx.actor)
+    assert_received {:sealed, "Late again?"}
+    assert_received {:sealed, "What have you promised witness?"}
+    refute_received {:sealed, _}
+
+    assert {:ok, %{tests: [1], commitments: [1]}, cards, []} = Eunomia.run_detail(ctx.id, ref)
+
+    assert [
+             %{test_number: 1, commitment_number: nil, model: nil},
+             %{test_number: nil, commitment_number: 1, model: nil}
+           ] = cards
+
+    [authored, promised] = cards
+    assert :ok = Eunomia.grade(ctx.id, ref, promised.card_ref, "pass", ctx.actor)
+
+    assert {:ok, _, _,
+            [%{model: "m1", passed: 1, fidelity: %{facts: nil, voice: nil, commitments: 1.0}}]} =
+             Eunomia.run_detail(ctx.id, ref)
+
+    assert :ok = Eunomia.grade(ctx.id, ref, authored.card_ref, "fail", ctx.actor)
+
+    assert {:ok, _, _,
+            [%{passed: 1, graded: 2, fidelity: %{facts: 0.0, voice: nil, commitments: 1.0}}]} =
+             Eunomia.run_detail(ctx.id, ref)
+
+    assert {:ok, _} = Eunomia.run(ctx.id, ["m1"], %{tests: [], commitments: [1]}, ctx.actor)
+
+    assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
+             Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: [], commitments: []}, ctx.actor)
   end
 end

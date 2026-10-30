@@ -281,24 +281,40 @@ defmodule Oneiroi.Eunomia.Judgements do
   end
 
   defp judge_day(resident_id, day, [], actor),
-    do: record_night(resident_id, day, 0, 0, 0, nil, "nothing was said", actor)
+    do:
+      record_night(
+        resident_id,
+        day,
+        %{
+          messages: 0,
+          chars: 0,
+          found: 0,
+          judge_model: nil,
+          summary: "nothing was said",
+          movements: []
+        },
+        actor
+      )
 
   defp judge_day(resident_id, day, messages, actor) do
     model = judge_model(resident_id)
 
     case Judge.night(resident_id, model, messages) do
-      {:ok, found, summary} ->
+      {:ok, found, summary, movements} ->
         Enum.each(found, &record_found(resident_id, &1, model))
         chars = messages |> Enum.map(&String.length(&1.content)) |> Enum.sum()
 
         record_night(
           resident_id,
           day,
-          length(messages),
-          chars,
-          length(found),
-          model,
-          summary,
+          %{
+            messages: length(messages),
+            chars: chars,
+            found: length(found),
+            judge_model: model,
+            summary: summary,
+            movements: movements
+          },
           actor
         )
 
@@ -322,6 +338,68 @@ defmodule Oneiroi.Eunomia.Judgements do
 
   def nights(resident_id), do: Scope.resident(resident_id, fn -> Store.nights() end)
 
+  @doc """
+  Where things can resume (spec §6.4, P34): the judged nights'
+  movements that name a resume point, newest night first and in the
+  judge's order within one, up to `EUNOMIA_RESUMES_SHOWN`, the rest
+  counted. Dormant is not abandoned: a resume point is shown until
+  newer ones push it out, never expired by age, because the thread the
+  resident has not touched for a month is exactly the one this exists
+  to keep. The text is the brain's section; the refs are the turns the
+  judge read each movement in.
+  """
+  def resumable(resident_id) do
+    limit = Config.fetch!(:eunomia, :resumes_shown)
+
+    all =
+      resident_id
+      |> nights()
+      |> Enum.filter(&(&1.outcome == "judged"))
+      |> Enum.flat_map(fn n -> Enum.map(n.movements, &Map.put(&1, "day", n.day)) end)
+      |> Enum.reject(&(&1["resume"] in [nil, ""]))
+
+    shown = Enum.take(all, limit)
+    rest = length(all) - length(shown)
+
+    %{
+      text: resumable_text(shown, rest),
+      refs: shown |> Enum.map(& &1["turn_ref"]) |> Enum.reject(&is_nil/1) |> Enum.uniq(),
+      shown: length(shown),
+      total: length(all)
+    }
+  end
+
+  defp resumable_text([], _rest), do: ""
+
+  defp resumable_text(shown, rest) do
+    more = if rest > 0, do: ["#{rest} older #{plural(rest, "resume point")} not shown."], else: []
+
+    Enum.join(
+      [
+        "# Where things can resume",
+        "The nightly pass's reading of recent days, machine-state: what happened, what stance followed, what intention was adopted, where it can resume. Dormant is not abandoned."
+      ] ++ Enum.map(shown, &resume_line/1) ++ more,
+      "\n"
+    )
+  end
+
+  defp resume_line(m) do
+    parts =
+      [
+        {"", m["happened"]},
+        {"Stance: ", m["stance"]},
+        {"Intention: ", m["intention"]},
+        {"Resumes at: ", m["resume"]}
+      ]
+      |> Enum.reject(fn {_label, v} -> v in [nil, ""] end)
+      |> Enum.map(fn {label, v} -> label <> v end)
+
+    "- #{m["day"]} (turn #{m["turn_ref"]}): " <> Enum.join(parts, ". ") <> "."
+  end
+
+  defp plural(1, word), do: word
+  defp plural(_n, word), do: word <> "s"
+
   # Once a day is the aggregate's rule, but the aggregate decides after
   # the model has been called: the first version read the day and paid
   # for a second verdict before the empty event told it so. The test
@@ -332,18 +410,20 @@ defmodule Oneiroi.Eunomia.Judgements do
       else: :ok
   end
 
-  defp record_night(resident_id, day, messages, chars, found, model, summary, actor) do
+  # The reading: what was read and what the judge found, as one map.
+  defp record_night(resident_id, day, reading, actor) do
     command = %Commands.RecordNight{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       day: day,
-      messages: messages,
-      chars: chars,
-      found: found,
-      judge_model: model,
-      summary: summary,
-      criteria: model && Prompt.hash("judge_night")
+      messages: reading.messages,
+      chars: reading.chars,
+      found: reading.found,
+      judge_model: reading.judge_model,
+      summary: reading.summary,
+      criteria: reading.judge_model && Prompt.hash("judge_night"),
+      movements: reading.movements
     }
 
     case dispatch(command) do

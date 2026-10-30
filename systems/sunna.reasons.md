@@ -59,3 +59,14 @@ words, and their external actions are visible as receipts", reversing
 v0.1's "readable by the witness by default". The schedule opens the
 session, so the default is the schedule's to apply.
 
+
+## #20
+P20 and the author's hour-marker amendment (10-28): the heartbeat
+wake Bennett asked for was a model call an hour with nothing to say,
+and its budget was the author's call alone; the marker is the same
+auditable pulse without the spend, so the question dissolved. On the
+stream rather than in the transcript because twenty-four system rows
+a day would sit in the transcript window the brain reads (the reading
+pass's objection). Every active resident because a resident with
+nothing scheduled is still alive, and its absence from the roster
+would be exactly the silence the marker exists to end.

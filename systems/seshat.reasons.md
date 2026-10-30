@@ -90,3 +90,11 @@ would never be found to have gone.
 adoption that ran the index per file would read the rows once per file:
 an import of a repository with hundreds of files, the case the port
 exists for, would cost hundreds of runs for one set of embeddings.
+
+## #24
+Spec §6.13 (P8), as kumbukumbu #33: the journal is the other place
+the resident writes the day down, and a report over bookmarks alone
+would miss the notes. Not rendered into the day because the file is
+the resident's narrative (#22) and a register in it would read as a
+label the day was given.
+

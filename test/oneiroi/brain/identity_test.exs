@@ -42,7 +42,7 @@ defmodule Oneiroi.Brain.IdentityTest do
 
     assert [
              prompt,
-             "# SOUL.md\n\n# Soul\n\nCurious.",
+             "# SOUL.md\n\n# Soul\n\n[soul/1] Curious.",
              "# USER.md\n\n# You\n\nPatient.",
              "# AGENTS.md" <> _ | _
            ] = systems
@@ -78,11 +78,20 @@ defmodule Oneiroi.Brain.IdentityTest do
     {:ok, ref} =
       AgathosDaimon.propose_edit(id, "SOUL.md", "# Soul\n\nBolder.", "you have grown", ctx.actor)
 
+    brain = Actor.new(:resident, id, "fake/model")
+    {:ok, 1} = Oneiroi.Ethos.plant_seed(id, "I might be becoming kinder.", brain)
+    soul = "# Soul\n\n[soul/1] Bolder.\n\nAnd kinder."
+
     Fake.calls(
       [
         %{name: "soul_edit_list", arguments: %{}},
         %{name: "soul_edit_accept", arguments: %{ref: ref, note: "I have."}},
-        %{name: "soul_edit", arguments: %{file: "GOALS.md", content: "# Goals\n\nTo keep going."}}
+        %{
+          name: "soul_edit",
+          arguments: %{file: "GOALS.md", content: "# Goals\n\nTo keep going."}
+        },
+        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [9]}},
+        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [1]}}
       ],
       "Done, and thank you.",
       for: id
@@ -91,13 +100,35 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:ok, %{messages: messages}} =
              Oneiroi.Brain.turn(id, ctx.key, "see my proposal?", ctx.actor)
 
-    [_, list, accept, edit, _reply] = messages
+    [_, list, accept, edit, unknown, cited, _reply] = messages
     assert list.content =~ ref and list.content =~ "you have grown"
     assert accept.content =~ "Done."
     assert edit.content =~ "Done."
+    # A line cites seeds that exist; the tool checks, the aggregate cannot.
+    assert unknown.content =~ "No seed numbered 9"
+    assert cited.content =~ "Done."
 
-    assert {:ok, %{content: "# Soul\n\nBolder.", written_by_kind: "resident"}} =
+    assert {:ok,
+            %{
+              content: "# Soul\n\n[soul/1] Bolder.\n\n[soul/2] And kinder.",
+              written_by_kind: "resident"
+            }} =
              AgathosDaimon.file(id, "SOUL.md")
+
+    assert [
+             %{number: 1, text: "Bolder.", cites: []},
+             %{number: 2, text: "And kinder.", cites: [1]}
+           ] =
+             AgathosDaimon.soul_lines(id)
+
+    # The turn evidenced a line: the line cites the turn (tags are citations).
+    Fake.calls([%{name: "soul_cite", arguments: %{number: 2}}], "Noted.", for: id)
+
+    assert {:ok, %{turn_ref: ref2, messages: [_, cited, _]}} =
+             Oneiroi.Brain.turn(id, ctx.key, "kind of you", ctx.actor)
+
+    assert cited.content =~ "Done."
+    assert [%{target_kind: "turn", target_id: ^ref2}] = Oneiroi.Ethos.soul_line_citations(id, 2)
 
     assert {:ok, %{content: "# Goals\n\nTo keep going.", origin: "authored"}} =
              AgathosDaimon.file(id, "GOALS.md")
@@ -125,21 +156,24 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:error, :file_unknown} = Oneiroi.Brain.draft(id, "AGENTS.md", "x", ctx.actor)
   end
 
-  test "the brain names and enacts a behaviour, and the next matching turn is shown how it acts",
+  test "the brain names a habit and cites the turn, and the next matching turn is shown how it acts",
        ctx do
     id = ctx.resident.id
 
     Fake.calls(
       [
         %{
-          name: "behaviour_define",
+          name: "habit_define",
           arguments: %{
             name: "small practical suggestions as care",
             words: ["garden"],
             stance: "keep"
           }
         },
-        %{name: "behaviour_enact", arguments: %{number: 1}}
+        %{
+          name: "habit_cite",
+          arguments: %{number: 1, stance: "water first, talk after", resume: ""}
+        }
       ],
       "The tomatoes want water.",
       for: id
@@ -148,10 +182,17 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:ok, %{turn_ref: ref, messages: [_, define, enact, _]}} =
              Oneiroi.Brain.turn(id, ctx.key, "how is the garden?", ctx.actor)
 
-    assert define.content =~ "Named as behaviour #1."
+    assert define.content =~ "Named as habit #1."
     assert enact.content =~ "Done."
-    assert [%{number: 1, habit: 1.0}] = Kumbukumbu.behaviours(id)
-    assert [%{target_kind: "turn", target_id: ^ref}] = Kumbukumbu.behaviour_enactments(id, 1)
+    assert [%{number: 1, habit: 1.0, days: 1}] = Oneiroi.Ethos.habits(id)
+
+    assert [
+             %{
+               target_kind: "turn",
+               target_id: ^ref,
+               movement: %{"stance" => "water first, talk after"}
+             }
+           ] = Oneiroi.Ethos.habit_citations(id, 1)
 
     test = self()
 
@@ -175,19 +216,33 @@ defmodule Oneiroi.Brain.IdentityTest do
       )
 
     assert acting.content =~ "#1 small practical suggestions as care (keep)"
-    assert acting.content =~ ~s(turn #{ref}: "The tomatoes want water.")
 
-    assert %{label: "behaviours", reason: reason} =
+    assert acting.content =~
+             ~s(turn #{ref}: "The tomatoes want water."\n  Moved: Stance: water first, talk after.)
+
+    assert %{label: "character", reason: reason} =
              {:account, ctx.witness.id}
              |> Kumbukumbu.injections(ref2)
-             |> Enum.find(&(&1.label == "behaviours"))
+             |> Enum.find(&(&1.label == "character"))
 
-    assert reason =~ "1 behaviours"
+    assert reason =~ "1 habits"
 
     assert {:ok, %{turn_ref: ref3}} = Oneiroi.Brain.turn(id, ctx.key, "unrelated", ctx.actor)
 
     refute {:account, ctx.witness.id}
            |> Kumbukumbu.injections(ref3)
-           |> Enum.any?(&(&1.label == "behaviours"))
+           |> Enum.any?(&(&1.label == "character"))
+
+    # The vector lane, billed to the dyad by the turn's actor: the words
+    # share nothing with the trigger and much with the habit's name.
+    assert {:ok, %{turn_ref: ref4}} =
+             Oneiroi.Brain.turn(id, ctx.key, "any practical suggestions?", ctx.actor)
+
+    assert %{reason: reason} =
+             {:account, ctx.witness.id}
+             |> Kumbukumbu.injections(ref4)
+             |> Enum.find(&(&1.label == "character"))
+
+    assert reason =~ "1 habits" and reason =~ "1 by the vector lane's nearness"
   end
 end

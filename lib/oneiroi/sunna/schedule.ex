@@ -16,8 +16,11 @@ defmodule Oneiroi.Sunna.Schedule do
     free_time_days: %{},
     quiet: nil,
     dates: %{},
-    days: MapSet.new()
+    days: MapSet.new(),
+    hours: MapSet.new()
   ]
+
+  @hour ~r/\A\d{4}-\d{2}-\d{2}T([01]\d|2[0-3])\z/
 
   @time ~r/\A([01]\d|2[0-3]):[0-5]\d\z/
   @date_kinds ~w(deadline anniversary window recurring)
@@ -121,6 +124,16 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   # ---- the day row ----
+
+  # The hour marker (P20 as amended): once per local hour, and never a
+  # wake.
+  def execute(%__MODULE__{hours: hours}, %Commands.MarkHour{} = c) do
+    cond do
+      not (is_binary(c.hour) and Regex.match?(@hour, c.hour)) -> {:error, :hour_invalid}
+      MapSet.member?(hours, c.hour) -> []
+      true -> %Events.HourMarked{actor: c.actor, at: c.at, id: c.id, hour: c.hour}
+    end
+  end
 
   def execute(%__MODULE__{days: days}, %Commands.OpenDay{} = c) do
     cond do
@@ -257,6 +270,9 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.DayOpened{} = e),
     do: %{s | id: e.id, days: MapSet.put(s.days, e.day)}
+
+  def apply(%__MODULE__{} = s, %Events.HourMarked{} = e),
+    do: %{s | id: e.id, hours: MapSet.put(s.hours, e.hour)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeScheduled{} = e),
     do: %{s | id: e.id, free_time: e.time}

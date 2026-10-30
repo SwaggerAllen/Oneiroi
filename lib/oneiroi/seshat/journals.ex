@@ -24,7 +24,11 @@ defmodule Oneiroi.Seshat.Journals do
   @headings %{"plan" => "Plan", "note" => "Notes", "todo" => "To do", "wrap" => "Wrap"}
 
   @doc "Adds an entry to a day (today in the resident's zone when nil); opens the day row if the schedule has not; renders the day's file."
-  def add(resident_id, day, kind, text, %Actor{} = actor) do
+  def add(resident_id, day, kind, text, %Actor{} = actor),
+    do: add(resident_id, day, kind, text, nil, actor)
+
+  @doc "Adds an entry with its register (correction, praise, instruction, play or nil; spec §6.13, P8)."
+  def add(resident_id, day, kind, text, register, %Actor{} = actor) do
     day = day || today(resident_id)
 
     with :ok <- open_day(resident_id, day, actor),
@@ -35,12 +39,17 @@ defmodule Oneiroi.Seshat.Journals do
              id: resident_id,
              day: day,
              kind: kind,
-             text: text
+             text: text,
+             register: register
            }),
          :ok <- render_day(resident_id, day, actor) do
       {:ok, %{day: day, number: event.number, kind: kind}}
     end
   end
+
+  @doc "The entries written since an instant, oldest first."
+  def entries_since(resident_id, %DateTime{} = since),
+    do: Scope.resident(resident_id, fn -> Store.journal_entries_since(since) end)
 
   @doc "Marks a todo done; renders the day's file."
   def done(resident_id, day, number, %Actor{} = actor) do
@@ -193,6 +202,9 @@ defmodule Oneiroi.Seshat.Journals do
 
       {:error, :day_invalid} ->
         {:error, Error.new(:seshat_day_invalid, day: inspect(command.day))}
+
+      {:error, :register_invalid} ->
+        {:error, Error.new(:seshat_register_invalid, registers: Oneiroi.Register.all())}
 
       {:error, :kind_invalid} ->
         {:error, Error.new(:seshat_entry_kind_invalid, kinds: Journal.kinds())}

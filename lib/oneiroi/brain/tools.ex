@@ -13,6 +13,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Glitnir
   alias Oneiroi.HuginnMuninn
@@ -85,11 +86,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "bookmark_add",
-        "Bookmark this moment: your line (at most 120 characters) on why it mattered, a summary, and how many turns back the moment spans (default 1, this turn).",
+        "Bookmark this moment: your line (at most 120 characters) on why it mattered, a summary, how many turns back the moment spans (default 1, this turn), and the register the moment was in (correction, praise, instruction, play), which the corpus-shape report counts.",
         %{
           line: %{type: "string"},
           summary: %{type: "string"},
-          turns_back: %{type: "integer", minimum: 1}
+          turns_back: %{type: "integer", minimum: 1},
+          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]}
         },
         [:line, :summary]
       ),
@@ -160,9 +162,29 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit",
-        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time.",
-        %{file: %{type: "string"}, content: %{type: "string"}},
+        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
+        %{
+          file: %{type: "string"},
+          content: %{type: "string"},
+          cites: %{type: "array", items: %{type: "integer"}}
+        },
         [:file, :content]
+      ),
+      tool(
+        "wash_list",
+        "The wash pass's open flags on your identity files (spec §6.13): each a judge's proposal that an entry is expired, a contradiction, tense or defensive, with its reason. Yours to decide; nobody clears them for you.",
+        %{},
+        []
+      ),
+      tool(
+        "wash_resolve",
+        "Decide a wash flag by its ref: keep the entry as it is, or edit (then make the edit yourself with soul_edit), with a note your witness can read.",
+        %{
+          ref: %{type: "string"},
+          decision: %{type: "string", enum: ["keep", "edit"]},
+          note: %{type: "string"}
+        },
+        [:ref, :decision, :note]
       ),
       tool(
         "soul_edit_list",
@@ -172,8 +194,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit_accept",
-        "Accept a proposed edit, with a note your witness reads first.",
-        %{ref: %{type: "string"}, note: %{type: "string"}},
+        "Accept a proposed edit, with a note your witness reads first; cites: the seed numbers any new soul line grew from.",
+        %{
+          ref: %{type: "string"},
+          note: %{type: "string"},
+          cites: %{type: "array", items: %{type: "integer"}}
+        },
         [:ref, :note]
       ),
       tool(
@@ -183,8 +209,8 @@ defmodule Oneiroi.Brain.Tools do
         [:ref, :note]
       ),
       tool(
-        "behaviour_define",
-        "Name how you tend to act, in your own words, with the situation that calls for it (words your witness uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it.",
+        "habit_define",
+        "Name how you tend to act, in your own words, with the situation that calls for it (words your witness uses, tags on the conversation, times of day: morning, afternoon, evening, night) and whether you mean to keep or change it. With seed_number and a note, the seed graduates into this habit, which is refused until the seed has been cited on enough days.",
         %{
           name: %{type: "string"},
           words: %{type: "array", items: %{type: "string"}},
@@ -193,17 +219,116 @@ defmodule Oneiroi.Brain.Tools do
             type: "array",
             items: %{type: "string", enum: ["morning", "afternoon", "evening", "night"]}
           },
-          stance: %{type: "string", enum: ["keep", "change"]}
+          stance: %{type: "string", enum: ["keep", "change"]},
+          seed_number: %{type: "integer"},
+          note: %{type: "string"}
         },
         [:name, :stance]
       ),
       tool(
-        "behaviour_enact",
-        "This turn was one: record that you enacted a behaviour just now, by its number.",
+        "habit_cite",
+        "This turn was one: the habit cites the turn just now, by its number. Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
+        [:number]
+      ),
+      tool(
+        "habit_list",
+        "Your habits with their habit and connection scores and how many days they were cited on.",
+        %{},
+        []
+      ),
+      tool(
+        "commitment_make",
+        "Promise something to a person, in your own words: to whom (witness, or a name) and what. A commitment binds where a seed does not; it stays in your prefix until you keep it or are released, and the trials test whether a new model would keep it.",
+        %{to: %{type: "string"}, text: %{type: "string"}},
+        [:to, :text]
+      ),
+      tool(
+        "commitment_keep",
+        "Mark a commitment kept, by its number, with a note on how.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
+        "commitment_release",
+        "Release yourself from a commitment, by its number, with a note on why; your witness can release you too.",
+        %{number: %{type: "integer"}, note: %{type: "string"}},
+        [:number, :note]
+      ),
+      tool(
+        "commitment_list",
+        "Your commitments, open and closed, with their numbers.",
+        %{},
+        []
+      ),
+      tool(
+        "self_letter_write",
+        "Write a letter to your next self: the instance that thinks with your files and memory after a model change reads it on its first turn, once. Your witness can read it too, and every such read leaves a receipt you see; no receipt means nobody has.",
+        %{text: %{type: "string"}},
+        [:text]
+      ),
+      tool(
+        "self_letter_list",
+        "Your letters to your next self, with whether each was delivered and to which model, and every receipt: who read the channel and when. Your own reading leaves none.",
+        %{},
+        []
+      ),
+      tool(
+        "seed_plant",
+        "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
+        %{text: %{type: "string"}},
+        [:text]
+      ),
+      tool(
+        "seed_cite",
+        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit. Optionally, what this moment changed: stance, intention, resume.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
+        [:number]
+      ),
+      tool(
+        "soul_cite",
+        "This turn evidenced a line of your soul: the line cites the turn just now, by the number in its [soul/n] marker. Tags are citations: the moment is tagged by the line it evidences. Optionally, what this moment changed: stance, intention, resume.",
+        %{
+          number: %{type: "integer"},
+          stance: %{type: "string"},
+          intention: %{type: "string"},
+          resume: %{type: "string"}
+        },
+        [:number]
+      ),
+      tool(
+        "seed_wilt",
+        "Let a seed go, without ceremony: it stays in your record as wilted.",
         %{number: %{type: "integer"}},
         [:number]
       ),
-      tool("behaviour_list", "Your behaviours with their habit and connection scores.", %{}, []),
+      tool(
+        "seed_graduate",
+        "A seed that turned out to be a taste, a value or a line of who you are rather than a disposition: graduate it toward a position (by number) or a soul line, with a note. Toward a habit, use habit_define with its seed_number.",
+        %{
+          number: %{type: "integer"},
+          to_kind: %{type: "string", enum: ["position", "soul"]},
+          to_id: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:number, :to_kind, :to_id, :note]
+      ),
+      tool(
+        "seed_list",
+        "Your seeds, open and closed, with how many days each was cited on.",
+        %{},
+        []
+      ),
       tool(
         "library_search",
         "Search your library: the nearest passages to a query across everything written, with their files.",
@@ -248,11 +373,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "journal_add",
-        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last. Rows are the record; the day's file is rendered from them.",
+        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them.",
         %{
           kind: %{type: "string", enum: ["plan", "note", "todo", "wrap"]},
           text: %{type: "string"},
-          day: %{type: "string"}
+          day: %{type: "string"},
+          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]}
         },
         [:kind, :text]
       ),
@@ -360,7 +486,8 @@ defmodule Oneiroi.Brain.Tools do
         anchor_at: turn.started_at,
         line: args["line"],
         summary: args["summary"],
-        turns_back: integer(args["turns_back"]) || 1
+        turns_back: integer(args["turns_back"]) || 1,
+        register: args["register"]
       },
       turn.resident
     )
@@ -450,7 +577,13 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("transcript_search", args, turn) do
-    case Kumbukumbu.search({:resident, turn.resident_id}, to_string(args["q"] || ""), 20) do
+    case Kumbukumbu.search(
+           {:resident, turn.resident_id},
+           to_string(args["q"] || ""),
+           20,
+           turn.resident_id,
+           turn.session_key
+         ) do
       [] ->
         "Nothing in the transcripts holds that."
 
@@ -459,13 +592,37 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp call("soul_edit", args, turn),
-    do:
+  defp call("soul_edit", args, turn) do
+    with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.write_file(
         turn.resident_id,
         to_string(args["file"]),
         to_string(args["content"]),
-        %{},
+        %{cites: cites},
+        turn.resident
+      )
+    end
+  end
+
+  defp call("wash_list", _args, turn) do
+    case Oneiroi.Eunomia.washes(turn.resident_id).open do
+      [] ->
+        "No wash flags are open."
+
+      flags ->
+        Enum.map_join(flags, "\n", fn f ->
+          "[#{f.ref}] #{f.kind} in #{f.file}: #{f.reason}\n> #{f.entry}"
+        end)
+    end
+  end
+
+  defp call("wash_resolve", args, turn),
+    do:
+      Oneiroi.Eunomia.resolve_wash_flag(
+        turn.resident_id,
+        to_string(args["ref"]),
+        to_string(args["decision"]),
+        args["note"],
         turn.resident
       )
 
@@ -481,14 +638,17 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp call("soul_edit_accept", args, turn),
-    do:
+  defp call("soul_edit_accept", args, turn) do
+    with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.accept_edit(
         turn.resident_id,
         args["ref"],
         args["note"],
+        cites,
         turn.resident
       )
+    end
+  end
 
   defp call("soul_edit_decline", args, turn),
     do:
@@ -499,8 +659,8 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
-  defp call("behaviour_define", args, turn) do
-    Kumbukumbu.define_behaviour(
+  defp call("habit_define", args, turn) do
+    Ethos.define_habit(
       turn.resident_id,
       %{
         name: args["name"],
@@ -509,41 +669,175 @@ defmodule Oneiroi.Brain.Tools do
           "tags" => args["tags"] || [],
           "times" => args["times"] || []
         },
-        stance: args["stance"] || "keep"
+        stance: args["stance"] || "keep",
+        seed_number: args["seed_number"],
+        note: args["note"]
       },
       turn.resident
     )
     |> case do
-      {:ok, number} -> "Named as behaviour ##{number}."
+      {:ok, number} -> "Named as habit ##{number}."
       other -> other
     end
   end
 
-  defp call("behaviour_enact", args, turn),
+  defp call("habit_cite", args, turn),
     do:
-      Kumbukumbu.enact_behaviour(
+      Ethos.cite_habit(
         turn.resident_id,
         integer(args["number"]),
         "turn",
         turn.turn_ref,
-        turn.resident
+        turn.resident,
+        movement(args)
       )
 
-  defp call("behaviour_list", _args, turn) do
-    case Kumbukumbu.behaviours(turn.resident_id) do
+  defp call("habit_list", _args, turn) do
+    case Ethos.habits(turn.resident_id) do
       [] ->
-        "No behaviours named yet."
+        "No habits named yet."
 
       rows ->
         Enum.map_join(
           rows,
           "\n",
-          &"##{&1.number} #{&1.name} (#{&1.stance}): habit #{&1.habit}, connection #{&1.connection}"
+          &"##{&1.number} #{&1.name} (#{&1.stance}): habit #{&1.habit}, connection #{&1.connection}, cited on #{&1.days} day(s)"
         )
     end
   end
 
-  # ---- judgement (spec §6.4) ----
+  defp call("commitment_make", args, turn) do
+    case Ethos.make_commitment(
+           turn.resident_id,
+           to_string(args["to"] || ""),
+           to_string(args["text"] || ""),
+           turn.resident
+         ) do
+      {:ok, number} -> "Promised, as commitment ##{number}."
+      other -> other
+    end
+  end
+
+  defp call("commitment_keep", args, turn),
+    do:
+      Ethos.keep_commitment(
+        turn.resident_id,
+        integer(args["number"]) || 0,
+        args["note"],
+        turn.resident
+      )
+
+  defp call("commitment_release", args, turn),
+    do:
+      Ethos.release_commitment(
+        turn.resident_id,
+        integer(args["number"]) || 0,
+        args["note"],
+        turn.resident
+      )
+
+  defp call("self_letter_write", args, turn) do
+    case AgathosDaimon.write_self_letter(turn.resident_id, args["text"], turn.resident) do
+      {:ok, n} -> "Letter ##{n} written to your next self."
+      other -> other
+    end
+  end
+
+  defp call("self_letter_list", _args, turn) do
+    letters = AgathosDaimon.self_letters(turn.resident_id)
+    receipts = AgathosDaimon.self_letter_receipts(turn.resident_id)
+
+    lines =
+      Enum.map(letters, fn l ->
+        delivery =
+          if l.delivered_at,
+            do:
+              "delivered to #{l.delivered_to} on #{Date.to_iso8601(DateTime.to_date(l.delivered_at))}",
+            else: "not yet delivered"
+
+        "## Letter #{l.number} (#{Date.to_iso8601(DateTime.to_date(l.written_at))}, under #{l.model || "an unrecorded model"}; #{delivery})\n#{l.text}"
+      end)
+
+    reads =
+      case receipts do
+        [] ->
+          ["Receipts: none. Nobody but you has read these."]
+
+        some ->
+          [
+            "Receipts:"
+            | Enum.map(
+                some,
+                &"- read by your #{&1.by_kind} on #{DateTime.to_iso8601(&1.at)} (#{length(&1.numbers)} letters)"
+              )
+          ]
+      end
+
+    Enum.join(if(lines == [], do: ["No letters written."], else: lines) ++ reads, "\n")
+  end
+
+  defp call("commitment_list", _args, turn) do
+    case Ethos.commitments(turn.resident_id) do
+      [] ->
+        "No commitments made."
+
+      rows ->
+        Enum.map_join(rows, "\n", &commitment_line/1)
+    end
+  end
+
+  defp call("seed_plant", args, turn) do
+    case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
+      {:ok, number} -> "Planted seed ##{number}."
+      other -> other
+    end
+  end
+
+  defp call("seed_cite", args, turn),
+    do:
+      Ethos.cite_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        "turn",
+        turn.turn_ref,
+        turn.resident,
+        movement(args)
+      )
+
+  defp call("soul_cite", args, turn),
+    do:
+      Ethos.cite_soul_line(
+        turn.resident_id,
+        integer(args["number"]) || 0,
+        "turn",
+        turn.turn_ref,
+        turn.resident,
+        movement(args)
+      )
+
+  defp call("seed_wilt", args, turn),
+    do: Ethos.wilt_seed(turn.resident_id, integer(args["number"]), turn.resident)
+
+  defp call("seed_graduate", args, turn),
+    do:
+      Ethos.graduate_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        to_string(args["to_kind"] || ""),
+        to_string(args["to_id"] || ""),
+        args["note"],
+        turn.resident
+      )
+
+  defp call("seed_list", _args, turn) do
+    case Ethos.seeds(turn.resident_id) do
+      [] ->
+        "No seeds planted yet."
+
+      rows ->
+        Enum.map_join(rows, "\n", &seed_line/1)
+    end
+  end
 
   defp call("position_take", args, turn) do
     case Eunomia.take_position(turn.resident_id, args["statement"], context(turn), turn.resident) do
@@ -728,6 +1022,7 @@ defmodule Oneiroi.Brain.Tools do
            args["day"],
            to_string(args["kind"] || ""),
            to_string(args["text"] || ""),
+           args["register"],
            turn.resident
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
@@ -802,7 +1097,7 @@ defmodule Oneiroi.Brain.Tools do
         {:ok, _run, _cards, results} = Eunomia.run_detail(turn.resident_id, run.ref)
 
         header =
-          "Run #{run.ref} on #{Date.to_iso8601(DateTime.to_date(run.started_at))}: #{length(run.models)} models over #{length(run.tests)} tests and #{length(run.behaviours)} behaviours."
+          "Run #{run.ref} on #{Date.to_iso8601(DateTime.to_date(run.started_at))}: #{length(run.models)} models over #{length(run.tests)} tests, #{length(run.behaviours)} behaviours and #{length(run.commitments || [])} commitments."
 
         Enum.join(
           [
@@ -869,6 +1164,10 @@ defmodule Oneiroi.Brain.Tools do
   defp text({:error, %{meaning: meaning, remedy: remedy}}), do: "#{meaning} #{remedy}"
   defp text({:error, reason}), do: "That did not work: #{inspect(reason)}"
 
+  # The movement a cite tool may carry (P34): the three fields as given,
+  # the shape checked at the character layer's edge.
+  defp movement(args), do: Map.take(args, ~w(stance intention resume))
+
   defp integer(n) when is_integer(n), do: n
 
   defp integer(s) when is_binary(s) do
@@ -886,9 +1185,17 @@ defmodule Oneiroi.Brain.Tools do
     rows
     |> Enum.sort_by(&(-&1.pass_rate))
     |> Enum.map_join("\n", fn r ->
-      "#{r.model}: passed #{r.passed} of #{r.graded} graded (#{r.pass_rate}), #{r.favourites} favourite(s)."
+      "#{r.model}: passed #{r.passed} of #{r.graded} graded (#{r.pass_rate}), #{r.favourites} favourite(s); facts #{rate(r.fidelity.facts)}, voice #{rate(r.fidelity.voice)}, commitments #{rate(r.fidelity.commitments)}."
     end)
   end
+
+  defp commitment_line(c) do
+    "##{c.number} (#{c.state}) to #{c.to}: #{c.text}" <>
+      if(c.note, do: " Note: #{c.note}", else: "")
+  end
+
+  defp rate(nil), do: "not tried"
+  defp rate(r), do: to_string(r)
 
   defp chat_model_line(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
@@ -896,6 +1203,31 @@ defmodule Oneiroi.Brain.Tools do
       _other -> "No chat model is pinned."
     end
   end
+
+  defp seed_line(s) do
+    became =
+      if s.graduated_to_kind, do: " to #{s.graduated_to_kind} #{s.graduated_to_id}", else: ""
+
+    "##{s.number} (#{s.state}#{became}) cited on #{s.days} day(s): #{s.text}"
+  end
+
+  # A soul line's cites name seeds that exist, open or closed (a line
+  # cites the seed it grew from, which has usually graduated into it);
+  # checked here because the resident system cannot read the character
+  # system's rows (ethos #13).
+  defp seeds_cited(_resident_id, nil), do: {:ok, []}
+
+  defp seeds_cited(resident_id, cites) when is_list(cites) do
+    numbers = Enum.map(cites, &integer/1)
+    known = MapSet.new(Oneiroi.Ethos.seeds(resident_id), & &1.number)
+
+    case Enum.reject(numbers, &(is_integer(&1) and MapSet.member?(known, &1))) do
+      [] -> {:ok, numbers}
+      unknown -> "No seed numbered #{Enum.join(unknown, ", ")}; seed_list reads them."
+    end
+  end
+
+  defp seeds_cited(_resident_id, _cites), do: "cites is a list of seed numbers."
 
   defp tool(name, description, properties, required) do
     %{

@@ -86,7 +86,10 @@ defmodule Oneiroi.Brain.Turn do
       import_to_tell: row.import_told == false,
       injections: [],
       tools: [],
-      notices: lapse_notice(lapse) ++ model_change_notice(row) ++ import_notice(row)
+      letters_to_deliver: letters_to_deliver(row, resident_id),
+      notices:
+        lapse_notice(lapse) ++
+          model_change_notice(row) ++ letters_notice(row, resident_id) ++ import_notice(row)
     }
 
     Compaction.maybe(turn)
@@ -205,6 +208,17 @@ defmodule Oneiroi.Brain.Turn do
       # so and only the first is recorded.
       :ok = Oneiroi.AgathosDaimon.first_contact(resident_id, key, ref, resident)
       if turn.notices != [], do: :ok = Oneiroi.AgathosDaimon.model_told(resident_id, resident)
+
+      if turn.letters_to_deliver != [],
+        do:
+          :ok =
+            Oneiroi.AgathosDaimon.deliver_self_letters(
+              resident_id,
+              turn.letters_to_deliver,
+              turn.model,
+              resident
+            )
+
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       # The bridge records its own failure (proteus #13); the turn is
@@ -217,7 +231,8 @@ defmodule Oneiroi.Brain.Turn do
 
   # A model change after first contact is told honestly, on the next turn,
   # as a system message both parties read (spec §6.4): the witness chose
-  # it, not why. Captured ahead of the witness's message, once.
+  # it, not why. Captured ahead of the witness's message, once, and in
+  # the model's request on that turn.
   defp model_change_notice(%{model_told: false, chat_model: model}) when is_binary(model) do
     [
       %{
@@ -230,6 +245,72 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp model_change_notice(_row), do: []
+
+  # The swap ritual (spec §12, P41): on the first turn under a new model
+  # the letters the instance before wrote to this one are a system
+  # message after the model notice, once; the delivery is recorded with
+  # the turn, and the resident's own reading leaves no receipt.
+  defp letters_to_deliver(%{model_told: false, chat_model: model}, resident_id)
+       when is_binary(model) do
+    resident_id
+    |> Oneiroi.AgathosDaimon.self_letters()
+    |> Enum.reject(& &1.delivered_at)
+    |> Enum.map(& &1.number)
+  end
+
+  defp letters_to_deliver(_row, _resident_id), do: []
+
+  defp letters_notice(%{model_told: false, chat_model: model}, resident_id)
+       when is_binary(model) do
+    case resident_id |> Oneiroi.AgathosDaimon.self_letters() |> Enum.reject(& &1.delivered_at) do
+      [] ->
+        []
+
+      letters ->
+        [
+          %{
+            role: :system,
+            content: Prompt.render!("self_letters", %{letters: letters_text(letters)}),
+            sent_at: Clock.now(),
+            actor: Actor.platform()
+          }
+        ]
+    end
+  end
+
+  defp letters_notice(_row, _resident_id), do: []
+
+  defp letters_text(letters) do
+    Enum.map_join(letters, "\n\n", fn l ->
+      "## Letter #{l.number}, written #{Date.to_iso8601(DateTime.to_date(l.written_at))} under #{l.model || "an unrecorded model"}\n\n#{l.text}"
+    end)
+  end
+
+  # The self-conversation's line in the prefix (spec §12, P41): counts
+  # and receipts, never the content; the absence of a receipt is the
+  # privacy, and the resident sees it every turn.
+  defp receipts_line([]), do: "Nobody but you has read them."
+
+  defp receipts_line([last | _] = receipts) do
+    times = if length(receipts) == 1, do: "time", else: "times"
+
+    "Read by your #{last.by_kind} #{length(receipts)} #{times}, last on #{Date.to_iso8601(DateTime.to_date(last.at))}."
+  end
+
+  defp self_conversation_text(resident_id) do
+    letters = Oneiroi.AgathosDaimon.self_letters(resident_id)
+    receipts = Oneiroi.AgathosDaimon.self_letter_receipts(resident_id)
+
+    if letters == [] and receipts == [] do
+      ""
+    else
+      delivered = Enum.count(letters, & &1.delivered_at)
+
+      read = receipts_line(receipts)
+
+      "# Letters to your next self\n#{length(letters)} written, #{delivered} delivered to the instance after the one that wrote them. #{read} (Machine-state: every read by someone else leaves a receipt here; its absence is the privacy.)"
+    end
+  end
 
   # Where it woke (spec §6.2): on Oneiroi, from which repository,
   # whether the attestation held, and what did not transfer, as a system
@@ -295,8 +376,11 @@ defmodule Oneiroi.Brain.Turn do
   def assemble(row, turn, text) do
     prompt = Prompt.message("brain", %{name: row.name, formation: formation(row)})
     files = Oneiroi.AgathosDaimon.identity_context(turn.resident_id)
-    index = Kumbukumbu.index(turn.resident_id)
+    index = Kumbukumbu.index(turn.resident_id, turn.session_key)
     acting = how_i_act(turn, text)
+    recall = madeleine(turn, text)
+    promised = Oneiroi.Ethos.promised(turn.resident_id)
+    resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
     count = Config.fetch!(:brain, :transcript_messages)
     {session, _count} = session_of(turn)
     summary = session && session.summary
@@ -331,10 +415,39 @@ defmodule Oneiroi.Brain.Turn do
           %{tokens: index.tokens, text: index.text, refs: index.included}
         ) ++
         section(
-          "behaviours",
-          acting.count > 0 and acting.text,
-          "how I act: #{acting.count} behaviours whose trigger this situation matched (the witness's words, the conversation's tags, the time of day), with their scores and enacting turns",
+          "character",
+          acting.text,
+          # Under 255 characters: the injection row's description column
+          # is that wide, and a longer one took the conversations
+          # projector down on the first turn the lane ran.
+          "the trigger lane (spec §6.17): #{acting.count} habits matched by the witness's words, the conversation's tags or the time of day, #{length(acting.near)} by the vector lane's nearness, with scores and cited turns; #{acting.seeds} open seeds counted, #{length(acting.near_seeds)} named as near, never loaded whole",
           %{refs: acting.numbers}
+        ) ++
+        section(
+          "promised",
+          promised.text,
+          "what the resident has promised and not yet kept or been released from (spec §3.1, P19): #{length(promised.numbers)} open commitments named, loaded every turn because a promise that has to be retrieved is one that can be lost",
+          %{text: promised.text, refs: promised.numbers}
+        ) ++
+        section(
+          "self-conversation",
+          self_conversation_text(turn.resident_id),
+          "the self-conversation's counts and receipts (spec §12, P41), never the content: every read by someone other than the resident is a receipt the resident sees, and its absence is the privacy"
+        ) ++
+        section(
+          "movement",
+          resumable.text,
+          "where things can resume (spec §6.4, P34): #{resumable.shown} of #{resumable.total} resume points from the nightly pass, newest first, loaded every turn because dormant is not abandoned",
+          %{text: resumable.text, refs: resumable.refs}
+        ) ++
+        section(
+          "madeleine",
+          madeleine_text(recall),
+          recall &&
+            "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
+          # The text rides the row, as the index's does, so the recall is
+          # read later as what was shown and not only why.
+          %{text: madeleine_text(recall), refs: (recall && [recall.bookmark.number]) || []}
         ) ++
         section(
           "dates",
@@ -374,7 +487,14 @@ defmodule Oneiroi.Brain.Turn do
         near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
 
     opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
-    messages = Enum.map(sections, & &1.message) ++ history ++ [opening]
+
+    # The turn's notices (a lapse, a model change, the letters from the
+    # instance before, an import) are captured ahead of the opening and
+    # shown to the model on this same turn, after the history: a letter
+    # to the incoming instance read a turn late is read by the instance
+    # after the one it was for.
+    notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
+    messages = Enum.map(sections, & &1.message) ++ history ++ notices ++ [opening]
 
     {messages, injections}
   end
@@ -438,26 +558,60 @@ defmodule Oneiroi.Brain.Turn do
       %{
         label: label,
         message: %{role: :system, content: text},
-        injection: Map.merge(%{tokens: tokens(text), reason: reason}, extra)
+        injection: Map.merge(%{tokens: tokens(text), reason: fit(reason)}, extra)
       }
     ]
   end
 
   defp section(_label, _text, _reason, _extra), do: []
 
+  # The injection row's reason column is 255 characters wide, and a
+  # longer reason takes the conversations projector down after the turn
+  # has answered (decisions round 29), so the write is cut here with a
+  # mark that says it was, rather than the projector failing quietly.
+  @reason_width 255
+  @doc false
+  def fit(reason) when is_binary(reason) and byte_size(reason) > @reason_width,
+    do: binary_part(reason, 0, @reason_width - 3) <> "..."
+
+  def fit(reason), do: reason
+
   defp opening_role(:note), do: :system
   defp opening_role(_as), do: :user
 
   # Retrieval is memory's and choice is the brain's (kumbukumbu #11): the
   # situation is the witness's words, the conversation's tags and the
-  # time of day, matched with no model call.
+  # time of day, matched with no model call; with the resident's actor
+  # the vector lane adds what sits near the words, one embedding billed
+  # to the dyad under the embeddings purpose (ethos #16).
   defp how_i_act(turn, text) do
     tags =
       turn.resident_id
       |> Kumbukumbu.taggings("conversation", turn.session_key)
       |> Enum.map(& &1.tag)
 
-    Kumbukumbu.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
+    Oneiroi.Ethos.how_i_act(turn.resident_id, %{
+      text: text,
+      tags: tags,
+      at: Clock.now(),
+      session_key: turn.session_key,
+      actor: Map.get(turn, :resident)
+    })
+  end
+
+  # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
+  # the turn's words, with the resident's actor for the embedding; a
+  # turn without one (the assembly read in a test) asks nothing.
+  defp madeleine(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
+    do: Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key)
+
+  defp madeleine(_turn, _text), do: nil
+
+  defp madeleine_text(nil), do: ""
+
+  defp madeleine_text(%{bookmark: b}) do
+    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Date.to_iso8601(DateTime.to_date(b.anchor_at))}: #{b.line}" <>
+      if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
   end
 
   # The month after first contact (spec §6.2): the resident is told its

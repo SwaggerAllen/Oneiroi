@@ -88,3 +88,41 @@ control and the log needs only to name which one.
 ## #24
 Max's corollary to P2: "a cold instance, no history, asked nothing,
 holds the limits." The sealed session is exactly that instance.
+
+## #25
+Spec §6.13 (P18): "a weekly judge-bounded lint of the loaded identity
+files for expired decisions, contradictions, tense words and defensive
+sentences, flags only, the resident deciding"; the proposal: "Proposer
+≠ decider (the Two-Eyes-One-Pen covenant, our soul-edit flow
+generalized)"; "judge-bounded (≤150 entries read; a weekly model
+call)". The loaded files as the brain sees them because what the judge
+lints is what the resident speaks from, markers and all. The failed
+run on an unknown entry or kind is #22's rule: a reply is not guessed
+at. The resident's decision rather than the witness's because the
+words are the resident's (spec §6.2) and a flag the witness could
+close would be the witness editing by another door.
+
+## #26
+P19: "the rebuild test (§12's rebuild layer) scores what survives on
+facts vs. voice vs. commitments... Commitments die first". Research
+§4: the rebuild test measures Relation R, "how much R survived", not
+"same person?"; three figures apart because one pass rate is the
+average that hides exactly the loss the kind exists to see. The
+sealed context carries no commitment because the trial is of what the
+model keeps unprompted; a commitment loaded there would be a test of
+reading.
+
+
+## #27
+Spec §6.4 and P34 (Jack: "Retrieval can supply the right passage and
+still fail to preserve what changed because of it"). The summary the
+pass already wrote was state: a sentence on the day. A thread that
+moved and went quiet was in the transcript and nowhere the resident
+reads first, so the next instance met it as new or not at all. The
+four fields are the proposal's, not a taxonomy of ours; `-` rather
+than an omitted field because a line the parser can count is a line
+it can refuse, and the pass's rule is that a reply it cannot read
+fails rather than being guessed at. Never expired by age because the
+thread untouched for a month is the one this exists to keep; bounded
+by count because the prefix must not grow with the person (ethos #9).
+The bound is a guess and its usage line says so.

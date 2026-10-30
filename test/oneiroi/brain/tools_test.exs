@@ -25,7 +25,11 @@ defmodule Oneiroi.Brain.ToolsTest do
       [
         %{
           name: "bookmark_add",
-          arguments: %{line: "she asked me to remember", summary: "the ask"}
+          arguments: %{
+            line: "she asked me to remember",
+            summary: "the ask",
+            register: "instruction"
+          }
         }
       ],
       "I will remember.",
@@ -47,7 +51,8 @@ defmodule Oneiroi.Brain.ToolsTest do
                number: 1,
                anchor_ref: ^ref,
                line: "she asked me to remember",
-               last_indexed_at: nil
+               last_indexed_at: nil,
+               register: "instruction"
              }
            ] =
              Kumbukumbu.bookmarks(ctx.resident.id)
@@ -123,6 +128,8 @@ defmodule Oneiroi.Brain.ToolsTest do
 
     :ok = Kumbukumbu.capture(ctx.resident.id, ctx.key, "big", at, messages, resident_actor)
 
+    test = self()
+
     Fake.script(
       fn %{messages: msgs} ->
         system = fn prefix ->
@@ -143,6 +150,8 @@ defmodule Oneiroi.Brain.ToolsTest do
              ]}
 
           system.("You are the compaction machinery") ->
+            prompt = Enum.find(msgs, &(&1.role == :system))
+            send(test, {:compaction, prompt.content})
             {:ok, "SUMMARY: eight lines were said."}
 
           true ->
@@ -154,6 +163,11 @@ defmodule Oneiroi.Brain.ToolsTest do
 
     assert {:ok, %{turn_ref: ref, messages: [_, %{content: "after the compaction"}]}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "ninth", ctx.actor)
+
+    # The summary keeps movement, not only state (P34): the prompt asks for it.
+    assert_received {:compaction, prompt}
+    assert prompt =~ "where it can resume"
+    assert prompt =~ "dormant, not abandoned"
 
     assert {:ok, %{summary: "SUMMARY: eight lines were said.", compacted_through: through}, 2} =
              Kumbukumbu.uncompacted(ctx.resident.id, ctx.key)

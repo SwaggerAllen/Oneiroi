@@ -109,20 +109,24 @@ defmodule OneiroiWeb.RegressionController do
   def start_run(conn, %{"id" => id, "models" => models} = params) when is_list(models) do
     tests = if is_list(params["tests"]), do: Enum.map(params["tests"], &integer/1), else: :all
 
-    behaviours =
-      case params["behaviours"] do
-        "all" -> :all
-        list when is_list(list) -> Enum.map(list, &integer/1)
-        _none -> []
-      end
+    selection = %{
+      tests: tests,
+      behaviours: numbers_or_all(params["behaviours"]),
+      commitments: numbers_or_all(params["commitments"])
+    }
 
-    case Eunomia.run(id, models, %{tests: tests, behaviours: behaviours}, actor(conn)) do
+    case Eunomia.run(id, models, selection, actor(conn)) do
       {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
       other -> respond(conn, other)
     end
   end
 
   def start_run(conn, _params), do: problem(conn, 422, :models_required, "models is required")
+
+  # "all", a list of numbers, or nothing.
+  defp numbers_or_all("all"), do: :all
+  defp numbers_or_all(list) when is_list(list), do: Enum.map(list, &integer/1)
+  defp numbers_or_all(_none), do: []
 
   operation(:run,
     summary: "A run with its cards, blind until a test's cards are all graded, and its results",

@@ -153,6 +153,26 @@ defmodule Oneiroi.Seshat.JournalTest do
 
     assert {:error, %Seshat.Error{kind: :seshat_day_invalid}} =
              Seshat.journal_add(id, "yesterday", "note", "x", ctx.brain)
+
+    # The register the resident wrote the row in (spec §6.13, P8), or none; a wrong one is refused.
+    assert {:error, %Seshat.Error{kind: :seshat_register_invalid}} =
+             Seshat.journal_add(id, "2026-10-26", "note", "x", "mood", ctx.brain)
+
+    assert {:ok, %{number: praised}} =
+             Seshat.journal_add(
+               id,
+               "2026-10-26",
+               "note",
+               "She said the bread was good.",
+               "praise",
+               ctx.brain
+             )
+
+    assert %{register: "praise"} =
+             Enum.find(
+               Seshat.journal_entries_since(id, ~U[2026-10-01 00:00:00Z]),
+               &(&1.number == praised)
+             )
   end
 
   test "the day the schedule opened at a check-in is the journal's day, and the brain writes and reads through its tools with today's rows as a section",

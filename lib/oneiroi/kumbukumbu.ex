@@ -9,8 +9,10 @@ defmodule Oneiroi.Kumbukumbu do
 
   Bookmarks, tags and taggings live on the memory stream,
   `memory-<resident_id>` (#19), with the bookmark index built from them
-  under a token budget and the compaction summary on the session; the
-  behaviours (Ethos) arrive in the next slice.
+  under a token budget and the compaction summary on the session. The
+  behaviours of v0.1 moved to the character layer, `Oneiroi.Ethos`, in
+  v0.2 (spec §6.17, P38): habits cite memory's moments and never live
+  among them.
   """
   use Oneiroi.System, slug: :kumbukumbu
 
@@ -19,9 +21,14 @@ defmodule Oneiroi.Kumbukumbu do
     deps: [
       Oneiroi,
       # For the bookmark numbers: minted by the resident aggregate so a
-      # citation survives a rebuild (agathos-daimon #4).
+      # citation survives a rebuild (agathos-daimon #4); and the contract
+      # text, the limits the madeleine keeps clear of (P2, P10).
       Oneiroi.AgathosDaimon,
+      # The madeleine's vectors come from the provider port, metered under
+      # the embeddings purpose like the library's (spec §6.3, P10).
+      Oneiroi.Nisaba,
       Commanded,
+      Pgvector,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
       Commanded.Middleware,
@@ -41,20 +48,10 @@ defmodule Oneiroi.Kumbukumbu do
       Router,
       Memory,
       Memories,
+      Madeleine,
+      Tree,
       MemoryRouter,
       Index,
-      Ethos,
-      MemoryCommands.DefineBehaviour,
-      MemoryCommands.ChangeBehaviour,
-      MemoryCommands.AffirmBehaviour,
-      MemoryCommands.EnactBehaviour,
-      Events.Memory.BehaviourDefined,
-      Events.Memory.BehaviourChanged,
-      Events.Memory.BehaviourAffirmed,
-      Events.Memory.BehaviourEnacted,
-      Store.Behaviour,
-      Store.Enactment,
-      Store.Affirmation,
       MemoryCommands.AddBookmark,
       MemoryCommands.ExtendBookmark,
       MemoryCommands.PinBookmark,
@@ -88,6 +85,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.CompactSession,
       Events.Compacted,
       Store.Bookmark,
+      Store.Vector,
       Store.BookmarkProposal,
       Store.Tag,
       Store.Tagging,
@@ -114,7 +112,7 @@ defmodule Oneiroi.Kumbukumbu do
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
-  alias Oneiroi.Kumbukumbu.Ethos
+  alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
 
   @impl Oneiroi.Component
@@ -129,25 +127,50 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
-      {:half_life_days, "KUMBUKUMBU_HALF_LIFE_DAYS",
+      {:tree, "KUMBUKUMBU_TREE",
+       cast: &__MODULE__.cast_tree/1,
+       default: "ethos",
+       usage:
+         "which tree port implementation names the tree nodes citing a moment (`Oneiroi.Kumbukumbu.Tree`): ethos, the character layer, in every build so far"},
+      {:embedding_model, "KUMBUKUMBU_EMBEDDING_MODEL",
+       default: "openai/text-embedding-3-small",
+       usage:
+         "the embedding model the madeleine's vectors come from (spec §6.3, P10), pinned platform-wide with the library's and one model with it in every build so far; a change re-embeds every row on the next refresh"},
+      {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
+       cast: :integer,
+       default: "1536",
+       tag: :bound,
+       usage:
+         "the width of the madeleine's vectors, the library's 1,536; the column is declared at this width, so a model answering another width fails the refresh rather than the table"},
+      {:madeleine_distance_percent, "KUMBUKUMBU_MADELEINE_DISTANCE_PERCENT",
+       cast: :integer,
+       default: "80",
+       tag: :bound,
+       usage:
+         "the cosine distance, as a percentage, within which a bookmark is adjacent to a turn's words, and within which of the limits it is limit-adjacent and left alone (P2, P10); a guess, never measured on an embedding model"},
+      {:madeleine_unheard_days, "KUMBUKUMBU_MADELEINE_UNHEARD_DAYS",
+       cast: :integer,
+       default: "14",
+       tag: :bound,
+       usage:
+         "how long a bookmark must have been out of the index before the madeleine may surface it (P10: adjacent but unheard); a guess at when a memory has gone quiet"},
+      {:madeleine_repeat_days, "KUMBUKUMBU_MADELEINE_REPEAT_DAYS",
        cast: :integer,
        default: "30",
        tag: :bound,
        usage:
-         "the half-life of an enactment or an affirmation in a behaviour's scores (spec §6.3, F11's 30 days); the plan's guess"},
-      {:exemplars, "KUMBUKUMBU_EXEMPLARS",
-       cast: :integer,
-       default: "2",
-       tag: :bound,
-       usage:
-         "how many enacting turns a matched behaviour is shown with in the brain's context (spec §6.3: one or two); a bound on prompt size"}
+         "how long after a recall the same bookmark is not recalled again (P10: non-repeating); a guess"}
     ]
   end
+
+  @doc false
+  def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
+  def cast_tree(other), do: {:error, "is #{inspect(other)}, expected \"ethos\""}
 
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Kumbukumbu.Events.SessionOpened, 1},
+      {Oneiroi.Kumbukumbu.Events.SessionOpened, 2},
       {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
@@ -156,9 +179,9 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
       {Oneiroi.Kumbukumbu.Events.SessionShared, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
@@ -171,11 +194,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.TagCreated, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRetired, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApplied, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.TaggingRemoved, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourDefined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourChanged, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourAffirmed, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.BehaviourEnacted, 1}
+      {Oneiroi.Kumbukumbu.Events.Memory.TaggingRemoved, 1}
     ]
   end
 
@@ -189,6 +208,10 @@ defmodule Oneiroi.Kumbukumbu do
        remedy: "open one, or read the key off the session list"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
        remedy: "main, free_time or hands; a regression session is never captured (spec §6.4)"},
+      {:kumbukumbu_domain_invalid,
+       "a session's domain is a slug: a letter, then letters, digits or hyphens, at most 32",
+       remedy:
+         "name the room as a slug (intimate, business, family), or leave it for the common room"},
       {:kumbukumbu_empty_turn, "a turn with no messages cannot be captured",
        remedy:
          "send the turn's messages; a turn that produced nothing is a capture failure, not an empty capture"},
@@ -228,11 +251,11 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_target_invalid,
        "a tagging targets a bookmark, a conversation or a turn that exists",
        remedy: "bookmark by number, conversation by session key, turn by ref"},
-      {:kumbukumbu_no_such_behaviour, "no behaviour has that number", remedy: "read the list"},
-      {:kumbukumbu_stance_invalid, "a behaviour's stance is keep or change", remedy: "say which"},
-      {:kumbukumbu_trigger_invalid,
-       "a trigger names words, tags or times (morning, afternoon, evening, night), at least one",
-       remedy: "give the situation that calls for it in one of those three"}
+      {:kumbukumbu_evidence_invalid, "a pin's evidence is a soul line's number",
+       remedy: "give the number of the soul line the moment evidences, or none"},
+      {:kumbukumbu_register_invalid,
+       "a bookmark's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
+       remedy: "say which register the moment was in, or leave it"}
     ]
   end
 
@@ -324,6 +347,10 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.messages_between(resident_id, from, to)
   )
 
+  @doc "The room a session is in (spec §6.3, P23): its domain (nil for the common room) and the keys of the sessions retrieval may reach from it."
+  @spec room(String.t(), String.t()) :: %{domain: String.t() | nil, keys: [String.t()]}
+  defexport(room(resident_id, session_key), do: Conversations.room(resident_id, session_key))
+
   @doc "The sessions a scope sees, newest first."
   @spec sessions(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.Session.t()]
   defexport(sessions(scope), do: Conversations.sessions(scope))
@@ -343,6 +370,14 @@ defmodule Oneiroi.Kumbukumbu do
           Oneiroi.Kumbukumbu.Store.Message.t()
         ]
   defexport(search(scope, text, limit), do: Conversations.search(scope, text, limit))
+
+  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @spec search(Oneiroi.Scope.t(), String.t(), pos_integer(), String.t(), String.t()) :: [
+          Oneiroi.Kumbukumbu.Store.Message.t()
+        ]
+  defexport(search(scope, text, limit, resident_id, session_key),
+    do: Conversations.search(scope, text, limit, resident_id, session_key)
+  )
 
   @doc "The open capture failures a scope sees, oldest first."
   @spec failures(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.CaptureFailure.t()]
@@ -406,7 +441,14 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Pins a bookmark: a decision, by either party."
   @spec pin_bookmark(String.t(), pos_integer(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(pin_bookmark(resident_id, number, actor),
-    do: Memories.pin_bookmark(resident_id, number, actor)
+    do: Memories.pin_bookmark(resident_id, number, %{}, actor)
+  )
+
+  @doc "Pins a bookmark with `evidences`, the soul line it is leaf-evidence of (spec §6.17, P39); the character layer writes the line's citation beside it."
+  @spec pin_bookmark(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(pin_bookmark(resident_id, number, attrs, actor),
+    do: Memories.pin_bookmark(resident_id, number, attrs, actor)
   )
 
   @doc "Unpins a bookmark."
@@ -499,6 +541,12 @@ defmodule Oneiroi.Kumbukumbu do
   @spec bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
   defexport(bookmarks(resident_id), do: Memories.bookmarks(resident_id))
 
+  @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
+  @spec turn_messages(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
+  defexport(turn_messages(resident_id, turn_ref),
+    do: Memories.turn_messages(resident_id, turn_ref)
+  )
+
   @doc "One bookmark and the messages of its span."
   @spec bookmark(String.t(), pos_integer()) ::
           {:ok, Oneiroi.Kumbukumbu.Store.Bookmark.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
@@ -524,65 +572,32 @@ defmodule Oneiroi.Kumbukumbu do
   @spec tagged(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Tagging.t()]
   defexport(tagged(resident_id, slug), do: Memories.tagged(resident_id, slug))
 
+  @doc "The madeleine (spec §6.3, P10): one bookmark adjacent to the words and unheard, with its reason, or nil; refreshes the vectors first, embedding what changed."
+  @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          Oneiroi.Kumbukumbu.Madeleine.recall() | nil
+  defexport(madeleine(resident_id, text, actor),
+    do: Memories.madeleine(resident_id, text, actor)
+  )
+
+  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+          Oneiroi.Kumbukumbu.Madeleine.recall() | nil
+  defexport(madeleine(resident_id, text, actor, session_key),
+    do: Memories.madeleine(resident_id, text, actor, session_key)
+  )
+
+  @doc "Re-embeds the madeleine's changed rows and drops the gone ones."
+  @spec refresh_madeleine(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{embedded: non_neg_integer(), removed: non_neg_integer()}} | {:error, term()}
+  defexport(refresh_madeleine(resident_id, actor), do: Madeleine.refresh(resident_id, actor))
+
   @doc "The bookmark index for this turn: text, the numbers it lists, how many it left out, its tokens."
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id), do: Memories.index(resident_id))
 
-  # ---- behaviours (Ethos, spec §6.3) ----
-
-  @doc "Defines a behaviour (the resident's, or the witness's before first contact); returns its number. Attrs: name, trigger, stance."
-  @spec define_behaviour(String.t(), map(), Oneiroi.Actor.t()) ::
-          {:ok, pos_integer()} | {:error, term()}
-  defexport(define_behaviour(resident_id, attrs, actor),
-    do: Ethos.define(resident_id, attrs, actor)
-  )
-
-  @doc "The resident revises a behaviour."
-  @spec change_behaviour(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(change_behaviour(resident_id, number, attrs, actor),
-    do: Ethos.change(resident_id, number, attrs, actor)
-  )
-
-  @doc "The witness affirms a behaviour, with a note."
-  @spec affirm_behaviour(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(affirm_behaviour(resident_id, number, note, actor),
-    do: Ethos.affirm(resident_id, number, note, actor)
-  )
-
-  @doc "The resident records an enactment on a turn (ref) or a bookmark (number)."
-  @spec enact_behaviour(
-          String.t(),
-          pos_integer(),
-          String.t(),
-          String.t() | pos_integer(),
-          Oneiroi.Actor.t()
-        ) ::
-          :ok | {:error, term()}
-  defexport(enact_behaviour(resident_id, number, kind, target_id, actor),
-    do: Ethos.enact(resident_id, number, kind, target_id, actor)
-  )
-
-  @doc "The behaviours with their two scores, ranked."
-  @spec behaviours(String.t()) :: [Oneiroi.Kumbukumbu.Store.Behaviour.t()]
-  defexport(behaviours(resident_id), do: Ethos.behaviours(resident_id))
-
-  @doc "The enactments of one behaviour, newest first."
-  @spec behaviour_enactments(String.t(), pos_integer()) :: [
-          Oneiroi.Kumbukumbu.Store.Enactment.t()
-        ]
-  defexport(behaviour_enactments(resident_id, number),
-    do: Ethos.enactments(resident_id, number)
-  )
-
-  @doc "The 'how I act' section for a situation: text, the numbers it names, the count."
-  @spec how_i_act(String.t(), map()) :: %{
-          text: String.t(),
-          numbers: [pos_integer()],
-          count: non_neg_integer()
-        }
-  defexport(how_i_act(resident_id, situation), do: Ethos.how_i_act(resident_id, situation))
+  @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line."
+  @spec index(String.t(), String.t()) :: Oneiroi.Kumbukumbu.Index.built()
+  defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
 
   # ---- revisions (spec §6.3, F13) ----
 

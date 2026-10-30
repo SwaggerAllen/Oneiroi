@@ -100,6 +100,39 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  # ---- the hour marker (spec §6.7, P20 as amended) ----
+
+  @doc "The local hour's key, `YYYY-MM-DDTHH`."
+  def hour_key(%DateTime{} = local),
+    do: local |> DateTime.to_iso8601() |> String.slice(0, 13)
+
+  @doc """
+  Marks the local hour on the schedule's stream, once: `:ok` when this
+  call marked it, `:already` when it stood. No model call, no wake. The
+  row is read first so a tick on every minute dispatches once an hour.
+  """
+  def mark_hour(resident_id, %DateTime{} = local, %Actor{} = actor) do
+    key = hour_key(local)
+
+    if Scope.resident(resident_id, fn -> Store.hour(key) end) do
+      :already
+    else
+      command = %Commands.MarkHour{actor: actor, at: Clock.now(), id: resident_id, hour: key}
+
+      case dispatch(command) do
+        {:ok, []} -> :already
+        {:ok, _} -> :ok
+        other -> other
+      end
+    end
+  end
+
+  @doc "The marked hours, newest first."
+  def hours(resident_id, limit), do: Scope.resident(resident_id, fn -> Store.hours(limit) end)
+
+  @doc "The newest marked hour, or nil."
+  def last_hour(resident_id), do: Scope.resident(resident_id, fn -> Store.last_hour() end)
+
   @doc "One day row, or nil."
   def day(resident_id, day), do: Scope.resident(resident_id, fn -> Store.day(day) end)
 
@@ -417,29 +450,20 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} ->
-        {:ok, events}
-
-      {:error, :time_invalid} ->
-        {:error, Error.new(:sunna_time_invalid)}
-
-      {:error, :label_invalid} ->
-        {:error, Error.new(:sunna_label_invalid)}
-
-      {:error, :kind_invalid} ->
-        {:error, Error.new(:sunna_kind_invalid, kinds: Schedule.date_kinds())}
-
-      {:error, :no_such_checkin} ->
-        {:error, Error.new(:sunna_no_such_checkin, key: command.key)}
-
-      {:error, :day_invalid} ->
-        {:error, Error.new(:sunna_day_invalid, day: inspect(command.day))}
-
-      {:error, :no_such_date} ->
-        {:error, Error.new(:sunna_no_such_date, number: command.number)}
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, events} -> {:ok, events}
+      {:error, reason} -> {:error, translate(reason, command)}
     end
   end
+
+  defp translate(:time_invalid, _c), do: Error.new(:sunna_time_invalid)
+  defp translate(:label_invalid, _c), do: Error.new(:sunna_label_invalid)
+  defp translate(:hour_invalid, _c), do: Error.new(:sunna_hour_invalid)
+
+  defp translate(:kind_invalid, _c),
+    do: Error.new(:sunna_kind_invalid, kinds: Schedule.date_kinds())
+
+  defp translate(:no_such_checkin, c), do: Error.new(:sunna_no_such_checkin, key: c.key)
+  defp translate(:day_invalid, c), do: Error.new(:sunna_day_invalid, day: inspect(c.day))
+  defp translate(:no_such_date, c), do: Error.new(:sunna_no_such_date, number: c.number)
+  defp translate(other, _c), do: other
 end

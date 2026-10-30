@@ -97,4 +97,83 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
     assert :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Mine", %{}, ctx.brain)
     assert {:ok, %{content: "# Mine", version: 3}} = AgathosDaimon.file(id, "SOUL.md")
   end
+
+  test "the soul's lines through the exports: numbered rows in order, rendered with their markers, a rewording keeps the number, the rendered file written back is nothing",
+       ctx do
+    id = ctx.resident.id
+
+    :ok =
+      AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\nCurious.\n\nSlow to anger.",
+        %{},
+        ctx.witness
+      )
+
+    assert [
+             %{number: 1, text: "Curious.", position: 1, state: "live", cites: [], version: 1},
+             %{number: 2, text: "Slow to anger.", position: 2}
+           ] = AgathosDaimon.soul_lines(id)
+
+    rendered = "# Soul\n\n[soul/1] Curious.\n\n[soul/2] Slow to anger."
+    assert {:ok, %{content: ^rendered, version: 1}} = AgathosDaimon.file(id, "SOUL.md")
+    assert [%{name: "SOUL.md", content: ^rendered}] = AgathosDaimon.files(id)
+    assert {"SOUL.md", ^rendered} = List.keyfind(AgathosDaimon.identity_context(id), "SOUL.md", 0)
+
+    # Written back as rendered: no event, no version.
+    assert :ok = AgathosDaimon.write_file(id, "SOUL.md", rendered, %{}, ctx.witness)
+    assert {:ok, %{version: 1}} = AgathosDaimon.file(id, "SOUL.md")
+
+    # Reordered and reworded under the markers, a new line citing a seed number.
+    :ok =
+      AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\n[soul/2] Slow to anger.\n\n[soul/1] Curious, still.\n\nLoves the garden.",
+        %{cites: [7]},
+        ctx.witness
+      )
+
+    assert [
+             %{number: 2, text: "Slow to anger.", position: 1, version: 1},
+             %{
+               number: 1,
+               text: "Curious, still.",
+               position: 2,
+               version: 2,
+               cites: [7],
+               reworded_at: %DateTime{}
+             },
+             %{number: 3, text: "Loves the garden.", position: 3, cites: [7]}
+           ] = AgathosDaimon.soul_lines(id)
+
+    assert {:ok,
+            %{
+              content:
+                "# Soul\n\n[soul/2] Slow to anger.\n\n[soul/1] Curious, still.\n\n[soul/3] Loves the garden.",
+              version: 2
+            }} =
+             AgathosDaimon.file(id, "SOUL.md")
+
+    # A dropped line retires and stays out of the live list; the next line takes the next number.
+    :ok =
+      AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\n[soul/3] Loves the garden.\n\nRests.",
+        %{},
+        ctx.witness
+      )
+
+    assert [%{number: 3, position: 1}, %{number: 4, text: "Rests.", position: 2}] =
+             AgathosDaimon.soul_lines(id)
+
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_cites_invalid}} =
+             AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nX.", %{cites: [0]}, ctx.witness)
+
+    # The other files are whole, never lines.
+    :ok = AgathosDaimon.write_file(id, "USER.md", "# You\n\nA gardener.", %{}, ctx.witness)
+    assert {:ok, %{content: "# You\n\nA gardener."}} = AgathosDaimon.file(id, "USER.md")
+  end
 end

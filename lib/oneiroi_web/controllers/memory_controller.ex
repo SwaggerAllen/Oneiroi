@@ -2,6 +2,7 @@ defmodule OneiroiWeb.MemoryController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Ethos
   alias Oneiroi.Kumbukumbu
   alias OpenApiSpex.Schema
 
@@ -32,13 +33,24 @@ defmodule OneiroiWeb.MemoryController do
   end
 
   operation(:pin,
-    summary: "Pin a bookmark: a decision, recorded with who made it",
+    summary:
+      "Pin a bookmark: a decision, recorded with who made it; with `evidences`, the soul line it is leaf-evidence of (spec §6.17)",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"the evidence", "application/json",
+       %Schema{type: :object, properties: %{evidences: %Schema{type: :integer}}}},
     responses: [no_content: "pinned"]
   )
 
-  def pin(conn, %{"id" => id, "number" => number}),
-    do: respond(conn, Kumbukumbu.pin_bookmark(id, integer(number), actor(conn)))
+  def pin(conn, %{"id" => id, "number" => number} = params) do
+    case params["evidences"] do
+      nil ->
+        respond(conn, Kumbukumbu.pin_bookmark(id, integer(number), actor(conn)))
+
+      line ->
+        respond(conn, Ethos.pin_as_evidence(id, integer(number), integer(line), actor(conn)))
+    end
+  end
 
   operation(:unpin,
     summary: "Unpin a bookmark",
@@ -264,57 +276,6 @@ defmodule OneiroiWeb.MemoryController do
     end
   end
 
-  operation(:behaviours,
-    summary: "The resident's behaviours with their habit and connection scores, ranked",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"behaviours", "application/json", %Schema{type: :array}}]
-  )
-
-  def behaviours(conn, %{"id" => id}),
-    do: json(conn, id |> Kumbukumbu.behaviours() |> Enum.map(&behaviour/1))
-
-  operation(:define_behaviour,
-    summary: "Give a first behaviour before first contact (after it the resident names its own)",
-    parameters: [id: [in: :path, type: :string]],
-    request_body:
-      {"the behaviour", "application/json",
-       %Schema{
-         type: :object,
-         required: [:name],
-         properties: %{
-           name: %Schema{type: :string},
-           trigger: %Schema{type: :object},
-           stance: %Schema{type: :string, enum: ["keep", "change"]}
-         }
-       }},
-    responses: [created: {"the number", "application/json", %Schema{type: :object}}]
-  )
-
-  def define_behaviour(conn, %{"id" => id, "name" => name} = params) do
-    attrs = %{name: name, trigger: Map.get(params, "trigger", %{}), stance: params["stance"]}
-
-    case Kumbukumbu.define_behaviour(id, attrs, actor(conn)) do
-      {:ok, number} -> conn |> put_status(201) |> json(%{number: number})
-      other -> respond(conn, other)
-    end
-  end
-
-  def define_behaviour(conn, _params), do: problem(conn, 422, :name_required, "name is required")
-
-  operation(:affirm_behaviour,
-    summary: "Affirm a behaviour, with a note the resident reads",
-    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
-    request_body:
-      {"the note", "application/json",
-       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
-    responses: [no_content: "affirmed"]
-  )
-
-  def affirm_behaviour(conn, %{"id" => id, "number" => number, "note" => note}),
-    do: respond(conn, Kumbukumbu.affirm_behaviour(id, integer(number), note, actor(conn)))
-
-  def affirm_behaviour(conn, _params), do: problem(conn, 422, :note_required, "note is required")
-
   # Every route here is a resident's, read or written by its witness.
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
@@ -374,6 +335,8 @@ defmodule OneiroiWeb.MemoryController do
       added_by: %{kind: b.added_by_kind, id: b.added_by_id, model: b.added_by_model},
       proposed_by: b.proposed_by_kind && %{kind: b.proposed_by_kind, id: b.proposed_by_id},
       pinned_by: b.pinned_by_kind && %{kind: b.pinned_by_kind, id: b.pinned_by_id},
+      pin_evidences: b.pin_evidences,
+      register: b.register,
       pinned_at: b.pinned_at,
       weight: b.weight,
       last_indexed_at: b.last_indexed_at,
@@ -391,23 +354,6 @@ defmodule OneiroiWeb.MemoryController do
       state: p.state,
       proposed_by: %{kind: p.proposed_by_kind, id: p.proposed_by_id},
       proposed_at: p.proposed_at
-    }
-  end
-
-  defp behaviour(b) do
-    %{
-      number: b.number,
-      name: b.name,
-      trigger: b.trigger,
-      stance: b.stance,
-      habit: b.habit,
-      connection: b.connection,
-      enactments: b.enactments,
-      affirmations: b.affirmations,
-      defined_by: %{kind: b.defined_by_kind, id: b.defined_by_id},
-      defined_at: b.defined_at,
-      revised_at: b.revised_at,
-      revisions: b.revisions
     }
   end
 

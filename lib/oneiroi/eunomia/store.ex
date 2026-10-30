@@ -37,6 +37,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:models, {:array, :string}, default: [])
       field(:tests, {:array, :integer}, default: [])
       field(:behaviours, {:array, :integer}, default: [])
+      field(:commitments, {:array, :integer}, default: [])
       field(:started_at, :utc_datetime_usec)
       field(:finished_at, :utc_datetime_usec)
       field(:cards, :integer, default: 0)
@@ -56,6 +57,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:model, :string)
       field(:test_number, :integer)
       field(:behaviour_number, :integer)
+      field(:commitment_number, :integer)
       field(:content, :string)
       field(:refusal, :boolean, default: false)
       field(:failure, :string)
@@ -150,6 +152,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:judge_model, :string)
       field(:criteria, :string)
       field(:summary, :string)
+      field(:movements, {:array, :map}, default: [])
       field(:reason, :string)
     end
 
@@ -212,6 +215,53 @@ defmodule Oneiroi.Eunomia.Store do
 
   @spec audits() :: [Audit.t()]
   def audits, do: Repo.all(from(a in Audit, order_by: [desc: a.at]))
+
+  defmodule Wash do
+    @moduledoc "One wash pass (spec §6.13, P18): the entries read, the flags raised, the model, the outcome."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_wash" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:outcome, :string)
+      field(:entries, :integer)
+      field(:flagged, :integer)
+      field(:judge_model, :string)
+      field(:criteria, :string)
+      field(:summary, :string)
+      field(:reason, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule WashFlag do
+    @moduledoc "One entry the wash pass flagged, with its kind, and the resident's decision when made."
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_wash_flag" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:wash_ref, :string)
+      field(:file, :string)
+      field(:entry, :string)
+      field(:kind, :string)
+      field(:reason, :string)
+      field(:raised_at, :utc_datetime_usec)
+      field(:decision, :string)
+      field(:note, :string)
+      field(:decided_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @spec washes() :: [Wash.t()]
+  def washes, do: Repo.all(from(w in Wash, order_by: [desc: w.at]))
+
+  @spec wash_flags() :: [WashFlag.t()]
+  def wash_flags, do: Repo.all(from(f in WashFlag, order_by: [asc: f.raised_at, asc: f.ref]))
 
   @spec audit_flags() :: [AuditFlag.t()]
   def audit_flags, do: Repo.all(from(f in AuditFlag, order_by: [asc: f.raised_at, asc: f.ref]))

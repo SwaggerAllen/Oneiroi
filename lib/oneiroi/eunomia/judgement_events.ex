@@ -65,10 +65,24 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
     # One per day: how much the judge read, what it found, under which
     # model. A quiet day is recorded with no messages and no model.
     # Version 2 adds `criteria` as `DisputeChecked` does; a quiet day,
-    # judged by nobody, carries none.
+    # judged by nobody, carries none. Version 3 adds `movements` (spec
+    # §6.4, P34): the day's threads that moved, each string-keyed with
+    # `numbers`, `turn_ref`, `happened`, `stance`, `intention` and
+    # `resume`, so the record keeps what changed and not only what
+    # stood; the store restarts for v0.2, so the upcaster is identity.
     use Oneiroi.Event,
-      version: 2,
-      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary, :criteria]
+      version: 3,
+      fields: [
+        :id,
+        :day,
+        :messages,
+        :chars,
+        :found,
+        :judge_model,
+        :summary,
+        :criteria,
+        :movements
+      ]
   end
 
   defimpl Commanded.Event.Upcaster, for: NightJudged do
@@ -125,6 +139,34 @@ defmodule Oneiroi.Eunomia.Events.Judgement do
 
   defmodule AuditFlagDeleted do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule WashRun do
+    # The weekly wash pass (spec §6.13, P18, Kael: "a defensive sentence
+    # can't be seen from the inside"): how many entries of the identity
+    # files the judge read, how many it flagged, under which model and
+    # which prompt (`criteria`, as the other verdicts carry).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ref, :entries, :flagged, :judge_model, :summary, :criteria]
+  end
+
+  defmodule WashFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :ref, :reason]
+  end
+
+  defmodule WashFlagRaised do
+    # One entry the judge reads as expired, a contradiction, tense or
+    # defensive; a proposal, never a clearing: the resident decides.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ref, :wash_ref, :file, :entry, :kind, :reason]
+  end
+
+  defmodule WashFlagResolved do
+    # The resident's decision on a flag, keep or edit, with its note
+    # (the edit itself is a soul edit, the resident's own write).
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref, :decision]
   end
 
   defmodule JudgeModelChanged do

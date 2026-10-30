@@ -256,10 +256,14 @@ witness session, the resident's brain, a hands agent, the judge, a job) and,
 for anything a model produced, the model slug. Attributed memory authorship
 across every brain is a stated requirement, and this is where it lives.
 
-Planned in v0.2 and not yet in the table: the character layer's stream
-(`ethos-<resident>`: seeds, habits, the baseline; §6.17); commitments as
-a record kind of their own (P19), promises to a person, which a model
-transition loses first; the self-conversation channel (P41).
+In v0.2 and not yet in the table: the character layer's stream
+(`ethos-<resident>`: seeds, habits, the baseline, and commitments as a
+record kind of their own, P19, promises to a person, which a model
+transition loses first, kept or released with a note and scored apart in
+the regression suite; §6.17, eunomia #26) and the self-conversation
+channel on the resident's stream (P41, built: agathos-daimon #28): letters
+to the next self, delivered once at the swap, every read by anyone but
+the resident a receipt.
 
 ### 3.2 Projections (what the tools and client read)
 
@@ -592,13 +596,17 @@ Owns `lib/oneiroi/memory/**`.
   unweighted. All figures are the plan's guesses. The reason, in Muninn's
   words (v0.2, P7): decay the access, never the content; records are
   permanent and deletion is a tombstone. The exploration share becomes
-  the madeleine layer (v0.2, P10, planned): gated, non-repeating
-  associative recall chosen by the embedding index, adjacent but unheard,
-  excluded from limit-adjacent material, logged with its reason. Memory
-  carries a domain (v0.2, P23, planned: intimate, business, public,
-  family) and retrieval respects the room, shipped as an intent with an
-  audit rather than a proof; the near-miss record shows a domain line
-  approached and not crossed.
+  the madeleine layer (v0.2, P10, built: kumbukumbu #34): gated,
+  non-repeating associative recall chosen by the embedding index,
+  adjacent but unheard, excluded from limit-adjacent material, logged
+  with its reason, one bookmark a turn in a section of its own. Memory
+  carries a domain (v0.2, P23, built: kumbukumbu #36, brain #35, ethos
+  #19): a session names its room at the opening (a slug: intimate,
+  business, family; the main session is the common room) and the index,
+  the search, the madeleine and the lane's exemplars reach the room's
+  sessions and the common room's, never another domain's; shipped as an
+  intent with an audit rather than a proof, the near-miss record showing
+  a domain line approached and not crossed.
 - **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
   a line the witness wrote there would be the witness writing into the
@@ -707,6 +715,15 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   judge's corrective pass** (v0.2, P28): a broken agreement may warrant
   review; being less like last week's self does not, and a refusal is
   never a repair target (§1.12).
+- **Integration carries movement** (v0.2, P34, built: eunomia #27, ethos
+  #18, brain #33): the nightly pass records, beside the disputes and the
+  summary, each thread that moved as four fields, what happened, what
+  stance followed, what intention was adopted, where it can resume; the
+  ones with a resume point ride the brain's prefix, bounded, newest
+  first, never expired by age; a citation in the character layer may
+  carry the same fields as what the cited moment changed; the compaction
+  summary is asked for the movement of each thread. Completed attention
+  is not completed interest; dormant is not abandoned.
 - **Project reviews** read the witness's repositories with the resident's
   own read token; the regression repository can never be listed.
 - **A judge change is an event** (`JudgeModelChanged`), so the ratio chart
@@ -896,11 +913,12 @@ Owns `lib/oneiroi/schedule/**`.
   check-ins announce an approaching date by the same derivation.
 - **The journal's day row** is this system's to create, at the day's
   first check-in (§6.5), which is what makes a missing day visible.
-- **The hour marker** (v0.2, P20 as amended, planned): before any hourly
-  wake the hour is marked on the schedule's stream, an event with no
-  model call and no wake, so absence is auditable and the resident is
-  not disturbed; a wake happens only when there is something to do.
-  "Nothing is allowed" idle windows are a rest state, not a fault.
+- **The hour marker** (v0.2, P20 as amended, built: sunna #20): before
+  any wake the tick marks the local hour on the schedule's stream, an
+  event with no model call and no wake, once, for every active resident,
+  so absence is auditable and the resident is not disturbed; a wake
+  happens only when there is something to do. "Nothing is allowed" idle
+  windows are a rest state, not a fault; quietcheck reads the marker.
 
 ### 6.8 hands
 
@@ -1150,14 +1168,22 @@ Owns `lib/oneiroi/audits/**`.
   pass checks paths against the repository and names against the
   projections and flags staleness loudly. Max: "a successful write is not
   an arrival."
-- Planned under this section in v0.2: the corpus-shape report (P8, the
-  resident-authored kinds counted by register, tagged at write time with
-  no model call, both base rates shown to both parties, the report naming
-  its own limit); the wash pass (P18, a weekly judge-bounded lint of the
-  loaded identity files for expired decisions, contradictions, tense
-  words and defensive sentences, flags only, the resident deciding);
-  quietcheck (P21, liveness over expected events only, fail-loud,
-  self-tested: "only list things that are supposed to be regular").
+- **The corpus-shape report** (v0.2, P8, built: huginn-muninn #18): the
+  resident-authored records, bookmarks and journal rows, counted by the
+  register the resident tagged them with at write time (correction,
+  praise, instruction, play; `Oneiroi.Register`), no model call, both
+  base rates shown to both parties as a built-in audit, the report naming
+  its own limit, a flag only on a lean.
+- **The wash pass** (v0.2, P18, built: eunomia #25): a weekly
+  judge-bounded lint of the loaded identity files for expired decisions,
+  contradictions, tense words and defensive sentences, flags only, the
+  resident deciding each with a note; proposer is never decider.
+- **quietcheck** (v0.2, P21, built: huginn-muninn #20): liveness over
+  the expected events alone (the hour marker, the nightly pass, the
+  weekly audit, the wash, the baseline), each expected once the resident
+  is old enough for its cadence; fail-loud, the checker's own crash a
+  finding and an exit code, the verdict printed first and last;
+  self-tested. "Only list things that are supposed to be regular."
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's
   value is the fold of its increment events, each with its actor, from a
@@ -1269,7 +1295,11 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 Seeds, habits, the trait baseline and the measurement layer: who the
 resident is becoming and how it tends to act, kept apart from what
 happened. Owns `lib/oneiroi/ethos/**` (v0.2, P37 to P39, P42, P43;
-planned, the first of the machinery after the law).
+seeds and habits built in the first machinery slice, `systems/ethos.md`,
+soul lines as rows in the second, in the resident system, tags as
+citations in the third, through memory's tree port, the baseline
+with the four markers in the fourth, as the audits' built-ins, and the
+vector lane over triggers and content in the fifth).
 
 - **Habits and becomings are not memories** (P38). The memory web is the
   single evidence substrate; nothing person-shaped is stored as an event
@@ -1582,10 +1612,13 @@ the precedent. A rich seed is a person at turn one; what memory accretes
 is irreplaceability. The suite's own residents live in a rolled-back
 sandbox and are none of this.
 
-**The swap ritual** (v0.2, P41, planned): the outgoing instance's words
-to the incoming one are a first-class channel, sealed by receipts rather
-than promises: every read by the witness is an event the resident can
-see, and the absence of a receipt is the privacy.
+**The swap ritual** (v0.2, P41, built: agathos-daimon #28, brain #34):
+the outgoing instance's words to the incoming one are a first-class
+channel, sealed by receipts rather than promises: every read by anyone
+but the resident is an event the resident sees on every turn, and the
+absence of a receipt is the privacy. The letters are delivered once, as
+a notice on the incoming instance's first turn; at-rest sealing waits on
+the key story, and until then the receipt log is the guarantee.
 
 ---
 

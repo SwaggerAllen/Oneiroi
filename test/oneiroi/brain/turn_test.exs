@@ -7,6 +7,7 @@ defmodule Oneiroi.Brain.TurnTest do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
+  alias Oneiroi.Brain.Turn
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
@@ -82,6 +83,80 @@ defmodule Oneiroi.Brain.TurnTest do
 
     assert {:ok, %{last_indexed_at: nil}, _span} =
              Kumbukumbu.bookmark(id, String.to_integer(number))
+  end
+
+  test "the madeleine: a bookmark the index left out and the words sit near is surfaced once, with its reason, and marked recalled, never indexed",
+       ctx do
+    id = ctx.resident.id
+    resident = Actor.new(:resident, id, "fake/model")
+    at = Clock.now()
+
+    :ok =
+      Kumbukumbu.capture(
+        id,
+        ctx.key,
+        "anchor",
+        at,
+        [%{role: :user, content: "a moment", sent_at: at, actor: ctx.actor}],
+        resident
+      )
+
+    {:ok, 1} =
+      Kumbukumbu.add_bookmark(
+        id,
+        %{
+          session_key: ctx.key,
+          anchor_ref: "anchor",
+          line:
+            "the greenhouse thermometer broke " <> String.duplicate("greenhouse thermometer ", 3),
+          summary: String.duplicate("greenhouse thermometer ", 8)
+        },
+        resident
+      )
+
+    for n <- 2..60 do
+      attrs = %{
+        session_key: ctx.key,
+        anchor_ref: "anchor",
+        line: "bookmark number #{n} " <> String.duplicate("word ", 16),
+        summary: "the #{n}th"
+      }
+
+      {:ok, ^n} = Kumbukumbu.add_bookmark(id, attrs, resident)
+    end
+
+    assert {:ok, %{turn_ref: ref}} =
+             Oneiroi.Brain.turn(id, ctx.key, "is the greenhouse thermometer fixed?", ctx.actor)
+
+    rows = Kumbukumbu.injections({:account, ctx.witness.id}, ref)
+    [index] = Enum.filter(rows, &(&1.label == "index"))
+    refute index.text =~ "greenhouse"
+    [recall] = Enum.filter(rows, &(&1.label == "madeleine"))
+
+    assert recall.text =~ "# A madeleine" and
+             recall.text =~ "#1 2026-10-26: the greenhouse thermometer broke"
+
+    assert recall.reason =~ "adjacent and unheard: #1" and String.length(recall.reason) <= 255
+
+    assert {:ok, %{last_indexed_at: nil, last_recalled_at: %DateTime{}}, _span} =
+             Kumbukumbu.bookmark(id, 1)
+
+    # Not again within the window.
+    assert {:ok, %{turn_ref: ref2}} =
+             Oneiroi.Brain.turn(id, ctx.key, "the greenhouse thermometer?", ctx.actor)
+
+    assert [] =
+             Enum.filter(
+               Kumbukumbu.injections({:account, ctx.witness.id}, ref2),
+               &(&1.label == "madeleine")
+             )
+  end
+
+  test "an injection's reason is fitted to its row's width at the write, cut with a mark" do
+    assert Turn.fit("short") == "short"
+    long = String.duplicate("r", 300)
+    assert byte_size(Turn.fit(long)) == 255 and String.ends_with?(Turn.fit(long), "...")
+    assert Turn.fit(String.duplicate("r", 255)) == String.duplicate("r", 255)
   end
 
   defp events(resident_id, key) do

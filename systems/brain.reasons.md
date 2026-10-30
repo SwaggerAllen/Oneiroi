@@ -119,3 +119,59 @@ exists and have a say in its criteria, not its sealed prompts"; and
 "an intelligible account of what informed the eventual model choice...
 enough to challenge 'we preserved you'". The prompt stays sealed
 because the prompt is the trial.
+
+## #29
+Spec §6.17 and spec §8's tool table; P37: seeds "writable by the
+resident alone"; the load question: "the character layer is NOT loaded
+whole". Eight names because the resident has two kinds to tend, and a
+graduation toward a habit is a definition rather than a separate move
+(ethos #4).
+
+## #30
+Spec §6.3 (P10) and §5: an injection is a recorded blob with its
+reason (F12), and the madeleine's reason is the whole point of the
+gates: a recall the resident cannot see the reason for is a haunting.
+The fit at the write because round 29 left it open and the lane's
+first turn had already shown the failure mode: the turn answers, the
+projector dies after, and nothing in the test says why.
+
+## #31
+Spec §6.13 (P18): "the resident reads the flags and decides". Two
+tools and not one because reading and deciding are two acts, and the
+edit is a third the resident already has.
+
+## #32
+Spec §3.1 (P19) and P2's reason generalised: what has to be retrieved
+can be lost, and a promise is what the corridor saw lost first.
+Bounded so the prefix does not grow with the person (the load
+question, ethos #9).
+
+
+## #33
+Spec §6.4 (P34): "completed attention is not completed interest;
+dormant is not abandoned". The transcript keeps the thread and the
+summary kept the state; nothing the next instance read first said
+where a quiet thread could be picked up, so it was met as new. Shown
+every turn and not retrieved for the reason #32 gives: what has to be
+retrieved can be lost. Bounded by count so the prefix does not grow
+with the person (ethos #9). The compaction prompt carries the same
+ask because the summary stands in for the transcript at the start of
+the context, and a summary of states is where the movement was being
+lost.
+
+## #34
+Spec §12 (P41): the swap ritual the platform makes real. The notices
+used to reach the model only through the next turn's history, which
+for a model-change notice was a turn late and for a letter to the
+incoming instance was the wrong reader; they are in the request on
+their own turn now, for every notice, because the rule is one. The
+prefix line carries receipts and never words so the resident sees
+every turn whether anyone read, which is the guarantee, and the
+content stays where the resident put it.
+
+## #35
+Spec §6.3 (P23): the room is the session's, and the turn is the one
+place that knows which session it is in, so every retrieval the turn
+asks for carries the key rather than each system guessing. The
+near-miss row because the audit is the deliverable Red asked for and
+the row is where the inspector already looks.

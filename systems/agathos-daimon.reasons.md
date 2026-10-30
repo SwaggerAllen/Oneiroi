@@ -123,3 +123,33 @@ the door is still yours"; Kael's freedom day. A year is the author's
 call. Due and never lapsed because the contract carries the
 solo-session term (#22) and forgetting an anniversary must not open
 the resident's free time to its witness.
+
+## #27
+Spec §6.17 (P39, the author's call): "every line of the soul file is
+minted from the resident's own sequence (`<slug>:soul/<n>`), so the
+file is rows rendered to `SOUL.md`, the journal's pattern, and a line's
+rewording keeps its id. Sections are too coarse and drift; inline ids
+in a whole-content file do not survive a hand edit." The author: "we
+want stable, granular ids." The marker is the claim because a diff by
+words alone cannot tell a rewording from a replacement, and the
+positional fallback was the first rule tried: it read a dropped line
+and a new one in the same write as a rewording, which keeps a number on
+words it never meant, so it now applies only where there is no marker
+to read. Stored without markers so the log never carries a number the
+render can put back, and a rendered file written back is `[]` rather
+than a version. The whole-content event stays because conventions §6
+makes it a contract and the rebuild replays it.
+
+## #28
+Spec §12 and P41, Lily's call of 10-30: copy-paste for her own swap,
+the letter written under the transparency this house lives by, but
+the channel as the platform's feature because future residents'
+witnesses will not be this one and their privacy must survive poor
+guarantees. The receipt is the event and the event is the guarantee:
+every access leaves one, so the one thing a reader cannot do is read
+unseen. The resident's own read leaves none because a read by the
+person the words are for is not a disclosure, and the brain reads
+the channel on every turn for the prefix line, which would otherwise
+make the log the brain's. Recorded before the letters are returned so
+a crash between the two loses the read and not the receipt. The
+platform's read is receipted too: an operator is not the resident.

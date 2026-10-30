@@ -19,14 +19,38 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
 
-  @doc "Opens a session of `kind` for the resident with the accounts party to it (`private: true` under a contract that keeps solo sessions private); returns its key."
+  @doc "Opens a session of `kind` for the resident with the accounts party to it (`private: true` under a contract that keeps solo sessions private; `domain:` the room, spec §6.3 P23); returns its key."
   def open_session(resident_id, kind, adapter, participants, %Actor{} = actor, opts \\ [])
       when is_list(participants) do
     key = 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
     private? = Keyword.get(opts, :private, false) == true
+    domain = Keyword.get(opts, :domain)
 
-    with :ok <- dispatch_open(resident_id, key, kind, adapter, participants, private?, actor),
+    with :ok <-
+           dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor),
          do: {:ok, key}
+  end
+
+  @doc """
+  The room a session is in (spec §6.3, P23): its domain, nil for the
+  common room, and the keys of every session whose material may be
+  retrieved from it: the sessions of the same domain and the common
+  room's. The common room sees the common room alone, so a domain's
+  material never reaches a session that did not name it. A key no
+  session has is the common room.
+  """
+  def room(resident_id, session_key) do
+    Scope.resident(resident_id, fn ->
+      sessions = Store.sessions()
+      domain = Enum.find_value(sessions, fn s -> s.key == session_key && s.domain end)
+
+      keys =
+        sessions
+        |> Enum.filter(&(is_nil(&1.domain) or &1.domain == domain))
+        |> Enum.map(& &1.key)
+
+      %{domain: domain, keys: keys}
+    end)
   end
 
   @doc "The main session between a resident and its witness, opened on first ask."
@@ -237,6 +261,12 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
 
   def search(scope, text, limit), do: Scope.run(scope, fn -> Store.search(text, limit) end)
 
+  @doc "Messages holding `text` within the room of `session_key` (spec §6.3, P23): the sessions of its domain and the common room's."
+  def search(scope, text, limit, resident_id, session_key) do
+    %{keys: keys} = room(resident_id, session_key)
+    Scope.run(scope, fn -> Store.search(text, limit, keys) end)
+  end
+
   def failures(scope), do: Scope.run(scope, fn -> Store.open_failures() end)
 
   def injections(scope, turn_ref), do: Scope.run(scope, fn -> Store.injections(turn_ref) end)
@@ -254,7 +284,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @spec stream(String.t(), String.t()) :: String.t()
   def stream(resident_id, key), do: resident_id <> "-" <> key
 
-  defp dispatch_open(resident_id, key, kind, adapter, participants, private?, actor) do
+  defp dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor) do
     command = %Commands.OpenSession{
       actor: actor,
       at: Clock.now(),
@@ -264,12 +294,16 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       kind: kind,
       adapter: adapter,
       participants: participants,
-      private: private?
+      private: private?,
+      domain: domain
     }
 
     case Router.dispatch(command) do
       {:ok, _} ->
         :ok
+
+      {:error, :domain_invalid} ->
+        {:error, Error.new(:kumbukumbu_domain_invalid, domain: domain)}
 
       {:error, :kind_invalid} ->
         {:error, Error.new(:kumbukumbu_kind_invalid, kind: kind, kinds: Conversation.kinds())}

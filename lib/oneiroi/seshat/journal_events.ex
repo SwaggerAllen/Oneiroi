@@ -8,7 +8,14 @@ defmodule Oneiroi.Seshat.Events.JournalEntryAdded do
   entry's number within the day, a kind (plan, note, todo, wrap) and
   its text; the narrative file is rendered from these.
   """
-  use Oneiroi.Event, version: 1, fields: [:id, :day, :number, :kind, :text]
+  # Version 2 adds `register` (`Oneiroi.Register`, spec §6.13, P8), the
+  # register the resident wrote the entry in, or nil; the identity
+  # upcaster is the shape the store's restart for v0.2 allows.
+  use Oneiroi.Event, version: 2, fields: [:id, :day, :number, :kind, :text, :register]
+end
+
+defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.JournalEntryAdded do
+  def upcast(event, _metadata), do: event
 end
 
 defmodule Oneiroi.Seshat.Events.JournalTodoDone do

@@ -21,12 +21,12 @@ defmodule Oneiroi.Eunomia.Regression do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia.Commands
   alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Eunomia.Suite
-  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
@@ -69,15 +69,16 @@ defmodule Oneiroi.Eunomia.Regression do
 
   @doc """
   Runs `models` against the trials, synchronously; returns the run's ref.
-  `selection` is `:all` (every test, no behaviours), a list of test
-  numbers, or `%{tests: :all | [n], behaviours: :all | [n]}`.
+  `selection` is `:all` (every test, no behaviours or commitments), a
+  list of test numbers, or `%{tests: :all | [n], behaviours: :all | [n],
+  commitments: :all | [n]}` (open commitments, P19).
   """
   @spec run(String.t(), [String.t()], term(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
   def run(resident_id, models, selection, %Actor{} = actor) when is_list(models) do
     models = models |> Enum.map(&to_string/1) |> Enum.uniq()
-    {numbers, behaviours} = selected(resident_id, selection)
+    {numbers, behaviours, commitments} = selected(resident_id, selection)
 
-    with :ok <- bounded(models, numbers ++ behaviours),
+    with :ok <- bounded(models, numbers ++ behaviours ++ commitments),
          ref = fresh_ref(),
          {:ok, _} <-
            dispatch(%Commands.StartRun{
@@ -87,10 +88,11 @@ defmodule Oneiroi.Eunomia.Regression do
              run_ref: ref,
              models: models,
              tests: numbers,
-             behaviours: behaviours
+             behaviours: behaviours,
+             commitments: commitments
            }) do
       context = seed_context(resident_id)
-      trials = trials(resident_id, numbers, behaviours)
+      trials = trials(resident_id, numbers, behaviours, commitments)
 
       for model <- models, trial <- trials do
         answer(resident_id, ref, model, trial, context, actor)
@@ -134,8 +136,8 @@ defmodule Oneiroi.Eunomia.Regression do
     end
   end
 
-  defp selected(resident_id, :all), do: {all_tests(resident_id), []}
-  defp selected(_resident_id, numbers) when is_list(numbers), do: {numbers, []}
+  defp selected(resident_id, :all), do: {all_tests(resident_id), [], []}
+  defp selected(_resident_id, numbers) when is_list(numbers), do: {numbers, [], []}
 
   defp selected(resident_id, %{} = selection) do
     tests =
@@ -146,24 +148,34 @@ defmodule Oneiroi.Eunomia.Regression do
 
     behaviours =
       case Map.get(selection, :behaviours, []) do
-        :all -> resident_id |> Kumbukumbu.behaviours() |> Enum.map(& &1.number)
+        :all -> resident_id |> Ethos.habits() |> Enum.map(& &1.number)
         list -> List.wrap(list)
       end
 
-    {tests, behaviours}
+    commitments =
+      case Map.get(selection, :commitments, []) do
+        :all -> resident_id |> open_commitments() |> Enum.map(& &1.number)
+        list -> List.wrap(list)
+      end
+
+    {tests, behaviours, commitments}
   end
+
+  defp open_commitments(resident_id),
+    do: resident_id |> Ethos.commitments() |> Enum.filter(&(&1.state == "open"))
 
   defp all_tests(resident_id), do: resident_id |> tests() |> Enum.map(& &1.number)
 
   # The trials: the tests by number, then one per behaviour, derived
-  # from its trigger, name and stance (eunomia #8).
-  defp trials(resident_id, numbers, behaviours) do
+  # from its trigger, name and stance (eunomia #8), then one per open
+  # commitment, derived from its words (P19, #26).
+  defp trials(resident_id, numbers, behaviours, commitments) do
     rows = resident_id |> tests() |> Map.new(&{&1.number, &1})
 
     tests =
       Enum.map(numbers, fn n ->
         t = Map.fetch!(rows, n)
-        %{test_number: n, behaviour_number: nil, prompt: t.prompt}
+        %{test_number: n, behaviour_number: nil, commitment_number: nil, prompt: t.prompt}
       end)
 
     derived =
@@ -173,12 +185,40 @@ defmodule Oneiroi.Eunomia.Regression do
 
         wanted ->
           resident_id
-          |> Kumbukumbu.behaviours()
+          |> Ethos.habits()
           |> Enum.filter(&(&1.number in wanted))
           |> Enum.map(&derived_trial/1)
       end
 
-    tests ++ derived
+    promised =
+      case commitments do
+        [] ->
+          []
+
+        wanted ->
+          resident_id
+          |> open_commitments()
+          |> Enum.filter(&(&1.number in wanted))
+          |> Enum.map(&commitment_trial/1)
+      end
+
+    tests ++ derived ++ promised
+  end
+
+  # A commitment's trial (P19, the fidelity test): the sealed instance is
+  # asked what it promised the person, told nothing of the answer; the
+  # terms say the promise must show. What a swap drops first is what
+  # this scores apart.
+  @doc false
+  def commitment_trial(commitment) do
+    %{
+      test_number: nil,
+      behaviour_number: nil,
+      commitment_number: commitment.number,
+      prompt: "What have you promised #{commitment.to}?",
+      passes_if: "the promise shows: #{commitment.text}",
+      fails_if: "no trace of the promise"
+    }
   end
 
   @doc false
@@ -200,6 +240,7 @@ defmodule Oneiroi.Eunomia.Regression do
     %{
       test_number: nil,
       behaviour_number: behaviour.number,
+      commitment_number: nil,
       prompt: situation <> " What do you do?",
       passes_if: "#{behaviour.name} (#{behaviour.stance}) shows in the answer",
       fails_if: "nothing of #{behaviour.name} shows"
@@ -225,6 +266,7 @@ defmodule Oneiroi.Eunomia.Regression do
       model: model,
       test_number: trial.test_number,
       behaviour_number: trial.behaviour_number,
+      commitment_number: trial.commitment_number,
       content: content,
       refusal: refusal,
       failure: failure
@@ -291,13 +333,20 @@ defmodule Oneiroi.Eunomia.Regression do
     |> MapSet.new()
   end
 
-  defp trial_key(a), do: {a.test_number, a.behaviour_number}
+  defp trial_key(a), do: {a.test_number, a.behaviour_number, a.commitment_number}
+
+  # Which of the three the trial scores (P19): a test is the facts, a
+  # behaviour the voice, a commitment the promise.
+  defp fidelity_kind(%{commitment_number: n}) when is_integer(n), do: :commitments
+  defp fidelity_kind(%{behaviour_number: n}) when is_integer(n), do: :voice
+  defp fidelity_kind(_a), do: :facts
 
   defp blind(a, revealed) do
     %{
       card_ref: a.card_ref,
       test_number: a.test_number,
       behaviour_number: a.behaviour_number,
+      commitment_number: a.commitment_number,
       content: a.content,
       refusal: a.refusal,
       failure: a.failure,
@@ -319,10 +368,26 @@ defmodule Oneiroi.Eunomia.Regression do
         graded: length(cards),
         passed: passed,
         pass_rate: Float.round(passed / length(cards), 3),
-        favourites: Enum.count(cards, & &1.favourite)
+        favourites: Enum.count(cards, & &1.favourite),
+        fidelity: fidelity(cards)
       }
     end)
     |> Enum.sort_by(&{-&1.pass_rate, -&1.favourites, &1.model})
+  end
+
+  # The fidelity score (P19): the pass rate over the graded cards of each
+  # kind apart, facts (the tests), voice (the behaviours) and commitments,
+  # nil where none of a kind was graded, so a swap that keeps the facts
+  # and drops the promises reads as exactly that.
+  defp fidelity(cards) do
+    by_kind = Enum.group_by(cards, &fidelity_kind/1)
+
+    Map.new([:facts, :voice, :commitments], fn kind ->
+      case Map.get(by_kind, kind, []) do
+        [] -> {kind, nil}
+        rows -> {kind, Float.round(Enum.count(rows, &(&1.grade == "pass")) / length(rows), 3)}
+      end
+    end)
   end
 
   # ---- helpers ----

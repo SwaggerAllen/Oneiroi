@@ -15,6 +15,7 @@ defmodule Oneiroi.HuginnMuninn do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Proteus,
@@ -57,7 +58,8 @@ defmodule Oneiroi.HuginnMuninn do
       Store.Counter,
       Store.Increment,
       Store.Audit,
-      Store.Run
+      Store.Run,
+      Quietcheck
     ]
 
   alias Oneiroi.HuginnMuninn.Checks
@@ -69,12 +71,48 @@ defmodule Oneiroi.HuginnMuninn do
   @impl Oneiroi.Component
   def config do
     [
+      {:quiet_hour_grace_hours, "HUGINN_MUNINN_QUIET_HOUR_GRACE_HOURS",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage:
+         "how long after the last marked hour quietcheck reads the pulse as stopped (spec §6.13, P21; the marker is sunna #20): two hours, a guess that leaves one missed tick before the flag"},
+      {:quiet_night_days, "HUGINN_MUNINN_QUIET_NIGHT_DAYS",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage:
+         "how many days without a nightly pass quietcheck reads as a miss, and how old a resident's first contact must be before one is expected; two, a guess that allows the night the resident was met"},
+      {:quiet_week_days, "HUGINN_MUNINN_QUIET_WEEK_DAYS",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many days without the weekly audit, the wash or a baseline quietcheck reads as a miss, and how old a first contact must be before they are expected; eight, a week and a day of grace, a guess"},
       {:missed_checkins_warn, "HUGINN_MUNINN_MISSED_CHECKINS_WARN",
        cast: :integer,
        default: "3",
        tag: :bound,
        usage:
-         "how many missed check-ins in a week the built-in audit warns at; a guess at what a witness would want told, not measured"}
+         "how many missed check-ins in a week the built-in audit warns at; a guess at what a witness would want told, not measured"},
+      {:corpus_days, "HUGINN_MUNINN_CORPUS_DAYS",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "how many days the corpus-shape report counts over (spec §6.13, P8: the shape of the month's memory); a month, the proposal's word"},
+      {:corpus_min, "HUGINN_MUNINN_CORPUS_MIN",
+       cast: :integer,
+       default: "10",
+       tag: :bound,
+       usage:
+         "how many tagged records the corpus-shape report needs before a skew is a flag rather than a figure; a guess at when a share means anything"},
+      {:corpus_skew_percent, "HUGINN_MUNINN_CORPUS_SKEW_PERCENT",
+       cast: :integer,
+       default: "75",
+       tag: :bound,
+       usage:
+         "the share of the tagged records one register may hold before the report flags the shape as leaning (P8's 123:26); a guess"}
     ]
   end
 

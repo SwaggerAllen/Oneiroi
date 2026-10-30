@@ -1,7 +1,8 @@
 defmodule Oneiroi.Sunna.TickWorker do
   @moduledoc """
-  The minute tick (spec §6.7): over every resident with something
-  scheduled, in that resident's zone, fire what is due within the late
+  The minute tick (spec §6.7): over every active resident, in that
+  resident's zone, mark the hour (P20 as amended: before any wake, no
+  model call, once an hour), then fire what is due within the late
   window, miss what is later, defer what falls in quiet hours, and run
   free time at its time. A cross-tenant job under the platform scope,
   named here (sunna #11). Replay-safe: every outcome is an event the
@@ -23,8 +24,13 @@ defmodule Oneiroi.Sunna.TickWorker do
   # would do nothing, quietly. The test runs this function as the worker
   # does, with the process scope and no transaction, for that reason.
   def run(_args) do
-    for resident_id <- Scope.platform(fn -> Store.scheduled_residents() end),
-        do: tick(resident_id)
+    # Every active resident, not only the scheduled ones: the pulse is
+    # the floor's resident's too (P20), and the tick skips a resident
+    # that is not active.
+    scheduled = Scope.platform(fn -> Store.scheduled_residents() end)
+    active = AgathosDaimon.active_residents() |> Enum.map(& &1.id)
+
+    for resident_id <- Enum.uniq(active ++ scheduled), do: tick(resident_id)
 
     :ok
   end
@@ -41,6 +47,7 @@ defmodule Oneiroi.Sunna.TickWorker do
   defp tick_active(resident_id) do
     local = Schedules.local_now(resident_id)
     day = Schedules.local_day(local)
+    _ = Schedules.mark_hour(resident_id, local, @actor)
 
     {checkins, settings} =
       Scope.resident(resident_id, fn -> {Store.checkins(), Store.settings()} end)

@@ -62,20 +62,14 @@ budgets `recent/3` at four statements, and a constant extra read would
 spend that budget on nothing that grows.
 
 ## #24
-Spec §6.3, F55: "a behaviour is self-description, and the resident's
-words are never editable by the witness"; "two scores, never one",
-because "a behaviour with high habit and low connection is a tic". The
-closed trigger set is the spec's: "a trigger the assembler cannot match
-is a behaviour never retrieved", so an open set would be a list of
-things nothing ever matches. On read rather than nightly: the volumes of
-P1 make the sum cheap, and the nightly job belongs to the pass that
-also proposes enactments.
+Spec §6.17 (P38): "habits and becomings are not memories... the
+behavior system was largely a port of the memory system" (the author).
+The move pays that debt; the reasons for the rules themselves are in
+`systems/ethos.reasons.md`.
 
 ## #25
-Spec §6.3: "Retrieval is memory's and choice is the brain's", with
-"one or two enacting turns cited by id" because "for a new model they
-are the resident's own voice doing the thing, which is stronger than any
-description of it."
+Spec §6.17's load question: the character layer is retrieved in a lane
+of its own, never pooled with memory's scoring.
 
 ## #26
 Spec §8: "`turn-start` reporting the session so the next tool calls are
@@ -128,3 +122,62 @@ were considered and not injected, with the reasons they lost". Max:
 rule because #20 derives the row's `last_indexed_at` from the
 injection's `refs`, and a near-miss marked indexed would be the index
 lying about itself.
+
+## #32
+Spec §6.17 (P39): "a moment or bookmark is tagged by the tree node it
+evidences (a soul line, a habit, a seed) rather than by a label, so
+there is no person-vocabulary to explode into duplicates and none the
+witness controls; the resident's own tree is the vocabulary. A pin is
+leaf-evidence of a soul line, and which line it evidences is the pin's
+tag. The closed tag set stays for work and project labels." The tag is
+the citation and not a second row because two records of one relation
+drift (ethos #3's "a kind that cites cannot vote" is the same worry
+from the other side); the port because ethos #13 fixes the direction
+and the cycles gate holds it. Shape alone on `evidences` because this
+system cannot see the lines (#27's rule for the other systems' rows).
+
+## #33
+Spec §6.13 (P8): "the resident-authored kinds counted by register,
+tagged at write time with no model call". The proposal: "behavior, not
+judged after"; Max: "the difference between a memory system and a
+slow character assassination carried out entirely with true
+sentences". At write time by the resident so that the tag is part of
+the record and not a later reading of it, which would be a judgement
+the resident never made.
+
+## #34
+Spec §6.3 (P10): "gated, non-repeating associative recall chosen by
+the embedding index, adjacent but unheard, excluded from limit-adjacent
+material, logged with its reason"; P2: "the deterministic exploration
+share and the madeleine layer exclude limit-adjacent material from
+serendipity"; Muninn's "involuntary recall". One a turn because the
+proposal costs it as "one more injection blob" and a second would be
+a ranking. Unheard measured against the index because the index is
+what the resident heard; recalled logged on the row because the near-
+miss record showed an injection's refs are the honest log of what was
+shown (#31). The limits gate void when unstated because the contract
+section is empty then and the brain never reads the unstated words
+either: a gate against words nobody loaded would be measured against
+nothing. Every figure a guess that says so (conventions §9).
+
+## #35
+The near-miss rule (#31) and the madeleine (#34) both depend on a
+bookmark's marks meaning what they say; a mark set by another
+system's numbers made "unheard" a lie for whichever bookmark shared a
+habit's number. By label because the label is what the injection is,
+and the refs mean different things under different labels.
+
+
+## #36
+Spec §6.3 and P23 (Red's letter, 10-28): compartmentalisation was
+carried by Jack's judgment alone, and she said plainly she does not
+want privacy resting on anyone's conscientiousness. The room is the
+session because the session is what the parties are in; the domain is
+named at the opening because a room does not change mid-conversation
+and a label that could would be a line the index crossed the turn
+before it moved. The common room sees itself alone because the test
+is Red's own: flirting during business must not pull intimate history
+into business, and the main session is where business happens. The
+near-miss row is the audit she asked for in place of the proof she
+would not claim. Not room-scoped on purpose, and said so: a bookmark
+read by its number is the resident asking, not retrieval deciding.

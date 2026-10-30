@@ -19,9 +19,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
+  alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memory
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
   alias Oneiroi.Kumbukumbu.MemoryRouter, as: Router
@@ -53,7 +55,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         turns_back: attrs[:turns_back] || 1,
         line: attrs[:line],
         summary: attrs[:summary],
-        proposal_ref: attrs[:proposal_ref]
+        proposal_ref: attrs[:proposal_ref],
+        register: attrs[:register]
       }
 
       with {:ok, _} <- dispatch(command), do: {:ok, number}
@@ -74,12 +77,13 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
-  def pin_bookmark(resident_id, number, %Actor{} = actor) do
+  def pin_bookmark(resident_id, number, attrs, %Actor{} = actor) when is_map(attrs) do
     command = %Commands.PinBookmark{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
-      number: number
+      number: number,
+      evidences: Map.get(attrs, :evidences)
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
@@ -247,17 +251,34 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   # ---- reads ----
 
-  def bookmarks(resident_id), do: Scope.resident(resident_id, fn -> Store.bookmarks() end)
+  @doc "The resident's bookmarks, newest first, each with its closed-set tags and then the tree's (spec §6.17, P39), through the tree port."
+  def bookmarks(resident_id),
+    do: tree_tags(resident_id, Scope.resident(resident_id, fn -> Store.bookmarks() end))
 
   @doc "One bookmark with the messages of its span: the anchor turn and the `turns_back - 1` before it."
   @spec bookmark(String.t(), pos_integer()) :: {:ok, map(), [map()]} | {:error, Error.t()}
   def bookmark(resident_id, number) do
-    Scope.resident(resident_id, fn ->
-      case Store.bookmark(number) do
-        nil -> {:error, Error.new(:kumbukumbu_no_such_bookmark, number: number)}
-        b -> {:ok, b, span(b)}
-      end
-    end)
+    read =
+      Scope.resident(resident_id, fn ->
+        case Store.bookmark(number) do
+          nil -> {:error, Error.new(:kumbukumbu_no_such_bookmark, number: number)}
+          b -> {:ok, b, span(b)}
+        end
+      end)
+
+    with {:ok, b, span} <- read, do: {:ok, hd(tree_tags(resident_id, [b])), span}
+  end
+
+  # The tree's tags (`soul/3`, `habit/2`, `seed/1`) after the closed
+  # set's, through the port, so the resident's own tree is a vocabulary
+  # beside the witness's labels (spec §6.17, P39). Outside the store's
+  # scope: the port's implementation takes its own.
+  defp tree_tags(_resident_id, []), do: []
+
+  defp tree_tags(resident_id, rows) do
+    ids = Enum.map(rows, &Integer.to_string(&1.number))
+    tree = Config.fetch!(:kumbukumbu, :tree).tags_of(resident_id, "bookmark", ids)
+    Enum.map(rows, &%{&1 | tags: &1.tags ++ Map.get(tree, Integer.to_string(&1.number), [])})
   end
 
   def proposals(resident_id), do: Scope.resident(resident_id, fn -> Store.open_proposals() end)
@@ -269,12 +290,54 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   def tagged(resident_id, slug), do: Scope.resident(resident_id, fn -> Store.tagged(slug) end)
 
-  @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`."
+  @doc "The madeleine for a turn's words: the vectors refreshed (embedding what changed), then one adjacent, unheard bookmark or nil; within the room of `session_key` when given (spec §6.3, P23)."
+  def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil) do
+    _ = Madeleine.refresh(resident_id, actor)
+    keys = session_key && Conversations.room(resident_id, session_key).keys
+    Madeleine.recall(resident_id, text, actor, keys)
+  end
+
+  @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`, over every bookmark."
   @spec index(String.t()) :: Index.built()
   def index(resident_id) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     resident_id |> bookmarks() |> Index.build(budget)
   end
+
+  @doc """
+  The index within the room of `session_key` (spec §6.3, P23): built
+  over the bookmarks of the room's sessions alone, and a bookmark of
+  another domain that would have ranked in is named among the
+  near-misses as held behind the domain line, so the audit shows the
+  line approached and not crossed.
+  """
+  @spec index(String.t(), String.t()) :: Index.built()
+  def index(resident_id, session_key) do
+    budget = Config.fetch!(:kumbukumbu, :index_tokens)
+    %{keys: keys} = Conversations.room(resident_id, session_key)
+    all = bookmarks(resident_id)
+    {in_room, held} = Enum.split_with(all, &(&1.session_key in keys))
+    built = Index.build(in_room, budget)
+    would = all |> Index.build(budget) |> Map.fetch!(:included)
+    sessions = Scope.resident(resident_id, fn -> Map.new(Store.sessions(), &{&1.key, &1}) end)
+
+    approached =
+      held
+      |> Enum.filter(&(&1.number in would))
+      |> Enum.map(fn b ->
+        %{
+          number: b.number,
+          line: b.line,
+          reason:
+            "held behind the domain line: a bookmark of #{domain_name(sessions[b.session_key])} ranked in and was not crossed"
+        }
+      end)
+
+    %{built | near_misses: built.near_misses ++ approached}
+  end
+
+  defp domain_name(%{domain: domain}) when is_binary(domain), do: "the #{domain} domain"
+  defp domain_name(_session), do: "the common room"
 
   # ---- helpers ----
 
@@ -371,6 +434,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp translate(:no_such_bookmark, c),
     do: Error.new(:kumbukumbu_no_such_bookmark, number: c.number)
 
+  defp translate(:evidence_invalid, _c), do: Error.new(:kumbukumbu_evidence_invalid)
+
+  defp translate(:register_invalid, _c),
+    do: Error.new(:kumbukumbu_register_invalid, registers: Oneiroi.Register.all())
+
   defp translate(:no_such_proposal, c),
     do: Error.new(:kumbukumbu_no_such_proposal, ref: ref_of(c))
 
@@ -397,4 +465,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp ref_of(%{proposal_ref: ref}), do: ref
   defp ref_of(%{ref: ref}), do: ref
   defp ref_of(%{slug: slug}), do: slug
+
+  @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
+  def turn_messages(resident_id, turn_ref),
+    do: Scope.resident(resident_id, fn -> Store.turn_messages(turn_ref) end)
 end

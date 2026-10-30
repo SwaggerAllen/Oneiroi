@@ -3,6 +3,7 @@ defmodule OneiroiWeb.FileController do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Ethos
   alias OpenApiSpex.Schema
 
   tags(["resident"])
@@ -130,10 +131,71 @@ defmodule OneiroiWeb.FileController do
   def proposals(conn, %{"id" => id}),
     do: json(conn, id |> AgathosDaimon.edit_proposals() |> Enum.map(&proposal/1))
 
+  operation(:soul_lines,
+    summary:
+      "The soul file's lines in order, each with its stable number, its words and the seeds it cites (spec §6.17)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"lines", "application/json", %Schema{type: :array}}]
+  )
+
+  operation(:self_letters,
+    summary:
+      "The resident's letters to its next self and every receipt (spec §12, P41): this read leaves one, so the resident sees it was read",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"letters and receipts", "application/json", %Schema{type: :object}}]
+  )
+
+  def self_letters(conn, %{"id" => id}) do
+    case AgathosDaimon.read_self_letters(id, actor(conn)) do
+      {:ok, %{letters: letters, receipts: receipts}} ->
+        json(conn, %{
+          letters: Enum.map(letters, &self_letter/1),
+          receipts: Enum.map(receipts, &receipt/1)
+        })
+
+      {:error, reason} ->
+        error(conn, 422, reason)
+    end
+  end
+
+  defp self_letter(l) do
+    %{
+      number: l.number,
+      text: l.text,
+      model: l.model,
+      written_at: l.written_at,
+      delivered_at: l.delivered_at,
+      delivered_to: l.delivered_to
+    }
+  end
+
+  defp receipt(r), do: %{at: r.at, by_kind: r.by_kind, by_id: r.by_id, numbers: r.numbers}
+
+  def soul_lines(conn, %{"id" => id}) do
+    evidence = id |> Ethos.soul_evidence() |> Enum.group_by(& &1.number)
+    json(conn, id |> AgathosDaimon.soul_lines() |> Enum.map(&soul_line(&1, evidence)))
+  end
+
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
       else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+  end
+
+  defp soul_line(l, evidence) do
+    cited = Map.get(evidence, l.number, [])
+
+    %{
+      number: l.number,
+      text: l.text,
+      position: l.position,
+      cites: l.cites,
+      version: l.version,
+      written_at: l.written_at,
+      reworded_at: l.reworded_at,
+      citations: length(cited),
+      days: cited |> Enum.map(&DateTime.to_date(&1.at)) |> Enum.uniq() |> length()
+    }
   end
 
   defp file(f) do

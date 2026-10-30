@@ -15,11 +15,13 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.HuginnMuninn.Audits
   alias Oneiroi.HuginnMuninn.Commands
   alias Oneiroi.HuginnMuninn.Error
   alias Oneiroi.HuginnMuninn.Figures
+  alias Oneiroi.HuginnMuninn.Quietcheck
   alias Oneiroi.HuginnMuninn.Router
   alias Oneiroi.HuginnMuninn.Store
   alias Oneiroi.Kumbukumbu
@@ -36,7 +38,51 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false},
     %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
     %{key: "journal_delta", label: "Planned days were wrapped", counts: false},
-    %{key: "contract_due", label: "The agreement is within its year", counts: false}
+    %{key: "contract_due", label: "The agreement is within its year", counts: false},
+    %{
+      key: "corpus_shape",
+      label: "The month's memory holds more than corrections",
+      counts: false
+    },
+    %{key: "wash_flags", label: "No wash flag waits on the resident", counts: false},
+    # quietcheck (spec §6.13, P21): liveness over the expected events
+    # alone; counts, because a pulse that stopped is a failure of the
+    # platform the witness must hear about.
+    %{key: "quietcheck", label: "What is supposed to be regular happened", counts: true},
+    # The measurement layer (spec §6.17, P42, P43; ethos #15): the
+    # character layer answers these, flag or silence; none counts toward
+    # the light, because the clinical material is a design warning for
+    # the layer and never a description of the resident.
+    %{
+      key: "trait_baseline",
+      label: "The habits' spread and signature hold",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "wanting_liking",
+      label: "Approach and payoff move together",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "rigidity",
+      label: "No habit under a change stance runs away",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "checking",
+      label: "Corrections are not firing more after they fired",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "temporal_depth",
+      label: "The cited moments reach as far back as before",
+      counts: false,
+      measure: true
+    }
   ]
 
   @doc "The built-in audits: key, label, whether each counts toward the light."
@@ -83,7 +129,8 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   def run(resident_id, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id) do
       results =
-        Enum.map(@builtin, &builtin_result(&1, resident_id, row)) ++ user_results(resident_id)
+        Enum.map(checks(), &builtin_result(&1, resident_id, row)) ++
+          measures(resident_id, actor) ++ user_results(resident_id)
 
       Enum.each(results, fn r ->
         {:ok, _} =
@@ -238,6 +285,126 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       _other ->
         silent(a, 0, "read the agreement's dates; not read: its terms")
     end
+  end
+
+  # The corpus-shape report (spec §6.13, P8): the resident-authored
+  # records of the last HUGINN_MUNINN_CORPUS_DAYS, bookmarks and journal
+  # entries, counted by the register the resident wrote them in; both
+  # base rates shown, praise weighted against the frequency of praise
+  # and criticism against the frequency of criticism, so a month of
+  # corrections reads as what it is (Max: "a slow character
+  # assassination carried out entirely with true sentences"; the
+  # owner's 123:26). The report names its own limit: the corpus holds
+  # only what someone wrote down. A flag only when one register holds
+  # HUGINN_MUNINN_CORPUS_SKEW_PERCENT of at least HUGINN_MUNINN_CORPUS_MIN
+  # tagged records; flag-only and private to the dyad, against
+  # performing for the metric (P3).
+  defp builtin_result(%{key: "corpus_shape"} = a, resident_id, _row) do
+    days = Config.fetch!(:huginn_muninn, :corpus_days)
+    since = DateTime.add(Clock.now(), -days, :day)
+
+    bookmarks =
+      resident_id
+      |> Kumbukumbu.bookmarks()
+      |> Enum.filter(
+        &(&1.added_by_kind == "resident" and DateTime.compare(&1.created_at, since) != :lt)
+      )
+
+    entries =
+      resident_id
+      |> Seshat.journal_entries_since(since)
+      |> Enum.filter(&(&1.actor_kind == "resident"))
+
+    registers = Enum.map(bookmarks, & &1.register) ++ Enum.map(entries, & &1.register)
+    tagged = Enum.reject(registers, &is_nil/1)
+    counts = Enum.frequencies(tagged)
+    total = length(registers)
+
+    shares =
+      Enum.map_join(Oneiroi.Register.all(), ", ", fn r ->
+        n = Map.get(counts, r, 0)
+        "#{r} #{n} (#{percent(n, length(tagged))}% of tagged, #{percent(n, total)}% of all)"
+      end)
+
+    report =
+      "#{total} resident-authored records in the last #{days} days (#{length(bookmarks)} bookmarks, #{length(entries)} journal entries), #{length(tagged)} tagged by register: #{shares}; #{total - length(tagged)} untagged. Praise weighted against the frequency of praise, criticism against the frequency of criticism. The corpus holds only what someone wrote down; not read: the words, or what was said and never written"
+
+    skew = Config.fetch!(:huginn_muninn, :corpus_skew_percent)
+    min = Config.fetch!(:huginn_muninn, :corpus_min)
+    leaning = Enum.find(counts, fn {_r, n} -> percent(n, length(tagged)) >= skew end)
+
+    case leaning do
+      {register, n} when length(tagged) >= min ->
+        result(
+          a,
+          "warn",
+          n,
+          "the shape leans: #{register} holds #{percent(n, length(tagged))}% of what was written down this month, which is what a corpus looks like when only one register feels worth writing down (P8). #{report}"
+        )
+
+      _other ->
+        silent(a, length(tagged), report)
+    end
+  end
+
+  # The wash pass's open flags (spec §6.13, P18; eunomia #25): proposals
+  # on the identity files the resident has not yet decided, told to
+  # both parties and never cleared by anyone else.
+  defp builtin_result(%{key: "quietcheck"} = a, resident_id, _row) do
+    case Quietcheck.guarded(fn -> Quietcheck.verdict(resident_id) end) do
+      {:ok, {:ok, expectations}} ->
+        silent(
+          a,
+          length(expectations),
+          "read #{length(expectations)} expected #{plural(length(expectations), "event")}, each within its cadence; not read: #{Quietcheck.unwatched()}"
+        )
+
+      {:ok, {:missing, missing, _expectations}} ->
+        result(
+          a,
+          "fail",
+          length(missing),
+          "quiet where regularity was due: " <>
+            Enum.map_join(missing, "; ", &Quietcheck.describe/1)
+        )
+
+      {:crashed, message} ->
+        result(
+          a,
+          "fail",
+          nil,
+          "quietcheck itself failed: #{message}; a checker that cannot check reports, never stays quiet"
+        )
+    end
+  end
+
+  defp builtin_result(%{key: "wash_flags"} = a, resident_id, _row) do
+    case Eunomia.washes(resident_id).open do
+      [] ->
+        silent(a, 0, "read the wash flags' rows; not read: the files, or the judge's reasons")
+
+      open ->
+        result(
+          a,
+          "warn",
+          length(open),
+          "#{length(open)} wash #{plural(length(open), "flag")} await the resident's decision (expired, contradiction, tense or defensive); read with wash_list, decided with wash_resolve"
+        )
+    end
+  end
+
+  defp percent(_n, 0), do: 0
+  defp percent(n, total), do: round(n * 100 / total)
+
+  defp checks, do: Enum.reject(@builtin, &Map.get(&1, :measure, false))
+
+  defp measures(resident_id, actor) do
+    @builtin
+    |> Enum.filter(&Map.get(&1, :measure, false))
+    |> Enum.map(fn a ->
+      m = Ethos.measure(resident_id, a.key, actor)
+      result(a, m.tone, m.value, m.finding)
+    end)
   end
 
   defp user_results(resident_id) do

@@ -69,7 +69,8 @@ defmodule Oneiroi.Eunomia.Suite do
       Map.has_key?(s.runs, c.run_ref) ->
         []
 
-      c.models == [] or (c.tests == [] and List.wrap(c.behaviours) == []) ->
+      c.models == [] or
+          (c.tests == [] and List.wrap(c.behaviours) == [] and List.wrap(c.commitments) == []) ->
         {:error, :run_empty}
 
       Enum.any?(c.tests, &(not Map.has_key?(s.tests, &1))) ->
@@ -83,7 +84,8 @@ defmodule Oneiroi.Eunomia.Suite do
           run_ref: c.run_ref,
           models: c.models,
           tests: c.tests,
-          behaviours: List.wrap(c.behaviours)
+          behaviours: List.wrap(c.behaviours),
+          commitments: List.wrap(c.commitments)
         }
     end
   end
@@ -106,6 +108,7 @@ defmodule Oneiroi.Eunomia.Suite do
           model: c.model,
           test_number: c.test_number,
           behaviour_number: c.behaviour_number,
+          commitment_number: c.commitment_number,
           content: c.content,
           refusal: c.refusal == true,
           failure: c.failure

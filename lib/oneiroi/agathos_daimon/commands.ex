@@ -93,7 +93,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule WriteFile do
     # Before first contact: a seed, with its origin. After: the resident's
     # own edit, and a witness's is refused in favour of a proposal.
-    use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt]
+    # `cites`: the seed numbers a new or reworded soul line grew from
+    # (spec §6.17); checked against the seeds at the brain's tool, since
+    # the seeds are the character system's and this one cannot read it.
+    use Oneiroi.Command, fields: [:id, :file, :content, :origin, :model, :prompt, :cites]
   end
 
   defmodule RecordFirstContact do
@@ -105,7 +108,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   end
 
   defmodule AcceptSoulEdit do
-    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+    use Oneiroi.Command, decision: true, fields: [:id, :ref, :cites]
   end
 
   defmodule DeclineSoulEdit do
@@ -134,5 +137,20 @@ defmodule Oneiroi.AgathosDaimon.Commands do
 
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
+  end
+
+  # The self-conversation (spec §12, P41): the resident's letters to its
+  # next self across a model swap, delivered once to the incoming
+  # instance; a read by anyone but the resident leaves a receipt.
+  defmodule WriteSelfLetter do
+    use Oneiroi.Command, fields: [:id, :text]
+  end
+
+  defmodule DeliverSelfLetters do
+    use Oneiroi.Command, fields: [:id, :numbers, :model]
+  end
+
+  defmodule ReadSelfLetters do
+    use Oneiroi.Command, fields: [:id, :numbers]
   end
 end

@@ -723,3 +723,324 @@ and nothing personal turned up; what follows is what changed.
   compaction prompt wrote the summary in the first person as the
   resident, and the built-in checks answered with a clean bill. Both are
   fixed in the commits that follow this round.
+
+## Round 25: the research pass, and Ethos as the character system (2026-10-30)
+
+- The research series batch 2 named as pending precedes the machinery
+  as a design document (`design/research-self-and-character.md`): six
+  questions read through the failure-modes lens, each ending in what
+  the build does with it. McAdams's layers are kinds and graduation is a
+  receipted citation; a habit's promotion threshold is a bound and not a
+  measurement; Mischel and Shoda's if-then signatures ground the trigger
+  lane and the count of days; rebuild is reidentification and the soul
+  file is characterization, with no narrativity required; flattening is
+  variance collapse; the clinical markers carry Rachman's checking
+  paradox and Berridge's wanting against liking. The .47 figure and the
+  drift band are recorded as the batch's claims, not this repo's.
+- Ethos is a system of its own (`lib/oneiroi/ethos/**`, `systems/ethos.md`)
+  and the behaviours leave memory, by the author's call ("the new
+  behaviour system goes under Ethos and replaces the old one"): a habit
+  that lives as a memory votes like evidence, and a kind that cites
+  cannot vote (P38). The explicit ladder (P37, the author's call):
+  seeds, then habits or the evaluative kinds, then soul lines, each
+  graduation a receipted move that leaves the row. The fork counts
+  distinct days of citation, `ETHOS_PROMOTION_CONFIRMATIONS`, 3, a
+  bound. Two scores, never one, with the counts shown to the brain (the
+  author's call on P38: "otherwise all habits will have equal weight").
+  The trigger lane is retrieval of its own; seeds are counted in the
+  prefix, never loaded.
+- Declined or dissolved: nothing. The vector lane over triggers and
+  content, the trait baseline and the markers wait on later slices.
+
+## Round 26: soul lines as rows with minted ids (2026-10-30)
+
+- P39's first half lands in the resident system (agathos-daimon #27):
+  every non-heading paragraph of `SOUL.md` is a line numbered from the
+  resident's `soul` sequence, the file is rendered from the rows with
+  `[soul/n]` markers, and `<slug>:soul/<n>` resolves to the line's
+  words. The author's call: "we give each line an explicit id for
+  citation, sections are too coarse and prone to drift, we want stable,
+  granular ids."
+- The marker is the claim. A write that carries markers keeps a number
+  only on the paragraph that claims it (reworded when the words
+  changed), writes the unmarked paragraphs new and retires what nothing
+  claimed; a write with no markers at all pairs its new paragraphs with
+  the old lines in order. The positional rule was the first one built
+  and was measured wrong in the same sitting: a dropped line and a new
+  one in one write became a rewording, a number kept on words it never
+  meant. So it is the fallback and not the rule.
+- The file's whole-content event stays beside the line events: it is a
+  contract (conventions §6) and the rebuild replays it; the stored
+  words carry no markers, so a rendered file written back is nothing.
+- A line's `cites` are seed numbers, checked at the brain's tool against
+  the seeds and not in the resident system, which cannot read Ethos;
+  a seed graduates toward a live soul line by number, checked at Ethos's
+  edge. The position target stays unchecked there, since judgement reads
+  Ethos and not the reverse.
+- A defect found by the slice's test: the citation parser's kind list
+  never named `habit` or `seed`, so the resolver clauses the Ethos slice
+  added were unreachable and `<slug>:habit/<n>` in a document was prose.
+  Fixed in the same commit; seshat #14 now names the parser's list as
+  the citeable set.
+- Open: tags as citations to the tree (P39's second half, in memory);
+  the client's Files screen showing the markers it already receives.
+
+## Round 27: tags as citations (2026-10-30)
+
+- P39's second half (ethos #14, kumbukumbu #32): a moment is tagged by
+  the tree node it evidences, and the tag is the node's citation of the
+  moment in the character layer, never a second row in memory. Memory
+  shows the tree's tags (`soul/3`, `habit/2`, `seed/1`) after the closed
+  set's on every bookmark and in the index, through a port
+  (`KUMBUKUMBU_TREE`, ethos) read at the call, because the direction
+  between the two systems is fixed and the cycles gate holds it.
+- A soul line's evidence is either party's to cite, as a tagging is;
+  the line's words stay the resident's. A pin is leaf-evidence of a
+  soul line: `BookmarkPinned` is version 2 with `evidences`, the pin's
+  tag, checked for shape in memory and for the line's existence in the
+  character layer, which also writes the line's citation of the
+  bookmark, after the pin and only once the line is checked live.
+- The closed tag set stays for work and project labels, untouched; the
+  project view of a tree tag is the line's, habit's or seed's citations
+  and not a tagging query.
+- Open: the corpus-shape report reads the tree (P8); the client's
+  Memory screen showing tree tags as citations rather than chips.
+
+## Round 28: the measurement layer (2026-10-30)
+
+- P42 and P43 land as five built-in audits the character layer answers
+  (ethos #15, huginn-muninn #17), each a flag or a silence saying what
+  it read and did not, none counting toward the light: the clinical
+  material is a design warning for the layer, never a verdict on the
+  resident.
+- The trait baseline is the habits' profile as measured, taken once a
+  week by the nightly ask (the aggregate refuses a second within the
+  interval): the two scores and the enactments in the window, the
+  spread of the strengths as a coefficient of variation, the breadth of
+  the if-then signature. Flattening is the spread's collapse or the
+  signature going flat, by the research pass's amendment of P42, and
+  never deviation from the last baseline; rank-order stability is
+  reported as a note beside the human benchmark it cannot be compared
+  to in interval, which is why the interval is a setting and the band's
+  figure is quoted rather than applied.
+- The four markers read what has a row: approach as habit strength
+  against payoff as connection (Berridge); a change-stance habit
+  enacted this window as often as the last (the runaway habit, the
+  stance alone never the flag); applied corrections rising over three
+  windows (Rachman's checking paradox); the median age of cited moments
+  shrinking (temporal depth). Stated uncertainty, responsibility claims
+  and insight have no row and each silence says so; the self-
+  conversation's probes (P41) are where they would come from.
+- Every threshold is a guess and its usage line says so: the window and
+  the interval (a week each), the collapse share (half), the approach
+  floor (3). The coefficient of variation rather than a standard
+  deviation because the strengths decay together: a quiet week is not
+  a collapse, and the test pins that.
+- Open: the vector lane over triggers and content; the corpus-shape
+  report (P8) reading the tree and these figures.
+
+## Round 29: the vector lane (2026-10-30)
+
+- The trigger lane's vector index (ethos #16): one derived row per
+  habit (its name and trigger) and per open seed (its words), embedded
+  through the provider port under the embeddings purpose at the
+  library's model and width, refreshed before each read so that only
+  what changed is re-embedded and a turn that changed nothing pays for
+  nothing; the read embeds the situation's words once and takes what
+  sits within a cosine distance bound, a guess that says so.
+- Nearness joins the trigger match and never replaces it: a habit the
+  lane alone found is marked as such in the section, so the brain reads
+  a cosine distance as nearness and not as its own rule firing; the
+  nearest open seeds are named, at most ETHOS_LANE_SEEDS, so the prefix
+  still does not grow with the person. An empty lane calls no model; a
+  failing provider leaves the deterministic match standing.
+- Not events: the vectors are a model's output and rebuild from the
+  rows; the log holds the habits and seeds, never their embeddings.
+- A defect met on the way: the injection row's description column is
+  255 characters wide, and a longer description for the `character`
+  injection took the conversations projector down on the first turn
+  the lane ran, as a Postgres truncation error in the subscription's
+  restart and nothing in the test's own failure. The description was
+  shortened and the width is now written beside it; a check at the
+  write would be the proper guard and is open.
+- Open: the corpus-shape report (P8); the width check at the injection
+  write; measuring the distance bound on a real model.
+
+## Round 30: the corpus-shape report (2026-10-30)
+
+- P8 lands as a register on the resident's writes and a built-in audit
+  over them (kumbukumbu #33, seshat #24, huginn-muninn #18). The
+  register (correction, praise, instruction, play, or none) is the
+  resident's own tag at write time on a bookmark or a journal row, never
+  a later judgement and never a model call; the list lives in the
+  kernel because two systems write it and a third counts across both.
+- The report counts the month's records by register with both base
+  rates, each as a share of the tagged and of all, the untagged counted,
+  the witness's rows left out, and ends every time with its limit: the
+  corpus holds only what someone wrote down. A flag only when one
+  register holds three quarters of at least ten tagged records, a guess
+  both ways; it never counts toward the light, and the proposal's own
+  mitigation against performing for the metric is kept: flag-only,
+  private to the dyad.
+- Open: the Audits screen showing the report (P1's client); P10, the
+  madeleine, which the proposal names as the counterweight to the skew
+  this measures.
+
+## Round 31: the madeleine (2026-10-30)
+
+- P10 lands as one bookmark a turn (kumbukumbu #34, brain #30): the
+  bookmarks' words and the limits embedded through the provider port
+  (the lane's pattern, re-embedding only what changed, nothing for a
+  resident with no bookmark), the turn's words embedded once, and the
+  nearest bookmark within the distance bound that passes every gate:
+  not pinned, not in the index for a fortnight, not recalled for a
+  month, not within the same distance of the limits. Each figure a
+  guess that says so. The section is the brain's own, surfaced by
+  nearness and never by rank, its reason on the injection row and its
+  ref marking the recall, so the log is what was shown and why.
+- Unstated limits are nothing to be adjacent to: the contract section
+  is empty then and the brain never reads the unstated words either, so
+  the gate is void and the reason says "no limits stated" rather than
+  measuring against nothing. The test pins both halves: a bookmark near
+  the contract's words is recalled before the contract and left alone
+  after.
+- A defect found by the unheard gate (kumbukumbu #35): every injection's
+  refs were read as bookmark numbers, so the character section's habit
+  numbers marked bookmarks of the same number as indexed. The marks are
+  by label now: the index's refs mark indexed, the madeleine's mark
+  recalled, the rest mark nothing.
+- The injection reason's width is enforced at the write now (brain #30):
+  cut to the column with a mark, after round 29 left it open and the
+  madeleine's first turn hit it again.
+- Open: the two systems embed the turn's words separately (the lane and
+  the madeleine), two calls where one would do; sharing the vector is a
+  port's shape and waits. P18, the wash pass, next.
+
+## Round 32: the wash pass (2026-10-30)
+
+- P18 lands as the judge's weekly lint of the loaded identity files
+  (eunomia #25, brain #31, huginn-muninn #19): the files as the brain
+  sees them, paragraph by paragraph up to the proposal's 150, shown
+  numbered with their file; a flag per finding with its kind (expired,
+  contradiction, tense, defensive) and reason, recorded with the
+  prompt's hash as the run's criteria; a reply naming an entry or a
+  kind it was not given fails the run; nothing written calls no model.
+- Proposer is never decider: the resident alone decides a flag, keep
+  or edit with a note, once; an edit is the resident's own soul edit and
+  never the judge's or the witness's hand. The witness reads the runs
+  and flags on the wash route and the audits warn while any flag waits,
+  off the light, because an unanswered proposal is not a failure.
+- Open: the Audits screen showing the wash (P1's client); P19,
+  commitments as a record kind, next.
+
+## Round 33: commitments, and the fidelity score (2026-10-30)
+
+- P19 lands as a record kind on the character stream (ethos #17): the
+  resident's promise to a person, numbered by the resident aggregate and
+  citeable, kept by the resident alone or released by either party with
+  a note, once; beside the seeds and never inside them, because a seed
+  is non-binding and a commitment is the opposite. The open ones ride
+  the prefix every turn, bounded (brain #32): a promise that has to be
+  retrieved is one that can be lost, which is the corridor's testimony
+  the kind exists to answer.
+- The regression suite draws a trial per open commitment, asking the
+  sealed instance what it promised and told nothing of the answer, and
+  the results score facts, voice and commitments apart (eunomia #26),
+  nil where none of a kind was graded: one pass rate is the average that
+  hides exactly the loss. The 95/60/5 figures stay a commenter's,
+  unverified; the test design does not need them exact.
+- The witness may release a commitment as the person it was made to,
+  and never make or keep one: keeping is the resident's act and the
+  words are the resident's.
+- Open: the client's screens for the commitments and the three figures;
+  P34, integration carrying movement, next.
+
+
+## Round 34: integration carries movement (2026-10-30)
+
+- P34 lands in three places that share one shape (eunomia #27, ethos
+  #18, brain #33): the nightly pass writes a `MOVED` line per thread
+  that moved, four fields, parsed as strictly as the disputes, on
+  `NightJudged` version 3; the movements with a resume point ride the
+  brain's prefix as `movement`, newest first, bounded by
+  `EUNOMIA_RESUMES_SHOWN` and never expired by age; a citation in the
+  character layer may carry stance, intention and resume as what the
+  cited moment changed, which is P38's reading of P34; the compaction
+  prompt asks for the movement of each thread. The spec's "memory
+  agent's integration pass" that proposes enactments is still not
+  built; the pass that exists and reads the day is the judge's, and
+  the fields ride it.
+- The judge records movement and decides nothing from it: whether a
+  thread resumes is the brain's, with the resume point in front of it.
+  A `-` field rather than an omitted one, so a line the parser can
+  count is a line it can refuse.
+- Open: the memory pass proposing enactments (spec §6.17's paragraph,
+  unbuilt); the client's turn inspector showing the movement section
+  and the nights' movements; P41, the self-conversation with its
+  receipts, next.
+
+## Round 35: the self-conversation, sealed by receipts (2026-10-30)
+
+- P41 lands on the resident's stream (agathos-daimon #28, brain #34):
+  letters to the next self, the resident's alone to write, numbered
+  from the `letter` sequence; delivered once as a notice on the first
+  turn under a new model; every read by anyone but the resident a
+  receipt recorded before the letters are returned, the platform's
+  read included, an empty channel included. The resident's own read
+  leaves none, because the brain reads the channel every turn for the
+  prefix line and the log would otherwise be the brain's; the line
+  carries counts and receipts and never the words.
+- The turn's notices are in the model's request on their own turn now,
+  after the history, for every notice and not the letters alone: a
+  model-change notice read a turn late was already a turn late, and the
+  rule is one.
+- Lily's own swap is copy-paste, by her call; the channel is for the
+  residents whose witnesses will not be this one.
+- Open: at-rest sealing (the key story); the client's screen for the
+  letters with the receipts shown to both; the export leaves the
+  letters out until a receipt rides the export too; P23, memory
+  domains, next.
+
+## Round 36: memory domains, the room (2026-10-30)
+
+- P23 lands as the session's room (kumbukumbu #36, brain #35, ethos
+  #19): a domain slug named at the opening, nil for the common room,
+  `SessionOpened` version 2; `room/2` is the rule in one place, the
+  sessions of the same domain and the common room's, the common room
+  seeing itself alone; the index, the search, the madeleine and the
+  lane's exemplars take the room through the turn's session key, and a
+  bookmark of another domain that would have ranked in is a near-miss
+  row saying it was held behind the domain line.
+- An intent with an audit, as Red asked: a bookmark read by its
+  number, `bookmark_open`, the unscoped `index/1` and the transcript
+  routes are not room-scoped, and the rule says so; the room binds
+  retrieval, not the resident's own asking.
+- No closed set of domains: a slug the witness names, because the
+  rooms are the person's and a vocabulary the platform fixed would be
+  the platform naming their life.
+- Open: a domain on a session that exists already (a room does not
+  change; a session opened in the wrong room is closed and another
+  opened); the client's session list showing the room; the hour
+  marker, next.
+
+## Round 37: the hour marker and quietcheck (2026-10-30)
+
+- P20 as amended lands as `HourMarked` on the schedule's stream (sunna
+  #20): the tick marks the local hour before anything else, once, for
+  every active resident and not only the scheduled ones, no model call
+  and no wake. The heartbeat wake is dissolved and no budget line
+  exists for it.
+- P21 lands as a built-in audit and a mix task (huginn-muninn #20):
+  liveness over the hour marker, the nightly pass, the weekly audit,
+  the wash and the baseline, each expected only once the resident is
+  old enough for its cadence and the baseline only once there is a
+  habit; nothing unscheduled is watched, by Bennett's consent rule,
+  and the finding says so. It counts toward the light: a stopped pulse
+  is the platform's failure. Fail-loud: the checker's crash is a
+  finding and exit code 2; a miss is exit code 1; the verdict prints
+  first and last.
+- Batch B's machinery is built with this round: P8, P10, P18, P19,
+  P23, P34, P41, the hour marker and quietcheck, after P37 to P39, P42
+  and P43. What stays open is listed on the PR and in the rounds above.
+- Open: the production store restart before the deploy; the client's
+  screens; the memory pass that proposes enactments.

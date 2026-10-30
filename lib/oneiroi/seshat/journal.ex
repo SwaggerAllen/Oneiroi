@@ -28,6 +28,9 @@ defmodule Oneiroi.Seshat.Journal do
       not text_ok?(c.text) ->
         {:error, :text_invalid}
 
+      not Oneiroi.Register.ok?(c.register) ->
+        {:error, :register_invalid}
+
       true ->
         %{count: count} = Map.get(days, c.day, %{count: 0, todos: %{}})
 
@@ -38,7 +41,8 @@ defmodule Oneiroi.Seshat.Journal do
           day: c.day,
           number: count + 1,
           kind: c.kind,
-          text: String.trim(c.text)
+          text: String.trim(c.text),
+          register: c.register
         }
     end
   end

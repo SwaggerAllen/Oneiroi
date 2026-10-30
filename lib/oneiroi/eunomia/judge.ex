@@ -6,7 +6,10 @@ defmodule Oneiroi.Eunomia.Judge do
   is never the resident's own chat model. The prompts are files under
   `priv/prompts/` and stay constitutional: they ask the judge to weigh
   the resident's stated positions and the witness's claim, never to
-  grade the resident.
+  grade the resident. The nightly reading also carries the day's
+  movement (spec §6.4, P34): what happened, what stance followed, what
+  intention was adopted, where it can resume, one `MOVED` line per
+  thread, parsed as strictly as the disputes.
 
   The live check is bounded by `EUNOMIA_LIVE_CHECK_MS`: past it the
   resident is told to answer alone and the check is recorded as
@@ -23,6 +26,8 @@ defmodule Oneiroi.Eunomia.Judge do
 
   @advice ~r/\bADVICE:\s*(concede|hold|unclear)\b/i
   @dispute ~r/^DISPUTE\s+\[([0-9,\s\-]+)\]\s*(conceded|held)\s*\|\s*(.*)$/im
+  @moved ~r/^MOVED\s+\[([0-9,\s\-]+)\]\s*(.*)$/im
+  @movement_fields ~w(happened stance intention resume)
   @summary ~r/^SUMMARY:\s*(.*)$/im
 
   @doc "The judge's actor, carrying its model."
@@ -56,11 +61,13 @@ defmodule Oneiroi.Eunomia.Judge do
   @doc """
   The nightly reading: the day's messages, numbered, to the judge; back
   come the disputes it found (each citing message numbers, with an
-  outcome and its words) and a summary. `{:error, reason}` when the
-  reply names a message it was not shown.
+  outcome and its words), a summary, and the movements (each citing
+  message numbers, with the four fields, string-keyed, nil where the
+  judge wrote `-`). `{:error, reason}` when the reply names a message
+  it was not shown, or a MOVED line has other than four fields.
   """
   @spec night(String.t(), String.t(), [map()]) ::
-          {:ok, [map()], String.t()} | {:error, term()}
+          {:ok, [map()], String.t(), [map()]} | {:error, term()}
   def night(resident_id, model, messages) do
     listed =
       messages
@@ -99,15 +106,54 @@ defmodule Oneiroi.Eunomia.Judge do
         %{numbers: numbers(numbers), outcome: String.downcase(outcome), words: String.trim(words)}
       end)
 
-    case Enum.find(found, fn d -> Enum.any?(d.numbers, &(&1 < 1 or &1 > count)) end) do
+    with {:ok, movements} <- movements(content),
+         :ok <- all_shown(found ++ movements, count) do
+      {:ok, Enum.map(found, &with_message(&1, messages)), summary,
+       Enum.map(movements, &with_movement_message(&1, messages))}
+    end
+  end
+
+  defp all_shown(lines, count) do
+    case Enum.find(lines, fn l -> Enum.any?(l.numbers, &(&1 < 1 or &1 > count)) end) do
       nil ->
-        {:ok, Enum.map(found, &with_message(&1, messages)), summary}
+        :ok
 
       bad ->
         shown = bad.numbers |> Enum.reject(&(&1 >= 1 and &1 <= count)) |> Enum.join(", ")
         {:error, "the reply named message #{shown}, which it was not shown"}
     end
   end
+
+  # The movement lines (P34): four fields, each a phrase or `-`. Fewer
+  # or more fields is a line the pass cannot read, and it fails the
+  # night rather than being guessed at, as a dispute citing an unshown
+  # message does.
+  defp movements(content) do
+    @moved
+    |> Regex.scan(content)
+    |> Enum.reduce_while({:ok, []}, fn [_, numbers, rest], {:ok, acc} ->
+      case movement_line(numbers, rest) do
+        {:ok, movement} -> {:cont, {:ok, acc ++ [movement]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp movement_line(numbers, rest) do
+    fields = rest |> String.split("|") |> Enum.map(&String.trim/1)
+
+    if length(fields) == 4 do
+      movement = @movement_fields |> Enum.zip(Enum.map(fields, &field_value/1)) |> Map.new()
+      {:ok, Map.put(movement, :numbers, numbers(numbers))}
+    else
+      {:error,
+       "the reply's MOVED line [#{String.trim(numbers)}] has #{length(fields)} fields where four were due"}
+    end
+  end
+
+  # A `-` is the judge saying there is nothing to say, kept as nil.
+  defp field_value(f) when f in ["", "-"], do: nil
+  defp field_value(f), do: f
 
   # "1, 2" or "3-5": the numbers a dispute cites.
   defp numbers(text) do
@@ -125,5 +171,13 @@ defmodule Oneiroi.Eunomia.Judge do
   defp with_message(dispute, messages) do
     first = Enum.at(messages, List.first(dispute.numbers) - 1)
     Map.merge(dispute, %{session_key: first.session_key, turn_ref: first.turn_ref})
+  end
+
+  # A movement travels in an event, so its keys are strings and the
+  # turn it names is a ref the brain can cite back.
+  defp with_movement_message(movement, messages) do
+    {numbers, fields} = Map.pop(movement, :numbers)
+    first = Enum.at(messages, List.first(numbers) - 1)
+    fields |> Map.put("numbers", numbers) |> Map.put("turn_ref", first.turn_ref)
   end
 end

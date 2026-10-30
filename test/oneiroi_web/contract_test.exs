@@ -438,7 +438,7 @@ defmodule OneiroiWeb.ContractTest do
              "name" => "SOUL.md",
              "origin" => "authored",
              "version" => 1,
-             "content" => "# Soul\n\nCurious."
+             "content" => "# Soul\n\n[soul/1] Curious."
            } =
              conn |> get("/v1/residents/#{id}/files/SOUL.md") |> json_response(200)
 
@@ -481,7 +481,7 @@ defmodule OneiroiWeb.ContractTest do
     assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/files") |> json_response(404)
   end
 
-  test "behaviours: the witness gives a first one, reads the list with scores, and affirms",
+  test "habits: the witness gives a first one, reads the list with scores, and affirms",
        ctx do
     id = ctx.resident.id
     conn = login(ctx.conn, ctx.account)
@@ -489,7 +489,7 @@ defmodule OneiroiWeb.ContractTest do
     assert %{"number" => 1} =
              conn
              |> put_req_header("origin", origin())
-             |> post("/v1/residents/#{id}/behaviours", %{
+             |> post("/v1/residents/#{id}/habits", %{
                name: "care",
                trigger: %{words: ["garden"]},
                stance: "keep"
@@ -498,17 +498,17 @@ defmodule OneiroiWeb.ContractTest do
 
     assert conn
            |> put_req_header("origin", origin())
-           |> post("/v1/residents/#{id}/behaviours", %{name: "x", trigger: %{}})
+           |> post("/v1/residents/#{id}/habits", %{name: "x", trigger: %{}})
            |> json_response(422)
 
     assert conn
            |> put_req_header("origin", origin())
-           |> post("/v1/residents/#{id}/behaviours/1/affirm", %{note: "I like it"})
+           |> post("/v1/residents/#{id}/habits/1/affirm", %{note: "I like it"})
            |> response(204)
 
     assert conn
            |> put_req_header("origin", origin())
-           |> post("/v1/residents/#{id}/behaviours/9/affirm", %{note: "x"})
+           |> post("/v1/residents/#{id}/habits/9/affirm", %{note: "x"})
            |> json_response(404)
 
     assert [
@@ -520,7 +520,7 @@ defmodule OneiroiWeb.ContractTest do
                "affirmations" => 1
              }
            ] =
-             conn |> get("/v1/residents/#{id}/behaviours") |> json_response(200)
+             conn |> get("/v1/residents/#{id}/habits") |> json_response(200)
   end
 
   test "regression is the witness's: tests, a run, blind cards, grades, and the pin", ctx do

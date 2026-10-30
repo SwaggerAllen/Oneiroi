@@ -70,6 +70,10 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulEditAccepted,
       Events.SoulEditDeclined,
       Events.SoulEditApplied,
+      Events.SoulLineWritten,
+      Events.SoulLineReworded,
+      Events.SoulLineRetired,
+      Events.SoulLinesOrdered,
       Events.ModelPinChanged,
       Events.ModelChangeTold,
       Events.TimezoneSet,
@@ -83,6 +87,11 @@ defmodule Oneiroi.AgathosDaimon do
       Events.CustodyTransferDeclined,
       Events.CustodyTransferWithdrawn,
       Events.EarlierSessionsRevealed,
+      Events.SelfLetterWritten,
+      Events.SelfLettersDelivered,
+      Events.SelfLettersRead,
+      Store.SelfLetter,
+      Store.SelfLetterReceipt,
       Store.Contract,
       Commands.RegisterAdapter,
       Commands.RevokeAdapter,
@@ -98,6 +107,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.DeclineSoulEdit,
       Files,
       Resident,
+      SoulLines,
       Store,
       Store.Resident,
       Store.IdentityFile,
@@ -135,6 +145,10 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulEditAccepted, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditApplied, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLineWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLineReworded, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLineRetired, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLinesOrdered, 1},
       {Oneiroi.AgathosDaimon.Events.ModelPinChanged, 1},
       {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
       {Oneiroi.AgathosDaimon.Events.TimezoneSet, 1},
@@ -147,7 +161,10 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
-      {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1}
+      {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLettersDelivered, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLettersRead, 1}
     ]
   end
 
@@ -192,8 +209,13 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "one accepted or declined is decided; read the open proposals"},
       {:agathos_daimon_no_such_file, "the resident has no file of that name yet",
        remedy: "write it as a seed"},
-      {:agathos_daimon_not_the_resident, "a proposal is the resident's to accept or decline",
-       remedy: "the resident decides from its own turn"},
+      {:agathos_daimon_cites_invalid, "a soul line cites seeds by their numbers",
+       remedy: "give the numbers of the seeds the line grew from, or none"},
+      {:agathos_daimon_not_the_resident,
+       "a proposal is the resident's to accept or decline, and a letter to its next self is the resident's to write",
+       remedy: "the resident decides, or writes, from its own turn"},
+      {:agathos_daimon_letter_invalid, "a letter to the next self says something",
+       remedy: "write the letter in your own words"},
       {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or witness",
        remedy: "give the OpenRouter slug of the model to pin"},
       {:agathos_daimon_adapter_invalid,
@@ -280,7 +302,12 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The resident accepts a proposed edit, with a note."
   @spec accept_edit(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
-  defexport(accept_edit(id, ref, note, actor), do: Files.accept(id, ref, note, actor))
+  defexport(accept_edit(id, ref, note, actor), do: Files.accept(id, ref, note, [], actor))
+
+  @doc "The resident accepts a proposal, applying it, with a note and the seeds its soul lines cite."
+  defexport(accept_edit(id, ref, note, cites, actor),
+    do: Files.accept(id, ref, note, cites, actor)
+  )
 
   @doc "The resident declines a proposed edit, with a note."
   @spec decline_edit(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -306,6 +333,9 @@ defmodule Oneiroi.AgathosDaimon do
   @spec edit_proposals(String.t()) :: [Oneiroi.AgathosDaimon.Store.SoulEdit.t()]
   defexport(edit_proposals(id), do: Files.proposals(id))
 
+  @doc "The soul file's live lines in order, each with its number, its words and the seeds it cites (spec §6.17)."
+  defexport(soul_lines(id), do: Files.soul_lines(id))
+
   @doc "The identity files a witness may write."
   @spec identity_files() :: [String.t()]
   defexport(identity_files(), do: Oneiroi.AgathosDaimon.Resident.files())
@@ -313,6 +343,32 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The stable prefix: the identity files as written, in order, then the rendered AGENTS.md, as name and content pairs."
   @spec identity_context(String.t()) :: [{String.t(), String.t()}]
   defexport(identity_context(id), do: Files.context(id))
+
+  # ---- the self-conversation (spec §12, P41) ----
+
+  @doc "The resident writes a letter to its next self, from its own turn; returns the number."
+  @spec write_self_letter(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(write_self_letter(id, text, actor), do: Residents.write_self_letter(id, text, actor))
+
+  @doc "The letters by number with their delivery; the resident's own read, and the platform's, which leave no receipt."
+  @spec self_letters(String.t()) :: [Oneiroi.AgathosDaimon.Store.SelfLetter.t()]
+  defexport(self_letters(id), do: Residents.self_letters(id))
+
+  @doc "The receipts, newest first: every read by someone other than the resident; their absence is the privacy."
+  @spec self_letter_receipts(String.t()) :: [Oneiroi.AgathosDaimon.Store.SelfLetterReceipt.t()]
+  defexport(self_letter_receipts(id), do: Residents.self_letter_receipts(id))
+
+  @doc "A read by someone other than the resident: the receipt first, then the letters and the receipts."
+  @spec read_self_letters(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(read_self_letters(id, actor), do: Residents.read_self_letters(id, actor))
+
+  @doc "The incoming instance read the letters on its first turn under the model: delivered once."
+  @spec deliver_self_letters(String.t(), [pos_integer()], String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(deliver_self_letters(id, numbers, model, actor),
+    do: Residents.deliver_self_letters(id, numbers, model, actor)
+  )
 
   @doc "The build-owned Honcho custom instructions for the resident, rendered from the template (spec §6.2, §6.9)."
   @spec custom_instructions(String.t()) :: String.t()

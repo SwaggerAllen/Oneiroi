@@ -18,6 +18,7 @@ defmodule Oneiroi.Seshat.Projectors.Journal do
         number: e.number,
         kind: e.kind,
         text: e.text,
+        register: e.register,
         at: e.at,
         actor_kind: actor_kind(e.actor)
       },

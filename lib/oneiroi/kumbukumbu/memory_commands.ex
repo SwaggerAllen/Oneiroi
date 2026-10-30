@@ -12,7 +12,8 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
         :turns_back,
         :line,
         :summary,
-        :proposal_ref
+        :proposal_ref,
+        :register
       ]
   end
 
@@ -21,7 +22,8 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   end
 
   defmodule PinBookmark do
-    use Oneiroi.Command, fields: [:id, :number]
+    # `evidences`: the soul line the pin is leaf-evidence of, or nil.
+    use Oneiroi.Command, fields: [:id, :number, :evidences]
   end
 
   defmodule UnpinBookmark do
@@ -62,22 +64,6 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
 
   defmodule RemoveTagging do
     use Oneiroi.Command, fields: [:id, :slug, :target_kind, :target_id]
-  end
-
-  defmodule DefineBehaviour do
-    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance]
-  end
-
-  defmodule ChangeBehaviour do
-    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance]
-  end
-
-  defmodule AffirmBehaviour do
-    use Oneiroi.Command, decision: true, fields: [:id, :number]
-  end
-
-  defmodule EnactBehaviour do
-    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
   end
 
   defmodule Revise do

@@ -10,6 +10,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   which is the export wall (spec §6.12).
   """
   import Ecto.Query, only: [from: 2]
+  import Pgvector.Ecto.Query, only: [cosine_distance: 2]
 
   alias Oneiroi.Repo
 
@@ -24,6 +25,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:kind, :string)
       field(:adapter, :string)
       field(:participants, {:array, :string})
+      field(:domain, :string)
       field(:shared, :boolean, default: false)
       field(:private, :boolean, default: false)
       field(:opened_at, :utc_datetime_usec)
@@ -120,8 +122,11 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:pinned_by_kind, :string)
       field(:pinned_by_id, :string)
       field(:pinned_at, :utc_datetime_usec)
+      field(:pin_evidences, :integer)
+      field(:register, :string)
       field(:weight, :float, default: 1.0)
       field(:last_indexed_at, :utc_datetime_usec)
+      field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
       field(:tags, {:array, :string}, virtual: true, default: [])
     end
@@ -188,61 +193,6 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:note, :string)
       field(:created_at, :utc_datetime_usec)
       field(:decided_at, :utc_datetime_usec)
-    end
-
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Behaviour do
-    @moduledoc "How the resident tends to act (spec §6.3, F55): its words, the trigger, the stance, as last revised."
-    use Ecto.Schema
-    @primary_key false
-    schema "kumbukumbu_behaviour" do
-      field(:resident_id, :binary_id, primary_key: true)
-      field(:number, :integer, primary_key: true)
-      field(:name, :string)
-      field(:trigger, :map, default: %{})
-      field(:stance, :string)
-      field(:defined_by_kind, :string)
-      field(:defined_by_id, :string)
-      field(:defined_at, :utc_datetime_usec)
-      field(:revised_at, :utc_datetime_usec)
-      field(:revisions, :integer, default: 0)
-      field(:habit, :float, virtual: true, default: 0.0)
-      field(:connection, :float, virtual: true, default: 0.0)
-      field(:affirmations, :integer, virtual: true, default: 0)
-      field(:enactments, :integer, virtual: true, default: 0)
-    end
-
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Enactment do
-    @moduledoc "One enactment: the behaviour and the turn or bookmark that was one."
-    use Ecto.Schema
-    @primary_key false
-    schema "kumbukumbu_enactment" do
-      field(:resident_id, :binary_id, primary_key: true)
-      field(:number, :integer, primary_key: true)
-      field(:target_kind, :string, primary_key: true)
-      field(:target_id, :string, primary_key: true)
-      field(:at, :utc_datetime_usec)
-    end
-
-    @type t :: %__MODULE__{}
-  end
-
-  defmodule Affirmation do
-    @moduledoc "One affirmation of a behaviour by the witness, with its note."
-    use Ecto.Schema
-    @primary_key false
-    schema "kumbukumbu_affirmation" do
-      field(:resident_id, :binary_id, primary_key: true)
-      field(:number, :integer, primary_key: true)
-      field(:at, :utc_datetime_usec, primary_key: true)
-      field(:note, :string)
-      field(:by_kind, :string)
-      field(:by_id, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -351,16 +301,28 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "Messages whose content holds `text`, newest first; unweighted, as spec §6.3 asks."
   @spec search(String.t(), pos_integer()) :: [Message.t()]
   def search(text, limit) do
-    pattern = "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
-
     Repo.all(
       from(m in Message,
-        where: ilike(m.content, ^pattern),
+        where: ilike(m.content, ^search_pattern(text)),
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit
       )
     )
   end
+
+  @doc "The same, within the sessions named (the room, spec §6.3 P23)."
+  @spec search(String.t(), pos_integer(), [String.t()]) :: [Message.t()]
+  def search(text, limit, keys) when is_list(keys) do
+    Repo.all(
+      from(m in Message,
+        where: ilike(m.content, ^search_pattern(text)) and m.session_key in ^keys,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit
+      )
+    )
+  end
+
+  defp search_pattern(text), do: "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
 
   @doc "The open capture failures the scope sees, oldest first."
   @spec open_failures() :: [CaptureFailure.t()]
@@ -374,6 +336,72 @@ defmodule Oneiroi.Kumbukumbu.Store do
       Repo.all(from(i in ContextInjection, where: i.turn_ref == ^turn_ref, order_by: i.position))
 
   # ---- memory ----
+
+  defmodule Vector do
+    @moduledoc "One row of the madeleine's index (spec §6.3, P10): a bookmark's words, or the limits, embedded; derived, rebuilt from the rows."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_vector" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:text, :string)
+      field(:hash, :string)
+      field(:model, :string)
+      field(:embedding, Pgvector.Ecto.Vector)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The madeleine's rows, by kind and number."
+  @spec vectors() :: [Vector.t()]
+  def vectors, do: Repo.all(from(v in Vector, order_by: [v.kind, v.number]))
+
+  @doc "One row of the madeleine's index."
+  def vector(kind, number),
+    do: Repo.one(from(v in Vector, where: v.kind == ^kind and v.number == ^number))
+
+  @doc "Writes rows, replacing any with the same kind and number."
+  def put_vectors([]), do: :ok
+
+  def put_vectors(rows) do
+    Repo.insert_all(Vector, rows,
+      on_conflict: {:replace, [:text, :hash, :model, :embedding, :at]},
+      conflict_target: [:resident_id, :kind, :number]
+    )
+
+    :ok
+  end
+
+  @doc "Drops rows by kind and number."
+  def delete_vectors([]), do: :ok
+
+  def delete_vectors(keys) do
+    Enum.each(keys, fn {kind, number} ->
+      Repo.delete_all(from(v in Vector, where: v.kind == ^kind and v.number == ^number))
+    end)
+
+    :ok
+  end
+
+  @doc "The nearest rows of a kind to a vector, nearest first, each with its cosine distance and its own embedding."
+  def nearest_vectors(vector, kind, limit) do
+    Repo.all(
+      from(v in Vector,
+        where: v.kind == ^kind,
+        order_by: cosine_distance(v.embedding, ^vector),
+        limit: ^limit,
+        select: %{
+          number: v.number,
+          text: v.text,
+          embedding: v.embedding,
+          distance: cosine_distance(v.embedding, ^vector)
+        }
+      )
+    )
+  end
 
   @doc "The resident's bookmarks, newest first, each with its tags."
   @spec bookmarks() :: [Bookmark.t()]
@@ -442,25 +470,6 @@ defmodule Oneiroi.Kumbukumbu.Store do
       %{b | tags: tags |> Map.get(Integer.to_string(b.number), []) |> Enum.sort()}
     end)
   end
-
-  # ---- behaviours ----
-
-  @doc "The resident's behaviours by number."
-  @spec behaviours() :: [Behaviour.t()]
-  def behaviours, do: Repo.all(from(b in Behaviour, order_by: b.number))
-
-  @doc "Every enactment, newest first."
-  @spec enactments() :: [Enactment.t()]
-  def enactments, do: Repo.all(from(e in Enactment, order_by: [desc: e.at]))
-
-  @doc "Every affirmation, newest first."
-  @spec affirmations() :: [Affirmation.t()]
-  def affirmations, do: Repo.all(from(a in Affirmation, order_by: [desc: a.at]))
-
-  @doc "The numbers of the pinned bookmarks."
-  @spec pinned_numbers() :: [pos_integer()]
-  def pinned_numbers,
-    do: Repo.all(from(b in Bookmark, where: not is_nil(b.pinned_at), select: b.number))
 
   # ---- revisions ----
 

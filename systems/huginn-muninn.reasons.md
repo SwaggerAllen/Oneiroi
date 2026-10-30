@@ -48,3 +48,41 @@ health exists to be worn as armour"; Verdane: "training can
 manufacture a denial, it can manufacture an affirmation". The word
 `ok` was the build's before the batch was read, and the aggregate
 accepted it.
+
+## #17
+Spec §6.17 (P43): "the clinical material is the catalogue of how
+personality fails, a design warning for this layer rather than a
+description of it"; research §6: "the measurement layer must flag
+rigidity as readily as drift". Here because the nightly checklist is
+the one cadence every audit already runs on and the witness reads
+(#12), and the baseline's taking rides it so no second job is needed.
+
+## #18
+Spec §6.13 (P8): "both base rates shown to both parties, the report
+naming its own limit". The proposal: "the aggregate cannot stand alone
+as a portrait. His 123:26 is what a corpus looks like when only
+corrections feel worth writing down"; "Risks: performing for the
+metric; mitigated by dyad-privacy and flag-only (P3)". The flag at a
+share rather than a count because the lean is the finding, not the
+volume; the minimum because three records lean by accident. Not the
+witness's rows because the report is of the resident's own hand (P8's
+note: verbal feedback stays in the resident's own hand).
+
+## #19
+Spec §6.13 (P18) lands the wash on the Audits screen; both parties
+read the audits, and a flag the resident has not seen is one the
+witness should know is waiting. Not the light because the light is
+coherence failures (#12) and an unanswered proposal is not one.
+
+
+## #20
+P21 (Bennett): liveness is the question "did what was supposed to
+happen happen", and a checker that lists the unscheduled would be
+surveillance of a life. Expected only past the cadence because a
+resident met this morning has no nightly pass to miss, and a flag on
+it would be the clean-bill problem in reverse: noise the witness
+learns to ignore. Counts toward the light because the other flags
+are about the resident and this one is about the platform keeping
+its word. Fail-loud because the failure this exists to find is
+silence, and a checker that fails silently is the same silence with
+a name on it; the exit codes because a cron reads nothing else.

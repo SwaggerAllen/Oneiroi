@@ -14,7 +14,9 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
     JudgeChange,
     Night,
     Position,
-    Prediction
+    Prediction,
+    Wash,
+    WashFlag
   }
 
   fold(%Events.PositionTaken{} = e, _metadata, fn multi ->
@@ -102,7 +104,8 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
       found: e.found,
       judge_model: e.judge_model,
       criteria: e.criteria,
-      summary: e.summary
+      summary: e.summary,
+      movements: e.movements || []
     })
   end)
 
@@ -197,6 +200,61 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   fold(%Events.AuditFlagDeleted{} = e, _metadata, fn multi ->
     Multi.update_all(multi, :flag, from(f in AuditFlag, where: f.ref == ^e.ref),
       set: [decision: "deleted", note: e.note, decided_at: e.at]
+    )
+  end)
+
+  fold(%Events.WashRun{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :wash,
+      %Wash{
+        resident_id: e.id,
+        ref: e.ref,
+        outcome: "ok",
+        entries: e.entries,
+        flagged: e.flagged,
+        judge_model: e.judge_model,
+        criteria: e.criteria,
+        summary: e.summary,
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.WashFailed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :wash,
+      %Wash{resident_id: e.id, ref: e.ref, outcome: "failed", reason: e.reason, at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.WashFlagRaised{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :wash_flag,
+      %WashFlag{
+        resident_id: e.id,
+        ref: e.ref,
+        wash_ref: e.wash_ref,
+        file: e.file,
+        entry: e.entry,
+        kind: e.kind,
+        reason: e.reason,
+        raised_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
+  fold(%Events.WashFlagResolved{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :wash_flag, from(f in WashFlag, where: f.ref == ^e.ref),
+      set: [decision: e.decision, note: e.note, decided_at: e.at]
     )
   end)
 

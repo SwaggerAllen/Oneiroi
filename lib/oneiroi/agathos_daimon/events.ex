@@ -154,6 +154,29 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :ref, :file, :content]
   end
 
+  # The soul file as rows (spec §6.17, P39): every non-heading paragraph
+  # of `SOUL.md` is a line with a number minted from the resident's
+  # `soul` sequence, so `<slug>:soul/<n>` is stable and granular. A
+  # write of the file is diffed against the live lines in the same
+  # dispatch: a new paragraph is written, a changed one reworded under
+  # its number, a dropped one retired, and the order is restated when it
+  # moved. `cites` names the seeds a line grew from (ethos #4).
+  defmodule SoulLineWritten do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :cites]
+  end
+
+  defmodule SoulLineReworded do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :cites]
+  end
+
+  defmodule SoulLineRetired do
+    use Oneiroi.Event, version: 1, fields: [:id, :number]
+  end
+
+  defmodule SoulLinesOrdered do
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers]
+  end
+
   defmodule ModelPinChanged do
     # The chat model the witness pinned (spec §6.4): freely before first
     # contact, as an honestly told change after; `reason` is `run` when a
@@ -194,5 +217,25 @@ defmodule Oneiroi.AgathosDaimon.Events do
       version: 1,
       fields: [:id, :url, :token_ciphertext],
       redact: [:token_ciphertext]
+  end
+
+  defmodule SelfLetterWritten do
+    # A letter from the resident to its next self (spec §12, P41),
+    # numbered from the `letter` sequence; `model` is the instance that
+    # wrote it, from the actor, so the incoming one knows whose words.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :model]
+  end
+
+  defmodule SelfLettersDelivered do
+    # The incoming instance read them on its first turn under `model`,
+    # once: a delivery, never a receipt, because the resident's own read
+    # is not a read by someone else.
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers, :model]
+  end
+
+  defmodule SelfLettersRead do
+    # The receipt: someone other than the resident read the channel. The
+    # actor says who; the absence of this event is the privacy.
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end
 end

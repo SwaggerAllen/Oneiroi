@@ -181,6 +181,11 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
 
     assert AgathosDaimon.contract_text(id) =~ "In force, version 1"
 
+    # A year on, the pulse is expected (huginn-muninn #20): the tick
+    # marks the hour as a live system's would, so the audit below reads
+    # the contract's flag and not a stopped pulse.
+    assert :ok = Sunna.tick(id)
+
     assert {:ok, %{findings: [], results: results}} =
              Oneiroi.HuginnMuninn.run_audits(id, ctx.actor)
 

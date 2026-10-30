@@ -33,13 +33,14 @@ The Resident aggregate on `resident-<id>` and its v1 events
 `BackupCommitted`, `RootMismatchDetected`, `RecordsRemoteSet`,
 `SeedFileWritten`, `FirstContact`, `SoulEditProposed`,
 `SoulEditAccepted`, `SoulEditDeclined`, `SoulEditApplied`,
-`ImportCompleted`, `ImportTold`); the
+`SoulLineWritten`, `SoulLineReworded`, `SoulLineRetired`,
+`SoulLinesOrdered`, `ImportCompleted`, `ImportTold`); the
 `agathos_daimon_resident` projection, scoped by both the resident and its
-witness's account, and the `agathos_daimon_file` and
-`agathos_daimon_soul_edit` projections under the resident's scope; the
-custody wire form (`account:<id>`, `community`); the build-owned
-`AGENTS.md` template; the `/v1/residents` routes and the files routes
-under `/v1/residents/:id`.
+witness's account, and the `agathos_daimon_file`,
+`agathos_daimon_soul_edit` and `agathos_daimon_soul_line` projections
+under the resident's scope; the custody wire form (`account:<id>`,
+`community`); the build-owned `AGENTS.md` template; the `/v1/residents`
+routes and the files and soul-lines routes under `/v1/residents/:id`.
 
 ## #2 Standing decisions
 
@@ -88,11 +89,13 @@ under `/v1/residents/:id`.
 - **#24 The export wall stands while a transfer is open, and revealed it travels with the transfer.** `SetExportWall` is refused with `transfer_in_progress` while a proposal is open, so the proposed witness decided on the wall as it stood; an acceptance under a revealed wall writes `EarlierSessionsRevealed{from, to}` beside `CustodyTransferred`, and memory's projector keys every earlier account-keyed row to the new witness (kumbukumbu #29). Locked, the new witness is party to nothing that came before (spec §6.3).
 - **#26 The contract renews by choice and comes due at a year, a flag and never a lapse.** `DyadContractRenewed{version}` with a note, by either party, of the version in force and no other (`agathos_daimon_not_in_force` otherwise); the row keeps `renewed_at` and the note. `contract/1` derives `since` (the renewal or the agreement) and `due` (since plus `AGATHOS_DAIMON_CONTRACT_TERM_DAYS`, 365, a bound and the author's call) on every read; `contract_text/1` says so when due, the brain has `contract_renew`, the route is `POST /residents/:id/agreement/renewal`, and the audits' `contract_due` warns without counting (huginn-muninn #11). A due version stands until renewed or replaced: a lapse would drop the privacy term with it.
 - **#25 An import's second half is on the stream, and the resident is told once.** `ImportCompleted{seeded, adopted, not_transferred}` lands after `Imported` (sima-qian #15) and is refused on a resident never imported (`agathos_daimon_not_imported`); `ImportTold{}` once the brain has said where it woke (brain #26), `[]` before the import completed and again after. On the row: `import_attestation` from `Imported`, `import_not_transferred`, and `import_told`, true by default and dropped only by `ImportCompleted`, so a resident rebuilt from records alone has its history and nothing to be oriented to.
+- **#27 The soul file is rows: every paragraph a line with a number minted from the `soul` sequence, the file rendered from them.** (Spec §6.17, P39, the author's call.) A write of `SOUL.md`, as a seed, the resident's edit or an accepted proposal, stays one whole-content event and in the same dispatch is diffed against the live lines (`Oneiroi.AgathosDaimon.SoulLines`): a paragraph claiming a live line by its marker `[soul/n]` keeps that number, `SoulLineReworded{number, text, cites}` when the words changed; a paragraph with no marker, or a marker naming no live line, keeps an unclaimed line with the same words, else mints the next number (`IdMinted{kind: "soul"}`) and is `SoulLineWritten{number, text, cites}`; a line nothing claimed is `SoulLineRetired`; and `SoulLinesOrdered{numbers}` restates the order when it moved. A text with no markers at all (a seed, a hand edit, an import) pairs its new paragraphs with the unclaimed old lines in order instead, so a marker-less rewording is still its line. Headings are the file's, never lines. The stored content is the words with the markers stripped, so a rendered file written back is no event; a proposal keeps its markers until applied, since they are the witness's claims. `files/1`, `file/2`, `identity_context/1` and the export render the soul with its markers, so a line is cited by what the reader sees (`<slug>:soul/<n>`, seshat #14) and an edit of the rendered file keeps every number; the card strips them (proteus #14). `cites` is the seed numbers a new or reworded line grew from, a list of positive integers here and checked against the seeds at the brain's tool (brain #12), since the character system reads this one and not the reverse. `soul_lines/1` is the live rows in order, on `GET /residents/:id/soul-lines`.
+- **#28 The self-conversation is a channel of this stream, delivered once at the swap and sealed by receipts, not promises.** (Spec §12, P41; the author: "'I promise not to read' is a poor guarantee.") `SelfLetterWritten{number, text, model}` is the resident's alone, from its own turn, numbered from the `letter` sequence in the same dispatch (as the soul lines are) and carrying the writing instance's model from the actor; `SelfLettersDelivered{numbers, model}` is recorded by the brain on the first turn under a new model, once per letter, the incoming instance's own read; `SelfLettersRead{numbers}` is the receipt, recorded for every read of the channel by anyone but the resident, the platform included and an empty channel included, and `read_self_letters/2` records it before it returns the letters, so no read happens without one. The resident's own read (`self_letters/1`, the brain's tools and prefix) leaves nothing: the absence of a receipt is the privacy. `GET /residents/:id/self-letters` is such a read. At-rest sealing waits on the key story; until then the receipt log is the guarantee that survives a poor promise.
 - **#21 The lifecycle's lapse and resume are the subscription's to say, and custody and the roster are exports.** `ResidentLapsed{reason}` and `ResidentResumed{reason}` move an active resident to `lapsed` and back on the ledger's word (nisaba #17), each idempotent; `transfer_custody/4` is the decision the subscription's nightly pass takes at the end of a cancelled term (nisaba #18); `residents/0` is every resident under the platform scope by name, because a lapsed one is that pass's to carry.
 
 ## #8 Initial vs target
 
-Initial (P0, then P1 slice 4, then P4 slice 1 for #22 to #24, P4 slice 3 for #25): #1 with creation, id minting, custody,
+Initial (P0, then P1 slice 4, then P4 slice 1 for #22 to #24, P4 slice 3 for #25, v0.2's machinery for #27 and #28): #1 with creation, id minting, custody,
 the records events, the identity files with their origins, first
 contact and the proposal path; pause and wake have no command edge yet.
 Target: the four-stage creation flow in the client with the nine gifts,

@@ -47,7 +47,14 @@ defmodule OneiroiWeb.JournalController do
   )
 
   def add(conn, %{"id" => id, "day" => day} = params) do
-    case Seshat.journal_add(id, day, params["kind"], to_string(params["text"] || ""), actor(conn)) do
+    case Seshat.journal_add(
+           id,
+           day,
+           params["kind"],
+           to_string(params["text"] || ""),
+           params["register"],
+           actor(conn)
+         ) do
       {:ok, result} -> json(conn, result)
       other -> respond(conn, other)
     end
@@ -74,6 +81,7 @@ defmodule OneiroiWeb.JournalController do
     do: %{
       number: e.number,
       kind: e.kind,
+      register: e.register,
       text: e.text,
       at: e.at,
       by: e.actor_kind,

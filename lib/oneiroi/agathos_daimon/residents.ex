@@ -114,6 +114,61 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
+  # ---- the self-conversation (spec §12, P41) ----
+
+  @doc "The resident writes a letter to its next self; returns its number."
+  def write_self_letter(id, text, %Actor{} = actor) do
+    command = %Commands.WriteSelfLetter{actor: actor, at: Clock.now(), id: id, text: text}
+
+    case Router.dispatch(command) do
+      {:ok, events} ->
+        {:ok, events |> Enum.find(&match?(%{number: _}, &1)) |> Map.fetch!(:number)}
+
+      {:error, :not_the_resident} ->
+        {:error, Error.new(:agathos_daimon_not_the_resident)}
+
+      {:error, :letter_invalid} ->
+        {:error, Error.new(:agathos_daimon_letter_invalid)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc "The letters, by number, with their delivery: the resident's own read and the platform's, which leave no receipt."
+  def self_letters(id), do: Scope.resident(id, fn -> Store.self_letters() end)
+
+  @doc "The receipts, newest first: every read of the channel by someone other than the resident."
+  def self_letter_receipts(id), do: Scope.resident(id, fn -> Store.self_letter_receipts() end)
+
+  @doc """
+  A read by someone other than the resident: the receipt is recorded
+  first and the letters returned after, so no read happens without its
+  receipt (spec §12, P41). `{:ok, %{letters, receipts}}`; the receipts
+  include this one.
+  """
+  def read_self_letters(id, %Actor{} = actor) do
+    letters = self_letters(id)
+    numbers = Enum.map(letters, & &1.number)
+    command = %Commands.ReadSelfLetters{actor: actor, at: Clock.now(), id: id, numbers: numbers}
+
+    with {:ok, _} <- Router.dispatch(command),
+         do: {:ok, %{letters: letters, receipts: self_letter_receipts(id)}}
+  end
+
+  @doc "The incoming instance read the letters on its first turn under `model`: delivered once, the rest ignored."
+  def deliver_self_letters(id, numbers, model, %Actor{} = actor) do
+    command = %Commands.DeliverSelfLetters{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      numbers: numbers,
+      model: model
+    }
+
+    with {:ok, _} <- Router.dispatch(command), do: :ok
+  end
+
   @doc "Records that the resident was told of the model change; idempotent."
   def model_told(id, %Actor{} = actor) do
     command = %Commands.RecordModelTold{actor: actor, at: Clock.now(), id: id, model: nil}

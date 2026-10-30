@@ -29,19 +29,27 @@ defmodule Oneiroi.Eunomia.Events do
 
   defmodule RunStarted do
     # A run is models x trials: every candidate answers every test and
-    # every trial derived from a behaviour (spec §6.4).
+    # every trial derived from a behaviour (spec §6.4). Version 2 adds
+    # `commitments`, the trials derived from open commitments (P19);
+    # the identity upcaster is the shape the store's restart allows.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :run_ref, :models, :tests, :behaviours],
+      version: 2,
+      fields: [:id, :run_ref, :models, :tests, :behaviours, :commitments],
       export: false
+  end
+
+  defimpl Commanded.Event.Upcaster, for: RunStarted do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule AnswerRecorded do
     # One blind card: the model is on the event and off the card until
     # every card of its test is graded. A failure records its reason and
     # no content, so a model that would not answer is graded as such.
+    # Version 2 adds `commitment_number` (P19), the commitment a derived
+    # trial answers for; the identity upcaster as above.
     use Oneiroi.Event,
-      version: 1,
+      version: 2,
       fields: [
         :id,
         :run_ref,
@@ -49,11 +57,16 @@ defmodule Oneiroi.Eunomia.Events do
         :model,
         :test_number,
         :behaviour_number,
+        :commitment_number,
         :content,
         :refusal,
         :failure
       ],
       export: false
+  end
+
+  defimpl Commanded.Event.Upcaster, for: AnswerRecorded do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule RunFinished do

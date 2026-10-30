@@ -28,11 +28,15 @@ describe('App', () => {
   });
 
   it('shows the empty state for a witness with no resident', async () => {
-    vi.stubGlobal(
-      'fetch',
-      fakeFetch({ '/v1/me': { status: 200, body: { email: 'a@b', residents: [] } }, '/v1/residents': { status: 200, body: [] } }),
-    );
+    const fetch = fakeFetch({ '/v1/me': { status: 200, body: { email: 'a@b', residents: [] } }, '/v1/residents': { status: 200, body: [] } });
+    vi.stubGlobal('fetch', fetch);
     render(<App />);
     await waitFor(() => expect(screen.getByText(/No resident yet/)).toBeTruthy());
+    // The empty state shows before the residents load, so the test waits
+    // for that call too: ended earlier, the stub is gone when the effect
+    // fires and the real fetch rejects a relative URL after the test, an
+    // unhandled rejection CI saw once (run 41124808995) and local runs
+    // did not. A race, so no probe can make it fail on demand.
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/v1/residents', expect.anything()));
   });
 });

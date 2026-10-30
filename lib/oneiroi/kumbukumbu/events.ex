@@ -14,10 +14,16 @@ defmodule Oneiroi.Kumbukumbu.Events do
   defmodule SessionOpened do
     # `participants` are the account ids party to the session (spec
     # §6.3's visibility rule); a solo session carries the witness's, since
-    # solo sessions are the witness's to read by default.
+    # solo sessions are the witness's to read by default. Version 2 adds
+    # `domain` (P23): the room, a slug or nil for the common room; the
+    # store restarts for v0.2, so the upcaster is identity.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants]
+      version: 2,
+      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants, :domain]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: SessionOpened do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule SessionMadePrivate do

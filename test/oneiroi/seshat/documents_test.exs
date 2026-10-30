@@ -207,6 +207,28 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
     assert {:ok, _} = Seshat.write(id, "design/oven.md", "# Oven\n\nHot.", ctx.brain)
 
+    # The character kinds: a habit, a seed and a soul line, each by number.
+    {:ok, 1} =
+      Oneiroi.Ethos.define_habit(
+        id,
+        %{name: "waits", trigger: %{"words" => ["bread"]}, stance: nil},
+        ctx.actor
+      )
+
+    {:ok, 1} = Oneiroi.Ethos.plant_seed(id, "I might be becoming patient.", ctx.brain)
+
+    :ok =
+      Oneiroi.AgathosDaimon.write_file(
+        id,
+        "SOUL.md",
+        "# Soul\n\nBread needs time.",
+        %{},
+        ctx.actor
+      )
+
+    {:ok, 1} =
+      Oneiroi.Ethos.make_commitment(id, "witness", "I will bake for the fair.", ctx.brain)
+
     piece = """
     ---
     status: final
@@ -217,7 +239,8 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     fair (#{slug}:date/1), counting loaves (#{slug}:figure/loaves) with days to go
     (#{slug}:figure/date/1), in the oven notes (#{slug}:design/oven) and our talk
     (#{slug}:transcript/#{ctx.key}). Lost ones (#{slug}:bookmark/99, #{slug}:writing/gone,
-    #{slug}:position/9), and one bare #{slug}:bookmark/99 again.
+    #{slug}:position/9), and one bare #{slug}:bookmark/99 again. Who I am (#{slug}:habit/1,
+    #{slug}:seed/1, #{slug}:soul/1, #{slug}:commitment/1 and #{slug}:soul/9) is here.
     """
 
     assert {:ok, _} = Seshat.write(id, "writing/the-bake-off.md", piece, ctx.brain)
@@ -242,6 +265,16 @@ defmodule Oneiroi.Seshat.DocumentsTest do
              by_target["#{slug}:writing/gone"]
 
     assert %{resolved: false, reason: "no position 9"} = by_target["#{slug}:position/9"]
+    assert %{resolved: true, label: "waits (keep)"} = by_target["#{slug}:habit/1"]
+
+    assert %{resolved: true, label: "I might be becoming patient. (open)"} =
+             by_target["#{slug}:seed/1"]
+
+    assert %{resolved: true, label: "Bread needs time."} = by_target["#{slug}:soul/1"]
+    assert %{resolved: false, reason: "no soul line 9"} = by_target["#{slug}:soul/9"]
+
+    assert %{resolved: true, label: "I will bake for the fair. (to witness, open)"} =
+             by_target["#{slug}:commitment/1"]
 
     assert review.rendered =~ "[1] #{slug}:position/1: Bread needs time." and
              review.rendered =~ "unresolved, no bookmark 99"
@@ -286,7 +319,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     refute copy =~ slug <> ":"
 
     assert copy ==
-             "# The bake-off\n\nI held that bread needs time before the\nfair, counting loaves with days to go, in the oven notes and our talk. Lost ones, and one bare again.\n"
+             "# The bake-off\n\nI held that bread needs time before the\nfair, counting loaves with days to go, in the oven notes and our talk. Lost ones, and one bare again. Who I am is here.\n"
 
     assert {:error, %Seshat.Error{kind: :seshat_not_the_witness}} =
              Seshat.publish(id, "writing/the-bake-off.md", "https://p.test/bake", ctx.brain)

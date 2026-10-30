@@ -21,8 +21,6 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     tags: %{},
     taggings: MapSet.new(),
     proposals: %{},
-    behaviours: %{},
-    enactments: MapSet.new(),
     revisions: %{},
     revision_count: 0
   ]
@@ -37,15 +35,9 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @line_limit 120
   # Positions, predictions and dates are other systems' rows (spec §6.3's
   # list); a tagging on them is checked for the kind alone, as a turn is.
-  @target_kinds ~w(bookmark conversation turn position prediction date figure document journal)
-  @stances ~w(keep change)
-  # The situation tags a trigger may name (spec §6.3): the closed set the
-  # assembler can match without a model call. `words` are the witness's
-  # words, `tags` a tag present on the conversation, `times` the time of
-  # day. The resident proposes additions to the set, and that is a code
-  # change here.
-  @trigger_keys ~w(words tags times)
-  @times ~w(morning afternoon evening night)
+  # Habits and seeds are the character layer's rows (spec §6.17), checked
+  # for the kind alone here as positions are.
+  @target_kinds ~w(bookmark conversation turn position prediction date figure document journal habit seed)
 
   @doc "The slug a tag must match."
   @spec slug_pattern() :: Regex.t()
@@ -59,28 +51,6 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   @spec target_kinds() :: [String.t()]
   def target_kinds, do: @target_kinds
 
-  @doc "The stances a behaviour takes: `keep` or `change`."
-  @spec stances() :: [String.t()]
-  def stances, do: @stances
-
-  @doc "The times of day a trigger may name."
-  @spec times() :: [String.t()]
-  def times, do: @times
-
-  @doc "Whether a trigger is well formed: a map of `words`, `tags` and `times` lists, at least one non-empty."
-  @spec trigger_ok?(term()) :: boolean()
-  def trigger_ok?(%{} = trigger) do
-    keys = Map.keys(trigger)
-    lists = Enum.map(@trigger_keys, &Map.get(trigger, &1, []))
-
-    Enum.all?(keys, &(&1 in @trigger_keys)) and
-      Enum.all?(lists, &(is_list(&1) and Enum.all?(&1, fn v -> is_binary(v) end))) and
-      Enum.any?(lists, &(&1 != [])) and
-      Enum.all?(Map.get(trigger, "times", []), &(&1 in @times))
-  end
-
-  def trigger_ok?(_other), do: false
-
   # ---- bookmarks ----
 
   def execute(%__MODULE__{} = m, %Commands.AddBookmark{} = c) do
@@ -88,6 +58,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       Map.has_key?(m.bookmarks, c.number) -> []
       not line_ok?(c.line) -> {:error, :line_invalid}
       not span_ok?(c.turns_back) -> {:error, :span_invalid}
+      not Oneiroi.Register.ok?(c.register) -> {:error, :register_invalid}
       true -> with_proposal(m, c)
     end
   end
@@ -112,11 +83,29 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     end
   end
 
+  # A pin already standing is no event, unless it now names a different
+  # soul line: the pin's tag changed, so the pin is recorded again.
   def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.PinBookmark{} = c) do
-    case Map.fetch(bookmarks, c.number) do
-      :error -> {:error, :no_such_bookmark}
-      {:ok, %{pinned: true}} -> []
-      {:ok, _} -> %Events.BookmarkPinned{actor: c.actor, at: c.at, id: c.id, number: c.number}
+    bookmark = Map.get(bookmarks, c.number)
+
+    cond do
+      is_nil(bookmark) ->
+        {:error, :no_such_bookmark}
+
+      not evidence_ok?(c.evidences) ->
+        {:error, :evidence_invalid}
+
+      bookmark.pinned and Map.get(bookmark, :evidences) == c.evidences ->
+        []
+
+      true ->
+        %Events.BookmarkPinned{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          evidences: c.evidences
+        }
     end
   end
 
@@ -305,79 +294,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     end
   end
 
-  # ---- behaviours (Ethos) ----
-
-  def execute(%__MODULE__{behaviours: behaviours}, %Commands.DefineBehaviour{} = c) do
-    cond do
-      Map.has_key?(behaviours, c.number) -> []
-      not name_ok?(c.name) -> {:error, :name_invalid}
-      c.stance not in @stances -> {:error, :stance_invalid}
-      not trigger_ok?(c.trigger) -> {:error, :trigger_invalid}
-      true -> behaviour_event(Events.BehaviourDefined, c)
-    end
-  end
-
-  def execute(%__MODULE__{behaviours: behaviours}, %Commands.ChangeBehaviour{} = c) do
-    cond do
-      not Map.has_key?(behaviours, c.number) -> {:error, :no_such_behaviour}
-      not name_ok?(c.name) -> {:error, :name_invalid}
-      c.stance not in @stances -> {:error, :stance_invalid}
-      not trigger_ok?(c.trigger) -> {:error, :trigger_invalid}
-      Map.get(behaviours, c.number) == %{name: c.name, trigger: c.trigger, stance: c.stance} -> []
-      true -> behaviour_event(Events.BehaviourChanged, c)
-    end
-  end
-
-  def execute(%__MODULE__{behaviours: behaviours}, %Commands.AffirmBehaviour{} = c) do
-    if Map.has_key?(behaviours, c.number),
-      do: %Events.BehaviourAffirmed{
-        actor: c.actor,
-        at: c.at,
-        note: c.note,
-        id: c.id,
-        number: c.number
-      },
-      else: {:error, :no_such_behaviour}
-  end
-
-  def execute(%__MODULE__{} = m, %Commands.EnactBehaviour{} = c) do
-    cond do
-      not Map.has_key?(m.behaviours, c.number) ->
-        {:error, :no_such_behaviour}
-
-      c.target_kind not in ["turn", "bookmark"] ->
-        {:error, :target_invalid}
-
-      c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
-        {:error, :target_invalid}
-
-      MapSet.member?(m.enactments, enactment_key(c)) ->
-        []
-
-      true ->
-        %Events.BehaviourEnacted{
-          actor: c.actor,
-          at: c.at,
-          id: c.id,
-          number: c.number,
-          target_kind: c.target_kind,
-          target_id: to_string(c.target_id)
-        }
-    end
-  end
-
   # ---- apply ----
-
-  def apply(%__MODULE__{} = m, %Events.BehaviourDefined{} = e),
-    do: %{m | id: e.id, behaviours: Map.put(m.behaviours, e.number, behaviour_state(e))}
-
-  def apply(%__MODULE__{} = m, %Events.BehaviourChanged{} = e),
-    do: %{m | behaviours: Map.put(m.behaviours, e.number, behaviour_state(e))}
-
-  def apply(%__MODULE__{} = m, %Events.BehaviourAffirmed{}), do: m
-
-  def apply(%__MODULE__{} = m, %Events.BehaviourEnacted{} = e),
-    do: %{m | enactments: MapSet.put(m.enactments, enactment_key(e))}
 
   def apply(%__MODULE__{} = m, %Events.BookmarkAdded{} = e) do
     %{
@@ -392,10 +309,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     do: put_in(m.bookmarks[e.number].turns_back, e.turns_back)
 
   def apply(%__MODULE__{} = m, %Events.BookmarkPinned{} = e),
-    do: put_in(m.bookmarks[e.number].pinned, true)
+    do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: true, evidences: e.evidences}))
 
   def apply(%__MODULE__{} = m, %Events.BookmarkUnpinned{} = e),
-    do: put_in(m.bookmarks[e.number].pinned, false)
+    do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: false, evidences: nil}))
 
   def apply(%__MODULE__{} = m, %Events.BookmarkProposed{} = e) do
     proposal = %{state: :open, by: actor_map(e.actor)}
@@ -450,29 +367,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       line: c.line,
       summary: c.summary,
       proposal_ref: c.proposal_ref,
-      proposed_by: proposal && proposal.by
+      proposed_by: proposal && proposal.by,
+      register: c.register
     }
   end
-
-  defp behaviour_event(module, c) do
-    struct!(module,
-      actor: c.actor,
-      at: c.at,
-      id: c.id,
-      number: c.number,
-      name: c.name,
-      trigger: c.trigger,
-      stance: c.stance
-    )
-  end
-
-  defp behaviour_state(e), do: %{name: e.name, trigger: e.trigger, stance: e.stance}
-
-  defp enactment_key(%{number: number, target_kind: kind, target_id: id}),
-    do: {number, kind, to_string(id)}
-
-  defp name_ok?(name),
-    do: is_binary(name) and String.trim(name) != "" and String.length(name) <= @line_limit
 
   # A bookmark naming a proposal accepts it, and only an open one.
   defp with_proposal(_m, %{proposal_ref: nil} = c), do: bookmark_added(c, nil)
@@ -556,4 +454,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   end
 
   defp actor_map(_other), do: nil
+
+  defp evidence_ok?(nil), do: true
+  defp evidence_ok?(n) when is_integer(n) and n > 0, do: true
+  defp evidence_ok?(_other), do: false
 end

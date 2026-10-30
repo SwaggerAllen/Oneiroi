@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -24,7 +25,11 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.SimaQian
   alias Oneiroi.Sunna
 
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts)
+  # The character kinds (habit, seed, soul) were resolvable before they
+  # were in this list, so `<slug>:habit/<n>` never parsed as a citation
+  # and their resolver clauses were unreachable; found when the soul
+  # lines landed, by the test that cites all three.
+  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts habit seed soul commitment)
   # A ref ends on a letter, digit or `#`-less anchor character, so the full
   # stop closing a sentence stays with the sentence.
   @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/
@@ -214,6 +219,42 @@ defmodule Oneiroi.Seshat.Citations do
       {:ok, b.line}
     else
       _other -> {:unresolved, "no bookmark #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "habit", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = h <- Enum.find(Ethos.habits(resident_id), &(&1.number == number)) do
+      {:ok, "#{h.name} (#{h.stance})"}
+    else
+      _other -> {:unresolved, "no habit #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "seed", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = s <- Enum.find(Ethos.seeds(resident_id), &(&1.number == number)) do
+      {:ok, "#{s.text} (#{s.state})"}
+    else
+      _other -> {:unresolved, "no seed #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "soul", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = l <- Enum.find(AgathosDaimon.soul_lines(resident_id), &(&1.number == number)) do
+      {:ok, l.text}
+    else
+      _other -> {:unresolved, "no soul line #{ref}"}
+    end
+  end
+
+  defp resolve_kind(resident_id, "commitment", ref) do
+    with {:ok, number} <- integer(ref),
+         %{} = c <- Enum.find(Ethos.commitments(resident_id), &(&1.number == number)) do
+      {:ok, "#{c.text} (to #{c.to}, #{c.state})"}
+    else
+      _other -> {:unresolved, "no commitment #{ref}"}
     end
   end
 

@@ -133,6 +133,15 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     assert text =~ "##{a} 2026-10-26 (pinned) first"
     assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.witness_actor)
     assert %{included: [^b, ^a]} = Kumbukumbu.index(ctx.resident.id)
+
+    # A pin with its evidence: the soul line's number on the row, checked for shape here.
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_evidence_invalid}} =
+             Kumbukumbu.pin_bookmark(ctx.resident.id, a, %{evidences: 0}, ctx.witness_actor)
+
+    assert :ok = Kumbukumbu.pin_bookmark(ctx.resident.id, a, %{evidences: 7}, ctx.witness_actor)
+    assert [_, %{number: ^a, pin_evidences: 7}] = Kumbukumbu.bookmarks(ctx.resident.id)
+    assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.witness_actor)
+    assert [_, %{number: ^a, pin_evidences: nil}] = Kumbukumbu.bookmarks(ctx.resident.id)
   end
 
   test "the witness proposes; the resident accepts in its own words or declines with a note",
@@ -270,5 +279,19 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     assert [] = Kumbukumbu.recent(ctx.resident.id, ctx.key, 40)
     assert :ok = Kumbukumbu.compact(ctx.resident.id, ctx.key, "c2", through, "again", ctx.actor)
     assert {:ok, %{summary: "we talked"}, 0} = Kumbukumbu.uncompacted(ctx.resident.id, ctx.key)
+  end
+
+  test "a bookmark carries the register the resident wrote it in, or none; a wrong one is refused (spec §6.13, P8)",
+       ctx do
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_register_invalid}} =
+             Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{register: "mood"}), ctx.actor)
+
+    {:ok, praised} =
+      Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{register: "praise"}), ctx.actor)
+
+    {:ok, plain} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.actor)
+    rows = Kumbukumbu.bookmarks(ctx.resident.id)
+    assert %{register: "praise"} = Enum.find(rows, &(&1.number == praised))
+    assert %{register: nil} = Enum.find(rows, &(&1.number == plain))
   end
 end

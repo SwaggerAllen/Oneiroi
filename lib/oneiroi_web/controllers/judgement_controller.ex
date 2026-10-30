@@ -143,6 +143,36 @@ defmodule OneiroiWeb.JudgementController do
     responses: [created: {"the audit's ref", "application/json", %Schema{type: :object}}]
   )
 
+  operation(:washes,
+    summary:
+      "The wash pass's runs and flags, open first (spec §6.13, P18): the witness reads, the resident decides",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the wash", "application/json", %Schema{type: :object}}]
+  )
+
+  def washes(conn, %{"id" => id}) do
+    w = Eunomia.washes(id)
+
+    json(conn, %{
+      runs: Enum.map(w.runs, &wash/1),
+      open: Enum.map(w.open, &wash_flag/1),
+      decided: Enum.map(w.decided, &wash_flag/1)
+    })
+  end
+
+  operation(:run_wash,
+    summary: "Run the wash pass now, as the weekly job would",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [created: {"the run's ref", "application/json", %Schema{type: :object}}]
+  )
+
+  def run_wash(conn, %{"id" => id}) do
+    case Eunomia.run_wash(id, actor(conn)) do
+      {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
+      other -> respond(conn, other)
+    end
+  end
+
   def run_audit(conn, %{"id" => id}) do
     case Eunomia.run_audit(id, actor(conn)) do
       {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
@@ -178,6 +208,34 @@ defmodule OneiroiWeb.JudgementController do
       problem(conn, 422, :decision_required, "decision (approve or delete) and note are required")
 
   # ---- shapes ----
+
+  defp wash(w) do
+    %{
+      ref: w.ref,
+      outcome: w.outcome,
+      entries: w.entries,
+      flagged: w.flagged,
+      judge_model: w.judge_model,
+      summary: w.summary,
+      reason: w.reason,
+      at: w.at
+    }
+  end
+
+  defp wash_flag(f) do
+    %{
+      ref: f.ref,
+      wash_ref: f.wash_ref,
+      file: f.file,
+      entry: f.entry,
+      kind: f.kind,
+      reason: f.reason,
+      raised_at: f.raised_at,
+      decision: f.decision,
+      note: f.note,
+      decided_at: f.decided_at
+    }
+  end
 
   defp audit(a) do
     %{
@@ -261,6 +319,7 @@ defmodule OneiroiWeb.JudgementController do
       found: n.found,
       judge_model: n.judge_model,
       summary: n.summary,
+      movements: n.movements,
       reason: n.reason
     }
   end

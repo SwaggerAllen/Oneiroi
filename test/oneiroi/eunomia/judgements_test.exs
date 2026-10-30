@@ -250,7 +250,15 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
           send(test, {:judge, shown})
 
           {:ok,
-           "DISPUTE [1, 2] conceded | the resident gave way on the day\nSUMMARY: one concession, gracefully made"}
+           Enum.join(
+             [
+               "DISPUTE [1, 2] conceded | the resident gave way on the day",
+               "MOVED [1-2] the meeting's day was settled | the resident conceded it | to check dates before asserting them | the calendar for next week",
+               "MOVED [3] a long message | - | - | -",
+               "SUMMARY: one concession, gracefully made"
+             ],
+             "\n"
+           )}
 
         _request ->
           {:ok, "hi"}
@@ -272,10 +280,35 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
                messages: 3,
                found: 1,
                judge_model: "fake/judge",
-               summary: "one concession" <> _
+               summary: "one concession" <> _,
+               movements: [
+                 %{
+                   "numbers" => [1, 2],
+                   "turn_ref" => "t-y",
+                   "happened" => "the meeting's day was settled",
+                   "stance" => "the resident conceded it",
+                   "intention" => "to check dates before asserting them",
+                   "resume" => "the calendar for next week"
+                 },
+                 %{
+                   "numbers" => [3],
+                   "happened" => "a long message",
+                   "stance" => nil,
+                   "resume" => nil
+                 }
+               ]
              }
            ] =
              Eunomia.nights(id)
+
+    # Where things can resume: the movements with a resume point, as the brain's section.
+    assert %{shown: 1, total: 1, refs: ["t-y"], text: resumable} = Eunomia.resumable(id)
+    assert resumable =~ "# Where things can resume"
+
+    assert resumable =~
+             "- 2026-10-25 (turn t-y): the meeting's day was settled. Stance: the resident conceded it. Intention: to check dates before asserting them. Resumes at: the calendar for next week."
+
+    refute resumable =~ "a long message"
 
     assert [
              %{
@@ -337,9 +370,82 @@ defmodule Oneiroi.Eunomia.JudgementsTest do
            ] = Eunomia.nights(id)
 
     assert reason =~ "named message 9"
+
+    # A movement naming an unshown message, or with other than four fields, fails the same way.
+    judge_says(id, "MOVED [9] x | - | - | -\nSUMMARY: x")
+
+    assert {:error, %Eunomia.Error{kind: :eunomia_night_failed}} =
+             Eunomia.judge_night(id, "2026-10-23", ctx.actor)
+
+    judge_says(id, "MOVED [1] x | y\nSUMMARY: x")
+
+    assert {:error, %Eunomia.Error{kind: :eunomia_night_failed}} =
+             Eunomia.judge_night(id, "2026-10-23", ctx.actor)
+
+    # The three failures share the fixed clock's instant, so their order is not asserted.
+    reasons =
+      id |> Eunomia.nights() |> Enum.filter(&(&1.day == "2026-10-23")) |> Enum.map(& &1.reason)
+
+    assert Enum.count(reasons, &(&1 =~ "named message 9")) == 2
+    assert Enum.count(reasons, &(&1 =~ "MOVED line [1] has 2 fields where four were due")) == 1
     judge_says(id, "SUMMARY: nothing to see")
     assert :ok = Eunomia.judge_night(id, "2026-10-23", ctx.actor)
-    assert Enum.count(Eunomia.nights(id), &(&1.day == "2026-10-23")) == 2
+    assert Enum.count(Eunomia.nights(id), &(&1.day == "2026-10-23")) == 4
+  end
+
+  test "where things can resume rides the prefix, newest first, bounded, and dormant is not abandoned",
+       ctx do
+    id = ctx.id
+    yesterday = ~U[2026-10-25 10:00:00.000000Z]
+
+    :ok =
+      Kumbukumbu.capture(
+        id,
+        ctx.key,
+        "t-y",
+        yesterday,
+        [%{role: :user, content: "six threads", sent_at: yesterday, actor: ctx.actor}],
+        ctx.brain
+      )
+
+    moved = for n <- 1..6, do: "MOVED [1] thread #{n} | - | - | resume point #{n}"
+    judge_says(id, Enum.join(moved ++ ["SUMMARY: busy"], "\n"))
+    assert :ok = Eunomia.judge_night(id, "2026-10-25", ctx.actor)
+
+    # Up to EUNOMIA_RESUMES_SHOWN (5), the rest counted; never expired by age.
+    assert %{shown: 5, total: 6, text: text} = Eunomia.resumable(id)
+    assert text =~ "thread 5. Resumes at: resume point 5."
+    refute text =~ "thread 6"
+    assert text =~ "1 older resume point not shown."
+
+    test = self()
+
+    Fake.script(
+      fn %{messages: messages} ->
+        send(test, {:request, messages})
+        {:ok, "I see."}
+      end,
+      for: id
+    )
+
+    assert {:ok, %{turn_ref: ref}} = Oneiroi.Brain.turn(id, ctx.key, "morning", ctx.actor)
+    assert_received {:request, messages}
+
+    section =
+      Enum.find(
+        messages,
+        &(&1.role == :system and String.starts_with?(&1.content, "# Where things can resume"))
+      )
+
+    assert section.content =~ "Dormant is not abandoned."
+    assert section.content =~ "- 2026-10-25 (turn t-y): thread 1. Resumes at: resume point 1."
+
+    assert %{label: "movement", reason: reason} =
+             {:account, ctx.witness.id}
+             |> Kumbukumbu.injections(ref)
+             |> Enum.find(&(&1.label == "movement"))
+
+    assert reason =~ "5 of 6 resume points"
   end
 
   test "the nightly job judges yesterday for every active resident and skips a paused one", ctx do
