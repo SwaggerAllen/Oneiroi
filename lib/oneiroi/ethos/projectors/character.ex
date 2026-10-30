@@ -6,7 +6,7 @@ defmodule Oneiroi.Ethos.Projectors.Character do
 
   alias Ecto.Multi
   alias Oneiroi.Ethos.Events
-  alias Oneiroi.Ethos.Store.{Affirmation, Citation, Habit, Seed}
+  alias Oneiroi.Ethos.Store.{Affirmation, Baseline, Citation, Habit, Seed}
 
   fold(%Events.SeedPlanted{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -92,6 +92,22 @@ defmodule Oneiroi.Ethos.Projectors.Character do
 
   fold(%Events.HabitCited{} = e, _metadata, fn multi -> cite(multi, "habit", e) end)
   fold(%Events.SoulLineCited{} = e, _metadata, fn multi -> cite(multi, "soul", e) end)
+
+  fold(%Events.BaselineTaken{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :baseline,
+      %Baseline{
+        resident_id: e.id,
+        at: e.at,
+        habits: e.habits,
+        spread: e.spread,
+        breadth: e.breadth
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :at]
+    )
+  end)
 
   defp cite(multi, kind, e) do
     Multi.insert(

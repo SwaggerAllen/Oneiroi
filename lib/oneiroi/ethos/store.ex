@@ -115,6 +115,25 @@ defmodule Oneiroi.Ethos.Store do
         )
       )
 
+  defmodule Baseline do
+    @moduledoc "The trait baseline as taken (spec §6.17, P42): the habits' profile, the spread and the breadth, at an instant."
+    use Ecto.Schema
+    @primary_key false
+    schema "ethos_baseline" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:habits, {:array, :map}, default: [])
+      field(:spread, :float)
+      field(:breadth, :float)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The baselines, newest first."
+  @spec baselines() :: [Baseline.t()]
+  def baselines, do: Repo.all(from(b in Baseline, order_by: [desc: b.at]))
+
   @doc "Every affirmation, newest first."
   @spec affirmations() :: [Affirmation.t()]
   def affirmations, do: Repo.all(from(a in Affirmation, order_by: [desc: a.at]))

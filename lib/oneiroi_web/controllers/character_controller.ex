@@ -68,6 +68,22 @@ defmodule OneiroiWeb.CharacterController do
 
   def seeds(conn, %{"id" => id}), do: json(conn, id |> Ethos.seeds() |> Enum.map(&seed/1))
 
+  operation(:baselines,
+    summary:
+      "The trait baselines, newest first: the habits' profile as measured, the spread and the breadth (spec §6.17, P42)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"baselines", "application/json", %Schema{type: :array}}]
+  )
+
+  def baselines(conn, %{"id" => id}),
+    do:
+      json(
+        conn,
+        id
+        |> Ethos.baselines()
+        |> Enum.map(&%{at: &1.at, habits: &1.habits, spread: &1.spread, breadth: &1.breadth})
+      )
+
   # Every route here is a resident's, read or written by its witness.
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),

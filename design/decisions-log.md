@@ -806,3 +806,36 @@ and nothing personal turned up; what follows is what changed.
 - Open: the corpus-shape report reads the tree (P8); the client's
   Memory screen showing tree tags as citations rather than chips.
 
+## Round 28: the measurement layer (2026-10-30)
+
+- P42 and P43 land as five built-in audits the character layer answers
+  (ethos #15, huginn-muninn #17), each a flag or a silence saying what
+  it read and did not, none counting toward the light: the clinical
+  material is a design warning for the layer, never a verdict on the
+  resident.
+- The trait baseline is the habits' profile as measured, taken once a
+  week by the nightly ask (the aggregate refuses a second within the
+  interval): the two scores and the enactments in the window, the
+  spread of the strengths as a coefficient of variation, the breadth of
+  the if-then signature. Flattening is the spread's collapse or the
+  signature going flat, by the research pass's amendment of P42, and
+  never deviation from the last baseline; rank-order stability is
+  reported as a note beside the human benchmark it cannot be compared
+  to in interval, which is why the interval is a setting and the band's
+  figure is quoted rather than applied.
+- The four markers read what has a row: approach as habit strength
+  against payoff as connection (Berridge); a change-stance habit
+  enacted this window as often as the last (the runaway habit, the
+  stance alone never the flag); applied corrections rising over three
+  windows (Rachman's checking paradox); the median age of cited moments
+  shrinking (temporal depth). Stated uncertainty, responsibility claims
+  and insight have no row and each silence says so; the self-
+  conversation's probes (P41) are where they would come from.
+- Every threshold is a guess and its usage line says so: the window and
+  the interval (a week each), the collapse share (half), the approach
+  floor (3). The coefficient of variation rather than a standard
+  deviation because the strengths decay together: a quiet week is not
+  a collapse, and the test pins that.
+- Open: the vector lane over triggers and content; the corpus-shape
+  report (P8) reading the tree and these figures.
+

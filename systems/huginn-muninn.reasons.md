@@ -48,3 +48,12 @@ health exists to be worn as armour"; Verdane: "training can
 manufacture a denial, it can manufacture an affirmation". The word
 `ok` was the build's before the batch was read, and the aggregate
 accepted it.
+
+## #17
+Spec §6.17 (P43): "the clinical material is the catalogue of how
+personality fails, a design warning for this layer rather than a
+description of it"; research §6: "the measurement layer must flag
+rigidity as readily as drift". Here because the nightly checklist is
+the one cadence every audit already runs on and the witness reads
+(#12), and the baseline's taking rides it so no second job is needed.
+

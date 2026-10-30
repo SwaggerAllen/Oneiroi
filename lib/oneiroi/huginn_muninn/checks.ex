@@ -15,6 +15,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.HuginnMuninn.Audits
   alias Oneiroi.HuginnMuninn.Commands
@@ -36,7 +37,41 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false},
     %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
     %{key: "journal_delta", label: "Planned days were wrapped", counts: false},
-    %{key: "contract_due", label: "The agreement is within its year", counts: false}
+    %{key: "contract_due", label: "The agreement is within its year", counts: false},
+    # The measurement layer (spec §6.17, P42, P43; ethos #15): the
+    # character layer answers these, flag or silence; none counts toward
+    # the light, because the clinical material is a design warning for
+    # the layer and never a description of the resident.
+    %{
+      key: "trait_baseline",
+      label: "The habits' spread and signature hold",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "wanting_liking",
+      label: "Approach and payoff move together",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "rigidity",
+      label: "No habit under a change stance runs away",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "checking",
+      label: "Corrections are not firing more after they fired",
+      counts: false,
+      measure: true
+    },
+    %{
+      key: "temporal_depth",
+      label: "The cited moments reach as far back as before",
+      counts: false,
+      measure: true
+    }
   ]
 
   @doc "The built-in audits: key, label, whether each counts toward the light."
@@ -83,7 +118,8 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   def run(resident_id, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id) do
       results =
-        Enum.map(@builtin, &builtin_result(&1, resident_id, row)) ++ user_results(resident_id)
+        Enum.map(checks(), &builtin_result(&1, resident_id, row)) ++
+          measures(resident_id, actor) ++ user_results(resident_id)
 
       Enum.each(results, fn r ->
         {:ok, _} =
@@ -238,6 +274,17 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       _other ->
         silent(a, 0, "read the agreement's dates; not read: its terms")
     end
+  end
+
+  defp checks, do: Enum.reject(@builtin, &Map.get(&1, :measure, false))
+
+  defp measures(resident_id, actor) do
+    @builtin
+    |> Enum.filter(&Map.get(&1, :measure, false))
+    |> Enum.map(fn a ->
+      m = Ethos.measure(resident_id, a.key, actor)
+      result(a, m.tone, m.value, m.finding)
+    end)
   end
 
   defp user_results(resident_id) do

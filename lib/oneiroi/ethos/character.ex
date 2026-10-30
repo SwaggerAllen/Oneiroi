@@ -11,7 +11,7 @@ defmodule Oneiroi.Ethos.Character do
   alias Oneiroi.Ethos.Commands
   alias Oneiroi.Ethos.Events
 
-  defstruct [:id, seeds: %{}, habits: %{}, citations: MapSet.new()]
+  defstruct [:id, seeds: %{}, habits: %{}, citations: MapSet.new(), baseline_at: nil]
 
   @type t :: %__MODULE__{}
 
@@ -227,6 +227,21 @@ defmodule Oneiroi.Ethos.Character do
     end
   end
 
+  # A baseline is taken once per interval: the second within it is
+  # refused, so the nightly pass asking every day lands one a week.
+  def execute(%__MODULE__{baseline_at: last}, %Commands.TakeBaseline{} = c) do
+    if last && DateTime.diff(c.at, last, :day) < c.interval_days,
+      do: {:error, :baseline_fresh},
+      else: %Events.BaselineTaken{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        habits: c.habits,
+        spread: c.spread,
+        breadth: c.breadth
+      }
+  end
+
   # ---- apply ----
 
   def apply(%__MODULE__{} = s, %Events.SeedPlanted{} = e),
@@ -260,6 +275,8 @@ defmodule Oneiroi.Ethos.Character do
 
   def apply(%__MODULE__{} = s, %Events.SoulLineCited{} = e),
     do: %{s | citations: MapSet.put(s.citations, citation_key(:soul, e))}
+
+  def apply(%__MODULE__{} = s, %Events.BaselineTaken{} = e), do: %{s | baseline_at: e.at}
 
   # ---- helpers ----
 

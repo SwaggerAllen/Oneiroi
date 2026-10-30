@@ -69,6 +69,7 @@ defmodule Oneiroi.Ethos.Edge do
   defp translate(:seed_closed, c), do: Error.new(:ethos_seed_closed, number: c.number)
   defp translate(:text_invalid, _c), do: Error.new(:ethos_seed_text_invalid)
   defp translate(:graduation_invalid, _c), do: Error.new(:ethos_graduation_invalid)
+  defp translate(:baseline_fresh, _c), do: Error.new(:ethos_baseline_fresh)
 
   defp translate(:target_invalid, c),
     do: Error.new(:ethos_target_invalid, kind: c.target_kind, id: c.target_id)

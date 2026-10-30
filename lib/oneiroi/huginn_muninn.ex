@@ -15,6 +15,7 @@ defmodule Oneiroi.HuginnMuninn do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Proteus,

@@ -119,7 +119,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures citation_drift contract_due journal_delta missed_checkins overdue_predictions sync_failures)
+             ~w(attestation capture_failures checking citation_drift contract_due journal_delta missed_checkins overdue_predictions rigidity sync_failures temporal_depth trait_baseline wanting_liking)
 
     assert Enum.all?(results, &(&1.tone == "silent" and &1.finding =~ "not read:"))
 
@@ -253,7 +253,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 8
+    assert Enum.count(audits, & &1.builtin) == 13
 
     assert %{builtin: false, counts: true, last: %{tone: "silent", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -266,8 +266,10 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     Oneiroi.Scope.resident(other.id, fn -> :ok end)
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
-    assert %{results: [_, _, _, _, _, _, _, _]} = HuginnMuninn.light(ctx.id)
-    assert %{results: [_, _, _, _, _, _, _, _]} = HuginnMuninn.light(other.id)
+    assert %{results: results} = HuginnMuninn.light(ctx.id)
+    assert length(results) == 13
+    assert %{results: other_results} = HuginnMuninn.light(other.id)
+    assert length(other_results) == 13
   end
 
   test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",

@@ -74,4 +74,13 @@ defmodule Oneiroi.Ethos.Events do
     # edge's to check, since the lines are the resident system's rows.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule BaselineTaken do
+    # The trait baseline (spec §6.17, P42): the dispositional profile as
+    # measured, the habits with their two scores and their enactments in
+    # the window, the spread of the strengths and the breadth of the
+    # signature, machine-held and never loaded as identity. Taken on an
+    # interval, compared with the one before (research §5).
+    use Oneiroi.Event, version: 1, fields: [:id, :habits, :spread, :breadth]
+  end
 end

@@ -68,3 +68,24 @@ stay the resident's (agathos-daimon #27) and only the evidence is
 shared. The order in `pin_as_evidence/4` because the first draft pinned
 first and would have left a pin naming a line that failed the check.
 
+## #15
+Spec §6.17 (P42): "a dispositional profile against which habits,
+seeds and soul lines are compared, machine-held in the measurement
+layer and never loaded as identity... the flattening test measures
+deviation from baseline within the band, not sameness to it"; the
+research pass's §5 amends it: "flattening is therefore not measured
+as deviation from the baseline at all. It is measured as the
+baseline's spread shrinking and the signature's profiles going flat",
+and asks that the band carry its interval and source, which is why
+the interval is a setting and the human figure is quoted beside a
+reading it cannot be compared to. P43's four markers with their
+sources are research §6's catalogue, and "the `change` stance is
+never, by itself, a diagnostic trigger (P31's refusal floor,
+generalised): the flag is the enactment pattern, not the stance."
+Not counted toward the light because P43 reads the clinical material
+"as a design warning for this layer rather than a description of it".
+The coefficient of variation rather than a standard deviation because
+every strength decays under the same half-life: a quiet week would
+otherwise read as collapse. Every threshold here is a guess and says
+so in its usage line (conventions §9).
+

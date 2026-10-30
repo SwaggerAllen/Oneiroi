@@ -39,4 +39,9 @@ defmodule Oneiroi.Ethos.Commands do
   defmodule CiteSoulLine do
     use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id]
   end
+
+  defmodule TakeBaseline do
+    # `interval_days` travels on the command so the freshness rule is pure.
+    use Oneiroi.Command, fields: [:id, :habits, :spread, :breadth, :interval_days]
+  end
 end

@@ -70,9 +70,13 @@ defmodule Oneiroi.Ethos do
       Events.HabitAffirmed,
       Events.HabitCited,
       Events.SoulLineCited,
+      Events.BaselineTaken,
       Commands.CiteSoulLine,
+      Commands.TakeBaseline,
       Evidence,
+      Measure,
       Store,
+      Store.Baseline,
       Store.Seed,
       Store.Habit,
       Store.Citation,
@@ -81,6 +85,7 @@ defmodule Oneiroi.Ethos do
 
   alias Oneiroi.Ethos.Evidence
   alias Oneiroi.Ethos.Habits
+  alias Oneiroi.Ethos.Measure
   alias Oneiroi.Ethos.Seeds
 
   @impl Oneiroi.Component
@@ -97,7 +102,8 @@ defmodule Oneiroi.Ethos do
       {Oneiroi.Ethos.Events.HabitChanged, 1},
       {Oneiroi.Ethos.Events.HabitAffirmed, 1},
       {Oneiroi.Ethos.Events.HabitCited, 1},
-      {Oneiroi.Ethos.Events.SoulLineCited, 1}
+      {Oneiroi.Ethos.Events.SoulLineCited, 1},
+      {Oneiroi.Ethos.Events.BaselineTaken, 1}
     ]
   end
 
@@ -121,7 +127,31 @@ defmodule Oneiroi.Ethos do
        default: "3",
        tag: :bound,
        usage:
-         "how many distinct days a seed must have been cited on before it may graduate to a habit (spec §6.17's fork): a recorded if-then contingency is a hypothesis, moderately reliable in the literature (design/research-self-and-character.md §3), and the number is a guess at what counts as repeated"}
+         "how many distinct days a seed must have been cited on before it may graduate to a habit (spec §6.17's fork): a recorded if-then contingency is a hypothesis, moderately reliable in the literature (design/research-self-and-character.md §3), and the number is a guess at what counts as repeated"},
+      {:measure_window_days, "ETHOS_MEASURE_WINDOW_DAYS",
+       cast: :integer,
+       default: "7",
+       tag: :bound,
+       usage:
+         "the window the measurement layer's markers compare, this one against the one before (spec §6.17, P43); a week is a guess at the cadence a pattern shows on"},
+      {:baseline_interval_days, "ETHOS_BASELINE_INTERVAL_DAYS",
+       cast: :integer,
+       default: "7",
+       tag: :bound,
+       usage:
+         "how often a trait baseline is taken and the interval the drift reading carries (P42; research §5 asks that the band name its interval); a week, a guess, far shorter than any human benchmark's"},
+      {:collapse_percent, "ETHOS_COLLAPSE_PERCENT",
+       cast: :integer,
+       default: "50",
+       tag: :bound,
+       usage:
+         "the fall, as a percentage of the prior reading, that reads as variance collapse, signature flattening or shrinking temporal depth (research §5, §6); a guess, never measured on a resident"},
+      {:approach_min, "ETHOS_APPROACH_MIN",
+       cast: :integer,
+       default: "3",
+       tag: :bound,
+       usage:
+         "the habit strength at and above which no payoff reads as approach without payoff (Berridge's wanting without liking, research §6); a guess"}
     ]
   end
 
@@ -156,7 +186,9 @@ defmodule Oneiroi.Ethos do
        remedy: "cite the turn in flight, or a bookmark's number"},
       {:ethos_not_a_party,
        "a soul line's evidence is cited by the resident or its witness, as a tagging is",
-       remedy: "one of the two parties cites it"}
+       remedy: "one of the two parties cites it"},
+      {:ethos_baseline_fresh, "a baseline stands for its interval before another is taken",
+       remedy: "the nightly pass takes the next one when the interval has passed"}
     ]
   end
 
@@ -285,6 +317,16 @@ defmodule Oneiroi.Ethos do
   defexport(tags_of(resident_id, target_kind, target_ids),
     do: Evidence.tags_of(resident_id, target_kind, target_ids)
   )
+
+  # ---- the measurement layer (spec §6.17, P42, P43) ----
+
+  @doc "One measurement check now, by key (`Oneiroi.Ethos.Measure.keys/0`): a flag or silence with what it read and did not."
+  @spec measure(String.t(), String.t(), Oneiroi.Actor.t()) :: Oneiroi.Ethos.Measure.result()
+  defexport(measure(resident_id, key, actor), do: Measure.measure(resident_id, key, actor))
+
+  @doc "The trait baselines taken, newest first."
+  @spec baselines(String.t()) :: [Oneiroi.Ethos.Store.Baseline.t()]
+  defexport(baselines(resident_id), do: Measure.baselines(resident_id))
 
   @doc "The 'how I act' section for a situation, the trigger lane: text, the numbers it names, the count, the open seeds."
   @spec how_i_act(String.t(), map()) :: %{
