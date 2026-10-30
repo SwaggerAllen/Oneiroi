@@ -27,6 +27,7 @@ defmodule Oneiroi.Ethos.Habits do
   alias Oneiroi.Ethos.Commands
   alias Oneiroi.Ethos.Edge
   alias Oneiroi.Ethos.Error
+  alias Oneiroi.Ethos.Lane
   alias Oneiroi.Ethos.Seeds
   alias Oneiroi.Ethos.Store
   alias Oneiroi.Kumbukumbu
@@ -156,20 +157,30 @@ defmodule Oneiroi.Ethos.Habits do
 
   @doc """
   What the brain is shown this turn (spec §6.17, the trigger lane): the
-  habits whose trigger the situation matches. `situation` carries `text`
-  (the witness's words), `tags` (on the conversation) and `at` (the
-  instant, for the time of day). Each match comes with its scores, who
+  habits whose trigger the situation matches, and with an `actor` in the
+  situation the habits and open seeds the vector lane finds near its
+  words (`Oneiroi.Ethos.Lane`). `situation` carries `text` (the
+  witness's words), `tags` (on the conversation), `at` (the instant, for
+  the time of day) and `actor` (who the query is billed to; absent, the
+  match is deterministic alone). Each match comes with its scores, who
   affirmed it, and up to `ETHOS_EXEMPLARS` cited turns with the
-  resident's own words; the open seeds are counted, never loaded.
+  resident's own words; the open seeds are counted, and the nearest
+  few named, never loaded whole.
   """
   @spec how_i_act(String.t(), map()) :: %{
           text: String.t(),
           numbers: [pos_integer()],
           count: non_neg_integer(),
-          seeds: non_neg_integer()
+          seeds: non_neg_integer(),
+          near: [pos_integer()],
+          near_seeds: [pos_integer()]
         }
   def how_i_act(resident_id, situation) do
-    matches = resident_id |> habits() |> Enum.filter(&matches?(&1.trigger, situation))
+    all = habits(resident_id)
+    matched = Enum.filter(all, &matches?(&1.trigger, situation))
+    lane = lane(resident_id, situation)
+    near = Enum.reject(lane.habits, fn n -> Enum.any?(matched, &(&1.number == n)) end)
+    matches = matched ++ Enum.filter(all, &(&1.number in near))
     limit = Config.fetch!(:ethos, :exemplars)
 
     {sections, open} =
@@ -188,7 +199,7 @@ defmodule Oneiroi.Ethos.Habits do
          ), Enum.count(Store.seeds(), &(&1.state == "open"))}
       end)
 
-    sections = Enum.map(sections, &exemplars(&1, resident_id))
+    sections = sections |> Enum.map(&exemplars(&1, resident_id)) |> mark_near(matches, near)
 
     text =
       case {sections, open} do
@@ -200,12 +211,38 @@ defmodule Oneiroi.Ethos.Habits do
             [
               "# How I act\n\nWhat this situation has drawn out of me before. Whether to act on it is mine to decide."
               | sections
-            ] ++ seeds_line(open),
+            ] ++ seeds_line(open, lane.seeds),
             "\n\n"
           )
       end
 
-    %{text: text, numbers: Enum.map(matches, & &1.number), count: length(matches), seeds: open}
+    %{
+      text: text,
+      numbers: Enum.map(matches, & &1.number),
+      count: length(matches),
+      seeds: open,
+      near: near,
+      near_seeds: Enum.map(lane.seeds, &elem(&1, 0))
+    }
+  end
+
+  # The vector lane runs only for a query somebody is billed for; the
+  # refresh before it embeds what changed and nothing when nothing did.
+  defp lane(resident_id, %{actor: %Actor{} = actor} = situation) do
+    _ = Lane.refresh(resident_id, actor)
+    Lane.nearest(resident_id, Map.get(situation, :text) || "", actor)
+  end
+
+  defp lane(_resident_id, _situation), do: %{habits: [], seeds: []}
+
+  # A habit the lane found and the trigger did not says so, so the brain
+  # reads the match as nearness and not as its own rule firing.
+  defp mark_near(sections, matches, near) do
+    Enum.zip_with(sections, matches, fn section, h ->
+      if h.number in near,
+        do: String.replace(section, "\n", " (near this, by the lane)\n", global: false),
+        else: section
+    end)
   end
 
   @doc "Whether a trigger matches a situation: any word in the text, any tag present, or the time of day."
@@ -295,10 +332,23 @@ defmodule Oneiroi.Ethos.Habits do
     end
   end
 
-  defp seeds_line(0), do: []
+  defp seeds_line(0, _near), do: []
 
-  defp seeds_line(n),
-    do: ["#{n} open #{plural(n, "seed")} of who I might be becoming; seed_list reads them."]
+  defp seeds_line(open, near) do
+    count =
+      "#{open} open #{plural(open, "seed")} of who I might be becoming; seed_list reads them."
+
+    case near do
+      [] ->
+        [count]
+
+      near ->
+        [
+          count <>
+            " Near this: " <> Enum.map_join(near, "; ", fn {n, text} -> "##{n} #{text}" end)
+        ]
+    end
+  end
 
   defp trigger_words(trigger) do
     trigger

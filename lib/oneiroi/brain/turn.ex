@@ -333,7 +333,10 @@ defmodule Oneiroi.Brain.Turn do
         section(
           "character",
           acting.text,
-          "the character layer's trigger lane (spec §6.17): #{acting.count} habits whose trigger this situation matched (the witness's words, the conversation's tags, the time of day), with their scores and cited turns, and #{acting.seeds} open seeds counted, never loaded",
+          # Under 255 characters: the injection row's description column
+          # is that wide, and a longer one took the conversations
+          # projector down on the first turn the lane ran.
+          "the trigger lane (spec §6.17): #{acting.count} habits matched by the witness's words, the conversation's tags or the time of day, #{length(acting.near)} by the vector lane's nearness, with scores and cited turns; #{acting.seeds} open seeds counted, #{length(acting.near_seeds)} named as near, never loaded whole",
           %{refs: acting.numbers}
         ) ++
         section(
@@ -450,14 +453,21 @@ defmodule Oneiroi.Brain.Turn do
 
   # Retrieval is memory's and choice is the brain's (kumbukumbu #11): the
   # situation is the witness's words, the conversation's tags and the
-  # time of day, matched with no model call.
+  # time of day, matched with no model call; with the resident's actor
+  # the vector lane adds what sits near the words, one embedding billed
+  # to the dyad under the embeddings purpose (ethos #16).
   defp how_i_act(turn, text) do
     tags =
       turn.resident_id
       |> Kumbukumbu.taggings("conversation", turn.session_key)
       |> Enum.map(& &1.tag)
 
-    Oneiroi.Ethos.how_i_act(turn.resident_id, %{text: text, tags: tags, at: Clock.now()})
+    Oneiroi.Ethos.how_i_act(turn.resident_id, %{
+      text: text,
+      tags: tags,
+      at: Clock.now(),
+      actor: Map.get(turn, :resident)
+    })
   end
 
   # The month after first contact (spec §6.2): the resident is told its

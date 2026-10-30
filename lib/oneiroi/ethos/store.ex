@@ -1,6 +1,7 @@
 defmodule Oneiroi.Ethos.Store do
   @moduledoc "The character layer's projections and queries, under the resident's scope."
   import Ecto.Query, only: [from: 2]
+  import Pgvector.Ecto.Query, only: [cosine_distance: 2]
 
   alias Oneiroi.Repo
 
@@ -128,6 +129,63 @@ defmodule Oneiroi.Ethos.Store do
     end
 
     @type t :: %__MODULE__{}
+  end
+
+  defmodule Vector do
+    @moduledoc "One row of the trigger lane's index (spec §6.17): a habit's trigger and name or an open seed's words, embedded; derived, rebuilt from the rows."
+    use Ecto.Schema
+    @primary_key false
+    schema "ethos_vector" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:text, :string)
+      field(:hash, :string)
+      field(:model, :string)
+      field(:embedding, Pgvector.Ecto.Vector)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The lane's rows, by kind and number."
+  @spec vectors() :: [Vector.t()]
+  def vectors, do: Repo.all(from(v in Vector, order_by: [v.kind, v.number]))
+
+  @doc "Writes lane rows, replacing any with the same kind and number."
+  def put_vectors([]), do: :ok
+
+  def put_vectors(rows) do
+    Repo.insert_all(Vector, rows,
+      on_conflict: {:replace, [:text, :hash, :model, :embedding, :at]},
+      conflict_target: [:resident_id, :kind, :number]
+    )
+
+    :ok
+  end
+
+  @doc "Drops lane rows by kind and number."
+  def delete_vectors([]), do: :ok
+
+  def delete_vectors(keys) do
+    Enum.each(keys, fn {kind, number} ->
+      Repo.delete_all(from(v in Vector, where: v.kind == ^kind and v.number == ^number))
+    end)
+
+    :ok
+  end
+
+  @doc "The nearest lane rows of a kind to a vector, nearest first, each with its cosine distance."
+  def nearest_vectors(vector, kind, limit) do
+    Repo.all(
+      from(v in Vector,
+        where: v.kind == ^kind,
+        order_by: cosine_distance(v.embedding, ^vector),
+        limit: ^limit,
+        select: %{number: v.number, text: v.text, distance: cosine_distance(v.embedding, ^vector)}
+      )
+    )
   end
 
   @doc "The baselines, newest first."

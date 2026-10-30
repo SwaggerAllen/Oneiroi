@@ -33,7 +33,11 @@ defmodule Oneiroi.Ethos do
       # The moments a habit or a seed cites: turns and bookmarks are
       # memory's rows, read here and never written.
       Oneiroi.Kumbukumbu,
+      # The trigger lane's vectors come from the provider port, metered
+      # under the embeddings purpose like the library's (spec §6.17).
+      Oneiroi.Nisaba,
       Commanded,
+      Pgvector,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
       Commanded.Middleware,
@@ -74,9 +78,11 @@ defmodule Oneiroi.Ethos do
       Commands.CiteSoulLine,
       Commands.TakeBaseline,
       Evidence,
+      Lane,
       Measure,
       Store,
       Store.Baseline,
+      Store.Vector,
       Store.Seed,
       Store.Habit,
       Store.Citation,
@@ -85,6 +91,7 @@ defmodule Oneiroi.Ethos do
 
   alias Oneiroi.Ethos.Evidence
   alias Oneiroi.Ethos.Habits
+  alias Oneiroi.Ethos.Lane
   alias Oneiroi.Ethos.Measure
   alias Oneiroi.Ethos.Seeds
 
@@ -151,7 +158,29 @@ defmodule Oneiroi.Ethos do
        default: "3",
        tag: :bound,
        usage:
-         "the habit strength at and above which no payoff reads as approach without payoff (Berridge's wanting without liking, research §6); a guess"}
+         "the habit strength at and above which no payoff reads as approach without payoff (Berridge's wanting without liking, research §6); a guess"},
+      {:embedding_model, "ETHOS_EMBEDDING_MODEL",
+       default: "openai/text-embedding-3-small",
+       usage:
+         "the embedding model the trigger lane's vectors come from (spec §6.17's load question), pinned platform-wide with the library's and one model with it in every build so far; a change re-embeds every row on the next refresh"},
+      {:embedding_width, "ETHOS_EMBEDDING_WIDTH",
+       cast: :integer,
+       default: "1536",
+       tag: :bound,
+       usage:
+         "the width of the lane's vectors, the library's 1,536; the column is declared at this width, so a model answering another width fails the refresh rather than the table"},
+      {:lane_distance_percent, "ETHOS_LANE_DISTANCE_PERCENT",
+       cast: :integer,
+       default: "80",
+       tag: :bound,
+       usage:
+         "the cosine distance, as a percentage, within which a habit or a seed counts as near the situation's words; a guess, never measured on an embedding model, and the suite's fake geometry is bags of words"},
+      {:lane_seeds, "ETHOS_LANE_SEEDS",
+       cast: :integer,
+       default: "2",
+       tag: :bound,
+       usage:
+         "how many open seeds the lane names near a situation, so the prefix does not grow with the person (spec §6.17); a guess"}
     ]
   end
 
@@ -323,6 +352,11 @@ defmodule Oneiroi.Ethos do
   @doc "One measurement check now, by key (`Oneiroi.Ethos.Measure.keys/0`): a flag or silence with what it read and did not."
   @spec measure(String.t(), String.t(), Oneiroi.Actor.t()) :: Oneiroi.Ethos.Measure.result()
   defexport(measure(resident_id, key, actor), do: Measure.measure(resident_id, key, actor))
+
+  @doc "Re-embeds the trigger lane's changed rows and drops the gone ones (spec §6.17); the brain's turn does this before each read."
+  @spec refresh_lane(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{embedded: non_neg_integer(), removed: non_neg_integer()}} | {:error, term()}
+  defexport(refresh_lane(resident_id, actor), do: Lane.refresh(resident_id, actor))
 
   @doc "The trait baselines taken, newest first."
   @spec baselines(String.t()) :: [Oneiroi.Ethos.Store.Baseline.t()]

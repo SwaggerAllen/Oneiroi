@@ -1271,9 +1271,9 @@ resident is becoming and how it tends to act, kept apart from what
 happened. Owns `lib/oneiroi/ethos/**` (v0.2, P37 to P39, P42, P43;
 seeds and habits built in the first machinery slice, `systems/ethos.md`,
 soul lines as rows in the second, in the resident system, tags as
-citations in the third, through memory's tree port, and the baseline
-with the four markers in the fourth, as the audits' built-ins; the
-vector lane follows).
+citations in the third, through memory's tree port, the baseline
+with the four markers in the fourth, as the audits' built-ins, and the
+vector lane over triggers and content in the fifth).
 
 - **Habits and becomings are not memories** (P38). The memory web is the
   single evidence substrate; nothing person-shaped is stored as an event

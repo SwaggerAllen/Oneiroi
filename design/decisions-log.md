@@ -839,3 +839,30 @@ and nothing personal turned up; what follows is what changed.
 - Open: the vector lane over triggers and content; the corpus-shape
   report (P8) reading the tree and these figures.
 
+## Round 29: the vector lane (2026-10-30)
+
+- The trigger lane's vector index (ethos #16): one derived row per
+  habit (its name and trigger) and per open seed (its words), embedded
+  through the provider port under the embeddings purpose at the
+  library's model and width, refreshed before each read so that only
+  what changed is re-embedded and a turn that changed nothing pays for
+  nothing; the read embeds the situation's words once and takes what
+  sits within a cosine distance bound, a guess that says so.
+- Nearness joins the trigger match and never replaces it: a habit the
+  lane alone found is marked as such in the section, so the brain reads
+  a cosine distance as nearness and not as its own rule firing; the
+  nearest open seeds are named, at most ETHOS_LANE_SEEDS, so the prefix
+  still does not grow with the person. An empty lane calls no model; a
+  failing provider leaves the deterministic match standing.
+- Not events: the vectors are a model's output and rebuild from the
+  rows; the log holds the habits and seeds, never their embeddings.
+- A defect met on the way: the injection row's description column is
+  255 characters wide, and a longer description for the `character`
+  injection took the conversations projector down on the first turn
+  the lane ran, as a Postgres truncation error in the subscription's
+  restart and nothing in the test's own failure. The description was
+  shortened and the width is now written beside it; a check at the
+  write would be the proper guard and is open.
+- Open: the corpus-shape report (P8); the width check at the injection
+  write; measuring the distance bound on a real model.
+

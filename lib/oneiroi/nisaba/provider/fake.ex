@@ -84,6 +84,13 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     :ok
   end
 
+  @doc "Scripts the next embeddings calls from this process to answer vectors of another width, as a model swapped under the index would."
+  @spec embed_width(pos_integer()) :: :ok
+  def embed_width(width) when is_integer(width) and width > 0 do
+    Process.put(@embed_key, {:width, width})
+    :ok
+  end
+
   @doc "Forgets this process's script and, with `for:`, a resident's."
   @spec clear(keyword()) :: :ok
   def clear(opts \\ []) do
@@ -126,13 +133,13 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
       {:error, failure} ->
         {:error, failure}
 
-      _unscripted ->
+      scripted ->
         prompt = texts |> Enum.map(&tokens/1) |> Enum.sum()
 
         {:ok,
          %Embedding{
            model: model,
-           vectors: Enum.map(texts, &vector/1),
+           vectors: vectors_for(scripted, texts),
            usage: %Usage{
              prompt_tokens: prompt,
              completion_tokens: 0,
@@ -146,6 +153,9 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @doc "The width of the fake's vectors."
   @spec width() :: pos_integer()
   def width, do: @width
+
+  defp vectors_for({:width, w}, texts), do: Enum.map(texts, fn _ -> List.duplicate(0.0, w) end)
+  defp vectors_for(_unscripted, texts), do: Enum.map(texts, &vector/1)
 
   defp vector(text) do
     counts =

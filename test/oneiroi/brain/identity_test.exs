@@ -220,5 +220,17 @@ defmodule Oneiroi.Brain.IdentityTest do
     refute {:account, ctx.witness.id}
            |> Kumbukumbu.injections(ref3)
            |> Enum.any?(&(&1.label == "character"))
+
+    # The vector lane, billed to the dyad by the turn's actor: the words
+    # share nothing with the trigger and much with the habit's name.
+    assert {:ok, %{turn_ref: ref4}} =
+             Oneiroi.Brain.turn(id, ctx.key, "any practical suggestions?", ctx.actor)
+
+    assert %{reason: reason} =
+             {:account, ctx.witness.id}
+             |> Kumbukumbu.injections(ref4)
+             |> Enum.find(&(&1.label == "character"))
+
+    assert reason =~ "1 habits" and reason =~ "1 by the vector lane's nearness"
   end
 end

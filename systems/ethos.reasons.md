@@ -89,3 +89,17 @@ every strength decays under the same half-life: a quiet week would
 otherwise read as collapse. Every threshold here is a guess and says
 so in its usage line (conventions §9).
 
+## #16
+Spec §6.17's load question: "the character layer is NOT loaded whole...
+habits and seeds are indexed on their triggers and their content and
+retrieved in a lane of their own, never pooled with the memory web's
+scoring". The refresh before the read, rather than at each write,
+because the edges stay simple and a turn that changed nothing pays for
+nothing; the hash is what makes that true (seshat #10's reason). The
+mark on a lane-only match because the brain's own words about a habit
+firing should not be put in its mouth by a cosine distance. Not an
+event because the vectors are a model's output, rebuilt from the rows
+and never the record (conventions §6 on what the log is for). The
+distance bound is a guess and says so; the suite's geometry is bags of
+words, so its passes say the plumbing holds and nothing about a model.
+
