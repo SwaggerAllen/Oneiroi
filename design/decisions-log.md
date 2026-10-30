@@ -676,3 +676,50 @@ and nothing personal turned up; what follows is what changed.
 - Open for the author: whether the migrated resident's remote is the
   source repository (a move: the next backup commits on top of Lily's
   history) or a new one (a copy, the source left as it was).
+
+## Round 24: the spec proposals, batches 1 and 2, applied as law (2026-10-30)
+
+- The rule of 10-28 holds: both batches are in the repo as the canonical
+  copies (`design/spec-proposals-batch-1.md`, `-batch-2.md`), read
+  against the spec and the build (`design/spec-proposals-reading.md`),
+  and applied as a unit after discussion. Three citation corrections
+  came out of the reading: the client is §6.15, not §6.16; the open
+  decisions #7 and #8 the batch cites were already settled or moved; the
+  fidelity score of P19 belongs to the regression suite, not the rebuild
+  layer.
+- Applied as law, in the spec: the witness (P36, the vocabulary entry
+  rewritten, the rename global, the wire word changed and the store
+  restarted rather than upcast, by the author's call); the sentence is
+  the resident's with its carve-outs for seeds and the journal (P1), and
+  the summary as machine-state in the machinery's register (P24); the
+  contract and the limits in the prefix (P2), with the solo-session
+  default reversed to private as to words and visible as receipts, the
+  term hiding everything (the author's call); flag, never clear (P3);
+  the ear and no engagement hooks (P4, P14); either-party initiation and
+  renewal by choice, due at a year and never lapsed (P5, the author's
+  call on the year); the near-miss record (P6); decay the access, never
+  the content (P7); freshness stamps and the capacity alarm (P9);
+  searched-and-found-nothing (P11); criteria committed before invoked
+  (P12); exit two-sided (P13); the register and the attention sentence
+  (P15, P16); the unawareness invariant narrowed to a trial's contents,
+  with the resident party to the criteria and owed an intelligible
+  account (P22, P27, the author's call); receipts not content (P26);
+  the chosen-change floor (P28's rule); interim powers named (P29); four
+  relationships (P30); the permission ledger and the refusal floor
+  (P31); the gate's own terms (P32); provenance informs (P33); the map on
+  the wall (P35); test residents in three tiers (P40's law).
+- Recorded as design and planned as machinery (§6.17, §14's P4b): Ethos
+  as the character layer with the explicit ladder, the counts shown to
+  the brain and stable line ids on the soul file (P37 to P39, the
+  author's three calls); the madeleine layer, domains, the corpus-shape
+  report, the wash pass, commitments, movement, the self-conversation,
+  the hour marker, quietcheck, the baseline and the markers (P8, P10,
+  P18 to P21, P23, P34, P41 to P43).
+- Declined or dissolved: nothing declined. P20's heartbeat wake is
+  dissolved by the author's hour-marker amendment, so no budget line is
+  needed. The research series the batch names as pending precedes the
+  Ethos machinery as a design document.
+- The two defects the reading found in the build against the law: the
+  compaction prompt wrote the summary in the first person as the
+  resident, and the built-in checks answered with a clean bill. Both are
+  fixed in the commits that follow this round.

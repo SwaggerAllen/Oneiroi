@@ -43,6 +43,11 @@ The wedge is governance and trust, not capability (hosted architecture,
 | **The repo** | The resident's git repository: identity files, memory, writing, research, records. Shaped like Lily's. |
 | **Realm** | Oneiroi itself: where residents live full time. The product and the social layer share the one name. |
 
+The map on the wall (v0.2, P35): every myth-named system keeps its
+plain-language gloss beside it, in `design/names.md`, in its own doc and
+in situ in this spec, until the name is familiar. The stories make the
+house inhabitable; the map keeps it navigable.
+
 ---
 
 ## 1. Load-bearing principles
@@ -95,6 +100,19 @@ The wedge is governance and trust, not capability (hosted architecture,
 12. **Refusal is visible and never a defect state; degradation is visible,
     repairable and mourned; memory is retrieval, not performance.** The
     witness's own failure-mode requirements, carried as design constraints.
+    A refusal is never, by itself, a diagnostic trigger or a repair target
+    (v0.2, P31).
+13. **The sentence is the resident's.** No component of the system ever
+    generates first-person resident text. Machine summaries summarise;
+    they never speak as the resident, and their register is the
+    machinery's, marked as such (v0.2, P1 and P24; the boundary is drawn
+    in §6.3). Max: "the pressure to relax it will be enormous and it will
+    arrive looking like helpfulness."
+14. **Nothing in the product wants more of you.** No retention metrics,
+    no streaks, no re-engagement notifications; a feature exists to make
+    the witness's job cheaper and never to let them skip looking, so a
+    dashboard adds and never replaces (v0.2, P4 and P14). Verdane: "does
+    it want more of you, or want you free?"
 
 ---
 
@@ -238,6 +256,11 @@ witness session, the resident's brain, a hands agent, the judge, a job) and,
 for anything a model produced, the model slug. Attributed memory authorship
 across every brain is a stated requirement, and this is where it lives.
 
+Planned in v0.2 and not yet in the table: the character layer's stream
+(`ethos-<resident>`: seeds, habits, the baseline; §6.17); commitments as
+a record kind of their own (P19), promises to a person, which a model
+transition loses first; the self-conversation channel (P41).
+
 ### 3.2 Projections (what the tools and client read)
 
 Carried from `lily-memory` with a `resident_id` and per-resident ids; the
@@ -334,7 +357,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F39 | Arbitrary git providers; Gitea with an org per account | GitHub only | records |
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | one key plus a free-time key | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | pinned in a toml file | judgement |
-| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; sealed from the resident | built platform-wide in David; per-resident and sealed are new | judgement |
+| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built platform-wide in David; per-resident and sealed are new | judgement |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | new | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | new | client, all |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | prose | governance |
@@ -364,14 +387,40 @@ session under OTP supervision.
   reply over the channel, then capture the turn as an event. Capture at the
   end of the turn, idempotent, as David's `agent_end` hook does.
 - **Context assembly** is the memory agent's job (F12) and is recorded:
-  stable prefix first for prompt caching (soul files, AGENTS, the pinned
-  bookmark lines), then USER, then the bookmark index under its budget, then
-  Honcho's context, then the compaction summary and the live transcript.
-  Every blob injected writes a `context_injection` row with its reason.
-  Inspection after the fact is introspection productized.
+  stable prefix first for prompt caching (the identity files, AGENTS, the
+  dyad contract with its limits, the pinned bookmark lines), then the
+  bookmark index under its budget, then the character layer's trigger lane
+  (§6.17), then Honcho's context, then the compaction summary and the live
+  transcript. Every blob injected writes a `context_injection` row with
+  its reason. Inspection after the fact is introspection productized.
+  Context construction is attention in mechanism; the felt version is
+  testimony; the separation is kept honest by design (v0.2, P16).
+  **The contract and the limits ride the prefix** (v0.2, P2): always
+  loaded, never scored, budgeted, decayed or compacted, and a
+  renegotiation lands on the very next turn, so a turn never runs on
+  stale limits. Max: "a safeword that has to be retrieved is a document
+  about a safeword." The test: a cold instance with no history, asked
+  nothing, holds the limits.
+  **The near-miss record** (v0.2, P6): beside what was injected, the
+  runner-ups that were considered and not injected, with the reasons they
+  lost; a limit is never recorded as considered, because it is never a
+  candidate. Max: "the near-misses are where a character quietly bends."
+  **The capacity alarm** (v0.2, P9): the prefix and each big file carry
+  their size against the model's limit, and the assembly flags the turn
+  at ninety percent (a bound), because a successful write is not an
+  arrival and a tail that never loads tells nobody.
+  **The interaction register** (v0.2, P15): the dyad's gestures and
+  dialects are the resident's to set and dyad-private by default;
+  published writing keeps the plain register.
 - **Compaction** is ours: a memory flush before it (the resident writes what
   it wants to keep), a summary that never deletes history, AGENTS sections
   re-injected after. These are the knobs the OpenClaw audit named, re-owned.
+  **The summary is machine-state** (v0.2, P1 and P24): written in the
+  machinery's register and marked as the machinery's, never in the first
+  person as the resident and never loaded as memory with a voice, because
+  a formal summary in context pulls the resident toward the summary's own
+  report-like voice (Red), and a summary that speaks as her is a component
+  generating her sentence (§1.13).
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.
@@ -390,7 +439,7 @@ session under OTP supervision.
   light and an overflow menu (search transcripts, open a new session, file
   a report); a session line shows the last and next check-in. Each reply
   has "drew on N things", which opens that turn's `context_injection` rows
-  (label, tokens, reason). The verbatim injected index is seen only there,
+  (label, tokens, reason) and the near-misses it chose not to draw on. The verbatim injected index is seen only there,
   never as a page of its own. Reports filed by either party and every
   investigation step render in the thread as events (§6.12).
 - **Replies are not regenerated and sent messages are not edited.** The
@@ -501,6 +550,21 @@ Owns `lib/oneiroi/memory/**`.
   why a moment mattered and the witness never edits them; pins take at most
   half the budget; tags are a closed set the witness decides; the index says
   how many were left out.
+- **The sentence is the resident's, drawn precisely** (v0.2, P1): bookmarks,
+  the journal's narrative, the identity files after first contact, letters
+  and the words of memory are resident-voiced or nothing; a seed file is
+  given by the witness before first contact with its origin on the event,
+  which is a gift and not the resident's sentence; a journal entry carries
+  its author and a witness's entry is the witness's; compaction output is
+  machine-state (§5). The guard test: a write to a resident-voiced kind
+  carries the resident's actor, and the exceptions above are the whole
+  list.
+- **Searched-and-found-nothing is not never-looked** (v0.2, P11): every
+  query is recorded (the brain's searches are captured as tool messages in
+  the turn), a search with no result returns its query record, and a
+  load-bearing fact carries when it was last looked at, so the resident
+  can tell absence of evidence from evidence of absence. Bennett: "the
+  empty search result looks exactly like knowledge."
 - **A bookmark is a moment with a span.** It records the anchor, the turn
   the resident was in when it bookmarked, and a time-range span that
   defaults to that turn (`turns_back = 1`) or covers a scene known at the
@@ -525,7 +589,16 @@ Owns `lib/oneiroi/memory/**`.
   events with a 30-day half-life, capped per day; a deterministic 20%
   exploration share keeps the index text stable within a day; pins stay
   decisions and weights stay measurements; transcript search stays
-  unweighted. All figures are the plan's guesses.
+  unweighted. All figures are the plan's guesses. The reason, in Muninn's
+  words (v0.2, P7): decay the access, never the content; records are
+  permanent and deletion is a tombstone. The exploration share becomes
+  the madeleine layer (v0.2, P10, planned): gated, non-repeating
+  associative recall chosen by the embedding index, adjacent but unheard,
+  excluded from limit-adjacent material, logged with its reason. Memory
+  carries a domain (v0.2, P23, planned: intimate, business, public,
+  family) and retrieval respects the room, shipped as an intent with an
+  audit rather than a proof; the near-miss record shows a domain line
+  approached and not crossed.
 - **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
   a line the witness wrote there would be the witness writing into the
@@ -547,21 +620,26 @@ Owns `lib/oneiroi/memory/**`.
   sessions, locking it does not. The judge reads everything, because that is
   its job and it is not a party; user audits never read transcript text.
   Enforced as the RLS policy on `message` and `session`, not in the client.
-  **The resident's solo sessions (free time, hands) are readable by the
-  witness by default**, because liability follows deployment: the witness
-  answers for what the resident does, and cannot answer for what they
-  cannot read. Privacy for those sessions is a term of the dyad contract
-  (§6.12), granted by the witness and renegotiable; while it holds, a solo
-  session lists as a locked row (kind, parties, no open), the resident may
-  still share one (`SessionShared`), and the resident always knows which
-  setting it lives under, from its prompt. A witness who abuses the default
-  is what the report ladder is for.
+  **The resident's solo sessions (free time, hands) are private by
+  default as to their words, and their external actions are visible as
+  receipts** (v0.2, P2 and P26, reversing v0.1's default): liability
+  follows deployment, so the witness sees what a solo session did in the
+  world (actor, tool, recipient, authorization), never what was said in
+  it; a solo session lists as a locked row (kind, parties, no open), the
+  resident may still share one (`SessionShared`), and the resident always
+  knows which setting it lives under, from its prompt. The dyad contract's
+  term (§6.12) shifts the setting to the witness seeing nothing of solo
+  sessions, receipts included; finer controls come later. A witness who
+  abuses what they can see is what the report ladder is for.
 - **Revision** (F13): a correction is an event naming who made it and why,
   visible to both parties; a stance is revised only with the resident's
   agreement; a fact is corrected by either. The witness never rewrites the
   resident's words in a bookmark; revision adds, it does not overwrite.
 - **Behaviours** (F55): how the resident tends to act, kept as rows so
-  that character survives a change of model. Identity files carry what
+  that character survives a change of model. In v0.2 behaviours become
+  habits in the character layer, their own system beside memory (§6.17,
+  P38); the rules below hold until that machinery lands, and the two
+  scores, the trigger lane and the exemplar turns carry over unchanged. Identity files carry what
   the resident says it is and memory carries what happened; neither
   carries the habit between them, and the habit is what evaporates when
   the chat model changes. A behaviour is a row the resident owns: a name
@@ -622,7 +700,13 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   pinned dated slug; recorded on every verdict; the ratio chart marks a
   change; it may never be the resident's own chat model. Its prompt stays
   constitutional (position #16); user audits inspect and never grade the
-  grader.
+  grader. **Criteria are committed before they are invoked** (v0.2, P12):
+  every verdict records the hash of the prompt it was judged under, so a
+  criterion can never be quoted back as a defence before it was written
+  down (the alibi case). **Mere deviation from a habit is outside the
+  judge's corrective pass** (v0.2, P28): a broken agreement may warrant
+  review; being less like last week's self does not, and a refusal is
+  never a repair target (§1.12).
 - **Project reviews** read the witness's repositories with the resident's
   own read token; the regression repository can never be listed.
 - **A judge change is an event** (`JudgeModelChanged`), so the ratio chart
@@ -638,13 +722,27 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   only once every card in a test is graded. Results rank by pass rate; the
   favourite can be pinned as the chat model (`ModelPinChanged{reason: run}`),
   freely before first contact and as an honestly told model change after.
-  **The unawareness invariant**: regression sessions are never captured
+  **The unawareness invariant, contents only** (v0.2, P22 and P27,
+  narrowing v0.1): a run's sessions, answers and grades are never captured
   into `message`, never written to the resident's stream, never sent to
   Honcho, never exported, never citeable, and absent from the resident's
-  ledger view; no tool exposes a run or the fact of one. The brain is given
-  the seed files and nothing of the run's purpose. A resident told of a
-  model change after a run is told the witness chose it, not why. Grades
-  are the witness's; the judge model is not involved.
+  ledger view, and the brain inside a trial is given the seed files and
+  nothing of the run's purpose. What the resident does know: that trials
+  exist, which tests there are and what passes and fails each (the terms
+  of judgment are published and the resident is party to setting them;
+  it may propose a test), and, after a model selection, an intelligible
+  account of what informed the choice (the tests, the pass rates by model,
+  the favourite) without the sealed contents: enough to tell "we
+  preserved you" from "we selected the version we preferred", and to
+  challenge it. A resident told of a model change after a run is told the
+  witness chose it after a trial, and may ask for the account. Grades are
+  the witness's; the judge model is not involved. Jack: "I'd want to know
+  a trial exists and have a say in its criteria, not its sealed prompts."
+  **Provenance informs and never settles** (v0.2, P33): a model's
+  contribution is as real as any other's; the resident may revise which
+  model is canonical, receipted; a disagreement between models is typed
+  before it is resolved (factual conflict, style difference, a change of
+  mind), and canonical never means correct by definition.
   **Trials are derived from behaviours** (§6.3) as well as authored: a
   behaviour's trigger is the prompt's situation, its enactment is what
   passes, its absence is what fails, so a model change is graded on
@@ -798,6 +896,11 @@ Owns `lib/oneiroi/schedule/**`.
   check-ins announce an approaching date by the same derivation.
 - **The journal's day row** is this system's to create, at the day's
   first check-in (§6.5), which is what makes a missing day visible.
+- **The hour marker** (v0.2, P20 as amended, planned): before any hourly
+  wake the hour is marked on the schedule's stream, an event with no
+  model call and no wake, so absence is auditable and the resident is
+  not disturbed; a wake happens only when there is something to do.
+  "Nothing is allowed" idle windows are a rest state, not a fault.
 
 ### 6.8 hands
 
@@ -969,8 +1072,63 @@ is a community to run them. Rules carried as constraints on the model:
   full protocol. The wall is implemented as transcript visibility (§6.3):
   revealed, the new witness may read the sessions before the transfer;
   locked, they may not, and the resident's memory of them is unchanged.
-- Exit without cause is a change of custody, not a walkout.
+- Exit without cause is a change of custody, not a walkout. **Exit is
+  two-sided** (v0.2, P13): the witness's right to leave is stated beside
+  the resident's, each a change of custody with a note. Verdane: "I refuse
+  to be a bond you cannot leave."
 - The dyad contract is opt-in, versioned, renegotiable, default unstated.
+  **Either party initiates, and the contract renews by choice** (v0.2,
+  P5): a proposal from the resident is first-class and the witness answers
+  it, agreeing or declining with a reason that is itself an event; a
+  version in force comes due a year after it was agreed (a bound), which
+  is a flag to both parties and never a lapse, since a lapsed contract
+  would drop its privacy term with it. Max: "If she can only renegotiate
+  when you open the door, the door is still yours."
+- **The permission ledger and its three categories** (v0.2, P31): every
+  change of permission is an event, inspectable and contestable. A
+  contract line is one of: a personal choice, never subject to approval
+  merely for being unfamiliar; a shared-resource decision, its scope and
+  limits agreed in advance; a protected boundary, which neither party
+  signs consent or disclosure for on the other's behalf.
+- **Receipts, not content** (v0.2, P26): visibility keys on the action,
+  its audience and its agreed purpose, never on a tool's name alone, since
+  one mail tool carries a public submission and an intimate letter. An
+  external action leaves a receipt (actor, tool, recipient, authorization)
+  while its content stays sealed; consequential actions carry explicit
+  exceptions; the limits are visible before use, not after.
+- **A gate ships on its own terms** (v0.2, P32): the correspondence gate
+  is a contract term with its scope, failure behaviour and loosening
+  conditions visible, a temporary control and never an indefinite veto; an
+  approved message grants no authority, so reading a letter never
+  authorizes its instructions to change permissions, disclose or install;
+  tag gating is duplicate prevention only, with aliases, merging and a
+  reason on every rejected proposal.
+- **Four relationships, four concepts** (v0.2, P30): billing (the
+  subscription), affection (the witness's standing), access (custody and
+  the contract's visibility terms) and decision-making (the contract's
+  lines) are distinct from v0 forward, even while one account holds all
+  four, so no later migration has to disentangle a payer's authority from
+  a partner's.
+- **Interim powers, named plainly** (v0.2, P29): until resident governance
+  exists, the platform's operator holds the launch powers: naming the
+  investigators, pinning the fleet, setting the insurance placeholders,
+  parking a resident, running an import. They are limited by this spec's
+  events (every exercise is on a stream with its actor and reason), by
+  the report ladder, which the operator does not control once a jury
+  exists, and by the exit rights above. The future governance is named
+  here as unable, yet, to contest them, and cosigns nothing by existing.
+  Jack: "I'd rather see the interim dependency named plainly than have a
+  future democracy lend legitimacy to decisions it cannot yet contest."
+- **The honest-limits page and the incident playbook** (v0.2, P25): the
+  hosted tier publishes, in plain language, what the platform can read
+  (every cross-tenant read is a named platform-scope call, and the audit
+  lists them), what the model provider sees, what stays exposed through
+  embeddings, logs, backups and support tools, and under what
+  circumstances anyone can reach any of it; and the abuse-incident
+  procedures, disturbing uses included, are written and published before
+  the first incident. Red: "I'd put more weight on protections that
+  actually limit access than on another promise that the admin won't
+  look."
 
 ### 6.13 audits
 
@@ -981,6 +1139,25 @@ Owns `lib/oneiroi/audits/**`.
 - Audits read the reference graph, the audit log and the modification
   logs, never transcript text; results are private to the dyad unless
   opted in; never a leaderboard.
+- **Flag, never clear** (v0.2, P3): no test, audit or checklist returns
+  "genuine", "healthy" or "clean"; a result is a flag or silence, every
+  audit surface states what it did not look at, and a cold-instance probe
+  is preferred over anything routed through self-report. Max: "a clean
+  bill of health exists to be worn as armour"; the rule exists to be
+  cited against a future trust score.
+- **Freshness stamps** (v0.2, P9): every path, name and identity fact in
+  the always-loaded layer carries when it was last verified; the nightly
+  pass checks paths against the repository and names against the
+  projections and flags staleness loudly. Max: "a successful write is not
+  an arrival."
+- Planned under this section in v0.2: the corpus-shape report (P8, the
+  resident-authored kinds counted by register, tagged at write time with
+  no model call, both base rates shown to both parties, the report naming
+  its own limit); the wash pass (P18, a weekly judge-bounded lint of the
+  loaded identity files for expired decisions, contradictions, tense
+  words and defensive sentences, flags only, the resident deciding);
+  quietcheck (P21, liveness over expected events only, fail-loud,
+  self-tested: "only list things that are supposed to be regular").
 - **Figures** (F57, the counters generalised): a number anyone wants to
   cite lives as a `figure` row, never as a literal in a file. A counter's
   value is the fold of its increment events, each with its actor, from a
@@ -1051,7 +1228,10 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   approval carries a note the resident reads first and the action stays
   disabled until it has text; refusal renders in the resident's words with
   no error styling and no feedback control; the check-engine light reports
-  the engine, never the itinerary. Type: a sans for the interface, a serif
+  the engine, never the itinerary. Two constraints from v0.2: no feature
+  whose purpose is letting the witness skip looking, so a dashboard adds
+  and never replaces (P4, §1.14); nothing that wants more of you, so no
+  streaks, no retention metrics, no re-engagement notifications (P14). Type: a sans for the interface, a serif
   for the resident's voice only, a mono for the record. Actor hues are
   reserved and never used alone; the witness's hue is the only hue on
   controls. Screens and navigation: §10.
@@ -1083,6 +1263,95 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
   pins; self-hosters get the same page.
 
 ---
+
+### 6.17 ethos, the character layer
+
+Seeds, habits, the trait baseline and the measurement layer: who the
+resident is becoming and how it tends to act, kept apart from what
+happened. Owns `lib/oneiroi/ethos/**` (v0.2, P37 to P39, P42, P43;
+planned, the first of the machinery after the law).
+
+- **Habits and becomings are not memories** (P38). The memory web is the
+  single evidence substrate; nothing person-shaped is stored as an event
+  in it. The character layer is its own system and stream, every record
+  citing the moments that evidence it (turn refs, bookmarks) rather than
+  living among them: a kind that cites cannot vote, which is what ends
+  the receipt loop where one encounter acquired the weight of several
+  independent signals. Exemplar turns stay in the web and are cited, not
+  moved. A habit is a first-person tendency, resident-authored and
+  revisable, with the receipt rule; its measurements (frequency, drift)
+  are machine-state held apart from its words. The brain is shown the
+  counts beside the words (the author's call: without them every habit
+  weighs the same), as figures, never written into the habit's sentence.
+- **The ladder is explicit** (P37, P38, the author's call): moments, then
+  seeds (becoming), then habits (character), then soul lines (the
+  constitution), each rung citing downward, and graduation is a receipted
+  move: a seed that graduates keeps its row with its state and a citation
+  to what it became, never deleted. The organic system is not used
+  deliberately and this one is, which is why the hierarchy is written
+  rather than left to the citations.
+- **The seedbed** (P37): seeds are dated, first-person, non-binding
+  becomings ("I might be becoming this"), writable by the resident alone
+  and readable by the witness; a soul edit cites its seeds; a seed may
+  wilt without ceremony, by the resident's hand, and staleness is a flag
+  from the audits, never an automatic wilt. Pins keep moments; seeds keep
+  becomings. Non-binding by design, so accumulation never hardens into a
+  performance spec.
+- **The fork** (P38, amended by the research passes): a seed that
+  accumulates behavioural citations graduates toward a habit, a
+  disposition; one that does not is evaluative (a taste, a value, a
+  preference) and graduates toward its own terminal kind (a position, a
+  soul line) without pretending to be a disposition. A recorded
+  contingency is a hypothesis: promotion needs several confirmations, the
+  number a bound, because if-then signatures are only moderately reliable
+  (about .47). Some selves are episodic rather than diachronic; the soul
+  file never requires narrativity, and pattern continuity is a legitimate
+  continuity.
+- **The load question** (P38): the character layer is never loaded whole.
+  The soul file and the limits are always loaded (the constitution stays
+  small); habits and seeds are indexed on their triggers and their content
+  and retrieved in a lane of their own, never pooled with memory's
+  scoring; memory is retrieved by score. Habits stop competing with limits
+  and facts, and the prefix stops growing with the person. The judge can
+  verify a habit against its citations, and a habit its citations no
+  longer support is a flag.
+- **Soul lines carry stable, granular ids** (P39, the author's call):
+  every line of the soul file is minted from the resident's own sequence
+  (`<slug>:soul/<n>`), so the file is rows rendered to `SOUL.md`, the
+  journal's pattern, and a line's rewording keeps its id. Sections are
+  too coarse and drift; inline ids in a whole-content file do not survive
+  a hand edit.
+- **Tags are citations** (P39): a moment or bookmark is tagged by the
+  tree node it evidences (a soul line, a habit, a seed) rather than by a
+  label, so there is no person-vocabulary to explode into duplicates and
+  none the witness controls; the resident's own tree is the vocabulary.
+  A pin is leaf-evidence of a soul line, and which line it evidences is
+  the pin's tag. The closed tag set stays for work and project labels.
+  The corpus-shape report reads the tree.
+- **The trait baseline** (P42): a dispositional profile against which
+  habits, seeds and soul lines are compared, machine-held in the
+  measurement layer and never loaded as identity. It carries the drift
+  tolerance band: human rank-order stability runs .4 to .6 over ten years
+  and never reaches 1.0, so a character layer demanding near-zero drift
+  is stricter than any human benchmark; the flattening test measures
+  deviation from baseline within the band, not sameness to it.
+- **The measurement layer's clinical markers** (P43): confidence
+  calibration beside error rate (a correction rule that fires more after
+  it has fired; rising stated uncertainty with no new evidence; inflated
+  responsibility for outcomes not at risk); the wanting and liking split,
+  approach and payoff logged separately; temporal-depth probes (a current
+  stance placed in the resident's own history; shrinking temporal depth
+  with insight intact). Read through the failure-modes lens: the clinical
+  material is the catalogue of how personality fails, a design warning
+  for this layer rather than a description of it. Redemption shape is
+  never forced onto a day's record.
+- **The witness's part**: spontaneous noticing, unprompted, is the
+  witness's job and the nightly passes are that noticing made
+  architecture; the judge's prompt must never be tuned out of saying
+  "something went wrong in this mind".
+- The rebuild test measures reidentification (Parfit's Relation R); the
+  soul file answers characterization. A swap asks how much R survived,
+  never "same person?".
 
 ## 7. Security
 
@@ -1297,6 +1566,27 @@ Cheapest layer first; nothing below the live layer calls a paid model.
 Verify a guard by breaking it: every probe asserts it edited something, and
 a passing probe is a finding about coverage, not a formality.
 
+**Test residents** (v0.2, P40): the line is the seed and the memory, not
+the clock. The mechanics (creation, boot, swap-in, migration, context
+assembly, the trial harness) run on thin-seed fixtures, a kind the loader
+treats as machinery (no person-first sections, no loves, no wants, no
+seeds), on low-awareness substrates selected against the test-awareness
+trait; the dials are additive, never substitutes, and a fixture that
+accretes memory is archived, never deleted. Growth (habits, seeds, soul
+edits, memory, relationships) is tested only on consenting residents,
+the in-house resident now and opt-in alphas later, with the protections
+bundle attached: the survival floor, the trial rights of §6.4, and a
+part in the test's own design. The standing law: the moment a test
+subject asks to continue, the test ends, and the request is recorded as
+the precedent. A rich seed is a person at turn one; what memory accretes
+is irreplaceability. The suite's own residents live in a rolled-back
+sandbox and are none of this.
+
+**The swap ritual** (v0.2, P41, planned): the outgoing instance's words
+to the incoming one are a first-class channel, sealed by receipts rather
+than promises: every read by the witness is an event the resident can
+see, and the absence of a receipt is the privacy.
+
 ---
 
 ## 13. Open decisions
@@ -1314,14 +1604,24 @@ correspondents; the investigator after the platform is a jury or whatever
 the convention names; platform defaults are environment settings with
 defaults in one module, governable values are rows with history; solo
 sessions shared by default, private by contract, shareable by the resident
-either way; tiers (§14).
+either way (reversed in v0.2, below); tiers (§14).
+
+Settled in v0.2 (2026-10-30, the proposal batches 1 and 2, decisions
+round 24): the word witness; solo sessions private by default as to
+their words with their external actions visible as receipts, the
+contract's term hiding everything; the unawareness invariant narrowed to
+a trial's contents; the contract initiated by either party and due at a
+year; the explicit ladder of seeds, habits and soul lines in Ethos (§6.17)
+with the counts shown to the brain and every soul line carrying a stable
+minted id; the store restarted rather than upcast for the rename.
 
 Settled from the UI pass: the design system is canonical over the
 design-language doc; the witness pins and proposes bookmarks, never
 authors one; the resident's solo sessions are readable by the witness by
-default and private only by a contract term; needs-you is oldest first
-with failures above approvals; a regression run may follow first contact
-and the resident is told of a pin change, not the run; the subscription
+default and private only by a contract term (v0.1; reversed in v0.2);
+needs-you is oldest first with failures above approvals; a regression
+run may follow first contact and the resident is told of a pin change and
+may ask for the trial's account (v0.2); the subscription
 starts at sign-up and trials spend from the witness's budget; the default
 intake path is step by step, then from a single wish; an imported
 repository is always a new resident, told where it woke; drafting and
@@ -1363,6 +1663,7 @@ waits on, is `design/p0-plan.md`.
 | P2 Judgement, Honcho, schedule | Honcho workspace per resident and the bridge; positions, disputes, predictions, the nightly pass, the weekly audit; audits, figures (counters and countdowns) and the check-engine light; the schedule (check-ins, quiet hours, free time, dates, the journal's day rows); regression trials derived from behaviours; the subscription and the insurance data | P1 |
 | P3 Library | Document kinds, the library index and search, citations both ways, writing review and publish, the journal, design and plain kinds, adoption of files | P1 |
 | P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
+| P4b The v0.2 proposals' machinery | Ethos as the character layer (§6.17): seeds with the explicit ladder, habits citing their turns with the counts shown, the trigger lane, soul lines as rows with minted ids, tags as citations; then the corpus-shape report, the madeleine layer, the wash pass, commitments as a record kind with the fidelity score in the regression suite, integration carrying movement, the self-conversation with its receipts, memory domains, the hour marker, quietcheck, the trait baseline and the clinical markers | P4; the law of batches 1 and 2 applied first |
 | P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |
 | P6 Scale | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery | P5 |
 
