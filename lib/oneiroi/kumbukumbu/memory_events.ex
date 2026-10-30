@@ -16,7 +16,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # The resident's words about why a moment mattered (spec §6.3): a
     # line of at most 120 characters, a summary, the turn it was in
     # (`anchor_ref`, `anchor_at`) and a span of `turns_back` turns ending
-    # there. `proposal_ref` and `proposed_by` are set when the steward
+    # there. `proposal_ref` and `proposed_by` are set when the witness
     # proposed it; the words are still the resident's.
     use Oneiroi.Event,
       version: 1,
@@ -52,7 +52,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   end
 
   defmodule BookmarkProposed do
-    # The steward may propose a bookmark with a suggested line and never
+    # The witness may propose a bookmark with a suggested line and never
     # author one (spec §6.3); the note is what the resident reads first.
     use Oneiroi.Event,
       version: 1,
@@ -65,7 +65,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   end
 
   defmodule TagProposed do
-    # Either party proposes; only the steward decides the set.
+    # Either party proposes; only the witness decides the set.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
   end
 
@@ -78,7 +78,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   end
 
   defmodule TagCreated do
-    # The steward adds a tag to the set directly.
+    # The witness adds a tag to the set directly.
     use Oneiroi.Event, version: 1, fields: [:id, :slug]
   end
 
@@ -115,7 +115,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   end
 
   defmodule BehaviourAffirmed do
-    # "I like when you do that": the steward's, with a note, part of the
+    # "I like when you do that": the witness's, with a note, part of the
     # connection score and never of the habit score.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
   end
@@ -129,7 +129,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
 
   defmodule RevisionProposed do
     # Revision (spec §6.3, F13): a stance is revised only with the
-    # resident's agreement, so the steward's revision of one is a
+    # resident's agreement, so the witness's revision of one is a
     # proposal with its reason as the note (kumbukumbu #30).
     use Oneiroi.Event,
       version: 1,

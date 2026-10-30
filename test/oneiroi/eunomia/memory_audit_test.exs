@@ -9,6 +9,7 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Proteus
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
@@ -16,11 +17,11 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
   @since ~U[2026-10-01 00:00:00.000000Z]
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
 
     :ok =
       AgathosDaimon.write_file(
@@ -31,7 +32,7 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
         actor
       )
 
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     :ok = Proteus.provision(resident.id, actor)
     Model.clear()
     Honcho.clear(for: resident.id)
@@ -42,21 +43,21 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
       Honcho.clear(for: resident.id)
     end)
 
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
   defp seed(ctx, conclusions) do
     Honcho.put_conclusions(
       ctx.id,
       "resident-" <> ctx.id,
-      "steward-" <> ctx.steward.id,
+      "witness-" <> ctx.witness.id,
       conclusions
     )
   end
 
   defp judge_says(id, text), do: Model.script(fn _request -> {:ok, text} end, for: id)
 
-  test "the audit flags drift against positions and the soul; the steward approves or deletes each flag with a note; nothing concluded calls no model",
+  test "the audit flags drift against positions and the soul; the witness approves or deletes each flag with a note; nothing concluded calls no model",
        ctx do
     id = ctx.id
 
@@ -74,7 +75,7 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
     assert %{runs: [%{conclusions: 0, flagged: 0, judge_model: nil}], open: []} =
              Eunomia.audits(id)
 
-    assert [] = Nisaba.spend(id, :steward, :purpose, @since)
+    assert [] = Nisaba.spend(id, :witness, :purpose, @since)
 
     seed(ctx, [
       %{id: "c1", content: "She hates tea."},
@@ -105,9 +106,12 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
              conclusions: 2,
              flagged: 1,
              judge_model: "fake/judge",
-             summary: "one hardened remark"
+             summary: "one hardened remark",
+             criteria: criteria
            } =
              Enum.find(runs, &(&1.ref == ref))
+
+    assert criteria == Prompt.hash("judge_audit")
 
     assert %{
              conclusion_id: "c1",
@@ -115,9 +119,9 @@ defmodule Oneiroi.Eunomia.MemoryAuditTest do
              reason: "contradicts position #1" <> _
            } = flag
 
-    assert [%{key: "judge", calls: 1}] = Nisaba.spend(id, :steward, :purpose, @since)
+    assert [%{key: "judge", calls: 1}] = Nisaba.spend(id, :witness, :purpose, @since)
 
-    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_steward}} =
+    assert {:error, %Eunomia.Error{kind: :eunomia_not_the_witness}} =
              Eunomia.approve_flag(id, flag.ref, "agreed", ctx.brain)
 
     assert :ok = Eunomia.approve_flag(id, flag.ref, "she said so herself", ctx.actor)

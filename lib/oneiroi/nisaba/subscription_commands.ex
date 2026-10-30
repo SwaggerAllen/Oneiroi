@@ -22,7 +22,7 @@ defmodule Oneiroi.Nisaba.SubscriptionCommands do
   end
 
   defmodule SetPolicy do
-    use Oneiroi.Command, fields: [:id, :model, :steward, :free_time, :term]
+    use Oneiroi.Command, fields: [:id, :model, :witness, :free_time, :term]
   end
 
   defmodule Prepay do

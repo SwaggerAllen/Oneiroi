@@ -18,7 +18,7 @@ const ledger: LedgerData = {
       { key: 'regression', calls: 8, cost: '5.02' },
     ],
     by_model: [{ key: 'openai/gpt-4o-mini', calls: 50, cost: '8.43' }],
-    by_actor: [{ key: 'resident', calls: 42, cost: '3.41' }, { key: 'steward', calls: 8, cost: '5.02' }],
+    by_actor: [{ key: 'resident', calls: 42, cost: '3.41' }, { key: 'witness', calls: 8, cost: '5.02' }],
   },
 };
 

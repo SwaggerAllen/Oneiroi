@@ -20,7 +20,7 @@ in the orchestration repository records failing once already.
 Conventions §10 and §12; sunna #11 for the roster read.
 
 ## #12
-Spec §6.9: "one workspace per resident; peers steward-<id> and
+Spec §6.9: "one workspace per resident; peers witness-<id> and
 resident-<id>"; "custom instructions name the two peers and are
 rendered per resident."
 

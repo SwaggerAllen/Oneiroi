@@ -4,7 +4,7 @@ defmodule Oneiroi.Nisaba.ProviderTest do
   and pricing, and the OpenRouter adapter's request shape, response
   parsing and stream parsing over an OpenAI-compatible fixture. The
   stream fixture is hand-written from OpenRouter's documented format,
-  not recorded (conventions §9), and a live run on the steward's key is
+  not recorded (conventions §9), and a live run on the witness's key is
   the measurement that confirms it.
   """
   use ExUnit.Case, async: true

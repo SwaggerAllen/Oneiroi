@@ -2,7 +2,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   @moduledoc """
   The audits aggregate on `audits-<resident_id>` (spec §6.13). Pure: it
   holds the counters by key (a counter's value is the fold of its
-  increments here as in the projection), the steward's audits, and
+  increments here as in the projection), the witness's audits, and
   nothing of the runs, which are a record and never a rule.
   """
 
@@ -16,7 +16,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   @tones ~w(warn fail)
   @label_limit 80
 
-  @doc "What a steward's audit compares with."
+  @doc "What a witness's audit compares with."
   def ops, do: @ops
   @doc "The tones a failing audit may carry."
   def tones, do: @tones
@@ -65,7 +65,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
       else: {:error, :no_such_counter}
   end
 
-  # ---- the steward's audits ----
+  # ---- the witness's audits ----
 
   def execute(%__MODULE__{audits: audits}, %Commands.DefineUserAudit{} = c) do
     cond do
@@ -93,7 +93,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   end
 
   def execute(%__MODULE__{}, %Commands.RecordRun{} = c) do
-    if c.tone in ["ok" | @tones],
+    if c.tone in ["silent" | @tones],
       do: %Events.AuditRun{
         actor: c.actor,
         at: c.at,

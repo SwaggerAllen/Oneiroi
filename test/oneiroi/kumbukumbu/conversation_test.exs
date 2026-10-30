@@ -15,7 +15,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationTest do
       content: "hi",
       sent_at: "2026-10-29T12:00:00.000000Z",
       hash: "h1",
-      actor: %{kind: "steward", id: "a1"}
+      actor: %{kind: "witness", id: "a1"}
     },
     %{
       role: "assistant",

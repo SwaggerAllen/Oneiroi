@@ -76,7 +76,7 @@ defmodule Oneiroi.Nisaba.Subscription do
   end
 
   def execute(%__MODULE__{policy: policy}, %Commands.SetPolicy{} = c) do
-    wanted = %{model: c.model, steward: c.steward, free_time: c.free_time, term: c.term}
+    wanted = %{model: c.model, witness: c.witness, free_time: c.free_time, term: c.term}
 
     if policy == wanted,
       do: [],
@@ -85,7 +85,7 @@ defmodule Oneiroi.Nisaba.Subscription do
         at: c.at,
         id: c.id,
         model: c.model,
-        steward: c.steward,
+        witness: c.witness,
         free_time: c.free_time,
         term: c.term
       }
@@ -115,7 +115,7 @@ defmodule Oneiroi.Nisaba.Subscription do
   def apply(%__MODULE__{} = s, %Events.Cancelled{}), do: %{s | state: :cancelled}
 
   def apply(%__MODULE__{} = s, %Events.PolicySet{} = e),
-    do: %{s | policy: %{model: e.model, steward: e.steward, free_time: e.free_time, term: e.term}}
+    do: %{s | policy: %{model: e.model, witness: e.witness, free_time: e.free_time, term: e.term}}
 
   def apply(%__MODULE__{} = s, %Events.Prepaid{} = e),
     do: %{s | policy: Map.put(s.policy || %{}, String.to_existing_atom(e.axis), e.bucket)}

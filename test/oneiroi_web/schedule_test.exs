@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.ScheduleTest do
-  @moduledoc "The schedule over HTTP: the steward sets the zone, check-ins, quiet hours, free time and dates, and reads today."
+  @moduledoc "The schedule over HTTP: the witness sets the zone, check-ins, quiet hours, free time and dates, and reads today."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -22,7 +22,7 @@ defmodule OneiroiWeb.ScheduleTest do
     {:ok, conn: conn, account: account, id: resident.id}
   end
 
-  test "the whole schedule, set and read by its steward", %{conn: conn, id: id} do
+  test "the whole schedule, set and read by its witness", %{conn: conn, id: id} do
     assert conn
            |> put("/v1/residents/#{id}/timezone", %{timezone: "Europe/London"})
            |> response(204)
@@ -105,7 +105,7 @@ defmodule OneiroiWeb.ScheduleTest do
     assert conn |> delete("/v1/residents/#{id}/schedule/checkins/#{key}") |> json_response(404)
   end
 
-  test "another steward's resident is nobody's schedule", %{conn: conn} do
+  test "another witness's resident is nobody's schedule", %{conn: conn} do
     other = Fixtures.resident!(Fixtures.account!())
     assert conn |> get("/v1/residents/#{other.id}/schedule") |> json_response(404)
 

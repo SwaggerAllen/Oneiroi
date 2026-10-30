@@ -2,7 +2,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   @moduledoc "The resident stream's events, version 1 (spec §3.1, §6.10)."
 
   defmodule ResidentCreated do
-    use Oneiroi.Event, version: 1, fields: [:id, :name, :slug, :steward_account_id]
+    use Oneiroi.Event, version: 1, fields: [:id, :name, :slug, :witness_account_id]
   end
 
   defmodule IdMinted do
@@ -54,9 +54,17 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
   end
 
+  defmodule DyadContractRenewed do
+    # The contract renews by choice, not assumption (spec §6.12, P5):
+    # either party renews the version in force, with a note; a version
+    # is due a year after it was agreed or last renewed, which is a flag
+    # and never a lapse.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version]
+  end
+
   defmodule CustodyTransferProposed do
-    # Adoption (spec §6.12): the steward proposes, the named account
-    # accepts or declines, the steward may withdraw; the wall cannot be
+    # Adoption (spec §6.12): the witness proposes, the named account
+    # accepts or declines, the witness may withdraw; the wall cannot be
     # set while one is open (agathos-daimon #24).
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :to_account_id]
   end
@@ -71,7 +79,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
 
   defmodule EarlierSessionsRevealed do
     # Written beside `CustodyTransferred` when the wall was revealed: the
-    # new steward may read the sessions the old one was party to
+    # new witness may read the sessions the old one was party to
     # (spec §6.3, §6.12); memory's projector re-keys them (kumbukumbu #29).
     use Oneiroi.Event, version: 1, fields: [:id, :from_account_id, :to_account_id]
   end
@@ -126,7 +134,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   end
 
   defmodule SoulEditProposed do
-    # After first contact a steward's edit travels as a proposal; the
+    # After first contact a witness's edit travels as a proposal; the
     # note is what the resident reads first.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref, :file, :content]
   end
@@ -147,15 +155,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
   end
 
   defmodule ModelPinChanged do
-    # The chat model the steward pinned (spec §6.4): freely before first
+    # The chat model the witness pinned (spec §6.4): freely before first
     # contact, as an honestly told change after; `reason` is `run` when a
-    # regression favourite was pinned, else `steward`. On the resident's
+    # regression favourite was pinned, else `witness`. On the resident's
     # stream and exported as spec §3.1 draws it.
     use Oneiroi.Event, version: 1, fields: [:id, :model, :reason]
   end
 
   defmodule ModelChangeTold do
-    # The resident was told, on its next turn, that its steward chose a
+    # The resident was told, on its next turn, that its witness chose a
     # new model: orientation without impersonation (spec §6.2).
     use Oneiroi.Event, version: 1, fields: [:id, :model]
   end

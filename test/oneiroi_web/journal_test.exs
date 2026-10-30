@@ -11,7 +11,7 @@ defmodule OneiroiWeb.JournalTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Oneiroi.Actor.new(:steward, account.id)
+    actor = Oneiroi.Actor.new(:witness, account.id)
     :ok = Oneiroi.Gaia.store_key(account.id, "sk-or-test", actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -50,7 +50,7 @@ defmodule OneiroiWeb.JournalTest do
 
     assert %{
              "entries" => [
-               %{"number" => 1, "by" => "steward"},
+               %{"number" => 1, "by" => "witness"},
                %{"number" => 2, "done_at" => done}
              ],
              "delta" => %{"plan" => 1, "done" => 1, "unwrapped" => true}

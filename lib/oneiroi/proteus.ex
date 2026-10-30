@@ -1,7 +1,7 @@
 defmodule Oneiroi.Proteus do
   @moduledoc """
   The bridge to Honcho (spec §6.9): one workspace per resident, named by
-  the resident's id; peers for the resident and its steward; the card
+  the resident's id; peers for the resident and its witness; the card
   from git, always; every captured turn synced as the two peers' words;
   the context Honcho holds on the person read into the brain's turn;
   the weekly card audit; and workspace-scoped, expiring keys for a

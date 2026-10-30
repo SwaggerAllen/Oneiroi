@@ -1,7 +1,7 @@
 defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   @moduledoc """
   The real provider: OpenRouter's chat completions over Req (spec §2.1),
-  on the steward's own key. The only module in the tree that talks to a
+  on the witness's own key. The only module in the tree that talks to a
   model provider, which the `model_port` check holds.
 
   OpenRouter reports the call's cost when asked (`usage: {include: true}`)
@@ -79,7 +79,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   # `model` and `input`, answered by `data[].embedding` in input order and
   # a `usage`), read from OpenRouter's documentation and not yet measured
   # against a live reply on this build: a claim until the first index run
-  # on a steward's key (conventions §9). A cost is not expected in the
+  # on a witness's key (conventions §9). A cost is not expected in the
   # reply, so the record is marked estimated with zero, as `usage/1` does.
   @impl Oneiroi.Nisaba.Provider
   def embed(model, texts, key) when is_binary(model) and is_list(texts) and is_binary(key) do

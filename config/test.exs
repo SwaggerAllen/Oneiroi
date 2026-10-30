@@ -34,6 +34,9 @@ config :oneiroi,
           # Low enough for one captured turn to cross it, high enough that
           # no other brain test (at most two turns, four messages) does.
           "BRAIN_COMPACT_AFTER_MESSAGES" => "8",
+          # Small enough that one identity file near its 64,000-byte bound
+          # trips the capacity alarm, large enough that no other test does.
+          "BRAIN_CONTEXT_TOKENS" => "16000",
           # The judge answers from the same fake, under a model of its own
           # so a script can tell the judge's call from the resident's; the
           # live-check bound is short so a timed-out check is a quick test.

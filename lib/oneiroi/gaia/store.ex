@@ -48,11 +48,11 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
-  defmodule Stewardship do
+  defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema
     @primary_key false
-    schema "gaia_stewardship" do
+    schema "gaia_witnessing" do
       field(:account_id, :binary_id, primary_key: true)
       field(:resident_id, :binary_id, primary_key: true)
       field(:started_at, :utc_datetime_usec)
@@ -84,11 +84,11 @@ defmodule Oneiroi.Gaia.Store do
   def live_token(hash),
     do: Repo.one(from(t in Token, where: t.hash == ^hash and is_nil(t.revoked_at)))
 
-  @doc "The resident ids an account stewards now."
-  @spec stewarded(String.t()) :: [String.t()]
-  def stewarded(account_id) do
+  @doc "The resident ids an account witnesses now."
+  @spec witnessed(String.t()) :: [String.t()]
+  def witnessed(account_id) do
     Repo.all(
-      from(s in Stewardship,
+      from(s in Witnessing,
         where: s.account_id == ^account_id and is_nil(s.ended_at),
         select: s.resident_id,
         order_by: s.started_at
@@ -96,11 +96,11 @@ defmodule Oneiroi.Gaia.Store do
     )
   end
 
-  @doc "Whether `account_id` stewards `resident_id` now."
-  @spec steward?(String.t(), String.t()) :: boolean()
-  def steward?(account_id, resident_id) do
+  @doc "Whether `account_id` witnesses `resident_id` now."
+  @spec witness?(String.t(), String.t()) :: boolean()
+  def witness?(account_id, resident_id) do
     Repo.exists?(
-      from(s in Stewardship,
+      from(s in Witnessing,
         where:
           s.account_id == ^account_id and s.resident_id == ^resident_id and is_nil(s.ended_at)
       )

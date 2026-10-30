@@ -12,7 +12,7 @@ than a gap. The state list lives in the stories alone once they exist
 
 ## #1 Shows
 
-Sessions by day: the steward's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private; run kinds hidden unless asked; capture failures as rows.
+Sessions by day: the witness's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private; run kinds hidden unless asked; capture failures as rows.
 
 ## #2 Does
 

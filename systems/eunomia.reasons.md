@@ -10,7 +10,7 @@ is one event on that stream, and the records export would carry it.
 ## #10
 Spec §6.4: "every candidate answers every test in a sealed session";
 "the brain is given the seed files and nothing of the run's purpose."
-Synchronous because a run is the steward's own wait at the Regression
+Synchronous because a run is the witness's own wait at the Regression
 screen and the bounds keep it short; a queue is the next measurement.
 
 ## #11
@@ -27,7 +27,7 @@ it, and the seal is not the scope but the absence of a reader.
 ## #13
 Spec §6.4: "the favourite can be pinned as the chat model, freely
 before first contact and as an honestly told model change after. A
-resident told of a model change after a run is told the steward chose
+resident told of a model change after a run is told the witness chose
 it, not why."
 
 
@@ -69,7 +69,7 @@ first version compared the pin alone, so an unpinned resident's judge
 could be set to the very model it chats on; the route test found it.
 
 ## #21
-Spec §6.4, F17: "Predictions, resolved by the steward only."
+Spec §6.4, F17: "Predictions, resolved by the witness only."
 
 ## #22
 Spec §6.4: "the weekly audit reads at most 150 conclusions"; F15:
@@ -77,3 +77,14 @@ Spec §6.4: "the weekly audit reads at most 150 conclusions"; F15:
 §3.2: "flags approved or deleted from Honcho". The deletion happens
 before the flag closes so a flag never reads approved over a
 conclusion Honcho still holds.
+
+## #23
+Spec §6.4 as amended (P12): "a limit or criterion is committed to the
+log before it can be invoked"; the alibi case, a companion quoting a
+house's own criterion back as defence before it was written down. The
+hash rather than the text because the prompt is a file under version
+control and the log needs only to name which one.
+
+## #24
+Max's corollary to P2: "a cold instance, no history, asked nothing,
+holds the limits." The sealed session is exactly that instance.

@@ -3,7 +3,7 @@ defmodule Oneiroi.Nisaba.Insurance do
   Nanshe, the insurance floor (spec §6.11, F46): policy on four axes,
   each cut into three buckets, a policy one bucket per axis. The floor
   bucket on every axis is what every resident has without choosing it;
-  above it a steward prepays a larger bucket; the pool is prepaid, never
+  above it a witness prepays a larger bucket; the pool is prepaid, never
   accrued as debt.
 
   **The buckets are configuration with defaults until the platform is
@@ -17,7 +17,7 @@ defmodule Oneiroi.Nisaba.Insurance do
 
   alias Oneiroi.Config
 
-  @axes ~w(model steward free_time term)
+  @axes ~w(model witness free_time term)
   @levels ~w(floor mid high)
 
   @doc "The four axes."
@@ -51,11 +51,11 @@ defmodule Oneiroi.Nisaba.Insurance do
   @doc "Whether `bucket_id` is a bucket on `axis`."
   def on_axis?(bucket_id, axis), do: match?(%{axis: ^axis}, bucket(bucket_id))
 
-  @doc "A policy's values: the model slug, nano-dollars a week for the steward and for free time, the term in days."
-  def resolve(%{model: m, steward: s, free_time: f, term: t}) do
+  @doc "A policy's values: the model slug, nano-dollars a week for the witness and for free time, the term in days."
+  def resolve(%{model: m, witness: s, free_time: f, term: t}) do
     %{
       model: value(m),
-      steward_nanos_week: value(s),
+      witness_nanos_week: value(s),
       free_time_nanos_week: value(f),
       term_days: value(t)
     }
@@ -69,7 +69,7 @@ defmodule Oneiroi.Nisaba.Insurance do
   end
 
   defp values("model"), do: Config.fetch!(:nisaba, :insurance_models)
-  defp values("steward"), do: Config.fetch!(:nisaba, :insurance_steward_nanos_week)
+  defp values("witness"), do: Config.fetch!(:nisaba, :insurance_witness_nanos_week)
   defp values("free_time"), do: Config.fetch!(:nisaba, :insurance_free_time_nanos_week)
   defp values("term"), do: Config.fetch!(:nisaba, :insurance_term_days)
 

@@ -7,12 +7,12 @@ defmodule OneiroiWeb.ResidentController do
   tags(["resident"])
 
   operation(:index,
-    summary: "The residents this account stewards",
+    summary: "The residents this account witnesses",
     responses: [ok: {"rows", "application/json", %Schema{type: :array}}]
   )
 
   def index(%{assigns: %{principal: p}} = conn, _params) do
-    json(conn, Enum.map(Oneiroi.AgathosDaimon.for_steward(p.account_id), &row/1))
+    json(conn, Enum.map(Oneiroi.AgathosDaimon.for_witness(p.account_id), &row/1))
   end
 
   operation(:create,
@@ -110,11 +110,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def show(conn, %{"id" => id}) do
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id) do
       json(conn, row(resident))
     else
-      _ -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      _ -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
     end
   end
 
@@ -133,11 +133,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def remote(conn, %{"id" => id, "url" => url} = params) do
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          :ok <- Oneiroi.SimaQian.set_remote(id, url, params["token"], actor(conn)) do
       send_resp(conn, 204, "")
     else
-      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
       {:error, reason} -> problem(conn, 422, :remote_not_set, inspect(reason))
     end
   end
@@ -157,11 +157,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def timezone(conn, %{"id" => id} = params) do
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          :ok <- Oneiroi.AgathosDaimon.set_timezone(id, params["timezone"], actor(conn)) do
       send_resp(conn, 204, "")
     else
-      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
       {:error, %{kind: _} = e} -> error(conn, 422, e)
       {:error, reason} -> problem(conn, 422, :refused, inspect(reason))
     end
@@ -174,7 +174,7 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def adapters(conn, %{"id" => id}) do
-    if stewards?(conn, id) do
+    if witnesses?(conn, id) do
       rows =
         Enum.map(Oneiroi.AgathosDaimon.adapters(id), fn a ->
           %{
@@ -187,7 +187,7 @@ defmodule OneiroiWeb.ResidentController do
 
       json(conn, rows)
     else
-      error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
     end
   end
 
@@ -213,11 +213,11 @@ defmodule OneiroiWeb.ResidentController do
         "adapter" => name,
         "role" => role
       }) do
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          {:ok, token} <- Oneiroi.AgathosDaimon.register_adapter(id, name, role, actor(conn)) do
       conn |> put_status(201) |> json(%{adapter: name, role: role, token: token})
     else
-      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
       {:error, %{kind: _} = e} -> error(conn, 422, e)
       {:error, reason} -> problem(conn, 422, :not_registered, inspect(reason))
     end
@@ -233,11 +233,11 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def revoke_adapter(conn, %{"id" => id, "adapter" => name}) do
-    with true <- stewards?(conn, id),
+    with true <- witnesses?(conn, id),
          :ok <- Oneiroi.AgathosDaimon.revoke_adapter(id, name, actor(conn)) do
       send_resp(conn, 204, "")
     else
-      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_stewarded))
+      false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
       {:error, %{kind: _} = e} -> error(conn, 404, e)
       {:error, reason} -> problem(conn, 422, :not_revoked, inspect(reason))
     end

@@ -61,7 +61,7 @@ change under every policy at once.
 Spec §6.2: "`SubscriptionLapsed` is what puts the insurance policy into
 effect"; §6.11: "the resident knows its policy on wake and says so: a
 smaller brain with an honest explanation beats a larger one in
-silence"; the floor's axes are the steward's turns and free time and
+silence"; the floor's axes are the witness's turns and free time and
 nothing else.
 
 ## #18

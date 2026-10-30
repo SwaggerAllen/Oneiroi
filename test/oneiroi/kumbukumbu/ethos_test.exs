@@ -12,11 +12,11 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    steward_actor = Actor.new(:steward, steward.id)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, brain)
+    witness_actor = Actor.new(:witness, witness.id)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, brain)
     at = Clock.now()
 
     :ok =
@@ -30,7 +30,7 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
             role: :user,
             content: "could you check on the garden?",
             sent_at: at,
-            actor: steward_actor
+            actor: witness_actor
           },
           %{
             role: :assistant,
@@ -42,16 +42,16 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
         brain
       )
 
-    {:ok, resident: resident, brain: brain, steward: steward_actor, key: key}
+    {:ok, resident: resident, brain: brain, witness: witness_actor, key: key}
   end
 
   @trigger %{"words" => ["garden", "tomatoes"], "tags" => ["haven"], "times" => ["morning"]}
 
-  test "the list is the resident's; the steward gives first ones only before first contact",
+  test "the list is the resident's; the witness gives first ones only before first contact",
        ctx do
     id = ctx.resident.id
     attrs = %{name: "small practical suggestions as care", trigger: @trigger, stance: "keep"}
-    assert {:ok, 1} = Kumbukumbu.define_behaviour(id, attrs, ctx.steward)
+    assert {:ok, 1} = Kumbukumbu.define_behaviour(id, attrs, ctx.witness)
 
     assert {:ok, 2} =
              Kumbukumbu.define_behaviour(
@@ -76,21 +76,21 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
     :ok = AgathosDaimon.first_contact(id, ctx.key, "t1", ctx.brain)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_resident}} =
-             Kumbukumbu.define_behaviour(id, attrs, ctx.steward)
+             Kumbukumbu.define_behaviour(id, attrs, ctx.witness)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_resident}} =
-             Kumbukumbu.change_behaviour(id, 1, %{attrs | name: "renamed"}, ctx.steward)
+             Kumbukumbu.change_behaviour(id, 1, %{attrs | name: "renamed"}, ctx.witness)
 
     assert :ok = Kumbukumbu.change_behaviour(id, 1, %{attrs | name: "renamed"}, ctx.brain)
 
     assert [%{number: 1, name: "renamed", revisions: 1}, %{number: 2, stance: "change"}] =
              Kumbukumbu.behaviours(id)
 
-    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_steward}} =
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_witness}} =
              Kumbukumbu.affirm_behaviour(id, 1, "I like it", ctx.brain)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_no_such_behaviour}} =
-             Kumbukumbu.affirm_behaviour(id, 9, "I like it", ctx.steward)
+             Kumbukumbu.affirm_behaviour(id, 9, "I like it", ctx.witness)
   end
 
   test "two scores, never one: habit decays with enactments, connection holds pins and decays affirmations",
@@ -111,7 +111,7 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
     assert [%{habit: 1.0, connection: 0.0, enactments: 1}] = Kumbukumbu.behaviours(id)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_resident}} =
-             Kumbukumbu.enact_behaviour(id, n, "turn", "t1", ctx.steward)
+             Kumbukumbu.enact_behaviour(id, n, "turn", "t1", ctx.witness)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_target_invalid}} =
              Kumbukumbu.enact_behaviour(id, n, "bookmark", 7, ctx.brain)
@@ -124,10 +124,10 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
       )
 
     assert :ok = Kumbukumbu.enact_behaviour(id, n, "bookmark", b, ctx.brain)
-    assert :ok = Kumbukumbu.affirm_behaviour(id, n, "I like when you do that", ctx.steward)
+    assert :ok = Kumbukumbu.affirm_behaviour(id, n, "I like when you do that", ctx.witness)
     assert [%{habit: 2.0, connection: 2.0, affirmations: 1}] = Kumbukumbu.behaviours(id)
 
-    assert :ok = Kumbukumbu.pin_bookmark(id, b, ctx.steward)
+    assert :ok = Kumbukumbu.pin_bookmark(id, b, ctx.witness)
     Clock.Fake.advance(30 * 24 * 3600)
     # Thirty days on: every enactment and the affirmation at half; the pin undecayed.
     assert [%{habit: 1.0, connection: 1.5}] = Kumbukumbu.behaviours(id)
@@ -137,7 +137,7 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
     assert ["bookmark", "turn"] = kinds
   end
 
-  test "how I act: a trigger matches the steward's words, a conversation tag or the time of day, and cites enacting turns",
+  test "how I act: a trigger matches the witness's words, a conversation tag or the time of day, and cites enacting turns",
        ctx do
     id = ctx.resident.id
 
@@ -156,7 +156,7 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
       )
 
     :ok = Kumbukumbu.enact_behaviour(id, n, "turn", "t1", ctx.brain)
-    :ok = Kumbukumbu.affirm_behaviour(id, n, "yes", ctx.steward)
+    :ok = Kumbukumbu.affirm_behaviour(id, n, "yes", ctx.witness)
 
     noon = ~U[2026-10-26 12:00:00Z]
     assert %{count: 0, text: ""} = Kumbukumbu.how_i_act(id, %{text: "hello", tags: [], at: noon})
@@ -165,7 +165,7 @@ defmodule Oneiroi.Kumbukumbu.EthosTest do
              Kumbukumbu.how_i_act(id, %{text: "How is the GARDEN?", tags: [], at: noon})
 
     assert text =~ "# How I act" and text =~ "##{n} care (keep)"
-    assert text =~ "affirmed 1x by my steward"
+    assert text =~ "affirmed 1x by my witness"
     assert text =~ ~s(turn t1: "Already did: the tomatoes want water.")
 
     assert %{count: 1} = Kumbukumbu.how_i_act(id, %{text: "x", tags: ["haven"], at: noon})

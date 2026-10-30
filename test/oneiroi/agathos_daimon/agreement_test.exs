@@ -12,12 +12,12 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
   alias Oneiroi.Sunna
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
     Honcho.clear(for: resident.id)
 
@@ -26,7 +26,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
       Honcho.clear(for: resident.id)
     end)
 
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
   test "a version is proposed by one party and agreed or declined by the other, never its proposer; a newer proposal supersedes; the brain reads it",
@@ -50,7 +50,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_such_version}} =
              AgathosDaimon.agree_contract(id, 9, "yes", ctx.actor)
 
-    other = Actor.new(:steward, Fixtures.account!().id)
+    other = Actor.new(:witness, Fixtures.account!().id)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_a_party}} =
              AgathosDaimon.agree_contract(id, 1, "yes", other)
@@ -88,19 +88,19 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
                version: 1,
                state: "declined",
                decision_note: "not evenings, all of free time",
-               decided_by: "steward"
+               decided_by: "witness"
              }
            ] =
              AgathosDaimon.contracts(id)
 
-    assert AgathosDaimon.contract_text(id) =~ "Open, version 3, proposed by the steward"
+    assert AgathosDaimon.contract_text(id) =~ "Open, version 3, proposed by the witness"
     assert :ok = AgathosDaimon.agree_contract(id, 3, "fine", ctx.brain)
 
     assert %{in_force: %{version: 3}, open: nil, solo_sessions_private: false} =
              AgathosDaimon.contract(id)
 
     assert AgathosDaimon.contract_text(id) =~
-             "In force, version 3: your solo sessions are readable by your steward."
+             "In force, version 3: your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
 
     # Renegotiated: the agreed version replaces the one in force.
     assert {:ok, 4} =
@@ -151,23 +151,61 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert Enum.any?(messages, &(&1.role == :tool and &1.content =~ "Proposed version 5"))
     assert_received {:shown, shown}
     assert Enum.any?(shown, &(&1.role == :system and &1.content =~ "In force, version 4"))
+
+    # The contract rides the prefix, ahead of the index (spec §5, P2).
+    contract_at = Enum.find_index(shown, &(&1.role == :system and &1.content =~ "In force"))
+
+    index_at =
+      Enum.find_index(shown, &(&1.role == :system and &1.content =~ "bookmark is listed"))
+
+    assert is_integer(contract_at) and is_integer(index_at) and contract_at < index_at
     assert %{open: %{version: 5, proposed_by: "resident"}} = AgathosDaimon.contract(id)
   end
 
-  test "under the privacy term free time is the resident's own: a locked row to the steward until shared",
+  test "the contract renews by choice: due a year after it was agreed or last renewed, a flag and never a lapse; renewed by either party",
        ctx do
     id = ctx.id
-
-    {:ok, 1} =
-      AgathosDaimon.propose_contract(
-        id,
-        %{"solo_sessions_private" => true},
-        "",
-        "mine",
-        ctx.brain
-      )
-
+    {:ok, 1} = AgathosDaimon.propose_contract(id, %{}, "Vows.", "mine", ctx.brain)
     :ok = AgathosDaimon.agree_contract(id, 1, "yours", ctx.actor)
+    assert %{due: false, since: %DateTime{}} = AgathosDaimon.contract(id)
+    refute AgathosDaimon.contract_text(id) =~ "Due for renewal"
+
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_in_force}} =
+             AgathosDaimon.renew_contract(id, 2, "wrong one", ctx.actor)
+
+    Clock.Fake.advance(366 * 86_400)
+    assert %{due: true, in_force: %{version: 1}} = AgathosDaimon.contract(id)
+
+    assert AgathosDaimon.contract_text(id) =~
+             "Due for renewal: version 1 has stood since 2026-10-26"
+
+    assert AgathosDaimon.contract_text(id) =~ "In force, version 1"
+
+    assert {:ok, %{findings: [], results: results}} =
+             Oneiroi.HuginnMuninn.run_audits(id, ctx.actor)
+
+    assert %{tone: "warn", value: 1, finding: finding} =
+             Enum.find(results, &(&1.key == "contract_due"))
+
+    assert finding =~ "a year and more"
+
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_a_party}} =
+             AgathosDaimon.renew_contract(id, 1, "not mine", Actor.new(:witness, "nobody"))
+
+    assert :ok = AgathosDaimon.renew_contract(id, 1, "another year", ctx.brain)
+
+    assert %{due: false, in_force: %{version: 1, renewal_note: "another year"}} =
+             AgathosDaimon.contract(id)
+
+    refute AgathosDaimon.contract_text(id) =~ "Due for renewal"
+    {:ok, %{results: results}} = Oneiroi.HuginnMuninn.run_audits(id, ctx.actor)
+    assert %{tone: "silent"} = Enum.find(results, &(&1.key == "contract_due"))
+  end
+
+  test "free time is the resident's own by default, with no term agreed: a locked row to the witness until shared",
+       ctx do
+    id = ctx.id
+    assert %{in_force: nil} = AgathosDaimon.contract(id)
     Model.reply("Alone with the garden.", for: id)
 
     :ok = Sunna.set_free_time(id, "12:03", ctx.actor)
@@ -176,41 +214,41 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert %{free_time_last: {"2026-10-26", "ran"}} = Sunna.today(id)
 
     [free] =
-      {:account, ctx.steward.id}
+      {:account, ctx.witness.id}
       |> Kumbukumbu.sessions()
       |> Enum.filter(&(&1.kind == "free_time"))
 
     assert %{private: true, shared: false} = free
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_session_private}} =
-             Kumbukumbu.transcript({:account, ctx.steward.id}, free.key)
+             Kumbukumbu.transcript({:account, ctx.witness.id}, free.key)
 
     assert {:ok, _s, [_note, %{content: "Alone with the garden."}]} =
              Kumbukumbu.transcript({:resident, id}, free.key)
 
-    # The policy says the same as the refusal: no message of the session is the steward's.
+    # The policy says the same as the refusal: no message of the session is the witness's.
     assert [] ==
-             Oneiroi.Scope.account(ctx.steward.id, fn -> Kumbukumbu.Store.messages(free.key) end)
+             Oneiroi.Scope.account(ctx.witness.id, fn -> Kumbukumbu.Store.messages(free.key) end)
 
     assert :ok = Kumbukumbu.share_session(id, free.key, "you may read this one", ctx.brain)
 
     assert {:ok, %{shared: true}, [_, %{content: "Alone with the garden."}]} =
-             Kumbukumbu.transcript({:account, ctx.steward.id}, free.key)
+             Kumbukumbu.transcript({:account, ctx.witness.id}, free.key)
   end
 
-  test "custody is proposed by the steward and accepted by the proposed account; the wall is refused meanwhile; locked, the new steward is party to nothing before; revealed, to everything the old one was",
+  test "custody is proposed by the witness and accepted by the proposed account; the wall is refused meanwhile; locked, the new witness is party to nothing before; revealed, to everything the old one was",
        ctx do
     id = ctx.id
     new = Fixtures.account!()
-    new_actor = Actor.new(:steward, new.id)
+    new_actor = Actor.new(:witness, new.id)
     Model.reply("Hello.", for: id)
     assert {:ok, _} = Oneiroi.Brain.turn(id, ctx.key, "remember this", ctx.actor)
 
-    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_stewarded}} =
+    assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_witnessed}} =
              AgathosDaimon.propose_custody(id, new.id, "take her", new_actor)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_custodian_invalid}} =
-             AgathosDaimon.propose_custody(id, ctx.steward.id, "to myself", ctx.actor)
+             AgathosDaimon.propose_custody(id, ctx.witness.id, "to myself", ctx.actor)
 
     assert :ok = AgathosDaimon.propose_custody(id, new.id, "take her", ctx.actor)
 
@@ -231,28 +269,28 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_transfer_proposed}} =
              AgathosDaimon.accept_custody(id, "x", new_actor)
 
-    # Locked wall: the new steward is party to nothing that came before.
+    # Locked wall: the new witness is party to nothing that came before.
     assert :ok = AgathosDaimon.set_export_wall(id, :locked, "the past stays with me", ctx.actor)
     assert :ok = AgathosDaimon.propose_custody(id, new.id, "take her", ctx.actor)
     assert :ok = AgathosDaimon.withdraw_custody(id, "wait", ctx.actor)
     assert :ok = AgathosDaimon.propose_custody(id, new.id, "take her now", ctx.actor)
     assert :ok = AgathosDaimon.accept_custody(id, "I will", new_actor)
 
-    assert {:ok, %{account_id: steward_now, custody: custody, custody_proposed_to: nil}} =
+    assert {:ok, %{account_id: witness_now, custody: custody, custody_proposed_to: nil}} =
              AgathosDaimon.fetch(id)
 
-    assert steward_now == new.id and custody == "account:" <> new.id
-    # Identity's stewardship follows (gaia #13): the first version's
+    assert witness_now == new.id and custody == "account:" <> new.id
+    # Identity's witnessing follows (gaia #13): the first version's
     # handler matched the tuple form of custody against the wire form
     # and never ended or started one.
-    assert id in Oneiroi.Gaia.stewarded_residents(new.id)
-    refute id in Oneiroi.Gaia.stewarded_residents(ctx.steward.id)
+    assert id in Oneiroi.Gaia.witnessed_residents(new.id)
+    refute id in Oneiroi.Gaia.witnessed_residents(ctx.witness.id)
     assert [] = Kumbukumbu.sessions({:account, new.id})
-    assert [%{kind: "main"}] = Kumbukumbu.sessions({:account, ctx.steward.id})
+    assert [%{kind: "main"}] = Kumbukumbu.sessions({:account, ctx.witness.id})
 
-    # Revealed wall before the next transfer: the earlier sessions move to the newest steward.
+    # Revealed wall before the next transfer: the earlier sessions move to the newest witness.
     third = Fixtures.account!()
-    third_actor = Actor.new(:steward, third.id)
+    third_actor = Actor.new(:witness, third.id)
     assert :ok = AgathosDaimon.set_export_wall(id, :revealed, "let the next one read", new_actor)
     assert :ok = AgathosDaimon.propose_custody(id, third.id, "onwards", new_actor)
     assert :ok = AgathosDaimon.accept_custody(id, "gladly", third_actor)
@@ -262,6 +300,6 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert {:ok, _s, [%{content: "remember this"}, %{content: "Hello."}]} =
              Kumbukumbu.transcript({:account, third.id}, ctx.key)
 
-    assert [] = Kumbukumbu.sessions({:account, ctx.steward.id})
+    assert [] = Kumbukumbu.sessions({:account, ctx.witness.id})
   end
 end

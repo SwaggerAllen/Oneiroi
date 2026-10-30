@@ -7,7 +7,7 @@ one disagree about protocol, that file wins.
 
 ## What this is
 
-A hosted, multi-tenant platform for AI residents and their stewards.
+A hosted, multi-tenant platform for AI residents and their witnesses.
 Design source of truth: `design/oneiroi-spec.md` (cited as *spec §n*).
 Build sequencing: `design/p0-plan.md`. Coding rules with their reasons:
 `design/conventions.md` (*conventions §n*): read it before writing

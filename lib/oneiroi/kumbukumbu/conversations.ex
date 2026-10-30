@@ -4,7 +4,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   session keys, turn refs, instants and content hashes are made, and the
   reads the transcript screen and the brain take.
 
-  Reads for a steward run under the account's scope, which is the
+  Reads for a witness run under the account's scope, which is the
   visibility rule itself (spec §6.3): an account sees the sessions it
   was party to and nothing else, enforced by the policy on the rows.
   The brain reads under the resident's scope and sees everything.
@@ -29,7 +29,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
          do: {:ok, key}
   end
 
-  @doc "The main session between a resident and its steward, opened on first ask."
+  @doc "The main session between a resident and its witness, opened on first ask."
   def main_session(resident_id, account_id, %Actor{} = actor) do
     existing =
       Scope.account(account_id, fn ->
@@ -171,7 +171,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
 
   # ---- reads ----
 
-  @doc "The sessions a scope sees: `{:account, id}` for a steward, `{:resident, id}` for the brain."
+  @doc "The sessions a scope sees: `{:account, id}` for a witness, `{:resident, id}` for the brain."
   def sessions(scope), do: Scope.run(scope, fn -> Store.sessions() end)
 
   # A private, unshared session is a locked row to the account party:

@@ -26,10 +26,10 @@ placeholder is replaced by the pin in the regression slice.
 
 ## #10
 Spec §5: "Tools are the same core functions the MCP server exposes,
-chosen by role; it never gets steward operations." Capturing the calls
+chosen by role; it never gets witness operations." Capturing the calls
 is spec §6.3's full capture: a transcript showing a reply that "just
 knew" something the resident looked up is a transcript with a hole. A
-turn that dies on a misnamed tool loses the reply the steward is waiting
+turn that dies on a misnamed tool loses the reply the witness is waiting
 for; the model reads the error and tries again or answers without it.
 
 ## #11
@@ -53,7 +53,7 @@ turns in front of it"; "the brain self-tags at turn time
 ## #14
 Spec §6.2: "every authored field offers 'write it with me' (a draft
 from a prompt, billed under the `drafting` purpose)". Returned rather
-than written so the origin on the seed is the steward's statement, not
+than written so the origin on the seed is the witness's statement, not
 the model's.
 
 ## #15
@@ -97,3 +97,25 @@ on Oneiroi, from which repository, whether the attestation held, and
 what did not transfer"; spec §9 step 4: "she wakes oriented, told what
 moved". The three attestation values are spelled out because `failed`
 is the one the resident should ask about and a bare word says nothing.
+
+## #27
+Spec §5 as amended by v0.2: "the contract and the limits ride the
+prefix... never scored, budgeted, decayed or compacted"; Max: "a
+safeword that has to be retrieved is a document about a safeword."
+The near-miss record: Max, "the near-misses are where a character
+quietly bends"; no `refs` on the row because the projector derives
+`last_indexed_at` from `refs` (kumbukumbu #20). The alarm: Max, "a
+successful write is not an arrival"; Kael's instance at 93 to 94 per
+cent of its window with no warning. The summary's register: Red, "a
+formal report of the conversation can pull him toward that same
+report-like voice", and §1.13, the sentence is the resident's; the
+first version of the prompt said "write in the first person, as
+yourself", which the reading of the batch found before anything ran.
+
+## #28
+Spec §6.4 as amended: "the terms of judgment are published and the
+resident is party to setting them"; Jack: "I'd want to know a trial
+exists and have a say in its criteria, not its sealed prompts"; and
+"an intelligible account of what informed the eventual model choice...
+enough to challenge 'we preserved you'". The prompt stays sealed
+because the prompt is the trial.

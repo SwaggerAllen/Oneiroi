@@ -1,10 +1,10 @@
 defmodule Oneiroi.Gaia do
   @moduledoc """
-  Accounts, authentication, sessions, stewardship (spec §6.1).
+  Accounts, authentication, sessions, witnessing (spec §6.1).
 
   A password and, once enrolled, a TOTP second factor; sessions as random
   ids with only the hash stored, thirty days; API tokens the same way;
-  stewardship as a relation from an account to a resident with a start
+  witnessing as a relation from an account to a resident with a start
   and an end, written by this system when a resident is created or custody
   moves. Failed logins slow down rather than lock out.
 
@@ -48,11 +48,11 @@ defmodule Oneiroi.Gaia do
       Events.TokenRevoked,
       Events.KeyStored,
       Events.KeyRevoked,
-      Events.StewardshipStarted,
-      Events.StewardshipEnded,
+      Events.WitnessingStarted,
+      Events.WitnessingEnded,
       Store,
       Store.Account,
-      Store.Stewardship,
+      Store.Witnessing,
       Throttle
     ]
 
@@ -92,8 +92,8 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.TokenRevoked, 1},
       {Oneiroi.Gaia.Events.KeyStored, 1},
       {Oneiroi.Gaia.Events.KeyRevoked, 1},
-      {Oneiroi.Gaia.Events.StewardshipStarted, 1},
-      {Oneiroi.Gaia.Events.StewardshipEnded, 1}
+      {Oneiroi.Gaia.Events.WitnessingStarted, 1},
+      {Oneiroi.Gaia.Events.WitnessingEnded, 1}
     ]
   end
 
@@ -126,7 +126,7 @@ defmodule Oneiroi.Gaia do
       # it, so the guardrail lookup does not close a cycle with this list.
       {Oneiroi.Gaia.Throttle, component: __MODULE__},
       Oneiroi.Gaia.Projectors.Accounts,
-      Oneiroi.Gaia.Handlers.Stewardship
+      Oneiroi.Gaia.Handlers.Witnessing
     ]
   end
 
@@ -171,7 +171,7 @@ defmodule Oneiroi.Gaia do
     do: Accounts.revoke_token(account_id, token_hash, actor)
   )
 
-  @doc "Stores the steward's OpenRouter key, encrypted; storing again rotates it."
+  @doc "Stores the witness's OpenRouter key, encrypted; storing again rotates it."
   @spec store_key(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(store_key(account_id, raw_key, actor),
     do: Accounts.store_key(account_id, raw_key, actor)
@@ -181,7 +181,7 @@ defmodule Oneiroi.Gaia do
   @spec revoke_key(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(revoke_key(account_id, actor), do: Accounts.revoke_key(account_id, actor))
 
-  @doc "The steward's key, wrapped as a secret, for the provider port."
+  @doc "The witness's key, wrapped as a secret, for the provider port."
   @spec key_for(String.t()) :: {:ok, Oneiroi.Config.Secret.t()} | {:error, :gaia_no_key}
   defexport(key_for(account_id), do: Accounts.key_for(account_id))
 
@@ -189,11 +189,11 @@ defmodule Oneiroi.Gaia do
   @spec key_status(String.t()) :: %{present: boolean(), stored_at: DateTime.t() | nil}
   defexport(key_status(account_id), do: Accounts.key_status(account_id))
 
-  @doc "The resident ids an account currently stewards."
-  @spec stewarded_residents(String.t()) :: [String.t()]
-  defexport(stewarded_residents(account_id), do: Accounts.stewarded_residents(account_id))
+  @doc "The resident ids an account currently witnesses."
+  @spec witnessed_residents(String.t()) :: [String.t()]
+  defexport(witnessed_residents(account_id), do: Accounts.witnessed_residents(account_id))
 
-  @doc "An account's email by id, under the platform scope by name (conventions §12): what names an investigator (glitnir #8) and a proposed steward."
+  @doc "An account's email by id, under the platform scope by name (conventions §12): what names an investigator (glitnir #8) and a proposed witness."
   @spec account_email(String.t()) :: String.t() | nil
   defexport(account_email(account_id), do: Accounts.email(account_id))
 

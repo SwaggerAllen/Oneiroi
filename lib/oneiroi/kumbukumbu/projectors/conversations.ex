@@ -191,12 +191,12 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   end)
 
   # A revealed wall at a transfer of custody (agathos-daimon #24): every
-  # account-keyed row of the resident becomes the new steward's, which is
+  # account-keyed row of the resident becomes the new witness's, which is
   # what "revealing it grants read on the earlier sessions" is (spec
-  # §6.3): the earlier sessions are whoever's stewarded before, not only
-  # the steward handing over, and a steward who handed over no longer
-  # stewards anything here. The first version moved the handing steward's
-  # rows alone, so a session from two stewards back stayed where it was.
+  # §6.3): the earlier sessions are whoever's witnessed before, not only
+  # the witness handing over, and a witness who handed over no longer
+  # witnesses anything here. The first version moved the handing witness's
+  # rows alone, so a session from two witnesses back stayed where it was.
   # Private sessions' messages are keyed to the resident and stay where
   # they are; their locked rows move with the rest.
   fold(%Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed{} = e, _metadata, fn multi ->
@@ -251,7 +251,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
 
   # The first account among the participants is the party the policy
   # keys on; a session with no account party (none exist yet: solo
-  # sessions carry the steward's) would be the resident's alone.
+  # sessions carry the witness's) would be the resident's alone.
   defp account_party(participants) when is_list(participants), do: List.first(participants)
   defp account_party(_other), do: nil
 

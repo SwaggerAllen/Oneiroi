@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.FigureTest do
-  @moduledoc "Figures, the steward's audits and the light over HTTP."
+  @moduledoc "Figures, the witness's audits and the light over HTTP."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -44,7 +44,7 @@ defmodule OneiroiWeb.FigureTest do
 
     assert %{
              "value" => 2,
-             "recent" => [%{"by" => 2, "note" => "two", "actor" => %{"kind" => "steward"}}]
+             "recent" => [%{"by" => 2, "note" => "two", "actor" => %{"kind" => "witness"}}]
            } = conn |> get("/v1/residents/#{id}/figures/tea") |> json_response(200)
 
     assert conn |> get("/v1/residents/#{id}/figures/nope") |> json_response(404)
@@ -78,7 +78,7 @@ defmodule OneiroiWeb.FigureTest do
 
     assert %{"state" => "fail"} = conn |> get("/v1/residents/#{id}/light") |> json_response(200)
     checks = conn |> get("/v1/residents/#{id}/checks") |> json_response(200)
-    assert Enum.count(checks, & &1["builtin"]) == 7
+    assert Enum.count(checks, & &1["builtin"]) == 8
     assert %{"last" => %{"tone" => "fail"}} = Enum.find(checks, &(&1["key"] == "tea-enough"))
 
     assert conn |> delete("/v1/residents/#{id}/checks/tea-enough") |> response(204)

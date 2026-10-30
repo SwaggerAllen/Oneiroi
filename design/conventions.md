@@ -234,7 +234,7 @@ to a human, so a flaky suite defeats the automation.
   integration layer needs the real tables.
 - **`:live` is a tag and a cadence, never a gate.** It belongs only on a
   test that crosses a real network boundary. Oneiroi's live suite is the
-  regression run on the steward's key.
+  regression run on the witness's key.
 - **Nothing in CI calls a paid model.** The one network read allowed is
   OpenRouter's public catalogue, to check model ids.
 - **Ecto sandbox, async by default**; a test that cannot run async says why.

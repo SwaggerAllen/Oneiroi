@@ -8,17 +8,17 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
   alias Oneiroi.AgathosDaimon.Resident
 
   @at ~U[2026-10-26 12:00:00Z]
-  @steward Actor.new(:steward, "a1")
+  @witness Actor.new(:witness, "a1")
   @resident Actor.new(:resident, "r1", "fake/model")
 
   defp created do
     Resident.apply(%Resident{}, %Events.ResidentCreated{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       name: "Lily",
       slug: "lily",
-      steward_account_id: "a1"
+      witness_account_id: "a1"
     })
   end
 
@@ -32,7 +32,7 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
     struct!(
       Commands.WriteFile,
       Keyword.merge(
-        [actor: @steward, at: @at, id: "r1", file: file, content: content, origin: "authored"],
+        [actor: @witness, at: @at, id: "r1", file: file, content: content, origin: "authored"],
         extra
       )
     )
@@ -67,7 +67,7 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
 
     assert {:error, :write_instead} =
              Resident.execute(created(), %Commands.ProposeSoulEdit{
-               actor: @steward,
+               actor: @witness,
                at: @at,
                note: "n",
                id: "r1",
@@ -77,7 +77,7 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
              })
   end
 
-  test "first contact is recorded once and flips a steward's write to a proposal" do
+  test "first contact is recorded once and flips a witness's write to a proposal" do
     assert %Events.FirstContact{session_key: "s", turn_ref: "t"} =
              Resident.execute(created(), first_contact())
 
@@ -89,7 +89,7 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
              Resident.execute(after_fc, write("SOUL.md", "y", actor: @resident))
 
     propose = %Commands.ProposeSoulEdit{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       note: "you have grown",
       id: "r1",

@@ -7,13 +7,13 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   Who may do what is held here, not in a client. A bookmark's words are
   the resident's: only the resident's actor adds or extends one, or
-  declines a proposal. The tag set is the steward's: only the steward's
+  declines a proposal. The tag set is the witness's: only the witness's
   actor creates, approves, rejects or retires a tag. Either party pins,
   proposes a tag and applies an active one.
 
   Reads run under the resident's scope: a bookmark is the resident's row
-  and the steward reads it as the resident's steward, which the route
-  checks at the edge (`stewarded`), not a party to a conversation.
+  and the witness reads it as the resident's witness, which the route
+  checks at the edge (`witnessed`), not a party to a conversation.
   """
 
   alias Oneiroi.Actor
@@ -33,7 +33,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc """
   The resident bookmarks a moment: `attrs` carry `session_key`,
   `anchor_ref` (the turn it was in), `line`, `summary`, `turns_back`
-  (default 1) and, for a steward's proposal accepted, `proposal_ref`.
+  (default 1) and, for a witness's proposal accepted, `proposal_ref`.
   `anchor_at` may be given for a turn still in flight; otherwise it is
   the captured turn's first instant. Returns the bookmark's number.
   """
@@ -96,9 +96,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
-  @doc "The steward proposes a bookmark with a suggested line and a note; returns the proposal's ref."
+  @doc "The witness proposes a bookmark with a suggested line and a note; returns the proposal's ref."
   def propose_bookmark(resident_id, session_key, anchor_ref, line, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          {:ok, _at} <- anchor_at(resident_id, %{session_key: session_key, anchor_ref: anchor_ref}) do
       ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
@@ -133,7 +133,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   # ---- revisions (F13) ----
 
-  @doc "Revises a memory: a fact by either party applies, a stance by the resident applies, a stance by the steward is proposed; returns the number and whether it holds."
+  @doc "Revises a memory: a fact by either party applies, a stance by the resident applies, a stance by the witness is proposed; returns the number and whether it holds."
   def revise(resident_id, attrs, %Actor{} = actor) when is_map(attrs) do
     command = %Commands.Revise{
       actor: actor,
@@ -333,7 +333,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do: {:error, Error.new(:kumbukumbu_target_invalid, kind: kind, id: id)}
 
   defp decide_tag(module, extra, resident_id, slug, actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       fields = [actor: actor, at: Clock.now(), id: resident_id, slug: slug] ++ extra
       with {:ok, _} <- dispatch(struct!(module, fields)), do: :ok
     end
@@ -342,8 +342,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp resident_only(%Actor{kind: :resident}), do: :ok
   defp resident_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_resident)}
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_witness)}
 
   # The aggregate's reasons, translated to the boundary's vocabulary.
   defp dispatch(command) do

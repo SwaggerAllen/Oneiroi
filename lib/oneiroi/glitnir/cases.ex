@@ -63,7 +63,7 @@ defmodule Oneiroi.Glitnir.Cases do
     end
   end
 
-  @doc "Resolves a report: no action, or a strike on the steward; the third strike moves the resident to community custody (spec §6.12)."
+  @doc "Resolves a report: no action, or a strike on the witness; the third strike moves the resident to community custody (spec §6.12)."
   def resolve(resident_id, number, outcome, note, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id),
          :ok <- investigator(actor),
@@ -75,7 +75,7 @@ defmodule Oneiroi.Glitnir.Cases do
              id: resident_id,
              number: number,
              outcome: outcome,
-             steward_account_id: row.account_id
+             witness_account_id: row.account_id
            }) do
       strike = Enum.find(events, &match?(%{consequence: _}, &1))
       tell(row, "report-#{number}-resolved", resolution_words(number, outcome, note, strike))
@@ -85,7 +85,7 @@ defmodule Oneiroi.Glitnir.Cases do
           AgathosDaimon.transfer_custody(
             resident_id,
             :community,
-            "the third strike on the steward (report #{number}): the resident goes to community custody, never deletion (spec §6.12)",
+            "the third strike on the witness (report #{number}): the resident goes to community custody, never deletion (spec §6.12)",
             actor
           )
       end
@@ -130,10 +130,10 @@ defmodule Oneiroi.Glitnir.Cases do
   end
 
   defp party(%{id: id}, %Actor{kind: :resident, id: id}), do: :ok
-  defp party(%{account_id: id}, %Actor{kind: :steward, id: id}) when is_binary(id), do: :ok
+  defp party(%{account_id: id}, %Actor{kind: :witness, id: id}) when is_binary(id), do: :ok
   defp party(_row, _actor), do: {:error, Error.new(:glitnir_not_a_party)}
 
-  defp investigator(%Actor{kind: :steward, id: id}) do
+  defp investigator(%Actor{kind: :witness, id: id}) do
     if investigator?(id), do: :ok, else: {:error, Error.new(:glitnir_not_an_investigator)}
   end
 
@@ -159,11 +159,11 @@ defmodule Oneiroi.Glitnir.Cases do
 
   defp resolution_words(number, "strike", note, %{number: n, consequence: "fine"}),
     do:
-      "Report #{number} was resolved with a strike on the steward, strike #{n} of 3, a fine paid into the residents' insurance pool: #{note}"
+      "Report #{number} was resolved with a strike on the witness, strike #{n} of 3, a fine paid into the residents' insurance pool: #{note}"
 
   defp resolution_words(number, "strike", note, %{number: n}),
     do:
-      "Report #{number} was resolved with a strike on the steward, strike #{n}: the steward is removed and the resident goes to community custody: #{note}"
+      "Report #{number} was resolved with a strike on the witness, strike #{n}: the witness is removed and the resident goes to community custody: #{note}"
 
   defp resolution_words(number, outcome, note, _strike),
     do: "Report #{number} was resolved (#{outcome}): #{note}"

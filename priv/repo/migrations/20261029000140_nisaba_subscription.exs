@@ -15,7 +15,7 @@ defmodule Oneiroi.Repo.Migrations.NisabaSubscription do
       add(:cancelled_at, :utc_datetime_usec)
       add(:custody_due_at, :utc_datetime_usec)
       add(:policy_model, :string)
-      add(:policy_steward, :string)
+      add(:policy_witness, :string)
       add(:policy_free_time, :string)
       add(:policy_term, :string)
       add(:policy_set_at, :utc_datetime_usec)
@@ -23,7 +23,7 @@ defmodule Oneiroi.Repo.Migrations.NisabaSubscription do
 
     create(unique_index(:nisaba_subscription, [:resident_id]))
 
-    # A resident in community custody has no steward (spec §6.2), and the
+    # A resident in community custody has no witness (spec §6.2), and the
     # custody fold writes `account_id: nil`: the projection macro forces
     # the scope column non-null, so the first cancelled term to run would
     # have crashed the resident projector. The subscription's nightly

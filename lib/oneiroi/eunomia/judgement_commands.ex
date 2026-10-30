@@ -23,7 +23,8 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
         :outcome,
         :advice,
         :advice_text,
-        :judge_model
+        :judge_model,
+        :criteria
       ]
   end
 
@@ -32,7 +33,8 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
   end
 
   defmodule RecordNight do
-    use Oneiroi.Command, fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary]
+    use Oneiroi.Command,
+      fields: [:id, :day, :messages, :chars, :found, :judge_model, :summary, :criteria]
   end
 
   defmodule FailNight do
@@ -48,7 +50,8 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
   end
 
   defmodule RunAudit do
-    use Oneiroi.Command, fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary]
+    use Oneiroi.Command,
+      fields: [:id, :ref, :conclusions, :flagged, :judge_model, :summary, :criteria]
   end
 
   defmodule FailAudit do

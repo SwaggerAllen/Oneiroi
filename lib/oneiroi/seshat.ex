@@ -167,8 +167,8 @@ defmodule Oneiroi.Seshat do
       {:seshat_not_publishable, "only a kind with a status (writing) is published",
        remedy: "publish a writing piece"},
       {:seshat_url_invalid, "a published URL is http or https", remedy: "give the URL"},
-      {:seshat_not_the_steward, "publishing is the steward's",
-       remedy: "the steward does this from the Library screen"},
+      {:seshat_not_the_witness, "publishing is the witness's",
+       remedy: "the witness does this from the Library screen"},
       {:seshat_index_failed, "the index run did not complete; nothing of it was written",
        remedy: "read the run's reason; the next run (nightly, or by hand) tries again"},
       {:seshat_day_invalid, "a journal day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
@@ -226,7 +226,7 @@ defmodule Oneiroi.Seshat do
   @spec document(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(document(resident_id, path), do: Documents.fetch(resident_id, path))
 
-  @doc "A steward publishes a writing piece at a URL: the event, and the file's status with it."
+  @doc "A witness publishes a writing piece at a URL: the event, and the file's status with it."
   @spec publish(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(publish(resident_id, path, url, actor),
     do: Documents.publish(resident_id, path, url, actor)

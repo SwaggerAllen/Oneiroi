@@ -7,7 +7,7 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
   alias Oneiroi.HuginnMuninn.Commands
   alias Oneiroi.HuginnMuninn.Events
 
-  @actor Actor.new(:steward, "a")
+  @actor Actor.new(:witness, "a")
   @at ~U[2026-10-26 12:00:00.000000Z]
 
   defp evolve(state \\ %Audits{}, events),
@@ -37,7 +37,7 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
     assert {:error, :no_such_counter} = Audits.execute(s, inc)
   end
 
-  test "a steward's audit is a validated rule, the same rule twice is no event, and a run carries a tone" do
+  test "a witness's audit is a validated rule, the same rule twice is no event, and a run carries a tone" do
     define =
       cmd(Commands.DefineUserAudit,
         key: "tea-enough",
@@ -65,12 +65,13 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
       cmd(Commands.RecordRun,
         key: "attestation",
         builtin: true,
-        tone: "ok",
+        tone: "silent",
         value: 0,
-        finding: "matched"
+        finding: "nothing flagged: matched"
       )
 
-    assert %Events.AuditRun{tone: "ok", builtin: true} = Audits.execute(s, run)
+    assert %Events.AuditRun{tone: "silent", builtin: true} = Audits.execute(s, run)
+    assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "ok"})
     assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "fine"})
   end
 end

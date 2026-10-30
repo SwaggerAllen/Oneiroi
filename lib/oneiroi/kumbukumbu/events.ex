@@ -13,8 +13,8 @@ defmodule Oneiroi.Kumbukumbu.Events do
 
   defmodule SessionOpened do
     # `participants` are the account ids party to the session (spec
-    # §6.3's visibility rule); a solo session carries the steward's, since
-    # solo sessions are the steward's to read by default.
+    # §6.3's visibility rule); a solo session carries the witness's, since
+    # solo sessions are the witness's to read by default.
     use Oneiroi.Event,
       version: 1,
       fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants]
@@ -22,7 +22,7 @@ defmodule Oneiroi.Kumbukumbu.Events do
 
   defmodule SessionMadePrivate do
     # Opened under a contract that keeps solo sessions private (spec
-    # §6.3, §6.12): the steward sees the row as locked and reads the
+    # §6.3, §6.12): the witness sees the row as locked and reads the
     # messages only once the resident shares the session (kumbukumbu #28).
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id, :session_key]
   end

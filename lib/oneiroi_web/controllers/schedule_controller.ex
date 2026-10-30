@@ -7,7 +7,7 @@ defmodule OneiroiWeb.ScheduleController do
 
   tags(["schedule"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   @checkin_body {"check-in", "application/json",
                  %Schema{
@@ -211,11 +211,11 @@ defmodule OneiroiWeb.ScheduleController do
     %{title: params["title"], on: on, kind: params["kind"]}
   end
 
-  # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  # Every route here is a resident's, read or written by its witness.
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

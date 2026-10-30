@@ -9,7 +9,7 @@ defmodule Oneiroi.SimaQian.FixtureTest do
 
   Six of the eleven resident events are in it (`ResidentCreated`,
   `IdMinted`, `RecordsRemoteSet`, `RootMismatchDetected`, `Imported`,
-  `CustodyTransferred`): the ones a steward and the nightly jobs reach
+  `CustodyTransferred`): the ones a witness and the nightly jobs reach
   through the exports today. `ResidentPaused`, `ResidentWoken` and
   `ExportWallSet` have no command edge yet, and `ExportWritten` and
   `BackupCommitted` are `export: false` by design.
@@ -70,7 +70,7 @@ defmodule Oneiroi.SimaQian.FixtureTest do
     # import's own events land on an earlier day than the lines they follow.
     Clock.Fake.advance(3 * 86_400)
     b = Fixtures.account!()
-    importer = Actor.new(:steward, b.id)
+    importer = Actor.new(:witness, b.id)
 
     assert {:ok, %{id: id, attestation: :none, events: 8}} =
              Oneiroi.SimaQian.rebuild(repo, b.id, importer)

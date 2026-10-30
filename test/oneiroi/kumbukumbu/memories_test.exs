@@ -8,11 +8,11 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
   alias Oneiroi.Kumbukumbu
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
     actor = Actor.new(:resident, resident.id, "fake/model")
-    steward_actor = Actor.new(:steward, steward.id)
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    witness_actor = Actor.new(:witness, witness.id)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
 
     turns =
       for n <- 1..3 do
@@ -26,7 +26,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
             ref,
             at,
             [
-              %{role: :user, content: "message #{n}", sent_at: at, actor: steward_actor},
+              %{role: :user, content: "message #{n}", sent_at: at, actor: witness_actor},
               %{role: :assistant, content: "reply #{n}", sent_at: at, actor: actor}
             ],
             actor
@@ -36,10 +36,10 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
       end
 
     {:ok,
-     steward: steward,
+     witness: witness,
      resident: resident,
      actor: actor,
-     steward_actor: steward_actor,
+     witness_actor: witness_actor,
      key: key,
      turns: turns}
   end
@@ -57,12 +57,12 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     )
   end
 
-  test "the resident bookmarks with a minted number; the steward cannot", ctx do
+  test "the resident bookmarks with a minted number; the witness cannot", ctx do
     assert {:ok, 1} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.actor)
     assert {:ok, 2} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.actor)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_resident}} =
-             Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.steward_actor)
+             Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx), ctx.witness_actor)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_no_such_turn}} =
              Kumbukumbu.add_bookmark(
@@ -78,8 +78,8 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
              Kumbukumbu.bookmarks(ctx.resident.id)
 
     # Another resident's numbers start at one: the sequence is the resident's.
-    other = Fixtures.resident!(ctx.steward)
-    {:ok, other_key} = Kumbukumbu.main_session(other.id, ctx.steward.id, ctx.actor)
+    other = Fixtures.resident!(ctx.witness)
+    {:ok, other_key} = Kumbukumbu.main_session(other.id, ctx.witness.id, ctx.actor)
     at = Clock.now()
     other_actor = Actor.new(:resident, other.id, "fake/model")
 
@@ -90,7 +90,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
         "o1",
         at,
         [
-          %{role: :user, content: "x", sent_at: at, actor: ctx.steward_actor}
+          %{role: :user, content: "x", sent_at: at, actor: ctx.witness_actor}
         ],
         other_actor
       )
@@ -124,18 +124,18 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
   test "a pin records who pinned, and the index puts pins first and marks them", ctx do
     {:ok, a} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{line: "first"}), ctx.actor)
     {:ok, b} = Kumbukumbu.add_bookmark(ctx.resident.id, attrs(ctx, %{line: "second"}), ctx.actor)
-    assert :ok = Kumbukumbu.pin_bookmark(ctx.resident.id, a, ctx.steward_actor)
+    assert :ok = Kumbukumbu.pin_bookmark(ctx.resident.id, a, ctx.witness_actor)
 
-    assert [%{number: ^b, pinned_at: nil}, %{number: ^a, pinned_by_kind: "steward"}] =
+    assert [%{number: ^b, pinned_at: nil}, %{number: ^a, pinned_by_kind: "witness"}] =
              Kumbukumbu.bookmarks(ctx.resident.id)
 
     assert %{included: [^a, ^b], left_out: 0, text: text} = Kumbukumbu.index(ctx.resident.id)
     assert text =~ "##{a} 2026-10-26 (pinned) first"
-    assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.steward_actor)
+    assert :ok = Kumbukumbu.unpin_bookmark(ctx.resident.id, a, ctx.witness_actor)
     assert %{included: [^b, ^a]} = Kumbukumbu.index(ctx.resident.id)
   end
 
-  test "the steward proposes; the resident accepts in its own words or declines with a note",
+  test "the witness proposes; the resident accepts in its own words or declines with a note",
        ctx do
     assert {:ok, ref} =
              Kumbukumbu.propose_bookmark(
@@ -144,10 +144,10 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
                "t1",
                "you lit up here",
                "I think this mattered to you",
-               ctx.steward_actor
+               ctx.witness_actor
              )
 
-    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_steward}} =
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_witness}} =
              Kumbukumbu.propose_bookmark(ctx.resident.id, ctx.key, "t1", "x", "n", ctx.actor)
 
     assert [%{ref: ^ref, state: "open", note: "I think this mattered to you"}] =
@@ -162,7 +162,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
 
     assert [] = Kumbukumbu.proposals(ctx.resident.id)
 
-    assert {:ok, %{line: "my own words", proposed_by_kind: "steward", anchor_ref: "t1"}, _} =
+    assert {:ok, %{line: "my own words", proposed_by_kind: "witness", anchor_ref: "t1"}, _} =
              Kumbukumbu.bookmark(ctx.resident.id, n)
 
     assert {:ok, ref2} =
@@ -172,7 +172,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
                "t3",
                "and here",
                "note",
-               ctx.steward_actor
+               ctx.witness_actor
              )
 
     assert :ok = Kumbukumbu.decline_proposal(ctx.resident.id, ref2, "not for me", ctx.actor)
@@ -182,7 +182,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
              Kumbukumbu.decline_proposal(ctx.resident.id, ref2, "again", ctx.actor)
   end
 
-  test "tags: proposed by either, decided by the steward, applied across kinds, one query back",
+  test "tags: proposed by either, decided by the witness, applied across kinds, one query back",
        ctx do
     assert :ok =
              Kumbukumbu.propose_tag(
@@ -192,17 +192,17 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
                ctx.actor
              )
 
-    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_steward}} =
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_not_the_witness}} =
              Kumbukumbu.approve_tag(ctx.resident.id, "haven", "yes", ctx.actor)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_tag_not_active}} =
              Kumbukumbu.apply_tag(ctx.resident.id, "haven", "conversation", ctx.key, ctx.actor)
 
-    assert :ok = Kumbukumbu.approve_tag(ctx.resident.id, "haven", "yes", ctx.steward_actor)
-    assert :ok = Kumbukumbu.create_tag(ctx.resident.id, "care", ctx.steward_actor)
+    assert :ok = Kumbukumbu.approve_tag(ctx.resident.id, "haven", "yes", ctx.witness_actor)
+    assert :ok = Kumbukumbu.create_tag(ctx.resident.id, "care", ctx.witness_actor)
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_slug_invalid}} =
-             Kumbukumbu.create_tag(ctx.resident.id, "Not Slug", ctx.steward_actor)
+             Kumbukumbu.create_tag(ctx.resident.id, "Not Slug", ctx.witness_actor)
 
     assert [%{slug: "care", state: "active"}, %{slug: "haven", state: "active", note: _}] =
              Kumbukumbu.tags(ctx.resident.id)
@@ -216,7 +216,7 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
                "haven",
                "conversation",
                ctx.key,
-               ctx.steward_actor
+               ctx.witness_actor
              )
 
     assert :ok = Kumbukumbu.apply_tag(ctx.resident.id, "haven", "turn", "t3", ctx.actor)
@@ -236,14 +236,14 @@ defmodule Oneiroi.Kumbukumbu.MemoriesTest do
     assert :ok = Kumbukumbu.remove_tagging(ctx.resident.id, "haven", "turn", "t3", ctx.actor)
     assert [_, _] = Kumbukumbu.tagged(ctx.resident.id, "haven")
 
-    assert :ok = Kumbukumbu.retire_tag(ctx.resident.id, "haven", ctx.steward_actor)
+    assert :ok = Kumbukumbu.retire_tag(ctx.resident.id, "haven", ctx.witness_actor)
     assert [_, _] = Kumbukumbu.tagged(ctx.resident.id, "haven")
 
     assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_tag_not_active}} =
              Kumbukumbu.apply_tag(ctx.resident.id, "haven", "turn", "t1", ctx.actor)
 
-    assert :ok = Kumbukumbu.propose_tag(ctx.resident.id, "maybe", "why", ctx.steward_actor)
-    assert :ok = Kumbukumbu.reject_tag(ctx.resident.id, "maybe", "no", ctx.steward_actor)
+    assert :ok = Kumbukumbu.propose_tag(ctx.resident.id, "maybe", "why", ctx.witness_actor)
+    assert :ok = Kumbukumbu.reject_tag(ctx.resident.id, "maybe", "no", ctx.witness_actor)
 
     assert [
              %{slug: "care"},

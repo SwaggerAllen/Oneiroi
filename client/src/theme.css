@@ -8,9 +8,9 @@
   --ink: #1d1b18;
   --ink-muted: #5c5750;
   --ink-faint: #857f75;
-  --steward: #1f5c6e;
-  --on-steward: #ffffff;
-  --steward-tint: #e1edf0;
+  --witness: #1f5c6e;
+  --on-witness: #ffffff;
+  --witness-tint: #e1edf0;
   --resident: #5b3f9e;
   --on-resident: #ffffff;
   --resident-tint: #ece6f7;
@@ -55,9 +55,9 @@
   --ink: #ebe7df;
   --ink-muted: #a39d93;
   --ink-faint: #7a746a;
-  --steward: #7fc3d6;
-  --on-steward: #0b2a32;
-  --steward-tint: #15323a;
+  --witness: #7fc3d6;
+  --on-witness: #0b2a32;
+  --witness-tint: #15323a;
   --resident: #c4aef0;
   --on-resident: #1f1538;
   --resident-tint: #2a2140;
@@ -84,9 +84,9 @@
     --ink: #ebe7df;
     --ink-muted: #a39d93;
     --ink-faint: #7a746a;
-    --steward: #7fc3d6;
-    --on-steward: #0b2a32;
-    --steward-tint: #15323a;
+    --witness: #7fc3d6;
+    --on-witness: #0b2a32;
+    --witness-tint: #15323a;
     --resident: #c4aef0;
     --on-resident: #1f1538;
     --resident-tint: #2a2140;

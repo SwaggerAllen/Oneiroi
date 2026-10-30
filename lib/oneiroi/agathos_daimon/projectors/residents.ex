@@ -10,7 +10,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   suffix is derived from the log alone, so a re-projection lands on the
   same slug. And the source's own backup bookkeeping (its remote, its
   export and backup marks) is history rather than this resident's state:
-  the rebuilt resident has no remote until its steward sets one, or the
+  the rebuilt resident has no remote until its witness sets one, or the
   nightly job would push a copy to the source's repository.
   """
   use Oneiroi.Projection, name: "agathos_daimon_residents"
@@ -26,11 +26,11 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.insert(multi, :resident, %Resident{
       id: e.id,
       resident_id: e.id,
-      account_id: e.steward_account_id,
+      account_id: e.witness_account_id,
       slug: if(imported?(metadata), do: e.slug <> "-" <> String.slice(e.id, 0, 8), else: e.slug),
       name: e.name,
       state: "active",
-      custody: "account:" <> e.steward_account_id,
+      custody: "account:" <> e.witness_account_id,
       created_at: e.at
     })
   end)
@@ -130,6 +130,15 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.DyadContractDeclined{} = e, _metadata, fn multi ->
     decide_contract(multi, e, "declined")
+  end)
+
+  fold(%Events.DyadContractRenewed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:renewed, e.version},
+      from(c in Contract, where: c.resident_id == ^e.id and c.version == ^e.version),
+      set: [renewed_at: e.at, renewal_note: e.note]
+    )
   end)
 
   fold(%Events.ExportWallSet{} = e, _metadata, fn multi ->

@@ -14,7 +14,7 @@ defmodule OneiroiWeb.Router do
     plug(OneiroiWeb.Plugs.Origin)
   end
 
-  pipeline :steward do
+  pipeline :witness do
     plug(OneiroiWeb.Plugs.RequirePrincipal)
   end
 
@@ -45,7 +45,7 @@ defmodule OneiroiWeb.Router do
     delete("/session", SessionController, :delete)
 
     scope "/" do
-      pipe_through(:steward)
+      pipe_through(:witness)
 
       get("/me", MeController, :show)
       post("/me/second-factor", SecondFactorController, :create)
@@ -173,6 +173,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/agreement", AgreementController, :show)
       post("/residents/:id/agreement/proposals", AgreementController, :propose)
       post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)
+      post("/residents/:id/agreement/renewal", AgreementController, :renew)
       put("/residents/:id/export-wall", AgreementController, :set_wall)
       post("/residents/:id/custody/proposals", AgreementController, :propose_custody)
       post("/residents/:id/custody/decision", AgreementController, :decide_custody)

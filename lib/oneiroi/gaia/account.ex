@@ -16,7 +16,7 @@ defmodule Oneiroi.Gaia.Account do
     key?: false,
     sessions: MapSet.new(),
     tokens: MapSet.new(),
-    stewardships: MapSet.new()
+    witnessings: MapSet.new()
   ]
 
   @type t :: %__MODULE__{}
@@ -88,11 +88,11 @@ defmodule Oneiroi.Gaia.Account do
 
   def execute(%__MODULE__{}, %Commands.RevokeKey{}), do: {:error, :no_key}
 
-  # Idempotent on purpose: the stewardship handler replays (conventions §7).
-  def execute(%__MODULE__{stewardships: s}, %Commands.StartStewardship{} = c) do
+  # Idempotent on purpose: the witnessing handler replays (conventions §7).
+  def execute(%__MODULE__{witnessings: s}, %Commands.StartWitnessing{} = c) do
     if MapSet.member?(s, c.resident_id),
       do: [],
-      else: %Events.StewardshipStarted{
+      else: %Events.WitnessingStarted{
         actor: c.actor,
         at: c.at,
         id: c.id,
@@ -100,9 +100,9 @@ defmodule Oneiroi.Gaia.Account do
       }
   end
 
-  def execute(%__MODULE__{stewardships: s}, %Commands.EndStewardship{} = c) do
+  def execute(%__MODULE__{witnessings: s}, %Commands.EndWitnessing{} = c) do
     if MapSet.member?(s, c.resident_id),
-      do: %Events.StewardshipEnded{actor: c.actor, at: c.at, id: c.id, resident_id: c.resident_id},
+      do: %Events.WitnessingEnded{actor: c.actor, at: c.at, id: c.id, resident_id: c.resident_id},
       else: []
   end
 
@@ -130,9 +130,9 @@ defmodule Oneiroi.Gaia.Account do
   def apply(%__MODULE__{} = a, %Events.KeyStored{}), do: %{a | key?: true}
   def apply(%__MODULE__{} = a, %Events.KeyRevoked{}), do: %{a | key?: false}
 
-  def apply(%__MODULE__{} = a, %Events.StewardshipStarted{} = e),
-    do: %{a | stewardships: MapSet.put(a.stewardships, e.resident_id)}
+  def apply(%__MODULE__{} = a, %Events.WitnessingStarted{} = e),
+    do: %{a | witnessings: MapSet.put(a.witnessings, e.resident_id)}
 
-  def apply(%__MODULE__{} = a, %Events.StewardshipEnded{} = e),
-    do: %{a | stewardships: MapSet.delete(a.stewardships, e.resident_id)}
+  def apply(%__MODULE__{} = a, %Events.WitnessingEnded{} = e),
+    do: %{a | witnessings: MapSet.delete(a.witnessings, e.resident_id)}
 end

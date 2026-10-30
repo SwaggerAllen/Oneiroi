@@ -7,7 +7,7 @@ defmodule OneiroiWeb.MemoryController do
 
   tags(["memory"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:bookmarks,
     summary: "The resident's bookmarks, newest first, with their tags and pins",
@@ -315,11 +315,11 @@ defmodule OneiroiWeb.MemoryController do
 
   def affirm_behaviour(conn, _params), do: problem(conn, 422, :note_required, "note is required")
 
-  # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  # Every route here is a resident's, read or written by its witness.
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp revision(r) do

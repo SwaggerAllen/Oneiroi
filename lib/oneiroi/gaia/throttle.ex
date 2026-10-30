@@ -3,7 +3,7 @@ defmodule Oneiroi.Gaia.Throttle do
   Failed logins slow down rather than lock out (spec §6.1): per email,
   the delay doubles from the configured base on each failure, capped at
   five seconds, and clears on success. A lockout hands an attacker a way
-  to lock the steward out; a delay costs them time and the steward one
+  to lock the witness out; a delay costs them time and the witness one
   wait. Counts live in ETS owned by this process and are lost on restart,
   which is the right failure: a restart is not a credential.
   """

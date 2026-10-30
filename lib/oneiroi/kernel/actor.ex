@@ -11,13 +11,13 @@ defmodule Oneiroi.Actor do
   serializer can restore it from the log (`Oneiroi.Event`).
   """
 
-  @kinds [:steward, :resident, :judge, :hands, :job, :platform]
+  @kinds [:witness, :resident, :judge, :hands, :job, :platform]
 
   @enforce_keys [:kind]
   @derive Jason.Encoder
   defstruct [:kind, :id, :model]
 
-  @type kind :: :steward | :resident | :judge | :hands | :job | :platform
+  @type kind :: :witness | :resident | :judge | :hands | :job | :platform
   @type t :: %__MODULE__{kind: kind(), id: String.t() | nil, model: String.t() | nil}
 
   @doc "The parties the platform knows."

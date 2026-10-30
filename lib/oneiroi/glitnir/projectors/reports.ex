@@ -65,7 +65,7 @@ defmodule Oneiroi.Glitnir.Projectors.Reports do
         resident_id: e.id,
         number: e.number,
         report: e.report,
-        steward_account_id: e.steward_account_id,
+        witness_account_id: e.witness_account_id,
         consequence: e.consequence,
         at: e.at
       },

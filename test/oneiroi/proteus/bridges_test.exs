@@ -13,11 +13,11 @@ defmodule Oneiroi.Proteus.BridgesTest do
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
 
     :ok =
       AgathosDaimon.write_file(
@@ -28,7 +28,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
         actor
       )
 
-    {:ok, key} = Kumbukumbu.main_session(resident.id, steward.id, actor)
+    {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
     Model.reply("I hear you.", for: resident.id)
     Honcho.clear(for: resident.id)
@@ -38,14 +38,14 @@ defmodule Oneiroi.Proteus.BridgesTest do
       Honcho.clear(for: resident.id)
     end)
 
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, key: key}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
   end
 
   test "a turn provisions the workspace with both peers and the card from git, syncs the two peers' words once, and Honcho's context lands in the next turn",
        ctx do
     id = ctx.id
     resident_peer = "resident-" <> id
-    steward_peer = "steward-" <> ctx.steward.id
+    witness_peer = "witness-" <> ctx.witness.id
 
     assert nil == Proteus.bridge(id)
 
@@ -54,7 +54,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
 
     assert %{
              workspace: ^id,
-             peers: [^resident_peer, ^steward_peer],
+             peers: [^resident_peer, ^witness_peer],
              card_source: "provision",
              card_lines: 2,
              syncs: 1
@@ -64,13 +64,13 @@ defmodule Oneiroi.Proteus.BridgesTest do
     state = Honcho.state(id)
     assert %{^resident_peer => %{custom_instructions: instructions}} = state.peer
 
-    assert instructions =~ resident_peer and instructions =~ steward_peer and
+    assert instructions =~ resident_peer and instructions =~ witness_peer and
              instructions =~ "Lily"
 
     assert state.card[resident_peer] == ["Curious, and slow to anger.", "Loves the garden."]
 
     assert [
-             %{peer: ^steward_peer, content: "how is the garden?"},
+             %{peer: ^witness_peer, content: "how is the garden?"},
              %{peer: ^resident_peer, content: "I hear you."}
            ] =
              state.messages[ctx.key]
@@ -78,7 +78,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
     assert [%{turn_ref: ^ref, outcome: "synced", messages: 2}] = Proteus.syncs(id, 10)
 
     # Once per turn: the same turn again is no second send.
-    {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
+    {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
 
     wire =
       Enum.map(
@@ -99,7 +99,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
     Honcho.put_context(
       id,
       resident_peer,
-      steward_peer,
+      witness_peer,
       "She asks about the garden most mornings."
     )
 
@@ -118,7 +118,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
     assert Enum.any?(shown, &(&1.role == :system and &1.content =~ "asks about the garden"))
 
     assert Enum.any?(
-             Kumbukumbu.injections({:account, ctx.steward.id}, ref2),
+             Kumbukumbu.injections({:account, ctx.witness.id}, ref2),
              &(&1.label == "honcho")
            )
 
@@ -141,7 +141,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
 
     Honcho.clear(for: id)
     :ok = Proteus.provision(id, ctx.actor)
-    {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.steward.id}, ctx.key)
+    {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
 
     wire =
       Enum.map(
@@ -196,8 +196,8 @@ defmodule Oneiroi.Proteus.BridgesTest do
     # A resident with no workspace but a soul: a visit would write its
     # card into a workspace nobody provisioned, which is how the test
     # sees the roster's filter.
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
 
     :ok =
       AgathosDaimon.write_file(
@@ -205,7 +205,7 @@ defmodule Oneiroi.Proteus.BridgesTest do
         "SOUL.md",
         "Quiet.",
         %{},
-        Actor.new(:steward, other_steward.id)
+        Actor.new(:witness, other_witness.id)
       )
 
     on_exit(fn -> Honcho.clear(for: other.id) end)
@@ -221,11 +221,11 @@ defmodule Oneiroi.Proteus.BridgesTest do
 
   test "nothing bleeds between two residents' workspaces, and a hands key is scoped and expiring",
        ctx do
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
-    other_actor = Actor.new(:steward, other_steward.id)
-    :ok = Oneiroi.Gaia.store_key(other_steward.id, "sk-or-test", other_actor)
-    {:ok, other_key} = Kumbukumbu.main_session(other.id, other_steward.id, other_actor)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
+    other_actor = Actor.new(:witness, other_witness.id)
+    :ok = Oneiroi.Gaia.store_key(other_witness.id, "sk-or-test", other_actor)
+    {:ok, other_key} = Kumbukumbu.main_session(other.id, other_witness.id, other_actor)
     Model.reply("Hello there.", for: other.id)
 
     on_exit(fn ->

@@ -3,7 +3,7 @@ defmodule Oneiroi.Repo.Migrations.KumbukumbuEthos do
   import Oneiroi.Migration
 
   # Behaviours are the resident's rows (spec §6.3, F55), read by the
-  # steward as the steward under the resident's scope, as bookmarks are.
+  # witness as the witness under the resident's scope, as bookmarks are.
   def change do
     projection :kumbukumbu_behaviour, scope: :resident do
       add(:number, :bigint, null: false)

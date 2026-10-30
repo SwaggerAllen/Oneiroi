@@ -2,11 +2,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Chat } from './Chat';
 import type { Message } from '../../api/types';
 
-const steward = { kind: 'steward', id: 'a1', model: null };
+const witness = { kind: 'witness', id: 'a1', model: null };
 const lily = { kind: 'resident', id: 'r1', model: 'openai/gpt-4o-mini' };
 
 const messages: Message[] = [
-  { session_key: 's', turn_ref: 't1', role: 'user', content: 'How is the garden?', sent_at: '2026-10-26T12:00:00Z', actor: steward, refusal: false },
+  { session_key: 's', turn_ref: 't1', role: 'user', content: 'How is the garden?', sent_at: '2026-10-26T12:00:00Z', actor: witness, refusal: false },
   { session_key: 's', turn_ref: 't1', role: 'tool', content: 'bookmark_add({"line":"the garden"}) -> Bookmarked as #1.', sent_at: '2026-10-26T12:00:01Z', actor: lily, refusal: false },
   { session_key: 's', turn_ref: 't1', role: 'assistant', content: 'The tomatoes want water. I bookmarked that you asked.', sent_at: '2026-10-26T12:00:02Z', actor: lily, refusal: false },
 ];

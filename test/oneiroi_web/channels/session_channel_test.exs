@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.SessionChannelTest do
-  @moduledoc "The streamed conversation: a steward joins their resident's session, sends, and gets deltas then the turn."
+  @moduledoc "The streamed conversation: a witness joins their resident's session, sends, and gets deltas then the turn."
   use OneiroiWeb.ChannelCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -11,24 +11,24 @@ defmodule OneiroiWeb.SessionChannelTest do
   setup do
     pid = Sandbox.start_owner!(Oneiroi.Repo, shared: true)
     on_exit(fn -> Sandbox.stop_owner(pid) end)
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", Actor.new(:steward, steward.id))
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", Actor.new(:witness, witness.id))
 
     {:ok, key} =
-      Oneiroi.Kumbukumbu.main_session(resident.id, steward.id, Actor.new(:steward, steward.id))
+      Oneiroi.Kumbukumbu.main_session(resident.id, witness.id, Actor.new(:witness, witness.id))
 
     Fake.clear()
-    {:ok, steward: steward, resident: resident, key: key}
+    {:ok, witness: witness, resident: resident, key: key}
   end
 
   test "a socket token or an API token connects; a stranger's token does not", ctx do
-    token = UserSocket.token(OneiroiWeb.Endpoint, ctx.steward.id)
+    token = UserSocket.token(OneiroiWeb.Endpoint, ctx.witness.id)
     assert {:ok, socket} = connect(UserSocket, %{"token" => token})
-    assert socket.assigns.principal.account_id == ctx.steward.id
+    assert socket.assigns.principal.account_id == ctx.witness.id
 
     {:ok, raw, _hash} =
-      Oneiroi.Gaia.issue_token(ctx.steward.id, "script", Actor.new(:steward, ctx.steward.id))
+      Oneiroi.Gaia.issue_token(ctx.witness.id, "script", Actor.new(:witness, ctx.witness.id))
 
     assert {:ok, _socket} = connect(UserSocket, %{"token" => raw})
 
@@ -36,10 +36,10 @@ defmodule OneiroiWeb.SessionChannelTest do
     assert :error = connect(UserSocket, %{})
   end
 
-  test "a steward joins their resident's session and a turn streams, and another account cannot join",
+  test "a witness joins their resident's session and a turn streams, and another account cannot join",
        ctx do
     {:ok, socket} =
-      connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, ctx.steward.id)})
+      connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, ctx.witness.id)})
 
     {:ok, _reply, socket} =
       subscribe_and_join(
@@ -65,7 +65,7 @@ defmodule OneiroiWeb.SessionChannelTest do
     {:ok, other_socket} =
       connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, other.id)})
 
-    assert {:error, %{reason: "not stewarded"}} =
+    assert {:error, %{reason: "not witnessed"}} =
              subscribe_and_join(
                other_socket,
                OneiroiWeb.SessionChannel,

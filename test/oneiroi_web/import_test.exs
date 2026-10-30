@@ -14,7 +14,7 @@ defmodule OneiroiWeb.ImportTest do
     account = Fixtures.account!()
 
     :ok =
-      Oneiroi.Gaia.store_key(account.id, "sk-or-test", Oneiroi.Actor.new(:steward, account.id))
+      Oneiroi.Gaia.store_key(account.id, "sk-or-test", Oneiroi.Actor.new(:witness, account.id))
 
     bare = Path.join(System.tmp_dir!(), "oneiroi-web-bare-#{System.unique_integer([:positive])}")
     :ok = Git.init_bare(bare)

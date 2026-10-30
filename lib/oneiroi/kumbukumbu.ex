@@ -199,9 +199,9 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_summary_empty, "a compaction needs a summary with words in it",
        remedy: "a model that returned nothing has not compacted; try on the next turn"},
       {:kumbukumbu_not_the_resident, "bookmarks are the resident's words (spec §6.3)",
-       remedy: "a steward proposes a bookmark and the resident writes or accepts it"},
-      {:kumbukumbu_not_the_steward, "the tag set is the steward's to decide (spec §6.3)",
-       remedy: "propose the tag; the steward approves or rejects it"},
+       remedy: "a witness proposes a bookmark and the resident writes or accepts it"},
+      {:kumbukumbu_not_the_witness, "the tag set is the witness's to decide (spec §6.3)",
+       remedy: "propose the tag; the witness approves or rejects it"},
       {:kumbukumbu_line_invalid, "a bookmark's line is at most 120 characters and not blank",
        remedy: "say it in a line; the summary holds the rest"},
       {:kumbukumbu_no_such_bookmark, "no bookmark has that number", remedy: "read the index"},
@@ -261,7 +261,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.open_session(resident_id, kind, adapter, participants, actor, opts)
   )
 
-  @doc "The main session between a resident and a steward, opened on first ask."
+  @doc "The main session between a resident and a witness, opened on first ask."
   @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(main_session(resident_id, account_id, actor),
@@ -415,7 +415,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.unpin_bookmark(resident_id, number, actor)
   )
 
-  @doc "The steward proposes a bookmark with a suggested line and a note; returns the proposal's ref."
+  @doc "The witness proposes a bookmark with a suggested line and a note; returns the proposal's ref."
   @spec propose_bookmark(
           String.t(),
           String.t(),
@@ -443,27 +443,27 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.propose_tag(resident_id, slug, note, actor)
   )
 
-  @doc "The steward approves a proposed tag, with a note."
+  @doc "The witness approves a proposed tag, with a note."
   @spec approve_tag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(approve_tag(resident_id, slug, note, actor),
     do: Memories.approve_tag(resident_id, slug, note, actor)
   )
 
-  @doc "The steward rejects a proposed tag, with a note."
+  @doc "The witness rejects a proposed tag, with a note."
   @spec reject_tag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(reject_tag(resident_id, slug, note, actor),
     do: Memories.reject_tag(resident_id, slug, note, actor)
   )
 
-  @doc "The steward adds a tag to the set."
+  @doc "The witness adds a tag to the set."
   @spec create_tag(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(create_tag(resident_id, slug, actor),
     do: Memories.create_tag(resident_id, slug, actor)
   )
 
-  @doc "The steward retires a tag; its taggings stay."
+  @doc "The witness retires a tag; its taggings stay."
   @spec retire_tag(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(retire_tag(resident_id, slug, actor),
     do: Memories.retire_tag(resident_id, slug, actor)
@@ -530,7 +530,7 @@ defmodule Oneiroi.Kumbukumbu do
 
   # ---- behaviours (Ethos, spec §6.3) ----
 
-  @doc "Defines a behaviour (the resident's, or the steward's before first contact); returns its number. Attrs: name, trigger, stance."
+  @doc "Defines a behaviour (the resident's, or the witness's before first contact); returns its number. Attrs: name, trigger, stance."
   @spec define_behaviour(String.t(), map(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
   defexport(define_behaviour(resident_id, attrs, actor),
@@ -544,7 +544,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Ethos.change(resident_id, number, attrs, actor)
   )
 
-  @doc "The steward affirms a behaviour, with a note."
+  @doc "The witness affirms a behaviour, with a note."
   @spec affirm_behaviour(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(affirm_behaviour(resident_id, number, note, actor),
@@ -586,7 +586,7 @@ defmodule Oneiroi.Kumbukumbu do
 
   # ---- revisions (spec §6.3, F13) ----
 
-  @doc "Revises a memory: attrs target_kind, target_id, kind (fact or stance), text, note; a fact by either party or a stance by the resident applies, a stance by the steward is proposed."
+  @doc "Revises a memory: attrs target_kind, target_id, kind (fact or stance), text, note; a fact by either party or a stance by the resident applies, a stance by the witness is proposed."
   @spec revise(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(revise(resident_id, attrs, actor), do: Memories.revise(resident_id, attrs, actor))
 

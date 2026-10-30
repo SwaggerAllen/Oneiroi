@@ -42,7 +42,7 @@ defmodule Oneiroi.HuginnMuninn.Store do
   end
 
   defmodule Audit do
-    @moduledoc "A steward's audit: a rule over a figure, and its last result."
+    @moduledoc "A witness's audit: a rule over a figure, and its last result."
     use Ecto.Schema
     @primary_key false
     schema "huginn_muninn_audit" do

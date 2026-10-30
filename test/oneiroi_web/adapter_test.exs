@@ -13,7 +13,7 @@ defmodule OneiroiWeb.AdapterTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Oneiroi.Actor.new(:steward, account.id)
+    actor = Oneiroi.Actor.new(:witness, account.id)
     {:ok, token} = AgathosDaimon.register_adapter(resident.id, "claude-code", "brain", actor)
     {:ok, account: account, resident: resident, token: token, actor: actor}
   end
@@ -102,7 +102,7 @@ defmodule OneiroiWeb.AdapterTest do
 
     assert nil == Kumbukumbu.open_turn(id, "claude-code")
     {:ok, _s, [user, reply]} = Kumbukumbu.transcript({:account, ctx.account.id}, key)
-    assert user.actor_kind == "steward" and reply.actor_kind == "resident"
+    assert user.actor_kind == "witness" and reply.actor_kind == "resident"
 
     # Without an open turn a tool that needs one says so rather than failing.
     assert %{"result" => %{"content" => [%{"text" => "No turn is open" <> _}]}} =
@@ -176,7 +176,7 @@ defmodule OneiroiWeb.AdapterTest do
     assert ctx.conn |> rpc(ctx.token, "ping", %{}) |> json_response(401)
   end
 
-  test "the steward registers and revokes adapters over the API and the token shows once", ctx do
+  test "the witness registers and revokes adapters over the API and the token shows once", ctx do
     id = ctx.resident.id
 
     conn =

@@ -49,7 +49,7 @@ defmodule Oneiroi.Glitnir.Store do
       field(:resident_id, :binary_id, primary_key: true)
       field(:number, :integer, primary_key: true)
       field(:report, :integer)
-      field(:steward_account_id, :binary_id)
+      field(:witness_account_id, :binary_id)
       field(:consequence, :string)
       field(:at, :utc_datetime_usec)
     end

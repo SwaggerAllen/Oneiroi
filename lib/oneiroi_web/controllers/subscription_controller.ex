@@ -8,7 +8,7 @@ defmodule OneiroiWeb.SubscriptionController do
 
   tags(["subscription"])
 
-  plug(:stewarded when action not in [:buckets])
+  plug(:witnessed when action not in [:buckets])
 
   operation(:buckets,
     summary: "The insurance buckets: every axis's three, the floor marked (spec §6.11)",
@@ -96,7 +96,7 @@ defmodule OneiroiWeb.SubscriptionController do
     do:
       respond(
         conn,
-        Nisaba.lapse_subscription(id, params["reason"] || "lapsed by the steward", actor(conn))
+        Nisaba.lapse_subscription(id, params["reason"] || "lapsed by the witness", actor(conn))
       )
 
   operation(:cancel,
@@ -138,11 +138,11 @@ defmodule OneiroiWeb.SubscriptionController do
     |> Map.put(:price, Money.to_usd(s.price_nanos))
   end
 
-  # Every route here but the buckets is a resident's, read or written by its steward.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  # Every route here but the buckets is a resident's, read or written by its witness.
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.JudgementTest do
-  @moduledoc "Judgement over HTTP: the steward reads positions, disputes and the ratio, chooses the judge, resolves predictions, runs a night by hand."
+  @moduledoc "Judgement over HTTP: the witness reads positions, disputes and the ratio, chooses the judge, resolves predictions, runs a night by hand."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -15,7 +15,7 @@ defmodule OneiroiWeb.JudgementTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
-    actor = Actor.new(:steward, account.id)
+    actor = Actor.new(:witness, account.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
     :ok = Oneiroi.Gaia.store_key(account.id, "sk-or-test", actor)
     {:ok, key} = Kumbukumbu.main_session(resident.id, account.id, actor)
@@ -115,7 +115,7 @@ defmodule OneiroiWeb.JudgementTest do
              conn |> get("/v1/residents/#{id}/nights") |> json_response(200)
   end
 
-  test "another steward's resident is nobody's judgement", %{conn: conn} do
+  test "another witness's resident is nobody's judgement", %{conn: conn} do
     other = Fixtures.resident!(Fixtures.account!())
     assert conn |> get("/v1/residents/#{other.id}/judgement") |> json_response(404)
   end

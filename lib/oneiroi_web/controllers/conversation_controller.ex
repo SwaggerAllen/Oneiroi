@@ -7,11 +7,11 @@ defmodule OneiroiWeb.ConversationController do
 
   tags(["memory"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   # The adapter contract's routes (spec §8): an adapter with the brain
   # role, speaking for this resident, may open its session, start and
-  # capture turns and read the context; a steward may do all of it.
+  # capture turns and read the context; a witness may do all of it.
   @adapter_actions ~w(create turn_start capture context)a
 
   operation(:index,
@@ -279,13 +279,13 @@ defmodule OneiroiWeb.ConversationController do
     json(conn, %{text: index.text, bookmarks: index.included, left_out: index.left_out})
   end
 
-  # Every route here is a resident's, read or written by its steward, or
+  # Every route here is a resident's, read or written by its witness, or
   # by its brain-role adapter on the adapter contract's routes.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     allowed? =
       case conn.assigns.principal do
         %{account_id: account_id} ->
-          id in Oneiroi.Gaia.stewarded_residents(account_id)
+          id in Oneiroi.Gaia.witnessed_residents(account_id)
 
         %{resident_id: ^id, role: "brain"} ->
           Phoenix.Controller.action_name(conn) in @adapter_actions
@@ -296,11 +296,11 @@ defmodule OneiroiWeb.ConversationController do
 
     if allowed?,
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   # The account party to a session an adapter opens is the resident's
-  # steward (spec §6.3: solo sessions are the steward's to read).
+  # witness (spec §6.3: solo sessions are the witness's to read).
   defp party_of(conn, id) do
     case {conn.assigns.principal, Oneiroi.AgathosDaimon.fetch(id)} do
       {%{account_id: account_id}, _} -> {account_id, "brain"}
@@ -335,8 +335,8 @@ defmodule OneiroiWeb.ConversationController do
   end
 
   # An adapter captures as the resident; the user messages in its turn are
-  # the steward's words, so they carry the steward's kind.
-  defp message_actor("user", %{kind: :resident}), do: Oneiroi.Actor.new(:steward)
+  # the witness's words, so they carry the witness's kind.
+  defp message_actor("user", %{kind: :resident}), do: Oneiroi.Actor.new(:witness)
   defp message_actor(_role, actor), do: actor
 
   defp parse_instant(iso) when is_binary(iso) do

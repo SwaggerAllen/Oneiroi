@@ -7,7 +7,7 @@ defmodule OneiroiWeb.HonchoController do
 
   tags(["honcho"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:show,
     summary:
@@ -70,10 +70,10 @@ defmodule OneiroiWeb.HonchoController do
       at: s.at
     }
 
-  # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  # Every route here is a resident's, read or written by its witness.
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 end

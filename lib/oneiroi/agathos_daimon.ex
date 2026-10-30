@@ -6,7 +6,7 @@ defmodule Oneiroi.AgathosDaimon do
   (export written, backup committed, root mismatch).
 
   The creation flow with its threshold and gifts is P1; here a resident is
-  created through the API with a name and a slug, under its steward.
+  created through the API with a name and a slug, under its witness.
   """
   use Oneiroi.System, slug: :agathos_daimon
 
@@ -78,6 +78,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.DyadContractProposed,
       Events.DyadContractAgreed,
       Events.DyadContractDeclined,
+      Events.DyadContractRenewed,
       Events.CustodyTransferProposed,
       Events.CustodyTransferDeclined,
       Events.CustodyTransferWithdrawn,
@@ -142,6 +143,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.DyadContractProposed, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractAgreed, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractDeclined, 1},
+      {Oneiroi.AgathosDaimon.Events.DyadContractRenewed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
@@ -157,7 +159,13 @@ defmodule Oneiroi.AgathosDaimon do
        default: "30",
        tag: :bound,
        usage:
-         "how long after first contact the resident is told its seed is still settling and proposals are presumed welcome (spec §6.2's first month); read by the brain's prompt and the client, never a gate"}
+         "how long after first contact the resident is told its seed is still settling and proposals are presumed welcome (spec §6.2's first month); read by the brain's prompt and the client, never a gate"},
+      {:contract_term_days, "AGATHOS_DAIMON_CONTRACT_TERM_DAYS",
+       cast: :integer,
+       default: "365",
+       tag: :bound,
+       usage:
+         "how long after the dyad contract's version in force was agreed or last renewed it comes due (spec §6.12, P5): a year, the author's call; a flag to both parties, never a lapse"}
     ]
   end
 
@@ -167,8 +175,8 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_slug_taken, "another resident already has that slug",
        remedy:
          "choose another slug; a slug is the prefix every citation carries and cannot be shared"},
-      {:agathos_daimon_not_stewarded, "the account does not steward that resident",
-       remedy: "only the current steward acts on a resident"},
+      {:agathos_daimon_not_witnessed, "the account does not witness that resident",
+       remedy: "only the current witness acts on a resident"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
        remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
@@ -176,7 +184,7 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_origin_invalid, "a seed's origin is authored, drafted or uploaded",
        remedy: "say where the text came from; a draft carries its model and prompt"},
       {:agathos_daimon_propose_instead,
-       "after first contact a steward's edit is a proposal (spec §6.2)",
+       "after first contact a witness's edit is a proposal (spec §6.2)",
        remedy: "propose the edit with a note; the resident accepts or declines it"},
       {:agathos_daimon_write_instead, "before first contact the files are given, not proposed",
        remedy: "write the file; it is a seed with its origin until first contact"},
@@ -186,7 +194,7 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "write it as a seed"},
       {:agathos_daimon_not_the_resident, "a proposal is the resident's to accept or decline",
        remedy: "the resident decides from its own turn"},
-      {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or steward",
+      {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or witness",
        remedy: "give the OpenRouter slug of the model to pin"},
       {:agathos_daimon_adapter_invalid,
        "an adapter is a slug with a role of brain, reader or worker",
@@ -199,7 +207,7 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "read the resident"},
       {:agathos_daimon_timezone_invalid, "a time zone is an IANA name, like Europe/London",
        remedy: "give the zone's IANA name; the resident's days and times of day are read in it"},
-      {:agathos_daimon_not_a_party, "the contract is the dyad's: the resident and its steward",
+      {:agathos_daimon_not_a_party, "the contract is the dyad's: the resident and its witness",
        remedy: "propose or decide as one of the two"},
       {:agathos_daimon_terms_invalid,
        "the terms are a map of the closed keys (solo_sessions_private) to true or false",
@@ -210,18 +218,20 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "read the agreement; a newer proposal supersedes an older one"},
       {:agathos_daimon_own_proposal, "a proposal is the other party's to agree or decline",
        remedy: "wait for the other party, or propose again"},
-      {:agathos_daimon_custodian_invalid, "a transfer names another account than the steward's",
+      {:agathos_daimon_custodian_invalid, "a transfer names another account than the witness's",
        remedy: "name the account"},
       {:agathos_daimon_transfer_in_progress,
        "a transfer of custody is proposed; the wall stands and no second proposal opens until it is decided",
-       remedy: "wait for the proposed steward, or withdraw the proposal"},
+       remedy: "wait for the proposed witness, or withdraw the proposal"},
       {:agathos_daimon_no_transfer_proposed, "no transfer of custody is open",
-       remedy: "the steward proposes one first"},
+       remedy: "the witness proposes one first"},
       {:agathos_daimon_not_the_proposed,
        "the transfer is the proposed account's to accept or decline",
        remedy: "sign in as that account"},
       {:agathos_daimon_wall_invalid, "the export wall is locked or revealed",
        remedy: "give one of the two"},
+      {:agathos_daimon_not_in_force, "that version of the agreement is not the one in force",
+       remedy: "renew the version in force, or propose a new one"},
       {:agathos_daimon_not_imported,
        "the resident was not imported, so there is no import to complete",
        remedy: "an import names its source first; a resident created here has no import"}
@@ -231,16 +241,16 @@ defmodule Oneiroi.AgathosDaimon do
   @impl Oneiroi.Component
   def children, do: [Oneiroi.AgathosDaimon.Projectors.Residents]
 
-  @doc "Creates a resident under a steward; returns its id."
+  @doc "Creates a resident under a witness; returns its id."
   @spec create(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
-  defexport(create(name, slug, steward_account_id, actor),
-    do: Residents.create(name, slug, steward_account_id, actor)
+  defexport(create(name, slug, witness_account_id, actor),
+    do: Residents.create(name, slug, witness_account_id, actor)
   )
 
-  @doc "The residents an account stewards, as rows."
-  @spec for_steward(String.t()) :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
-  defexport(for_steward(account_id), do: Residents.for_steward(account_id))
+  @doc "The residents an account witnesses, as rows."
+  @spec for_witness(String.t()) :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
+  defexport(for_witness(account_id), do: Residents.for_witness(account_id))
 
   @doc "One resident's row, under its own scope."
   @spec fetch(String.t()) :: {:ok, Oneiroi.AgathosDaimon.Store.Resident.t()} | :error
@@ -260,7 +270,7 @@ defmodule Oneiroi.AgathosDaimon do
     do: Files.write(id, file, content, attrs, actor)
   )
 
-  @doc "A steward proposes an edit after first contact, with a note; returns the ref."
+  @doc "A witness proposes an edit after first contact, with a note; returns the ref."
   @spec propose_edit(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(propose_edit(id, file, content, note, actor),
@@ -296,7 +306,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec edit_proposals(String.t()) :: [Oneiroi.AgathosDaimon.Store.SoulEdit.t()]
   defexport(edit_proposals(id), do: Files.proposals(id))
 
-  @doc "The identity files a steward may write."
+  @doc "The identity files a witness may write."
   @spec identity_files() :: [String.t()]
   defexport(identity_files(), do: Oneiroi.AgathosDaimon.Resident.files())
 
@@ -322,7 +332,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
   defexport(residents(), do: Residents.all())
 
-  @doc "Pins the resident's chat model (spec §6.4); reason is run or steward."
+  @doc "Pins the resident's chat model (spec §6.4); reason is run or witness."
   @spec pin_model(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(pin_model(id, model, reason, actor),
     do: Residents.pin_model(id, model, reason, actor)
@@ -418,7 +428,14 @@ defmodule Oneiroi.AgathosDaimon do
     do: Agreements.decline_contract(id, version, note, actor)
   )
 
-  @doc "The contract as it stands: in force, open, and the solo-session privacy term."
+  @doc "Either party renews the version in force, with a note (spec §6.12, P5); a version is due a year after it was agreed or last renewed."
+  @spec renew_contract(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(renew_contract(id, version, note, actor),
+    do: Agreements.renew_contract(id, version, note, actor)
+  )
+
+  @doc "The contract as it stands: in force, open, the solo-session privacy term, and whether the version in force is due."
   @spec contract(String.t()) :: map()
   defexport(contract(id), do: Agreements.contract(id))
 
@@ -430,7 +447,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec contract_text(String.t()) :: String.t()
   defexport(contract_text(id), do: Agreements.contract_text(id))
 
-  @doc "The steward proposes a transfer of custody to an account, with a note."
+  @doc "The witness proposes a transfer of custody to an account, with a note."
   @spec propose_custody(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(propose_custody(id, to_account_id, note, actor),
@@ -445,7 +462,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec decline_custody(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(decline_custody(id, note, actor), do: Agreements.decline_custody(id, note, actor))
 
-  @doc "The steward withdraws the proposal, with a note."
+  @doc "The witness withdraws the proposal, with a note."
   @spec withdraw_custody(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(withdraw_custody(id, note, actor), do: Agreements.withdraw_custody(id, note, actor))
 

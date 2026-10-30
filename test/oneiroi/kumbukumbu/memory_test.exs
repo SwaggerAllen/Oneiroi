@@ -9,7 +9,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
 
   @at ~U[2026-10-29 12:00:00.000000Z]
   @resident Actor.new(:resident, "r1", "fake/model")
-  @steward Actor.new(:steward, "a1")
+  @witness Actor.new(:witness, "a1")
 
   defp add(number, extra \\ []) do
     struct!(
@@ -65,18 +65,18 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     assert {:error, :span_not_grown} = Memory.execute(m, %{extend | turns_back: 2})
     assert {:error, :no_such_bookmark} = Memory.execute(m, %{extend | number: 9})
 
-    pin = %Commands.PinBookmark{actor: @steward, at: @at, id: "r1", number: 1}
-    assert %Events.BookmarkPinned{number: 1, actor: @steward} = Memory.execute(m, pin)
+    pin = %Commands.PinBookmark{actor: @witness, at: @at, id: "r1", number: 1}
+    assert %Events.BookmarkPinned{number: 1, actor: @witness} = Memory.execute(m, pin)
     assert [] = Memory.execute(fold([add(1), pin]), pin)
 
-    unpin = %Commands.UnpinBookmark{actor: @steward, at: @at, id: "r1", number: 1}
+    unpin = %Commands.UnpinBookmark{actor: @witness, at: @at, id: "r1", number: 1}
     assert [] = Memory.execute(m, unpin)
     assert %Events.BookmarkUnpinned{} = Memory.execute(fold([add(1), pin]), unpin)
   end
 
   test "a proposal is accepted by a bookmark that names it, and records who proposed" do
     propose = %Commands.ProposeBookmark{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       note: "you lit up here",
       id: "r1",
@@ -89,7 +89,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     assert %Events.BookmarkProposed{ref: "p1"} = Memory.execute(%Memory{}, propose)
     m = fold([propose])
 
-    assert %Events.BookmarkAdded{proposal_ref: "p1", proposed_by: %{kind: "steward", id: "a1"}} =
+    assert %Events.BookmarkAdded{proposal_ref: "p1", proposed_by: %{kind: "witness", id: "a1"}} =
              Memory.execute(m, add(1, proposal_ref: "p1"))
 
     assert {:error, :no_such_proposal} = Memory.execute(m, add(1, proposal_ref: "nope"))
@@ -122,28 +122,28 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     proposed = fold([propose])
     assert [] = Memory.execute(proposed, propose)
 
-    approve = %Commands.ApproveTag{actor: @steward, at: @at, note: "yes", id: "r1", slug: "haven"}
+    approve = %Commands.ApproveTag{actor: @witness, at: @at, note: "yes", id: "r1", slug: "haven"}
     assert {:error, :no_such_proposal} = Memory.execute(%Memory{}, approve)
     assert %Events.TagApproved{} = Memory.execute(proposed, approve)
     active = fold([propose, approve])
     assert {:error, :tag_exists} = Memory.execute(active, propose)
 
-    create = %Commands.CreateTag{actor: @steward, at: @at, id: "r1", slug: "haven"}
+    create = %Commands.CreateTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
     assert [] = Memory.execute(active, create)
     assert {:error, :tag_proposed} = Memory.execute(proposed, create)
     assert %Events.TagCreated{} = Memory.execute(%Memory{}, create)
 
-    retire = %Commands.RetireTag{actor: @steward, at: @at, id: "r1", slug: "haven"}
+    retire = %Commands.RetireTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
     assert %Events.TagRetired{} = Memory.execute(active, retire)
     assert {:error, :no_such_tag} = Memory.execute(proposed, retire)
 
-    reject = %Commands.RejectTag{actor: @steward, at: @at, note: "no", id: "r1", slug: "haven"}
+    reject = %Commands.RejectTag{actor: @witness, at: @at, note: "no", id: "r1", slug: "haven"}
     assert %Events.TagRejected{} = Memory.execute(proposed, reject)
     assert %Events.TagProposed{} = Memory.execute(fold([propose, reject]), propose)
   end
 
   test "a tagging needs an active tag and a known target kind, and is a set" do
-    create = %Commands.CreateTag{actor: @steward, at: @at, id: "r1", slug: "haven"}
+    create = %Commands.CreateTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
     m = fold([create, add(1)])
 
     apply_tag = %Commands.ApplyTag{
@@ -166,7 +166,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
         create,
         add(1),
         apply_tag,
-        %Commands.RetireTag{actor: @steward, at: @at, id: "r1", slug: "haven"}
+        %Commands.RetireTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
       ])
 
     assert {:error, :tag_not_active} = Memory.execute(retired, %{apply_tag | target_id: "2"})

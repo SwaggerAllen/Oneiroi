@@ -33,11 +33,11 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
-  defmodule StartStewardship do
+  defmodule StartWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end
 
-  defmodule EndStewardship do
+  defmodule EndWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end
 end

@@ -48,7 +48,7 @@ defmodule Oneiroi.Gaia.Accounts do
          raw = random(),
          expires = DateTime.add(now, Config.fetch!(:gaia, :session_ttl_days), :day),
          command = %Commands.OpenSession{
-           actor: Actor.new(:steward, account.id),
+           actor: Actor.new(:witness, account.id),
            at: now,
            id: account.id,
            session_hash: hash(raw),
@@ -74,7 +74,7 @@ defmodule Oneiroi.Gaia.Accounts do
 
       session ->
         command = %Commands.CloseSession{
-          actor: Actor.new(:steward, session.account_id),
+          actor: Actor.new(:witness, session.account_id),
           at: now,
           id: session.account_id,
           session_hash: session.hash
@@ -136,7 +136,7 @@ defmodule Oneiroi.Gaia.Accounts do
   end
 
   @doc """
-  Stores the steward's OpenRouter key, encrypted under the vault, on the
+  Stores the witness's OpenRouter key, encrypted under the vault, on the
   account (spec §6.11). Storing over a stored key is the rotation.
   """
   def store_key(account_id, raw_key, %Actor{} = actor) do
@@ -169,7 +169,7 @@ defmodule Oneiroi.Gaia.Accounts do
   end
 
   @doc """
-  The steward's key, wrapped, for the provider port and nothing else: the
+  The witness's key, wrapped, for the provider port and nothing else: the
   wrapper's `unwrap/1` at the one call site is the word a reviewer sees.
   """
   def key_for(account_id) do
@@ -221,8 +221,8 @@ defmodule Oneiroi.Gaia.Accounts do
     with {:ok, _} <- Router.dispatch(command), do: :ok
   end
 
-  def stewarded_residents(account_id),
-    do: Scope.account(account_id, fn -> Store.stewarded(account_id) end)
+  def witnessed_residents(account_id),
+    do: Scope.account(account_id, fn -> Store.witnessed(account_id) end)
 
   @doc "The sha256 of a raw secret, hex; what the store holds."
   @spec hash(String.t()) :: String.t()

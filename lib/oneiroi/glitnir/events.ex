@@ -22,11 +22,11 @@ defmodule Oneiroi.Glitnir.Events do
   end
 
   defmodule StrikeIssued do
-    # `number` counts the strikes on this resident's stewardship; the
+    # `number` counts the strikes on this resident's witnessing; the
     # consequence is `fine` for the first two and `removal` for the
     # third, which moves the resident to community custody.
     use Oneiroi.Event,
       version: 1,
-      fields: [:id, :number, :report, :steward_account_id, :consequence]
+      fields: [:id, :number, :report, :witness_account_id, :consequence]
   end
 end

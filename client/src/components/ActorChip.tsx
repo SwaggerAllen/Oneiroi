@@ -3,7 +3,7 @@ import type { Actor } from '../api/types';
 // Attribute everything with an actor chip and a model slug (spec §6.15):
 // the actor hues are reserved for this, never used alone on a control.
 const hue: Record<string, string> = {
-  steward: 'steward',
+  witness: 'witness',
   resident: 'resident',
   judge: 'judge',
   hands: 'hands',
@@ -12,7 +12,7 @@ const hue: Record<string, string> = {
 export function ActorChip({ actor, name }: { actor: Actor; name?: string }) {
   const kind = actor.kind ?? 'platform';
   const colour = hue[kind] ?? 'ink-muted';
-  const label = name ?? (kind === 'steward' ? 'you' : kind);
+  const label = name ?? (kind === 'witness' ? 'you' : kind);
   return (
     <span
       style={{

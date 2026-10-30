@@ -7,7 +7,7 @@ defmodule OneiroiWeb.FigureController do
 
   tags(["audits"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:figures,
     summary:
@@ -92,7 +92,7 @@ defmodule OneiroiWeb.FigureController do
   def light(conn, %{"id" => id}), do: json(conn, HuginnMuninn.light(id))
 
   operation(:checks,
-    summary: "Every audit, built-in and the steward's, with its last result",
+    summary: "Every audit, built-in and the witness's, with its last result",
     parameters: [id: [in: :path, type: :string]],
     responses: [ok: {"audits", "application/json", %Schema{type: :array}}]
   )
@@ -137,7 +137,7 @@ defmodule OneiroiWeb.FigureController do
   end
 
   operation(:retire_check,
-    summary: "Retire an audit of the steward's",
+    summary: "Retire an audit of the witness's",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
     responses: [no_content: "retired"]
   )
@@ -170,11 +170,11 @@ defmodule OneiroiWeb.FigureController do
     a |> Map.drop([:last]) |> Map.put(:last, last)
   end
 
-  # Every route here is a resident's, read or written by its steward.
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  # Every route here is a resident's, read or written by its witness.
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

@@ -133,17 +133,17 @@ defmodule Oneiroi.SimaQian do
   @spec backup(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(backup(resident_id, actor), do: Backup.run(resident_id, actor))
 
-  @doc "Rebuilds a repository into a fresh store as a new resident under `steward_account_id`."
+  @doc "Rebuilds a repository into a fresh store as a new resident under `witness_account_id`."
   @spec rebuild(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
-  defexport(rebuild(url, steward_account_id, actor),
-    do: Rebuild.run(url, steward_account_id, actor)
+  defexport(rebuild(url, witness_account_id, actor),
+    do: Rebuild.run(url, witness_account_id, actor)
   )
 
-  @doc "Imports a repository as a new resident under `steward_account_id`: the rebuild, then the root's files seeded, the folders adopted and indexed, and what did not transfer named (spec §6.2, §9)."
+  @doc "Imports a repository as a new resident under `witness_account_id`: the rebuild, then the root's files seeded, the folders adopted and indexed, and what did not transfer named (spec §6.2, §9)."
   @spec import_resident(String.t(), map(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
-  defexport(import_resident(url, attrs, steward_account_id, actor),
-    do: Import.run(url, attrs, steward_account_id, actor)
+  defexport(import_resident(url, attrs, witness_account_id, actor),
+    do: Import.run(url, attrs, witness_account_id, actor)
   )
 
   @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."

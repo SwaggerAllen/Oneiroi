@@ -3,7 +3,7 @@ defmodule Oneiroi.SimaQian.Import do
   The intake from a repository (spec §6.2's fourth path, §9): what the
   rebuild does and then the rest of the repository. A repository with
   `records/events/` replays as the rebuild does; one without is a
-  resident created here under the name and slug the steward gives.
+  resident created here under the name and slug the witness gives.
   Either way the clone becomes the resident's working repository, so
   its history carries on; the identity files at its root are seeded
   (`uploaded`), or proposed where the records say first contact has
@@ -15,7 +15,7 @@ defmodule Oneiroi.SimaQian.Import do
   (brain #26).
 
   Two things a request value never does here: name a path (the URL
-  must carry one of the configured schemes, so a steward cannot clone
+  must carry one of the configured schemes, so a witness cannot clone
   a directory on this host, another resident's working repository
   among them), or enter the log (the source is recorded with its
   userinfo stripped, because a GitHub URL carries the token there and
@@ -32,11 +32,11 @@ defmodule Oneiroi.SimaQian.Import do
 
   @not_files ["records", "honcho", ".git"]
 
-  @doc "Imports the repository at `url` as a new resident under `steward_account_id`."
+  @doc "Imports the repository at `url` as a new resident under `witness_account_id`."
   # The clone is this function's own under the temp dir; the working
   # directory it becomes is the records root under an id minted here.
   # sobelow_skip ["Traversal.FileModule"]
-  def run(url, attrs, steward_account_id, %Actor{} = actor)
+  def run(url, attrs, witness_account_id, %Actor{} = actor)
       when is_binary(url) and is_map(attrs) do
     clone = Path.join(System.tmp_dir!(), "oneiroi-import-#{System.unique_integer([:positive])}")
     source = record_url(url)
@@ -47,9 +47,9 @@ defmodule Oneiroi.SimaQian.Import do
            {attestation, root, sequence} <- Rebuild.attestation(clone),
            :ok <- Rebuild.refuse_if_imported(source, root),
            {:ok, lines} <- Rebuild.read_lines(clone),
-           {:ok, id, how} <- resident(lines, attrs, steward_account_id, actor),
+           {:ok, id, how} <- resident(lines, attrs, witness_account_id, actor),
            {:ok, _} <- Rebuild.import_event(id, source, attestation, root, sequence, actor),
-           :ok <- custody(how, id, steward_account_id, actor),
+           :ok <- custody(how, id, witness_account_id, actor),
            :ok <- place(clone, id),
            {:ok, seeds} <- seeds(id, clone, actor),
            {:ok, adopted} <- library().adopt_all(id, actor),
@@ -111,35 +111,35 @@ defmodule Oneiroi.SimaQian.Import do
 
   # A repository with records replays them under a new id, and its name
   # and slug are the records'; one without is created here and needs
-  # both from the steward.
-  defp resident([], attrs, steward_account_id, actor) do
+  # both from the witness.
+  defp resident([], attrs, witness_account_id, actor) do
     name = Map.get(attrs, :name) || Map.get(attrs, "name")
     slug = Map.get(attrs, :slug) || Map.get(attrs, "slug")
 
     if is_binary(name) and is_binary(slug) do
-      with {:ok, id} <- AgathosDaimon.create(name, slug, steward_account_id, actor),
+      with {:ok, id} <- AgathosDaimon.create(name, slug, witness_account_id, actor),
            do: {:ok, id, :created}
     else
       {:error, Error.new(:sima_qian_name_required)}
     end
   end
 
-  defp resident(lines, _attrs, _steward_account_id, _actor) do
+  defp resident(lines, _attrs, _witness_account_id, _actor) do
     id = Ecto.UUID.generate()
     with :ok <- Rebuild.append(id, lines), do: {:ok, id, :replayed}
   end
 
-  # A resident created here is the steward's already; a replayed one is
-  # placed with the importing steward as the rebuild places it.
-  defp custody(:created, _id, _steward_account_id, _actor), do: :ok
+  # A resident created here is the witness's already; a replayed one is
+  # placed with the importing witness as the rebuild places it.
+  defp custody(:created, _id, _witness_account_id, _actor), do: :ok
 
-  defp custody(:replayed, id, steward_account_id, actor),
-    do: with({:ok, _} <- Rebuild.custody(id, steward_account_id, actor), do: :ok)
+  defp custody(:replayed, id, witness_account_id, actor),
+    do: with({:ok, _} <- Rebuild.custody(id, witness_account_id, actor), do: :ok)
 
   # The clone becomes the working repository, history and all, so the
   # next backup commits on top of the source's commits. The origin
   # remote goes with the clone's config, where the clone URL (and any
-  # token in it) would otherwise sit on disk until the steward sets a
+  # token in it) would otherwise sit on disk until the witness sets a
   # remote of their own.
   # sobelow_skip ["Traversal.FileModule"]
   defp place(clone, id) do
@@ -154,7 +154,7 @@ defmodule Oneiroi.SimaQian.Import do
 
   # The identity files at the root, seeded as uploaded; where the
   # records say first contact has passed and the file differs from
-  # them, a steward's write is a proposal (spec §6.2), and the import
+  # them, a witness's write is a proposal (spec §6.2), and the import
   # files one rather than overwriting or dropping it. A file the
   # aggregate refuses for its content is kept, by name, for the
   # not-transferred list.

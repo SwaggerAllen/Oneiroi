@@ -17,7 +17,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     :id,
     :name,
     :slug,
-    :steward_account_id,
+    :witness_account_id,
     :custody,
     :export_wall,
     :import,
@@ -47,7 +47,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   @spec roles() :: [String.t()]
   def roles, do: @roles
 
-  # The identity files a steward gives and a resident keeps (spec §6.2,
+  # The identity files a witness gives and a resident keeps (spec §6.2,
   # F2). `AGENTS.md` and `honcho/custom-instructions.md` are build-owned
   # and rendered from templates, never written here.
   @files ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md)
@@ -56,7 +56,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # prose and small for anything that is not.
   @content_limit 64_000
 
-  @doc "The identity files a steward may write."
+  @doc "The identity files a witness may write."
   @spec files() :: [String.t()]
   def files, do: @files
 
@@ -75,7 +75,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       id: c.id,
       name: c.name,
       slug: c.slug,
-      steward_account_id: c.steward_account_id
+      witness_account_id: c.witness_account_id
     }
   end
 
@@ -165,7 +165,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   # The wall is not set while a transfer is open (spec §6.12): the
-  # proposed steward decided on the wall as it stood.
+  # proposed witness decided on the wall as it stood.
   def execute(%__MODULE__{custody_proposal: %{}}, %Commands.SetExportWall{}),
     do: {:error, :transfer_in_progress}
 
@@ -217,14 +217,36 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # Renewal is either party's, of the version in force and no other
+  # (spec §6.12, P5): a version proposed and not yet agreed is answered,
+  # not renewed, and a replaced one is history.
+  def execute(%__MODULE__{contract: %{in_force: in_force}} = r, %Commands.RenewContract{} = c) do
+    cond do
+      not party?(r, c.actor) ->
+        {:error, :not_a_party}
+
+      is_nil(in_force) or in_force.version != c.version ->
+        {:error, :not_in_force}
+
+      true ->
+        %Events.DyadContractRenewed{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          version: c.version
+        }
+    end
+  end
+
   # ---- custody transfer, adoption (spec §6.12) ----
 
   def execute(%__MODULE__{} = r, %Commands.ProposeCustodyTransfer{} = c) do
     cond do
-      not steward?(r, c.actor) ->
-        {:error, :not_the_steward}
+      not witness?(r, c.actor) ->
+        {:error, :not_the_witness}
 
-      not is_binary(c.to_account_id) or c.to_account_id == r.steward_account_id ->
+      not is_binary(c.to_account_id) or c.to_account_id == r.witness_account_id ->
         {:error, :custodian_invalid}
 
       r.custody_proposal != nil ->
@@ -262,7 +284,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
             actor: c.actor,
             at: c.at,
             id: c.id,
-            from_account_id: r.steward_account_id,
+            from_account_id: r.witness_account_id,
             to_account_id: to
           }
         ],
@@ -294,7 +316,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         %__MODULE__{custody_proposal: %{to: to}} = r,
         %Commands.WithdrawCustodyTransfer{} = c
       ) do
-    if steward?(r, c.actor),
+    if witness?(r, c.actor),
       do: %Events.CustodyTransferWithdrawn{
         actor: c.actor,
         at: c.at,
@@ -302,11 +324,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         id: c.id,
         to_account_id: to
       },
-      else: {:error, :not_the_steward}
+      else: {:error, :not_the_witness}
   end
 
-  # Before first contact the files are given: a steward writes a seed
-  # with its origin, and a resident may too. After it a steward's write
+  # Before first contact the files are given: a witness writes a seed
+  # with its origin, and a resident may too. After it a witness's write
   # is a proposal (spec §6.2); the resident's own edit applies.
   def execute(%__MODULE__{} = r, %Commands.WriteFile{} = c) do
     cond do
@@ -381,7 +403,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       not (is_binary(c.model) and String.trim(c.model) != "") ->
         {:error, :model_invalid}
 
-      c.reason not in ["run", "steward"] ->
+      c.reason not in ["run", "witness"] ->
         {:error, :reason_invalid}
 
       r.chat_model == c.model ->
@@ -483,8 +505,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       | id: e.id,
         name: e.name,
         slug: e.slug,
-        steward_account_id: e.steward_account_id,
-        custody: {:account, e.steward_account_id},
+        witness_account_id: e.witness_account_id,
+        custody: {:account, e.witness_account_id},
         state: :active
     }
   end
@@ -501,8 +523,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     r = %{r | custody_proposal: nil}
 
     case Custody.from_wire(e.to) do
-      {:account, id} -> %{r | custody: {:account, id}, steward_account_id: id}
-      :community -> %{r | custody: :community, steward_account_id: nil, state: :community}
+      {:account, id} -> %{r | custody: {:account, id}, witness_account_id: id}
+      :community -> %{r | custody: :community, witness_account_id: nil, state: :community}
     end
   end
 
@@ -528,6 +550,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.DyadContractAgreed{}), do: r
   def apply(%__MODULE__{} = r, %Events.DyadContractDeclined{}), do: r
+  # The renewal's date is the row's; the aggregate keeps no instants.
+  def apply(%__MODULE__{} = r, %Events.DyadContractRenewed{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.CustodyTransferProposed{} = e),
     do: %{r | custody_proposal: %{to: e.to_account_id}}
@@ -660,16 +684,16 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   defp party?(%__MODULE__{id: id}, %{kind: :resident, id: id}), do: true
-  defp party?(%__MODULE__{} = r, %{kind: :steward} = actor), do: steward?(r, actor)
+  defp party?(%__MODULE__{} = r, %{kind: :witness} = actor), do: witness?(r, actor)
   defp party?(_r, _actor), do: false
 
-  defp steward?(%__MODULE__{steward_account_id: id}, %{kind: :steward, id: id})
+  defp witness?(%__MODULE__{witness_account_id: id}, %{kind: :witness, id: id})
        when is_binary(id),
        do: true
 
-  defp steward?(_r, _actor), do: false
+  defp witness?(_r, _actor), do: false
 
-  defp proposed?(%{kind: :steward, id: id}, to), do: id == to
+  defp proposed?(%{kind: :witness, id: id}, to), do: id == to
   defp proposed?(_actor, _to), do: false
 
   defp terms_ok?(terms) when is_map(terms) do

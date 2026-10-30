@@ -22,7 +22,7 @@ Carried from spec §6.15; the reason for each is there.
 
 - **#3 Mobile-first, built only against the OpenAPI client and the typed channel client.**
 - **#4 One Storybook story per state per screen, which is what the design agent produces and the manual test gate drives.**
-- **#5 Built from the Oneiroi design system: `tokens.json` unchanged, the twenty components under `client/src/components/` as the only source for those patterns, with the five rules they enforce (attribute everything; the resident's words are never editable by the steward; every approval carries a note; refusal renders in the resident's words; the check-engine light reports the engine).**
+- **#5 Built from the Oneiroi design system: `tokens.json` unchanged, the twenty components under `client/src/components/` as the only source for those patterns, with the five rules they enforce (attribute everything; the resident's words are never editable by the witness; every approval carries a note; refusal renders in the resident's words; the check-engine light reports the engine).**
 
 ## #6 Initial vs target
 

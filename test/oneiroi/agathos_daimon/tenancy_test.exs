@@ -18,10 +18,10 @@ defmodule Oneiroi.AgathosDaimon.TenancyTest do
     assert Scope.resident(ra.id, fn -> Store.get(rb.id) end) == nil
   end
 
-  test "a steward's scope sees its own residents and nothing else", %{ra: ra, rb: rb, a: a, b: b} do
+  test "a witness's scope sees its own residents and nothing else", %{ra: ra, rb: rb, a: a, b: b} do
     assert [ra.id] == Enum.map(Scope.account(a.id, fn -> Store.all() end), & &1.id)
     assert [rb.id] == Enum.map(Scope.account(b.id, fn -> Store.all() end), & &1.id)
-    assert [ra.id] == Oneiroi.Gaia.stewarded_residents(a.id)
+    assert [ra.id] == Oneiroi.Gaia.witnessed_residents(a.id)
   end
 
   test "the platform scope sees every row, by name", %{ra: ra, rb: rb} do
@@ -70,12 +70,12 @@ defmodule Oneiroi.AgathosDaimon.TenancyTest do
                "Other",
                ra.slug,
                b.id,
-               Oneiroi.Actor.new(:steward, b.id)
+               Oneiroi.Actor.new(:witness, b.id)
              )
   end
 
   test "minting an id goes through the aggregate and counts per resident", %{ra: ra, rb: rb} do
-    actor = Oneiroi.Actor.new(:steward, ra.steward)
+    actor = Oneiroi.Actor.new(:witness, ra.witness)
     assert {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(ra.id, "bookmark", actor)
     assert {:ok, 2} = Oneiroi.AgathosDaimon.mint_id(ra.id, "bookmark", actor)
     assert {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(rb.id, "bookmark", actor)

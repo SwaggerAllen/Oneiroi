@@ -16,6 +16,16 @@ defmodule Oneiroi.Nisaba.Prompt do
   # on it is skipped rather than guarded twice.
   @name ~r/\A[a-z0-9][a-z0-9_-]*\z/
 
+  @doc "The SHA-256 of the prompt file as shipped, hex: what a verdict records as the criteria it was judged under (spec §6.4, P12)."
+  @spec hash(String.t()) :: String.t()
+  # sobelow_skip ["Traversal.FileModule"]
+  def hash(name) when is_binary(name) do
+    unless Regex.match?(@name, name),
+      do: raise(ArgumentError, "prompt names are slugs, got #{inspect(name)}")
+
+    :crypto.hash(:sha256, File.read!(path(name))) |> Base.encode16(case: :lower)
+  end
+
   @doc "The prompt file's text, with `assigns` filled in."
   @spec render!(String.t(), map()) :: String.t()
   # sobelow_skip ["Traversal.FileModule"]

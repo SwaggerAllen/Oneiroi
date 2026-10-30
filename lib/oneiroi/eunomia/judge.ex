@@ -5,7 +5,7 @@ defmodule Oneiroi.Eunomia.Judge do
   purpose on the judge's model, which is recorded on every verdict and
   is never the resident's own chat model. The prompts are files under
   `priv/prompts/` and stay constitutional: they ask the judge to weigh
-  the resident's stated positions and the steward's claim, never to
+  the resident's stated positions and the witness's claim, never to
   grade the resident.
 
   The live check is bounded by `EUNOMIA_LIVE_CHECK_MS`: past it the

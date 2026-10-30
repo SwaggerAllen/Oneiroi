@@ -27,11 +27,11 @@ defmodule Oneiroi.Repo.Migrations.Gaia do
       add(:revoked_at, :utc_datetime_usec)
     end
 
-    projection :gaia_stewardship, scope: :both do
+    projection :gaia_witnessing, scope: :both do
       add(:started_at, :utc_datetime_usec, null: false)
       add(:ended_at, :utc_datetime_usec)
     end
 
-    create(unique_index(:gaia_stewardship, [:account_id, :resident_id]))
+    create(unique_index(:gaia_witnessing, [:account_id, :resident_id]))
   end
 end

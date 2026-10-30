@@ -42,8 +42,8 @@ complete and is not is a resident that does not know what it has
 forgotten. The budget is F7's 1,500, which the spec marks as a guess.
 
 ## #21
-Spec §6.3: "the steward never edits them", "only the steward decides the
-set", "the steward pins, and may propose a bookmark, but does not author
+Spec §6.3: "the witness never edits them", "only the witness decides the
+set", "the witness pins, and may propose a bookmark, but does not author
 one". A role check in a client is a check the MCP tool table would not
 have; the actor's kind is on every command already.
 
@@ -63,7 +63,7 @@ spend that budget on nothing that grows.
 
 ## #24
 Spec §6.3, F55: "a behaviour is self-description, and the resident's
-words are never editable by the steward"; "two scores, never one",
+words are never editable by the witness"; "two scores, never one",
 because "a behaviour with high habit and low connection is a tic". The
 closed trigger set is the spec's: "a trigger the assembler cannot match
 is a behaviour never retrieved", so an open set would be a list of
@@ -111,12 +111,20 @@ on the read says the same thing in words.
 
 ## #29
 Spec §6.3: "revealing it grants read on the earlier sessions, locking
-it does not". Every earlier session, because a steward who handed over
-no longer stewards and the wall is all or nothing (spec §6.12).
+it does not". Every earlier session, because a witness who handed over
+no longer witnesses and the wall is all or nothing (spec §6.12).
 
 ## #30
 Spec §6.3: "a correction is an event naming who made it and why,
 visible to both parties; a stance is revised only with the resident's
-agreement; a fact is corrected by either. The steward never rewrites
+agreement; a fact is corrected by either. The witness never rewrites
 the resident's words in a bookmark; revision adds, it does not
 overwrite." F13: "every edit logged for both".
+
+## #31
+Spec §5 (v0.2, P6): "beside what was injected, the runner-ups that
+were considered and not injected, with the reasons they lost". Max:
+"the near-misses are where a character quietly bends." The `refs`
+rule because #20 derives the row's `last_indexed_at` from the
+injection's `refs`, and a near-miss marked indexed would be the index
+lying about itself.

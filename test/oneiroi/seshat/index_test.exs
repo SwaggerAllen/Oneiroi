@@ -12,20 +12,20 @@ defmodule Oneiroi.Seshat.IndexTest do
   alias Oneiroi.Seshat.Store.Document
 
   setup do
-    steward = Fixtures.account!()
-    resident = Fixtures.resident!(steward)
-    actor = Actor.new(:steward, steward.id)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
-    :ok = Oneiroi.Gaia.store_key(steward.id, "sk-or-test", actor)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     Model.clear()
     on_exit(fn -> File.rm_rf!(dir) end)
-    {:ok, steward: steward, id: resident.id, actor: actor, brain: brain, dir: dir}
+    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, dir: dir}
   end
 
   defp embeddings_spent(id) do
     id
-    |> Nisaba.budgets(:steward)
+    |> Nisaba.budgets(:witness)
     |> Enum.find(&(&1.purpose == :embeddings))
     |> Map.fetch!(:spent_nanos)
   end
@@ -76,7 +76,7 @@ defmodule Oneiroi.Seshat.IndexTest do
     assert embeddings_spent(id) > spent
     assert Enum.all?(Seshat.documents(id), &(&1.embedded_with == "openai/text-embedding-3-small"))
 
-    assert [%{outcome: "ok", by_kind: "steward"} | _] = Seshat.index_runs(id, 10)
+    assert [%{outcome: "ok", by_kind: "witness"} | _] = Seshat.index_runs(id, 10)
   end
 
   test "a provider that fails writes nothing but the failed run; the next run tries again", ctx do
@@ -128,10 +128,10 @@ defmodule Oneiroi.Seshat.IndexTest do
     assert second.path == "wiki/sea.md"
     assert first.distance < second.distance
 
-    other_steward = Fixtures.account!()
-    other = Fixtures.resident!(other_steward)
-    other_actor = Actor.new(:steward, other_steward.id)
-    :ok = Oneiroi.Gaia.store_key(other_steward.id, "sk-or-test", other_actor)
+    other_witness = Fixtures.account!()
+    other = Fixtures.resident!(other_witness)
+    other_actor = Actor.new(:witness, other_witness.id)
+    :ok = Oneiroi.Gaia.store_key(other_witness.id, "sk-or-test", other_actor)
     {:ok, other_dir} = Oneiroi.SimaQian.repository_dir(other.id)
     on_exit(fn -> File.rm_rf!(other_dir) end)
 

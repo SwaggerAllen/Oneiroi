@@ -6,8 +6,8 @@ defmodule Oneiroi.AgathosDaimon.Files do
   build-owned `AGENTS.md`, rendered from a template by name and slug and
   never written.
 
-  Before first contact the files are given: a steward writes with the
-  seed's origin. After it a steward's write is refused in favour of a
+  Before first contact the files are given: a witness writes with the
+  seed's origin. After it a witness's write is refused in favour of a
   proposal, which the resident accepts in its own actor or declines, each
   with a note. The resident's own edit applies at any time.
   """
@@ -41,7 +41,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
     with {:ok, _} <- dispatch(command, file), do: :ok
   end
 
-  @doc "A steward proposes an edit after first contact, with a note; returns the proposal's ref."
+  @doc "A witness proposes an edit after first contact, with a note; returns the proposal's ref."
   def propose(resident_id, file, content, note, %Actor{} = actor) do
     ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
@@ -146,7 +146,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
     |> File.read!()
     |> String.replace("{{name}}", name)
     |> String.replace("{{resident_peer}}", "resident-" <> id)
-    |> String.replace("{{steward_peer}}", "steward-" <> account_id)
+    |> String.replace("{{witness_peer}}", "witness-" <> account_id)
   end
 
   @doc "One file's row, or the rendered `AGENTS.md`."

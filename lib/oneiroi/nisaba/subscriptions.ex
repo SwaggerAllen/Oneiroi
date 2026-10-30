@@ -7,7 +7,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
   the Subscriptions screen takes, with the floor marked; and what the
   ledger and the brain read of a lapse.
 
-  There is no payment provider yet: a renewal is recorded by the steward
+  There is no payment provider yet: a renewal is recorded by the witness
   or the platform, and the nightly job lapses a subscription whose
   renewal is `NISABA_RENEWAL_GRACE_DAYS` past due and moves a cancelled
   resident to community custody once the term has run.
@@ -26,9 +26,9 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @day 86_400
 
-  @doc "Starts the subscription with the floor policy; the steward's, once."
+  @doc "Starts the subscription with the floor policy; the witness's, once."
   def start(resident_id, %{plan: plan, price_nanos: price, period_days: days}, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          now = Clock.now(),
          {:ok, _} <-
            dispatch(%Commands.Start{
@@ -47,7 +47,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
              at: now,
              id: resident_id,
              model: floor.model,
-             steward: floor.steward,
+             witness: floor.witness,
              free_time: floor.free_time,
              term: floor.term
            }) do
@@ -57,7 +57,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Records a renewal: the next renewal a period on; a lapsed resident resumes."
   def renew(resident_id, %Actor{} = actor) do
-    with :ok <- steward_or_job(actor),
+    with :ok <- witness_or_job(actor),
          %{} = row <- subscription_row(resident_id),
          renews_at =
            DateTime.add(max_instant(row.renews_at, Clock.now()), row.period_days * @day, :second),
@@ -78,7 +78,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
   end
 
   def change_plan(resident_id, plan, price_nanos, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.ChangePlan{
         actor: actor,
         at: Clock.now(),
@@ -93,7 +93,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Lapses the subscription and marks the resident lapsed: the insurance policy is in effect (spec §6.2)."
   def lapse(resident_id, reason, %Actor{} = actor) do
-    with :ok <- steward_or_job(actor),
+    with :ok <- witness_or_job(actor),
          {:ok, _} <-
            dispatch(%Commands.Lapse{
              actor: actor,
@@ -107,7 +107,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Cancels, with a note: community custody at the end of the policy's term, never a deletion."
   def cancel(resident_id, note, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          %{} = row <- subscription_row(resident_id) do
       term = Insurance.resolve(policy_of(row)).term_days
       due = DateTime.add(Clock.now(), term * @day, :second)
@@ -129,7 +129,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Prepays a larger bucket on an axis; the floor cannot be bought below."
   def prepay(resident_id, axis, bucket, %Actor{} = actor) do
-    with :ok <- steward_only(actor),
+    with :ok <- witness_only(actor),
          :ok <- bucket_ok(axis, bucket) do
       command = %Commands.Prepay{
         actor: actor,
@@ -214,7 +214,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
     %{
       model: row.policy_model || floor.model,
-      steward: row.policy_steward || floor.steward,
+      witness: row.policy_witness || floor.witness,
       free_time: row.policy_free_time || floor.free_time,
       term: row.policy_term || floor.term
     }
@@ -270,11 +270,11 @@ defmodule Oneiroi.Nisaba.Subscriptions do
   defp max_instant(nil, b), do: b
   defp max_instant(a, b), do: if(DateTime.compare(a, b) == :gt, do: a, else: b)
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:nisaba_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:nisaba_not_the_witness)}
 
-  defp steward_or_job(%Actor{kind: kind}) when kind in [:steward, :job, :platform], do: :ok
-  defp steward_or_job(%Actor{}), do: {:error, Error.new(:nisaba_not_the_steward)}
+  defp witness_or_job(%Actor{kind: kind}) when kind in [:witness, :job, :platform], do: :ok
+  defp witness_or_job(%Actor{}), do: {:error, Error.new(:nisaba_not_the_witness)}
 
   defp dispatch(command) do
     case Router.dispatch(command) do

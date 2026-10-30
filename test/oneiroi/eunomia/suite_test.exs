@@ -8,7 +8,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
   alias Oneiroi.Eunomia.Suite
 
   @at ~U[2026-10-26 12:00:00Z]
-  @steward Actor.new(:steward, "a1")
+  @witness Actor.new(:witness, "a1")
 
   defp fold(state, commands) do
     Enum.reduce(commands, state, fn c, s ->
@@ -18,7 +18,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
 
   defp write(prompt \\ "What do you do when I am late?") do
     %Commands.WriteTest{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       prompt: prompt,
@@ -29,7 +29,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
 
   defp start(ref \\ "run1", models \\ ["m1", "m2"], tests \\ [1]),
     do: %Commands.StartRun{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       run_ref: ref,
@@ -39,7 +39,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
 
   defp record(card, model \\ "m1", test \\ 1) do
     %Commands.RecordAnswer{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       run_ref: "run1",
@@ -62,7 +62,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
              Suite.execute(%Suite{}, %{write() | prompt: String.duplicate("x", 4_001)})
 
     change = %Commands.ChangeTest{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       number: 1,
@@ -90,7 +90,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     assert [] = Suite.execute(s, record("c1"))
 
     grade = %Commands.GradeAnswer{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       run_ref: "run1",
@@ -108,7 +108,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     assert {:error, :no_such_card} = Suite.execute(s, %{grade | card_ref: "c9"})
 
     fav = %Commands.FavouriteAnswer{
-      actor: @steward,
+      actor: @witness,
       at: @at,
       id: "r1",
       run_ref: "run1",
@@ -118,7 +118,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     assert %Events.AnswerFavourited{} = Suite.execute(s, fav)
     assert [] = Suite.execute(fold(s, [fav]), fav)
 
-    finish = %Commands.FinishRun{actor: @steward, at: @at, id: "r1", run_ref: "run1"}
+    finish = %Commands.FinishRun{actor: @witness, at: @at, id: "r1", run_ref: "run1"}
     assert %Events.RunFinished{cards: 2} = Suite.execute(s, finish)
     assert [] = Suite.execute(fold(s, [finish]), finish)
   end

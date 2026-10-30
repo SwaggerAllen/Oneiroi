@@ -1,7 +1,7 @@
 defmodule Oneiroi.Eunomia.Store do
   @moduledoc """
   The judgement and regression projections and their queries, under the
-  resident's scope. The regression rows are read only by the steward's
+  resident's scope. The regression rows are read only by the witness's
   routes: no tool, no export and no other system reads them (spec §6.4's
   unawareness invariant). The judgement rows are the resident's record
   and the brain's tools read them.
@@ -104,6 +104,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:advice, :string)
       field(:advice_text, :string)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:checked_at, :utc_datetime_usec)
       field(:settlement, :string)
       field(:settled_note, :string)
@@ -115,7 +116,7 @@ defmodule Oneiroi.Eunomia.Store do
   end
 
   defmodule Prediction do
-    @moduledoc "A prediction with its due instant, resolved by the steward."
+    @moduledoc "A prediction with its due instant, resolved by the witness."
     use Ecto.Schema
     @primary_key false
     schema "eunomia_prediction" do
@@ -147,6 +148,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:chars, :integer)
       field(:found, :integer)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:summary, :string)
       field(:reason, :string)
     end
@@ -179,6 +181,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:conclusions, :integer)
       field(:flagged, :integer)
       field(:judge_model, :string)
+      field(:criteria, :string)
       field(:summary, :string)
       field(:reason, :string)
       field(:at, :utc_datetime_usec)
@@ -188,7 +191,7 @@ defmodule Oneiroi.Eunomia.Store do
   end
 
   defmodule AuditFlag do
-    @moduledoc "A conclusion the judge flagged, awaiting the steward: approved (the conclusion goes) or deleted (it stays), with a note."
+    @moduledoc "A conclusion the judge flagged, awaiting the witness: approved (the conclusion goes) or deleted (it stays), with a note."
     use Ecto.Schema
     @primary_key false
     schema "eunomia_audit_flag" do

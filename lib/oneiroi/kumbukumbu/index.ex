@@ -16,6 +16,7 @@ defmodule Oneiroi.Kumbukumbu.Index do
           text: String.t(),
           included: [pos_integer()],
           left_out: non_neg_integer(),
+          near_misses: [%{number: pos_integer(), line: String.t(), reason: String.t()}],
           tokens: non_neg_integer()
         }
 
@@ -26,12 +27,32 @@ defmodule Oneiroi.Kumbukumbu.Index do
     pinned = Enum.sort_by(pinned, & &1.number, :desc)
     rest = Enum.sort_by(rest, &{-&1.weight, -&1.number})
 
-    {pinned_lines, pinned_tokens} = take(pinned, div(budget, 2))
-    {rest_lines, _rest_tokens} = take(rest, budget - pinned_tokens)
+    {pinned_lines, pinned_tokens, pinned_out} = take(pinned, div(budget, 2))
+    {rest_lines, _rest_tokens, rest_out} = take(rest, budget - pinned_tokens)
 
     included = Enum.map(pinned_lines ++ rest_lines, &elem(&1, 0))
     left_out = length(bookmarks) - length(included)
     lines = Enum.map(pinned_lines ++ rest_lines, &elem(&1, 1))
+
+    # The near-miss record (spec §5, P6): every bookmark ranked and not
+    # taken, in rank order, with the reason it lost, so the brain's
+    # inspector can show what the index chose not to draw on.
+    near_misses =
+      Enum.map(pinned_out, fn {b, text} ->
+        %{
+          number: b.number,
+          line: text,
+          reason: "pinned, but the pins' half of the budget was spent"
+        }
+      end) ++
+        Enum.map(rest_out, fn {b, text} ->
+          %{
+            number: b.number,
+            line: text,
+            reason:
+              "ranked at weight #{Float.round(b.weight * 1.0, 3)} below what the budget held"
+          }
+        end)
 
     footer =
       case left_out do
@@ -43,7 +64,14 @@ defmodule Oneiroi.Kumbukumbu.Index do
       end
 
     text = Enum.join(lines ++ [footer], "\n")
-    %{text: text, included: included, left_out: left_out, tokens: tokens(text)}
+
+    %{
+      text: text,
+      included: included,
+      left_out: left_out,
+      near_misses: near_misses,
+      tokens: tokens(text)
+    }
   end
 
   @doc "One bookmark's index line: number, day, pin, tags and the resident's line."
@@ -64,13 +92,13 @@ defmodule Oneiroi.Kumbukumbu.Index do
   # does not stop a shorter one after it from being tried, since the
   # order is a ranking and not a queue.
   defp take(bookmarks, budget) do
-    Enum.reduce(bookmarks, {[], 0}, fn b, {lines, used} ->
+    Enum.reduce(bookmarks, {[], 0, []}, fn b, {lines, used, out} ->
       text = line(b)
       cost = tokens(text)
 
       if used + cost <= budget,
-        do: {lines ++ [{b.number, text}], used + cost},
-        else: {lines, used}
+        do: {lines ++ [{b.number, text}], used + cost, out},
+        else: {lines, used, out ++ [{b, text}]}
     end)
   end
 end

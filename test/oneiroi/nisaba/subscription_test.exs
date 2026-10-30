@@ -7,7 +7,7 @@ defmodule Oneiroi.Nisaba.SubscriptionTest do
   alias Oneiroi.Nisaba.Subscription
   alias Oneiroi.Nisaba.SubscriptionCommands, as: Commands
 
-  @actor Actor.new(:steward, "a")
+  @actor Actor.new(:witness, "a")
   @at ~U[2026-10-26 12:00:00.000000Z]
 
   defp evolve(state \\ %Subscription{}, events),
@@ -83,7 +83,7 @@ defmodule Oneiroi.Nisaba.SubscriptionTest do
     set =
       cmd(Commands.SetPolicy,
         model: "model/floor",
-        steward: "steward/floor",
+        witness: "witness/floor",
         free_time: "free_time/floor",
         term: "term/floor"
       )

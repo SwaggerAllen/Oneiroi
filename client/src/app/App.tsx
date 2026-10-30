@@ -10,7 +10,7 @@ import { Login } from './Login';
 import { joinSession } from './socket';
 
 // The shell (spec §10): Chat is home; the nav holds the three destinations
-// built in this phase; the first resident the account stewards is the
+// built in this phase; the first resident the account witnesses is the
 // one shown, a picker arriving with the subscriptions screen.
 export function App() {
   const [me, setMe] = useState<{ email: string } | null | undefined>(undefined);

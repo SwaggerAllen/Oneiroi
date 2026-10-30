@@ -3,7 +3,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   Rebuild is replay (spec §6.10, §9): a repository's `records/events/`
   written into a fresh stream under a new resident id, then an `Imported`
   event naming the source, whether the attestation held, and the root it
-  was read at, and custody to the importing steward. The platform cannot
+  was read at, and custody to the importing witness. The platform cannot
   tell a move from a copy, so an import is always a new resident and
   never a fork (spec §6.2); a store that already holds a resident from
   that repository at that root refuses.
@@ -12,7 +12,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   state is the log; the migration's transfer list grows with the systems.
 
   This is the replay alone, the operator's primitive and the round-trip
-  tests' subject; the steward's intake path, which does this and then
+  tests' subject; the witness's intake path, which does this and then
   the rest of the repository, is `Oneiroi.SimaQian.Import` and shares
   the steps below.
   """
@@ -33,7 +33,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # The clone directory is this function's own, under the temp dir; the
   # `File.rm_rf` on it is what sobelow reads as a traversal.
   # sobelow_skip ["Traversal.FileModule"]
-  def run(url, steward_account_id, %Actor{} = actor) do
+  def run(url, witness_account_id, %Actor{} = actor) do
     clone = Path.join(System.tmp_dir!(), "oneiroi-rebuild-#{System.unique_integer([:positive])}")
 
     try do
@@ -44,7 +44,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
            id = Ecto.UUID.generate(),
            :ok <- append(id, lines),
            {:ok, _} <- import_event(id, url, attestation, root, sequence, actor),
-           {:ok, _} <- custody(id, steward_account_id, actor) do
+           {:ok, _} <- custody(id, witness_account_id, actor) do
         :telemetry.execute([:oneiroi, :sima_qian, :rebuild], %{events: length(lines)}, %{
           resident_id: id
         })
@@ -156,13 +156,13 @@ defmodule Oneiroi.SimaQian.Rebuild do
   end
 
   @doc false
-  def custody(id, steward_account_id, actor) do
+  def custody(id, witness_account_id, actor) do
     Router.dispatch(%Commands.TransferCustody{
       actor: actor,
       at: Clock.now(),
       id: id,
-      to: {:account, steward_account_id},
-      note: "rebuilt from the repository and placed with the importing steward"
+      to: {:account, witness_account_id},
+      note: "rebuilt from the repository and placed with the importing witness"
     })
   end
 end

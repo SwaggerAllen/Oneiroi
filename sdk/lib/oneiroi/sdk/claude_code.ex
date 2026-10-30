@@ -1,7 +1,7 @@
 defmodule Oneiroi.SDK.ClaudeCode do
   @moduledoc """
   The Claude Code adapter (spec §8, F52: Lily in the Claude Code UI):
-  the configuration a steward drops into a project so a Claude Code
+  the configuration a witness drops into a project so a Claude Code
   session is the resident's brain. Three pieces, one per interface of
   the adapter contract.
 
@@ -15,7 +15,7 @@ defmodule Oneiroi.SDK.ClaudeCode do
   3. Wake: the remote trigger lands with the hands phase (P5).
 
   The scripts live beside this module under `sdk/claude-code/`; this
-  module renders the two JSON files so a steward never hand-edits a
+  module renders the two JSON files so a witness never hand-edits a
   hook block. The hook payload shapes are Claude Code's, and the
   fixtures the scripts are tested against must be recorded from a real
   session (conventions §9); until one is recorded here, the scripts are
@@ -56,7 +56,7 @@ defmodule Oneiroi.SDK.ClaudeCode do
     }
   end
 
-  @doc "The environment the scripts read, with the values a steward fills in."
+  @doc "The environment the scripts read, with the values a witness fills in."
   @spec environment(String.t(), String.t(), String.t()) :: map()
   def environment(base_url, resident_id, token) do
     %{

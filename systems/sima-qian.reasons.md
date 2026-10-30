@@ -23,7 +23,7 @@ symptom worth a failed run, and a backup refused for it is a backup not
 taken.
 
 ## #8
-Plan decision 5: a fine-grained token the steward pastes in P0, a GitHub
+Plan decision 5: a fine-grained token the witness pastes in P0, a GitHub
 App with Gitea. Redaction because git echoes the remote on failure.
 
 ## #9
@@ -47,8 +47,8 @@ transfer)"; spec §9 steps 3 and 4. The clone as the working repository
 because a repository copied file by file loses the history the resident
 can cite, and the history is the point of a repository. The proposal
 rather than a write after first contact is §6.2's own rule
-(agathos-daimon #11): the steward brought the file, and after first
-contact a steward's file is a proposal.
+(agathos-daimon #11): the witness brought the file, and after first
+contact a witness's file is a proposal.
 
 ## #16
 `git clone <path>` reads any repository the service user can read, and

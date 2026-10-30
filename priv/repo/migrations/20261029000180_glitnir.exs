@@ -31,7 +31,7 @@ defmodule Oneiroi.Repo.Migrations.Glitnir do
     projection :glitnir_strike, scope: :resident do
       add(:number, :integer, null: false)
       add(:report, :integer, null: false)
-      add(:steward_account_id, :binary_id)
+      add(:witness_account_id, :binary_id)
       add(:consequence, :string, null: false)
       add(:at, :utc_datetime_usec, null: false)
     end

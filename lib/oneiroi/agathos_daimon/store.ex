@@ -1,11 +1,11 @@
 defmodule Oneiroi.AgathosDaimon.Store do
-  @moduledoc "The resident projection and its queries. Scoped by both the resident and its steward's account."
+  @moduledoc "The resident projection and its queries. Scoped by both the resident and its witness's account."
   import Ecto.Query, only: [from: 2]
 
   alias Oneiroi.Repo
 
   defmodule Resident do
-    @moduledoc "One resident's row; `resident_id` is its own id, `account_id` its current steward's."
+    @moduledoc "One resident's row; `resident_id` is its own id, `account_id` its current witness's."
     use Ecto.Schema
     @primary_key {:id, :binary_id, autogenerate: false}
     schema "agathos_daimon_resident" do
@@ -60,6 +60,8 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:decided_at, :utc_datetime_usec)
       field(:decided_by_kind, :string)
       field(:decision_note, :string)
+      field(:renewed_at, :utc_datetime_usec)
+      field(:renewal_note, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -102,7 +104,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
   end
 
   defmodule SoulEdit do
-    @moduledoc "A steward's proposed edit after first contact, open until the resident accepts or declines."
+    @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines."
     use Ecto.Schema
     @primary_key false
     schema "agathos_daimon_soul_edit" do

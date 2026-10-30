@@ -14,7 +14,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
   setup do
     a = Fixtures.account!()
     r = Fixtures.resident!(a)
-    actor = Actor.new(:steward, a.id)
+    actor = Actor.new(:witness, a.id)
     {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     bare = Path.join(System.tmp_dir!(), "oneiroi-bare-#{System.unique_integer([:positive])}")
     :ok = Git.init_bare(bare)

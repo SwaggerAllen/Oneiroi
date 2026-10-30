@@ -7,7 +7,7 @@ defmodule OneiroiWeb.LibraryController do
 
   tags(["library"])
 
-  plug(:stewarded)
+  plug(:witnessed)
 
   operation(:index,
     summary:
@@ -113,7 +113,7 @@ defmodule OneiroiWeb.LibraryController do
   end
 
   operation(:publish,
-    summary: "Publish a piece at a URL (the steward's)",
+    summary: "Publish a piece at a URL (the witness's)",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the publication", "application/json",
@@ -227,10 +227,10 @@ defmodule OneiroiWeb.LibraryController do
     }
   end
 
-  defp stewarded(%{params: %{"id" => id}} = conn, _opts) do
-    if stewards?(conn, id),
+  defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
+    if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_stewarded)) |> halt()
+      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")

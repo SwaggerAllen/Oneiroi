@@ -7,7 +7,7 @@ defmodule Oneiroi.HuginnMuninn.Figures do
   citeable as `<slug>:figure/<key>`, both are tagging targets, and both
   render fresh in the brain's context.
 
-  Counters are the steward's to define and retire; either party
+  Counters are the witness's to define and retire; either party
   increments, from a tool or the client, with the actor on the event.
   """
 
@@ -20,9 +20,9 @@ defmodule Oneiroi.HuginnMuninn.Figures do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna
 
-  @doc "Defines a counter: a key and a label; the steward's."
+  @doc "Defines a counter: a key and a label; the witness's."
   def define_counter(resident_id, key, label, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.DefineCounter{
         actor: actor,
         at: Clock.now(),
@@ -49,9 +49,9 @@ defmodule Oneiroi.HuginnMuninn.Figures do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
-  @doc "Retires a counter; the steward's."
+  @doc "Retires a counter; the witness's."
   def retire_counter(resident_id, key, %Actor{} = actor) do
-    with :ok <- steward_only(actor) do
+    with :ok <- witness_only(actor) do
       command = %Commands.RetireCounter{actor: actor, at: Clock.now(), id: resident_id, key: key}
       with {:ok, _} <- dispatch(command), do: :ok
     end
@@ -122,8 +122,8 @@ defmodule Oneiroi.HuginnMuninn.Figures do
     end
   end
 
-  defp steward_only(%Actor{kind: :steward}), do: :ok
-  defp steward_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_steward)}
+  defp witness_only(%Actor{kind: :witness}), do: :ok
+  defp witness_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_witness)}
 
   defp dispatch(command) do
     case Router.dispatch(command) do

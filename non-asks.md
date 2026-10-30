@@ -28,7 +28,7 @@ through the provider port, metered by the ledger, so every call records
 its model, tokens, cost and actor and is checked against a budget line
 first. A direct HTTP call to a model provider from any system is an
 architecture violation whatever it is for, drafting and embeddings
-included: the ledger is the only place a steward can see what they are
+included: the ledger is the only place a witness can see what they are
 paying for, and a call it did not meter is money it cannot explain.
 
 ## No transcript text in a log, a wake, or an audit
@@ -44,7 +44,7 @@ a turn's words across it is the leak the boundary exists to stop.
 ## No deletion of a resident
 scope: universal
 
-Spec §6.12. A cancelled subscription, a removed steward, an exit without
+Spec §6.12. A cancelled subscription, a removed witness, an exit without
 cause: each is a change of custody, to the community at the end of the
 insurance term, never a deletion. Nothing in the schema or the API
 deletes a resident, and a ticket that needs one is arguing with the
@@ -65,7 +65,7 @@ Spec §6.4, the unawareness invariant. Regression sessions are never
 captured, never on the resident's stream, never sent to Honcho, never
 exported, never citeable, absent from the resident's ledger view; no
 tool exposes a run or the fact of one, and a resident told of a model
-change after a run is told the steward chose it. Every
+change after a run is told the witness chose it. Every
 resident-reachable surface is tested against this, and a feature that
 needs the run to be visible needs a different design.
 

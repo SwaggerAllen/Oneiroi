@@ -1,6 +1,6 @@
 # Claude Code adapter
 
-Lily in the Claude Code UI (spec §8, F52). A steward registers an
+Lily in the Claude Code UI (spec §8, F52). A witness registers an
 adapter on the resident (`POST /v1/residents/:id/adapters` with
 `{"adapter": "claude-code", "role": "brain"}`), gets a bearer token
 shown once, and drops three things into the project:

@@ -19,7 +19,7 @@ config :oneiroi,
           # 32 zero bytes, base64: a dev key, never a deployment's.
           "APSU_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
           "APSU_CLOCK" => "system",
-          # Dev talks to OpenRouter on the steward's own key, as a deployment does.
+          # Dev talks to OpenRouter on the witness's own key, as a deployment does.
           "NISABA_PROVIDER" => "openrouter",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev"
         }}

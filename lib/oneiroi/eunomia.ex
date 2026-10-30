@@ -3,7 +3,7 @@ defmodule Oneiroi.Eunomia do
   Judgement (spec §6.4): in this phase, regression per resident, sealed
   (F42). Tests are three texts; a run is models x tests, every candidate
   answering every test in a sealed session; each answer is a blind card
-  the steward grades pass or fail, with favourites; model names show only
+  the witness grades pass or fail, with favourites; model names show only
   once every card in a test is graded; the favourite can be pinned as the
   chat model through the resident system.
 
@@ -15,8 +15,8 @@ defmodule Oneiroi.Eunomia do
 
   Judgement proper (P2): positions and their chains, disputes live and
   nightly with the judge's advice and model on every verdict, predictions
-  the steward alone resolves, the nightly pass over the day's messages
-  within David's bounds, and the judge chosen by the steward and never
+  the witness alone resolves, the nightly pass over the day's messages
+  within David's bounds, and the judge chosen by the witness and never
   the resident's own chat model (F16, F17, F41). The weekly audit is the
   Honcho bridge's.
   """
@@ -126,17 +126,17 @@ defmodule Oneiroi.Eunomia do
        default: "8",
        tag: :bound,
        usage:
-         "how many candidate models one regression run may hold; a bound on the steward's spend and the grader's deck"},
+         "how many candidate models one regression run may hold; a bound on the witness's spend and the grader's deck"},
       {:run_tests_max, "EUNOMIA_RUN_TESTS_MAX",
        cast: :integer,
        default: "32",
        tag: :bound,
        usage:
-         "how many tests one regression run may hold; a bound on the steward's spend and the grader's deck"},
+         "how many tests one regression run may hold; a bound on the witness's spend and the grader's deck"},
       {:judge_model, "EUNOMIA_JUDGE_MODEL",
        default: "anthropic/claude-sonnet-4.5",
        usage:
-         "the platform's judge model (F41), used unless the steward chooses another; a dated slug is what comparability wants and this default is a placeholder the author pins, not measured"},
+         "the platform's judge model (F41), used unless the witness chooses another; a dated slug is what comparability wants and this default is a placeholder the author pins, not measured"},
       {:live_check_ms, "EUNOMIA_LIVE_CHECK_MS",
        cast: :integer,
        default: "90000",
@@ -190,14 +190,14 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.AnswerFavourited, 1},
       {Oneiroi.Eunomia.Events.Judgement.PositionTaken, 1},
       {Oneiroi.Eunomia.Events.Judgement.PositionReplaced, 1},
-      {Oneiroi.Eunomia.Events.Judgement.DisputeChecked, 1},
+      {Oneiroi.Eunomia.Events.Judgement.DisputeChecked, 2},
       {Oneiroi.Eunomia.Events.Judgement.DisputeSettled, 1},
-      {Oneiroi.Eunomia.Events.Judgement.NightJudged, 1},
+      {Oneiroi.Eunomia.Events.Judgement.NightJudged, 2},
       {Oneiroi.Eunomia.Events.Judgement.NightFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionLogged, 1},
       {Oneiroi.Eunomia.Events.Judgement.PredictionResolved, 1},
       {Oneiroi.Eunomia.Events.Judgement.JudgeModelChanged, 1},
-      {Oneiroi.Eunomia.Events.Judgement.AuditRun, 1},
+      {Oneiroi.Eunomia.Events.Judgement.AuditRun, 2},
       {Oneiroi.Eunomia.Events.Judgement.AuditFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.AuditFlagRaised, 1},
       {Oneiroi.Eunomia.Events.Judgement.AuditFlagApproved, 1},
@@ -223,9 +223,9 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_not_the_resident,
        "positions, live checks, settlements and predictions are the resident's to make",
        remedy: "the resident does this from its own turn"},
-      {:eunomia_not_the_steward,
-       "resolving a prediction and choosing the judge are the steward's",
-       remedy: "the steward does this from the client"},
+      {:eunomia_not_the_witness,
+       "resolving a prediction and choosing the judge are the witness's",
+       remedy: "the witness does this from the client"},
       {:eunomia_statement_invalid,
        "a position or a prediction is one statement of at most 1,000 characters",
        remedy: "say it in fewer words"},
@@ -362,7 +362,7 @@ defmodule Oneiroi.Eunomia do
   @spec judge_model(String.t()) :: String.t()
   defexport(judge_model(resident_id), do: Judgements.judge_model(resident_id))
 
-  @doc "The steward chooses the judge; the resident's chat model is refused."
+  @doc "The witness chooses the judge; the resident's chat model is refused."
   @spec set_judge_model(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(set_judge_model(resident_id, model, actor),
     do: Judgements.set_judge_model(resident_id, model, actor)
@@ -375,7 +375,7 @@ defmodule Oneiroi.Eunomia do
     do: Judgements.log_prediction(resident_id, statement, due, ctx, actor)
   )
 
-  @doc "Resolves a prediction right, wrong or void, with a note: the steward's alone."
+  @doc "Resolves a prediction right, wrong or void, with a note: the witness's alone."
   @spec resolve_prediction(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(resolve_prediction(resident_id, number, outcome, note, actor),
@@ -401,14 +401,14 @@ defmodule Oneiroi.Eunomia do
   @spec run_audit(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
   defexport(run_audit(resident_id, actor), do: MemoryAudit.run(resident_id, actor))
 
-  @doc "The steward approves a flag: the conclusion is deleted from Honcho; with a note."
+  @doc "The witness approves a flag: the conclusion is deleted from Honcho; with a note."
   @spec approve_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(approve_flag(resident_id, ref, note, actor),
     do: MemoryAudit.approve(resident_id, ref, note, actor)
   )
 
-  @doc "The steward deletes a flag: the conclusion stays; with a note."
+  @doc "The witness deletes a flag: the conclusion stays; with a note."
   @spec delete_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(delete_flag(resident_id, ref, note, actor),

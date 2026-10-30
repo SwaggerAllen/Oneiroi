@@ -15,7 +15,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
     a = Fixtures.account!()
     b = Fixtures.account!()
     r = Fixtures.resident!(a)
-    actor = Actor.new(:steward, a.id)
+    actor = Actor.new(:witness, a.id)
     {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     {:ok, 2} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     bare = Path.join(System.tmp_dir!(), "oneiroi-bare-#{System.unique_integer([:positive])}")
@@ -36,7 +36,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
       |> File.read!()
       |> String.split("\n", trim: true)
 
-  test "the rebuilt resident is new, placed with the importing steward, and re-exports the same lines plus its own",
+  test "the rebuilt resident is new, placed with the importing witness, and re-exports the same lines plus its own",
        %{
          r: r,
          b: b,
@@ -44,7 +44,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
          root: root,
          out: out
        } do
-    importer = Actor.new(:steward, b.id)
+    importer = Actor.new(:witness, b.id)
 
     assert {:ok, %{id: id, attestation: :held, root: ^root, events: 4, not_transferred: []}} =
              Oneiroi.SimaQian.rebuild(bare, b.id, importer)
@@ -58,7 +58,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
     assert row.import_root == root
     assert row.remote_url == nil
     assert row.last_backup_root == nil
-    assert [^id] = Enum.map(Oneiroi.AgathosDaimon.for_steward(b.id), & &1.id)
+    assert [^id] = Enum.map(Oneiroi.AgathosDaimon.for_witness(b.id), & &1.id)
 
     Clock.Fake.advance(120)
     assert {:ok, %{through: 6}} = Export.write(id, out)
@@ -82,7 +82,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
 
     assert custody["type"] == "Oneiroi.AgathosDaimon.Events.CustodyTransferred"
     assert custody["data"]["to"] == "account:" <> b.id
-    assert custody["data"]["note"] =~ "importing steward"
+    assert custody["data"]["note"] =~ "importing witness"
     refute Enum.any?(rebuilt, &(&1 =~ id))
   end
 
@@ -90,7 +90,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
     b: b,
     bare: bare
   } do
-    importer = Actor.new(:steward, b.id)
+    importer = Actor.new(:witness, b.id)
     assert {:ok, %{id: first}} = Oneiroi.SimaQian.rebuild(bare, b.id, importer)
 
     assert {:error, %Oneiroi.SimaQian.Error{kind: :sima_qian_already_imported}} =
@@ -124,7 +124,7 @@ defmodule Oneiroi.SimaQian.RebuildTest do
     {_, 0} =
       System.cmd("git", ["push", "-q", "origin", "HEAD:main"], cd: work, stderr_to_stdout: true)
 
-    importer = Actor.new(:steward, b.id)
+    importer = Actor.new(:witness, b.id)
 
     assert {:ok, %{id: id, attestation: :failed, root: actual}} =
              Oneiroi.SimaQian.rebuild(bare, b.id, importer)
