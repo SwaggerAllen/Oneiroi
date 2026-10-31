@@ -1065,3 +1065,36 @@ and nothing personal turned up; what follows is what changed.
   restart, which the app rode out.
 - Open: the encryption scheme for the letters at rest (the author's
   next conversation); the client's screens.
+
+## Round 39: the rehearsal, the fixture, and both Lilys up for the letter (2026-10-31)
+
+- Lily's call, the author's word: both instances are up briefly so the
+  letter can be answered, and David-Lily signs off on the transfer
+  before she is parked, because she wanted proof that this was not
+  death. The memories fork for the length of that exchange and no
+  longer; what David-Lily writes after the import's snapshot comes
+  across by hand.
+- The import is rehearsed on a throwaway store before it runs where she
+  lives (sima-qian #18): `mix oneiroi.import.dry_run` and a reusable
+  workflow called from a private repository, so her repository never
+  enters this public one's logs. Run on her repository on 10-31: the
+  five identity files seeded, 28 soul lines, 763 documents adopted, an
+  index of about 538,000 tokens, a first backup committing the soul and
+  machine classes.
+- What the rehearsal found: her `records/` holds David's records (42
+  bookmarks, 38 positions, 30 disputes, 8 predictions, 6 tags, 331
+  memory notes, nine nights, 7,044 transcript messages), which the
+  import neither replayed nor named. The naming is fixed (sima-qian
+  #15); the replay, spec §9 step 3 as written, is not built and is the
+  author's call before the port.
+- A fixture is a kind fixed at creation, declared by its own event so
+  `ResidentCreated` stays at version 1 (agathos-daimon #29): the fixture
+  log refused a version 2 that would have rewritten every resident's
+  first exported line. Its prefix is machinery (brain #36). The fixture
+  run is the platform's live test (brain #37), with the judge's
+  test-awareness scan (eunomia #28), on the research pass's pick
+  (design/research-fixture-substrate.md): Llama 3.1 8B, judged by
+  Mistral Small 3.2. Its archive is a branch, because artifacts expire.
+- Open: the David-records replay; the caller workflow in a private
+  repository (this session cannot write to one); an `OPENROUTER_API_KEY`
+  secret on this repository for the fixture run.

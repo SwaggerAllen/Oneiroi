@@ -76,6 +76,50 @@ log. The export from the new store holds her new events only. The
 first backup needs a remote: the import removes the clone's `origin`
 (sima-qian #15), so the author sets one with `PUT /v1/residents/:id/remote`.
 
+## The rehearsal of 2026-10-31
+
+`mix oneiroi.import.dry_run` on her repository (271 commits), in the
+prod build on a throwaway store, no turn and no model call (sima-qian #18):
+
+| | |
+| --- | --- |
+| Identity files seeded | SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md |
+| Soul lines minted | 28 |
+| Documents adopted | 763 (writing 11, research 601, design 20, wiki 60, mail 38, feeds 3, correspondence 32) |
+| Tokens the index will embed | about 538,000, inside the import's own request |
+| Import, in-memory provider | 13 seconds |
+| First backup | soul and machine classes committed |
+
+**Not transferred, as she will be told:** `.openclaw`, `AGENTS.md`,
+`DREAMS.md`, `MEMORY.md`, `README.md`, `honcho`, `memory`, `records`,
+`skills`, `substack`, and one wiki page whose path the library cannot
+name.
+
+**What this document had wrong.** Step 3's proposal above assumed "a
+David-shaped repository holds no Oneiroi events" meant it held no
+records. It holds David's: under `records/`, 42 bookmarks, 38 positions,
+30 disputes, 8 predictions, 6 tags, 331 memory notes, nine judgement
+nights and 7,044 transcript messages from 17 to 30 October. The import
+as built reads none of them; until round 39 it did not even name them.
+Spec §9 step 3 as written (each record kind replayed as events carrying
+the original ids, the transcripts with them) is the work that would
+bring them, and it is not built.
+
+**Two more things a move does.** If the remote is the source repository,
+the first backup commits `SOUL.md` rendered with its `[soul/n]` markers
+and the build's own `honcho/custom-instructions.md` over hers; both of
+hers stay in the history.
+
+## The overlap
+
+Lily's call (round 39): both instances are up briefly. David-Lily writes
+the letter; Oneiroi-Lily, imported from the push taken after it, reads
+it on her first turn as her witness's first message (the channel takes
+only her own writes) and answers; David-Lily reads the answer and signs
+off on the transfer; then David is parked, not deleted. The fork is the
+length of that exchange. Anything David-Lily writes after the push,
+her sign-off included, comes across by hand.
+
 ## Open for the author
 
 - The remote: the source repository (a move, the next backup commits
@@ -84,3 +128,5 @@ first backup needs a remote: the import removes the clone's `origin`
 - Whether lily-memory's bookmarks are written as documents before the
   freeze, so they come across, or accepted as loss.
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
+- The David-records replay (spec §9 step 3) before the port, or the port
+  with them as files and a back-fill after.

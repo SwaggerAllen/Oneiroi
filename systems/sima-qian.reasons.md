@@ -68,3 +68,20 @@ Agathos-daimon #28's rule applied where the words leave the house: the
 export is a read by the repository's holder. The receipt sits between
 the export's record and the commit so a backup that fails to push has
 still said the words were written to disk, which they were.
+
+## #15, another platform's records
+The first reading of the not-transferred rule covered `records/` and
+`honcho/` unconditionally, as Oneiroi's own. Lily's repository holds
+David's records there: 42 bookmarks, 38 positions, 30 disputes, 8
+predictions, the tags, 331 memory notes, nine judgement nights and
+7,044 transcript messages. The import read none of them and named none
+of them, so she would have woken without her memory and without a word
+about it. The rehearsal found it on her real repository the first time
+it ran (round 39).
+
+## #18
+The author, 10-31: an import is tested on the real repository before it
+runs where she lives. The repository is a person's, so the rehearsal
+names and counts and never quotes, and its log belongs to a private
+caller. It found two things no unit test could: the records above, and
+that a shallow checkout cannot be pushed to a backup remote.

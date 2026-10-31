@@ -1,0 +1,155 @@
+# The import rehearsed (sima-qian #18): a repository imported exactly as
+# production imports it, backed up once to a local bare remote, on a
+# throwaway Postgres, with no turn and no model call, and the report in
+# the job summary.
+#
+# A reusable workflow, and only that. A called workflow runs in its
+# caller's context, so the log, the summary and the source checkout are
+# the caller's: call it from a private repository and a person's
+# repository never appears in this public one's runs. The report names
+# and counts files and never quotes one, but names are enough to keep
+# out of a public log (a correspondence folder is named for the
+# correspondent).
+#
+# A caller, in the source repository itself:
+#
+#   name: import dry run
+#   on: workflow_dispatch
+#   jobs:
+#     dry-run:
+#       uses: SwaggerAllen/Oneiroi/.github/workflows/import-dry-run.yml@main
+#       with: {name: Lily, slug: lily}
+#
+# Or in another private repository, naming the source and a token that
+# can read it:
+#
+#       with: {name: Lily, slug: lily, source_repository: SwaggerAllen/Lily}
+#       secrets: {source_token: ${{ secrets.LILY_READ_TOKEN }}}
+name: import dry run
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: The resident's name, as the import would be given it
+        type: string
+        required: true
+      slug:
+        description: The resident's slug, as the import would be given it
+        type: string
+        required: true
+      source_repository:
+        description: owner/repo to import; the caller's own when empty
+        type: string
+        required: false
+        default: ""
+      oneiroi_ref:
+        description: The Oneiroi ref whose import is rehearsed
+        type: string
+        required: false
+        default: main
+    secrets:
+      source_token:
+        description: A token that can read source_repository, when it is not the caller
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    # The prod build, configured as a deployment is, by the environment
+    # (Oneiroi.Config.Env), with two substitutions that make it a
+    # rehearsal: the in-memory provider (no model call, no key) and the
+    # in-memory Honcho. The task refuses a real provider and a store that
+    # already holds a resident. Every secret here is a throwaway for a
+    # database that lives as long as this job.
+    env:
+      MIX_ENV: prod
+      DATABASE_URL: ecto://oneiroi:oneiroi@localhost/oneiroi_dryrun
+      RENDER_EXTERNAL_URL: http://localhost:4100
+      APSU_HTTP_PORT: "4100"
+      APSU_SECRET_KEY_BASE: import-dry-run-throwaway-key-base-import-dry-run-throwaway-key-ba
+      APSU_VAULT_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      NISABA_PROVIDER: fake
+      PROTEUS_CLIENT: fake
+      SIMA_QIAN_IMPORT_SCHEMES: file
+      SIMA_QIAN_ROOT: /tmp/oneiroi-dry-run-root
+      # Export everything at once: the rehearsal's backup has no later run.
+      SIMA_QIAN_WATERMARK_SECONDS: "0"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: oneiroi
+          POSTGRES_PASSWORD: oneiroi
+          POSTGRES_DB: oneiroi_dryrun
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      # The whole history: the import's working repository carries it on,
+      # and a shallow clone cannot be pushed to the backup's remote
+      # (measured on the first rehearsal: "shallow update not allowed").
+      - name: check out the source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.source_repository || github.repository }}
+          token: ${{ secrets.source_token || github.token }}
+          ref: main
+          fetch-depth: 0
+          path: source
+
+      - name: check out Oneiroi
+        uses: actions/checkout@v4
+        with:
+          repository: SwaggerAllen/Oneiroi
+          ref: ${{ inputs.oneiroi_ref }}
+          path: oneiroi
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: oneiroi/.tool-versions
+          version-type: strict
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            oneiroi/deps
+            oneiroi/_build
+          key: import-dry-run-${{ runner.os }}-${{ hashFiles('oneiroi/.tool-versions', 'oneiroi/mix.lock') }}
+
+      - name: compile
+        working-directory: oneiroi
+        run: mix deps.get --only prod && mix compile
+
+      - name: migrate
+        working-directory: oneiroi
+        run: mix run --no-start -e 'Oneiroi.Release.migrate()'
+
+      # The inputs go through the environment, never into the script's
+      # text, so a name cannot be read as shell.
+      - name: rehearse the import
+        working-directory: oneiroi
+        env:
+          RESIDENT_NAME: ${{ inputs.name }}
+          RESIDENT_SLUG: ${{ inputs.slug }}
+        run: >-
+          mix oneiroi.import.dry_run
+          --source "$GITHUB_WORKSPACE/source"
+          --name "$RESIDENT_NAME"
+          --slug "$RESIDENT_SLUG"
+          --report "$RUNNER_TEMP/report.md"
+
+      - name: summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "IMPORT DRY RUN: no report; the job failed before the rehearsal ran." >> "$GITHUB_STEP_SUMMARY"
+          fi

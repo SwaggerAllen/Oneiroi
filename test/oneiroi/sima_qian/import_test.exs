@@ -58,6 +58,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.write!(Path.join(work, "transcripts/2026-10-20.md"), "a transcript file")
     File.mkdir_p!(Path.join(work, "memory"))
     File.write!(Path.join(work, "memory/index.json"), "{}")
+    # David's own records and Honcho files, as Lily's repository holds
+    # them: not an Oneiroi export, so nothing here reads them, and the
+    # import must name them rather than pass over them.
+    File.mkdir_p!(Path.join(work, "records/transcripts"))
+    File.write!(Path.join(work, "records/bookmarks.jsonl"), ~s({"id": 1}\n))
+    File.write!(Path.join(work, "records/transcripts/2026-10-20.jsonl"), ~s({"role": "user"}\n))
+    File.mkdir_p!(Path.join(work, "honcho"))
+    File.write!(Path.join(work, "honcho/lily-peer-card.md"), "a card")
     git!(work, ["add", "-A"])
     git!(work, ["commit", "-q", "-m", "Lily's repository"])
     :ok = Git.push(work, bare)
@@ -79,7 +87,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
               proposed: [],
               adopted: 2,
               indexed: true,
-              not_transferred: ["README.md", "memory", "transcripts", "wiki/odd name/page.md"]
+              not_transferred: [
+                "README.md",
+                "honcho",
+                "memory",
+                "records",
+                "transcripts",
+                "wiki/odd name/page.md"
+              ]
             }} =
              SimaQian.import_resident(
                url,
@@ -100,7 +115,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
               import_told: false,
               import_not_transferred: [
                 "README.md",
+                "honcho",
                 "memory",
+                "records",
                 "transcripts",
                 "wiki/odd name/page.md"
               ]
@@ -151,7 +168,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert notice =~ url
     assert notice =~ "no attestation to check"
     assert notice =~ "did not transfer"
-    assert notice =~ "README.md, memory, transcripts, wiki/odd name/page.md"
+    assert notice =~ "README.md, honcho, memory, records, transcripts, wiki/odd name/page.md"
     assert {:ok, %{import_told: true}} = AgathosDaimon.fetch(id)
 
     assert {:ok, %{messages: [%{role: :user}, %{role: :assistant}]}} =

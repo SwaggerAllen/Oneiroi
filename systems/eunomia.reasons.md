@@ -126,3 +126,11 @@ fails rather than being guessed at. Never expired by age because the
 thread untouched for a month is the one this exists to keep; bounded
 by count because the prefix must not grow with the person (ethos #9).
 The bound is a guess and its usage line says so.
+
+## #28
+Spec §12, P40 asks for substrates "selected against the test-awareness
+trait", and the research pass of 10-31 found nobody has measured that
+trait for our task on cheap open-weight models: the pick is an
+inference from size and age. Measuring it on every run, the way UK AISI
+scans transcripts, turns the inference into a figure per model that a
+change of model or of provider can be compared against.

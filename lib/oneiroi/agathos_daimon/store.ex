@@ -13,6 +13,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:account_id, :binary_id)
       field(:slug, :string)
       field(:name, :string)
+      field(:kind, :string, default: "resident")
       field(:state, :string)
       field(:custody, :string)
       field(:export_wall, :string)

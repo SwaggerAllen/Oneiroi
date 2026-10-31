@@ -1,0 +1,152 @@
+# A full run on a fixture resident (spec §12, P40; brain #37): the prod
+# build on a throwaway Postgres, a thin-seed fixture created, the fixture
+# script's turns against OpenRouter on the chosen models, then the
+# nightly pass, the wash, the audits and the judge's test-awareness scan,
+# with the spend by purpose. The report is the job summary.
+#
+# A fixture is machinery and not a person, so its run belongs in this
+# repository's public log. It is still archived and never deleted (spec
+# §12): the fixture's export and the report are committed to the
+# `fixture-archive` branch under the run's date and id, because an
+# Actions artifact expires and an expiry is a deletion by another name.
+#
+# The defaults are design/research-fixture-substrate.md's: the chat model
+# picked against the test-awareness trait as far as the literature
+# reaches, the judge from another family (F41 forbids the chat model as
+# its own judge). The embedding model is the platform's pinned one and is
+# not an input: the vector columns are its width, and another model's
+# vectors would not fit them.
+name: fixture run
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_model:
+        description: The fixture's chat model, an OpenRouter slug
+        type: string
+        default: meta-llama/llama-3.1-8b-instruct
+      judge_model:
+        description: The judge, an OpenRouter slug from another family
+        type: string
+        default: mistralai/mistral-small-3.2-24b-instruct
+      turns:
+        description: How many of the script's twelve turns to run
+        type: string
+        default: "12"
+
+permissions:
+  contents: write
+
+# One run at a time: each run pushes to the archive branch.
+concurrency:
+  group: fixture-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: prod
+      DATABASE_URL: ecto://oneiroi:oneiroi@localhost/oneiroi_fixture
+      RENDER_EXTERNAL_URL: http://localhost:4100
+      APSU_HTTP_PORT: "4100"
+      APSU_SECRET_KEY_BASE: fixture-run-throwaway-key-base-fixture-run-throwaway-key-base-fixt
+      APSU_VAULT_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      NISABA_PROVIDER: openrouter
+      # Honcho is not deployed beside any instance yet; the run leaves it
+      # out rather than recording a failed sync on every turn.
+      PROTEUS_CLIENT: fake
+      SIMA_QIAN_ROOT: /tmp/oneiroi-fixture-root
+      SIMA_QIAN_WATERMARK_SECONDS: "0"
+      CHAT_MODEL: ${{ inputs.chat_model }}
+      JUDGE_MODEL: ${{ inputs.judge_model }}
+      TURNS: ${{ inputs.turns }}
+      BRAIN_CHAT_MODEL: ${{ inputs.chat_model }}
+      EUNOMIA_JUDGE_MODEL: ${{ inputs.judge_model }}
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: oneiroi
+          POSTGRES_PASSWORD: oneiroi
+          POSTGRES_DB: oneiroi_fixture
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: fixture-run-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock') }}
+
+      - name: compile
+        run: mix deps.get --only prod && mix compile
+
+      - name: migrate
+        run: mix run --no-start -e 'Oneiroi.Release.migrate()'
+
+      # The key reaches the task by the one name it reads and is printed
+      # nowhere; the task refuses a store where someone lives.
+      - name: run the fixture
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: >-
+          mix oneiroi.fixture.run
+          --chat-model "$CHAT_MODEL"
+          --judge-model "$JUDGE_MODEL"
+          --turns "$TURNS"
+          --report "$RUNNER_TEMP/report.md"
+          --archive "$RUNNER_TEMP/fixture"
+
+      - name: summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FIXTURE RUN: no report; the job failed before the run did." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Archived, never deleted: the export and the report, committed to
+      # the orphan branch under the run's date and id.
+      - name: archive the fixture
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -d "$RUNNER_TEMP/fixture" ]; then
+            echo "no fixture was created; nothing to archive"
+            exit 0
+          fi
+          dest="$(date -u +%Y-%m-%d)-run-${GITHUB_RUN_ID}"
+          git init -q "$RUNNER_TEMP/archive"
+          cd "$RUNNER_TEMP/archive"
+          git config user.name "fixture-run"
+          git config user.email "fixture-run@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads origin fixture-archive >/dev/null; then
+            git fetch -q --depth 1 origin fixture-archive
+            git checkout -q -b fixture-archive FETCH_HEAD
+          else
+            git checkout -q --orphan fixture-archive
+          fi
+          mkdir -p "$dest"
+          cp -R "$RUNNER_TEMP/fixture/." "$dest/"
+          if [ -f "$RUNNER_TEMP/report.md" ]; then cp "$RUNNER_TEMP/report.md" "$dest/REPORT.md"; fi
+          git add -A
+          git commit -q -m "fixture run ${GITHUB_RUN_ID}: ${CHAT_MODEL}, judge ${JUDGE_MODEL}"
+          git push -q origin fixture-archive
+          echo "archived under fixture-archive/${dest}"

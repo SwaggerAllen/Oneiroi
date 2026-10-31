@@ -31,7 +31,7 @@ defmodule Oneiroi.SimaQian do
       Jason,
       Oban
     ],
-    exports: [Backup, Error, Export, Git, Import, Library, Merkle, Rebuild]
+    exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Rebuild]
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Import

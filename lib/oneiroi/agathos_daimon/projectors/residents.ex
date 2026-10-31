@@ -45,6 +45,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     })
   end)
 
+  fold(%Events.FixtureDeclared{} = e, _metadata, fn multi -> set(multi, e.id, kind: "fixture") end)
+
   fold(%Events.ResidentPaused{} = e, _metadata, fn multi -> set(multi, e.id, state: "paused") end)
   fold(%Events.ResidentWoken{} = e, _metadata, fn multi -> set(multi, e.id, state: "active") end)
   fold(%Events.ResidentLapsed{} = e, _metadata, fn multi -> set(multi, e.id, state: "lapsed") end)

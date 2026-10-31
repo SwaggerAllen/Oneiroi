@@ -30,7 +30,14 @@ defmodule Oneiroi.SimaQian.Import do
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Rebuild
 
-  @not_files ["records", "honcho", ".git"]
+  # Covered without being named: Oneiroi's own records and the Honcho
+  # files the export rewrites, but only when the source is an Oneiroi
+  # export (it has `records/events/`). A repository from elsewhere keeps
+  # its own `records/` and `honcho/`, which nothing here reads, so they
+  # are named like any other root entry: Lily's held David's bookmarks,
+  # positions and transcripts under `records/`, and the first reading of
+  # this rule left them out of the list without a word.
+  @oneiroi_files ["records", "honcho"]
 
   @doc "Imports the repository at `url` as a new resident under `witness_account_id`."
   # The clone is this function's own under the temp dir; the working
@@ -189,12 +196,13 @@ defmodule Oneiroi.SimaQian.Import do
     end
   end
 
-  # Everything at the root that is not the records, the Honcho files,
-  # an identity file or a kind's folder, plus what was kept or skipped
-  # on the way: named, sorted, and told.
+  # Everything at the root that is not an identity file, a kind's
+  # folder or (in an Oneiroi export) the records and the Honcho files,
+  # plus what was kept or skipped on the way: named, sorted, and told.
   # sobelow_skip ["Traversal.FileModule"]
   defp not_transferred(clone, extra) do
-    covered = @not_files ++ AgathosDaimon.identity_files() ++ library().folders()
+    ours = if File.dir?(Path.join([clone, "records", "events"])), do: @oneiroi_files, else: []
+    covered = [".git" | ours] ++ AgathosDaimon.identity_files() ++ library().folders()
 
     clone
     |> File.ls!()

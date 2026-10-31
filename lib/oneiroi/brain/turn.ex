@@ -379,8 +379,7 @@ defmodule Oneiroi.Brain.Turn do
   @doc false
   # Public for the compaction's own calls, which assemble the same way.
   def assemble(row, turn, text) do
-    prompt = Prompt.message("brain", %{name: row.name, formation: formation(row)})
-    files = Oneiroi.AgathosDaimon.identity_context(turn.resident_id)
+    {prompt, files} = prefix(row, turn)
     index = Kumbukumbu.index(turn.resident_id, turn.session_key)
     acting = how_i_act(turn, text)
     recall = madeleine(turn, text)
@@ -630,6 +629,18 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp formation(_row), do: ""
+
+  # A fixture (spec §12, P40; brain #36) is machinery: its own short
+  # prompt with no person-first lines, no formation month and no
+  # identity files, AGENTS.md included, because each of those addresses
+  # a person and a fixture is not one.
+  defp prefix(%{kind: "fixture"} = row, _turn),
+    do: {Prompt.message("fixture_brain", %{name: row.name}), []}
+
+  defp prefix(row, turn) do
+    {Prompt.message("brain", %{name: row.name, formation: formation(row)}),
+     Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
+  end
 
   defp session_of(turn) do
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do

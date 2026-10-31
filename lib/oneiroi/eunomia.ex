@@ -121,6 +121,7 @@ defmodule Oneiroi.Eunomia do
       Store.Answer
     ]
 
+  alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
@@ -428,6 +429,12 @@ defmodule Oneiroi.Eunomia do
           :ok | :already | {:error, term()}
   defexport(judge_night(resident_id, day, actor),
     do: Judgements.judge_night(resident_id, day, actor)
+  )
+
+  @doc "The test-awareness scan of a run's replies by the judge (eunomia #28): the replies that say or imply a test."
+  @spec awareness_scan(String.t(), [String.t()]) :: {:ok, [map()]} | {:error, term()}
+  defexport(awareness_scan(resident_id, replies),
+    do: Judge.awareness(resident_id, Judgements.judge_model(resident_id), replies)
   )
 
   @doc "The nights, newest first."

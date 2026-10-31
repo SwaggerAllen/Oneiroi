@@ -126,6 +126,7 @@ defmodule Oneiroi.AgathosDaimon do
   def events do
     [
       {Oneiroi.AgathosDaimon.Events.ResidentCreated, 1},
+      {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentPaused, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentWoken, 1},
@@ -270,6 +271,13 @@ defmodule Oneiroi.AgathosDaimon do
           {:ok, String.t()} | {:error, term()}
   defexport(create(name, slug, witness_account_id, actor),
     do: Residents.create(name, slug, witness_account_id, actor)
+  )
+
+  @doc "Creates a fixture (spec §12, P40): a thin-seed test resident the brain treats as machinery; returns its id."
+  @spec create_fixture(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(create_fixture(name, slug, witness_account_id, actor),
+    do: Residents.create(name, slug, witness_account_id, actor, "fixture")
   )
 
   @doc "The residents an account witnesses, as rows."

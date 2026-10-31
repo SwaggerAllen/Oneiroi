@@ -30,7 +30,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Sunna,
       Jason
     ],
-    exports: [Error, Session, Turn, Tools, Compaction, Drafting]
+    exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
 
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Session
