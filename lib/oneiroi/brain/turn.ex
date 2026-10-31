@@ -30,6 +30,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
   alias Oneiroi.Brain.Error
+  alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
@@ -420,7 +421,7 @@ defmodule Oneiroi.Brain.Turn do
     history =
       turn.resident_id
       |> Kumbukumbu.recent(turn.session_key, count)
-      |> Enum.map(&history_message/1)
+      |> History.messages()
 
     sections =
       section(
@@ -676,11 +677,6 @@ defmodule Oneiroi.Brain.Turn do
       _other -> {nil, 0}
     end
   end
-
-  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
-
-  defp history_message(%{role: role, content: content}),
-    do: %{role: Map.fetch!(@roles, role), content: content}
 
   defp public_message(m) do
     %{

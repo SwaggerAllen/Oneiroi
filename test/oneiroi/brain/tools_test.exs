@@ -83,6 +83,56 @@ defmodule Oneiroi.Brain.ToolsTest do
              span |> Enum.reject(&(&1.role == "tool")) |> Enum.map(& &1.content)
   end
 
+  # The fixture's turn 2 used four tools and every turn after it was
+  # refused: the stored `tool` rows went back bare, answering no call.
+  test "the turn after one that used tools sends each use back as a call and its answer", ctx do
+    Fake.calls(
+      [
+        %{name: "bookmark_add", arguments: %{line: "keep this", summary: "s"}},
+        %{name: "figure_list", arguments: "null"}
+      ],
+      "Kept.",
+      for: ctx.resident.id
+    )
+
+    assert {:ok, %{messages: first}} =
+             Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "keep this", ctx.actor)
+
+    assert [:user, :tool, :tool, :assistant] = Enum.map(first, & &1.role)
+
+    test = self()
+
+    Fake.script(
+      fn %{messages: shown} ->
+        send(test, {:shown, shown})
+        {:ok, "still here"}
+      end,
+      for: ctx.resident.id
+    )
+
+    assert {:ok, %{messages: [_, %{content: "still here"}]}} =
+             Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "and now?", ctx.actor)
+
+    assert_received {:shown, shown}
+    replayed = Enum.drop_while(shown, &(&1.content != "keep this"))
+
+    assert [
+             %{role: :user, content: "keep this"},
+             %{role: :assistant, tool_calls: [%{id: a, function: %{name: "bookmark_add"} = f}]},
+             %{role: :tool, tool_call_id: a, content: "Bookmarked as #1."},
+             %{
+               role: :assistant,
+               tool_calls: [%{id: b, function: %{name: "figure_list", arguments: "null"}}]
+             },
+             %{role: :tool, tool_call_id: b, content: "The arguments were not a JSON object."},
+             %{role: :assistant, content: "Kept."},
+             %{role: :user, content: "and now?"}
+           ] = replayed
+
+    assert a != b
+    assert Jason.decode!(f.arguments) == %{"line" => "keep this", "summary" => "s"}
+  end
+
   test "the tools answer in words, misuse included", ctx do
     turn = %{
       resident_id: ctx.resident.id,
@@ -208,6 +258,69 @@ defmodule Oneiroi.Brain.ToolsTest do
              Enum.filter(shown, &(&1.role == :system and &1.content =~ "SUMMARY: eight lines"))
 
     assert String.starts_with?(summary, "# Compaction summary: machine-state")
+  end
+
+  test "a session with a tool's use in it compacts: the flush sees the call and its answer, the summary sees words",
+       ctx do
+    at = Clock.now()
+    resident_actor = Actor.new(:resident, ctx.resident.id, "fake/model")
+
+    messages =
+      for n <- 1..8 do
+        case rem(n, 3) do
+          1 ->
+            %{role: :user, content: "line #{n}", sent_at: at, actor: resident_actor}
+
+          2 ->
+            %{role: :tool, content: "tag_list({}) -> #{n}", sent_at: at, actor: resident_actor}
+
+          0 ->
+            %{role: :assistant, content: "line #{n}", sent_at: at, actor: resident_actor}
+        end
+      end
+
+    :ok = Kumbukumbu.capture(ctx.resident.id, ctx.key, "big", at, messages, resident_actor)
+    test = self()
+
+    Fake.script(
+      fn %{messages: msgs} ->
+        system = fn prefix ->
+          Enum.any?(msgs, &(&1.role == :system and String.starts_with?(&1.content, prefix)))
+        end
+
+        cond do
+          system.("You are the compaction machinery") ->
+            send(test, {:summarised, msgs})
+            {:ok, "SUMMARY: tools were used."}
+
+          system.("This conversation is about to be compacted") ->
+            send(test, {:flushed, msgs})
+            {:ok, "nothing to keep"}
+
+          true ->
+            {:ok, "after the compaction"}
+        end
+      end,
+      for: ctx.resident.id
+    )
+
+    assert {:ok, %{messages: [_, %{content: "after the compaction"}]}} =
+             Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "ninth", ctx.actor)
+
+    assert {:ok, %{summary: "SUMMARY: tools were used."}, _} =
+             Kumbukumbu.uncompacted(ctx.resident.id, ctx.key)
+
+    assert_received {:flushed, flushed}
+    assert [%{tool_call_id: id, content: "2"} | _] = Enum.filter(flushed, &(&1.role == :tool))
+    assert Enum.any?(flushed, &match?(%{tool_calls: [%{id: ^id}]}, &1))
+
+    assert_received {:summarised, summarised}
+    refute Enum.any?(summarised, &(&1.role == :tool or Map.has_key?(&1, :tool_calls)))
+
+    assert Enum.any?(
+             summarised,
+             &(&1.role == :assistant and &1.content == "tag_list({}) -> 2")
+           )
   end
 
   test "a flush that fails leaves the session uncompacted and the turn goes on", ctx do

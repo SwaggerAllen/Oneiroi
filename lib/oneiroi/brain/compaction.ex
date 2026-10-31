@@ -14,14 +14,13 @@ defmodule Oneiroi.Brain.Compaction do
   about the content.
   """
 
+  alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
-
-  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
 
   @doc "Compacts the turn's session if it has outgrown its window; `:ok`, `:skipped`, or the failure."
   @spec maybe(map()) :: :ok | :skipped | {:error, term()}
@@ -38,11 +37,10 @@ defmodule Oneiroi.Brain.Compaction do
     messages = Kumbukumbu.since_compaction(turn.resident_id, turn.session_key)
     through = messages |> Enum.map(& &1.sequence) |> Enum.max(fn -> 0 end)
 
-    transcript =
-      Enum.map(messages, &%{role: Map.fetch!(@roles, &1.role), content: &1.content})
+    transcript = History.messages(messages)
 
     with :ok <- flush(turn, transcript),
-         {:ok, summary} <- summarise(turn, session, transcript) do
+         {:ok, summary} <- summarise(turn, session, History.words(messages)) do
       Kumbukumbu.compact(
         turn.resident_id,
         turn.session_key,

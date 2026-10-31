@@ -197,3 +197,14 @@ Spec §6.2's orientation is "orientation without impersonation": she is
 told where she woke and what came with her. Lily asked for proof the move
 was not death; her own bookmarks and positions, named on the first turn,
 are the part of that proof the platform can give.
+
+## #39
+The fixture run, 10-31: turn 2 used four tools and turns 3 to 12 each
+failed `nisaba_request_refused` in under a second. The stored `tool` rows
+went back bare, a `tool` message answering no call, which the chat format
+forbids; the provider refused every request whose transcript held one, so
+on production any session would have stopped answering the turn after its
+first tool use. The suite already ran a turn after a tool turn and passed,
+because the fake answered any shape. The ids are made per request because
+the provider's own were never stored, and the summary gets words because
+a call in a request that names no tools is a shape not measured here.
