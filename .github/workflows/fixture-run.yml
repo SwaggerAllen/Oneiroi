@@ -68,6 +68,11 @@ jobs:
       # No Honcho beside this throwaway store; the run leaves it out
       # rather than recording a failed sync on every turn.
       PROTEUS_CLIENT: fake
+      # The tool-call stream, piece by piece, in this run's log: where a
+      # call's arguments arrive twice over is not yet measured (nisaba
+      # #21). A fixture is machinery, so its words may enter a log; no
+      # other build sets this.
+      NISABA_TRACE_TOOL_DELTAS: "true"
       SIMA_QIAN_ROOT: /tmp/oneiroi-fixture-root
       SIMA_QIAN_WATERMARK_SECONDS: "0"
       # A labelled PR has no inputs, so the dispatch defaults are repeated

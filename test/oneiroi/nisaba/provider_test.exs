@@ -271,6 +271,47 @@ defmodule Oneiroi.Nisaba.ProviderTest do
     end
   end
 
+  describe "the tool-call trace (nisaba #21)" do
+    test "each streamed piece is a line with its provider and arguments as they came, and each call as assembled" do
+      piece = fn args ->
+        %{
+          "provider" => "SomeHost",
+          "choices" => [
+            %{
+              "delta" => %{
+                "tool_calls" => [
+                  %{
+                    "index" => 0,
+                    "id" => "c1",
+                    "function" => %{"name" => "f", "arguments" => args}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      end
+
+      assert [line] = OpenRouter.trace_lines(piece.(~s({"a":1})))
+      assert line =~ "provider=SomeHost" and line =~ "name=f"
+      assert line =~ "arguments=" <> inspect(~s({"a":1}))
+
+      assert OpenRouter.trace_lines(%{"choices" => [%{"delta" => %{"content" => "words"}}]}) == []
+      assert OpenRouter.trace_lines(:done) == []
+
+      state =
+        Enum.reduce(
+          [piece.(~s({"a":1})), piece.(~s({"a":1}))],
+          SSE.initial(),
+          &SSE.absorb(&2, &1, fn _ -> :ok end)
+        )
+
+      # The join as this adapter makes it: two whole pieces, one call.
+      assert [assembled] = OpenRouter.assembled_lines(state)
+      assert assembled =~ "arguments=" <> inspect(~s({"a":1}{"a":1}))
+    end
+  end
+
   describe "a stream that answered nothing" do
     # Fixture run 41240586421: eight turns ended with no words and no
     # usage, each read as a reply and recorded at zero cost.

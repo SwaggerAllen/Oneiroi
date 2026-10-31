@@ -77,3 +77,12 @@ all was not recorded, and the adapter ignored any event without
 `choices`, so it could not have said. Both now fail the call, and a
 turn that fails keeps the provider's words in its reason (brain #39),
 so the next run will.
+
+## #21
+Three fixture runs on 10-31 had a call's arguments arrive as one object
+twice over, the last six times. The wire now sends one object (brain
+#10), but whether the provider sends them twice or this adapter joins a
+piece twice is not measured, and nothing recorded could say. The author,
+10-31: log the raw tool-call stream for now, and audit the logging once
+real people are on the platform.
+
