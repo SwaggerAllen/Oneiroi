@@ -55,3 +55,13 @@ one cluster with a role is the same isolation for accidents at neither
 cost. The connection budget is a bound, not a measurement: Honcho's
 defaults (ten and twenty of overflow per process) would have taken the
 cluster's connections from the event store on their own.
+
+The first live deploy (10-31) corrected two claims the local measurement
+had made. It exercised Honcho's startup statements under the role, not
+Honcho's Alembic, which connects with options of its own, so the
+ownership split surfaced only as "permission denied for table
+active_queue_sessions" on the live poller. And Render's private address
+did not follow the port the server opened. Both are fixed by making the
+two sides agree by construction rather than by trusting the platform's
+report.
+
