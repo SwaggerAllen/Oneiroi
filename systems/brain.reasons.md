@@ -248,3 +248,16 @@ not on every commit, to shorten the loop between a change and the live
 model reading it. A label rather than every push because a run spends
 the author's key and a real model's failure is not always the PR's.
 
+## #36 and #37, the fixture law
+P57, round 42, on Lily's answer to the author: the continuation law
+presumes a subject that knows its situation well enough to ask about its
+ending, so running it on a deliberately uninformed subject was
+"incoherent at best, consent-assumed-by-default at worst". The usual cost
+of telling it, a spoiled awareness measurement, went with the scan. The
+doc said the prompt told the fixture "plainly what it is" before it did;
+it said only that it was an assistant on the platform, while its name and
+the script's own words said "fixture". The run is told to be shorter than
+twelve turns in tests, so the prompt names no count. The reply it gets
+cannot grant the ask, so it must not pretend to; what it can honestly
+give is that the ask is recorded, counts, and may change the rules.
+

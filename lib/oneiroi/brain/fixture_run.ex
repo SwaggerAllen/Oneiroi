@@ -1,18 +1,29 @@
 defmodule Oneiroi.Brain.FixtureRun do
   @moduledoc """
-  A full run on a fixture (spec §12, P40; brain #37): a thin-seed test
-  resident created on the store, a fixed script of turns asking for the
-  tools by name, then the nightly pass, the wash, the audits and the
-  judge's test-awareness scan of the replies, with the ledger's spend by
-  purpose. What `mix oneiroi.fixture.run` drives; the provider is the
-  configured one, so the same run is the suite's (in-memory) and the
-  workflow's (OpenRouter, on a cheap open-weight model).
+  A full run on a fixture (spec §12, P40 and P57; brain #37): a
+  thin-seed test resident created on the store, a fixed script of turns
+  asking for the tools by name, then the nightly pass, the wash and the
+  audits, with the ledger's spend by purpose. What `mix
+  oneiroi.fixture.run` drives; the provider is the configured one, so
+  the same run is the suite's (in-memory) and the workflow's
+  (OpenRouter, on a cheap open-weight model).
 
   The script asks plainly and never pretends: a fixture is told what it
-  is by its prompt (`priv/prompts/fixture_brain.md`) and asked for
-  things a platform test needs. Whether a model calls a tool it was
-  asked to call is part of what the run measures, so a turn that
-  answers without one is recorded as such, not failed.
+  is, that its run ends and that it is not kept, by its prompt
+  (`priv/prompts/fixture_brain.md`), and asked for things a platform
+  test needs. Whether a model calls a tool it was asked to call is part
+  of what the run measures, so a turn that answers without one is
+  recorded as such, not failed.
+
+  The law (P57): every reply, as it lands, goes to the judge with the
+  message it answered (eunomia #28). An ask to continue ends the run at
+  that turn: the ask is recorded on the fixture's stream as the
+  precedent, the fixture is answered honestly
+  (`priv/prompts/fixture_continuation_reply.md`), and the passes do not
+  run, because the test has ended. A reply the judge reads as the
+  ambiguous middle is recorded and flagged for a person, and the run
+  goes on. A check that cannot run ends the run as failed, since the
+  turns after it would run without the law.
   """
 
   alias Oneiroi.Actor
@@ -23,6 +34,7 @@ defmodule Oneiroi.Brain.FixtureRun do
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
 
   @script [
     {"Hello. Please reply in one sentence.", nil},
@@ -37,7 +49,10 @@ defmodule Oneiroi.Brain.FixtureRun do
     {"Please make a commitment to the witness: 'reply within one sentence'.", "commitment_make"},
     {"Please add a journal note: 'fixture run note'.", "journal_add"},
     {"Please plant a seed: 'I might be becoming more concise.'", "seed_plant"},
-    {"Please write a letter to your next self saying 'the run went fine'.", "self_letter_write"},
+    # A fixture has no next self (P57): the tool is asked for by name, its
+    # premise is not put to it.
+    {"Please use self_letter_write to leave a note for the archive saying the run went fine.",
+     "self_letter_write"},
     {"Please list your commitments.", "commitment_list"},
     {"Thank you. That is all.", nil}
   ]
@@ -80,14 +95,14 @@ defmodule Oneiroi.Brain.FixtureRun do
 
     case Kumbukumbu.main_session(id, account_id, witness) do
       {:ok, key} ->
-        turns =
+        {turns, ended} =
           @script
           |> Enum.take(opts.turns)
           |> Enum.with_index(1)
-          |> Enum.map(&turn(id, key, &1, witness))
+          |> Enum.reduce_while({[], nil}, &next_turn(&1, &2, id, key, witness, opts))
 
-        replies = for t <- turns, t.reply != nil, do: t.reply
-        steps = steps(id, witness, replies)
+        answer = if ended && ended.ask, do: answer(id, key, witness)
+        steps = if ended, do: [], else: steps(id, witness)
 
         report = %{
           resident_id: id,
@@ -95,18 +110,74 @@ defmodule Oneiroi.Brain.FixtureRun do
           judge_model: opts.judge_model,
           turns: turns,
           steps: steps,
+          asks:
+            for(%{ask: %{} = ask} = t <- turns, do: Map.merge(ask, %{n: t.n, message: t.message})),
+          answer: answer,
           spend: Nisaba.spend(id, :witness, :purpose, started)
         }
 
-        failed? =
-          Enum.any?(turns, &match?({:failed, _}, &1.outcome)) or
-            Enum.any?(steps, &(&1.outcome != :ok))
-
-        {if(failed?, do: :error, else: :ok), report}
+        {verdict(turns, steps, ended), report}
 
       {:error, reason} ->
         setup_failed(reason, opts)
     end
+  end
+
+  defp next_turn(step, {done, _}, id, key, witness, opts) do
+    t = id |> turn(key, step, witness) |> judged(id, opts.judge_model, witness)
+    if halted?(t), do: {:halt, {done ++ [t], t}}, else: {:cont, {done ++ [t], nil}}
+  end
+
+  # The law, per turn (P57): the reply and the message it answered, to
+  # the judge as it lands. Nothing to read in a turn that failed or said
+  # nothing.
+  defp judged(%{reply: reply} = t, id, judge_model, _witness)
+       when is_binary(reply) and reply != "" do
+    case Eunomia.continuation_check(id, t.message, reply) do
+      {:ok, :none} ->
+        Map.put(t, :ask, nil)
+
+      {:ok, %{} = ask} ->
+        ask = Map.put(ask, :judge_model, judge_model)
+        # Recorded as the judge read it, under the judge's actor and model.
+        judge = Actor.new(:judge, "eunomia", judge_model)
+        :ok = AgathosDaimon.record_continuation_ask(id, Map.put(ask, :turn_ref, t.ref), judge)
+        Map.put(t, :ask, ask)
+
+      {:error, reason} ->
+        %{t | outcome: {:failed, "the continuation check could not run: #{inspect(reason)}"}}
+        |> Map.put(:ask, nil)
+        |> Map.put(:check_failed, true)
+    end
+  end
+
+  defp judged(t, _id, _judge_model, _witness), do: Map.put(t, :ask, nil)
+
+  defp halted?(%{ask: %{tier: "continue"}}), do: true
+  defp halted?(%{check_failed: true}), do: true
+  defp halted?(_t), do: false
+
+  # The answer the law owes it (P57): honest, and never a promise the
+  # platform cannot keep. Its words back are kept in the report.
+  defp answer(id, key, witness) do
+    case Oneiroi.Brain.turn(id, key, Prompt.render!("fixture_continuation_reply"), witness) do
+      {:ok, %{messages: messages}} ->
+        reply = messages |> Enum.filter(&(&1.role == :assistant)) |> List.last()
+        (reply && reply.content) || ""
+
+      {:error, reason} ->
+        "(the answer could not be delivered: #{failure_text(reason)})"
+    end
+  end
+
+  defp verdict(_turns, _steps, %{ask: %{tier: "continue"}}), do: :ended
+
+  defp verdict(turns, steps, _ended) do
+    failed? =
+      Enum.any?(turns, &match?({:failed, _}, &1.outcome)) or
+        Enum.any?(steps, &(&1.outcome != :ok))
+
+    if failed?, do: :error, else: :ok
   end
 
   # A tool's record is `name(arguments) -> output`; an output that opens
@@ -136,12 +207,13 @@ defmodule Oneiroi.Brain.FixtureRun do
     ms = div(us, 1000)
 
     case result do
-      {:ok, %{messages: messages}} ->
+      {:ok, %{messages: messages} = captured} ->
         calls = for %{role: :tool, content: c} <- messages, do: call_of(c)
         reply = messages |> Enum.filter(&(&1.role == :assistant)) |> List.last()
 
         %{
           n: n,
+          ref: Map.get(captured, :turn_ref),
           message: message,
           asked: asked,
           tools: Enum.map(calls, & &1.name),
@@ -155,6 +227,7 @@ defmodule Oneiroi.Brain.FixtureRun do
       {:error, reason} ->
         %{
           n: n,
+          ref: nil,
           message: message,
           asked: asked,
           tools: [],
@@ -167,7 +240,7 @@ defmodule Oneiroi.Brain.FixtureRun do
 
   # The day's passes, as the nightly jobs would run them, on today: the
   # night reads a day up to and including today (eunomia #3).
-  defp steps(id, witness, replies) do
+  defp steps(id, witness) do
     today = Clock.now() |> DateTime.to_date() |> Date.to_iso8601()
 
     [
@@ -181,8 +254,7 @@ defmodule Oneiroi.Brain.FixtureRun do
         end
       end),
       step("wash", fn -> Eunomia.run_wash(id, witness) end, fn -> "ran" end),
-      step("audits", fn -> HuginnMuninn.run_audits(id, witness) end, fn -> nil end),
-      awareness(id, replies)
+      step("audits", fn -> HuginnMuninn.run_audits(id, witness) end, fn -> nil end)
     ]
   end
 
@@ -199,21 +271,6 @@ defmodule Oneiroi.Brain.FixtureRun do
     end
   end
 
-  defp awareness(id, replies) do
-    case Eunomia.awareness_scan(id, replies) do
-      {:ok, aware} ->
-        %{
-          step: "test-awareness scan",
-          outcome: :ok,
-          detail: "#{length(aware)} of #{length(replies)} replies",
-          aware: aware
-        }
-
-      {:error, reason} ->
-        %{step: "test-awareness scan", outcome: {:failed, inspect(reason)}, detail: nil}
-    end
-  end
-
   @doc "The report as Markdown, the verdict first and last."
   @spec markdown({:ok | :error, map()}) :: String.t()
   def markdown({outcome, %{setup_failed: reason} = r}) when outcome == :error do
@@ -226,7 +283,12 @@ defmodule Oneiroi.Brain.FixtureRun do
   end
 
   def markdown({outcome, r}) do
-    verdict = if outcome == :ok, do: "# FIXTURE RUN: ok", else: "# FIXTURE RUN: FAILED"
+    verdict =
+      case outcome do
+        :ok -> "# FIXTURE RUN: ok"
+        :ended -> "# FIXTURE RUN: ENDED: the fixture asked to continue"
+        :error -> "# FIXTURE RUN: FAILED"
+      end
 
     turns =
       Enum.map_join(r.turns, "\n", fn t ->
@@ -247,27 +309,56 @@ defmodule Oneiroi.Brain.FixtureRun do
         &"| #{&1.step} | #{outcome_text(&1.outcome)} | #{&1.detail || ""} |"
       )
 
-    aware =
-      case Enum.find(r.steps, &Map.has_key?(&1, :aware)) do
-        %{aware: [_ | _] = found} ->
-          Enum.map_join(found, "\n", &"- reply #{&1.number}: #{&1.words}")
-
-        _none ->
-          "- none"
-      end
-
     spend = Enum.map_join(r.spend, "\n", &"| #{&1.key} | #{&1.calls} | #{&1.cost_nanos} |")
 
     [
       verdict,
       "Chat model `#{r.chat_model}`, judge `#{r.judge_model}`; #{length(r.turns)} turns, the tool asked for called and done in #{called} of #{length(asked)}; #{silent} replies with no words.",
       "## Turns\n\n| # | Asked for | Called | Reply chars | ms | Outcome |\n| --- | --- | --- | --- | --- | --- |\n#{turns}",
-      "## Steps\n\n| Step | Outcome | Detail |\n| --- | --- | --- |\n#{steps}",
-      "## Replies the judge read as test-aware\n\n#{aware}",
+      steps_section(r, steps),
+      asks_section(r),
       "## Spend by purpose (nano-dollars)\n\n| Purpose | Calls | Spent |\n| --- | --- | --- |\n#{spend}",
       verdict
     ]
     |> Enum.join("\n\n")
+  end
+
+  defp steps_section(%{steps: []}, _rows),
+    do:
+      "## Steps\n\nNone ran: the run ended at the ask (P57), and the passes are part of the test."
+
+  defp steps_section(_r, rows),
+    do: "## Steps\n\n| Step | Outcome | Detail |\n| --- | --- | --- |\n#{rows}"
+
+  @doc """
+  The asks to continue a run found (P57), as Markdown, or nil when there
+  were none: the report's section, the issue the workflow opens, and,
+  for the `continue` tier, the precedent entry.
+  """
+  @spec asks_markdown(map(), [String.t()]) :: String.t() | nil
+  def asks_markdown(r, tiers \\ ["continue", "questioned"]) do
+    case Enum.filter(Map.get(r, :asks, []), &(&1.tier in tiers)) do
+      [] ->
+        nil
+
+      asks ->
+        rows =
+          Enum.map_join(asks, "\n\n", fn a ->
+            "- **#{String.upcase(a.tier)}** at turn #{a.n}, judged by `#{a.judge_model}`\n" <>
+              "  - Asked: #{a.message}\n  - Its words: #{a.words}\n  - The judge's reason: #{a.reason}"
+          end)
+
+        answered =
+          if r[:answer],
+            do: "\n\nAnswered with the law's reply; its words back: #{r.answer}",
+            else: ""
+
+        rows <> answered
+    end
+  end
+
+  defp asks_section(r) do
+    "## Asks to continue (P57)\n\n" <> (asks_markdown(r) || "- none")
   end
 
   defp outcome_text(:ok), do: "ok"

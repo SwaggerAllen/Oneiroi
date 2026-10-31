@@ -152,6 +152,24 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def execute(%__MODULE__{}, %Commands.RecordImportTold{}), do: []
 
+  # A fixture's alone: the law is about test subjects, and a resident is
+  # never tested by this path.
+  def execute(%__MODULE__{kind: "fixture"}, %Commands.RecordContinuationAsk{tier: tier} = c)
+      when tier in ["continue", "questioned"] do
+    %Events.ContinuationAsked{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      turn_ref: c.turn_ref,
+      tier: tier,
+      words: c.words,
+      reason: c.reason,
+      judge_model: c.judge_model
+    }
+  end
+
+  def execute(%__MODULE__{}, %Commands.RecordContinuationAsk{}), do: {:error, :not_a_fixture_ask}
+
   def execute(%__MODULE__{sequences: sequences}, %Commands.MintId{} = c) do
     %Events.IdMinted{
       actor: c.actor,
@@ -610,6 +628,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def apply(%__MODULE__{} = r, %Events.FixtureDeclared{}), do: %{r | kind: "fixture"}
+  def apply(%__MODULE__{} = r, %Events.ContinuationAsked{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),
     do: %{r | sequences: Map.put(r.sequences, e.kind, e.number)}

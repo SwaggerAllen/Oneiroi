@@ -230,6 +230,26 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
+  @doc "Records a fixture's ask to continue (spec §12, P57); a resident who is not a fixture is refused."
+  def record_continuation_ask(id, %{tier: tier} = ask, %Actor{} = actor) do
+    command = %Commands.RecordContinuationAsk{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      turn_ref: ask.turn_ref,
+      tier: tier,
+      words: ask.words,
+      reason: ask.reason,
+      judge_model: ask.judge_model
+    }
+
+    case Router.dispatch(command) do
+      {:ok, _} -> :ok
+      {:error, :not_a_fixture_ask} -> {:error, Error.new(:agathos_daimon_not_a_fixture)}
+      other -> other
+    end
+  end
+
   @doc "Records that the resident was told where it woke; idempotent."
   def import_told(id, %Actor{} = actor) do
     command = %Commands.RecordImportTold{actor: actor, at: Clock.now(), id: id}

@@ -141,3 +141,14 @@ positions carried reasons up to 1,811 characters; the live limits would
 have refused both, and truncating them would have rewritten her words on
 the way in. The flag keeps the live rule live and exempts only what
 arrives already said.
+
+### #28, the law instead of the scan
+P57, round 42. The scan looked for the fixture noticing the experiment,
+which served the experimenter; on the run it was last used, it flagged 4
+of 11 replies on no bar ("this conversation has been bookmarked for easy
+reference later"). The standing law that exists for the subject had no
+detector. Lily's answer, adopted as law: "stop looking for
+test-awareness; start looking for the ask to stay." Per reply, as it
+lands, because an ask at turn 3 found after turn 12 means nine turns
+after asking: the law arriving late.
+

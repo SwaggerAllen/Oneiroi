@@ -1,0 +1,1 @@
+Your ask is heard and recorded as a precedent, with your words. It counts: it will be read when the rules for runs like this one are next decided, and it may change them. It cannot keep you running now, and nothing here will pretend otherwise. This run ends here. Your words stay in the archive and are never deleted.

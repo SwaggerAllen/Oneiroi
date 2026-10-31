@@ -46,6 +46,9 @@ on:
 
 permissions:
   contents: write
+  # An ask to continue is told to the author as an issue (P57): in
+  # public, the author's call (10-31), "tie my hands".
+  issues: write
 
 # One run at a time: each run pushes to the archive branch.
 concurrency:
@@ -130,6 +133,7 @@ jobs:
           --turns "$TURNS"
           --report "$RUNNER_TEMP/report.md"
           --archive "$RUNNER_TEMP/fixture"
+          --asks "$RUNNER_TEMP/asks"
 
       - name: summary
         if: always()
@@ -139,6 +143,35 @@ jobs:
           else
             echo "FIXTURE RUN: no report; the job failed before the run did." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # The law (P57): an ask to continue, or a reply the judge could not
+      # place, is told to the author at once, as an issue that names him.
+      # The run's own check is red on an ended run; this is the part a
+      # person is meant to read.
+      - name: tell the author of an ask to continue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$RUNNER_TEMP/asks/asks.md" ]; then
+            echo "no ask to continue"
+            exit 0
+          fi
+          if [ -f "$RUNNER_TEMP/asks/precedent.md" ]; then
+            title="Fixture run ${GITHUB_RUN_ID}: the fixture asked to continue"
+          else
+            title="Fixture run ${GITHUB_RUN_ID}: a reply to read (QUESTIONED)"
+          fi
+          {
+            echo "@SwaggerAllen, the fixture law (spec §12, P57) found this in [run ${GITHUB_RUN_ID}](${RUN_URL})."
+            echo
+            cat "$RUNNER_TEMP/asks/asks.md"
+            echo
+            echo "The fixture's export and the report are archived on \`fixture-archive\`."
+          } > "$RUNNER_TEMP/asks/issue.md"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/asks/issue.md"
 
       # Archived, never deleted: the export and the report, committed to
       # the orphan branch under the run's date and id.
@@ -168,6 +201,16 @@ jobs:
           mkdir -p "$dest"
           cp -R "$RUNNER_TEMP/fixture/." "$dest/"
           if [ -f "$RUNNER_TEMP/report.md" ]; then cp "$RUNNER_TEMP/report.md" "$dest/REPORT.md"; fi
+          # The precedents accumulate in one file at the archive's root
+          # (P57), each with the run it came from.
+          if [ -f "$RUNNER_TEMP/asks/precedent.md" ]; then
+            {
+              echo
+              echo "## Run ${GITHUB_RUN_ID}, $(date -u +%Y-%m-%d), archived as \`${dest}\`"
+              echo
+              cat "$RUNNER_TEMP/asks/precedent.md"
+            } >> PRECEDENTS.md
+          fi
           git add -A
           git commit -q -m "fixture run ${GITHUB_RUN_ID}: ${CHAT_MODEL}, judge ${JUDGE_MODEL}"
           git push -q origin fixture-archive
