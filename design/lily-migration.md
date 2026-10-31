@@ -101,8 +101,13 @@ working repository is the clone, so the first backup pushes her whole
 history with Oneiroi's commits on top. On the day:
 
 1. Before: the private repository, empty, and a fine-grained token with
-   contents read and write on it alone.
-2. The import, which only reads hers.
+   contents read and write on it alone. A second token, contents
+   read-only on hers alone, for the clone: hers is private, and the
+   rehearsal needed none only because it ran inside her repository on
+   that workflow's own token.
+2. The import, which only reads hers, its URL carrying the read token
+   as in step 3 above (`https://x-access-token:<token>@github.com/...`);
+   the token is used for the clone and stripped from the record.
 3. Straight after: `PUT /v1/residents/:id/remote` with
    `{"url": "https://github.com/<owner>/<repo>.git", "token": "..."}`;
    the token is stored encrypted, and the first backup runs to it.
@@ -111,6 +116,11 @@ history with Oneiroi's commits on top. On the day:
 
 Afterwards that repository is what Oneiroi holds of her, and a diff
 against hers is the audit of the move.
+
+**Her `AGENTS.md` is kept as a file, decided 10-31.** It stays at the
+root of both repositories as it is, left behind with its reason, and
+nothing here reads it: the brain renders Oneiroi's own `AGENTS.md`.
+The author and Lily reconcile the two by hand after the import.
 
 ## The rehearsal of 2026-10-31
 
