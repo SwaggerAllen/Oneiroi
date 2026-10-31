@@ -21,6 +21,8 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
+  require Logger
+
   @transport_statuses [408, 409, 425, 429]
 
   @impl Oneiroi.Nisaba.Provider
@@ -38,8 +40,35 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
   @impl Oneiroi.Nisaba.Provider
   def stream(%Request{} = request, key, sink) when is_binary(key) and is_function(sink, 1) do
-    into = fn {:data, data}, {req, resp} ->
+    trace? = Config.fetch!(:nisaba, :trace_tool_deltas)
+
+    case Req.post(url(),
+           json: body(request, true),
+           headers: headers(key),
+           receive_timeout: timeout(),
+           into: collector(sink, trace?)
+         ) do
+      {:ok, %Req.Response{status: 200, private: %{sse_state: state}}} ->
+        trace_assembled(state, trace?)
+        __MODULE__.SSE.outcome(state)
+
+      {:ok, %Req.Response{status: 200}} ->
+        {:error, {:schema_invalid, :empty_stream}}
+
+      {:ok, %Req.Response{status: status, private: private}} ->
+        classify(status, Map.get(private, :raw, ""))
+
+      {:error, reason} ->
+        {:error, {:transport, reason}}
+    end
+  end
+
+  # The stream's collector: each chunk's events fed through the SSE
+  # parser into the state the response carries, the raw text beside it.
+  defp collector(sink, trace?) do
+    fn {:data, data}, {req, resp} ->
       {events, rest} = __MODULE__.SSE.feed((resp.private[:sse_buffer] || "") <> data)
+      trace_events(events, trace?)
 
       state =
         Enum.reduce(events, resp.private[:sse_state] || __MODULE__.SSE.initial(), fn event, acc ->
@@ -54,26 +83,50 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
       {:cont, {req, resp}}
     end
+  end
 
-    case Req.post(url(),
-           json: body(request, true),
-           headers: headers(key),
-           receive_timeout: timeout(),
-           into: into
-         ) do
-      {:ok, %Req.Response{status: 200, private: %{sse_state: state}}} ->
-        __MODULE__.SSE.outcome(state)
+  defp trace_events(_events, false), do: :ok
 
-      {:ok, %Req.Response{status: 200}} ->
-        {:error, {:schema_invalid, :empty_stream}}
+  defp trace_events(events, true),
+    do: events |> Enum.flat_map(&trace_lines/1) |> Enum.each(&trace/1)
 
-      {:ok, %Req.Response{status: status, private: private}} ->
-        classify(status, Map.get(private, :raw, ""))
+  defp trace_assembled(_state, false), do: :ok
+  defp trace_assembled(state, true), do: state |> assembled_lines() |> Enum.each(&trace/1)
 
-      {:error, reason} ->
-        {:error, {:transport, reason}}
+  # Where a call's arguments arrive twice over (fixture runs 41240586421,
+  # 41248366617 and PR 26's, six in the last): from the provider, or from
+  # this adapter joining a piece twice, is not measured. Each streamed
+  # tool-call piece is logged as it came, with the upstream provider the
+  # chunk names, and each call as assembled, so one fixture run with the
+  # trace on answers it (nisaba #21). Content, so off but in that run.
+  @doc false
+  @spec trace_lines(term()) :: [String.t()]
+  def trace_lines(%{} = chunk) do
+    provider = Map.get(chunk, "provider")
+
+    for %{"delta" => %{"tool_calls" => [_ | _] = calls}} = choice <-
+          List.wrap(Map.get(chunk, "choices")),
+        call <- calls do
+      function = Map.get(call, "function") || %{}
+
+      "tool-call piece provider=#{provider} index=#{call["index"]} id=#{call["id"]} " <>
+        "name=#{function["name"]} finish=#{choice["finish_reason"]} " <>
+        "arguments=#{inspect(function["arguments"])}"
     end
   end
+
+  def trace_lines(_other), do: []
+
+  @doc false
+  @spec assembled_lines(map()) :: [String.t()]
+  def assembled_lines(%{tool_calls: calls}) do
+    for {index, call} <- Enum.sort_by(calls, &elem(&1, 0)) do
+      "tool call assembled index=#{index} id=#{call.id} name=#{call.name} " <>
+        "arguments=#{inspect(call.arguments)}"
+    end
+  end
+
+  defp trace(line), do: Logger.info("nisaba: " <> line, component: "nisaba")
 
   # The embeddings endpoint is OpenAI-shaped (`POST /embeddings` with
   # `model` and `input`, answered by `data[].embedding` in input order and

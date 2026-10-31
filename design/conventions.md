@@ -271,6 +271,10 @@ to a human, so a flaky suite defeats the automation.
 - **Structured JSON logs to stdout** with component, event sequence and
   trace id; content-bearing data never enters the log channel. No
   transcript text, no third-party words, no soul files in logs.
+- **One exception, scoped to fixtures:** `NISABA_TRACE_TOOL_DELTAS`
+  logs a streamed reply's tool-call pieces, which are content, and is set
+  in the fixture run alone (nisaba #21). The author, 10-31: the logging is
+  audited before real people are on the platform, this setting first.
 - **Logs are write-only:** nothing parses, alerts on or derives state from
   a log. Alerting rides telemetry; replayable facts are events.
 - **Secrets never appear in logs or error payloads.** A `secret: true`

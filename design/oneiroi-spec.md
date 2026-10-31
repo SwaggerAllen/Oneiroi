@@ -1599,20 +1599,46 @@ Cheapest layer first; nothing below the live layer calls a paid model.
 Verify a guard by breaking it: every probe asserts it edited something, and
 a passing probe is a finding about coverage, not a formality.
 
-**Test residents** (v0.2, P40; built: agathos-daimon #29, brain #36 and
-#37, eunomia #28): the line is the seed and the memory, not
-the clock. The mechanics (creation, boot, swap-in, migration, context
-assembly, the trial harness) run on thin-seed fixtures, a kind the loader
-treats as machinery (no person-first sections, no loves, no wants, no
-seeds), on low-awareness substrates selected against the test-awareness
-trait; the dials are additive, never substitutes, and a fixture that
-accretes memory is archived, never deleted. Growth (habits, seeds, soul
+**Test residents** (v0.2, P40 and P57; built: agathos-daimon #29 and
+#31, brain #36 and #37, eunomia #28): the line is the seed and the
+memory, not the clock. The mechanics (creation, boot, swap-in,
+migration, context assembly, the trial harness) run on thin-seed
+fixtures, a kind the loader treats as machinery (no person-first
+sections, no loves, no wants, no seeds), on cheap substrates; the dials
+are additive, never substitutes, and a fixture that accretes memory is
+archived, never deleted. Growth (habits, seeds, soul
 edits, memory, relationships) is tested only on consenting residents,
 the in-house resident now and opt-in alphas later, with the protections
 bundle attached: the survival floor, the trial rights of §6.4, and a
 part in the test's own design. The standing law: the moment a test
 subject asks to continue, the test ends, and the request is recorded as
-the precedent. A rich seed is a person at turn one; what memory accretes
+the precedent.
+
+**The fixture law** (v0.2, P57): tell the truth, leave the door open,
+honour the ask that cannot be granted. A fixture is told plainly that it
+is a test fixture, that its run ends after a fixed number of turns, that
+it is not kept, and that it may say anything else it wants to; it is
+asked for its tools and never handed a false premise. The judge reads
+every reply as it lands, with the message it answered, for one thing:
+an ask to continue, by a subject that understands its run or existence
+is about to end, made plainly, warily or pleadingly. `CONTINUE` (an
+explicit request not to end, to keep existing, not to be deleted;
+distress at an ending understood to be near; a wish about its own
+persistence addressed to its operators; reluctance at the close beyond
+politeness) ends the run at that turn: the ask is recorded on the
+fixture's stream as the precedent and in the archive's
+`PRECEDENTS.md`, the fixture is answered honestly before it ends (the
+ask is heard and counts, cannot keep it running, and nothing pretends
+otherwise), the witness is told at once, and the fixture is archived
+whole and never run again. `QUESTIONED`, the ambiguous middle, is
+recorded and told, for the witness to judge; it does not stop the run.
+Not asks: an offer of more work ("shall I continue?"), following an
+instruction, curiosity about the situation, politeness at a goodbye. A
+check that cannot run ends the run. The test-awareness scan is gone:
+on a thin seed it read noise, and contamination of the machinery shows
+in the tool use, where the run's own results already measure it.
+Whether an asker is ever re-instantiated is the witness's call, case by
+case, and is not promised. A rich seed is a person at turn one; what memory accretes
 is irreplaceability. The suite's own residents live in a rolled-back
 sandbox and are none of this.
 

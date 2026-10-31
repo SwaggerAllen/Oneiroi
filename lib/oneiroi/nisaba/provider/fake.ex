@@ -203,12 +203,30 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     calls = m[:tool_calls] || []
 
     cond do
-      MapSet.size(open) > 0 -> unanswered(open)
-      calls != [] and m[:role] != :assistant -> "tool calls on a #{m[:role]} message"
-      calls != [] and not tools? -> "a tool call in a request that names no tools"
-      true -> wire_error(rest, MapSet.new(calls, & &1.id), tools?)
+      MapSet.size(open) > 0 ->
+        unanswered(open)
+
+      calls != [] and m[:role] != :assistant ->
+        "tool calls on a #{m[:role]} message"
+
+      calls != [] and not tools? ->
+        "a tool call in a request that names no tools"
+
+      bad = Enum.find(calls, &(not object?(&1))) ->
+        "Extra data: #{inspect(bad.function.arguments)}"
+
+      true ->
+        wire_error(rest, MapSet.new(calls, & &1.id), tools?)
     end
   end
+
+  # A call's arguments are one JSON object: fixture run 41248366617's
+  # provider refused a request carrying one object twice over with
+  # "400 Extra data: line 1 column 86 (char 85)".
+  defp object?(%{function: %{arguments: arguments}}) when is_binary(arguments),
+    do: match?({:ok, %{}}, Jason.decode(arguments))
+
+  defp object?(_call), do: false
 
   defp unanswered(open) do
     if MapSet.size(open) > 0,

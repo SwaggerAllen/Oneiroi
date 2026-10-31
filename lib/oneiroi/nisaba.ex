@@ -143,6 +143,14 @@ defmodule Oneiroi.Nisaba do
        tag: :bound,
        usage:
          "how long past its renewal a subscription stays active before the nightly pass lapses it; a guess at a card's retry window, not measured"},
+      # Off everywhere but the fixture run (nisaba #21): it puts a model's
+      # tool arguments, which are content, into the log channel that
+      # conventions §10 keeps content out of.
+      {:trace_tool_deltas, "NISABA_TRACE_TOOL_DELTAS",
+       cast: :boolean,
+       default: "false",
+       usage:
+         "whether a streamed reply's tool-call pieces are logged as they arrive, and each call as assembled; for the fixture run only, never where a person's words pass"},
       {:request_timeout_ms, "NISABA_REQUEST_TIMEOUT_MS",
        cast: :integer,
        default: "120000",

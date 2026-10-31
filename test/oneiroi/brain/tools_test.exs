@@ -9,6 +9,8 @@ defmodule Oneiroi.Brain.ToolsTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
 
+  @once ~s({"line":"keep this","summary":"s"})
+
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
@@ -88,7 +90,9 @@ defmodule Oneiroi.Brain.ToolsTest do
   test "the turn after one that used tools sends each use back as a call and its answer", ctx do
     Fake.calls(
       [
-        %{name: "bookmark_add", arguments: %{line: "keep this", summary: "s"}},
+        # One object twice over, as fixture run 41248366617's journal_add
+        # arrived; the fake refuses it on the wire, as that provider did.
+        %{name: "bookmark_add", arguments: @once <> @once},
         %{name: "figure_list", arguments: "null"}
       ],
       "Kept.",
@@ -99,6 +103,8 @@ defmodule Oneiroi.Brain.ToolsTest do
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "keep this", ctx.actor)
 
     assert [:user, :tool, :tool, :assistant] = Enum.map(first, & &1.role)
+    # The transcript keeps what the model sent; the wire gets one object.
+    assert Enum.at(first, 1).content =~ @once <> @once
 
     test = self()
 
@@ -122,7 +128,7 @@ defmodule Oneiroi.Brain.ToolsTest do
              %{role: :tool, tool_call_id: a, content: "Bookmarked as #1."},
              %{
                role: :assistant,
-               tool_calls: [%{id: b, function: %{name: "figure_list", arguments: "null"}}]
+               tool_calls: [%{id: b, function: %{name: "figure_list", arguments: "{}"}}]
              },
              %{role: :tool, tool_call_id: b, content: "No figures yet."},
              %{role: :assistant, content: "Kept."},
@@ -130,7 +136,31 @@ defmodule Oneiroi.Brain.ToolsTest do
            ] = replayed
 
     assert a != b
-    assert Jason.decode!(f.arguments) == %{"line" => "keep this", "summary" => "s"}
+    assert f.arguments == @once
+  end
+
+  test "what goes back on the wire is one JSON object, whatever the model sent" do
+    assert Tools.wire_arguments(@once) == @once
+    assert Tools.wire_arguments(@once <> @once) == @once
+    assert Tools.wire_arguments(" " <> @once <> " ") == " " <> @once <> " "
+
+    for none <- ["null", "", "not json", "[1]", @once <> ~s({"other":1})],
+        do: assert(Tools.wire_arguments(none) == "{}", inspect(none))
+  end
+
+  test "a habit named with seed number 0 graduates nothing and is named", ctx do
+    turn = %{
+      resident_id: ctx.resident.id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: Actor.new(:resident, ctx.resident.id, "fake/model")
+    }
+
+    for n <- ["0", "-0", "-3"] do
+      args = ~s({"name":"brief #{n}","stance":"keep","words":["brief"],"seed_number":#{n}})
+      assert Tools.run("habit_define", args, turn) =~ "Named as habit #"
+    end
   end
 
   test "the tools answer in words, misuse included", ctx do

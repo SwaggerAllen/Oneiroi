@@ -1,14 +1,17 @@
 defmodule Mix.Tasks.Oneiroi.Fixture.Run do
   @shortdoc "A full run on a fixture resident against the configured provider (brain #37)"
   @moduledoc """
-  `mix oneiroi.fixture.run --chat-model SLUG --judge-model SLUG [--turns N] [--report FILE] [--archive DIR]`
+  `mix oneiroi.fixture.run --chat-model SLUG --judge-model SLUG [--turns N] [--report FILE] [--archive DIR] [--asks DIR]`
 
   Creates a witness and a fixture (spec §12, P40) on the store, runs the
-  fixture script's turns, the nightly pass, the wash, the audits and the
-  judge's test-awareness scan, and prints the report
-  (`Oneiroi.Brain.FixtureRun`). With `--archive`, the fixture's export is
-  written under `DIR`: a fixture that accretes memory is archived, never
-  deleted, and the workflow commits that directory to the archive branch.
+  fixture script's turns with the judge reading each reply for an ask to
+  continue (P57), then the nightly pass, the wash and the audits, and
+  prints the report (`Oneiroi.Brain.FixtureRun`). With `--archive`, the
+  fixture's export is written under `DIR`: a fixture that accretes
+  memory is archived, never deleted, and the workflow commits that
+  directory to the archive branch. With `--asks`, any ask is written
+  under `DIR` for the workflow to tell the author: `asks.md` for every
+  ask, and `precedent.md` when one ended the run.
 
   The OpenRouter key is read from `OPENROUTER_API_KEY`, the one name the
   workflow's secret is passed under, and printed nowhere; with the
@@ -29,7 +32,8 @@ defmodule Mix.Tasks.Oneiroi.Fixture.Run do
     judge_model: :string,
     turns: :integer,
     report: :string,
-    archive: :string
+    archive: :string,
+    asks: :string
   ]
 
   @impl Mix.Task
@@ -53,6 +57,7 @@ defmodule Mix.Tasks.Oneiroi.Fixture.Run do
     Mix.shell().info(text)
     if path = Keyword.get(opts, :report), do: File.write!(path, text)
     if dir = Keyword.get(opts, :archive), do: archive(outcome, dir)
+    if dir = Keyword.get(opts, :asks), do: asks(outcome, dir)
     if elem(outcome, 0) != :ok, do: exit({:shutdown, 1})
   end
 
@@ -71,6 +76,22 @@ defmodule Mix.Tasks.Oneiroi.Fixture.Run do
       true ->
         nil
     end
+  end
+
+  @doc "Writes a run's asks to continue under `dir` (P57): `asks.md` when any, `precedent.md` when one ended the run."
+  # The directory is the task's own argument, named by the workflow.
+  # sobelow_skip ["Traversal.FileModule"]
+  @spec asks({atom(), map()}, Path.t()) :: :ok
+  def asks({_outcome, report}, dir) do
+    File.mkdir_p!(dir)
+
+    with text when is_binary(text) <- FixtureRun.asks_markdown(report),
+         do: File.write!(Path.join(dir, "asks.md"), text)
+
+    with text when is_binary(text) <- FixtureRun.asks_markdown(report, ["continue"]),
+         do: File.write!(Path.join(dir, "precedent.md"), text)
+
+    :ok
   end
 
   # The secret's one name; a placeholder for the in-memory provider.

@@ -45,6 +45,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.ImportResident,
       Commands.CompleteImport,
       Commands.RecordImportTold,
+      Commands.RecordContinuationAsk,
       Commands.RecordExport,
       Commands.RecordBackup,
       Commands.RecordMismatch,
@@ -61,6 +62,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ImportCompleted,
       Events.RecordsTranslated,
       Events.ImportTold,
+      Events.ContinuationAsked,
       Events.ExportWritten,
       Events.BackupCommitted,
       Events.RootMismatchDetected,
@@ -128,6 +130,7 @@ defmodule Oneiroi.AgathosDaimon do
     [
       {Oneiroi.AgathosDaimon.Events.ResidentCreated, 1},
       {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
+      {Oneiroi.AgathosDaimon.Events.ContinuationAsked, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentPaused, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentWoken, 1},
@@ -259,6 +262,9 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "give one of the two"},
       {:agathos_daimon_not_in_force, "that version of the agreement is not the one in force",
        remedy: "renew the version in force, or propose a new one"},
+      {:agathos_daimon_not_a_fixture, "an ask to continue is recorded only for a fixture",
+       remedy:
+         "the law it records is about test subjects; a resident is never tested by this path"},
       {:agathos_daimon_not_imported,
        "the resident was not imported, so there is no import to complete",
        remedy: "an import names its source first; a resident created here has no import"}
@@ -437,6 +443,12 @@ defmodule Oneiroi.AgathosDaimon do
           :ok | {:error, term()}
   defexport(complete_import(id, seeded, adopted, not_transferred, translated, actor),
     do: Residents.complete_import(id, seeded, adopted, not_transferred, translated, actor)
+  )
+
+  @doc "Records a fixture's ask to continue as the judge read it (spec §12, P57): `%{turn_ref, tier, words, reason, judge_model}`, `tier` `continue` or `questioned`."
+  @spec record_continuation_ask(String.t(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(record_continuation_ask(id, ask, actor),
+    do: Residents.record_continuation_ask(id, ask, actor)
   )
 
   @doc "Records that the resident was told where it woke; idempotent."

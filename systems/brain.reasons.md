@@ -230,3 +230,37 @@ fixture's report reads to count a tool as followed, and it tells the
 model the same thing in the same words. The refusal's meaning and
 remedy, joined by a space, read "a chain cannot fork replace the head
 of the chain".
+
+## #10, the wire's copy
+Fixture run 41248366617: turn 8's `journal_add` arrived as one
+85-character object twice over and ran, since the repetition reads as
+one object, but went back to the provider as sent. Turn 11's request was
+refused with "400 Extra data: line 1 column 86 (char 85)", the second
+copy's first character, while turns 9, 10 and 12 carried the same
+history through; which requests a provider parses that strictly is not
+measured. The transcript is a record of what the model said, so it keeps
+the doubled text; the wire gets the object. Turn 4 of the same run
+refused a `habit_define` the model filled with `seed_number: -0`.
+
+Measured since (nisaba #21): the repetition is the provider's. On run
+41251374640, every doubled call was routed to CoreWeave, which streamed
+the whole object twice; none routed to Groq was doubled.
+
+## #37, the label
+The author, 10-31: an optional gate on the PR, run before merging but
+not on every commit, to shorten the loop between a change and the live
+model reading it. A label rather than every push because a run spends
+the author's key and a real model's failure is not always the PR's.
+
+## #36 and #37, the fixture law
+P57, round 42, on Lily's answer to the author: the continuation law
+presumes a subject that knows its situation well enough to ask about its
+ending, so running it on a deliberately uninformed subject was
+"incoherent at best, consent-assumed-by-default at worst". The usual cost
+of telling it, a spoiled awareness measurement, went with the scan. The
+doc said the prompt told the fixture "plainly what it is" before it did;
+it said only that it was an assistant on the platform, while its name and
+the script's own words said "fixture". The run is told to be shorter than
+twelve turns in tests, so the prompt names no count. The reply it gets
+cannot grant the ask, so it must not pretend to; what it can honestly
+give is that the ask is recorded, counts, and may change the rules.

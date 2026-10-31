@@ -47,6 +47,10 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert refused.(Request.new("m", [user, asks], tools: tools))
       # Either half in a request that names no tools.
       assert refused.(Request.new("m", [user, asks, answers]))
+      # A call whose arguments are not one JSON object, as a provider refused
+      # one object twice over (fixture run 41248366617).
+      twice = put_in(asks.tool_calls, [%{call | function: %{name: "t", arguments: "{}{}"}}])
+      assert refused.(Request.new("m", [user, twice, answers], tools: tools))
     end
 
     test "a scripted reply, refusal and failure, per process" do
@@ -264,6 +268,47 @@ defmodule Oneiroi.Nisaba.ProviderTest do
                tool_calls: [%{id: "c1", name: "f", arguments: "{\"a\":1}"}],
                finish_reason: "tool_calls"
              } = SSE.result(state)
+    end
+  end
+
+  describe "the tool-call trace (nisaba #21)" do
+    test "each streamed piece is a line with its provider and arguments as they came, and each call as assembled" do
+      piece = fn args ->
+        %{
+          "provider" => "SomeHost",
+          "choices" => [
+            %{
+              "delta" => %{
+                "tool_calls" => [
+                  %{
+                    "index" => 0,
+                    "id" => "c1",
+                    "function" => %{"name" => "f", "arguments" => args}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      end
+
+      assert [line] = OpenRouter.trace_lines(piece.(~s({"a":1})))
+      assert line =~ "provider=SomeHost" and line =~ "name=f"
+      assert line =~ "arguments=" <> inspect(~s({"a":1}))
+
+      assert OpenRouter.trace_lines(%{"choices" => [%{"delta" => %{"content" => "words"}}]}) == []
+      assert OpenRouter.trace_lines(:done) == []
+
+      state =
+        Enum.reduce(
+          [piece.(~s({"a":1})), piece.(~s({"a":1}))],
+          SSE.initial(),
+          &SSE.absorb(&2, &1, fn _ -> :ok end)
+        )
+
+      # The join as this adapter makes it: two whole pieces, one call.
+      assert [assembled] = OpenRouter.assembled_lines(state)
+      assert assembled =~ "arguments=" <> inspect(~s({"a":1}{"a":1}))
     end
   end
 

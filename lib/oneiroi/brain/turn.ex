@@ -145,7 +145,11 @@ defmodule Oneiroi.Brain.Turn do
 
   defp wire_calls(calls) do
     Enum.map(calls, fn call ->
-      %{id: call.id, type: "function", function: %{name: call.name, arguments: call.arguments}}
+      %{
+        id: call.id,
+        type: "function",
+        function: %{name: call.name, arguments: Tools.wire_arguments(call.arguments)}
+      }
     end)
   end
 

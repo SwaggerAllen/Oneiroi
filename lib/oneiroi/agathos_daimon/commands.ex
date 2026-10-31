@@ -80,6 +80,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  defmodule RecordContinuationAsk do
+    use Oneiroi.Command, fields: [:id, :turn_ref, :tier, :words, :reason, :judge_model]
+  end
+
   defmodule RecordExport do
     use Oneiroi.Command, fields: [:id, :through, :files]
   end

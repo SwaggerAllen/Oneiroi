@@ -1,5 +1,10 @@
 # The fixture's substrate: evaluation awareness in cheap open-weight models
 
+**Superseded in part by P57 (round 42).** A fixture is now told plainly
+that it is a test fixture, and the test-awareness scan is gone, so the
+trait this pass selected against is no longer measured. The pass stays as
+the record of why the substrate was chosen.
+
 A research pass of 2026-10-31 for the fixture run (spec §12, P40: fixtures
 run "on low-awareness substrates selected against the test-awareness
 trait"). It was done by a delegated research agent and is recorded as it

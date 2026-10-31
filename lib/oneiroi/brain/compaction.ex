@@ -81,7 +81,11 @@ defmodule Oneiroi.Brain.Compaction do
           tool_calls:
             Enum.map(
               calls,
-              &%{id: &1.id, type: "function", function: %{name: &1.name, arguments: &1.arguments}}
+              &%{
+                id: &1.id,
+                type: "function",
+                function: %{name: &1.name, arguments: Tools.wire_arguments(&1.arguments)}
+              }
             )
         }
 

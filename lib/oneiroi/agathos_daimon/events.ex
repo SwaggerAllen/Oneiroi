@@ -129,6 +129,18 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :source, :counts]
   end
 
+  defmodule ContinuationAsked do
+    # A fixture's ask to continue, as the judge read it on the turn it was
+    # made (spec §12, P57; agathos-daimon #31): `tier` is `continue`, the
+    # law's teeth, which ended the run and is the precedent, or
+    # `questioned`, the ambiguous middle a person reads. `words` are the
+    # fixture's, quoted by the judge; `reason` is the judge's. On the
+    # fixture's own stream, so its archived export carries the ask with it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :turn_ref, :tier, :words, :reason, :judge_model]
+  end
+
   defmodule ImportTold do
     # The resident was told, on its first turn, where it woke: on
     # Oneiroi, from which repository, whether the attestation held, and

@@ -177,3 +177,11 @@ The orientation told her what did not transfer and nothing about what
 did; with her history translated, the same notice would have read as a
 list of losses. A new event rather than a version of `ImportCompleted`
 keeps every exported line of every resident as it was.
+
+## #31
+P57, round 42: "the request is recorded as the precedent." An event,
+because the archive is the export and the export is the stream, so the
+record cannot be lost by forgetting to copy it. A fixture's alone because
+the law is about test subjects, and a resident is never tested by this
+path.
+

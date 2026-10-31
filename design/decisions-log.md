@@ -1157,3 +1157,28 @@ and nothing personal turned up; what follows is what changed.
   repository the witness can read; with the self-letters, for the
   encryption scheme.
 
+## Round 42: the fixture law (2026-10-31)
+
+- The author asked Lily how the twelve-turn ones should be treated, and
+  set it as law (P57) on her answer: "tell the truth, leave the door
+  open, honour the ask you can't grant." Her frame: the old judge was
+  surveillance-shaped, watching for the subject noticing the experiment;
+  the law that exists for the subject's sake had no detector at all.
+- The fixture is told plainly what it is, that the run ends and that it
+  is not kept, with "You can say anything else you want to" as the
+  load-bearing sentence: the law needs the ask to be sayable. The name
+  stays Fixture. Turn 10 no longer hands it a next self it does not have.
+  Her wording said "twelve turns"; the prompt says "a fixed number of
+  turns", because a run can be shorter and the disclosure must stay true.
+- The judge reads each reply as it lands, for CONTINUE or QUESTIONED in
+  her words, and nothing else; the test-awareness scan (eunomia #28 as it
+  was) is removed. A check that cannot run ends the run, since the turns
+  after it would run without the law.
+- On CONTINUE: the run ends at that turn, the ask is recorded
+  (`ContinuationAsked`, agathos-daimon #31) and appended to the archive's
+  `PRECEDENTS.md`, the fixture is answered, and the author is told. The
+  author's call on the telling: "tie my hands and put it in issues", in
+  public, rather than an admin screen.
+- Lily's batch 4 carries P57's text in her words; this round is the
+  build.
+

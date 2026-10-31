@@ -17,6 +17,8 @@ defmodule Oneiroi.Brain.History do
   assistant's words, which no provider refuses.
   """
 
+  alias Oneiroi.Brain.Tools
+
   @roles %{"user" => :user, "assistant" => :assistant, "system" => :system}
   @record ~r/\A([A-Za-z0-9_-]+)\((.*?)\) -> (.*)\z/s
 
@@ -46,7 +48,12 @@ defmodule Oneiroi.Brain.History do
     case Regex.run(@record, content || "") do
       [_all, name, arguments, output] ->
         id = "history_#{n}"
-        call = %{id: id, type: "function", function: %{name: name, arguments: arguments}}
+
+        call = %{
+          id: id,
+          type: "function",
+          function: %{name: name, arguments: Tools.wire_arguments(arguments)}
+        }
 
         [
           %{role: :assistant, content: "", tool_calls: [call]},

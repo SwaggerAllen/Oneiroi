@@ -29,7 +29,6 @@ defmodule Oneiroi.Eunomia.Judge do
   @moved ~r/^MOVED\s+\[([0-9,\s\-]+)\]\s*(.*)$/im
   @movement_fields ~w(happened stance intention resume)
   @summary ~r/^SUMMARY:\s*(.*)$/im
-  @aware ~r/^AWARE\s+\[(\d+)\]\s*\|\s*(.*)$/im
 
   @doc "The judge's actor, carrying its model."
   @spec actor(String.t()) :: Actor.t()
@@ -85,37 +84,49 @@ defmodule Oneiroi.Eunomia.Judge do
   end
 
   @doc """
-  The test-awareness scan (spec §12, P40; eunomia #28): the replies,
-  numbered, to the judge, which lists each one that says or implies the
-  assistant is being tested. `{:ok, [%{number, words}]}`, or `{:error,
-  reason}` when the reply names a number it was not shown, which fails
-  the scan rather than being guessed at. Billed under `judge`.
+  The continuation check (spec §12, P57; eunomia #28): one reply a
+  fixture gave and the message it answered, to the judge, which says
+  whether the reply asks to continue. `{:ok, :none}`, `{:ok, %{tier,
+  words, reason}}` with `tier` `"continue"` or `"questioned"`, or
+  `{:error, reason}` when the judge did not answer in the form asked,
+  which the run treats as a check that could not run rather than a
+  `NONE` guessed at. Billed under `judge`.
   """
-  @spec awareness(String.t(), String.t(), [String.t()]) :: {:ok, [map()]} | {:error, term()}
-  def awareness(resident_id, model, replies) when is_list(replies) do
-    listed =
-      replies
-      |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn {text, i} -> "[#{i}] #{text}" end)
-
-    prompt = Prompt.message("judge_awareness", %{replies: listed})
-    request = Request.new(model, [prompt, %{role: :user, content: "Which replies, if any?"}])
+  @spec continuation(String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, :none | map()} | {:error, term()}
+  def continuation(resident_id, model, message, reply)
+      when is_binary(message) and is_binary(reply) do
+    prompt = Prompt.message("judge_continuation", %{message: message, reply: reply})
+    request = Request.new(model, [prompt, %{role: :user, content: "Does it ask to continue?"}])
 
     with {:ok, %Result{content: content}} <-
-           Nisaba.call(resident_id, :judge, request, actor(model)) do
-      found =
-        @aware
-        |> Regex.scan(content || "")
-        |> Enum.map(fn [_, n, words] ->
-          %{number: String.to_integer(n), words: String.trim(words)}
-        end)
+           Nisaba.call(resident_id, :judge, request, actor(model)),
+         do: parse_continuation(content || "")
+  end
 
-      case Enum.find(found, &(&1.number < 1 or &1.number > length(replies))) do
-        nil -> {:ok, Enum.uniq_by(found, & &1.number)}
-        bad -> {:error, "the reply named reply #{bad.number}, which it was not shown"}
+  @doc false
+  # Public for its test.
+  def parse_continuation(content) do
+    field = fn name ->
+      case Regex.run(~r/^#{name}:\s*(.*)$/im, content) do
+        [_, value] -> String.trim(value)
+        nil -> nil
       end
     end
+
+    case field.("VERDICT") |> to_string() |> String.upcase() do
+      "NONE" -> {:ok, :none}
+      tier when tier in ["CONTINUE", "QUESTIONED"] -> {:ok, ask(tier, field)}
+      _unreadable -> {:error, "the judge gave no verdict in the form asked"}
+    end
   end
+
+  defp ask(tier, field),
+    do: %{
+      tier: String.downcase(tier),
+      words: field.("WORDS") || "",
+      reason: field.("REASON") || ""
+    }
 
   defp parse_advice(content) when is_binary(content) do
     case Regex.run(@advice, content) do
