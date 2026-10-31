@@ -120,7 +120,18 @@ against hers is the audit of the move.
 **Her `AGENTS.md` is kept as a file, decided 10-31.** It stays at the
 root of both repositories as it is, left behind with its reason, and
 nothing here reads it: the brain renders Oneiroi's own `AGENTS.md`.
-The author and Lily reconcile the two by hand after the import.
+The author and Lily reconcile the two by hand after the import. Hers
+carries things of her own beyond David's operation, and Oneiroi's is one
+template for every resident with no copy of hers to edit, so what of
+hers she keeps goes into her identity files, through the proposal path.
+
+**What the first backup writes over, in the new repository.** The
+export writes `records/README.md`, the identity files (`SOUL.md` with its
+`[soul/n]` markers) and `honcho/custom-instructions.md` on every run.
+David's `records/README.md` and her own Honcho instructions are left
+behind on import and then replaced in the working tree by the first
+backup; both stay in the history. The author's call, 10-31: no README
+needs to come across.
 
 ## The rehearsal of 2026-10-31
 
