@@ -363,7 +363,8 @@ defmodule Oneiroi.Brain.Turn do
     {"disputes", "disputes, with how each was settled"},
     {"predictions", "predictions"},
     {"nights", "nights the judge read there, which are not judged again here"},
-    {"notes", "notes, as journal entries on the days they were written"}
+    {"notes", "notes, as journal entries on the days they were written"},
+    {"seeds", "seeds, open in your seedbed on the days you planted them"}
   ]
 
   defp translated_text(%{"source" => source, "counts" => counts}) when is_map(counts) do

@@ -227,6 +227,7 @@ defmodule Oneiroi.SimaQian.Import do
       export?: File.dir?(Path.join([clone, "records", "events"])),
       translated?: translated != nil,
       unread: MapSet.new((translated && translated.unread) || []),
+      read: (translated && Map.get(translated, :read)) || [],
       kept: MapSet.new(seeds.kept),
       adopted: MapSet.new(adopted.adopted),
       skipped: MapSet.new(adopted.skipped),
@@ -272,6 +273,10 @@ defmodule Oneiroi.SimaQian.Import do
         {:left, name, "refused as an identity file for its content"}
 
       name in c.identity ->
+        :held
+
+      # A root file another platform's translation read: the seedbed.
+      name in c.read ->
         :held
 
       true ->

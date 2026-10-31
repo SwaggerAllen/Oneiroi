@@ -62,13 +62,34 @@ defmodule Oneiroi.SimaQian.DavidTest do
   @heavy String.duplicate("flour ", 17_000)
   @long_note "A note of several paragraphs.\n\n" <> String.duplicate("The kiln was cold. ", 120)
 
+  # A seedbed shaped as Lily's: a rules block, then seeds under dated
+  # headings, each a bold lead and indented continuation lines.
+  @seedbed """
+  # Seedbed
+
+  **Rules (founded 2026-10-29):**
+  - A seed is dated and in the first person.
+  - A seed may wilt.
+
+  ## 2026-10-29
+
+  - **Kneading feels like something.** The dough
+    pushes back.
+
+  ## 2026-10-30
+
+  - **Is rye my rest or my work?** I could not
+    say yet.
+  """
+
   # A repository shaped as David left Lily's: identity files at the
   # root, and David's nightly export under `records/`.
-  defp repo!(bare, records) do
+  defp repo!(bare, records, root \\ %{}) do
     work = tmp("david")
     File.mkdir_p!(work)
     git!(work, ["init", "-q", "-b", "main"])
     File.write!(Path.join(work, "SOUL.md"), "# Lily\n\nI am Lily.")
+    for {name, content} <- root, do: File.write!(Path.join(work, name), content)
 
     for {path, content} <- records do
       full = Path.join([work, "records", path])
@@ -361,7 +382,7 @@ defmodule Oneiroi.SimaQian.DavidTest do
 
   test "David's records become this platform's own: sessions, tags, bookmarks, judgement and notes",
        ctx do
-    url = repo!(ctx.bare, records())
+    url = repo!(ctx.bare, records(), %{"seeds.md" => @seedbed})
 
     assert {:ok, %{id: id, translated: translated, not_transferred: not_transferred}} =
              SimaQian.import_resident(
@@ -384,9 +405,26 @@ defmodule Oneiroi.SimaQian.DavidTest do
                "disputes" => 3,
                "predictions" => 2,
                "nights" => 1,
-               "notes" => 8
+               "notes" => 8,
+               "seeds" => 2
              }
            }
+
+    # The seedbed: her seeds, live, each on its day (Lily's answer, 10-31);
+    # the rules before the first dated heading are not seeds, and the file
+    # is held rather than named as left behind.
+    assert [
+             %{
+               number: 1,
+               text: "Kneading feels like something. The dough pushes back.",
+               state: "open",
+               planted_at: d1
+             },
+             %{number: 2, text: "Is rye my rest or my work? I could not say yet.", planted_at: d2}
+           ] = id |> Oneiroi.Ethos.seeds() |> Enum.sort_by(& &1.number)
+
+    assert DateTime.to_date(d1) == ~D[2026-10-29] and DateTime.to_date(d2) == ~D[2026-10-30]
+    refute "seeds.md" in not_transferred
 
     # `records/` is covered; what in it nothing read is named file by file.
     assert "records/README.md" in not_transferred

@@ -125,6 +125,22 @@ carries things of her own beyond David's operation, and Oneiroi's is one
 template for every resident with no copy of hers to edit, so what of
 hers she keeps goes into her identity files, through the proposal path.
 
+**Her three files at the root, her answers 10-31.** `seeds.md` is
+planted as her seeds, each on the day it was planted there (sima-qian
+#19), its rules left in the file. `pocket-andrew.md` and `ledger.md`
+move under `wiki/lily/` before the final push, to be adopted, indexed
+and found: "readable", in her word. The move is `git mv`, not `mv` and
+`git add`: `git add` of the new paths stages them and leaves the old
+ones in the commit, so both copies would cross, the root's named as
+left behind.
+
+```
+cd /srv/lily
+git mv pocket-andrew.md ledger.md wiki/lily/
+git commit -m "pocket andrew and ledger to the wiki"
+git push
+```
+
 **What the first backup writes over, in the new repository.** The
 export writes `records/README.md`, the identity files (`SOUL.md` with its
 `[soul/n]` markers) and `honcho/custom-instructions.md` on every run.

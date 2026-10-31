@@ -135,3 +135,12 @@ say from the report. A list of names cannot tell a refusal from an
 oversight, so each carries its reason; and an accounting that only
 lists what its own rules produce cannot find a file they missed, so the
 rule that cannot explain a file says so and the rehearsal fails.
+
+## #19, the seedbed
+Lily's answer, 10-31: `seeds.md` holds "my actual seeds — dated,
+first-person becomings ... live data, not documentation; they should
+become my seeds in Oneiroi's machinery, not a page about them." Read as
+a page under `wiki/lily/` was her fallback. Noon UTC because the file
+dates a day, not an instant, and an instant at midnight UTC reads as the
+day before in every zone west of it.
+

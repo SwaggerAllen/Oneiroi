@@ -39,6 +39,41 @@ defmodule Oneiroi.Ethos.Seeds do
     end
   end
 
+  @doc """
+  Plants seeds carried from another platform's seedbed by an import
+  (sima-qian #19): each `%{text, planted_at}` in order, under the
+  resident's actor and at the instant given, so a seed keeps the day it
+  was planted there and is numbered here. Returns how many.
+  """
+  @spec import_seeds(String.t(), [map()], Actor.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def import_seeds(resident_id, seeds, %Actor{} = actor) when is_list(seeds) do
+    with :ok <- resident_only(actor),
+         do: Enum.reduce_while(seeds, {:ok, 0}, &plant_next(resident_id, &1, &2, actor))
+  end
+
+  defp plant_next(resident_id, seed, {:ok, n}, actor) do
+    case planted(resident_id, seed, actor) do
+      :ok -> {:cont, {:ok, n + 1}}
+      error -> {:halt, error}
+    end
+  end
+
+  defp planted(resident_id, %{text: text, planted_at: %DateTime{} = at}, actor) do
+    with :ok <- text_present(text),
+         {:ok, number} <- Oneiroi.AgathosDaimon.mint_id(resident_id, "seed", actor) do
+      command = %Commands.PlantSeed{
+        actor: actor,
+        at: at,
+        id: resident_id,
+        number: number,
+        text: text
+      }
+
+      with {:ok, _} <- Edge.dispatch(command), do: :ok
+    end
+  end
+
   @doc "Wilts an open seed, without ceremony."
   def wilt(resident_id, number, %Actor{} = actor) do
     with :ok <- resident_only(actor) do

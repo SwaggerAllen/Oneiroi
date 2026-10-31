@@ -181,7 +181,7 @@ defmodule Oneiroi.SimaQian.DryRun do
   end
 
   # The kinds in the order the orientation names them (brain #38).
-  @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes)
+  @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes seeds)
 
   defp section_translated(%{import: %{translated: %{source: source, counts: counts}}}) do
     rows = Enum.map_join(@translated, "\n", &"| #{&1} | #{Map.get(counts, &1, 0)} |")
