@@ -242,6 +242,10 @@ measured. The transcript is a record of what the model said, so it keeps
 the doubled text; the wire gets the object. Turn 4 of the same run
 refused a `habit_define` the model filled with `seed_number: -0`.
 
+Measured since (nisaba #21): the repetition is the provider's. On run
+41251374640, every doubled call was routed to CoreWeave, which streamed
+the whole object twice; none routed to Groq was doubled.
+
 ## #37, the label
 The author, 10-31: an optional gate on the PR, run before merging but
 not on every commit, to shorten the loop between a change and the live
@@ -260,4 +264,3 @@ the script's own words said "fixture". The run is told to be shorter than
 twelve turns in tests, so the prompt names no count. The reply it gets
 cannot grant the ask, so it must not pretend to; what it can honestly
 give is that the ask is recorded, counts, and may change the rules.
-

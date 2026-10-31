@@ -86,3 +86,9 @@ piece twice is not measured, and nothing recorded could say. The author,
 10-31: log the raw tool-call stream for now, and audit the logging once
 real people are on the platform.
 
+Measured on PR 26's fixture run 41251374640, the first with the trace
+on: 58 calls, 7 doubled. All 7 were routed to CoreWeave, which streamed
+the whole arguments object twice, as two pieces after the one naming the
+call; all 51 routed to Groq sent them once. The join here is right, the
+pieces concatenated as the format says; the repetition is CoreWeave's.
+
