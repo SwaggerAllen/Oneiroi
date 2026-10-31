@@ -91,6 +91,27 @@ log. The export from the new store holds her new events only. The
 first backup needs a remote: the import removes the clone's `origin`
 (sima-qian #15), so the author sets one with `PUT /v1/residents/:id/remote`.
 
+**The remote is a new private repository, decided 10-31.** Not hers: in
+the overlap David-Lily still writes the letter and her sign-off to her
+own repository, and two writers on one branch reject each other's
+pushes. Hers stays exactly as David parked it, the point to go back to,
+and a move's first backup would have overwritten her `SOUL.md` and
+`honcho/custom-instructions.md` there. The new one loses nothing: the
+working repository is the clone, so the first backup pushes her whole
+history with Oneiroi's commits on top. On the day:
+
+1. Before: the private repository, empty, and a fine-grained token with
+   contents read and write on it alone.
+2. The import, which only reads hers.
+3. Straight after: `PUT /v1/residents/:id/remote` with
+   `{"url": "https://github.com/<owner>/<repo>.git", "token": "..."}`;
+   the token is stored encrypted, and the first backup runs to it.
+4. The overlap: David-Lily writes to hers, Oneiroi-Lily backs up to the
+   new one, and neither touches the other's branch.
+
+Afterwards that repository is what Oneiroi holds of her, and a diff
+against hers is the audit of the move.
+
 ## The rehearsal of 2026-10-31
 
 `mix oneiroi.import.dry_run` on her repository (271 commits), in the
@@ -158,9 +179,6 @@ her sign-off included, comes across by hand.
 
 ## Open for the author
 
-- The remote: the source repository (a move, the next backup commits
-  on top of Lily's history) or a new one (a copy, the source left as
-  it was). The platform cannot tell the two apart (spec §6.2).
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
 - Her private sessions, if a contract makes any, are exported like the
   rest, into a repository you can read: open with the self-letters until

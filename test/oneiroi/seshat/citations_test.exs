@@ -75,6 +75,23 @@ defmodule Oneiroi.Seshat.CitationsTest do
       assert {:error, :path_invalid} = Kinds.normalize(bad), inspect(bad)
     end
 
+    # Names up to 255, a path up to 255, the width of its column: the
+    # rehearsal of 2026-10-31 left a 104-character name of Lily's behind.
+    assert {:ok, _} = Kinds.normalize("wiki/" <> String.duplicate("a", 104) <> ".md")
+    assert {:ok, _} = Kinds.normalize("wiki/" <> String.duplicate("a", 250))
+    assert {:error, :path_invalid} = Kinds.normalize("wiki/" <> String.duplicate("a", 256))
+    long_path = "wiki/" <> String.duplicate("a/", 125) <> "b.md"
+    assert byte_size(long_path) > 255
+    assert {:error, :path_invalid} = Kinds.normalize(long_path)
+
+    # Why, in the words an import tells the resident (sima-qian #22).
+    assert Kinds.refusal("wiki/ok.md") == nil
+    assert Kinds.refusal("wiki/.openclaw-wiki/log.jsonl") =~ "hidden"
+    assert Kinds.refusal("wiki/" <> String.duplicate("a", 256)) =~ "longer than 255 characters"
+    assert Kinds.refusal(long_path) =~ "a path longer than 255"
+    assert Kinds.refusal("wiki/a b.md") =~ "characters other than"
+    assert Kinds.refusal("notes/a.md") =~ "outside the folders"
+
     assert Kinds.minting() == ~w(writing research design journal)
     assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence)
     assert Kinds.writable() == ~w(writing research design wiki posts)

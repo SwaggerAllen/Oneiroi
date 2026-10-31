@@ -124,7 +124,7 @@ defmodule Oneiroi.Brain.ToolsTest do
                role: :assistant,
                tool_calls: [%{id: b, function: %{name: "figure_list", arguments: "null"}}]
              },
-             %{role: :tool, tool_call_id: b, content: "The arguments were not a JSON object."},
+             %{role: :tool, tool_call_id: b, content: "No figures yet."},
              %{role: :assistant, content: "Kept."},
              %{role: :user, content: "and now?"}
            ] = replayed
@@ -153,7 +153,7 @@ defmodule Oneiroi.Brain.ToolsTest do
            ) =~ "only an active tag"
 
     assert Tools.run("bookmark_open", ~s({"number": 7}), turn) =~ "no bookmark has that number"
-    assert Tools.run("nope", "{}", turn) == "There is no tool named nope."
+    assert Tools.run("nope", "{}", turn) == "Not done: there is no tool named nope."
     assert Tools.run("bookmark_add", "not json", turn) =~ "not a JSON object"
     assert Tools.run("transcript_search", ~s({"q":"zzz"}), turn) =~ "Nothing"
 
@@ -163,6 +163,44 @@ defmodule Oneiroi.Brain.ToolsTest do
     assert Tools.run("bookmark_open", ~s({"number": 1}), turn) =~ "#1 a line"
     assert Tools.run("bookmark_extend", ~s({"number": 1, "turns_back": 3}), turn) == "Done."
     assert Enum.any?(Tools.definitions(), &(&1.function.name == "bookmark_add"))
+  end
+
+  # Fixture runs of 10-31: `commitment_list(null)` refused, then the
+  # model told its witness it held no commitments; `bookmark_add` with
+  # one object twice over refused, and no bookmark made.
+  test "a tool taking nothing takes null or nothing, and one object repeated is that object",
+       ctx do
+    turn = %{
+      resident_id: ctx.resident.id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: Actor.new(:resident, ctx.resident.id, "fake/model")
+    }
+
+    for blank <- ["null", "", " null "], do: assert(Tools.run("tag_list", blank, turn) =~ "empty")
+
+    once = ~s({"line":"twice over","summary":"s"})
+    assert "Bookmarked as #1." = Tools.run("bookmark_add", once <> once, turn)
+
+    assert Tools.run("bookmark_add", once <> ~s({"line":"other","summary":"s"}), turn) ==
+             "Not done: the arguments were not a JSON object."
+
+    assert Tools.run("bookmark_add", "[1]", turn) =~ "Not done: "
+  end
+
+  test "a refusal reads as two sentences, marked not done", ctx do
+    turn = %{
+      resident_id: ctx.resident.id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: Actor.new(:resident, ctx.resident.id, "fake/model")
+    }
+
+    said = Tools.run("bookmark_open", ~s({"number": 7}), turn)
+    assert String.starts_with?(said, "Not done: ")
+    assert said =~ ~r/\. [A-Z]/
   end
 
   test "a session that outgrows its window is compacted at the next turn: flush, summary, record",

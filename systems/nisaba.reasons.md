@@ -68,3 +68,12 @@ nothing else.
 Spec §6.2: "`SubscriptionCancelled` is a custody event that moves the
 resident to community custody at the end of the policy's term, and
 never a deletion."
+
+## #20
+Fixture run 41240586421 ended eight of its twelve turns with no words
+and no usage, each read as an ordinary reply and recorded at zero cost,
+`estimated`. Whether those streams carried an error event or nothing at
+all was not recorded, and the adapter ignored any event without
+`choices`, so it could not have said. Both now fail the call, and a
+turn that fails keeps the provider's words in its reason (brain #39),
+so the next run will.

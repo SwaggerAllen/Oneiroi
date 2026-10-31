@@ -62,7 +62,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
            into: into
          ) do
       {:ok, %Req.Response{status: 200, private: %{sse_state: state}}} ->
-        {:ok, __MODULE__.SSE.result(state)}
+        __MODULE__.SSE.outcome(state)
 
       {:ok, %Req.Response{status: 200}} ->
         {:error, {:schema_invalid, :empty_stream}}
@@ -241,13 +241,22 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
             finish_reason: String.t() | nil,
             refusal: iodata(),
             usage: Usage.t() | nil,
-            tool_calls: %{non_neg_integer() => map()}
+            tool_calls: %{non_neg_integer() => map()},
+            error: {term(), String.t() | :unparseable} | nil
           }
 
     @doc "An empty accumulator."
     @spec initial() :: state()
     def initial,
-      do: %{content: [], model: nil, finish_reason: nil, refusal: [], usage: nil, tool_calls: %{}}
+      do: %{
+        content: [],
+        model: nil,
+        finish_reason: nil,
+        refusal: [],
+        usage: nil,
+        tool_calls: %{},
+        error: nil
+      }
 
     @doc "Complete events in `buffer`, decoded, and the unterminated rest."
     @spec feed(String.t()) :: {[term()], String.t()}
@@ -287,6 +296,12 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
         if u = Map.get(chunk, "usage"),
           do: %{state | usage: OpenRouter.usage(u)},
           else: state
+
+      state =
+        case Map.get(chunk, "error") do
+          %{} = e -> %{state | error: {Map.get(e, "code", "error"), OpenRouter.summarize(chunk)}}
+          _none -> state
+        end
 
       state = %{state | model: state.model || Map.get(chunk, "model")}
 
@@ -329,6 +344,32 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
         })
       end)
     end
+
+    @doc """
+    What the absorbed stream amounts to: the result, or the failure it
+    carried. OpenRouter documents an error after streaming has begun as
+    an event in the stream under a 200, with `finish_reason` `error`.
+    Read as a result, as it was, such a stream is a reply with no words
+    and no usage: fixture run 41240586421 ended eight of its twelve turns
+    so, each recorded `ok` at zero cost. Whether those eight carried an
+    error event or nothing at all was not recorded; both now fail the
+    call, the provider's words kept when it gave them, and a stream
+    with no words, no call, no refusal and no usage is read as nothing
+    having answered.
+    """
+    @spec outcome(state()) :: {:ok, Result.t()} | {:error, {:transport, term()}}
+    def outcome(%{error: {code, message}}), do: {:error, {:transport, {:status, code, message}}}
+
+    def outcome(%{finish_reason: "error"}),
+      do: {:error, {:transport, {:status, "error", "the stream ended in an error"}}}
+
+    def outcome(%{usage: nil, tool_calls: calls} = state) when map_size(calls) == 0 do
+      if IO.iodata_length(state.content) == 0 and IO.iodata_length(state.refusal) == 0,
+        do: {:error, {:transport, {:status, 200, "the stream carried nothing"}}},
+        else: {:ok, result(state)}
+    end
+
+    def outcome(state), do: {:ok, result(state)}
 
     @doc "The result the absorbed stream amounts to."
     @spec result(state()) :: Result.t()

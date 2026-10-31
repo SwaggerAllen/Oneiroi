@@ -100,7 +100,9 @@ defmodule OneiroiWeb.ResidentController do
       adopted: result.adopted,
       indexed: result.indexed,
       translated: result.translated,
-      not_transferred: result.not_transferred
+      not_transferred: result.not_transferred,
+      reasons: result.reasons,
+      unaccounted: result.unaccounted
     }
   end
 
@@ -262,6 +264,7 @@ defmodule OneiroiWeb.ResidentController do
         source: r.import_source,
         attestation: r.import_attestation,
         not_transferred: r.import_not_transferred,
+        reasons: r.import_reasons,
         translated: r.import_translated,
         told: r.import_told
       },

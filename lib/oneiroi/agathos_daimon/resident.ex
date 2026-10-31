@@ -123,7 +123,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       id: c.id,
       seeded: c.seeded,
       adopted: c.adopted,
-      not_transferred: c.not_transferred
+      not_transferred: c.not_transferred,
+      reasons: c.reasons
     }
 
     case c.translated do

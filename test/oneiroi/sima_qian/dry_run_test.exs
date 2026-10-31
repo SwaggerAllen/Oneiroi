@@ -6,6 +6,7 @@ defmodule Oneiroi.SimaQian.DryRunTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.DryRun
+  alias Oneiroi.SimaQian.Import
 
   # A line no report may ever carry: it stands for her words.
   @private "a sentence only the repository holds"
@@ -91,7 +92,9 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     assert text =~ "## Translated from David's records"
     assert text =~ "| bookmarks | 1 |"
     assert text =~ "| messages | 2 |"
-    assert text =~ "- `records/README.md`"
+    assert text =~ "- `records/README.md`: a record nothing here reads"
+    assert text =~ "## Every file under the folders, accounted"
+    assert text =~ "2 adopted, 0 left behind with a reason (0 of them unaccounted)"
     assert text =~ "## Under `honcho/`, read by nothing"
     assert text =~ "| Soul lines minted | 2 |"
     refute text =~ @private
@@ -114,5 +117,33 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     assert task.refusal(fake, []) == nil
     assert task.refusal(fake, [%{kind: "resident"}]) =~ "already holds a resident"
     assert task.refusal(Oneiroi.Nisaba.Provider.OpenRouter, []) =~ "NISABA_PROVIDER must be fake"
+  end
+
+  # The rehearsal of 2026-10-31 passed with one of Lily's files neither
+  # adopted nor named. No real repository reaches this while every case
+  # has a rule, so the adoption is handed in missing a file.
+  test "a file the adoption neither took nor refused is unaccounted, named, and fails the rehearsal" do
+    dir = Path.join(System.tmp_dir!(), "oneiroi-account-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf!(dir) end)
+    write!(dir, "wiki/seen.md", "x")
+    write!(dir, "wiki/missed.md", "x")
+    write!(dir, "wiki/.hidden/log.jsonl", "x")
+
+    ledger =
+      Import.account(dir, nil, %{kept: []}, %{
+        adopted: ["wiki/seen.md"],
+        skipped: []
+      })
+
+    assert ledger.unaccounted == ["wiki/missed.md"]
+
+    assert [
+             {"wiki/.hidden/log.jsonl", "a hidden name, which the library does not hold"},
+             {"wiki/missed.md", "missed by the library's adoption" <> _}
+           ] = ledger.left_behind
+
+    report = %{import: %{unaccounted: ledger.unaccounted}}
+    assert {:error, %{failed: :accounting}} = DryRun.accounted({:ok, report})
+    assert {:ok, _} = DryRun.accounted({:ok, %{import: %{unaccounted: []}}})
   end
 end

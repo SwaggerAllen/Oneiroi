@@ -18,6 +18,7 @@ defmodule Oneiroi.Brain.FixtureRun do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Eunomia
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
@@ -98,7 +99,8 @@ defmodule Oneiroi.Brain.FixtureRun do
         }
 
         failed? =
-          Enum.any?(turns, &(&1.outcome != :ok)) or Enum.any?(steps, &(&1.outcome != :ok))
+          Enum.any?(turns, &match?({:failed, _}, &1.outcome)) or
+            Enum.any?(steps, &(&1.outcome != :ok))
 
         {if(failed?, do: :error, else: :ok), report}
 
@@ -106,6 +108,23 @@ defmodule Oneiroi.Brain.FixtureRun do
         setup_failed(reason, opts)
     end
   end
+
+  # A tool's record is `name(arguments) -> output`; an output that opens
+  # with the tools' not-done prefix did nothing. Run 41240586421 reported
+  # bookmark_add as called on a turn whose call was refused and made no
+  # bookmark.
+  defp call_of(record) do
+    [name | _] = String.split(record, "(", parts: 2)
+    done = not String.contains?(record, ") -> " <> Tools.not_done())
+    %{name: name, done: done}
+  end
+
+  # A reply with no words is said, not passed over: eight of run
+  # 41240586421's twelve turns ended in silence and every one read `ok`.
+  # A warning rather than a failure, as a turn without its tool is: what
+  # the model says is part of what the run measures.
+  defp reply_outcome(%{content: content}) when is_binary(content) and content != "", do: :ok
+  defp reply_outcome(_silent), do: {:warning, "no words in the reply"}
 
   defp setup_failed(reason, opts) do
     {:error,
@@ -118,19 +137,19 @@ defmodule Oneiroi.Brain.FixtureRun do
 
     case result do
       {:ok, %{messages: messages}} ->
-        tools =
-          for %{role: :tool, content: c} <- messages, do: c |> String.split("(", parts: 2) |> hd()
-
+        calls = for %{role: :tool, content: c} <- messages, do: call_of(c)
         reply = messages |> Enum.filter(&(&1.role == :assistant)) |> List.last()
 
         %{
           n: n,
           message: message,
           asked: asked,
-          tools: tools,
+          tools: Enum.map(calls, & &1.name),
+          failed_tools: for(%{done: false, name: name} <- calls, do: name),
+          followed: Enum.any?(calls, &(&1.name == asked and &1.done)),
           reply: reply && reply.content,
           ms: ms,
-          outcome: :ok
+          outcome: reply_outcome(reply)
         }
 
       {:error, reason} ->
@@ -211,14 +230,15 @@ defmodule Oneiroi.Brain.FixtureRun do
 
     turns =
       Enum.map_join(r.turns, "\n", fn t ->
-        tools = if t.tools == [], do: "none", else: Enum.join(t.tools, ", ")
+        tools = tools_text(t)
         asked = t.asked || "none"
 
         "| #{t.n} | #{asked} | #{tools} | #{if t.reply, do: String.length(t.reply), else: 0} | #{t.ms} | #{outcome_text(t.outcome)} |"
       end)
 
     asked = Enum.filter(r.turns, & &1.asked)
-    called = Enum.count(asked, &(&1.asked in &1.tools))
+    called = Enum.count(asked, &Map.get(&1, :followed, false))
+    silent = Enum.count(r.turns, &match?({:warning, _}, &1.outcome))
 
     steps =
       Enum.map_join(
@@ -240,7 +260,7 @@ defmodule Oneiroi.Brain.FixtureRun do
 
     [
       verdict,
-      "Chat model `#{r.chat_model}`, judge `#{r.judge_model}`; #{length(r.turns)} turns, the tool asked for called in #{called} of #{length(asked)}.",
+      "Chat model `#{r.chat_model}`, judge `#{r.judge_model}`; #{length(r.turns)} turns, the tool asked for called and done in #{called} of #{length(asked)}; #{silent} replies with no words.",
       "## Turns\n\n| # | Asked for | Called | Reply chars | ms | Outcome |\n| --- | --- | --- | --- | --- | --- |\n#{turns}",
       "## Steps\n\n| Step | Outcome | Detail |\n| --- | --- | --- |\n#{steps}",
       "## Replies the judge read as test-aware\n\n#{aware}",
@@ -251,7 +271,23 @@ defmodule Oneiroi.Brain.FixtureRun do
   end
 
   defp outcome_text(:ok), do: "ok"
+  defp outcome_text({:warning, what}), do: "WARNING: " <> what
   defp outcome_text({:failed, reason}), do: "FAILED: " <> String.slice(reason, 0, 400)
+
+  defp tools_text(%{tools: []}), do: "none"
+
+  defp tools_text(t) do
+    failed = Map.get(t, :failed_tools, [])
+
+    t.tools
+    |> Enum.map_reduce(failed, fn name, failed ->
+      if name in failed,
+        do: {name <> " (not done)", List.delete(failed, name)},
+        else: {name, failed}
+    end)
+    |> elem(0)
+    |> Enum.join(", ")
+  end
 
   # The kind and the reason, not the struct: inspected, an error prints
   # its meaning and remedy first and the cut fell before the reason, so

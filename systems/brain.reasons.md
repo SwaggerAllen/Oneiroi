@@ -217,3 +217,16 @@ off the export by hand. The adapter keeps an error's `message` and never
 its `metadata`, where OpenRouter documents a moderation hit's flagged
 input, so the reason carries the provider's diagnosis and not the
 conversation.
+
+## #10, the not-done answers
+Fixture run 41240586421: `commitment_list(null)` was refused, and the
+model then told its witness it held no commitments while it held one;
+`figure_list(null)` had been refused the run before. `bookmark_add`
+arrived as one object twice over and was refused, and the report still
+counted the tool as called. Whether the provider sent the arguments
+twice or the deltas were joined twice is not measured, so only an exact
+repetition is read as one object. The `Not done: ` prefix is what the
+fixture's report reads to count a tool as followed, and it tells the
+model the same thing in the same words. The refusal's meaning and
+remedy, joined by a space, read "a chain cannot fork replace the head
+of the chain".
