@@ -24,7 +24,10 @@ defmodule OneiroiWeb.SessionController do
        }},
     responses: [
       created: {"the principal", "application/json", %Schema{type: :object}},
-      unauthorized: {"refused", "application/json", %Schema{type: :object}}
+      unauthorized: {"refused", "application/json", %Schema{type: :object}},
+      service_unavailable:
+        {"verified, but the session could not be opened; retry", "application/json",
+         %Schema{type: :object}}
     ]
   )
 
@@ -38,6 +41,11 @@ defmodule OneiroiWeb.SessionController do
 
       {:error, :gaia_second_factor_required} ->
         error(conn, 401, IdentityError.new(:gaia_second_factor_required))
+
+      {:error, :gaia_session_unavailable} ->
+        conn
+        |> put_resp_header("retry-after", "5")
+        |> error(503, IdentityError.new(:gaia_session_unavailable))
 
       {:error, _reason} ->
         error(conn, 401, IdentityError.new(:gaia_invalid_credentials))

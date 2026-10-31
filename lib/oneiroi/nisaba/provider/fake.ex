@@ -58,13 +58,14 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @doc """
   Scripts tool calls on the first round and a reply once the tool results
   are back: `calls` are maps with `name` and `arguments` (a map, encoded
-  here as the JSON string a model writes).
+  here as the JSON string a model writes). A request that offers no tools
+  gets the reply, as a model offered none cannot call one.
   """
   @spec calls([map()], String.t(), keyword()) :: :ok
   def calls(calls, reply, opts \\ []) when is_list(calls) and is_binary(reply) do
     script(
-      fn %Request{messages: messages} ->
-        if Enum.any?(messages, &(&1[:role] == :tool)),
+      fn %Request{messages: messages, tools: tools} ->
+        if tools == [] or Enum.any?(messages, &(&1[:role] == :tool)),
           do: {:ok, reply},
           else: {:calls, calls}
       end,
@@ -106,7 +107,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
 
   @impl Oneiroi.Nisaba.Provider
   def complete(%Request{} = request, key) when is_binary(key) do
-    case answer(request) do
+    case refusal(request) || answer(request) do
       {:ok, text} -> {:ok, result(request, text, false)}
       {:refusal, text} -> {:ok, result(request, text, true)}
       {:calls, calls} -> {:ok, calls_result(request, calls)}
@@ -170,6 +171,48 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     norm = counts |> Map.values() |> Enum.map(&(&1 * &1)) |> Enum.sum() |> :math.sqrt()
     norm = if norm == 0, do: 1.0, else: norm
     for i <- 0..(@width - 1), do: Map.get(counts, i, 0) / norm
+  end
+
+  # The chat format's rules on tool messages, refused as OpenRouter
+  # refuses them, with a 400 the adapter reads as `:schema_invalid`. A
+  # `tool` message answers a call by its id, and the calls of one
+  # assistant message are all answered by the `tool` messages that
+  # follow it; a request carrying either names its tools, which is
+  # Anthropic's documented rule rather than one measured here. Without
+  # this the fake answered any shape, and a transcript replaying bare
+  # `tool` rows passed the suite while every provider refused it: the
+  # fixture's turns 3 to 12 after a turn that used tools.
+  defp refusal(%Request{messages: messages, tools: tools}) do
+    case wire_error(messages, MapSet.new(), tools != []) do
+      nil -> nil
+      message -> {:error, {:schema_invalid, {:status, 400, message}}}
+    end
+  end
+
+  defp wire_error([], open, _tools?), do: unanswered(open)
+
+  defp wire_error([%{role: :tool} = m | rest], open, tools?) do
+    id = m[:tool_call_id]
+
+    if MapSet.member?(open, id),
+      do: wire_error(rest, MapSet.delete(open, id), tools?),
+      else: "tool message #{inspect(id)} answers no preceding call"
+  end
+
+  defp wire_error([m | rest], open, tools?) do
+    calls = m[:tool_calls] || []
+
+    cond do
+      MapSet.size(open) > 0 -> unanswered(open)
+      calls != [] and m[:role] != :assistant -> "tool calls on a #{m[:role]} message"
+      calls != [] and not tools? -> "a tool call in a request that names no tools"
+      true -> wire_error(rest, MapSet.new(calls, & &1.id), tools?)
+    end
+  end
+
+  defp unanswered(open) do
+    if MapSet.size(open) > 0,
+      do: "tool calls #{inspect(MapSet.to_list(open))} have no tool message answering them"
   end
 
   defp answer(request) do

@@ -166,4 +166,25 @@ defmodule Oneiroi.Brain.FixtureRunTest do
     assert text =~ "# FIXTURE RUN: FAILED"
     assert String.ends_with?(text, "# FIXTURE RUN: FAILED")
   end
+
+  # Run 41232526981 said `brain_turn_failed` ten times: the inspected
+  # error printed its meaning first and the cut fell before the reason.
+  test "a refused turn is reported with the provider's status and words", ctx do
+    opts = %{chat_model: "fake/model", judge_model: "fake/judge", turns: 1}
+    {:ok, id} = FixtureRun.create(ctx.witness.id, opts)
+    on_exit(fn -> Fake.clear(for: id) end)
+
+    Fake.script(
+      fn
+        %{model: "fake/judge"} -> {:ok, "SUMMARY: a day.\nCOUNT: 0"}
+        _chat -> {:error, {:schema_invalid, {:status, 400, "tool message answers no call"}}}
+      end,
+      for: id
+    )
+
+    assert {:error, report} = FixtureRun.run_on(id, ctx.witness.id, opts)
+
+    assert FixtureRun.markdown({:error, report}) =~
+             "FAILED: brain_turn_failed: nisaba_request_refused: 400 tool message answers no call"
+  end
 end

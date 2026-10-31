@@ -27,6 +27,28 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert r.usage.estimated == false
     end
 
+    test "refuses a tool message the chat format refuses, as the provider does" do
+      tools = [%{type: "function", function: %{name: "t"}}]
+      call = %{id: "c1", type: "function", function: %{name: "t", arguments: "{}"}}
+      asks = %{role: :assistant, content: "", tool_calls: [call]}
+      answers = %{role: :tool, tool_call_id: "c1", content: "done"}
+      user = %{role: :user, content: "hi"}
+      refused = &match?({:error, {:schema_invalid, {:status, 400, _}}}, Fake.complete(&1, "k"))
+
+      assert {:ok, %Result{}} =
+               Fake.complete(Request.new("m", [user, asks, answers], tools: tools), "k")
+
+      # A bare tool message, as a replayed transcript once sent one.
+      assert refused.(Request.new("m", [user, %{role: :tool, content: "done"}], tools: tools))
+      # An answer to a call nobody made.
+      assert refused.(Request.new("m", [user, %{answers | tool_call_id: "c2"}], tools: tools))
+      # A call left unanswered, before more words and at the end.
+      assert refused.(Request.new("m", [user, asks, user], tools: tools))
+      assert refused.(Request.new("m", [user, asks], tools: tools))
+      # Either half in a request that names no tools.
+      assert refused.(Request.new("m", [user, asks, answers]))
+    end
+
     test "a scripted reply, refusal and failure, per process" do
       Fake.reply("scripted")
       assert {:ok, %Result{content: "scripted", refusal?: false}} = Fake.complete(@request, "k")
@@ -144,6 +166,20 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert r.usage.estimated and r.usage.cost_nanos == 0
 
       assert {:error, {:schema_invalid, _}} = OpenRouter.parse(%{"error" => %{"message" => "no"}})
+
+      # A streamed refusal is raw text: its message is kept and its
+      # metadata, where a moderation hit's input would sit, is not.
+      raw =
+        Jason.encode!(%{
+          "error" => %{
+            "message" => "Input was flagged",
+            "metadata" => %{"flagged_input" => "what she said"}
+          }
+        })
+
+      assert OpenRouter.summarize(raw) == "Input was flagged"
+      assert OpenRouter.summarize("<html>bad gateway</html>") == "<html>bad gateway</html>"
+      assert OpenRouter.summarize(~s({"other": 1})) == :unparseable
     end
 
     test "tool calls carry the arguments as the model wrote them" do

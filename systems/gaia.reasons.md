@@ -21,6 +21,13 @@ A lockout hands an attacker a way to lock the witness out; a delay costs
 them time and the witness one wait (spec §6.1). A restart is not a
 credential, so the counts need not survive one.
 
+The unopened session was split out on 10-31: the steward's login answered
+401 invalid credentials during a deploy's overlap, when the session's
+dispatch timed out waiting on a projector, so a right password read as a
+wrong one and each retry of it grew the delay. A wrong answer about the
+password is worse than none; the throttle exists to slow guessing, and a
+verified password is not a guess.
+
 ## #7
 The relation is identity's because the principal is; the resident
 system raising the events and identity folding them is what keeps each

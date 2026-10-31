@@ -102,6 +102,9 @@ defmodule Oneiroi.Gaia do
     [
       {:gaia_invalid_credentials, "the email, password or code did not verify",
        remedy: "try again; the delay grows with each failure and nothing locks"},
+      {:gaia_session_unavailable, "the credentials verified but the session could not be opened",
+       remedy:
+         "try again in a moment; nothing was counted against the login, and a deploy in progress is the usual cause"},
       {:gaia_second_factor_required,
        "the account has a second factor and the code was not supplied",
        remedy: "send the code from the authenticator app"},

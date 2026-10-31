@@ -184,10 +184,25 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
   # The provider's error message, never the request: a body echoing a
   # prompt back would put resident text in an error tuple.
-  defp summarize(%{"error" => %{"message" => message}}) when is_binary(message), do: message
-  defp summarize(%{"error" => error}) when is_binary(error), do: error
-  defp summarize(text) when is_binary(text), do: String.slice(text, 0, 200)
-  defp summarize(_other), do: :unparseable
+  @doc """
+  An error body's message, and nothing else of it. A streamed refusal
+  arrives as raw text, which is decoded first: sliced as it came, its
+  first 200 bytes would carry the error's `metadata`, where OpenRouter
+  documents putting a moderation hit's flagged input, and the summary
+  rides a capture failure's reason (brain #39).
+  """
+  @spec summarize(term()) :: String.t() | :unparseable
+  def summarize(%{"error" => %{"message" => message}}) when is_binary(message), do: message
+  def summarize(%{"error" => error}) when is_binary(error), do: error
+
+  def summarize(text) when is_binary(text) do
+    case Jason.decode(text) do
+      {:ok, %{} = body} -> summarize(body)
+      _not_json -> String.slice(text, 0, 200)
+    end
+  end
+
+  def summarize(_other), do: :unparseable
 
   defp message(%{role: role, content: content} = m) do
     %{role: Atom.to_string(role), content: content}

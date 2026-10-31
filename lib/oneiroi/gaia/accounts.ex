@@ -35,32 +35,48 @@ defmodule Oneiroi.Gaia.Accounts do
   @doc """
   Verifies the credentials and opens a session. The lookup runs under the
   platform scope by name: the principal is not known until it answers.
-  On any failure the throttle's delay is applied before answering, and
-  a missing account costs a hash verification too, so an email's
-  existence cannot be read off the clock.
+  On a failure to verify the throttle's delay is applied before
+  answering, and a missing account costs a hash verification too, so an
+  email's existence cannot be read off the clock.
+
+  Credentials that verified and a session the store could not open are
+  `gaia_session_unavailable`, unthrottled: the steward's login answered
+  401 invalid credentials during a deploy's overlap, when the session's
+  dispatch timed out waiting on a projector, and each retry of the right
+  password grew the delay.
   """
   def login(email, password, code) do
     now = Clock.now()
     account = Scope.platform(fn -> Store.account_by_email(email) end)
 
     with {:ok, account} <- verify_password(account, password),
-         :ok <- verify_second_factor(account, code),
-         raw = random(),
-         expires = DateTime.add(now, Config.fetch!(:gaia, :session_ttl_days), :day),
-         command = %Commands.OpenSession{
-           actor: Actor.new(:witness, account.id),
-           at: now,
-           id: account.id,
-           session_hash: hash(raw),
-           expires_at: expires
-         },
-         {:ok, _events} <- Router.dispatch(command) do
+         :ok <- verify_second_factor(account, code) do
       Throttle.clear(email)
-      {:ok, raw, %Principal{account_id: account.id, email: account.email, via: :session}}
+      open_session(account, now)
     else
       {:error, reason} ->
         slow(email)
         {:error, reason}
+    end
+  end
+
+  defp open_session(account, now) do
+    raw = random()
+
+    command = %Commands.OpenSession{
+      actor: Actor.new(:witness, account.id),
+      at: now,
+      id: account.id,
+      session_hash: hash(raw),
+      expires_at: DateTime.add(now, Config.fetch!(:gaia, :session_ttl_days), :day)
+    }
+
+    case Router.dispatch(command) do
+      {:ok, _events} ->
+        {:ok, raw, %Principal{account_id: account.id, email: account.email, via: :session}}
+
+      {:error, _reason} ->
+        {:error, :gaia_session_unavailable}
     end
   end
 

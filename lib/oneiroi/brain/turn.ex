@@ -30,6 +30,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
   alias Oneiroi.Brain.Error
+  alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
@@ -420,7 +421,7 @@ defmodule Oneiroi.Brain.Turn do
     history =
       turn.resident_id
       |> Kumbukumbu.recent(turn.session_key, count)
-      |> Enum.map(&history_message/1)
+      |> History.messages()
 
     sections =
       section(
@@ -677,11 +678,6 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  @roles %{"user" => :user, "assistant" => :assistant, "system" => :system, "tool" => :tool}
-
-  defp history_message(%{role: role, content: content}),
-    do: %{role: Map.fetch!(@roles, role), content: content}
-
   defp public_message(m) do
     %{
       role: m.role,
@@ -699,7 +695,25 @@ defmodule Oneiroi.Brain.Turn do
     }
   end
 
-  defp failure_reason(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
+  # The provider's own words ride the reason when it gave a status: the
+  # fixture's refused turns recorded only `nisaba_request_refused`, and the
+  # cause had to be rebuilt from the export. The adapter keeps the error's
+  # `message` alone, never its `metadata`, which is where OpenRouter
+  # documents putting a moderation hit's flagged input, so this holds the
+  # provider's diagnosis and not the transcript (spec §6.3).
+  defp failure_reason(%{kind: kind, details: details}) when is_atom(kind) do
+    case Keyword.get(details, :reason) do
+      {:status, status, message} when is_binary(message) ->
+        "#{kind}: #{status} #{String.slice(message, 0, 300)}"
+
+      {:status, status, _unparseable} ->
+        "#{kind}: #{status}"
+
+      _other ->
+        Atom.to_string(kind)
+    end
+  end
+
   defp failure_reason(other), do: inspect(other) |> String.slice(0, 200)
 
   @doc false

@@ -248,6 +248,11 @@ to a human, so a flaky suite defeats the automation.
   DDL dumped from the pinned image. A hand-written fixture is a claim about
   the real system, and a fake that disagrees with it hides the bug it was
   built to catch.
+- **A fake refuses what the real system refuses.** The model fake checks
+  each request against the chat format's rules on tool messages and
+  answers a break with the 400 the provider sends. While it answered any
+  shape, a transcript replaying bare `tool` rows passed a suite that ran
+  the very turn the provider refused (brain #39).
 - **Cost is asserted.** A write path whose statement count can grow with
   the table (capture, index fetch, re-index, needs-you) records every
   statement and budgets it per row. Correctness tests are blind to
