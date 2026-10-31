@@ -105,3 +105,11 @@ bound for everyone to fit one imported day would have been a guess; a
 part per bound is the measured case. Rendering a day once rather than
 per entry keeps an import of three hundred notes from being three hundred
 writes and index runs of the same file.
+
+## #13, the bounds
+The bound on a segment was 100, a guess, and the import's rehearsal on
+Lily's repository left a 104-character wiki name behind under it. 255 is
+a filesystem's own bound on a name. The whole path had no bound at all
+while every column holding one is `:string`, 255 wide in Postgres, so a
+deep enough path would have failed in a projector rather than at the
+check; it is bounded there now.

@@ -3,6 +3,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
+  alias Commanded.Event.Upcaster
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Events
@@ -27,6 +28,21 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
       Resident.execute(state, %Commands.MintId{actor: @actor, at: @at, id: state.id, kind: kind})
 
     {Resident.apply(state, event), event.number}
+  end
+
+  # Version 2 added the reasons (sima-qian #22); a version 1 event reads
+  # as carrying none, which the projector writes as it stands.
+  test "an ImportCompleted of version 1 upcasts to no reasons" do
+    v1 = %Events.ImportCompleted{
+      actor: Actor.platform(),
+      at: ~U[2026-10-31 00:00:00Z],
+      id: "r",
+      seeded: [],
+      adopted: 0,
+      not_transferred: ["memory"]
+    }
+
+    assert %{reasons: %{}, not_transferred: ["memory"]} = Upcaster.upcast(v1, %{})
   end
 
   test "a resident is created once and only an existing one acts" do

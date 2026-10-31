@@ -168,7 +168,11 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   # Told already until the import completes: a resident rebuilt from
   # records alone has its history and nothing to be oriented to.
   fold(%Events.ImportCompleted{} = e, _metadata, fn multi ->
-    set(multi, e.id, import_not_transferred: e.not_transferred, import_told: false)
+    set(multi, e.id,
+      import_not_transferred: e.not_transferred,
+      import_reasons: e.reasons,
+      import_told: false
+    )
   end)
 
   fold(%Events.RecordsTranslated{} = e, _metadata, fn multi ->

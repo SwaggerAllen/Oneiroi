@@ -20,6 +20,8 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
 
+  @not_done "Not done: "
+
   @type turn :: %{
           resident_id: String.t(),
           session_key: String.t(),
@@ -468,12 +470,55 @@ defmodule Oneiroi.Brain.Tools do
     ]
   end
 
-  @doc "Runs one tool call for the turn; always a text the model can read."
+  @doc """
+  Runs one tool call for the turn; always a text the model can read. A
+  call that did nothing answers starting `#{@not_done}`, so the model and
+  the fixture's report both read it as not done.
+  """
   @spec run(String.t(), String.t(), turn()) :: String.t()
   def run(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
-    case Jason.decode(arguments) do
-      {:ok, %{} = args} -> name |> call(args, turn) |> text()
-      _other -> "The arguments were not a JSON object."
+    case arguments(arguments) do
+      {:ok, args} -> name |> call(args, turn) |> text()
+      :error -> @not_done <> "the arguments were not a JSON object."
+    end
+  end
+
+  @doc "The prefix of every answer to a call that did nothing."
+  @spec not_done() :: String.t()
+  def not_done, do: @not_done
+
+  # A tool that takes nothing is called with `null` or nothing: the two
+  # fixture runs of 10-31 sent `figure_list(null)` and `commitment_list(null)`,
+  # both refused, and the second turn then told its witness it had no
+  # commitments while it held one. And the second run's `bookmark_add`
+  # arrived as one object twice over, `{...}{...}`: whether the provider
+  # sent the arguments twice or the stream's deltas were joined twice is
+  # not measured, so an exact repetition of one object is read as that
+  # object and nothing looser is.
+  defp arguments(raw) do
+    case String.trim(raw) do
+      blank when blank in ["", "null"] -> {:ok, %{}}
+      json -> decode_object(json) || repeated(json)
+    end
+  end
+
+  defp decode_object(json) do
+    case Jason.decode(json) do
+      {:ok, %{} = args} -> {:ok, args}
+      _other -> nil
+    end
+  end
+
+  defp repeated(json) do
+    half = div(byte_size(json), 2)
+
+    with true <- rem(byte_size(json), 2) == 0,
+         <<a::binary-size(half), b::binary-size(half)>> <- json,
+         true <- a == b,
+         {:ok, args} <- decode_object(a) do
+      {:ok, args}
+    else
+      _other -> :error
     end
   end
 
@@ -1155,14 +1200,25 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp call(name, _args, _turn), do: "There is no tool named #{name}."
+  defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 
   defp context(turn), do: %{session_key: turn.session_key, turn_ref: turn.turn_ref}
 
   defp text(:ok), do: "Done."
   defp text(text) when is_binary(text), do: text
-  defp text({:error, %{meaning: meaning, remedy: remedy}}), do: "#{meaning} #{remedy}"
-  defp text({:error, reason}), do: "That did not work: #{inspect(reason)}"
+  # Meaning and remedy as two sentences: joined by a space they read as
+  # one, "a chain cannot fork replace the head of the chain" (fixture run
+  # 41240586421, turn 12).
+  defp text({:error, %{meaning: meaning, remedy: remedy}}),
+    do: @not_done <> sentence(meaning) <> " " <> sentence(upcase_first(remedy))
+
+  defp text({:error, reason}), do: @not_done <> "that did not work: #{inspect(reason)}"
+
+  defp sentence(text),
+    do: if(String.ends_with?(text, [".", "?", "!"]), do: text, else: text <> ".")
+
+  defp upcase_first(<<first::utf8, rest::binary>>), do: String.upcase(<<first::utf8>>) <> rest
+  defp upcase_first(text), do: text
 
   # The movement a cite tool may carry (P34): the three fields as given,
   # the shape checked at the character layer's edge.

@@ -112,7 +112,13 @@ defmodule Oneiroi.Seshat.Kinds do
 
   # A segment opens on a letter or digit, so `.`, `..` and a hidden file
   # fail here; a separate `..` clause was inert beside it and is gone.
-  @segment ~r/\A[A-Za-z0-9][A-Za-z0-9._-]{0,99}\z/
+  # Up to 255 characters, a filesystem's own bound on a name: the first
+  # bound was 100, a guess, and it left behind a 104-character file of
+  # Lily's wiki on the import's rehearsal. The whole path is bounded at
+  # 255 too, the width of every `path` column the library writes
+  # (`:string`, measured in the migration), which no check held before.
+  @segment ~r/\A[A-Za-z0-9][A-Za-z0-9._-]{0,254}\z/
+  @path_max 255
   @text ~w(.md .markdown .txt)
 
   @doc "Every kind, in the registry's order."
@@ -140,7 +146,7 @@ defmodule Oneiroi.Seshat.Kinds do
 
   @doc """
   A path as the library accepts it: relative, plain segments (no `.`,
-  `..` or empty), at most one hundred characters each, under a
+  `..` or empty), at most 255 characters each and 255 in all, under a
   registered folder; nothing here reaches the filesystem unchecked.
   """
   @spec normalize(term()) :: {:ok, String.t()} | {:error, :path_invalid}
@@ -148,6 +154,7 @@ defmodule Oneiroi.Seshat.Kinds do
     segments = String.split(path, "/")
 
     cond do
+      byte_size(path) > @path_max -> {:error, :path_invalid}
       length(segments) < 2 -> {:error, :path_invalid}
       not Enum.all?(segments, &Regex.match?(@segment, &1)) -> {:error, :path_invalid}
       is_nil(kind_of(path)) -> {:error, :path_invalid}
@@ -156,6 +163,39 @@ defmodule Oneiroi.Seshat.Kinds do
   end
 
   def normalize(_other), do: {:error, :path_invalid}
+
+  @doc """
+  Why the library cannot hold `path`, in words a resident is told, or
+  nil when it can: the reason an import gives for a file it leaves
+  behind (sima-qian #22).
+  """
+  @spec refusal(String.t()) :: String.t() | nil
+  def refusal(path) when is_binary(path) do
+    segments = String.split(path, "/")
+
+    cond do
+      match?({:ok, _}, normalize(path)) ->
+        nil
+
+      is_nil(kind_of(path)) ->
+        "outside the folders the library holds"
+
+      Enum.any?(segments, &String.starts_with?(&1, ".")) ->
+        "a hidden name, which the library does not hold"
+
+      Enum.any?(segments, &(String.length(&1) > 255)) ->
+        "a name longer than 255 characters"
+
+      byte_size(path) > @path_max ->
+        "a path longer than #{@path_max} characters"
+
+      length(segments) < 2 ->
+        "a folder's own name, not a file in it"
+
+      true ->
+        "a name with characters other than letters, digits, dot, dash and underscore"
+    end
+  end
 
   @doc "Whether the index reads a file as text to chunk and embed."
   @spec text?(String.t()) :: boolean()

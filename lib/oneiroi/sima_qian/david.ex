@@ -30,6 +30,7 @@ defmodule Oneiroi.SimaQian.David do
 
   alias Oneiroi.Actor
   alias Oneiroi.Config
+  alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.SimaQian.Error
@@ -52,6 +53,8 @@ defmodule Oneiroi.SimaQian.David do
   # of what started the run.
   @asking ~w(user system)
   @roles %{"user" => :user, "assistant" => :assistant, "tool" => :tool, "system" => :system}
+  # Her seedbed at the root, planted as her seeds (see the seedbed below).
+  @seedbed "seeds.md"
 
   @doc "Whether `dir` holds David's records and not an Oneiroi export."
   # sobelow_skip ["Traversal.FileModule"]
@@ -87,7 +90,8 @@ defmodule Oneiroi.SimaQian.David do
          {:ok, tags} <- tags(id, rows["tags.jsonl"], rows["bookmarks.jsonl"], parties),
          {:ok, bookmarks} <- bookmarks(id, rows["bookmarks.jsonl"], sessions, parties),
          {:ok, judged} <- Eunomia.import_history(id, history(rows, sessions), parties),
-         {:ok, notes} <- library().import_journal(id, journal(rows, sessions), actor) do
+         {:ok, notes} <- library().import_journal(id, journal(rows, sessions), actor),
+         {:ok, seeds} <- seeds(id, dir, parties) do
       {:ok,
        %{
          source: @source,
@@ -100,11 +104,67 @@ defmodule Oneiroi.SimaQian.David do
            "disputes" => judged.disputes,
            "predictions" => judged.predictions,
            "nights" => judged.nights,
-           "notes" => notes
+           "notes" => notes,
+           "seeds" => seeds
          },
-         unread: unread(dir)
+         unread: unread(dir),
+         read: if(seeds > 0, do: [@seedbed], else: [])
        }}
     end
+  end
+
+  # ---- the seedbed ----
+
+  # `seeds.md` at the root: her seeds, live data rather than a page about
+  # them (Lily's answer, 10-31), planted as her seeds here (P37). A seed
+  # is a `- ` item under a `## YYYY-MM-DD` heading, its continuation
+  # lines indented; anything before the first dated heading (the
+  # seedbed's own rules) is not a seed and stays in the file, which
+  # stays in the repository as it is. The file dates a day, not an
+  # instant, so each is planted at noon UTC on it, which keeps the day in
+  # every zone within twelve hours of UTC; a choice, not a measurement.
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp seeds(id, dir, parties) do
+    path = Path.join(dir, @seedbed)
+
+    if File.regular?(path),
+      do: Ethos.import_seeds(id, path |> File.read!() |> seedbed(), parties.resident),
+      else: {:ok, 0}
+  end
+
+  @doc false
+  # Public for its test: the seedbed's text as `%{text, planted_at}`.
+  @spec seedbed(String.t()) :: [%{text: String.t(), planted_at: DateTime.t()}]
+  def seedbed(text) do
+    {_day, current, seeds} =
+      text
+      |> String.split(~r/\r?\n/)
+      |> Enum.reduce({nil, nil, []}, &seed_line/2)
+
+    seeds |> flush(current) |> Enum.reverse()
+  end
+
+  defp seed_line("## " <> heading, {_day, current, seeds}) do
+    case Date.from_iso8601(String.trim(heading)) do
+      {:ok, day} -> {day, nil, flush(seeds, current)}
+      _other -> {nil, nil, flush(seeds, current)}
+    end
+  end
+
+  defp seed_line("- " <> first, {%Date{} = day, current, seeds}),
+    do: {day, {day, [first]}, flush(seeds, current)}
+
+  defp seed_line("  " <> more, {day, {seed_day, lines}, seeds}),
+    do: {day, {seed_day, lines ++ [String.trim(more)]}, seeds}
+
+  defp seed_line(_other, {day, current, seeds}), do: {day, nil, flush(seeds, current)}
+
+  defp flush(seeds, nil), do: seeds
+
+  defp flush(seeds, {day, lines}) do
+    text = lines |> Enum.join(" ") |> String.replace("**", "") |> String.trim()
+    [%{text: text, planted_at: DateTime.new!(day, ~T[12:00:00], "Etc/UTC")} | seeds]
   end
 
   # ---- reading ----

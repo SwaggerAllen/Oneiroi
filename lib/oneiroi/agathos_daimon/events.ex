@@ -106,8 +106,18 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # a repository, §9): the identity files seeded from the repository's
     # root, how many library files were adopted, and what at the root
     # did not transfer, by name, so the resident is told rather than
-    # left to notice (agathos-daimon #25).
-    use Oneiroi.Event, version: 1, fields: [:id, :seeded, :adopted, :not_transferred]
+    # left to notice (agathos-daimon #25). Version 2 adds `reasons`, the
+    # name of each thing left behind to why (sima-qian #22): told only
+    # the names, she could not tell a file the library refused from one
+    # it never saw. No version 1 event exists outside tests (production
+    # held no resident when this changed), and the upcaster reads one as
+    # carrying no reasons.
+    use Oneiroi.Event, version: 2, fields: [:id, :seeded, :adopted, :not_transferred, :reasons]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: ImportCompleted do
+    def upcast(%{reasons: nil} = event, _metadata), do: %{event | reasons: %{}}
+    def upcast(event, _metadata), do: event
   end
 
   defmodule RecordsTranslated do

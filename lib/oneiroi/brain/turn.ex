@@ -330,7 +330,8 @@ defmodule Oneiroi.Brain.Turn do
             source: row.import_source,
             attestation: attestation_text(row.import_attestation),
             translated: translated_text(row.import_translated),
-            not_transferred: not_transferred_text(row.import_not_transferred)
+            not_transferred:
+              not_transferred_text(row.import_not_transferred, row.import_reasons || %{})
           }),
         sent_at: Clock.now(),
         actor: Actor.platform()
@@ -362,7 +363,8 @@ defmodule Oneiroi.Brain.Turn do
     {"disputes", "disputes, with how each was settled"},
     {"predictions", "predictions"},
     {"nights", "nights the judge read there, which are not judged again here"},
-    {"notes", "notes, as journal entries on the days they were written"}
+    {"notes", "notes, as journal entries on the days they were written"},
+    {"seeds", "seeds, open in your seedbed on the days you planted them"}
   ]
 
   defp translated_text(%{"source" => source, "counts" => counts}) when is_map(counts) do
@@ -377,12 +379,18 @@ defmodule Oneiroi.Brain.Turn do
 
   defp translated_text(_none), do: ""
 
-  defp not_transferred_text([]), do: ""
+  defp not_transferred_text([], _reasons), do: ""
 
-  defp not_transferred_text(names),
+  # Each with its reason where the import gave one (sima-qian #22).
+  defp not_transferred_text(names, reasons),
     do:
       ". What did not transfer, and sits in the repository as files nothing here reads: " <>
-        Enum.join(names, ", ")
+        Enum.map_join(names, ", ", fn name ->
+          case Map.get(reasons, name) do
+            nil -> name
+            reason -> "#{name} (#{reason})"
+          end
+        end)
 
   # The lapse is told honestly, once, under what policy (spec §6.11):
   # orientation without impersonation.

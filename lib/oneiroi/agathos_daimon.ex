@@ -136,7 +136,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferred, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWallSet, 1},
       {Oneiroi.AgathosDaimon.Events.Imported, 1},
-      {Oneiroi.AgathosDaimon.Events.ImportCompleted, 1},
+      {Oneiroi.AgathosDaimon.Events.ImportCompleted, 2},
       {Oneiroi.AgathosDaimon.Events.RecordsTranslated, 1},
       {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWritten, 1},

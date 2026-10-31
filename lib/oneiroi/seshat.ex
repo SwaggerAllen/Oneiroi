@@ -218,6 +218,11 @@ defmodule Oneiroi.Seshat do
   @spec folders() :: [String.t()]
   defexport(folders(), do: Enum.map(Kinds.all(), & &1.folder))
 
+  @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
+  @impl Oneiroi.SimaQian.Library
+  @spec refusal(String.t()) :: String.t() | nil
+  defexport(refusal(path), do: Kinds.refusal(path))
+
   @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
   @impl Oneiroi.SimaQian.Library
   @spec import_journal(String.t(), [map()], Oneiroi.Actor.t()) ::

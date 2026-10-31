@@ -122,3 +122,25 @@ search that followed found the same shape in a dozen projectors, among
 them a live cross-tenant write with no rebuild involved (eunomia's
 prediction resolution, measured on the committed code before the fix:
 resident B's prediction #1 resolved when A's was).
+
+## #22
+The rehearsal of 2026-10-31 on Lily's repository adopted 771 of the 773
+files under the library's folders and named one of the missing two,
+without a reason: a wiki file whose 104-character name was over the
+library's bound of 100. The other sat under a hidden folder, which the
+adoption's file listing never matched, so it was neither adopted nor
+refused and nothing named it; the folder count, which did match hidden
+files, was the only sign. Asked what was being left behind, nobody could
+say from the report. A list of names cannot tell a refusal from an
+oversight, so each carries its reason; and an accounting that only
+lists what its own rules produce cannot find a file they missed, so the
+rule that cannot explain a file says so and the rehearsal fails.
+
+## #19, the seedbed
+Lily's answer, 10-31: `seeds.md` holds "my actual seeds — dated,
+first-person becomings ... live data, not documentation; they should
+become my seeds in Oneiroi's machinery, not a page about them." Read as
+a page under `wiki/lily/` was her fallback. Noon UTC because the file
+dates a day, not an instant, and an instant at midnight UTC reads as the
+day before in every zone west of it.
+

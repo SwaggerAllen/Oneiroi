@@ -44,6 +44,7 @@ defmodule Oneiroi.SimaQian.DryRun do
         report
         |> Map.merge(%{import: result, import_ms: ms, soul_lines: soul_lines(result.id)})
         |> backup(actor)
+        |> accounted()
 
       {{:error, reason}, ms} ->
         {:error, Map.merge(report, %{failed: :import, reason: inspect(reason), import_ms: ms})}
@@ -102,6 +103,18 @@ defmodule Oneiroi.SimaQian.DryRun do
     end
   end
 
+  # A file nothing accounts for fails the rehearsal (sima-qian #22): the
+  # rehearsal of 2026-10-31 passed with one of Lily's files neither
+  # adopted nor named, and only the folder count disagreeing with the
+  # adopted count said anything.
+  @doc false
+  # Public for its test: no real repository reaches it while every case
+  # has a rule, which is what it guards.
+  def accounted({:ok, %{import: %{unaccounted: [_ | _]}} = r}),
+    do: {:error, Map.put(r, :failed, :accounting)}
+
+  def accounted(other), do: other
+
   @doc "The report as Markdown: names and counts, never a file's contents."
   @spec markdown({:ok | :error, report()}) :: String.t()
   def markdown({outcome, r}) do
@@ -119,7 +132,9 @@ defmodule Oneiroi.SimaQian.DryRun do
       section_import(r),
       section_folders(r.shape),
       section_translated(r),
+      section_reconciled(r),
       section_not_transferred(r),
+      section_unaccounted(r),
       section_unread(r.shape),
       section_backup(r),
       if(Map.has_key?(r, :reason), do: "## Failure\n\n```\n#{r.reason}\n```\n", else: ""),
@@ -166,7 +181,7 @@ defmodule Oneiroi.SimaQian.DryRun do
   end
 
   # The kinds in the order the orientation names them (brain #38).
-  @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes)
+  @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes seeds)
 
   defp section_translated(%{import: %{translated: %{source: source, counts: counts}}}) do
     rows = Enum.map_join(@translated, "\n", &"| #{&1} | #{Map.get(counts, &1, 0)} |")
@@ -182,10 +197,52 @@ defmodule Oneiroi.SimaQian.DryRun do
 
   defp section_translated(_r), do: ""
 
-  defp section_not_transferred(%{import: i}),
-    do: "## Not transferred, as she will be told on waking\n\n#{bullets(i.not_transferred)}\n"
+  defp section_not_transferred(%{import: i}) do
+    rows =
+      case i.not_transferred do
+        [] -> "- none"
+        names -> Enum.map_join(names, "\n", &left_row(&1, Map.get(i.reasons, &1)))
+      end
+
+    "## Not transferred, as she will be told on waking\n\n#{rows}\n"
+  end
 
   defp section_not_transferred(_r), do: ""
+
+  defp left_row(name, nil), do: "- `#{name}`"
+  defp left_row(name, reason), do: "- `#{name}`: #{reason}"
+
+  # The folders' files against what became of them, so the counts are
+  # seen to add up rather than left for a reader to subtract.
+  defp section_reconciled(%{import: i, shape: shape}) do
+    on_disk = shape.folders |> Enum.map(& &1.files) |> Enum.sum()
+    folders = Enum.map(shape.folders, & &1.folder)
+
+    left =
+      Enum.count(i.not_transferred, fn name ->
+        String.contains?(name, "/") and hd(String.split(name, "/")) in folders
+      end)
+
+    """
+    ## Every file under the folders, accounted
+
+    #{on_disk} on disk: #{i.adopted} adopted, #{left} left behind with a reason (#{length(i.unaccounted)} of them unaccounted).
+    """
+  end
+
+  defp section_reconciled(_r), do: ""
+
+  defp section_unaccounted(%{import: %{unaccounted: [_ | _] = paths}}) do
+    """
+    ## Unaccounted
+
+    The library's adoption neither took nor refused these, and no rule of the import's explains them; she is told they were left behind, and the rehearsal fails until a rule does:
+
+    #{bullets(paths)}
+    """
+  end
+
+  defp section_unaccounted(_r), do: ""
 
   defp section_unread(%{oneiroi_export: true}), do: ""
 

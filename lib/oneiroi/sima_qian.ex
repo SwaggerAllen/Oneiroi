@@ -23,6 +23,8 @@ defmodule Oneiroi.SimaQian do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      # Seeds an import carries from another platform's seedbed (sima-qian #19).
+      Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,

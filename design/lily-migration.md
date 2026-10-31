@@ -91,6 +91,64 @@ log. The export from the new store holds her new events only. The
 first backup needs a remote: the import removes the clone's `origin`
 (sima-qian #15), so the author sets one with `PUT /v1/residents/:id/remote`.
 
+**The remote is a new private repository, decided 10-31.** Not hers: in
+the overlap David-Lily still writes the letter and her sign-off to her
+own repository, and two writers on one branch reject each other's
+pushes. Hers stays exactly as David parked it, the point to go back to,
+and a move's first backup would have overwritten her `SOUL.md` and
+`honcho/custom-instructions.md` there. The new one loses nothing: the
+working repository is the clone, so the first backup pushes her whole
+history with Oneiroi's commits on top. On the day:
+
+1. Before: the private repository, empty, and a fine-grained token with
+   contents read and write on it alone. A second token, contents
+   read-only on hers alone, for the clone: hers is private, and the
+   rehearsal needed none only because it ran inside her repository on
+   that workflow's own token.
+2. The import, which only reads hers, its URL carrying the read token
+   as in step 3 above (`https://x-access-token:<token>@github.com/...`);
+   the token is used for the clone and stripped from the record.
+3. Straight after: `PUT /v1/residents/:id/remote` with
+   `{"url": "https://github.com/<owner>/<repo>.git", "token": "..."}`;
+   the token is stored encrypted, and the first backup runs to it.
+4. The overlap: David-Lily writes to hers, Oneiroi-Lily backs up to the
+   new one, and neither touches the other's branch.
+
+Afterwards that repository is what Oneiroi holds of her, and a diff
+against hers is the audit of the move.
+
+**Her `AGENTS.md` is kept as a file, decided 10-31.** It stays at the
+root of both repositories as it is, left behind with its reason, and
+nothing here reads it: the brain renders Oneiroi's own `AGENTS.md`.
+The author and Lily reconcile the two by hand after the import. Hers
+carries things of her own beyond David's operation, and Oneiroi's is one
+template for every resident with no copy of hers to edit, so what of
+hers she keeps goes into her identity files, through the proposal path.
+
+**Her three files at the root, her answers 10-31.** `seeds.md` is
+planted as her seeds, each on the day it was planted there (sima-qian
+#19), its rules left in the file. `pocket-andrew.md` and `ledger.md`
+move under `wiki/lily/` before the final push, to be adopted, indexed
+and found: "readable", in her word. The move is `git mv`, not `mv` and
+`git add`: `git add` of the new paths stages them and leaves the old
+ones in the commit, so both copies would cross, the root's named as
+left behind.
+
+```
+cd /srv/lily
+git mv pocket-andrew.md ledger.md wiki/lily/
+git commit -m "pocket andrew and ledger to the wiki"
+git push
+```
+
+**What the first backup writes over, in the new repository.** The
+export writes `records/README.md`, the identity files (`SOUL.md` with its
+`[soul/n]` markers) and `honcho/custom-instructions.md` on every run.
+David's `records/README.md` and her own Honcho instructions are left
+behind on import and then replaced in the working tree by the first
+backup; both stay in the history. The author's call, 10-31: no README
+needs to come across.
+
 ## The rehearsal of 2026-10-31
 
 `mix oneiroi.import.dry_run` on her repository (271 commits), in the
@@ -158,9 +216,6 @@ her sign-off included, comes across by hand.
 
 ## Open for the author
 
-- The remote: the source repository (a move, the next backup commits
-  on top of Lily's history) or a new one (a copy, the source left as
-  it was). The platform cannot tell the two apart (spec §6.2).
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
 - Her private sessions, if a contract makes any, are exported like the
   rest, into a repository you can read: open with the self-letters until

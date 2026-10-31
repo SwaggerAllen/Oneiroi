@@ -203,15 +203,23 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   end
 
   @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon #30)."
-  def complete_import(id, seeded, adopted, not_transferred, translated, %Actor{} = actor)
-      when is_list(seeded) and is_integer(adopted) and is_list(not_transferred) do
+  # `left_behind` is names, or `{name, reason}` pairs (sima-qian #22).
+  def complete_import(id, seeded, adopted, left_behind, translated, %Actor{} = actor)
+      when is_list(seeded) and is_integer(adopted) and is_list(left_behind) do
+    pairs =
+      Enum.map(left_behind, fn
+        {name, reason} -> {name, reason}
+        name -> {name, nil}
+      end)
+
     command = %Commands.CompleteImport{
       actor: actor,
       at: Clock.now(),
       id: id,
       seeded: seeded,
       adopted: adopted,
-      not_transferred: not_transferred,
+      not_transferred: Enum.map(pairs, &elem(&1, 0)),
+      reasons: for({name, reason} <- pairs, is_binary(reason), into: %{}, do: {name, reason}),
       translated: translated
     }
 

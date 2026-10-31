@@ -21,6 +21,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:import_root, :string)
       field(:import_attestation, :string)
       field(:import_not_transferred, {:array, :string}, default: [])
+      field(:import_reasons, :map, default: %{})
       field(:import_told, :boolean, default: true)
       field(:import_translated, :map)
       field(:remote_url, :string)

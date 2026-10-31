@@ -31,16 +31,6 @@ defmodule Oneiroi.SimaQian.Import do
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Rebuild
 
-  # Covered without being named: Oneiroi's own records and the Honcho
-  # files the export rewrites, but only when the source is an Oneiroi
-  # export (it has `records/events/`). A repository from elsewhere keeps
-  # its own `records/` and `honcho/`, so they are named like any other
-  # root entry: Lily's held David's bookmarks, positions and transcripts
-  # under `records/`, and the first reading of this rule left them out
-  # of the list without a word. David's are now translated (sima-qian
-  # #19), and `records/` is covered when they were.
-  @oneiroi_files ["records", "honcho"]
-
   @doc "Imports the repository at `url` as a new resident under `witness_account_id`."
   # The clone is this function's own under the temp dir; the working
   # directory it becomes is the records root under an id minted here.
@@ -63,14 +53,13 @@ defmodule Oneiroi.SimaQian.Import do
            {:ok, seeds} <- seeds(id, clone, actor),
            {:ok, translated} <- translate(how, id, witness_account_id, actor),
            {:ok, adopted} <- library().adopt_all(id, actor),
-           not_transferred =
-             not_transferred(clone, translated, seeds.kept ++ adopted.skipped),
+           ledger = account(clone, translated, seeds, adopted),
            :ok <-
              AgathosDaimon.complete_import(
                id,
                seeds.seeded,
                length(adopted.adopted),
-               not_transferred,
+               ledger.left_behind,
                translated && Map.take(translated, [:source, :counts]),
                actor
              ) do
@@ -91,7 +80,9 @@ defmodule Oneiroi.SimaQian.Import do
            adopted: length(adopted.adopted),
            indexed: adopted.indexed,
            translated: translated && Map.take(translated, [:source, :counts]),
-           not_transferred: not_transferred
+           not_transferred: Enum.map(ledger.left_behind, &elem(&1, 0)),
+           reasons: Map.new(ledger.left_behind),
+           unaccounted: ledger.unaccounted
          }}
       end
     after
@@ -217,28 +208,124 @@ defmodule Oneiroi.SimaQian.Import do
 
   defp translate(:replayed, _id, _witness_account_id, _actor), do: {:ok, nil}
 
-  # Everything at the root that is not an identity file, a kind's
-  # folder or (in an Oneiroi export) the records and the Honcho files,
-  # plus what was kept or skipped on the way: named, sorted, and told.
-  # When another platform's records were translated, `records/` is
-  # covered and what in it nothing read is named file by file instead.
+  # Every file in the clone lands in one place (sima-qian #22): held
+  # (seeded, proposed, adopted, translated, or an Oneiroi export's own
+  # records), or left behind with its reason, a root entry outside the
+  # library's folders named once for everything in it. Told only names,
+  # the rehearsal of 2026-10-31 left two of Lily's wiki files behind
+  # without a word for either: one the library refused for a name over
+  # its bound, one under a hidden folder that adoption never listed, so
+  # it was neither adopted nor refused and appeared nowhere. A file under
+  # a library folder that adoption neither took nor refused, and that no
+  # rule here explains, is unaccounted: named as left behind, and the
+  # dry run fails on it.
+  @doc false
+  # Public for its test, which hands it an adoption that missed a file.
   # sobelow_skip ["Traversal.FileModule"]
-  defp not_transferred(clone, translated, extra) do
-    ours =
-      cond do
-        File.dir?(Path.join([clone, "records", "events"])) -> @oneiroi_files
-        translated -> ["records"]
-        true -> []
-      end
+  def account(clone, translated, seeds, adopted) do
+    context = %{
+      export?: File.dir?(Path.join([clone, "records", "events"])),
+      translated?: translated != nil,
+      unread: MapSet.new((translated && translated.unread) || []),
+      read: (translated && Map.get(translated, :read)) || [],
+      kept: MapSet.new(seeds.kept),
+      adopted: MapSet.new(adopted.adopted),
+      skipped: MapSet.new(adopted.skipped),
+      folders: library().folders(),
+      identity: AgathosDaimon.identity_files()
+    }
 
-    extra = if translated, do: translated.unread ++ extra, else: extra
-    covered = [".git" | ours] ++ AgathosDaimon.identity_files() ++ library().folders()
+    {left, unaccounted} =
+      clone
+      |> files()
+      |> Enum.reduce({%{}, []}, fn path, {left, unaccounted} ->
+        case place_of(path, context) do
+          :held -> {left, unaccounted}
+          {:left, name, reason} -> {Map.put_new(left, name, reason), unaccounted}
+          {:unaccounted, reason} -> {Map.put_new(left, path, reason), [path | unaccounted]}
+        end
+      end)
 
+    %{left_behind: Enum.sort(left), unaccounted: Enum.sort(unaccounted)}
+  end
+
+  # Every file under the clone, hidden ones included, but its `.git`.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp files(clone) do
     clone
-    |> File.ls!()
-    |> Enum.reject(&(&1 in covered))
-    |> Kernel.++(extra)
-    |> Enum.sort()
+    |> Path.join("**")
+    |> Path.wildcard(match_dot: true)
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.map(&Path.relative_to(&1, clone))
+    |> Enum.reject(&(&1 == ".git" or String.starts_with?(&1, ".git/")))
+  end
+
+  defp place_of(path, c) do
+    case String.split(path, "/", parts: 2) do
+      [root] -> root_file(root, c)
+      [root, _rest] -> nested(root, path, c)
+    end
+  end
+
+  defp root_file(name, c) do
+    cond do
+      name in c.identity and MapSet.member?(c.kept, name) ->
+        {:left, name, "refused as an identity file for its content"}
+
+      name in c.identity ->
+        :held
+
+      # A root file another platform's translation read: the seedbed.
+      name in c.read ->
+        :held
+
+      true ->
+        {:left, name, "a file at the root that is not an identity file"}
+    end
+  end
+
+  # An Oneiroi export's own records and the Honcho files the export
+  # rewrites are held; a repository from elsewhere keeps its own
+  # `records/` and `honcho/`, named like any root entry. Lily's held
+  # David's bookmarks, positions and transcripts under `records/`, and
+  # the first reading of this rule left them out without a word; they
+  # are translated now (sima-qian #19), and what in them nothing reads
+  # is named file by file.
+  defp nested("records", path, c) do
+    cond do
+      c.export? ->
+        :held
+
+      c.translated? and MapSet.member?(c.unread, path) ->
+        {:left, path, "a record nothing here reads"}
+
+      c.translated? ->
+        :held
+
+      true ->
+        {:left, "records", "outside the folders the library holds"}
+    end
+  end
+
+  defp nested("honcho", _path, %{export?: true}), do: :held
+
+  defp nested(root, path, c) do
+    cond do
+      root not in c.folders ->
+        {:left, root, "outside the folders the library holds"}
+
+      MapSet.member?(c.adopted, path) ->
+        :held
+
+      reason = library().refusal(path) ->
+        {:left, path, reason}
+
+      MapSet.member?(c.skipped, path) ->
+        {:left, path, "refused when the library adopted it"}
+
+      true ->
+        {:unaccounted, "missed by the library's adoption, a fault here rather than in the file"}
+    end
   end
 
   defp library, do: Config.fetch!(:sima_qian, :library)

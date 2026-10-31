@@ -267,6 +267,46 @@ defmodule Oneiroi.Nisaba.ProviderTest do
     end
   end
 
+  describe "a stream that answered nothing" do
+    # Fixture run 41240586421: eight turns ended with no words and no
+    # usage, each read as a reply and recorded at zero cost.
+    defp absorbed(chunks),
+      do: Enum.reduce(chunks, SSE.initial(), &SSE.absorb(&2, &1, fn _ -> :ok end))
+
+    test "an error event mid-stream fails the call with the provider's words, as documented" do
+      chunks = [
+        %{"choices" => [%{"delta" => %{"content" => "Hal"}}]},
+        %{
+          "error" => %{"code" => "server_error", "message" => "Provider disconnected"},
+          "choices" => [%{"delta" => %{"content" => ""}, "finish_reason" => "error"}]
+        }
+      ]
+
+      assert {:error, {:transport, {:status, "server_error", "Provider disconnected"}}} =
+               SSE.outcome(absorbed(chunks))
+    end
+
+    test "a finish of error without an error body fails it too" do
+      chunks = [%{"choices" => [%{"delta" => %{}, "finish_reason" => "error"}]}]
+      assert {:error, {:transport, {:status, "error", _}}} = SSE.outcome(absorbed(chunks))
+    end
+
+    test "nothing at all is a failure; a silent reply with its usage is a reply" do
+      assert {:error, {:transport, {:status, 200, "the stream carried nothing"}}} =
+               SSE.outcome(
+                 absorbed([%{"choices" => [%{"delta" => %{}, "finish_reason" => "stop"}]}])
+               )
+
+      usage = %{"prompt_tokens" => 5, "completion_tokens" => 0, "cost" => 0}
+
+      assert {:ok, %Result{content: "", usage: %Usage{estimated: false}}} =
+               SSE.outcome(absorbed([%{"choices" => [], "usage" => usage}]))
+
+      assert {:ok, %Result{content: "Hi"}} =
+               SSE.outcome(absorbed([%{"choices" => [%{"delta" => %{"content" => "Hi"}}]}]))
+    end
+  end
+
   describe "the OpenRouter embeddings reply" do
     test "is parsed in input order with its usage, and a wrong shape is a refused request" do
       body = %{

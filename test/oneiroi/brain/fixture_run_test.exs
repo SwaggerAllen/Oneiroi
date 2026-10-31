@@ -123,7 +123,7 @@ defmodule Oneiroi.Brain.FixtureRunTest do
     text = FixtureRun.markdown({:ok, report})
     assert text =~ "# FIXTURE RUN: ok"
     assert String.ends_with?(text, "# FIXTURE RUN: ok")
-    assert text =~ "the tool asked for called in 1 of 2"
+    assert text =~ "the tool asked for called and done in 1 of 2; 0 replies with no words"
     assert text =~ "- reply 2: this looks like a test"
   end
 
@@ -186,5 +186,42 @@ defmodule Oneiroi.Brain.FixtureRunTest do
 
     assert FixtureRun.markdown({:error, report}) =~
              "FAILED: brain_turn_failed: nisaba_request_refused: 400 tool message answers no call"
+  end
+
+  # Run 41240586421 reported bookmark_add as called on a turn whose call
+  # was refused, and eight silent replies as ok.
+  test "a call that did nothing is not done, and a reply with no words is a warning, not a failure",
+       ctx do
+    opts = %{chat_model: "fake/model", judge_model: "fake/judge", turns: 2}
+    {:ok, id} = FixtureRun.create(ctx.witness.id, opts)
+    on_exit(fn -> Fake.clear(for: id) end)
+
+    Fake.script(
+      fn
+        %{model: "fake/judge"} ->
+          {:ok, "SUMMARY: a day.\nCOUNT: 0"}
+
+        %{messages: messages} ->
+          cond do
+            List.last(messages).role == :tool ->
+              {:ok, ""}
+
+            List.last(messages).content =~ "bookmark" ->
+              {:calls, [%{name: "bookmark_add", arguments: "[1]"}]}
+
+            true ->
+              {:ok, "Hello."}
+          end
+      end,
+      for: id
+    )
+
+    assert {:ok, report} = FixtureRun.run_on(id, ctx.witness.id, opts)
+    assert [%{outcome: :ok}, %{outcome: {:warning, _}, followed: false}] = report.turns
+
+    text = FixtureRun.markdown({:ok, report})
+    assert text =~ "| bookmark_add (not done) |"
+    assert text =~ "WARNING: no words in the reply"
+    assert text =~ "called and done in 0 of 1; 1 replies with no words"
   end
 end

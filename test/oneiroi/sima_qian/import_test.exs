@@ -35,6 +35,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
   defp tmp(name),
     do: Path.join(System.tmp_dir!(), "oneiroi-#{name}-#{System.unique_integer([:positive])}")
 
+  # 104 characters, the length of the name the rehearsal left behind.
+  @long String.duplicate("a", 101) <> ".md"
+
   defp git!(dir, args) do
     {out, 0} = System.cmd("git", @identity ++ args, cd: dir, stderr_to_stdout: true)
     String.trim(out)
@@ -54,6 +57,13 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.write!(Path.join(work, "wiki/bread.md"), "# Bread\n\nFlour, water, salt, time.")
     File.mkdir_p!(Path.join(work, "wiki/odd name"))
     File.write!(Path.join(work, "wiki/odd name/page.md"), "a path the library cannot name")
+    # The two of Lily's left behind on the rehearsal of 2026-10-31: a
+    # name over the old bound of 100, adopted now, and a file under a
+    # hidden folder that adoption never listed, left behind and named.
+    File.mkdir_p!(Path.join(work, "wiki/sources"))
+    File.write!(Path.join(work, "wiki/sources/#{@long}"), "# A long name\n\nKept.")
+    File.mkdir_p!(Path.join(work, "wiki/lily/.openclaw-wiki"))
+    File.write!(Path.join(work, "wiki/lily/.openclaw-wiki/log.jsonl"), "{}")
     File.mkdir_p!(Path.join(work, "transcripts"))
     File.write!(Path.join(work, "transcripts/2026-10-20.md"), "a transcript file")
     File.mkdir_p!(Path.join(work, "memory"))
@@ -98,7 +108,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
               events: 0,
               seeded: ["SOUL.md", "USER.md"],
               proposed: [],
-              adopted: 2,
+              adopted: 3,
               indexed: true,
               not_transferred: [
                 "README.md",
@@ -106,8 +116,11 @@ defmodule Oneiroi.SimaQian.ImportTest do
                 "memory",
                 "records/README.md",
                 "transcripts",
+                "wiki/lily/.openclaw-wiki/log.jsonl",
                 "wiki/odd name/page.md"
-              ]
+              ],
+              reasons: reasons,
+              unaccounted: []
             }} =
              SimaQian.import_resident(
                url,
@@ -117,6 +130,19 @@ defmodule Oneiroi.SimaQian.ImportTest do
              )
 
     on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
+
+    # Every one left behind says why (sima-qian #22).
+    assert reasons == %{
+             "README.md" => "a file at the root that is not an identity file",
+             "honcho" => "outside the folders the library holds",
+             "memory" => "outside the folders the library holds",
+             "records/README.md" => "a record nothing here reads",
+             "transcripts" => "outside the folders the library holds",
+             "wiki/lily/.openclaw-wiki/log.jsonl" =>
+               "a hidden name, which the library does not hold",
+             "wiki/odd name/page.md" =>
+               "a name with characters other than letters, digits, dot, dash and underscore"
+           }
 
     assert {:ok,
             %{
@@ -132,8 +158,10 @@ defmodule Oneiroi.SimaQian.ImportTest do
                 "memory",
                 "records/README.md",
                 "transcripts",
+                "wiki/lily/.openclaw-wiki/log.jsonl",
                 "wiki/odd name/page.md"
               ],
+              import_reasons: %{"wiki/lily/.openclaw-wiki/log.jsonl" => _},
               import_translated: %{
                 "source" => "David",
                 "counts" => %{"sessions" => 1, "messages" => 2, "bookmarks" => 1}
@@ -149,6 +177,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
 
     assert [
              %{path: "wiki/bread.md", kind: "wiki", origin: "adopted"},
+             %{path: "wiki/sources/" <> @long},
              %{path: "writing/essay.md", kind: "writing", chunks: 1}
            ] =
              Seshat.documents(id) |> Enum.sort_by(& &1.path)
@@ -186,8 +215,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert notice =~ "no attestation to check"
     assert notice =~ "did not transfer"
 
-    assert notice =~
-             "README.md, honcho, memory, records/README.md, transcripts, wiki/odd name/page.md"
+    for {name, reason} <- reasons, do: assert(notice =~ "#{name} (#{reason})")
 
     assert notice =~
              "From David's records, made into this platform's own: 1 conversations, as sessions of kind imported, searchable as any transcript; 2 messages in them; 1 bookmarks"

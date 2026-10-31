@@ -334,6 +334,29 @@ defmodule Oneiroi.Ethos.CharacterTest do
              })
   end
 
+  # Lily's seedbed crosses as her seeds (sima-qian #19): each on the day
+  # it was planted there, numbered here, and only by her own hand.
+  test "an import plants seeds on the days they were planted, the resident's alone", ctx do
+    id = ctx.resident.id
+    day = ~U[2026-10-29 12:00:00.000000Z]
+
+    assert {:error, %{kind: :ethos_not_the_resident}} =
+             Ethos.import_seeds(id, [%{text: "a becoming", planted_at: day}], ctx.witness)
+
+    assert {:ok, 2} =
+             Ethos.import_seeds(
+               id,
+               [%{text: "a becoming", planted_at: day}, %{text: "another", planted_at: day}],
+               ctx.brain
+             )
+
+    assert [%{number: 1, planted_at: ^day, state: "open"}, %{number: 2}] =
+             id |> Ethos.seeds() |> Enum.sort_by(& &1.number)
+
+    assert {:error, %{kind: :ethos_seed_text_invalid}} =
+             Ethos.import_seeds(id, [%{text: " ", planted_at: day}], ctx.brain)
+  end
+
   test "the aggregate holds the rules pure: once per number, a known target, a set of citations, the fork's count of days" do
     actor = Actor.new(:resident, "r1")
     at = ~U[2026-10-26 12:00:00Z]
