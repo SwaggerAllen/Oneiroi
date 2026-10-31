@@ -109,19 +109,23 @@ services:
     dockerCommand: >-
       /bin/sh -c u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
       export DB_CONNECTION_URI="postgresql+psycopg://$u${j}options=-c%20role%3Doneiroi_honcho";
-      exec sh docker/entrypoint.sh
+      /app/.venv/bin/python scripts/provision_db.py &&
+      exec /app/.venv/bin/fastapi run --host 0.0.0.0 --port "$PORT" --workers "${API_WORKERS:-1}" src/main.py
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: oneiroi-db
           property: connectionString
       - fromGroup: honcho
-      # Honcho's server listens on 8000 (its entrypoint names no port).
-      # Render read this service's address as port 10000, its default,
-      # on the first deploy, so the port Render expects is set to the one
-      # Honcho opens, and the address the core is handed names it.
+      # The port Honcho listens on, named here and passed to it above. Its
+      # own entrypoint (docker/entrypoint.sh: provision, then serve) opens
+      # 8000 and takes no port, and Render kept this service's address at
+      # 10000 after a PORT of 8000 and a server on 8000 (measured, 10-31:
+      # openPorts 8000, address honcho-api-fauh:10000). So the two lines
+      # of that entrypoint run in the command above with the port given,
+      # and the server opens the port the address names.
       - key: PORT
-        value: "8000"
+        value: "10000"
       - key: AUTH_USE_AUTH
         value: "true"
       # Generated once by Render, per environment, so a preview's Honcho
