@@ -202,8 +202,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch(command), do: :ok
   end
 
-  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`."
-  def complete_import(id, seeded, adopted, not_transferred, %Actor{} = actor)
+  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon #30)."
+  def complete_import(id, seeded, adopted, not_transferred, translated, %Actor{} = actor)
       when is_list(seeded) and is_integer(adopted) and is_list(not_transferred) do
     command = %Commands.CompleteImport{
       actor: actor,
@@ -211,7 +211,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       id: id,
       seeded: seeded,
       adopted: adopted,
-      not_transferred: not_transferred
+      not_transferred: not_transferred,
+      translated: translated
     }
 
     case Router.dispatch(command) do

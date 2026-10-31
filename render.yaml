@@ -23,6 +23,17 @@ databases:
     # decision 3). A string, per Render's schema.
     postgresMajorVersion: "16"
 
+  # Honcho's own store (spec §6.9): a separate cluster, so a deriver
+  # backlog never competes with the event store for connections, and
+  # Honcho's migrations never touch Oneiroi's schema. pgvector is on
+  # Render's Postgres; Honcho's provisioning creates the extension. The
+  # size is a guess, like the one above.
+  - name: honcho-db
+    databaseName: honcho
+    user: honcho
+    plan: 0.1c-256mb
+    postgresMajorVersion: "16"
+
 services:
   - type: web
     name: oneiroi
@@ -60,3 +71,86 @@ services:
         generateValue: true
       - key: APSU_VAULT_KEY
         generateValue: true
+      # Honcho beside this instance (proteus #16): its private address,
+      # which Render hands over as host:port and the setting reads as
+      # http, and its signing secret, from which the core mints the admin
+      # JWT, so no key is typed. Both resolve to the preview's own Honcho
+      # in a preview environment.
+      - key: PROTEUS_HONCHO_URL
+        fromService:
+          name: honcho-api
+          type: pserv
+          property: hostport
+      - key: PROTEUS_HONCHO_JWT_SECRET
+        fromService:
+          name: honcho-api
+          type: pserv
+          envVarKey: AUTH_JWT_SECRET
+
+  # Honcho (spec §6.9), from its upstream repository, built from its own
+  # Dockerfile. The deploy is never automatic: Oneiroi speaks Honcho's v3
+  # API (Oneiroi.Proteus.Honcho.HTTP), so a new Honcho is a deliberate
+  # deploy after reading its release notes, never a push upstream. The
+  # first deploy takes `main` as it is that day; v3.2.2 is the release
+  # the bridge was read against on 10-31. Private: only this workspace's
+  # services in the same region reach it, and with auth on, only with a
+  # key the core minted.
+  - type: pserv
+    name: honcho-api
+    runtime: docker
+    repo: https://github.com/plastic-labs/honcho
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeployTrigger: "off"
+    region: oregon
+    plan: 0.5c-512mb
+    # The entrypoint runs Honcho's migrations, then the API; the image's
+    # own CMD starts the API alone. Render hands the database over as
+    # postgresql://, and Honcho's SQLAlchemy wants postgresql+psycopg://
+    # (its .env.template says so), so the scheme is rewritten here rather
+    # than a second copy of the URL being typed and left to drift.
+    dockerCommand: >-
+      sh -c 'export DB_CONNECTION_URI="postgresql+psycopg://${DATABASE_URL#*://}"
+      && exec sh docker/entrypoint.sh'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: honcho-db
+          property: connectionString
+      - key: AUTH_USE_AUTH
+        value: "true"
+      # Generated once by Render, per environment, so a preview's Honcho
+      # never holds production's secret (the reason APSU's are generated
+      # above). The core reads it from here.
+      - key: AUTH_JWT_SECRET
+        generateValue: true
+      # Honcho's derivation, dialectic and embeddings call a provider
+      # with its own key: OpenAI's by default (text-embedding-3-small and
+      # gpt-5.4-mini in v3.2.2). Typed in the dashboard once; a `sync:
+      # false` value is not copied into a preview environment, so a
+      # preview's Honcho does not start, which is where previews already
+      # were (no Honcho at all).
+      - key: LLM_OPENAI_API_KEY
+        sync: false
+
+  # The deriver: Honcho's background worker, the same image under a
+  # different command, reading the same database.
+  - type: worker
+    name: honcho-deriver
+    runtime: docker
+    repo: https://github.com/plastic-labs/honcho
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeployTrigger: "off"
+    region: oregon
+    plan: 0.5c-512mb
+    dockerCommand: >-
+      sh -c 'export DB_CONNECTION_URI="postgresql+psycopg://${DATABASE_URL#*://}"
+      && exec /app/.venv/bin/python -m src.deriver'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: honcho-db
+          property: connectionString
+      - key: LLM_OPENAI_API_KEY
+        sync: false

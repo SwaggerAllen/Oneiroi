@@ -85,3 +85,18 @@ runs where she lives. The repository is a person's, so the rehearsal
 names and counts and never quotes, and its log belongs to a private
 caller. It found two things no unit test could: the records above, and
 that a shallow checkout cannot be pushed to a backup remote.
+
+## #19
+The author, 10-31: "let's make sure the actual bookmarks and records all
+render into the import". The rehearsal of #18 found her history under
+`records/` read by nothing; listing it by name told her it was missing
+without bringing it. Going through each system's commands rather than
+writing rows means every rule a live record is held to (a bookmark is
+the resident's words, a tag set is the witness's, a chain has one head)
+holds for hers too, and the screens and tools read them without a second
+code path. Rehearsed on her repository the same day: 31 sessions and all
+8,887 messages, all 50 bookmarks anchored, 6 tags, 40 positions, 35
+disputes, 10 predictions, 10 nights and 340 journal entries, in 79
+seconds on the in-memory provider, against 13 before. A malformed line
+fails by file and line because the import is the one chance to carry it,
+and a silent skip is how the first reading lost the whole folder.

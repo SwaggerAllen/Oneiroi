@@ -121,6 +121,7 @@ defmodule Oneiroi.Eunomia do
       Store.Answer
     ]
 
+  alias Oneiroi.Eunomia.Imports
   alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.MemoryAudit
@@ -411,6 +412,16 @@ defmodule Oneiroi.Eunomia do
           {:ok, pos_integer()} | {:error, term()}
   defexport(log_prediction(resident_id, statement, due, ctx, actor),
     do: Judgements.log_prediction(resident_id, statement, due, ctx, actor)
+  )
+
+  @doc "Replays judgement history an import carried from another platform (eunomia #29): positions, disputes, predictions, nights."
+  @spec import_history(String.t(), map(), %{
+          resident: Oneiroi.Actor.t(),
+          witness: Oneiroi.Actor.t()
+        }) ::
+          {:ok, map()} | {:error, term()}
+  defexport(import_history(resident_id, history, parties),
+    do: Imports.replay(resident_id, history, parties)
   )
 
   @doc "Resolves a prediction right, wrong or void, with a note: the witness's alone."

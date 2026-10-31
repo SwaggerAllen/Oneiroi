@@ -117,7 +117,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{import: nil}, %Commands.CompleteImport{}), do: {:error, :not_imported}
 
   def execute(%__MODULE__{}, %Commands.CompleteImport{} = c) do
-    %Events.ImportCompleted{
+    completed = %Events.ImportCompleted{
       actor: c.actor,
       at: c.at,
       id: c.id,
@@ -125,6 +125,23 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       adopted: c.adopted,
       not_transferred: c.not_transferred
     }
+
+    case c.translated do
+      %{source: source, counts: counts} ->
+        [
+          completed,
+          %Events.RecordsTranslated{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            source: source,
+            counts: counts
+          }
+        ]
+
+      nil ->
+        completed
+    end
   end
 
   # Told once: nothing to tell before the import completed, and nothing
@@ -662,6 +679,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{import: import} = r, %Events.ImportCompleted{} = e),
     do: %{r | import: Map.merge(import, %{not_transferred: e.not_transferred, told: false})}
+
+  def apply(%__MODULE__{} = r, %Events.RecordsTranslated{}), do: r
 
   def apply(%__MODULE__{import: import} = r, %Events.ImportTold{}),
     do: %{r | import: Map.put(import, :told, true)}

@@ -77,6 +77,23 @@ secret (`sync: false`).
    since the password is in it. Autodeploy stays on; the image's own
    `CMD` runs the migrator ahead of `start`, so a failed migration fails
    the deploy with the previous one still serving.
+6. Honcho (spec §6.9, proteus #16) comes with the Blueprint: `honcho-db`,
+   the private `honcho-api` and the `honcho-deriver` worker, built from
+   `plastic-labs/honcho`'s own Dockerfile. On syncing, Render asks for
+   one value per Honcho service, `LLM_OPENAI_API_KEY`: an OpenAI key,
+   which Honcho uses for derivation, the dialectic and embeddings (its
+   defaults in v3.2.2; routing those through another provider is
+   per-feature `*_MODEL_CONFIG__*` settings in Honcho's own
+   `.env.template`, and a choice to make deliberately). Everything else
+   is wired: Render generates `AUTH_JWT_SECRET`, the core reads it as
+   `PROTEUS_HONCHO_JWT_SECRET` and mints the admin key from it, and
+   `PROTEUS_HONCHO_URL` is `honcho-api`'s private address. Neither Honcho
+   service deploys on its own (`autoDeployTrigger: off`): the first
+   deploy takes upstream `main` as it is that day, so read its version
+   off the API's `/health` or the build log, and a later upgrade is a
+   manual deploy after reading the release notes. Check with the Honcho
+   page on the resident's screen (`GET /v1/residents/:id/honcho`): a
+   sync recorded as `ok` after a turn is the bridge working end to end.
 
 ## 2. Orchestration's court
 

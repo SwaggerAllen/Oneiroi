@@ -36,3 +36,13 @@ re-pinned by the weekly audit if a dream moved it."
 ## #15
 Spec §5: "then Honcho's context, then the compaction summary and the
 live transcript"; F12: every injection recorded with its reason.
+
+## #16
+The author, 10-31: "put honcho in the blueprint." A minted admin key
+typed into the dashboard is a second copy of a secret that already
+exists, and a `sync: false` value is not copied into a preview, which is
+how the PR #13 preview failed on APSU's keys. Minting from the secret
+Render generated means nothing about Honcho is typed but its provider
+key. The token was checked outside this codebase: computed with Python's
+hmac and decoded by PyJWT, the library Honcho verifies with.
+

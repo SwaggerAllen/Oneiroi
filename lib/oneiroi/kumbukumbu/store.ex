@@ -12,6 +12,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   import Ecto.Query, only: [from: 2]
   import Pgvector.Ecto.Query, only: [cosine_distance: 2]
 
+  alias Oneiroi.Kumbukumbu.Conversation
   alias Oneiroi.Repo
 
   defmodule Session do
@@ -265,12 +266,19 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
-  @doc "Every message sent in [from, to) across the resident's sessions, in order: the nightly pass's read."
+  @doc "Every message sent in [from, to) across the resident's sessions but the imported ones, in order: the nightly pass's read."
   @spec messages_between(DateTime.t(), DateTime.t()) :: [Message.t()]
+  # An imported session's messages are left out (kumbukumbu #37): they
+  # carry their original instants, so a day the other platform already
+  # judged would otherwise be judged again here, on its whole history.
   def messages_between(from, to) do
+    imported = Conversation.imported()
+
     Repo.all(
       from(m in Message,
-        where: m.sent_at >= ^from and m.sent_at < ^to,
+        join: s in Session,
+        on: s.resident_id == m.resident_id and s.key == m.session_key,
+        where: m.sent_at >= ^from and m.sent_at < ^to and s.kind != ^imported,
         order_by: [asc: m.sent_at, asc: m.sequence, asc: m.position]
       )
     )

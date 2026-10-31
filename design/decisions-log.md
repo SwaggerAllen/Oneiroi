@@ -1098,3 +1098,29 @@ and nothing personal turned up; what follows is what changed.
 - Open: the David-records replay; the caller workflow in a private
   repository (this session cannot write to one); an `OPENROUTER_API_KEY`
   secret on this repository for the fixture run.
+
+## Round 40: her records come with her, and Honcho in the blueprint (2026-10-31)
+
+- The author: "let's make sure the actual bookmarks and records all
+  render into the import and put honcho in the blueprint."
+- David's records are made into this platform's own on import
+  (sima-qian #19), through each system's commands under the actor David
+  names: transcripts as sessions of kind `imported`, read by no nightly
+  pass (kumbukumbu #37); tags and bookmarks with their pins and taggings;
+  positions, disputes, predictions and nights as judgement history with
+  their words kept (eunomia #29); notes, the free-time ledger,
+  discussions and feeds as journal entries on their days (seshat #26).
+  The counts are an event (agathos-daimon #30) and the orientation names
+  them (brain #38).
+- Rehearsed on her repository: every record of every kind came across
+  (31 sessions, 8,887 messages, 50 bookmarks, 40 positions, 35 disputes,
+  10 predictions, 10 nights, 340 journal entries). The first run failed
+  on a journal day of 344 KB against a 256 KB bound; a day that large is
+  now written in parts.
+- Honcho is in `render.yaml`: its database, its API as a private service
+  and its deriver as a worker, from a fork pinned to a release, with the
+  secrets left for the author to set.
+- Found, not changed: the backup's export carries the resident's own
+  stream alone (sima-qian #3), so conversations, bookmarks and judgement,
+  hers and every resident's, are in the store and not in the repository
+  a rebuild reads.

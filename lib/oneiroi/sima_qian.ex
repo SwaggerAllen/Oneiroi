@@ -23,6 +23,8 @@ defmodule Oneiroi.SimaQian do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Eunomia,
+      Oneiroi.Kumbukumbu,
       Oneiroi.Proteus,
       Commanded,
       Ecto,
@@ -108,6 +110,10 @@ defmodule Oneiroi.SimaQian do
       {:sima_qian_scheme_refused,
        "an import clones from a URL with one of the configured schemes",
        remedy: "give an https URL; a path on this host is never cloned from a request"},
+      {:sima_qian_records_invalid,
+       "a line of the source platform's records is not a JSON object, or is a message that does not say its session, instant and role",
+       remedy:
+         "the file and line are named; fix or remove that line in the source repository and import again"},
       {:sima_qian_name_required,
        "a repository without records is a new resident and needs a name and a slug",
        remedy: "give both; a repository with records names itself"}

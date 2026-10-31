@@ -110,6 +110,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :seeded, :adopted, :not_transferred]
   end
 
+  defmodule RecordsTranslated do
+    # What an import made into this platform's own records from the
+    # source platform's (agathos-daimon #30): `source` names the platform
+    # and `counts` how many of each kind, so the resident is told her
+    # history came with her and where to find it, and not only what
+    # did not.
+    use Oneiroi.Event, version: 1, fields: [:id, :source, :counts]
+  end
+
   defmodule ImportTold do
     # The resident was told, on its first turn, where it woke: on
     # Oneiroi, from which repository, whether the attestation held, and

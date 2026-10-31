@@ -73,7 +73,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   end
 
   defmodule CompleteImport do
-    use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred]
+    use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred, :translated]
   end
 
   defmodule RecordImportTold do

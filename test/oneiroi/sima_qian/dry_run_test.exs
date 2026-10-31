@@ -42,8 +42,22 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     write!(s, "DREAMS.md", @private)
     write!(s, "writing/essay.md", "# The essay\n\n#{@private}")
     write!(s, "research/2026-10-22-1/notes.md", "# Notes\n\nTwelve bytes.")
-    write!(s, "records/bookmarks.jsonl", ~s({"line": "#{@private}"}\n))
-    write!(s, "records/transcripts/2026/10/20.jsonl", ~s({"content": "#{@private}"}\n))
+    # David's records, translated by the import (sima-qian #19): her
+    # words go into her records here and never into the report.
+    write!(
+      s,
+      "records/transcripts/2026/10/2026-10-20.jsonl",
+      ~s({"sentAt":"2026-10-20T10:00:00.000Z","agentId":"lily","sessionKey":"agent:lily:main","runKind":"user","role":"user","content":"#{@private}"}\n) <>
+        ~s({"sentAt":"2026-10-20T10:00:03.000Z","agentId":"lily","sessionKey":"agent:lily:main","runKind":"user","role":"assistant","content":"#{@private}"}\n)
+    )
+
+    write!(
+      s,
+      "records/bookmarks.jsonl",
+      ~s({"id":1,"line":"#{@private}","summary":"#{@private}","sessionKey":"agent:lily:main","spanStart":"2026-10-20T10:00:00.000Z","spanEnd":"2026-10-20T10:00:03.000Z","pinnedBy":null,"pinnedAt":null,"createdAt":"2026-10-20T10:05:00.000Z","tags":[]}\n)
+    )
+
+    write!(s, "records/README.md", @private)
     write!(s, "honcho/lily-peer-card.md", @private)
     git!(s, ["add", "-A"])
     git!(s, ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "hers"])
@@ -56,14 +70,15 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     assert %{seeded: ["SOUL.md", "USER.md"], adopted: 2, events: 0} = report.import
     assert report.soul_lines == 2
 
-    assert "records" in report.import.not_transferred and
+    assert "records/README.md" in report.import.not_transferred and
              "DREAMS.md" in report.import.not_transferred
 
-    assert report.shape.unread == [
-             "honcho/lily-peer-card.md",
-             "records/bookmarks.jsonl",
-             "records/transcripts/2026/10/20.jsonl"
-           ]
+    refute "records" in report.import.not_transferred
+
+    assert %{source: "David", counts: %{"sessions" => 1, "messages" => 2, "bookmarks" => 1}} =
+             report.import.translated
+
+    assert report.shape.unread == ["honcho/lily-peer-card.md"]
 
     assert %{folder: "research", files: 1} =
              Enum.find(report.shape.folders, &(&1.folder == "research"))
@@ -73,7 +88,11 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     text = DryRun.markdown({:ok, report})
     assert text =~ "# IMPORT DRY RUN: ok"
     assert String.ends_with?(text, "# IMPORT DRY RUN: ok")
-    assert text =~ "- `records/bookmarks.jsonl`"
+    assert text =~ "## Translated from David's records"
+    assert text =~ "| bookmarks | 1 |"
+    assert text =~ "| messages | 2 |"
+    assert text =~ "- `records/README.md`"
+    assert text =~ "## Under `honcho/`, read by nothing"
     assert text =~ "| Soul lines minted | 2 |"
     refute text =~ @private
   end

@@ -16,6 +16,7 @@ defmodule Oneiroi.SimaQian.DryRun do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Config
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.David
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
 
@@ -52,7 +53,9 @@ defmodule Oneiroi.SimaQian.DryRun do
   # The repository as the import will meet it, read before it runs:
   # each kind's folder by files and bytes (the bytes are what the index
   # will embed), and, when the source is not an Oneiroi export, what it
-  # keeps under `records/` and `honcho/`, which nothing here reads.
+  # keeps under `honcho/`, which nothing here reads, and under
+  # `records/` unless those are David's, which the import translates
+  # (sima-qian #19) and names file by file where it does not.
   defp shape(source) do
     folders =
       for folder <- library().folders() do
@@ -61,16 +64,19 @@ defmodule Oneiroi.SimaQian.DryRun do
       end
 
     export? = File.dir?(Path.join([source, "records", "events"]))
+    david? = David.present?(source)
 
     foreign =
-      if export?,
-        do: [],
-        else:
-          Enum.flat_map(["records", "honcho"], fn dir ->
-            source |> Path.join(dir) |> files() |> Enum.map(&Path.relative_to(&1, source))
-          end)
+      cond do
+        export? -> []
+        david? -> ["honcho"]
+        true -> ["records", "honcho"]
+      end
+      |> Enum.flat_map(fn dir ->
+        source |> Path.join(dir) |> files() |> Enum.map(&Path.relative_to(&1, source))
+      end)
 
-    %{folders: folders, oneiroi_export: export?, unread: Enum.sort(foreign)}
+    %{folders: folders, oneiroi_export: export?, david: david?, unread: Enum.sort(foreign)}
   end
 
   # The bare remote is a directory this function makes under the temp
@@ -112,6 +118,7 @@ defmodule Oneiroi.SimaQian.DryRun do
       "",
       section_import(r),
       section_folders(r.shape),
+      section_translated(r),
       section_not_transferred(r),
       section_unread(r.shape),
       section_backup(r),
@@ -158,12 +165,39 @@ defmodule Oneiroi.SimaQian.DryRun do
     """
   end
 
+  # The kinds in the order the orientation names them (brain #38).
+  @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes)
+
+  defp section_translated(%{import: %{translated: %{source: source, counts: counts}}}) do
+    rows = Enum.map_join(@translated, "\n", &"| #{&1} | #{Map.get(counts, &1, 0)} |")
+
+    """
+    ## Translated from #{source}'s records
+
+    | Kind | Made into this platform's own |
+    | --- | --- |
+    #{rows}
+    """
+  end
+
+  defp section_translated(_r), do: ""
+
   defp section_not_transferred(%{import: i}),
     do: "## Not transferred, as she will be told on waking\n\n#{bullets(i.not_transferred)}\n"
 
   defp section_not_transferred(_r), do: ""
 
   defp section_unread(%{oneiroi_export: true}), do: ""
+
+  defp section_unread(%{david: true, unread: unread}) do
+    """
+    ## Under `honcho/`, read by nothing
+
+    These files come across as files and no record is made from any of them; Honcho is built anew from the conversations here:
+
+    #{bullets(unread)}
+    """
+  end
 
   defp section_unread(%{unread: unread}) do
     """

@@ -134,3 +134,10 @@ trait for our task on cheap open-weight models: the pick is an
 inference from size and age. Measuring it on every run, the way UK AISI
 scans transcripts, turns the inference into a figure per model that a
 change of model or of provider can be compared against.
+
+## #29
+Five of Lily's ten David predictions had no date to resolve by, and her
+positions carried reasons up to 1,811 characters; the live limits would
+have refused both, and truncating them would have rewritten her words on
+the way in. The flag keeps the live rule live and exempts only what
+arrives already said.

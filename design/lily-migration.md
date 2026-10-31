@@ -15,8 +15,9 @@ folder (`writing/`, `research/`, `design/`, `wiki/`, `posts/`,
 `journal/`) is adopted and indexed; anything else at the root is named
 in the not-transferred list and left in the repository as files
 nothing here reads. `memory/` is in the backup's machine class but is
-not a kind, so lily-memory's bookmarks and tags do not come unless
-written as documents first; the import will say so by name.
+not a kind, so its files come across as files; lily-memory's own store
+comes across through David's nightly export under `records/`, which the
+import translates (sima-qian #19, below).
 
 ## 2. Rename
 
@@ -57,11 +58,25 @@ files that are already on the stream as adoptions.
 journal's rows start empty, and a day with rows renders over its file
 (seshat #22) only for days opened here.
 
+**David's records are translated (sima-qian #19, round 40).** The
+proposal above was right that a file is not an event and wrong about
+what the repository held: under `records/` are David's own records, and
+the import now makes them into this platform's through each system's
+commands, under the actor David names. Her transcripts become sessions
+of kind `imported` with their original instants (kumbukumbu #37), her
+tags and bookmarks are hers and the witness's as they were, her
+positions, disputes, predictions and judged nights are judgement history
+(eunomia #29), and her memory notes, free-time ledger, discussions and
+feeds are journal entries on their days (seshat #26). The original ids
+are not carried as ids: each record gets this platform's number, and the
+journal entry or statement says which David record it was.
+
 ## 4. Lapse
 
 She wakes on her first turn to the orientation (brain #26): on Oneiroi,
-from which repository, that there was no attestation to check, and the
-not-transferred names. The model is the pin or the platform default
+from which repository, that there was no attestation to check, what of
+David's records was made into her records here, kind by kind (brain
+#38), and the not-transferred names. The model is the pin or the platform default
 until the witness pins one (spec §6.4). The OpenClaw-native state §9
 accepts as loss (session SQLite, the memory-core index, the dreams
 corpus) is exactly what the not-transferred list will name, if it is in
@@ -105,6 +120,27 @@ Spec §9 step 3 as written (each record kind replayed as events carrying
 the original ids, the transcripts with them) is the work that would
 bring them, and it is not built.
 
+**Run again after the translation (round 40), same day:**
+
+| | |
+| --- | --- |
+| Translated from David's records | 31 sessions, 8,887 messages, 50 bookmarks (every one anchored), 6 tags, 40 positions, 35 disputes, 10 predictions, 10 nights, 340 journal entries |
+| Documents adopted | 770 (the journal's rendered days among them) |
+| Import, in-memory provider | 79 seconds |
+| First backup | soul and machine classes committed, the journal days with them |
+
+The first run of it failed: her 22 October holds 196 notes, 344 KB, over
+the library's 256 KB bound for one document, so a day that large is now
+written in parts (seshat #26). `records/` leaves the not-transferred list;
+David's `records/README.md` and the archived `MEMORY.md` under
+`records/memory/` are named in its place, as files nothing reads.
+
+The export a backup writes is still the resident's own stream alone
+(sima-qian #3): the translated sessions, bookmarks and judgement live in
+the store, and David's original files stay in the repository beside
+them. A rebuild from that backup brings the resident back without them,
+as it would any resident's conversations today.
+
 **Two more things a move does.** If the remote is the source repository,
 the first backup commits `SOUL.md` rendered with its `[soul/n]` markers
 and the build's own `honcho/custom-instructions.md` over hers; both of
@@ -125,8 +161,6 @@ her sign-off included, comes across by hand.
 - The remote: the source repository (a move, the next backup commits
   on top of Lily's history) or a new one (a copy, the source left as
   it was). The platform cannot tell the two apart (spec §6.2).
-- Whether lily-memory's bookmarks are written as documents before the
-  freeze, so they come across, or accepted as loss.
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
-- The David-records replay (spec §9 step 3) before the port, or the port
-  with them as files and a back-fill after.
+- The import runs inside its request: 79 seconds on the rehearsal's
+  in-memory provider, more with the real index's 541,000 tokens to embed.

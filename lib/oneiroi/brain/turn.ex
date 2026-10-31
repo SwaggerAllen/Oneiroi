@@ -328,6 +328,7 @@ defmodule Oneiroi.Brain.Turn do
           Prompt.render!("imported", %{
             source: row.import_source,
             attestation: attestation_text(row.import_attestation),
+            translated: translated_text(row.import_translated),
             not_transferred: not_transferred_text(row.import_not_transferred)
           }),
         sent_at: Clock.now(),
@@ -347,6 +348,33 @@ defmodule Oneiroi.Brain.Turn do
 
   defp attestation_text(_none),
     do: "there was no attestation to check: the repository was not backed up by Oneiroi before"
+
+  # What the import made into this platform's records from the source
+  # platform's (agathos-daimon #30), in the order a reader looks for
+  # them; a kind with none is not named.
+  @translated [
+    {"sessions", "conversations, as sessions of kind imported, searchable as any transcript"},
+    {"messages", "messages in them"},
+    {"bookmarks", "bookmarks, with their pins and tags"},
+    {"tags", "tags"},
+    {"positions", "positions, with their chains"},
+    {"disputes", "disputes, with how each was settled"},
+    {"predictions", "predictions"},
+    {"nights", "nights the judge read there, which are not judged again here"},
+    {"notes", "notes, as journal entries on the days they were written"}
+  ]
+
+  defp translated_text(%{"source" => source, "counts" => counts}) when is_map(counts) do
+    parts =
+      for {key, words} <- @translated, (n = Map.get(counts, key, 0)) > 0, do: "#{n} #{words}"
+
+    if parts == [],
+      do: "",
+      else:
+        ". From #{source}'s records, made into this platform's own: " <> Enum.join(parts, "; ")
+  end
+
+  defp translated_text(_none), do: ""
 
   defp not_transferred_text([]), do: ""
 

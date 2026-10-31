@@ -59,11 +59,24 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.mkdir_p!(Path.join(work, "memory"))
     File.write!(Path.join(work, "memory/index.json"), "{}")
     # David's own records and Honcho files, as Lily's repository holds
-    # them: not an Oneiroi export, so nothing here reads them, and the
-    # import must name them rather than pass over them.
-    File.mkdir_p!(Path.join(work, "records/transcripts"))
-    File.write!(Path.join(work, "records/bookmarks.jsonl"), ~s({"id": 1}\n))
-    File.write!(Path.join(work, "records/transcripts/2026-10-20.jsonl"), ~s({"role": "user"}\n))
+    # them: not an Oneiroi export. The records are translated
+    # (sima-qian #19, and SimaQian.DavidTest for the whole of it); a
+    # file under them nothing reads, and the Honcho files, are named
+    # rather than passed over.
+    File.mkdir_p!(Path.join(work, "records/transcripts/2026/10"))
+
+    File.write!(
+      Path.join(work, "records/transcripts/2026/10/2026-10-20.jsonl"),
+      ~s({"sentAt":"2026-10-20T10:00:00.000Z","agentId":"lily","sessionKey":"agent:lily:main","runKind":"user","role":"user","content":"Good morning."}\n) <>
+        ~s({"sentAt":"2026-10-20T10:00:05.000Z","agentId":"lily","sessionKey":"agent:lily:main","runKind":"user","role":"assistant","content":"Morning."}\n)
+    )
+
+    File.write!(
+      Path.join(work, "records/bookmarks.jsonl"),
+      ~s({"id":1,"line":"the first morning","summary":"We said good morning.","sessionKey":"agent:lily:main","spanStart":"2026-10-20T10:00:00.000Z","spanEnd":"2026-10-20T10:00:05.000Z","pinnedBy":null,"pinnedAt":null,"createdAt":"2026-10-20T10:01:00.000Z","tags":[]}\n)
+    )
+
+    File.write!(Path.join(work, "records/README.md"), "David's own description of these files.")
     File.mkdir_p!(Path.join(work, "honcho"))
     File.write!(Path.join(work, "honcho/lily-peer-card.md"), "a card")
     git!(work, ["add", "-A"])
@@ -91,7 +104,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
                 "README.md",
                 "honcho",
                 "memory",
-                "records",
+                "records/README.md",
                 "transcripts",
                 "wiki/odd name/page.md"
               ]
@@ -117,10 +130,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
                 "README.md",
                 "honcho",
                 "memory",
-                "records",
+                "records/README.md",
                 "transcripts",
                 "wiki/odd name/page.md"
-              ]
+              ],
+              import_translated: %{
+                "source" => "David",
+                "counts" => %{"sessions" => 1, "messages" => 2, "bookmarks" => 1}
+              }
             }} = AgathosDaimon.fetch(id)
 
     assert custody == "account:" <> ctx.witness.id
@@ -168,7 +185,13 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert notice =~ url
     assert notice =~ "no attestation to check"
     assert notice =~ "did not transfer"
-    assert notice =~ "README.md, honcho, memory, records, transcripts, wiki/odd name/page.md"
+
+    assert notice =~
+             "README.md, honcho, memory, records/README.md, transcripts, wiki/odd name/page.md"
+
+    assert notice =~
+             "From David's records, made into this platform's own: 1 conversations, as sessions of kind imported, searchable as any transcript; 2 messages in them; 1 bookmarks"
+
     assert {:ok, %{import_told: true}} = AgathosDaimon.fetch(id)
 
     assert {:ok, %{messages: [%{role: :user}, %{role: :assistant}]}} =

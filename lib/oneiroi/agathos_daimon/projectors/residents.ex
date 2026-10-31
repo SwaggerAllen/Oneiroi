@@ -171,6 +171,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, import_not_transferred: e.not_transferred, import_told: false)
   end)
 
+  fold(%Events.RecordsTranslated{} = e, _metadata, fn multi ->
+    set(multi, e.id, import_translated: %{"source" => e.source, "counts" => stringify(e.counts)})
+  end)
+
   fold(%Events.ImportTold{} = e, _metadata, fn multi ->
     set(multi, e.id, import_told: true)
   end)
@@ -205,6 +209,12 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+
+  # Keys as the codec returns them, whichever way the event arrived.
+  defp stringify(counts) when is_map(counts),
+    do: Map.new(counts, fn {k, v} -> {to_string(k), v} end)
+
+  defp stringify(_none), do: %{}
 
   defp decide_contract(multi, e, state) do
     Multi.update_all(

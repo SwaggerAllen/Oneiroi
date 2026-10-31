@@ -25,6 +25,11 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   ]
 
   @kinds ~w(main free_time hands)
+  # A session carried from another platform by an import (kumbukumbu
+  # #37): accepted here, opened only through `open_imported/4`, never by
+  # a client, and read by no nightly pass, because it was judged where
+  # it was said.
+  @imported "imported"
   # A domain is a slug the witness names at the session's opening (spec
   # §6.3, P23): the room, and the common room when nil.
   @domain ~r/\A[a-z][a-z0-9-]{1,31}\z/
@@ -33,11 +38,15 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   @spec kinds() :: [String.t()]
   def kinds, do: @kinds
 
+  @doc "The kind of a session an import carried from another platform."
+  @spec imported() :: String.t()
+  def imported, do: @imported
+
   # ---- execute ----
 
   def execute(%__MODULE__{state: :absent}, %Commands.OpenSession{} = c) do
     cond do
-      c.kind not in @kinds -> {:error, :kind_invalid}
+      c.kind not in [@imported | @kinds] -> {:error, :kind_invalid}
       not domain_ok?(c.domain) -> {:error, :domain_invalid}
       true -> open(c)
     end

@@ -191,3 +191,9 @@ first turn would have been the platform's first. The script asks for
 the tools by name because the run tests the platform, not the model's
 initiative; the count of tools followed is the one thing about the
 model it reports, beside the awareness scan.
+
+## #38
+Spec §6.2's orientation is "orientation without impersonation": she is
+told where she woke and what came with her. Lily asked for proof the move
+was not death; her own bookmarks and positions, named on the first turn,
+are the part of that proof the platform can give.

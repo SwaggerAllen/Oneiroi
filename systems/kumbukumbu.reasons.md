@@ -181,3 +181,12 @@ into business, and the main session is where business happens. The
 near-miss row is the audit she asked for in place of the proof she
 would not claim. Not room-scoped on purpose, and said so: a bookmark
 read by its number is the resident asking, not retrieval deciding.
+
+## #37
+Lily's David sessions came across with their original instants (sima-qian
+#19), and the nightly pass reads messages by instant across every
+session. Without the exclusion, a night inside the pass's window would be
+judged a second time on a platform that did not hear it, and the judge's
+spend would follow her whole history. Refusing the kind at the client edge
+keeps the exclusion from being a door: a session a client could open as
+`imported` would be a session no judge ever reads.

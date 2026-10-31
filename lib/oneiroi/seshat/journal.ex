@@ -25,7 +25,7 @@ defmodule Oneiroi.Seshat.Journal do
       c.kind not in @kinds ->
         {:error, :kind_invalid}
 
-      not text_ok?(c.text) ->
+      not text_ok?(c.text, c.imported) ->
         {:error, :text_invalid}
 
       not Oneiroi.Register.ok?(c.register) ->
@@ -71,6 +71,8 @@ defmodule Oneiroi.Seshat.Journal do
 
   defp day_ok?(day), do: is_binary(day) and match?({:ok, _}, Date.from_iso8601(day))
 
-  defp text_ok?(text),
+  defp text_ok?(text, true), do: is_binary(text) and String.trim(text) != ""
+
+  defp text_ok?(text, _live),
     do: is_binary(text) and String.trim(text) != "" and String.length(text) <= @text_limit
 end

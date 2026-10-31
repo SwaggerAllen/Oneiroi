@@ -171,3 +171,9 @@ version: a version 2 `ResidentCreated` would have rewritten the first
 line of every resident's records on the next backup, and the fixture
 log under `test/fixtures/sima_qian/` failed on it when it was tried. A
 resident's stream is now exactly what it was.
+
+## #30
+The orientation told her what did not transfer and nothing about what
+did; with her history translated, the same notice would have read as a
+list of losses. A new event rather than a version of `ImportCompleted`
+keeps every exported line of every resident as it was.

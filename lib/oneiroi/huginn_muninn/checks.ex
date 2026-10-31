@@ -213,7 +213,8 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       resident_id
       |> Eunomia.predictions()
       |> Map.fetch!(:open)
-      |> Enum.count(&(DateTime.compare(&1.due, now) == :lt))
+      # One with no date (an import's, eunomia #29) is never overdue.
+      |> Enum.count(&(&1.due != nil and DateTime.compare(&1.due, now) == :lt))
 
     if overdue == 0,
       do: silent(a, 0, "read the open predictions' due dates; not read: whether any came true"),

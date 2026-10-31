@@ -1,12 +1,16 @@
 defmodule Oneiroi.Eunomia.JudgementCommands do
   @moduledoc "The judgement aggregate's commands; `id` is the resident's id."
 
+  # `imported` (eunomia #29): a record carried from another platform is
+  # held to the shape and not the length limit, because its words are
+  # what they were; nothing but the import sets it.
   defmodule TakePosition do
-    use Oneiroi.Command, fields: [:id, :number, :statement, :session_key, :turn_ref]
+    use Oneiroi.Command, fields: [:id, :number, :statement, :session_key, :turn_ref, :imported]
   end
 
   defmodule ReplacePosition do
-    use Oneiroi.Command, fields: [:id, :number, :replaces, :statement, :session_key, :turn_ref]
+    use Oneiroi.Command,
+      fields: [:id, :number, :replaces, :statement, :session_key, :turn_ref, :imported]
   end
 
   defmodule CheckDispute do
@@ -52,7 +56,8 @@ defmodule Oneiroi.Eunomia.JudgementCommands do
   end
 
   defmodule LogPrediction do
-    use Oneiroi.Command, fields: [:id, :number, :statement, :due, :session_key, :turn_ref]
+    use Oneiroi.Command,
+      fields: [:id, :number, :statement, :due, :session_key, :turn_ref, :imported]
   end
 
   defmodule ResolvePrediction do
