@@ -208,3 +208,12 @@ first tool use. The suite already ran a turn after a tool turn and passed,
 because the fake answered any shape. The ids are made per request because
 the provider's own were never stored, and the summary gets words because
 a call in a request that names no tools is a shape not measured here.
+
+The failure's reason gained the provider's words in the same change: the
+fixture's export recorded `nisaba_request_refused` ten times and its
+report `brain_turn_failed` ten times, the report's cut falling inside
+the inspected error's meaning before its reason, and the cause was read
+off the export by hand. The adapter keeps an error's `message` and never
+its `metadata`, where OpenRouter documents a moderation hit's flagged
+input, so the reason carries the provider's diagnosis and not the
+conversation.

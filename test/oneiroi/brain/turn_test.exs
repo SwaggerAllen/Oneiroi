@@ -243,6 +243,22 @@ defmodule Oneiroi.Brain.TurnTest do
     assert Enum.any?(events(ctx.resident.id, ctx.key), &match?({:failed, _, _}, &1))
   end
 
+  test "a refused request keeps the provider's status and words on the failure", ctx do
+    Fake.script(
+      fn _request ->
+        {:error, {:schema_invalid, {:status, 400, "tool message answers no call"}}}
+      end,
+      for: ctx.resident.id
+    )
+
+    assert {:error, %Oneiroi.Brain.Error{details: details}} =
+             Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello", ctx.actor)
+
+    said = "nisaba_request_refused: 400 tool message answers no call"
+    assert details[:reason] == said
+    assert [%{reason: ^said}] = Kumbukumbu.failures({:account, ctx.witness.id})
+  end
+
   test "two turns on one session run one at a time on its process", ctx do
     parent = self()
 

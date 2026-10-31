@@ -615,4 +615,27 @@ defmodule OneiroiWeb.ContractTest do
     assert %{"error" => %{"kind" => "gaia_invalid_credentials", "remedy" => _}} =
              json_response(conn, 401)
   end
+
+  test "a session the store cannot open answers 503 with a retry, not 401", ctx do
+    restore = fn -> Application.delete_env(:commanded, :dispatch_consistency_timeout) end
+    on_exit(restore)
+    Application.put_env(:commanded, :dispatch_consistency_timeout, 0)
+
+    conn =
+      ctx.conn
+      |> put_req_header("origin", origin())
+      |> post("/v1/session", %{email: ctx.account.email, password: Fixtures.password()})
+
+    assert %{"error" => %{"kind" => "gaia_session_unavailable"}} = json_response(conn, 503)
+    assert get_resp_header(conn, "retry-after") == ["5"]
+
+    # The retry the header asks for opens one, and waits on the projector
+    # for the timed-out session's event before the test ends.
+    restore.()
+
+    assert ctx.conn
+           |> put_req_header("origin", origin())
+           |> post("/v1/session", %{email: ctx.account.email, password: Fixtures.password()})
+           |> json_response(201)
+  end
 end

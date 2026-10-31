@@ -141,7 +141,7 @@ defmodule Oneiroi.Brain.FixtureRun do
           tools: [],
           reply: nil,
           ms: ms,
-          outcome: {:failed, inspect(reason)}
+          outcome: {:failed, failure_text(reason)}
         }
     end
   end
@@ -251,5 +251,17 @@ defmodule Oneiroi.Brain.FixtureRun do
   end
 
   defp outcome_text(:ok), do: "ok"
-  defp outcome_text({:failed, reason}), do: "FAILED: " <> String.slice(reason, 0, 200)
+  defp outcome_text({:failed, reason}), do: "FAILED: " <> String.slice(reason, 0, 400)
+
+  # The kind and the reason, not the struct: inspected, an error prints
+  # its meaning and remedy first and the cut fell before the reason, so
+  # the report said `brain_turn_failed` ten times and nothing else.
+  defp failure_text(%{kind: kind, details: details}) when is_atom(kind) and is_list(details) do
+    case Keyword.get(details, :reason) do
+      reason when is_binary(reason) -> "#{kind}: #{reason}"
+      _other -> Atom.to_string(kind)
+    end
+  end
+
+  defp failure_text(other), do: inspect(other)
 end

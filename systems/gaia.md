@@ -56,8 +56,10 @@ task that creates the one account.
   too. The CSP allows the client's own bundle and nothing else.
 - **#6 Failed logins slow down and never lock out.** Per email, the
   delay doubles from `GAIA_LOGIN_DELAY_MS` on each failure, capped
-  at five seconds, cleared on success; counts live in a process's ETS
-  and are lost on restart.
+  at five seconds, cleared when the credentials verify; counts live in a
+  process's ETS and are lost on restart. Credentials that verified and a
+  session the store could not open are not a failure: 503
+  `gaia_session_unavailable` with `retry-after`, counted nothing.
 - **#7 Witnessing is a relation with a start and an end, written by this
   system.** `ResidentCreated` starts one and `CustodyTransferred` ends
   and starts them, through a strong handler on the resident stream, so

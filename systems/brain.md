@@ -46,7 +46,9 @@ and the session channel.
   `priv/prompts/budget_stop.md` as a system message by the platform, so
   both parties read it in the same place (spec §5, §6.11). A provider
   failure captures nothing and records a capture failure the witness can
-  mark lost.
+  mark lost; its reason is the error's kind and, when the provider
+  answered with a status, that status and the provider's own message, so
+  the witness and the fixture report read the cause (#39).
 - **#5 One process per session, and turns on it run one at a time.** Two
   messages sent at once capture as two turns in order rather than
   interleaving; the process is a `GenServer` under a `DynamicSupervisor`

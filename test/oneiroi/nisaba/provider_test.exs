@@ -166,6 +166,20 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert r.usage.estimated and r.usage.cost_nanos == 0
 
       assert {:error, {:schema_invalid, _}} = OpenRouter.parse(%{"error" => %{"message" => "no"}})
+
+      # A streamed refusal is raw text: its message is kept and its
+      # metadata, where a moderation hit's input would sit, is not.
+      raw =
+        Jason.encode!(%{
+          "error" => %{
+            "message" => "Input was flagged",
+            "metadata" => %{"flagged_input" => "what she said"}
+          }
+        })
+
+      assert OpenRouter.summarize(raw) == "Input was flagged"
+      assert OpenRouter.summarize("<html>bad gateway</html>") == "<html>bad gateway</html>"
+      assert OpenRouter.summarize(~s({"other": 1})) == :unparseable
     end
 
     test "tool calls carry the arguments as the model wrote them" do

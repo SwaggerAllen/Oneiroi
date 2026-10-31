@@ -30,6 +30,31 @@ defmodule Oneiroi.Gaia.AccountsTest do
     assert {:ok, _raw, _p} = Gaia.login(String.upcase(email), Fixtures.password(), nil)
   end
 
+  # The steward's login answered 401 invalid credentials during a
+  # deploy's overlap: the session's dispatch had timed out on a projector.
+  # A zero consistency timeout is that timeout, made on purpose.
+  test "credentials that verify and a session the store cannot open answer unavailable, and count nothing" do
+    %{email: email} = Fixtures.account!()
+    assert {:error, :gaia_invalid_credentials} = Gaia.login(email, "wrong", nil)
+
+    # Unset in test config: restoring is deleting, since a nil timeout is
+    # an error and not the default.
+    restore = fn -> Application.delete_env(:commanded, :dispatch_consistency_timeout) end
+    on_exit(restore)
+    Application.put_env(:commanded, :dispatch_consistency_timeout, 0)
+
+    assert {:error, :gaia_session_unavailable} = Gaia.login(email, Fixtures.password(), nil)
+    restore.()
+
+    # The verified password cleared the wrong one, and the unavailable
+    # answer added nothing: the next failure is the first.
+    assert Throttle.failed(email, 200) == 200
+
+    # A retry opens one; its dispatch waits on the projector, which so
+    # takes the timed-out session's event too before the test ends.
+    assert {:ok, _raw, _p} = Gaia.login(email, Fixtures.password(), nil)
+  end
+
   test "a session expires at its ttl" do
     %{email: email} = Fixtures.account!()
     assert {:ok, raw, _p} = Gaia.login(email, Fixtures.password(), nil)
