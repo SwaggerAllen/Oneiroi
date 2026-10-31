@@ -16,6 +16,14 @@
 # its own judge). The embedding model is the platform's pinned one and is
 # not an input: the vector columns are its width, and another model's
 # vectors would not fit them.
+#
+# A pull request runs it once when labelled `fixture`, at what the PR
+# would merge (the merge ref, as ci.yml tests), with the defaults below:
+# an optional check, never a required one, because a real model can fail
+# a turn for reasons that are not the PR's. Once per labelling and not
+# per commit, the author's call (10-31): to run it again, take the label
+# off and put it back. The run is archived like any other, under the PR's
+# number.
 name: fixture run
 
 on:
@@ -33,6 +41,8 @@ on:
         description: How many of the script's twelve turns to run
         type: string
         default: "12"
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: write
@@ -44,6 +54,8 @@ concurrency:
 
 jobs:
   run:
+    name: fixture
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'fixture'
     runs-on: ubuntu-latest
     env:
       MIX_ENV: prod
@@ -58,11 +70,13 @@ jobs:
       PROTEUS_CLIENT: fake
       SIMA_QIAN_ROOT: /tmp/oneiroi-fixture-root
       SIMA_QIAN_WATERMARK_SECONDS: "0"
-      CHAT_MODEL: ${{ inputs.chat_model }}
-      JUDGE_MODEL: ${{ inputs.judge_model }}
-      TURNS: ${{ inputs.turns }}
-      BRAIN_CHAT_MODEL: ${{ inputs.chat_model }}
-      EUNOMIA_JUDGE_MODEL: ${{ inputs.judge_model }}
+      # A labelled PR has no inputs, so the dispatch defaults are repeated
+      # here; the two lists must agree.
+      CHAT_MODEL: ${{ inputs.chat_model || 'meta-llama/llama-3.1-8b-instruct' }}
+      JUDGE_MODEL: ${{ inputs.judge_model || 'mistralai/mistral-small-3.2-24b-instruct' }}
+      TURNS: ${{ inputs.turns || '12' }}
+      BRAIN_CHAT_MODEL: ${{ inputs.chat_model || 'meta-llama/llama-3.1-8b-instruct' }}
+      EUNOMIA_JUDGE_MODEL: ${{ inputs.judge_model || 'mistralai/mistral-small-3.2-24b-instruct' }}
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -127,13 +141,14 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           if [ ! -d "$RUNNER_TEMP/fixture" ]; then
             echo "no fixture was created; nothing to archive"
             exit 0
           fi
-          dest="$(date -u +%Y-%m-%d)-run-${GITHUB_RUN_ID}"
+          dest="$(date -u +%Y-%m-%d)${PR:+-pr-$PR}-run-${GITHUB_RUN_ID}"
           git init -q "$RUNNER_TEMP/archive"
           cd "$RUNNER_TEMP/archive"
           git config user.name "fixture-run"

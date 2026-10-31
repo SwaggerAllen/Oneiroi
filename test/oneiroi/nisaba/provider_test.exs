@@ -47,6 +47,10 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert refused.(Request.new("m", [user, asks], tools: tools))
       # Either half in a request that names no tools.
       assert refused.(Request.new("m", [user, asks, answers]))
+      # A call whose arguments are not one JSON object, as a provider refused
+      # one object twice over (fixture run 41248366617).
+      twice = put_in(asks.tool_calls, [%{call | function: %{name: "t", arguments: "{}{}"}}])
+      assert refused.(Request.new("m", [user, twice, answers], tools: tools))
     end
 
     test "a scripted reply, refusal and failure, per process" do

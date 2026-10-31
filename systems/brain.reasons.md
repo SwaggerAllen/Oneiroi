@@ -230,3 +230,21 @@ fixture's report reads to count a tool as followed, and it tells the
 model the same thing in the same words. The refusal's meaning and
 remedy, joined by a space, read "a chain cannot fork replace the head
 of the chain".
+
+## #10, the wire's copy
+Fixture run 41248366617: turn 8's `journal_add` arrived as one
+85-character object twice over and ran, since the repetition reads as
+one object, but went back to the provider as sent. Turn 11's request was
+refused with "400 Extra data: line 1 column 86 (char 85)", the second
+copy's first character, while turns 9, 10 and 12 carried the same
+history through; which requests a provider parses that strictly is not
+measured. The transcript is a record of what the model said, so it keeps
+the doubled text; the wire gets the object. Turn 4 of the same run
+refused a `habit_define` the model filled with `seed_number: -0`.
+
+## #37, the label
+The author, 10-31: an optional gate on the PR, run before merging but
+not on every commit, to shorten the loop between a change and the live
+model reading it. A label rather than every push because a run spends
+the author's key and a real model's failure is not always the PR's.
+

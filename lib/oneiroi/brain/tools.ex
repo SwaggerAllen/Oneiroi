@@ -483,6 +483,30 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  @doc """
+  A call's arguments as they go back to the provider, in the turn's next
+  round and in a replayed transcript: one JSON object. The arguments as
+  the model sent them stay in the transcript; this is the wire's copy.
+  Fixture run 41248366617: turn 8's `journal_add` arrived as one
+  85-character object twice over, ran (the repetition reads as one
+  object), and went back as sent; turn 11's request was refused with
+  "400 Extra data: line 1 column 86 (char 85)", the second copy's first
+  character, while turns 9, 10 and 12 carried the same history through.
+  `null` and nothing go back as `{}`, and arguments that read as no
+  object at all go back as `{}` too: the call's answer already says
+  they were not one, and a request that names them is refused.
+  """
+  @spec wire_arguments(String.t()) :: String.t()
+  def wire_arguments(raw) when is_binary(raw) do
+    case {decode_object(String.trim(raw)), arguments(raw)} do
+      {{:ok, _args}, _} -> raw
+      {nil, {:ok, args}} -> Jason.encode!(args)
+      {nil, :error} -> "{}"
+    end
+  end
+
+  def wire_arguments(_other), do: "{}"
+
   @doc "The prefix of every answer to a call that did nothing."
   @spec not_done() :: String.t()
   def not_done, do: @not_done
@@ -715,7 +739,7 @@ defmodule Oneiroi.Brain.Tools do
           "times" => args["times"] || []
         },
         stance: args["stance"] || "keep",
-        seed_number: args["seed_number"],
+        seed_number: seed_number(args["seed_number"]),
         note: args["note"]
       },
       turn.resident
@@ -1203,6 +1227,12 @@ defmodule Oneiroi.Brain.Tools do
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 
   defp context(turn), do: %{session_key: turn.session_key, turn_ref: turn.turn_ref}
+
+  # No seed has a number below one, so 0, or the -0 a model sent in
+  # fixture run 41248366617's turn 4 for an argument it had no use for,
+  # names none and the habit is defined without graduating anything.
+  defp seed_number(n) when is_integer(n) and n > 0, do: n
+  defp seed_number(_none), do: nil
 
   defp text(:ok), do: "Done."
   defp text(text) when is_binary(text), do: text
