@@ -31,7 +31,9 @@ defmodule Oneiroi.Seshat.Projectors.Journal do
     Multi.update_all(
       multi,
       :done,
-      from(j in JournalEntry, where: j.day == ^e.day and j.number == ^e.number),
+      from(j in JournalEntry,
+        where: j.resident_id == ^e.id and j.day == ^e.day and j.number == ^e.number
+      ),
       set: [done_at: e.at]
     )
   end)

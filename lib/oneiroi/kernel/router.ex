@@ -49,6 +49,12 @@ defmodule Oneiroi.Router do
       middleware(Module.concat([Oneiroi, Commanded, Middleware, Actor]))
       identify(unquote(aggregate), by: :id, prefix: unquote(prefix))
       dispatch(unquote(commands), to: unquote(aggregate))
+
+      # Read by the records export's test (sima-qian #20): every stream a
+      # router writes is either exported or excluded by name, so a new
+      # system's stream cannot be left out of a backup without a word.
+      @doc false
+      def __stream_prefix__, do: unquote(prefix)
     end
   end
 end

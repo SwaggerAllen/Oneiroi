@@ -349,7 +349,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_line, e.number},
-      from(l in SoulLine, where: l.number == ^e.number),
+      from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^e.number),
       set: [text: e.text, cites: e.cites || [], reworded_at: e.at],
       inc: [version: 1]
     )
@@ -359,7 +359,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_line, e.number},
-      from(l in SoulLine, where: l.number == ^e.number),
+      from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^e.number),
       set: [state: "retired", retired_at: e.at]
     )
   end)
@@ -371,7 +371,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
       Multi.update_all(
         multi,
         {:soul_line, number},
-        from(l in SoulLine, where: l.number == ^number),
+        from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^number),
         set: [position: position]
       )
     end)
@@ -409,7 +409,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_edit, e.ref},
-      from(s in SoulEdit, where: s.ref == ^e.ref),
+      from(s in SoulEdit, where: s.resident_id == ^e.id and s.ref == ^e.ref),
       set: [state: state, decided_note: e.note, decided_at: e.at]
     )
   end

@@ -184,7 +184,10 @@ defmodule Oneiroi.Apsu do
       {Oneiroi.Apsu.Policies.Skips, "test/**/*.exs",
        policy: "conventions §9: a skipped test names the ticket that owns it"},
       {Oneiroi.Apsu.Policies.Tables, "priv/repo/migrations/*.exs",
-       policy: "conventions §12: every table has one owner, a scope column and a row-level policy"}
+       policy: "conventions §12: every table has one owner, a scope column and a row-level policy"},
+      {Oneiroi.Apsu.Policies.ProjectorScope, "lib/oneiroi/*/projectors/*.ex",
+       policy:
+         "conventions §12: a projector's query names its tenant, because it runs under the platform scope"}
     ]
   end
 

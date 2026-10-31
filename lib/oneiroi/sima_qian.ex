@@ -25,6 +25,7 @@ defmodule Oneiroi.SimaQian do
       Oneiroi.AgathosDaimon,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
+      Oneiroi.Nisaba,
       Oneiroi.Proteus,
       Commanded,
       Ecto,
@@ -114,6 +115,9 @@ defmodule Oneiroi.SimaQian do
        "a line of the source platform's records is not a JSON object, or is a message that does not say its session, instant and role",
        remedy:
          "the file and line are named; fix or remove that line in the source repository and import again"},
+      {:sima_qian_stream_refused, "a line of the records names a stream the export never carries",
+       remedy:
+         "the records were not written by Oneiroi's export, or were edited; the stream is named, and the import wrote nothing"},
       {:sima_qian_name_required,
        "a repository without records is a new resident and needs a name and a slug",
        remedy: "give both; a repository with records names itself"}

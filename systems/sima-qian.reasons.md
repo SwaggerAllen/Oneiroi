@@ -100,3 +100,25 @@ disputes, 10 predictions, 10 nights and 340 journal entries, in 79
 seconds on the in-memory provider, against 13 before. A malformed line
 fails by file and line because the import is the one chance to carry it,
 and a silent skip is how the first reading lost the whole folder.
+
+## #20
+The author, 10-31: "we need rebuild from backup to restore everything."
+The export carried the resident's own stream alone, so a rebuild brought
+back her identity and none of her conversations, bookmarks, judgement,
+journal, schedule or spend. Reading each stream and merging on the
+store's append instant keeps the cost to her own events (the lesson of
+`ProjectStats` in the pipeline repo: a read proportional to the whole
+store passes every test and bills later). Naming streams without the id
+keeps every export made before byte-identical. An inert guard came out on
+the way: the rebuild first stamped each append itself, one microsecond
+apart, against two appends sharing a microsecond, which sequential round
+trips to the database never do.
+
+## #21
+Found by running the round trip, not by reading: the first rebuild
+beside its source took the conversations projector down on
+`MultipleResultsError`, and the second gave the copy an empty ledger. The
+search that followed found the same shape in a dozen projectors, among
+them a live cross-tenant write with no rebuild involved (eunomia's
+prediction resolution, measured on the committed code before the fix:
+resident B's prediction #1 resolved when A's was).

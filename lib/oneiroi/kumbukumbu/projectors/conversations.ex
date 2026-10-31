@@ -30,7 +30,10 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   # The adapter contract's open turn (spec §8): the ref the next tool
   # calls are attributed to, cleared when a turn is captured.
   fold(%Events.TurnStarted{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :open_turn, from(s in Session, where: s.key == ^e.session_key),
+    Multi.update_all(
+      multi,
+      :open_turn,
+      from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
       set: [open_turn_ref: e.turn_ref]
     )
   end)
@@ -80,13 +83,17 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     end)
     |> Multi.update_all(
       :session_touched,
-      from(s in Session, where: s.key == ^e.session_key),
+      from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
       set: [last_turn_at: e.at],
       inc: [turns: 1]
     )
     |> Multi.update_all(
       :turn_closed,
-      from(s in Session, where: s.key == ^e.session_key and s.open_turn_ref == ^e.turn_ref),
+      from(s in Session,
+        where:
+          s.resident_id == ^e.resident_id and s.key == ^e.session_key and
+            s.open_turn_ref == ^e.turn_ref
+      ),
       set: [open_turn_ref: nil]
     )
   end)
@@ -94,7 +101,13 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   fold(%Events.ContextAssembled{} = e, _metadata, fn multi ->
     multi =
       Multi.run(multi, :party, fn repo, _changes ->
-        {:ok, repo.one(from(s in Session, where: s.key == ^e.session_key, select: s.account_id))}
+        {:ok,
+         repo.one(
+           from(s in Session,
+             where: s.resident_id == ^e.resident_id and s.key == ^e.session_key,
+             select: s.account_id
+           )
+         )}
       end)
 
     e.injections
@@ -128,7 +141,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     Multi.update_all(
       multi,
       :compacted,
-      from(s in Session, where: s.key == ^e.session_key),
+      from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
       set: [summary: e.summary, compacted_through: e.through_sequence]
     )
   end)
@@ -136,7 +149,13 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   fold(%Events.CaptureFailed{} = e, _metadata, fn multi ->
     multi
     |> Multi.run(:party, fn repo, _changes ->
-      {:ok, repo.one(from(s in Session, where: s.key == ^e.session_key, select: s.account_id))}
+      {:ok,
+       repo.one(
+         from(s in Session,
+           where: s.resident_id == ^e.resident_id and s.key == ^e.session_key,
+           select: s.account_id
+         )
+       )}
     end)
     |> Multi.insert(
       :failure,
@@ -159,13 +178,18 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     Multi.update_all(
       multi,
       :resolved,
-      from(f in CaptureFailure, where: f.turn_ref == ^e.turn_ref),
+      from(f in CaptureFailure,
+        where: f.resident_id == ^e.resident_id and f.turn_ref == ^e.turn_ref
+      ),
       set: [resolved_at: e.at, how: e.how]
     )
   end)
 
   fold(%Events.SessionMadePrivate{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :private, from(s in Session, where: s.key == ^e.session_key),
+    Multi.update_all(
+      multi,
+      :private,
+      from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
       set: [private: true]
     )
   end)
@@ -174,17 +198,27 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   # session the resident chose to share reads like any other.
   fold(%Events.SessionShared{} = e, _metadata, fn multi ->
     multi
-    |> Multi.update_all(:shared, from(s in Session, where: s.key == ^e.session_key),
+    |> Multi.update_all(
+      :shared,
+      from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
       set: [shared: true]
     )
     |> Multi.run(:rekey, fn repo, _changes ->
-      case repo.one(from(s in Session, where: s.key == ^e.session_key, select: s.account_id)) do
+      case repo.one(
+             from(s in Session,
+               where: s.resident_id == ^e.resident_id and s.key == ^e.session_key,
+               select: s.account_id
+             )
+           ) do
         nil ->
           {:ok, :none}
 
         account_id ->
           {:ok,
-           repo.update_all(from(m in Message, where: m.session_key == ^e.session_key),
+           repo.update_all(
+             from(m in Message,
+               where: m.resident_id == ^e.resident_id and m.session_key == ^e.session_key
+             ),
              set: [account_id: account_id]
            )}
       end
@@ -244,7 +278,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
         Multi.update_all(
           multi,
           name,
-          from(b in Bookmark, where: b.number in ^numbers),
+          from(b in Bookmark, where: b.resident_id == ^e.resident_id and b.number in ^numbers),
           set: [{column, e.at}]
         )
     end
@@ -270,7 +304,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   defp party_of(repo, session_key, resident_id) do
     case repo.one(
            from(s in Session,
-             where: s.key == ^session_key,
+             where: s.resident_id == ^resident_id and s.key == ^session_key,
              select: {s.account_id, s.private, s.shared}
            )
          ) do

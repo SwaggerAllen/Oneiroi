@@ -1124,3 +1124,36 @@ and nothing personal turned up; what follows is what changed.
   stream alone (sima-qian #3), so conversations, bookmarks and judgement,
   hers and every resident's, are in the store and not in the repository
   a rebuild reads.
+
+## Round 41: one database, one key, and a backup that restores her whole (2026-10-31)
+
+- The author: Honcho on the existing database; "we need rebuild from
+  backup to restore everything"; the fixture on "the same api key as
+  everything else", chosen as one OpenRouter key for Honcho, the platform
+  and the fixture run.
+- Honcho moves onto `oneiroi-db`, in the `honcho` schema under the role
+  `oneiroi_honcho`, taken at connection start by an option on its URL
+  (proteus #17). Measured locally on the exact URL through Honcho's own
+  driver stack: Honcho's startup passes, its vectors live in its schema,
+  and Oneiroi's tables are refused to it. A wall against accident, not
+  against Honcho: the login is Oneiroi's. Its every feature routes to
+  OpenRouter, on the key the fixture run's secret also holds.
+- The export carries every stream that is the resident's, and a rebuild
+  restores them all (sima-qian #20). The sealed regression stream, the
+  witness's account and the Honcho bridge's stream stay out, each with
+  its reason, and a test holds every router to one of the two lists.
+- Running the round trip found that projectors keyed rows on numbers,
+  refs and keys alone (sima-qian #21). One was live with no rebuild
+  involved: resolving one resident's prediction #1 resolved every
+  resident's. Every projector query now names its tenant, enforced by a
+  new audit policy (conventions §12), and the ledger's usage is keyed on
+  the resident and the ref.
+- The ledger is exported without the spend and budgets under the two
+  purposes the resident's own view hides (drafting, regression): the
+  sealed-trials invariant's test failed on the first export that carried
+  them. A restore brings those two back empty; the witness re-sets their
+  budgets.
+- Open: a private session's messages are exported like the rest, into a
+  repository the witness can read; with the self-letters, for the
+  encryption scheme.
+

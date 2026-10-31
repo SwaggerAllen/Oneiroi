@@ -313,6 +313,16 @@ to a human, so a flaky suite defeats the automation.
   is named in its system doc.
 - **The event store is scoped by stream naming**, read only through
   Commanded; nothing reads `eventstore.*` directly.
+- **A projector's query names its tenant.** Projectors run under the
+  platform scope, so row-level security filters nothing they touch: a
+  `where:` on a number, a ref, a slug or a session key alone reaches every
+  resident that has the same one. `Oneiroi.Apsu.Policies.ProjectorScope`
+  fails the audit on any `from(x in ...)` in a projector whose `where:`
+  reads none of `x.resident_id`, `x.account_id` or `x.id`; a unique key a
+  projection upserts on carries the resident too. Found 10-31: resolving
+  one resident's prediction #1 resolved every resident's #1, and the
+  two-resident test below did not catch it, because no case in it gave
+  two residents the same number and then touched one.
 - **Honcho is scoped by workspace on every bridge query**, and the bridge
   is the one module that names Honcho's tables.
 - **One test seeds two residents and asserts nothing bleeds**, through the

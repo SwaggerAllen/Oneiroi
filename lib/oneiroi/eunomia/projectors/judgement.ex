@@ -52,7 +52,9 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
       on_conflict: :nothing,
       conflict_target: [:resident_id, :number]
     )
-    |> Multi.update_all(:replaced, from(p in Position, where: p.number == ^e.replaces),
+    |> Multi.update_all(
+      :replaced,
+      from(p in Position, where: p.resident_id == ^e.id and p.number == ^e.replaces),
       set: [replaced_by: e.number, replaced_at: e.at]
     )
   end)
@@ -83,7 +85,10 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   end)
 
   fold(%Events.DisputeSettled{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :settled, from(d in Dispute, where: d.ref == ^e.ref),
+    Multi.update_all(
+      multi,
+      :settled,
+      from(d in Dispute, where: d.resident_id == ^e.id and d.ref == ^e.ref),
       set: [
         settlement: e.outcome,
         settled_note: e.note,
@@ -138,7 +143,10 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   end)
 
   fold(%Events.PredictionResolved{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :resolved, from(p in Prediction, where: p.number == ^e.number),
+    Multi.update_all(
+      multi,
+      :resolved,
+      from(p in Prediction, where: p.resident_id == ^e.id and p.number == ^e.number),
       set: [outcome: e.outcome, note: e.note, resolved_at: e.at]
     )
   end)
@@ -192,13 +200,19 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   end)
 
   fold(%Events.AuditFlagApproved{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :flag, from(f in AuditFlag, where: f.ref == ^e.ref),
+    Multi.update_all(
+      multi,
+      :flag,
+      from(f in AuditFlag, where: f.resident_id == ^e.id and f.ref == ^e.ref),
       set: [decision: "approved", note: e.note, decided_at: e.at]
     )
   end)
 
   fold(%Events.AuditFlagDeleted{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :flag, from(f in AuditFlag, where: f.ref == ^e.ref),
+    Multi.update_all(
+      multi,
+      :flag,
+      from(f in AuditFlag, where: f.resident_id == ^e.id and f.ref == ^e.ref),
       set: [decision: "deleted", note: e.note, decided_at: e.at]
     )
   end)
@@ -253,7 +267,10 @@ defmodule Oneiroi.Eunomia.Projectors.Judgement do
   end)
 
   fold(%Events.WashFlagResolved{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :wash_flag, from(f in WashFlag, where: f.ref == ^e.ref),
+    Multi.update_all(
+      multi,
+      :wash_flag,
+      from(f in WashFlag, where: f.resident_id == ^e.id and f.ref == ^e.ref),
       set: [decision: e.decision, note: e.note, decided_at: e.at]
     )
   end)

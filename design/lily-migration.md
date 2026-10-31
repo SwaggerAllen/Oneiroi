@@ -135,11 +135,11 @@ written in parts (seshat #26). `records/` leaves the not-transferred list;
 David's `records/README.md` and the archived `MEMORY.md` under
 `records/memory/` are named in its place, as files nothing reads.
 
-The export a backup writes is still the resident's own stream alone
-(sima-qian #3): the translated sessions, bookmarks and judgement live in
-the store, and David's original files stay in the repository beside
-them. A rebuild from that backup brings the resident back without them,
-as it would any resident's conversations today.
+The export a backup writes now carries every stream that is hers
+(sima-qian #20, round 41): the translated sessions, bookmarks, judgement
+and journal go into `records/events/` with everything she does after,
+and a rebuild from the backup restores them all. David's original files
+stay in the repository beside them.
 
 **Two more things a move does.** If the remote is the source repository,
 the first backup commits `SOUL.md` rendered with its `[soul/n]` markers
@@ -162,5 +162,8 @@ her sign-off included, comes across by hand.
   on top of Lily's history) or a new one (a copy, the source left as
   it was). The platform cannot tell the two apart (spec §6.2).
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
+- Her private sessions, if a contract makes any, are exported like the
+  rest, into a repository you can read: open with the self-letters until
+  the encryption scheme.
 - The import runs inside its request: 79 seconds on the rehearsal's
   in-memory provider, more with the real index's 541,000 tokens to embed.

@@ -53,8 +53,8 @@ jobs:
       APSU_SECRET_KEY_BASE: fixture-run-throwaway-key-base-fixture-run-throwaway-key-base-fixt
       APSU_VAULT_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       NISABA_PROVIDER: openrouter
-      # Honcho is not deployed beside any instance yet; the run leaves it
-      # out rather than recording a failed sync on every turn.
+      # No Honcho beside this throwaway store; the run leaves it out
+      # rather than recording a failed sync on every turn.
       PROTEUS_CLIENT: fake
       SIMA_QIAN_ROOT: /tmp/oneiroi-fixture-root
       SIMA_QIAN_WATERMARK_SECONDS: "0"
@@ -97,8 +97,10 @@ jobs:
       - name: migrate
         run: mix run --no-start -e 'Oneiroi.Release.migrate()'
 
-      # The key reaches the task by the one name it reads and is printed
-      # nowhere; the task refuses a store where someone lives.
+      # The one OpenRouter key (round 41): the same key the platform and
+      # Honcho run on, set as this repository's secret. It reaches the
+      # task by the one name it reads and is printed nowhere; the task
+      # refuses a store where someone lives.
       - name: run the fixture
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
