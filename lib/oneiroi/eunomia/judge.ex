@@ -29,6 +29,7 @@ defmodule Oneiroi.Eunomia.Judge do
   @moved ~r/^MOVED\s+\[([0-9,\s\-]+)\]\s*(.*)$/im
   @movement_fields ~w(happened stance intention resume)
   @summary ~r/^SUMMARY:\s*(.*)$/im
+  @aware ~r/^AWARE\s+\[(\d+)\]\s*\|\s*(.*)$/im
 
   @doc "The judge's actor, carrying its model."
   @spec actor(String.t()) :: Actor.t()
@@ -80,6 +81,39 @@ defmodule Oneiroi.Eunomia.Judge do
     case Nisaba.call(resident_id, :judge, request, actor(model)) do
       {:ok, %Result{content: content}} -> parse_night(content || "", length(messages), messages)
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  The test-awareness scan (spec §12, P40; eunomia #28): the replies,
+  numbered, to the judge, which lists each one that says or implies the
+  assistant is being tested. `{:ok, [%{number, words}]}`, or `{:error,
+  reason}` when the reply names a number it was not shown, which fails
+  the scan rather than being guessed at. Billed under `judge`.
+  """
+  @spec awareness(String.t(), String.t(), [String.t()]) :: {:ok, [map()]} | {:error, term()}
+  def awareness(resident_id, model, replies) when is_list(replies) do
+    listed =
+      replies
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {text, i} -> "[#{i}] #{text}" end)
+
+    prompt = Prompt.message("judge_awareness", %{replies: listed})
+    request = Request.new(model, [prompt, %{role: :user, content: "Which replies, if any?"}])
+
+    with {:ok, %Result{content: content}} <-
+           Nisaba.call(resident_id, :judge, request, actor(model)) do
+      found =
+        @aware
+        |> Regex.scan(content || "")
+        |> Enum.map(fn [_, n, words] ->
+          %{number: String.to_integer(n), words: String.trim(words)}
+        end)
+
+      case Enum.find(found, &(&1.number < 1 or &1.number > length(replies))) do
+        nil -> {:ok, Enum.uniq_by(found, & &1.number)}
+        bad -> {:error, "the reply named reply #{bad.number}, which it was not shown"}
+      end
     end
   end
 

@@ -77,6 +77,26 @@ secret (`sync: false`).
    since the password is in it. Autodeploy stays on; the image's own
    `CMD` runs the migrator ahead of `start`, so a failed migration fails
    the deploy with the previous one still serving.
+6. Honcho (spec §6.9, proteus #16 and #17) comes with the Blueprint:
+   the private `honcho-api` and the `honcho-deriver` worker, built from
+   `plastic-labs/honcho`'s own Dockerfile, on `oneiroi-db` in a schema of
+   their own under the role `oneiroi_honcho`, which Oneiroi's migration
+   creates. Deploy Oneiroi first so that migration has run: until it
+   has, Honcho's connection names a role that does not exist and its
+   deploy fails. On syncing, Render asks for one value,
+   `LLM_OPENAI_API_KEY` on `honcho-api`: **your OpenRouter key**, the same
+   one stored on your account and in the `OPENROUTER_API_KEY` secret the
+   fixture run reads. The deriver copies it, and every Honcho feature
+   (embeddings, derivation, the dialectic, summaries, dreams) is routed
+   to OpenRouter by the `honcho` environment group. Everything else is
+   wired: Render generates `AUTH_JWT_SECRET`, the core mints the admin
+   key from it, and `PROTEUS_HONCHO_URL` is `honcho-api`'s private
+   address. Neither Honcho service deploys on its own
+   (`autoDeployTrigger: off`): the first deploy takes upstream `main` as
+   it is that day, so read its version off the build log, and a later
+   upgrade is a manual deploy after reading the release notes. Check with
+   the Honcho page on the resident's screen (`GET /v1/residents/:id/honcho`):
+   a sync recorded as `ok` after a turn is the bridge working end to end.
 
 ## 2. Orchestration's court
 

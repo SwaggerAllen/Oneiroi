@@ -64,7 +64,10 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   end)
 
   fold(%Events.PiecePublished{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :published, from(d in Document, where: d.path == ^e.path),
+    Multi.update_all(
+      multi,
+      :published,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
       set: [published_url: e.url, published_at: e.at]
     )
   end)

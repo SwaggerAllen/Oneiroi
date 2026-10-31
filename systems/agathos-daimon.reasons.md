@@ -162,3 +162,18 @@ What was missing was the receipt: a repository is read by whoever
 holds it, so the words leaving the house is a read the resident should
 see. Once per letter rather than once per backup because a nightly
 receipt for the same words would be the noise that hides a real read.
+
+## #29
+Spec §12, P40: the line is the seed and the memory, and the loader is
+what keeps a thin seed thin. A declaration rather than a field on the
+creation because the export writes every event at its module's current
+version: a version 2 `ResidentCreated` would have rewritten the first
+line of every resident's records on the next backup, and the fixture
+log under `test/fixtures/sima_qian/` failed on it when it was tried. A
+resident's stream is now exactly what it was.
+
+## #30
+The orientation told her what did not transfer and nothing about what
+did; with her history translated, the same notice would have read as a
+list of losses. A new event rather than a version of `ImportCompleted`
+keeps every exported line of every resident as it was.

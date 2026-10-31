@@ -26,11 +26,20 @@ defmodule Oneiroi.SimaQian.Import do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Config
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.David
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Rebuild
 
-  @not_files ["records", "honcho", ".git"]
+  # Covered without being named: Oneiroi's own records and the Honcho
+  # files the export rewrites, but only when the source is an Oneiroi
+  # export (it has `records/events/`). A repository from elsewhere keeps
+  # its own `records/` and `honcho/`, so they are named like any other
+  # root entry: Lily's held David's bookmarks, positions and transcripts
+  # under `records/`, and the first reading of this rule left them out
+  # of the list without a word. David's are now translated (sima-qian
+  # #19), and `records/` is covered when they were.
+  @oneiroi_files ["records", "honcho"]
 
   @doc "Imports the repository at `url` as a new resident under `witness_account_id`."
   # The clone is this function's own under the temp dir; the working
@@ -52,14 +61,17 @@ defmodule Oneiroi.SimaQian.Import do
            :ok <- custody(how, id, witness_account_id, actor),
            :ok <- place(clone, id),
            {:ok, seeds} <- seeds(id, clone, actor),
+           {:ok, translated} <- translate(how, id, witness_account_id, actor),
            {:ok, adopted} <- library().adopt_all(id, actor),
-           not_transferred = not_transferred(clone, seeds.kept ++ adopted.skipped),
+           not_transferred =
+             not_transferred(clone, translated, seeds.kept ++ adopted.skipped),
            :ok <-
              AgathosDaimon.complete_import(
                id,
                seeds.seeded,
                length(adopted.adopted),
                not_transferred,
+               translated && Map.take(translated, [:source, :counts]),
                actor
              ) do
         :telemetry.execute(
@@ -78,6 +90,7 @@ defmodule Oneiroi.SimaQian.Import do
            proposed: seeds.proposed,
            adopted: length(adopted.adopted),
            indexed: adopted.indexed,
+           translated: translated && Map.take(translated, [:source, :counts]),
            not_transferred: not_transferred
          }}
       end
@@ -189,12 +202,37 @@ defmodule Oneiroi.SimaQian.Import do
     end
   end
 
-  # Everything at the root that is not the records, the Honcho files,
-  # an identity file or a kind's folder, plus what was kept or skipped
-  # on the way: named, sorted, and told.
+  # Another platform's records, made into this one's (sima-qian #19):
+  # David's, the one platform whose export this reads, in a repository
+  # created here rather than replayed. Read from the working repository
+  # the clone became, before the library adopts, so the journal days the
+  # notes become are written before the adoption looks for files.
+  defp translate(:created, id, witness_account_id, actor) do
+    dir = Backup.dir(id)
+
+    if David.present?(dir),
+      do: David.translate(id, dir, witness_account_id, actor),
+      else: {:ok, nil}
+  end
+
+  defp translate(:replayed, _id, _witness_account_id, _actor), do: {:ok, nil}
+
+  # Everything at the root that is not an identity file, a kind's
+  # folder or (in an Oneiroi export) the records and the Honcho files,
+  # plus what was kept or skipped on the way: named, sorted, and told.
+  # When another platform's records were translated, `records/` is
+  # covered and what in it nothing read is named file by file instead.
   # sobelow_skip ["Traversal.FileModule"]
-  defp not_transferred(clone, extra) do
-    covered = @not_files ++ AgathosDaimon.identity_files() ++ library().folders()
+  defp not_transferred(clone, translated, extra) do
+    ours =
+      cond do
+        File.dir?(Path.join([clone, "records", "events"])) -> @oneiroi_files
+        translated -> ["records"]
+        true -> []
+      end
+
+    extra = if translated, do: translated.unread ++ extra, else: extra
+    covered = [".git" | ours] ++ AgathosDaimon.identity_files() ++ library().folders()
 
     clone
     |> File.ls!()

@@ -26,11 +26,20 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
   end)
 
   fold(%Events.CheckinChanged{} = e, _metadata, fn multi ->
-    set_checkin(multi, e.key, label: e.label, time: e.time, changed_day: e.day, set_at: e.at)
+    set_checkin(multi, e.id, e.key,
+      label: e.label,
+      time: e.time,
+      changed_day: e.day,
+      set_at: e.at
+    )
   end)
 
   fold(%Events.CheckinDeleted{} = e, _metadata, fn multi ->
-    Multi.delete_all(multi, :checkin, from(c in Checkin, where: c.key == ^e.key))
+    Multi.delete_all(
+      multi,
+      :checkin,
+      from(c in Checkin, where: c.resident_id == ^e.id and c.key == ^e.key)
+    )
   end)
 
   fold(%Events.CheckinFired{} = e, _metadata, fn multi -> firing(multi, e, "fired", nil) end)
@@ -97,13 +106,20 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
   end)
 
   fold(%Events.DateChanged{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :date, from(d in Date, where: d.number == ^e.number),
+    Multi.update_all(
+      multi,
+      :date,
+      from(d in Date, where: d.resident_id == ^e.id and d.number == ^e.number),
       set: [title: e.title, on: e.on, kind: e.kind, set_at: e.at]
     )
   end)
 
   fold(%Events.DateRemoved{} = e, _metadata, fn multi ->
-    Multi.delete_all(multi, :date, from(d in Date, where: d.number == ^e.number))
+    Multi.delete_all(
+      multi,
+      :date,
+      from(d in Date, where: d.resident_id == ^e.id and d.number == ^e.number)
+    )
   end)
 
   defp firing(multi, e, outcome, until) do
@@ -121,15 +137,15 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
       on_conflict: [set: [outcome: outcome, at: e.at, until: until]],
       conflict_target: [:resident_id, :key, :day]
     )
-    |> set_checkin(e.key, last_day: e.day, last_outcome: outcome, last_at: e.at)
+    |> set_checkin(e.id, e.key, last_day: e.day, last_outcome: outcome, last_at: e.at)
   end
 
-  defp set_checkin(multi, key, set),
+  defp set_checkin(multi, resident_id, key, set),
     do:
       Multi.update_all(
         multi,
         {:checkin, key, Keyword.keys(set)},
-        from(c in Checkin, where: c.key == ^key),
+        from(c in Checkin, where: c.resident_id == ^resident_id and c.key == ^key),
         set: set
       )
 

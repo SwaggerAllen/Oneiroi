@@ -49,7 +49,7 @@ defmodule Oneiroi.Eunomia.Judgement do
       Map.has_key?(positions, c.number) ->
         []
 
-      not statement_ok?(c.statement) ->
+      not statement_ok?(c.statement, c.imported) ->
         {:error, :statement_invalid}
 
       true ->
@@ -78,7 +78,7 @@ defmodule Oneiroi.Eunomia.Judgement do
       positions[c.replaces].replaced_by != nil ->
         {:error, :position_replaced}
 
-      not statement_ok?(c.statement) ->
+      not statement_ok?(c.statement, c.imported) ->
         {:error, :statement_invalid}
 
       true ->
@@ -187,10 +187,10 @@ defmodule Oneiroi.Eunomia.Judgement do
       Map.has_key?(predictions, c.number) ->
         []
 
-      not statement_ok?(c.statement) ->
+      not statement_ok?(c.statement, c.imported) ->
         {:error, :statement_invalid}
 
-      not match?(%DateTime{}, c.due) ->
+      not (match?(%DateTime{}, c.due) or (c.imported == true and is_nil(c.due))) ->
         {:error, :due_invalid}
 
       true ->
@@ -433,6 +433,10 @@ defmodule Oneiroi.Eunomia.Judgement do
 
   defp statement_ok?(text),
     do: is_binary(text) and String.trim(text) != "" and String.length(text) <= @statement_limit
+
+  # An imported record keeps its words whatever their length (eunomia #29).
+  defp statement_ok?(text, true), do: is_binary(text) and String.trim(text) != ""
+  defp statement_ok?(text, _live), do: statement_ok?(text)
 
   defp model_ok?(model), do: is_binary(model) and String.trim(model) != ""
 end

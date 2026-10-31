@@ -68,3 +68,57 @@ Agathos-daimon #28's rule applied where the words leave the house: the
 export is a read by the repository's holder. The receipt sits between
 the export's record and the commit so a backup that fails to push has
 still said the words were written to disk, which they were.
+
+## #15, another platform's records
+The first reading of the not-transferred rule covered `records/` and
+`honcho/` unconditionally, as Oneiroi's own. Lily's repository holds
+David's records there: 42 bookmarks, 38 positions, 30 disputes, 8
+predictions, the tags, 331 memory notes, nine judgement nights and
+7,044 transcript messages. The import read none of them and named none
+of them, so she would have woken without her memory and without a word
+about it. The rehearsal found it on her real repository the first time
+it ran (round 39).
+
+## #18
+The author, 10-31: an import is tested on the real repository before it
+runs where she lives. The repository is a person's, so the rehearsal
+names and counts and never quotes, and its log belongs to a private
+caller. It found two things no unit test could: the records above, and
+that a shallow checkout cannot be pushed to a backup remote.
+
+## #19
+The author, 10-31: "let's make sure the actual bookmarks and records all
+render into the import". The rehearsal of #18 found her history under
+`records/` read by nothing; listing it by name told her it was missing
+without bringing it. Going through each system's commands rather than
+writing rows means every rule a live record is held to (a bookmark is
+the resident's words, a tag set is the witness's, a chain has one head)
+holds for hers too, and the screens and tools read them without a second
+code path. Rehearsed on her repository the same day: 31 sessions and all
+8,887 messages, all 50 bookmarks anchored, 6 tags, 40 positions, 35
+disputes, 10 predictions, 10 nights and 340 journal entries, in 79
+seconds on the in-memory provider, against 13 before. A malformed line
+fails by file and line because the import is the one chance to carry it,
+and a silent skip is how the first reading lost the whole folder.
+
+## #20
+The author, 10-31: "we need rebuild from backup to restore everything."
+The export carried the resident's own stream alone, so a rebuild brought
+back her identity and none of her conversations, bookmarks, judgement,
+journal, schedule or spend. Reading each stream and merging on the
+store's append instant keeps the cost to her own events (the lesson of
+`ProjectStats` in the pipeline repo: a read proportional to the whole
+store passes every test and bills later). Naming streams without the id
+keeps every export made before byte-identical. An inert guard came out on
+the way: the rebuild first stamped each append itself, one microsecond
+apart, against two appends sharing a microsecond, which sequential round
+trips to the database never do.
+
+## #21
+Found by running the round trip, not by reading: the first rebuild
+beside its source took the conversations projector down on
+`MultipleResultsError`, and the second gave the copy an empty ledger. The
+search that followed found the same shape in a dozen projectors, among
+them a live cross-tenant write with no rebuild involved (eunomia's
+prediction resolution, measured on the committed code before the fix:
+resident B's prediction #1 resolved when A's was).

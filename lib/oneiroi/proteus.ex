@@ -79,14 +79,20 @@ defmodule Oneiroi.Proteus do
       # The one place the host is spelled outside the port: the setting
       # the port reads it from.
       {:honcho_url, "PROTEUS_HONCHO_URL",
+       cast: &__MODULE__.cast_url/1,
        required: false,
        usage:
-         "where Honcho answers, on the private network (spec §6.9); unset until a Honcho is deployed beside this instance, and the port fails with it unset"},
+         "where Honcho answers, on the private network (spec §6.9): a URL, or the host:port Render's blueprint hands over, read as http (proteus #16); unset until a Honcho is deployed beside this instance, and the port fails with it unset"},
       {:honcho_admin_key, "PROTEUS_HONCHO_ADMIN_KEY",
        secret: true,
        required: false,
        usage:
-         "Honcho's admin JWT, which mints the workspace-scoped keys and never leaves the core (spec §6.9)"},
+         "Honcho's admin JWT, which mints the workspace-scoped keys and never leaves the core (spec §6.9); when unset, minted from PROTEUS_HONCHO_JWT_SECRET"},
+      {:honcho_jwt_secret, "PROTEUS_HONCHO_JWT_SECRET",
+       secret: true,
+       required: false,
+       usage:
+         "the AUTH_JWT_SECRET Honcho signs with, from which the core mints the admin JWT when PROTEUS_HONCHO_ADMIN_KEY is unset (proteus #16): the blueprint copies it from the Honcho it generated it for, so no key is typed"},
       {:request_timeout_ms, "PROTEUS_REQUEST_TIMEOUT_MS",
        cast: :integer,
        default: "10000",
@@ -112,6 +118,28 @@ defmodule Oneiroi.Proteus do
   def cast_client("honcho"), do: {:ok, :"Elixir.Oneiroi.Proteus.Honcho.HTTP"}
   def cast_client("fake"), do: {:ok, :"Elixir.Oneiroi.Proteus.Honcho.Fake"}
   def cast_client(other), do: {:error, "is #{inspect(other)}, expected \"honcho\" or \"fake\""}
+
+  @doc "A Honcho URL as given, or a bare host:port read as http: a private service's address on Render's network carries no scheme (proteus #16)."
+  def cast_url(raw) do
+    case URI.parse(raw) do
+      %URI{scheme: scheme, host: host} when scheme in ["http", "https"] and is_binary(host) ->
+        {:ok, raw}
+
+      _bare ->
+        bare_url(raw)
+    end
+  end
+
+  # The port is explicit: a bare host would take http's 80 by default,
+  # and a private service never listens there unasked.
+  defp bare_url(raw) do
+    with %URI{host: host} when is_binary(host) and host != "" <- URI.parse("http://" <> raw),
+         true <- Regex.match?(~r/:\d+\z/, raw) do
+      {:ok, "http://" <> raw}
+    else
+      _other -> {:error, "is #{inspect(raw)}, expected an http(s) URL or host:port"}
+    end
+  end
 
   @impl Oneiroi.Component
   def feature_flags, do: [:proteus_honcho_off]

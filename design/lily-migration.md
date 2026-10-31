@@ -15,8 +15,9 @@ folder (`writing/`, `research/`, `design/`, `wiki/`, `posts/`,
 `journal/`) is adopted and indexed; anything else at the root is named
 in the not-transferred list and left in the repository as files
 nothing here reads. `memory/` is in the backup's machine class but is
-not a kind, so lily-memory's bookmarks and tags do not come unless
-written as documents first; the import will say so by name.
+not a kind, so its files come across as files; lily-memory's own store
+comes across through David's nightly export under `records/`, which the
+import translates (sima-qian #19, below).
 
 ## 2. Rename
 
@@ -57,11 +58,25 @@ files that are already on the stream as adoptions.
 journal's rows start empty, and a day with rows renders over its file
 (seshat #22) only for days opened here.
 
+**David's records are translated (sima-qian #19, round 40).** The
+proposal above was right that a file is not an event and wrong about
+what the repository held: under `records/` are David's own records, and
+the import now makes them into this platform's through each system's
+commands, under the actor David names. Her transcripts become sessions
+of kind `imported` with their original instants (kumbukumbu #37), her
+tags and bookmarks are hers and the witness's as they were, her
+positions, disputes, predictions and judged nights are judgement history
+(eunomia #29), and her memory notes, free-time ledger, discussions and
+feeds are journal entries on their days (seshat #26). The original ids
+are not carried as ids: each record gets this platform's number, and the
+journal entry or statement says which David record it was.
+
 ## 4. Lapse
 
 She wakes on her first turn to the orientation (brain #26): on Oneiroi,
-from which repository, that there was no attestation to check, and the
-not-transferred names. The model is the pin or the platform default
+from which repository, that there was no attestation to check, what of
+David's records was made into her records here, kind by kind (brain
+#38), and the not-transferred names. The model is the pin or the platform default
 until the witness pins one (spec §6.4). The OpenClaw-native state §9
 accepts as loss (session SQLite, the memory-core index, the dreams
 corpus) is exactly what the not-transferred list will name, if it is in
@@ -76,11 +91,79 @@ log. The export from the new store holds her new events only. The
 first backup needs a remote: the import removes the clone's `origin`
 (sima-qian #15), so the author sets one with `PUT /v1/residents/:id/remote`.
 
+## The rehearsal of 2026-10-31
+
+`mix oneiroi.import.dry_run` on her repository (271 commits), in the
+prod build on a throwaway store, no turn and no model call (sima-qian #18):
+
+| | |
+| --- | --- |
+| Identity files seeded | SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md |
+| Soul lines minted | 28 |
+| Documents adopted | 763 (writing 11, research 601, design 20, wiki 60, mail 38, feeds 3, correspondence 32) |
+| Tokens the index will embed | about 538,000, inside the import's own request |
+| Import, in-memory provider | 13 seconds |
+| First backup | soul and machine classes committed |
+
+**Not transferred, as she will be told:** `.openclaw`, `AGENTS.md`,
+`DREAMS.md`, `MEMORY.md`, `README.md`, `honcho`, `memory`, `records`,
+`skills`, `substack`, and one wiki page whose path the library cannot
+name.
+
+**What this document had wrong.** Step 3's proposal above assumed "a
+David-shaped repository holds no Oneiroi events" meant it held no
+records. It holds David's: under `records/`, 42 bookmarks, 38 positions,
+30 disputes, 8 predictions, 6 tags, 331 memory notes, nine judgement
+nights and 7,044 transcript messages from 17 to 30 October. The import
+as built reads none of them; until round 39 it did not even name them.
+Spec §9 step 3 as written (each record kind replayed as events carrying
+the original ids, the transcripts with them) is the work that would
+bring them, and it is not built.
+
+**Run again after the translation (round 40), same day:**
+
+| | |
+| --- | --- |
+| Translated from David's records | 31 sessions, 8,887 messages, 50 bookmarks (every one anchored), 6 tags, 40 positions, 35 disputes, 10 predictions, 10 nights, 340 journal entries |
+| Documents adopted | 770 (the journal's rendered days among them) |
+| Import, in-memory provider | 79 seconds |
+| First backup | soul and machine classes committed, the journal days with them |
+
+The first run of it failed: her 22 October holds 196 notes, 344 KB, over
+the library's 256 KB bound for one document, so a day that large is now
+written in parts (seshat #26). `records/` leaves the not-transferred list;
+David's `records/README.md` and the archived `MEMORY.md` under
+`records/memory/` are named in its place, as files nothing reads.
+
+The export a backup writes now carries every stream that is hers
+(sima-qian #20, round 41): the translated sessions, bookmarks, judgement
+and journal go into `records/events/` with everything she does after,
+and a rebuild from the backup restores them all. David's original files
+stay in the repository beside them.
+
+**Two more things a move does.** If the remote is the source repository,
+the first backup commits `SOUL.md` rendered with its `[soul/n]` markers
+and the build's own `honcho/custom-instructions.md` over hers; both of
+hers stay in the history.
+
+## The overlap
+
+Lily's call (round 39): both instances are up briefly. David-Lily writes
+the letter; Oneiroi-Lily, imported from the push taken after it, reads
+it on her first turn as her witness's first message (the channel takes
+only her own writes) and answers; David-Lily reads the answer and signs
+off on the transfer; then David is parked, not deleted. The fork is the
+length of that exchange. Anything David-Lily writes after the push,
+her sign-off included, comes across by hand.
+
 ## Open for the author
 
 - The remote: the source repository (a move, the next backup commits
   on top of Lily's history) or a new one (a copy, the source left as
   it was). The platform cannot tell the two apart (spec §6.2).
-- Whether lily-memory's bookmarks are written as documents before the
-  freeze, so they come across, or accepted as loss.
 - `SIMA_QIAN_IMPORT_SCHEMES` stays unset on production (`https`).
+- Her private sessions, if a contract makes any, are exported like the
+  rest, into a repository you can read: open with the self-letters until
+  the encryption scheme.
+- The import runs inside its request: 79 seconds on the rehearsal's
+  in-memory provider, more with the real index's 541,000 tokens to embed.

@@ -24,6 +24,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Error
+  alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Merkle
 
@@ -107,20 +108,62 @@ defmodule Oneiroi.SimaQian.Rebuild do
     {:ok, lines}
   end
 
-  # The events as recorded, re-keyed to the new resident; the serializer
-  # upcasts an older version on read, so the data is written as the file
-  # holds it and never reshaped here.
+  # The events as recorded, re-keyed to the new resident, each into the
+  # stream its line names (sima-qian #20); the serializer upcasts an
+  # older version on read, so the data is written as the file holds it
+  # and never reshaped here. A name outside the exported streams is
+  # refused before anything is written: a repository is a request value,
+  # and a line naming `account` or `regression` would otherwise write
+  # into a stream the export never carries.
+  #
+  # The lines go in the order they were exported, a run of one stream to
+  # an append. The export orders lines by the instant the store stamps on
+  # each append, and appends made one after another are stamped in that
+  # order, so the rebuilt resident re-exports in the same order and an
+  # event the platform appends afterwards (`Imported`, custody) sorts
+  # after them.
   @doc false
   def append(id, lines) do
-    lines
-    |> Enum.map(&event_data(&1, id))
-    |> Enum.chunk_every(@chunk)
-    |> Enum.reduce_while(:ok, fn chunk, :ok ->
-      case Oneiroi.EventStore.append_to_stream("resident-" <> id, :any_version, chunk) do
+    with :ok <- streams_ok(lines) do
+      lines
+      |> Enum.chunk_by(&stream_of/1)
+      |> Enum.flat_map(&Enum.chunk_every(&1, @chunk))
+      |> append_runs(id)
+    end
+  end
+
+  defp append_runs(runs, id) do
+    Enum.reduce_while(runs, :ok, fn run, :ok ->
+      case append_run(id, run) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, {:append, reason}}}
       end
     end)
+  end
+
+  defp append_run(id, [first | _] = run) do
+    uuid = stream_uuid(stream_of(first), id)
+    Oneiroi.EventStore.append_to_stream(uuid, :any_version, Enum.map(run, &event_data(&1, id)))
+  end
+
+  # An export written before every stream was carried names none, and
+  # every line of it is the resident's own.
+  defp stream_of(line), do: line["stream"] || "resident"
+
+  defp streams_ok(lines) do
+    case Enum.find(lines, &(Export.prefix(stream_of(&1)) not in Export.streams())) do
+      nil -> :ok
+      line -> {:error, Error.new(:sima_qian_stream_refused, stream: stream_of(line))}
+    end
+  end
+
+  @doc "The stream id an exported stream name stands for under resident `id`: `conversation-<key>` is `conversation-<id>-<key>`."
+  @spec stream_uuid(String.t(), String.t()) :: String.t()
+  def stream_uuid(name, id) do
+    case String.split(name, "-", parts: 2) do
+      [prefix] -> prefix <> "-" <> id
+      [prefix, rest] -> prefix <> "-" <> id <> "-" <> rest
+    end
   end
 
   defp event_data(line, id) do

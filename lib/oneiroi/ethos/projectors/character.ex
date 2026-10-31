@@ -132,7 +132,7 @@ defmodule Oneiroi.Ethos.Projectors.Character do
     Multi.update_all(
       multi,
       {:commitment, e.number},
-      from(c in Commitment, where: c.number == ^e.number),
+      from(c in Commitment, where: c.resident_id == ^e.id and c.number == ^e.number),
       set: [
         state: state,
         closed_at: e.at,

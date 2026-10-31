@@ -59,6 +59,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ExportWallSet,
       Events.Imported,
       Events.ImportCompleted,
+      Events.RecordsTranslated,
       Events.ImportTold,
       Events.ExportWritten,
       Events.BackupCommitted,
@@ -126,6 +127,7 @@ defmodule Oneiroi.AgathosDaimon do
   def events do
     [
       {Oneiroi.AgathosDaimon.Events.ResidentCreated, 1},
+      {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentPaused, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentWoken, 1},
@@ -135,6 +137,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ExportWallSet, 1},
       {Oneiroi.AgathosDaimon.Events.Imported, 1},
       {Oneiroi.AgathosDaimon.Events.ImportCompleted, 1},
+      {Oneiroi.AgathosDaimon.Events.RecordsTranslated, 1},
       {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWritten, 1},
       {Oneiroi.AgathosDaimon.Events.BackupCommitted, 1},
@@ -270,6 +273,13 @@ defmodule Oneiroi.AgathosDaimon do
           {:ok, String.t()} | {:error, term()}
   defexport(create(name, slug, witness_account_id, actor),
     do: Residents.create(name, slug, witness_account_id, actor)
+  )
+
+  @doc "Creates a fixture (spec §12, P40): a thin-seed test resident the brain treats as machinery; returns its id."
+  @spec create_fixture(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(create_fixture(name, slug, witness_account_id, actor),
+    do: Residents.create(name, slug, witness_account_id, actor, "fixture")
   )
 
   @doc "The residents an account witnesses, as rows."
@@ -412,7 +422,21 @@ defmodule Oneiroi.AgathosDaimon do
         ) ::
           :ok | {:error, term()}
   defexport(complete_import(id, seeded, adopted, not_transferred, actor),
-    do: Residents.complete_import(id, seeded, adopted, not_transferred, actor)
+    do: Residents.complete_import(id, seeded, adopted, not_transferred, nil, actor)
+  )
+
+  @doc "Completes an import that also translated the source platform's records: `translated` is `%{source, counts}` (agathos-daimon #30)."
+  @spec complete_import(
+          String.t(),
+          [String.t()],
+          non_neg_integer(),
+          [String.t()],
+          map() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(complete_import(id, seeded, adopted, not_transferred, translated, actor),
+    do: Residents.complete_import(id, seeded, adopted, not_transferred, translated, actor)
   )
 
   @doc "Records that the resident was told where it woke; idempotent."

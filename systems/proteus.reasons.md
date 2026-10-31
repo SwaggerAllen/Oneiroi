@@ -36,3 +36,22 @@ re-pinned by the weekly audit if a dream moved it."
 ## #15
 Spec §5: "then Honcho's context, then the compaction summary and the
 live transcript"; F12: every injection recorded with its reason.
+
+## #16
+The author, 10-31: "put honcho in the blueprint." A minted admin key
+typed into the dashboard is a second copy of a secret that already
+exists, and a `sync: false` value is not copied into a preview, which is
+how the PR #13 preview failed on APSU's keys. Minting from the secret
+Render generated means nothing about Honcho is typed but its provider
+key. The token was checked outside this codebase: computed with Python's
+hmac and decoded by PyJWT, the library Honcho verifies with.
+
+## #17
+The author, 10-31: "Can honcho be on our existing database?" and "the
+same api key as everything else", which they chose to mean one
+OpenRouter key for Honcho, the platform and the fixture run. A second
+cluster was a second bill and a second backup story for derived memory;
+one cluster with a role is the same isolation for accidents at neither
+cost. The connection budget is a bound, not a measurement: Honcho's
+defaults (ten and twenty of overflow per process) would have taken the
+cluster's connections from the event store on their own.

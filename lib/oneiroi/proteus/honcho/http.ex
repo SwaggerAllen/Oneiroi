@@ -113,13 +113,12 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
   # port reads it from.
   defp request(method, path, opts) do
     url = Path.join([Config.fetch!(:proteus, :honcho_url), "v3" | path])
-    key = Config.fetch!(:proteus, :honcho_admin_key)
 
     opts =
       Keyword.merge(opts,
         method: method,
         url: url,
-        auth: {:bearer, Secret.unwrap(key)},
+        auth: {:bearer, admin_key()},
         receive_timeout: Config.fetch!(:proteus, :request_timeout_ms),
         retry: false
       )
@@ -135,6 +134,31 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
       {:error, reason} -> {:error, {:transport, reason}}
     end
   end
+
+  # The admin key as set, or minted from Honcho's own signing secret
+  # (proteus #16): Honcho's admin JWT is HS256 over `{"t": "", "ad": true}`,
+  # as its `create_admin_jwt` writes it (src/security.py, v3.2.2), so a
+  # core holding the secret holds the key without anyone minting it by
+  # hand and typing it into a dashboard.
+  @doc false
+  def admin_key do
+    case Config.fetch!(:proteus, :honcho_admin_key) do
+      %Secret{value: key} when is_binary(key) and key != "" -> key
+      _unset -> mint(Config.fetch!(:proteus, :honcho_jwt_secret))
+    end
+  end
+
+  @doc false
+  def mint(%Secret{value: secret}) when is_binary(secret) and secret != "" do
+    header = encode(%{"alg" => "HS256", "typ" => "JWT"})
+    payload = encode(%{"ad" => true, "t" => ""})
+    signature = :crypto.mac(:hmac, :sha256, secret, header <> "." <> payload)
+    header <> "." <> payload <> "." <> Base.url_encode64(signature, padding: false)
+  end
+
+  def mint(_unset), do: nil
+
+  defp encode(map), do: map |> Jason.encode!() |> Base.url_encode64(padding: false)
 
   defp ok({:ok, _body}), do: :ok
   defp ok(error), do: error

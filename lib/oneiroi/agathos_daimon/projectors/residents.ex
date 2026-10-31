@@ -45,6 +45,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     })
   end)
 
+  fold(%Events.FixtureDeclared{} = e, _metadata, fn multi -> set(multi, e.id, kind: "fixture") end)
+
   fold(%Events.ResidentPaused{} = e, _metadata, fn multi -> set(multi, e.id, state: "paused") end)
   fold(%Events.ResidentWoken{} = e, _metadata, fn multi -> set(multi, e.id, state: "active") end)
   fold(%Events.ResidentLapsed{} = e, _metadata, fn multi -> set(multi, e.id, state: "lapsed") end)
@@ -169,6 +171,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, import_not_transferred: e.not_transferred, import_told: false)
   end)
 
+  fold(%Events.RecordsTranslated{} = e, _metadata, fn multi ->
+    set(multi, e.id, import_translated: %{"source" => e.source, "counts" => stringify(e.counts)})
+  end)
+
   fold(%Events.ImportTold{} = e, _metadata, fn multi ->
     set(multi, e.id, import_told: true)
   end)
@@ -203,6 +209,12 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+
+  # Keys as the codec returns them, whichever way the event arrived.
+  defp stringify(counts) when is_map(counts),
+    do: Map.new(counts, fn {k, v} -> {to_string(k), v} end)
+
+  defp stringify(_none), do: %{}
 
   defp decide_contract(multi, e, state) do
     Multi.update_all(
@@ -337,7 +349,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_line, e.number},
-      from(l in SoulLine, where: l.number == ^e.number),
+      from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^e.number),
       set: [text: e.text, cites: e.cites || [], reworded_at: e.at],
       inc: [version: 1]
     )
@@ -347,7 +359,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_line, e.number},
-      from(l in SoulLine, where: l.number == ^e.number),
+      from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^e.number),
       set: [state: "retired", retired_at: e.at]
     )
   end)
@@ -359,7 +371,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
       Multi.update_all(
         multi,
         {:soul_line, number},
-        from(l in SoulLine, where: l.number == ^number),
+        from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^number),
         set: [position: position]
       )
     end)
@@ -397,7 +409,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     Multi.update_all(
       multi,
       {:soul_edit, e.ref},
-      from(s in SoulEdit, where: s.ref == ^e.ref),
+      from(s in SoulEdit, where: s.resident_id == ^e.id and s.ref == ^e.ref),
       set: [state: state, decided_note: e.note, decided_at: e.at]
     )
   end

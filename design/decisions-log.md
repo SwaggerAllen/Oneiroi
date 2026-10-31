@@ -1065,3 +1065,95 @@ and nothing personal turned up; what follows is what changed.
   restart, which the app rode out.
 - Open: the encryption scheme for the letters at rest (the author's
   next conversation); the client's screens.
+
+## Round 39: the rehearsal, the fixture, and both Lilys up for the letter (2026-10-31)
+
+- Lily's call, the author's word: both instances are up briefly so the
+  letter can be answered, and David-Lily signs off on the transfer
+  before she is parked, because she wanted proof that this was not
+  death. The memories fork for the length of that exchange and no
+  longer; what David-Lily writes after the import's snapshot comes
+  across by hand.
+- The import is rehearsed on a throwaway store before it runs where she
+  lives (sima-qian #18): `mix oneiroi.import.dry_run` and a reusable
+  workflow called from a private repository, so her repository never
+  enters this public one's logs. Run on her repository on 10-31: the
+  five identity files seeded, 28 soul lines, 763 documents adopted, an
+  index of about 538,000 tokens, a first backup committing the soul and
+  machine classes.
+- What the rehearsal found: her `records/` holds David's records (42
+  bookmarks, 38 positions, 30 disputes, 8 predictions, 6 tags, 331
+  memory notes, nine nights, 7,044 transcript messages), which the
+  import neither replayed nor named. The naming is fixed (sima-qian
+  #15); the replay, spec §9 step 3 as written, is not built and is the
+  author's call before the port.
+- A fixture is a kind fixed at creation, declared by its own event so
+  `ResidentCreated` stays at version 1 (agathos-daimon #29): the fixture
+  log refused a version 2 that would have rewritten every resident's
+  first exported line. Its prefix is machinery (brain #36). The fixture
+  run is the platform's live test (brain #37), with the judge's
+  test-awareness scan (eunomia #28), on the research pass's pick
+  (design/research-fixture-substrate.md): Llama 3.1 8B, judged by
+  Mistral Small 3.2. Its archive is a branch, because artifacts expire.
+- Open: the David-records replay; the caller workflow in a private
+  repository (this session cannot write to one); an `OPENROUTER_API_KEY`
+  secret on this repository for the fixture run.
+
+## Round 40: her records come with her, and Honcho in the blueprint (2026-10-31)
+
+- The author: "let's make sure the actual bookmarks and records all
+  render into the import and put honcho in the blueprint."
+- David's records are made into this platform's own on import
+  (sima-qian #19), through each system's commands under the actor David
+  names: transcripts as sessions of kind `imported`, read by no nightly
+  pass (kumbukumbu #37); tags and bookmarks with their pins and taggings;
+  positions, disputes, predictions and nights as judgement history with
+  their words kept (eunomia #29); notes, the free-time ledger,
+  discussions and feeds as journal entries on their days (seshat #26).
+  The counts are an event (agathos-daimon #30) and the orientation names
+  them (brain #38).
+- Rehearsed on her repository: every record of every kind came across
+  (31 sessions, 8,887 messages, 50 bookmarks, 40 positions, 35 disputes,
+  10 predictions, 10 nights, 340 journal entries). The first run failed
+  on a journal day of 344 KB against a 256 KB bound; a day that large is
+  now written in parts.
+- Honcho is in `render.yaml`: its database, its API as a private service
+  and its deriver as a worker, from a fork pinned to a release, with the
+  secrets left for the author to set.
+- Found, not changed: the backup's export carries the resident's own
+  stream alone (sima-qian #3), so conversations, bookmarks and judgement,
+  hers and every resident's, are in the store and not in the repository
+  a rebuild reads.
+
+## Round 41: one database, one key, and a backup that restores her whole (2026-10-31)
+
+- The author: Honcho on the existing database; "we need rebuild from
+  backup to restore everything"; the fixture on "the same api key as
+  everything else", chosen as one OpenRouter key for Honcho, the platform
+  and the fixture run.
+- Honcho moves onto `oneiroi-db`, in the `honcho` schema under the role
+  `oneiroi_honcho`, taken at connection start by an option on its URL
+  (proteus #17). Measured locally on the exact URL through Honcho's own
+  driver stack: Honcho's startup passes, its vectors live in its schema,
+  and Oneiroi's tables are refused to it. A wall against accident, not
+  against Honcho: the login is Oneiroi's. Its every feature routes to
+  OpenRouter, on the key the fixture run's secret also holds.
+- The export carries every stream that is the resident's, and a rebuild
+  restores them all (sima-qian #20). The sealed regression stream, the
+  witness's account and the Honcho bridge's stream stay out, each with
+  its reason, and a test holds every router to one of the two lists.
+- Running the round trip found that projectors keyed rows on numbers,
+  refs and keys alone (sima-qian #21). One was live with no rebuild
+  involved: resolving one resident's prediction #1 resolved every
+  resident's. Every projector query now names its tenant, enforced by a
+  new audit policy (conventions §12), and the ledger's usage is keyed on
+  the resident and the ref.
+- The ledger is exported without the spend and budgets under the two
+  purposes the resident's own view hides (drafting, regression): the
+  sealed-trials invariant's test failed on the first export that carried
+  them. A restore brings those two back empty; the witness re-sets their
+  budgets.
+- Open: a private session's messages are exported like the rest, into a
+  repository the witness can read; with the self-letters, for the
+  encryption scheme.
+

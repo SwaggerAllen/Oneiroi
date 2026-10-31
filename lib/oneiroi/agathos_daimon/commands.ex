@@ -1,8 +1,10 @@
 defmodule Oneiroi.AgathosDaimon.Commands do
   @moduledoc "The resident aggregate's commands (spec §3.1)."
 
+  # `kind` (spec §12, P40): `resident`, or `fixture` for a thin-seed
+  # test resident the brain treats as machinery; fixed at creation.
   defmodule CreateResident do
-    use Oneiroi.Command, fields: [:id, :name, :slug, :witness_account_id]
+    use Oneiroi.Command, fields: [:id, :name, :slug, :witness_account_id, :kind]
   end
 
   defmodule MintId do
@@ -71,7 +73,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   end
 
   defmodule CompleteImport do
-    use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred]
+    use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred, :translated]
   end
 
   defmodule RecordImportTold do

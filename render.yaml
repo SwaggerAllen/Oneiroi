@@ -60,3 +60,159 @@ services:
         generateValue: true
       - key: APSU_VAULT_KEY
         generateValue: true
+      # Honcho beside this instance (proteus #16): its private address,
+      # which Render hands over as host:port and the setting reads as
+      # http, and its signing secret, from which the core mints the admin
+      # JWT, so no key is typed. Both resolve to the preview's own Honcho
+      # in a preview environment.
+      - key: PROTEUS_HONCHO_URL
+        fromService:
+          name: honcho-api
+          type: pserv
+          property: hostport
+      - key: PROTEUS_HONCHO_JWT_SECRET
+        fromService:
+          name: honcho-api
+          type: pserv
+          envVarKey: AUTH_JWT_SECRET
+
+  # Honcho (spec §6.9), from its upstream repository, built from its own
+  # Dockerfile, on Oneiroi's database (proteus #17). The deploy is never
+  # automatic: Oneiroi speaks Honcho's v3 API (Oneiroi.Proteus.Honcho.HTTP),
+  # so a new Honcho is a deliberate deploy after reading its release
+  # notes, never a push upstream. The first deploy takes `main` as it is
+  # that day; v3.2.2 is the release the bridge was read against on 10-31.
+  # Private: only this workspace's services in the same region reach it,
+  # and with auth on, only with a key the core minted.
+  - type: pserv
+    name: honcho-api
+    runtime: docker
+    repo: https://github.com/plastic-labs/honcho
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeployTrigger: "off"
+    region: oregon
+    plan: 0.5c-512mb
+    # The entrypoint runs Honcho's migrations, then the API; the image's
+    # own CMD starts the API alone. The URL is Oneiroi's own, rewritten to
+    # the scheme Honcho's SQLAlchemy wants (postgresql+psycopg://, its
+    # .env.template says so) and given a startup option that takes the
+    # role `oneiroi_honcho`, which owns the `honcho` schema and can read
+    # nothing of Oneiroi's (the migration of 10-31 creates both). Rewritten
+    # here rather than typed, so it cannot drift from the database's.
+    dockerCommand: >-
+      sh -c 'u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
+      export DB_CONNECTION_URI="postgresql+psycopg://$u${j}options=-c%20role%3Doneiroi_honcho";
+      exec sh docker/entrypoint.sh'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oneiroi-db
+          property: connectionString
+      - fromGroup: honcho
+      - key: AUTH_USE_AUTH
+        value: "true"
+      # Generated once by Render, per environment, so a preview's Honcho
+      # never holds production's secret (the reason APSU's are generated
+      # above). The core reads it from here.
+      - key: AUTH_JWT_SECRET
+        generateValue: true
+      # The one OpenRouter key (round 41): every Honcho feature calls
+      # OpenRouter through the openai transport, which reads this name.
+      # Typed here once; the deriver copies it. A `sync: false` value is
+      # not copied into a preview environment, so a preview's Honcho does
+      # not start, which is where previews already were.
+      - key: LLM_OPENAI_API_KEY
+        sync: false
+
+  # The deriver: Honcho's background worker, the same image under a
+  # different command, on the same database and role.
+  - type: worker
+    name: honcho-deriver
+    runtime: docker
+    repo: https://github.com/plastic-labs/honcho
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeployTrigger: "off"
+    region: oregon
+    plan: 0.5c-512mb
+    dockerCommand: >-
+      sh -c 'u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
+      export DB_CONNECTION_URI="postgresql+psycopg://$u${j}options=-c%20role%3Doneiroi_honcho";
+      exec /app/.venv/bin/python -m src.deriver'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oneiroi-db
+          property: connectionString
+      - fromGroup: honcho
+      - key: LLM_OPENAI_API_KEY
+        fromService:
+          name: honcho-api
+          type: pserv
+          envVarKey: LLM_OPENAI_API_KEY
+
+envVarGroups:
+  # What both Honcho services share, none of it secret: the schema, the
+  # connection budget, and every model routed through OpenRouter.
+  - name: honcho
+    envVars:
+      - key: DB_SCHEMA
+        value: honcho
+      # Two services on Oneiroi's cluster, whose connections the Repo,
+      # the event store, Oban and the store's listener already share
+      # (SETUP §1 step 4). Honcho's defaults are a pool of 10 with 20 of
+      # overflow per process, enough on their own to exhaust a small
+      # cluster; three each is a bound, not a measurement.
+      - key: DB_POOL_SIZE
+        value: "3"
+      - key: DB_MAX_OVERFLOW
+        value: "0"
+      - key: API_WORKERS
+        value: "1"
+      # Every feature on OpenRouter, so one key serves Honcho, the
+      # platform and the fixture run. The models are Honcho v3.2.2's own
+      # defaults under their OpenRouter names, each listed there with
+      # tool calling (read off OpenRouter's model list, 10-31), and the
+      # embedding model is the one Seshat pins (SESHAT_EMBEDDING_MODEL),
+      # at Honcho's default width of 1536.
+      - key: EMBEDDING_MODEL_CONFIG__MODEL
+        value: openai/text-embedding-3-small
+      - key: EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DERIVER_MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DERIVER_MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: SUMMARY_MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: SUMMARY_MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DREAM_DEDUCTION_MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DREAM_DEDUCTION_MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DREAM_INDUCTION_MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DREAM_INDUCTION_MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DIALECTIC_LEVELS__minimal__MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DIALECTIC_LEVELS__low__MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DIALECTIC_LEVELS__medium__MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DIALECTIC_LEVELS__medium__MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DIALECTIC_LEVELS__high__MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DIALECTIC_LEVELS__high__MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: DIALECTIC_LEVELS__max__MODEL_CONFIG__MODEL
+        value: openai/gpt-5.4-mini
+      - key: DIALECTIC_LEVELS__max__MODEL_CONFIG__OVERRIDES__BASE_URL
+        value: https://openrouter.ai/api/v1

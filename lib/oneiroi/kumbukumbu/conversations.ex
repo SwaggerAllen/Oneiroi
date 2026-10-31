@@ -26,8 +26,29 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     private? = Keyword.get(opts, :private, false) == true
     domain = Keyword.get(opts, :domain)
 
-    with :ok <-
-           dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor),
+    # The imported kind is the import's alone (kumbukumbu #37): a client
+    # naming it would open a session the nightly pass never reads.
+    if kind == Conversation.imported() do
+      {:error, Error.new(:kumbukumbu_kind_invalid, kind: kind, kinds: Conversation.kinds())}
+    else
+      with :ok <-
+             dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor),
+           do: {:ok, key}
+    end
+  end
+
+  @doc """
+  Opens a session carried from another platform by an import (kumbukumbu
+  #37): kind `imported`, in the common room, with `adapter` naming the
+  platform it came from. Its turns are captured with `capture/6` as any
+  other's, their instants the originals; returns its key.
+  """
+  def open_imported(resident_id, adapter, participants, %Actor{} = actor)
+      when is_binary(adapter) and is_list(participants) do
+    key = 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+    kind = Conversation.imported()
+
+    with :ok <- dispatch_open(resident_id, key, kind, adapter, participants, false, nil, actor),
          do: {:ok, key}
   end
 

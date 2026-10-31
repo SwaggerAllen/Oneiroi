@@ -5,6 +5,19 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :name, :slug, :witness_account_id]
   end
 
+  defmodule FixtureDeclared do
+    # A fixture (spec §12, P40; agathos-daimon #29): emitted with
+    # `ResidentCreated` in the creation's own dispatch and never after,
+    # so a fixture does not become a person by an event and a person is
+    # never made a fixture. An event of its own rather than a field on
+    # the creation, because the export writes every event at its
+    # module's current version: a version 2 creation would have
+    # rewritten the first line of every resident's records on the next
+    # backup, which the fixture log under test/fixtures/sima_qian/
+    # refused when it was tried.
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
   defmodule IdMinted do
     # The per-resident sequence (spec §2.2): `number` is read off the
     # aggregate's own counter for `kind`, so replay reproduces it.
@@ -95,6 +108,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # did not transfer, by name, so the resident is told rather than
     # left to notice (agathos-daimon #25).
     use Oneiroi.Event, version: 1, fields: [:id, :seeded, :adopted, :not_transferred]
+  end
+
+  defmodule RecordsTranslated do
+    # What an import made into this platform's own records from the
+    # source platform's (agathos-daimon #30): `source` names the platform
+    # and `counts` how many of each kind, so the resident is told her
+    # history came with her and where to find it, and not only what
+    # did not.
+    use Oneiroi.Event, version: 1, fields: [:id, :source, :counts]
   end
 
   defmodule ImportTold do

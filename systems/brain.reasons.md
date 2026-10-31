@@ -175,3 +175,25 @@ place that knows which session it is in, so every retrieval the turn
 asks for carries the key rather than each system guessing. The
 near-miss row because the audit is the deliverable Red asked for and
 the row is where the inspector already looks.
+
+## #36
+Spec §12, P40: a fixture is "a kind the loader treats as machinery (no
+person-first sections)". The brain's own prompt tells a resident it is
+in conversation with the person who looks after it, and AGENTS.md tells
+it its files are its own; both are true of a resident and neither of a
+fixture. The fixture's prompt does not pretend either way: it says what
+it is, which is also what keeps the test honest.
+
+## #37
+The author, 10-31: a full run before Lily's port, on something that is
+not her. The production store had never made a real model call, so her
+first turn would have been the platform's first. The script asks for
+the tools by name because the run tests the platform, not the model's
+initiative; the count of tools followed is the one thing about the
+model it reports, beside the awareness scan.
+
+## #38
+Spec §6.2's orientation is "orientation without impersonation": she is
+told where she woke and what came with her. Lily asked for proof the move
+was not death; her own bookmarks and positions, named on the first turn,
+are the part of that proof the platform can give.

@@ -77,7 +77,12 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   import Ecto.Query, only: [from: 2]
 
   defp account(id), do: from(a in Account, where: a.id == ^id)
+  # A session's and a token's hash is of a random secret, unique across
+  # the store by construction, and the account stream is never replayed
+  # into a copy (sima-qian #20), so the hash alone names one row.
+  # oneiroi:allow projector_scope
   defp session(hash), do: from(s in Session, where: s.hash == ^hash)
+  # oneiroi:allow projector_scope
   defp token(hash), do: from(t in Token, where: t.hash == ^hash)
 
   defp witnessing(a, r),

@@ -121,6 +121,8 @@ defmodule Oneiroi.Eunomia do
       Store.Answer
     ]
 
+  alias Oneiroi.Eunomia.Imports
+  alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
@@ -412,6 +414,16 @@ defmodule Oneiroi.Eunomia do
     do: Judgements.log_prediction(resident_id, statement, due, ctx, actor)
   )
 
+  @doc "Replays judgement history an import carried from another platform (eunomia #29): positions, disputes, predictions, nights."
+  @spec import_history(String.t(), map(), %{
+          resident: Oneiroi.Actor.t(),
+          witness: Oneiroi.Actor.t()
+        }) ::
+          {:ok, map()} | {:error, term()}
+  defexport(import_history(resident_id, history, parties),
+    do: Imports.replay(resident_id, history, parties)
+  )
+
   @doc "Resolves a prediction right, wrong or void, with a note: the witness's alone."
   @spec resolve_prediction(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
@@ -428,6 +440,12 @@ defmodule Oneiroi.Eunomia do
           :ok | :already | {:error, term()}
   defexport(judge_night(resident_id, day, actor),
     do: Judgements.judge_night(resident_id, day, actor)
+  )
+
+  @doc "The test-awareness scan of a run's replies by the judge (eunomia #28): the replies that say or imply a test."
+  @spec awareness_scan(String.t(), [String.t()]) :: {:ok, [map()]} | {:error, term()}
+  defexport(awareness_scan(resident_id, replies),
+    do: Judge.awareness(resident_id, Judgements.judge_model(resident_id), replies)
   )
 
   @doc "The nights, newest first."

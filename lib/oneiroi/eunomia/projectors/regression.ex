@@ -26,7 +26,10 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
   end)
 
   fold(%Events.TestChanged{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :test, from(t in Test, where: t.number == ^e.number),
+    Multi.update_all(
+      multi,
+      :test,
+      from(t in Test, where: t.resident_id == ^e.id and t.number == ^e.number),
       set: [prompt: e.prompt, passes_if: e.passes_if, fails_if: e.fails_if, changed_at: e.at]
     )
   end)
@@ -69,11 +72,18 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
       on_conflict: :nothing,
       conflict_target: [:resident_id, :run_ref, :card_ref]
     )
-    |> Multi.update_all(:cards, from(r in Run, where: r.ref == ^e.run_ref), inc: [cards: 1])
+    |> Multi.update_all(
+      :cards,
+      from(r in Run, where: r.resident_id == ^e.id and r.ref == ^e.run_ref),
+      inc: [cards: 1]
+    )
   end)
 
   fold(%Events.RunFinished{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :run, from(r in Run, where: r.ref == ^e.run_ref),
+    Multi.update_all(
+      multi,
+      :run,
+      from(r in Run, where: r.resident_id == ^e.id and r.ref == ^e.run_ref),
       set: [finished_at: e.at, cards: e.cards]
     )
   end)
@@ -82,7 +92,9 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
     Multi.update_all(
       multi,
       :graded,
-      from(a in Answer, where: a.run_ref == ^e.run_ref and a.card_ref == ^e.card_ref),
+      from(a in Answer,
+        where: a.resident_id == ^e.id and a.run_ref == ^e.run_ref and a.card_ref == ^e.card_ref
+      ),
       set: [grade: e.grade, graded_at: e.at]
     )
   end)
@@ -91,7 +103,9 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
     Multi.update_all(
       multi,
       :favourite,
-      from(a in Answer, where: a.run_ref == ^e.run_ref and a.card_ref == ^e.card_ref),
+      from(a in Answer,
+        where: a.resident_id == ^e.id and a.run_ref == ^e.run_ref and a.card_ref == ^e.card_ref
+      ),
       set: [favourite: true]
     )
   end)

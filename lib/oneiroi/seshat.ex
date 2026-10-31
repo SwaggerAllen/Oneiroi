@@ -218,6 +218,14 @@ defmodule Oneiroi.Seshat do
   @spec folders() :: [String.t()]
   defexport(folders(), do: Enum.map(Kinds.all(), & &1.folder))
 
+  @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
+  @impl Oneiroi.SimaQian.Library
+  @spec import_journal(String.t(), [map()], Oneiroi.Actor.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  defexport(import_journal(resident_id, entries, actor),
+    do: Journals.import_entries(resident_id, entries, actor)
+  )
+
   @doc "Files in the repository under a kind's folder that no document registers."
   @spec unadopted(String.t()) :: [String.t()]
   defexport(unadopted(resident_id), do: Documents.unadopted(resident_id))

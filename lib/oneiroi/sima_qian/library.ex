@@ -12,6 +12,13 @@ defmodule Oneiroi.SimaQian.Library do
               {:ok, %{adopted: [String.t()], skipped: [String.t()], indexed: boolean()}}
               | {:error, term()}
 
+  @doc "Adds journal entries (`%{day, kind, text}`) an import carried from another platform's notes, rendering each day once (sima-qian #19)."
+  @callback import_journal(
+              resident_id :: String.t(),
+              entries :: [map()],
+              actor :: Oneiroi.Actor.t()
+            ) :: {:ok, non_neg_integer()} | {:error, term()}
+
   @doc "The kinds' folders: what an import counts as transferred."
   @callback folders() :: [String.t()]
 end

@@ -12,6 +12,7 @@ defmodule Oneiroi.Seshat.Journals do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Config
   alias Oneiroi.Scope
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Error
@@ -45,6 +46,47 @@ defmodule Oneiroi.Seshat.Journals do
          :ok <- render_day(resident_id, day, actor) do
       {:ok, %{day: day, number: event.number, kind: kind}}
     end
+  end
+
+  @doc """
+  Adds entries an import carried from another platform's notes (seshat
+  #26): each `%{day, kind, text}` in order, held to its shape and not
+  the length limit, then each day's file rendered once, so a day of two
+  hundred notes is one write and one index rather than two hundred.
+  Returns how many were added.
+  """
+  def import_entries(resident_id, entries, %Actor{} = actor) when is_list(entries) do
+    days = entries |> Enum.map(& &1.day) |> Enum.uniq()
+
+    with :ok <- each(days, &open_day(resident_id, &1, actor)),
+         :ok <- each(entries, &import_entry(resident_id, &1, actor)),
+         :ok <- each(days, &render_day(resident_id, &1, actor)) do
+      {:ok, length(entries)}
+    end
+  end
+
+  defp import_entry(resident_id, entry, actor) do
+    command = %Commands.AddJournalEntry{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: entry.day,
+      kind: entry.kind,
+      text: entry.text,
+      register: nil,
+      imported: true
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  defp each(items, fun) do
+    Enum.reduce_while(items, :ok, fn item, :ok ->
+      case fun.(item) do
+        :ok -> {:cont, :ok}
+        other -> {:halt, other}
+      end
+    end)
   end
 
   @doc "The entries written since an instant, oldest first."
@@ -145,7 +187,9 @@ defmodule Oneiroi.Seshat.Journals do
 
   @doc "The day's narrative, rendered from its rows: a heading per kind in the journal's order, todos with their state."
   @spec render(String.t(), [map()]) :: String.t()
-  def render(day, entries) do
+  def render(day, entries), do: render_titled(day, entries, "")
+
+  defp render_titled(day, entries, tail) do
     sections =
       Journal.kinds()
       |> Enum.map(fn kind -> {kind, Enum.filter(entries, &(&1.kind == kind))} end)
@@ -154,15 +198,23 @@ defmodule Oneiroi.Seshat.Journals do
         "## " <> @headings[kind] <> "\n\n" <> Enum.map_join(rows, "\n", &line/1)
       end)
 
-    "# " <> day <> "\n\n" <> sections <> "\n"
+    "# " <> day <> "\n\n" <> sections <> "\n" <> tail
   end
 
   defp line(%{kind: "todo"} = e) do
     box = if e.done_at, do: "[x]", else: "[ ]"
-    "- #{box} (#{e.number}) #{e.text}"
+    "- #{box} (#{e.number}) #{indented(e.text)}"
   end
 
-  defp line(e), do: "- (#{e.number}) #{e.text}"
+  defp line(e), do: "- (#{e.number}) #{indented(e.text)}"
+
+  # An entry of several lines stays one item of the list: an imported
+  # note is often paragraphs (seshat #26), and an unindented second
+  # line would end the list in any Markdown reader.
+  defp indented(text) do
+    [first | rest] = String.split(text, "\n")
+    Enum.join([first | Enum.map(rest, &if(&1 == "", do: "", else: "  " <> &1))], "\n")
+  end
 
   # The file follows the rows: written through the library's core write
   # (the journal kind is the platform's, seshat #13), registered and
@@ -170,12 +222,68 @@ defmodule Oneiroi.Seshat.Journals do
   defp render_day(resident_id, day, actor) do
     entries = Scope.resident(resident_id, fn -> Store.journal_entries(day) end)
 
-    case Documents.write(resident_id, "journal/#{day}.md", render(day, entries), actor,
-           core: true
-         ) do
-      {:ok, _} -> :ok
-      other -> other
+    day
+    |> files(entries, Config.fetch!(:seshat, :document_bytes))
+    |> each(fn {path, content} ->
+      case Documents.write(resident_id, path, content, actor, core: true) do
+        {:ok, _} -> :ok
+        other -> other
+      end
+    end)
+  end
+
+  # A day is one file while it fits the library's bound. One that does
+  # not is split into parts, `journal/<day>.md` then `<day>-2.md` and
+  # on, each saying where the day goes on (seshat #26): Lily's import
+  # put 196 of David's notes on one day, 344 KB against a 256 KB bound,
+  # and the whole import failed on that one write. A live day, at two
+  # thousand characters an entry, has never come near it.
+  defp files(day, entries, bound) do
+    whole = render(day, entries)
+
+    if byte_size(whole) <= bound do
+      [{"journal/#{day}.md", whole}]
+    else
+      parts = split(entries, bound)
+      count = length(parts)
+
+      parts
+      |> Enum.with_index(1)
+      |> Enum.map(fn {part, n} ->
+        {part_path(day, n), render_titled(day, part, tail(day, n, count))}
+      end)
     end
+  end
+
+  defp tail(_day, count, count), do: ""
+  defp tail(day, n, _count), do: "\nThe day goes on in `#{part_path(day, n + 1)}`.\n"
+
+  defp part_path(day, 1), do: "journal/#{day}.md"
+  defp part_path(day, n), do: "journal/#{day}-#{n}.md"
+
+  # Greedy, in the day's order, under the bound less room for the
+  # headings and the line that says where the day goes on. An entry
+  # larger than that alone is a part of its own, which the write then
+  # refuses by name.
+  @part_room 1_024
+  defp split(entries, bound) do
+    budget = bound - @part_room
+
+    entries
+    |> Enum.chunk_while(
+      {[], 0},
+      fn e, {acc, size} ->
+        bytes = byte_size(line(e)) + 1
+
+        if acc != [] and size + bytes > budget,
+          do: {:cont, Enum.reverse(acc), {[e], bytes}},
+          else: {:cont, {[e | acc], size + bytes}}
+      end,
+      fn
+        {[], _size} -> {:cont, {[], 0}}
+        {acc, _size} -> {:cont, Enum.reverse(acc), {[], 0}}
+      end
+    )
   end
 
   defp today(resident_id), do: Sunna.today(resident_id).day

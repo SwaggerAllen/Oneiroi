@@ -46,7 +46,10 @@ defmodule Oneiroi.Glitnir.Projectors.Reports do
   end)
 
   fold(%Events.ReportResolved{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :resolved, from(r in Report, where: r.number == ^e.number),
+    Multi.update_all(
+      multi,
+      :resolved,
+      from(r in Report, where: r.resident_id == ^e.id and r.number == ^e.number),
       set: [
         state: "resolved",
         outcome: e.outcome,

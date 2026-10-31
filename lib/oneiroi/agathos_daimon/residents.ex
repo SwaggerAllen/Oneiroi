@@ -13,16 +13,16 @@ defmodule Oneiroi.AgathosDaimon.Residents do
 
   @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/
 
-  def create(name, slug, witness_account_id, %Actor{} = actor) do
+  def create(name, slug, witness_account_id, %Actor{} = actor, kind \\ "resident") do
     cond do
       not is_binary(name) or String.trim(name) == "" -> {:error, :name_required}
       not (is_binary(slug) and Regex.match?(@slug, slug)) -> {:error, :slug_invalid}
       Scope.platform(fn -> Store.slug_taken?(slug) end) -> {:error, :agathos_daimon_slug_taken}
-      true -> dispatch_create(name, slug, witness_account_id, actor)
+      true -> dispatch_create(name, slug, witness_account_id, actor, kind)
     end
   end
 
-  defp dispatch_create(name, slug, witness_account_id, actor) do
+  defp dispatch_create(name, slug, witness_account_id, actor, kind) do
     id = Ecto.UUID.generate()
 
     command = %Commands.CreateResident{
@@ -31,7 +31,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       id: id,
       name: String.trim(name),
       slug: slug,
-      witness_account_id: witness_account_id
+      witness_account_id: witness_account_id,
+      kind: kind
     }
 
     with {:ok, _events} <- Router.dispatch(command), do: {:ok, id}
@@ -201,8 +202,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch(command), do: :ok
   end
 
-  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`."
-  def complete_import(id, seeded, adopted, not_transferred, %Actor{} = actor)
+  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon #30)."
+  def complete_import(id, seeded, adopted, not_transferred, translated, %Actor{} = actor)
       when is_list(seeded) and is_integer(adopted) and is_list(not_transferred) do
     command = %Commands.CompleteImport{
       actor: actor,
@@ -210,7 +211,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       id: id,
       seeded: seeded,
       adopted: adopted,
-      not_transferred: not_transferred
+      not_transferred: not_transferred,
+      translated: translated
     }
 
     case Router.dispatch(command) do

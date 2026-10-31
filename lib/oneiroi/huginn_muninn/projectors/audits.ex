@@ -39,14 +39,19 @@ defmodule Oneiroi.HuginnMuninn.Projectors.Audits do
       on_conflict: :nothing,
       conflict_target: [:resident_id, :key, :sequence]
     )
-    |> Multi.update_all(:value, from(c in Counter, where: c.key == ^e.key),
+    |> Multi.update_all(
+      :value,
+      from(c in Counter, where: c.resident_id == ^e.id and c.key == ^e.key),
       inc: [value: e.by, increments: 1],
       set: [last_at: e.at, last_by_kind: actor_kind(e.actor)]
     )
   end)
 
   fold(%Events.CounterRetired{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :retired, from(c in Counter, where: c.key == ^e.key),
+    Multi.update_all(
+      multi,
+      :retired,
+      from(c in Counter, where: c.resident_id == ^e.id and c.key == ^e.key),
       set: [retired_at: e.at]
     )
   end)
@@ -71,7 +76,10 @@ defmodule Oneiroi.HuginnMuninn.Projectors.Audits do
   end)
 
   fold(%Events.UserAuditRetired{} = e, _metadata, fn multi ->
-    Multi.update_all(multi, :retired, from(a in Audit, where: a.key == ^e.key),
+    Multi.update_all(
+      multi,
+      :retired,
+      from(a in Audit, where: a.resident_id == ^e.id and a.key == ^e.key),
       set: [retired_at: e.at]
     )
   end)

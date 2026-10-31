@@ -284,6 +284,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.open_session(resident_id, kind, adapter, participants, actor, opts)
   )
 
+  @doc "Opens a session an import carried from another platform (kumbukumbu #37); returns its key."
+  @spec open_imported(String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(open_imported(resident_id, adapter, participants, actor),
+    do: Conversations.open_imported(resident_id, adapter, participants, actor)
+  )
+
   @doc "The main session between a resident and a witness, opened on first ask."
   @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}

@@ -921,7 +921,7 @@ defmodule Oneiroi.Brain.Tools do
     %{open: open, resolved: resolved} = Eunomia.predictions(turn.resident_id)
 
     lines =
-      Enum.map(open, &"##{&1.number} (due #{DateTime.to_iso8601(&1.due)}) #{&1.statement}") ++
+      Enum.map(open, &"##{&1.number} (#{due_text(&1.due)}) #{&1.statement}") ++
         Enum.map(resolved, &"##{&1.number} #{&1.outcome}: #{&1.statement}")
 
     if lines == [], do: "No predictions yet.", else: Enum.join(lines, "\n")
@@ -1243,4 +1243,8 @@ defmodule Oneiroi.Brain.Tools do
   defp revision_line(r) do
     "Revision #{r.number} (#{r.kind}, #{r.state}, by the #{r.by_kind}) on #{r.target_kind}/#{r.target_id}: #{r.text} (#{r.note})"
   end
+
+  # An imported prediction may have had no date (eunomia #29).
+  defp due_text(nil), do: "no due date"
+  defp due_text(%DateTime{} = due), do: "due " <> DateTime.to_iso8601(due)
 end

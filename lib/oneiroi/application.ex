@@ -21,6 +21,7 @@ defmodule Oneiroi.Application do
       Oneiroi.Gaia,
       Oneiroi.SimaQian,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Brain,
       Oneiroi.HuginnMuninn,
       OneiroiWeb
     ]

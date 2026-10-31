@@ -98,3 +98,10 @@ would miss the notes. Not rendered into the day because the file is
 the resident's narrative (#22) and a register in it would read as a
 label the day was given.
 
+## #26
+Lily's 22 October held 196 of David's notes, 344 KB against the 256 KB
+bound, and the rehearsal's import failed on that one write. Raising the
+bound for everyone to fit one imported day would have been a guess; a
+part per bound is the measured case. Rendering a day once rather than
+per entry keeps an import of three hundred notes from being three hundred
+writes and index runs of the same file.

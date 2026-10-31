@@ -29,9 +29,10 @@ defmodule Oneiroi.Nisaba.Store do
   defmodule Usage do
     @moduledoc "One model call: what it was for, on which model, by whom, and what it cost."
     use Ecto.Schema
-    @primary_key {:ref, :binary_id, autogenerate: false}
+    @primary_key false
     schema "nisaba_usage" do
-      field(:resident_id, :binary_id)
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :binary_id, primary_key: true)
       field(:purpose, :string)
       field(:model, :string)
       field(:actor_kind, :string)

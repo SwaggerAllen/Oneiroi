@@ -1461,7 +1461,10 @@ mined into her repo first and then left behind.
    workspace in the export, and maps `agent_id = 'lily'` to role `brain`.
 3. **Replay**: create the resident, point her repo, run the rebuild: the
    records files become the first events (a synthetic `Imported` event per
-   record kind, carrying the original ids), then the index runs.
+   record kind, carrying the original ids), then the index runs. (Not yet
+   built, round 39: the import names her `records/` as not transferred
+   and reads none of it; `mix oneiroi.import.dry_run` reports it file by
+   file.)
 4. **Lapse**: she wakes oriented, told what moved, on the new brain. Her
    OpenClaw-native state (session SQLite, memory-core index, dreams corpus)
    does not come; her notes, wiki pages, dream diary files and transcripts
@@ -1596,7 +1599,8 @@ Cheapest layer first; nothing below the live layer calls a paid model.
 Verify a guard by breaking it: every probe asserts it edited something, and
 a passing probe is a finding about coverage, not a formality.
 
-**Test residents** (v0.2, P40): the line is the seed and the memory, not
+**Test residents** (v0.2, P40; built: agathos-daimon #29, brain #36 and
+#37, eunomia #28): the line is the seed and the memory, not
 the clock. The mechanics (creation, boot, swap-in, migration, context
 assembly, the trial harness) run on thin-seed fixtures, a kind the loader
 treats as machinery (no person-first sections, no loves, no wants, no
