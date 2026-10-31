@@ -83,10 +83,13 @@ secret (`sync: false`).
    their own under the role `oneiroi_honcho`, which Oneiroi's migration
    creates. Deploy Oneiroi first so that migration has run: until it
    has, Honcho's connection names a role that does not exist and its
-   deploy fails. On syncing, Render asks for one value,
-   `LLM_OPENAI_API_KEY` on `honcho-api`: **your OpenRouter key**, the same
+   deploy fails. One value is yours to set by hand, in the dashboard:
+   `LLM_OPENAI_API_KEY` on `honcho-api`, **your OpenRouter key**, the same
    one stored on your account and in the `OPENROUTER_API_KEY` secret the
-   fixture run reads. The deriver copies it, and every Honcho feature
+   fixture run reads. Render prompts for a `sync: false` value only when a
+   Blueprint is first created, so a sync that adds one to an existing
+   Blueprint leaves it empty and asks nothing (the first Honcho deploy,
+   10-31). The deriver copies it, and every Honcho feature
    (embeddings, derivation, the dialectic, summaries, dreams) is routed
    to OpenRouter by the `honcho` environment group. Everything else is
    wired: Render generates `AUTH_JWT_SECRET`, the core mints the admin

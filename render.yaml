@@ -100,16 +100,28 @@ services:
     # role `oneiroi_honcho`, which owns the `honcho` schema and can read
     # nothing of Oneiroi's (the migration of 10-31 creates both). Rewritten
     # here rather than typed, so it cannot drift from the database's.
+    #
+    # Render hands everything after `-c` to the shell as the script,
+    # verbatim, as its own example writes it (`/bin/sh -c python manage.py
+    # migrate && gunicorn ...`), so the script is not quoted. The first
+    # deploy quoted it, and the shell read the quoted script as one
+    # command name: "not found", exit 127 (measured, 10-31).
     dockerCommand: >-
-      sh -c 'u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
+      /bin/sh -c u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
       export DB_CONNECTION_URI="postgresql+psycopg://$u${j}options=-c%20role%3Doneiroi_honcho";
-      exec sh docker/entrypoint.sh'
+      exec sh docker/entrypoint.sh
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: oneiroi-db
           property: connectionString
       - fromGroup: honcho
+      # Honcho's server listens on 8000 (its entrypoint names no port).
+      # Render read this service's address as port 10000, its default,
+      # on the first deploy, so the port Render expects is set to the one
+      # Honcho opens, and the address the core is handed names it.
+      - key: PORT
+        value: "8000"
       - key: AUTH_USE_AUTH
         value: "true"
       # Generated once by Render, per environment, so a preview's Honcho
@@ -136,10 +148,11 @@ services:
     autoDeployTrigger: "off"
     region: oregon
     plan: 0.5c-512mb
+    # Unquoted after `-c`, for the reason on honcho-api's.
     dockerCommand: >-
-      sh -c 'u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
+      /bin/sh -c u="${DATABASE_URL#*://}"; case "$u" in *\?*) j="&";; *) j="?";; esac;
       export DB_CONNECTION_URI="postgresql+psycopg://$u${j}options=-c%20role%3Doneiroi_honcho";
-      exec /app/.venv/bin/python -m src.deriver'
+      exec /app/.venv/bin/python -m src.deriver
     envVars:
       - key: DATABASE_URL
         fromDatabase:
