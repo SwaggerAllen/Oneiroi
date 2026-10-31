@@ -144,3 +144,11 @@ a page under `wiki/lily/` was her fallback. Noon UTC because the file
 dates a day, not an instant, and an instant at midnight UTC reads as the
 day before in every zone west of it.
 
+## #23
+Found before Lily's import, with production holding no resident: the
+blueprint gave the service no disk, so the clone her import makes would
+have lived on the container's filesystem, and the next merge, which
+deploys, would have replaced it while the database rows pointing at her
+files survived. The first backup is nightly, so a merge the same evening
+would have lost the repository outright.
+

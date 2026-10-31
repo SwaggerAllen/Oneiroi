@@ -107,6 +107,23 @@ defmodule Oneiroi.Seshat do
        tag: :bound,
        usage:
          "how many characters a chunk of a file holds before the next one starts, split on paragraphs; a guess at what a search wants back, not measured"},
+      # One request held every chunk of a library until Lily's import was
+      # sized: about 549,000 tokens in one call, where OpenAI documents an
+      # embeddings request at most 2,048 inputs and 300,000 tokens. Both
+      # bounds are guesses set well under those documented limits, not
+      # measured against OpenRouter.
+      {:embed_batch_inputs, "SESHAT_EMBED_BATCH_INPUTS",
+       cast: :integer,
+       default: "256",
+       tag: :bound,
+       usage:
+         "the most chunks one embedding request carries; an index run sends as many requests as its chunks need, under OpenAI's documented 2,048 inputs; a bound, not measured"},
+      {:embed_batch_chars, "SESHAT_EMBED_BATCH_CHARS",
+       cast: :integer,
+       default: "400000",
+       tag: :bound,
+       usage:
+         "the most characters one embedding request carries, about 100,000 tokens at four bytes a token, under OpenAI's documented 300,000 tokens a request; a bound, not measured"},
       {:document_bytes, "SESHAT_DOCUMENT_BYTES",
        cast: :integer,
        default: "262144",

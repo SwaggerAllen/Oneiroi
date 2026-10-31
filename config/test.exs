@@ -45,6 +45,9 @@ config :oneiroi,
           "PROTEUS_CLIENT" => "fake",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test",
+          # Two chunks a request, so any index of three chunks or more is
+          # batched and the order of the batches' vectors is tested.
+          "SESHAT_EMBED_BATCH_INPUTS" => "2",
           # Two days of citations is enough to see the fork refuse and then allow.
           "ETHOS_PROMOTION_CONFIRMATIONS" => "2",
           # The suite imports from local bare repositories as file URLs;

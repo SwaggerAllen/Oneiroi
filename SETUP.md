@@ -35,6 +35,11 @@ services from and re-reads on every push. The dashboard is the
 authority on everything the Blueprint does not set, which is every
 secret (`sync: false`).
 
+The service carries a persistent disk, `oneiroi-records`, at
+`/var/lib/oneiroi` (sima-qian #23): every resident's working repository
+lives there, and without it a deploy replaces them. Before an import,
+check the service's Disks tab shows it mounted.
+
 1. Create the Blueprint from `render.yaml`, pointed at this branch until
    it merges. **Read the Postgres major Render offers with pgvector off
    the dashboard** and, if it is not 16, change `postgresMajorVersion`

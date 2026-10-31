@@ -79,6 +79,52 @@ defmodule Oneiroi.Seshat.IndexTest do
     assert [%{outcome: "ok", by_kind: "witness"} | _] = Seshat.index_runs(id, 10)
   end
 
+  # Lily's library is about 549,000 tokens in about a thousand chunks;
+  # one request carried them all until the import was sized.
+  test "a library larger than a request is embedded in batches, each metered, its vectors in order",
+       ctx do
+    id = ctx.id
+    since = ~U[2026-01-01 00:00:00Z]
+
+    words = ~w(rye spelt barley oats millet)
+
+    # On disk first and adopted at once, as an import lands a library.
+    File.mkdir_p!(Path.join(ctx.dir, "writing"))
+
+    for w <- words,
+        do: File.write!(Path.join(ctx.dir, "writing/#{w}.md"), "# #{w}\n\nAll about #{w}.")
+
+    before = calls(id, since)
+    assert {:ok, %{adopted: [_, _, _, _, _], indexed: true}} = Seshat.adopt_all(id, ctx.actor)
+
+    # Five chunks, two a request in the suite's settings: three requests.
+    assert calls(id, since) - before == 3
+
+    for w <- words do
+      assert {:ok, [%{path: path} | _]} = Seshat.search(id, "all about #{w}", ctx.brain)
+      assert path == "writing/#{w}.md"
+    end
+  end
+
+  test "batches hold at most so many texts and so many characters, a long text alone" do
+    alias Oneiroi.Seshat.Index
+    assert Index.batches([], 2, 10) == []
+    assert Index.batches(~w(a b c d e), 2, 100) == [~w(a b), ~w(c d), ~w(e)]
+    assert Index.batches(["aaaa", "bbbb", "cc"], 10, 8) == [["aaaa", "bbbb"], ["cc"]]
+    long = String.duplicate("x", 20)
+    assert Index.batches(["a", long, "b"], 10, 8) == [["a"], [long], ["b"]]
+  end
+
+  defp calls(id, since) do
+    case Enum.find(
+           Nisaba.spend(id, :witness, :purpose, since),
+           &(&1.key in [:embeddings, "embeddings"])
+         ) do
+      nil -> 0
+      row -> row.calls
+    end
+  end
+
   test "a provider that fails writes nothing but the failed run; the next run tries again", ctx do
     id = ctx.id
     assert {:ok, _} = Seshat.write(id, "writing/one.md", "# One\n\nWords.", ctx.brain)
