@@ -169,3 +169,16 @@ so far and, by elimination, the next. The channel mirrors
 `SessionChannel`'s join check because the HTTP routes' `witnessed`
 plug is the same rule; grading stays on those routes so there is one
 write path.
+
+### #30, a run whose node stops
+On Render a deploy restarts the node, so a run in progress across a
+deploy is the ordinary case, not a rare crash. Lifeline alone would
+leave it running (the run row is not the job row) and a sweep alone
+would see the orphan `executing` forever; together the job is discarded
+and the run fails. The sweep reads the job's state rather than an age
+on the run because a long run is legitimate and an age would fail one
+still answering. The cadence is a setting but the crontab a
+declaration read before settings load, so the cron ticks every minute
+and the worker acts on the minutes the setting divides. The audit and
+wash passes were already one crash away from judging residents twice;
+Lifeline added a second way to retry them, and one attempt closes both.

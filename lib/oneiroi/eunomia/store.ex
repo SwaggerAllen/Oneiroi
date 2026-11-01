@@ -304,6 +304,17 @@ defmodule Oneiroi.Eunomia.Store do
   @spec runs() :: [Run.t()]
   def runs, do: Repo.all(from(r in Run, order_by: [desc: r.started_at]))
 
+  @doc "Every run still running, oldest first: read under the platform scope by the sweep (eunomia #30)."
+  @spec running_runs() :: [Run.t()]
+  def running_runs,
+    do:
+      Repo.all(
+        from(r in Run,
+          where: is_nil(r.finished_at) and is_nil(r.failed_at),
+          order_by: [asc: r.started_at]
+        )
+      )
+
   @spec run(String.t()) :: Run.t() | nil
   def run(ref), do: Repo.one(from(r in Run, where: r.ref == ^ref))
 

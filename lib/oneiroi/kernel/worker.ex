@@ -19,9 +19,18 @@ defmodule Oneiroi.Worker do
   defmacro __using__(opts) do
     queue = Keyword.fetch!(opts, :queue)
     unique = Keyword.get(opts, :unique, period: 60)
+    # Oban's own default unless a worker says otherwise. A worker that
+    # must not run twice says 1: Lifeline (`Oneiroi.Apsu.oban_config/0`)
+    # retries a job orphaned mid-run while it has attempts left, and
+    # discards it when it has none.
+    max_attempts = Keyword.get(opts, :max_attempts, 20)
 
     quote do
-      use Oban.Worker, queue: unquote(queue), unique: unquote(unique)
+      use Oban.Worker,
+        queue: unquote(queue),
+        unique: unquote(unique),
+        max_attempts: unquote(max_attempts)
+
       require Logger
 
       @impl Oban.Worker

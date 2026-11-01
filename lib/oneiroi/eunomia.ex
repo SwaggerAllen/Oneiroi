@@ -56,6 +56,7 @@ defmodule Oneiroi.Eunomia do
       JudgementRouter,
       NightWorker,
       RunWorker,
+      RunSweepWorker,
       MemoryAudit,
       AuditWorker,
       JudgementCommands.RunAudit,
@@ -189,6 +190,12 @@ defmodule Oneiroi.Eunomia do
        tag: :bound,
        usage:
          "how many entries of the identity files the weekly wash pass reads (spec §6.13, P18: judge-bounded at 150, the proposal's figure)"},
+      {:run_sweep_minutes, "EUNOMIA_RUN_SWEEP_MINUTES",
+       cast: :integer,
+       default: "5",
+       tag: :bound,
+       usage:
+         "how often, in minutes, the sweep fails a regression run still running whose job is gone, discarded, cancelled or completed (eunomia #30); a guess: an orphaned run waits mostly on APSU_LIFELINE_RESCUE_AFTER_MINUTES, and this adds at most its own length"},
       {:resumes_shown, "EUNOMIA_RESUMES_SHOWN",
        cast: :integer,
        default: "5",
@@ -209,8 +216,10 @@ defmodule Oneiroi.Eunomia do
          # The wash pass an hour after the memory audit (spec §6.13, P18).
          {"0 5 * * 0", Oneiroi.Eunomia.WashWorker}
        ]},
-      # A regression run answers here, off the witness's request (eunomia #30).
-      :eunomia_regression
+      # A regression run answers here, off the witness's request, and the
+      # sweep for runs whose job is gone ticks here every minute, acting
+      # every EUNOMIA_RUN_SWEEP_MINUTES (eunomia #30).
+      {:eunomia_regression, cron: [{"* * * * *", Oneiroi.Eunomia.RunSweepWorker}]}
     ]
   end
 
@@ -323,6 +332,9 @@ defmodule Oneiroi.Eunomia do
        remedy: "run the check again"},
       {:eunomia_run_crashed,
        "a regression run stopped on a fault before every card was answered, and was recorded as failed",
+       remedy: "start the run again; the cards it recorded are kept and can still be graded"},
+      {:eunomia_run_abandoned,
+       "a regression run was still running when its job had already ended or gone, as when the node stops mid-run, so the sweep recorded it failed",
        remedy: "start the run again; the cards it recorded are kept and can still be graded"},
       {:eunomia_dispatch_failed,
        "a judgement or regression command was not recorded on its stream",
