@@ -58,7 +58,8 @@ describe('Chat', () => {
 
   it('opens the drew-on inspector over the injections', () => {
     render(<DrewOnOpen />);
-    expect(screen.getByText(/the bookmark index under 1500 tokens/, { selector: 'li' })).toBeTruthy();
+    // The reason sits inside the section's fold, under its overview line.
+    expect(screen.getByText(/the bookmark index under 1500 tokens/, { selector: 'details p' })).toBeTruthy();
     expect(screen.getByText('drew on 4 things')).toBeTruthy();
   });
 
@@ -90,6 +91,31 @@ describe('Chat', () => {
     expect(items[0].querySelector('pre')).toBeNull();
     expect(items[1].querySelector('pre')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Close the preview' })).toBeTruthy();
+  });
+
+  it('opens on the overview with every section closed, one opens alone, and Open all and Close all go down and back', () => {
+    render(<PreviewWhole />);
+    const list = screen.getByRole('list', { name: 'What the next turn is given' });
+    const folds = () => Array.from(list.querySelectorAll('details')) as HTMLDetailsElement[];
+    expect(folds()).toHaveLength(5);
+    expect(folds().every((d) => !d.open)).toBe(true);
+    // The overview line is the label and the size, nothing more.
+    expect(folds()[1].querySelector('summary')?.textContent).toMatch(/^index · about \d+ tokens$/);
+    fireEvent.click(folds()[1].querySelector('summary') as HTMLElement);
+    fireEvent(folds()[1], new Event('toggle'));
+    expect(folds().map((d) => d.open)).toEqual([false, true, false, false, false]);
+    fireEvent.click(screen.getByRole('button', { name: 'Open all' }));
+    expect(folds().every((d) => d.open)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Close all' }));
+    expect(folds().every((d) => !d.open)).toBe(true);
+  });
+
+  it('the reply inspector opens on the overview too', () => {
+    render(<DrewOnOpen />);
+    const list = screen.getByRole('list', { name: 'What this reply drew on' });
+    const folds = Array.from(list.querySelectorAll('details')) as HTMLDetailsElement[];
+    expect(folds.length).toBeGreaterThan(0);
+    expect(folds.every((d) => !d.open)).toBe(true);
   });
 
   it('asks for the preview with the draft as it stands', () => {
