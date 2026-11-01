@@ -53,10 +53,17 @@ defmodule OneiroiWeb.HonchoController do
 
   def audit_card(conn, %{"id" => id}) do
     case Proteus.audit_card(id, actor(conn)) do
-      {:ok, outcome} -> json(conn, outcome)
-      {:error, %{kind: kind} = e} when kind == :proteus_not_provisioned -> error(conn, 404, e)
-      {:error, %{kind: _} = e} -> error(conn, 502, e)
-      {:error, reason} -> problem(conn, 422, :refused, inspect(reason))
+      {:ok, outcome} ->
+        json(conn, outcome)
+
+      {:error, %{kind: kind} = e} when kind == :proteus_not_provisioned ->
+        error(conn, 404, e)
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 502, e)
+
+      {:error, reason} ->
+        problem(conn, 422, :refused, :web_honcho_audit_card_refused, inspect(reason))
     end
   end
 

@@ -106,6 +106,10 @@ defmodule OneiroiWeb.ReportController do
        do: error(conn, 403, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
-  defp respond(conn, _other), do: problem(conn, 422, :refused, "not understood")
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_report_respond_refused_1, inspect(reason))
+
+  defp respond(conn, _other),
+    do: problem(conn, 422, :refused, :web_report_respond_refused_2, "not understood")
 end

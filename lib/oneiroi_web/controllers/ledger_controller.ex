@@ -70,17 +70,36 @@ defmodule OneiroiWeb.LedgerController do
     else
       false ->
         if witnesses?(conn, id),
-          do: problem(conn, 422, :cap_invalid, "cap is dollars as a decimal string, or null"),
+          do:
+            problem(
+              conn,
+              422,
+              :cap_invalid,
+              :web_ledger_set_budget_cap_invalid,
+              "cap is dollars as a decimal string, or null"
+            ),
           else: error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
 
       nil ->
-        problem(conn, 422, :period_invalid, "period is day, week or month")
+        problem(
+          conn,
+          422,
+          :period_invalid,
+          :web_ledger_set_budget_period_invalid,
+          "period is day, week or month"
+        )
 
       {:error, %Nisaba.Error{} = e} ->
         error(conn, 422, e)
 
       {:error, reason} ->
-        problem(conn, 422, :budget_not_set, inspect(reason))
+        problem(
+          conn,
+          422,
+          :budget_not_set,
+          :web_ledger_set_budget_budget_not_set,
+          inspect(reason)
+        )
     end
   end
 

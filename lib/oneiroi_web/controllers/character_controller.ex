@@ -43,7 +43,15 @@ defmodule OneiroiWeb.CharacterController do
     end
   end
 
-  def define_habit(conn, _params), do: problem(conn, 422, :name_required, "name is required")
+  def define_habit(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :name_required,
+        :web_character_define_habit_name_required,
+        "name is required"
+      )
 
   operation(:affirm_habit,
     summary: "Affirm a habit, with a note the resident reads",
@@ -57,7 +65,15 @@ defmodule OneiroiWeb.CharacterController do
   def affirm_habit(conn, %{"id" => id, "number" => number, "note" => note}),
     do: respond(conn, Ethos.affirm_habit(id, integer(number), note, actor(conn)))
 
-  def affirm_habit(conn, _params), do: problem(conn, 422, :note_required, "note is required")
+  def affirm_habit(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :note_required,
+        :web_character_affirm_habit_note_required,
+        "note is required"
+      )
 
   operation(:seeds,
     summary:
@@ -91,7 +107,14 @@ defmodule OneiroiWeb.CharacterController do
     do: respond(conn, Ethos.release_commitment(id, integer(number), note, actor(conn)))
 
   def release_commitment(conn, _params),
-    do: problem(conn, 422, :note_required, "note is required")
+    do:
+      problem(
+        conn,
+        422,
+        :note_required,
+        :web_character_release_commitment_note_required,
+        "note is required"
+      )
 
   operation(:baselines,
     summary:
@@ -169,7 +192,9 @@ defmodule OneiroiWeb.CharacterController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_character_respond_refused, inspect(reason))
 
   defp integer(value) when is_integer(value), do: value
 

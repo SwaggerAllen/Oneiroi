@@ -77,11 +77,19 @@ defmodule OneiroiWeb.FileController do
         error(conn, 422, e)
 
       {:error, reason} ->
-        problem(conn, 422, :not_written, inspect(reason))
+        problem(conn, 422, :not_written, :web_file_write_not_written, inspect(reason))
     end
   end
 
-  def write(conn, _params), do: problem(conn, 422, :content_required, "content is required")
+  def write(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :content_required,
+        :web_file_write_content_required,
+        "content is required"
+      )
 
   defp propose(conn, _id, _name, _content, nil),
     do:
@@ -89,14 +97,20 @@ defmodule OneiroiWeb.FileController do
         conn,
         422,
         :note_required,
+        :web_file_propose_note_required,
         "after first contact an edit is a proposal and needs a note"
       )
 
   defp propose(conn, id, name, content, note) do
     case AgathosDaimon.propose_edit(id, name, content, note, actor(conn)) do
-      {:ok, ref} -> conn |> put_status(202) |> json(%{ref: ref})
-      {:error, %{kind: _} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :not_proposed, inspect(reason))
+      {:ok, ref} ->
+        conn |> put_status(202) |> json(%{ref: ref})
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      {:error, reason} ->
+        problem(conn, 422, :not_proposed, :web_file_propose_not_proposed, inspect(reason))
     end
   end
 
@@ -114,13 +128,20 @@ defmodule OneiroiWeb.FileController do
 
   def draft(conn, %{"id" => id, "name" => name, "prompt" => prompt}) when is_binary(prompt) do
     case Oneiroi.Brain.draft(id, name, prompt, actor(conn)) do
-      {:ok, draft} -> json(conn, draft)
-      {:error, %{kind: _} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :not_drafted, inspect(reason))
+      {:ok, draft} ->
+        json(conn, draft)
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      {:error, reason} ->
+        problem(conn, 422, :not_drafted, :web_file_draft_not_drafted, inspect(reason))
     end
   end
 
-  def draft(conn, _params), do: problem(conn, 422, :prompt_required, "prompt is required")
+  def draft(conn, _params),
+    do:
+      problem(conn, 422, :prompt_required, :web_file_draft_prompt_required, "prompt is required")
 
   operation(:proposals,
     summary: "The open edit proposals awaiting the resident",

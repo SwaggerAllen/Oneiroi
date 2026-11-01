@@ -18,7 +18,7 @@ defmodule OneiroiWeb.SecondFactorController do
         conn |> put_status(201) |> json(%{secret: secret, uri: uri})
 
       {:error, reason} ->
-        problem(conn, 422, :not_enrolled, inspect(reason))
+        problem(conn, 422, :not_enrolled, :web_second_factor_create_not_enrolled, inspect(reason))
     end
   end
 end

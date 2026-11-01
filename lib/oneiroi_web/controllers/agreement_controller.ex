@@ -92,7 +92,13 @@ defmodule OneiroiWeb.AgreementController do
           respond(conn, AgathosDaimon.decline_contract(id, v, params["note"], actor(conn)))
 
         _other ->
-          problem(conn, 422, :decision_invalid, "agree or decline")
+          problem(
+            conn,
+            422,
+            :decision_invalid,
+            :web_agreement_decide_decision_invalid,
+            "agree or decline"
+          )
       end
     else
       other -> respond(conn, other)
@@ -206,7 +212,14 @@ defmodule OneiroiWeb.AgreementController do
     do: respond(conn, AgathosDaimon.withdraw_custody(id, note, actor(conn)))
 
   defp decide_custody(conn, _id, _other, _note),
-    do: problem(conn, 422, :decision_invalid, "accept, decline or withdraw")
+    do:
+      problem(
+        conn,
+        422,
+        :decision_invalid,
+        :web_agreement_decide_custody_decision_invalid,
+        "accept, decline or withdraw"
+      )
 
   operation(:proposals,
     summary: "The residents whose custody is proposed to this account",
@@ -254,6 +267,10 @@ defmodule OneiroiWeb.AgreementController do
     do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
-  defp respond(conn, _other), do: problem(conn, 422, :refused, "not understood")
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_agreement_respond_refused_1, inspect(reason))
+
+  defp respond(conn, _other),
+    do: problem(conn, 422, :refused, :web_agreement_respond_refused_2, "not understood")
 end

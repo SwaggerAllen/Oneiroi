@@ -97,15 +97,26 @@ defmodule OneiroiWeb.MemoryController do
         "note" => note
       }) do
     case Kumbukumbu.propose_bookmark(id, key, anchor, line, note, actor(conn)) do
-      {:ok, ref} -> conn |> put_status(201) |> json(%{ref: ref})
-      {:error, %{kind: _} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :not_proposed, inspect(reason))
+      {:ok, ref} ->
+        conn |> put_status(201) |> json(%{ref: ref})
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      {:error, reason} ->
+        problem(conn, 422, :not_proposed, :web_memory_propose_not_proposed, inspect(reason))
     end
   end
 
   def propose(conn, _params),
     do:
-      problem(conn, 422, :fields_required, "session_key, anchor_ref, line and note are required")
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_memory_propose_fields_required,
+        "session_key, anchor_ref, line and note are required"
+      )
 
   operation(:tags,
     summary: "The tag set: active, proposed and retired",
@@ -131,7 +142,9 @@ defmodule OneiroiWeb.MemoryController do
     end
   end
 
-  def create_tag(conn, _params), do: problem(conn, 422, :slug_required, "slug is required")
+  def create_tag(conn, _params),
+    do:
+      problem(conn, 422, :slug_required, :web_memory_create_tag_slug_required, "slug is required")
 
   operation(:decide_tag,
     summary: "Approve or reject a proposed tag, with a note the resident reads first",
@@ -161,7 +174,14 @@ defmodule OneiroiWeb.MemoryController do
   end
 
   def decide_tag(conn, _params),
-    do: problem(conn, 422, :fields_required, "decision (approve or reject) and note are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_memory_decide_tag_fields_required,
+        "decision (approve or reject) and note are required"
+      )
 
   operation(:retire_tag,
     summary: "Retire a tag; what carried it keeps it",
@@ -206,7 +226,14 @@ defmodule OneiroiWeb.MemoryController do
   end
 
   def apply_tag(conn, _params),
-    do: problem(conn, 422, :fields_required, "tag, target_kind and target_id are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_memory_apply_tag_fields_required,
+        "tag, target_kind and target_id are required"
+      )
 
   operation(:remove_tagging,
     summary: "Remove a tagging (tag, target_kind and target_id as query parameters)",
@@ -228,7 +255,14 @@ defmodule OneiroiWeb.MemoryController do
       do: respond(conn, Kumbukumbu.remove_tagging(id, tag, kind, target, actor(conn)))
 
   def remove_tagging(conn, _params),
-    do: problem(conn, 422, :fields_required, "tag, target_kind and target_id are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_memory_remove_tagging_fields_required,
+        "tag, target_kind and target_id are required"
+      )
 
   operation(:revisions,
     summary: "Every revision (F13): corrections by either party with their reason and state",
@@ -311,7 +345,9 @@ defmodule OneiroiWeb.MemoryController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_memory_respond_refused, inspect(reason))
 
   defp integer(n) when is_integer(n), do: n
 

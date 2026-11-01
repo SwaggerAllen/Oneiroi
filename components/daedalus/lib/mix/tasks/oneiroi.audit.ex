@@ -8,7 +8,8 @@ defmodule Mix.Tasks.Oneiroi.Audit do
       entries and the cross-registry facts, across the whole v5 §2.2
       roster.
     * **The platform's own bans**, at AST grade —
-      `Oneiroi.Audit.Checks.WallClock`, `.ProcessName`, `.SecretInLog`.
+      `Oneiroi.Audit.Checks.WallClock`, `.ProcessName`, `.SecretInLog`,
+      `.ErrorSite`.
       Every project inherits them by running this task at all; they need
       no declaration.
     * **Registered checks**, from every component's `policies/0`. A
@@ -103,7 +104,8 @@ defmodule Mix.Tasks.Oneiroi.Audit do
   @platform_checks [
     Oneiroi.Audit.Checks.WallClock,
     Oneiroi.Audit.Checks.ProcessName,
-    Oneiroi.Audit.Checks.SecretInLog
+    Oneiroi.Audit.Checks.SecretInLog,
+    Oneiroi.Audit.Checks.ErrorSite
   ]
 
   @scope "lib/**/*.ex"
@@ -168,6 +170,7 @@ defmodule Mix.Tasks.Oneiroi.Audit do
     Composer.validate!(components)
     []
   rescue
+    # oneiroi:allow error_site: a report line naming its own path and line, not an error
     e in Composer.CollisionError -> [Exception.message(e)]
   end
 
@@ -192,6 +195,7 @@ defmodule Mix.Tasks.Oneiroi.Audit do
       other -> ["#{inspect(module)}.run/1 returned #{inspect(other)}, expected a list"]
     end
   rescue
+    # oneiroi:allow error_site: a report line naming its own path and line, not an error
     error ->
       [
         "#{inspect(module)}.run/1 raised #{inspect(error.__struct__)}: #{Exception.message(error)}"

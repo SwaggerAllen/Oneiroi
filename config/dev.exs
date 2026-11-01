@@ -38,7 +38,7 @@ config :logger, :default_handler,
     {Oneiroi.Log.Redacting,
      Logger.Formatter.new(
        format: "[$level] $metadata$message\n",
-       metadata: [:component, :trace_id, :request_id]
+       metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]
      )}
 
 config :phoenix, :stacktrace_depth, 20

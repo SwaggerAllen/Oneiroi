@@ -65,7 +65,7 @@ defmodule Oneiroi.Component.API do
       def unquote(head) do
         unquote(__MODULE__).entering(@oneiroi_slug, fn ->
           :telemetry.span([:oneiroi, @oneiroi_slug, unquote(name)], %{}, fn ->
-            result = unquote(body)
+            result = unquote(__MODULE__).returned(@oneiroi_slug, unquote(name), unquote(body))
             {result, unquote(__MODULE__).span_metadata(result)}
           end)
         end)
@@ -104,11 +104,50 @@ defmodule Oneiroi.Component.API do
   reason inside an `{:error, term}` that is not a registered kind.
   """
   @spec span_metadata(term()) :: map()
-  def span_metadata({:error, %{kind: kind}}) when is_atom(kind) and not is_nil(kind) do
-    %{error_kind: kind}
+  def span_metadata({:error, %{kind: kind} = error}) when is_atom(kind) and not is_nil(kind) do
+    # A site is a closed set too: literal atoms the audit holds unique.
+    case Map.get(error, :site) do
+      site when is_atom(site) and not is_nil(site) -> %{error_kind: kind, error_site: site}
+      _none -> %{error_kind: kind}
+    end
   end
 
   def span_metadata(_result), do: %{}
+
+  @doc """
+  An export's result, after the boundary's one rule about errors: an
+  `{:error, reason}` leaving a component carries a sited component error
+  (`Oneiroi.Error`). Anything else (a bare atom, a library's struct, a
+  string) is a failure nobody wrapped, and the operator who meets it has
+  no line to go to.
+
+  Under `config :oneiroi_daedalus, unsited_errors: :raise` (the test
+  suite) that raises, naming the export and the reason's class, so a
+  path the suite exercises cannot ship one. Otherwise it is logged as a
+  warning and the result passes unchanged: turning a 422 into a crash in
+  production would be the wrong trade for a rule about diagnosis.
+
+  The static half is `mix oneiroi.audit`'s `error_site` check, which
+  sees construction and `rescue`; this sees what neither can, a
+  library's `{:error, reason}` passed straight through a `with`.
+  """
+  @spec returned(atom(), atom(), result) :: result when result: term()
+  def returned(slug, name, {:error, reason} = result) do
+    unless Oneiroi.Error.sited?(reason) do
+      message =
+        "#{slug}.#{name} returned an error with no site " <>
+          "(#{inspect(Oneiroi.Error.describe(reason))}): build it with new/3 or wrap it with caught/4"
+
+      case Application.get_env(:oneiroi_daedalus, :unsited_errors, :log) do
+        :raise -> raise ArgumentError, message
+        _log -> Logger.warning(message)
+      end
+    end
+
+    result
+  end
+
+  def returned(_slug, _name, result), do: result
 
   @doc false
   defmacro __before_compile__(_env) do

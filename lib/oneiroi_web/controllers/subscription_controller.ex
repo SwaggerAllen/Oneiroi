@@ -112,7 +112,15 @@ defmodule OneiroiWeb.SubscriptionController do
   def cancel(conn, %{"id" => id, "note" => note}),
     do: respond(conn, Nisaba.cancel_subscription(id, note, actor(conn)))
 
-  def cancel(conn, _params), do: problem(conn, 422, :note_required, "note is required")
+  def cancel(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :note_required,
+        :web_subscription_cancel_note_required,
+        "note is required"
+      )
 
   operation(:prepay,
     summary: "Prepay a larger bucket on an axis",
@@ -148,7 +156,9 @@ defmodule OneiroiWeb.SubscriptionController do
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
   defp respond(conn, {:error, %{kind: :nisaba_no_subscription} = e}), do: error(conn, 404, e)
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_subscription_respond_refused, inspect(reason))
 
   defp integer(n) when is_integer(n), do: n
 

@@ -54,7 +54,7 @@ config :oneiroi, OneiroiWeb.Endpoint,
 # was never told about. Prod swaps the formatter for JSON (config/prod.exs).
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:component, :trace_id, :request_id]
+  metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]
 
 # Every line the handler writes passes `Oneiroi.Log.Redacting`, the
 # credential backstop, around the real formatter. `Logger.Formatter` is
@@ -65,7 +65,7 @@ config :logger, :default_handler,
     {Oneiroi.Log.Redacting,
      Logger.Formatter.new(
        format: "$time $metadata[$level] $message\n",
-       metadata: [:component, :trace_id, :request_id]
+       metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]
      )}
 
 config :phoenix, :json_library, Jason

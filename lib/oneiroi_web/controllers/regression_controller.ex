@@ -44,7 +44,14 @@ defmodule OneiroiWeb.RegressionController do
   end
 
   def write_test(conn, _params),
-    do: problem(conn, 422, :fields_required, "prompt, passes_if and fails_if are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_regression_write_test_fields_required,
+        "prompt, passes_if and fails_if are required"
+      )
 
   operation(:change_test,
     summary: "Change a test's three texts",
@@ -72,7 +79,14 @@ defmodule OneiroiWeb.RegressionController do
   end
 
   def change_test(conn, _params),
-    do: problem(conn, 422, :fields_required, "prompt, passes_if and fails_if are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_regression_change_test_fields_required,
+        "prompt, passes_if and fails_if are required"
+      )
 
   operation(:runs,
     summary: "The runs, newest first",
@@ -121,7 +135,15 @@ defmodule OneiroiWeb.RegressionController do
     end
   end
 
-  def start_run(conn, _params), do: problem(conn, 422, :models_required, "models is required")
+  def start_run(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :models_required,
+        :web_regression_start_run_models_required,
+        "models is required"
+      )
 
   # "all", a list of numbers, or nothing.
   defp numbers_or_all("all"), do: :all
@@ -161,7 +183,15 @@ defmodule OneiroiWeb.RegressionController do
   def grade(conn, %{"id" => id, "ref" => ref, "card" => card, "grade" => grade}),
     do: respond(conn, Eunomia.grade(id, ref, card, grade, actor(conn)))
 
-  def grade(conn, _params), do: problem(conn, 422, :grade_required, "grade is required")
+  def grade(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :grade_required,
+        :web_regression_grade_grade_required,
+        "grade is required"
+      )
 
   operation(:favourite,
     summary: "Favourite a card",
@@ -204,7 +234,15 @@ defmodule OneiroiWeb.RegressionController do
     )
   end
 
-  def pin_model(conn, _params), do: problem(conn, 422, :model_required, "model is required")
+  def pin_model(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :model_required,
+        :web_regression_pin_model_model_required,
+        "model is required"
+      )
 
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
@@ -219,7 +257,9 @@ defmodule OneiroiWeb.RegressionController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_regression_respond_refused, inspect(reason))
 
   defp integer(n) when is_integer(n), do: n
 

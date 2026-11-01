@@ -59,7 +59,14 @@ defmodule OneiroiWeb.SessionController do
   end
 
   def create(conn, _params),
-    do: problem(conn, 422, :credentials_required, "email and password are required")
+    do:
+      problem(
+        conn,
+        422,
+        :credentials_required,
+        :web_session_create_credentials_required,
+        "email and password are required"
+      )
 
   operation(:delete, summary: "Log out: close the session", responses: [no_content: "closed"])
 

@@ -67,4 +67,9 @@ config :oneiroi, Oneiroi.Repo, pool: Ecto.Adapters.SQL.Sandbox
 config :oneiroi, Oban, testing: :manual
 
 config :logger, level: :warning
+
+# An `{:error, _}` leaving an export without a site raises under the
+# suite, so a path a test exercises cannot ship one
+# (`Oneiroi.Component.API.returned/3`); elsewhere it is a warning.
+config :oneiroi_daedalus, unsited_errors: :raise
 config :phoenix, :plug_init_mode, :runtime

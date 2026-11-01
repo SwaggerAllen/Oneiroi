@@ -240,5 +240,7 @@ defmodule OneiroiWeb.LibraryController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_library_respond_refused, inspect(reason))
 end

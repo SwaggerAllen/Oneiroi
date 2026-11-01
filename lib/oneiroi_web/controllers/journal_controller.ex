@@ -97,5 +97,7 @@ defmodule OneiroiWeb.JournalController do
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
   defp respond(conn, {:error, %{kind: :seshat_no_such_todo} = e}), do: error(conn, 404, e)
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
+
+  defp respond(conn, {:error, reason}),
+    do: problem(conn, 422, :refused, :web_journal_respond_refused, inspect(reason))
 end
