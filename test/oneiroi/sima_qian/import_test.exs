@@ -182,15 +182,22 @@ defmodule Oneiroi.SimaQian.ImportTest do
            ] =
              Seshat.documents(id) |> Enum.sort_by(& &1.path)
 
-    # The path the library cannot name stays on offer, and is named as not transferred.
-    assert Seshat.unadopted(id) == ["wiki/odd name/page.md"]
+    # The path the library cannot name is named as not transferred, and is
+    # gone from the records: they hold what the platform holds.
+    assert Seshat.unadopted(id) == []
     assert {:ok, [%{path: "wiki/bread.md"} | _]} = Seshat.search(id, "flour and water", ctx.actor)
 
-    # The clone is the working repository, history and all, with no remote left in it.
+    # The records hold what the platform holds, under a history of their
+    # own: the source's history and everything left behind are gone, and
+    # the source repository still has them (2026-11-01: Lily's first
+    # backup was refused for pushing her CI workflow, a file the import
+    # had named as left behind).
     dir = Backup.dir(id)
     assert File.regular?(Path.join(dir, "writing/essay.md"))
-    assert git!(dir, ["log", "--format=%s"]) == "Lily's repository"
-    assert git!(dir, ["remote"]) == ""
+    assert File.regular?(Path.join(dir, "wiki/bread.md"))
+    assert File.regular?(Path.join(dir, "SOUL.md"))
+    for name <- Map.keys(reasons), do: refute(File.exists?(Path.join(dir, name)), name)
+    refute Git.head?(dir)
 
     # The same repository again is refused: an import is never a fork.
     assert {:error, %Oneiroi.SimaQian.Error{kind: :sima_qian_already_imported}} =
@@ -225,11 +232,131 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert {:ok, %{messages: [%{role: :user}, %{role: :assistant}]}} =
              Oneiroi.Brain.turn(id, key, "still here", ctx.actor)
 
-    # The next backup commits on top of the source's history and strays on nothing.
+    # The first backup starts the history, class by class, and strays on nothing.
     Clock.Fake.advance(120)
     assert {:ok, %{commits: commits}} = SimaQian.backup(id, ctx.actor)
-    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "machine"]
-    assert git!(dir, ["log", "--format=%s"]) =~ "Lily's repository"
+    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "writing", "machine"]
+    log = git!(dir, ["log", "--format=%s"])
+    refute log =~ "Lily's repository"
+    assert log |> String.split("\n") |> Enum.all?(&String.starts_with?(&1, "Records: "))
+  end
+
+  test "a resident imported whole before the records started fresh is made fresh once, at its first backup",
+       ctx do
+    lily_repo!(ctx.bare)
+
+    assert {:ok, %{id: id, reasons: reasons}} =
+             SimaQian.import_resident(
+               "file://" <> ctx.bare,
+               %{name: "Lily", slug: "lily-whole"},
+               ctx.witness.id,
+               ctx.actor
+             )
+
+    on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
+
+    # Lily's shape on 2026-11-01: the source's commit and a file it had
+    # named as left behind, and on top of them the commit her first
+    # backup made before its push was refused, carrying our trailer.
+    dir = Backup.dir(id)
+    File.write!(Path.join(dir, "README.md"), "Lily's readme\n")
+    git!(dir, ["add", "-A"])
+    git!(dir, ["commit", "-q", "-m", "Lily's repository"])
+    File.write!(Path.join(dir, "writing/night.md"), "# Night\n")
+    git!(dir, ["add", "-A"])
+
+    git!(dir, [
+      "commit",
+      "-q",
+      "-m",
+      "Records: machine through sequence 3\n\nOneiroi-Sequence: 3\nOneiroi-Root: x"
+    ])
+
+    assert Map.has_key?(reasons, "README.md")
+    assert Map.has_key?(Git.head_trailers(dir), "Oneiroi-Sequence")
+
+    remote = tmp("fresh-remote")
+    :ok = Git.init_bare(remote)
+    on_exit(fn -> File.rm_rf!(remote) end)
+    :ok = SimaQian.set_remote(id, remote, nil, ctx.actor)
+    Clock.Fake.advance(120)
+
+    assert {:ok, %{commits: [_ | _]}} = SimaQian.backup(id, ctx.actor)
+    refute File.exists?(Path.join(dir, "README.md"))
+    pushed = git!(remote, ["log", "--format=%s", "main"])
+    refute pushed =~ "Lily's repository"
+
+    refute "README.md" in String.split(
+             git!(remote, ["ls-tree", "-r", "--name-only", "main"]),
+             "\n"
+           )
+
+    # Ours now: a later backup builds on it and resets nothing.
+    first = git!(remote, ["rev-list", "--max-parents=0", "main"])
+    File.write!(Path.join(dir, "writing/later.md"), "# Later\n")
+    # `posts/` is a library folder, so a published post is held, not stray.
+    File.mkdir_p!(Path.join(dir, "posts"))
+    File.write!(Path.join(dir, "posts/hello.md"), "# Hello\n")
+    Clock.Fake.advance(120)
+    assert {:ok, _} = SimaQian.backup(id, ctx.actor)
+    assert git!(remote, ["rev-list", "--max-parents=0", "main"]) == first
+  end
+
+  test "a first backup that committed and failed to push keeps its commits for the retry",
+       ctx do
+    lily_repo!(ctx.bare)
+
+    assert {:ok, %{id: id}} =
+             SimaQian.import_resident(
+               "file://" <> ctx.bare,
+               %{name: "Lily", slug: "lily-retry"},
+               ctx.witness.id,
+               ctx.actor
+             )
+
+    on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
+    dir = Backup.dir(id)
+
+    # Lily's first night: the commits land, the push is refused.
+    :ok = SimaQian.set_remote(id, "/nonexistent/oneiroi-remote.git", nil, ctx.actor)
+    Clock.Fake.advance(120)
+    assert {:error, %{kind: :sima_qian_git_failed}} = SimaQian.backup(id, ctx.actor)
+    root = git!(dir, ["rev-list", "--max-parents=0", "HEAD"])
+
+    # The retry pushes the history it made; its own is never started over.
+    remote = tmp("retry-remote")
+    :ok = Git.init_bare(remote)
+    on_exit(fn -> File.rm_rf!(remote) end)
+    :ok = SimaQian.set_remote(id, remote, nil, ctx.actor)
+    Clock.Fake.advance(120)
+    assert {:ok, _} = SimaQian.backup(id, ctx.actor)
+    assert git!(remote, ["rev-list", "--max-parents=0", "main"]) == root
+  end
+
+  test "a records directory without its own .git is never reset from a repository above it",
+       ctx do
+    lily_repo!(ctx.bare)
+
+    assert {:ok, %{id: id}} =
+             SimaQian.import_resident(
+               "file://" <> ctx.bare,
+               %{name: "Lily", slug: "lily-bare-dir"},
+               ctx.witness.id,
+               ctx.actor
+             )
+
+    on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
+
+    # The suite's records root sits inside this project's own repository,
+    # so git run here without a `.git` reads the project's head: a reset
+    # trusting it would empty the directory of anything outside the classes.
+    dir = Backup.dir(id)
+    File.rm_rf!(Path.join(dir, ".git"))
+    File.write!(Path.join(dir, "stray.txt"), "left by hand\n")
+    Clock.Fake.advance(120)
+
+    assert {:error, %{kind: :sima_qian_stray_files}} = SimaQian.backup(id, ctx.actor)
+    assert File.exists?(Path.join(dir, "stray.txt"))
   end
 
   test "a repository with records replays them, and a root file differing from them after first contact is proposed, not written",
