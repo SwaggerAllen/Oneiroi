@@ -5,5 +5,5 @@ defmodule Oneiroi.Eunomia.Router do
     prefix: "regression-",
     commands: "Oneiroi.Eunomia.Commands",
     dispatching:
-      ~w(WriteTest ChangeTest StartRun RecordAnswer FinishRun GradeAnswer FavouriteAnswer)
+      ~w(WriteTest ChangeTest StartRun RecordAnswer FinishRun FailRun GradeAnswer FavouriteAnswer)
 end

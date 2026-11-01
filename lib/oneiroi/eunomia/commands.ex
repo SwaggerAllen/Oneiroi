@@ -33,6 +33,10 @@ defmodule Oneiroi.Eunomia.Commands do
     use Oneiroi.Command, fields: [:id, :run_ref]
   end
 
+  defmodule FailRun do
+    use Oneiroi.Command, fields: [:id, :run_ref, :reason]
+  end
+
   defmodule GradeAnswer do
     use Oneiroi.Command, fields: [:id, :run_ref, :card_ref, :grade]
   end

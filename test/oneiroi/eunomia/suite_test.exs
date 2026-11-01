@@ -135,5 +135,26 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     finish = %Commands.FinishRun{actor: @witness, at: @at, id: "r1", run_ref: "run1"}
     assert %Events.RunFinished{cards: 2} = Suite.execute(s, finish)
     assert [] = Suite.execute(fold(s, [finish]), finish)
+
+    # A run ends once: failed or finished, never both, and an ended
+    # run's deck takes no further card.
+    fail = %Commands.FailRun{
+      actor: @witness,
+      at: @at,
+      id: "r1",
+      run_ref: "run1",
+      reason: "eunomia_run_raised"
+    }
+
+    assert %Events.RunFailed{cards: 2, reason: "eunomia_run_raised"} = Suite.execute(s, fail)
+    assert [] = Suite.execute(fold(s, [finish]), fail)
+    failed = fold(s, [fail])
+    assert [] = Suite.execute(failed, finish)
+    assert [] = Suite.execute(failed, fail)
+    assert [] = Suite.execute(failed, record("c3", "m2"))
+    assert [] = Suite.execute(fold(s, [finish]), record("c3", "m2"))
+
+    assert {:error, %{kind: :eunomia_no_such_run, site: :eunomia_fail_run_absent}} =
+             Suite.execute(s, %{fail | run_ref: "nope"})
   end
 end

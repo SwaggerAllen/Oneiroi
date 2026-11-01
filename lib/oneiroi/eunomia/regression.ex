@@ -17,13 +17,17 @@ defmodule Oneiroi.Eunomia.Regression do
   here, inside the sealed session, and nothing of it reaches memory.
   """
 
+  require Logger
+
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia.Commands
   alias Oneiroi.Eunomia.Error
+  alias Oneiroi.Eunomia.Events
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Nisaba
@@ -67,13 +71,17 @@ defmodule Oneiroi.Eunomia.Regression do
   # ---- runs ----
 
   @doc """
-  Runs `models` against the trials, synchronously; returns the run's ref.
-  `selection` is `:all` (every test, no behaviours or commitments), a
-  list of test numbers, or `%{tests: :all | [n], behaviours: :all | [n],
-  commitments: :all | [n]}` (open commitments, P19).
+  Starts a run of `models` against the trials: records `StartRun` and
+  returns the ref, nothing answered. The export enqueues `RunWorker`
+  (eunomia #30), which answers through `answer_run/3`; enqueuing is not
+  done here because the worker calls this module, and xref counts the
+  two references as a cycle. `selection` is `:all` (every test,
+  no behaviours or commitments), a list of test numbers, or `%{tests:
+  :all | [n], behaviours: :all | [n], commitments: :all | [n]}` (open
+  commitments, P19).
   """
-  @spec run(String.t(), [String.t()], term(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
-  def run(resident_id, models, selection, %Actor{} = actor) when is_list(models) do
+  @spec start(String.t(), [String.t()], term(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  def start(resident_id, models, selection, %Actor{} = actor) when is_list(models) do
     models = models |> Enum.map(&to_string/1) |> Enum.uniq()
     {numbers, behaviours, commitments} = selected(resident_id, selection)
 
@@ -90,23 +98,134 @@ defmodule Oneiroi.Eunomia.Regression do
              behaviours: behaviours,
              commitments: commitments
            }) do
-      context = seed_context(resident_id)
-      trials = trials(resident_id, numbers, behaviours, commitments)
-
-      for model <- models, trial <- trials do
-        answer(resident_id, ref, model, trial, context, actor)
-      end
-
-      with {:ok, _} <-
-             dispatch(%Commands.FinishRun{
-               actor: actor,
-               at: Clock.now(),
-               id: resident_id,
-               run_ref: ref
-             }),
-           do: {:ok, ref}
+      {:ok, ref}
     end
   end
+
+  @doc """
+  Answers a started run (`RunWorker`): every model x trial not yet
+  recorded, each card broadcast as it is recorded, then the run's end.
+  Replay-safe: an ended run is left alone and a recorded card is not
+  asked for again. A fault anywhere ends the run recorded as failed,
+  with its site, and comes back as that error for the job to record.
+  """
+  @spec answer_run(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def answer_run(resident_id, ref, %Actor{} = actor) do
+    case answer_all(resident_id, ref, actor) do
+      :ok -> :ok
+      {:error, error} -> crashed(resident_id, ref, error, actor)
+    end
+  rescue
+    exception ->
+      crashed(
+        resident_id,
+        ref,
+        Error.caught(:eunomia_run_crashed, :eunomia_run_raised, exception),
+        actor
+      )
+  catch
+    kind, reason ->
+      crashed(
+        resident_id,
+        ref,
+        Error.caught(:eunomia_run_crashed, :eunomia_run_exited, {kind, reason}),
+        actor
+      )
+  end
+
+  defp crashed(resident_id, ref, error, actor) do
+    Logger.error("eunomia: a regression run stopped on a fault", Oneiroi.Error.metadata(error))
+    fail_run(resident_id, ref, error, actor)
+    {:error, error}
+  end
+
+  defp answer_all(resident_id, ref, actor) do
+    case started(resident_id, ref) do
+      :ended ->
+        :ok
+
+      {:ok, run, recorded} ->
+        context = seed_context(resident_id)
+        trials = trials(resident_id, run.tests, run.behaviours, run.commitments || [])
+
+        # Trial by trial, so a test's deck completes early and can be
+        # graded while the rest answer; the models in a fresh order for
+        # each trial, because cards arrive one at a time and an arrival
+        # order that followed the model list would name the model by
+        # position (eunomia #11).
+        for trial <- trials,
+            model <- shuffled(run.models),
+            not MapSet.member?(recorded, {model, trial_key(trial)}) do
+          answer(resident_id, ref, model, trial, context, actor)
+        end
+
+        finish_run(resident_id, ref, actor)
+    end
+  end
+
+  # The run as recorded and the model x trial pairs it already holds.
+  defp started(resident_id, ref) do
+    Scope.resident(resident_id, fn ->
+      case Store.run(ref) do
+        %{finished_at: nil, failed_at: nil} = run ->
+          recorded = ref |> Store.answers() |> MapSet.new(&{&1.model, trial_key(&1)})
+          {:ok, run, recorded}
+
+        _ended_or_absent ->
+          :ended
+      end
+    end)
+  end
+
+  defp finish_run(resident_id, ref, actor) do
+    command = %Commands.FinishRun{actor: actor, at: Clock.now(), id: resident_id, run_ref: ref}
+
+    with {:ok, events} <- dispatch(command) do
+      announce(resident_id, ref, events)
+      :ok
+    end
+  end
+
+  @doc "Ends a started run as failed with `error`'s site or class (never its message), and broadcasts the end; a no-op on an ended run."
+  @spec fail_run(String.t(), String.t(), term(), Actor.t()) :: :ok | {:error, term()}
+  def fail_run(resident_id, ref, error, actor) do
+    command = %Commands.FailRun{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      run_ref: ref,
+      reason: error |> Oneiroi.Error.describe() |> to_string()
+    }
+
+    with {:ok, events} <- dispatch(command), do: announce(resident_id, ref, events)
+  end
+
+  defp shuffled(models), do: Enum.sort_by(models, fn _ -> :crypto.strong_rand_bytes(8) end)
+
+  # What the run's channel pushes (eunomia #30): a card in the blind
+  # shape `run_detail/2` gives an unrevealed one, and the run's end.
+  # Nothing here is resident-reachable: the topic's one subscriber is
+  # the witness's channel.
+  defp announce(resident_id, ref, events) do
+    for event <- events, payload = announcement(event), payload != nil do
+      PubSub.broadcast(:eunomia, :regression, {resident_id, ref, payload})
+    end
+
+    :ok
+  end
+
+  defp announcement(%Events.AnswerRecorded{} = e),
+    do:
+      {:card,
+       e |> Map.from_struct() |> Map.merge(%{grade: nil, favourite: false}) |> blind(MapSet.new())}
+
+  defp announcement(%Events.RunFinished{cards: cards}),
+    do: {:finished, %{state: "finished", cards: cards}}
+
+  defp announcement(%Events.RunFailed{cards: cards}),
+    do: {:finished, %{state: "failed", cards: cards}}
+
+  defp announcement(_other), do: nil
 
   @doc "The sealed session's context (spec §6.4): the brain's prompt file with no formation line, and the identity files; nothing of memory, nothing naming the run."
   @spec seed_context(String.t()) :: [map()]
@@ -258,20 +377,23 @@ defmodule Oneiroi.Eunomia.Regression do
         {:error, other} -> {nil, false, other |> Oneiroi.Error.describe() |> inspect()}
       end
 
-    dispatch(%Commands.RecordAnswer{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      run_ref: ref,
-      card_ref: fresh_ref(),
-      model: model,
-      test_number: trial.test_number,
-      behaviour_number: trial.behaviour_number,
-      commitment_number: trial.commitment_number,
-      content: content,
-      refusal: refusal,
-      failure: failure
-    })
+    recorded =
+      dispatch(%Commands.RecordAnswer{
+        actor: actor,
+        at: Clock.now(),
+        id: resident_id,
+        run_ref: ref,
+        card_ref: fresh_ref(),
+        model: model,
+        test_number: trial.test_number,
+        behaviour_number: trial.behaviour_number,
+        commitment_number: trial.commitment_number,
+        content: content,
+        refusal: refusal,
+        failure: failure
+      })
+
+    with {:ok, events} <- recorded, do: announce(resident_id, ref, events)
   end
 
   def grade(resident_id, run_ref, card_ref, grade, %Actor{} = actor) do
@@ -318,7 +440,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
         run ->
           answers = Store.answers(run_ref)
-          revealed = revealed_tests(answers)
+          revealed = revealed_tests(run, answers)
           cards = Enum.map(answers, &blind(&1, revealed))
           {:ok, run, cards, results(answers, revealed)}
       end
@@ -326,10 +448,20 @@ defmodule Oneiroi.Eunomia.Regression do
   end
 
   # Model names show only once every card in a trial is graded (spec §6.4).
-  defp revealed_tests(answers) do
+  # Every card means every model's: while the run is still answering, a
+  # trial whose recorded cards are all graded may have more to come, and
+  # revealing it then would name the models of the cards so far and,
+  # by elimination, of the next (eunomia #30). Once the run has ended,
+  # what it recorded is all there will be.
+  defp revealed_tests(run, answers) do
+    ended? = run.finished_at != nil or run.failed_at != nil
+    expected = length(run.models)
+
     answers
     |> Enum.group_by(&trial_key/1)
-    |> Enum.filter(fn {_n, cards} -> Enum.all?(cards, &(&1.grade != nil)) end)
+    |> Enum.filter(fn {_n, cards} ->
+      (ended? or length(cards) >= expected) and Enum.all?(cards, &(&1.grade != nil))
+    end)
     |> Enum.map(&elem(&1, 0))
     |> MapSet.new()
   end

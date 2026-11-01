@@ -6,7 +6,8 @@ defmodule Oneiroi.Eunomia.Suite do
 
   It holds what its rules need: the tests by number, and each run's
   cards with their grade and favourite, so a grade lands once, a card
-  is one of the run's, and a run finishes when every card is recorded.
+  is one of the run's, and a run ends once: finished when every card is
+  recorded, or failed on a fault, after which its deck takes no card.
   """
 
   alias Oneiroi.Eunomia.Commands
@@ -100,6 +101,11 @@ defmodule Oneiroi.Eunomia.Suite do
       %{cards: cards} when is_map_key(cards, c.card_ref) ->
         []
 
+      # An ended run's deck is closed: a duplicate job still answering
+      # after the run failed adds nothing to what the witness grades.
+      %{finished: true} ->
+        []
+
       _run ->
         %Events.AnswerRecorded{
           actor: c.actor,
@@ -133,6 +139,28 @@ defmodule Oneiroi.Eunomia.Suite do
           id: c.id,
           run_ref: c.run_ref,
           cards: map_size(cards)
+        }
+    end
+  end
+
+  # A run ends once, finished or failed; failing an ended run is a no-op,
+  # so a fault after the last card cannot turn a finished run red.
+  def execute(%__MODULE__{runs: runs}, %Commands.FailRun{} = c) do
+    case Map.get(runs, c.run_ref) do
+      nil ->
+        {:error, Error.new(:eunomia_no_such_run, :eunomia_fail_run_absent, ref: c.run_ref)}
+
+      %{finished: true} ->
+        []
+
+      %{cards: cards} ->
+        %Events.RunFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          run_ref: c.run_ref,
+          cards: map_size(cards),
+          reason: c.reason
         }
     end
   end
@@ -196,6 +224,9 @@ defmodule Oneiroi.Eunomia.Suite do
   end
 
   def apply(%__MODULE__{} = s, %Events.RunFinished{} = e),
+    do: put_in(s.runs[e.run_ref].finished, true)
+
+  def apply(%__MODULE__{} = s, %Events.RunFailed{} = e),
     do: put_in(s.runs[e.run_ref].finished, true)
 
   def apply(%__MODULE__{} = s, %Events.AnswerGraded{} = e),

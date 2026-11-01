@@ -88,6 +88,15 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
     )
   end)
 
+  fold(%Events.RunFailed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :run,
+      from(r in Run, where: r.resident_id == ^e.id and r.ref == ^e.run_ref),
+      set: [failed_at: e.at, failure: e.reason, cards: e.cards]
+    )
+  end)
+
   fold(%Events.AnswerGraded{} = e, _metadata, fn multi ->
     Multi.update_all(
       multi,

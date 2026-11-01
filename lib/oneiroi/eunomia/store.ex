@@ -28,7 +28,7 @@ defmodule Oneiroi.Eunomia.Store do
   end
 
   defmodule Run do
-    @moduledoc "A run of models x tests, with its progress."
+    @moduledoc "A run of models x tests, with its progress: running until `finished_at` or `failed_at` is set."
     use Ecto.Schema
     @primary_key false
     schema "eunomia_regression_run" do
@@ -40,6 +40,8 @@ defmodule Oneiroi.Eunomia.Store do
       field(:commitments, {:array, :integer}, default: [])
       field(:started_at, :utc_datetime_usec)
       field(:finished_at, :utc_datetime_usec)
+      field(:failed_at, :utc_datetime_usec)
+      field(:failure, :string)
       field(:cards, :integer, default: 0)
     end
 

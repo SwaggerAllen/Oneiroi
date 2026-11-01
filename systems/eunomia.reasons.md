@@ -10,8 +10,8 @@ is one event on that stream, and the records export would carry it.
 ## #10
 Spec §6.4: "every candidate answers every test in a sealed session";
 "the brain is given the seed files and nothing of the run's purpose."
-Synchronous because a run is the witness's own wait at the Regression
-screen and the bounds keep it short; a queue is the next measurement.
+Synchronous at first, because a run is the witness's own wait at the
+Regression screen and the bounds keep it short. It is a job now (#30).
 
 ## #11
 Spec §6.4: "model names show only once every card in a test is graded."
@@ -152,3 +152,20 @@ test-awareness; start looking for the ask to stay." Per reply, as it
 lands, because an ask at turn 3 found after turn 12 means nine turns
 after asking: the law arriving late.
 
+## #30
+A synchronous run held one browser request open through as many as 256
+model calls (8 models x 32 tests), so a closed tab or a proxy timeout
+lost the witness's view of a run that went on spending. An Oban job
+rather than a task under a supervisor: the row outlives the request and
+the node, the queue bounds how many runs spend at once, and the trace
+rides the args (conventions §7, §10). One attempt, because a retry
+would answer again on the witness's key; a run that stops is failed
+and its cards kept. A fresh model order per trial because cards now
+arrive one at a time, and an arrival order that followed the model
+list would name the model by position (#11). The reveal waits for
+every model's card because a trial whose cards so far are all graded
+could otherwise be revealed with more to come, which names the models
+so far and, by elimination, the next. The channel mirrors
+`SessionChannel`'s join check because the HTTP routes' `witnessed`
+plug is the same rule; grading stays on those routes so there is one
+write path.
