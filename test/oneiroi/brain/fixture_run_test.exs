@@ -71,7 +71,9 @@ defmodule Oneiroi.Brain.FixtureRunTest do
     assert [%Events.ResidentCreated{} = created, %Events.FixtureDeclared{} = declared] =
              Resident.execute(%Resident{}, %{create | kind: "fixture"})
 
-    assert {:error, :kind_invalid} = Resident.execute(%Resident{}, %{create | kind: "person"})
+    assert {:error, %{kind: :agathos_daimon_kind_invalid}} =
+             Resident.execute(%Resident{}, %{create | kind: "person"})
+
     assert %Resident{kind: "resident"} = Resident.apply(%Resident{}, created)
 
     assert %Resident{kind: "fixture"} =

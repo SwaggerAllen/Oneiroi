@@ -60,17 +60,39 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
              )
 
     assert [] = Resident.execute(fold(created(), [write("SOUL.md", "x")]), write("SOUL.md", "x"))
-    assert {:error, :file_unknown} = Resident.execute(created(), write("AGENTS.md", "x"))
 
-    assert {:error, :origin_invalid} =
+    assert {:error,
+            %{
+              kind: :agathos_daimon_file_unknown,
+              site: :agathos_daimon_resident_write_file_unknown,
+              details: [file: "AGENTS.md", files: _]
+            }} = Resident.execute(created(), write("AGENTS.md", "x"))
+
+    assert {:error,
+            %{
+              kind: :agathos_daimon_origin_invalid,
+              site: :agathos_daimon_resident_write_file_origin_invalid
+            }} =
              Resident.execute(created(), write("SOUL.md", "x", origin: "found"))
 
-    assert {:error, :content_invalid} = Resident.execute(created(), write("SOUL.md", <<0xFF>>))
+    assert {:error,
+            %{
+              kind: :agathos_daimon_content_invalid,
+              site: :agathos_daimon_resident_write_file_content_invalid
+            }} = Resident.execute(created(), write("SOUL.md", <<0xFF>>))
 
-    assert {:error, :content_invalid} =
+    assert {:error,
+            %{
+              kind: :agathos_daimon_content_invalid,
+              site: :agathos_daimon_resident_write_file_content_invalid
+            }} =
              Resident.execute(created(), write("SOUL.md", String.duplicate("a", 64_001)))
 
-    assert {:error, :write_instead} =
+    assert {:error,
+            %{
+              kind: :agathos_daimon_write_instead,
+              site: :agathos_daimon_resident_propose_edit_write_instead
+            }} =
              Resident.execute(created(), %Commands.ProposeSoulEdit{
                actor: @witness,
                at: @at,
@@ -88,7 +110,12 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
 
     after_fc = fold(created(), [write("SOUL.md", "x"), first_contact()])
     assert [] = Resident.execute(after_fc, first_contact())
-    assert {:error, :propose_instead} = Resident.execute(after_fc, write("SOUL.md", "y"))
+
+    assert {:error,
+            %{
+              kind: :agathos_daimon_propose_instead,
+              site: :agathos_daimon_resident_write_file_propose_instead
+            }} = Resident.execute(after_fc, write("SOUL.md", "y"))
 
     assert [
              %Events.SoulEditApplied{ref: nil, file: "SOUL.md", content: "y"},
@@ -118,7 +145,12 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
            ] = Resident.execute(proposed, accept)
 
     assert %{files: %{"SOUL.md" => "z"}} = fold(proposed, [accept])
-    assert {:error, :no_such_proposal} = Resident.execute(fold(proposed, [accept]), accept)
+
+    assert {:error,
+            %{
+              kind: :agathos_daimon_no_such_proposal,
+              site: :agathos_daimon_resident_accept_edit_no_such_proposal
+            }} = Resident.execute(fold(proposed, [accept]), accept)
 
     decline = %Commands.DeclineSoulEdit{
       actor: @resident,
@@ -129,7 +161,12 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
     }
 
     assert %Events.SoulEditDeclined{} = Resident.execute(proposed, decline)
-    assert {:error, :no_such_proposal} = Resident.execute(fold(proposed, [decline]), accept)
+
+    assert {:error,
+            %{
+              kind: :agathos_daimon_no_such_proposal,
+              site: :agathos_daimon_resident_accept_edit_no_such_proposal
+            }} = Resident.execute(fold(proposed, [decline]), accept)
   end
 
   test "the soul file is lines: minted in order, reworded under their numbers, retired when dropped, the markers stripped from the words" do
@@ -213,8 +250,17 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
              %Events.SoulLinesOrdered{numbers: [2, 5]}
            ] = Resident.execute(r3, write("SOUL.md", "# Soul\n\nB.\n\n[soul/9] E."))
 
-    assert {:error, :cites_invalid} = Resident.execute(r3, write("SOUL.md", "E.", cites: [0]))
-    assert {:error, :cites_invalid} = Resident.execute(r3, write("SOUL.md", "E.", cites: "4"))
+    assert {:error,
+            %{
+              kind: :agathos_daimon_cites_invalid,
+              site: :agathos_daimon_resident_write_file_cites_invalid
+            }} = Resident.execute(r3, write("SOUL.md", "E.", cites: [0]))
+
+    assert {:error,
+            %{
+              kind: :agathos_daimon_cites_invalid,
+              site: :agathos_daimon_resident_write_file_cites_invalid
+            }} = Resident.execute(r3, write("SOUL.md", "E.", cites: "4"))
 
     # Any other file has no lines.
     assert [%Events.SeedFileWritten{file: "USER.md"}] =

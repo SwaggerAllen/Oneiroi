@@ -33,7 +33,14 @@ defmodule OneiroiWeb.LedgerController do
         }
       })
     else
-      error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+      error(
+        conn,
+        404,
+        ResidentError.new(
+          :agathos_daimon_not_witnessed,
+          :agathos_daimon_web_ledger_show_not_witnessed
+        )
+      )
     end
   end
 
@@ -78,7 +85,15 @@ defmodule OneiroiWeb.LedgerController do
               :web_ledger_set_budget_cap_invalid,
               "cap is dollars as a decimal string, or null"
             ),
-          else: error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+          else:
+            error(
+              conn,
+              404,
+              ResidentError.new(
+                :agathos_daimon_not_witnessed,
+                :agathos_daimon_web_ledger_set_budget_not_witnessed
+              )
+            )
 
       nil ->
         problem(

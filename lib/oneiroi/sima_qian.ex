@@ -75,19 +75,29 @@ defmodule Oneiroi.SimaQian do
   def cast_schemes(value) when is_binary(value) do
     schemes = value |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
 
-    if schemes == [],
-      do: {:error, "is empty, expected a comma-separated list"},
-      else: {:ok, schemes}
+    if schemes == [] do
+      # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+      {:error, "is empty, expected a comma-separated list"}
+    else
+      {:ok, schemes}
+    end
   end
 
-  def cast_schemes(other), do: {:error, "is #{inspect(other)}, expected a comma-separated list"}
+  def cast_schemes(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected a comma-separated list"}
+  end
 
   # The module as an atom rather than an alias, as the schedule names
   # its wake (sunna #12): the library reads this system for the
   # repository's path, so an alias here is the cycle the port avoids.
   @doc false
   def cast_library("seshat"), do: {:ok, :"Elixir.Oneiroi.Seshat"}
-  def cast_library(other), do: {:error, "is #{inspect(other)}, expected \"seshat\""}
+
+  def cast_library(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected \"seshat\""}
+  end
 
   @impl Oneiroi.Component
   def oban_queues do
@@ -122,7 +132,20 @@ defmodule Oneiroi.SimaQian do
          "the records were not written by Oneiroi's export, or were edited; the stream is named, and the import wrote nothing"},
       {:sima_qian_name_required,
        "a repository without records is a new resident and needs a name and a slug",
-       remedy: "give both; a repository with records names itself"}
+       remedy: "give both; a repository with records names itself"},
+      {:sima_qian_git_failed,
+       "git refused, in its own words, with any credential in a URL redacted",
+       remedy:
+         "read git's words; for an import, the URL and the token's read access, for a backup, the remote and its token"},
+      {:sima_qian_git_unstarted, "git could not start on this server",
+       remedy:
+         "the details name the binary and why: enoent is a runtime image without git (test/oneiroi/runtime_image_test.exs holds the image to it)"},
+      {:sima_qian_copy_failed, "the clone could not be copied into the records root",
+       remedy:
+         "the cause is the file system's reason; check the disk under SIMA_QIAN_ROOT, its space and its owner"},
+      {:sima_qian_append_failed, "the event store refused the repository's records",
+       remedy:
+         "the cause is the store's reason; the runs before it were written under the new id, so import again rather than resume"}
     ]
   end
 

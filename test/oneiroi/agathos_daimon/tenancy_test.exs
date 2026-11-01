@@ -2,6 +2,8 @@ defmodule Oneiroi.AgathosDaimon.TenancyTest do
   @moduledoc "Two residents seeded; nothing bleeds through the projections (conventions §12)."
   use Oneiroi.DataCase, async: false
 
+  alias Oneiroi.AgathosDaimon.Commands.MintId
+  alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
   alias Oneiroi.Fixtures
   alias Oneiroi.Scope
@@ -65,7 +67,8 @@ defmodule Oneiroi.AgathosDaimon.TenancyTest do
   end
 
   test "a slug is platform-wide", %{ra: ra, b: b} do
-    assert {:error, :agathos_daimon_slug_taken} =
+    assert {:error,
+            %{kind: :agathos_daimon_slug_taken, site: :agathos_daimon_residents_create_slug_taken}} =
              Oneiroi.AgathosDaimon.create(
                "Other",
                ra.slug,
@@ -80,5 +83,16 @@ defmodule Oneiroi.AgathosDaimon.TenancyTest do
     assert {:ok, 2} = Oneiroi.AgathosDaimon.mint_id(ra.id, "bookmark", actor)
     assert {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(rb.id, "bookmark", actor)
     assert {:ok, 1} = Oneiroi.AgathosDaimon.mint_id(ra.id, "position", actor)
+  end
+
+  test "a command the bus refuses comes back sited, with its class and command and no payload",
+       %{ra: ra} do
+    unattributed = %MintId{actor: nil, at: nil, id: ra.id, kind: "bookmark"}
+
+    assert {:error, error} = Router.dispatch_sited(unattributed)
+    assert error.kind == :agathos_daimon_dispatch_failed
+    assert error.site == :agathos_daimon_router_dispatch
+    assert error.cause == :refused
+    assert error.details == [command: MintId]
   end
 end

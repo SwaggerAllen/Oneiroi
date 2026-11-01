@@ -369,7 +369,16 @@ defmodule OneiroiWeb.ConversationController do
 
     if allowed?,
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_conversation_not_witnessed
+          )
+        )
+        |> halt()
   end
 
   # The account party to a session an adapter opens is the resident's

@@ -56,7 +56,8 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
                witness_account_id: "a1"
              })
 
-    assert {:error, :resident_exists} =
+    assert {:error,
+            %{kind: :agathos_daimon_resident_exists, site: :agathos_daimon_resident_create_exists}} =
              Resident.execute(created(), %Commands.CreateResident{
                actor: @actor,
                at: @at,
@@ -66,7 +67,12 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
                witness_account_id: "a1"
              })
 
-    assert {:error, :no_such_resident} =
+    assert {:error,
+            %{
+              kind: :agathos_daimon_no_such_resident,
+              site: :agathos_daimon_resident_absent,
+              details: [command: Commands.MintId]
+            }} =
              Resident.execute(%Resident{}, %Commands.MintId{
                actor: @actor,
                at: @at,
@@ -87,7 +93,12 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
 
     told = %Commands.RecordImportTold{actor: @actor, at: @at, id: "r1"}
 
-    assert {:error, :not_imported} = Resident.execute(created(), complete)
+    assert {:error,
+            %{
+              kind: :agathos_daimon_not_imported,
+              site: :agathos_daimon_resident_complete_import_not_imported
+            }} = Resident.execute(created(), complete)
+
     assert [] = Resident.execute(created(), told)
 
     imported =

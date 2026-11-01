@@ -107,10 +107,19 @@ defmodule Oneiroi.SimaQian.Import do
       %URI{scheme: scheme} when is_binary(scheme) ->
         if scheme in schemes,
           do: :ok,
-          else: {:error, Error.new(:sima_qian_scheme_refused, scheme: scheme, schemes: schemes)}
+          else:
+            {:error,
+             Error.new(:sima_qian_scheme_refused, :sima_qian_import_scheme,
+               scheme: scheme,
+               schemes: schemes
+             )}
 
       _bare ->
-        {:error, Error.new(:sima_qian_scheme_refused, scheme: nil, schemes: schemes)}
+        {:error,
+         Error.new(:sima_qian_scheme_refused, :sima_qian_import_no_scheme,
+           scheme: nil,
+           schemes: schemes
+         )}
     end
   end
 
@@ -125,7 +134,7 @@ defmodule Oneiroi.SimaQian.Import do
       with {:ok, id} <- AgathosDaimon.create(name, slug, witness_account_id, actor),
            do: {:ok, id, :created}
     else
-      {:error, Error.new(:sima_qian_name_required)}
+      {:error, Error.new(:sima_qian_name_required, :sima_qian_import_name_required)}
     end
   end
 
@@ -152,8 +161,14 @@ defmodule Oneiroi.SimaQian.Import do
     File.mkdir_p!(Path.dirname(dest))
 
     case File.cp_r(clone, dest) do
-      {:ok, _copied} -> Git.forget_remote(dest)
-      {:error, reason, path} -> {:error, {:copy, reason, path}}
+      {:ok, _copied} ->
+        Git.forget_remote(dest)
+
+      {:error, reason, path} ->
+        {:error,
+         Error.caught(:sima_qian_copy_failed, :sima_qian_import_place, reason,
+           path: Path.relative_to(path, clone)
+         )}
     end
   end
 

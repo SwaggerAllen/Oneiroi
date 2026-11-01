@@ -95,7 +95,12 @@ defmodule OneiroiWeb.ReportController do
   defp party_or_investigator(%{assigns: %{principal: p}} = conn, id) do
     if witnesses?(conn, id) or Glitnir.investigator?(Map.get(p, :account_id)),
       do: :ok,
-      else: {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
+      else:
+        {:error,
+         ResidentError.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_web_report_not_witnessed
+         )}
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
@@ -106,9 +111,6 @@ defmodule OneiroiWeb.ReportController do
        do: error(conn, 403, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-
-  defp respond(conn, {:error, reason}),
-    do: problem(conn, 422, :refused, :web_report_respond_refused_1, inspect(reason))
 
   defp respond(conn, _other),
     do: problem(conn, 422, :refused, :web_report_respond_refused_2, "not understood")
