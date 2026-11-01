@@ -117,6 +117,11 @@ defmodule Oneiroi.SimaQian do
        "a resident was already rebuilt from that repository at that root",
        remedy:
          "an import is always a new resident; to try again, back up the source to a new root first"},
+      {:sima_qian_backup_failed, "a nightly backup failed for one or more residents",
+       remedy:
+         "each failed resident is logged with its error's kind and site; run POST /v1/residents/:id/backup for the error itself"},
+      {:sima_qian_attestation_failed, "a nightly attestation failed for one or more residents",
+       remedy: "each failed resident is logged with its error's kind and site"},
       {:sima_qian_stray_files, "something wrote outside the paths the backup commits",
        remedy:
          "read the listed paths; the rest of the backup landed and the run failed after it, on purpose"},
