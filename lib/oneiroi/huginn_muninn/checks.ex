@@ -17,7 +17,6 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
-  alias Oneiroi.HuginnMuninn.Audits
   alias Oneiroi.HuginnMuninn.Commands
   alias Oneiroi.HuginnMuninn.Error
   alias Oneiroi.HuginnMuninn.Figures
@@ -369,12 +368,12 @@ defmodule Oneiroi.HuginnMuninn.Checks do
             Enum.map_join(missing, "; ", &Quietcheck.describe/1)
         )
 
-      {:crashed, message} ->
+      {:crashed, error} ->
         result(
           a,
           "fail",
           nil,
-          "quietcheck itself failed: #{message}; a checker that cannot check reports, never stays quiet"
+          "quietcheck itself failed: #{Quietcheck.crash_text(error)}; a checker that cannot check reports, never stays quiet"
         )
     end
   end
@@ -539,33 +538,33 @@ defmodule Oneiroi.HuginnMuninn.Checks do
 
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
-      {:ok, row} -> {:ok, row}
-      :error -> {:error, :no_such_resident}
+      {:ok, row} ->
+        {:ok, row}
+
+      :error ->
+        {:error, Error.new(:huginn_muninn_no_such_resident, :huginn_muninn_run_resident_absent)}
     end
   end
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_witness)}
 
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:huginn_muninn_not_the_witness, :huginn_muninn_audit_not_the_witness)}
+
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :key_invalid} ->
-        {:error, Error.new(:huginn_muninn_key_invalid)}
-
-      {:error, :label_invalid} ->
-        {:error, Error.new(:huginn_muninn_label_invalid)}
-
-      {:error, :rule_invalid} ->
-        {:error, Error.new(:huginn_muninn_rule_invalid, ops: Audits.ops(), tones: Audits.tones())}
-
-      {:error, :no_such_audit} ->
-        {:error, Error.new(:huginn_muninn_no_such_audit, key: command.key)}
+      {:error, %{site: _}} = refused ->
+        refused
 
       {:error, reason} ->
-        {:error, reason}
+        {:error,
+         Error.caught(:huginn_muninn_dispatch_failed, :huginn_muninn_audit_dispatch, reason)}
     end
   end
 end

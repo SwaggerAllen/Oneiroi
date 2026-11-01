@@ -21,7 +21,6 @@ defmodule Oneiroi.Eunomia.Wash do
   alias Oneiroi.Config
   alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Judge
-  alias Oneiroi.Eunomia.Judgement
   alias Oneiroi.Eunomia.JudgementCommands, as: Commands
   alias Oneiroi.Eunomia.JudgementRouter, as: Router
   alias Oneiroi.Eunomia.Judgements
@@ -53,8 +52,8 @@ defmodule Oneiroi.Eunomia.Wash do
             Enum.each(flags, &raise_flag(resident_id, ref, &1, model))
             record(resident_id, ref, length(entries), length(flags), model, summary, actor)
 
-          {:error, reason} ->
-            fail(resident_id, ref, reason, actor)
+          {:error, failure} ->
+            fail(resident_id, ref, failure, actor)
         end
     end
   end
@@ -90,8 +89,12 @@ defmodule Oneiroi.Eunomia.Wash do
     request = Request.new(model, [prompt, %{role: :user, content: "Your wash?"}])
 
     case Nisaba.call(resident_id, :judge, request, Judge.actor(model)) do
-      {:ok, %Result{content: content}} -> parse(content || "", entries)
-      {:error, reason} -> {:error, reason}
+      {:ok, %Result{content: content}} ->
+        parse(content || "", entries)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:eunomia_judge_call_failed, :eunomia_wash_judge_call_failed, reason)}
     end
   end
 
@@ -113,10 +116,18 @@ defmodule Oneiroi.Eunomia.Wash do
 
     cond do
       bad = Enum.find(flags, fn {n, _, _} -> n < 1 or n > count end) ->
-        {:error, "the reply flagged entry #{elem(bad, 0)}, which it was not shown"}
+        {:error,
+         Error.new(:eunomia_wash_failed, :eunomia_wash_entry_unshown,
+           reason: "the reply flagged entry #{elem(bad, 0)}, which it was not shown"
+         )}
 
+      # The kind is one word the reply's line held where a kind was due
+      # (`\w+` in the pattern), named so the record says what was wrong.
       bad = Enum.find(flags, fn {_, kind, _} -> kind not in @kinds end) ->
-        {:error, "the reply flagged a kind it was not given: #{elem(bad, 1)}"}
+        {:error,
+         Error.new(:eunomia_wash_failed, :eunomia_wash_kind_unknown,
+           reason: "the reply flagged a kind it was not given: #{elem(bad, 1)}"
+         )}
 
       true ->
         found =
@@ -159,19 +170,18 @@ defmodule Oneiroi.Eunomia.Wash do
     with {:ok, _} <- dispatch(command), do: {:ok, ref}
   end
 
-  defp fail(resident_id, ref, reason, actor) do
-    text = reason_text(reason)
-
+  # The failure arrives sited: the parse's, or the call's wrapped where it
+  # was first matched.
+  defp fail(resident_id, ref, failure, actor) do
     command = %Commands.FailWash{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       ref: ref,
-      reason: text
+      reason: Judgements.reason_text(failure)
     }
 
-    with {:ok, _} <- dispatch(command),
-         do: {:error, Error.new(:eunomia_wash_failed, reason: text)}
+    with {:ok, _} <- dispatch(command), do: {:error, failure}
   end
 
   @doc "The resident decides a flag: keep the entry or edit it (the edit is its own soul edit), with a note."
@@ -204,27 +214,25 @@ defmodule Oneiroi.Eunomia.Wash do
   end
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:eunomia_not_the_resident, :eunomia_wash_not_the_resident)}
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
-  defp reason_text(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
-  defp reason_text(text) when is_binary(text), do: text
-  defp reason_text(other), do: other |> inspect() |> String.slice(0, 200)
-
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :no_such_wash_flag} ->
-        {:error, Error.new(:eunomia_no_such_wash_flag, ref: command.ref)}
+      {:error, %{site: _}} = refused ->
+        refused
 
-      {:error, :wash_decision_invalid} ->
-        {:error, Error.new(:eunomia_wash_decision_invalid, decisions: Judgement.wash_decisions())}
-
-      {:error, other} ->
-        {:error, other}
+      {:error, reason} ->
+        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_wash_dispatch, reason)}
     end
   end
 end

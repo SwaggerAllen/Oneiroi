@@ -26,7 +26,6 @@ defmodule Oneiroi.Eunomia.Regression do
   alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
-  alias Oneiroi.Eunomia.Suite
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
@@ -46,7 +45,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
     case dispatch(command) do
       {:ok, [%{number: number}]} -> {:ok, number}
-      {:ok, _} -> {:error, Error.new(:eunomia_test_invalid)}
+      {:ok, _} -> {:error, Error.new(:eunomia_test_invalid, :eunomia_write_test_no_event)}
       other -> other
     end
   end
@@ -254,7 +253,9 @@ defmodule Oneiroi.Eunomia.Regression do
       case Nisaba.call(resident_id, :regression, request, actor) do
         {:ok, %Result{content: content, refusal?: refusal}} -> {content, refusal, nil}
         {:error, %{kind: kind}} when is_atom(kind) -> {nil, false, Atom.to_string(kind)}
-        {:error, other} -> {nil, false, other |> inspect() |> String.slice(0, 200)}
+        # A failure that is not one of ours is recorded by its class,
+        # never its payload: the card is kept and read.
+        {:error, other} -> {nil, false, other |> Oneiroi.Error.describe() |> inspect()}
       end
 
     dispatch(%Commands.RecordAnswer{
@@ -313,7 +314,7 @@ defmodule Oneiroi.Eunomia.Regression do
     Scope.resident(resident_id, fn ->
       case Store.run(run_ref) do
         nil ->
-          {:error, Error.new(:eunomia_no_such_run, ref: run_ref)}
+          {:error, Error.new(:eunomia_no_such_run, :eunomia_run_detail_absent, ref: run_ref)}
 
         run ->
           answers = Store.answers(run_ref)
@@ -395,13 +396,15 @@ defmodule Oneiroi.Eunomia.Regression do
   defp bounded(models, numbers) do
     cond do
       models == [] or numbers == [] ->
-        {:error, Error.new(:eunomia_run_empty)}
+        {:error, Error.new(:eunomia_run_empty, :eunomia_run_bound_empty)}
 
       length(models) > Config.fetch!(:eunomia, :run_models_max) ->
-        {:error, Error.new(:eunomia_run_too_large, models: length(models))}
+        {:error,
+         Error.new(:eunomia_run_too_large, :eunomia_run_bound_models, models: length(models))}
 
       length(numbers) > Config.fetch!(:eunomia, :run_tests_max) ->
-        {:error, Error.new(:eunomia_run_too_large, tests: length(numbers))}
+        {:error,
+         Error.new(:eunomia_run_too_large, :eunomia_run_bound_tests, tests: length(numbers))}
 
       true ->
         :ok
@@ -410,31 +413,19 @@ defmodule Oneiroi.Eunomia.Regression do
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :test_invalid} ->
-        {:error, Error.new(:eunomia_test_invalid)}
-
-      {:error, :no_such_test} ->
-        {:error, Error.new(:eunomia_no_such_test)}
-
-      {:error, :run_empty} ->
-        {:error, Error.new(:eunomia_run_empty)}
-
-      {:error, :no_such_run} ->
-        {:error, Error.new(:eunomia_no_such_run, ref: command.run_ref)}
-
-      {:error, :no_such_card} ->
-        {:error, Error.new(:eunomia_no_such_card, ref: command.card_ref)}
-
-      {:error, :grade_invalid} ->
-        {:error, Error.new(:eunomia_grade_invalid, grades: Suite.grades())}
+      {:error, %{site: _}} = refused ->
+        refused
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_regression_dispatch, reason)}
     end
   end
 end

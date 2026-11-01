@@ -232,22 +232,19 @@ defmodule Oneiroi.Eunomia.Imports do
     end)
   end
 
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} when is_atom(reason) -> {:error, translate(reason)}
-      {:error, other} -> {:error, other}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %{site: _}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_import_dispatch, reason)}
     end
   end
-
-  # The aggregate's reasons in the boundary's vocabulary, as Judgements
-  # names them.
-  defp translate(:statement_invalid), do: Error.new(:eunomia_statement_invalid)
-  defp translate(:no_such_position), do: Error.new(:eunomia_no_such_position)
-  defp translate(:position_replaced), do: Error.new(:eunomia_position_replaced)
-  defp translate(:dispute_invalid), do: Error.new(:eunomia_dispute_invalid)
-  defp translate(:no_such_dispute), do: Error.new(:eunomia_no_such_dispute)
-  defp translate(:no_such_prediction), do: Error.new(:eunomia_no_such_prediction)
-  defp translate(:due_invalid), do: Error.new(:eunomia_due_invalid)
-  defp translate(other), do: other
 end

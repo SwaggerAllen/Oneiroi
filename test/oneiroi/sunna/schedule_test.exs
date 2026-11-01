@@ -53,7 +53,7 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     assert [%Events.DayOpened{day: "d2"}, %Events.CheckinFired{day: "d2"}] =
              Schedule.execute(s, cmd(Commands.FireCheckin, key: "a", day: "d2"))
 
-    assert {:error, :no_such_checkin} =
+    assert {:error, %{kind: :sunna_no_such_checkin, site: :sunna_checkin_fire_absent}} =
              Schedule.execute(s, cmd(Commands.FireCheckin, key: "zz", day: "d1"))
   end
 
@@ -88,19 +88,19 @@ defmodule Oneiroi.Sunna.ScheduleTest do
                cmd(Commands.SetCheckin, key: "a", label: "x", time: "08:30", day: "d2")
              )
 
-    assert {:error, :time_invalid} =
+    assert {:error, %{kind: :sunna_time_invalid, site: :sunna_checkin_time_invalid}} =
              Schedule.execute(
                s,
                cmd(Commands.SetCheckin, key: "a", label: "x", time: "8:30", day: "d2")
              )
 
-    assert {:error, :time_invalid} =
+    assert {:error, %{kind: :sunna_time_invalid, site: :sunna_checkin_time_invalid}} =
              Schedule.execute(
                s,
                cmd(Commands.SetCheckin, key: "a", label: "x", time: "24:00", day: "d2")
              )
 
-    assert {:error, :label_invalid} =
+    assert {:error, %{kind: :sunna_label_invalid, site: :sunna_checkin_label_invalid}} =
              Schedule.execute(
                s,
                cmd(Commands.SetCheckin, key: "a", label: "  ", time: "08:30", day: "d2")
@@ -109,13 +109,16 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     assert %Events.CheckinDeleted{key: "a"} =
              Schedule.execute(s, cmd(Commands.DeleteCheckin, key: "a"))
 
-    assert {:error, :no_such_checkin} = Schedule.execute(s, cmd(Commands.DeleteCheckin, key: "b"))
+    assert {:error, %{kind: :sunna_no_such_checkin, site: :sunna_checkin_delete_absent}} =
+             Schedule.execute(s, cmd(Commands.DeleteCheckin, key: "b"))
   end
 
   test "free time runs or fails once a day; quiet hours and dates are validated and deduplicated" do
     s = evolve(Schedule.execute(%Schedule{}, cmd(Commands.SetFreeTime, time: "22:30")))
     assert [] = Schedule.execute(s, cmd(Commands.SetFreeTime, time: "22:30"))
-    assert {:error, :time_invalid} = Schedule.execute(s, cmd(Commands.SetFreeTime, time: "soon"))
+
+    assert {:error, %{kind: :sunna_time_invalid, site: :sunna_free_time_time_invalid}} =
+             Schedule.execute(s, cmd(Commands.SetFreeTime, time: "soon"))
 
     assert %Events.FreeTimeScheduled{time: nil} =
              Schedule.execute(s, cmd(Commands.SetFreeTime, time: nil))
@@ -136,7 +139,7 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     s = evolve(s, Schedule.execute(s, quiet))
     assert [] = Schedule.execute(s, quiet)
 
-    assert {:error, :time_invalid} =
+    assert {:error, %{kind: :sunna_time_invalid, site: :sunna_quiet_hours_time_invalid}} =
              Schedule.execute(s, cmd(Commands.SetQuietHours, from: "22:00", to: nil))
 
     assert %Events.QuietHoursSet{from: nil, to: nil} =
@@ -147,15 +150,20 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     s = evolve(s, Schedule.execute(s, date))
     assert [] = Schedule.execute(s, date)
     assert %Events.DateChanged{kind: "window"} = Schedule.execute(s, %{date | kind: "window"})
-    assert {:error, :kind_invalid} = Schedule.execute(s, %{date | kind: "party"})
-    assert {:error, :time_invalid} = Schedule.execute(s, %{date | on: "2026-11-05"})
 
-    assert {:error, :label_invalid} =
+    assert {:error, %{kind: :sunna_kind_invalid, site: :sunna_date_kind_invalid}} =
+             Schedule.execute(s, %{date | kind: "party"})
+
+    assert {:error, %{kind: :sunna_time_invalid, site: :sunna_date_on_invalid}} =
+             Schedule.execute(s, %{date | on: "2026-11-05"})
+
+    assert {:error, %{kind: :sunna_label_invalid, site: :sunna_date_title_invalid}} =
              Schedule.execute(s, %{date | title: String.duplicate("x", 61)})
 
     assert %Events.DateRemoved{number: 1} =
              Schedule.execute(s, cmd(Commands.RemoveDate, number: 1))
 
-    assert {:error, :no_such_date} = Schedule.execute(s, cmd(Commands.RemoveDate, number: 2))
+    assert {:error, %{kind: :sunna_no_such_date, site: :sunna_date_remove_absent}} =
+             Schedule.execute(s, cmd(Commands.RemoveDate, number: 2))
   end
 end

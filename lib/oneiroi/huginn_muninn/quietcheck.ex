@@ -21,6 +21,7 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
   alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
+  alias Oneiroi.HuginnMuninn.Error
   alias Oneiroi.Sunna
 
   @type expectation :: %{
@@ -108,8 +109,8 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
 
         {if(missing == 0, do: 0, else: 1), [verdict] ++ body ++ [verdict]}
 
-      {:crashed, message} ->
-        verdict = "QUIETCHECK: CRASHED, #{message}"
+      {:crashed, error} ->
+        verdict = "QUIETCHECK: CRASHED, #{crash_text(error)}"
         {2, [verdict, verdict]}
     end
   end
@@ -139,15 +140,24 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
 
   @doc """
   Runs `fun` and reports its crash as a failure rather than silence:
-  `{:ok, value}` or `{:crashed, message}`. The checker's own failure is
-  a finding, because a checker that cannot check and says nothing is
-  the quiet this exists to end.
+  `{:ok, value}` or `{:crashed, error}`, the error sited here and
+  carrying the exception's class, never its message. The checker's own
+  failure is a finding, because a checker that cannot check and says
+  nothing is the quiet this exists to end; the finding is read by the
+  witness and kept, so it says what crashed and where, not what the
+  exception carried.
   """
   def guarded(fun) when is_function(fun, 0) do
     {:ok, fun.()}
   rescue
-    e -> {:crashed, Exception.message(e)}
+    e ->
+      {:crashed,
+       Error.caught(:huginn_muninn_quietcheck_crashed, :huginn_muninn_quietcheck_guarded, e)}
   end
+
+  @doc "A crash as a finding or a report line says it: the exception's class and the site."
+  @spec crash_text(Error.t()) :: String.t()
+  def crash_text(%Error{cause: cause, site: site}), do: "#{inspect(cause)} at #{site}"
 
   @doc "One line per expectation, for a finding or a report."
   def describe(%{name: name, last: nil, due_within: due}), do: "#{name}: never, due within #{due}"

@@ -155,7 +155,16 @@ defmodule Oneiroi.HuginnMuninn do
        "an audit compares a figure with >=, <=, ==, > or < to an integer, failing warn or fail",
        remedy: "give the rule in that shape"},
       {:huginn_muninn_no_such_audit, "no audit of the witness's has that key",
-       remedy: "read the audits"}
+       remedy: "read the audits"},
+      {:huginn_muninn_no_such_resident,
+       "the audits were run for a resident the registry does not hold",
+       remedy: "name a resident that exists"},
+      {:huginn_muninn_dispatch_failed,
+       "a figure's or an audit's command was not recorded on its stream",
+       remedy: "try again; a repeat is a fault to report"},
+      {:huginn_muninn_quietcheck_crashed,
+       "quietcheck itself raised, and reported that rather than staying quiet",
+       remedy: "read the log under the site; the next hourly run checks again"}
     ]
   end
 

@@ -20,6 +20,7 @@ defmodule Oneiroi.Eunomia.Judge do
 
   alias Oneiroi.Actor
   alias Oneiroi.Config
+  alias Oneiroi.Eunomia.Error
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Nisaba.Provider.{Request, Result}
@@ -63,11 +64,13 @@ defmodule Oneiroi.Eunomia.Judge do
   come the disputes it found (each citing message numbers, with an
   outcome and its words), a summary, and the movements (each citing
   message numbers, with the four fields, string-keyed, nil where the
-  judge wrote `-`). `{:error, reason}` when the reply names a message
-  it was not shown, or a MOVED line has other than four fields.
+  judge wrote `-`). `{:error, %Error{kind: :eunomia_night_failed}}` when
+  the reply names a message it was not shown or a MOVED line has other
+  than four fields; `:eunomia_judge_call_failed`, the call's failure its
+  cause, when the call itself failed.
   """
   @spec night(String.t(), String.t(), [map()]) ::
-          {:ok, [map()], String.t(), [map()]} | {:error, term()}
+          {:ok, [map()], String.t(), [map()]} | {:error, Error.t()}
   def night(resident_id, model, messages) do
     listed =
       messages
@@ -78,8 +81,12 @@ defmodule Oneiroi.Eunomia.Judge do
     request = Request.new(model, [prompt, %{role: :user, content: "Your reading of the day?"}])
 
     case Nisaba.call(resident_id, :judge, request, actor(model)) do
-      {:ok, %Result{content: content}} -> parse_night(content || "", length(messages), messages)
-      {:error, reason} -> {:error, reason}
+      {:ok, %Result{content: content}} ->
+        parse_night(content || "", length(messages), messages)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:eunomia_judge_call_failed, :eunomia_night_judge_call_failed, reason)}
     end
   end
 
@@ -115,9 +122,15 @@ defmodule Oneiroi.Eunomia.Judge do
     end
 
     case field.("VERDICT") |> to_string() |> String.upcase() do
-      "NONE" -> {:ok, :none}
-      tier when tier in ["CONTINUE", "QUESTIONED"] -> {:ok, ask(tier, field)}
-      _unreadable -> {:error, "the judge gave no verdict in the form asked"}
+      "NONE" ->
+        {:ok, :none}
+
+      tier when tier in ["CONTINUE", "QUESTIONED"] ->
+        {:ok, ask(tier, field)}
+
+      _unreadable ->
+        {:error,
+         Error.new(:eunomia_continuation_unreadable, :eunomia_continuation_verdict_unreadable)}
     end
   end
 
@@ -165,7 +178,12 @@ defmodule Oneiroi.Eunomia.Judge do
 
       bad ->
         shown = bad.numbers |> Enum.reject(&(&1 >= 1 and &1 <= count)) |> Enum.join(", ")
-        {:error, "the reply named message #{shown}, which it was not shown"}
+        # The reason is this code's sentence and the numbers the reply
+        # cited, never the reply's words: it is kept as the night's record.
+        {:error,
+         Error.new(:eunomia_night_failed, :eunomia_night_message_unshown,
+           reason: "the reply named message #{shown}, which it was not shown"
+         )}
     end
   end
 
@@ -192,7 +210,10 @@ defmodule Oneiroi.Eunomia.Judge do
       {:ok, Map.put(movement, :numbers, numbers(numbers))}
     else
       {:error,
-       "the reply's MOVED line [#{String.trim(numbers)}] has #{length(fields)} fields where four were due"}
+       Error.new(:eunomia_night_failed, :eunomia_night_movement_unreadable,
+         reason:
+           "the reply's MOVED line [#{String.trim(numbers)}] has #{length(fields)} fields where four were due"
+       )}
     end
   end
 

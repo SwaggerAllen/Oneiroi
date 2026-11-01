@@ -123,27 +123,24 @@ defmodule Oneiroi.HuginnMuninn.Figures do
   end
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:huginn_muninn_not_the_witness)}
 
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:huginn_muninn_not_the_witness, :huginn_muninn_figure_not_the_witness)}
+
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :key_invalid} ->
-        {:error, Error.new(:huginn_muninn_key_invalid)}
-
-      {:error, :label_invalid} ->
-        {:error, Error.new(:huginn_muninn_label_invalid)}
-
-      {:error, :no_such_counter} ->
-        {:error, Error.new(:huginn_muninn_no_such_figure, key: command.key)}
-
-      {:error, :increment_invalid} ->
-        {:error, Error.new(:huginn_muninn_increment_invalid)}
+      {:error, %{site: _}} = refused ->
+        refused
 
       {:error, reason} ->
-        {:error, reason}
+        {:error,
+         Error.caught(:huginn_muninn_dispatch_failed, :huginn_muninn_figure_dispatch, reason)}
     end
   end
 end

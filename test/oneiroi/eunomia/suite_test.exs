@@ -56,9 +56,11 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     assert %Events.TestWritten{number: 1} = Suite.execute(%Suite{}, write())
     s = fold(%Suite{}, [write(), write("second")])
     assert %Events.TestWritten{number: 3} = Suite.execute(s, write("third"))
-    assert {:error, :test_invalid} = Suite.execute(%Suite{}, %{write() | fails_if: " "})
 
-    assert {:error, :test_invalid} =
+    assert {:error, %{kind: :eunomia_test_invalid, site: :eunomia_write_test_invalid}} =
+             Suite.execute(%Suite{}, %{write() | fails_if: " "})
+
+    assert {:error, %{kind: :eunomia_test_invalid, site: :eunomia_write_test_invalid}} =
              Suite.execute(%Suite{}, %{write() | prompt: String.duplicate("x", 4_001)})
 
     change = %Commands.ChangeTest{
@@ -73,18 +75,27 @@ defmodule Oneiroi.Eunomia.SuiteTest do
 
     assert %Events.TestChanged{number: 1} = Suite.execute(s, change)
     assert [] = Suite.execute(fold(s, [change]), change)
-    assert {:error, :no_such_test} = Suite.execute(s, %{change | number: 9})
+
+    assert {:error, %{kind: :eunomia_no_such_test, site: :eunomia_change_test_absent}} =
+             Suite.execute(s, %{change | number: 9})
   end
 
   test "a run is models x tests, cards land once, grades and favourites once, and it finishes once" do
     s = fold(%Suite{}, [write()])
-    assert {:error, :run_empty} = Suite.execute(s, start("run1", [], [1]))
-    assert {:error, :no_such_test} = Suite.execute(s, start("run1", ["m1"], [7]))
+
+    assert {:error, %{kind: :eunomia_run_empty, site: :eunomia_start_run_empty}} =
+             Suite.execute(s, start("run1", [], [1]))
+
+    assert {:error, %{kind: :eunomia_no_such_test, site: :eunomia_start_run_test_absent}} =
+             Suite.execute(s, start("run1", ["m1"], [7]))
+
     assert %Events.RunStarted{models: ["m1", "m2"], tests: [1]} = Suite.execute(s, start())
     s = fold(s, [start()])
     assert [] = Suite.execute(s, start())
 
-    assert {:error, :no_such_run} = Suite.execute(s, %{record("c1") | run_ref: "nope"})
+    assert {:error, %{kind: :eunomia_no_such_run, site: :eunomia_record_answer_run_absent}} =
+             Suite.execute(s, %{record("c1") | run_ref: "nope"})
+
     assert %Events.AnswerRecorded{card_ref: "c1", model: "m1"} = Suite.execute(s, record("c1"))
     s = fold(s, [record("c1"), record("c2", "m2")])
     assert [] = Suite.execute(s, record("c1"))
@@ -104,8 +115,11 @@ defmodule Oneiroi.Eunomia.SuiteTest do
     assert %Events.AnswerGraded{grade: "fail"} =
              Suite.execute(fold(s, [grade]), %{grade | grade: "fail"})
 
-    assert {:error, :grade_invalid} = Suite.execute(s, %{grade | grade: "meh"})
-    assert {:error, :no_such_card} = Suite.execute(s, %{grade | card_ref: "c9"})
+    assert {:error, %{kind: :eunomia_grade_invalid, site: :eunomia_grade_value_invalid}} =
+             Suite.execute(s, %{grade | grade: "meh"})
+
+    assert {:error, %{kind: :eunomia_no_such_card, site: :eunomia_card_absent}} =
+             Suite.execute(s, %{grade | card_ref: "c9"})
 
     fav = %Commands.FavouriteAnswer{
       actor: @witness,
