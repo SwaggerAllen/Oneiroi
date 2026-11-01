@@ -227,6 +227,9 @@ defmodule Oneiroi.Apsu.Policies.ErrorSite do
   # (`error: x`) or a map entry has the same shape as the tuple there.
   # The literal encoder sees the braces, measured: it fires on
   # `{:error, :x}` and not on `[error: x]` or `%{error: x}`.
+  # The path is one the audit's own scope glob produced, never a request
+  # value; Sobelow reads any File call on a variable as a traversal.
+  # sobelow_skip ["Traversal.FileModule"]
   defp encoded(%Source{path: path}) do
     encoder = fn
       {:error, value}, meta -> {:ok, {:__error_tuple__, meta, [value]}}
