@@ -2,6 +2,8 @@ defmodule Oneiroi.Eunomia.SuiteTest do
   @moduledoc "The regression aggregate, pure: numbers from its own counter, a card once, a grade once, a run once."
   use ExUnit.Case, async: true
 
+  alias Commanded.Event.Upcaster
+  alias Commanded.Serialization.JsonSerializer
   alias Oneiroi.Actor
   alias Oneiroi.Eunomia.Commands
   alias Oneiroi.Eunomia.Events
@@ -156,5 +158,80 @@ defmodule Oneiroi.Eunomia.SuiteTest do
 
     assert {:error, %{kind: :eunomia_no_such_run, site: :eunomia_fail_run_absent}} =
              Suite.execute(s, %{fail | run_ref: "nope"})
+  end
+
+  # A card recorded before the trace (eunomia #31) is a version 2 line
+  # with no `trace` key; read through the store's own serializer, it
+  # comes back with none and the upcaster gives it the empty trace.
+  test "an AnswerRecorded of version 2, read from the log, upcasts to an empty trace" do
+    v2 =
+      Jason.encode!(%{
+        actor: @witness,
+        at: @at,
+        id: "r1",
+        run_ref: "run1",
+        card_ref: "c1",
+        model: "m1",
+        test_number: 1,
+        behaviour_number: nil,
+        commitment_number: nil,
+        content: "answer",
+        refusal: false,
+        failure: nil
+      })
+
+    type = Atom.to_string(Events.AnswerRecorded)
+    read = JsonSerializer.deserialize(v2, type: type)
+    assert %Events.AnswerRecorded{trace: nil, content: "answer"} = read
+
+    assert %Events.AnswerRecorded{trace: [], content: "answer", card_ref: "c1"} =
+             Upcaster.upcast(read, %{})
+
+    # A version 3 line keeps its trace as written.
+    step = %{
+      "tool" => "trial_list",
+      "arguments" => "{}",
+      "kind" => "read",
+      "result" => "Test #1",
+      "truncated" => false
+    }
+
+    v3 = Suite.execute(fold(%Suite{}, [write(), start()]), %{record("c1") | trace: [step]})
+    assert %Events.AnswerRecorded{trace: [^step]} = v3
+
+    assert %Events.AnswerRecorded{trace: [%{tool: "trial_list", kind: "read", truncated: false}]} =
+             v3
+             |> JsonSerializer.serialize()
+             |> JsonSerializer.deserialize(type: type)
+             |> Upcaster.upcast(%{})
+
+    # A command that names no trace records the empty one, never nil.
+    assert %Events.AnswerRecorded{trace: []} =
+             Suite.execute(fold(%Suite{}, [write(), start()]), record("c1"))
+  end
+
+  # The seal is held twice (eunomia #9): the export never reads the
+  # regression stream, and every event on it declares itself out as
+  # well. Each alone held the other's probe, so each has its own test:
+  # this one, and the export's own in `Oneiroi.SimaQian.WholeTest`.
+  test "every regression event, the card and its trace included, declares itself out of the export" do
+    regression =
+      for {module, _version} <- Oneiroi.Eunomia.events(),
+          match?(["Oneiroi", "Eunomia", "Events", _event], Module.split(module)),
+          do: module
+
+    assert Enum.sort(regression) ==
+             Enum.sort([
+               Events.TestWritten,
+               Events.TestChanged,
+               Events.RunStarted,
+               Events.AnswerRecorded,
+               Events.RunFinished,
+               Events.RunFailed,
+               Events.AnswerGraded,
+               Events.AnswerFavourited
+             ])
+
+    for module <- regression, do: refute(module.__export__?(), "#{inspect(module)} is exported")
   end
 end

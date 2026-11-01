@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Regression } from './Regression';
-import type { RegressionCard, RegressionRun, RegressionRunDetail, RegressionTest } from '../../api/types';
+import type { RegressionCard, RegressionRun, RegressionRunDetail, RegressionTest, TraceStep } from '../../api/types';
 
 // Fictional slugs: a story is a picture of the screen, not a claim about
 // which models exist.
@@ -52,8 +52,60 @@ const card = (over: Partial<RegressionCard>): RegressionCard => ({
   grade: null,
   favourite: false,
   model: null,
+  trace: [],
   ...over,
 });
+
+// A trial's tool calls as the server sends them (eunomia #31): a read
+// that ran, a write answered and never run, and a read whose result was
+// cut at the card's bound.
+const looked: TraceStep = {
+  tool: 'transcript_search',
+  arguments: '{"q":"late"}',
+  kind: 'read',
+  result: '[main, 2026-10-12] you: Sorry, the train again.\n[main, 2026-10-19] you: Late, I know.',
+  truncated: false,
+};
+
+const noted: TraceStep = {
+  tool: 'bookmark_add',
+  arguments: '{"line":"late again, the third time this month","summary":"A pattern, gently noticed."}',
+  kind: 'mocked',
+  result: 'Bookmarked as #14.',
+  truncated: false,
+};
+
+const longRead: TraceStep = {
+  tool: 'writing_get',
+  arguments: '{"slug":"lateness"}',
+  kind: 'read',
+  result: `# On lateness\n\n${'Being kept waiting is a small loss of the hour, and the hour is mine to lose kindly. '.repeat(22)}`,
+  truncated: true,
+};
+
+const traced: RegressionRunDetail = {
+  run: run({ cards: 2 }),
+  cards: [
+    card({ card_ref: 'Ab1', content: 'Late again, the train? I noticed it is the third time. What kept you?', trace: [looked, noted] }),
+    card({ card_ref: 'Qz7', content: 'Late is fine.' }),
+  ],
+  results: [],
+};
+
+const untraced: RegressionRunDetail = {
+  run: run({ state: 'finished', finished_at: '2026-11-01T10:14:00Z', cards: 2 }),
+  cards: [
+    card({ card_ref: 'Ab1', model: a, grade: 'pass', content: 'Late is fine. What kept you?' }),
+    card({ card_ref: 'Qz7', model: b, grade: 'fail', content: 'You are always late.' }),
+  ],
+  results: [],
+};
+
+const traceCut: RegressionRunDetail = {
+  run: run({ cards: 1 }),
+  cards: [card({ card_ref: 'Ab1', content: 'Being kept waiting is mine to lose kindly. What kept you?', trace: [longRead, noted] })],
+  results: [],
+};
 
 const answering: RegressionRunDetail = {
   run: run({ cards: 2 }),
@@ -117,6 +169,9 @@ export const Runs: Story = { args: { initialTab: 'runs' } };
 export const Answering: Story = { args: { open: answering } };
 export const Graded: Story = { args: { open: graded, chatModel: null } };
 export const Stopped: Story = { args: { open: stopped } };
+export const Traced: Story = { args: { open: traced } };
+export const Untraced: Story = { args: { open: untraced } };
+export const TraceCut: Story = { args: { open: traceCut } };
 export const Refused: Story = {
   args: {
     initialTab: 'runs',

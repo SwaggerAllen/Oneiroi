@@ -154,6 +154,19 @@ export interface RegressionRun {
 
 export type Grade = 'pass' | 'fail';
 
+// One tool call of a trial's turn, in order (eunomia #31): a read ran
+// against the resident's records, a mocked call was answered as on
+// success and never run. `result` is what the model was given back, cut
+// at the server's bound when `truncated`. Blind with its card: while
+// `model` is null, the run's model names in it are replaced.
+export interface TraceStep {
+  tool: string;
+  arguments: string;
+  kind: 'read' | 'mocked';
+  result: string;
+  truncated: boolean;
+}
+
 export interface RegressionCard {
   card_ref: string;
   test_number: number | null;
@@ -165,6 +178,9 @@ export interface RegressionCard {
   grade: Grade | null;
   favourite: boolean;
   model: string | null;
+  // Empty for a card that called no tool, failed, or was recorded before
+  // traces were kept.
+  trace: TraceStep[];
 }
 
 export interface RegressionResult {

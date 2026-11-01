@@ -563,12 +563,22 @@ defmodule Oneiroi.Brain.Tools do
   """
   @spec trial(String.t(), String.t(), map()) :: {String.t(), map()}
   def trial(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
-    case {name in @reads, arguments(arguments)} do
-      {true, _args} -> {run(name, arguments, turn), turn}
-      {false, :error} -> {@not_done <> "the arguments were not a JSON object.", turn}
-      {false, {:ok, args}} -> mocked(name, args, turn)
+    case {trial_kind(name), arguments(arguments)} do
+      {:read, _args} -> {run(name, arguments, turn), turn}
+      {:mocked, :error} -> {@not_done <> "the arguments were not a JSON object.", turn}
+      {:mocked, {:ok, args}} -> mocked(name, args, turn)
     end
   end
+
+  @doc """
+  How `trial/3` takes a call to `name`: `:read`, run against the
+  resident's records, or `:mocked`, answered and never run, which is
+  every other name, a tool nobody classified and a name no tool has
+  included. One decision for the run and for the witness's trace of it
+  (eunomia #31), so the trace cannot say a call ran that did not.
+  """
+  @spec trial_kind(String.t()) :: :read | :mocked
+  def trial_kind(name) when is_binary(name), do: if(name in @reads, do: :read, else: :mocked)
 
   # A tool offered and not a read is answered and never run; a name no
   # tool has answers as `call/3`'s last clause does.

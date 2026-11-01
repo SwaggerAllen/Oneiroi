@@ -135,9 +135,10 @@ defmodule Oneiroi.Brain do
     do: Session.wake(resident_id, session_key, note, purpose)
   )
 
-  @doc "Answers a regression trial (spec §6.4, eunomia #10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression."
+  @doc "Answers a regression trial (spec §6.4, eunomia #10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression. The reply comes back with the trace of the loop's tool calls, for the witness's card alone (eunomia #31)."
   @spec trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
-          {:ok, Oneiroi.Nisaba.Provider.Result.t()} | {:error, term()}
+          {:ok, Oneiroi.Nisaba.Provider.Result.t(), [Oneiroi.Eunomia.Trial.step()]}
+          | {:error, term()}
   @impl Oneiroi.Eunomia.Trial
   defexport(trial(resident_id, model, prompt, actor),
     do: Turn.trial(resident_id, model, prompt, actor)

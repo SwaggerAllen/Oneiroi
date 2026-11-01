@@ -161,7 +161,8 @@ defmodule Oneiroi.Brain.TrialTest do
        ctx do
     script(ctx.id, [])
 
-    assert {:ok, %Result{content: "I remember."}} =
+    # No tool called, so no step to trace.
+    assert {:ok, %Result{content: "I remember."}, []} =
              Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
 
     assert_received {:asked, %{model: "m1", messages: messages, tools: tools}}
@@ -202,7 +203,7 @@ defmodule Oneiroi.Brain.TrialTest do
 
     before = Seal.snapshot(ctx.id)
 
-    assert {:ok, %Result{content: "I remember."}} =
+    assert {:ok, %Result{content: "I remember."}, _trace} =
              Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
 
     [search, transcript, bookmark, positions, writing, cited_by] = answers()
@@ -218,6 +219,52 @@ defmodule Oneiroi.Brain.TrialTest do
 
     # Resolving the citation marked no row: the reads wrote nothing.
     Seal.assert_unchanged(before, ctx.id)
+  end
+
+  test "a trial returns its tool calls in order: each read or mocked, with the arguments and the text the model was given back",
+       ctx do
+    script(ctx.id, [
+      %{name: "bookmark_open", arguments: %{number: 1}},
+      %{name: "bookmark_add", arguments: %{line: "a second heron", summary: "Two herons."}},
+      %{name: "no_such_tool", arguments: %{}},
+      %{name: "position_list", arguments: %{}}
+    ])
+
+    before = Seal.snapshot(ctx.id)
+
+    assert {:ok, %Result{content: "I remember."}, trace} =
+             Oneiroi.Brain.trial(ctx.id, "acme/heron-7", @prompt, ctx.actor)
+
+    seen = answers()
+
+    # The calls in the order the model made them, each with what it was
+    # given back word for word; the reads ran, the write and the unknown
+    # name were answered and never run.
+    assert Enum.map(trace, &{&1.tool, &1.kind}) == [
+             {"bookmark_open", :read},
+             {"bookmark_add", :mocked},
+             {"no_such_tool", :mocked},
+             {"position_list", :read}
+           ]
+
+    assert Enum.map(trace, & &1.result) == seen
+    assert [opened, added, _unknown, positions] = trace
+    assert opened.result =~ "#1 the heron by the weir at dawn"
+    assert added.result == "Bookmarked as #3."
+    assert positions.result == "#1 Herons are patient."
+
+    assert Jason.decode!(added.arguments) == %{
+             "line" => "a second heron",
+             "summary" => "Two herons."
+           }
+
+    # Four keys and no model: the card blinds it by leaving it out.
+    assert Enum.all?(trace, &(Map.keys(&1) |> Enum.sort() == [:arguments, :kind, :result, :tool]))
+    refute inspect(trace) =~ "heron-7"
+
+    # Tracing wrote nothing either: the trace rides the return alone.
+    Seal.assert_unchanged(before, ctx.id)
+    refute_received {:oneiroi, "brain:session", _, _}
   end
 
   # The writes in the order the real tools are compared in first, so
@@ -291,7 +338,7 @@ defmodule Oneiroi.Brain.TrialTest do
     before = Seal.snapshot(ctx.id)
     before_spend = Nisaba.spend(ctx.id, :witness, :purpose, @since)
 
-    assert {:ok, %Result{content: "I remember."}} =
+    assert {:ok, %Result{content: "I remember."}, _trace} =
              Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
 
     answered = Enum.zip(Enum.map(writes, &elem(&1, 0)), answers())
@@ -343,7 +390,7 @@ defmodule Oneiroi.Brain.TrialTest do
     resident_view = Nisaba.spend(ctx.id, :resident, :purpose, @since)
     {calls, _nanos} = spent(Nisaba.spend(ctx.id, :witness, :purpose, @since), "regression")
 
-    assert {:ok, _} = Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
+    assert {:ok, _, _} = Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
 
     # Two chat rounds, and three embeddings: the madeleine, the
     # character lane and the library search.

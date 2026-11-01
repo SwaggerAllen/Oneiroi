@@ -119,7 +119,8 @@ defmodule Oneiroi.Eunomia.Suite do
           commitment_number: c.commitment_number,
           content: c.content,
           refusal: c.refusal == true,
-          failure: c.failure
+          failure: c.failure,
+          trace: c.trace || []
         }
     end
   end

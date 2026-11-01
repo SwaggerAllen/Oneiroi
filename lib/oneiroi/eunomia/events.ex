@@ -47,9 +47,16 @@ defmodule Oneiroi.Eunomia.Events do
     # every card of its test is graded. A failure records its reason and
     # no content, so a model that would not answer is graded as such.
     # Version 2 adds `commitment_number` (P19), the commitment a derived
-    # trial answers for; the identity upcaster as above.
+    # trial answers for. Version 3 adds `trace` (eunomia #31): the trial's
+    # tool calls in order, each string-keyed with `tool`, `arguments`,
+    # `kind` (`read` or `mocked`), `result` (cut at
+    # EUNOMIA_TRACE_RESULT_CHARS) and `truncated`, whether it was cut.
+    # The witness's, on this sealed stream alone; it holds no model,
+    # which stays on `model` and off the card until revealed. A card
+    # recorded before it carries no trace: an earlier version reads as
+    # `[]`, which is the truth about it, since nothing kept its calls.
     use Oneiroi.Event,
-      version: 2,
+      version: 3,
       fields: [
         :id,
         :run_ref,
@@ -60,12 +67,14 @@ defmodule Oneiroi.Eunomia.Events do
         :commitment_number,
         :content,
         :refusal,
-        :failure
+        :failure,
+        :trace
       ],
       export: false
   end
 
   defimpl Commanded.Event.Upcaster, for: AnswerRecorded do
+    def upcast(%{trace: nil} = event, _metadata), do: %{event | trace: []}
     def upcast(event, _metadata), do: event
   end
 

@@ -91,9 +91,15 @@ defmodule Oneiroi.Brain.Turn do
   left out: each is owed to the resident's real next turn, and a letter
   read here would reach the witness on a card with no receipt (P41). The
   model calls bill to `actor`, the run's.
+
+  The reply comes back with the trace of the loop's tool calls in order
+  (`Oneiroi.Eunomia.Trial.step/0`): each tool, its arguments, whether it
+  read or was mocked, and the text the model was given back. It is the
+  witness's, for the card (eunomia #31): it rides the return and nothing
+  else, never the session topic, a capture or a log.
   """
   @spec trial(String.t(), String.t(), String.t(), Actor.t()) ::
-          {:ok, Result.t()} | {:error, term()}
+          {:ok, Result.t(), [Oneiroi.Eunomia.Trial.step()]} | {:error, term()}
   def trial(resident_id, model, prompt, %Actor{} = actor)
       when is_binary(model) and is_binary(prompt) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
@@ -126,12 +132,16 @@ defmodule Oneiroi.Brain.Turn do
       purpose: :regression,
       notices: [],
       injections: [],
-      tools: []
+      tools: [],
+      trace: []
     }
 
     {messages, _injections} = assemble(row, turn, prompt)
-    {result, _turn} = converse(turn, messages, 0)
-    result
+
+    case converse(turn, messages, 0) do
+      {{:ok, %Result{} = result}, turn} -> {:ok, result, turn.trace}
+      {failure, _turn} -> failure
+    end
   end
 
   defp run_for(row, resident_id, session_key, text, actor, opts) do
@@ -218,9 +228,26 @@ defmodule Oneiroi.Brain.Turn do
         actor: turn.resident
       }
 
-      {results ++ [result], %{turn | tools: turn.tools ++ [record]}}
+      {results ++ [result], traced(%{turn | tools: turn.tools ++ [record]}, call, output)}
     end)
   end
+
+  # A trial keeps each call for the witness's card (eunomia #31), the
+  # kind read from the decision `Tools.trial/3` acts on, so the trace
+  # says a call ran only when it did. A real turn keeps none: its calls
+  # are captured as `tool` messages already.
+  defp traced(%{trial?: true} = turn, call, output) do
+    step = %{
+      tool: call.name,
+      arguments: call.arguments,
+      kind: Tools.trial_kind(call.name),
+      result: output
+    }
+
+    %{turn | trace: turn.trace ++ [step]}
+  end
+
+  defp traced(turn, _call, _output), do: turn
 
   # A trial's writes are answered and never run (`Tools.trial/3`); the
   # turn carries the numbers its answers have minted so far.

@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Regression.stories';
 import { sortCards } from './deck';
 
-const { Empty, Tests, Runs, Answering, Graded, Stopped, Refused } = composeStories(stories);
+const { Empty, Tests, Runs, Answering, Graded, Stopped, Refused, Traced, Untraced, TraceCut } = composeStories(stories);
 
 describe('Regression', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Tests, Runs, Answering, Graded, Stopped, Refused]) {
+    for (const Story of [Empty, Tests, Runs, Answering, Graded, Stopped, Refused, Traced, Untraced, TraceCut]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -120,6 +120,44 @@ describe('Regression', () => {
     expect(screen.queryByText('Declined, in its own words')).toBeNull();
   });
 
+  it('shows how the answer was reached under the card, collapsed, each step read or mocked with its arguments and what came back', () => {
+    render(<Traced />);
+    const first = screen.getByRole('article', { name: 'Answer 1' });
+    const summary = within(first).getByText('How Lily got there · 2 steps');
+    const trace = summary.closest('details') as HTMLDetailsElement;
+    expect(trace.open).toBe(false);
+    fireEvent.click(summary);
+    expect(trace.open).toBe(true);
+
+    const steps = within(within(first).getByRole('list', { name: 'How Lily got there' })).getAllByRole('listitem');
+    expect(steps.map((s) => s.getAttribute('aria-label'))).toEqual(['Step 1: transcript_search', 'Step 2: bookmark_add']);
+    expect(within(steps[0]).getByText('read')).toBeTruthy();
+    expect(within(steps[1]).getByText('mocked')).toBeTruthy();
+    // The arguments laid out, the result behind its own fold.
+    expect(within(steps[1]).getByText(/"line": "late again, the third time this month"/)).toBeTruthy();
+    const result = within(steps[1]).getByText('Bookmarked as #14.');
+    expect((result.closest('details') as HTMLDetailsElement).open).toBe(false);
+    expect(within(steps[1]).getByText('What came back')).toBeTruthy();
+
+    // A card with no trace shows no fold at all.
+    const second = screen.getByRole('article', { name: 'Answer 2' });
+    expect(within(second).queryByText(/How Lily got there/)).toBeNull();
+  });
+
+  it('says nothing of a trace a card does not have', () => {
+    render(<Untraced />);
+    expect(screen.queryByText(/got there/)).toBeNull();
+  });
+
+  it('marks a result cut for the card, before and after it is opened', () => {
+    render(<TraceCut />);
+    const steps = within(screen.getByRole('list', { name: 'How Lily got there' })).getAllByRole('listitem');
+    expect(within(steps[0]).getByText('What came back, cut short here')).toBeTruthy();
+    expect(within(steps[0]).getByText('Cut here for this card. Lily was given all of it.')).toBeTruthy();
+    expect(within(steps[1]).getByText('What came back')).toBeTruthy();
+    expect(within(steps[1]).queryByText(/Cut here/)).toBeNull();
+  });
+
   it("shows a refused request's meaning, with its site and request id as a reference", () => {
     render(<Refused />);
     const alert = screen.getByRole('alert');
@@ -140,6 +178,7 @@ describe('Regression', () => {
       grade: null,
       favourite: false,
       model: null,
+      trace: [],
     });
     const sorted = sortCards([card('b', null, 1), card('z', 1), card('a', 2), card('c', 1)]);
     expect(sorted.map((c) => c.card_ref)).toEqual(['c', 'z', 'a', 'b']);
