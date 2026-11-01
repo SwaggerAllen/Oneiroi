@@ -1,7 +1,8 @@
-export type Destination = 'chat' | 'memory' | 'ledger';
+export type Destination = 'chat' | 'memory' | 'ledger' | 'regression';
 
-// Chat is home; there is no dashboard (spec §10). Three of the five
-// destinations exist in this phase.
+// Chat is home; there is no dashboard (spec §10). The spec's five are
+// Chat, Memory, Schedule, Inbox and More; until More exists, the screens
+// it will hold (Ledger, Regression) sit here beside the two built.
 export function BottomNav({
   current,
   onChange,
@@ -13,6 +14,7 @@ export function BottomNav({
     { id: 'chat', label: 'Chat' },
     { id: 'memory', label: 'Memory' },
     { id: 'ledger', label: 'Ledger' },
+    { id: 'regression', label: 'Regression' },
   ];
   return (
     <nav

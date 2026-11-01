@@ -5,10 +5,18 @@ paths:
 
 # regression
 
-Regression (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Regression (spec §10). Built as `Regression` with `RegressionContainer`
+in the shell: the tests, written and edited as three texts side by side;
+starting a run on models named by their OpenRouter slugs, over every
+test or the ones chosen; the runs, newest first; a run's cards arriving
+over its channel while it answers (eunomia #30), blind until every
+answer to a test is graded, graded pass or fail, favourited, a refusal
+in its words and a failure as no answer; the results by pass rate once
+revealed, and the pin, which confirms in place. A refused request shows
+the server's meaning, with its site and request id as a reference. Not
+built: the swipe (buttons grade), the by-test matrix and the by-model
+view, and drafting a test from the soul. The state list lives in the
+stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows
 

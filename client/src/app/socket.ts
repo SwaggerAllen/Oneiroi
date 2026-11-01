@@ -1,4 +1,5 @@
 import { Socket } from 'phoenix';
+import type { RegressionCard, RunEnd } from '../api/types';
 
 // The streamed conversation (spec §5): the session channel delivers
 // deltas and the turn as it lands. The socket takes a five-minute token
@@ -19,6 +20,30 @@ export function joinSession(token: string, residentId: string, key: string, even
   channel.on('turn', (p: { turn_ref: string }) => events.onTurn(p.turn_ref));
   channel.on('failed', (p: { turn_ref: string; reason: string }) => events.onFailed(p.turn_ref, p.reason));
   channel.join();
+  return () => {
+    channel.leave();
+    socket.disconnect();
+  };
+}
+
+// A regression run as it answers (eunomia #30): the run's channel pushes
+// each card, blind, as the background job records it, then the run's
+// end. Same socket and token flow as the session; grading stays on the
+// HTTP routes. `onJoined` fires once the join is accepted, so the caller
+// can read the run again for any card recorded before it.
+export interface RunEvents {
+  onJoined: () => void;
+  onCard: (card: RegressionCard) => void;
+  onFinished: (end: RunEnd) => void;
+}
+
+export function joinRun(token: string, residentId: string, ref: string, events: RunEvents) {
+  const socket = new Socket('/socket', { params: { token } });
+  socket.connect();
+  const channel = socket.channel(`regression:${residentId}:${ref}`);
+  channel.on('card', (p: RegressionCard) => events.onCard(p));
+  channel.on('finished', (p: RunEnd) => events.onFinished(p));
+  channel.join().receive('ok', () => events.onJoined());
   return () => {
     channel.leave();
     socket.disconnect();
