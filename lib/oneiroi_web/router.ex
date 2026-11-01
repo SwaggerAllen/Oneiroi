@@ -56,6 +56,7 @@ defmodule OneiroiWeb.Router do
       resources("/residents", ResidentController, only: [:index, :create, :show])
       post("/residents/import", ResidentController, :import_resident)
       put("/residents/:id/remote", ResidentController, :remote)
+      post("/residents/:id/backup", ResidentController, :backup)
       get("/residents/:id/files", FileController, :index)
       get("/residents/:id/files/:name", FileController, :show)
       put("/residents/:id/files/:name", FileController, :write)
