@@ -127,6 +127,12 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
+      {:page_bookmarks, "KUMBUKUMBU_PAGE_BOOKMARKS",
+       cast: :integer,
+       default: "20",
+       tag: :bound,
+       usage:
+         "how many bookmarks one bookmark_list page holds (kumbukumbu #39); a guess at a page the brain reads whole, never measured"},
       {:tree, "KUMBUKUMBU_TREE",
        cast: &__MODULE__.cast_tree/1,
        default: "ethos",
@@ -624,9 +630,22 @@ defmodule Oneiroi.Kumbukumbu do
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id), do: Memories.index(resident_id))
 
-  @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line."
-  @spec index(String.t(), String.t()) :: Oneiroi.Kumbukumbu.Index.built()
+  @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line; nil, or a key no session has, is the common room."
+  @spec index(String.t(), String.t() | nil) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
+
+  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu #38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
+  @spec index_now(String.t()) :: map()
+  defexport(index_now(resident_id), do: Memories.index_now(resident_id))
+
+  @doc "A page of the bookmarks within the room of `session_key`, newest first (kumbukumbu #39): `before:`, `pinned:`, `tag:`, `text:`, `from:`, `to:`; the rows and how many more match further back."
+  @spec bookmark_page(String.t(), String.t() | nil, keyword()) :: %{
+          rows: [map()],
+          further: non_neg_integer()
+        }
+  defexport(bookmark_page(resident_id, session_key, opts),
+    do: Memories.page(resident_id, session_key, opts)
+  )
 
   # ---- revisions (spec §6.3, F13) ----
 

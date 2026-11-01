@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Memory } from './Memory';
-import type { Bookmark } from '../../api/types';
+import type { Bookmark, IndexNow } from '../../api/types';
 
 const lily = { kind: 'resident', id: 'r1', model: 'openai/gpt-4o-mini' };
 
@@ -18,7 +18,9 @@ const bookmarks: Bookmark[] = [
     proposed_by: null,
     pinned_by: { kind: 'witness', id: 'a1' },
     pinned_at: '2026-10-27T19:00:00Z',
-    last_indexed_at: '2026-10-28T08:00:00Z',
+    // No turn has listed it yet: the index tab reads the server's build,
+    // never this mark.
+    last_indexed_at: null,
   },
   {
     number: 1,
@@ -33,9 +35,19 @@ const bookmarks: Bookmark[] = [
     proposed_by: { kind: 'witness', id: 'a1' },
     pinned_by: null,
     pinned_at: null,
-    last_indexed_at: null,
+    last_indexed_at: '2026-10-20T08:00:00Z',
   },
 ];
+
+// The server's words, as it sends them (kumbukumbu #38); the client
+// renders them and restates nothing.
+const index: IndexNow = {
+  listed: [2],
+  left_out: 1,
+  elsewhere: 0,
+  description:
+    'What the next turn in the main conversation is given now: 1 bookmark listed under a budget of 40 tokens (a bound), pins first and taking at most half of it, then the rest by weight and recency. 1 left out for want of room; each is still opened by its number and reached by paging back.',
+};
 
 const meta = {
   title: 'Screens/Memory',
@@ -47,7 +59,7 @@ const meta = {
       { slug: 'haven', state: 'active', note: null },
       { slug: 'care', state: 'proposed', note: 'why' },
     ],
-    indexBudget: 1500,
+    index,
     onPin: () => undefined,
     onUnpin: () => undefined,
   },
@@ -55,6 +67,29 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Empty: Story = { args: { bookmarks: [], tags: [] } };
+export const Empty: Story = {
+  args: {
+    bookmarks: [],
+    tags: [],
+    index: {
+      listed: [],
+      left_out: 0,
+      elsewhere: 0,
+      description:
+        'What the next turn in the main conversation is given now: 0 bookmarks listed under a budget of 1500 tokens (a bound), pins first and taking at most half of it, then the rest by weight and recency.',
+    },
+  },
+};
 export const InTheIndex: Story = {};
+export const IndexEmpty: Story = {
+  args: {
+    index: {
+      listed: [],
+      left_out: 0,
+      elsewhere: 2,
+      description:
+        'What the next turn in the main conversation is given now: 0 bookmarks listed under a budget of 1500 tokens (a bound), pins first and taking at most half of it, then the rest by weight and recency. 2 bookmarks made in a named room are listed only in that room\'s conversations.',
+    },
+  },
+};
 export const WithTags: Story = {};

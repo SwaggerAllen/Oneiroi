@@ -40,7 +40,7 @@ defmodule Oneiroi.Brain.Tools do
   # writes nothing either: the turn hands it a trial's options (no
   # citation marked, embeddings billed under regression to the run).
   @reads ~w(
-    position_list prediction_list figure_list bookmark_open tag_list
+    position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list
@@ -146,6 +146,19 @@ defmodule Oneiroi.Brain.Tools do
         "Read a bookmark past its index line: the summary and the transcript of its span.",
         %{number: %{type: "integer"}},
         [:number]
+      ),
+      tool(
+        "bookmark_list",
+        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others.",
+        %{
+          before: %{type: "integer"},
+          pinned: %{type: "boolean"},
+          tag: %{type: "string"},
+          text: %{type: "string"},
+          from: %{type: "string"},
+          to: %{type: "string"}
+        },
+        []
       ),
       tool(
         "bookmark_accept",
@@ -672,6 +685,28 @@ defmodule Oneiroi.Brain.Tools do
 
       other ->
         other
+    end
+  end
+
+  # Paging back past the index (kumbukumbu #39): within the turn's room,
+  # as the index is, and the closing line says how many lie further back
+  # and how to ask for them, as the index's footer does.
+  defp call("bookmark_list", args, turn) do
+    with {:ok, from} <- day(args["from"], "from"),
+         {:ok, to} <- day(args["to"], "to") do
+      opts = [
+        before: integer(args["before"]),
+        pinned: args["pinned"] in [true, "true"],
+        tag: args["tag"],
+        text: args["text"],
+        from: from,
+        to: to
+      ]
+
+      %{rows: rows, further: further} =
+        Kumbukumbu.bookmark_page(turn.resident_id, turn.session_key, opts)
+
+      Enum.join(Enum.map(rows, &Kumbukumbu.Index.line/1) ++ [page_footer(rows, further)], "\n")
     end
   end
 
@@ -1468,6 +1503,24 @@ defmodule Oneiroi.Brain.Tools do
   # The movement a cite tool may carry (P34): the three fields as given,
   # the shape checked at the character layer's edge.
   defp movement(args), do: Map.take(args, ~w(stance intention resume))
+
+  defp page_footer([], _further), do: "No bookmark matches."
+  defp page_footer(_rows, 0), do: "Nothing further back matches."
+
+  defp page_footer(rows, further) do
+    "#{further} more further back; bookmark_list with before: #{List.last(rows).number} and the same filters reads the next page."
+  end
+
+  # A day the model names, or none; a day it misspells answers in words.
+  defp day(nil, _name), do: {:ok, nil}
+  defp day("", _name), do: {:ok, nil}
+
+  defp day(text, name) do
+    case Date.from_iso8601(to_string(text)) do
+      {:ok, date} -> {:ok, date}
+      {:error, _reason} -> @not_done <> "#{name} is a day written YYYY-MM-DD."
+    end
+  end
 
   defp integer(n) when is_integer(n), do: n
 

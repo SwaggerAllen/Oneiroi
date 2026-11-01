@@ -5,11 +5,13 @@ paths:
 
 # memory
 
-Memory (bookmarks) (spec §10). Built (P1, slice 5) as `Memory` with `MemoryContainer` in the shell: rows as `BookmarkCard` with pin, index marker, the line, when, who bookmarked, who pinned, the span and tags; tabs In the index (with the budget as a caption), All, Pinned, one per active tag; search over the line and summary; pin and unpin. Opening the transcript at the anchor and proposing a revision wait on the transcripts and revisions screens. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
+Memory (bookmarks) (spec §10). Built (P1, slice 5) as `Memory` with `MemoryContainer` in the shell: rows as `BookmarkCard` with pin, index marker, the line, when, who bookmarked, who pinned, the span and tags; tabs In the index (with the server's description as a caption), All, Pinned, one per active tag; search over the line and summary; pin and unpin.
+
+In the index lists what the index holds now (`GET /v1/residents/:id/index`, kumbukumbu #38): the bookmark numbers the server's build listed, in its order, for the common room, which is the room of the main conversation, so a bookmark made in a named room is counted there and listed only in that room's conversations. The caption is the server's sentence, budget and all; the client holds no budget, pin share, order or filter of its own. A row's "in the index" marker is that list; "last listed in a turn" beside it is the row's `last_indexed_at`, a fact and never the filter, so the tab is right before any turn has been taken. Opening the transcript at the anchor and proposing a revision wait on the transcripts and revisions screens. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows
 
-Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search.
+Rows: pin or index marker (the index as it stands now), the line, when, who bookmarked, who pinned, the span, tags, and when a turn last listed it; tabs In the index (with the server's description, budget included, as a caption), All, Pinned, and one per tag; search.
 
 ## #2 Does
 

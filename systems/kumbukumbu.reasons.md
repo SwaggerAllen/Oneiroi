@@ -190,3 +190,30 @@ judged a second time on a platform that did not hear it, and the judge's
 spend would follow her whole history. Refusing the kind at the client edge
 keeps the exclusion from being a door: a session a client could open as
 `imported` would be a session no judge ever reads.
+
+## #38
+The author, 11-01, after an import: "in memory -> in the index nothing is
+listed." The tab filtered on `last_indexed_at`, which only a live turn's
+`ContextAssembled` sets, and a resident with no live turn since
+arriving (a regression trial records nothing, by design) had bookmarks
+and pins and not one mark. The tab was literally true and
+read as a bug, because the witness asks what the index holds, not what a
+turn last drew. Reading the build answers that with no turn taken. The
+rule's words come from the server because the author asked that the
+client know nothing of how context is made: a client that restated the
+budget (it hardcoded 1,500) or the pins' half drifts the first time
+either changes, and a tab is not the place a rule should live twice.
+
+## #39
+The index lists what fits its budget and says how many it left out, but
+until this the only way past it was `bookmark_open` with a number the
+resident had to know already, or `transcript_search` with words she had
+to guess. The author: "We should have a tool for digging back further
+in the bookmarks", and, for the pins, "so she doesn't have to see all
+of history to get the important parts from the beginning." A pin is a
+decision, and the pins' half of the budget can leave the oldest out;
+the footer saying so, and naming the page that lists them, keeps a pin
+left out from reading as a pin forgotten. Room-scoped because it is
+retrieval, not the resident asking for one row by name (#36): a page of
+everything would carry a named room's history into the common room a
+line at a time. The page bound is a guess at what a brain reads whole.

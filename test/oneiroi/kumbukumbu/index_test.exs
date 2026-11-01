@@ -58,8 +58,24 @@ defmodule Oneiroi.Kumbukumbu.IndexTest do
     assert built.tokens <=
              60 +
                Index.tokens(
-                 "99 more not shown; bookmark_open(number) reads any, and transcript_search reaches past the index."
+                 "99 more not shown; bookmark_open(number) reads any, bookmark_list pages back through the rest, and transcript_search reaches past the index. 9 pins not shown; bookmark_list(pinned: true) lists every pin."
                )
+  end
+
+  test "the footer names bookmark_list, and counts the pins left out and where every pin is listed" do
+    pinned = for n <- 1..4, do: bookmark(n, pinned_at: @at)
+    rest = [bookmark(5), bookmark(6), bookmark(7)]
+    # As above: the pins' half of 56 holds two of the four.
+    built = Index.build(pinned ++ rest, 56)
+
+    assert built.text =~
+             "3 more not shown; bookmark_open(number) reads any, bookmark_list pages back through the rest, and transcript_search reaches past the index. 2 pins not shown; bookmark_list(pinned: true) lists every pin."
+
+    one = Index.build([bookmark(1, pinned_at: @at), bookmark(2, pinned_at: @at)], 26)
+    assert one.text =~ " 1 pin not shown; bookmark_list(pinned: true) lists every pin."
+
+    # No pin left out, no pin line.
+    refute Index.build(rest, 24).text =~ "pin"
   end
 
   test "the rest rank by weight, then by recency" do

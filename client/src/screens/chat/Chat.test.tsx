@@ -4,14 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming } = composeStories(stories);
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewOpen, PreviewClosed } =
+  composeStories(stories);
 
 describe('Chat', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewOpen, PreviewClosed]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -41,5 +42,33 @@ describe('Chat', () => {
     render(<DrewOnOpen />);
     expect(screen.getByText(/the bookmark index under 1500 tokens/, { selector: 'li' })).toBeTruthy();
     expect(screen.getByText('drew on 4 things')).toBeTruthy();
+  });
+
+  it('the preview renders the server sections in order: words where sent, the note where withheld', () => {
+    render(<PreviewOpen />);
+    const items = screen.getAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('strong')?.textContent)).toEqual([
+      'prompt',
+      'SOUL.md',
+      'index',
+      'honcho',
+      'madeleine',
+      'transcript',
+    ]);
+    expect(screen.getByText(/Curious about herons/)).toBeTruthy();
+    expect(screen.getByText(/No screen shows it to you yet/)).toBeTruthy();
+    expect(screen.getByText(/a preview does not run it/)).toBeTruthy();
+    // A withheld section renders no block of words.
+    expect(items[0].querySelector('pre')).toBeNull();
+    expect(items[1].querySelector('pre')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Close the preview' })).toBeTruthy();
+  });
+
+  it('asks for the preview with the draft as it stands', () => {
+    const onPreview = vi.fn();
+    render(<Chat residentName="Lily" messages={[]} onSend={() => undefined} onPreview={onPreview} />);
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'the heron' } });
+    fireEvent.click(screen.getByRole('button', { name: 'What Lily will see next' }));
+    expect(onPreview).toHaveBeenCalledWith('the heron');
   });
 });

@@ -320,9 +320,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   over the bookmarks of the room's sessions alone, and a bookmark of
   another domain that would have ranked in is named among the
   near-misses as held behind the domain line, so the audit shows the
-  line approached and not crossed.
+  line approached and not crossed. A `session_key` no session has, nil
+  included, is the common room (`Conversations.room/2`).
   """
-  @spec index(String.t(), String.t()) :: Index.built()
+  @spec index(String.t(), String.t() | nil) :: Index.built()
   def index(resident_id, session_key) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     %{keys: keys} = Conversations.room(resident_id, session_key)
@@ -349,6 +350,97 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   defp domain_name(%{domain: domain}) when is_binary(domain), do: "the #{domain} domain"
   defp domain_name(_session), do: "the common room"
+
+  @doc """
+  What the index holds now in the common room, for the witness's Memory
+  screen (kumbukumbu #38): the same `index/2` the next turn of the main
+  session is built from (the main session is the common room), never
+  inferred from `last_indexed_at`, which only says when a turn last
+  listed a bookmark. The numbers listed in the index's order, how many
+  of the room's it left out, how many sit in a named room and are
+  listed only in that room's sessions, the budget, and a sentence that
+  says all of it, so a client renders the rule and never restates it.
+  """
+  @spec index_now(String.t()) :: %{
+          listed: [pos_integer()],
+          left_out: non_neg_integer(),
+          elsewhere: non_neg_integer(),
+          budget: pos_integer(),
+          description: String.t()
+        }
+  def index_now(resident_id) do
+    budget = Config.fetch!(:kumbukumbu, :index_tokens)
+    built = index(resident_id, nil)
+    total = resident_id |> bookmarks() |> length()
+    elsewhere = total - length(built.included) - built.left_out
+
+    %{
+      listed: built.included,
+      left_out: built.left_out,
+      elsewhere: elsewhere,
+      budget: budget,
+      description: describe_index(length(built.included), built.left_out, elsewhere, budget)
+    }
+  end
+
+  defp describe_index(listed, left_out, elsewhere, budget) do
+    [
+      "What the next turn in the main conversation is given now: #{count(listed, "bookmark")} listed under a budget of #{budget} tokens (a bound), pins first and taking at most half of it, then the rest by weight and recency.",
+      left_out > 0 &&
+        "#{left_out} left out for want of room; each is still opened by its number and reached by paging back.",
+      elsewhere > 0 &&
+        "#{count(elsewhere, "bookmark")} made in a named room #{if elsewhere == 1, do: "is", else: "are"} listed only in that room's conversations."
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(" ")
+  end
+
+  defp count(1, word), do: "1 #{word}"
+  defp count(n, word), do: "#{n} #{word}s"
+
+  @doc """
+  One page of the bookmarks within the room of `session_key`, newest
+  first, for the brain's `bookmark_list` (kumbukumbu #39): the index
+  lists what fits its budget, and this pages back through the rest.
+  `before:` a number to page back from, `pinned: true` the pins alone
+  (every one, the ones the index's half could not fit included), `tag:`
+  a tag the bookmark carries, `text:` a phrase in its line, `from:` and
+  `to:` days its anchor falls between, all combined; at most `KUMBUKUMBU_PAGE_BOOKMARKS` rows, and
+  `further`, how many more match beyond the page. The room is
+  `index/2`'s: a bookmark of another domain is never listed.
+  """
+  @spec page(String.t(), String.t() | nil, keyword()) :: %{
+          rows: [map()],
+          further: non_neg_integer()
+        }
+  def page(resident_id, session_key, opts \\ []) do
+    size = Config.fetch!(:kumbukumbu, :page_bookmarks)
+    %{keys: keys} = Conversations.room(resident_id, session_key)
+
+    matching =
+      resident_id
+      |> bookmarks()
+      |> Enum.filter(&(&1.session_key in keys and page_match?(&1, opts)))
+      |> Enum.sort_by(& &1.number, :desc)
+
+    {rows, rest} = Enum.split(matching, size)
+    %{rows: rows, further: length(rest)}
+  end
+
+  defp page_match?(b, opts) do
+    Enum.all?(opts, fn
+      {:before, n} when is_integer(n) -> b.number < n
+      {:pinned, true} -> b.pinned_at != nil
+      {:tag, tag} when is_binary(tag) and tag != "" -> tag in b.tags
+      {:text, text} when is_binary(text) and text != "" -> contains?(b.line, text)
+      {:from, %Date{} = day} -> Date.compare(DateTime.to_date(b.anchor_at), day) != :lt
+      {:to, %Date{} = day} -> Date.compare(DateTime.to_date(b.anchor_at), day) != :gt
+      {_unset, _value} -> true
+    end)
+  end
+
+  defp contains?(line, text),
+    do: String.contains?(String.downcase(line), String.downcase(String.trim(text)))
 
   # ---- helpers ----
 

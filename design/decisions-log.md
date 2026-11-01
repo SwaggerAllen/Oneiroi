@@ -1224,3 +1224,33 @@ and nothing personal turned up; what follows is what changed.
   repository a repository if it is not one yet, as on any turn: an
   empty `git init` carrying nothing of the trial, for a resident who has
   never written a document.
+
+## Round 44: what the index holds now, and what she will see next (2026-11-01)
+
+- The author, after an import: "in memory -> in the index nothing is
+  listed." The tab filtered on `last_indexed_at`, set only by a live
+  turn's `ContextAssembled`, so a resident with no live turn since
+  arriving showed an empty index over a full memory. The row's marker
+  now means the index holds the bookmark now (the server's build for
+  the common room, the main conversation's room), and `last_indexed_at`
+  stays as when a turn last listed it (spec §6.3 amended; kumbukumbu
+  #38).
+- The client knows nothing of how context is made (the author): the
+  index's budget, its pin share and its order, and the preview's
+  sections, order and withholding, are the server's, sent as numbers and
+  sentences the client renders. The hardcoded budget is gone.
+- The preview of the next turn sits beside the inspector in Chat (spec
+  §5 and §10 amended; brain #41): the turn's own assembly as a dry run,
+  recording nothing and billing nothing; the madeleine not run and the
+  vector lane left out, each saying so; words only where the witness
+  already reads them, and a label nobody classified withheld.
+- `bookmark_list` pages back through the bookmarks within the room,
+  pins alone on asking, and the index's footer counts the pins its half
+  left out (kumbukumbu #39, brain #10). No law change: spec §8 already
+  gives the brain `bookmark_*`.
+- Open, for the author: whether the brain's prompt file, the index's
+  own text and Honcho's context may be shown in the preview (withheld
+  until decided; the index by spec §5's "seen only there"); whether the
+  once-only notices may be read before the turn that tells them; and
+  whether the tab should follow a named room's conversation once the
+  client lists rooms.

@@ -34,6 +34,7 @@ defmodule Oneiroi.Brain do
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
 
   alias Oneiroi.Brain.Drafting
+  alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Turn
 
@@ -142,6 +143,13 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Eunomia.Trial
   defexport(trial(resident_id, model, prompt, actor),
     do: Turn.trial(resident_id, model, prompt, actor)
+  )
+
+  @doc "The witness's preview of the next turn of a session (brain #41): the turn's own assembly as a dry run, every section in order with its tokens and reason and its words only where the witness already reads them elsewhere; nothing recorded, nothing billed, no model called."
+  @spec preview(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(preview(resident_id, session_key, text, actor),
+    do: Preview.preview(resident_id, session_key, text, actor)
   )
 
   @doc "Drafts an identity file from the witness's prompt under the drafting purpose; returned, not written."

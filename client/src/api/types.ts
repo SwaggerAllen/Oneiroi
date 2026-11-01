@@ -51,6 +51,35 @@ export interface Injection {
   text: string | null;
 }
 
+// What the index holds now (kumbukumbu #38): the numbers listed, in the
+// index's order, and the server's own words for the rule. The client
+// renders these and restates nothing of how the index is built.
+export interface IndexNow {
+  listed: number[];
+  left_out: number;
+  elsewhere: number;
+  description: string;
+}
+
+// One section of the next turn's preview (brain #41), decided and worded
+// by the server: `text` is null where the words are withheld or there
+// are none, and `note` says where else they are read, or why not.
+export interface PreviewSection {
+  label: string;
+  tokens: number;
+  reason: string;
+  text: string | null;
+  shown: boolean;
+  run: boolean;
+  note: string;
+}
+
+export interface ContextPreview {
+  description: string;
+  compacts_first: boolean;
+  sections: PreviewSection[];
+}
+
 export interface Turn {
   turn_ref: string;
   messages: Array<{ role: string; content: string; sent_at: string; actor: Actor; refusal: boolean }>;

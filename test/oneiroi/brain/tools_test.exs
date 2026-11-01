@@ -195,6 +195,87 @@ defmodule Oneiroi.Brain.ToolsTest do
     assert Enum.any?(Tools.definitions(), &(&1.function.name == "bookmark_add"))
   end
 
+  test "bookmark_list pages back through every bookmark in the room, in the index's lines, and says what lies further back",
+       ctx do
+    id = ctx.resident.id
+    brain = Actor.new(:resident, id, "fake/model")
+    size = Oneiroi.Config.fetch!(:kumbukumbu, :page_bookmarks)
+
+    turn = %{
+      resident_id: id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: brain
+    }
+
+    {:ok, ikey} =
+      Kumbukumbu.open_session(id, "free_time", "brain", [ctx.witness.id], ctx.actor,
+        domain: "intimate"
+      )
+
+    total = size + 3
+
+    for n <- 1..total do
+      if n == 2 do
+        {:ok, 2} =
+          Kumbukumbu.add_bookmark(
+            id,
+            %{
+              session_key: ikey,
+              anchor_ref: "t-elsewhere",
+              anchor_at: Clock.now(),
+              line: "kept to the room"
+            },
+            brain
+          )
+      else
+        said = Tools.run("bookmark_add", ~s({"line":"moment #{n}","summary":"s"}), turn)
+        assert said == "Bookmarked as ##{n}."
+      end
+    end
+
+    :ok = Kumbukumbu.pin_bookmark(id, 3, ctx.actor)
+
+    # In the definitions and among the reads, so a trial runs it for real.
+    assert Enum.any?(Tools.definitions(), &(&1.function.name == "bookmark_list"))
+    assert "bookmark_list" in Tools.reads()
+    assert Tools.trial_kind("bookmark_list") == :read
+
+    first = Tools.run("bookmark_list", "{}", turn)
+    lines = String.split(first, "\n")
+    assert length(lines) == size + 1
+    [top | _] = lines
+    assert top == Kumbukumbu.Index.line(hd(Kumbukumbu.bookmarks(id)))
+    assert top =~ "##{total} "
+    # The room's line: the intimate room's bookmark is never listed here.
+    refute first =~ "kept to the room"
+    last = List.last(lines)
+    oldest = total - size + 1
+
+    assert last ==
+             "2 more further back; bookmark_list with before: #{oldest} and the same filters reads the next page."
+
+    rest = Tools.run("bookmark_list", ~s({"before": #{oldest}}), turn)
+    assert rest =~ "#3 " and rest =~ "#1 "
+    refute rest =~ "kept to the room"
+    assert String.ends_with?(rest, "Nothing further back matches.")
+
+    pinned = Tools.run("bookmark_list", ~s({"pinned": true}), turn)
+    assert [line, "Nothing further back matches."] = String.split(pinned, "\n")
+    assert line =~ "#3 " and line =~ "(pinned)"
+
+    assert Tools.run("bookmark_list", ~s({"text": "MOMENT 1"}), turn) =~ "#1 "
+    assert Tools.run("bookmark_list", ~s({"text": "nowhere"}), turn) == "No bookmark matches."
+
+    assert Tools.run("bookmark_list", ~s({"from": "the first of May"}), turn) ==
+             "Not done: from is a day written YYYY-MM-DD."
+
+    # From the intimate room it reaches its own and the common room's.
+    elsewhere = Tools.run("bookmark_list", ~s({"before": 4}), %{turn | session_key: ikey})
+    assert elsewhere =~ "kept to the room"
+  end
+
   # Fixture runs of 10-31: `commitment_list(null)` refused, then the
   # model told its witness it held no commitments; `bookmark_add` with
   # one object twice over refused, and no bookmark made.

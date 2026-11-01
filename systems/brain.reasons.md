@@ -291,3 +291,27 @@ the script's own words said "fixture". The run is told to be shorter than
 twelve turns in tests, so the prompt names no count. The reply it gets
 cannot grant the ask, so it must not pretend to; what it can honestly
 give is that the ask is recorded, counts, and may change the rules.
+
+## #41
+The author, 11-01: "probably have a context debugger in chat too", after
+the Memory tab showed an empty index for a resident with no live turn
+since arriving. The inspector under a reply says what that turn drew on;
+nothing said what the next one would until a message was spent finding
+out. A preview that assembled on its own path would drift from the turn
+the first time a section was added to one and not the other, and a
+preview that drifts is worse than none, because the witness would trust
+it; so the turn was split at the point where it starts to change things
+and the preview stops there. Nothing recorded because a read that writes
+is the trial's lesson (decisions round 43): two reads there wrote, a
+citation marked and a vector refreshed, and the seal test found them;
+the preview's test is the same seal, stricter, with no billing allowed.
+The madeleine is left out rather than run on the draft: run, it would
+bill an embedding on every opening of the preview, which is a ledger
+write, and the draft is not yet what is said. The words follow the spec's
+visibility rules rather than widening them: a witness reads a solo
+session's receipts and not its words (spec §6.3), a self-letter only with
+a receipt (P41), and the verbatim index only in the inspector (spec §5),
+and a preview that showed any of those first would be a second door to a
+room the first door keeps shut. A label nobody classified is withheld
+because the failure of the other default is silent: a new section's
+words on the wire with no one having asked whether they may be.

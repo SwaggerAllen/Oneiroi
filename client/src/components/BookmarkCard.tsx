@@ -4,17 +4,21 @@ import { Button } from './Button';
 import { TagChip } from './TagChip';
 
 // A row shows when, who bookmarked, who pinned, the span, the tags, and
-// whether it was in the index this turn (spec §6.3). The line and the
-// summary are the resident's words and no control edits them.
+// whether the index holds it now, as the server says (spec §6.3,
+// kumbukumbu #38), with when a turn last listed it as a fact beside that.
+// The line and the summary are the resident's words and no control
+// edits them.
 export function BookmarkCard({
   bookmark,
   residentName,
+  inIndex = false,
   onPin,
   onUnpin,
   onOpen,
 }: {
   bookmark: Bookmark;
   residentName: string;
+  inIndex?: boolean;
   onPin?: (number: number) => void;
   onUnpin?: (number: number) => void;
   onOpen?: (bookmark: Bookmark) => void;
@@ -40,9 +44,7 @@ export function BookmarkCard({
           {bookmark.line}
         </p>
         {pinned ? <span style={{ fontSize: 12, color: 'var(--witness)' }}>pinned</span> : null}
-        {bookmark.last_indexed_at ? (
-          <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>in the index</span>
-        ) : null}
+        {inIndex ? <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>in the index</span> : null}
       </div>
       {bookmark.summary ? (
         <p style={{ margin: 0, fontSize: 15, lineHeight: '22px', color: 'var(--ink-muted)' }}>{bookmark.summary}</p>
@@ -57,6 +59,9 @@ export function BookmarkCard({
           <span style={{ color: 'var(--ink-faint)' }}>
             pinned by {bookmark.pinned_by.kind === 'witness' ? 'you' : residentName}
           </span>
+        ) : null}
+        {bookmark.last_indexed_at ? (
+          <span style={{ color: 'var(--ink-faint)' }}>last listed in a turn {bookmark.last_indexed_at.slice(0, 10)}</span>
         ) : null}
         {bookmark.tags.map((tag) => (
           <TagChip key={tag} slug={tag} />

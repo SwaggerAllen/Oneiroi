@@ -145,22 +145,45 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp run_for(row, resident_id, session_key, text, actor, opts) do
-    turn_ref = Kumbukumbu.turn_ref()
+    turn = prepare(row, resident_id, session_key, text, actor, opts)
+    Compaction.maybe(turn)
+    {messages, injections} = assemble(row, turn, text)
+    turn = %{turn | injections: injections}
+    broadcast(resident_id, session_key, {:turn_started, turn.turn_ref})
+
+    turn
+    |> converse(messages, 0)
+    |> conclude(turn)
+  end
+
+  # The turn as it would open now: the model (a lapse's over the pin and
+  # the setting), the resident's actor, the opening and the once-only
+  # notices owed to it. A real turn and the witness's preview (brain #41)
+  # both start here, so the preview cannot open a turn the turn would not.
+  defp prepare(row, resident_id, session_key, text, actor, opts) do
     started_at = Clock.now()
     # Under a lapse the policy's model stands in for the pin (spec §6.11),
     # and the resident is told so, once, ahead of the turn (brain #21).
     lapse = Oneiroi.Nisaba.lapse(resident_id)
     model = (lapse && lapse.model) || row.chat_model || Config.fetch!(:brain, :chat_model)
-    resident = Actor.new(:resident, resident_id, model)
     as = Keyword.get(opts, :as, :user)
 
-    turn = %{
+    # Each notice with the kind it is, so the preview can name it
+    # without its text; the turn carries the messages alone.
+    notices = [
+      lapse: lapse_notice(lapse),
+      model_change: model_change_notice(row),
+      letters: letters_notice(row, resident_id),
+      import: import_notice(row)
+    ]
+
+    %{
       resident_id: resident_id,
       session_key: session_key,
-      turn_ref: turn_ref,
+      turn_ref: Kumbukumbu.turn_ref(),
       started_at: started_at,
       model: model,
-      resident: resident,
+      resident: Actor.new(:resident, resident_id, model),
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
@@ -169,20 +192,68 @@ defmodule Oneiroi.Brain.Turn do
       injections: [],
       tools: [],
       letters_to_deliver: letters_to_deliver(row, resident_id),
-      notices:
-        lapse_notice(lapse) ++
-          model_change_notice(row) ++ letters_notice(row, resident_id) ++ import_notice(row)
+      notices: Enum.flat_map(notices, &elem(&1, 1)),
+      notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
-
-    Compaction.maybe(turn)
-    {messages, injections} = assemble(row, turn, text)
-    turn = %{turn | injections: injections}
-    broadcast(resident_id, session_key, {:turn_started, turn_ref})
-
-    turn
-    |> converse(messages, 0)
-    |> conclude(turn)
   end
+
+  @doc """
+  The next turn of `session_key` as a dry run, for the witness's
+  preview (brain #41): the same `prepare/6` and the same assembly the
+  turn runs, in the same order, with nothing after it. Nothing is
+  compacted, captured, recorded, marked, broadcast or synced, and no
+  model is called: the madeleine, whose query is an embedding billed to
+  the dyad, is an entry saying it was not run, and the character lane
+  matches on the words given with its vector lane left out, as a lane
+  with no actor runs. Each entry is an injection the turn would record,
+  with the text the context would carry; what of it the witness may
+  read is `Oneiroi.Brain.Preview`'s to decide, not this function's.
+  """
+  @spec dry_run(map(), String.t(), String.t(), String.t(), Actor.t()) :: %{
+          entries: [map()],
+          compacts_first: boolean()
+        }
+  def dry_run(row, resident_id, session_key, text, %Actor{} = actor) do
+    turn =
+      row
+      |> prepare(resident_id, session_key, text, actor, [])
+      |> Map.put(:preview?, true)
+
+    %{sections: sections, injections: injections} = build(row, turn, text)
+    contents = Map.new(sections, &{&1.label, &1.message && &1.message.content})
+
+    entries =
+      Enum.map(injections, fn i ->
+        %{
+          label: i.label,
+          tokens: i.tokens,
+          reason: i.reason,
+          text: Map.get(i, :text) || Map.get(contents, i.label),
+          run: Map.get(i, :run, true)
+        }
+      end)
+
+    notices =
+      Enum.zip_with(turn.notice_kinds, turn.notices, fn kind, notice ->
+        %{
+          label: "notice",
+          tokens: tokens(notice.content),
+          reason: notice_reason(kind),
+          text: notice.content,
+          run: true
+        }
+      end)
+
+    %{entries: entries ++ notices, compacts_first: Compaction.due?(turn)}
+  end
+
+  defp notice_reason(:lapse), do: "the lapse, told once (spec §6.11)"
+  defp notice_reason(:model_change), do: "the change of model, told once (spec §6.4)"
+
+  defp notice_reason(:letters),
+    do: "the letters from the instance before, delivered once (spec §12, P41)"
+
+  defp notice_reason(:import), do: "where it woke after the import, told once (spec §6.2)"
 
   # The tool loop (spec §5): a round is one streamed call; tool calls run
   # against the core and go back as `tool` messages for the next round,
@@ -546,6 +617,14 @@ defmodule Oneiroi.Brain.Turn do
   @doc false
   # Public for the compaction's own calls, which assemble the same way.
   def assemble(row, turn, text) do
+    %{messages: messages, injections: injections} = build(row, turn, text)
+    {messages, injections}
+  end
+
+  # The one assembly (spec §5): the sections in order, the injections the
+  # turn records, the messages the model is sent. A real turn, a trial
+  # and the witness's preview all come through here (brain #41).
+  defp build(row, turn, text) do
     {prompt, files} = prefix(row, turn)
     index = Kumbukumbu.index(turn.resident_id, turn.session_key)
     acting = how_i_act(turn, text)
@@ -611,15 +690,7 @@ defmodule Oneiroi.Brain.Turn do
           "where things can resume (spec §6.4, P34): #{resumable.shown} of #{resumable.total} resume points from the nightly pass, newest first, loaded every turn because dormant is not abandoned",
           %{text: resumable.text, refs: resumable.refs}
         ) ++
-        section(
-          "madeleine",
-          madeleine_text(recall),
-          recall &&
-            "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
-          # The text rides the row, as the index's does, so the recall is
-          # read later as what was shown and not only why.
-          %{text: madeleine_text(recall), refs: (recall && [recall.bookmark.number]) || []}
-        ) ++
+        madeleine_section(turn, recall) ++
         section(
           "dates",
           Oneiroi.Sunna.dates_text(turn.resident_id),
@@ -665,9 +736,43 @@ defmodule Oneiroi.Brain.Turn do
     # to the incoming instance read a turn late is read by the instance
     # after the one it was for.
     notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
-    messages = Enum.map(sections, & &1.message) ++ history ++ notices ++ [opening]
 
-    {messages, injections}
+    messages =
+      (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
+        history ++ notices ++ [opening]
+
+    %{sections: sections, injections: injections, messages: messages}
+  end
+
+  # The madeleine is chosen by nearness to the words the turn opens with,
+  # and the choice is an embedding billed to the dyad; a preview records
+  # nothing and bills nothing, so it shows the section's place and why it
+  # was not run, and sends nothing for it (brain #41).
+  defp madeleine_section(%{preview?: true}, _recall) do
+    [
+      %{
+        label: "madeleine",
+        message: nil,
+        injection: %{
+          tokens: 0,
+          reason:
+            "the madeleine (spec §6.3, P10): chosen by nearness to what is said next, which costs an embedding, so a preview does not run it",
+          run: false
+        }
+      }
+    ]
+  end
+
+  defp madeleine_section(_turn, recall) do
+    section(
+      "madeleine",
+      madeleine_text(recall),
+      recall &&
+        "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
+      # The text rides the row, as the index's does, so the recall is
+      # read later as what was shown and not only why.
+      %{text: madeleine_text(recall), refs: (recall && [recall.bookmark.number]) || []}
+    )
   end
 
   # The near-miss record (spec §5, P6): the bookmarks the index ranked
@@ -769,12 +874,17 @@ defmodule Oneiroi.Brain.Turn do
           tags: tags,
           at: Clock.now(),
           session_key: turn.session_key,
-          actor: Map.get(turn, :resident)
+          actor: lane_actor(turn)
         },
         trial_reads(turn)
       )
     )
   end
+
+  # The vector lane runs only for a query somebody is billed for; a
+  # preview bills nobody, so its lane is the trigger lane alone (brain #41).
+  defp lane_actor(%{preview?: true}), do: nil
+  defp lane_actor(turn), do: Map.get(turn, :resident)
 
   # A trial reads memory as it stands, refreshing no vector, and bills
   # the reads' embeddings as its calls are billed, under regression to
@@ -788,6 +898,8 @@ defmodule Oneiroi.Brain.Turn do
   # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
   # the turn's words, with the resident's actor for the embedding; a
   # turn without one (the assembly read in a test) asks nothing.
+  defp madeleine(%{preview?: true}, _text), do: nil
+
   defp madeleine(%{trial?: true} = turn, text) do
     {actor, opts} = Map.pop!(trial_reads(turn), :actor)
     Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key, Map.to_list(opts))

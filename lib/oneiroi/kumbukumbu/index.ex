@@ -5,8 +5,9 @@ defmodule Oneiroi.Kumbukumbu.Index do
 
   Pins first, newest first, taking at most half the budget; then the rest
   by weight and then recency until the budget is spent. The text ends by
-  saying how many were left out, because an index that looks complete
-  and is not is the one failure this rule exists to prevent. Tokens are
+  saying how many were left out, and how many of those were pins,
+  because an index that looks complete and is not is the one failure
+  this rule exists to prevent. Tokens are
   estimated at four bytes a token, as every estimate in the brain is.
   """
 
@@ -60,7 +61,8 @@ defmodule Oneiroi.Kumbukumbu.Index do
           "Every bookmark is listed."
 
         n ->
-          "#{n} more not shown; bookmark_open(number) reads any, and transcript_search reaches past the index."
+          "#{n} more not shown; bookmark_open(number) reads any, bookmark_list pages back through the rest, and transcript_search reaches past the index." <>
+            pins_line(length(pinned_out))
       end
 
     text = Enum.join(lines ++ [footer], "\n")
@@ -87,6 +89,13 @@ defmodule Oneiroi.Kumbukumbu.Index do
   def tokens(text), do: div(byte_size(text) + @bytes_per_token - 1, @bytes_per_token)
 
   defp pinned?(b), do: b.pinned_at != nil
+
+  # A pin is a decision, and the pins' half of the budget can leave one
+  # out; the footer says how many, and where every pin is listed, so a
+  # pin left out is never a pin forgotten (kumbukumbu #39).
+  defp pins_line(0), do: ""
+  defp pins_line(1), do: " 1 pin not shown; bookmark_list(pinned: true) lists every pin."
+  defp pins_line(n), do: " #{n} pins not shown; bookmark_list(pinned: true) lists every pin."
 
   # Lines in order until the next would not fit; a line that does not fit
   # does not stop a shorter one after it from being tried, since the

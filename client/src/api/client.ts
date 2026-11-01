@@ -1,7 +1,9 @@
 import type {
   ApiError,
   Bookmark,
+  ContextPreview,
   Grade,
+  IndexNow,
   Injection,
   Ledger,
   Message,
@@ -66,6 +68,11 @@ export const api = {
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 
+  // A POST that writes nothing: the draft rides the body, never the URL.
+  preview: (residentId: string, key: string, text: string) =>
+    call<ContextPreview>('POST', `/v1/residents/${residentId}/sessions/${key}/preview`, { text }),
+
+  indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),
