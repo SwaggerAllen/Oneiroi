@@ -1,6 +1,7 @@
 defmodule OneiroiWeb.MeController do
   use OneiroiWeb, :controller
 
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia.Error, as: IdentityError
   alias OpenApiSpex.Schema
 
@@ -39,7 +40,9 @@ defmodule OneiroiWeb.MeController do
     responses: [no_content: "stored"]
   )
 
-  def store_key(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
+  def store_key(%{assigns: %{principal: p}} = conn, %{"key" => raw}) do
+    key = Secret.wrap(raw)
+
     case Oneiroi.Gaia.store_key(p.account_id, key, actor(conn)) do
       :ok -> send_resp(conn, 204, "")
       {:error, :gaia_key_required} -> error(conn, 422, IdentityError.new(:gaia_key_required))

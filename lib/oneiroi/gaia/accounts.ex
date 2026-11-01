@@ -156,6 +156,7 @@ defmodule Oneiroi.Gaia.Accounts do
   account (spec §6.11). Storing over a stored key is the rotation.
   """
   def store_key(account_id, raw_key, %Actor{} = actor) do
+    raw_key = Secret.reveal(raw_key)
     key = if is_binary(raw_key), do: String.trim(raw_key), else: ""
 
     if key == "" do
@@ -252,7 +253,7 @@ defmodule Oneiroi.Gaia.Accounts do
   end
 
   defp verify_password(account, password) do
-    if Argon2.verify_pass(password, account.password_hash),
+    if Argon2.verify_pass(Secret.reveal(password), account.password_hash),
       do: {:ok, account},
       else: {:error, :gaia_invalid_credentials}
   end
@@ -264,7 +265,8 @@ defmodule Oneiroi.Gaia.Accounts do
 
   defp verify_second_factor(%{second_factor: ciphertext}, code) do
     with {:ok, secret} <- Vault.decrypt(ciphertext),
-         true <- NimbleTOTP.valid?(secret, code, time: DateTime.to_unix(Clock.now())) do
+         true <-
+           NimbleTOTP.valid?(secret, Secret.reveal(code), time: DateTime.to_unix(Clock.now())) do
       :ok
     else
       _ -> {:error, :gaia_invalid_credentials}

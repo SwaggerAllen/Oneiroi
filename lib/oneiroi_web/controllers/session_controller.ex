@@ -1,6 +1,7 @@
 defmodule OneiroiWeb.SessionController do
   use OneiroiWeb, :controller
 
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia.Error, as: IdentityError
   alias OpenApiSpex.Schema
 
@@ -32,7 +33,12 @@ defmodule OneiroiWeb.SessionController do
   )
 
   def create(conn, %{"email" => email, "password" => password} = params) do
-    case Oneiroi.Gaia.login(email, password, params["code"]) do
+    # Wrapped here, at the edge, so no frame between this line and the
+    # password check holds them plain (a crash report prints a frame's
+    # arguments; conventions §10).
+    code = params["code"] && Secret.wrap(params["code"])
+
+    case Oneiroi.Gaia.login(email, Secret.wrap(password), code) do
       {:ok, raw, principal} ->
         conn
         |> put_session(:sid, raw)

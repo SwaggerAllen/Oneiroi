@@ -34,11 +34,16 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # The clone directory is this function's own, under the temp dir; the
   # `File.rm_rf` on it is what sobelow reads as a traversal.
   # sobelow_skip ["Traversal.FileModule"]
-  def run(url, witness_account_id, %Actor{} = actor) do
+  #
+  # The event records the URL without its userinfo, as the import does: it
+  # once recorded the URL it was given, so a rebuild from a token-bearing
+  # GitHub URL would have written the token into the event store.
+  def run(remote, witness_account_id, %Actor{} = actor) do
     clone = Path.join(System.tmp_dir!(), "oneiroi-rebuild-#{System.unique_integer([:positive])}")
+    url = Git.public_url(remote)
 
     try do
-      with :ok <- Git.clone(url, clone),
+      with :ok <- Git.clone(remote, clone),
            {attestation, root, sequence} <- attestation(clone),
            :ok <- refuse_if_imported(url, root),
            {:ok, lines} <- read_lines(clone),

@@ -2,6 +2,7 @@ defmodule OneiroiWeb.ResidentController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Config.Secret
   alias OpenApiSpex.Schema
 
   tags(["resident"])
@@ -73,7 +74,9 @@ defmodule OneiroiWeb.ResidentController do
   def import_resident(%{assigns: %{principal: p}} = conn, %{"url" => url} = params) do
     attrs = %{name: params["name"], slug: params["slug"]}
 
-    case Oneiroi.SimaQian.import_resident(url, attrs, p.account_id, actor(conn)) do
+    # The URL may carry a token in its userinfo: wrapped here, unwrapped
+    # only into git's credential file (`Oneiroi.SimaQian.Git`).
+    case Oneiroi.SimaQian.import_resident(Secret.wrap(url), attrs, p.account_id, actor(conn)) do
       {:ok, %{id: id} = result} ->
         {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
         conn |> put_status(201) |> json(Map.put(row(resident), :import, import_row(result)))
@@ -140,7 +143,13 @@ defmodule OneiroiWeb.ResidentController do
 
   def remote(conn, %{"id" => id, "url" => url} = params) do
     with true <- witnesses?(conn, id),
-         :ok <- Oneiroi.SimaQian.set_remote(id, url, params["token"], actor(conn)) do
+         :ok <-
+           Oneiroi.SimaQian.set_remote(
+             id,
+             url,
+             params["token"] && Secret.wrap(params["token"]),
+             actor(conn)
+           ) do
       send_resp(conn, 204, "")
     else
       false -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))

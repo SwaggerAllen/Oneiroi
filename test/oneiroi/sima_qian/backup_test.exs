@@ -5,6 +5,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon.Store
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Fixtures
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Backup
@@ -149,7 +150,8 @@ defmodule Oneiroi.SimaQian.BackupTest do
   # is the belt for a version that does not.
   test "a GitHub token rides the push URL and never an error", %{working: working} do
     url = Git.github_url("https://github.com/lily/records.git", "ghp_secret")
-    assert url == "https://x-access-token:ghp_secret@github.com/lily/records.git"
+    assert Secret.unwrap(url) == "https://x-access-token:ghp_secret@github.com/lily/records.git"
+    refute inspect(url) =~ "ghp_secret"
 
     :ok = Git.ensure_repo(working)
 

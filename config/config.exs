@@ -56,6 +56,18 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:component, :trace_id, :request_id]
 
+# Every line the handler writes passes `Oneiroi.Log.Redacting`, the
+# credential backstop, around the real formatter. `Logger.Formatter` is
+# Elixir's own, so building it here is safe in every mix command; prod's
+# JSON formatter is a dependency and keeps the tuple form.
+config :logger, :default_handler,
+  formatter:
+    {Oneiroi.Log.Redacting,
+     Logger.Formatter.new(
+       format: "$time $metadata[$level] $message\n",
+       metadata: [:component, :trace_id, :request_id]
+     )}
+
 config :phoenix, :json_library, Jason
 
 # Whether this build binds a socket at all; the port is a declared

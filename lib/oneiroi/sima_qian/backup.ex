@@ -17,6 +17,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Vault
   alias Oneiroi.Config
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
@@ -33,7 +34,7 @@ defmodule Oneiroi.SimaQian.Backup do
   ]
 
   def set_remote(resident_id, url, token, %Actor{} = actor) when is_binary(url) do
-    ciphertext = (token || "") |> Vault.encrypt() |> Base.encode64()
+    ciphertext = (Secret.reveal(token) || "") |> Vault.encrypt() |> Base.encode64()
 
     command = %Commands.SetRecordsRemote{
       actor: actor,
