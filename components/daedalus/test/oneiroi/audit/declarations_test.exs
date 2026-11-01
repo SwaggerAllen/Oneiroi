@@ -183,6 +183,18 @@ defmodule Oneiroi.Audit.DeclarationsTest do
       assert problem =~ "declares error kind :engine_forgotten and nothing constructs it"
     end
 
+    test "a kind built only by wrapping a failure counts", ctx do
+      write(ctx.dir, """
+      defmodule A do
+        def a, do: Engine.Error.new(:engine_grammar_invalid, :engine_a)
+        def b, do: %Engine.Error{kind: :engine_not_found, meaning: "m", remedy: "r"}
+        def c(e), do: Engine.Error.caught(:engine_forgotten, :engine_c, e)
+      end
+      """)
+
+      assert Declarations.error_kinds(ctx.inventory.errors, ctx.scope) == []
+    end
+
     test "an empty registry parses nothing and reports nothing", ctx do
       assert Declarations.error_kinds([], ctx.scope) == []
     end

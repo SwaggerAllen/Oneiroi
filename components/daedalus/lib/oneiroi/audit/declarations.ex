@@ -405,9 +405,12 @@ defmodule Oneiroi.Audit.Declarations do
 
   defp guarded(_node), do: []
 
-  # Both spellings of a construction: the generated `new/2`, and the
-  # struct literal conventions §8 shows at a boundary.
-  defp constructed({{:., _dot, [_module, :new]}, _meta, [kind | _rest]}) when is_atom(kind) do
+  # Every spelling of a construction: the generated `new/3`, `caught/4`
+  # wrapping a failure from elsewhere, and the struct literal conventions
+  # §8 shows at a boundary. `caught` was missing when it arrived, and every
+  # kind built only by wrapping read as dead vocabulary.
+  defp constructed({{:., _dot, [_module, fun]}, _meta, [kind | _rest]})
+       when fun in [:new, :caught] and is_atom(kind) do
     [kind]
   end
 
