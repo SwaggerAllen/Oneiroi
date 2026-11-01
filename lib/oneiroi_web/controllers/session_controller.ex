@@ -2,7 +2,6 @@ defmodule OneiroiWeb.SessionController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.Config.Secret
-  alias Oneiroi.Gaia.Error, as: IdentityError
   alias OpenApiSpex.Schema
 
   tags(["identity"])
@@ -45,16 +44,14 @@ defmodule OneiroiWeb.SessionController do
         |> put_status(201)
         |> json(%{account_id: principal.account_id, email: principal.email})
 
-      {:error, :gaia_second_factor_required} ->
-        error(conn, 401, IdentityError.new(:gaia_second_factor_required))
-
-      {:error, :gaia_session_unavailable} ->
+      {:error, %{kind: :gaia_session_unavailable} = e} ->
         conn
         |> put_resp_header("retry-after", "5")
-        |> error(503, IdentityError.new(:gaia_session_unavailable))
+        |> error(503, e)
 
-      {:error, _reason} ->
-        error(conn, 401, IdentityError.new(:gaia_invalid_credentials))
+      # Invalid credentials, or the second factor's code still to send.
+      {:error, e} ->
+        error(conn, 401, e)
     end
   end
 

@@ -59,11 +59,8 @@ defmodule OneiroiWeb.HonchoController do
       {:error, %{kind: kind} = e} when kind == :proteus_not_provisioned ->
         error(conn, 404, e)
 
-      {:error, %{kind: _} = e} ->
+      {:error, e} ->
         error(conn, 502, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :refused, :web_honcho_audit_card_refused, inspect(reason))
     end
   end
 
@@ -81,6 +78,12 @@ defmodule OneiroiWeb.HonchoController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_honcho_witnessed_plug)
+        )
+        |> halt()
   end
 end

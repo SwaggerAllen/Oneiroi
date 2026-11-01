@@ -57,7 +57,7 @@ defmodule Oneiroi.Gaia.Handlers.Witnessing do
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, _events} -> :ok
-      {:error, :no_such_account} -> :ok
+      {:error, %{kind: :gaia_no_such_account}} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end

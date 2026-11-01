@@ -18,8 +18,8 @@ defmodule OneiroiWeb.TokenController do
       {:ok, raw, hash} ->
         conn |> put_status(201) |> json(%{token: raw, hash: hash, label: label})
 
-      {:error, reason} ->
-        problem(conn, 422, :not_issued, :web_token_create_not_issued, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -38,14 +38,8 @@ defmodule OneiroiWeb.TokenController do
       :ok ->
         send_resp(conn, 204, "")
 
-      {:error, _reason} ->
-        problem(
-          conn,
-          404,
-          :no_such_token,
-          :web_token_delete_no_such_token,
-          "no live token has that hash"
-        )
+      {:error, e} ->
+        error(conn, 404, e)
     end
   end
 end

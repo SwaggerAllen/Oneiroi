@@ -24,6 +24,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Nisaba
   alias Oneiroi.Scope
@@ -201,10 +202,17 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
     with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor) do
       cond do
         length(vectors) != length(texts) ->
-          {:error, "the provider answered #{length(vectors)} vectors for #{length(texts)} texts"}
+          {:error,
+           Error.new(:kumbukumbu_embedding_mismatch, :kumbukumbu_madeleine_vector_count,
+             vectors: length(vectors),
+             texts: length(texts)
+           )}
 
         Enum.any?(vectors, &(length(&1) != width)) ->
-          {:error, "the provider answered a vector of another width than #{width}"}
+          {:error,
+           Error.new(:kumbukumbu_embedding_mismatch, :kumbukumbu_madeleine_vector_width,
+             width: width
+           )}
 
         true ->
           {:ok, vectors}

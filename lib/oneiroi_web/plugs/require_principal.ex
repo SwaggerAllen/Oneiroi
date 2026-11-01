@@ -37,7 +37,7 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
 
   defp refuse(conn) do
     conn
-    |> Helpers.error(401, Error.new(:gaia_not_a_principal))
+    |> Helpers.error(401, Error.new(:gaia_not_a_principal, :gaia_require_principal_refused))
     |> halt()
   end
 end

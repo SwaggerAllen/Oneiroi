@@ -11,6 +11,7 @@ defmodule Oneiroi.Gaia.Accounts do
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia.Commands
+  alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Principal
   alias Oneiroi.Gaia.Router
   alias Oneiroi.Gaia.Store
@@ -29,7 +30,7 @@ defmodule Oneiroi.Gaia.Accounts do
       password_hash: Argon2.hash_pwd_salt(password)
     }
 
-    with {:ok, _events} <- Router.dispatch(command), do: {:ok, id}
+    with {:ok, _events} <- dispatch(command), do: {:ok, id}
   end
 
   @doc """
@@ -54,9 +55,16 @@ defmodule Oneiroi.Gaia.Accounts do
       Throttle.clear(email)
       open_session(account, now)
     else
-      {:error, reason} ->
+      :code_required ->
         slow(email)
-        {:error, reason}
+        {:error, Error.new(:gaia_second_factor_required, :gaia_login_code_missing)}
+
+      # One site for an unknown email, a wrong password and a wrong code:
+      # the site rides the 401, and three would tell apart what the
+      # clock is kept from telling.
+      :invalid ->
+        slow(email)
+        {:error, Error.new(:gaia_invalid_credentials, :gaia_login_credentials_invalid)}
     end
   end
 
@@ -75,8 +83,8 @@ defmodule Oneiroi.Gaia.Accounts do
       {:ok, _events} ->
         {:ok, raw, %Principal{account_id: account.id, email: account.email, via: :session}}
 
-      {:error, _reason} ->
-        {:error, :gaia_session_unavailable}
+      {:error, reason} ->
+        {:error, Error.caught(:gaia_session_unavailable, :gaia_login_session_not_opened, reason)}
     end
   end
 
@@ -86,7 +94,7 @@ defmodule Oneiroi.Gaia.Accounts do
 
     case Scope.platform(fn -> Store.live_session(hash(raw), now) end) do
       nil ->
-        {:error, :gaia_not_a_principal}
+        {:error, Error.new(:gaia_not_a_principal, :gaia_logout_session_absent)}
 
       session ->
         command = %Commands.CloseSession{
@@ -96,7 +104,7 @@ defmodule Oneiroi.Gaia.Accounts do
           session_hash: session.hash
         }
 
-        with {:ok, _} <- Router.dispatch(command), do: :ok
+        with {:ok, _} <- dispatch(command), do: :ok
     end
   end
 
@@ -139,7 +147,7 @@ defmodule Oneiroi.Gaia.Accounts do
       secret_ciphertext: ciphertext
     }
 
-    with {:ok, _} <- Router.dispatch(command) do
+    with {:ok, _} <- dispatch(command) do
       email = Scope.account(account_id, fn -> Store.account(account_id).email end)
       issuer = Config.fetch!(:gaia, :totp_issuer)
 
@@ -160,7 +168,7 @@ defmodule Oneiroi.Gaia.Accounts do
     key = if is_binary(raw_key), do: String.trim(raw_key), else: ""
 
     if key == "" do
-      {:error, :gaia_key_required}
+      {:error, Error.new(:gaia_key_required, :gaia_store_key_blank)}
     else
       ciphertext = key |> Vault.encrypt() |> Base.encode64()
 
@@ -171,18 +179,14 @@ defmodule Oneiroi.Gaia.Accounts do
         key_ciphertext: ciphertext
       }
 
-      with {:ok, _} <- Router.dispatch(command), do: :ok
+      with {:ok, _} <- dispatch(command), do: :ok
     end
   end
 
   def revoke_key(account_id, %Actor{} = actor) do
     command = %Commands.RevokeKey{actor: actor, at: Clock.now(), id: account_id}
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :no_key} -> {:error, :gaia_no_key}
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   @doc """
@@ -195,7 +199,7 @@ defmodule Oneiroi.Gaia.Accounts do
            {:ok, key} <- Vault.decrypt(ciphertext) do
         {:ok, Secret.wrap(key)}
       else
-        _ -> {:error, :gaia_no_key}
+        _ -> {:error, Error.new(:gaia_no_key, :gaia_key_for_absent)}
       end
     end)
   end
@@ -224,7 +228,7 @@ defmodule Oneiroi.Gaia.Accounts do
       label: label
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: {:ok, raw, hash(raw)}
+    with {:ok, _} <- dispatch(command), do: {:ok, raw, hash(raw)}
   end
 
   def revoke_token(account_id, token_hash, %Actor{} = actor) do
@@ -235,7 +239,7 @@ defmodule Oneiroi.Gaia.Accounts do
       token_hash: token_hash
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   def witnessed_residents(account_id),
@@ -249,19 +253,17 @@ defmodule Oneiroi.Gaia.Accounts do
 
   defp verify_password(nil, _password) do
     Argon2.no_user_verify()
-    {:error, :gaia_invalid_credentials}
+    :invalid
   end
 
   defp verify_password(account, password) do
     if Argon2.verify_pass(Secret.reveal(password), account.password_hash),
       do: {:ok, account},
-      else: {:error, :gaia_invalid_credentials}
+      else: :invalid
   end
 
   defp verify_second_factor(%{second_factor: nil}, _code), do: :ok
-
-  defp verify_second_factor(%{second_factor: _}, nil),
-    do: {:error, :gaia_second_factor_required}
+  defp verify_second_factor(%{second_factor: _}, nil), do: :code_required
 
   defp verify_second_factor(%{second_factor: ciphertext}, code) do
     with {:ok, secret} <- Vault.decrypt(ciphertext),
@@ -269,7 +271,32 @@ defmodule Oneiroi.Gaia.Accounts do
            NimbleTOTP.valid?(secret, Secret.reveal(code), time: DateTime.to_unix(Clock.now())) do
       :ok
     else
-      _ -> {:error, :gaia_invalid_credentials}
+      _ -> :invalid
+    end
+  end
+
+  # The aggregate's refusals arrive sited (`Account`); what else a
+  # dispatch answers, the actor middleware's refusal or the store's own
+  # failure, is wrapped here, once, where it is first matched.
+  defp dispatch(command) do
+    case Router.dispatch(command) do
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %Error{}} = refused ->
+        refused
+
+      {:error, {:refused, problems} = refusal} ->
+        {:error,
+         Error.caught(:gaia_command_refused, :gaia_accounts_command_refused, refusal,
+           problems: problems
+         )}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:gaia_dispatch_failed, :gaia_accounts_dispatch_failed, reason,
+           command: command.__struct__
+         )}
     end
   end
 

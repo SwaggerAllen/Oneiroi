@@ -16,6 +16,7 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
 
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
+  alias Oneiroi.Proteus.Error
 
   @impl true
   def ensure_workspace(ws), do: post(["workspaces"], %{name: ws}) |> ok()
@@ -96,9 +97,14 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
         if(peer, do: [peer_id: peer], else: [])
 
     case post(["keys"], %{}, params) do
-      {:ok, %{"key" => key}} when is_binary(key) -> {:ok, key}
-      {:ok, other} -> {:error, {:rejected, other}}
-      error -> error
+      {:ok, %{"key" => key}} when is_binary(key) ->
+        {:ok, key}
+
+      {:ok, _other} ->
+        {:error, Error.new(:proteus_honcho_rejected, :proteus_http_mint_key_unanswered)}
+
+      error ->
+        error
     end
   end
 
@@ -127,11 +133,20 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
     # (`Oneiroi.Proteus.Honcho`, registered in `externals/0`), and the
     # `model_port` check reads every Req call as the ledger's. This is
     # the one HTTP call outside the provider port, and it is this file.
+    #
+    # A refusal keeps Honcho's status and never its body: a body can echo
+    # what was sent, which is a tenant's words, and the bridge records
+    # the reason it is given on the resident's stream.
     # oneiroi:allow model_port
     case Req.request(opts) do
-      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 -> {:ok, body}
-      {:ok, %Req.Response{status: status, body: body}} -> {:error, {:rejected, {status, body}}}
-      {:error, reason} -> {:error, {:transport, reason}}
+      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
+        {:ok, body}
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, Error.new(:proteus_honcho_rejected, :proteus_http_rejected, status: status)}
+
+      {:error, reason} ->
+        {:error, Error.caught(:proteus_honcho_unreachable, :proteus_http_unreachable, reason)}
     end
   end
 

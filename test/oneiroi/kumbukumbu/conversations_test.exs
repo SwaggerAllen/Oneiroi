@@ -77,7 +77,13 @@ defmodule Oneiroi.Kumbukumbu.ConversationsTest do
 
     witness = Actor.new(:witness, ctx.witness.id)
 
-    assert {:error, {:refused, [:note_required]}} =
+    assert {:error,
+            %Kumbukumbu.Error{
+              kind: :kumbukumbu_command_refused,
+              site: :kumbukumbu_conversations_command_refused,
+              cause: :refused,
+              details: [problems: [:note_required]]
+            }} =
              Kumbukumbu.resolve_failure(
                ctx.resident.id,
                ctx.key,
