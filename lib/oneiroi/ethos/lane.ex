@@ -40,7 +40,8 @@ defmodule Oneiroi.Ethos.Lane do
       |> Enum.reject(&MapSet.member?(keep, {&1.kind, &1.number}))
       |> Enum.map(&{&1.kind, &1.number})
 
-    with {:ok, vectors} <- embed(resident_id, model, Enum.map(stale, & &1.text), actor) do
+    with {:ok, vectors} <-
+           embed(resident_id, model, Enum.map(stale, & &1.text), actor, :embeddings) do
       now = Clock.now()
 
       rows =
@@ -62,10 +63,13 @@ defmodule Oneiroi.Ethos.Lane do
   of cosine distance, nearest first: `%{habits: [number], seeds: [{number, text}]}`.
   An empty lane answers empty with no model call; a failing provider answers
   empty too, so the deterministic match stands alone rather than the turn waiting.
+  The query's embedding bills under `purpose`: `embeddings`, or `regression`
+  for a trial's turn (eunomia #10).
   """
-  @spec nearest(String.t(), String.t(), Actor.t()) ::
+  @spec nearest(String.t(), String.t(), Actor.t(), atom()) ::
           %{habits: [pos_integer()], seeds: [{pos_integer(), String.t()}]}
-  def nearest(resident_id, text, %Actor{} = actor) when is_binary(text) do
+  def nearest(resident_id, text, %Actor{} = actor, purpose \\ :embeddings)
+      when is_binary(text) do
     empty = %{habits: [], seeds: []}
     model = Config.fetch!(:ethos, :embedding_model)
     bound = Config.fetch!(:ethos, :lane_distance_percent) / 100
@@ -79,7 +83,7 @@ defmodule Oneiroi.Ethos.Lane do
         empty
 
       true ->
-        case embed(resident_id, model, [text], actor) do
+        case embed(resident_id, model, [text], actor, purpose) do
           {:ok, [vector]} -> search(resident_id, vector, bound, seeds)
           _failed -> empty
         end
@@ -123,12 +127,12 @@ defmodule Oneiroi.Ethos.Lane do
 
   defp trigger_words(_other), do: []
 
-  defp embed(_resident_id, _model, [], _actor), do: {:ok, []}
+  defp embed(_resident_id, _model, [], _actor, _purpose), do: {:ok, []}
 
-  defp embed(resident_id, model, texts, actor) do
+  defp embed(resident_id, model, texts, actor, purpose) do
     width = Config.fetch!(:ethos, :embedding_width)
 
-    with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor) do
+    with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor, purpose) do
       cond do
         length(vectors) != length(texts) ->
           {:error,

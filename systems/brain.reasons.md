@@ -62,10 +62,37 @@ spec §5: the notice lands in the transcript, where both parties read
 it in the same place.
 
 ## #16
-Spec §6.4: "the brain is given the seed files and nothing of the run's
-purpose." The index would carry the resident's memory into a session
-that is never captured, and the formation line names a date the run
-has no business knowing.
+Spec §6.4 as first written: "the brain is given the seed files and
+nothing of the run's purpose." The index would carry the resident's
+memory into a session that is never captured, and the formation line
+names a date the run has no business knowing.
+
+Replaced on 2026-11-01. The author: "that was a misfeature, we want
+retrieval, self is continuous experience so we aren't testing the
+resident without their memory, there shouldn't be the option to run
+with the face but not the memory, but we don't want to record anything
+from the trial, those tools should be mocked so the resident perceives
+a normal session." The memory carried into a trial is now the point,
+and what kept it out is kept instead by writing nothing. The trial
+reuses this system's assembly and tool loop rather than a copy, because
+a copy is a second claim about what a turn is, and the first time the
+two differed the trial would test a session nobody has. The vectors are
+read as they stand because a refresh is a write, and the last real turn
+left them current. The once-only notices stay out because showing one
+is half of telling it and the other half, marking it told, is a write.
+
+## #40
+The seal moved from what a trial is shown to what it may write (#16),
+so a write tool run for real is a broken seal and a read answered
+"Done." only a worse trial: hence the default. One list in one place
+because the tool table grows a slice at a time, and a classification
+spread over the clauses is the kind a new tool silently skips; the
+test makes skipping it a failure. The answer is the real tool's words
+on success, numbered as the real call would number, because a resident
+told "Done." where it would have read "Bookmarked as #12" perceives a
+session that is not normal. The live check is answered as a timeout
+because a judge's advice is a model's words that would have to be
+invented or paid for under the judge's own line.
 
 
 ## #17

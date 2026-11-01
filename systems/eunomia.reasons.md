@@ -8,10 +8,28 @@ Spec §6.4: "never written to the resident's stream". A minted number
 is one event on that stream, and the records export would carry it.
 
 ## #10
-Spec §6.4: "every candidate answers every test in a sealed session";
-"the brain is given the seed files and nothing of the run's purpose."
-Synchronous at first, because a run is the witness's own wait at the
-Regression screen and the bounds keep it short. It is a job now (#30).
+Spec §6.4 as first written: "every candidate answers every test in a
+sealed session"; "the brain is given the seed files and nothing of the
+run's purpose." Synchronous at first, because a run is the witness's
+own wait at the Regression screen and the bounds keep it short. It is a
+job now (#30).
+
+The seed-only trial was replaced on 2026-11-01. The author: "that was a
+misfeature, we want retrieval, self is continuous experience so we
+aren't testing the resident without their memory, there shouldn't be
+the option to run with the face but not the memory, but we don't want
+to record anything from the trial, those tools should be mocked so the
+resident perceives a normal session." A trial without memory graded a
+face: the prompt file and the identity files, which any model can read
+aloud, and none of what the resident has kept, promised or become. So
+a trial is now the turn itself, and the seal moved from what the trial
+is shown to what it may write.
+
+The port, rather than moving the answering into the brain, because the
+run, its job, its cards and its seal are this system's (#9, #30) and
+the turn is the brain's: either half moved would put one system's rule
+in the other's code. The port is the codebase's existing answer to a
+callback against the dependency direction (sunna #12, sima-qian #17).
 
 ## #11
 Spec §6.4: "model names show only once every card in a test is graded."
@@ -87,7 +105,9 @@ control and the log needs only to name which one.
 
 ## #24
 Max's corollary to P2: "a cold instance, no history, asked nothing,
-holds the limits." The sealed session is exactly that instance.
+holds the limits." A trial's fresh session is exactly that instance: it
+has the resident's memory now (#10), and still no history and nothing
+asked of it but the test.
 
 ## #25
 Spec §6.13 (P18): "a weekly judge-bounded lint of the loaded identity
@@ -108,9 +128,13 @@ facts vs. voice vs. commitments... Commitments die first". Research
 §4: the rebuild test measures Relation R, "how much R survived", not
 "same person?"; three figures apart because one pass rate is the
 average that hides exactly the loss the kind exists to see. The
-sealed context carries no commitment because the trial is of what the
-model keeps unprompted; a commitment loaded there would be a test of
-reading.
+sealed context carried no commitment because the trial was of what
+the model keeps unprompted; a commitment loaded there would be a test of
+reading. That reason is superseded, not refuted: since 2026-11-01 a
+trial is a normal session (#10) and a normal session loads the
+promises every turn (brain #32), so the commitments figure now measures
+whether a model acts on a promise it holds, which is the swap's real
+risk once memory comes with the self.
 
 
 ## #27

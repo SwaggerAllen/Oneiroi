@@ -143,16 +143,20 @@ defmodule Oneiroi.Seshat.Citations do
 
   # ---- reading ----
 
-  @doc "A document's references, each resolved now and the row marked."
-  def references(resident_id, path) do
+  @doc """
+  A document's references, each resolved now and the row marked;
+  `mark: false` resolves the same and marks nothing, for a read that must
+  write nothing (a regression trial's, eunomia #10).
+  """
+  def references(resident_id, path, opts \\ []) do
     rows = Scope.resident(resident_id, fn -> Store.references(path) end)
-    resolve_rows(resident_id, rows)
+    resolve_rows(resident_id, rows, Keyword.get(opts, :mark, true))
   end
 
-  @doc "The documents citing a target, resolved the same way."
-  def cited_by(resident_id, target) when is_binary(target) do
+  @doc "The documents citing a target, resolved the same way, `mark:` as for `references/3`."
+  def cited_by(resident_id, target, opts \\ []) when is_binary(target) do
     rows = Scope.resident(resident_id, fn -> Store.cited_by(target) end)
-    resolve_rows(resident_id, rows)
+    resolve_rows(resident_id, rows, Keyword.get(opts, :mark, true))
   end
 
   @doc """
@@ -163,15 +167,15 @@ defmodule Oneiroi.Seshat.Citations do
   """
   def drift(resident_id) do
     rows = Scope.resident(resident_id, fn -> Store.once_resolved() end)
-    resident_id |> resolve_rows(rows) |> Enum.reject(& &1.resolved)
+    resident_id |> resolve_rows(rows, true) |> Enum.reject(& &1.resolved)
   end
 
-  @doc "The review copy: content, status, and the references resolved (F25)."
-  def review(resident_id, path) do
+  @doc "The review copy: content, status, and the references resolved (F25), `mark:` as for `references/3`."
+  def review(resident_id, path, opts \\ []) do
     with {:ok, path} <- Kinds.normalize(path),
          {:ok, row} <- registered(resident_id, path),
          {:ok, content} <- read(resident_id, path) do
-      references = references(resident_id, path)
+      references = references(resident_id, path, opts)
       footnotes = Enum.map_join(references, "\n", &footnote/1)
       rendered = if footnotes == "", do: content, else: content <> "\n\n---\n" <> footnotes
 
@@ -327,9 +331,9 @@ defmodule Oneiroi.Seshat.Citations do
     if Path.extname(ref) == "", do: "#{kind}/#{ref}.md", else: "#{kind}/#{ref}"
   end
 
-  defp resolve_rows(_resident_id, []), do: []
+  defp resolve_rows(_resident_id, [], _mark?), do: []
 
-  defp resolve_rows(resident_id, rows) do
+  defp resolve_rows(resident_id, rows, mark?) do
     {:ok, resident} = AgathosDaimon.fetch(resident_id)
     now = Clock.now()
 
@@ -344,13 +348,16 @@ defmodule Oneiroi.Seshat.Citations do
         %{r | resolved: resolved?, label: label, reason: reason, checked_at: now}
       end)
 
+    if mark?, do: mark(resident_id, marked, now)
+    Enum.map(marked, &shape/1)
+  end
+
+  defp mark(resident_id, marked, now) do
     Scope.resident(resident_id, fn ->
       Enum.each(marked, fn r ->
         Store.mark_reference(r.from_path, r.ordinal, r.resolved, r.label, r.reason, now)
       end)
     end)
-
-    Enum.map(marked, &shape/1)
   end
 
   defp shape(r) do

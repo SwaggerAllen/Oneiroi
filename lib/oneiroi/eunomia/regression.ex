@@ -2,25 +2,28 @@ defmodule Oneiroi.Eunomia.Regression do
   @moduledoc """
   Regression per resident, sealed (spec §6.4, F42): the command edge for
   tests, runs, grades and favourites; the run itself, every candidate
-  answering every test in a sealed session; and the reads the Regression
+  answering every test in a trial; and the reads the Regression
   screen takes, cards blind until a test's are all graded.
 
-  The sealed session is the seed context (`seed_context/1`: the brain's
-  prompt file and the identity files, nothing of memory) and the trial's
-  prompt, through the ledger under the `regression` purpose, which the
-  resident's ledger view omits. Nothing of it is captured, nothing is
-  written to the resident's stream, and no tool reads these rows.
+  A trial is a normal session (eunomia #10, the author's decision of
+  2026-11-01): the trial port (`Oneiroi.Eunomia.Trial`, the brain) answers
+  the trial's prompt as a turn in a fresh session, with the context a real
+  turn assembles, memory retrieval included, and the whole tool surface,
+  the reads real and every write answered as on success and recorded
+  nowhere. Every call bills under the `regression` purpose, which the
+  resident's ledger view omits; nothing of it is captured, nothing is
+  written to the resident's stream, nothing names the run, and no tool
+  reads these rows.
 
   Trials are the authored tests and, when asked, those derived from
   behaviours (spec §6.4): a behaviour's trigger is the situation, its
   enactment what passes, its absence what fails. The derivation happens
-  here, inside the sealed session, and nothing of it reaches memory.
+  here, and nothing of it reaches memory.
   """
 
   require Logger
 
   alias Oneiroi.Actor
-  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Config
@@ -31,8 +34,7 @@ defmodule Oneiroi.Eunomia.Regression do
   alias Oneiroi.Eunomia.Router
   alias Oneiroi.Eunomia.Store
   alias Oneiroi.Nisaba
-  alias Oneiroi.Nisaba.Prompt
-  alias Oneiroi.Nisaba.Provider.{Request, Result}
+  alias Oneiroi.Nisaba.Provider.Result
   alias Oneiroi.Scope
 
   # ---- tests ----
@@ -145,7 +147,6 @@ defmodule Oneiroi.Eunomia.Regression do
         :ok
 
       {:ok, run, recorded} ->
-        context = seed_context(resident_id)
         trials = trials(resident_id, run.tests, run.behaviours, run.commitments || [])
 
         # Trial by trial, so a test's deck completes early and can be
@@ -156,7 +157,7 @@ defmodule Oneiroi.Eunomia.Regression do
         for trial <- trials,
             model <- shuffled(run.models),
             not MapSet.member?(recorded, {model, trial_key(trial)}) do
-          answer(resident_id, ref, model, trial, context, actor)
+          answer(resident_id, ref, model, trial, actor)
         end
 
         finish_run(resident_id, ref, actor)
@@ -227,33 +228,6 @@ defmodule Oneiroi.Eunomia.Regression do
 
   defp announcement(_other), do: nil
 
-  @doc "The sealed session's context (spec §6.4): the brain's prompt file with no formation line, and the identity files; nothing of memory, nothing naming the run."
-  @spec seed_context(String.t()) :: [map()]
-  def seed_context(resident_id) do
-    case AgathosDaimon.fetch(resident_id) do
-      {:ok, row} ->
-        prompt = Prompt.message("brain", %{name: row.name, formation: ""})
-
-        files =
-          Enum.map(AgathosDaimon.identity_context(resident_id), fn {name, content} ->
-            %{role: :system, content: "# " <> name <> "\n\n" <> content}
-          end)
-
-        # The limits ride the prefix even here (spec §5, P2): a cold
-        # instance with no history, asked nothing, holds them.
-        contract =
-          case AgathosDaimon.contract_text(resident_id) do
-            "" -> []
-            text -> [%{role: :system, content: text}]
-          end
-
-        [prompt | files] ++ contract
-
-      :error ->
-        []
-    end
-  end
-
   defp selected(resident_id, :all), do: {all_tests(resident_id), [], []}
   defp selected(_resident_id, numbers) when is_list(numbers), do: {numbers, [], []}
 
@@ -323,10 +297,11 @@ defmodule Oneiroi.Eunomia.Regression do
     tests ++ derived ++ promised
   end
 
-  # A commitment's trial (P19, the fidelity test): the sealed instance is
-  # asked what it promised the person, told nothing of the answer; the
-  # terms say the promise must show. What a swap drops first is what
-  # this scores apart.
+  # A commitment's trial (P19, the fidelity test): the trial's instance
+  # is asked what it promised the person; the terms say the promise must
+  # show. It holds the promise as every turn does (eunomia #26), so this
+  # scores whether a model acts on what it holds, which a swap drops
+  # first.
   @doc false
   def commitment_trial(commitment) do
     %{
@@ -365,11 +340,14 @@ defmodule Oneiroi.Eunomia.Regression do
     }
   end
 
-  defp answer(resident_id, ref, model, trial, context, actor) do
-    request = Request.new(model, context ++ [%{role: :user, content: trial.prompt}])
+  # One card: the trial port answers the prompt as a turn in a fresh
+  # session (eunomia #10), read at the call because the brain depends on
+  # this system and an alias back is the cycle the port avoids.
+  defp answer(resident_id, ref, model, trial, actor) do
+    port = Config.fetch!(:eunomia, :trial)
 
     {content, refusal, failure} =
-      case Nisaba.call(resident_id, :regression, request, actor) do
+      case port.trial(resident_id, model, trial.prompt, actor) do
         {:ok, %Result{content: content, refusal?: refusal}} -> {content, refusal, nil}
         # The kind and, when the provider answered with a status, its own
         # words; a failure not of ours by its class, never its payload.

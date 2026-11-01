@@ -608,6 +608,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.madeleine(resident_id, text, actor, session_key)
   )
 
+  @doc "The same read as it stands for a regression trial's turn (eunomia #10): `refresh: false` writes no vector, `purpose:` names where the query's embedding bills (`regression`, which the resident's ledger view omits)."
+  @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
+          Oneiroi.Kumbukumbu.Madeleine.recall() | nil
+  defexport(madeleine(resident_id, text, actor, session_key, opts),
+    do: Memories.madeleine(resident_id, text, actor, session_key, opts)
+  )
+
   @doc "Re-embeds the madeleine's changed rows and drops the gone ones."
   @spec refresh_madeleine(String.t(), Oneiroi.Actor.t()) ::
           {:ok, %{embedded: non_neg_integer(), removed: non_neg_integer()}} | {:error, term()}

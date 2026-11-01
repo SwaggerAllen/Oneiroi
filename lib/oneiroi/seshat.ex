@@ -300,6 +300,13 @@ defmodule Oneiroi.Seshat do
   @spec search(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, [map()]} | {:error, term()}
   defexport(search(resident_id, query, actor), do: Index.search(resident_id, query, actor))
 
+  @doc "The same search with the query's embedding billed under `purpose`: a regression trial's turn bills it as `regression` (eunomia #10)."
+  @spec search(String.t(), String.t(), Oneiroi.Actor.t(), atom()) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(search(resident_id, query, actor, purpose),
+    do: Index.search(resident_id, query, actor, purpose)
+  )
+
   # ---- citations ----
 
   @doc "What a document cites, each reference resolved now and the row marked (spec §6.5: resolution when read)."
@@ -310,9 +317,19 @@ defmodule Oneiroi.Seshat do
   @spec cited_by(String.t(), String.t()) :: [map()]
   defexport(cited_by(resident_id, target), do: Citations.cited_by(resident_id, target))
 
+  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia #10), which writes nothing."
+  @spec cited_by(String.t(), String.t(), keyword()) :: [map()]
+  defexport(cited_by(resident_id, target, opts),
+    do: Citations.cited_by(resident_id, target, opts)
+  )
+
   @doc "The review copy of a piece: the content, its status, and every reference resolved with its label or its reason."
   @spec review(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(review(resident_id, path), do: Citations.review(resident_id, path))
+
+  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia #10), which writes nothing."
+  @spec review(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  defexport(review(resident_id, path, opts), do: Citations.review(resident_id, path, opts))
 
   @doc "The copy for publishing: the frontmatter and every citation stripped."
   @spec publish_copy(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}

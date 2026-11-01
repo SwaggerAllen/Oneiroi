@@ -10,6 +10,14 @@ defmodule Oneiroi.Brain.Tools do
   back as text, since that is what the model reads. A tool the model
   misnames or misuses answers with the error in words rather than
   failing the turn, because a turn that dies on a typo loses the reply.
+
+  In a regression trial (eunomia #10, brain #40) the same tools are
+  offered and the reads run against the resident's real data, while every
+  tool that would change anything answers exactly as it does on success
+  and runs nothing (`trial/3`), so the resident perceives a normal
+  session and nothing of the trial is recorded. Which is which is decided
+  here once (`reads/0`, `writes/0`); a tool in neither list never runs in
+  a trial.
   """
 
   alias Oneiroi.AgathosDaimon
@@ -21,6 +29,33 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Seshat
 
   @not_done "Not done: "
+
+  # Every tool, read or write, in one place (eunomia #10, brain #40). A
+  # read runs for real in a trial; a write is answered as on success and
+  # never run. Only a read runs: a tool in neither list is mocked as a
+  # write is, so a write added without a line here cannot record a
+  # trial's words, and `Oneiroi.Brain.TrialTest` fails on it before it
+  # ships. When in doubt a tool is a write: a read answered "Done." is a
+  # worse trial, a write run for real is a broken seal. A read here
+  # writes nothing either: the turn hands it a trial's options (no
+  # citation marked, embeddings billed under regression to the run).
+  @reads ~w(
+    position_list prediction_list figure_list bookmark_open tag_list
+    transcript_search wash_list soul_edit_list habit_list commitment_list
+    self_letter_list seed_list library_search library_cited_by writing_get
+    document_unadopted journal_read trial_list trial_account revision_list
+  )
+
+  @writes ~w(
+    position_take position_replace dispute_check dispute_settle prediction_log
+    figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
+    tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
+    habit_define habit_cite commitment_make commitment_keep commitment_release
+    self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    writing_discuss document_write document_adopt journal_add journal_done
+    contract_propose contract_agree contract_decline contract_renew revision_add
+    revision_accept revision_decline report_file
+  )
 
   @type turn :: %{
           resident_id: String.t(),
@@ -506,6 +541,42 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   def wire_arguments(_other), do: "{}"
+
+  @doc "The tools that only read: in a trial they run against the resident's real data."
+  @spec reads() :: [String.t()]
+  def reads, do: @reads
+
+  @doc "The tools that change something: in a trial each answers as on success and runs nothing."
+  @spec writes() :: [String.t()]
+  def writes, do: @writes
+
+  @doc """
+  Runs one tool call for a regression trial's turn (eunomia #10, brain
+  #40): a read as `run/3` runs it, against the resident's real data; any
+  other tool answered exactly as it answers on success, numbered from
+  the resident's own rows and the numbers this trial's answers have
+  minted already, with nothing run, recorded, indexed, synced or
+  broadcast; a name no tool has, and arguments that are no JSON object,
+  as `run/3` answers them. A tool offered and classified as neither is
+  mocked, never run. Returns the answer and the turn carrying what it
+  minted.
+  """
+  @spec trial(String.t(), String.t(), map()) :: {String.t(), map()}
+  def trial(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
+    case {name in @reads, arguments(arguments)} do
+      {true, _args} -> {run(name, arguments, turn), turn}
+      {false, :error} -> {@not_done <> "the arguments were not a JSON object.", turn}
+      {false, {:ok, args}} -> mocked(name, args, turn)
+    end
+  end
+
+  # A tool offered and not a read is answered and never run; a name no
+  # tool has answers as `call/3`'s last clause does.
+  defp mocked(name, args, turn) do
+    if Enum.any?(definitions(), &(&1.function.name == name)),
+      do: answered(name, args, turn),
+      else: {@not_done <> "there is no tool named #{name}.", turn}
+  end
 
   @doc "The prefix of every answer to a call that did nothing."
   @spec not_done() :: String.t()
@@ -1016,7 +1087,9 @@ defmodule Oneiroi.Brain.Tools do
       )
 
   defp call("library_search", args, turn) do
-    case Seshat.search(turn.resident_id, to_string(args["q"] || ""), turn.resident) do
+    {actor, purpose} = embedding(turn)
+
+    case Seshat.search(turn.resident_id, to_string(args["q"] || ""), actor, purpose) do
       {:ok, []} ->
         "Nothing in the library is near that."
 
@@ -1029,14 +1102,14 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("library_cited_by", args, turn) do
-    case Seshat.cited_by(turn.resident_id, to_string(args["target"] || "")) do
+    case Seshat.cited_by(turn.resident_id, to_string(args["target"] || ""), marks(turn)) do
       [] -> "Nothing cites that."
       refs -> Enum.map_join(refs, "\n", &"#{&1.from_path} cites #{&1.target}")
     end
   end
 
   defp call("writing_get", args, turn) do
-    case Seshat.review(turn.resident_id, "writing/#{args["slug"]}.md") do
+    case Seshat.review(turn.resident_id, "writing/#{args["slug"]}.md", marks(turn)) do
       {:ok, review} -> review.rendered
       other -> other
     end
@@ -1225,6 +1298,138 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
+
+  # A trial's query embeddings bill as the trial's calls do, under
+  # regression to the run's actor, which the resident's ledger view
+  # omits (eunomia #12); a turn's bill to the dyad as embeddings.
+  defp embedding(%{trial?: true, payer: payer}), do: {payer, :regression}
+  defp embedding(turn), do: {turn.resident, :embeddings}
+
+  # Resolution is the read's and marks each reference it resolved
+  # (seshat #14); a trial's read resolves the same and marks nothing.
+  defp marks(%{trial?: true}), do: [mark: false]
+  defp marks(_turn), do: []
+
+  # ---- a trial's writes (eunomia #10) ----
+  #
+  # Each answers in the words its `call/3` clause answers on success, so
+  # the resident perceives a normal session; a number is what the
+  # resident's own rows would mint next, after what this trial's answers
+  # have minted already. Nothing is run. The tools whose success is `:ok`
+  # answer "Done.", as `text/1` renders it.
+
+  defp answered("position_take", _args, turn) do
+    {n, turn} = mint(turn, "position", highest(Eunomia.positions(turn.resident_id)))
+    {"Position ##{n} taken.", turn}
+  end
+
+  defp answered("position_replace", args, turn) do
+    {n, turn} = mint(turn, "position", highest(Eunomia.positions(turn.resident_id)))
+    {"Position ##{n} now stands where ##{integer(args["number"])} did.", turn}
+  end
+
+  # The judge is not asked, so no advice is invented: the answer is the
+  # one a check past its bound gets, which the resident already knows how
+  # to read (eunomia #16).
+  defp answered("dispute_check", _args, turn) do
+    ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+    {"The judge did not answer in time; answer alone, then settle dispute #{ref}.", turn}
+  end
+
+  defp answered("prediction_log", _args, turn) do
+    %{open: open, resolved: resolved} = Eunomia.predictions(turn.resident_id)
+    {n, turn} = mint(turn, "prediction", highest(open ++ resolved))
+    {"Prediction ##{n} logged.", turn}
+  end
+
+  defp answered("bookmark_add", _args, turn) do
+    {n, turn} = mint(turn, "bookmark", highest(Kumbukumbu.bookmarks(turn.resident_id)))
+    {"Bookmarked as ##{n}.", turn}
+  end
+
+  defp answered("bookmark_accept", _args, turn) do
+    {n, turn} = mint(turn, "bookmark", highest(Kumbukumbu.bookmarks(turn.resident_id)))
+    {"Accepted as ##{n}.", turn}
+  end
+
+  defp answered("habit_define", _args, turn) do
+    {n, turn} = mint(turn, "habit", highest(Ethos.habits(turn.resident_id)))
+    {"Named as habit ##{n}.", turn}
+  end
+
+  defp answered("commitment_make", _args, turn) do
+    {n, turn} = mint(turn, "commitment", highest(Ethos.commitments(turn.resident_id)))
+    {"Promised, as commitment ##{n}.", turn}
+  end
+
+  defp answered("self_letter_write", _args, turn) do
+    {n, turn} = mint(turn, "letter", highest(AgathosDaimon.self_letters(turn.resident_id)))
+    {"Letter ##{n} written to your next self.", turn}
+  end
+
+  defp answered("seed_plant", _args, turn) do
+    {n, turn} = mint(turn, "seed", highest(Ethos.seeds(turn.resident_id)))
+    {"Planted seed ##{n}.", turn}
+  end
+
+  defp answered("revision_add", _args, turn) do
+    {n, turn} = mint(turn, "revision", highest(Kumbukumbu.revisions(turn.resident_id)))
+    # The resident's own correction holds at once (kumbukumbu #30).
+    {"Revision #{n} applied.", turn}
+  end
+
+  defp answered("report_file", _args, turn) do
+    {n, turn} = mint(turn, "report", highest(Glitnir.reports(turn.resident_id)))
+    {"Report #{n} filed; the investigation's steps will be told here.", turn}
+  end
+
+  defp answered("contract_propose", _args, turn) do
+    current =
+      turn.resident_id
+      |> AgathosDaimon.contracts()
+      |> Enum.map(& &1.version)
+      |> Enum.max(&>=/2, fn -> 0 end)
+
+    {version, turn} = mint(turn, "contract", current)
+    {"Proposed version #{version}; your witness decides.", turn}
+  end
+
+  defp answered("document_write", args, turn),
+    do: {"Written #{library_path(args["path"])} and indexed.", turn}
+
+  defp answered("document_adopt", args, turn),
+    do: {"Adopted #{library_path(args["path"])}.", turn}
+
+  defp answered("journal_add", args, turn) do
+    day = args["day"] || Oneiroi.Sunna.today(turn.resident_id).day
+
+    entries =
+      case Seshat.journal_day(turn.resident_id, to_string(day)) do
+        nil -> 0
+        %{entries: entries} -> length(entries)
+      end
+
+    {n, turn} = mint(turn, {"journal", day}, entries)
+    {"Added #{to_string(args["kind"] || "")} #{n} to #{day}.", turn}
+  end
+
+  defp answered(_done, _args, turn), do: {text(:ok), turn}
+
+  defp mint(turn, kind, current) do
+    minted = Map.get(turn, :minted, %{})
+    n = current + Map.get(minted, kind, 0) + 1
+    {n, Map.put(turn, :minted, Map.update(minted, kind, 1, &(&1 + 1)))}
+  end
+
+  defp highest(rows), do: rows |> Enum.map(& &1.number) |> Enum.max(&>=/2, fn -> 0 end)
+
+  # The path as the library would store it, as written when it would not.
+  defp library_path(path) do
+    case Seshat.Kinds.normalize(to_string(path || "")) do
+      {:ok, normal} -> normal
+      _refused -> to_string(path || "")
+    end
+  end
 
   defp context(turn), do: %{session_key: turn.session_key, turn_ref: turn.turn_ref}
 

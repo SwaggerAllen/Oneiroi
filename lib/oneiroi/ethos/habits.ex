@@ -164,7 +164,10 @@ defmodule Oneiroi.Ethos.Habits do
   words (`Oneiroi.Ethos.Lane`). `situation` carries `text` (the
   witness's words), `tags` (on the conversation), `at` (the instant, for
   the time of day) and `actor` (who the query is billed to; absent, the
-  match is deterministic alone). Each match comes with its scores, who
+  match is deterministic alone). A regression trial's turn (eunomia #10)
+  adds `purpose: :regression`, so the query bills where the resident's
+  ledger view never looks, and `refresh: false`, so the lane is read as
+  it stands and nothing is written. Each match comes with its scores, who
   affirmed it, and up to `ETHOS_EXEMPLARS` cited turns with the
   resident's own words; the open seeds are counted, and the nearest
   few named, never loaded whole.
@@ -232,8 +235,14 @@ defmodule Oneiroi.Ethos.Habits do
   # The vector lane runs only for a query somebody is billed for; the
   # refresh before it embeds what changed and nothing when nothing did.
   defp lane(resident_id, %{actor: %Actor{} = actor} = situation) do
-    _ = Lane.refresh(resident_id, actor)
-    Lane.nearest(resident_id, Map.get(situation, :text) || "", actor)
+    if Map.get(situation, :refresh, true), do: _ = Lane.refresh(resident_id, actor)
+
+    Lane.nearest(
+      resident_id,
+      Map.get(situation, :text) || "",
+      actor,
+      Map.get(situation, :purpose, :embeddings)
+    )
   end
 
   defp lane(_resident_id, _situation), do: %{habits: [], seeds: []}

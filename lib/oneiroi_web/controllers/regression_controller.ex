@@ -98,7 +98,7 @@ defmodule OneiroiWeb.RegressionController do
 
   operation(:start_run,
     summary:
-      "Start a run of candidate models against the tests (all, or the numbers given), in sealed sessions; returns the run's ref at once, and the cards arrive on the channel regression:<id>:<ref>",
+      "Start a run of candidate models against the tests (all, or the numbers given), each a trial that records nothing; returns the run's ref at once, and the cards arrive on the channel regression:<id>:<ref>",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the run", "application/json",
