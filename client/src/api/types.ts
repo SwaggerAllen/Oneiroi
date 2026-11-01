@@ -111,8 +111,79 @@ export interface Ledger {
   };
 }
 
+// The error envelope: what went wrong in words (`meaning`), what to do
+// (`remedy`), and the reference that leads to the line that said so
+// (`site`) and to the request's log lines (`request_id`), conventions §8.
 export interface ApiError {
   kind: string;
   meaning: string;
   remedy?: string;
+  site?: string;
+  request_id?: string;
+}
+
+// Regression (spec §6.4, F42): tests are three texts; a run is models x
+// trials answered in the background (eunomia #30); a card is blind, its
+// model null until every card of its trial is graded.
+export interface RegressionTest {
+  number: number;
+  prompt: string;
+  passes_if: string;
+  fails_if: string;
+  written_at: string;
+  changed_at: string | null;
+}
+
+export type TestTexts = Pick<RegressionTest, 'prompt' | 'passes_if' | 'fails_if'>;
+
+export type RunState = 'running' | 'finished' | 'failed';
+
+export interface RegressionRun {
+  ref: string;
+  models: string[];
+  tests: number[];
+  behaviours: number[];
+  commitments: number[];
+  started_at: string;
+  finished_at: string | null;
+  failed_at: string | null;
+  failure: string | null;
+  state: RunState;
+  cards: number;
+}
+
+export type Grade = 'pass' | 'fail';
+
+export interface RegressionCard {
+  card_ref: string;
+  test_number: number | null;
+  behaviour_number: number | null;
+  commitment_number: number | null;
+  content: string | null;
+  refusal: boolean;
+  failure: string | null;
+  grade: Grade | null;
+  favourite: boolean;
+  model: string | null;
+}
+
+export interface RegressionResult {
+  model: string;
+  graded: number;
+  passed: number;
+  pass_rate: number;
+  favourites: number;
+  fidelity: { facts: number | null; voice: number | null; commitments: number | null };
+}
+
+export interface RegressionRunDetail {
+  run: RegressionRun;
+  cards: RegressionCard[];
+  results: RegressionResult[];
+}
+
+// What the run's channel pushes when the run ends.
+export interface RunEnd {
+  state: Exclude<RunState, 'running'>;
+  cards: number;
 }

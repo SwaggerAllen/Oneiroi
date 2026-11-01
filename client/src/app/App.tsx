@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
-import type { Bookmark, Injection, Ledger as LedgerData, Message, Resident, Tag } from '../api/types';
+import type {
+  ApiError,
+  Bookmark,
+  Injection,
+  Ledger as LedgerData,
+  Message,
+  RegressionCard,
+  RegressionRun,
+  RegressionRunDetail,
+  RegressionTest,
+  Resident,
+  Tag,
+} from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
 import { Chat } from '../screens/chat/Chat';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
+import { sortCards } from '../screens/regression/deck';
+import { Regression } from '../screens/regression/Regression';
 import { Login } from './Login';
-import { joinSession } from './socket';
+import { joinRun, joinSession } from './socket';
 
 // The shell (spec §10): Chat is home; the nav holds the three destinations
 // built in this phase; the first resident the account witnesses is the
@@ -61,6 +75,7 @@ export function App() {
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
+        {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
       <BottomNav current={destination} onChange={go} />
     </div>
@@ -179,6 +194,109 @@ function LedgerContainer({ resident }: { resident: Resident }) {
       ledger={ledger}
       onSetBudget={(purpose, cap, period) => api.setBudget(resident.id, purpose, cap, period).then(load)}
       onStoreKey={(key) => api.storeKey(key).then(load)}
+    />
+  );
+}
+
+// What a request that did not complete says: the server's envelope when
+// it sent one, else the plain fact.
+function asApiError(e: unknown): ApiError {
+  if (e instanceof RequestFailed && e.error) return e.error;
+  return { kind: 'request_failed', meaning: e instanceof Error ? e.message : 'the request did not complete' };
+}
+
+function RegressionContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [tests, setTests] = useState<RegressionTest[]>([]);
+  const [runs, setRuns] = useState<RegressionRun[]>([]);
+  const [open, setOpen] = useState<RegressionRunDetail | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  const fail = useCallback((e: unknown) => setError(asApiError(e)), []);
+
+  const load = useCallback(() => {
+    api.regressionTests(id).then(setTests).catch(fail);
+    api.regressionRuns(id).then(setRuns).catch(fail);
+  }, [id, fail]);
+  useEffect(() => load(), [load]);
+
+  const read = useCallback(
+    (ref: string) =>
+      api
+        .regressionRun(id, ref)
+        .then(setOpen)
+        .catch(fail),
+    [id, fail],
+  );
+
+  // A run still answering is watched on its channel (eunomia #30): each
+  // card joins the deck where a reload would put it, and the end reads
+  // the run again. The join reads it once more, for any card recorded
+  // between the first read and the join.
+  const openRef = open?.run.ref ?? null;
+  const running = open?.run.state === 'running';
+  useEffect(() => {
+    if (!openRef || !running) return;
+    let leave: () => void = () => undefined;
+    let gone = false;
+    api
+      .socketToken()
+      .then(({ token }) => {
+        if (gone) return;
+        leave = joinRun(token, id, openRef, {
+          onJoined: () => void read(openRef),
+          onCard: (card: RegressionCard) =>
+            setOpen((d) =>
+              d && d.run.ref === openRef && !d.cards.some((c) => c.card_ref === card.card_ref)
+                ? { ...d, cards: sortCards([...d.cards, card]), run: { ...d.run, cards: d.run.cards + 1 } }
+                : d,
+            ),
+          onFinished: () => {
+            void read(openRef);
+            load();
+          },
+        });
+      })
+      .catch(fail);
+    return () => {
+      gone = true;
+      leave();
+    };
+  }, [id, openRef, running, read, load, fail]);
+
+  // Every action clears the last refusal first, so what shows is current.
+  const act = <T,>(p: Promise<T>, then: (value: T) => void) => {
+    setError(null);
+    p.then(then).catch(fail);
+  };
+
+  return (
+    <Regression
+      residentName={resident.name}
+      tests={tests}
+      runs={runs}
+      open={open}
+      chatModel={pinned ?? resident.chat_model}
+      error={error}
+      onWriteTest={(texts) => act(api.writeTest(id, texts), () => load())}
+      onChangeTest={(number, texts) => act(api.changeTest(id, number, texts), () => load())}
+      onStartRun={(models, which) =>
+        act(api.startRun(id, models, which), ({ ref }) => {
+          load();
+          void read(ref);
+        })
+      }
+      onOpenRun={(ref) => {
+        setError(null);
+        void read(ref);
+      }}
+      onCloseRun={() => {
+        setOpen(null);
+        load();
+      }}
+      onGrade={(card, grade) => openRef && act(api.grade(id, openRef, card, grade), () => void read(openRef))}
+      onFavourite={(card) => openRef && act(api.favourite(id, openRef, card), () => void read(openRef))}
+      onPin={(model) => act(api.pinModel(id, model), () => setPinned(model))}
     />
   );
 }
