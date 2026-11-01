@@ -8,8 +8,20 @@ switch; spec §2.2: workspace filtering on every bridge query.
 ## #9
 Conventions §9: "a hand-written fixture is a claim about the real
 system, and a fake that disagrees with it hides the bug it was built
-to catch." A body nobody has seen answered is written as a claim or
-not at all.
+to catch", and "a fake refuses what the real system refuses". Both
+were broken here at once: the bodies were the docs' claim, and the
+in-memory Honcho took any shape, so a field the server does not read
+went out on every turn of the resident's first live day while the test
+that counts Honcho's messages passed. The record is read from the
+server's own source at the deployed commit rather than from an SDK,
+because an SDK is a second claim about the same server and the brief
+was the server's word. The request is built in one place so the fake
+and the transport cannot send two different bodies. Stricter than the
+server on purpose: a name taken on sufferance or a field dropped
+unread is a client that believes it set something; `tokens` was one.
+The deployed commit is not in this repository (Render builds `main`
+by hand), so nothing here can notice a redeploy; the record names the
+commit and the step that re-reads it.
 
 ## #10
 Spec §6.9: "tested against Honcho's own DDL from the pinned image." A
@@ -68,11 +80,26 @@ report.
 ## #18
 The author, 11-01: "All raw text should be in the repo unless there's a
 really good reason." Honcho derives text about her that nothing else
-holds. The brief was not to guess endpoints: the client's own paths were
-read from v3.2.2's routers but its bodies from docs, so the reads were
-taken from the released SDK paired with that version instead, the
-nearest thing to the server's own word this side of the pinned image.
+holds. The reads were first taken from the released SDK paired with
+v3.2.2, the nearest thing to the server's word then in hand, and are
+now held to the deployed server's own record (#9).
 Whole or not at all because a partial read written as the export would
 say Honcho had forgotten what it had not. `port` is a parameter only so
 the HTTP boundary's test can read through `Honcho.HTTP` while the suite's
 setting stays the in-memory Honcho.
+
+## #19
+Every sync of the resident's first live day failed (29 `SyncFailed`,
+all `rejected: 422`, 11-01) while each turn was captured, so Honcho
+held none of her conversations and every read of it, the brain's
+`honcho` section and the nightly export, read an empty memory. A
+failure the bridge records is retryable (conventions §8), and the turn
+is already ours to resend. In order and stopping at the first failure,
+because Honcho numbers a session's messages as they arrive and a later
+turn sent first would be read as said first. Keyed by the turn's ref in
+the message's metadata because the server dedupes nothing (a batch
+sent twice is stored twice) and a timeout after its commit is a
+failure on our side and a success on its. On demand rather than on a
+schedule: the smallest thing that recovers what was lost; a Honcho
+that fails again leaves `rejected:` rows the `sync_failures` check
+already counts.

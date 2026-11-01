@@ -64,6 +64,22 @@ defmodule OneiroiWeb.HonchoController do
     end
   end
 
+  operation(:replay,
+    summary:
+      "Re-send every turn whose sync to Honcho failed, in order, each once; stops at the first that fails again",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [
+      ok:
+        {"the turns synced, any left uncaptured, where it stopped", "application/json",
+         %Schema{type: :object}}
+    ]
+  )
+
+  def replay(conn, %{"id" => id}) do
+    {:ok, outcome} = Proteus.replay(id, actor(conn))
+    json(conn, outcome)
+  end
+
   defp sync(s),
     do: %{
       turn_ref: s.turn_ref,

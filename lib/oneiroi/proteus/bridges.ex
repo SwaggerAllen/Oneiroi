@@ -16,6 +16,7 @@ defmodule Oneiroi.Proteus.Bridges do
   alias Oneiroi.AgathosDaimon.SoulLines
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Proteus.Commands
   alias Oneiroi.Proteus.Error
   alias Oneiroi.Proteus.Router
@@ -189,16 +190,16 @@ defmodule Oneiroi.Proteus.Bridges do
   first; a failure is recorded and returned, never raised.
   """
   def sync_turn(resident_id, session_key, turn_ref, messages, %Actor{} = actor) do
-    with :ok <- not_synced(resident_id, turn_ref),
+    with {:ok, before} <- last_sync(resident_id, turn_ref),
          :ok <- provisioned(resident_id, messages, actor),
-         sent = Enum.flat_map(messages, &peer_message(&1, resident_id)),
+         sent = Enum.flat_map(messages, &peer_message(&1, resident_id, turn_ref)),
          :ok <-
            port().ensure_session(
              resident_id,
              session_key,
              sent |> Enum.map(& &1.peer) |> Enum.uniq()
            ),
-         :ok <- port().add_messages(resident_id, session_key, sent),
+         :ok <- send_once(before, resident_id, session_key, turn_ref, sent),
          {:ok, _} <- record_sync(resident_id, session_key, turn_ref, length(sent), nil, actor) do
       :ok
     else
@@ -214,11 +215,80 @@ defmodule Oneiroi.Proteus.Bridges do
   # Once per turn is the aggregate's rule, but the aggregate decides after
   # the messages are sent: the first version sent a retried turn twice
   # and recorded it once. The test that counts Honcho's messages found it.
-  defp not_synced(resident_id, turn_ref) do
-    case Enum.find(syncs(resident_id, 1_000), &(&1.turn_ref == turn_ref)) do
+  defp last_sync(resident_id, turn_ref) do
+    case Scope.resident(resident_id, fn -> Store.sync(turn_ref) end) do
       %{outcome: "synced"} -> :already
-      _none_or_failed -> :ok
+      %{outcome: "failed"} -> {:ok, :failed}
+      nil -> {:ok, :never}
     end
+  end
+
+  # A turn whose last sync failed may have landed all the same: a send
+  # that timed out after Honcho committed it, or a record that failed
+  # after the send. Honcho takes the same batch twice as two, so a resend
+  # asks first, by the turn's ref each message carries in its metadata.
+  defp send_once(:never, resident_id, session_key, _turn_ref, sent),
+    do: port().add_messages(resident_id, session_key, sent)
+
+  defp send_once(:failed, resident_id, session_key, turn_ref, sent) do
+    case port().turn_sent?(resident_id, session_key, turn_ref) do
+      {:ok, true} -> :ok
+      {:ok, false} -> port().add_messages(resident_id, session_key, sent)
+      error -> error
+    end
+  end
+
+  @doc """
+  Re-sends every captured turn whose last sync failed (proteus #19), in
+  the order the turns were spoken, through `sync_turn/5`, so each lands
+  once and is recorded as synced. Stops at the first that fails again:
+  a later turn sent ahead of an earlier one would reach Honcho out of
+  order. A failed row whose turn holds no captured message is left as
+  it is and named, never recorded as synced with nothing sent.
+  """
+  def replay(resident_id, %Actor{} = actor) do
+    resident_id
+    |> failed_turns()
+    |> Enum.reduce_while(%{synced: [], uncaptured: [], stopped: nil}, fn
+      {row, []}, acc ->
+        {:cont, %{acc | uncaptured: acc.uncaptured ++ [row.turn_ref]}}
+
+      {row, messages}, acc ->
+        case sync_turn(resident_id, row.session_key, row.turn_ref, messages, actor) do
+          :ok ->
+            {:cont, %{acc | synced: acc.synced ++ [row.turn_ref]}}
+
+          {:error, reason} ->
+            {:halt, %{acc | stopped: %{turn_ref: row.turn_ref, reason: reason_text(reason)}}}
+        end
+    end)
+    |> then(&{:ok, &1})
+  end
+
+  # Each failed row with its turn's captured messages, as the brain
+  # handed them to the sync, ordered by the turn's first message: its
+  # instant, then its place in the session's stream, which orders two
+  # turns of one session spoken within the same instant.
+  defp failed_turns(resident_id) do
+    Scope.resident(resident_id, fn -> Store.failed_syncs() end)
+    |> Enum.map(&{&1, Kumbukumbu.turn_messages(resident_id, &1.turn_ref)})
+    |> Enum.sort_by(fn {row, stored} -> {spoken(stored), row.turn_ref} end)
+    |> Enum.map(fn {row, stored} -> {row, Enum.map(stored, &captured/1)} end)
+  end
+
+  defp spoken([]), do: {0, 0}
+  defp spoken([m | _]), do: {DateTime.to_unix(m.sent_at, :microsecond), m.sequence}
+
+  # A stored message in the shape `sync_turn/5` takes. Only the roles and
+  # the actor kind the sync reads are named; the rest go as `:other`,
+  # which the sync does not send, as it never sent them.
+  defp captured(m) do
+    %{
+      role: Map.get(%{"user" => :user, "assistant" => :assistant}, m.role, :other),
+      content: m.content,
+      sent_at: m.sent_at,
+      actor: %{kind: if(m.actor_kind == "witness", do: :witness, else: :other), id: m.actor_id}
+    }
   end
 
   defp provisioned(resident_id, messages, actor) do
@@ -241,13 +311,20 @@ defmodule Oneiroi.Proteus.Bridges do
     end)
   end
 
-  defp peer_message(%{role: :user, actor: %{kind: :witness, id: account_id}} = m, _resident_id),
-    do: [%{peer: witness_peer(account_id), content: m.content, created_at: m.sent_at}]
+  defp peer_message(
+         %{role: :user, actor: %{kind: :witness, id: account_id}} = m,
+         _resident_id,
+         turn_ref
+       ),
+       do: [message(witness_peer(account_id), m, turn_ref)]
 
-  defp peer_message(%{role: :assistant} = m, resident_id),
-    do: [%{peer: resident_peer(resident_id), content: m.content, created_at: m.sent_at}]
+  defp peer_message(%{role: :assistant} = m, resident_id, turn_ref),
+    do: [message(resident_peer(resident_id), m, turn_ref)]
 
-  defp peer_message(_other, _resident_id), do: []
+  defp peer_message(_other, _resident_id, _turn_ref), do: []
+
+  defp message(peer, m, turn_ref),
+    do: %{peer: peer, content: m.content, created_at: m.sent_at, turn_ref: turn_ref}
 
   defp record_sync(resident_id, session_key, turn_ref, count, reason, actor) do
     dispatch(%Commands.RecordSync{
@@ -268,18 +345,45 @@ defmodule Oneiroi.Proteus.Bridges do
   def context(resident_id) do
     with %{peers: peers} <- bridge(resident_id),
          [witness | _] <- Enum.filter(peers, &String.starts_with?(&1, "witness-")),
-         {:ok, text} <-
-           port().context(
-             resident_id,
-             resident_peer(resident_id),
-             witness,
-             Config.fetch!(:proteus, :context_tokens)
-           ) do
-      String.trim(text)
+         {:ok, text} <- port().context(resident_id, resident_peer(resident_id), witness) do
+      text |> String.trim() |> within(Config.fetch!(:proteus, :context_tokens))
     else
       _none -> ""
     end
   end
+
+  # The bound is the bridge's to keep: Honcho's context route takes no
+  # token bound (its query is the target, the search options and
+  # `max_conclusions`), and the `tokens` sent before was dropped unread
+  # while the brain's injection said the section was under it. Whole
+  # lines while they fit, at four bytes a token as every estimate in the
+  # brain is; a first line longer than the whole bound is cut inside it
+  # rather than dropping the section.
+  defp within(text, tokens) do
+    budget = tokens * 4
+
+    kept =
+      text
+      |> String.split("\n")
+      |> Enum.reduce_while({[], 0}, fn line, {kept, used} ->
+        cost = byte_size(line) + 1
+
+        if used + cost > budget,
+          do: {:halt, {kept, used}},
+          else: {:cont, {[line | kept], used + cost}}
+      end)
+      |> elem(0)
+
+    case kept do
+      [] -> text |> String.graphemes() |> prefix(budget, []) |> String.trim()
+      lines -> lines |> Enum.reverse() |> Enum.join("\n") |> String.trim()
+    end
+  end
+
+  defp prefix([g | rest], budget, acc) when byte_size(g) <= budget,
+    do: prefix(rest, budget - byte_size(g), [g | acc])
+
+  defp prefix(_rest, _budget, acc), do: acc |> Enum.reverse() |> Enum.join()
 
   @doc "What Honcho concluded about the witness in the resident's eyes, at most `limit`."
   def conclusions(resident_id, limit) do

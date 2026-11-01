@@ -47,6 +47,17 @@ defmodule Oneiroi.Proteus.Store do
   @spec bridge() :: Bridge.t() | nil
   def bridge, do: Repo.one(from(b in Bridge, limit: 1))
 
+  @spec sync(String.t()) :: Sync.t() | nil
+  def sync(turn_ref), do: Repo.one(from(s in Sync, where: s.turn_ref == ^turn_ref))
+
+  @doc "Every turn whose last sync failed: a synced turn's row is never failed again (`Bridge`)."
+  @spec failed_syncs() :: [Sync.t()]
+  def failed_syncs,
+    do:
+      Repo.all(
+        from(s in Sync, where: s.outcome == "failed", order_by: [asc: s.at, asc: s.turn_ref])
+      )
+
   @spec syncs(pos_integer()) :: [Sync.t()]
   def syncs(limit), do: Repo.all(from(s in Sync, order_by: [desc: s.at], limit: ^limit))
 end

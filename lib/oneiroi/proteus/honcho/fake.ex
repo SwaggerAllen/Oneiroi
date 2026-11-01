@@ -4,10 +4,20 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   messages, cards and conclusions in an ETS table keyed by workspace, so
   the no-bleed test can seed two and read each; a failure scripted for
   the calling process; a dream simulated by moving a card.
+
+  It refuses what the deployed server refuses (proteus #9): every call
+  builds the request `Honcho.HTTP` would send (`Honcho.Wire`) and asks
+  the server's record (`Honcho.Recorded`) before it answers, and a
+  request the server would not take is the 422 the bridge records as
+  `rejected: 422`. While it answered any shape, every sync of a turn
+  went out under a field the server does not read and the suite that
+  counts Honcho's messages stayed green.
   """
   @behaviour Oneiroi.Proteus.Honcho
 
   alias Oneiroi.Proteus.Error
+  alias Oneiroi.Proteus.Honcho.Recorded
+  alias Oneiroi.Proteus.Honcho.Wire
 
   @table :proteus_honcho_fake
   @fail_key :proteus_honcho_fail
@@ -28,6 +38,12 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   def clear(opts \\ []) do
     Process.delete(@fail_key)
     if ws = Keyword.get(opts, :for), do: :ets.match_delete(table(), {{ws, :_, :_}, :_})
+    :ok
+  end
+
+  @doc "Ends a workspace's scripted failure and keeps its state: Honcho back up."
+  def recover(ws) do
+    :ets.delete(table(), {ws, :fail, :fail})
     :ok
   end
 
@@ -61,43 +77,67 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   # ---- the port ----
 
   @impl true
-  def ensure_workspace(ws), do: with(:ok <- scripted(ws), do: put({ws, :workspace, ws}, true))
+  def ensure_workspace(ws) do
+    with :ok <- answered(ws, Wire.workspace(ws)), do: put({ws, :workspace, ws}, true)
+  end
 
   @impl true
-  def ensure_peer(ws, peer, config),
-    do: with(:ok <- scripted(ws), do: put({ws, :peer, peer}, config))
+  def ensure_peer(ws, peer, config) do
+    with :ok <- answered(ws, Wire.peer(ws, peer, config)),
+         :ok <- answered(ws, Wire.peer_configuration(ws, peer, config)),
+         do: put({ws, :peer, peer}, config)
+  end
 
   @impl true
-  def ensure_session(ws, session, peers),
-    do: with(:ok <- scripted(ws), do: put({ws, :session, session}, peers))
+  def ensure_session(ws, session, peers) do
+    with :ok <- answered(ws, Wire.session(ws, session, peers)),
+         do: put({ws, :session, session}, peers)
+  end
 
   @impl true
+  def add_messages(_ws, _session, []), do: :ok
+
   def add_messages(ws, session, messages) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.messages(ws, session, messages)) do
       existing = get({ws, :messages, session}, [])
       put({ws, :messages, session}, existing ++ messages)
     end
   end
 
   @impl true
-  def get_card(ws, peer), do: with(:ok <- scripted(ws), do: {:ok, get({ws, :card, peer}, [])})
+  def turn_sent?(ws, session, turn_ref) do
+    with :ok <- answered(ws, Wire.turn_messages(ws, session, turn_ref)) do
+      {:ok, {ws, :messages, session} |> get([]) |> Enum.any?(&(&1[:turn_ref] == turn_ref))}
+    end
+  end
 
   @impl true
-  def set_card(ws, peer, card), do: with(:ok <- scripted(ws), do: put({ws, :card, peer}, card))
+  def get_card(ws, peer) do
+    with :ok <- answered(ws, Wire.card(ws, peer, peer)), do: {:ok, get({ws, :card, peer}, [])}
+  end
 
   @impl true
-  def context(ws, observer, target, _tokens),
-    do: with(:ok <- scripted(ws), do: {:ok, get({ws, :context, {observer, target}}, "")})
+  def set_card(ws, peer, card) do
+    with :ok <- answered(ws, Wire.set_card(ws, peer, card)), do: put({ws, :card, peer}, card)
+  end
+
+  @impl true
+  def context(ws, observer, target) do
+    with :ok <- answered(ws, Wire.context(ws, observer, target)),
+         do: {:ok, get({ws, :context, {observer, target}}, "")}
+  end
 
   @impl true
   def conclusions(ws, observer, target, limit) do
-    with :ok <- scripted(ws),
+    filters = %{observer_id: observer, observed_id: target}
+
+    with :ok <- answered(ws, Wire.conclusions(ws, filters, 1, min(limit, Wire.page_size()))),
          do: {:ok, {ws, :conclusions, {observer, target}} |> get([]) |> Enum.take(limit)}
   end
 
   @impl true
   def delete_conclusion(ws, id) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.delete_conclusion(ws, id)) do
       for {{^ws, :conclusions, pair}, list} <-
             :ets.match_object(table(), {{ws, :conclusions, :_}, :_}) do
         put({ws, :conclusions, pair}, Enum.reject(list, &(&1.id == id)))
@@ -109,7 +149,7 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
 
   @impl true
   def mint_key(ws, peer, expires_at) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.key(ws, peer, expires_at)) do
       key =
         "fake-key-" <>
           ws <> "-" <> (peer || "workspace") <> "-" <> DateTime.to_iso8601(expires_at)
@@ -121,24 +161,25 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
 
   @impl true
   def peers(ws) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.list(ws, "peers", 1)) do
       {:ok, ws |> entries(:peer) |> Enum.map(&elem(&1, 0)) |> Enum.sort()}
     end
   end
 
   @impl true
-  def peer_card(ws, peer, peer),
-    do: with(:ok <- scripted(ws), do: {:ok, get({ws, :card, peer}, nil)})
-
-  def peer_card(ws, observer, target),
-    do: with(:ok <- scripted(ws), do: {:ok, get({ws, :card, {observer, target}}, nil)})
+  def peer_card(ws, observer, target) do
+    with :ok <- answered(ws, Wire.card(ws, observer, target)) do
+      key = if observer == target, do: observer, else: {observer, target}
+      {:ok, get({ws, :card, key}, nil)}
+    end
+  end
 
   # A seeded conclusion carries the fields it was given; the pair comes
   # from where it was seeded, and the rest take what Honcho gives an
   # explicit conclusion drawn from no session.
   @impl true
   def all_conclusions(ws) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.conclusions(ws, nil, 1, Wire.page_size())) do
       {:ok,
        for {{observer, observed}, list} <- entries(ws, :conclusions), c <- list do
          Map.merge(
@@ -151,18 +192,16 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
 
   @impl true
   def sessions(ws) do
-    with :ok <- scripted(ws) do
+    with :ok <- answered(ws, Wire.list(ws, "sessions", 1)) do
       {:ok, ws |> entries(:session) |> Enum.map(&elem(&1, 0)) |> Enum.sort()}
     end
   end
 
   @impl true
-  def summaries(ws, session),
-    do:
-      with(
-        :ok <- scripted(ws),
-        do: {:ok, get({ws, :summaries, session}, %{short: nil, long: nil})}
-      )
+  def summaries(ws, session) do
+    with :ok <- answered(ws, Wire.summaries(ws, session)),
+         do: {:ok, get({ws, :summaries, session}, %{short: nil, long: nil})}
+  end
 
   # ---- helpers ----
 
@@ -170,6 +209,27 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
     table()
     |> :ets.match_object({{ws, kind, :_}, :_})
     |> Enum.map(fn {{_ws, _kind, key}, value} -> {key, value} end)
+  end
+
+  # The scripted failure first, as a Honcho that is down answers nothing;
+  # then the server's own refusal of the request, as its 422.
+  defp answered(ws, request) do
+    with :ok <- scripted(ws), do: wire(request)
+  end
+
+  @doc false
+  def wire(request) do
+    case request |> Wire.as_read() |> Recorded.refusal() do
+      nil ->
+        :ok
+
+      problem ->
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_fake_wire_refused,
+           status: 422,
+           problem: problem
+         )}
+    end
   end
 
   defp scripted(ws) do

@@ -1,86 +1,58 @@
 defmodule Oneiroi.Proteus.Honcho.HTTP do
   @moduledoc """
   Honcho over its HTTP API, v3, on the admin key that never leaves the
-  core (spec §6.9). The paths are read from v3.2.2's routers: workspaces,
-  peers, sessions, messages, conclusions and keys under `/v3`. **The
-  request and response bodies are claims**: the schema modules were not
-  reachable when this was written, so the field names here (`name`,
-  `peer_names`, `messages[].peer_name`, `peer_card`, `configuration`,
-  `filters.observer`/`observed`) are what the routers read and what the
-  docs describe, not what a recorded fixture shows. The integration
-  layer against the pinned image is the measurement (conventions §9);
-  until then every shape is marked so a mismatch is found there and not
-  guessed at here.
+  core (spec §6.9). Every request is `Honcho.Wire`'s, in the names the
+  deployed server declares: plastic-labs/honcho at commit `6f91136`,
+  its routers and pydantic schemas read field by field into
+  `test/fixtures/proteus/honcho-server.json` (proteus #9). The in-memory
+  Honcho checks the same requests against that record, and the HTTP
+  boundary's tests hold the bodies sent here and the answers parsed here
+  to it.
+
+  The bodies before were claims from the docs (`name`, `peer_names`,
+  `messages[].peer_name`, `filters.observer`/`observed`, a `tokens`
+  query): the server takes the first two by name, ignores the last, and
+  refuses `peer_name` with a 422, which was every sync of a turn from
+  the resident's first live one.
   """
   @behaviour Oneiroi.Proteus.Honcho
 
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.Proteus.Error
+  alias Oneiroi.Proteus.Honcho.Wire
 
   @impl true
-  def ensure_workspace(ws), do: post(["workspaces"], %{name: ws}) |> ok()
+  def ensure_workspace(ws), do: ws |> Wire.workspace() |> call() |> ok()
 
+  # Get-or-create leaves an existing peer's configuration as it was, so
+  # the configuration is set again on a peer that was there.
   @impl true
   def ensure_peer(ws, peer, config) do
-    with {:ok, _} <- post(["workspaces", ws, "peers"], %{name: peer, configuration: config}),
-         {:ok, _} <- put(["workspaces", ws, "peers", peer], %{configuration: config}) do
+    with {:ok, _} <- call(Wire.peer(ws, peer, config)),
+         {:ok, _} <- call(Wire.peer_configuration(ws, peer, config)) do
       :ok
     end
   end
 
   @impl true
-  def ensure_session(ws, session, peers) do
-    body = %{name: session, peer_names: Map.new(peers, &{&1, %{}})}
-    post(["workspaces", ws, "sessions"], body) |> ok()
-  end
+  def ensure_session(ws, session, peers), do: ws |> Wire.session(session, peers) |> call() |> ok()
 
   @impl true
   def add_messages(_ws, _session, []), do: :ok
 
-  def add_messages(ws, session, messages) do
-    body = %{
-      messages:
-        Enum.map(messages, fn m ->
-          %{peer_name: m.peer, content: m.content, created_at: DateTime.to_iso8601(m.created_at)}
-        end)
-    }
-
-    post(["workspaces", ws, "sessions", session, "messages"], body) |> ok()
-  end
+  def add_messages(ws, session, messages),
+    do: ws |> Wire.messages(session, messages) |> call() |> ok()
 
   @impl true
-  def get_card(ws, peer) do
-    case get(["workspaces", ws, "peers", peer, "card"], []) do
-      {:ok, %{"peer_card" => lines}} when is_list(lines) -> {:ok, lines}
-      {:ok, _other} -> {:ok, []}
-      error -> error
-    end
-  end
-
-  @impl true
-  def set_card(ws, peer, card),
-    do: put(["workspaces", ws, "peers", peer, "card"], %{peer_card: card}) |> ok()
-
-  @impl true
-  def context(ws, observer, target, tokens) do
-    case get(["workspaces", ws, "peers", observer, "context"], target: target, tokens: tokens) do
-      {:ok, %{"representation" => text}} when is_binary(text) -> {:ok, text}
-      {:ok, body} when is_map(body) -> {:ok, Map.get(body, "content", "") |> to_string()}
-      error -> error
-    end
-  end
-
-  @impl true
-  def conclusions(ws, observer, target, limit) do
-    body = %{filters: %{observer: observer, observed: target}}
-
-    case post(["workspaces", ws, "conclusions", "list"], body, size: limit) do
+  def turn_sent?(ws, session, turn_ref) do
+    case call(Wire.turn_messages(ws, session, turn_ref)) do
       {:ok, %{"items" => items}} when is_list(items) ->
-        {:ok, Enum.map(items, &%{id: to_string(&1["id"]), content: to_string(&1["content"])})}
+        {:ok, items != []}
 
       {:ok, _other} ->
-        {:ok, []}
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_http_turn_unreadable, answer: :unreadable)}
 
       error ->
         error
@@ -88,15 +60,56 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
   end
 
   @impl true
-  def delete_conclusion(ws, id), do: delete(["workspaces", ws, "conclusions", id]) |> ok()
+  def get_card(ws, peer) do
+    case peer_card(ws, peer, peer) do
+      {:ok, nil} -> {:ok, []}
+      other -> other
+    end
+  end
+
+  @impl true
+  def set_card(ws, peer, card), do: ws |> Wire.set_card(peer, card) |> call() |> ok()
+
+  # PeerContext: `representation` is text, or null when Honcho holds none.
+  @impl true
+  def context(ws, observer, target) do
+    case call(Wire.context(ws, observer, target)) do
+      {:ok, %{"representation" => text}} when is_binary(text) ->
+        {:ok, text}
+
+      {:ok, %{"representation" => nil}} ->
+        {:ok, ""}
+
+      {:ok, _other} ->
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_http_context_unreadable,
+           answer: :unreadable
+         )}
+
+      error ->
+        error
+    end
+  end
+
+  # At most `limit`, walked page by page: the server answers at most 100
+  # a page, and the memory audit reads 150 (EUNOMIA_AUDIT_CONCLUSIONS),
+  # which was a 422 as one page.
+  @impl true
+  def conclusions(ws, observer, target, limit) do
+    filters = %{observer_id: observer, observed_id: target}
+    size = min(limit, Wire.page_size())
+
+    with {:ok, items} <- every_page(&Wire.conclusions(ws, filters, &1, size), limit) do
+      {:ok, Enum.map(items, &%{id: to_string(&1["id"]), content: to_string(&1["content"])})}
+    end
+  end
+
+  @impl true
+  def delete_conclusion(ws, id), do: ws |> Wire.delete_conclusion(id) |> call() |> ok()
 
   @impl true
   def mint_key(ws, peer, expires_at) do
-    params =
-      [workspace_id: ws, expires_at: DateTime.to_iso8601(expires_at)] ++
-        if(peer, do: [peer_id: peer], else: [])
-
-    case post(["keys"], %{}, params) do
+    case call(Wire.key(ws, peer, expires_at)) do
       {:ok, %{"key" => key}} when is_binary(key) ->
         {:ok, key}
 
@@ -110,31 +123,22 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
 
   # ---- the reads the records export takes (proteus #18) ----
   #
-  # These shapes are read from the Python SDK Honcho pairs with v3.2.2
-  # (honcho-ai 2.5.1, by Honcho's compatibility guide): its `routes`,
-  # the request each call makes, and the pydantic models it validates
-  # the answer with (`PageResponse`, `PeerResponse`, `PeerCardResponse`,
-  # `ConclusionResponse`, `SessionResponse`, `SessionSummariesResponse`).
-  # A list is `POST .../list?page=N&size=M` with no body when nothing is
-  # filtered, answering `{items, page, size, total, pages}`; the SDK caps
-  # a conclusions page at 100. Still claims about the server until the
-  # pinned image answers them (#9), but claims a released client makes
-  # against that server, where the writes above are claims from docs.
-
-  @page_size 100
+  # A list is `POST .../list?page=N&size=M`, with no body when nothing is
+  # filtered, answering a Page (`items`, `page`, `size`, `total`,
+  # `pages`); the server's page is at most 100.
 
   @impl true
   def peers(ws) do
-    with {:ok, items} <- every_page(["workspaces", ws, "peers", "list"]) do
+    with {:ok, items} <- every_page(&Wire.list(ws, "peers", &1)) do
       {:ok, items |> Enum.map(&to_string(&1["id"])) |> Enum.uniq() |> Enum.sort()}
     end
   end
 
+  # PeerCardResponse: `peer_card` is the lines, or null when the observer
+  # holds no card of the target.
   @impl true
   def peer_card(ws, observer, target) do
-    params = if observer == target, do: [], else: [target: target]
-
-    case get(["workspaces", ws, "peers", observer, "card"], params) do
+    case call(Wire.card(ws, observer, target)) do
       {:ok, %{"peer_card" => lines}} when is_list(lines) ->
         {:ok, Enum.map(lines, &to_string/1)}
 
@@ -152,21 +156,21 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
 
   @impl true
   def all_conclusions(ws) do
-    with {:ok, items} <- every_page(["workspaces", ws, "conclusions", "list"]) do
+    with {:ok, items} <- every_page(&Wire.conclusions(ws, nil, &1, Wire.page_size())) do
       {:ok, items |> Enum.map(&held_conclusion/1) |> Enum.uniq_by(& &1.id)}
     end
   end
 
   @impl true
   def sessions(ws) do
-    with {:ok, items} <- every_page(["workspaces", ws, "sessions", "list"]) do
+    with {:ok, items} <- every_page(&Wire.list(ws, "sessions", &1)) do
       {:ok, items |> Enum.map(&to_string(&1["id"])) |> Enum.uniq() |> Enum.sort()}
     end
   end
 
   @impl true
   def summaries(ws, session) do
-    case get(["workspaces", ws, "sessions", session, "summaries"], []) do
+    case call(Wire.summaries(ws, session)) do
       {:ok, %{} = body} ->
         {:ok, %{short: summary(body["short_summary"]), long: summary(body["long_summary"])}}
 
@@ -194,22 +198,21 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
     }
   end
 
+  # Summary: `message_id` is the public id of the message it runs through.
   defp summary(%{"content" => content} = s) when is_binary(content),
     do: %{content: content, through: s["message_id"]}
 
   defp summary(_none), do: nil
 
-  # Every page of a list, from the first to the last the server counts.
-  # A page past what it said there would be ends the walk too, so a list
-  # that shrinks while it is read cannot loop.
-  defp every_page(path, page \\ 1, acc \\ []) do
-    case request(:post, path, params: [page: page, size: @page_size]) do
+  # Every page of a list, from the first to the last the server counts,
+  # or until `limit` items are read. A page past what it said there
+  # would be ends the walk too, so a list that shrinks while it is read
+  # cannot loop.
+  defp every_page(build, limit \\ :infinity, page \\ 1, acc \\ []) do
+    case call(build.(page)) do
       {:ok, %{"items" => items} = body} when is_list(items) ->
-        pages = body["pages"]
-
-        if is_integer(pages) and page < pages and items != [],
-          do: every_page(path, page + 1, acc ++ items),
-          else: {:ok, acc ++ items}
+        more? = is_integer(body["pages"]) and page < body["pages"] and items != []
+        next_page(build, limit, page, acc ++ items, more?)
 
       {:ok, _other} ->
         {:error,
@@ -220,23 +223,68 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
     end
   end
 
+  defp next_page(_build, limit, _page, acc, _more?)
+       when is_integer(limit) and length(acc) >= limit,
+       do: {:ok, Enum.take(acc, limit)}
+
+  defp next_page(build, limit, page, acc, true), do: every_page(build, limit, page + 1, acc)
+  defp next_page(_build, _limit, _page, acc, false), do: {:ok, acc}
+
   # ---- transport ----
 
-  defp post(path, body, params \\ []), do: request(:post, path, json: body, params: params)
-  defp put(path, body), do: request(:put, path, json: body)
-  defp get(path, params), do: request(:get, path, params: params)
-  defp delete(path), do: request(:delete, path, [])
+  defp call(%{method: method, path: path, params: params, body: body}) do
+    opts = if body, do: [params: params, json: body], else: [params: params]
+
+    with {:ok, url, key} <- endpoint() do
+      request(method, url, path, key, opts)
+    end
+  end
+
+  @doc """
+  Where Honcho answers and the key it takes, or the bridge's sited
+  error naming the setting that is missing. Unset, the transport used to
+  raise inside Req on a nil URL or bearer; a Honcho not yet deployed
+  beside an instance is a refusal the bridge records, never a crash.
+  """
+  @spec configured(String.t() | nil, Secret.t() | nil, Secret.t() | nil) ::
+          {:ok, String.t(), String.t()} | {:error, Error.t()}
+  def configured(url, admin_key, jwt_secret) do
+    key = admin_key(admin_key, jwt_secret)
+
+    cond do
+      not is_binary(url) or url == "" ->
+        {:error,
+         Error.new(:proteus_honcho_unconfigured, :proteus_http_url_unset,
+           setting: "PROTEUS_HONCHO_URL"
+         )}
+
+      not is_binary(key) ->
+        {:error,
+         Error.new(:proteus_honcho_unconfigured, :proteus_http_key_unset,
+           setting: "PROTEUS_HONCHO_ADMIN_KEY or PROTEUS_HONCHO_JWT_SECRET"
+         )}
+
+      true ->
+        {:ok, url, key}
+    end
+  end
+
+  defp endpoint do
+    configured(
+      Config.fetch!(:proteus, :honcho_url),
+      Config.fetch!(:proteus, :honcho_admin_key),
+      Config.fetch!(:proteus, :honcho_jwt_secret)
+    )
+  end
 
   # The one place the host is spelled outside the port: the setting the
   # port reads it from.
-  defp request(method, path, opts) do
-    url = Path.join([Config.fetch!(:proteus, :honcho_url), "v3" | path])
-
+  defp request(method, url, path, key, opts) do
     opts =
       Keyword.merge(opts,
         method: method,
-        url: url,
-        auth: {:bearer, admin_key()},
+        url: Path.join([url, "v3" | path]),
+        auth: {:bearer, key},
         receive_timeout: Config.fetch!(:proteus, :request_timeout_ms),
         retry: false
       )
@@ -264,16 +312,11 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
 
   # The admin key as set, or minted from Honcho's own signing secret
   # (proteus #16): Honcho's admin JWT is HS256 over `{"t": "", "ad": true}`,
-  # as its `create_admin_jwt` writes it (src/security.py, v3.2.2), so a
-  # core holding the secret holds the key without anyone minting it by
-  # hand and typing it into a dashboard.
-  @doc false
-  def admin_key do
-    case Config.fetch!(:proteus, :honcho_admin_key) do
-      %Secret{value: key} when is_binary(key) and key != "" -> key
-      _unset -> mint(Config.fetch!(:proteus, :honcho_jwt_secret))
-    end
-  end
+  # as its `create_admin_jwt` writes it (src/security.py, unchanged at the
+  # pinned commit), so a core holding the secret holds the key without
+  # anyone minting it by hand and typing it into a dashboard.
+  defp admin_key(%Secret{value: key}, _secret) when is_binary(key) and key != "", do: key
+  defp admin_key(_unset, secret), do: mint(secret)
 
   @doc false
   def mint(%Secret{value: secret}) when is_binary(secret) and secret != "" do

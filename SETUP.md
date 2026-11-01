@@ -101,10 +101,19 @@ check the service's Disks tab shows it mounted.
    key from it, and `PROTEUS_HONCHO_URL` is `honcho-api`'s private
    address. Neither Honcho service deploys on its own
    (`autoDeployTrigger: off`): the first deploy takes upstream `main` as
-   it is that day, so read its version off the build log, and a later
-   upgrade is a manual deploy after reading the release notes. Check with
-   the Honcho page on the resident's screen (`GET /v1/residents/:id/honcho`):
-   a sync recorded as `ok` after a turn is the bridge working end to end.
+   it is that day, so read its commit off the build log. The bridge
+   speaks the API of one commit, `6f91136b4e8d4b41de75f05d0cea822a1520b3a4`,
+   read from its routers and schemas into
+   `test/fixtures/proteus/honcho-server.json` (proteus #9), so a later
+   upgrade is a manual deploy after re-reading those files at the new
+   commit into that fixture and running the suite against it. No test
+   can see which commit Render deployed; a Honcho that has drifted shows
+   as `rejected: 422` syncs. Check with the Honcho page on the resident's
+   screen (`GET /v1/residents/:id/honcho`): a sync recorded as `synced`
+   after a turn is the bridge working end to end. Turns whose sync
+   failed are re-sent, in order and once each, by
+   `POST /v1/residents/:id/honcho/replay` with a witness's token
+   (proteus #19).
 
 ## 2. Orchestration's court
 

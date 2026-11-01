@@ -225,8 +225,9 @@ empty: an export that dropped to nothing because Honcho was down would
 read in the history as Honcho having forgotten her, and the next good
 run would put it all back as if remembered. Failing after the rest has
 landed keeps the backup taken, as the stray check does. The shapes are
-the released SDK's for v3.2.2 (proteus #18), not a recording; the test
-at the HTTP boundary holds the client to them, and each read costs one
+the deployed server's, recorded from its source at the pinned commit
+(proteus #9, #18); the test at the HTTP boundary holds the client to
+them, and each read costs one
 call per peer pair, one per session and a page per hundred rows, which
 is not measured against a real workspace.
 

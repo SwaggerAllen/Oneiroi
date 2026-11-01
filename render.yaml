@@ -95,7 +95,9 @@ services:
   # automatic: Oneiroi speaks Honcho's v3 API (Oneiroi.Proteus.Honcho.HTTP),
   # so a new Honcho is a deliberate deploy after reading its release
   # notes, never a push upstream. The first deploy takes `main` as it is
-  # that day; v3.2.2 is the release the bridge was read against on 10-31.
+  # that day. The bridge is held to the API of the commit production
+  # runs, 6f91136 (test/fixtures/proteus/honcho-server.json, proteus #9):
+  # deploying any other commit is re-reading that fixture first.
   # Private: only this workspace's services in the same region reach it,
   # and with auth on, only with a key the core minted.
   - type: pserv

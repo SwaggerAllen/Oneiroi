@@ -148,6 +148,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/wash/run", JudgementController, :run_wash)
       get("/residents/:id/honcho", HonchoController, :show)
       post("/residents/:id/honcho/card-audit", HonchoController, :audit_card)
+      post("/residents/:id/honcho/replay", HonchoController, :replay)
       get("/residents/:id/figures", FigureController, :figures)
       post("/residents/:id/figures", FigureController, :define_counter)
       get("/residents/:id/figures/:key", FigureController, :figure)

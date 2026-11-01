@@ -15,7 +15,13 @@ defmodule Oneiroi.Proteus.Honcho do
   @type workspace :: String.t()
   @type peer :: String.t()
   @type card :: [String.t()]
-  @type message :: %{peer: peer(), content: String.t(), created_at: DateTime.t()}
+  @typedoc "A message as sent: its peer, its words, its instant, and the turn it belongs to, which is how a resend finds it landed."
+  @type message :: %{
+          peer: peer(),
+          content: String.t(),
+          created_at: DateTime.t(),
+          turn_ref: String.t()
+        }
   @type conclusion :: %{id: String.t(), content: String.t()}
   @typedoc "Honcho unreachable or refusing, as the bridge's own sited error."
   @type failure :: Oneiroi.Proteus.Error.t()
@@ -46,10 +52,11 @@ defmodule Oneiroi.Proteus.Honcho do
   @callback ensure_peer(workspace(), peer(), map()) :: :ok | {:error, failure()}
   @callback ensure_session(workspace(), String.t(), [peer()]) :: :ok | {:error, failure()}
   @callback add_messages(workspace(), String.t(), [message()]) :: :ok | {:error, failure()}
+  @callback turn_sent?(workspace(), String.t(), String.t()) ::
+              {:ok, boolean()} | {:error, failure()}
   @callback get_card(workspace(), peer()) :: {:ok, card()} | {:error, failure()}
   @callback set_card(workspace(), peer(), card()) :: :ok | {:error, failure()}
-  @callback context(workspace(), peer(), peer(), pos_integer()) ::
-              {:ok, String.t()} | {:error, failure()}
+  @callback context(workspace(), peer(), peer()) :: {:ok, String.t()} | {:error, failure()}
   @callback conclusions(workspace(), peer(), peer(), pos_integer()) ::
               {:ok, [conclusion()]} | {:error, failure()}
   @callback delete_conclusion(workspace(), String.t()) :: :ok | {:error, failure()}

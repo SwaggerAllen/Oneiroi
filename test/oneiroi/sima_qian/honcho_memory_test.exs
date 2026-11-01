@@ -2,9 +2,10 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
   @moduledoc """
   Honcho's memory of the resident, exported under `honcho/` (sima-qian
   #42, proteus #18): read at the HTTP boundary from a Honcho that
-  answers in v3.2.2's shapes, written as identical bytes from an
-  unchanged Honcho, withheld where a session is private, and left as it
-  was when Honcho cannot answer or answers that she has no peer.
+  answers in the deployed server's recorded shapes, written as
+  identical bytes from an unchanged Honcho, withheld where a session is
+  private, and left as it was when Honcho cannot answer or answers that
+  she has no peer.
   """
   use Oneiroi.DataCase, async: false
 
@@ -22,17 +23,18 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
 
   defmodule V3 do
     @moduledoc """
-    A Honcho on the loopback answering the reads the export makes, in
-    the shapes the Python SDK paired with v3.2.2 validates (honcho-ai
-    2.5.1's `PageResponse`, `PeerResponse`, `PeerCardResponse`,
-    `ConclusionResponse`, `SessionResponse`, `SessionSummariesResponse`),
-    and refusing what that SDK says the server refuses: no bearer, a
-    conclusions page over 100, a route it does not have. No client
-    fixture was recorded from the pinned image (proteus #9), so these
-    shapes are the released client's claim, not a measurement.
+    A Honcho on the loopback answering the reads the export makes, held
+    to the deployed server's record (`Honcho.Recorded`, read from
+    plastic-labs/honcho at the pinned commit, proteus #9): a request the
+    server would refuse is its 422, and every answer this Honcho gives
+    is checked against the response shapes recorded there, so it cannot
+    answer in a shape the server never sends. No bearer is a 401, a
+    route it does not answer a 404.
     """
     @behaviour Plug
     import Plug.Conn
+
+    alias Oneiroi.Proteus.Honcho.Recorded
 
     @impl true
     def init(agent), do: agent
@@ -40,8 +42,16 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
     @impl true
     def call(conn, agent) do
       conn = fetch_query_params(conn)
+      {:ok, raw, conn} = read_body(conn)
       state = Agent.get(agent, & &1)
       Agent.update(agent, &Map.update!(&1, :calls, fn calls -> calls ++ [route(conn)] end))
+
+      read = %{
+        method: conn.method,
+        path: tl(conn.path_info),
+        params: conn.query_params,
+        body: if(raw == "", do: nil, else: Jason.decode!(raw))
+      }
 
       cond do
         state.down ->
@@ -49,6 +59,10 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
 
         get_req_header(conn, "authorization") == [] ->
           send_resp(conn, 401, ~s({"detail":"Not authenticated"}))
+
+        problem = Recorded.refusal(read) ->
+          Agent.update(agent, &Map.update!(&1, :refused, fn r -> r ++ [problem] end))
+          send_resp(conn, 422, ~s({"detail":"refused"}))
 
         true ->
           answer(conn, conn.method, conn.path_info, state)
@@ -58,49 +72,51 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
     defp route(conn), do: {conn.method, Enum.join(conn.path_info, "/"), conn.query_params}
 
     defp answer(conn, "POST", ["v3", "workspaces", ws, "peers", "list"], s),
-      do: page(conn, Enum.map(s.peers, &peer(ws, &1)), s)
+      do: page(conn, "Peer", Enum.map(s.peers, &peer(ws, &1)), s)
 
     defp answer(conn, "GET", ["v3", "workspaces", _ws, "peers", peer, "card"], s) do
       target = conn.query_params["target"] || peer
-      json(conn, %{"peer_card" => Map.get(s.cards, {peer, target})})
+      json(conn, "PeerCardResponse", %{"peer_card" => Map.get(s.cards, {peer, target})})
     end
 
     defp answer(conn, "POST", ["v3", "workspaces", _ws, "conclusions", "list"], s),
-      do: page(conn, s.conclusions, s)
+      do: page(conn, "Conclusion", s.conclusions, s)
 
     defp answer(conn, "POST", ["v3", "workspaces", ws, "sessions", "list"], s),
-      do: page(conn, Enum.map(s.sessions, &session(ws, &1)), s)
+      do: page(conn, "Session", Enum.map(s.sessions, &session(ws, &1)), s)
 
     defp answer(conn, "GET", ["v3", "workspaces", _ws, "sessions", id, "summaries"], s) do
       {short, long} = Map.get(s.summaries, id, {nil, nil})
-      json(conn, %{"id" => id, "short_summary" => short, "long_summary" => long})
+
+      json(conn, "SessionSummaries", %{
+        "id" => id,
+        "short_summary" => short,
+        "long_summary" => long
+      })
     end
 
     defp answer(conn, _method, _path, _s), do: send_resp(conn, 404, ~s({"detail":"Not Found"}))
 
-    defp page(conn, items, s) do
+    # The size bound is the record's (1 to 100), checked before this.
+    defp page(conn, item, items, s) do
       page = String.to_integer(conn.query_params["page"] || "1")
       size = String.to_integer(conn.query_params["size"] || "50")
+      items = if s.reversed, do: Enum.reverse(items), else: items
+      total = length(items)
 
-      if size > 100 do
-        send_resp(conn, 422, ~s({"detail":"size"}))
-      else
-        items = if s.reversed, do: Enum.reverse(items), else: items
-        total = length(items)
-
-        json(conn, %{
-          "items" => items |> Enum.drop((page - 1) * size) |> Enum.take(size),
-          "page" => page,
-          "size" => size,
-          "total" => total,
-          "pages" => div(total + size - 1, size)
-        })
-      end
+      json(conn, "Page[#{item}]", %{
+        "items" => items |> Enum.drop((page - 1) * size) |> Enum.take(size),
+        "page" => page,
+        "size" => size,
+        "total" => total,
+        "pages" => div(total + size - 1, size)
+      })
     end
 
     defp peer(ws, id),
       do: %{
         "id" => id,
+        "uid" => "u-" <> id,
         "workspace_id" => ws,
         "created_at" => "2026-10-26T12:00:00.123456+00:00",
         "metadata" => %{},
@@ -110,6 +126,7 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
     defp session(ws, id),
       do: %{
         "id" => id,
+        "uid" => "u-" <> id,
         "is_active" => true,
         "workspace_id" => ws,
         "metadata" => %{},
@@ -117,7 +134,10 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
         "created_at" => "2026-10-26T12:00:00.123456+00:00"
       }
 
-    defp json(conn, body) do
+    # An answer in a shape the server never sends is this test's bug, not
+    # the client's, and fails here rather than passing on a fiction.
+    defp json(conn, model, body) do
+      if problem = Recorded.answer_problem(model, body), do: raise(problem)
       conn |> put_resp_content_type("application/json") |> send_resp(200, Jason.encode!(body))
     end
   end
@@ -142,6 +162,7 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
         "session_id" => nil,
         "level" => "explicit",
         "source_ids" => [],
+        "source_message_ids" => nil,
         "times_derived" => 1,
         "created_at" => "2026-10-26T12:30:00.000000+00:00"
       },
@@ -162,7 +183,12 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
     agent =
       start_supervised!(
         {Agent,
-         fn -> Map.merge(%{down: false, reversed: false, calls: [], summaries: %{}}, state) end}
+         fn ->
+           Map.merge(
+             %{down: false, reversed: false, calls: [], refused: [], summaries: %{}},
+             state
+           )
+         end}
       )
 
     start_supervised!({Bandit, plug: {V3, agent}, ip: {127, 0, 0, 1}, port: 47_817})
