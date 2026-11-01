@@ -142,7 +142,7 @@ defmodule OneiroiWeb.CharacterController do
           404,
           ResidentError.new(
             :agathos_daimon_not_witnessed,
-            :agathos_daimon_character_not_witnessed
+            :agathos_daimon_web_character_not_witnessed
           )
         )
         |> halt()

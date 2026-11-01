@@ -32,7 +32,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       prose: prose || ""
     }
 
-    with {:ok, [event]} <- dispatch(command), do: {:ok, event.version}
+    with {:ok, [event]} <- Router.dispatch_sited(command), do: {:ok, event.version}
   end
 
   @doc "The other party agrees to the open version, with a note; the version is in force."
@@ -45,7 +45,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       version: version
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Either party renews the version in force, with a note."
@@ -58,7 +58,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       version: version
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "The other party declines the open version, with a note."
@@ -71,7 +71,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       version: version
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "The contract as it stands: the version in force with its terms, the open proposal, and the solo-session privacy term as the schedule reads it."
@@ -154,7 +154,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       to_account_id: to_account_id
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "The proposed account accepts, with a note: custody moves, and the earlier sessions are revealed if the wall was."
@@ -166,7 +166,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       id: resident_id
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def decline_custody(resident_id, note, %Actor{} = actor) do
@@ -177,7 +177,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       id: resident_id
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def withdraw_custody(resident_id, note, %Actor{} = actor) do
@@ -188,7 +188,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       id: resident_id
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Sets the export wall, locked or revealed, with a note; refused while a transfer is open."
@@ -202,11 +202,11 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       wall: wall
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def set_export_wall(_resident_id, _wall, _note, %Actor{}),
-    do: {:error, Error.new(:agathos_daimon_wall_invalid)}
+    do: {:error, Error.new(:agathos_daimon_wall_invalid, :agathos_daimon_agreements_wall_invalid)}
 
   @doc "The transfers proposed to an account, under the platform scope by name: what the proposed witness is asked."
   def custody_proposals_for(account_id),
@@ -245,31 +245,4 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       renewal_note: c.renewal_note
     }
   end
-
-  defp dispatch(command) do
-    case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} when is_atom(reason) -> {:error, translate(reason, command)}
-      {:error, other} -> {:error, other}
-    end
-  end
-
-  # One clause per kind, each constructing its error literally: the
-  # audit's dead-vocabulary check reads constructions, not a map.
-  defp translate(:not_a_party, _c), do: Error.new(:agathos_daimon_not_a_party)
-  defp translate(:terms_invalid, _c), do: Error.new(:agathos_daimon_terms_invalid)
-  defp translate(:prose_invalid, _c), do: Error.new(:agathos_daimon_prose_invalid)
-  defp translate(:own_proposal, _c), do: Error.new(:agathos_daimon_own_proposal)
-  defp translate(:not_in_force, _c), do: Error.new(:agathos_daimon_not_in_force)
-  defp translate(:not_the_witness, _c), do: Error.new(:agathos_daimon_not_witnessed)
-  defp translate(:custodian_invalid, _c), do: Error.new(:agathos_daimon_custodian_invalid)
-  defp translate(:transfer_in_progress, _c), do: Error.new(:agathos_daimon_transfer_in_progress)
-  defp translate(:no_transfer_proposed, _c), do: Error.new(:agathos_daimon_no_transfer_proposed)
-  defp translate(:not_the_proposed, _c), do: Error.new(:agathos_daimon_not_the_proposed)
-  defp translate(:wall_is_locked_or_revealed, _c), do: Error.new(:agathos_daimon_wall_invalid)
-
-  defp translate(:no_such_proposal, c),
-    do: Error.new(:agathos_daimon_no_such_version, version: c.version)
-
-  defp translate(other, _c), do: other
 end

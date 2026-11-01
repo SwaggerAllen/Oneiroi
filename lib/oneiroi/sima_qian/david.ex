@@ -221,9 +221,19 @@ defmodule Oneiroi.SimaQian.David do
     |> Stream.with_index(1)
     |> Enum.reduce_while({:ok, []}, fn {line, n}, {:ok, acc} ->
       case row(String.trim(line), valid?) do
-        :blank -> {:cont, {:ok, acc}}
-        {:ok, row} -> {:cont, {:ok, [row | acc]}}
-        :invalid -> {:halt, {:error, Error.new(:sima_qian_records_invalid, file: name, line: n)}}
+        :blank ->
+          {:cont, {:ok, acc}}
+
+        {:ok, row} ->
+          {:cont, {:ok, [row | acc]}}
+
+        :invalid ->
+          {:halt,
+           {:error,
+            Error.new(:sima_qian_records_invalid, :sima_qian_david_line_invalid,
+              file: name,
+              line: n
+            )}}
       end
     end)
     |> case do

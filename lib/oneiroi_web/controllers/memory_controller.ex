@@ -314,7 +314,16 @@ defmodule OneiroiWeb.MemoryController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_memory_not_witnessed
+          )
+        )
+        |> halt()
   end
 
   defp revision(r) do

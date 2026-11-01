@@ -11,6 +11,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Custody
+  alias Oneiroi.AgathosDaimon.Error
   alias Oneiroi.AgathosDaimon.Events
   alias Oneiroi.AgathosDaimon.SoulLines
 
@@ -88,13 +89,24 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
 
     case c.kind || "resident" do
-      "resident" -> created
-      "fixture" -> [created, %Events.FixtureDeclared{actor: c.actor, at: c.at, id: c.id}]
-      _other -> {:error, :kind_invalid}
+      "resident" ->
+        created
+
+      "fixture" ->
+        [created, %Events.FixtureDeclared{actor: c.actor, at: c.at, id: c.id}]
+
+      _other ->
+        {:error,
+         Error.new(:agathos_daimon_kind_invalid, :agathos_daimon_resident_create_kind_invalid,
+           kind: c.kind
+         )}
     end
   end
 
-  def execute(%__MODULE__{}, %Commands.CreateResident{}), do: {:error, :resident_exists}
+  def execute(%__MODULE__{id: id}, %Commands.CreateResident{}),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_resident_exists, :agathos_daimon_resident_create_exists, id: id)}
 
   # An import writes the source's own events first; this command lands
   # after them on a stream that already holds a resident.
@@ -110,11 +122,22 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
-  def execute(%__MODULE__{state: :absent}, _command), do: {:error, :no_such_resident}
+  def execute(%__MODULE__{state: :absent}, %command{}),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_no_such_resident, :agathos_daimon_resident_absent,
+         command: command
+       )}
 
   # The import's second half lands only after `Imported` named the
   # source; a resident that was never imported has nothing to complete.
-  def execute(%__MODULE__{import: nil}, %Commands.CompleteImport{}), do: {:error, :not_imported}
+  def execute(%__MODULE__{import: nil}, %Commands.CompleteImport{}),
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_not_imported,
+         :agathos_daimon_resident_complete_import_not_imported
+       )}
 
   def execute(%__MODULE__{}, %Commands.CompleteImport{} = c) do
     completed = %Events.ImportCompleted{
@@ -168,7 +191,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
-  def execute(%__MODULE__{}, %Commands.RecordContinuationAsk{}), do: {:error, :not_a_fixture_ask}
+  def execute(%__MODULE__{}, %Commands.RecordContinuationAsk{}),
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_not_a_fixture,
+         :agathos_daimon_resident_continuation_not_a_fixture
+       )}
 
   def execute(%__MODULE__{sequences: sequences}, %Commands.MintId{} = c) do
     %Events.IdMinted{
@@ -183,12 +212,15 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{state: :active}, %Commands.PauseResident{} = c),
     do: %Events.ResidentPaused{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
 
-  def execute(%__MODULE__{}, %Commands.PauseResident{}), do: {:error, :not_active}
+  def execute(%__MODULE__{}, %Commands.PauseResident{}),
+    do:
+      {:error, Error.new(:agathos_daimon_not_pausable, :agathos_daimon_resident_pause_not_active)}
 
   def execute(%__MODULE__{state: :paused}, %Commands.WakeResident{} = c),
     do: %Events.ResidentWoken{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
 
-  def execute(%__MODULE__{}, %Commands.WakeResident{}), do: {:error, :not_paused}
+  def execute(%__MODULE__{}, %Commands.WakeResident{}),
+    do: {:error, Error.new(:agathos_daimon_not_paused, :agathos_daimon_resident_wake_not_paused)}
 
   # The lifecycle's lapse (spec §6.2): active to lapsed on the
   # subscription's say-so, and back on a renewal.
@@ -196,13 +228,18 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %Events.ResidentLapsed{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
 
   def execute(%__MODULE__{state: :lapsed}, %Commands.LapseResident{}), do: []
-  def execute(%__MODULE__{}, %Commands.LapseResident{}), do: {:error, :not_active}
+
+  def execute(%__MODULE__{}, %Commands.LapseResident{}),
+    do: {:error, Error.new(:agathos_daimon_not_active, :agathos_daimon_resident_lapse_not_active)}
 
   def execute(%__MODULE__{state: :lapsed}, %Commands.ResumeResident{} = c),
     do: %Events.ResidentResumed{actor: c.actor, at: c.at, id: c.id, reason: c.reason}
 
   def execute(%__MODULE__{state: :active}, %Commands.ResumeResident{}), do: []
-  def execute(%__MODULE__{}, %Commands.ResumeResident{}), do: {:error, :not_lapsed}
+
+  def execute(%__MODULE__{}, %Commands.ResumeResident{}),
+    do:
+      {:error, Error.new(:agathos_daimon_not_lapsed, :agathos_daimon_resident_resume_not_lapsed)}
 
   def execute(%__MODULE__{custody: from}, %Commands.TransferCustody{} = c) do
     %Events.CustodyTransferred{
@@ -218,7 +255,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # The wall is not set while a transfer is open (spec §6.12): the
   # proposed witness decided on the wall as it stood.
   def execute(%__MODULE__{custody_proposal: %{}}, %Commands.SetExportWall{}),
-    do: {:error, :transfer_in_progress}
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_transfer_in_progress,
+         :agathos_daimon_resident_wall_transfer_open
+       )}
 
   def execute(%__MODULE__{}, %Commands.SetExportWall{wall: wall} = c)
       when wall in [:locked, :revealed] do
@@ -231,16 +273,36 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
-  def execute(%__MODULE__{}, %Commands.SetExportWall{}), do: {:error, :wall_is_locked_or_revealed}
+  def execute(%__MODULE__{}, %Commands.SetExportWall{}),
+    do: {:error, Error.new(:agathos_daimon_wall_invalid, :agathos_daimon_resident_wall_invalid)}
 
   # ---- the dyad contract (spec §6.12) ----
 
   def execute(%__MODULE__{contract: contract} = r, %Commands.ProposeContract{} = c) do
     cond do
-      not party?(r, c.actor) -> {:error, :not_a_party}
-      not terms_ok?(c.terms) -> {:error, :terms_invalid}
-      not prose_ok?(c.prose) -> {:error, :prose_invalid}
-      true -> contract_proposed(c, contract.version + 1)
+      not party?(r, c.actor) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_not_a_party,
+           :agathos_daimon_resident_propose_contract_not_a_party
+         )}
+
+      not terms_ok?(c.terms) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_terms_invalid,
+           :agathos_daimon_resident_propose_contract_terms_invalid
+         )}
+
+      not prose_ok?(c.prose) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_prose_invalid,
+           :agathos_daimon_resident_propose_contract_prose_invalid
+         )}
+
+      true ->
+        contract_proposed(c, contract.version + 1)
     end
   end
 
@@ -274,10 +336,18 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{contract: %{in_force: in_force}} = r, %Commands.RenewContract{} = c) do
     cond do
       not party?(r, c.actor) ->
-        {:error, :not_a_party}
+        {:error,
+         Error.new(
+           :agathos_daimon_not_a_party,
+           :agathos_daimon_resident_renew_contract_not_a_party
+         )}
 
       is_nil(in_force) or in_force.version != c.version ->
-        {:error, :not_in_force}
+        {:error,
+         Error.new(
+           :agathos_daimon_not_in_force,
+           :agathos_daimon_resident_renew_contract_not_in_force
+         )}
 
       true ->
         %Events.DyadContractRenewed{
@@ -295,13 +365,25 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{} = r, %Commands.ProposeCustodyTransfer{} = c) do
     cond do
       not witness?(r, c.actor) ->
-        {:error, :not_the_witness}
+        {:error,
+         Error.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_resident_propose_custody_not_witness
+         )}
 
       not is_binary(c.to_account_id) or c.to_account_id == r.witness_account_id ->
-        {:error, :custodian_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_custodian_invalid,
+           :agathos_daimon_resident_propose_custody_custodian_invalid
+         )}
 
       r.custody_proposal != nil ->
-        {:error, :transfer_in_progress}
+        {:error,
+         Error.new(
+           :agathos_daimon_transfer_in_progress,
+           :agathos_daimon_resident_propose_custody_transfer_open
+         )}
 
       true ->
         %Events.CustodyTransferProposed{
@@ -315,7 +397,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def execute(%__MODULE__{custody_proposal: nil}, %Commands.AcceptCustodyTransfer{}),
-    do: {:error, :no_transfer_proposed}
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_no_transfer_proposed,
+         :agathos_daimon_resident_accept_custody_none_proposed
+       )}
 
   def execute(%__MODULE__{custody_proposal: %{to: to}} = r, %Commands.AcceptCustodyTransfer{} = c) do
     if proposed?(c.actor, to) do
@@ -341,12 +428,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         ],
         else: transferred
     else
-      {:error, :not_the_proposed}
+      {:error,
+       Error.new(
+         :agathos_daimon_not_the_proposed,
+         :agathos_daimon_resident_accept_custody_not_proposed
+       )}
     end
   end
 
   def execute(%__MODULE__{custody_proposal: nil}, %Commands.DeclineCustodyTransfer{}),
-    do: {:error, :no_transfer_proposed}
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_no_transfer_proposed,
+         :agathos_daimon_resident_decline_custody_none_proposed
+       )}
 
   def execute(%__MODULE__{custody_proposal: %{to: to}}, %Commands.DeclineCustodyTransfer{} = c) do
     if proposed?(c.actor, to),
@@ -357,11 +453,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         id: c.id,
         to_account_id: to
       },
-      else: {:error, :not_the_proposed}
+      else:
+        {:error,
+         Error.new(
+           :agathos_daimon_not_the_proposed,
+           :agathos_daimon_resident_decline_custody_not_proposed
+         )}
   end
 
   def execute(%__MODULE__{custody_proposal: nil}, %Commands.WithdrawCustodyTransfer{}),
-    do: {:error, :no_transfer_proposed}
+    do:
+      {:error,
+       Error.new(
+         :agathos_daimon_no_transfer_proposed,
+         :agathos_daimon_resident_withdraw_custody_none_proposed
+       )}
 
   def execute(
         %__MODULE__{custody_proposal: %{to: to}} = r,
@@ -375,7 +481,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         id: c.id,
         to_account_id: to
       },
-      else: {:error, :not_the_witness}
+      else:
+        {:error,
+         Error.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_resident_withdraw_custody_not_witness
+         )}
   end
 
   # Before first contact the files are given: a witness writes a seed
@@ -403,11 +514,36 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def execute(%__MODULE__{} = r, %Commands.ProposeSoulEdit{} = c) do
     cond do
-      not first_contact?(r) -> {:error, :write_instead}
-      c.file not in @files -> {:error, :file_unknown}
-      not content_ok?(c.content) -> {:error, :content_invalid}
-      Map.has_key?(r.proposals, c.ref) -> []
-      true -> soul_edit_proposed(c)
+      not first_contact?(r) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_write_instead,
+           :agathos_daimon_resident_propose_edit_write_instead,
+           file: c.file
+         )}
+
+      c.file not in @files ->
+        {:error,
+         Error.new(
+           :agathos_daimon_file_unknown,
+           :agathos_daimon_resident_propose_edit_file_unknown,
+           file: c.file,
+           files: @files
+         )}
+
+      not content_ok?(c.content) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_content_invalid,
+           :agathos_daimon_resident_propose_edit_content_invalid,
+           file: c.file
+         )}
+
+      Map.has_key?(r.proposals, c.ref) ->
+        []
+
+      true ->
+        soul_edit_proposed(c)
     end
   end
 
@@ -416,7 +552,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{proposals: proposals} = r, %Commands.AcceptSoulEdit{} = c) do
     case {cites_ok?(c.cites), Map.get(proposals, c.ref)} do
       {false, _proposal} ->
-        {:error, :cites_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_cites_invalid,
+           :agathos_daimon_resident_accept_edit_cites_invalid
+         )}
 
       {true, %{state: :open, file: file, content: content}} ->
         [
@@ -433,7 +573,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         ]
 
       _other ->
-        {:error, :no_such_proposal}
+        {:error,
+         Error.new(
+           :agathos_daimon_no_such_proposal,
+           :agathos_daimon_resident_accept_edit_no_such_proposal
+         )}
     end
   end
 
@@ -443,7 +587,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         %Events.SoulEditDeclined{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref}
 
       _other ->
-        {:error, :no_such_proposal}
+        {:error,
+         Error.new(
+           :agathos_daimon_no_such_proposal,
+           :agathos_daimon_resident_decline_edit_no_such_proposal
+         )}
     end
   end
 
@@ -453,10 +601,16 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{} = r, %Commands.PinModel{} = c) do
     cond do
       not (is_binary(c.model) and String.trim(c.model) != "") ->
-        {:error, :model_invalid}
+        {:error,
+         Error.new(:agathos_daimon_model_invalid, :agathos_daimon_resident_pin_model_invalid)}
 
       c.reason not in ["run", "witness"] ->
-        {:error, :reason_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_model_invalid,
+           :agathos_daimon_resident_pin_model_reason_invalid,
+           reason: c.reason
+         )}
 
       r.chat_model == c.model ->
         []
@@ -481,10 +635,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{}, %Commands.RegisterAdapter{} = c) do
     cond do
       not (is_binary(c.adapter) and Regex.match?(@adapter_name, c.adapter)) ->
-        {:error, :adapter_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_adapter_invalid,
+           :agathos_daimon_resident_register_adapter_name_invalid,
+           adapter: c.adapter
+         )}
 
       c.role not in @roles ->
-        {:error, :role_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_adapter_invalid,
+           :agathos_daimon_resident_register_adapter_role_invalid,
+           role: c.role,
+           roles: @roles
+         )}
 
       true ->
         %Events.AdapterRegistered{
@@ -501,7 +666,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{adapters: adapters}, %Commands.RevokeAdapter{} = c) do
     if Map.has_key?(adapters, c.adapter),
       do: %Events.AdapterRevoked{actor: c.actor, at: c.at, id: c.id, adapter: c.adapter},
-      else: {:error, :no_such_adapter}
+      else:
+        {:error,
+         Error.new(
+           :agathos_daimon_no_such_adapter,
+           :agathos_daimon_resident_revoke_adapter_unknown,
+           adapter: c.adapter
+         )}
   end
 
   # The zone is checked against the database at the command edge, where
@@ -559,10 +730,15 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def execute(%__MODULE__{} = r, %Commands.WriteSelfLetter{} = c) do
     cond do
       c.actor.kind != :resident ->
-        {:error, :not_the_resident}
+        {:error,
+         Error.new(
+           :agathos_daimon_not_the_resident,
+           :agathos_daimon_resident_write_letter_not_the_resident
+         )}
 
       not is_binary(c.text) or String.trim(c.text) == "" ->
-        {:error, :letter_invalid}
+        {:error,
+         Error.new(:agathos_daimon_letter_invalid, :agathos_daimon_resident_write_letter_invalid)}
 
       true ->
         n = Map.get(r.sequences, "letter", 0) + 1
@@ -764,10 +940,30 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   defp write_ok(c) do
     cond do
-      c.file not in @files -> {:error, :file_unknown}
-      not content_ok?(c.content) -> {:error, :content_invalid}
-      not cites_ok?(c.cites) -> {:error, :cites_invalid}
-      true -> :ok
+      c.file not in @files ->
+        {:error,
+         Error.new(:agathos_daimon_file_unknown, :agathos_daimon_resident_write_file_unknown,
+           file: c.file,
+           files: @files
+         )}
+
+      not content_ok?(c.content) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_content_invalid,
+           :agathos_daimon_resident_write_file_content_invalid,
+           file: c.file
+         )}
+
+      not cites_ok?(c.cites) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_cites_invalid,
+           :agathos_daimon_resident_write_file_cites_invalid
+         )}
+
+      true ->
+        :ok
     end
   end
 
@@ -777,13 +973,22 @@ defmodule Oneiroi.AgathosDaimon.Resident do
         []
 
       first_contact?(r) and actor_kind(c.actor) != "resident" ->
-        {:error, :propose_instead}
+        {:error,
+         Error.new(
+           :agathos_daimon_propose_instead,
+           :agathos_daimon_resident_write_file_propose_instead,
+           file: c.file
+         )}
 
       first_contact?(r) ->
         [soul_edit_applied(c, nil, content) | soul_events(r, c.file, c.content, c)]
 
       c.origin not in @origins ->
-        {:error, :origin_invalid}
+        {:error,
+         Error.new(
+           :agathos_daimon_origin_invalid,
+           :agathos_daimon_resident_write_file_origin_invalid
+         )}
 
       true ->
         [seed_file_written(c, content) | soul_events(r, c.file, c.content, c)]
@@ -905,10 +1110,30 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # proposer, and only while it is the open one.
   defp decidable(%__MODULE__{contract: %{open: open}} = r, c) do
     cond do
-      not party?(r, c.actor) -> {:error, :not_a_party}
-      is_nil(open) or open.version != c.version -> {:error, :no_such_proposal}
-      open.by == c.actor.kind -> {:error, :own_proposal}
-      true -> :ok
+      not party?(r, c.actor) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_not_a_party,
+           :agathos_daimon_resident_decide_contract_not_a_party
+         )}
+
+      is_nil(open) or open.version != c.version ->
+        {:error,
+         Error.new(
+           :agathos_daimon_no_such_version,
+           :agathos_daimon_resident_decide_contract_no_such_version,
+           version: c.version
+         )}
+
+      open.by == c.actor.kind ->
+        {:error,
+         Error.new(
+           :agathos_daimon_own_proposal,
+           :agathos_daimon_resident_decide_contract_own_proposal
+         )}
+
+      true ->
+        :ok
     end
   end
 

@@ -8,6 +8,7 @@ defmodule Oneiroi.Glitnir.Reports do
   """
 
   alias Oneiroi.Glitnir.Commands
+  alias Oneiroi.Glitnir.Error
   alias Oneiroi.Glitnir.Events
 
   defstruct [:id, reports: %{}, count: 0, strikes: 0]
@@ -24,16 +25,20 @@ defmodule Oneiroi.Glitnir.Reports do
         number: count + 1,
         text: String.trim(c.text)
       },
-      else: {:error, :text_invalid}
+      else: {:error, Error.new(:glitnir_text_invalid, :glitnir_reports_file_text_invalid)}
   end
 
   def execute(%__MODULE__{reports: reports}, %Commands.RecordStep{} = c) do
     case Map.get(reports, c.number) do
       nil ->
-        {:error, :no_such_report}
+        {:error,
+         Error.new(:glitnir_no_such_report, :glitnir_reports_step_no_such_report,
+           number: c.number
+         )}
 
       :resolved ->
-        {:error, :report_resolved}
+        {:error,
+         Error.new(:glitnir_report_resolved, :glitnir_reports_step_resolved, number: c.number)}
 
       :open ->
         %Events.InvestigationStepRecorded{
@@ -49,13 +54,17 @@ defmodule Oneiroi.Glitnir.Reports do
   def execute(%__MODULE__{reports: reports, strikes: strikes}, %Commands.ResolveReport{} = c) do
     cond do
       c.outcome not in @outcomes ->
-        {:error, :outcome_invalid}
+        {:error, Error.new(:glitnir_outcome_invalid, :glitnir_reports_resolve_outcome_invalid)}
 
       Map.get(reports, c.number) == nil ->
-        {:error, :no_such_report}
+        {:error,
+         Error.new(:glitnir_no_such_report, :glitnir_reports_resolve_no_such_report,
+           number: c.number
+         )}
 
       Map.get(reports, c.number) == :resolved ->
-        {:error, :report_resolved}
+        {:error,
+         Error.new(:glitnir_report_resolved, :glitnir_reports_resolve_resolved, number: c.number)}
 
       true ->
         resolved = %Events.ReportResolved{

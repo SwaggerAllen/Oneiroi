@@ -184,7 +184,10 @@ defmodule OneiroiWeb.FigureController do
         conn
         |> error(
           404,
-          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_figure_not_witnessed)
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_figure_not_witnessed
+          )
         )
         |> halt()
   end

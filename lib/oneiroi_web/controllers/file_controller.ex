@@ -75,9 +75,6 @@ defmodule OneiroiWeb.FileController do
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :not_written, :web_file_write_not_written, inspect(reason))
     end
   end
 
@@ -108,9 +105,6 @@ defmodule OneiroiWeb.FileController do
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :not_proposed, :web_file_propose_not_proposed, inspect(reason))
     end
   end
 
@@ -133,9 +127,6 @@ defmodule OneiroiWeb.FileController do
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :not_drafted, :web_file_draft_not_drafted, inspect(reason))
     end
   end
 
@@ -200,7 +191,13 @@ defmodule OneiroiWeb.FileController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_web_file_not_witnessed)
+        )
+        |> halt()
   end
 
   defp soul_line(l, evidence) do

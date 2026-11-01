@@ -155,10 +155,11 @@ defmodule Oneiroi.SimaQian.BackupTest do
 
     :ok = Git.ensure_repo(working)
 
-    assert {:error, message} =
+    assert {:error, %Oneiroi.SimaQian.Error{kind: :sima_qian_git_failed, details: details} = e} =
              Git.push(working, "https://x-access-token:ghp_secret@127.0.0.1:9/x.git")
 
-    refute message =~ "ghp_secret"
+    assert details[:output] != ""
+    refute inspect(e) =~ "ghp_secret"
   end
 
   test "the export carries the letters to the next self and the backup receipts the ones it carries for the first time",

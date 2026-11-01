@@ -6,6 +6,7 @@ defmodule Oneiroi.SimaQian.GitTest do
   import ExUnit.CaptureLog
 
   alias Oneiroi.Config.Secret
+  alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
 
   # On 2026-11-01 the production image had no git. `System.cmd` raised
@@ -33,8 +34,10 @@ defmodule Oneiroi.SimaQian.GitTest do
         send(self(), {:result, result})
       end)
 
-    assert_received {:result, {:error, message}}
-    assert message == "oneiroi-no-such-binary is not installed on this server"
+    assert_received {:result, {:error, %Error{kind: :sima_qian_git_unstarted} = error}}
+    assert error.site == :sima_qian_git_run_unstarted
+    assert error.details == [binary: "oneiroi-no-such-binary", reason: :enoent]
+    refute inspect(error) =~ @token
     refute log =~ @token
   end
 
@@ -46,17 +49,22 @@ defmodule Oneiroi.SimaQian.GitTest do
     File.write!(plain, "#!/bin/sh\n")
     File.chmod!(plain, 0o644)
 
-    assert {:error, message} = Git.run(plain, dir, ["clone", "-q", url, "x"])
-    assert message =~ "could not start"
-    refute message =~ @token
+    assert {:error, %Error{kind: :sima_qian_git_unstarted} = error} =
+             Git.run(plain, dir, ["clone", "-q", url, "x"])
+
+    assert error.details == [binary: plain, reason: :eacces]
+    refute inspect(error) =~ @token
   end
 
   test "git's own failure keeps its words, with the token redacted", %{dir: dir} do
     # A remote nothing answers on: git fails and names the remote.
     remote = Secret.wrap("https://x-access-token:#{@token}@127.0.0.1:9/x.git")
-    assert {:error, message} = Git.clone(remote, Path.join(dir, "x"))
-    assert message != ""
-    refute message =~ @token
+
+    assert {:error, %Error{kind: :sima_qian_git_failed, site: :sima_qian_git_run_failed} = error} =
+             Git.clone(remote, Path.join(dir, "x"))
+
+    assert error.details[:output] =~ "fatal:"
+    refute inspect(error) =~ @token
   end
 
   test "the token reaches git through a private file and never its arguments", %{remote: remote} do

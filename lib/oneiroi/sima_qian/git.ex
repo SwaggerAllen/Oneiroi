@@ -17,12 +17,13 @@ defmodule Oneiroi.SimaQian.Git do
   """
 
   alias Oneiroi.Config.Secret
+  alias Oneiroi.SimaQian.Error
 
   @env [{"GIT_TERMINAL_PROMPT", "0"}]
   @identity ["-c", "user.name=Oneiroi", "-c", "user.email=oneiroi@records.invalid"]
 
   @doc "Makes `dir` a repository on `main` if it is not one."
-  @spec ensure_repo(Path.t()) :: :ok | {:error, String.t()}
+  @spec ensure_repo(Path.t()) :: :ok | {:error, Error.t()}
   # Sobelow reads a `File` call on a built path as a traversal; every path
   # here is the records root (a setting) under a resident id the platform
   # minted, or a clone this code made under the temp dir. No request
@@ -37,7 +38,7 @@ defmodule Oneiroi.SimaQian.Git do
   end
 
   @doc "Makes a bare repository at `path`, for tests and local remotes."
-  @spec init_bare(Path.t()) :: :ok | {:error, String.t()}
+  @spec init_bare(Path.t()) :: :ok | {:error, Error.t()}
   # sobelow_skip ["Traversal.FileModule"]
   def init_bare(path) do
     File.mkdir_p!(path)
@@ -46,7 +47,7 @@ defmodule Oneiroi.SimaQian.Git do
 
   @doc "Stages `pathspecs` and commits them alone; `{:ok, :nothing}` when nothing changed."
   @spec commit(Path.t(), [String.t()], String.t()) ::
-          {:ok, String.t() | :nothing} | {:error, String.t()}
+          {:ok, String.t() | :nothing} | {:error, Error.t()}
   def commit(dir, pathspecs, message) do
     with {:ok, _} <- git(dir, ["add", "-A", "--"] ++ pathspecs),
          {:ok, staged} <- git(dir, ["diff", "--cached", "--name-only", "--"] ++ pathspecs) do
@@ -80,7 +81,7 @@ defmodule Oneiroi.SimaQian.Git do
   end
 
   @doc "Pushes `main` to `remote`."
-  @spec push(Path.t(), String.t() | Secret.t()) :: :ok | {:error, String.t()}
+  @spec push(Path.t(), String.t() | Secret.t()) :: :ok | {:error, Error.t()}
   def push(dir, remote) do
     credentialed(remote, fn url, config ->
       with {:ok, _} <- git(dir, config ++ ["push", "-q", url, "HEAD:refs/heads/main"]), do: :ok
@@ -88,7 +89,7 @@ defmodule Oneiroi.SimaQian.Git do
   end
 
   @doc "Clones `remote` into `dir`, shallow enough to read the records and the last commit."
-  @spec clone(String.t() | Secret.t(), Path.t()) :: :ok | {:error, String.t()}
+  @spec clone(String.t() | Secret.t(), Path.t()) :: :ok | {:error, Error.t()}
   def clone(remote, dir) do
     credentialed(remote, fn url, config ->
       with {:ok, _} <-
@@ -155,7 +156,7 @@ defmodule Oneiroi.SimaQian.Git do
   end
 
   @doc "Removes the `origin` remote a clone carries, and with it the clone URL in the repository's config."
-  @spec forget_remote(Path.t()) :: :ok | {:error, String.t()}
+  @spec forget_remote(Path.t()) :: :ok | {:error, Error.t()}
   def forget_remote(dir) do
     with {:ok, _} <- git(dir, ["remote", "remove", "origin"]), do: :ok
   end
@@ -209,30 +210,43 @@ defmodule Oneiroi.SimaQian.Git do
   # The binary is an argument so a test can name one that is missing or
   # cannot run; every caller in this module passes `@binary`.
   #
-  # Errors carry git's stderr with any token in a URL redacted, because
-  # git echoes the remote on failure. A git that cannot start is an error
-  # too, never a raise: `System.cmd` raises when the binary is missing,
-  # and the crash report prints the call's arguments, which hold the
-  # clone URL and its token. The production image shipped without git on
-  # 2026-11-01, and the first real import put Lily's read token into the
-  # service log that way, under a bare 500.
+  # A failure is `:sima_qian_git_failed` with git's output in `details`,
+  # any token in a URL redacted, because git echoes the remote on
+  # failure. A git that cannot start is `:sima_qian_git_unstarted`, an
+  # error too and never a raise: `System.cmd` raises when the binary is
+  # missing, and the crash report prints the call's arguments, which hold
+  # the clone URL and its token. The production image shipped without git
+  # on 2026-11-01, and the first real import put Lily's read token into
+  # the service log that way, under a bare 500. Of that raise, the
+  # binary's name and the reason's class are kept (`enoent` is a binary
+  # that is missing); the exception's message is not, since it quotes
+  # the call.
   #
   # Sobelow reads a variable binary as command injection. No request value
   # reaches it: this module passes `@binary`, and only the port's own test
   # names another.
   # sobelow_skip ["CI.System"]
-  @spec run(String.t(), Path.t(), [String.t()]) :: {:ok, String.t()} | {:error, String.t()}
+  @spec run(String.t(), Path.t(), [String.t()]) :: {:ok, String.t()} | {:error, Error.t()}
   def run(binary, dir, args) do
     case System.cmd(binary, args, cd: dir, env: @env, stderr_to_stdout: true) do
-      {out, 0} -> {:ok, out}
-      {out, _code} -> {:error, redact(out)}
+      {out, 0} ->
+        {:ok, out}
+
+      {out, code} ->
+        {:error,
+         Error.new(:sima_qian_git_failed, :sima_qian_git_run_failed,
+           output: redact(out),
+           status: code
+         )}
     end
   rescue
-    e in ErlangError -> {:error, unstarted(binary, e.original)}
+    e in ErlangError ->
+      {:error,
+       Error.caught(:sima_qian_git_unstarted, :sima_qian_git_run_unstarted, e,
+         binary: binary,
+         reason: Oneiroi.Error.describe(e.original)
+       )}
   end
-
-  defp unstarted(binary, :enoent), do: "#{binary} is not installed on this server"
-  defp unstarted(binary, reason), do: "#{binary} could not start: #{inspect(reason)}"
 
   defp redact(text), do: Regex.replace(~r|://[^@/\s]+@|, text, "://[redacted]@")
 end

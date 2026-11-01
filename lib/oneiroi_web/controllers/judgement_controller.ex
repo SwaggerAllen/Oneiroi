@@ -347,7 +347,7 @@ defmodule OneiroiWeb.JudgementController do
           404,
           ResidentError.new(
             :agathos_daimon_not_witnessed,
-            :agathos_daimon_judgement_not_witnessed
+            :agathos_daimon_web_judgement_not_witnessed
           )
         )
         |> halt()

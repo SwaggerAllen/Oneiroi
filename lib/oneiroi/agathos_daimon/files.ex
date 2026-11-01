@@ -40,7 +40,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
       cites: Map.get(attrs, :cites, [])
     }
 
-    with {:ok, _} <- dispatch(command, file), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "A witness proposes an edit after first contact, with a note; returns the proposal's ref."
@@ -57,7 +57,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
       content: content
     }
 
-    with {:ok, _} <- dispatch(command, file), do: {:ok, ref}
+    with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, ref}
   end
 
   @doc "The resident accepts a proposal, applying it, with a note and the seeds its new soul lines cite."
@@ -71,11 +71,13 @@ defmodule Oneiroi.AgathosDaimon.Files do
       cites: cites
     }
 
-    with {:ok, _} <- dispatch(command, nil), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def accept(_resident_id, _ref, _note, _cites, %Actor{}),
-    do: {:error, Error.new(:agathos_daimon_not_the_resident)}
+    do:
+      {:error,
+       Error.new(:agathos_daimon_not_the_resident, :agathos_daimon_files_accept_not_resident)}
 
   @doc "The resident declines a proposal, with a note."
   def decline(resident_id, ref, note, %Actor{kind: :resident} = actor) do
@@ -87,11 +89,13 @@ defmodule Oneiroi.AgathosDaimon.Files do
       ref: ref
     }
 
-    with {:ok, _} <- dispatch(command, nil), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def decline(_resident_id, _ref, _note, %Actor{}),
-    do: {:error, Error.new(:agathos_daimon_not_the_resident)}
+    do:
+      {:error,
+       Error.new(:agathos_daimon_not_the_resident, :agathos_daimon_files_decline_not_resident)}
 
   @doc "Records first contact: the first captured turn outside a regression session. Idempotent."
   def first_contact(resident_id, session_key, turn_ref, %Actor{} = actor) do
@@ -103,7 +107,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
       turn_ref: turn_ref
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   # ---- reads ----
@@ -163,15 +167,25 @@ defmodule Oneiroi.AgathosDaimon.Files do
   @doc "One file's row, or the rendered `AGENTS.md`."
   def file(resident_id, "AGENTS.md") do
     case Scope.resident(resident_id, fn -> Store.get(resident_id) end) do
-      nil -> {:error, Error.new(:agathos_daimon_no_such_file, file: "AGENTS.md")}
-      row -> {:ok, %{name: "AGENTS.md", content: agents_md(row), origin: "build", version: 0}}
+      nil ->
+        {:error,
+         Error.new(:agathos_daimon_no_such_file, :agathos_daimon_files_agents_md_absent,
+           file: "AGENTS.md"
+         )}
+
+      row ->
+        {:ok, %{name: "AGENTS.md", content: agents_md(row), origin: "build", version: 0}}
     end
   end
 
   def file(resident_id, name) do
     case Scope.resident(resident_id, fn -> Store.file(name) end) do
-      nil -> {:error, Error.new(:agathos_daimon_no_such_file, file: name)}
-      row -> {:ok, Scope.resident(resident_id, fn -> rendered(row) end)}
+      nil ->
+        {:error,
+         Error.new(:agathos_daimon_no_such_file, :agathos_daimon_files_file_absent, file: name)}
+
+      row ->
+        {:ok, Scope.resident(resident_id, fn -> rendered(row) end)}
     end
   end
 
@@ -203,32 +217,4 @@ defmodule Oneiroi.AgathosDaimon.Files do
     |> String.replace("{{name}}", name)
     |> String.replace("{{slug}}", slug)
   end
-
-  defp dispatch(command, file), do: command |> Router.dispatch() |> translate(file)
-
-  # The aggregate's refusals, each as the error the edge names.
-  defp translate({:ok, events}, _file), do: {:ok, events}
-
-  defp translate({:error, :file_unknown}, file),
-    do: {:error, Error.new(:agathos_daimon_file_unknown, file: file, files: Resident.files())}
-
-  defp translate({:error, :content_invalid}, file),
-    do: {:error, Error.new(:agathos_daimon_content_invalid, file: file)}
-
-  defp translate({:error, :origin_invalid}, _file),
-    do: {:error, Error.new(:agathos_daimon_origin_invalid)}
-
-  defp translate({:error, :propose_instead}, file),
-    do: {:error, Error.new(:agathos_daimon_propose_instead, file: file)}
-
-  defp translate({:error, :write_instead}, file),
-    do: {:error, Error.new(:agathos_daimon_write_instead, file: file)}
-
-  defp translate({:error, :no_such_proposal}, _file),
-    do: {:error, Error.new(:agathos_daimon_no_such_proposal)}
-
-  defp translate({:error, :cites_invalid}, _file),
-    do: {:error, Error.new(:agathos_daimon_cites_invalid)}
-
-  defp translate({:error, reason}, _file), do: {:error, reason}
 end

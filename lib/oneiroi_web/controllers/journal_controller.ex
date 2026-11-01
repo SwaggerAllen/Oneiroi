@@ -112,7 +112,10 @@ defmodule OneiroiWeb.JournalController do
         conn
         |> error(
           404,
-          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_journal_not_witnessed)
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_journal_not_witnessed
+          )
         )
         |> halt()
   end

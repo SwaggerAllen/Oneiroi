@@ -57,8 +57,15 @@ defmodule OneiroiWeb.ImportTest do
              conn |> post("/v1/residents/import", %{url: url}) |> json_response(422)
 
     # A clone that fails answers with git's own words, as text rather than
-    # an Elixir string's inspect with its quotes and escapes.
-    assert %{"error" => %{"kind" => "not_imported", "meaning" => meaning}} =
+    # an Elixir string's inspect with its quotes and escapes, and names the
+    # line in the port that saw git fail.
+    assert %{
+             "error" => %{
+               "kind" => "sima_qian_git_failed",
+               "site" => "sima_qian_git_run_failed",
+               "meaning" => meaning
+             }
+           } =
              conn
              |> post("/v1/residents/import", %{
                url: "file:///nonexistent/oneiroi-repo",

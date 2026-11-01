@@ -38,17 +38,11 @@ defmodule OneiroiWeb.ResidentController do
         {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
         conn |> put_status(201) |> json(row(resident))
 
-      {:error, :agathos_daimon_slug_taken} ->
-        error(conn, 409, ResidentError.new(:agathos_daimon_slug_taken))
+      {:error, %{kind: :agathos_daimon_slug_taken} = e} ->
+        error(conn, 409, e)
 
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          reason,
-          :web_resident_create_refused,
-          "the name or slug is not acceptable"
-        )
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -94,23 +88,16 @@ defmodule OneiroiWeb.ResidentController do
         {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
         conn |> put_status(201) |> json(Map.put(row(resident), :import, import_row(result)))
 
-      {:error, :agathos_daimon_slug_taken} ->
-        error(conn, 409, ResidentError.new(:agathos_daimon_slug_taken))
+      {:error, %{kind: :agathos_daimon_slug_taken} = e} ->
+        error(conn, 409, e)
+
+      # git's own words, redacted at the port, are what the witness can
+      # act on: a repository not found, a token refused.
+      {:error, %{kind: :sima_qian_git_failed, details: details} = e} ->
+        error(conn, 422, %{e | meaning: e.meaning <> ": " <> String.trim(details[:output])})
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} when is_binary(reason) ->
-        problem(conn, 422, :not_imported, :web_resident_import_resident_not_imported_1, reason)
-
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :not_imported,
-          :web_resident_import_resident_not_imported_2,
-          inspect(reason)
-        )
     end
   end
 
@@ -150,7 +137,15 @@ defmodule OneiroiWeb.ResidentController do
          {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id) do
       json(conn, row(resident))
     else
-      _ -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+      _ ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_show_not_witnessed
+          )
+        )
     end
   end
 
@@ -180,10 +175,17 @@ defmodule OneiroiWeb.ResidentController do
       send_resp(conn, 204, "")
     else
       false ->
-        error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_remote_not_witnessed
+          )
+        )
 
-      {:error, reason} ->
-        problem(conn, 422, :remote_not_set, :web_resident_remote_remote_not_set, inspect(reason))
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -207,13 +209,17 @@ defmodule OneiroiWeb.ResidentController do
       send_resp(conn, 204, "")
     else
       false ->
-        error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_timezone_not_witnessed
+          )
+        )
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :refused, :web_resident_timezone_refused, inspect(reason))
     end
   end
 
@@ -237,7 +243,14 @@ defmodule OneiroiWeb.ResidentController do
 
       json(conn, rows)
     else
-      error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+      error(
+        conn,
+        404,
+        ResidentError.new(
+          :agathos_daimon_not_witnessed,
+          :agathos_daimon_web_resident_adapters_not_witnessed
+        )
+      )
     end
   end
 
@@ -268,19 +281,17 @@ defmodule OneiroiWeb.ResidentController do
       conn |> put_status(201) |> json(%{adapter: name, role: role, token: token})
     else
       false ->
-        error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_register_adapter_not_witnessed
+          )
+        )
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :not_registered,
-          :web_resident_register_adapter_not_registered,
-          inspect(reason)
-        )
     end
   end
 
@@ -306,19 +317,17 @@ defmodule OneiroiWeb.ResidentController do
       send_resp(conn, 204, "")
     else
       false ->
-        error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_revoke_adapter_not_witnessed
+          )
+        )
 
       {:error, %{kind: _} = e} ->
         error(conn, 404, e)
-
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :not_revoked,
-          :web_resident_revoke_adapter_not_revoked,
-          inspect(reason)
-        )
     end
   end
 

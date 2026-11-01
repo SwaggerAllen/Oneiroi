@@ -267,7 +267,26 @@ defmodule Oneiroi.AgathosDaimon do
          "the law it records is about test subjects; a resident is never tested by this path"},
       {:agathos_daimon_not_imported,
        "the resident was not imported, so there is no import to complete",
-       remedy: "an import names its source first; a resident created here has no import"}
+       remedy: "an import names its source first; a resident created here has no import"},
+      {:agathos_daimon_name_required, "a resident has a name, not blank",
+       remedy: "give the name the resident goes by"},
+      {:agathos_daimon_slug_invalid,
+       "a slug is 2 to 40 lowercase letters, digits and hyphens, starting with a letter",
+       remedy: "choose a slug of that shape; it is the prefix every citation carries"},
+      {:agathos_daimon_kind_invalid, "a resident is created as a resident or as a fixture",
+       remedy: "create through create/4 or create_fixture/4; the kind is the platform's to say"},
+      {:agathos_daimon_resident_exists, "a resident already stands on that id",
+       remedy: "an id is minted once per creation; a second create on it is a bug in the caller"},
+      {:agathos_daimon_no_such_resident, "no resident stands on that id",
+       remedy: "read the residents; a command names one that was created or imported"},
+      {:agathos_daimon_not_pausable, "the resident is not active, so it cannot pause",
+       remedy: "only an active resident pauses; read the resident"},
+      {:agathos_daimon_not_paused, "the resident is not paused, so there is nothing to wake",
+       remedy: "read the resident"},
+      {:agathos_daimon_dispatch_failed,
+       "the command was not recorded: the command bus refused it or failed before the resident decided",
+       remedy:
+         "the cause names the class: refused is a command without its actor, instant or note, a bug in the caller; anything else is the event store's, and the site names the call"}
     ]
   end
 

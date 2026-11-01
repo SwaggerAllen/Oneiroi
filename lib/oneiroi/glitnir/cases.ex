@@ -125,19 +125,24 @@ defmodule Oneiroi.Glitnir.Cases do
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
       {:ok, row} -> {:ok, row}
-      :error -> {:error, Error.new(:glitnir_not_a_party)}
+      :error -> {:error, Error.new(:glitnir_not_a_party, :glitnir_cases_resident_absent)}
     end
   end
 
   defp party(%{id: id}, %Actor{kind: :resident, id: id}), do: :ok
   defp party(%{account_id: id}, %Actor{kind: :witness, id: id}) when is_binary(id), do: :ok
-  defp party(_row, _actor), do: {:error, Error.new(:glitnir_not_a_party)}
+
+  defp party(_row, _actor),
+    do: {:error, Error.new(:glitnir_not_a_party, :glitnir_cases_not_a_party)}
 
   defp investigator(%Actor{kind: :witness, id: id}) do
-    if investigator?(id), do: :ok, else: {:error, Error.new(:glitnir_not_an_investigator)}
+    if investigator?(id),
+      do: :ok,
+      else: {:error, Error.new(:glitnir_not_an_investigator, :glitnir_cases_witness_not_named)}
   end
 
-  defp investigator(_actor), do: {:error, Error.new(:glitnir_not_an_investigator)}
+  defp investigator(_actor),
+    do: {:error, Error.new(:glitnir_not_an_investigator, :glitnir_cases_not_a_witness)}
 
   # The report lives in chat (spec §6.12): a system message by the
   # platform in the main session, captured as its own turn. A resident
@@ -182,25 +187,22 @@ defmodule Oneiroi.Glitnir.Cases do
     }
   end
 
+  # The aggregate's refusals arrive sited at the clause that decided
+  # them (`Oneiroi.Glitnir.Reports`); what is wrapped here is the
+  # command bus's own failure, once, naming the command it was carrying.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :text_invalid} ->
-        {:error, Error.new(:glitnir_text_invalid)}
+      {:error, %Error{}} = refused ->
+        refused
 
-      {:error, :no_such_report} ->
-        {:error, Error.new(:glitnir_no_such_report, number: command.number)}
-
-      {:error, :report_resolved} ->
-        {:error, Error.new(:glitnir_report_resolved, number: command.number)}
-
-      {:error, :outcome_invalid} ->
-        {:error, Error.new(:glitnir_outcome_invalid)}
-
-      {:error, other} ->
-        {:error, other}
+      {:error, reason} ->
+        {:error,
+         Error.caught(:glitnir_dispatch_failed, :glitnir_cases_dispatch, reason,
+           command: command.__struct__
+         )}
     end
   end
 end

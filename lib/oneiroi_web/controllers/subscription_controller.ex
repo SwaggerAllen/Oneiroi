@@ -156,7 +156,7 @@ defmodule OneiroiWeb.SubscriptionController do
           404,
           ResidentError.new(
             :agathos_daimon_not_witnessed,
-            :agathos_daimon_subscription_not_witnessed
+            :agathos_daimon_web_subscription_not_witnessed
           )
         )
         |> halt()

@@ -75,8 +75,10 @@ defmodule Oneiroi.Glitnir do
      |> Enum.reject(&(&1 == ""))}
   end
 
-  def cast_investigators(other),
-    do: {:error, "is #{inspect(other)}, expected a comma-separated list"}
+  def cast_investigators(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected a comma-separated list"}
+  end
 
   @impl Oneiroi.Component
   def events do
@@ -102,7 +104,11 @@ defmodule Oneiroi.Glitnir do
       {:glitnir_report_resolved, "the report is resolved; nothing more is recorded on it",
        remedy: "file a new report"},
       {:glitnir_outcome_invalid, "a resolution is no_action or strike",
-       remedy: "give one of the two"}
+       remedy: "give one of the two"},
+      {:glitnir_dispatch_failed,
+       "the command was not recorded: the command bus refused it or failed before the report decided",
+       remedy:
+         "the cause names the class: refused is a command without its actor, instant or note, a bug in the caller; anything else is the event store's"}
     ]
   end
 

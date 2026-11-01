@@ -38,7 +38,7 @@ defmodule OneiroiWeb.LedgerController do
         404,
         ResidentError.new(
           :agathos_daimon_not_witnessed,
-          :agathos_daimon_ledger_show_not_witnessed
+          :agathos_daimon_web_ledger_show_not_witnessed
         )
       )
     end
@@ -91,7 +91,7 @@ defmodule OneiroiWeb.LedgerController do
               404,
               ResidentError.new(
                 :agathos_daimon_not_witnessed,
-                :agathos_daimon_ledger_set_budget_not_witnessed
+                :agathos_daimon_web_ledger_set_budget_not_witnessed
               )
             )
 
