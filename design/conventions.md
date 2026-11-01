@@ -174,6 +174,12 @@ the sixteen systems of spec §6.
 - **Migrations are additive and forward-only**, per store, and pass the
   safety lint; a rename or drop is a two-release change, because a rollback
   runs older code on the newer schema.
+- **A merged migration is never edited.** A database that ran it keeps
+  what it said, and `schema_migrations` records only that it ran. The
+  steward-to-witness rename edited three in place; the suite and every
+  fresh database had the new names, production kept the old, and
+  `GET /v1/me` answered 500 on `gaia_witnessing` the day Lily's
+  import was due. A change is a new migration, written to hold on both.
 - **The purity floor:** no wall clock, randomness or generated ids inside
   aggregates, folds or projections; inject them at the command edge. The
   audit parses for `DateTime.utc_now` and friends; the escape is a
