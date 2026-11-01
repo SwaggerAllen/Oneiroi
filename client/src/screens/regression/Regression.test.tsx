@@ -107,7 +107,13 @@ describe('Regression', () => {
     expect(screen.getByText('100%')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: 'Pin for chat' })[0]);
     expect(onPin).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Chat on this one from now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('group', { name: /for chat\?/ })).toBeNull();
+    expect(onPin).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pin for chat' })[0]);
+    const ask = screen.getByRole('group', { name: 'Pin acme/large-2026-09 for chat?' });
+    expect(within(ask).getByText('Chat on this model from the next message?')).toBeTruthy();
+    fireEvent.click(within(ask).getByRole('button', { name: 'Yes, pin it' }));
     expect(onPin).toHaveBeenCalledWith('acme/large-2026-09');
   });
 

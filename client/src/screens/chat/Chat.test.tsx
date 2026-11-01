@@ -38,6 +38,24 @@ describe('Chat', () => {
     expect(input.value).toBe('');
   });
 
+  it('names the model the last reply was recorded under, and nothing before a reply', () => {
+    const { unmount } = render(<Chat residentName="Lily" messages={[]} onSend={vi.fn()} />);
+    expect(screen.getByText('Main conversation')).toBeTruthy();
+    unmount();
+    const at = '2026-11-01T18:00:00Z';
+    const reply = (model: string, ref: string) => ({
+      session_key: 's1',
+      turn_ref: ref,
+      role: 'assistant',
+      content: 'hi',
+      sent_at: at,
+      actor: { kind: 'resident', id: 'r1', model },
+      refusal: false,
+    });
+    render(<Chat residentName="Lily" messages={[reply('acme/old-1', 't1'), reply('acme/new-2', 't2')]} onSend={vi.fn()} />);
+    expect(screen.getByText('Main conversation · last reply on acme/new-2')).toBeTruthy();
+  });
+
   it('opens the drew-on inspector over the injections', () => {
     render(<DrewOnOpen />);
     expect(screen.getByText(/the bookmark index under 1500 tokens/, { selector: 'li' })).toBeTruthy();

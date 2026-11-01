@@ -11,7 +11,7 @@ The preview sits beside the inspector: the inspector is what a turn drew on, the
 
 ## #1 Shows
 
-The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply; the preview of what the next turn would be given; reports filed by either party and each investigation step inline.
+The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar, with the model the last reply was recorded under, so a pin that did not take is visible here rather than found by asking the resident; refusals in the resident's words; a "drew on N things" inspector per reply; the preview of what the next turn would be given; reports filed by either party and each investigation step inline.
 
 ## #2 Does
 

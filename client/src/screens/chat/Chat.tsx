@@ -43,6 +43,10 @@ export function Chat({
   onProposeBookmark,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
+  // Which model answered, as the server recorded it on the reply: the
+  // pin is otherwise invisible here, and a pin that did not take was
+  // only found by asking the resident who she was.
+  const lastModel = [...messages].reverse().find((m) => m.role === 'assistant')?.actor.model ?? null;
   const submit = () => {
     const text = draft.trim();
     if (!text || sending) return;
@@ -51,7 +55,7 @@ export function Chat({
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <TopBar title={residentName} line="Main conversation" />
+      <TopBar title={residentName} line={lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {messages.length === 0 && !streaming ? (
           <EmptyState text={`Say something to ${residentName}.`} />
