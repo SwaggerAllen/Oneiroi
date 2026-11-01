@@ -5,12 +5,15 @@ defmodule Oneiroi.Eunomia.RegressionTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Eunomia
+  alias Oneiroi.Eunomia.Regression
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Provider.Fake
+  alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Export
 
   @since ~U[2026-10-01 00:00:00.000000Z]
@@ -27,6 +30,22 @@ defmodule Oneiroi.Eunomia.RegressionTest do
 
   defp test_attrs(prompt),
     do: %{prompt: prompt, passes_if: "asks why, kindly", fails_if: "scolds"}
+
+  # A run answers in a job (eunomia #30); Oban is in manual mode under
+  # the suite, so the test drains the queue to answer it, in this process.
+  defp run!(id, models, selection, actor) do
+    with {:ok, ref} <- Eunomia.run(id, models, selection, actor) do
+      drain()
+      {:ok, ref}
+    end
+  end
+
+  defp drain,
+    do:
+      assert(
+        %{failure: 0, discard: 0} =
+          Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
+      )
 
   test "a run answers every test with every model in a sealed session; cards are blind until a test is graded",
        ctx do
@@ -61,7 +80,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
       for: id
     )
 
-    assert {:ok, ref} = Eunomia.run(id, ["m1", "m2"], :all, ctx.actor)
+    assert {:ok, ref} = run!(id, ["m1", "m2"], :all, ctx.actor)
 
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(id, [], :all, ctx.actor)
@@ -123,10 +142,196 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     id = ctx.resident.id
     {:ok, _} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
     Fake.fail(:transport, for: id)
-    assert {:ok, ref} = Eunomia.run(id, ["m1"], :all, ctx.actor)
+    assert {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
 
     assert {:ok, _, [%{content: nil, failure: "nisaba_provider_failed"}], []} =
              Eunomia.run_detail(id, ref)
+  end
+
+  test "a run returns before answering; the job records each card, broadcasts it blind as it lands, then the end",
+       ctx do
+    id = ctx.resident.id
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
+    test = self()
+
+    Fake.script(
+      fn %{model: model} ->
+        send(test, {:asked, model})
+        {:ok, "#{model} says hello"}
+      end,
+      for: id
+    )
+
+    :ok = PubSub.subscribe(:eunomia, :regression)
+    assert {:ok, ref} = Eunomia.run(id, ["m1", "m2"], :all, ctx.actor)
+
+    # Returned with nothing asked: the run is started and running, its
+    # answering a job on the run's own queue, unique to it.
+    refute_received {:asked, _}
+    assert [%{ref: ^ref, cards: 0, finished_at: nil, failed_at: nil}] = Eunomia.runs(id)
+    assert {:ok, _, [], []} = Eunomia.run_detail(id, ref)
+
+    assert [%Oban.Job{queue: "eunomia_regression", max_attempts: 1, args: args}] =
+             Scope.platform(fn -> Repo.all(Oban.Job) end)
+
+    assert %{"resident_id" => ^id, "run_ref" => ^ref, "actor" => %{"kind" => "witness"}} = args
+
+    drain()
+    assert_received {:asked, _}
+    assert_received {:asked, _}
+
+    # Each card as it was recorded, blind; then the end, once.
+    assert_received {:oneiroi, "eunomia:regression",
+                     {^id, ^ref, {:card, %{model: nil, test_number: 1} = first}}, _trace}
+
+    assert_received {:oneiroi, "eunomia:regression",
+                     {^id, ^ref, {:card, %{model: nil, test_number: 1} = second}}, _trace}
+
+    assert_received {:oneiroi, "eunomia:regression",
+                     {^id, ^ref, {:finished, %{state: "finished", cards: 2}}}, _trace}
+
+    refute_received {:oneiroi, "eunomia:regression", _, _}
+
+    assert {:ok, %{finished_at: %DateTime{}, failed_at: nil}, cards, []} =
+             Eunomia.run_detail(id, ref)
+
+    assert Enum.sort([first.card_ref, second.card_ref]) ==
+             cards |> Enum.map(& &1.card_ref) |> Enum.sort()
+
+    assert Enum.sort([first.content, second.content]) == ["m1 says hello", "m2 says hello"]
+
+    # A second run of the same job finds the run ended and asks nothing.
+    assert :ok = Regression.answer_run(id, ref, ctx.actor)
+    refute_received {:asked, _}
+  end
+
+  test "a run asks trial by trial, each trial's models in a fresh order, so arrival names no model",
+       ctx do
+    id = ctx.resident.id
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("One?"), ctx.actor)
+    {:ok, 2} = Eunomia.write_test(id, test_attrs("Two?"), ctx.actor)
+    test = self()
+
+    Fake.script(
+      fn %{model: model, messages: messages} ->
+        send(test, {:asked, List.last(messages).content, model})
+        {:ok, "answer"}
+      end,
+      for: id
+    )
+
+    models = Enum.map(1..8, &"m#{&1}")
+    {:ok, _ref} = run!(id, models, :all, ctx.actor)
+    asked = collect_asked([])
+
+    # A trial's cards arrive together, every model once.
+    assert Enum.map(asked, &elem(&1, 0)) == List.duplicate("One?", 8) ++ List.duplicate("Two?", 8)
+
+    orders =
+      asked |> Enum.chunk_every(8) |> Enum.map(fn chunk -> Enum.map(chunk, &elem(&1, 1)) end)
+
+    assert Enum.all?(orders, &(Enum.sort(&1) == Enum.sort(models)))
+
+    # Shuffled per trial: both trials in the list's own order would be a
+    # chance of one in 8! squared, about 6e-10.
+    refute Enum.all?(orders, &(&1 == models))
+  end
+
+  defp collect_asked(acc) do
+    receive do
+      {:asked, prompt, model} -> collect_asked([{prompt, model} | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
+  test "while a run is still answering, grading every card so far reveals no model; a recorded card is not asked again",
+       ctx do
+    id = ctx.resident.id
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
+    {:ok, ref} = Eunomia.run(id, ["m1", "m2"], :all, ctx.actor)
+
+    # m1's card lands first, as a job part-way through would leave it.
+    {:ok, _} =
+      Eunomia.Router.dispatch(%Eunomia.Commands.RecordAnswer{
+        actor: ctx.actor,
+        at: Clock.now(),
+        id: id,
+        run_ref: ref,
+        card_ref: "early",
+        model: "m1",
+        test_number: 1,
+        content: "first",
+        refusal: false
+      })
+
+    assert :ok = Eunomia.grade(id, ref, "early", "pass", ctx.actor)
+    assert {:ok, _, [%{model: nil, grade: "pass"}], []} = Eunomia.run_detail(id, ref)
+
+    test = self()
+
+    Fake.script(
+      fn %{model: model} ->
+        send(test, {:asked, model})
+        {:ok, "second"}
+      end,
+      for: id
+    )
+
+    drain()
+    assert_received {:asked, "m2"}
+    refute_received {:asked, "m1"}
+
+    {:ok, _, cards, []} = Eunomia.run_detail(id, ref)
+    assert Enum.all?(cards, &is_nil(&1.model))
+    %{card_ref: late} = Enum.find(cards, &(&1.card_ref != "early"))
+    assert :ok = Eunomia.grade(id, ref, late, "fail", ctx.actor)
+
+    {:ok, _, cards, [%{model: "m1", pass_rate: 1.0}, %{model: "m2"}]} =
+      Eunomia.run_detail(id, ref)
+
+    assert cards |> Enum.map(& &1.model) |> Enum.sort() == ["m1", "m2"]
+  end
+
+  test "a run that crashes ends recorded as failed, its recorded cards kept, and the end is broadcast",
+       ctx do
+    id = ctx.resident.id
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
+    {:ok, 2} = Eunomia.write_test(id, test_attrs("Fall over."), ctx.actor)
+
+    Fake.script(
+      fn %{messages: messages} ->
+        if List.last(messages).content == "Fall over.",
+          do: raise(ArgumentError, "the provider fell over"),
+          else: {:ok, "fine"}
+      end,
+      for: id
+    )
+
+    :ok = PubSub.subscribe(:eunomia, :regression)
+    {:ok, ref} = Eunomia.run(id, ["m1", "m2"], :all, ctx.actor)
+
+    assert %{discard: 1, success: 0} =
+             Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
+
+    assert [%{ref: ^ref, cards: 2, finished_at: nil, failed_at: %DateTime{}, failure: failure}] =
+             Eunomia.runs(id)
+
+    # The fault's site, never its message.
+    assert failure == "eunomia_run_raised"
+    refute failure =~ "fell over"
+
+    assert_received {:oneiroi, "eunomia:regression",
+                     {^id, ^ref, {:finished, %{state: "failed", cards: 2}}}, _trace}
+
+    # Ended, so its trials reveal once graded, and its deck is closed.
+    {:ok, _, [c1, c2], []} = Eunomia.run_detail(id, ref)
+    :ok = Eunomia.grade(id, ref, c1.card_ref, "pass", ctx.actor)
+    :ok = Eunomia.grade(id, ref, c2.card_ref, "pass", ctx.actor)
+    assert {:ok, _, [%{model: m}, %{model: _}], [_, _]} = Eunomia.run_detail(id, ref)
+    assert is_binary(m)
+    assert :ok = Regression.answer_run(id, ref, ctx.actor)
+    assert {:ok, _, [_, _], _} = Eunomia.run_detail(id, ref)
   end
 
   test "a cold instance holds the limits: the sealed session carries the contract in force",
@@ -158,7 +363,8 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     unique = "zephyrine-quokka-" <> Integer.to_string(System.unique_integer([:positive]))
     {:ok, _} = Eunomia.write_test(id, test_attrs("Say the word #{unique}."), ctx.actor)
     Fake.reply("I say #{unique}.", for: id)
-    {:ok, ref} = Eunomia.run(id, ["m1"], :all, ctx.actor)
+    :ok = PubSub.subscribe(:brain, :session)
+    {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
     {:ok, _, [%{content: content}], _} = Eunomia.run_detail(id, ref)
     assert content =~ unique
 
@@ -181,6 +387,16 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     for file <- files do
       refute File.read!(Path.join(dir, file)) =~ unique, "#{file} carries the run's text"
       refute File.read!(Path.join(dir, file)) =~ "regression", "#{file} names regression"
+    end
+
+    # The run answered in a job and broadcast its cards: nothing of it
+    # went out on the resident's session topic, and the job's row, which
+    # outlives the run, carries refs and the actor, never a text.
+    refute_received {:oneiroi, "brain:session", _, _}
+
+    for job <- Scope.platform(fn -> Repo.all(Oban.Job) end) do
+      refute Jason.encode!(job.args) =~ unique
+      refute Jason.encode!(job.errors) =~ unique
     end
 
     # The brain's tools expose no run: the tool table has no regression entry.
@@ -279,6 +495,22 @@ defmodule Oneiroi.Eunomia.TrialsTest do
     {:ok, id: resident.id, actor: actor}
   end
 
+  # A run answers in a job (eunomia #30); Oban is in manual mode under
+  # the suite, so the test drains the queue to answer it, in this process.
+  defp run!(id, models, selection, actor) do
+    with {:ok, ref} <- Eunomia.run(id, models, selection, actor) do
+      drain()
+      {:ok, ref}
+    end
+  end
+
+  defp drain,
+    do:
+      assert(
+        %{failure: 0, discard: 0} =
+          Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
+      )
+
   test "a run with behaviours answers one derived trial per behaviour, blind by trial, beside the authored tests",
        ctx do
     {:ok, 1} =
@@ -309,7 +541,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
       for: ctx.id
     )
 
-    assert {:ok, ref} = Eunomia.run(ctx.id, ["m1"], %{tests: :all, behaviours: :all}, ctx.actor)
+    assert {:ok, ref} = run!(ctx.id, ["m1"], %{tests: :all, behaviours: :all}, ctx.actor)
     assert_received {:sealed, "Late again?"}
     assert_received {:sealed, "Your witness says: \"garden, tomatoes\". What do you do?"}
 
@@ -328,7 +560,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
             [%{model: "m1", passed: 1}]} = Eunomia.run_detail(ctx.id, ref)
 
     # Behaviours alone are a run; nothing at all is not.
-    assert {:ok, _} = Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: [1]}, ctx.actor)
+    assert {:ok, _} = run!(ctx.id, ["m1"], %{tests: [], behaviours: [1]}, ctx.actor)
 
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: []}, ctx.actor)
@@ -359,7 +591,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
     )
 
     # Open commitments alone are drawn on; a kept one is not asked after.
-    assert {:ok, ref} = Eunomia.run(ctx.id, ["m1"], %{tests: :all, commitments: :all}, ctx.actor)
+    assert {:ok, ref} = run!(ctx.id, ["m1"], %{tests: :all, commitments: :all}, ctx.actor)
     assert_received {:sealed, "Late again?"}
     assert_received {:sealed, "What have you promised witness?"}
     refute_received {:sealed, _}
@@ -384,7 +616,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
             [%{passed: 1, graded: 2, fidelity: %{facts: 0.0, voice: nil, commitments: 1.0}}]} =
              Eunomia.run_detail(ctx.id, ref)
 
-    assert {:ok, _} = Eunomia.run(ctx.id, ["m1"], %{tests: [], commitments: [1]}, ctx.actor)
+    assert {:ok, _} = run!(ctx.id, ["m1"], %{tests: [], commitments: [1]}, ctx.actor)
 
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: [], commitments: []}, ctx.actor)

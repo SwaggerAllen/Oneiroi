@@ -55,6 +55,7 @@ defmodule Oneiroi.Eunomia do
       Judge,
       JudgementRouter,
       NightWorker,
+      RunWorker,
       MemoryAudit,
       AuditWorker,
       JudgementCommands.RunAudit,
@@ -106,6 +107,7 @@ defmodule Oneiroi.Eunomia do
       Commands.StartRun,
       Commands.RecordAnswer,
       Commands.FinishRun,
+      Commands.FailRun,
       Commands.GradeAnswer,
       Commands.FavouriteAnswer,
       Events.TestWritten,
@@ -113,6 +115,7 @@ defmodule Oneiroi.Eunomia do
       Events.RunStarted,
       Events.AnswerRecorded,
       Events.RunFinished,
+      Events.RunFailed,
       Events.AnswerGraded,
       Events.AnswerFavourited,
       Store,
@@ -126,6 +129,7 @@ defmodule Oneiroi.Eunomia do
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
+  alias Oneiroi.Eunomia.RunWorker
   alias Oneiroi.Eunomia.Wash
 
   @impl Oneiroi.Component
@@ -204,9 +208,17 @@ defmodule Oneiroi.Eunomia do
          {"0 4 * * 0", Oneiroi.Eunomia.AuditWorker},
          # The wash pass an hour after the memory audit (spec §6.13, P18).
          {"0 5 * * 0", Oneiroi.Eunomia.WashWorker}
-       ]}
+       ]},
+      # A regression run answers here, off the witness's request (eunomia #30).
+      :eunomia_regression
     ]
   end
+
+  # A run's cards as they are recorded and its end, for the run's
+  # channel (eunomia #30): `{resident_id, run_ref, payload}`, filtered by
+  # the subscriber as the brain's session topic is.
+  @impl Oneiroi.Component
+  def pubsub_topics, do: [:regression]
 
   @impl Oneiroi.Component
   def events do
@@ -216,6 +228,7 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.RunStarted, 2},
       {Oneiroi.Eunomia.Events.AnswerRecorded, 2},
       {Oneiroi.Eunomia.Events.RunFinished, 1},
+      {Oneiroi.Eunomia.Events.RunFailed, 1},
       {Oneiroi.Eunomia.Events.AnswerGraded, 1},
       {Oneiroi.Eunomia.Events.AnswerFavourited, 1},
       {Oneiroi.Eunomia.Events.Judgement.PositionTaken, 1},
@@ -308,6 +321,9 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_continuation_unreadable,
        "the judge did not answer the continuation check in the form asked, so the check could not run rather than be guessed at",
        remedy: "run the check again"},
+      {:eunomia_run_crashed,
+       "a regression run stopped on a fault before every card was answered, and was recorded as failed",
+       remedy: "start the run again; the cards it recorded are kept and can still be graded"},
       {:eunomia_dispatch_failed,
        "a judgement or regression command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
@@ -330,11 +346,16 @@ defmodule Oneiroi.Eunomia do
     do: Regression.change_test(resident_id, number, attrs, actor)
   )
 
-  @doc "Runs the models against the tests (all, or the numbers given), synchronously; returns the run's ref."
+  @doc "Starts a run of the models against the tests (all, or the numbers given) and returns its ref at once; the answering is a job (eunomia #30)."
   @spec run(String.t(), [String.t()], [pos_integer()] | :all, Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(run(resident_id, models, tests, actor),
-    do: Regression.run(resident_id, models, tests, actor)
+    do:
+      with(
+        {:ok, ref} <- Regression.start(resident_id, models, tests, actor),
+        :ok <- RunWorker.enqueue(resident_id, ref, actor),
+        do: {:ok, ref}
+      )
   )
 
   @doc "Grades a card pass or fail."

@@ -556,8 +556,15 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/regression/runs", %{models: ["m1", "m2"]})
              |> json_response(201)
 
+    # Answered before any model was asked: the run is running, and the
+    # cards come from its job (eunomia #30), drained here.
+    assert %{"run" => %{"state" => "running", "cards" => 0}, "cards" => []} =
+             conn |> get("/v1/residents/#{id}/regression/runs/#{ref}") |> json_response(200)
+
+    assert %{failure: 0, discard: 0} = Oban.drain_queue(queue: :eunomia_regression)
+
     assert %{
-             "run" => %{"cards" => 2},
+             "run" => %{"cards" => 2, "state" => "finished"},
              "cards" => [%{"model" => nil, "card_ref" => c1}, %{"model" => nil, "card_ref" => c2}],
              "results" => []
            } =

@@ -73,6 +73,14 @@ defmodule Oneiroi.Eunomia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :cards], export: false
   end
 
+  defmodule RunFailed do
+    # A run that stopped on a fault before every card was answered (the
+    # run answers in the background, eunomia #30): ended, with the cards
+    # it recorded kept and the fault's site and class as `reason`, never
+    # its message. Without it a crashed run reads "running" forever.
+    use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :cards, :reason], export: false
+  end
+
   defmodule AnswerGraded do
     # Pass or fail, the witness's, by swipe; the judge is not involved.
     use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :card_ref, :grade], export: false

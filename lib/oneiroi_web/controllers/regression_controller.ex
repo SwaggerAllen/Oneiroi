@@ -98,7 +98,7 @@ defmodule OneiroiWeb.RegressionController do
 
   operation(:start_run,
     summary:
-      "Run candidate models against the tests (all, or the numbers given), in sealed sessions; returns the run",
+      "Start a run of candidate models against the tests (all, or the numbers given), in sealed sessions; returns the run's ref at once, and the cards arrive on the channel regression:<id>:<ref>",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the run", "application/json",
@@ -293,6 +293,17 @@ defmodule OneiroiWeb.RegressionController do
       tests: r.tests,
       started_at: r.started_at,
       finished_at: r.finished_at,
+      behaviours: r.behaviours,
+      commitments: r.commitments,
+      failed_at: r.failed_at,
+      failure: r.failure,
+      state: state(r),
       cards: r.cards
     }
+
+  # A run answers in the background (eunomia #30): running until it ends,
+  # finished or failed.
+  defp state(%{failed_at: %DateTime{}}), do: "failed"
+  defp state(%{finished_at: %DateTime{}}), do: "finished"
+  defp state(_running), do: "running"
 end

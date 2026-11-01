@@ -13,6 +13,7 @@ defmodule OneiroiWeb.UserSocket do
   alias Oneiroi.Gaia.Principal
 
   channel("session:*", OneiroiWeb.SessionChannel)
+  channel("regression:*", OneiroiWeb.RegressionChannel)
 
   # Five minutes: long enough to open a socket after fetching it, short
   # enough that a token read off a client is nearly spent.
