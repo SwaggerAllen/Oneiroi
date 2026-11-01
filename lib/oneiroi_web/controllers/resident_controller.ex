@@ -149,6 +149,45 @@ defmodule OneiroiWeb.ResidentController do
     end
   end
 
+  operation(:backup,
+    summary:
+      "Back the resident's records up now: export, commit by class, push. The nightly job's unit, on demand",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"what landed", "application/json", %Schema{type: :object}}]
+  )
+
+  # On demand so a failed nightly backup can be diagnosed the same hour: the
+  # response carries the error's kind, site and meaning, git's redacted
+  # words included. Added after the 2026-11-01 backup failed with nothing
+  # kept and the next try a night away.
+  def backup(conn, %{"id" => id}) do
+    with true <- witnesses?(conn, id),
+         {:ok, %{through: through, root: root, commits: commits}} <-
+           Oneiroi.SimaQian.backup(id, actor(conn)) do
+      json(conn, %{
+        through: through,
+        root: root,
+        commits: for({class, sha} <- commits, do: %{class: class, commit: sha})
+      })
+    else
+      false ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_backup_not_witnessed
+          )
+        )
+
+      {:error, %{kind: :sima_qian_git_failed, details: details} = e} ->
+        error(conn, 422, %{e | meaning: e.meaning <> ": " <> String.trim(details[:output])})
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+    end
+  end
+
   operation(:remote,
     summary:
       "Set the repository the resident's records are backed up to, with a token shown to nobody again",
