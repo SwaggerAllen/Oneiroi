@@ -353,7 +353,11 @@ defmodule OneiroiWeb.ResidentController do
         translated: r.import_translated,
         told: r.import_told
       },
+      # Where the records are pushed each night, and the last push that
+      # landed. The URL only: the token is shown to nobody again.
+      remote: r.remote_url,
       last_backup: %{
+        at: r.last_backup_at,
         sequence: r.last_backup_sequence,
         root: r.last_backup_root,
         commit: r.last_backup_commit
