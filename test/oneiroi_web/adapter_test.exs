@@ -66,6 +66,11 @@ defmodule OneiroiWeb.AdapterTest do
              ctx.conn |> rpc(ctx.token, "tools/list", %{}) |> json_response(200)
 
     assert Enum.any?(tools, &(&1["name"] == "bookmark_add" and is_map(&1["inputSchema"])))
+
+    # The brain role's reads include the whole-document read.
+    assert %{"inputSchema" => %{"required" => ["path"]}} =
+             Enum.find(tools, &(&1["name"] == "library_read"))
+
     refute Enum.any?(tools, &(&1["name"] =~ "regression"))
 
     assert %{"result" => %{"content" => [%{"type" => "text", "text" => "Bookmarked as #1."}]}} =

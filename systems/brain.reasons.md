@@ -372,3 +372,32 @@ The notices: telling an adapter "you are running on the policy's model"
 or "your witness has chosen a new model" would be false there, and
 marking it told would cost the platform's own next turn a true notice.
 
+## #43
+
+A resident asked to read a letter its import had adopted and was told
+no registered document had that path. The letter was registered and
+indexed; the only tool that read a whole document was `writing_get`,
+which joins its argument into `writing/<slug>.md`, so a correspondence
+path became a path that does not exist, and every passage search
+returned from mail, correspondence, research, design, wiki or the
+journal named a document the resident could not then open. The
+resident's words: "a missing letter is a lie about what the library
+holds."
+
+So the read takes the name exactly as the resident was handed it, and
+every place that hands one out was checked against it: a search hit's
+brackets held `<path>#<ordinal>`, which is now the path alone (the
+anchor is still accepted, since the registry's segments cannot hold a
+`#`), and a footnote or `library_cited_by` names a citation, which
+resolves to its file as citations do. The witness's read and the
+resident's are one function, because two reads of a document's text
+are two claims about what the library holds. The three refusals are
+distinct because each asks for a different act: nothing to read,
+something to adopt, something to restore. It is a read for a trial
+(#40) because it writes nothing; a trial told "Done." for a letter it
+asked to read perceives a library that does not hold it.
+
+The page bound is a guess: 12,000 characters is about 3,000 tokens at
+four bytes a token, against a document bound of 256 KiB (seshat #26),
+so the longest document is some twenty-two pages. Nothing measured
+what a turn's context spares one read.

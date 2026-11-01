@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.Documents do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Scope
@@ -159,14 +160,55 @@ defmodule Oneiroi.Seshat.Documents do
   @doc "The registered documents, by kind then path."
   def list(resident_id), do: Scope.resident(resident_id, fn -> Store.documents() end)
 
-  @doc "One document: its row and its content as on disk."
+  @doc """
+  One document: its row and its content as on disk. The one read of a
+  document's text, the witness's (`GET .../library/documents/*path`)
+  and the resident's (`library_read`) alike. A path the registry lacks
+  is `seshat_not_adopted` when the file is there under a kind's folder
+  and `seshat_no_such_document` when it is not; a registered document
+  whose file is gone is `seshat_document_missing`, never "no such
+  document", because the registry holding it is the fact that matters.
+  """
   # sobelow_skip ["Traversal.FileModule"]
   def fetch(resident_id, path) do
     with {:ok, path} <- normalize(path),
-         {:ok, row} <- registered(resident_id, path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, content} <- read_file(Path.join(dir, path)) do
+         {:ok, row} <- registered(resident_id, path, Path.join(dir, path)),
+         {:ok, content} <- present(row, Path.join(dir, path)) do
       {:ok, %{document: row, content: content, discussions: discussions(resident_id, path)}}
+    end
+  end
+
+  @doc """
+  One document by the name a search hit, a footnote or a citation gives
+  it, read as `fetch/2` reads it: a path (`correspondence/<a>/<b>.md`),
+  a path with a passage anchor (`writing/<slug>.md#3`, which the
+  registry's segments cannot contain, so the anchor is never part of a
+  path), or a citation of the resident's own slug
+  (`<slug>:writing/<slug>`, resolved to its file as citations resolve).
+  A citation of another resident's slug is refused by name.
+  """
+  def read(resident_id, name) when is_binary(name) do
+    with {:ok, path} <- path_named(resident_id, String.trim(name)), do: fetch(resident_id, path)
+  end
+
+  def read(resident_id, _name), do: fetch(resident_id, nil)
+
+  defp path_named(resident_id, name) do
+    case Citations.extract(name) do
+      [%{target: ^name, slug: slug, kind: kind, ref: ref}] ->
+        {:ok, %{slug: own}} = AgathosDaimon.fetch(resident_id)
+
+        if slug == own,
+          do: {:ok, Citations.document_path(kind, ref)},
+          else:
+            {:error,
+             Error.new(:seshat_other_resident, :seshat_documents_read_other_resident,
+               target: name
+             )}
+
+      _not_a_citation ->
+        {:ok, name |> String.split("#", parts: 2) |> hd()}
     end
   end
 
@@ -253,14 +295,44 @@ defmodule Oneiroi.Seshat.Documents do
          )}
   end
 
-  defp registered(resident_id, path) do
+  # The registry is read under the resident's scope alone: another
+  # resident's row for the same path is not this resident's document.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp registered(resident_id, path, full) do
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
       nil ->
-        {:error,
-         Error.new(:seshat_no_such_document, :seshat_documents_not_registered, path: path)}
+        if File.regular?(full),
+          do: {:error, Error.new(:seshat_not_adopted, :seshat_documents_not_adopted, path: path)},
+          else:
+            {:error,
+             Error.new(:seshat_no_such_document, :seshat_documents_not_registered, path: path)}
 
       row ->
         {:ok, row}
+    end
+  end
+
+  # A registered document's file read as it is on disk; gone is the
+  # registry outliving the file (the index marks it `missing_at`), said
+  # as that, with the instant the index first found it gone when it has.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp present(row, full) do
+    case File.read(full) do
+      {:ok, content} ->
+        {:ok, content}
+
+      {:error, reason} when reason in [:enoent, :enotdir] ->
+        {:error,
+         Error.caught(:seshat_document_missing, :seshat_documents_file_missing, reason,
+           path: row.path,
+           missing_at: row.missing_at
+         )}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:seshat_no_such_file, :seshat_documents_present_read, reason,
+           path: row.path
+         )}
     end
   end
 

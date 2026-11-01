@@ -1450,7 +1450,7 @@ or act as its hands.
    naming resident and role; the tool set is the role's: brain gets
    everything the resident has (bookmark_*, tag_*, transcript_search,
    position_*, dispute_check, prediction_*, review_list, library_search,
-   library_cited_by, writing_get, writing_discuss, research_request,
+   library_read, library_cited_by, writing_get, writing_discuss, research_request,
    research_source,
    research_list, research_add_notes, document_adopt, document_unadopted,
    code_start, code_step, code_result, code_list, correspondence_new,

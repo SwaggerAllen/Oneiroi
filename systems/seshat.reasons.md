@@ -123,3 +123,14 @@ import would have completed with her library unsearchable. The bounds
 are set well under those documented limits and are guesses, not
 measurements against OpenRouter.
 
+## #27
+A resident's adopted letter answered "no registered document has that
+path" because the only read of a whole document was the writing piece's
+review, joined into `writing/<slug>.md` (brain #43). The registry held
+the letter; the read could not reach it, and the error said the
+library did not hold it, which is the claim the registry exists to make
+true. One read for both parties because a second would be a second
+claim about what the library holds. The refusals are kinds of their
+own, not one kind with a detail, because the resident is told each in
+the kind's own words and each asks for a different act: adopt, restore,
+or nothing to do.

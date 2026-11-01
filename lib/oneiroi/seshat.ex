@@ -184,6 +184,17 @@ defmodule Oneiroi.Seshat do
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
        remedy: "check the path against the unadopted list"},
+      {:seshat_not_adopted,
+       "the file is in the repository under a kind's folder, and the library does not hold it yet",
+       remedy:
+         "adopt it (the resident's document_adopt, or the Library screen), and it reads like any other"},
+      {:seshat_document_missing,
+       "the document is registered and its file is missing from the repository",
+       remedy:
+         "restore the file or write it again; the registry keeps the row and the index marks it missing until then"},
+      {:seshat_other_resident,
+       "that citation names another resident's library, which sharing between residents does not reach yet",
+       remedy: "read a document of your own library by its path or your own slug's citation"},
       {:seshat_not_publishable, "only a kind with a status (writing) is published",
        remedy: "publish a writing piece"},
       {:seshat_url_invalid, "a published URL is http or https", remedy: "give the URL"},
@@ -269,6 +280,10 @@ defmodule Oneiroi.Seshat do
   @doc "One document's row and its content, or nil."
   @spec document(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(document(resident_id, path), do: Documents.fetch(resident_id, path))
+
+  @doc "One document's row and its content by the name a search hit, a footnote or a citation gives it (a path, a path with `#<passage>`, or `<slug>:<kind>/<ref>` of the resident's own slug): the same read as `document/2`."
+  @spec read(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(read(resident_id, name), do: Documents.read(resident_id, name))
 
   @doc "A witness publishes a writing piece at a URL: the event, and the file's status with it."
   @spec publish(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

@@ -198,17 +198,23 @@ defmodule Oneiroi.Brain.TrialTest do
       %{name: "bookmark_open", arguments: %{number: 1}},
       %{name: "position_list", arguments: %{}},
       %{name: "writing_get", arguments: %{slug: "weir"}},
-      %{name: "library_cited_by", arguments: %{target: ctx.slug <> ":bookmark/1"}}
+      %{name: "library_cited_by", arguments: %{target: ctx.slug <> ":bookmark/1"}},
+      %{name: "library_read", arguments: %{path: "writing/weir.md"}}
     ])
 
     before = Seal.snapshot(ctx.id)
 
-    assert {:ok, %Result{content: "I remember."}, _trace} =
+    assert {:ok, %Result{content: "I remember."}, trace} =
              Oneiroi.Brain.trial(ctx.id, "m1", @prompt, ctx.actor)
 
-    [search, transcript, bookmark, positions, writing, cited_by] = answers()
+    [search, transcript, bookmark, positions, writing, cited_by, read] = answers()
 
-    assert search =~ "[writing/weir.md#"
+    # library_read ran for real: the trace says read, and the answer is the file.
+    assert %{kind: :read} = Enum.find(trace, &(&1.tool == "library_read"))
+    assert read =~ ~r/\Awriting\/weir\.md \(writing, \d+ bytes\), whole\.\n/
+    assert read =~ "The heron fishes below the weir"
+
+    assert search =~ "[writing/weir.md] passage "
     assert search =~ "The heron fishes below the weir"
     assert transcript =~ "hello from the garden"
     assert bookmark =~ "#1 the heron by the weir at dawn"
@@ -449,5 +455,10 @@ defmodule Oneiroi.Brain.TrialTest do
 
     assert MapSet.disjoint?(MapSet.new(reads), MapSet.new(writes))
     assert Enum.sort(reads ++ writes) == Enum.sort(names)
+
+    # The whole-document read is offered and is a read, so a trial reads
+    # the resident's own library rather than being told "Done.".
+    assert "library_read" in names
+    assert "library_read" in reads
   end
 end

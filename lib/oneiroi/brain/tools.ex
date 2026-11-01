@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
   alias Oneiroi.Glitnir
@@ -42,7 +43,7 @@ defmodule Oneiroi.Brain.Tools do
   @reads ~w(
     position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
-    self_letter_list seed_list library_search library_cited_by writing_get
+    self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list
   )
 
@@ -381,19 +382,25 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "library_search",
-        "Search your library: the nearest passages to a query across everything written, with their files.",
+        "Search your library: the nearest passages to a query across everything written, each with the path of its document. A hit is a passage, not the document: library_read with that path reads the whole of it.",
         %{q: %{type: "string"}},
         [:q]
       ),
       tool(
+        "library_read",
+        "Read a document of any kind in your library (writing, correspondence, mail, research, design, wiki, journal, posts, feeds) whole, from the file: path exactly as a search hit, a footnote or a citation names it. A long document comes in pages; the first line says which page it is and the from that reads the next.",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        [:path]
+      ),
+      tool(
         "library_cited_by",
-        "Which of your documents cite a target, written as you cite it (for example lily:bookmark/42 or lily:writing/the-bake-off).",
+        "Which of your documents cite a target, written as you cite it (for example lily:bookmark/42 or lily:writing/the-bake-off); library_read reads any document named in the answer.",
         %{target: %{type: "string"}},
         [:target]
       ),
       tool(
         "writing_get",
-        "Read a writing piece by its slug (writing/<slug>.md): the content and every reference it makes, resolved now.",
+        "Read a writing piece by its slug (writing/<slug>.md): the content and every reference it makes, resolved now. Other kinds of document are read with library_read.",
         %{slug: %{type: "string"}},
         [:slug]
       ),
@@ -1139,11 +1146,34 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, []} ->
         "Nothing in the library is near that."
 
+      # The path in the brackets alone, exactly as library_read takes it;
+      # it read `[<path>#<n>]` until a resident copied a hit's path to
+      # the one whole-document read there was and was told no such
+      # document.
       {:ok, hits} ->
-        Enum.map_join(hits, "\n", &"[#{&1.path}##{&1.ordinal}] #{&1.title}: #{&1.text}")
+        Enum.map_join(
+          hits,
+          "\n",
+          &"[#{&1.path}] passage #{&1.ordinal} of #{&1.title}: #{&1.text}"
+        )
 
       other ->
         other
+    end
+  end
+
+  # The one read of a document's text, the witness's included
+  # (`Seshat.read/2` is `document/2`'s read by the name a hit or a
+  # citation gives), paged under BRAIN_LIBRARY_READ_CHARS (brain #43).
+  defp call("library_read", args, turn) do
+    name = to_string(args["path"] || "")
+
+    with {:ok, from} <- offset(args["from"]),
+         {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
+      library_page(row, content, from)
+    else
+      {:error, %Seshat.Error{} = e} -> unreadable(e)
+      other -> other
     end
   end
 
@@ -1154,10 +1184,31 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # A slug that is the path of another kind is that kind's document, and
+  # writing_get says which tool reads it rather than looking for
+  # `writing/<that path>.md`, which is how a letter came to be "no
+  # registered document".
   defp call("writing_get", args, turn) do
-    case Seshat.review(turn.resident_id, "writing/#{args["slug"]}.md", marks(turn)) do
-      {:ok, review} -> review.rendered
-      other -> other
+    slug = to_string(args["slug"] || "")
+
+    case Seshat.Kinds.kind_of(slug) do
+      %{kind: kind} when kind != "writing" ->
+        @not_done <>
+          "#{slug} is #{kind}, not a writing piece; library_read with that path reads it whole."
+
+      _writing ->
+        case Seshat.review(turn.resident_id, "writing/#{slug}.md", marks(turn)) do
+          {:ok, review} ->
+            review.rendered
+
+          {:error, %Seshat.Error{kind: kind}} = refused
+          when kind in [:seshat_no_such_document, :seshat_path_invalid] ->
+            text(refused) <>
+              " writing_get reads writing/<slug>.md; library_read reads a document of any kind by the path a search hit names."
+
+          other ->
+            other
+        end
     end
   end
 
@@ -1511,6 +1562,97 @@ defmodule Oneiroi.Brain.Tools do
   defp page_footer(rows, further) do
     "#{further} more further back; bookmark_list with before: #{List.last(rows).number} and the same filters reads the next page."
   end
+
+  # A page of a document: a header naming the path, the kind, the bytes
+  # and which characters these are, with the call that reads the next;
+  # then the text exactly as on disk, so the pages join back to the file.
+  # A page ends at a line's end when one falls in its second half.
+  defp library_page(row, content, from) do
+    total = String.length(content)
+
+    cond do
+      not (Seshat.Kinds.text?(row.path) and String.valid?(content)) ->
+        @not_done <>
+          "#{row.path} is not a text file (the library reads .md, .markdown and .txt as text)."
+
+      from > 0 and from >= total ->
+        @not_done <> "from #{from} is past the end; #{row.path} is #{total} characters."
+
+      true ->
+        chunk = String.slice(content, from, Config.fetch!(:brain, :library_read_chars))
+        size = String.length(chunk)
+        size = if from + size >= total, do: size, else: line_end(chunk, size)
+
+        page_header(row, content, from, from + size, total) <>
+          "\n" <> String.slice(chunk, 0, size)
+    end
+  end
+
+  defp page_header(row, content, from, upto, total) do
+    head = "#{row.path} (#{row.kind}, #{byte_size(content)} bytes)"
+
+    cond do
+      from == 0 and upto >= total ->
+        "#{head}, whole."
+
+      upto >= total ->
+        "#{head}, characters #{from} to #{upto} of #{total}, the last page."
+
+      true ->
+        "#{head}, characters #{from} to #{upto} of #{total}; library_read with this path and from: #{upto} reads the next page."
+    end
+  end
+
+  defp line_end(chunk, size) do
+    case :binary.matches(chunk, "\n") do
+      [] ->
+        size
+
+      found ->
+        {at, 1} = List.last(found)
+        stop = String.length(binary_part(chunk, 0, at + 1))
+        if stop * 2 > size, do: stop, else: size
+    end
+  end
+
+  defp offset(nil), do: {:ok, 0}
+  defp offset(""), do: {:ok, 0}
+
+  defp offset(from) do
+    case integer(from) do
+      n when is_integer(n) and n >= 0 -> {:ok, n}
+      _other -> @not_done <> "from is a character offset, a whole number from 0."
+    end
+  end
+
+  # The three ways a path does not read, each said as what it is: not in
+  # the registry, in the repository but not adopted, registered with its
+  # file gone (the index's `missing_at`).
+  defp unreadable(%{kind: :seshat_not_adopted} = e),
+    do:
+      @not_done <>
+        "no registered document has the path #{e.details[:path]}. The file is in your repository and not adopted yet; document_adopt with that path adopts it, and then it reads."
+
+  defp unreadable(%{kind: :seshat_no_such_document} = e),
+    do:
+      @not_done <>
+        "no registered document has the path #{e.details[:path]}, and no file is there. library_search finds a document by what it says, with its path."
+
+  defp unreadable(%{kind: :seshat_document_missing} = e) do
+    since =
+      case e.details[:missing_at] do
+        %DateTime{} = at ->
+          " (the index found it gone on #{Date.to_iso8601(DateTime.to_date(at))})"
+
+        _not_yet ->
+          ""
+      end
+
+    @not_done <>
+      "#{e.details[:path]} is a registered document, and its file is missing from the repository#{since}. The library still holds its row; restoring the file, or writing it again, brings it back."
+  end
+
+  defp unreadable(e), do: text({:error, e})
 
   # A day the model names, or none; a day it misspells answers in words.
   defp day(nil, _name), do: {:ok, nil}

@@ -324,9 +324,13 @@ defmodule Oneiroi.Seshat.Citations do
     end
   end
 
-  # `writing/the-bake-off` is `writing/the-bake-off.md`; a ref with an
-  # extension is the path itself.
-  defp document_path(kind, ref) do
+  @doc """
+  The file a document citation names: `writing/the-bake-off` is
+  `writing/the-bake-off.md`, a ref with an extension is the path itself,
+  and an anchor after `#` is not part of it.
+  """
+  @spec document_path(String.t(), String.t()) :: String.t()
+  def document_path(kind, ref) do
     ref = ref |> String.split("#") |> hd()
     if Path.extname(ref) == "", do: "#{kind}/#{ref}.md", else: "#{kind}/#{ref}"
   end

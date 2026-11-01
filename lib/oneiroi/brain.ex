@@ -79,6 +79,12 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "the share of the window at which the prefix is flagged on the turn (spec §5, P9): a bound from the proposal, not measured"},
+      {:library_read_chars, "BRAIN_LIBRARY_READ_CHARS",
+       cast: :integer,
+       default: "12000",
+       tag: :bound,
+       usage:
+         "how many characters of a document one library_read answers before it says where the next page starts (brain #43): about 3,000 tokens at four bytes a token, a guess at what one read may take of a turn's context, not measured"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",

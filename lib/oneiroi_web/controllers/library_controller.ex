@@ -245,7 +245,12 @@ defmodule OneiroiWeb.LibraryController do
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
 
   defp respond(conn, {:error, %{kind: kind} = e})
-       when kind in [:seshat_no_such_document, :seshat_no_such_file],
+       when kind in [
+              :seshat_no_such_document,
+              :seshat_no_such_file,
+              :seshat_not_adopted,
+              :seshat_document_missing
+            ],
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)

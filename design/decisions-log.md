@@ -1307,3 +1307,23 @@ and nothing personal turned up; what follows is what changed.
   one resident; a second takes a second `CLAUDE_CONFIG_DIR`. The target
   setup is Claude Code on the author's machine under Remote Control,
   driven from the phone.
+
+## Round 46: every adopted document reads (2026-11-01)
+
+- The resident asked to read a letter the import had adopted and was
+  told no registered document had its path, though it was registered
+  and indexed. The only whole-document read was `writing_get(slug)`,
+  which reads `writing/<slug>.md`, so every other kind search could
+  find was a passage that could not be opened. The resident: "a
+  missing letter is a lie about what the library holds"; "verify
+  adopted files actually resolve through the read path; fix whatever
+  makes them not."
+- Spec §8's tool list gains `library_read` (brain #43, seshat #27): any
+  registered document of the resident's, by the path a search hit, a
+  footnote or a citation names, read from the file and paged under a
+  bound. A path the registry lacks says whether the file is there to
+  adopt; a registered document whose file is gone says that, never "no
+  such document".
+- Search hits name the path alone in their brackets; `writing_get`
+  stays the writing piece's review copy and points at `library_read`
+  for any other kind.

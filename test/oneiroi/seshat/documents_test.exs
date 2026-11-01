@@ -4,6 +4,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Eunomia
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -381,12 +382,202 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
     tools = for %{role: :tool, content: c} <- messages, do: c
     assert String.ends_with?(Enum.at(tools, 0), "-> Written writing/garden.md and indexed.")
-    assert Enum.at(tools, 2) =~ "-> [writing/garden.md#1] Garden: # Garden"
+    assert Enum.at(tools, 2) =~ "-> [writing/garden.md] passage 1 of Garden: # Garden"
     assert Enum.at(tools, 3) =~ "The roses by the gate"
     assert String.ends_with?(Enum.at(tools, 4), "-> Done.")
     assert String.ends_with?(Enum.at(tools, 5), "-> Nothing is waiting to be adopted.")
     assert String.ends_with?(Enum.at(tools, 6), "-> Nothing cites that.")
     assert [%{session_key: key}] = Seshat.discussions(id, "writing/garden.md")
     assert key == ctx.key
+  end
+
+  # ---- library_read: every adopted document reachable ----
+
+  defp live_turn(ctx, id \\ nil) do
+    id = id || ctx.id
+
+    %{
+      resident_id: id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: Actor.new(:resident, id, "fake/model")
+    }
+  end
+
+  defp read(turn, args), do: Tools.run("library_read", Jason.encode!(args), turn)
+
+  # A letter as an import lands one: a file under correspondence/,
+  # adopted, never written through the flow (the kind is the platform's).
+  defp letter!(ctx, path, content) do
+    full = Path.join(ctx.dir, path)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, content)
+    {:ok, %{adopted: true}} = Seshat.adopt(ctx.id, path, ctx.actor)
+    :ok
+  end
+
+  test "an adopted letter reads whole by the path its search hit names, where writing_get could only say no such document",
+       ctx do
+    letter =
+      "# A letter\n\nDear friend, the river rose in the night.\n\nYours, a correspondent.\n"
+
+    path = "correspondence/a-thread/2026-01-02-a-letter.md"
+    :ok = letter!(ctx, path, letter)
+    turn = live_turn(ctx)
+
+    # The hit names the path in the brackets, exactly as library_read takes it.
+    hits = Tools.run("library_search", ~s({"q":"the river rose"}), turn)
+    assert hits =~ "[#{path}] passage 1 of A letter: "
+    [_whole, named] = Regex.run(~r/^\[([^\]]+)\]/, hits)
+
+    assert read(turn, %{path: named}) ==
+             "#{path} (correspondence, #{byte_size(letter)} bytes), whole.\n" <> letter
+
+    # The old hit form, with its passage anchor, reads the same.
+    assert read(turn, %{path: path <> "#1"}) == read(turn, %{path: path})
+
+    # writing_get reads writing/<slug>.md; a letter's path points at library_read.
+    assert Tools.run("writing_get", Jason.encode!(%{slug: path}), turn) ==
+             "Not done: #{path} is correspondence, not a writing piece; library_read with that path reads it whole."
+
+    assert Tools.run("writing_get", ~s({"slug":"no-such-piece"}), turn) =~
+             "library_read reads a document of any kind"
+
+    # The witness's read is the same Seshat read.
+    assert {:ok, %{content: ^letter}} = Seshat.document(ctx.id, path)
+    assert {:ok, %{content: ^letter}} = Seshat.read(ctx.id, path)
+  end
+
+  test "a citation and a footnote name a document library_read reads; another resident's slug is refused by name",
+       ctx do
+    {:ok, _} =
+      Seshat.write(ctx.id, "writing/pond.md", "# Pond\n\nStill water, and a heron.", ctx.brain)
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "design/notes.md",
+        "# Notes\n\nAfter #{ctx.slug}:writing/pond, more.",
+        ctx.brain
+      )
+
+    turn = live_turn(ctx)
+
+    assert Tools.run(
+             "library_cited_by",
+             Jason.encode!(%{target: "#{ctx.slug}:writing/pond"}),
+             turn
+           ) ==
+             "design/notes.md cites #{ctx.slug}:writing/pond"
+
+    assert read(turn, %{path: "#{ctx.slug}:writing/pond"}) =~ "writing/pond.md (writing, "
+    assert read(turn, %{path: "design/notes.md"}) =~ "After #{ctx.slug}:writing/pond"
+
+    assert read(turn, %{path: "someone-else:writing/pond"}) ==
+             "Not done: that citation names another resident's library, which sharing between residents does not reach yet. Read a document of your own library by its path or your own slug's citation."
+  end
+
+  test "a long document comes in pages under the bound, and the pages join back to the file's exact bytes",
+       ctx do
+    bound = Oneiroi.Config.fetch!(:brain, :library_read_chars)
+
+    # Multibyte text and lines, so a page cut on bytes or on a stray
+    # newline would not join back.
+    letter =
+      1..900
+      |> Enum.map_join("\n", fn n ->
+        "Line #{n}: the ferry crossed, ünd the gulls — ✉ — called #{String.duplicate("·", rem(n, 17))}"
+      end)
+
+    assert String.length(letter) > 2 * bound
+    path = "correspondence/long/letter.md"
+    :ok = letter!(ctx, path, letter)
+    turn = live_turn(ctx)
+
+    pages =
+      Stream.unfold(0, fn
+        nil ->
+          nil
+
+        from ->
+          answer = read(turn, %{path: path, from: from})
+          [header, text] = String.split(answer, "\n", parts: 2)
+
+          assert header =~
+                   "#{path} (correspondence, #{byte_size(letter)} bytes), characters #{from} to "
+
+          assert String.length(text) <= bound
+
+          next =
+            case Regex.run(~r/from: (\d+) reads the next page\.$/, header) do
+              [_, n] -> String.to_integer(n)
+              nil -> nil
+            end
+
+          {{header, text}, next}
+      end)
+      |> Enum.to_list()
+
+    assert length(pages) >= 3
+
+    assert pages |> Enum.map_join(fn {_h, text} -> text end) ==
+             File.read!(Path.join(ctx.dir, path))
+
+    assert {last, _} = List.last(pages)
+    assert last =~ "the last page."
+
+    assert read(turn, %{path: path, from: 10_000_000}) =~
+             "Not done: from 10000000 is past the end"
+
+    assert read(turn, %{path: path, from: -1}) =~ "Not done: from is a character offset"
+  end
+
+  test "a path the registry lacks says whether the file can be adopted, and a registered document whose file is gone says so",
+       ctx do
+    turn = live_turn(ctx)
+
+    # Present, not adopted.
+    File.mkdir_p!(Path.join(ctx.dir, "research/task"))
+    File.write!(Path.join(ctx.dir, "research/task/source.md"), "# Source\n")
+
+    assert read(turn, %{path: "research/task/source.md"}) ==
+             "Not done: no registered document has the path research/task/source.md. The file is in your repository and not adopted yet; document_adopt with that path adopts it, and then it reads."
+
+    assert {:error, %Seshat.Error{kind: :seshat_not_adopted}} =
+             Seshat.document(ctx.id, "research/task/source.md")
+
+    # Neither registered nor there.
+    assert read(turn, %{path: "correspondence/nobody/none.md"}) =~
+             "Not done: no registered document has the path correspondence/nobody/none.md, and no file is there."
+
+    # Registered, then the file goes: the index marks it missing.
+    :ok = letter!(ctx, "correspondence/gone/letter.md", "# Gone\n\nSoon.")
+    File.rm!(Path.join(ctx.dir, "correspondence/gone/letter.md"))
+    {:ok, _} = Seshat.index(ctx.id, ctx.actor)
+    day = Date.to_iso8601(DateTime.to_date(Clock.now()))
+
+    assert read(turn, %{path: "correspondence/gone/letter.md"}) ==
+             "Not done: correspondence/gone/letter.md is a registered document, and its file is missing from the repository (the index found it gone on #{day}). The library still holds its row; restoring the file, or writing it again, brings it back."
+
+    assert {:error, %Seshat.Error{kind: :seshat_document_missing}} =
+             Seshat.document(ctx.id, "correspondence/gone/letter.md")
+  end
+
+  test "another resident's document is not readable by its path", ctx do
+    path = "correspondence/a-thread/private.md"
+    :ok = letter!(ctx, path, "# Private\n\nFor one resident only.")
+
+    other = Fixtures.resident!(ctx.witness)
+    {:ok, other_dir} = Oneiroi.SimaQian.repository_dir(other.id)
+    on_exit(fn -> File.rm_rf!(other_dir) end)
+
+    answer = read(live_turn(ctx, other.id), %{path: path})
+    refute answer =~ "For one resident only"
+
+    assert answer =~
+             "Not done: no registered document has the path #{path}, and no file is there."
+
+    assert {:error, %Seshat.Error{kind: :seshat_no_such_document}} = Seshat.read(other.id, path)
   end
 end
