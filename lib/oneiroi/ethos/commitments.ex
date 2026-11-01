@@ -126,12 +126,14 @@ defmodule Oneiroi.Ethos.Commitments do
   defp present(to, text) do
     if is_binary(to) and String.trim(to) != "" and is_binary(text) and String.trim(text) != "",
       do: :ok,
-      else: {:error, Error.new(:ethos_commitment_invalid)}
+      else: {:error, Error.new(:ethos_commitment_invalid, :ethos_commitments_words_absent)}
   end
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:ethos_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:ethos_not_the_resident, :ethos_commitments_resident_only)}
 
   defp party(%Actor{kind: kind}) when kind in [:resident, :witness], do: :ok
-  defp party(%Actor{}), do: {:error, Error.new(:ethos_not_a_party)}
+  defp party(%Actor{}), do: {:error, Error.new(:ethos_not_a_party, :ethos_commitments_party_only)}
 end

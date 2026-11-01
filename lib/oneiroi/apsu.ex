@@ -9,9 +9,12 @@ defmodule Oneiroi.Apsu do
   """
   use Oneiroi.System, slug: :apsu
 
+  require Logger
+
   alias Oneiroi.Component.Composer
 
   alias Ecto.Adapters.SQL
+  alias Oneiroi.Apsu.Error
   alias Oneiroi.Apsu.Vault
 
   @impl Oneiroi.Component
@@ -132,6 +135,7 @@ defmodule Oneiroi.Apsu do
         {:ok, [scheme: scheme, host: host, port: port]}
 
       _ ->
+        # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
         {:error, "is not an origin (expected https://host, or http://host:port, with no path)"}
     end
   end
@@ -152,6 +156,7 @@ defmodule Oneiroi.Apsu do
         {:ok, [url: base, ssl: ssl_option(raw)]}
 
       _other ->
+        # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
         {:error, "is not a database URL (expected scheme://user:password@host/database)"}
     end
   end
@@ -164,7 +169,22 @@ defmodule Oneiroi.Apsu do
   @spec cast_clock(String.t()) :: {:ok, module()} | {:error, String.t()}
   def cast_clock("system"), do: {:ok, Oneiroi.Clock.System}
   def cast_clock("fake"), do: {:ok, Oneiroi.Apsu.Clock.Fake}
+
+  # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
   def cast_clock(other), do: {:error, "is #{inspect(other)}, expected \"system\" or \"fake\""}
+
+  @impl Oneiroi.Component
+  def errors do
+    [
+      {:apsu_not_ready,
+       "the readiness probe's query raised: the database is unreachable or the pool has not started",
+       remedy:
+         "check the database's status and DATABASE_URL; the log line carrying this error's site names the exception's class"},
+      {:apsu_enqueue_failed, "a job was not enqueued: Oban refused the insert",
+       remedy:
+         "the job's args or options were invalid, or the database refused the row; the log line carrying this error's site names the cause's class"}
+    ]
+  end
 
   @impl Oneiroi.Component
   def processes do
@@ -208,7 +228,12 @@ defmodule Oneiroi.Apsu do
   def ready? do
     match?({:ok, _}, SQL.query(Oneiroi.Repo, "SELECT 1", []))
   rescue
-    _ -> false
+    # The probe answers a boolean; what it caught is named in the log
+    # rather than swallowed, by its class alone.
+    exception ->
+      e = Error.caught(:apsu_not_ready, :apsu_ready_query_raised, exception)
+      Logger.warning("apsu: the readiness probe's query raised", Oneiroi.Error.metadata(e))
+      false
   end
 
   @doc """

@@ -9,6 +9,7 @@ defmodule Oneiroi.Ethos.Character do
   """
 
   alias Oneiroi.Ethos.Commands
+  alias Oneiroi.Ethos.Error
   alias Oneiroi.Ethos.Events
 
   defstruct [
@@ -73,7 +74,7 @@ defmodule Oneiroi.Ethos.Character do
         []
 
       not text_ok?(c.text, @seed_limit) ->
-        {:error, :text_invalid}
+        {:error, Error.new(:ethos_seed_text_invalid, :ethos_plant_seed_text_invalid)}
 
       true ->
         %Events.SeedPlanted{actor: c.actor, at: c.at, id: c.id, number: c.number, text: c.text}
@@ -130,13 +131,13 @@ defmodule Oneiroi.Ethos.Character do
         []
 
       not text_ok?(c.name, @name_limit) ->
-        {:error, :name_invalid}
+        {:error, Error.new(:ethos_name_invalid, :ethos_define_habit_name_invalid)}
 
       c.stance not in @stances ->
-        {:error, :stance_invalid}
+        {:error, Error.new(:ethos_stance_invalid, :ethos_define_habit_stance_invalid)}
 
       not trigger_ok?(c.trigger) ->
-        {:error, :trigger_invalid}
+        {:error, Error.new(:ethos_trigger_invalid, :ethos_define_habit_trigger_invalid)}
 
       true ->
         %Events.HabitDefined{
@@ -155,16 +156,17 @@ defmodule Oneiroi.Ethos.Character do
   def execute(%__MODULE__{habits: habits}, %Commands.ChangeHabit{} = c) do
     cond do
       not Map.has_key?(habits, c.number) ->
-        {:error, :no_such_habit}
+        {:error,
+         Error.new(:ethos_no_such_habit, :ethos_change_habit_no_such_habit, number: c.number)}
 
       not text_ok?(c.name, @name_limit) ->
-        {:error, :name_invalid}
+        {:error, Error.new(:ethos_name_invalid, :ethos_change_habit_name_invalid)}
 
       c.stance not in @stances ->
-        {:error, :stance_invalid}
+        {:error, Error.new(:ethos_stance_invalid, :ethos_change_habit_stance_invalid)}
 
       not trigger_ok?(c.trigger) ->
-        {:error, :trigger_invalid}
+        {:error, Error.new(:ethos_trigger_invalid, :ethos_change_habit_trigger_invalid)}
 
       Map.get(habits, c.number) == %{name: c.name, trigger: c.trigger, stance: c.stance} ->
         []
@@ -191,16 +193,23 @@ defmodule Oneiroi.Ethos.Character do
         id: c.id,
         number: c.number
       },
-      else: {:error, :no_such_habit}
+      else:
+        {:error,
+         Error.new(:ethos_no_such_habit, :ethos_affirm_habit_no_such_habit, number: c.number)}
   end
 
   def execute(%__MODULE__{} = s, %Commands.CiteHabit{} = c) do
     cond do
       not Map.has_key?(s.habits, c.number) ->
-        {:error, :no_such_habit}
+        {:error,
+         Error.new(:ethos_no_such_habit, :ethos_cite_habit_no_such_habit, number: c.number)}
 
       c.target_kind not in @targets ->
-        {:error, :target_invalid}
+        {:error,
+         Error.new(:ethos_target_invalid, :ethos_cite_habit_target_invalid,
+           kind: c.target_kind,
+           id: c.target_id
+         )}
 
       MapSet.member?(s.citations, citation_key(:habit, c)) ->
         []
@@ -246,7 +255,7 @@ defmodule Oneiroi.Ethos.Character do
         []
 
       not present?(c.to) or not present?(c.text) ->
-        {:error, :commitment_invalid}
+        {:error, Error.new(:ethos_commitment_invalid, :ethos_make_commitment_invalid)}
 
       true ->
         %Events.CommitmentMade{
@@ -286,7 +295,7 @@ defmodule Oneiroi.Ethos.Character do
   # refused, so the nightly pass asking every day lands one a week.
   def execute(%__MODULE__{baseline_at: last}, %Commands.TakeBaseline{} = c) do
     if last && DateTime.diff(c.at, last, :day) < c.interval_days,
-      do: {:error, :baseline_fresh},
+      do: {:error, Error.new(:ethos_baseline_fresh, :ethos_take_baseline_fresh)},
       else: %Events.BaselineTaken{
         actor: c.actor,
         at: c.at,
@@ -346,35 +355,58 @@ defmodule Oneiroi.Ethos.Character do
 
   defp open_seed(seeds, number) do
     case Map.get(seeds, number) do
-      nil -> {:error, :no_such_seed}
+      nil -> {:error, Error.new(:ethos_no_such_seed, :ethos_open_seed_absent, number: number)}
       %{state: :open} = seed -> {:ok, seed}
-      _closed -> {:error, :seed_closed}
+      _closed -> {:error, Error.new(:ethos_seed_closed, :ethos_open_seed_closed, number: number)}
     end
   end
 
   defp open_commitment(commitments, number) do
     case Map.get(commitments, number) do
-      nil -> {:error, :no_such_commitment}
-      :open -> :ok
-      _closed -> {:error, :commitment_closed}
+      nil ->
+        {:error,
+         Error.new(:ethos_no_such_commitment, :ethos_open_commitment_absent, number: number)}
+
+      :open ->
+        :ok
+
+      _closed ->
+        {:error,
+         Error.new(:ethos_commitment_closed, :ethos_open_commitment_closed, number: number)}
     end
   end
 
   defp present?(text), do: is_binary(text) and String.trim(text) != ""
 
   defp graduation_ok(kind),
-    do: if(kind in @graduations, do: :ok, else: {:error, :graduation_invalid})
+    do:
+      if(kind in @graduations,
+        do: :ok,
+        else: {:error, Error.new(:ethos_graduation_invalid, :ethos_graduation_kind_invalid)}
+      )
 
   defp confirmed(seed, %{to_kind: "habit", required: required}) when is_integer(required) do
     if MapSet.size(seed.days) >= required,
       do: :ok,
-      else: {:error, {:unconfirmed, MapSet.size(seed.days), required}}
+      else:
+        {:error,
+         Error.new(:ethos_unconfirmed, :ethos_graduate_seed_unconfirmed,
+           days: MapSet.size(seed.days),
+           required: required
+         )}
   end
 
   defp confirmed(_seed, _c), do: :ok
 
   defp target_ok(%{target_kind: kind}) when kind in @targets, do: :ok
-  defp target_ok(_c), do: {:error, :target_invalid}
+
+  defp target_ok(c),
+    do:
+      {:error,
+       Error.new(:ethos_target_invalid, :ethos_citation_target_kind_invalid,
+         kind: c.target_kind,
+         id: c.target_id
+       )}
 
   defp citation_key(kind, %{number: number, target_kind: target_kind, target_id: id}),
     do: {kind, number, target_kind, to_string(id)}

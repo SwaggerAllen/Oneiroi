@@ -148,6 +148,8 @@ defmodule Oneiroi.Seshat do
   # drift audit, so an alias here is the cycle the port exists to avoid.
   @doc false
   def cast_figures("huginn_muninn"), do: {:ok, :"Elixir.Oneiroi.HuginnMuninn"}
+
+  # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
   def cast_figures(other), do: {:error, "is #{inspect(other)}, expected \"huginn_muninn\""}
 
   @impl Oneiroi.Component
@@ -199,7 +201,15 @@ defmodule Oneiroi.Seshat do
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
       {:seshat_no_such_day, "the schedule never opened that day",
-       remedy: "a day opens at its first check-in or its first entry"}
+       remedy: "a day opens at its first check-in or its first entry"},
+      {:seshat_embedding_mismatched,
+       "the provider answered vectors that do not fit the index: another count than the chunks sent, or another width than SESHAT_EMBEDDING_WIDTH",
+       remedy:
+         "set SESHAT_EMBEDDING_WIDTH to the model's width, or pin a model that answers it; the next run tries again"},
+      {:seshat_dispatch_failed,
+       "the command did not reach the library or the journal aggregate: the command middleware or the event store refused it",
+       remedy:
+         "retry; if it repeats, an operator reads the log line carrying this error's site and cause"}
     ]
   end
 

@@ -1,7 +1,7 @@
 defmodule Oneiroi.Ethos.Edge do
   @moduledoc """
-  The command edge the seeds and the habits share: the dispatch with its
-  translation of the aggregate's refusals, and the check that a
+  The command edge the seeds and the habits share: the dispatch, which
+  wraps any failure that is not the aggregate's own refusal, and the check that a
   citation's target exists in memory. Its own module because habits
   reach seeds (a habit's definition graduates its seed) and seeds would
   otherwise reach habits for these, which is the runtime cycle the
@@ -21,7 +21,12 @@ defmodule Oneiroi.Ethos.Edge do
          {:ok, _b, _span} <- Kumbukumbu.bookmark(resident_id, number) do
       :ok
     else
-      _other -> {:error, Error.new(:ethos_target_invalid, kind: "bookmark", id: target_id)}
+      _other ->
+        {:error,
+         Error.new(:ethos_target_invalid, :ethos_edge_bookmark_absent,
+           kind: "bookmark",
+           id: target_id
+         )}
     end
   end
 
@@ -35,12 +40,22 @@ defmodule Oneiroi.Ethos.Edge do
          %{} <- Enum.find(AgathosDaimon.soul_lines(resident_id), &(&1.number == number)) do
       :ok
     else
-      _other -> {:error, Error.new(:ethos_target_invalid, kind: "soul", id: target_id)}
+      _other ->
+        {:error,
+         Error.new(:ethos_target_invalid, :ethos_edge_soul_line_absent,
+           kind: "soul",
+           id: target_id
+         )}
     end
   end
 
   def target_exists(_resident_id, kind, target_id),
-    do: {:error, Error.new(:ethos_target_invalid, kind: kind, id: target_id)}
+    do:
+      {:error,
+       Error.new(:ethos_target_invalid, :ethos_edge_target_kind_unknown,
+         kind: kind,
+         id: target_id
+       )}
 
   @movement_fields ~w(stance intention resume)
   # A phrase, not a paragraph: the movement rides an exemplar line in
@@ -60,13 +75,13 @@ defmodule Oneiroi.Ethos.Edge do
 
     cond do
       Enum.any?(pairs, fn {k, _v} -> k not in @movement_fields end) ->
-        {:error, Error.new(:ethos_movement_invalid)}
+        {:error, Error.new(:ethos_movement_invalid, :ethos_edge_movement_field_unknown)}
 
       Enum.any?(pairs, fn {_k, v} -> not (is_nil(v) or is_binary(v)) end) ->
-        {:error, Error.new(:ethos_movement_invalid)}
+        {:error, Error.new(:ethos_movement_invalid, :ethos_edge_movement_not_text)}
 
       Enum.any?(pairs, fn {_k, v} -> is_binary(v) and String.length(v) > @movement_chars end) ->
-        {:error, Error.new(:ethos_movement_invalid)}
+        {:error, Error.new(:ethos_movement_invalid, :ethos_edge_movement_too_long)}
 
       true ->
         kept =
@@ -76,7 +91,8 @@ defmodule Oneiroi.Ethos.Edge do
     end
   end
 
-  def movement(_other), do: {:error, Error.new(:ethos_movement_invalid)}
+  def movement(_other),
+    do: {:error, Error.new(:ethos_movement_invalid, :ethos_edge_movement_not_a_map)}
 
   defp integer(n) when is_integer(n), do: {:ok, n}
 
@@ -89,35 +105,21 @@ defmodule Oneiroi.Ethos.Edge do
 
   defp integer(_other), do: :error
 
-  @doc "Dispatches to the character aggregate, translating its refusals into this system's errors."
+  @doc """
+  Dispatches to the character aggregate. Its refusals are this system's
+  sited errors already and pass through; anything else (the command
+  middleware's refusal, an event-store failure) is wrapped here, once.
+  """
   def dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} -> {:error, translate(reason, command)}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %Error{}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error, Error.caught(:ethos_dispatch_failed, :ethos_edge_dispatch_failed, reason)}
     end
   end
-
-  defp translate(:no_such_habit, c), do: Error.new(:ethos_no_such_habit, number: c.number)
-  defp translate(:name_invalid, _c), do: Error.new(:ethos_name_invalid)
-  defp translate(:stance_invalid, _c), do: Error.new(:ethos_stance_invalid)
-  defp translate(:trigger_invalid, _c), do: Error.new(:ethos_trigger_invalid)
-  defp translate(:no_such_seed, c), do: Error.new(:ethos_no_such_seed, number: c.number)
-  defp translate(:seed_closed, c), do: Error.new(:ethos_seed_closed, number: c.number)
-  defp translate(:text_invalid, _c), do: Error.new(:ethos_seed_text_invalid)
-  defp translate(:graduation_invalid, _c), do: Error.new(:ethos_graduation_invalid)
-  defp translate(:baseline_fresh, _c), do: Error.new(:ethos_baseline_fresh)
-
-  defp translate(:no_such_commitment, c),
-    do: Error.new(:ethos_no_such_commitment, number: c.number)
-
-  defp translate(:commitment_closed, c), do: Error.new(:ethos_commitment_closed, number: c.number)
-  defp translate(:commitment_invalid, _c), do: Error.new(:ethos_commitment_invalid)
-
-  defp translate(:target_invalid, c),
-    do: Error.new(:ethos_target_invalid, kind: c.target_kind, id: c.target_id)
-
-  defp translate({:unconfirmed, days, required}, _c),
-    do: Error.new(:ethos_unconfirmed, days: days, required: required)
-
-  defp translate(other, _c), do: other
 end

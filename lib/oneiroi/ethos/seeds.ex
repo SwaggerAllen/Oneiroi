@@ -146,11 +146,16 @@ defmodule Oneiroi.Ethos.Seeds do
   defp graduation_target(_resident_id, _to_kind, _to_id), do: :ok
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:ethos_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:ethos_not_the_resident, :ethos_seeds_resident_only)}
 
   defp text_present(text) when is_binary(text) do
-    if String.trim(text) == "", do: {:error, Error.new(:ethos_seed_text_invalid)}, else: :ok
+    if String.trim(text) == "",
+      do: {:error, Error.new(:ethos_seed_text_invalid, :ethos_seeds_text_blank)},
+      else: :ok
   end
 
-  defp text_present(_other), do: {:error, Error.new(:ethos_seed_text_invalid)}
+  defp text_present(_other),
+    do: {:error, Error.new(:ethos_seed_text_invalid, :ethos_seeds_text_not_a_string)}
 end

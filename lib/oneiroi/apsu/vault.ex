@@ -50,7 +50,9 @@ defmodule Oneiroi.Apsu.Vault do
   def cast_key(raw) do
     case Base.decode64(raw) do
       {:ok, key} when byte_size(key) == 32 -> {:ok, key}
+      # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
       {:ok, key} -> {:error, "decodes to #{byte_size(key)} bytes, expected 32"}
+      # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
       :error -> {:error, "is not base64"}
     end
   end

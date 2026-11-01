@@ -13,6 +13,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   """
   @behaviour Oneiroi.Nisaba.Provider
 
+  alias Oneiroi.Nisaba.Error
   alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
   @key :nisaba_fake_script
@@ -76,14 +77,21 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @doc "Scripts a failure of the given kind (`:transport` or `:schema_invalid`)."
   @spec fail(:transport | :schema_invalid, keyword()) :: :ok
   def fail(kind, opts \\ []) when kind in [:transport, :schema_invalid],
-    do: script(fn _request -> {:error, {kind, :scripted}} end, opts)
+    do: script(fn _request -> {:error, scripted(kind)} end, opts)
 
   @doc "Scripts the next embeddings calls from this process to fail."
   @spec embed_fail(:transport | :schema_invalid) :: :ok
   def embed_fail(kind) when kind in [:transport, :schema_invalid] do
-    Process.put(@embed_key, {:error, {kind, :scripted}})
+    Process.put(@embed_key, {:error, scripted(kind)})
     :ok
   end
+
+  # The two port failures, as the adapter answers them.
+  defp scripted(:transport),
+    do: Error.new(:nisaba_provider_failed, :nisaba_fake_scripted_transport, reason: :scripted)
+
+  defp scripted(:schema_invalid),
+    do: Error.new(:nisaba_request_refused, :nisaba_fake_scripted_refused, reason: :scripted)
 
   @doc "Scripts the next embeddings calls from this process to answer vectors of another width, as a model swapped under the index would."
   @spec embed_width(pos_integer()) :: :ok
@@ -174,7 +182,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   end
 
   # The chat format's rules on tool messages, refused as OpenRouter
-  # refuses them, with a 400 the adapter reads as `:schema_invalid`. A
+  # refuses them, with the 400 the adapter answers as `nisaba_request_refused`. A
   # `tool` message answers a call by its id, and the calls of one
   # assistant message are all answered by the `tool` messages that
   # follow it; a request carrying either names its tools, which is
@@ -184,8 +192,14 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   # fixture's turns 3 to 12 after a turn that used tools.
   defp refusal(%Request{messages: messages, tools: tools}) do
     case wire_error(messages, MapSet.new(), tools != []) do
-      nil -> nil
-      message -> {:error, {:schema_invalid, {:status, 400, message}}}
+      nil ->
+        nil
+
+      message ->
+        {:error,
+         Error.new(:nisaba_request_refused, :nisaba_fake_wire_refused,
+           reason: {:status, 400, message}
+         )}
     end
   end
 
@@ -213,7 +227,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
         "a tool call in a request that names no tools"
 
       bad = Enum.find(calls, &(not object?(&1))) ->
-        "Extra data: #{inspect(bad.function.arguments)}"
+        "Extra data: call #{inspect(bad.id)}'s arguments are not one JSON object"
 
       true ->
         wire_error(rest, MapSet.new(calls, & &1.id), tools?)
@@ -257,7 +271,10 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
         try do
           :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
         rescue
-          ArgumentError -> @table
+          # The race above, lost: the table is there. Any other refusal
+          # is not this one and goes on up.
+          e in ArgumentError ->
+            if :ets.whereis(@table) == :undefined, do: reraise(e, __STACKTRACE__), else: @table
         end
 
       _ref ->

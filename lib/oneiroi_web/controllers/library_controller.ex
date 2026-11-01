@@ -230,7 +230,13 @@ defmodule OneiroiWeb.LibraryController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_library_not_witnessed)
+        )
+        |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
@@ -240,7 +246,4 @@ defmodule OneiroiWeb.LibraryController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-
-  defp respond(conn, {:error, reason}),
-    do: problem(conn, 422, :refused, :web_library_respond_refused, inspect(reason))
 end

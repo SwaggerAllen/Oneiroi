@@ -227,7 +227,15 @@ defmodule Oneiroi.Nisaba do
        remedy: "renew the subscription"},
       {:nisaba_not_recorded, "the call was made and its record was not written",
        remedy:
-         "the spend happened; the record is retried by the next sweep of the log, and this is reported loudly on purpose"}
+         "the spend happened; the record is retried by the next sweep of the log, and this is reported loudly on purpose"},
+      {:nisaba_budget_period_invalid, "a budget line's period is day, week or month",
+       remedy: "name one of the three"},
+      {:nisaba_cap_invalid, "a budget line's cap is nano-dollars, zero or more, or none",
+       remedy: "give it in dollars, or no cap for no limit"},
+      {:nisaba_dispatch_failed,
+       "the command did not reach the ledger or the subscription: the command middleware or the event store refused it",
+       remedy:
+         "retry; if it repeats, an operator reads the log line carrying this error's site and cause"}
     ]
   end
 
@@ -254,6 +262,7 @@ defmodule Oneiroi.Nisaba do
   def cast_provider("fake"), do: {:ok, Oneiroi.Nisaba.Provider.Fake}
 
   def cast_provider(other),
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
     do: {:error, "is #{inspect(other)}, expected \"openrouter\" or \"fake\""}
 
   @doc "Sets a budget line: a cap in nano-dollars (nil for no limit) per period."

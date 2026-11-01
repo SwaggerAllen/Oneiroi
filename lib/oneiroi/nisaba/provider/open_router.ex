@@ -13,11 +13,14 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   Status classification follows conventions §8: 408, 409, 425, 429 and
   every 5xx are transport failures (retryable); any other non-2xx is a
   request the provider refused (cancelled). A model's refusal arrives as
-  a 200 and is an ordinary result.
+  a 200 and is an ordinary result. Every failure leaves here as a sited
+  `Nisaba.Error` (`nisaba_provider_failed` or `nisaba_request_refused`);
+  Req's own failure is wrapped by its class, never its message.
   """
   @behaviour Oneiroi.Nisaba.Provider
 
   alias Oneiroi.Config
+  alias Oneiroi.Nisaba.Error
   alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
@@ -32,9 +35,15 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
            headers: headers(key),
            receive_timeout: timeout()
          ) do
-      {:ok, %Req.Response{status: 200, body: body}} -> parse(body)
-      {:ok, %Req.Response{status: status, body: body}} -> classify(status, body)
-      {:error, reason} -> {:error, {:transport, reason}}
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        parse(body)
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        classify(status, body)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:nisaba_provider_failed, :nisaba_open_router_complete_transport, reason)}
     end
   end
 
@@ -53,13 +62,17 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
         __MODULE__.SSE.outcome(state)
 
       {:ok, %Req.Response{status: 200}} ->
-        {:error, {:schema_invalid, :empty_stream}}
+        {:error,
+         Error.new(:nisaba_request_refused, :nisaba_open_router_stream_empty,
+           reason: :empty_stream
+         )}
 
       {:ok, %Req.Response{status: status, private: private}} ->
         classify(status, Map.get(private, :raw, ""))
 
       {:error, reason} ->
-        {:error, {:transport, reason}}
+        {:error,
+         Error.caught(:nisaba_provider_failed, :nisaba_open_router_stream_transport, reason)}
     end
   end
 
@@ -141,15 +154,21 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
            headers: headers(key),
            receive_timeout: timeout()
          ) do
-      {:ok, %Req.Response{status: 200, body: body}} -> parse_embedding(body, model)
-      {:ok, %Req.Response{status: status, body: body}} -> classify(status, body)
-      {:error, reason} -> {:error, {:transport, reason}}
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        parse_embedding(body, model)
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        classify(status, body)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:nisaba_provider_failed, :nisaba_open_router_embed_transport, reason)}
     end
   end
 
   @doc "An embeddings reply into the port's shape; public so the shape is testable without a network."
   @spec parse_embedding(term(), String.t()) ::
-          {:ok, Embedding.t()} | {:error, Oneiroi.Nisaba.Provider.failure()}
+          {:ok, Embedding.t()} | {:error, Error.t()}
   def parse_embedding(%{"data" => data} = body, model) when is_list(data) do
     vectors =
       data
@@ -165,11 +184,19 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
             vectors: vectors,
             usage: usage(Map.get(body, "usage"))
           }},
-       else: {:error, {:schema_invalid, :embedding_shape}}
+       else:
+         {:error,
+          Error.new(:nisaba_request_refused, :nisaba_open_router_embedding_shape,
+            reason: :embedding_shape
+          )}
   end
 
   def parse_embedding(other, _model),
-    do: {:error, {:schema_invalid, {:unexpected_body, summarize(other)}}}
+    do:
+      {:error,
+       Error.new(:nisaba_request_refused, :nisaba_open_router_embedding_body,
+         reason: {:unexpected_body, summarize(other)}
+       )}
 
   @doc "The request body OpenRouter receives; public so the shape is testable without a network."
   @spec body(Request.t(), boolean()) :: map()
@@ -186,7 +213,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   end
 
   @doc "A result from a non-streaming response body; public for the same reason as `body/2`."
-  @spec parse(term()) :: {:ok, Result.t()} | {:error, {:schema_invalid, term()}}
+  @spec parse(term()) :: {:ok, Result.t()} | {:error, Error.t()}
   def parse(%{"choices" => [choice | _]} = body) do
     message = Map.get(choice, "message", %{})
     refusal = Map.get(message, "refusal")
@@ -203,7 +230,12 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
      }}
   end
 
-  def parse(other), do: {:error, {:schema_invalid, {:unexpected_body, summarize(other)}}}
+  def parse(other),
+    do:
+      {:error,
+       Error.new(:nisaba_request_refused, :nisaba_open_router_completion_body,
+         reason: {:unexpected_body, summarize(other)}
+       )}
 
   @doc "Usage from OpenRouter's usage object; absent cost is estimated zero, marked."
   @spec usage(term()) :: Usage.t()
@@ -230,13 +262,24 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
   def tool_calls(_other), do: []
 
+  # The status and the provider's own message ride `reason:` in the
+  # details, which the brain shows on a failed turn (brain #39).
   defp classify(status, body) when status in @transport_statuses or status >= 500,
-    do: {:error, {:transport, {:status, status, summarize(body)}}}
+    do:
+      {:error,
+       Error.new(:nisaba_provider_failed, :nisaba_open_router_status_transport,
+         reason: {:status, status, summarize(body)}
+       )}
 
-  defp classify(status, body), do: {:error, {:schema_invalid, {:status, status, summarize(body)}}}
+  defp classify(status, body),
+    do:
+      {:error,
+       Error.new(:nisaba_request_refused, :nisaba_open_router_status_refused,
+         reason: {:status, status, summarize(body)}
+       )}
 
   # The provider's error message, never the request: a body echoing a
-  # prompt back would put resident text in an error tuple.
+  # prompt back would put resident text in an error's details.
   @doc """
   An error body's message, and nothing else of it. A streamed refusal
   arrives as raw text, which is decoded first: sliced as it came, its
@@ -285,6 +328,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
     recorded, and says so where it is used (conventions §9).
     """
 
+    alias Oneiroi.Nisaba.Error
     alias Oneiroi.Nisaba.Provider.OpenRouter
     alias Oneiroi.Nisaba.Provider.{Result, Usage}
 
@@ -410,15 +454,28 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
     with no words, no call, no refusal and no usage is read as nothing
     having answered.
     """
-    @spec outcome(state()) :: {:ok, Result.t()} | {:error, {:transport, term()}}
-    def outcome(%{error: {code, message}}), do: {:error, {:transport, {:status, code, message}}}
+    @spec outcome(state()) :: {:ok, Result.t()} | {:error, Error.t()}
+    def outcome(%{error: {code, message}}),
+      do:
+        {:error,
+         Error.new(:nisaba_provider_failed, :nisaba_open_router_stream_error_event,
+           reason: {:status, code, message}
+         )}
 
     def outcome(%{finish_reason: "error"}),
-      do: {:error, {:transport, {:status, "error", "the stream ended in an error"}}}
+      do:
+        {:error,
+         Error.new(:nisaba_provider_failed, :nisaba_open_router_stream_finished_in_error,
+           reason: {:status, "error", "the stream ended in an error"}
+         )}
 
     def outcome(%{usage: nil, tool_calls: calls} = state) when map_size(calls) == 0 do
       if IO.iodata_length(state.content) == 0 and IO.iodata_length(state.refusal) == 0,
-        do: {:error, {:transport, {:status, 200, "the stream carried nothing"}}},
+        do:
+          {:error,
+           Error.new(:nisaba_provider_failed, :nisaba_open_router_stream_carried_nothing,
+             reason: {:status, 200, "the stream carried nothing"}
+           )},
         else: {:ok, result(state)}
     end
 

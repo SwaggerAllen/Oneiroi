@@ -33,7 +33,14 @@ defmodule OneiroiWeb.LedgerController do
         }
       })
     else
-      error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+      error(
+        conn,
+        404,
+        ResidentError.new(
+          :agathos_daimon_not_witnessed,
+          :agathos_daimon_ledger_show_not_witnessed
+        )
+      )
     end
   end
 
@@ -78,7 +85,15 @@ defmodule OneiroiWeb.LedgerController do
               :web_ledger_set_budget_cap_invalid,
               "cap is dollars as a decimal string, or null"
             ),
-          else: error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
+          else:
+            error(
+              conn,
+              404,
+              ResidentError.new(
+                :agathos_daimon_not_witnessed,
+                :agathos_daimon_ledger_set_budget_not_witnessed
+              )
+            )
 
       nil ->
         problem(
@@ -91,22 +106,19 @@ defmodule OneiroiWeb.LedgerController do
 
       {:error, %Nisaba.Error{} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :budget_not_set,
-          :web_ledger_set_budget_budget_not_set,
-          inspect(reason)
-        )
     end
   end
 
   defp purpose(string) do
     case Nisaba.Purpose.parse(string) do
-      nil -> {:error, Nisaba.Error.new(:nisaba_unknown_purpose, purpose: string)}
-      purpose -> {:ok, purpose}
+      nil ->
+        {:error,
+         Nisaba.Error.new(:nisaba_unknown_purpose, :nisaba_ledger_controller_purpose_unknown,
+           purpose: string
+         )}
+
+      purpose ->
+        {:ok, purpose}
     end
   end
 

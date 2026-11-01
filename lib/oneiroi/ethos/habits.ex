@@ -396,18 +396,29 @@ defmodule Oneiroi.Ethos.Habits do
 
   defp may_define(resident_id, %Actor{kind: :witness}) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, %{first_contact_at: nil}} -> :ok
-      _other -> {:error, Error.new(:ethos_not_the_resident, since: "first contact")}
+      {:ok, %{first_contact_at: nil}} ->
+        :ok
+
+      _other ->
+        {:error,
+         Error.new(:ethos_not_the_resident, :ethos_habits_witness_after_first_contact,
+           since: "first contact"
+         )}
     end
   end
 
-  defp may_define(_resident_id, %Actor{}), do: {:error, Error.new(:ethos_not_the_resident)}
+  defp may_define(_resident_id, %Actor{}),
+    do: {:error, Error.new(:ethos_not_the_resident, :ethos_habits_define_not_a_party)}
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:ethos_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:ethos_not_the_resident, :ethos_habits_resident_only)}
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:ethos_not_the_witness)}
+
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:ethos_not_the_witness, :ethos_habits_witness_only)}
 
   # String keys and lists, whatever the caller sent: the aggregate and the
   # JSON column hold one shape.

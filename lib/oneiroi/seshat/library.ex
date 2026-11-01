@@ -8,6 +8,7 @@ defmodule Oneiroi.Seshat.Library do
   """
 
   alias Oneiroi.Seshat.Commands
+  alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.Kinds
 
@@ -50,15 +51,19 @@ defmodule Oneiroi.Seshat.Library do
   def execute(%__MODULE__{documents: documents}, %Commands.PublishPiece{} = c) do
     case Map.get(documents, c.path) do
       nil ->
-        {:error, :no_such_document}
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_publish_piece_no_such_document, path: c.path)}
 
       %{kind: kind} = doc ->
         cond do
           not has_status?(kind) ->
-            {:error, :not_publishable}
+            {:error,
+             Error.new(:seshat_not_publishable, :seshat_publish_piece_not_publishable,
+               path: c.path
+             )}
 
           not (is_binary(c.url) and Regex.match?(@url, c.url)) ->
-            {:error, :url_invalid}
+            {:error, Error.new(:seshat_url_invalid, :seshat_publish_piece_url_invalid)}
 
           doc.url == c.url ->
             []
@@ -72,7 +77,10 @@ defmodule Oneiroi.Seshat.Library do
   def execute(%__MODULE__{} = l, %Commands.OpenDiscussion{} = c) do
     cond do
       not Map.has_key?(l.documents, c.path) ->
-        {:error, :no_such_document}
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_open_discussion_no_such_document,
+           path: c.path
+         )}
 
       MapSet.member?(l.discussions, {c.path, c.session_key}) ->
         []
