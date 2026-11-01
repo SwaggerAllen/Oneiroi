@@ -37,8 +37,14 @@ RUN mix compile && mix release --overwrite
 
 FROM debian:bookworm-slim
 
+# git is the records port's one binary (Oneiroi.SimaQian.Git): import,
+# rebuild and the nightly backup all run it. This stage shipped without
+# it until 2026-11-01, when the first real import answered 500 on
+# `enoent`; the build stage had it, so nothing that ran there noticed.
+# test/oneiroi/runtime_image_test.exs holds this list to every binary
+# the code calls.
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 ca-certificates && \
+    apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 ca-certificates git && \
     rm -rf /var/lib/apt/lists/*
 
 ENV LANG=C.UTF-8 MIX_ENV=prod

@@ -115,14 +115,42 @@ defmodule Oneiroi.SimaQian.Git do
     URI.to_string(%{uri | userinfo: "x-access-token:" <> token})
   end
 
+  @binary "git"
+
+  @doc "The binary this port runs, which the runtime image must carry."
+  @spec binary() :: String.t()
+  def binary, do: @binary
+
+  defp git(dir, args), do: run(@binary, dir, args)
+
+  @doc false
+  # The binary is an argument so a test can name one that is missing or
+  # cannot run; every caller in this module passes `@binary`.
+  #
   # Errors carry git's stderr with any token in a URL redacted, because
-  # git echoes the remote on failure.
-  defp git(dir, args) do
-    case System.cmd("git", args, cd: dir, env: @env, stderr_to_stdout: true) do
+  # git echoes the remote on failure. A git that cannot start is an error
+  # too, never a raise: `System.cmd` raises when the binary is missing,
+  # and the crash report prints the call's arguments, which hold the
+  # clone URL and its token. The production image shipped without git on
+  # 2026-11-01, and the first real import put Lily's read token into the
+  # service log that way, under a bare 500.
+  #
+  # Sobelow reads a variable binary as command injection. No request value
+  # reaches it: this module passes `@binary`, and only the port's own test
+  # names another.
+  # sobelow_skip ["CI.System"]
+  @spec run(String.t(), Path.t(), [String.t()]) :: {:ok, String.t()} | {:error, String.t()}
+  def run(binary, dir, args) do
+    case System.cmd(binary, args, cd: dir, env: @env, stderr_to_stdout: true) do
       {out, 0} -> {:ok, out}
       {out, _code} -> {:error, redact(out)}
     end
+  rescue
+    e in ErlangError -> {:error, unstarted(binary, e.original)}
   end
+
+  defp unstarted(binary, :enoent), do: "#{binary} is not installed on this server"
+  defp unstarted(binary, reason), do: "#{binary} could not start: #{inspect(reason)}"
 
   defp redact(text), do: Regex.replace(~r|://[^@/\s]+@|, text, "://[redacted]@")
 end

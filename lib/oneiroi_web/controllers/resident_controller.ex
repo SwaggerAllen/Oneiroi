@@ -84,6 +84,9 @@ defmodule OneiroiWeb.ResidentController do
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
 
+      {:error, reason} when is_binary(reason) ->
+        problem(conn, 422, :not_imported, reason)
+
       {:error, reason} ->
         problem(conn, 422, :not_imported, inspect(reason))
     end

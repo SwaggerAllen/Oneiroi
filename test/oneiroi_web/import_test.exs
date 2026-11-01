@@ -56,6 +56,20 @@ defmodule OneiroiWeb.ImportTest do
     assert %{"error" => %{"kind" => "sima_qian_name_required"}} =
              conn |> post("/v1/residents/import", %{url: url}) |> json_response(422)
 
+    # A clone that fails answers with git's own words, as text rather than
+    # an Elixir string's inspect with its quotes and escapes.
+    assert %{"error" => %{"kind" => "not_imported", "meaning" => meaning}} =
+             conn
+             |> post("/v1/residents/import", %{
+               url: "file:///nonexistent/oneiroi-repo",
+               name: "Lily",
+               slug: "lily-gone"
+             })
+             |> json_response(422)
+
+    assert meaning =~ "fatal:"
+    refute String.starts_with?(meaning, "\"")
+
     assert %{
              "id" => id,
              "slug" => "lily-w",
