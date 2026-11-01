@@ -15,12 +15,17 @@ defmodule OneiroiWeb.TokenController do
 
   def create(%{assigns: %{principal: p}} = conn, %{"label" => label}) when is_binary(label) do
     case Oneiroi.Gaia.issue_token(p.account_id, label, actor(conn)) do
-      {:ok, raw, hash} -> conn |> put_status(201) |> json(%{token: raw, hash: hash, label: label})
-      {:error, reason} -> problem(conn, 422, :not_issued, inspect(reason))
+      {:ok, raw, hash} ->
+        conn |> put_status(201) |> json(%{token: raw, hash: hash, label: label})
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
-  def create(conn, _params), do: problem(conn, 422, :label_required, "a label is required")
+  def create(conn, _params),
+    do:
+      problem(conn, 422, :label_required, :web_token_create_label_required, "a label is required")
 
   operation(:delete,
     summary: "Revoke a token by its hash",
@@ -30,8 +35,11 @@ defmodule OneiroiWeb.TokenController do
 
   def delete(%{assigns: %{principal: p}} = conn, %{"hash" => hash}) do
     case Oneiroi.Gaia.revoke_token(p.account_id, hash, actor(conn)) do
-      :ok -> send_resp(conn, 204, "")
-      {:error, _reason} -> problem(conn, 404, :no_such_token, "no live token has that hash")
+      :ok ->
+        send_resp(conn, 204, "")
+
+      {:error, e} ->
+        error(conn, 404, e)
     end
   end
 end

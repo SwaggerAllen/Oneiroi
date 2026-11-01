@@ -22,7 +22,7 @@ defmodule Oneiroi.Eunomia.JudgementTest do
     s = evolve(Judgement.execute(%Judgement{}, take))
     assert [] = Judgement.execute(s, take)
 
-    assert {:error, :statement_invalid} =
+    assert {:error, %{kind: :eunomia_statement_invalid, site: :eunomia_take_statement_invalid}} =
              Judgement.execute(s, cmd(Commands.TakePosition, number: 2, statement: "   "))
 
     replace =
@@ -31,7 +31,7 @@ defmodule Oneiroi.Eunomia.JudgementTest do
     assert %Events.PositionReplaced{number: 2, replaces: 1} = Judgement.execute(s, replace)
     s = evolve(s, Judgement.execute(s, replace))
 
-    assert {:error, :position_replaced} =
+    assert {:error, %{kind: :eunomia_position_replaced, site: :eunomia_replace_position_replaced}} =
              Judgement.execute(
                s,
                cmd(Commands.ReplacePosition, number: 3, replaces: 1, statement: "Neither.")
@@ -43,7 +43,7 @@ defmodule Oneiroi.Eunomia.JudgementTest do
                cmd(Commands.ReplacePosition, number: 3, replaces: 2, statement: "Neither.")
              )
 
-    assert {:error, :no_such_position} =
+    assert {:error, %{kind: :eunomia_no_such_position, site: :eunomia_replace_position_absent}} =
              Judgement.execute(
                s,
                cmd(Commands.ReplacePosition, number: 3, replaces: 9, statement: "Neither.")
@@ -70,13 +70,13 @@ defmodule Oneiroi.Eunomia.JudgementTest do
     s = evolve(Judgement.execute(%Judgement{}, check))
     assert [] = Judgement.execute(s, check)
 
-    assert {:error, :dispute_invalid} =
+    assert {:error, %{kind: :eunomia_dispute_invalid, site: :eunomia_dispute_source_invalid}} =
              Judgement.execute(%Judgement{}, %{check | ref: "d2", outcome: "judged"})
 
-    assert {:error, :dispute_invalid} =
+    assert {:error, %{kind: :eunomia_dispute_invalid, site: :eunomia_dispute_advice_invalid}} =
              Judgement.execute(%Judgement{}, %{check | ref: "d2", advice: "maybe"})
 
-    assert {:error, :no_such_position} =
+    assert {:error, %{kind: :eunomia_no_such_position, site: :eunomia_dispute_position_absent}} =
              Judgement.execute(%Judgement{}, %{check | ref: "d2", position_number: 7})
 
     settle = cmd(Commands.SettleDispute, ref: "d1", outcome: "conceded", note: "fair")
@@ -87,13 +87,14 @@ defmodule Oneiroi.Eunomia.JudgementTest do
     s = evolve(s, Judgement.execute(s, settle))
     assert [] = Judgement.execute(s, %{settle | outcome: "held"})
 
-    assert {:error, :settlement_invalid} =
+    assert {:error, %{kind: :eunomia_settlement_invalid, site: :eunomia_settle_outcome_invalid}} =
              Judgement.execute(
                evolve(Judgement.execute(%Judgement{}, %{check | ref: "d3"})),
                %{settle | ref: "d3", outcome: "won"}
              )
 
-    assert {:error, :no_such_dispute} = Judgement.execute(s, %{settle | ref: "zz"})
+    assert {:error, %{kind: :eunomia_no_such_dispute, site: :eunomia_settle_dispute_absent}} =
+             Judgement.execute(s, %{settle | ref: "zz"})
   end
 
   test "a night is judged once, a failed night may run again, and the judge is set once per model" do
@@ -125,13 +126,19 @@ defmodule Oneiroi.Eunomia.JudgementTest do
 
     s = evolve(s, Judgement.execute(s, set))
     assert [] = Judgement.execute(s, set)
-    assert {:error, :judge_model_invalid} = Judgement.execute(s, %{set | model: " "})
+
+    assert {:error,
+            %{kind: :eunomia_judge_model_invalid, site: :eunomia_judge_model_slug_invalid}} =
+             Judgement.execute(s, %{set | model: " "})
   end
 
   test "a prediction is logged with a due instant and resolved once, right, wrong or void" do
     log = cmd(Commands.LogPrediction, number: 1, statement: "It will rain Friday.", due: @at)
     assert %Events.PredictionLogged{number: 1} = Judgement.execute(%Judgement{}, log)
-    assert {:error, :due_invalid} = Judgement.execute(%Judgement{}, %{log | due: "Friday"})
+
+    assert {:error, %{kind: :eunomia_due_invalid, site: :eunomia_prediction_due_invalid}} =
+             Judgement.execute(%Judgement{}, %{log | due: "Friday"})
+
     s = evolve(Judgement.execute(%Judgement{}, log))
     assert [] = Judgement.execute(s, log)
 
@@ -139,9 +146,12 @@ defmodule Oneiroi.Eunomia.JudgementTest do
     assert %Events.PredictionResolved{outcome: "right"} = Judgement.execute(s, resolve)
     s = evolve(s, Judgement.execute(s, resolve))
     assert [] = Judgement.execute(s, %{resolve | outcome: "wrong"})
-    assert {:error, :no_such_prediction} = Judgement.execute(s, %{resolve | number: 2})
 
-    assert {:error, :resolution_invalid} =
+    assert {:error,
+            %{kind: :eunomia_no_such_prediction, site: :eunomia_resolve_prediction_absent}} =
+             Judgement.execute(s, %{resolve | number: 2})
+
+    assert {:error, %{kind: :eunomia_resolution_invalid, site: :eunomia_resolve_outcome_invalid}} =
              Judgement.execute(
                evolve(Judgement.execute(%Judgement{}, %{log | number: 2})),
                %{resolve | number: 2, outcome: "maybe"}

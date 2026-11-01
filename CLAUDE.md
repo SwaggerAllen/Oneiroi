@@ -148,5 +148,10 @@ way before trusting a local green.
   passes or fails by whichever scope leaked before it: the Eunomia
   night-worker probe printed `ok` on a leaked platform scope until the
   test pinned the leak to the wrong resident first. Pin it on purpose.
+- **The runtime image is not the build image.** The Dockerfile's last
+  stage is a bare Debian with only what it installs; the build stage, CI
+  and every agent run have far more. Production shipped without `git`
+  until the first real import, and `test/oneiroi/runtime_image_test.exs`
+  now holds the last stage to every binary the code runs.
 - **Run `mix test` once per shell call.** A second run in the same call
   once failed on a spurious `enoent`; log one run to a file and read it.

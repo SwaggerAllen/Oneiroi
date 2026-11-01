@@ -23,7 +23,8 @@ defmodule Oneiroi.Sunna.HourTest do
              Schedule.execute(state, %{mark | hour: "2026-10-26T09"})
 
     for bad <- ["2026-10-26", "2026-10-26T24", "2026-10-26T08:00", nil, 8] do
-      assert {:error, :hour_invalid} = Schedule.execute(state, %{mark | hour: bad})
+      assert {:error, %{kind: :sunna_hour_invalid, site: :sunna_hour_marker_invalid}} =
+               Schedule.execute(state, %{mark | hour: bad})
     end
   end
 end

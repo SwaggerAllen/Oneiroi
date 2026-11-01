@@ -14,6 +14,7 @@ defmodule Oneiroi.Brain.Compaction do
   about the content.
   """
 
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
@@ -110,9 +111,14 @@ defmodule Oneiroi.Brain.Compaction do
     request = Request.new(turn.model, [prompt | transcript])
 
     case Nisaba.call(turn.resident_id, :chat, request, turn.resident) do
-      {:ok, %Result{content: content}} when is_binary(content) and content != "" -> {:ok, content}
-      {:ok, %Result{}} -> {:error, :summary_empty}
-      {:error, reason} -> {:error, reason}
+      {:ok, %Result{content: content}} when is_binary(content) and content != "" ->
+        {:ok, content}
+
+      {:ok, %Result{}} ->
+        {:error, Error.new(:brain_summary_empty, :brain_compaction_summary_empty)}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

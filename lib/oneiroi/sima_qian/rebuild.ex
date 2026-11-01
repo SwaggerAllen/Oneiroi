@@ -34,11 +34,16 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # The clone directory is this function's own, under the temp dir; the
   # `File.rm_rf` on it is what sobelow reads as a traversal.
   # sobelow_skip ["Traversal.FileModule"]
-  def run(url, witness_account_id, %Actor{} = actor) do
+  #
+  # The event records the URL without its userinfo, as the import does: it
+  # once recorded the URL it was given, so a rebuild from a token-bearing
+  # GitHub URL would have written the token into the event store.
+  def run(remote, witness_account_id, %Actor{} = actor) do
     clone = Path.join(System.tmp_dir!(), "oneiroi-rebuild-#{System.unique_integer([:positive])}")
+    url = Git.public_url(remote)
 
     try do
-      with :ok <- Git.clone(url, clone),
+      with :ok <- Git.clone(remote, clone),
            {attestation, root, sequence} <- attestation(clone),
            :ok <- refuse_if_imported(url, root),
            {:ok, lines} <- read_lines(clone),
@@ -86,8 +91,15 @@ defmodule Oneiroi.SimaQian.Rebuild do
   @doc false
   def refuse_if_imported(url, root) do
     case Scope.platform(fn -> Store.imported(url, root) end) do
-      nil -> :ok
-      _row -> {:error, Error.new(:sima_qian_already_imported, source: url, root: root)}
+      nil ->
+        :ok
+
+      _row ->
+        {:error,
+         Error.new(:sima_qian_already_imported, :sima_qian_rebuild_imported,
+           source: url,
+           root: root
+         )}
     end
   end
 
@@ -135,8 +147,12 @@ defmodule Oneiroi.SimaQian.Rebuild do
   defp append_runs(runs, id) do
     Enum.reduce_while(runs, :ok, fn run, :ok ->
       case append_run(id, run) do
-        :ok -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, {:append, reason}}}
+        :ok ->
+          {:cont, :ok}
+
+        {:error, reason} ->
+          {:halt,
+           {:error, Error.caught(:sima_qian_append_failed, :sima_qian_rebuild_append, reason)}}
       end
     end)
   end
@@ -152,8 +168,12 @@ defmodule Oneiroi.SimaQian.Rebuild do
 
   defp streams_ok(lines) do
     case Enum.find(lines, &(Export.prefix(stream_of(&1)) not in Export.streams())) do
-      nil -> :ok
-      line -> {:error, Error.new(:sima_qian_stream_refused, stream: stream_of(line))}
+      nil ->
+        :ok
+
+      line ->
+        {:error,
+         Error.new(:sima_qian_stream_refused, :sima_qian_rebuild_stream, stream: stream_of(line))}
     end
   end
 
@@ -187,7 +207,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
 
   @doc false
   def import_event(id, url, attestation, root, sequence, actor) do
-    Router.dispatch(%Commands.ImportResident{
+    Router.dispatch_sited(%Commands.ImportResident{
       actor: actor,
       at: Clock.now(),
       id: id,
@@ -200,7 +220,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
 
   @doc false
   def custody(id, witness_account_id, actor) do
-    Router.dispatch(%Commands.TransferCustody{
+    Router.dispatch_sited(%Commands.TransferCustody{
       actor: actor,
       at: Clock.now(),
       id: id,

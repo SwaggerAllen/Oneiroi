@@ -135,8 +135,11 @@ defmodule Oneiroi.Ethos.LaneTest do
 
     # A model answering another width fails the refresh rather than the table.
     Model.embed_width(3)
-    assert {:error, reason} = Ethos.refresh_lane(id, ctx.brain)
-    assert reason =~ "another width than 1536"
+
+    assert {:error, %{kind: :ethos_embedding_mismatched, site: :ethos_lane_vector_width} = e} =
+             Ethos.refresh_lane(id, ctx.brain)
+
+    assert e.details == [width: 1536]
     Model.clear()
     assert {:ok, %{embedded: 1, removed: 0}} = Ethos.refresh_lane(id, ctx.brain)
   end

@@ -153,7 +153,10 @@ defmodule Oneiroi.Brain.IdentityTest do
              Nisaba.spend(id, :witness, :purpose, ~U[2026-10-01 00:00:00.000000Z])
 
     assert [] = Nisaba.spend(id, :resident, :purpose, ~U[2026-10-01 00:00:00.000000Z])
-    assert {:error, :file_unknown} = Oneiroi.Brain.draft(id, "AGENTS.md", "x", ctx.actor)
+
+    assert {:error,
+            %Oneiroi.Brain.Error{kind: :brain_file_unknown, site: :brain_drafting_file_unknown}} =
+             Oneiroi.Brain.draft(id, "AGENTS.md", "x", ctx.actor)
   end
 
   test "the brain names a habit and cites the turn, and the next matching turn is shown how it acts",

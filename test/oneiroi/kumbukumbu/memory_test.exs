@@ -3,6 +3,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
   use ExUnit.Case, async: true
 
   alias Oneiroi.Actor
+  alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Memory
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
@@ -41,13 +42,24 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
   test "a bookmark is added once per number; a blank or long line is refused" do
     assert %Events.BookmarkAdded{number: 1, turns_back: 1} = Memory.execute(%Memory{}, add(1))
     assert [] = Memory.execute(fold([add(1)]), add(1))
-    assert {:error, :line_invalid} = Memory.execute(%Memory{}, add(2, line: "   "))
 
-    assert {:error, :line_invalid} =
+    assert {:error,
+            %Error{kind: :kumbukumbu_line_invalid, site: :kumbukumbu_memory_add_line_invalid}} =
+             Memory.execute(%Memory{}, add(2, line: "   "))
+
+    assert {:error,
+            %Error{kind: :kumbukumbu_line_invalid, site: :kumbukumbu_memory_add_line_invalid}} =
              Memory.execute(%Memory{}, add(2, line: String.duplicate("x", 121)))
 
-    assert {:error, :span_invalid} = Memory.execute(%Memory{}, add(2, turns_back: 0))
-    assert {:error, :register_invalid} = Memory.execute(%Memory{}, add(2, register: "mood"))
+    assert {:error,
+            %Error{kind: :kumbukumbu_span_not_grown, site: :kumbukumbu_memory_add_span_invalid}} =
+             Memory.execute(%Memory{}, add(2, turns_back: 0))
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_register_invalid,
+              site: :kumbukumbu_memory_add_register_invalid
+            }} = Memory.execute(%Memory{}, add(2, register: "mood"))
 
     assert %Events.BookmarkAdded{register: "praise"} =
              Memory.execute(%Memory{}, add(2, register: "praise"))
@@ -66,8 +78,18 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
 
     assert %Events.BookmarkExtended{turns_back: 3} = Memory.execute(m, extend)
     m = fold([add(1), extend])
-    assert {:error, :span_not_grown} = Memory.execute(m, %{extend | turns_back: 2})
-    assert {:error, :no_such_bookmark} = Memory.execute(m, %{extend | number: 9})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_span_not_grown,
+              site: :kumbukumbu_memory_extend_span_not_grown
+            }} = Memory.execute(m, %{extend | turns_back: 2})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_bookmark,
+              site: :kumbukumbu_memory_extend_bookmark_absent
+            }} = Memory.execute(m, %{extend | number: 9})
 
     pin = %Commands.PinBookmark{actor: @witness, at: @at, id: "r1", number: 1}
     assert %Events.BookmarkPinned{number: 1, actor: @witness} = Memory.execute(m, pin)
@@ -96,9 +118,19 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     assert %Events.BookmarkAdded{proposal_ref: "p1", proposed_by: %{kind: "witness", id: "a1"}} =
              Memory.execute(m, add(1, proposal_ref: "p1"))
 
-    assert {:error, :no_such_proposal} = Memory.execute(m, add(1, proposal_ref: "nope"))
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_proposal,
+              site: :kumbukumbu_memory_add_proposal_absent
+            }} = Memory.execute(m, add(1, proposal_ref: "nope"))
+
     accepted = fold([propose, add(1, proposal_ref: "p1")])
-    assert {:error, :no_such_proposal} = Memory.execute(accepted, add(2, proposal_ref: "p1"))
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_proposal,
+              site: :kumbukumbu_memory_add_proposal_absent
+            }} = Memory.execute(accepted, add(2, proposal_ref: "p1"))
 
     decline = %Commands.DeclineBookmarkProposal{
       actor: @resident,
@@ -109,7 +141,12 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     }
 
     assert %Events.BookmarkProposalDeclined{} = Memory.execute(m, decline)
-    assert {:error, :no_such_proposal} = Memory.execute(accepted, decline)
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_proposal,
+              site: :kumbukumbu_memory_decline_proposal_absent
+            }} = Memory.execute(accepted, decline)
   end
 
   test "the tag set is closed: proposed, approved or created, retired; slugs only" do
@@ -122,24 +159,46 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     }
 
     assert %Events.TagProposed{slug: "haven"} = Memory.execute(%Memory{}, propose)
-    assert {:error, :slug_invalid} = Memory.execute(%Memory{}, %{propose | slug: "Not A Slug"})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_slug_invalid,
+              site: :kumbukumbu_memory_propose_tag_slug_invalid
+            }} = Memory.execute(%Memory{}, %{propose | slug: "Not A Slug"})
+
     proposed = fold([propose])
     assert [] = Memory.execute(proposed, propose)
 
     approve = %Commands.ApproveTag{actor: @witness, at: @at, note: "yes", id: "r1", slug: "haven"}
-    assert {:error, :no_such_proposal} = Memory.execute(%Memory{}, approve)
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_proposal,
+              site: :kumbukumbu_memory_approve_tag_proposal_absent
+            }} = Memory.execute(%Memory{}, approve)
+
     assert %Events.TagApproved{} = Memory.execute(proposed, approve)
     active = fold([propose, approve])
-    assert {:error, :tag_exists} = Memory.execute(active, propose)
+
+    assert {:error,
+            %Error{kind: :kumbukumbu_tag_exists, site: :kumbukumbu_memory_propose_tag_exists}} =
+             Memory.execute(active, propose)
 
     create = %Commands.CreateTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
     assert [] = Memory.execute(active, create)
-    assert {:error, :tag_proposed} = Memory.execute(proposed, create)
+
+    assert {:error,
+            %Error{kind: :kumbukumbu_tag_exists, site: :kumbukumbu_memory_create_tag_proposed}} =
+             Memory.execute(proposed, create)
+
     assert %Events.TagCreated{} = Memory.execute(%Memory{}, create)
 
     retire = %Commands.RetireTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
     assert %Events.TagRetired{} = Memory.execute(active, retire)
-    assert {:error, :no_such_tag} = Memory.execute(proposed, retire)
+
+    assert {:error,
+            %Error{kind: :kumbukumbu_no_such_tag, site: :kumbukumbu_memory_retire_tag_absent}} =
+             Memory.execute(proposed, retire)
 
     reject = %Commands.RejectTag{actor: @witness, at: @at, note: "no", id: "r1", slug: "haven"}
     assert %Events.TagRejected{} = Memory.execute(proposed, reject)
@@ -161,9 +220,24 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
 
     assert %Events.TagApplied{target_id: "1"} = Memory.execute(m, apply_tag)
     assert [] = Memory.execute(fold([create, add(1), apply_tag]), apply_tag)
-    assert {:error, :tag_not_active} = Memory.execute(m, %{apply_tag | slug: "other"})
-    assert {:error, :target_invalid} = Memory.execute(m, %{apply_tag | target_kind: "planet"})
-    assert {:error, :target_invalid} = Memory.execute(m, %{apply_tag | target_id: "7"})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_tag_not_active,
+              site: :kumbukumbu_memory_apply_tag_not_active
+            }} = Memory.execute(m, %{apply_tag | slug: "other"})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_target_invalid,
+              site: :kumbukumbu_memory_apply_target_kind_invalid
+            }} = Memory.execute(m, %{apply_tag | target_kind: "planet"})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_target_invalid,
+              site: :kumbukumbu_memory_apply_target_bookmark_absent
+            }} = Memory.execute(m, %{apply_tag | target_id: "7"})
 
     retired =
       fold([
@@ -173,7 +247,11 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
         %Commands.RetireTag{actor: @witness, at: @at, id: "r1", slug: "haven"}
       ])
 
-    assert {:error, :tag_not_active} = Memory.execute(retired, %{apply_tag | target_id: "2"})
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_tag_not_active,
+              site: :kumbukumbu_memory_apply_tag_not_active
+            }} = Memory.execute(retired, %{apply_tag | target_id: "2"})
 
     remove = %Commands.RemoveTagging{
       actor: @resident,
@@ -192,9 +270,24 @@ defmodule Oneiroi.Kumbukumbu.MemoryTest do
     m = fold([add(1)])
     pin = %Commands.PinBookmark{actor: @witness, at: @at, id: "r1", number: 1, evidences: 3}
     assert %Events.BookmarkPinned{number: 1, evidences: 3} = Memory.execute(m, pin)
-    assert {:error, :evidence_invalid} = Memory.execute(m, %{pin | evidences: 0})
-    assert {:error, :evidence_invalid} = Memory.execute(m, %{pin | evidences: "3"})
-    assert {:error, :no_such_bookmark} = Memory.execute(m, %{pin | number: 2})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_evidence_invalid,
+              site: :kumbukumbu_memory_pin_evidence_invalid
+            }} = Memory.execute(m, %{pin | evidences: 0})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_evidence_invalid,
+              site: :kumbukumbu_memory_pin_evidence_invalid
+            }} = Memory.execute(m, %{pin | evidences: "3"})
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_bookmark,
+              site: :kumbukumbu_memory_pin_bookmark_absent
+            }} = Memory.execute(m, %{pin | number: 2})
 
     pinned = fold([add(1), pin])
     assert [] = Memory.execute(pinned, pin)

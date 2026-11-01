@@ -9,6 +9,7 @@ defmodule Oneiroi.Brain.Session do
   use GenServer
 
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Config
 
@@ -59,9 +60,14 @@ defmodule Oneiroi.Brain.Session do
 
       [] ->
         case DynamicSupervisor.start_child(@supervisor, {__MODULE__, {resident_id, session_key}}) do
-          {:ok, pid} -> {:ok, pid}
-          {:error, {:already_started, pid}} -> {:ok, pid}
-          {:error, reason} -> {:error, reason}
+          {:ok, pid} ->
+            {:ok, pid}
+
+          {:error, {:already_started, pid}} ->
+            {:ok, pid}
+
+          {:error, reason} ->
+            {:error, Error.caught(:brain_session_unavailable, :brain_session_not_started, reason)}
         end
     end
   end

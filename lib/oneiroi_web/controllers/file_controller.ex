@@ -75,13 +75,18 @@ defmodule OneiroiWeb.FileController do
 
       {:error, %{kind: _} = e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :not_written, inspect(reason))
     end
   end
 
-  def write(conn, _params), do: problem(conn, 422, :content_required, "content is required")
+  def write(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :content_required,
+        :web_file_write_content_required,
+        "content is required"
+      )
 
   defp propose(conn, _id, _name, _content, nil),
     do:
@@ -89,14 +94,17 @@ defmodule OneiroiWeb.FileController do
         conn,
         422,
         :note_required,
+        :web_file_propose_note_required,
         "after first contact an edit is a proposal and needs a note"
       )
 
   defp propose(conn, id, name, content, note) do
     case AgathosDaimon.propose_edit(id, name, content, note, actor(conn)) do
-      {:ok, ref} -> conn |> put_status(202) |> json(%{ref: ref})
-      {:error, %{kind: _} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :not_proposed, inspect(reason))
+      {:ok, ref} ->
+        conn |> put_status(202) |> json(%{ref: ref})
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -114,13 +122,17 @@ defmodule OneiroiWeb.FileController do
 
   def draft(conn, %{"id" => id, "name" => name, "prompt" => prompt}) when is_binary(prompt) do
     case Oneiroi.Brain.draft(id, name, prompt, actor(conn)) do
-      {:ok, draft} -> json(conn, draft)
-      {:error, %{kind: _} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :not_drafted, inspect(reason))
+      {:ok, draft} ->
+        json(conn, draft)
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
     end
   end
 
-  def draft(conn, _params), do: problem(conn, 422, :prompt_required, "prompt is required")
+  def draft(conn, _params),
+    do:
+      problem(conn, 422, :prompt_required, :web_file_draft_prompt_required, "prompt is required")
 
   operation(:proposals,
     summary: "The open edit proposals awaiting the resident",
@@ -179,7 +191,13 @@ defmodule OneiroiWeb.FileController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_web_file_not_witnessed)
+        )
+        |> halt()
   end
 
   defp soul_line(l, evidence) do

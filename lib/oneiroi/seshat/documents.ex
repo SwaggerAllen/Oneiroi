@@ -194,7 +194,7 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   def publish(_resident_id, _path, _url, %Actor{}),
-    do: {:error, Error.new(:seshat_not_the_witness)}
+    do: {:error, Error.new(:seshat_not_the_witness, :seshat_documents_publish_witness_only)}
 
   @doc "Links a session to a piece as its discussion."
   def discuss(resident_id, path, session_key, %Actor{} = actor) when is_binary(session_key) do
@@ -220,22 +220,20 @@ defmodule Oneiroi.Seshat.Documents do
   @spec hash(binary()) :: String.t()
   def hash(content), do: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
 
-  defp normalize(path) do
-    case Kinds.normalize(path) do
-      {:ok, path} -> {:ok, path}
-      {:error, :path_invalid} -> {:error, Error.new(:seshat_path_invalid, path: inspect(path))}
-    end
-  end
+  defp normalize(path), do: Kinds.normalize(path)
 
   defp writable_kind(path, core?) do
     kind = Kinds.kind_of(path)
 
     cond do
       kind.access != :resident and not core? ->
-        {:error, Error.new(:seshat_kind_not_writable, kind: kind.kind)}
+        {:error,
+         Error.new(:seshat_kind_not_writable, :seshat_documents_kind_not_writable,
+           kind: kind.kind
+         )}
 
       not Kinds.text?(path) ->
-        {:error, Error.new(:seshat_path_invalid, path: path)}
+        {:error, Error.new(:seshat_path_invalid, :seshat_documents_path_not_text, path: path)}
 
       true ->
         {:ok, kind}
@@ -247,40 +245,49 @@ defmodule Oneiroi.Seshat.Documents do
 
     if byte_size(content) <= bound,
       do: :ok,
-      else: {:error, Error.new(:seshat_too_large, bytes: byte_size(content), bound: bound)}
+      else:
+        {:error,
+         Error.new(:seshat_too_large, :seshat_documents_too_large,
+           bytes: byte_size(content),
+           bound: bound
+         )}
   end
 
   defp registered(resident_id, path) do
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
-      nil -> {:error, Error.new(:seshat_no_such_document, path: path)}
-      row -> {:ok, row}
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_documents_not_registered, path: path)}
+
+      row ->
+        {:ok, row}
     end
   end
 
   # sobelow_skip ["Traversal.FileModule"]
   defp read_file(full) do
     case File.read(full) do
-      {:ok, content} -> {:ok, content}
-      {:error, _reason} -> {:error, Error.new(:seshat_no_such_file, path: full)}
+      {:ok, content} ->
+        {:ok, content}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:seshat_no_such_file, :seshat_documents_read_file, reason, path: full)}
     end
   end
 
+  # The aggregate's refusals are sited already and pass; anything else
+  # (the command middleware, the event store) is wrapped here, once.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :no_such_document} ->
-        {:error, Error.new(:seshat_no_such_document, path: command.path)}
+      {:error, %Error{}} = refused ->
+        refused
 
-      {:error, :not_publishable} ->
-        {:error, Error.new(:seshat_not_publishable, path: command.path)}
-
-      {:error, :url_invalid} ->
-        {:error, Error.new(:seshat_url_invalid)}
-
-      {:error, other} ->
-        {:error, other}
+      {:error, reason} ->
+        {:error, Error.caught(:seshat_dispatch_failed, :seshat_documents_dispatch_failed, reason)}
     end
   end
 end

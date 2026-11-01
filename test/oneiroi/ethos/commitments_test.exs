@@ -110,7 +110,9 @@ defmodule Oneiroi.Ethos.CommitmentsTest do
 
     s = Character.apply(%Character{}, Character.execute(%Character{}, make))
     assert [] = Character.execute(s, make)
-    assert {:error, :commitment_invalid} = Character.execute(s, %{make | number: 2, to: " "})
+
+    assert {:error, %{kind: :ethos_commitment_invalid, site: :ethos_make_commitment_invalid}} =
+             Character.execute(s, %{make | number: 2, to: " "})
 
     keep = %Commands.KeepCommitment{
       actor: ctx.brain,
@@ -121,8 +123,16 @@ defmodule Oneiroi.Ethos.CommitmentsTest do
     }
 
     kept = Character.apply(s, Character.execute(s, keep))
-    assert {:error, :commitment_closed} = Character.execute(kept, keep)
-    assert {:error, :no_such_commitment} = Character.execute(kept, %{keep | number: 3})
+
+    assert {:error, %{kind: :ethos_commitment_closed, site: :ethos_open_commitment_closed}} =
+             Character.execute(kept, keep)
+
+    assert {:error,
+            %{
+              kind: :ethos_no_such_commitment,
+              site: :ethos_open_commitment_absent,
+              details: [number: 3]
+            }} = Character.execute(kept, %{keep | number: 3})
   end
 
   test "the brain promises, lists, keeps and is shown what it promised on the next turn", ctx do

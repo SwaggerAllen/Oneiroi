@@ -17,7 +17,8 @@ defmodule Oneiroi.Proteus.Honcho do
   @type card :: [String.t()]
   @type message :: %{peer: peer(), content: String.t(), created_at: DateTime.t()}
   @type conclusion :: %{id: String.t(), content: String.t()}
-  @type failure :: {:transport, term()} | {:rejected, term()}
+  @typedoc "Honcho unreachable or refusing, as the bridge's own sited error."
+  @type failure :: Oneiroi.Proteus.Error.t()
 
   @callback ensure_workspace(workspace()) :: :ok | {:error, failure()}
   @callback ensure_peer(workspace(), peer(), map()) :: :ok | {:error, failure()}

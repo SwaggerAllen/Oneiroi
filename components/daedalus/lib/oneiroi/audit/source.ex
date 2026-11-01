@@ -153,6 +153,7 @@ defmodule Oneiroi.Audit.Source do
   rescue
     error ->
       line = if is_map(error), do: Map.get(error, :line, 0), else: 0
+
       {:error, "#{path}:#{line}: does not parse (#{describe(error)})"}
   end
 

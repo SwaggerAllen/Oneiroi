@@ -22,9 +22,13 @@ defmodule Oneiroi.Gaia.AccountsTest do
 
   test "a wrong password, an unknown email and a case-different email all answer the same way" do
     %{email: email} = Fixtures.account!()
-    assert {:error, :gaia_invalid_credentials} = Gaia.login(email, "wrong", nil)
 
-    assert {:error, :gaia_invalid_credentials} =
+    assert {:error,
+            %Gaia.Error{kind: :gaia_invalid_credentials, site: :gaia_login_credentials_invalid}} =
+             Gaia.login(email, "wrong", nil)
+
+    assert {:error,
+            %Gaia.Error{kind: :gaia_invalid_credentials, site: :gaia_login_credentials_invalid}} =
              Gaia.login("nobody@example.org", Fixtures.password(), nil)
 
     assert {:ok, _raw, _p} = Gaia.login(String.upcase(email), Fixtures.password(), nil)
@@ -35,7 +39,10 @@ defmodule Oneiroi.Gaia.AccountsTest do
   # A zero consistency timeout is that timeout, made on purpose.
   test "credentials that verify and a session the store cannot open answer unavailable, and count nothing" do
     %{email: email} = Fixtures.account!()
-    assert {:error, :gaia_invalid_credentials} = Gaia.login(email, "wrong", nil)
+
+    assert {:error,
+            %Gaia.Error{kind: :gaia_invalid_credentials, site: :gaia_login_credentials_invalid}} =
+             Gaia.login(email, "wrong", nil)
 
     # Unset in test config: restoring is deleting, since a nil timeout is
     # an error and not the default.
@@ -43,7 +50,10 @@ defmodule Oneiroi.Gaia.AccountsTest do
     on_exit(restore)
     Application.put_env(:commanded, :dispatch_consistency_timeout, 0)
 
-    assert {:error, :gaia_session_unavailable} = Gaia.login(email, Fixtures.password(), nil)
+    assert {:error,
+            %Gaia.Error{kind: :gaia_session_unavailable, site: :gaia_login_session_not_opened}} =
+             Gaia.login(email, Fixtures.password(), nil)
+
     restore.()
 
     # The verified password cleared the wrong one, and the unavailable
@@ -70,7 +80,8 @@ defmodule Oneiroi.Gaia.AccountsTest do
 
     assert uri =~ "otpauth://totp/Oneiroi:"
 
-    assert {:error, :gaia_second_factor_required} =
+    assert {:error,
+            %Gaia.Error{kind: :gaia_second_factor_required, site: :gaia_login_code_missing}} =
              Gaia.login(email, Fixtures.password(), nil)
 
     code =
@@ -80,7 +91,8 @@ defmodule Oneiroi.Gaia.AccountsTest do
 
     assert {:ok, _raw, _p} = Gaia.login(email, Fixtures.password(), code)
 
-    assert {:error, :gaia_invalid_credentials} =
+    assert {:error,
+            %Gaia.Error{kind: :gaia_invalid_credentials, site: :gaia_login_credentials_invalid}} =
              Gaia.login(email, Fixtures.password(), "000000")
   end
 
@@ -96,8 +108,12 @@ defmodule Oneiroi.Gaia.AccountsTest do
     %{id: id} = Fixtures.account!()
     actor = Actor.new(:witness, id)
     assert %{present: false, stored_at: nil} = Gaia.key_status(id)
-    assert {:error, :gaia_no_key} = Gaia.key_for(id)
-    assert {:error, :gaia_key_required} = Gaia.store_key(id, "   ", actor)
+
+    assert {:error, %Gaia.Error{kind: :gaia_no_key, site: :gaia_key_for_absent}} =
+             Gaia.key_for(id)
+
+    assert {:error, %Gaia.Error{kind: :gaia_key_required, site: :gaia_store_key_blank}} =
+             Gaia.store_key(id, "   ", actor)
 
     assert :ok = Gaia.store_key(id, "sk-or-first", actor)
     assert %{present: true, stored_at: %DateTime{}} = Gaia.key_status(id)
@@ -114,8 +130,12 @@ defmodule Oneiroi.Gaia.AccountsTest do
     assert Secret.unwrap(secret) == "sk-or-second"
 
     assert :ok = Gaia.revoke_key(id, actor)
-    assert {:error, :gaia_no_key} = Gaia.key_for(id)
-    assert {:error, :gaia_no_key} = Gaia.revoke_key(id, actor)
+
+    assert {:error, %Gaia.Error{kind: :gaia_no_key, site: :gaia_key_for_absent}} =
+             Gaia.key_for(id)
+
+    assert {:error, %Gaia.Error{kind: :gaia_no_key, site: :gaia_account_revoke_key_absent}} =
+             Gaia.revoke_key(id, actor)
   end
 
   test "the throttle doubles from the base and caps at five seconds" do

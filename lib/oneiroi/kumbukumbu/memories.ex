@@ -24,7 +24,6 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
   alias Oneiroi.Kumbukumbu.Madeleine
-  alias Oneiroi.Kumbukumbu.Memory
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
   alias Oneiroi.Kumbukumbu.MemoryRouter, as: Router
   alias Oneiroi.Kumbukumbu.Store
@@ -261,8 +260,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     read =
       Scope.resident(resident_id, fn ->
         case Store.bookmark(number) do
-          nil -> {:error, Error.new(:kumbukumbu_no_such_bookmark, number: number)}
-          b -> {:ok, b, span(b)}
+          nil ->
+            {:error,
+             Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memories_bookmark_absent,
+               number: number
+             )}
+
+          b ->
+            {:ok, b, span(b)}
         end
       end)
 
@@ -362,17 +367,27 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp anchor_at(resident_id, %{session_key: key, anchor_ref: ref})
        when is_binary(key) and is_binary(ref) do
     Scope.resident(resident_id, fn ->
-      with %{} <- Store.session(key) || {:error, :no_such_session},
+      with %{} <- Store.session(key) || :no_such_session,
            [first | _] <- Store.turn_messages(ref) do
         {:ok, first.sent_at}
       else
-        [] -> {:error, Error.new(:kumbukumbu_no_such_turn, turn_ref: ref)}
-        {:error, :no_such_session} -> {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+        [] ->
+          {:error,
+           Error.new(:kumbukumbu_no_such_turn, :kumbukumbu_memories_anchor_turn_absent,
+             turn_ref: ref
+           )}
+
+        :no_such_session ->
+          {:error,
+           Error.new(:kumbukumbu_no_such_session, :kumbukumbu_memories_anchor_session_absent,
+             key: key
+           )}
       end
     end)
   end
 
-  defp anchor_at(_resident_id, _attrs), do: {:error, Error.new(:kumbukumbu_target_invalid)}
+  defp anchor_at(_resident_id, _attrs),
+    do: {:error, Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memories_anchor_unnamed)}
 
   defp target_ok(_resident_id, "bookmark", _id), do: :ok
 
@@ -380,7 +395,12 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     Scope.resident(resident_id, fn ->
       if Store.session(to_string(key)),
         do: :ok,
-        else: {:error, Error.new(:kumbukumbu_target_invalid, kind: "conversation", id: key)}
+        else:
+          {:error,
+           Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memories_target_session_absent,
+             kind: "conversation",
+             id: key
+           )}
     end)
   end
 
@@ -388,12 +408,22 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     Scope.resident(resident_id, fn ->
       if Store.turn_messages(to_string(ref)) != [],
         do: :ok,
-        else: {:error, Error.new(:kumbukumbu_target_invalid, kind: "turn", id: ref)}
+        else:
+          {:error,
+           Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memories_target_turn_absent,
+             kind: "turn",
+             id: ref
+           )}
     end)
   end
 
   defp target_ok(_resident_id, kind, id),
-    do: {:error, Error.new(:kumbukumbu_target_invalid, kind: kind, id: id)}
+    do:
+      {:error,
+       Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memories_target_kind_unknown,
+         kind: kind,
+         id: id
+       )}
 
   defp decide_tag(module, extra, resident_id, slug, actor) do
     with :ok <- witness_only(actor) do
@@ -403,68 +433,45 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:kumbukumbu_not_the_resident, :kumbukumbu_memories_resident_only)}
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:kumbukumbu_not_the_witness)}
 
-  # The aggregate's reasons, translated to the boundary's vocabulary.
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:kumbukumbu_not_the_witness, :kumbukumbu_memories_witness_only)}
+
+  # The aggregate's refusals arrive sited (`Memory`); what else a
+  # dispatch answers, the actor middleware's refusal or the store's own
+  # failure, is wrapped here, once, where it is first matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, reason} when is_atom(reason) ->
-        {:error, translate(reason, command)}
+      {:error, %Error{}} = refused ->
+        refused
 
-      {:error, other} ->
-        {:error, other}
+      {:error, {:refused, problems} = refusal} ->
+        {:error,
+         Error.caught(
+           :kumbukumbu_command_refused,
+           :kumbukumbu_memories_command_refused,
+           refusal,
+           problems: problems
+         )}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(
+           :kumbukumbu_dispatch_failed,
+           :kumbukumbu_memories_dispatch_failed,
+           reason,
+           command: command.__struct__
+         )}
     end
   end
-
-  defp translate(:line_invalid, _c),
-    do: Error.new(:kumbukumbu_line_invalid, limit: Memory.line_limit())
-
-  defp translate(:span_invalid, c),
-    do: Error.new(:kumbukumbu_span_not_grown, turns_back: c.turns_back)
-
-  defp translate(:span_not_grown, c),
-    do: Error.new(:kumbukumbu_span_not_grown, turns_back: c.turns_back)
-
-  defp translate(:no_such_bookmark, c),
-    do: Error.new(:kumbukumbu_no_such_bookmark, number: c.number)
-
-  defp translate(:evidence_invalid, _c), do: Error.new(:kumbukumbu_evidence_invalid)
-
-  defp translate(:register_invalid, _c),
-    do: Error.new(:kumbukumbu_register_invalid, registers: Oneiroi.Register.all())
-
-  defp translate(:no_such_proposal, c),
-    do: Error.new(:kumbukumbu_no_such_proposal, ref: ref_of(c))
-
-  defp translate(:slug_invalid, c), do: Error.new(:kumbukumbu_slug_invalid, slug: c.slug)
-  defp translate(:tag_exists, c), do: Error.new(:kumbukumbu_tag_exists, slug: c.slug)
-
-  defp translate(:tag_proposed, c),
-    do: Error.new(:kumbukumbu_tag_exists, slug: c.slug, state: "proposed")
-
-  defp translate(:tag_not_active, c), do: Error.new(:kumbukumbu_tag_not_active, slug: c.slug)
-  defp translate(:no_such_tag, c), do: Error.new(:kumbukumbu_no_such_tag, slug: c.slug)
-
-  defp translate(:target_invalid, c),
-    do: Error.new(:kumbukumbu_target_invalid, kind: c.target_kind, id: c.target_id)
-
-  defp translate(:revision_kind_invalid, _c), do: Error.new(:kumbukumbu_revision_kind_invalid)
-  defp translate(:revision_text_invalid, _c), do: Error.new(:kumbukumbu_revision_text_invalid)
-
-  defp translate(:no_such_revision, c),
-    do: Error.new(:kumbukumbu_no_such_revision, number: c.number)
-
-  defp translate(other, _c), do: other
-
-  defp ref_of(%{proposal_ref: ref}), do: ref
-  defp ref_of(%{ref: ref}), do: ref
-  defp ref_of(%{slug: slug}), do: slug
 
   @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
   def turn_messages(resident_id, turn_ref),

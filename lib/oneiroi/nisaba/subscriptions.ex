@@ -72,7 +72,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
         do: AgathosDaimon.resume(resident_id, "subscription renewed", actor),
         else: :ok
     else
-      nil -> {:error, Error.new(:nisaba_no_subscription)}
+      nil -> {:error, Error.new(:nisaba_no_subscription, :nisaba_renew_no_subscription)}
       other -> other
     end
   end
@@ -122,7 +122,7 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
       with {:ok, _} <- dispatch(command), do: :ok
     else
-      nil -> {:error, Error.new(:nisaba_no_subscription)}
+      nil -> {:error, Error.new(:nisaba_no_subscription, :nisaba_cancel_no_subscription)}
       other -> other
     end
   end
@@ -146,10 +146,11 @@ defmodule Oneiroi.Nisaba.Subscriptions do
   defp bucket_ok(axis, bucket) do
     cond do
       axis not in Insurance.axes() ->
-        {:error, Error.new(:nisaba_bucket_invalid, axis: axis)}
+        {:error, Error.new(:nisaba_bucket_invalid, :nisaba_prepay_axis_unknown, axis: axis)}
 
       not Insurance.on_axis?(bucket, axis) ->
-        {:error, Error.new(:nisaba_bucket_invalid, bucket: bucket)}
+        {:error,
+         Error.new(:nisaba_bucket_invalid, :nisaba_prepay_bucket_off_axis, bucket: bucket)}
 
       true ->
         :ok
@@ -271,20 +272,28 @@ defmodule Oneiroi.Nisaba.Subscriptions do
   defp max_instant(a, b), do: if(DateTime.compare(a, b) == :gt, do: a, else: b)
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:nisaba_not_the_witness)}
+
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:nisaba_not_the_witness, :nisaba_subscriptions_witness_only)}
 
   defp witness_or_job(%Actor{kind: kind}) when kind in [:witness, :job, :platform], do: :ok
-  defp witness_or_job(%Actor{}), do: {:error, Error.new(:nisaba_not_the_witness)}
 
+  defp witness_or_job(%Actor{}),
+    do: {:error, Error.new(:nisaba_not_the_witness, :nisaba_subscriptions_witness_or_job)}
+
+  # The aggregate's refusals are sited already and pass; anything else
+  # (the command middleware, the event store) is wrapped here, once.
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, :plan_invalid} -> {:error, Error.new(:nisaba_plan_invalid)}
-      {:error, :price_invalid} -> {:error, Error.new(:nisaba_price_invalid)}
-      {:error, :period_invalid} -> {:error, Error.new(:nisaba_period_invalid)}
-      {:error, :not_started} -> {:error, Error.new(:nisaba_no_subscription)}
-      {:error, :cancelled} -> {:error, Error.new(:nisaba_cancelled)}
-      {:error, reason} -> {:error, reason}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %Error{}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:nisaba_dispatch_failed, :nisaba_subscriptions_dispatch_failed, reason)}
     end
   end
 end

@@ -5,6 +5,7 @@ defmodule Oneiroi.Gaia.AccountTest do
   alias Oneiroi.Actor
   alias Oneiroi.Gaia.Account
   alias Oneiroi.Gaia.Commands
+  alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Events
 
   @at ~U[2026-10-26 12:00:00Z]
@@ -30,7 +31,7 @@ defmodule Oneiroi.Gaia.AccountTest do
                password_hash: "h"
              })
 
-    assert {:error, :account_exists} =
+    assert {:error, %Error{kind: :gaia_account_exists, site: :gaia_account_create_exists}} =
              Account.execute(created(), %Commands.CreateAccount{
                actor: @actor,
                at: @at,
@@ -39,7 +40,7 @@ defmodule Oneiroi.Gaia.AccountTest do
                password_hash: "h"
              })
 
-    assert {:error, :no_such_account} =
+    assert {:error, %Error{kind: :gaia_no_such_account, site: :gaia_account_absent}} =
              Account.execute(%Account{}, %Commands.OpenSession{
                actor: @actor,
                at: @at,
@@ -67,7 +68,7 @@ defmodule Oneiroi.Gaia.AccountTest do
                session_hash: "s"
              })
 
-    assert {:error, :no_such_session} =
+    assert {:error, %Error{kind: :gaia_not_a_principal, site: :gaia_account_close_session_absent}} =
              Account.execute(created(), %Commands.CloseSession{
                actor: @actor,
                at: @at,
@@ -75,7 +76,7 @@ defmodule Oneiroi.Gaia.AccountTest do
                session_hash: "s"
              })
 
-    assert {:error, :no_such_token} =
+    assert {:error, %Error{kind: :gaia_no_such_token, site: :gaia_account_revoke_token_absent}} =
              Account.execute(created(), %Commands.RevokeToken{
                actor: @actor,
                at: @at,

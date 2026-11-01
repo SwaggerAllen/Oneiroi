@@ -77,6 +77,7 @@ defmodule Oneiroi.Nisaba.Insurance do
   def cast_list(raw) when is_binary(raw) do
     case raw |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) do
       [_, _, _] = three -> {:ok, three}
+      # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
       other -> {:error, "is #{inspect(other)}, expected three comma-separated values"}
     end
   end
@@ -88,6 +89,7 @@ defmodule Oneiroi.Nisaba.Insurance do
 
       if Enum.all?(parsed, &match?({n, ""} when n > 0, &1)),
         do: {:ok, Enum.map(parsed, &elem(&1, 0))},
+        # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
         else: {:error, "is #{inspect(raw)}, expected three positive integers"}
     end
   end

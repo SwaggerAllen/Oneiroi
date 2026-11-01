@@ -14,7 +14,13 @@ config :oneiroi, serve: true
 # function call here fails the image at its first step. The tuple names
 # the module and the logger calls it once the handler starts. The test
 # environment never saw this because its deps were already compiled.
+#
+# `Oneiroi.Apsu.LogRedacting` wraps it, as in every environment: the
+# credential backstop scrubs the line LoggerJSON produced.
 config :logger, :default_handler,
-  formatter: {LoggerJSON.Formatters.Basic, metadata: [:component, :trace_id, :request_id]}
+  formatter:
+    {Oneiroi.Apsu.LogRedacting,
+     {LoggerJSON.Formatters.Basic,
+      metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]}}
 
 config :logger, level: :info

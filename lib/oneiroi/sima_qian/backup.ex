@@ -17,6 +17,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Vault
   alias Oneiroi.Config
+  alias Oneiroi.Config.Secret
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
@@ -33,7 +34,7 @@ defmodule Oneiroi.SimaQian.Backup do
   ]
 
   def set_remote(resident_id, url, token, %Actor{} = actor) when is_binary(url) do
-    ciphertext = (token || "") |> Vault.encrypt() |> Base.encode64()
+    ciphertext = (Secret.reveal(token) || "") |> Vault.encrypt() |> Base.encode64()
 
     command = %Commands.SetRecordsRemote{
       actor: actor,
@@ -43,7 +44,7 @@ defmodule Oneiroi.SimaQian.Backup do
       token_ciphertext: ciphertext
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   def run(resident_id, %Actor{} = actor) do
@@ -71,8 +72,11 @@ defmodule Oneiroi.SimaQian.Backup do
         do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
 
       case Git.stray(dir, Enum.flat_map(@classes, &elem(&1, 1))) do
-        [] -> {:ok, %{through: export.through, root: root, commits: commits}}
-        stray -> {:error, Error.new(:sima_qian_stray_files, paths: stray)}
+        [] ->
+          {:ok, %{through: export.through, root: root, commits: commits}}
+
+        stray ->
+          {:error, Error.new(:sima_qian_stray_files, :sima_qian_backup_stray, paths: stray)}
       end
     end
   end
@@ -100,7 +104,7 @@ defmodule Oneiroi.SimaQian.Backup do
           commit: row.last_backup_commit
         }
 
-        with {:ok, _} <- Router.dispatch(command), do: {:ok, :mismatch}
+        with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, :mismatch}
     end
   end
 
@@ -117,7 +121,7 @@ defmodule Oneiroi.SimaQian.Backup do
   end
 
   defp record_export(resident_id, export, actor) do
-    Router.dispatch(%Commands.RecordExport{
+    Router.dispatch_sited(%Commands.RecordExport{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
@@ -139,7 +143,7 @@ defmodule Oneiroi.SimaQian.Backup do
            ) do
         {:ok, :nothing} -> {:cont, {:ok, acc}}
         {:ok, sha} -> {:cont, {:ok, acc ++ [{class, sha}]}}
-        {:error, reason} -> {:halt, {:error, {:git, reason}}}
+        {:error, _git} = failed -> {:halt, failed}
       end
     end)
   end
@@ -166,7 +170,7 @@ defmodule Oneiroi.SimaQian.Backup do
   defp record_backup(resident_id, through, root, commits, actor) do
     {_class, sha} = List.last(commits)
 
-    Router.dispatch(%Commands.RecordBackup{
+    Router.dispatch_sited(%Commands.RecordBackup{
       actor: actor,
       at: Clock.now(),
       id: resident_id,

@@ -23,7 +23,11 @@ defmodule Oneiroi.Component.APITest do
     end
 
     defexport fail do
-      {:error, __MODULE__.Error.new(:exporting_missing)}
+      {:error, __MODULE__.Error.new(:exporting_missing, :exporting_test_fail)}
+    end
+
+    defexport fail_bare do
+      {:error, :not_found}
     end
 
     defexport nest do
@@ -85,6 +89,7 @@ defmodule Oneiroi.Component.APITest do
              {:ping, 0},
              {:metadata, 0},
              {:fail, 0},
+             {:fail_bare, 0},
              {:nest, 0}
            ]
   end
@@ -136,7 +141,7 @@ defmodule Oneiroi.Component.APITest do
       assert {:error, %{kind: :exporting_missing}} = Exporting.fail()
 
       assert_received {:telemetry, [:oneiroi, :exporting, :fail, :stop],
-                       %{error_kind: :exporting_missing}}
+                       %{error_kind: :exporting_missing, error_site: :exporting_test_fail}}
     end
 
     test "everything else emits nothing at all" do

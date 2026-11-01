@@ -53,6 +53,33 @@ defmodule Oneiroi.Error do
       (conventions §2); a mechanism whose adoption trips it is not a
       mechanism.
 
+  ## Every error carries its site
+
+  `kind` is what went wrong, in the vocabulary a client and an operator
+  share: one kind is built in many places. `site` is where: an atom,
+  prefixed with the owning component's slug, written once in the whole
+  project at the one line that builds the error or catches the failure
+  it wraps. An operator holding a response or a log line greps the site
+  and lands on that line.
+
+  The failure this prevents: on 2026-11-01 the first real import
+  answered a bare 500. The cause was found only by reading the service
+  log by timestamp, and several producers of one kind meant even a
+  well-formed error could not say which of them it came from.
+
+  `new/3` builds an error this code decided on. `caught/4` wraps a
+  failure that did not start here: an exception, an exit, a library's
+  `{:error, reason}`. It records the cause's *class* (`describe/1`): the
+  exception module, the bare atom, a tuple's tag. Never its message or
+  payload, which is where a credential or another tenant's data rides.
+  The crash report that leaked a token on 2026-11-01 printed exactly
+  that.
+
+  `Oneiroi.Component.API.returned/3` can refuse an export's `{:error, _}`
+  that carries none, as the project configures it. A project's audit can
+  hold the sites to literal, prefixed and unique: Oneiroi's Apsu
+  registers that check as a policy (systems/daedalus.md #8).
+
   ## Remedy presence is not re-checked here
 
   `remedy:` is required by the registry row, so the composer has already
@@ -68,7 +95,7 @@ defmodule Oneiroi.Error do
   composition, which conventions §13 defers.
   """
 
-  @fields [:kind, :meaning, :remedy, :runbook, :admin, :details]
+  @fields [:kind, :site, :meaning, :remedy, :runbook, :admin, :details, :cause]
 
   @doc "The struct fields every component error carries, in order."
   @spec fields() :: [atom()]
@@ -80,17 +107,21 @@ defmodule Oneiroi.Error do
   The generated `new/2` delegates here so the resolution rule has one
   implementation rather than one per adopting module.
   """
-  @spec build!(module(), module(), atom(), keyword()) :: struct()
-  def build!(struct_module, component, kind, details) do
+  @spec build!(module(), module(), atom(), atom(), keyword(), atom() | nil) :: struct()
+  def build!(struct_module, component, kind, site, details, cause \\ nil) do
+    site!(component, site)
+
     case Enum.find(declared(component), &match?({^kind, _meaning, _opts}, &1)) do
       {^kind, meaning, opts} ->
         struct!(struct_module,
           kind: kind,
+          site: site,
           meaning: meaning,
           remedy: Keyword.get(opts, :remedy),
           runbook: Keyword.get(opts, :runbook),
           admin: Keyword.get(opts, :admin),
-          details: details
+          details: details,
+          cause: cause
         )
 
       nil ->
@@ -98,6 +129,63 @@ defmodule Oneiroi.Error do
               "#{inspect(kind)} is not a kind #{inspect(component)} declares in errors/0 " <>
                 "(declared: #{inspect(kinds(component))})"
     end
+  end
+
+  # The audit holds sites to literal, prefixed and unique; this holds the
+  # prefix at runtime too, so a site built from a variable cannot borrow
+  # another component's name.
+  defp site!(component, site) do
+    prefix = "#{component.slug()}_"
+
+    unless is_atom(site) and site not in [nil, true, false] and
+             String.starts_with?(Atom.to_string(site), prefix) do
+      raise ArgumentError,
+            "#{inspect(site)} is not a site for #{inspect(component)}: " <>
+              "a site is an atom starting #{prefix}, written once at the line that builds the error"
+    end
+  end
+
+  @doc """
+  A failure's class, safe to log and to answer with: an exception's
+  module, a bare atom, a tuple's leading atom, a struct's module, or,
+  for one of this platform's own errors, its site.
+  Everything else is `:term`. Never a message, a payload or a field,
+  because those are where a credential or a tenant's data rides.
+  """
+  @spec describe(term()) :: atom()
+  def describe(%{__exception__: true, __struct__: module}), do: module
+  # One of ours, wrapped again: its site is the more useful cause, and it
+  # chains one site to the next.
+  def describe(%{__struct__: _module, site: site, kind: kind} = error)
+      when is_atom(site) and not is_nil(site) and is_atom(kind) do
+    if sited?(error), do: site, else: error.__struct__
+  end
+
+  def describe(%{__struct__: module}), do: module
+  def describe(atom) when is_atom(atom), do: atom
+
+  def describe(tuple) when is_tuple(tuple) and tuple_size(tuple) > 0 and is_atom(elem(tuple, 0)),
+    do: elem(tuple, 0)
+
+  def describe(_other), do: :term
+
+  @doc "Whether `term` is a component error carrying its site."
+  @spec sited?(term()) :: boolean()
+  def sited?(%{__struct__: module, site: site, kind: kind})
+      when is_atom(site) and not is_nil(site) and is_atom(kind) do
+    function_exported?(module, :component, 0)
+  end
+
+  def sited?(_term), do: false
+
+  @doc """
+  The Logger metadata an error contributes: its kind, its site and its
+  cause's class. What a log line about an error carries instead of the
+  error itself; the trace id rides the process metadata already.
+  """
+  @spec metadata(struct()) :: keyword()
+  def metadata(%{kind: kind, site: site} = error) do
+    [error_kind: kind, error_site: site, error_cause: Map.get(error, :cause)]
   end
 
   @doc "The kinds `component` declares, in declaration order."
@@ -121,12 +209,14 @@ defmodule Oneiroi.Error do
     quote do
       @oneiroi_error_component unquote(component)
 
-      @enforce_keys [:kind]
+      @enforce_keys [:kind, :site]
       defstruct unquote(@fields)
 
       @typedoc "One of the component's declared boundary failures."
       @type t :: %__MODULE__{
               kind: atom(),
+              site: atom(),
+              cause: atom() | nil,
               meaning: String.t(),
               remedy: String.t(),
               runbook: String.t() | nil,
@@ -143,15 +233,32 @@ defmodule Oneiroi.Error do
       def kinds, do: Oneiroi.Error.kinds(@oneiroi_error_component)
 
       @doc """
-      Builds a declared error.
+      Builds a declared error at `site`, the atom naming this line.
 
       `details` is caller context — identifiers, counts, the scope the
       failure happened in — and never a value the registry already
       carries, nor a secret (`Oneiroi.Config.Secret`).
       """
-      @spec new(atom(), keyword()) :: t()
-      def new(kind, details \\ []) do
-        Oneiroi.Error.build!(__MODULE__, @oneiroi_error_component, kind, details)
+      @spec new(atom(), atom(), keyword()) :: t()
+      def new(kind, site, details \\ []) do
+        Oneiroi.Error.build!(__MODULE__, @oneiroi_error_component, kind, site, details)
+      end
+
+      @doc """
+      Wraps a failure that did not start here (an exception, an exit, a
+      library's `{:error, reason}`) as a declared error at `site`.
+      Only the cause's class is kept (`Oneiroi.Error.describe/1`).
+      """
+      @spec caught(atom(), atom(), term(), keyword()) :: t()
+      def caught(kind, site, cause, details \\ []) do
+        Oneiroi.Error.build!(
+          __MODULE__,
+          @oneiroi_error_component,
+          kind,
+          site,
+          details,
+          Oneiroi.Error.describe(cause)
+        )
       end
     end
   end

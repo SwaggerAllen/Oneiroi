@@ -100,6 +100,8 @@ defmodule Oneiroi.Sunna do
   # shows, so an alias here is the cycle the port exists to avoid.
   @doc false
   def cast_wake("brain"), do: {:ok, :"Elixir.Oneiroi.Brain"}
+
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
   def cast_wake(other), do: {:error, "is #{inspect(other)}, expected \"brain\""}
 
   @impl Oneiroi.Component
@@ -142,7 +144,15 @@ defmodule Oneiroi.Sunna do
        remedy: "say which"},
       {:sunna_no_such_checkin, "no check-in has that key", remedy: "read the schedule"},
       {:sunna_no_such_date, "no date has that number", remedy: "read the dates"},
-      {:sunna_day_invalid, "a day is an ISO date", remedy: "name the day as YYYY-MM-DD"}
+      {:sunna_day_invalid, "a day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
+      {:sunna_no_such_resident, "the schedule woke a resident the registry does not hold",
+       remedy: "the tick reads the registry first; one that vanished between is a bug to report"},
+      {:sunna_wake_failed, "the wake port failed to wake the brain for a check-in or free time",
+       remedy: "the next due wake tries again; a repeat is the brain's to look at"},
+      {:sunna_free_time_failed, "free time could not be opened and was recorded as failed",
+       remedy: "read the day's reason; tomorrow's free time runs again"},
+      {:sunna_dispatch_failed, "the schedule's command was not recorded on its stream",
+       remedy: "try again; a repeat is a fault to report"}
     ]
   end
 

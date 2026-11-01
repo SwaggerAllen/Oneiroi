@@ -12,6 +12,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   is harmless.
   """
 
+  alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
 
@@ -55,22 +56,46 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def execute(%__MODULE__{} = m, %Commands.AddBookmark{} = c) do
     cond do
-      Map.has_key?(m.bookmarks, c.number) -> []
-      not line_ok?(c.line) -> {:error, :line_invalid}
-      not span_ok?(c.turns_back) -> {:error, :span_invalid}
-      not Oneiroi.Register.ok?(c.register) -> {:error, :register_invalid}
-      true -> with_proposal(m, c)
+      Map.has_key?(m.bookmarks, c.number) ->
+        []
+
+      not line_ok?(c.line) ->
+        {:error,
+         Error.new(:kumbukumbu_line_invalid, :kumbukumbu_memory_add_line_invalid,
+           limit: @line_limit
+         )}
+
+      not span_ok?(c.turns_back) ->
+        {:error,
+         Error.new(:kumbukumbu_span_not_grown, :kumbukumbu_memory_add_span_invalid,
+           turns_back: c.turns_back
+         )}
+
+      not Oneiroi.Register.ok?(c.register) ->
+        {:error,
+         Error.new(:kumbukumbu_register_invalid, :kumbukumbu_memory_add_register_invalid,
+           registers: Oneiroi.Register.all()
+         )}
+
+      true ->
+        with_proposal(m, c)
     end
   end
 
   def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.ExtendBookmark{} = c) do
     case Map.fetch(bookmarks, c.number) do
       :error ->
-        {:error, :no_such_bookmark}
+        {:error,
+         Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memory_extend_bookmark_absent,
+           number: c.number
+         )}
 
       {:ok, %{turns_back: current}}
       when not is_integer(c.turns_back) or c.turns_back <= current ->
-        {:error, :span_not_grown}
+        {:error,
+         Error.new(:kumbukumbu_span_not_grown, :kumbukumbu_memory_extend_span_not_grown,
+           turns_back: c.turns_back
+         )}
 
       {:ok, _} ->
         %Events.BookmarkExtended{
@@ -90,10 +115,16 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
     cond do
       is_nil(bookmark) ->
-        {:error, :no_such_bookmark}
+        {:error,
+         Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memory_pin_bookmark_absent,
+           number: c.number
+         )}
 
       not evidence_ok?(c.evidences) ->
-        {:error, :evidence_invalid}
+        {:error,
+         Error.new(:kumbukumbu_evidence_invalid, :kumbukumbu_memory_pin_evidence_invalid,
+           number: c.number
+         )}
 
       bookmark.pinned and Map.get(bookmark, :evidences) == c.evidences ->
         []
@@ -111,9 +142,17 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.UnpinBookmark{} = c) do
     case Map.fetch(bookmarks, c.number) do
-      :error -> {:error, :no_such_bookmark}
-      {:ok, %{pinned: false}} -> []
-      {:ok, _} -> %Events.BookmarkUnpinned{actor: c.actor, at: c.at, id: c.id, number: c.number}
+      :error ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memory_unpin_bookmark_absent,
+           number: c.number
+         )}
+
+      {:ok, %{pinned: false}} ->
+        []
+
+      {:ok, _} ->
+        %Events.BookmarkUnpinned{actor: c.actor, at: c.at, id: c.id, number: c.number}
     end
   end
 
@@ -123,7 +162,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
         []
 
       not line_ok?(c.line) ->
-        {:error, :line_invalid}
+        {:error,
+         Error.new(:kumbukumbu_line_invalid, :kumbukumbu_memory_propose_line_invalid,
+           limit: @line_limit
+         )}
 
       true ->
         %Events.BookmarkProposed{
@@ -151,7 +193,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
         }
 
       _other ->
-        {:error, :no_such_proposal}
+        {:error,
+         Error.new(:kumbukumbu_no_such_proposal, :kumbukumbu_memory_decline_proposal_absent,
+           ref: c.ref
+         )}
     end
   end
 
@@ -159,50 +204,96 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def execute(%__MODULE__{tags: tags}, %Commands.ProposeTag{} = c) do
     cond do
-      not slug_ok?(c.slug) -> {:error, :slug_invalid}
-      Map.get(tags, c.slug) == :proposed -> []
-      Map.get(tags, c.slug) == :active -> {:error, :tag_exists}
-      true -> %Events.TagProposed{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: c.slug}
+      not slug_ok?(c.slug) ->
+        {:error,
+         Error.new(:kumbukumbu_slug_invalid, :kumbukumbu_memory_propose_tag_slug_invalid,
+           slug: c.slug
+         )}
+
+      Map.get(tags, c.slug) == :proposed ->
+        []
+
+      Map.get(tags, c.slug) == :active ->
+        {:error,
+         Error.new(:kumbukumbu_tag_exists, :kumbukumbu_memory_propose_tag_exists, slug: c.slug)}
+
+      true ->
+        %Events.TagProposed{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: c.slug}
     end
   end
 
   def execute(%__MODULE__{tags: tags}, %Commands.ApproveTag{} = c) do
     if Map.get(tags, c.slug) == :proposed,
       do: %Events.TagApproved{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: c.slug},
-      else: {:error, :no_such_proposal}
+      else:
+        {:error,
+         Error.new(:kumbukumbu_no_such_proposal, :kumbukumbu_memory_approve_tag_proposal_absent,
+           ref: c.slug
+         )}
   end
 
   def execute(%__MODULE__{tags: tags}, %Commands.RejectTag{} = c) do
     if Map.get(tags, c.slug) == :proposed,
       do: %Events.TagRejected{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: c.slug},
-      else: {:error, :no_such_proposal}
+      else:
+        {:error,
+         Error.new(:kumbukumbu_no_such_proposal, :kumbukumbu_memory_reject_tag_proposal_absent,
+           ref: c.slug
+         )}
   end
 
   def execute(%__MODULE__{tags: tags}, %Commands.CreateTag{} = c) do
     cond do
-      not slug_ok?(c.slug) -> {:error, :slug_invalid}
-      Map.get(tags, c.slug) == :active -> []
-      Map.get(tags, c.slug) == :proposed -> {:error, :tag_proposed}
-      true -> %Events.TagCreated{actor: c.actor, at: c.at, id: c.id, slug: c.slug}
+      not slug_ok?(c.slug) ->
+        {:error,
+         Error.new(:kumbukumbu_slug_invalid, :kumbukumbu_memory_create_tag_slug_invalid,
+           slug: c.slug
+         )}
+
+      Map.get(tags, c.slug) == :active ->
+        []
+
+      Map.get(tags, c.slug) == :proposed ->
+        {:error,
+         Error.new(:kumbukumbu_tag_exists, :kumbukumbu_memory_create_tag_proposed,
+           slug: c.slug,
+           state: "proposed"
+         )}
+
+      true ->
+        %Events.TagCreated{actor: c.actor, at: c.at, id: c.id, slug: c.slug}
     end
   end
 
   def execute(%__MODULE__{tags: tags}, %Commands.RetireTag{} = c) do
     if Map.get(tags, c.slug) == :active,
       do: %Events.TagRetired{actor: c.actor, at: c.at, id: c.id, slug: c.slug},
-      else: {:error, :no_such_tag}
+      else:
+        {:error,
+         Error.new(:kumbukumbu_no_such_tag, :kumbukumbu_memory_retire_tag_absent, slug: c.slug)}
   end
 
   def execute(%__MODULE__{} = m, %Commands.ApplyTag{} = c) do
     cond do
       Map.get(m.tags, c.slug) != :active ->
-        {:error, :tag_not_active}
+        {:error,
+         Error.new(:kumbukumbu_tag_not_active, :kumbukumbu_memory_apply_tag_not_active,
+           slug: c.slug
+         )}
 
       c.target_kind not in @target_kinds ->
-        {:error, :target_invalid}
+        {:error,
+         Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memory_apply_target_kind_invalid,
+           kind: c.target_kind,
+           id: c.target_id
+         )}
 
       c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
-        {:error, :target_invalid}
+        {:error,
+         Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memory_apply_target_bookmark_absent,
+           kind: c.target_kind,
+           id: c.target_id
+         )}
 
       MapSet.member?(m.taggings, tagging_key(c)) ->
         []
@@ -239,16 +330,30 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   def execute(%__MODULE__{} = m, %Commands.Revise{} = c) do
     cond do
       c.kind not in @revision_kinds ->
-        {:error, :revision_kind_invalid}
+        {:error,
+         Error.new(:kumbukumbu_revision_kind_invalid, :kumbukumbu_memory_revise_kind_invalid,
+           kinds: @revision_kinds
+         )}
 
       not revision_text_ok?(c.text) ->
-        {:error, :revision_text_invalid}
+        {:error,
+         Error.new(:kumbukumbu_revision_text_invalid, :kumbukumbu_memory_revise_text_invalid,
+           limit: @revision_limit
+         )}
 
       c.target_kind not in @target_kinds ->
-        {:error, :target_invalid}
+        {:error,
+         Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memory_revise_target_kind_invalid,
+           kind: c.target_kind,
+           id: c.target_id
+         )}
 
       c.target_kind == "bookmark" and not Map.has_key?(m.bookmarks, number(c.target_id)) ->
-        {:error, :target_invalid}
+        {:error,
+         Error.new(:kumbukumbu_target_invalid, :kumbukumbu_memory_revise_target_bookmark_absent,
+           kind: c.target_kind,
+           id: c.target_id
+         )}
 
       c.kind == "stance" and c.actor.kind == :witness ->
         revision_event(Events.RevisionProposed, c, m.revision_count + 1)
@@ -274,7 +379,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
         }
 
       _other ->
-        {:error, :no_such_revision}
+        {:error,
+         Error.new(:kumbukumbu_no_such_revision, :kumbukumbu_memory_accept_revision_absent,
+           number: c.number
+         )}
     end
   end
 
@@ -290,7 +398,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
         }
 
       _other ->
-        {:error, :no_such_revision}
+        {:error,
+         Error.new(:kumbukumbu_no_such_revision, :kumbukumbu_memory_decline_revision_absent,
+           number: c.number
+         )}
     end
   end
 
@@ -377,8 +488,14 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   defp with_proposal(m, c) do
     case Map.get(m.proposals, c.proposal_ref) do
-      %{state: :open} = proposal -> bookmark_added(c, proposal)
-      _other -> {:error, :no_such_proposal}
+      %{state: :open} = proposal ->
+        bookmark_added(c, proposal)
+
+      _other ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_proposal, :kumbukumbu_memory_add_proposal_absent,
+           ref: c.proposal_ref
+         )}
     end
   end
 

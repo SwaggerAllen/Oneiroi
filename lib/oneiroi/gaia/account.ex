@@ -6,6 +6,7 @@ defmodule Oneiroi.Gaia.Account do
   """
 
   alias Oneiroi.Gaia.Commands
+  alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Events
 
   defstruct [
@@ -33,9 +34,13 @@ defmodule Oneiroi.Gaia.Account do
     }
   end
 
-  def execute(%__MODULE__{}, %Commands.CreateAccount{}), do: {:error, :account_exists}
+  def execute(%__MODULE__{id: id}, %Commands.CreateAccount{}),
+    do: {:error, Error.new(:gaia_account_exists, :gaia_account_create_exists, account_id: id)}
 
-  def execute(%__MODULE__{id: nil}, _command), do: {:error, :no_such_account}
+  def execute(%__MODULE__{id: nil}, command),
+    do:
+      {:error,
+       Error.new(:gaia_no_such_account, :gaia_account_absent, account_id: Map.get(command, :id))}
 
   def execute(%__MODULE__{} = _a, %Commands.EnrollSecondFactor{} = c) do
     %Events.SecondFactorEnrolled{
@@ -59,7 +64,7 @@ defmodule Oneiroi.Gaia.Account do
   def execute(%__MODULE__{sessions: sessions}, %Commands.CloseSession{} = c) do
     if MapSet.member?(sessions, c.session_hash),
       do: %Events.SessionClosed{actor: c.actor, at: c.at, id: c.id, session_hash: c.session_hash},
-      else: {:error, :no_such_session}
+      else: {:error, Error.new(:gaia_not_a_principal, :gaia_account_close_session_absent)}
   end
 
   def execute(%__MODULE__{}, %Commands.IssueToken{} = c) do
@@ -75,7 +80,7 @@ defmodule Oneiroi.Gaia.Account do
   def execute(%__MODULE__{tokens: tokens}, %Commands.RevokeToken{} = c) do
     if MapSet.member?(tokens, c.token_hash),
       do: %Events.TokenRevoked{actor: c.actor, at: c.at, id: c.id, token_hash: c.token_hash},
-      else: {:error, :no_such_token}
+      else: {:error, Error.new(:gaia_no_such_token, :gaia_account_revoke_token_absent)}
   end
 
   # Storing over a stored key is the rotation; the log keeps both.
@@ -86,7 +91,8 @@ defmodule Oneiroi.Gaia.Account do
   def execute(%__MODULE__{key?: true}, %Commands.RevokeKey{} = c),
     do: %Events.KeyRevoked{actor: c.actor, at: c.at, id: c.id}
 
-  def execute(%__MODULE__{}, %Commands.RevokeKey{}), do: {:error, :no_key}
+  def execute(%__MODULE__{}, %Commands.RevokeKey{}),
+    do: {:error, Error.new(:gaia_no_key, :gaia_account_revoke_key_absent)}
 
   # Idempotent on purpose: the witnessing handler replays (conventions §7).
   def execute(%__MODULE__{witnessings: s}, %Commands.StartWitnessing{} = c) do

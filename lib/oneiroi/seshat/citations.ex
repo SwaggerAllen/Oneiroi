@@ -168,7 +168,7 @@ defmodule Oneiroi.Seshat.Citations do
 
   @doc "The review copy: content, status, and the references resolved (F25)."
   def review(resident_id, path) do
-    with {:ok, path} <- Kinds.normalize(path) |> path_error(path),
+    with {:ok, path} <- Kinds.normalize(path),
          {:ok, row} <- registered(resident_id, path),
          {:ok, content} <- read(resident_id, path) do
       references = references(resident_id, path)
@@ -194,7 +194,7 @@ defmodule Oneiroi.Seshat.Citations do
 
   @doc "The copy for publishing: frontmatter and citations stripped."
   def publish_copy(resident_id, path) do
-    with {:ok, path} <- Kinds.normalize(path) |> path_error(path),
+    with {:ok, path} <- Kinds.normalize(path),
          {:ok, _row} <- registered(resident_id, path),
          {:ok, content} <- read(resident_id, path) do
       {_front, body} = frontmatter(content)
@@ -375,15 +375,14 @@ defmodule Oneiroi.Seshat.Citations do
     end
   end
 
-  defp path_error({:ok, path}, _given), do: {:ok, path}
-
-  defp path_error({:error, :path_invalid}, given),
-    do: {:error, Error.new(:seshat_path_invalid, path: inspect(given))}
-
   defp registered(resident_id, path) do
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
-      nil -> {:error, Error.new(:seshat_no_such_document, path: path)}
-      row -> {:ok, row}
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_citations_not_registered, path: path)}
+
+      row ->
+        {:ok, row}
     end
   end
 
@@ -391,8 +390,12 @@ defmodule Oneiroi.Seshat.Citations do
   defp read(resident_id, path) do
     with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       case File.read(Path.join(dir, path)) do
-        {:ok, content} -> {:ok, content}
-        {:error, _} -> {:error, Error.new(:seshat_no_such_file, path: path)}
+        {:ok, content} ->
+          {:ok, content}
+
+        {:error, reason} ->
+          {:error,
+           Error.caught(:seshat_no_such_file, :seshat_citations_read_file, reason, path: path)}
       end
     end
   end

@@ -18,6 +18,9 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
   def before_dispatch(%Pipeline{command: command} = pipeline) do
     case problems(command) do
       [] -> pipeline
+      # The pipeline's response, not an error leaving a boundary: every
+      # system's dispatch wraps it once with caught/4 at its own site.
+      # oneiroi:allow error_site
       problems -> pipeline |> respond({:error, {:refused, problems}}) |> halt()
     end
   end

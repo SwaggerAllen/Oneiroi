@@ -42,12 +42,13 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
             Enum.each(flags, &raise_flag(resident_id, ref, &1, model))
             record(resident_id, ref, length(conclusions), length(flags), model, summary, actor)
 
-          {:error, reason} ->
-            fail(resident_id, ref, reason, actor)
+          {:error, failure} ->
+            fail(resident_id, ref, failure, actor)
         end
 
       {:error, reason} ->
-        fail(resident_id, ref, reason, actor)
+        failure = Error.caught(:eunomia_audit_unread, :eunomia_audit_conclusions_failed, reason)
+        fail(resident_id, ref, failure, actor)
     end
   end
 
@@ -78,8 +79,12 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
     request = Request.new(model, [prompt, %{role: :user, content: "Your audit?"}])
 
     case Nisaba.call(resident_id, :judge, request, Judge.actor(model)) do
-      {:ok, %Result{content: content}} -> parse(content || "", conclusions)
-      {:error, reason} -> {:error, reason}
+      {:ok, %Result{content: content}} ->
+        parse(content || "", conclusions)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:eunomia_judge_call_failed, :eunomia_audit_judge_call_failed, reason)}
     end
   end
 
@@ -108,7 +113,10 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
         {:ok, found, summary}
 
       {n, _} ->
-        {:error, "the reply flagged conclusion #{n}, which it was not shown"}
+        {:error,
+         Error.new(:eunomia_audit_failed, :eunomia_audit_conclusion_unshown,
+           reason: "the reply flagged conclusion #{n}, which it was not shown"
+         )}
     end
   end
 
@@ -141,19 +149,18 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
     with {:ok, _} <- dispatch(command), do: {:ok, ref}
   end
 
-  defp fail(resident_id, ref, reason, actor) do
-    text = reason_text(reason)
-
+  # The failure arrives sited: the parse's, or the call's or the read's
+  # wrapped where it was first matched.
+  defp fail(resident_id, ref, failure, actor) do
     command = %Commands.FailAudit{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       ref: ref,
-      reason: text
+      reason: Judgements.reason_text(failure)
     }
 
-    with {:ok, _} <- dispatch(command),
-         do: {:error, Error.new(:eunomia_audit_failed, reason: text)}
+    with {:ok, _} <- dispatch(command), do: {:error, failure}
   end
 
   @doc "The witness approves a flag: the conclusion is deleted from Honcho, then the flag is closed with the note."
@@ -204,26 +211,37 @@ defmodule Oneiroi.Eunomia.MemoryAudit do
 
   defp open_flag(resident_id, ref) do
     case Scope.resident(resident_id, fn -> Enum.find(Store.audit_flags(), &(&1.ref == ref)) end) do
-      nil -> {:error, Error.new(:eunomia_no_such_flag, ref: ref)}
-      %{decision: nil} = flag -> {:ok, flag}
-      _decided -> {:error, Error.new(:eunomia_flag_decided, ref: ref)}
+      nil ->
+        {:error, Error.new(:eunomia_no_such_flag, :eunomia_audit_flag_absent, ref: ref)}
+
+      %{decision: nil} = flag ->
+        {:ok, flag}
+
+      _decided ->
+        {:error, Error.new(:eunomia_flag_decided, :eunomia_audit_flag_decided, ref: ref)}
     end
   end
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_witness)}
+
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:eunomia_not_the_witness, :eunomia_audit_not_the_witness)}
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
-  defp reason_text(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
-  defp reason_text(text) when is_binary(text), do: text
-  defp reason_text(other), do: other |> inspect() |> String.slice(0, 200)
-
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, :no_such_flag} -> {:error, Error.new(:eunomia_no_such_flag, ref: command.ref)}
-      {:error, reason} -> {:error, reason}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %{site: _}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_audit_dispatch, reason)}
     end
   end
 end

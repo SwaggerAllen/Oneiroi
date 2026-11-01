@@ -56,7 +56,10 @@ defmodule Oneiroi.Seshat.Index do
             actor
           )
 
-          {:error, Error.new(:seshat_index_failed, reason: reason_text(reason))}
+          {:error,
+           Error.caught(:seshat_index_failed, :seshat_index_run_failed, reason,
+             reason: reason_text(reason)
+           )}
       end
     end
   end
@@ -195,11 +198,15 @@ defmodule Oneiroi.Seshat.Index do
     with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor) do
       cond do
         length(vectors) != length(texts) ->
-          {:error, "the provider answered #{length(vectors)} vectors for #{length(texts)} chunks"}
+          {:error,
+           Error.new(:seshat_embedding_mismatched, :seshat_index_vector_count,
+             vectors: length(vectors),
+             chunks: length(texts)
+           )}
 
         Enum.any?(vectors, &(length(&1) != width)) ->
           {:error,
-           "the provider answered a width other than #{width}; the column is #{width} wide"}
+           Error.new(:seshat_embedding_mismatched, :seshat_index_vector_width, width: width)}
 
         true ->
           {:ok, vectors}

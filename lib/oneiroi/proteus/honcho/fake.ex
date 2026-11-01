@@ -7,6 +7,8 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   """
   @behaviour Oneiroi.Proteus.Honcho
 
+  alias Oneiroi.Proteus.Error
+
   @table :proteus_honcho_fake
   @fail_key :proteus_honcho_fail
 
@@ -114,8 +116,14 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
 
   defp scripted(ws) do
     case Process.get(@fail_key) || get({ws, :fail, :fail}, nil) do
-      nil -> :ok
-      kind -> {:error, {kind, :scripted}}
+      nil ->
+        :ok
+
+      :transport ->
+        {:error, Error.caught(:proteus_honcho_unreachable, :proteus_fake_unreachable, :scripted)}
+
+      :rejected ->
+        {:error, Error.caught(:proteus_honcho_rejected, :proteus_fake_rejected, :scripted)}
     end
   end
 
@@ -139,7 +147,12 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
         try do
           :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
         rescue
-          ArgumentError -> @table
+          # Another creator got there first, which is the table made;
+          # any other badarg is raised again.
+          error in ArgumentError ->
+            if :ets.whereis(@table) == :undefined,
+              do: reraise(error, __STACKTRACE__),
+              else: @table
         end
 
       _ref ->

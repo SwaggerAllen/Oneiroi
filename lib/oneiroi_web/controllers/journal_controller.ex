@@ -25,8 +25,15 @@ defmodule OneiroiWeb.JournalController do
 
   def show(conn, %{"id" => id, "day" => day}) do
     case Seshat.journal_day(id, day) do
-      nil -> error(conn, 404, Seshat.Error.new(:seshat_no_such_day, day: day))
-      %{entries: entries} = d -> json(conn, %{d | entries: Enum.map(entries, &entry/1)})
+      nil ->
+        error(
+          conn,
+          404,
+          Seshat.Error.new(:seshat_no_such_day, :seshat_journal_controller_day_absent, day: day)
+        )
+
+      %{entries: entries} = d ->
+        json(conn, %{d | entries: Enum.map(entries, &entry/1)})
     end
   end
 
@@ -72,8 +79,18 @@ defmodule OneiroiWeb.JournalController do
 
   def done(conn, %{"id" => id, "day" => day, "number" => number}) do
     case Integer.parse(number) do
-      {n, ""} -> respond(conn, Seshat.journal_done(id, day, n, actor(conn)))
-      _other -> error(conn, 404, Seshat.Error.new(:seshat_no_such_todo, day: day, number: number))
+      {n, ""} ->
+        respond(conn, Seshat.journal_done(id, day, n, actor(conn)))
+
+      _other ->
+        error(
+          conn,
+          404,
+          Seshat.Error.new(:seshat_no_such_todo, :seshat_journal_controller_todo_absent,
+            day: day,
+            number: number
+          )
+        )
     end
   end
 
@@ -91,11 +108,19 @@ defmodule OneiroiWeb.JournalController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_journal_not_witnessed
+          )
+        )
+        |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
   defp respond(conn, {:error, %{kind: :seshat_no_such_todo} = e}), do: error(conn, 404, e)
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
 end

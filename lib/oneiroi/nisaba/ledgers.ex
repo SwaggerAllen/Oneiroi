@@ -29,13 +29,15 @@ defmodule Oneiroi.Nisaba.Ledgers do
   def set_budget(resident_id, purpose, cap_nanos, period, %Actor{} = actor) do
     cond do
       purpose not in Purpose.all() ->
-        {:error, Error.new(:nisaba_unknown_purpose, purpose: purpose)}
+        {:error,
+         Error.new(:nisaba_unknown_purpose, :nisaba_ledgers_budget_purpose, purpose: purpose)}
 
       period not in Period.all() ->
-        {:error, :period_invalid}
+        {:error,
+         Error.new(:nisaba_budget_period_invalid, :nisaba_ledgers_budget_period, purpose: purpose)}
 
       not (is_nil(cap_nanos) or (is_integer(cap_nanos) and cap_nanos >= 0)) ->
-        {:error, :cap_invalid}
+        {:error, Error.new(:nisaba_cap_invalid, :nisaba_ledgers_budget_cap, purpose: purpose)}
 
       true ->
         command = %Commands.SetBudget{
@@ -47,7 +49,14 @@ defmodule Oneiroi.Nisaba.Ledgers do
           period: period
         }
 
-        with {:ok, _} <- Router.dispatch(command), do: :ok
+        case Router.dispatch(command) do
+          {:ok, _} ->
+            :ok
+
+          {:error, reason} ->
+            {:error,
+             Error.caught(:nisaba_dispatch_failed, :nisaba_ledgers_set_budget_dispatch, reason)}
+        end
     end
   end
 
@@ -124,13 +133,15 @@ defmodule Oneiroi.Nisaba.Ledgers do
   defp purpose_ok(purpose) do
     if purpose in Purpose.all(),
       do: :ok,
-      else: {:error, Error.new(:nisaba_unknown_purpose, purpose: purpose)}
+      else:
+        {:error,
+         Error.new(:nisaba_unknown_purpose, :nisaba_ledgers_call_purpose, purpose: purpose)}
   end
 
   defp witness_of(resident_id) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
       {:ok, %{account_id: id}} when is_binary(id) -> {:ok, id}
-      _other -> {:error, Error.new(:nisaba_no_witness)}
+      _other -> {:error, Error.new(:nisaba_no_witness, :nisaba_ledgers_witness_absent)}
     end
   end
 
@@ -168,9 +179,14 @@ defmodule Oneiroi.Nisaba.Ledgers do
       })
 
     case name do
-      "chat" -> under_cap(name, policy.witness_nanos_week || 0, "week", now)
-      "free_time" -> under_cap(name, policy.free_time_nanos_week || 0, "week", now)
-      _other -> {:error, Error.new(:nisaba_lapsed, purpose: name)}
+      "chat" ->
+        under_cap(name, policy.witness_nanos_week || 0, "week", now)
+
+      "free_time" ->
+        under_cap(name, policy.free_time_nanos_week || 0, "week", now)
+
+      _other ->
+        {:error, Error.new(:nisaba_lapsed, :nisaba_ledgers_lapsed_uncovered, purpose: name)}
     end
   end
 
@@ -178,7 +194,12 @@ defmodule Oneiroi.Nisaba.Ledgers do
     {from, to} = Period.range(Period.parse(period) || :month, now)
 
     if Store.spent(name, from, to) >= cap,
-      do: {:error, Error.new(:nisaba_budget_exceeded, purpose: name, period: period)},
+      do:
+        {:error,
+         Error.new(:nisaba_budget_exceeded, :nisaba_ledgers_budget_spent,
+           purpose: name,
+           period: period
+         )},
       else: :ok
   end
 
@@ -187,11 +208,38 @@ defmodule Oneiroi.Nisaba.Ledgers do
   defp taxonomy({:ok, %Result{}} = ok), do: ok
   defp taxonomy({:ok, %Embedding{}} = ok), do: ok
 
-  defp taxonomy({:error, {:transport, reason}}),
-    do: {:error, Error.new(:nisaba_provider_failed, reason: reason)}
+  # The adapters answer sited errors; they pass. A reply a test scripts
+  # in the port's older tagged shape (`Fake.script/2`) is wrapped here,
+  # once, as the adapter would have answered it: the status and the
+  # provider's words kept, since the brain shows them (brain #39), and
+  # anything else of the reason only by its class.
+  defp taxonomy({:error, %Error{}} = failed), do: failed
 
-  defp taxonomy({:error, {:schema_invalid, reason}}),
-    do: {:error, Error.new(:nisaba_request_refused, reason: reason)}
+  defp taxonomy({:error, {:transport, detail} = reason}),
+    do:
+      {:error,
+       Error.caught(
+         :nisaba_provider_failed,
+         :nisaba_ledgers_tagged_transport,
+         reason,
+         status(detail)
+       )}
+
+  defp taxonomy({:error, {:schema_invalid, detail} = reason}),
+    do:
+      {:error,
+       Error.caught(
+         :nisaba_request_refused,
+         :nisaba_ledgers_tagged_refused,
+         reason,
+         status(detail)
+       )}
+
+  defp taxonomy({:error, reason}),
+    do: {:error, Error.caught(:nisaba_provider_failed, :nisaba_ledgers_provider_unsited, reason)}
+
+  defp status({:status, _status, message} = reason) when is_binary(message), do: [reason: reason]
+  defp status(_other), do: []
 
   # A completion or an embedding: both carry a model and a usage, and the
   # ledger records them the same way (an embedding has no completion).
@@ -214,13 +262,15 @@ defmodule Oneiroi.Nisaba.Ledgers do
         :ok
 
       {:error, reason} ->
-        # Nothing content-bearing: the purpose and the failure, never the request.
+        e = Error.caught(:nisaba_not_recorded, :nisaba_ledgers_record_dispatch, reason)
+
+        # Nothing content-bearing: the purpose and the failure's class, never the request.
         Logger.error(
-          "nisaba: a model call for #{purpose} was made and not recorded (#{inspect(reason)})",
-          component: "nisaba"
+          "nisaba: a model call for #{purpose} was made and not recorded",
+          [component: "nisaba"] ++ Oneiroi.Error.metadata(e)
         )
 
-        {:error, Error.new(:nisaba_not_recorded)}
+        {:error, e}
     end
   end
 

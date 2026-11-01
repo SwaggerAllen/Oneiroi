@@ -40,15 +40,17 @@ defmodule Oneiroi.Nisaba.SubscriptionTest do
       )
 
     assert %Events.Started{plan: "core"} = Subscription.execute(%Subscription{}, start)
-    assert {:error, :plan_invalid} = Subscription.execute(%Subscription{}, %{start | plan: " "})
 
-    assert {:error, :price_invalid} =
+    assert {:error, %{kind: :nisaba_plan_invalid, site: :nisaba_start_plan_invalid}} =
+             Subscription.execute(%Subscription{}, %{start | plan: " "})
+
+    assert {:error, %{kind: :nisaba_price_invalid, site: :nisaba_start_price_invalid}} =
              Subscription.execute(%Subscription{}, %{start | price_nanos: -1})
 
-    assert {:error, :period_invalid} =
+    assert {:error, %{kind: :nisaba_period_invalid, site: :nisaba_start_period_days_invalid}} =
              Subscription.execute(%Subscription{}, %{start | period_days: 0})
 
-    assert {:error, :not_started} =
+    assert {:error, %{kind: :nisaba_no_subscription, site: :nisaba_subscription_not_started}} =
              Subscription.execute(%Subscription{}, cmd(Commands.Renew, renews_at: @at))
 
     s = started()
@@ -66,14 +68,19 @@ defmodule Oneiroi.Nisaba.SubscriptionTest do
     s = evolve(s, Subscription.execute(s, cmd(Commands.Renew, renews_at: @at)))
     assert s.state == :active
 
-    assert {:error, :period_invalid} =
+    assert {:error, %{kind: :nisaba_period_invalid, site: :nisaba_cancel_custody_due_invalid}} =
              Subscription.execute(s, cmd(Commands.Cancel, custody_due_at: nil, note: "x"))
 
     cancel = cmd(Commands.Cancel, custody_due_at: @at, note: "moving on")
     assert %Events.Cancelled{note: "moving on"} = Subscription.execute(s, cancel)
     s = evolve(s, Subscription.execute(s, cancel))
-    assert {:error, :cancelled} = Subscription.execute(s, cmd(Commands.Renew, renews_at: @at))
-    assert {:error, :cancelled} = Subscription.execute(s, cmd(Commands.Lapse, reason: "x"))
+
+    assert {:error, %{kind: :nisaba_cancelled, site: :nisaba_subscription_cancelled}} =
+             Subscription.execute(s, cmd(Commands.Renew, renews_at: @at))
+
+    assert {:error, %{kind: :nisaba_cancelled}} =
+             Subscription.execute(s, cmd(Commands.Lapse, reason: "x"))
+
     assert %Events.LapseTold{} = Subscription.execute(s, cmd(Commands.RecordLapseTold, []))
   end
 

@@ -5,7 +5,6 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   alias Oneiroi.AgathosDaimon.AdapterPrincipal
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Error
-  alias Oneiroi.AgathosDaimon.Resident
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
   alias Oneiroi.Apsu.Clock
@@ -15,10 +14,18 @@ defmodule Oneiroi.AgathosDaimon.Residents do
 
   def create(name, slug, witness_account_id, %Actor{} = actor, kind \\ "resident") do
     cond do
-      not is_binary(name) or String.trim(name) == "" -> {:error, :name_required}
-      not (is_binary(slug) and Regex.match?(@slug, slug)) -> {:error, :slug_invalid}
-      Scope.platform(fn -> Store.slug_taken?(slug) end) -> {:error, :agathos_daimon_slug_taken}
-      true -> dispatch_create(name, slug, witness_account_id, actor, kind)
+      not is_binary(name) or String.trim(name) == "" ->
+        {:error, Error.new(:agathos_daimon_name_required, :agathos_daimon_residents_create_name)}
+
+      not (is_binary(slug) and Regex.match?(@slug, slug)) ->
+        {:error, Error.new(:agathos_daimon_slug_invalid, :agathos_daimon_residents_create_slug)}
+
+      Scope.platform(fn -> Store.slug_taken?(slug) end) ->
+        {:error,
+         Error.new(:agathos_daimon_slug_taken, :agathos_daimon_residents_create_slug_taken)}
+
+      true ->
+        dispatch_create(name, slug, witness_account_id, actor, kind)
     end
   end
 
@@ -35,7 +42,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       kind: kind
     }
 
-    with {:ok, _events} <- Router.dispatch(command), do: {:ok, id}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: {:ok, id}
   end
 
   def for_witness(account_id), do: Scope.account(account_id, fn -> Store.all() end)
@@ -51,28 +58,20 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   def lapse(id, reason, %Actor{} = actor) do
     command = %Commands.LapseResident{actor: actor, at: Clock.now(), id: id, reason: reason}
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :not_active} -> {:error, Error.new(:agathos_daimon_not_active)}
-      other -> other
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Resumes a lapsed resident; idempotent on one already active."
   def resume(id, reason, %Actor{} = actor) do
     command = %Commands.ResumeResident{actor: actor, at: Clock.now(), id: id, reason: reason}
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :not_lapsed} -> {:error, Error.new(:agathos_daimon_not_lapsed)}
-      other -> other
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Transfers custody with a note: a decision (spec §6.2)."
   def transfer_custody(id, to, note, %Actor{} = actor) do
     command = %Commands.TransferCustody{actor: actor, at: Clock.now(), note: note, id: id, to: to}
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Every resident, under the platform scope by name."
@@ -84,10 +83,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   def mint_id(id, kind, %Actor{} = actor) when is_binary(kind) do
     command = %Commands.MintId{actor: actor, at: Clock.now(), id: id, kind: kind}
 
-    case Router.dispatch(command) do
-      {:ok, [%{number: number}]} -> {:ok, number}
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, [%{number: number}]} <- Router.dispatch_sited(command), do: {:ok, number}
   end
 
   @doc "Pins the chat model (spec §6.4): `reason` is `run` for a regression favourite, `witness` otherwise."
@@ -100,19 +96,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       reason: reason
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} ->
-        :ok
-
-      {:error, :model_invalid} ->
-        {:error, Error.new(:agathos_daimon_model_invalid)}
-
-      {:error, :reason_invalid} ->
-        {:error, Error.new(:agathos_daimon_model_invalid, reason: reason)}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   # ---- the self-conversation (spec §12, P41) ----
@@ -121,19 +105,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   def write_self_letter(id, text, %Actor{} = actor) do
     command = %Commands.WriteSelfLetter{actor: actor, at: Clock.now(), id: id, text: text}
 
-    case Router.dispatch(command) do
-      {:ok, events} ->
-        {:ok, events |> Enum.find(&match?(%{number: _}, &1)) |> Map.fetch!(:number)}
-
-      {:error, :not_the_resident} ->
-        {:error, Error.new(:agathos_daimon_not_the_resident)}
-
-      {:error, :letter_invalid} ->
-        {:error, Error.new(:agathos_daimon_letter_invalid)}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    with {:ok, events} <- Router.dispatch_sited(command),
+         do: {:ok, events |> Enum.find(&match?(%{number: _}, &1)) |> Map.fetch!(:number)}
   end
 
   @doc "The letters, by number, with their delivery: the resident's own read and the platform's, which leave no receipt."
@@ -153,7 +126,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     numbers = Enum.map(letters, & &1.number)
     command = %Commands.ReadSelfLetters{actor: actor, at: Clock.now(), id: id, numbers: numbers}
 
-    with {:ok, _} <- Router.dispatch(command),
+    with {:ok, _} <- Router.dispatch_sited(command),
          do: {:ok, %{letters: letters, receipts: self_letter_receipts(id)}}
   end
 
@@ -179,7 +152,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
         numbers: numbers
       }
 
-      with {:ok, _} <- Router.dispatch(command), do: :ok
+      with {:ok, _} <- Router.dispatch_sited(command), do: :ok
     end
   end
 
@@ -193,13 +166,13 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       model: model
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Records that the resident was told of the model change; idempotent."
   def model_told(id, %Actor{} = actor) do
     command = %Commands.RecordModelTold{actor: actor, at: Clock.now(), id: id, model: nil}
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon #30)."
@@ -223,11 +196,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       translated: translated
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :not_imported} -> {:error, Error.new(:agathos_daimon_not_imported)}
-      other -> other
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Records a fixture's ask to continue (spec §12, P57); a resident who is not a fixture is refused."
@@ -243,35 +212,42 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       judge_model: ask.judge_model
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :not_a_fixture_ask} -> {:error, Error.new(:agathos_daimon_not_a_fixture)}
-      other -> other
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Records that the resident was told where it woke; idempotent."
   def import_told(id, %Actor{} = actor) do
     command = %Commands.RecordImportTold{actor: actor, at: Clock.now(), id: id}
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "Sets the resident's time zone (spec §6.7): an IANA name the database knows, checked by shifting a known instant into it."
   def set_timezone(id, zone, %Actor{} = actor) do
     with :ok <- zone_ok(zone) do
       command = %Commands.SetTimezone{actor: actor, at: Clock.now(), id: id, timezone: zone}
-      with {:ok, _} <- Router.dispatch(command), do: :ok
+      with {:ok, _} <- Router.dispatch_sited(command), do: :ok
     end
   end
 
   defp zone_ok(zone) when is_binary(zone) do
     case DateTime.shift_zone(~U[2026-01-01 00:00:00Z], zone) do
-      {:ok, _} -> :ok
-      {:error, _} -> {:error, Error.new(:agathos_daimon_timezone_invalid)}
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(
+           :agathos_daimon_timezone_invalid,
+           :agathos_daimon_residents_zone_unknown,
+           reason
+         )}
     end
   end
 
-  defp zone_ok(_zone), do: {:error, Error.new(:agathos_daimon_timezone_invalid)}
+  defp zone_ok(_zone),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_timezone_invalid, :agathos_daimon_residents_zone_not_text)}
 
   @doc "Registers an adapter with a role; returns the token, shown once. Registering again rotates it."
   def register_adapter(id, adapter, role, %Actor{} = actor) do
@@ -286,34 +262,13 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       token_hash: hash(raw)
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} ->
-        {:ok, raw}
-
-      {:error, :adapter_invalid} ->
-        {:error, Error.new(:agathos_daimon_adapter_invalid, adapter: adapter)}
-
-      {:error, :role_invalid} ->
-        {:error, Error.new(:agathos_daimon_adapter_invalid, role: role, roles: Resident.roles())}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, raw}
   end
 
   def revoke_adapter(id, adapter, %Actor{} = actor) do
     command = %Commands.RevokeAdapter{actor: actor, at: Clock.now(), id: id, adapter: adapter}
 
-    case Router.dispatch(command) do
-      {:ok, _} ->
-        :ok
-
-      {:error, :no_such_adapter} ->
-        {:error, Error.new(:agathos_daimon_no_such_adapter, adapter: adapter)}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
   @doc "The adapter a bearer token names, or `:error`. A platform-scope read by name (gaia #8)."

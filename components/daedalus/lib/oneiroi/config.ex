@@ -325,6 +325,7 @@ defmodule Oneiroi.Config do
 
   defp apply_cast(:boolean, "true"), do: {:ok, true}
   defp apply_cast(:boolean, "false"), do: {:ok, false}
+
   defp apply_cast(:boolean, _raw), do: {:error, ~s(is not "true" or "false")}
 
   defp apply_cast(fun, raw) when is_function(fun, 1) do

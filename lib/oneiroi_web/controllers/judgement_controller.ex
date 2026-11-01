@@ -94,7 +94,14 @@ defmodule OneiroiWeb.JudgementController do
     do: respond(conn, Eunomia.resolve_prediction(id, integer(number), outcome, note, actor(conn)))
 
   def resolve(conn, _params),
-    do: problem(conn, 422, :note_required, "outcome and note are required")
+    do:
+      problem(
+        conn,
+        422,
+        :note_required,
+        :web_judgement_resolve_note_required,
+        "outcome and note are required"
+      )
 
   operation(:nights,
     summary: "The nightly passes, newest first",
@@ -205,7 +212,13 @@ defmodule OneiroiWeb.JudgementController do
 
   def decide_flag(conn, _params),
     do:
-      problem(conn, 422, :decision_required, "decision (approve or delete) and note are required")
+      problem(
+        conn,
+        422,
+        :decision_required,
+        :web_judgement_decide_flag_decision_required,
+        "decision (approve or delete) and note are required"
+      )
 
   # ---- shapes ----
 
@@ -328,7 +341,16 @@ defmodule OneiroiWeb.JudgementController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_judgement_not_witnessed
+          )
+        )
+        |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
@@ -343,7 +365,6 @@ defmodule OneiroiWeb.JudgementController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
 
   defp integer(n) when is_integer(n), do: n
 

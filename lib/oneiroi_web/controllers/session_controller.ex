@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.SessionController do
   use OneiroiWeb, :controller
 
-  alias Oneiroi.Gaia.Error, as: IdentityError
+  alias Oneiroi.Config.Secret
   alias OpenApiSpex.Schema
 
   tags(["identity"])
@@ -32,28 +32,38 @@ defmodule OneiroiWeb.SessionController do
   )
 
   def create(conn, %{"email" => email, "password" => password} = params) do
-    case Oneiroi.Gaia.login(email, password, params["code"]) do
+    # Wrapped here, at the edge, so no frame between this line and the
+    # password check holds them plain (a crash report prints a frame's
+    # arguments; conventions §10).
+    code = params["code"] && Secret.wrap(params["code"])
+
+    case Oneiroi.Gaia.login(email, Secret.wrap(password), code) do
       {:ok, raw, principal} ->
         conn
         |> put_session(:sid, raw)
         |> put_status(201)
         |> json(%{account_id: principal.account_id, email: principal.email})
 
-      {:error, :gaia_second_factor_required} ->
-        error(conn, 401, IdentityError.new(:gaia_second_factor_required))
-
-      {:error, :gaia_session_unavailable} ->
+      {:error, %{kind: :gaia_session_unavailable} = e} ->
         conn
         |> put_resp_header("retry-after", "5")
-        |> error(503, IdentityError.new(:gaia_session_unavailable))
+        |> error(503, e)
 
-      {:error, _reason} ->
-        error(conn, 401, IdentityError.new(:gaia_invalid_credentials))
+      # Invalid credentials, or the second factor's code still to send.
+      {:error, e} ->
+        error(conn, 401, e)
     end
   end
 
   def create(conn, _params),
-    do: problem(conn, 422, :credentials_required, "email and password are required")
+    do:
+      problem(
+        conn,
+        422,
+        :credentials_required,
+        :web_session_create_credentials_required,
+        "email and password are required"
+      )
 
   operation(:delete, summary: "Log out: close the session", responses: [no_content: "closed"])
 

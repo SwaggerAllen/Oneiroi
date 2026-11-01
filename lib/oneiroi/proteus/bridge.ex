@@ -8,6 +8,7 @@ defmodule Oneiroi.Proteus.Bridge do
   """
 
   alias Oneiroi.Proteus.Commands
+  alias Oneiroi.Proteus.Error
   alias Oneiroi.Proteus.Events
 
   defstruct [:id, :workspace, peers: MapSet.new(), card_hash: nil, synced: MapSet.new()]
@@ -24,7 +25,8 @@ defmodule Oneiroi.Proteus.Bridge do
 
   def execute(%__MODULE__{}, %Commands.Provision{}), do: []
 
-  def execute(%__MODULE__{workspace: nil}, _command), do: {:error, :not_provisioned}
+  def execute(%__MODULE__{workspace: nil}, _command),
+    do: {:error, Error.new(:proteus_not_provisioned, :proteus_bridge_workspace_absent)}
 
   def execute(%__MODULE__{peers: peers}, %Commands.AddPeer{} = c) do
     if MapSet.member?(peers, c.peer),

@@ -168,7 +168,9 @@ defmodule Oneiroi.Eunomia.WashTest do
     }
 
     assert [] = Judgement.execute(s, resolve)
-    assert {:error, :no_such_wash_flag} = Judgement.execute(s, %{resolve | ref: "f2"})
+
+    assert {:error, %{kind: :eunomia_no_such_wash_flag, site: :eunomia_wash_flag_absent}} =
+             Judgement.execute(s, %{resolve | ref: "f2"})
   end
 
   test "the brain reads its wash flags and decides them through its tools", ctx do

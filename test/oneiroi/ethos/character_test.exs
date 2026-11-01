@@ -374,7 +374,9 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     s = Character.apply(%Character{}, Character.execute(%Character{}, define))
     assert [] = Character.execute(s, define)
-    assert {:error, :name_invalid} = Character.execute(%Character{}, %{define | name: " "})
+
+    assert {:error, %{kind: :ethos_name_invalid, site: :ethos_define_habit_name_invalid}} =
+             Character.execute(%Character{}, %{define | name: " "})
 
     cite = %Commands.CiteHabit{
       actor: actor,
@@ -387,8 +389,17 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     assert %{} = event = Character.execute(s, cite)
     assert [] = Character.execute(Character.apply(s, event), cite)
-    assert {:error, :target_invalid} = Character.execute(s, %{cite | target_kind: "conversation"})
-    assert {:error, :no_such_habit} = Character.execute(s, %{cite | number: 2})
+
+    assert {:error, %{kind: :ethos_target_invalid, site: :ethos_cite_habit_target_invalid}} =
+             Character.execute(s, %{cite | target_kind: "conversation"})
+
+    assert {:error,
+            %{
+              kind: :ethos_no_such_habit,
+              site: :ethos_cite_habit_no_such_habit,
+              details: [number: 2]
+            }} =
+             Character.execute(s, %{cite | number: 2})
 
     same = struct!(Commands.ChangeHabit, Map.drop(Map.from_struct(define), [:seed_number]))
     assert [] = Character.execute(s, same)
@@ -427,11 +438,21 @@ defmodule Oneiroi.Ethos.CharacterTest do
       required: 2
     }
 
-    assert {:error, {:unconfirmed, 1, 2}} = Character.execute(s, graduate)
+    assert {:error,
+            %{
+              kind: :ethos_unconfirmed,
+              site: :ethos_graduate_seed_unconfirmed,
+              details: [days: 1, required: 2]
+            }} = Character.execute(s, graduate)
+
     assert %{to_kind: "habit"} = Character.execute(s2, graduate)
     assert %{to_kind: "soul"} = Character.execute(s, %{graduate | to_kind: "soul", to_id: "7"})
-    assert {:error, :graduation_invalid} = Character.execute(s, %{graduate | to_kind: "mood"})
-    assert {:error, :no_such_seed} = Character.execute(s, %{graduate | number: 9})
+
+    assert {:error, %{kind: :ethos_graduation_invalid, site: :ethos_graduation_kind_invalid}} =
+             Character.execute(s, %{graduate | to_kind: "mood"})
+
+    assert {:error, %{kind: :ethos_no_such_seed, site: :ethos_open_seed_absent}} =
+             Character.execute(s, %{graduate | number: 9})
 
     wilted =
       Character.apply(
@@ -439,7 +460,8 @@ defmodule Oneiroi.Ethos.CharacterTest do
         Character.execute(s, %Commands.WiltSeed{actor: actor, at: at, id: "r1", number: 1})
       )
 
-    assert {:error, :seed_closed} = Character.execute(wilted, graduate)
+    assert {:error, %{kind: :ethos_seed_closed, site: :ethos_open_seed_closed}} =
+             Character.execute(wilted, graduate)
   end
 
   test "tags are citations: a soul line cites a moment by either party, a pin names the line it evidences, and memory shows the tree's tags through its port",
@@ -516,6 +538,8 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     s = Character.apply(%Character{}, Character.execute(%Character{}, cite))
     assert [] = Character.execute(s, cite)
-    assert {:error, :target_invalid} = Character.execute(s, %{cite | target_kind: "mood"})
+
+    assert {:error, %{kind: :ethos_target_invalid, site: :ethos_citation_target_kind_invalid}} =
+             Character.execute(s, %{cite | target_kind: "mood"})
   end
 end

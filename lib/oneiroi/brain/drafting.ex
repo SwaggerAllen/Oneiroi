@@ -13,6 +13,7 @@ defmodule Oneiroi.Brain.Drafting do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Config
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
@@ -24,7 +25,7 @@ defmodule Oneiroi.Brain.Drafting do
   @spec draft(String.t(), String.t(), String.t(), Actor.t()) :: {:ok, draft()} | {:error, term()}
   def draft(resident_id, file, prompt, %Actor{} = actor) when is_binary(prompt) do
     with {:ok, row} <- fetch(resident_id),
-         true <- file in Oneiroi.AgathosDaimon.identity_files() || {:error, :file_unknown} do
+         :ok <- identity_file(file) do
       existing =
         resident_id
         |> Oneiroi.AgathosDaimon.files()
@@ -44,10 +45,26 @@ defmodule Oneiroi.Brain.Drafting do
     end
   end
 
+  defp identity_file(file) do
+    if file in Oneiroi.AgathosDaimon.identity_files(),
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:brain_file_unknown, :brain_drafting_file_unknown,
+           files: Oneiroi.AgathosDaimon.identity_files()
+         )}
+  end
+
   defp fetch(resident_id) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, row} -> {:ok, row}
-      :error -> {:error, :no_such_resident}
+      {:ok, row} ->
+        {:ok, row}
+
+      :error ->
+        {:error,
+         Error.new(:brain_no_such_resident, :brain_drafting_resident_absent,
+           resident_id: resident_id
+         )}
     end
   end
 end

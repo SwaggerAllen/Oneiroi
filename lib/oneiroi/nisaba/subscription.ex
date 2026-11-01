@@ -7,6 +7,7 @@ defmodule Oneiroi.Nisaba.Subscription do
   told, so a lapse is told once and a cancellation is final.
   """
 
+  alias Oneiroi.Nisaba.Error
   alias Oneiroi.Nisaba.Events.Subscription, as: Events
   alias Oneiroi.Nisaba.SubscriptionCommands, as: Commands
 
@@ -16,33 +17,46 @@ defmodule Oneiroi.Nisaba.Subscription do
 
   def execute(%__MODULE__{state: nil}, %Commands.Start{} = c) do
     cond do
-      not plan_ok?(c.plan) -> {:error, :plan_invalid}
-      not price_ok?(c.price_nanos) -> {:error, :price_invalid}
-      not (is_integer(c.period_days) and c.period_days > 0) -> {:error, :period_invalid}
-      not match?(%DateTime{}, c.renews_at) -> {:error, :period_invalid}
-      true -> started(c)
+      not plan_ok?(c.plan) ->
+        {:error, Error.new(:nisaba_plan_invalid, :nisaba_start_plan_invalid)}
+
+      not price_ok?(c.price_nanos) ->
+        {:error, Error.new(:nisaba_price_invalid, :nisaba_start_price_invalid)}
+
+      not (is_integer(c.period_days) and c.period_days > 0) ->
+        {:error, Error.new(:nisaba_period_invalid, :nisaba_start_period_days_invalid)}
+
+      not match?(%DateTime{}, c.renews_at) ->
+        {:error, Error.new(:nisaba_period_invalid, :nisaba_start_renews_at_invalid)}
+
+      true ->
+        started(c)
     end
   end
 
   def execute(%__MODULE__{}, %Commands.Start{}), do: []
 
-  def execute(%__MODULE__{state: nil}, _command), do: {:error, :not_started}
+  def execute(%__MODULE__{state: nil}, _command),
+    do: {:error, Error.new(:nisaba_no_subscription, :nisaba_subscription_not_started)}
+
   def execute(%__MODULE__{state: :cancelled}, %Commands.RecordLapseTold{} = c), do: told(c)
-  def execute(%__MODULE__{state: :cancelled}, _command), do: {:error, :cancelled}
+
+  def execute(%__MODULE__{state: :cancelled}, _command),
+    do: {:error, Error.new(:nisaba_cancelled, :nisaba_subscription_cancelled)}
 
   def execute(%__MODULE__{}, %Commands.Renew{} = c) do
     if match?(%DateTime{}, c.renews_at),
       do: %Events.Renewed{actor: c.actor, at: c.at, id: c.id, renews_at: c.renews_at},
-      else: {:error, :period_invalid}
+      else: {:error, Error.new(:nisaba_period_invalid, :nisaba_renew_renews_at_invalid)}
   end
 
   def execute(%__MODULE__{plan: plan}, %Commands.ChangePlan{} = c) do
     cond do
       not plan_ok?(c.plan) ->
-        {:error, :plan_invalid}
+        {:error, Error.new(:nisaba_plan_invalid, :nisaba_change_plan_plan_invalid)}
 
       not price_ok?(c.price_nanos) ->
-        {:error, :price_invalid}
+        {:error, Error.new(:nisaba_price_invalid, :nisaba_change_plan_price_invalid)}
 
       plan == {c.plan, c.price_nanos} ->
         []
@@ -72,7 +86,7 @@ defmodule Oneiroi.Nisaba.Subscription do
         id: c.id,
         custody_due_at: c.custody_due_at
       },
-      else: {:error, :period_invalid}
+      else: {:error, Error.new(:nisaba_period_invalid, :nisaba_cancel_custody_due_invalid)}
   end
 
   def execute(%__MODULE__{policy: policy}, %Commands.SetPolicy{} = c) do

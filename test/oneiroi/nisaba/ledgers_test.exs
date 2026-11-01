@@ -108,18 +108,54 @@ defmodule Oneiroi.Nisaba.LedgersTest do
 
     Fake.fail(:transport)
 
-    assert {:error, %Nisaba.Error{kind: :nisaba_provider_failed}} =
+    assert {:error,
+            %Nisaba.Error{kind: :nisaba_provider_failed, site: :nisaba_fake_scripted_transport}} =
              Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
 
     Fake.fail(:schema_invalid)
 
-    assert {:error, %Nisaba.Error{kind: :nisaba_request_refused}} =
+    assert {:error,
+            %Nisaba.Error{kind: :nisaba_request_refused, site: :nisaba_fake_scripted_refused}} =
              Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
+
+    # A reply scripted in the port's older tagged shape is wrapped once,
+    # at the ledger: the status and the provider's words kept, any other
+    # reason by its class alone.
+    Fake.script(fn _request -> {:error, {:schema_invalid, {:status, 400, "no call"}}} end)
+
+    assert {:error,
+            %Nisaba.Error{
+              kind: :nisaba_request_refused,
+              site: :nisaba_ledgers_tagged_refused,
+              cause: :schema_invalid,
+              details: [reason: {:status, 400, "no call"}]
+            }} = Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
+
+    Fake.script(fn _request -> {:error, {:transport, %{secret: "sk-or-x"}}} end)
+
+    assert {:error,
+            %Nisaba.Error{
+              kind: :nisaba_provider_failed,
+              site: :nisaba_ledgers_tagged_transport,
+              cause: :transport,
+              details: []
+            }} = Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
+
+    Fake.script(fn _request -> {:error, :econnrefused} end)
+
+    assert {:error,
+            %Nisaba.Error{
+              kind: :nisaba_provider_failed,
+              site: :nisaba_ledgers_provider_unsited,
+              cause: :econnrefused
+            }} = Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
 
     Fake.clear()
 
     :ok = Oneiroi.Gaia.revoke_key(ctx.witness.id, Actor.new(:witness, ctx.witness.id))
-    assert {:error, :gaia_no_key} = Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
+
+    assert {:error, %{kind: :gaia_no_key}} =
+             Nisaba.call(ctx.resident.id, :chat, request(), ctx.actor)
 
     assert [] = Nisaba.spend(ctx.resident.id, :witness, :purpose, ~U[2026-10-01 00:00:00.000000Z])
   end

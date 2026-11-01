@@ -190,7 +190,11 @@ defmodule Oneiroi.AgathosDaimon.SelfLettersTest do
     assert %Events.SelfLetterWritten{number: 1, model: "fake/first"} = written
     state = state |> Resident.apply(minted) |> Resident.apply(written)
 
-    assert {:error, :not_the_resident} =
+    assert {:error,
+            %{
+              kind: :agathos_daimon_not_the_resident,
+              site: :agathos_daimon_resident_write_letter_not_the_resident
+            }} =
              Resident.execute(state, %Commands.WriteSelfLetter{
                actor: witness,
                at: at,

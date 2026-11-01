@@ -61,9 +61,11 @@ defmodule OneiroiWeb.ConversationController do
       end
 
     case result do
-      {:ok, key} -> conn |> put_status(201) |> json(%{key: key})
-      {:error, %Kumbukumbu.Error{} = e} -> error(conn, 422, e)
-      {:error, reason} -> problem(conn, 422, :session_not_opened, inspect(reason))
+      {:ok, key} ->
+        conn |> put_status(201) |> json(%{key: key})
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -97,18 +99,22 @@ defmodule OneiroiWeb.ConversationController do
       {:ok, turn} ->
         conn |> put_status(201) |> json(turn)
 
-      {:error, {%{kind: :nisaba_budget_exceeded} = stop, turn}} ->
-        conn |> put_status(402) |> json(Map.put(turn, :stopped, stop_body(stop)))
+      {:error, %{kind: :brain_budget_stopped, details: details}} ->
+        conn
+        |> put_status(402)
+        |> json(Map.put(details[:turn], :stopped, stop_body(details[:stop])))
 
-      {:error, %{kind: _} = e} ->
+      {:error, %{kind: :brain_no_such_resident} = e} ->
+        error(conn, 422, e)
+
+      {:error, e} ->
         error(conn, 502, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :turn_not_run, inspect(reason))
     end
   end
 
-  def turn(conn, _params), do: problem(conn, 422, :text_required, "text is required")
+  def turn(conn, _params),
+    do:
+      problem(conn, 422, :text_required, :web_conversation_turn_text_required, "text is required")
 
   operation(:search,
     summary: "Messages holding the text, newest first, unweighted",
@@ -125,7 +131,15 @@ defmodule OneiroiWeb.ConversationController do
     json(conn, Enum.map(rows, &message/1))
   end
 
-  def search(conn, _params), do: problem(conn, 422, :query_required, "q is required")
+  def search(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :query_required,
+        :web_conversation_search_query_required,
+        "q is required"
+      )
 
   operation(:failures,
     summary: "The open capture failures, oldest first",
@@ -165,15 +179,26 @@ defmodule OneiroiWeb.ConversationController do
         "note" => note
       }) do
     case Kumbukumbu.resolve_failure(id, key, turn_ref, how, note, actor(conn)) do
-      :ok -> send_resp(conn, 204, "")
-      {:error, %Kumbukumbu.Error{} = e} -> error(conn, 404, e)
-      {:error, {:refused, problems}} -> problem(conn, 422, :refused, inspect(problems))
-      {:error, reason} -> problem(conn, 422, :not_resolved, inspect(reason))
+      :ok ->
+        send_resp(conn, 204, "")
+
+      {:error, %{kind: :kumbukumbu_no_such_failure} = e} ->
+        error(conn, 404, e)
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
   def resolve(conn, _params),
-    do: problem(conn, 422, :fields_required, "key, how and note are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_conversation_resolve_fields_required,
+        "key, how and note are required"
+      )
 
   operation(:injections,
     summary: "What a turn drew on: the 'drew on N things' inspector",
@@ -226,27 +251,58 @@ defmodule OneiroiWeb.ConversationController do
       when is_list(messages) do
     turn_ref = Map.get(params, "turn_ref") || Kumbukumbu.turn_ref()
 
-    with {:ok, started_at, _} <- parse_started(started),
+    with {:ok, started_at} <- parse_started(started),
          {:ok, built} <- build_messages(messages, actor(conn)),
          :ok <- Kumbukumbu.capture(id, key, turn_ref, started_at, built, actor(conn)) do
       conn |> put_status(201) |> json(%{turn_ref: turn_ref})
     else
-      {:error, %Kumbukumbu.Error{} = e} ->
+      :started_at_invalid ->
+        problem(
+          conn,
+          422,
+          :started_at_invalid,
+          :web_conversation_capture_started_at_invalid,
+          "started_at is an ISO 8601 instant with its offset"
+        )
+
+      :message_invalid ->
+        problem(
+          conn,
+          422,
+          :message_invalid,
+          :web_conversation_capture_message_invalid,
+          "each message needs a role and content"
+        )
+
+      {:error, %{kind: kind} = e}
+      when kind in [:kumbukumbu_no_such_session, :kumbukumbu_empty_turn] ->
         error(conn, 404, e)
 
-      {:error, :message_invalid} ->
-        problem(conn, 422, :message_invalid, "each message needs a role and content")
-
-      {:error, reason} ->
-        problem(conn, 422, :not_captured, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
   def capture(conn, _params),
-    do: problem(conn, 422, :fields_required, "session_key, started_at and messages are required")
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_conversation_capture_fields_required,
+        "session_key, started_at and messages are required"
+      )
 
-  defp parse_started(iso) when is_binary(iso), do: DateTime.from_iso8601(iso)
-  defp parse_started(_other), do: {:error, :started_at_invalid}
+  # The request's own fields, checked at the edge: a bare atom names the
+  # problem/5 the capture answers with, and no component sees it.
+  defp parse_started(iso) when is_binary(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, at, _offset} -> {:ok, at}
+      {:error, _reason} -> :started_at_invalid
+    end
+  end
+
+  defp parse_started(_other), do: :started_at_invalid
 
   operation(:turn_start,
     summary: "An adapter reports a turn beginning (spec §8) and gets the ref to capture it under",
@@ -268,16 +324,23 @@ defmodule OneiroiWeb.ConversationController do
       :ok ->
         conn |> put_status(201) |> json(%{turn_ref: turn_ref})
 
-      {:error, :no_such_session} ->
-        error(conn, 404, Kumbukumbu.Error.new(:kumbukumbu_no_such_session, key: key))
+      {:error, %{kind: :kumbukumbu_no_such_session} = e} ->
+        error(conn, 404, e)
 
-      {:error, reason} ->
-        problem(conn, 422, :turn_not_started, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
   def turn_start(conn, _params),
-    do: problem(conn, 422, :session_key_required, "session_key is required")
+    do:
+      problem(
+        conn,
+        422,
+        :session_key_required,
+        :web_conversation_turn_start_session_key_required,
+        "session_key is required"
+      )
 
   operation(:context,
     summary:
@@ -308,7 +371,16 @@ defmodule OneiroiWeb.ConversationController do
 
     if allowed?,
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_conversation_not_witnessed
+          )
+        )
+        |> halt()
   end
 
   # The account party to a session an adapter opens is the resident's
@@ -343,7 +415,7 @@ defmodule OneiroiWeb.ConversationController do
           :invalid
       end)
 
-    if :invalid in built, do: {:error, :message_invalid}, else: {:ok, built}
+    if :invalid in built, do: :message_invalid, else: {:ok, built}
   end
 
   # An adapter captures as the resident; the user messages in its turn are

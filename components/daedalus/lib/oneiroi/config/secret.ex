@@ -56,6 +56,19 @@ defmodule Oneiroi.Config.Secret do
   @spec unwrap(t()) :: term()
   def unwrap(%__MODULE__{value: value}), do: value
 
+  @doc """
+  The value of a secret, or a plain value as it came.
+
+  For a port that takes a credential both from a request, where the
+  controller wraps it, and from a task or a test, where it is plain: the
+  port calls this at the one line that needs the value, so everything
+  between the edge and that line holds the wrapper. It is `unwrap/1`
+  by another name, and a reviewer reads it the same way.
+  """
+  @spec reveal(t() | term()) :: term()
+  def reveal(%__MODULE__{value: value}), do: value
+  def reveal(plain), do: plain
+
   @doc "What every surface but `unwrap/1` shows."
   @spec redacted() :: String.t()
   def redacted, do: @redacted

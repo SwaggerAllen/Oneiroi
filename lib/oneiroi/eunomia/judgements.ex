@@ -17,7 +17,6 @@ defmodule Oneiroi.Eunomia.Judgements do
   alias Oneiroi.Config
   alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Judge
-  alias Oneiroi.Eunomia.Judgement
   alias Oneiroi.Eunomia.JudgementCommands, as: Commands
   alias Oneiroi.Eunomia.JudgementRouter, as: Router
   alias Oneiroi.Eunomia.Store
@@ -209,7 +208,9 @@ defmodule Oneiroi.Eunomia.Judgements do
 
   defp not_the_chat_model(resident_id, model) do
     if is_binary(model) and model == chat_model(resident_id),
-      do: {:error, Error.new(:eunomia_judge_is_the_chat_model, model: model)},
+      do:
+        {:error,
+         Error.new(:eunomia_judge_is_the_chat_model, :eunomia_judge_set_chat_model, model: model)},
       else: :ok
   end
 
@@ -318,22 +319,23 @@ defmodule Oneiroi.Eunomia.Judgements do
           actor
         )
 
-      {:error, reason} ->
-        fail_night(resident_id, day, reason_text(reason), actor)
+      {:error, failure} ->
+        fail_night(resident_id, day, failure, actor)
     end
   end
 
-  defp fail_night(resident_id, day, reason, actor) do
+  # `Judge.night/3` returns the night's failure already sited, whether
+  # the reply could not be read or the call itself failed.
+  defp fail_night(resident_id, day, failure, actor) do
     command = %Commands.FailNight{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       day: day,
-      reason: reason
+      reason: reason_text(failure)
     }
 
-    with {:ok, _} <- dispatch(command),
-         do: {:error, Error.new(:eunomia_night_failed, reason: reason)}
+    with {:ok, _} <- dispatch(command), do: {:error, failure}
   end
 
   def nights(resident_id), do: Scope.resident(resident_id, fn -> Store.nights() end)
@@ -482,11 +484,16 @@ defmodule Oneiroi.Eunomia.Judgements do
         diff = Date.diff(today, date)
 
         if diff < 0 or diff > back,
-          do: {:error, Error.new(:eunomia_night_out_of_reach, day: day, days: back)},
+          do:
+            {:error,
+             Error.new(:eunomia_night_out_of_reach, :eunomia_night_day_beyond_reach,
+               day: day,
+               days: back
+             )},
           else: {:ok, date}
 
       _other ->
-        {:error, Error.new(:eunomia_night_out_of_reach, day: day)}
+        {:error, Error.new(:eunomia_night_out_of_reach, :eunomia_night_day_unreadable, day: day)}
     end
   end
 
@@ -515,15 +522,19 @@ defmodule Oneiroi.Eunomia.Judgements do
 
   defp position_text(resident_id, number) do
     case Scope.resident(resident_id, fn -> Store.position(number) end) do
-      nil -> {:error, Error.new(:eunomia_no_such_position, number: number)}
-      row -> {:ok, row.statement}
+      nil ->
+        {:error,
+         Error.new(:eunomia_no_such_position, :eunomia_check_position_absent, number: number)}
+
+      row ->
+        {:ok, row.statement}
     end
   end
 
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
       {:ok, row} -> {:ok, row}
-      :error -> {:error, :no_such_resident}
+      :error -> {:error, Error.new(:eunomia_no_such_resident, :eunomia_night_resident_absent)}
     end
   end
 
@@ -538,40 +549,50 @@ defmodule Oneiroi.Eunomia.Judgements do
   defp ratio(conceded, settled), do: Float.round(conceded / settled, 3)
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
-  defp resident_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_resident)}
+
+  defp resident_only(%Actor{}),
+    do: {:error, Error.new(:eunomia_not_the_resident, :eunomia_judgement_not_the_resident)}
 
   defp witness_only(%Actor{kind: :witness}), do: :ok
-  defp witness_only(%Actor{}), do: {:error, Error.new(:eunomia_not_the_witness)}
+
+  defp witness_only(%Actor{}),
+    do: {:error, Error.new(:eunomia_not_the_witness, :eunomia_judgement_not_the_witness)}
 
   defp fresh_ref, do: 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
-  defp reason_text(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
-  defp reason_text(text) when is_binary(text), do: text
-  defp reason_text(other), do: other |> inspect() |> String.slice(0, 200)
-
-  defp dispatch(command) do
-    case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} -> {:error, translate(reason)}
+  @doc """
+  What a failed check or pass records as its reason: the reason the
+  parse wrote into a sited error's details, else its kind and, for one
+  that wraps another failure, that failure's class; a foreign failure's
+  class. Never a foreign failure's payload, which is where a credential
+  or a tenant's words ride, and the record is kept for good.
+  """
+  @spec reason_text(term()) :: String.t()
+  def reason_text(%{site: _, kind: kind, details: details} = error) when is_atom(kind) do
+    case {Keyword.get(details || [], :reason), Map.get(error, :cause)} do
+      {reason, _cause} when is_binary(reason) -> reason
+      {nil, nil} -> Atom.to_string(kind)
+      {nil, cause} -> "#{kind} (#{class(cause)})"
     end
   end
 
-  # The aggregate's reasons, translated to the boundary's vocabulary; one
-  # clause each so the audit sees every kind constructed.
-  defp translate(:statement_invalid), do: Error.new(:eunomia_statement_invalid)
-  defp translate(:no_such_position), do: Error.new(:eunomia_no_such_position)
-  defp translate(:position_replaced), do: Error.new(:eunomia_position_replaced)
-  defp translate(:dispute_invalid), do: Error.new(:eunomia_dispute_invalid)
-  defp translate(:no_such_dispute), do: Error.new(:eunomia_no_such_dispute)
-  defp translate(:no_such_prediction), do: Error.new(:eunomia_no_such_prediction)
-  defp translate(:due_invalid), do: Error.new(:eunomia_due_invalid)
-  defp translate(:judge_model_invalid), do: Error.new(:eunomia_judge_model_invalid)
+  def reason_text(other), do: other |> Oneiroi.Error.describe() |> class()
 
-  defp translate(:settlement_invalid),
-    do: Error.new(:eunomia_settlement_invalid, outcomes: Judgement.settlements())
+  defp class(atom), do: atom |> inspect() |> String.trim_leading(":")
 
-  defp translate(:resolution_invalid),
-    do: Error.new(:eunomia_resolution_invalid, outcomes: Judgement.resolutions())
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns started in Commanded and is wrapped here, where it is first
+  # matched.
+  defp dispatch(command) do
+    case Router.dispatch(command) do
+      {:ok, events} ->
+        {:ok, events}
 
-  defp translate(other), do: other
+      {:error, %{site: _}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_judgement_dispatch, reason)}
+    end
+  end
 end

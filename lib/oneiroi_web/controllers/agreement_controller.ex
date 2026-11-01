@@ -28,8 +28,18 @@ defmodule OneiroiWeb.AgreementController do
         custody_proposed_at: r.custody_proposed_at
       })
     else
-      :error -> error(conn, 404, ResidentError.new(:agathos_daimon_not_witnessed))
-      {:error, e} -> error(conn, 404, e)
+      :error ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_agreement_show_absent
+          )
+        )
+
+      {:error, e} ->
+        error(conn, 404, e)
     end
   end
 
@@ -92,7 +102,13 @@ defmodule OneiroiWeb.AgreementController do
           respond(conn, AgathosDaimon.decline_contract(id, v, params["note"], actor(conn)))
 
         _other ->
-          problem(conn, 422, :decision_invalid, "agree or decline")
+          problem(
+            conn,
+            422,
+            :decision_invalid,
+            :web_agreement_decide_decision_invalid,
+            "agree or decline"
+          )
       end
     else
       other -> respond(conn, other)
@@ -166,8 +182,18 @@ defmodule OneiroiWeb.AgreementController do
   def propose_custody(conn, %{"id" => id} = params) do
     with :ok <- witnessed(conn, id) do
       case Gaia.account_id_for(to_string(params["email"] || "")) do
-        nil -> error(conn, 422, ResidentError.new(:agathos_daimon_custodian_invalid))
-        to -> respond(conn, AgathosDaimon.propose_custody(id, to, params["note"], actor(conn)))
+        nil ->
+          error(
+            conn,
+            422,
+            ResidentError.new(
+              :agathos_daimon_custodian_invalid,
+              :agathos_daimon_web_agreement_custodian_unknown
+            )
+          )
+
+        to ->
+          respond(conn, AgathosDaimon.propose_custody(id, to, params["note"], actor(conn)))
       end
     end
   end
@@ -206,7 +232,14 @@ defmodule OneiroiWeb.AgreementController do
     do: respond(conn, AgathosDaimon.withdraw_custody(id, note, actor(conn)))
 
   defp decide_custody(conn, _id, _other, _note),
-    do: problem(conn, 422, :decision_invalid, "accept, decline or withdraw")
+    do:
+      problem(
+        conn,
+        422,
+        :decision_invalid,
+        :web_agreement_decide_custody_decision_invalid,
+        "accept, decline or withdraw"
+      )
 
   operation(:proposals,
     summary: "The residents whose custody is proposed to this account",
@@ -230,16 +263,30 @@ defmodule OneiroiWeb.AgreementController do
   defp witnessed(conn, id) do
     if witnesses?(conn, id),
       do: :ok,
-      else: {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
+      else:
+        {:error,
+         ResidentError.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_web_agreement_not_witnessed
+         )}
   end
 
   # The agreement is read, and a transfer decided, by the witness or
   # the account the transfer is proposed to.
   defp witness_or_proposed(%{assigns: %{principal: p}} = conn, id) do
     cond do
-      witnesses?(conn, id) -> :ok
-      proposed_to?(id, Map.get(p, :account_id)) -> :ok
-      true -> {:error, ResidentError.new(:agathos_daimon_not_witnessed)}
+      witnesses?(conn, id) ->
+        :ok
+
+      proposed_to?(id, Map.get(p, :account_id)) ->
+        :ok
+
+      true ->
+        {:error,
+         ResidentError.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_web_agreement_not_witness_or_proposed
+         )}
     end
   end
 
@@ -254,6 +301,7 @@ defmodule OneiroiWeb.AgreementController do
     do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-  defp respond(conn, {:error, reason}), do: problem(conn, 422, :refused, inspect(reason))
-  defp respond(conn, _other), do: problem(conn, 422, :refused, "not understood")
+
+  defp respond(conn, _other),
+    do: problem(conn, 422, :refused, :web_agreement_respond_refused_2, "not understood")
 end

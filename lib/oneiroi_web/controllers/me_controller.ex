@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.MeController do
   use OneiroiWeb, :controller
 
-  alias Oneiroi.Gaia.Error, as: IdentityError
+  alias Oneiroi.Config.Secret
   alias OpenApiSpex.Schema
 
   tags(["identity"])
@@ -39,23 +39,33 @@ defmodule OneiroiWeb.MeController do
     responses: [no_content: "stored"]
   )
 
-  def store_key(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
+  def store_key(%{assigns: %{principal: p}} = conn, %{"key" => raw}) do
+    key = Secret.wrap(raw)
+
     case Oneiroi.Gaia.store_key(p.account_id, key, actor(conn)) do
-      :ok -> send_resp(conn, 204, "")
-      {:error, :gaia_key_required} -> error(conn, 422, IdentityError.new(:gaia_key_required))
-      {:error, reason} -> problem(conn, 422, :key_not_stored, inspect(reason))
+      :ok ->
+        send_resp(conn, 204, "")
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
-  def store_key(conn, _params), do: problem(conn, 422, :key_required, "key is required")
+  def store_key(conn, _params),
+    do: problem(conn, 422, :key_required, :web_me_store_key_key_required, "key is required")
 
   operation(:revoke_key, summary: "Revoke the stored key", responses: [no_content: "revoked"])
 
   def revoke_key(%{assigns: %{principal: p}} = conn, _params) do
     case Oneiroi.Gaia.revoke_key(p.account_id, actor(conn)) do
-      :ok -> send_resp(conn, 204, "")
-      {:error, :gaia_no_key} -> error(conn, 404, IdentityError.new(:gaia_no_key))
-      {:error, reason} -> problem(conn, 422, :key_not_revoked, inspect(reason))
+      :ok ->
+        send_resp(conn, 204, "")
+
+      {:error, %{kind: :gaia_no_key} = e} ->
+        error(conn, 404, e)
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 end

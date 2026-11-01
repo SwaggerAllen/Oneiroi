@@ -117,6 +117,8 @@ defmodule Oneiroi.Proteus do
   @doc false
   def cast_client("honcho"), do: {:ok, :"Elixir.Oneiroi.Proteus.Honcho.HTTP"}
   def cast_client("fake"), do: {:ok, :"Elixir.Oneiroi.Proteus.Honcho.Fake"}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
   def cast_client(other), do: {:error, "is #{inspect(other)}, expected \"honcho\" or \"fake\""}
 
   @doc "A Honcho URL as given, or a bare host:port read as http: a private service's address on Render's network carries no scheme (proteus #16)."
@@ -137,6 +139,7 @@ defmodule Oneiroi.Proteus do
          true <- Regex.match?(~r/:\d+\z/, raw) do
       {:ok, "http://" <> raw}
     else
+      # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
       _other -> {:error, "is #{inspect(raw)}, expected an http(s) URL or host:port"}
     end
   end
@@ -182,7 +185,15 @@ defmodule Oneiroi.Proteus do
       {:proteus_honcho_rejected, "Honcho refused the request",
        remedy: "the shape or the key is wrong; read the reason"},
       {:proteus_not_provisioned, "the resident has no workspace yet",
-       remedy: "the first captured turn provisions it"}
+       remedy: "the first captured turn provisions it"},
+      {:proteus_no_such_resident, "no resident has that id, so it has no workspace to provision",
+       remedy: "provision a resident that exists"},
+      {:proteus_command_refused,
+       "the command was refused before the bridge read it: an actor or an instant was missing",
+       remedy: "the details name what was missing; it is the caller's bug, not Honcho's"},
+      {:proteus_dispatch_failed,
+       "the bridge's record did not complete: the event store failed, or a projection did not catch up in time",
+       remedy: "the platform's; retry, and read the cause on the log line"}
     ]
   end
 

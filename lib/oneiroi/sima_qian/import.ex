@@ -25,6 +25,7 @@ defmodule Oneiroi.SimaQian.Import do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Config
+  alias Oneiroi.Config.Secret
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.David
   alias Oneiroi.SimaQian.Error
@@ -35,14 +36,19 @@ defmodule Oneiroi.SimaQian.Import do
   # The clone is this function's own under the temp dir; the working
   # directory it becomes is the records root under an id minted here.
   # sobelow_skip ["Traversal.FileModule"]
-  def run(url, attrs, witness_account_id, %Actor{} = actor)
-      when is_binary(url) and is_map(attrs) do
+  #
+  # `remote` is a `Secret` when it carries a token (the controller wraps
+  # it), and a plain URL when it does not; it is unwrapped here only to
+  # read its scheme and the userinfo-free form the log records, and goes
+  # to git still wrapped.
+  def run(remote, attrs, witness_account_id, %Actor{} = actor) when is_map(attrs) do
     clone = Path.join(System.tmp_dir!(), "oneiroi-import-#{System.unique_integer([:positive])}")
+    url = if is_binary(remote), do: remote, else: Secret.unwrap(remote)
     source = record_url(url)
 
     try do
       with :ok <- scheme_ok(url),
-           :ok <- Git.clone(url, clone),
+           :ok <- Git.clone(remote, clone),
            {attestation, root, sequence} <- Rebuild.attestation(clone),
            :ok <- Rebuild.refuse_if_imported(source, root),
            {:ok, lines} <- Rebuild.read_lines(clone),
@@ -92,12 +98,7 @@ defmodule Oneiroi.SimaQian.Import do
 
   @doc "The URL as the log records it: userinfo stripped, because a GitHub URL carries the token there."
   @spec record_url(String.t()) :: String.t()
-  def record_url(url) do
-    case URI.parse(url) do
-      %URI{scheme: scheme} = uri when is_binary(scheme) -> URI.to_string(%{uri | userinfo: nil})
-      _bare -> url
-    end
-  end
+  def record_url(url), do: Git.public_url(url)
 
   defp scheme_ok(url) do
     schemes = Config.fetch!(:sima_qian, :import_schemes)
@@ -106,10 +107,19 @@ defmodule Oneiroi.SimaQian.Import do
       %URI{scheme: scheme} when is_binary(scheme) ->
         if scheme in schemes,
           do: :ok,
-          else: {:error, Error.new(:sima_qian_scheme_refused, scheme: scheme, schemes: schemes)}
+          else:
+            {:error,
+             Error.new(:sima_qian_scheme_refused, :sima_qian_import_scheme,
+               scheme: scheme,
+               schemes: schemes
+             )}
 
       _bare ->
-        {:error, Error.new(:sima_qian_scheme_refused, scheme: nil, schemes: schemes)}
+        {:error,
+         Error.new(:sima_qian_scheme_refused, :sima_qian_import_no_scheme,
+           scheme: nil,
+           schemes: schemes
+         )}
     end
   end
 
@@ -124,7 +134,7 @@ defmodule Oneiroi.SimaQian.Import do
       with {:ok, id} <- AgathosDaimon.create(name, slug, witness_account_id, actor),
            do: {:ok, id, :created}
     else
-      {:error, Error.new(:sima_qian_name_required)}
+      {:error, Error.new(:sima_qian_name_required, :sima_qian_import_name_required)}
     end
   end
 
@@ -151,8 +161,14 @@ defmodule Oneiroi.SimaQian.Import do
     File.mkdir_p!(Path.dirname(dest))
 
     case File.cp_r(clone, dest) do
-      {:ok, _copied} -> Git.forget_remote(dest)
-      {:error, reason, path} -> {:error, {:copy, reason, path}}
+      {:ok, _copied} ->
+        Git.forget_remote(dest)
+
+      {:error, reason, path} ->
+        {:error,
+         Error.caught(:sima_qian_copy_failed, :sima_qian_import_place, reason,
+           path: Path.relative_to(path, clone)
+         )}
     end
   end
 

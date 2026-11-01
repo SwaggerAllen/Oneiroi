@@ -21,20 +21,34 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
     assert %Events.CounterDefined{key: "tea"} = Audits.execute(%Audits{}, define)
     s = evolve(Audits.execute(%Audits{}, define))
     assert [] = Audits.execute(s, define)
-    assert {:error, :key_invalid} = Audits.execute(s, %{define | key: "Not A Key"})
-    assert {:error, :label_invalid} = Audits.execute(s, %{define | key: "ok", label: ""})
+
+    assert {:error, %{kind: :huginn_muninn_key_invalid, site: :huginn_muninn_counter_key_invalid}} =
+             Audits.execute(s, %{define | key: "Not A Key"})
+
+    assert {:error,
+            %{kind: :huginn_muninn_label_invalid, site: :huginn_muninn_counter_label_invalid}} =
+             Audits.execute(s, %{define | key: "ok", label: ""})
 
     inc = cmd(Commands.IncrementCounter, key: "tea", by: 2, note: "two this morning")
     assert %Events.CounterIncremented{by: 2} = Audits.execute(s, inc)
     s = evolve(s, Audits.execute(s, inc))
     s = evolve(s, Audits.execute(s, %{inc | by: -1}))
     assert s.counters["tea"] == 1
-    assert {:error, :increment_invalid} = Audits.execute(s, %{inc | by: 0})
-    assert {:error, :no_such_counter} = Audits.execute(s, %{inc | key: "coffee"})
+
+    assert {:error,
+            %{kind: :huginn_muninn_increment_invalid, site: :huginn_muninn_increment_by_invalid}} =
+             Audits.execute(s, %{inc | by: 0})
+
+    assert {:error,
+            %{kind: :huginn_muninn_no_such_figure, site: :huginn_muninn_increment_figure_absent}} =
+             Audits.execute(s, %{inc | key: "coffee"})
 
     assert %Events.CounterRetired{} = Audits.execute(s, cmd(Commands.RetireCounter, key: "tea"))
     s = evolve(s, Audits.execute(s, cmd(Commands.RetireCounter, key: "tea")))
-    assert {:error, :no_such_counter} = Audits.execute(s, inc)
+
+    assert {:error,
+            %{kind: :huginn_muninn_no_such_figure, site: :huginn_muninn_increment_figure_absent}} =
+             Audits.execute(s, inc)
   end
 
   test "a witness's audit is a validated rule, the same rule twice is no event, and a run carries a tone" do
@@ -53,10 +67,19 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
     s = evolve(Audits.execute(%Audits{}, define))
     assert [] = Audits.execute(s, define)
     assert %Events.UserAuditDefined{value: 4} = Audits.execute(s, %{define | value: 4})
-    assert {:error, :rule_invalid} = Audits.execute(s, %{define | op: "~"})
-    assert {:error, :rule_invalid} = Audits.execute(s, %{define | value: "three"})
-    assert {:error, :rule_invalid} = Audits.execute(s, %{define | tone: "loud"})
-    assert {:error, :no_such_audit} = Audits.execute(s, cmd(Commands.RetireUserAudit, key: "x"))
+
+    assert {:error, %{kind: :huginn_muninn_rule_invalid, site: :huginn_muninn_audit_rule_invalid}} =
+             Audits.execute(s, %{define | op: "~"})
+
+    assert {:error, %{kind: :huginn_muninn_rule_invalid, site: :huginn_muninn_audit_rule_invalid}} =
+             Audits.execute(s, %{define | value: "three"})
+
+    assert {:error, %{kind: :huginn_muninn_rule_invalid, site: :huginn_muninn_audit_rule_invalid}} =
+             Audits.execute(s, %{define | tone: "loud"})
+
+    assert {:error,
+            %{kind: :huginn_muninn_no_such_audit, site: :huginn_muninn_retire_audit_absent}} =
+             Audits.execute(s, cmd(Commands.RetireUserAudit, key: "x"))
 
     assert %Events.UserAuditRetired{} =
              Audits.execute(s, cmd(Commands.RetireUserAudit, key: "tea-enough"))
@@ -71,7 +94,11 @@ defmodule Oneiroi.HuginnMuninn.AuditsTest do
       )
 
     assert %Events.AuditRun{tone: "silent", builtin: true} = Audits.execute(s, run)
-    assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "ok"})
-    assert {:error, :rule_invalid} = Audits.execute(s, %{run | tone: "fine"})
+
+    assert {:error, %{kind: :huginn_muninn_rule_invalid, site: :huginn_muninn_run_tone_invalid}} =
+             Audits.execute(s, %{run | tone: "ok"})
+
+    assert {:error, %{kind: :huginn_muninn_rule_invalid, site: :huginn_muninn_run_tone_invalid}} =
+             Audits.execute(s, %{run | tone: "fine"})
   end
 end
