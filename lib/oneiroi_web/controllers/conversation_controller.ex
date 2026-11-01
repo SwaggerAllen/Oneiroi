@@ -345,24 +345,43 @@ defmodule OneiroiWeb.ConversationController do
   defp parse_started(_other), do: :started_at_invalid
 
   operation(:turn_start,
-    summary: "An adapter reports a turn beginning (spec §8) and gets the ref to capture it under",
+    summary:
+      "A turn begins (spec §8): the ref to capture it under and, for the resident's brain adapter, the turn's context assembled against the witness's words",
+    description:
+      "For an adapter's token the turn is assembled as a platform turn is (brain #42), against `text` in the session's room: the index and every section after the prefix, the once-only notices the runtime can be told, and any part of the prefix whose hash moved since `prefix_digest`; what is handed over is recorded as the turn's ContextAssembled. `limit` is how many characters the runtime takes at once: sections past it are left out whole and named. For a witness's token the turn is started and nothing is assembled.",
     parameters: [id: [in: :path, type: :string]],
     request_body:
-      {"the session", "application/json",
+      {"the session and the witness's words", "application/json",
        %Schema{
          type: :object,
          required: [:session_key],
-         properties: %{session_key: %Schema{type: :string}}
+         properties: %{
+           session_key: %Schema{type: :string},
+           text: %Schema{type: :string, description: "the witness's words opening the turn"},
+           prefix_digest: %Schema{
+             type: :string,
+             description:
+               "the digest of the prefix the runtime's session holds, as GET context gave it"
+           },
+           runtime: %Schema{type: :string, enum: ["claude-code"]},
+           limit: %Schema{type: :integer, description: "the characters the runtime takes at once"}
+         }
        }},
-    responses: [created: {"the turn ref", "application/json", %Schema{type: :object}}]
+    responses: [
+      created: {"the turn ref, and the context", "application/json", %Schema{type: :object}}
+    ]
   )
 
-  def turn_start(conn, %{"id" => id, "session_key" => key}) do
-    turn_ref = Kumbukumbu.turn_ref()
+  def turn_start(conn, %{"id" => id, "session_key" => key} = params) do
+    result =
+      case adapter(conn) do
+        nil -> start_bare(id, key, actor(conn))
+        _adapter -> Oneiroi.Brain.adapter_turn(id, key, text(params), actor(conn), opts(params))
+      end
 
-    case Kumbukumbu.start_turn(id, key, turn_ref, actor(conn)) do
-      :ok ->
-        conn |> put_status(201) |> json(%{turn_ref: turn_ref})
+    case result do
+      {:ok, turn} ->
+        conn |> put_status(201) |> json(turn)
 
       {:error, %{kind: :kumbukumbu_no_such_session} = e} ->
         error(conn, 404, e)
@@ -382,17 +401,79 @@ defmodule OneiroiWeb.ConversationController do
         "session_key is required"
       )
 
+  # A witness's turn-start gives nobody a context, so it assembles and
+  # records none: the turn is started and its ref returned.
+  defp start_bare(id, key, actor) do
+    turn_ref = Kumbukumbu.turn_ref()
+
+    with :ok <- Kumbukumbu.start_turn(id, key, turn_ref, actor),
+         do: {:ok, %{turn_ref: turn_ref}}
+  end
+
+  defp text(%{"text" => text}) when is_binary(text), do: text
+  defp text(_params), do: ""
+
+  defp opts(params),
+    do: [
+      runtime: params["runtime"],
+      limit: integer(params["limit"]),
+      digest: params["prefix_digest"]
+    ]
+
   operation(:context,
     summary:
-      "What the platform would put in front of its own brain this turn (spec §8): the index and how I act, as text for an adapter to inject",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"the context", "application/json", %Schema{type: :object}}]
+      "The session prefix for the resident's brain adapter (spec §8, brain #42): the prompt, the identity files and the contract, as text in parts the runtime can print; records nothing",
+    description:
+      "What is the same for every turn of a session, by the function the platform's own turn assembles its prefix with. `limit` cuts it into parts at paragraph boundaries, `of` is how many the runtime prints and `part` which one this is; past `of` parts the rest is left out and the last part says how much. `digest` is what the runtime sends back with each turn so a changed section rides that turn. The per-turn part (the index and after) is the turn-start's answer. An adapter's token only: a witness reads the next turn's context through the preview.",
+    parameters: [
+      id: [in: :path, type: :string],
+      runtime: [in: :query, type: :string],
+      limit: [in: :query, type: :integer],
+      part: [in: :query, type: :integer],
+      of: [in: :query, type: :integer]
+    ],
+    responses: [ok: {"the prefix part", "application/json", %Schema{type: :object}}]
   )
 
-  def context(conn, %{"id" => id}) do
-    index = Kumbukumbu.index(id)
-    json(conn, %{text: index.text, bookmarks: index.included, left_out: index.left_out})
+  # The prefix carries the platform's prompt, which a witness under the
+  # preview term reads nowhere (brain #41); the witness's route to what a
+  # turn is given is the preview, so this one is the runtime's alone.
+  def context(conn, %{"id" => id} = params) do
+    opts = [
+      runtime: params["runtime"],
+      limit: integer(params["limit"]),
+      part: integer(params["part"]),
+      of: integer(params["of"])
+    ]
+
+    with %{} <- adapter(conn),
+         {:ok, prefix} <- Oneiroi.Brain.adapter_prefix(id, opts) do
+      json(conn, prefix)
+    else
+      nil ->
+        problem(
+          conn,
+          404,
+          :adapter_only,
+          :web_conversation_context_adapter_only,
+          "the context is the resident's runtime's to read; yours is the preview of a session"
+        )
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
   end
+
+  defp integer(n) when is_integer(n), do: n
+
+  defp integer(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} -> n
+      _other -> nil
+    end
+  end
+
+  defp integer(_other), do: nil
 
   # Every route here is a resident's, read or written by its witness, or
   # by its brain-role adapter on the adapter contract's routes.

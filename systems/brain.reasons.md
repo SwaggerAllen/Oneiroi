@@ -340,3 +340,35 @@ inspector of the reply that told it could not show it; the turn now
 records it with its words, and only it, since storing every section's
 text per turn would turn the record of what a turn drew on into a copy
 of everything she was shown.
+
+## #42
+
+The adapter's `GET /context` returned `Kumbukumbu.index/1` alone while
+its summary said "the index and how I act": Claude Code was given the
+bookmark index of a resident and nothing of who she is, her contract,
+her habits, her promises or the madeleine, and the index was the
+unscoped one, so a named room's bookmarks reached a session that never
+named it (kumbukumbu #36). It was Claude holding Lily's index. Building
+the adapter's context from the halves the turn itself is assembled from
+is what keeps the two from drifting again; the test compares the
+adapter's recorded sections with a platform turn's on the same words.
+
+The split is where it is because Claude Code keeps every injected text
+in its conversation: a prefix printed every turn would sit there once
+per turn. The prefix goes once, and the digest is how "read fresh on
+every turn" (#27) survives that: only what changed comes again. On
+resume the prefix is already in the replayed transcript (Claude Code's
+hook docs: injected text is saved and replayed), so the SessionStart
+hook prints nothing and the first turn's digest catches any change.
+
+The 10,000-character limit is Claude Code's, from its hook docs, and
+not measured here: past it the text becomes a file path with a preview
+Claude is not asked to read. A prefix that would arrive as a path is no
+prefix, so it is cut into numbered parts, one SessionStart hook each,
+and a per-turn section that does not fit is left out whole and named
+rather than truncated, and not recorded.
+
+The notices: telling an adapter "you are running on the policy's model"
+or "your witness has chosen a new model" would be false there, and
+marking it told would cost the platform's own next turn a true notice.
+

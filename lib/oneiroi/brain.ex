@@ -33,6 +33,7 @@ defmodule Oneiroi.Brain do
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
 
+  alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
@@ -150,6 +151,24 @@ defmodule Oneiroi.Brain do
           {:ok, map()} | {:error, term()}
   defexport(preview(resident_id, session_key, text, actor),
     do: Preview.preview(resident_id, session_key, text, actor)
+  )
+
+  @doc "An adapter's session prefix (spec §8, brain #42): the prompt, the identity files and the contract, by the function the turn's assembly opens with, in parts the runtime can take; records nothing."
+  @spec adapter_prefix(String.t(), Oneiroi.Brain.Adapter.opts()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(adapter_prefix(resident_id, opts), do: Adapter.prefix(resident_id, opts))
+
+  @doc "Starts an adapter's turn with the witness's words and returns its per-turn context (spec §8, brain #42), recording `ContextAssembled` with what it hands over."
+  @spec adapter_turn(
+          String.t(),
+          String.t(),
+          String.t(),
+          Oneiroi.Actor.t(),
+          Oneiroi.Brain.Adapter.opts()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(adapter_turn(resident_id, session_key, text, actor, opts),
+    do: Adapter.turn(resident_id, session_key, text, actor, opts)
   )
 
   @doc "Drafts an identity file from the witness's prompt under the drafting purpose; returned, not written."

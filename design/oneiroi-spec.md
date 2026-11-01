@@ -1459,19 +1459,33 @@ or act as its hands.
    role needs (the reader: none of the resident's; the worker: none).
 2. **Turn capture and context.** `POST /v1/residents/:id/turns` with the
    session key, run kind and messages, idempotent on (session, timestamp,
-   hash); `POST /v1/residents/:id/turn-start` reporting the session so the
-   next tool calls are attributed to it, returning the context index to
-   inject. A runtime that cannot deliver spools and retries; capture is
-   idempotent so a turn sent twice is stored once.
+   hash); `GET /v1/residents/:id/context`, the session prefix (the
+   prompt, the identity files, the contract) for the runtime to give its
+   session once, in parts as small as the runtime takes; `POST
+   /v1/residents/:id/turn-start` with the session and the witness's
+   words, so the next tool calls are attributed to the turn, returning
+   the turn's own context assembled against those words (the index and
+   everything after the prefix, and whatever of the prefix changed since
+   the session was given it) and recording it as what the turn drew on.
+   Both halves are the platform turn's own assembly (brain #42). A
+   runtime that cannot deliver spools and retries; capture is idempotent
+   so a turn sent twice is stored once.
 3. **Wake.** The adapter registers a wake endpoint and secret; the core
    posts `{session_key, text, mode}` to it. Text is a short system note the
    core controls, never a result and never a third party's words.
 
 Adapters shipped: `brain` (internal, the core's own loop), `openclaw`
 (plugin for 1 and 2, `/hooks/wake` and `/hooks/agent` for 3), `claude-code`
-(MCP config for 1, session hooks for 2, a remote trigger for 3). The adapter
+(a Claude Code plugin: its MCP server for 1, its hooks for 2, a remote
+trigger for 3; the hooks carry the witness's words and the reply from
+Claude Code's own hook payloads, never from its transcript file, which
+lags). The adapter
 SDK and the records tooling are Apache-2.0 so other platforms can adopt the
-format.
+format. Where a runtime has a mechanism for packaging an integration, such
+as Claude Code's plugins, an adapter is built as one rather than as a
+custom integration: the first Claude Code adapter, scripts copied into
+each project, had to be kept in sync project by project and made every
+session in such a project the resident's.
 
 ---
 

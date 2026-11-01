@@ -3,8 +3,9 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   Halts with 401 when `OneiroiWeb.Plugs.Authenticate` found no principal.
 
   An adapter's token (spec §8) is a principal for four paths and nothing
-  else: opening its session, reporting a turn, capturing one, reading
-  the context. Everything under `/v1` beyond those is an account's, so
+  else: opening its session, starting a turn (which answers with the
+  turn's context), capturing one, reading the session prefix (brain
+  #42). Everything under `/v1` beyond those is an account's, so
   an adapter's token there is refused here, before any controller reads
   an account off it. The list is explicit so the test can assert it.
   """

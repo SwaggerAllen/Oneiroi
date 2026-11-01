@@ -1268,3 +1268,42 @@ and nothing personal turned up; what follows is what changed.
   gives the brain `bookmark_*`.
 - Open: whether the Memory tab follows a named room's conversation once
   the client lists rooms ("Not sure right now, probably").
+
+## Round 45: the Claude adapter carries the resident (2026-11-01)
+
+- The author: "Next I want to make sure the Claude adapter works." It
+  did not: the context route returned the bookmark index alone (and the
+  unscoped one), and the capture compared Claude Code's millisecond
+  timestamps against a second-precision clock taken after two network
+  calls, so the witness's words were almost never captured. The author
+  said yes to fixing both and to fixtures.
+- Spec §8 amended (brain #42): `GET /context` is the session prefix,
+  given once a session in parts as small as the runtime takes;
+  `turn-start` takes the witness's words and answers with the turn's own
+  context, recorded as what it drew on. Both are the platform turn's
+  assembly by the same two functions, so an adapter cannot be given
+  what a turn would not.
+- The capture reads Claude Code's hook payloads (`prompt` on
+  UserPromptSubmit, `last_assistant_message` on Stop), as its docs say a
+  Stop hook needing the final text should; tool calls are not taken
+  from the lagging transcript.
+- Of the once-only notices only the import's is told to an adapter; the
+  lapse, the model change and the letters speak of the platform's model
+  and stay owed to its next turn.
+- The author: package it as a Claude Code plugin rather than scripts to
+  copy. This repository is its marketplace (`.claude-plugin/` at the
+  root, the plugin under `sdk/claude-code/`); the plugin starts off and
+  a folder enables it at local scope; the URL, the resident id and the
+  token are the plugin's options, the token masked and kept in Claude
+  Code's credential store.
+- The author's standing rule: "for future adapters, if there's a
+  mechanism like plugins then we should default to using it rather than
+  rolling a custom integration" (spec §8 amended, `sdk/README.md` rule
+  1).
+- Known and taken: the runtime runs on the witness's machine and its
+  transcript holds what it is given, so the preview term does not reach
+  it. A plugin's options are per user (Claude Code ignores project and
+  local `pluginConfigs`), so one Claude Code configuration speaks for
+  one resident; a second takes a second `CLAUDE_CONFIG_DIR`. The target
+  setup is Claude Code on the author's machine under Remote Control,
+  driven from the phone.

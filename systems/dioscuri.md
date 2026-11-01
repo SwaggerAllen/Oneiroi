@@ -35,7 +35,7 @@ Carried from spec §6.8; the reason for each is there.
 
 ## #7 Initial vs target
 
-Initial: not built; see spec §6.8. Target: the whole of spec §6.8,
+Initial: not built; see spec §6.8. The Claude Code adapter's interfaces 1 and 2 are built, as the SDK's Claude Code plugin (`sdk/claude-code/`, Apache-2.0, listed by the repository's own marketplace, `.claude-plugin/marketplace.json`) and not under `runtime/claude-code/`; its context is the brain's (brain #42) and its routes memory's (kumbukumbu #26). Target: the whole of spec §6.8,
 built in P1 (the Claude Code adapter), P5 (spec §14).
 
 ## #8 Depends on

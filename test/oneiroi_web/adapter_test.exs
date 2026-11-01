@@ -78,13 +78,31 @@ defmodule OneiroiWeb.AdapterTest do
 
     assert [%{number: 1, anchor_ref: ^ref, session_key: ^key}] = Kumbukumbu.bookmarks(id)
 
-    assert %{"text" => text, "bookmarks" => [1]} =
+    # The prefix is the session's: the prompt and the files, not the index.
+    assert %{"text" => prefix, "digest" => "prompt=" <> _, "part" => 1, "parts" => 1} =
              ctx.conn
              |> as_adapter(ctx.token)
-             |> get("/v1/residents/#{id}/context")
+             |> get("/v1/residents/#{id}/context", %{runtime: "claude-code"})
              |> json_response(200)
 
-    assert text =~ "#1 2026-10-26 she asked"
+    assert prefix =~ "You are Lily"
+    assert prefix =~ "mcp__plugin_oneiroi_oneiroi__bookmark_add"
+    refute prefix =~ "she asked"
+
+    # The next turn carries the index, assembled against the words.
+    assert %{"turn_ref" => next, "text" => turn_text, "drew_on" => drew_on} =
+             ctx.conn
+             |> as_adapter(ctx.token)
+             |> post("/v1/residents/#{id}/turn-start", %{
+               session_key: key,
+               text: "what did I ask?"
+             })
+             |> json_response(201)
+
+    assert turn_text =~ "#1 2026-10-26 she asked"
+    assert drew_on > 0
+    assert {^key, ^next} = Kumbukumbu.open_turn(id, "claude-code")
+    ref = next
 
     assert %{"turn_ref" => ^ref} =
              ctx.conn

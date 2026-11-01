@@ -622,6 +622,84 @@ defmodule Oneiroi.Brain.Turn do
 
   defp lapse_notice(_lapse), do: []
 
+  @doc """
+  An adapter's session prefix (spec §8, brain #42): the prompt, the
+  identity files and the contract, by the same function the turn's
+  assembly opens with, then the runtime's note when the runtime has one
+  (`runtime` names a prompt file under `priv/prompts/`, or nil). Each
+  entry is a section as the assembly builds it: a label, the system
+  message and the injection a turn records for it. Nothing is read
+  against a session, and nothing is recorded.
+  """
+  @spec adapter_prefix(map(), String.t(), String.t() | nil) :: [map()]
+  def adapter_prefix(row, resident_id, runtime) do
+    prefix_sections(row, %{resident_id: resident_id}) ++ runtime_section(row, runtime)
+  end
+
+  @doc """
+  An adapter's turn (spec §8, brain #42): `prepare/6` and the assembly's
+  two halves as a platform turn runs them, against the witness's words
+  in the session's room, with the resident's actor (no model: the
+  runtime's model is the runtime's), so the madeleine and the vector lane
+  run and bill as a turn's do. What a platform turn would then send to
+  its model is returned for the adapter instead: the prefix (to compare
+  with what the session holds), the per-turn sections, the index's
+  near-misses, the capacity alarm and the once-only notices this runtime
+  can truthfully be told. Of those notices only the import's is: the
+  lapse, the change of model and the letters to the next instance each
+  speak of the platform's own model, which an adapter's turn does not
+  run, so they stay owed to the platform's next turn. Nothing is
+  recorded here; `Oneiroi.Brain.Adapter` records what it hands over.
+  """
+  @spec adapter_turn(
+          map(),
+          String.t(),
+          String.t(),
+          String.t(),
+          Actor.t(),
+          String.t(),
+          String.t() | nil
+        ) ::
+          map()
+  def adapter_turn(row, resident_id, session_key, text, %Actor{} = actor, turn_ref, runtime) do
+    turn =
+      row
+      |> prepare(resident_id, session_key, text, actor, [])
+      |> Map.merge(%{turn_ref: turn_ref, resident: Actor.new(:resident, resident_id)})
+
+    prefix = prefix_sections(row, turn)
+    {sections, index} = turn_sections(row, turn, text)
+
+    notices =
+      turn
+      |> notice_injections()
+      |> Enum.zip(turn.notice_kinds)
+      |> Enum.filter(fn {_injection, kind} -> kind == :import end)
+      |> Enum.map(&elem(&1, 0))
+
+    %{
+      turn_ref: turn_ref,
+      started_at: turn.started_at,
+      prefix: prefix ++ runtime_section(row, runtime),
+      sections: sections,
+      near_misses: near_misses(index),
+      capacity: capacity_alarm(prefix),
+      notices: notices
+    }
+  end
+
+  # The runtime's note (brain #42): how the platform's words read where
+  # the runtime is not the platform's own loop, from its prompt file.
+  defp runtime_section(_row, nil), do: []
+
+  defp runtime_section(row, runtime) do
+    section(
+      "runtime",
+      Prompt.render!(runtime, %{name: row.name}),
+      "how the platform's context reads under this adapter's runtime (spec §8): the tools' names there, and where the per-turn parts arrive"
+    )
+  end
+
   @doc false
   # Public for the compaction's own calls, which assemble the same way.
   def assemble(row, turn, text) do
@@ -633,45 +711,88 @@ defmodule Oneiroi.Brain.Turn do
   # turn records, the messages the model is sent. A real turn, a trial
   # and the witness's preview all come through here (brain #41).
   defp build(row, turn, text) do
-    {prompt, files} = prefix(row, turn)
-    index = Kumbukumbu.index(turn.resident_id, turn.session_key)
-    acting = how_i_act(turn, text)
-    recall = madeleine(turn, text)
-    promised = Oneiroi.Ethos.promised(turn.resident_id)
-    resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
     count = Config.fetch!(:brain, :transcript_messages)
-    {session, _count} = session_of(turn)
-    summary = session && session.summary
+    {rest, index} = turn_sections(row, turn, text)
+    sections = prefix_sections(row, turn) ++ rest
 
     history =
       turn.resident_id
       |> Kumbukumbu.recent(turn.session_key, count)
       |> History.messages()
 
+    transcript = %{
+      label: "transcript",
+      tokens: history |> Enum.map(&tokens(&1.content)) |> Enum.sum(),
+      reason:
+        "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
+    }
+
+    injections =
+      Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++
+        near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
+
+    opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
+
+    # The turn's notices (a lapse, a model change, the letters from the
+    # instance before, an import) are captured ahead of the opening and
+    # shown to the model on this same turn, after the history: a letter
+    # to the incoming instance read a turn late is read by the instance
+    # after the one it was for.
+    notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
+
+    messages =
+      (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
+        history ++ notices ++ [opening]
+
+    %{sections: sections, injections: injections, messages: messages}
+  end
+
+  # The always-loaded prefix (brain #12, #27): the prompt, the identity
+  # files and the contract, the same for every turn of a session until a
+  # file or the contract changes. An adapter's session gives it once, at
+  # its start (`adapter_prefix/3`), so the turn's assembly is this and
+  # `turn_sections/3`, in that order, and nothing else.
+  defp prefix_sections(row, turn) do
+    {prompt, files} = prefix(row, turn)
+
+    section(
+      "prompt",
+      prompt.content,
+      "the brain's prompt file with the resident's name, estimated at four bytes a token"
+    ) ++
+      Enum.flat_map(files, fn {name, content} ->
+        section(
+          name,
+          "# " <> name <> "\n\n" <> content,
+          "the identity file as last written (spec §6.2), estimated at four bytes a token"
+        )
+      end) ++
+      section(
+        "contract",
+        Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
+        "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
+      )
+  end
+
+  # What is assembled against this turn's words in this session's room:
+  # the index and every section after the prefix, with the index itself
+  # for its near-misses.
+  defp turn_sections(_row, turn, text) do
+    index = Kumbukumbu.index(turn.resident_id, turn.session_key)
+    acting = how_i_act(turn, text)
+    recall = madeleine(turn, text)
+    promised = Oneiroi.Ethos.promised(turn.resident_id)
+    resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
+    {session, _count} = session_of(turn)
+    summary = session && session.summary
+
     sections =
       section(
-        "prompt",
-        prompt.content,
-        "the brain's prompt file with the resident's name, estimated at four bytes a token"
+        "index",
+        index.text,
+        "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
+        %{tokens: index.tokens, text: index.text, refs: index.included}
       ) ++
-        Enum.flat_map(files, fn {name, content} ->
-          section(
-            name,
-            "# " <> name <> "\n\n" <> content,
-            "the identity file as last written (spec §6.2), estimated at four bytes a token"
-          )
-        end) ++
-        section(
-          "contract",
-          Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
-          "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
-        ) ++
-        section(
-          "index",
-          index.text,
-          "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
-          %{tokens: index.tokens, text: index.text, refs: index.included}
-        ) ++
         section(
           "character",
           acting.text,
@@ -725,31 +846,7 @@ defmodule Oneiroi.Brain.Turn do
           "the compaction summary, machine-state in the machinery's register and never the resident's words (spec §5, §1.13), covering this session through store sequence #{session && session.compacted_through}"
         )
 
-    transcript = %{
-      label: "transcript",
-      tokens: history |> Enum.map(&tokens(&1.content)) |> Enum.sum(),
-      reason:
-        "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
-    }
-
-    injections =
-      Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++
-        near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
-
-    opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
-
-    # The turn's notices (a lapse, a model change, the letters from the
-    # instance before, an import) are captured ahead of the opening and
-    # shown to the model on this same turn, after the history: a letter
-    # to the incoming instance read a turn late is read by the instance
-    # after the one it was for.
-    notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
-
-    messages =
-      (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
-        history ++ notices ++ [opening]
-
-    %{sections: sections, injections: injections, messages: messages}
+    {sections, index}
   end
 
   # The madeleine is chosen by nearness to the words the turn opens with,
