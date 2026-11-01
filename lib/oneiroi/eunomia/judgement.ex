@@ -7,6 +7,7 @@ defmodule Oneiroi.Eunomia.Judgement do
   predictions resolved, which nights judged, and the judge's model.
   """
 
+  alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Events.Judgement, as: Events
   alias Oneiroi.Eunomia.JudgementCommands, as: Commands
 
@@ -50,7 +51,7 @@ defmodule Oneiroi.Eunomia.Judgement do
         []
 
       not statement_ok?(c.statement, c.imported) ->
-        {:error, :statement_invalid}
+        {:error, Error.new(:eunomia_statement_invalid, :eunomia_take_statement_invalid)}
 
       true ->
         %Events.PositionTaken{
@@ -73,13 +74,19 @@ defmodule Oneiroi.Eunomia.Judgement do
         []
 
       not Map.has_key?(positions, c.replaces) ->
-        {:error, :no_such_position}
+        {:error,
+         Error.new(:eunomia_no_such_position, :eunomia_replace_position_absent,
+           number: c.replaces
+         )}
 
       positions[c.replaces].replaced_by != nil ->
-        {:error, :position_replaced}
+        {:error,
+         Error.new(:eunomia_position_replaced, :eunomia_replace_position_replaced,
+           number: c.replaces
+         )}
 
       not statement_ok?(c.statement, c.imported) ->
-        {:error, :statement_invalid}
+        {:error, Error.new(:eunomia_statement_invalid, :eunomia_replace_statement_invalid)}
 
       true ->
         %Events.PositionReplaced{
@@ -103,13 +110,16 @@ defmodule Oneiroi.Eunomia.Judgement do
         []
 
       c.source not in @sources or c.outcome not in @check_outcomes ->
-        {:error, :dispute_invalid}
+        {:error, Error.new(:eunomia_dispute_invalid, :eunomia_dispute_source_invalid)}
 
       not (is_nil(c.advice) or c.advice in @advices) ->
-        {:error, :dispute_invalid}
+        {:error, Error.new(:eunomia_dispute_invalid, :eunomia_dispute_advice_invalid)}
 
       not (is_nil(c.position_number) or Map.has_key?(s.positions, c.position_number)) ->
-        {:error, :no_such_position}
+        {:error,
+         Error.new(:eunomia_no_such_position, :eunomia_dispute_position_absent,
+           number: c.position_number
+         )}
 
       true ->
         %Events.DisputeChecked{
@@ -135,7 +145,7 @@ defmodule Oneiroi.Eunomia.Judgement do
   def execute(%__MODULE__{disputes: disputes}, %Commands.SettleDispute{} = c) do
     case Map.get(disputes, c.ref) do
       nil ->
-        {:error, :no_such_dispute}
+        {:error, Error.new(:eunomia_no_such_dispute, :eunomia_settle_dispute_absent, ref: c.ref)}
 
       %{settled: true} ->
         []
@@ -150,7 +160,11 @@ defmodule Oneiroi.Eunomia.Judgement do
             ref: c.ref,
             outcome: c.outcome
           },
-          else: {:error, :settlement_invalid}
+          else:
+            {:error,
+             Error.new(:eunomia_settlement_invalid, :eunomia_settle_outcome_invalid,
+               outcomes: @settlements
+             )}
     end
   end
 
@@ -188,10 +202,10 @@ defmodule Oneiroi.Eunomia.Judgement do
         []
 
       not statement_ok?(c.statement, c.imported) ->
-        {:error, :statement_invalid}
+        {:error, Error.new(:eunomia_statement_invalid, :eunomia_prediction_statement_invalid)}
 
       not (match?(%DateTime{}, c.due) or (c.imported == true and is_nil(c.due))) ->
-        {:error, :due_invalid}
+        {:error, Error.new(:eunomia_due_invalid, :eunomia_prediction_due_invalid)}
 
       true ->
         %Events.PredictionLogged{
@@ -210,7 +224,10 @@ defmodule Oneiroi.Eunomia.Judgement do
   def execute(%__MODULE__{predictions: predictions}, %Commands.ResolvePrediction{} = c) do
     case Map.get(predictions, c.number) do
       nil ->
-        {:error, :no_such_prediction}
+        {:error,
+         Error.new(:eunomia_no_such_prediction, :eunomia_resolve_prediction_absent,
+           number: c.number
+         )}
 
       %{resolved: true} ->
         []
@@ -225,7 +242,11 @@ defmodule Oneiroi.Eunomia.Judgement do
             number: c.number,
             outcome: c.outcome
           },
-          else: {:error, :resolution_invalid}
+          else:
+            {:error,
+             Error.new(:eunomia_resolution_invalid, :eunomia_resolve_outcome_invalid,
+               outcomes: @resolutions
+             )}
     end
   end
 
@@ -268,7 +289,7 @@ defmodule Oneiroi.Eunomia.Judgement do
   def execute(%__MODULE__{flags: flags}, %Commands.ApproveAuditFlag{} = c) do
     case Map.get(flags, c.ref) do
       nil ->
-        {:error, :no_such_flag}
+        {:error, Error.new(:eunomia_no_such_flag, :eunomia_approve_flag_absent, ref: c.ref)}
 
       %{decided: true} ->
         []
@@ -281,7 +302,7 @@ defmodule Oneiroi.Eunomia.Judgement do
   def execute(%__MODULE__{flags: flags}, %Commands.DeleteAuditFlag{} = c) do
     case Map.get(flags, c.ref) do
       nil ->
-        {:error, :no_such_flag}
+        {:error, Error.new(:eunomia_no_such_flag, :eunomia_delete_flag_absent, ref: c.ref)}
 
       %{decided: true} ->
         []
@@ -332,10 +353,13 @@ defmodule Oneiroi.Eunomia.Judgement do
   def execute(%__MODULE__{wash_flags: flags}, %Commands.ResolveWashFlag{} = c) do
     cond do
       not Map.has_key?(flags, c.ref) ->
-        {:error, :no_such_wash_flag}
+        {:error, Error.new(:eunomia_no_such_wash_flag, :eunomia_wash_flag_absent, ref: c.ref)}
 
       c.decision not in @wash_decisions ->
-        {:error, :wash_decision_invalid}
+        {:error,
+         Error.new(:eunomia_wash_decision_invalid, :eunomia_wash_flag_decision_invalid,
+           decisions: @wash_decisions
+         )}
 
       flags[c.ref].decided ->
         []
@@ -360,7 +384,7 @@ defmodule Oneiroi.Eunomia.Judgement do
         []
 
       not model_ok?(c.model) ->
-        {:error, :judge_model_invalid}
+        {:error, Error.new(:eunomia_judge_model_invalid, :eunomia_judge_model_slug_invalid)}
 
       true ->
         %Events.JudgeModelChanged{

@@ -7,6 +7,7 @@ defmodule Oneiroi.Sunna.Schedule do
   """
 
   alias Oneiroi.Sunna.Commands
+  alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Events
 
   defstruct [
@@ -39,10 +40,10 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{checkins: checkins}, %Commands.SetCheckin{} = c) do
     cond do
       not time_ok?(c.time) ->
-        {:error, :time_invalid}
+        {:error, Error.new(:sunna_time_invalid, :sunna_checkin_time_invalid)}
 
       not label_ok?(c.label) ->
-        {:error, :label_invalid}
+        {:error, Error.new(:sunna_label_invalid, :sunna_checkin_label_invalid)}
 
       not Map.has_key?(checkins, c.key) ->
         %Events.CheckinSet{
@@ -74,7 +75,7 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{checkins: checkins}, %Commands.DeleteCheckin{} = c) do
     if Map.has_key?(checkins, c.key),
       do: %Events.CheckinDeleted{actor: c.actor, at: c.at, id: c.id, key: c.key},
-      else: {:error, :no_such_checkin}
+      else: {:error, Error.new(:sunna_no_such_checkin, :sunna_checkin_delete_absent, key: c.key)}
   end
 
   # Once a day: a second fire or a miss after a fire is no event, a
@@ -85,25 +86,37 @@ defmodule Oneiroi.Sunna.Schedule do
   # found it.
   def execute(%__MODULE__{} = s, %Commands.FireCheckin{} = c) do
     case outcome(s, c.key, c.day) do
-      :no_such_checkin -> {:error, :no_such_checkin}
-      nil -> fire(s, c)
-      {:deferred, _until} -> fire(s, c)
-      _already -> []
+      :no_such_checkin ->
+        {:error, Error.new(:sunna_no_such_checkin, :sunna_checkin_fire_absent, key: c.key)}
+
+      nil ->
+        fire(s, c)
+
+      {:deferred, _until} ->
+        fire(s, c)
+
+      _already ->
+        []
     end
   end
 
   def execute(%__MODULE__{} = s, %Commands.MissCheckin{} = c) do
     case outcome(s, c.key, c.day) do
-      :no_such_checkin -> {:error, :no_such_checkin}
-      nil -> %Events.CheckinMissed{actor: c.actor, at: c.at, id: c.id, key: c.key, day: c.day}
-      _already -> []
+      :no_such_checkin ->
+        {:error, Error.new(:sunna_no_such_checkin, :sunna_checkin_miss_absent, key: c.key)}
+
+      nil ->
+        %Events.CheckinMissed{actor: c.actor, at: c.at, id: c.id, key: c.key, day: c.day}
+
+      _already ->
+        []
     end
   end
 
   def execute(%__MODULE__{} = s, %Commands.DeferWake{} = c) do
     case outcome(s, c.key, c.day) do
       :no_such_checkin ->
-        {:error, :no_such_checkin}
+        {:error, Error.new(:sunna_no_such_checkin, :sunna_checkin_defer_absent, key: c.key)}
 
       nil ->
         %Events.WakeDeferred{
@@ -129,17 +142,27 @@ defmodule Oneiroi.Sunna.Schedule do
   # wake.
   def execute(%__MODULE__{hours: hours}, %Commands.MarkHour{} = c) do
     cond do
-      not (is_binary(c.hour) and Regex.match?(@hour, c.hour)) -> {:error, :hour_invalid}
-      MapSet.member?(hours, c.hour) -> []
-      true -> %Events.HourMarked{actor: c.actor, at: c.at, id: c.id, hour: c.hour}
+      not (is_binary(c.hour) and Regex.match?(@hour, c.hour)) ->
+        {:error, Error.new(:sunna_hour_invalid, :sunna_hour_marker_invalid)}
+
+      MapSet.member?(hours, c.hour) ->
+        []
+
+      true ->
+        %Events.HourMarked{actor: c.actor, at: c.at, id: c.id, hour: c.hour}
     end
   end
 
   def execute(%__MODULE__{days: days}, %Commands.OpenDay{} = c) do
     cond do
-      not day_ok?(c.day) -> {:error, :day_invalid}
-      MapSet.member?(days, c.day) -> []
-      true -> %Events.DayOpened{actor: c.actor, at: c.at, id: c.id, day: c.day}
+      not day_ok?(c.day) ->
+        {:error, Error.new(:sunna_day_invalid, :sunna_day_open_invalid, day: inspect(c.day))}
+
+      MapSet.member?(days, c.day) ->
+        []
+
+      true ->
+        %Events.DayOpened{actor: c.actor, at: c.at, id: c.id, day: c.day}
     end
   end
 
@@ -147,9 +170,14 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def execute(%__MODULE__{free_time: current}, %Commands.SetFreeTime{} = c) do
     cond do
-      not (is_nil(c.time) or time_ok?(c.time)) -> {:error, :time_invalid}
-      current == c.time -> []
-      true -> %Events.FreeTimeScheduled{actor: c.actor, at: c.at, id: c.id, time: c.time}
+      not (is_nil(c.time) or time_ok?(c.time)) ->
+        {:error, Error.new(:sunna_time_invalid, :sunna_free_time_time_invalid)}
+
+      current == c.time ->
+        []
+
+      true ->
+        %Events.FreeTimeScheduled{actor: c.actor, at: c.at, id: c.id, time: c.time}
     end
   end
 
@@ -183,7 +211,7 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{quiet: quiet}, %Commands.SetQuietHours{} = c) do
     cond do
       not ((is_nil(c.from) and is_nil(c.to)) or (time_ok?(c.from) and time_ok?(c.to))) ->
-        {:error, :time_invalid}
+        {:error, Error.new(:sunna_time_invalid, :sunna_quiet_hours_time_invalid)}
 
       quiet == quiet_of(c) ->
         []
@@ -196,13 +224,13 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{dates: dates}, %Commands.SetDate{} = c) do
     cond do
       not label_ok?(c.title) ->
-        {:error, :label_invalid}
+        {:error, Error.new(:sunna_label_invalid, :sunna_date_title_invalid)}
 
       c.kind not in @date_kinds ->
-        {:error, :kind_invalid}
+        {:error, Error.new(:sunna_kind_invalid, :sunna_date_kind_invalid, kinds: @date_kinds)}
 
       not match?(%DateTime{}, c.on) ->
-        {:error, :time_invalid}
+        {:error, Error.new(:sunna_time_invalid, :sunna_date_on_invalid)}
 
       not Map.has_key?(dates, c.number) ->
         %Events.DateSet{
@@ -234,7 +262,7 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{dates: dates}, %Commands.RemoveDate{} = c) do
     if Map.has_key?(dates, c.number),
       do: %Events.DateRemoved{actor: c.actor, at: c.at, id: c.id, number: c.number},
-      else: {:error, :no_such_date}
+      else: {:error, Error.new(:sunna_no_such_date, :sunna_date_remove_absent, number: c.number)}
   end
 
   # ---- apply ----

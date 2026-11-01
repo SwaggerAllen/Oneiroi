@@ -27,7 +27,13 @@ defmodule OneiroiWeb.FigureController do
   def figure(conn, %{"id" => id, "key" => key}) do
     case HuginnMuninn.figure(id, key) do
       nil ->
-        error(conn, 404, HuginnMuninn.Error.new(:huginn_muninn_no_such_figure, key: key))
+        error(
+          conn,
+          404,
+          HuginnMuninn.Error.new(:huginn_muninn_no_such_figure, :huginn_muninn_figure_read_absent,
+            key: key
+          )
+        )
 
       %{kind: "counter"} = f ->
         increments = id |> HuginnMuninn.increments(key, 50) |> Enum.map(&increment/1)
@@ -174,7 +180,13 @@ defmodule OneiroiWeb.FigureController do
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,
-      else: conn |> error(404, ResidentError.new(:agathos_daimon_not_witnessed)) |> halt()
+      else:
+        conn
+        |> error(
+          404,
+          ResidentError.new(:agathos_daimon_not_witnessed, :agathos_daimon_figure_not_witnessed)
+        )
+        |> halt()
   end
 
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
@@ -184,9 +196,6 @@ defmodule OneiroiWeb.FigureController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-
-  defp respond(conn, {:error, reason}),
-    do: problem(conn, 422, :refused, :web_figure_respond_refused, inspect(reason))
 
   defp integer(n) when is_integer(n), do: n
 

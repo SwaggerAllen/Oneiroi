@@ -295,7 +295,22 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_wash_failed, "the wash pass failed and was recorded as such",
        remedy: "read the run's reason; the next week runs again"},
       {:eunomia_flag_decided, "that flag was already approved or deleted",
-       remedy: "read the audits"}
+       remedy: "read the audits"},
+      {:eunomia_no_such_resident,
+       "the nightly pass was asked for a resident the registry does not hold",
+       remedy: "name a resident that exists"},
+      {:eunomia_judge_call_failed,
+       "the judge's model call failed, so the pass it was for failed and was recorded as such",
+       remedy: "run it again; the call's own failure is the cause"},
+      {:eunomia_audit_unread,
+       "the memory audit could not read the conclusions, so it failed and was recorded as such",
+       remedy: "run the audit again; a repeat is the memory service's to look at"},
+      {:eunomia_continuation_unreadable,
+       "the judge did not answer the continuation check in the form asked, so the check could not run rather than be guessed at",
+       remedy: "run the check again"},
+      {:eunomia_dispatch_failed,
+       "a judgement or regression command was not recorded on its stream",
+       remedy: "try again; a repeat is a fault to report"}
     ]
   end
 

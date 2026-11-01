@@ -480,7 +480,17 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     # ends cancelled with it on a miss, so the row says why.
     alias Oneiroi.HuginnMuninn.Quietcheck
     alias Oneiroi.HuginnMuninn.QuietcheckWorker
-    assert {:crashed, "boom"} = Quietcheck.guarded(fn -> raise "boom" end)
+    # The crash is sited and carries the exception's class, never its
+    # message: the finding is kept and read by the witness.
+    assert {:crashed,
+            %HuginnMuninn.Error{
+              kind: :huginn_muninn_quietcheck_crashed,
+              site: :huginn_muninn_quietcheck_guarded,
+              cause: RuntimeError
+            } = crash} = Quietcheck.guarded(fn -> raise "boom" end)
+
+    assert Quietcheck.crash_text(crash) == "RuntimeError at huginn_muninn_quietcheck_guarded"
+    refute Quietcheck.crash_text(crash) =~ "boom"
     assert {0, [first | rest]} = Quietcheck.report()
     assert first == "QUIETCHECK: ok" and List.last(rest) == "QUIETCHECK: ok"
     assert :ok = QuietcheckWorker.run(%{})

@@ -10,6 +10,7 @@ defmodule Oneiroi.Eunomia.Suite do
   """
 
   alias Oneiroi.Eunomia.Commands
+  alias Oneiroi.Eunomia.Error
   alias Oneiroi.Eunomia.Events
 
   defstruct [:id, tests: %{}, next_test: 1, runs: %{}]
@@ -36,17 +37,17 @@ defmodule Oneiroi.Eunomia.Suite do
         fails_if: c.fails_if
       }
     else
-      {:error, :test_invalid}
+      {:error, Error.new(:eunomia_test_invalid, :eunomia_write_test_invalid)}
     end
   end
 
   def execute(%__MODULE__{tests: tests}, %Commands.ChangeTest{} = c) do
     cond do
       not Map.has_key?(tests, c.number) ->
-        {:error, :no_such_test}
+        {:error, Error.new(:eunomia_no_such_test, :eunomia_change_test_absent, number: c.number)}
 
       not texts_ok?(c) ->
-        {:error, :test_invalid}
+        {:error, Error.new(:eunomia_test_invalid, :eunomia_change_test_invalid)}
 
       Map.get(tests, c.number) == texts(c) ->
         []
@@ -71,10 +72,10 @@ defmodule Oneiroi.Eunomia.Suite do
 
       c.models == [] or
           (c.tests == [] and List.wrap(c.behaviours) == [] and List.wrap(c.commitments) == []) ->
-        {:error, :run_empty}
+        {:error, Error.new(:eunomia_run_empty, :eunomia_start_run_empty)}
 
       Enum.any?(c.tests, &(not Map.has_key?(s.tests, &1))) ->
-        {:error, :no_such_test}
+        {:error, Error.new(:eunomia_no_such_test, :eunomia_start_run_test_absent)}
 
       true ->
         %Events.RunStarted{
@@ -93,7 +94,8 @@ defmodule Oneiroi.Eunomia.Suite do
   def execute(%__MODULE__{runs: runs}, %Commands.RecordAnswer{} = c) do
     case Map.get(runs, c.run_ref) do
       nil ->
-        {:error, :no_such_run}
+        {:error,
+         Error.new(:eunomia_no_such_run, :eunomia_record_answer_run_absent, ref: c.run_ref)}
 
       %{cards: cards} when is_map_key(cards, c.card_ref) ->
         []
@@ -119,7 +121,7 @@ defmodule Oneiroi.Eunomia.Suite do
   def execute(%__MODULE__{runs: runs}, %Commands.FinishRun{} = c) do
     case Map.get(runs, c.run_ref) do
       nil ->
-        {:error, :no_such_run}
+        {:error, Error.new(:eunomia_no_such_run, :eunomia_finish_run_absent, ref: c.run_ref)}
 
       %{finished: true} ->
         []
@@ -213,12 +215,18 @@ defmodule Oneiroi.Eunomia.Suite do
     do: is_binary(t) and String.trim(t) != "" and String.length(t) <= @text_limit
 
   defp grade_ok(grade) when grade in @grades, do: :ok
-  defp grade_ok(_other), do: {:error, :grade_invalid}
+
+  defp grade_ok(_other),
+    do: {:error, Error.new(:eunomia_grade_invalid, :eunomia_grade_value_invalid, grades: @grades)}
 
   defp card(runs, run_ref, card_ref) do
     case Map.get(runs, run_ref) do
-      nil -> {:error, :no_such_run}
-      %{cards: cards} -> with :error <- Map.fetch(cards, card_ref), do: {:error, :no_such_card}
+      nil ->
+        {:error, Error.new(:eunomia_no_such_run, :eunomia_card_run_absent, ref: run_ref)}
+
+      %{cards: cards} ->
+        with :error <- Map.fetch(cards, card_ref),
+             do: {:error, Error.new(:eunomia_no_such_card, :eunomia_card_absent, ref: card_ref)}
     end
   end
 end

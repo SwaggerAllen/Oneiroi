@@ -7,6 +7,7 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   """
 
   alias Oneiroi.HuginnMuninn.Commands
+  alias Oneiroi.HuginnMuninn.Error
   alias Oneiroi.HuginnMuninn.Events
 
   defstruct [:id, counters: %{}, audits: %{}]
@@ -26,10 +27,10 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   def execute(%__MODULE__{counters: counters}, %Commands.DefineCounter{} = c) do
     cond do
       not key_ok?(c.key) ->
-        {:error, :key_invalid}
+        {:error, Error.new(:huginn_muninn_key_invalid, :huginn_muninn_counter_key_invalid)}
 
       not label_ok?(c.label) ->
-        {:error, :label_invalid}
+        {:error, Error.new(:huginn_muninn_label_invalid, :huginn_muninn_counter_label_invalid)}
 
       Map.has_key?(counters, c.key) ->
         []
@@ -42,10 +43,13 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   def execute(%__MODULE__{counters: counters}, %Commands.IncrementCounter{} = c) do
     cond do
       not Map.has_key?(counters, c.key) ->
-        {:error, :no_such_counter}
+        {:error,
+         Error.new(:huginn_muninn_no_such_figure, :huginn_muninn_increment_figure_absent,
+           key: c.key
+         )}
 
       not (is_integer(c.by) and c.by != 0) ->
-        {:error, :increment_invalid}
+        {:error, Error.new(:huginn_muninn_increment_invalid, :huginn_muninn_increment_by_invalid)}
 
       true ->
         %Events.CounterIncremented{
@@ -62,7 +66,9 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   def execute(%__MODULE__{counters: counters}, %Commands.RetireCounter{} = c) do
     if Map.has_key?(counters, c.key),
       do: %Events.CounterRetired{actor: c.actor, at: c.at, id: c.id, key: c.key},
-      else: {:error, :no_such_counter}
+      else:
+        {:error,
+         Error.new(:huginn_muninn_no_such_figure, :huginn_muninn_retire_figure_absent, key: c.key)}
   end
 
   # ---- the witness's audits ----
@@ -70,13 +76,17 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   def execute(%__MODULE__{audits: audits}, %Commands.DefineUserAudit{} = c) do
     cond do
       not key_ok?(c.key) ->
-        {:error, :key_invalid}
+        {:error, Error.new(:huginn_muninn_key_invalid, :huginn_muninn_audit_key_invalid)}
 
       not label_ok?(c.label) ->
-        {:error, :label_invalid}
+        {:error, Error.new(:huginn_muninn_label_invalid, :huginn_muninn_audit_label_invalid)}
 
       c.op not in @ops or not is_integer(c.value) or c.tone not in @tones ->
-        {:error, :rule_invalid}
+        {:error,
+         Error.new(:huginn_muninn_rule_invalid, :huginn_muninn_audit_rule_invalid,
+           ops: @ops,
+           tones: @tones
+         )}
 
       Map.get(audits, c.key) == rule(c) ->
         []
@@ -89,7 +99,9 @@ defmodule Oneiroi.HuginnMuninn.Audits do
   def execute(%__MODULE__{audits: audits}, %Commands.RetireUserAudit{} = c) do
     if Map.has_key?(audits, c.key),
       do: %Events.UserAuditRetired{actor: c.actor, at: c.at, id: c.id, key: c.key},
-      else: {:error, :no_such_audit}
+      else:
+        {:error,
+         Error.new(:huginn_muninn_no_such_audit, :huginn_muninn_retire_audit_absent, key: c.key)}
   end
 
   def execute(%__MODULE__{}, %Commands.RecordRun{} = c) do
@@ -104,7 +116,12 @@ defmodule Oneiroi.HuginnMuninn.Audits do
         value: c.value,
         finding: c.finding
       },
-      else: {:error, :rule_invalid}
+      else:
+        {:error,
+         Error.new(:huginn_muninn_rule_invalid, :huginn_muninn_run_tone_invalid,
+           ops: @ops,
+           tones: @tones
+         )}
   end
 
   # ---- apply ----

@@ -20,7 +20,6 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Router
-  alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Store
 
   # ---- check-ins ----
@@ -360,21 +359,29 @@ defmodule Oneiroi.Sunna.Schedules do
            wake(resident_id, key, Prompt.render!("free_time", %{name: row.name}), :free_time) do
       record_free_time(resident_id, day, key, nil, actor)
     else
-      {:error, reason} -> record_free_time(resident_id, day, nil, reason_text(reason), actor)
+      {:error, %{site: _} = e} ->
+        record_free_time(resident_id, day, nil, e, actor)
+
+      {:error, reason} ->
+        failure = Error.caught(:sunna_free_time_failed, :sunna_free_time_open_failed, reason)
+        record_free_time(resident_id, day, nil, failure, actor)
     end
   end
 
-  defp record_free_time(resident_id, day, key, reason, actor) do
+  # The recorded reason is the failure's kind, never the failure itself:
+  # the event is kept for good, and a foreign reason's payload is where a
+  # credential or a tenant's words would ride.
+  defp record_free_time(resident_id, day, key, failure, actor) do
     command = %Commands.RecordFreeTime{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       day: day,
       session_key: key,
-      reason: reason
+      reason: failure && Atom.to_string(failure.kind)
     }
 
-    with {:ok, _} <- dispatch(command), do: if(key, do: :ok, else: {:error, reason})
+    with {:ok, _} <- dispatch(command), do: if(key, do: :ok, else: {:error, failure})
   end
 
   defp wake_main(resident_id, note, actor) do
@@ -385,9 +392,21 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
-  # Through the port (`Oneiroi.Sunna.Wake`), read at the call.
-  defp wake(resident_id, key, note, purpose),
-    do: Config.fetch!(:sunna, :wake).wake(resident_id, key, note, purpose)
+  # Through the port (`Oneiroi.Sunna.Wake`), read at the call. The port's
+  # implementation lives in another system, so a failure it returns is
+  # passed on when it is sited and wrapped here, once, when it is not.
+  defp wake(resident_id, key, note, purpose) do
+    case Config.fetch!(:sunna, :wake).wake(resident_id, key, note, purpose) do
+      {:error, %{site: _}} = failed ->
+        failed
+
+      {:error, reason} ->
+        {:error, Error.caught(:sunna_wake_failed, :sunna_wake_port_failed, reason)}
+
+      other ->
+        other
+    end
+  end
 
   # The note is the core's (spec §8): the check-in's label and time, the
   # next check-in, and the dates counted now.
@@ -406,7 +425,7 @@ defmodule Oneiroi.Sunna.Schedules do
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
       {:ok, row} -> {:ok, row}
-      :error -> {:error, :no_such_resident}
+      :error -> {:error, Error.new(:sunna_no_such_resident, :sunna_wake_resident_absent)}
     end
   end
 
@@ -445,25 +464,19 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp fresh_key, do: 6 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
-  defp reason_text(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
-  defp reason_text(other), do: other |> inspect() |> String.slice(0, 200)
-
+  # The aggregate builds its refusals sited; anything else the dispatch
+  # returns (the middleware's refusal, a timeout) started in Commanded and
+  # is wrapped here, where it is first matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} -> {:error, translate(reason, command)}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %{site: _}} = refused ->
+        refused
+
+      {:error, reason} ->
+        {:error, Error.caught(:sunna_dispatch_failed, :sunna_command_dispatch, reason)}
     end
   end
-
-  defp translate(:time_invalid, _c), do: Error.new(:sunna_time_invalid)
-  defp translate(:label_invalid, _c), do: Error.new(:sunna_label_invalid)
-  defp translate(:hour_invalid, _c), do: Error.new(:sunna_hour_invalid)
-
-  defp translate(:kind_invalid, _c),
-    do: Error.new(:sunna_kind_invalid, kinds: Schedule.date_kinds())
-
-  defp translate(:no_such_checkin, c), do: Error.new(:sunna_no_such_checkin, key: c.key)
-  defp translate(:day_invalid, c), do: Error.new(:sunna_day_invalid, day: inspect(c.day))
-  defp translate(:no_such_date, c), do: Error.new(:sunna_no_such_date, number: c.number)
-  defp translate(other, _c), do: other
 end
