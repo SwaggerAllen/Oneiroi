@@ -148,6 +148,25 @@ defmodule Oneiroi.Eunomia.RegressionTest do
              Eunomia.run_detail(id, ref)
   end
 
+  # 2026-11-01: Lily's first run showed `nisaba_request_refused` on every
+  # card, and the provider's reason, a model id it did not know, was lost.
+  test "a refused call's card carries the provider's status and words", ctx do
+    id = ctx.resident.id
+    {:ok, _} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
+
+    Fake.script(
+      fn _request ->
+        {:error, {:schema_invalid, {:status, 400, "nope/model is not a valid model ID"}}}
+      end,
+      for: id
+    )
+
+    assert {:ok, ref} = run!(id, ["nope/model"], :all, ctx.actor)
+
+    assert {:ok, _, [%{content: nil, failure: failure}], []} = Eunomia.run_detail(id, ref)
+    assert failure == "nisaba_request_refused: 400 nope/model is not a valid model ID"
+  end
+
   test "a run returns before answering; the job records each card, broadcasts it blind as it lands, then the end",
        ctx do
     id = ctx.resident.id

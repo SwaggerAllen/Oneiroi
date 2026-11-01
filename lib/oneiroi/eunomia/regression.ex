@@ -371,10 +371,9 @@ defmodule Oneiroi.Eunomia.Regression do
     {content, refusal, failure} =
       case Nisaba.call(resident_id, :regression, request, actor) do
         {:ok, %Result{content: content, refusal?: refusal}} -> {content, refusal, nil}
-        {:error, %{kind: kind}} when is_atom(kind) -> {nil, false, Atom.to_string(kind)}
-        # A failure that is not one of ours is recorded by its class,
-        # never its payload: the card is kept and read.
-        {:error, other} -> {nil, false, other |> Oneiroi.Error.describe() |> inspect()}
+        # The kind and, when the provider answered with a status, its own
+        # words; a failure not of ours by its class, never its payload.
+        {:error, error} -> {nil, false, Nisaba.Error.text(error)}
       end
 
     recorded =
