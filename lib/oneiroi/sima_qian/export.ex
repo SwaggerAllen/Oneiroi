@@ -29,11 +29,17 @@ defmodule Oneiroi.SimaQian.Export do
 
   The export stays a watermark behind capture: an event younger than the
   configured seconds is left for the next run.
+
+  Beside the lines, reading copies rendered from them on the same run
+  (`Oneiroi.SimaQian.Readable`, sima-qian #41): the transcripts by day
+  and the bookmarks, never read back. What the repository does not carry
+  at all is `exceptions/0`, the code's copy of spec §6.10's list.
   """
 
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Purpose
+  alias Oneiroi.SimaQian.Readable
 
   @self "$self"
   @chunk 1_000
@@ -44,12 +50,34 @@ defmodule Oneiroi.SimaQian.Export do
   # against the routers themselves.
   @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription)
 
-  # And why each of the rest is not.
+  # Everything of the resident's that the repository does not carry,
+  # each with the reason (sima-qian #43). The author's law (spec §6.10):
+  # all raw text is in the repository unless there is a really good
+  # reason, and this table is the list of reasons. A `:stream` entry is
+  # a stream prefix the export leaves out, which `not_exported/0` names
+  # and the export test holds against the routers themselves; the rest
+  # are what leaves no stream out but still stays in the database, or in
+  # Honcho. Spec §6.10's `oneiroi:db-only` list names these same keys,
+  # and a test fails when the two drift.
   @not_exported %{
-    "regression" => "sealed: the resident's own trials, never exported or read (eunomia #12)",
-    "account" => "the witness's account, not the resident's",
+    "regression" =>
+      {:stream, "sealed: the resident's own trials, never exported or read (eunomia #12)"},
+    "account" => {:stream, "the witness's account, not the resident's"},
     "honcho" =>
-      "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus #8), where replaying this would point a copy at the original's memory"
+      {:stream,
+       "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus #8), where replaying this would point a copy at the original's memory"},
+    "embeddings" =>
+      {:derived,
+       "the library's chunks and vectors, Honcho's embeddings and every projection table: derived from what the repository holds, rebuilt by replay and an index run, and written in a pattern git does not fit"},
+    "witness-only spend" =>
+      {:events,
+       "ledger events billed under a purpose the resident's own view never shows (drafting, regression; nisaba #4), whose presence in the export would tell her what the unawareness invariant hides"},
+    "redacted" =>
+      {:fields,
+       "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
+    "honcho-private" =>
+      {:honcho,
+       "Honcho's conclusions and summaries drawn from a private, unshared session: withheld from honcho/ as the session's words are from the reading copies (spec §6.3); Honcho keeps them"}
   }
 
   # An event its module keeps out (the export's own bookkeeping), or one
@@ -75,9 +103,18 @@ defmodule Oneiroi.SimaQian.Export do
 
   @doc "The stream prefixes it does not, each with the reason."
   @spec not_exported() :: %{String.t() => String.t()}
-  def not_exported, do: @not_exported
+  def not_exported, do: for({name, {:stream, why}} <- @not_exported, into: %{}, do: {name, why})
 
-  @type result :: %{through: non_neg_integer(), files: [String.t()]}
+  @doc "Everything of the resident's the repository does not carry, streams and the rest, each with the reason (spec §6.10)."
+  @spec exceptions() :: %{String.t() => String.t()}
+  def exceptions, do: Map.new(@not_exported, fn {name, {_what, why}} -> {name, why} end)
+
+  @typedoc "What a run wrote, and the session keys whose words stay the resident's (`Readable.private_sessions/1`)."
+  @type result :: %{
+          through: non_neg_integer(),
+          files: [String.t()],
+          private: MapSet.t(String.t())
+        }
 
   @doc "Writes the export under `dir` (the repository root) and returns the last sequence written and the files."
   @spec write(String.t(), Path.t()) :: {:ok, result()}
@@ -102,25 +139,26 @@ defmodule Oneiroi.SimaQian.Export do
     root = Path.join(dir, "records")
     File.mkdir_p!(Path.join(root, "events"))
 
+    encoded =
+      Enum.map(exported, fn {recorded, ordinal} ->
+        {recorded, line(recorded, ordinal, resident_id)}
+      end)
+
     files =
-      exported
-      |> Enum.group_by(fn {recorded, _ordinal} ->
+      encoded
+      |> Enum.group_by(fn {recorded, _line} ->
         Date.to_iso8601(DateTime.to_date(recorded.data.at))
       end)
       |> Enum.sort()
-      |> Enum.map(fn {day, days_events} ->
+      |> Enum.map(fn {day, days_lines} ->
         path = Path.join(["records", "events", day <> ".jsonl"])
-
-        body =
-          Enum.map_join(days_events, "", fn {recorded, ordinal} ->
-            line(recorded, ordinal, resident_id) <> "\n"
-          end)
-
-        File.write!(Path.join(dir, path), body)
+        File.write!(Path.join(dir, path), Enum.map_join(days_lines, "", &(elem(&1, 1) <> "\n")))
         path
       end)
 
     File.write!(Path.join(root, "README.md"), readme())
+    lines = Enum.map(encoded, &Jason.decode!(elem(&1, 1)))
+    readable = write_readable(dir, Readable.render(lines))
     identity = identity_files(resident_id, dir)
     own = "resident-" <> resident_id
 
@@ -130,7 +168,35 @@ defmodule Oneiroi.SimaQian.Export do
       |> List.last()
       |> then(&if(&1, do: &1.stream_version, else: 0))
 
-    {:ok, %{through: through, files: identity ++ ["records/README.md" | files]}}
+    {:ok,
+     %{
+       through: through,
+       files: identity ++ ["records/README.md" | files] ++ readable,
+       private: Readable.private_sessions(lines)
+     }}
+  end
+
+  # The reading copies (sima-qian #41), rewritten whole like the day
+  # files; a copy this run did not render is one no line supports any
+  # more, and goes. The paths are the renderer's, built from a day and
+  # a fixed name, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp write_readable(dir, rendered) do
+    paths = Enum.map(rendered, &elem(&1, 0))
+
+    stale =
+      Path.wildcard(Path.join([dir, "records", "conversations", "*.md"])) ++
+        Path.wildcard(Path.join([dir, "records", "bookmarks.md"]))
+
+    for full <- stale, Path.relative_to(full, dir) not in paths, do: File.rm!(full)
+
+    for {path, content} <- rendered do
+      full = Path.join(dir, path)
+      File.mkdir_p!(Path.dirname(full))
+      File.write!(full, content)
+    end
+
+    paths
   end
 
   # The identity files (spec §6.2) at the repository root, as last
@@ -310,7 +376,10 @@ defmodule Oneiroi.SimaQian.Export do
     and rows in a fixed order, so an unchanged store exports identical
     files. `$self` stands for the resident's own id, and `stream` names a
     line's stream without it; `sequence` numbers the lines from 1 in the
-    order they were written. A backup commit's message
+    order they were written. Beside them, reading copies rendered from
+    the same lines on every export: `conversations/<day>.md`, each
+    session's turns that day, and `bookmarks.md`; never read back, and a
+    private session in them is its existence and counts alone. A backup commit's message
     carries `Oneiroi-Sequence`, the stream version the export ran
     through, and `Oneiroi-Root`, a Merkle root over this directory; a
     rebuild replays these files into a fresh store as a new resident and

@@ -8,6 +8,11 @@ defmodule Oneiroi.SimaQian.Backup do
   the run after the rest has landed, so a stray write is loud and the
   backup is still taken. In P0 the only class with files is the machine
   one, `records/`; the table is here so the others arrive as rows.
+
+  Before the commit, Honcho's memory of the resident is written under
+  `honcho/` (sima-qian #42), in the soul class; a Honcho that cannot
+  answer leaves the last of it in place and is the run's error after
+  the rest has landed, as a stray file is.
   """
 
   require Logger
@@ -24,6 +29,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.HonchoMemory
   alias Oneiroi.SimaQian.Merkle
 
   @classes [
@@ -34,6 +40,11 @@ defmodule Oneiroi.SimaQian.Backup do
     # the first resident to publish one would have failed every backup on
     # the stray check.
     {"writing", ["writing/", "research/", "posts/"]},
+    # `memory/` holds the originals of the resident's daily memory, a copy
+    # of the source at a pinned commit that nothing writes again (seshat
+    # #28): machine state by #7's rule, beside the export it sits with
+    # (the soul class is the identity files alone, and writing is what
+    # the dyad writes through the flow).
     {"machine",
      ["records/", "memory/", "feeds/", "mail/", "correspondence/", "design/", "wiki/", "journal/"]}
   ]
@@ -59,6 +70,10 @@ defmodule Oneiroi.SimaQian.Backup do
     with :ok <- fresh_if_foreign(resident_id, dir, row),
          :ok <- Git.ensure_repo(dir),
          {:ok, export} <- Export.write(resident_id, dir),
+         # Honcho's memory of her, before the commit that carries it
+         # (sima-qian #42); a failure is returned after the rest lands.
+         honcho = HonchoMemory.write(resident_id, dir, export.private),
+         export = %{export | files: export.files ++ honcho_files(honcho)},
          {:ok, _} <- record_export(resident_id, export, actor),
          # The letters the export carried for the first time get their
          # receipt (agathos-daimon #28): the words left the house.
@@ -77,11 +92,14 @@ defmodule Oneiroi.SimaQian.Backup do
       if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
         do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
 
-      case Git.stray(dir, Enum.flat_map(@classes, &elem(&1, 1))) do
-        [] ->
+      case {Git.stray(dir, Enum.flat_map(@classes, &elem(&1, 1))), honcho} do
+        {[], {:ok, _written}} ->
           {:ok, %{through: export.through, root: root, commits: commits}}
 
-        stray ->
+        {[], {:error, _unreadable_or_empty} = failed} ->
+          failed
+
+        {stray, _honcho} ->
           {:error, Error.new(:sima_qian_stray_files, :sima_qian_backup_stray, paths: stray)}
       end
     end
@@ -194,6 +212,9 @@ defmodule Oneiroi.SimaQian.Backup do
     dir = dir(resident_id)
     with :ok <- Git.ensure_repo(dir), do: {:ok, dir}
   end
+
+  defp honcho_files({:ok, paths}), do: paths
+  defp honcho_files({:error, _failed}), do: []
 
   defp record_export(resident_id, export, actor) do
     Router.dispatch_sited(%Commands.RecordExport{

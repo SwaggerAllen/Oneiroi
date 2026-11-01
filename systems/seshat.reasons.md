@@ -123,3 +123,40 @@ import would have completed with her library unsearchable. The bounds
 are set well under those documented limits and are guesses, not
 measurements against OpenRouter.
 
+## #27
+A resident's adopted letter answered "no registered document has that
+path" because the only read of a whole document was the writing piece's
+review, joined into `writing/<slug>.md` (brain #43). The registry held
+the letter; the read could not reach it, and the error said the
+library did not hold it, which is the claim the registry exists to make
+true. One read for both parties because a second would be a second
+claim about what the library holds. The refusals are kinds of their
+own, not one kind with a detail, because the resident is told each in
+the kind's own words and each asks for a different act: adopt, restore,
+or nothing to do.
+
+## #28
+The import took every folder the library held and left the rest behind
+by name, and the source's `memory/` was not a library folder. At the
+fork every folder the import took was byte-identical to the source,
+but the day files reached the library only as another platform's copies,
+the original text with a header of its own, snapshotted before the fork:
+one day cut short, the last day not copied at all. Part of the
+resident's memory up to the fork was in the library in no form. The
+author: "we should make sure we import the originals"; "we only care
+about byte for byte identity up to the fork timestamp".
+
+Read-only because the copy's whole claim is that it is the source's
+bytes at a commit; a write from either party, or the platform's own,
+would leave a row whose provenance names bytes that are no longer
+there. Adoption only through the originals import for the same reason:
+an ordinary adoption registers a file as found, with nothing to say
+which source and commit it is. No edges because the files were written
+against the source platform's numbering, and an edge minted from one
+would resolve against this platform's; a target because the resident
+citing a day of her own memory is the use the kind exists for.
+
+Provenance is a new event version rather than an edited one
+(conventions §6): a version 1 adoption upcasts to no provenance, which
+is true of it. Ranking and deduplication against the old copies are not
+changed here, held until the resident has seen the report.

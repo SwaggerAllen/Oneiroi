@@ -36,10 +36,11 @@ defmodule Oneiroi.SimaQian do
       Jason,
       Oban
     ],
-    exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Rebuild]
+    exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Originals, Rebuild]
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Import
+  alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
 
   @impl Oneiroi.Component
@@ -125,6 +126,14 @@ defmodule Oneiroi.SimaQian do
       {:sima_qian_stray_files, "something wrote outside the paths the backup commits",
        remedy:
          "read the listed paths; the rest of the backup landed and the run failed after it, on purpose"},
+      {:sima_qian_honcho_unreadable,
+       "Honcho did not answer every read of the resident's workspace, so its memory was not exported this run",
+       remedy:
+         "the last export under honcho/ stands and the rest of the backup landed; check Honcho and back up again"},
+      {:sima_qian_honcho_empty,
+       "Honcho answered that the resident's provisioned workspace holds no peer, which no workspace the bridge made can",
+       remedy:
+         "the last export under honcho/ stands rather than an empty one; check which Honcho answered and whether the workspace was lost"},
       {:sima_qian_scheme_refused,
        "an import clones from a URL with one of the configured schemes",
        remedy: "give an https URL; a path on this host is never cloned from a request"},
@@ -148,6 +157,19 @@ defmodule Oneiroi.SimaQian do
       {:sima_qian_copy_failed, "the clone could not be copied into the records root",
        remedy:
          "the cause is the file system's reason; check the disk under SIMA_QIAN_ROOT, its space and its owner"},
+      {:sima_qian_not_the_witness, "the originals import is the witness's",
+       remedy: "the resident's witness runs it, from their own session"},
+      {:sima_qian_commit_invalid,
+       "the originals import reads the source at a commit named by its full sha, never a branch",
+       remedy: "give the commit's full 40-character sha (64 for a SHA-256 repository)"},
+      {:sima_qian_paths_invalid,
+       "the paths are a non-empty list of patterns inside the source tree: relative, no `..`",
+       remedy:
+         "leave them out for the defaults (memory/*.md, memory/dreaming/**, MEMORY.md, DREAMS.md), or name patterns like those"},
+      {:sima_qian_original_mismatch,
+       "a copied file's git blob sha is not the source tree's, so nothing was adopted and this run's copies were removed",
+       remedy:
+         "the paths are named; check the disk under SIMA_QIAN_ROOT, then run the import again at the same commit"},
       {:sima_qian_append_failed, "the event store refused the repository's records",
        remedy:
          "the cause is the store's reason; the runs before it were written under the new id, so import again rather than resume"}
@@ -184,6 +206,12 @@ defmodule Oneiroi.SimaQian do
           {:ok, map()} | {:error, term()}
   defexport(import_resident(url, attrs, witness_account_id, actor),
     do: Import.run(url, attrs, witness_account_id, actor)
+  )
+
+  @doc "Imports the originals of the resident's memory from its source repository at a pinned commit, byte for byte, each registered with its provenance (sima-qian #40); the witness's."
+  @spec import_originals(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(import_originals(resident_id, request, actor),
+    do: Originals.run(resident_id, request, actor)
   )
 
   @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."

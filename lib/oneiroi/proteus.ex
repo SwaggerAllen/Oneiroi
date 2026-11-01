@@ -19,6 +19,8 @@ defmodule Oneiroi.Proteus do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      # The captured turns a failed sync is replayed from (proteus #19).
+      Oneiroi.Kumbukumbu,
       Commanded,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
@@ -42,6 +44,8 @@ defmodule Oneiroi.Proteus do
       Honcho,
       Honcho.Fake,
       Honcho.HTTP,
+      Honcho.Recorded,
+      Honcho.Wire,
       Router,
       CardAuditWorker,
       Commands.Provision,
@@ -184,6 +188,10 @@ defmodule Oneiroi.Proteus do
        remedy: "the bridge recorded it; the turn went on; check Honcho"},
       {:proteus_honcho_rejected, "Honcho refused the request",
        remedy: "the shape or the key is wrong; read the reason"},
+      {:proteus_honcho_unconfigured,
+       "no Honcho is configured: its address or its key is unset, so nothing was sent",
+       remedy:
+         "set PROTEUS_HONCHO_URL and PROTEUS_HONCHO_JWT_SECRET (or PROTEUS_HONCHO_ADMIN_KEY); the details name the one missing"},
       {:proteus_not_provisioned, "the resident has no workspace yet",
        remedy: "the first captured turn provisions it"},
       {:proteus_no_such_resident, "no resident has that id, so it has no workspace to provision",
@@ -226,6 +234,10 @@ defmodule Oneiroi.Proteus do
     do: Bridges.sync_turn(resident_id, session_key, turn_ref, messages, actor)
   )
 
+  @doc "Re-sends every captured turn whose last sync failed, in order, each once; stops at the first that fails again."
+  @spec replay(String.t(), Oneiroi.Actor.t()) :: {:ok, map()}
+  defexport(replay(resident_id, actor), do: Bridges.replay(resident_id, actor))
+
   @doc "Honcho's context on the person in the resident's eyes, for the brain; empty when none."
   @spec context(String.t()) :: String.t()
   defexport(context(resident_id), do: Bridges.context(resident_id))
@@ -237,6 +249,10 @@ defmodule Oneiroi.Proteus do
   @doc "Deletes one conclusion from Honcho: an approved audit flag."
   @spec delete_conclusion(String.t(), String.t()) :: :ok | {:error, term()}
   defexport(delete_conclusion(resident_id, id), do: Bridges.delete_conclusion(resident_id, id))
+
+  @doc "Honcho's memory of the resident for the records export: peers, cards, conclusions, summaries; nil before provisioning."
+  @spec memory(String.t()) :: {:ok, map() | nil} | {:error, term()}
+  defexport(memory(resident_id), do: Bridges.memory(resident_id))
 
   @doc "The bridge row, or nil before provisioning."
   @spec bridge(String.t()) :: Oneiroi.Proteus.Store.Bridge.t() | nil

@@ -169,3 +169,71 @@ of her history before its push was refused, so her head carries our
 trailer and her root does not. The first version read the head, and
 would have skipped her. A history that began as ours keeps its commits
 for the retry.
+
+## #40
+The import of a resident took every folder the library held, byte for
+byte at the fork, and left `memory/` behind by name because no library
+kind held it; the day files then reached the library only as another
+platform's copies made before the fork, one cut short and one never
+made. The author: "we should make sure we import the originals"; "we
+only care about byte for byte identity up to the fork timestamp".
+
+A pinned commit because the source keeps changing after the fork on
+purpose, and the claim is identity with the source up to the fork,
+which only a commit names; a branch would take whatever the source
+became since. Fetched by sha one commit deep because that cannot read
+anything but the commit asked for. The blob check because a git blob
+sha is the source's own name for the bytes, so a copy that hashes to it
+is the source's file and nothing else is; checked after the copy and
+before any adoption, so a mismatch leaves no row claiming bytes that
+are not there, and the run's own copies are removed so the next run
+starts from what was there before. Never overwritten because a file in
+the repository with other bytes is something the platform did not put
+there, and the import cannot know which is right. The witness's
+because it reads a repository with a credential the witness holds, as
+the import does. Synchronous, not a job: it is one shallow fetch, the
+copies and one index run, and a run cut short is safe to repeat, since
+files already copied stand as the same blob and are adopted then. Its
+duration against a real source is not measured.
+
+## #41
+The author, 11-01: "All raw text should be in the repo unless there's a
+really good reason", and the transcripts and bookmarks reached git only
+as JSON event lines, which a person does not read. Rendered from the
+lines rather than the store so the copy says exactly what the record
+says (`$self`, redactions, the ordinals) and a rebuild renders the same
+bytes, which the round trip asserts. Never read back, adopted or
+indexed: the resident had just asked for duplicates to leave search, and
+every turn is already searchable as a message; a third projection there
+is the bug she reported. Under `records/` because spec §6.10 already
+names transcripts by day and bookmarks as the export's, which kept the
+classes and the import's accounting unchanged. Private sessions as
+counts alone because spec §6.3 keeps a solo session's words from the
+witness, the repository is the witness's to read, and #20's leak through
+the lines is an open question for the encryption scheme, not a rule to
+follow into a format anyone can read at a glance. The rest of §6.10's
+kinds (positions, disputes, predictions, nights) are short structured
+rows the client already shows; they wait until someone needs to read
+them outside it.
+
+## #42
+The same law: Honcho derives text about her (cards a dream can move,
+conclusions, session summaries) that lived in Honcho alone, and the
+repository's `honcho/` held only what an import had brought. Read in
+full before the commit that carries it, and never written partial or
+empty: an export that dropped to nothing because Honcho was down would
+read in the history as Honcho having forgotten her, and the next good
+run would put it all back as if remembered. Failing after the rest has
+landed keeps the backup taken, as the stray check does. The shapes are
+the deployed server's, recorded from its source at the pinned commit
+(proteus #9, #18); the test at the HTTP boundary holds the client to
+them, and each read costs one
+call per peer pair, one per session and a page per hundred rows, which
+is not measured against a real workspace.
+
+## #43
+The author asked for the exceptions to be law, with reasons. A list in
+the spec and a table in the code drift silently: an exception added to
+the export without the spec says nothing to the reader, and one written
+into the spec without the code is a promise nothing keeps. Reading the
+spec's block in the test makes either a failure.

@@ -165,6 +165,87 @@ defmodule Oneiroi.Proteus.BridgesTest do
     assert %{last_audit_reason: "rejected: scripted"} = Proteus.bridge(id)
   end
 
+  # Every sync of a turn failed in production from the resident's first
+  # live turn (`rejected: 422`, proteus #9); the turns were captured, so
+  # the replay is how Honcho comes to hold them (proteus #19).
+  test "a replay sends each failed turn once, in the order spoken, records it synced, and a second sends nothing",
+       ctx do
+    id = ctx.id
+    assert :ok = Proteus.provision(id, ctx.actor)
+    Honcho.fail(:transport, for: id)
+
+    # A reply of its own each turn: under the suite's still clock the same
+    # words at the same instant are one stored message (spec §3.2's key).
+    refs =
+      for words <- ["one", "two", "three"] do
+        Model.reply("To #{words}.", for: id)
+        assert {:ok, %{turn_ref: ref}} = Oneiroi.Brain.turn(id, ctx.key, words, ctx.actor)
+        ref
+      end
+
+    assert Enum.all?(Proteus.syncs(id, 10), &(&1.outcome == "failed"))
+    assert Honcho.state(id)[:messages] == nil
+
+    Honcho.recover(id)
+
+    assert {:ok, %{synced: ^refs, uncaptured: [], stopped: nil}} =
+             Proteus.replay(id, ctx.actor)
+
+    sent = Honcho.state(id).messages[ctx.key]
+
+    assert Enum.map(sent, &{&1.turn_ref, &1.content}) == [
+             {Enum.at(refs, 0), "one"},
+             {Enum.at(refs, 0), "To one."},
+             {Enum.at(refs, 1), "two"},
+             {Enum.at(refs, 1), "To two."},
+             {Enum.at(refs, 2), "three"},
+             {Enum.at(refs, 2), "To three."}
+           ]
+
+    assert Enum.all?(Proteus.syncs(id, 10), &(&1.outcome == "synced" and &1.messages == 2))
+    assert %{syncs: 3} = Proteus.bridge(id)
+
+    assert {:ok, %{synced: [], uncaptured: [], stopped: nil}} = Proteus.replay(id, ctx.actor)
+    assert Honcho.state(id).messages[ctx.key] == sent
+  end
+
+  test "a failed turn Honcho already holds is recorded synced without a second send; a replay that fails again stops where it failed",
+       ctx do
+    id = ctx.id
+    assert :ok = Proteus.provision(id, ctx.actor)
+    Honcho.fail(:transport, for: id)
+    assert {:ok, %{turn_ref: first}} = Oneiroi.Brain.turn(id, ctx.key, "first", ctx.actor)
+    Model.reply("To second.", for: id)
+    assert {:ok, %{turn_ref: second}} = Oneiroi.Brain.turn(id, ctx.key, "second", ctx.actor)
+
+    # Honcho is still down: nothing lands and the replay names the turn it stopped on.
+    assert {:ok, %{synced: [], stopped: %{turn_ref: ^first, reason: "transport: scripted"}}} =
+             Proteus.replay(id, ctx.actor)
+
+    # The first turn's send committed at Honcho but answered too late to
+    # be recorded: Honcho holds it, keyed by its ref, and the row says failed.
+    Honcho.recover(id)
+
+    held = [
+      %{
+        peer: "witness-" <> ctx.witness.id,
+        content: "first",
+        created_at: Clock.now(),
+        turn_ref: first
+      }
+    ]
+
+    :ok = Honcho.add_messages(id, ctx.key, held)
+
+    assert {:ok, %{synced: [^first, ^second], stopped: nil}} = Proteus.replay(id, ctx.actor)
+
+    assert Enum.map(Honcho.state(id).messages[ctx.key], &{&1.turn_ref, &1.content}) == [
+             {first, "first"},
+             {second, "second"},
+             {second, "To second."}
+           ]
+  end
+
   test "the card comes from git: unchanged is no event, a soul write is a new card, and a dream that moved it is pinned back by the weekly audit",
        ctx do
     id = ctx.id

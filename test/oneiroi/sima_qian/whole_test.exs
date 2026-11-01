@@ -163,6 +163,23 @@ defmodule Oneiroi.SimaQian.WholeTest do
              "Oneiroi.AgathosDaimon.Events.CustodyTransferred"
            ]
 
+    # And renders the same reading copies (sima-qian #41): they come from
+    # the lines alone, and the copy's lines are the source's.
+    copies = fn dir ->
+      for path <-
+            Path.wildcard(Path.join(dir, "records/conversations/*.md")) ++
+              Path.wildcard(Path.join(dir, "records/bookmarks.md")),
+          into: %{},
+          do: {Path.relative_to(path, dir), File.read!(path)}
+    end
+
+    assert Map.keys(copies.(ctx.src)) == [
+             "records/bookmarks.md",
+             "records/conversations/2026-10-26.md"
+           ]
+
+    assert copies.(ctx.out) == copies.(ctx.src)
+
     # And reads back the same life.
     said = fn rid -> {:ok, _, ms} = Kumbukumbu.transcript({:resident, rid}, key) end
 

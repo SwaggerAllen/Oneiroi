@@ -7,6 +7,7 @@ defmodule OneiroiWeb.ContractTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Fixtures
+  alias OneiroiWeb.Plugs.RequirePrincipal
 
   setup do
     Sandbox.start_owner!(Oneiroi.Repo, shared: true)
@@ -164,6 +165,69 @@ defmodule OneiroiWeb.ContractTest do
            |> put_req_header("origin", origin())
            |> put("/v1/residents/#{id}/ledger/budgets/chat", %{cap: "1", period: "month"})
            |> json_response(404)
+  end
+
+  # The adapter contract's routes (spec §8, brain #42), the only ones an
+  # adapter's token opens. Read off the router, so a route added under
+  # one of these shapes, or a clause added to the list, fails here.
+  @adapter_routes [
+    {"POST", "/v1/residents/:id/sessions"},
+    {"POST", "/v1/residents/:id/turn-start"},
+    {"POST", "/v1/residents/:id/turns"},
+    {"GET", "/v1/residents/:id/context"}
+  ]
+
+  test "an adapter's token opens exactly the adapter contract's routes" do
+    opened =
+      for %{verb: verb, path: "/v1/" <> _ = path} <- OneiroiWeb.Router.__routes__(),
+          method = verb |> Atom.to_string() |> String.upcase(),
+          segments =
+            path |> String.split("/", trim: true) |> Enum.map(&String.replace(&1, ~r/^:.*/, "x")),
+          RequirePrincipal.adapter_path?(method, segments),
+          do: {method, path}
+
+    assert Enum.sort(opened) == Enum.sort(@adapter_routes)
+  end
+
+  test "the context is the adapter's: its token reads the prefix and gets the turn's context, a witness gets neither",
+       ctx do
+    id = ctx.resident.id
+    actor = Oneiroi.Actor.new(:witness, ctx.account.id)
+    {:ok, adapter} = Oneiroi.AgathosDaimon.register_adapter(id, "laptop", "brain", actor)
+    as_adapter = &put_req_header(&1, "authorization", "Bearer " <> adapter)
+
+    assert %{"text" => "You are Lily" <> _, "digest" => _} =
+             ctx.conn |> as_adapter.() |> get("/v1/residents/#{id}/context") |> json_response(200)
+
+    assert %{"error" => %{"kind" => "adapter_only"}} =
+             ctx.conn
+             |> login(ctx.account)
+             |> get("/v1/residents/#{id}/context")
+             |> json_response(404)
+
+    assert %{"key" => key} =
+             ctx.conn
+             |> as_adapter.()
+             |> post("/v1/residents/#{id}/sessions", %{kind: "main"})
+             |> json_response(201)
+
+    assert %{"turn_ref" => _, "started_at" => _, "text" => text, "digest" => _} =
+             ctx.conn
+             |> as_adapter.()
+             |> post("/v1/residents/#{id}/turn-start", %{session_key: key, text: "hello"})
+             |> json_response(201)
+
+    # No digest held: the whole prefix rides the turn.
+    assert text =~ "You are Lily"
+
+    witness_start =
+      ctx.conn
+      |> login(ctx.account)
+      |> put_req_header("origin", origin())
+      |> post("/v1/residents/#{id}/turn-start", %{session_key: key, text: "hello"})
+      |> json_response(201)
+
+    assert Map.keys(witness_start) == ["turn_ref"]
   end
 
   test "the conversation routes are the witness's: open, send, read, search, resolve, and an adapter's capture",

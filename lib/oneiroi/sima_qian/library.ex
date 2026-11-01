@@ -19,6 +19,16 @@ defmodule Oneiroi.SimaQian.Library do
               actor :: Oneiroi.Actor.t()
             ) :: {:ok, non_neg_integer()} | {:error, term()}
 
+  @doc "Registers the files the originals import copied, each `%{path, provenance}`, and runs the index once when any was new (sima-qian #40)."
+  @callback adopt_originals(
+              resident_id :: String.t(),
+              files :: [%{path: String.t(), provenance: map()}],
+              actor :: Oneiroi.Actor.t()
+            ) :: {:ok, %{adopted: [String.t()], indexed: boolean()}} | {:error, term()}
+
+  @doc "Why the originals import cannot take a path (a hidden name, not text, outside the kinds that take originals), or nil (sima-qian #40)."
+  @callback original_refusal(path :: String.t()) :: String.t() | nil
+
   @doc "The kinds' folders: what an import counts as transferred."
   @callback folders() :: [String.t()]
 

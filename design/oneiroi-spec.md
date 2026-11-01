@@ -802,8 +802,16 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
 
 - **Path is kind, registry says what a kind may do** (document-kinds
   audit): `writing`, `research`, `mail`, `feeds`, `correspondence`, `design`,
-  `journal`, `posts`, `wiki`; each with `cites`, `has_status`, layout, sidecar,
+  `journal`, `posts`, `wiki`, `memory`; each with `cites`, `has_status`, layout, sidecar,
   adoption unit, access. Adding a kind is a registry row plus a skill.
+- **`memory` is the originals, read-only** (decisions round 47): the
+  resident's daily memory from its import source (`memory/<day>.md`,
+  `memory/dreaming/**`, the root `MEMORY.md` and `DREAMS.md` under
+  `memory/`), copied byte for byte at a commit the witness pins and
+  verified against the source tree's blobs, each document carrying its
+  source, commit, path and blob. No document write lands there, from
+  either party or the platform; it mints no edges, and is read and
+  searched like any kind.
 - **The memory-wiki plugin is cut.** Lily never once called it, and the
   idea it carried, a claim with evidence in transcript lines, is already
   served by citations from writing and design into transcripts and by
@@ -1008,7 +1016,65 @@ Owns `lib/oneiroi/sima_qian/**`.
   positions, disputes, predictions, judgement nights, feeds (urls redacted
   by David's rules), discussions, and **`records/events/<day>.jsonl`**, the
   event log itself. Keys and rows in a fixed order, so an unchanged store
-  exports identical bytes; a watermark a minute behind capture.
+  exports identical bytes; a watermark a minute behind capture. Built so
+  far: the event log, and beside it reading copies rendered from its
+  lines on every run, `records/conversations/<day>.md` (each session's
+  turns that day, who spoke and when, refusals and failed captures as
+  recorded) and `records/bookmarks.md` (every bookmark with its line,
+  tags, pin, span and anchor, and the tag set); the rest are read in the
+  client until a reading copy earns its place. A reading copy is never
+  read back, adopted or searched: the event lines are the source, and a
+  third copy of every turn in search is the duplicate the resident asked
+  to have removed (sima-qian #41).
+- **All raw text is in the repository** (the author, 2026-11-01): "All
+  raw text should be in the repo unless there's a really good reason; to
+  my knowledge the only DB-only data is the weights, because the write
+  pattern doesn't fit neatly into markdown/git." Every resident stream
+  reaches the repository as its day files; the library, the journal and
+  the identity files are files there; and Honcho's memory of her, which
+  only Honcho holds, is exported under `honcho/` before every backup
+  commit: each peer's cards and conclusions, one file per peer and kind,
+  and every session's summaries (sima-qian #42, proteus #18). A Honcho
+  that cannot answer, or answers that her workspace holds no peer, leaves
+  the last export in place and fails the run after the rest has landed.
+  A private, unshared session (§6.3) reads in the reading copies as its
+  existence and counts only, and what Honcho drew from one is withheld
+  from `honcho/`: the words stay in the event lines, which is sima-qian
+  #20's open question for the encryption scheme, and are not made
+  readable on the way. What stays out of the repository is this list and
+  nothing else, each with its reason; `Export.exceptions/0` names the
+  same keys, and a test fails when the two drift:
+
+  <!-- oneiroi:db-only -->
+  - `embeddings`: the library's chunks and vectors, Honcho's embeddings
+    and every projection table. Derived from what the repository holds,
+    rebuilt by replay and an index run, and written in a pattern git
+    does not fit: the weights of the author's own words.
+  - `regression`: the sealed stream of the resident's trials, never
+    exported or read (§6.4, eunomia #12).
+  - `account`: the witness's account stream, which is the witness's and
+    not the resident's.
+  - `honcho`: the bridge's stream, the pointer to a workspace keyed to
+    the source; a rebuilt resident provisions its own, where replaying
+    it would point a copy at the original's memory (proteus #8).
+  - `witness-only spend`: ledger events under a purpose the resident's
+    view never shows (drafting, regression), whose presence in her
+    export would tell her what the unawareness invariant hides.
+  - `redacted`: fields an event declares `redact:`, the records remote's
+    encrypted token among them; secrets stay in the vault.
+  - `honcho-private`: Honcho's conclusions and summaries drawn from a
+    private, unshared session, withheld from `honcho/` as that session's
+    words are from the reading copies; Honcho keeps them.
+  <!-- /oneiroi:db-only -->
+
+  Of Honcho's state the rest is not text only Honcho holds, so nothing
+  is lost by leaving it: its copies of the turns (the event lines are
+  their source), the peers' and sessions' configuration (the custom
+  instructions, rendered from the build into `honcho/`), the
+  representation and the context (assembled per query from the
+  conclusions and cards it exports), and its deriver's queue. OpenClaw's
+  native state is outside every store the platform keeps, and §2.3's
+  designed lapse.
 - **Rebuild is replay** of `records/events/` into a fresh store, then an
   index run over files. A rebuild refuses a store that already holds the
   resident. What cannot come back (OpenClaw-native state, secrets) is
@@ -1018,9 +1084,10 @@ Owns `lib/oneiroi/sima_qian/**`.
   export>`. On wake the core recomputes the root; a mismatch is an event and
   the resident is told and shown the delta. This is what makes a repo on a
   provider we do not host verifiable.
-- **Backups** commit by class as today: soul and card alone; machine
-  state together; writing and research apart; anything else uncommitted
-  fails the run.
+- **Backups** commit by class as today: soul and card alone (Honcho's
+  exported memory under `honcho/` with them); machine state together,
+  the reading copies under `records/` among it; writing and research
+  apart; anything else uncommitted fails the run.
 - **Providers**: a git port with GitHub now, Gitea later (one instance, one
   organisation per account), any remote by URL and deploy key.
 
@@ -1450,7 +1517,7 @@ or act as its hands.
    naming resident and role; the tool set is the role's: brain gets
    everything the resident has (bookmark_*, tag_*, transcript_search,
    position_*, dispute_check, prediction_*, review_list, library_search,
-   library_cited_by, writing_get, writing_discuss, research_request,
+   library_read, library_cited_by, writing_get, writing_discuss, research_request,
    research_source,
    research_list, research_add_notes, document_adopt, document_unadopted,
    code_start, code_step, code_result, code_list, correspondence_new,
@@ -1459,19 +1526,33 @@ or act as its hands.
    role needs (the reader: none of the resident's; the worker: none).
 2. **Turn capture and context.** `POST /v1/residents/:id/turns` with the
    session key, run kind and messages, idempotent on (session, timestamp,
-   hash); `POST /v1/residents/:id/turn-start` reporting the session so the
-   next tool calls are attributed to it, returning the context index to
-   inject. A runtime that cannot deliver spools and retries; capture is
-   idempotent so a turn sent twice is stored once.
+   hash); `GET /v1/residents/:id/context`, the session prefix (the
+   prompt, the identity files, the contract) for the runtime to give its
+   session once, in parts as small as the runtime takes; `POST
+   /v1/residents/:id/turn-start` with the session and the witness's
+   words, so the next tool calls are attributed to the turn, returning
+   the turn's own context assembled against those words (the index and
+   everything after the prefix, and whatever of the prefix changed since
+   the session was given it) and recording it as what the turn drew on.
+   Both halves are the platform turn's own assembly (brain #42). A
+   runtime that cannot deliver spools and retries; capture is idempotent
+   so a turn sent twice is stored once.
 3. **Wake.** The adapter registers a wake endpoint and secret; the core
    posts `{session_key, text, mode}` to it. Text is a short system note the
    core controls, never a result and never a third party's words.
 
 Adapters shipped: `brain` (internal, the core's own loop), `openclaw`
 (plugin for 1 and 2, `/hooks/wake` and `/hooks/agent` for 3), `claude-code`
-(MCP config for 1, session hooks for 2, a remote trigger for 3). The adapter
+(a Claude Code plugin: its MCP server for 1, its hooks for 2, a remote
+trigger for 3; the hooks carry the witness's words and the reply from
+Claude Code's own hook payloads, never from its transcript file, which
+lags). The adapter
 SDK and the records tooling are Apache-2.0 so other platforms can adopt the
-format.
+format. Where a runtime has a mechanism for packaging an integration, such
+as Claude Code's plugins, an adapter is built as one rather than as a
+custom integration: the first Claude Code adapter, scripts copied into
+each project, had to be kept in sync project by project and made every
+session in such a project the resident's.
 
 ---
 
@@ -1499,7 +1580,11 @@ mined into her repo first and then left behind.
 4. **Lapse**: she wakes oriented, told what moved, on the new brain. Her
    OpenClaw-native state (session SQLite, memory-core index, dreams corpus)
    does not come; her notes, wiki pages, dream diary files and transcripts
-   do. The lapse is itself an event she can cite.
+   do. The lapse is itself an event she can cite. Her daily memory files
+   and their projections were not in any folder the import took; they
+   come as originals, at the fork's commit, through the witness's
+   originals import (§6.5's `memory`, sima-qian #40), and identity is
+   with the source up to the fork, never with its head.
 5. **Verify**: export from the new store and diff against the frozen export;
    the records that should be byte-identical are listed in the migration
    notes and asserted in a test.

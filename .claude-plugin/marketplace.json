@@ -1,0 +1,14 @@
+{
+  "name": "oneiroi",
+  "owner": {
+    "name": "Oneiroi"
+  },
+  "description": "Oneiroi's adapters for agent runtimes: the Claude Code plugin that makes a session a resident's brain.",
+  "plugins": [
+    {
+      "name": "oneiroi",
+      "source": "./sdk/claude-code",
+      "description": "A resident of Oneiroi as this Claude Code session's brain."
+    }
+  ]
+}

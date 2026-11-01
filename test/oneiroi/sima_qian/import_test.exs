@@ -135,7 +135,11 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert reasons == %{
              "README.md" => "a file at the root that is not an identity file",
              "honcho" => "outside the folders the library holds",
-             "memory" => "outside the folders the library holds",
+             # The library holds memory, as originals at a pinned commit
+             # (seshat #28), and the reason says so rather than that it
+             # cannot.
+             "memory" =>
+               "the originals of memory come in through the originals import, at a commit the witness pins, never with the repository",
              "records/README.md" => "a record nothing here reads",
              "transcripts" => "outside the folders the library holds",
              "wiki/lily/.openclaw-wiki/log.jsonl" =>

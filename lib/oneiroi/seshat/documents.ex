@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.Documents do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Scope
@@ -69,6 +70,7 @@ defmodule Oneiroi.Seshat.Documents do
   # sobelow_skip ["Traversal.FileModule"]
   def adopt(resident_id, path, %Actor{} = actor) do
     with {:ok, path} <- normalize(path),
+         :ok <- not_originals(path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, content} <- read_file(Path.join(dir, path)),
          kind = Kinds.kind_of(path),
@@ -109,6 +111,60 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
+  @doc """
+  Registers the files the originals import copied (seshat #28), each
+  `%{path, provenance}` with the provenance `%{source, commit, path,
+  blob}`, as found on disk, and runs the index once when any was new. A
+  path registered already is no event, so a run at the same commit
+  changes nothing. The records system copied and verified the bytes;
+  this only registers what is there.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  def adopt_originals(resident_id, files, %Actor{} = actor) when is_list(files) do
+    with {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         {:ok, adopted} <- register_originals(resident_id, dir, files, actor) do
+      indexed = adopted == [] or match?({:ok, _}, Index.run(resident_id, actor))
+      {:ok, %{adopted: adopted, indexed: indexed}}
+    end
+  end
+
+  defp register_originals(resident_id, dir, files, actor) do
+    Enum.reduce_while(files, {:ok, []}, fn %{path: path, provenance: provenance}, {:ok, acc} ->
+      with {:ok, path} <- normalize(path),
+           true <- Kinds.originals?(path) || refused_original(path),
+           {:ok, content} <- read_file(Path.join(dir, path)),
+           {:ok, events} <-
+             dispatch(%Commands.AdoptDocument{
+               actor: actor,
+               at: Clock.now(),
+               id: resident_id,
+               path: path,
+               kind: Kinds.kind_of(path).kind,
+               hash: hash(content),
+               bytes: byte_size(content),
+               provenance: provenance
+             }) do
+        {:cont, {:ok, if(events == [], do: acc, else: acc ++ [path])}}
+      else
+        {:error, _} = refused -> {:halt, refused}
+      end
+    end)
+  end
+
+  defp refused_original(path),
+    do: {:error, Error.new(:seshat_path_invalid, :seshat_documents_original_outside, path: path)}
+
+  # A kind that takes originals is registered only with its provenance,
+  # through `adopt_originals/3`: an ordinary adoption would register the
+  # file as found, with nothing saying which source and commit it is.
+  defp not_originals(path) do
+    if Kinds.originals?(path),
+      do:
+        {:error,
+         Error.new(:seshat_originals_only, :seshat_documents_adopt_originals_only, path: path)},
+      else: :ok
+  end
+
   # sobelow_skip ["Traversal.FileModule"]
   defp register(resident_id, dir, path, actor) do
     with {:ok, path} <- normalize(path),
@@ -136,6 +192,7 @@ defmodule Oneiroi.Seshat.Documents do
       registered = resident_id |> list() |> MapSet.new(& &1.path)
 
       Kinds.all()
+      |> Enum.reject(&(&1.adoption == :originals))
       |> Enum.flat_map(fn kind -> files_under(dir, kind.folder) end)
       |> Enum.reject(&MapSet.member?(registered, &1))
       |> Enum.sort()
@@ -159,14 +216,55 @@ defmodule Oneiroi.Seshat.Documents do
   @doc "The registered documents, by kind then path."
   def list(resident_id), do: Scope.resident(resident_id, fn -> Store.documents() end)
 
-  @doc "One document: its row and its content as on disk."
+  @doc """
+  One document: its row and its content as on disk. The one read of a
+  document's text, the witness's (`GET .../library/documents/*path`)
+  and the resident's (`library_read`) alike. A path the registry lacks
+  is `seshat_not_adopted` when the file is there under a kind's folder
+  and `seshat_no_such_document` when it is not; a registered document
+  whose file is gone is `seshat_document_missing`, never "no such
+  document", because the registry holding it is the fact that matters.
+  """
   # sobelow_skip ["Traversal.FileModule"]
   def fetch(resident_id, path) do
     with {:ok, path} <- normalize(path),
-         {:ok, row} <- registered(resident_id, path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, content} <- read_file(Path.join(dir, path)) do
+         {:ok, row} <- registered(resident_id, path, Path.join(dir, path)),
+         {:ok, content} <- present(row, Path.join(dir, path)) do
       {:ok, %{document: row, content: content, discussions: discussions(resident_id, path)}}
+    end
+  end
+
+  @doc """
+  One document by the name a search hit, a footnote or a citation gives
+  it, read as `fetch/2` reads it: a path (`correspondence/<a>/<b>.md`),
+  a path with a passage anchor (`writing/<slug>.md#3`, which the
+  registry's segments cannot contain, so the anchor is never part of a
+  path), or a citation of the resident's own slug
+  (`<slug>:writing/<slug>`, resolved to its file as citations resolve).
+  A citation of another resident's slug is refused by name.
+  """
+  def read(resident_id, name) when is_binary(name) do
+    with {:ok, path} <- path_named(resident_id, String.trim(name)), do: fetch(resident_id, path)
+  end
+
+  def read(resident_id, _name), do: fetch(resident_id, nil)
+
+  defp path_named(resident_id, name) do
+    case Citations.extract(name) do
+      [%{target: ^name, slug: slug, kind: kind, ref: ref}] ->
+        {:ok, %{slug: own}} = AgathosDaimon.fetch(resident_id)
+
+        if slug == own,
+          do: {:ok, Citations.document_path(kind, ref)},
+          else:
+            {:error,
+             Error.new(:seshat_other_resident, :seshat_documents_read_other_resident,
+               target: name
+             )}
+
+      _not_a_citation ->
+        {:ok, name |> String.split("#", parts: 2) |> hd()}
     end
   end
 
@@ -226,6 +324,13 @@ defmodule Oneiroi.Seshat.Documents do
     kind = Kinds.kind_of(path)
 
     cond do
+      # Read-only: the originals import's copy is the record, and a write
+      # from either party, or the platform's own core write, would make
+      # the file something other than the source's bytes at its commit.
+      kind.access == :imported ->
+        {:error,
+         Error.new(:seshat_kind_not_writable, :seshat_documents_kind_read_only, kind: kind.kind)}
+
       kind.access != :resident and not core? ->
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_not_writable,
@@ -253,14 +358,44 @@ defmodule Oneiroi.Seshat.Documents do
          )}
   end
 
-  defp registered(resident_id, path) do
+  # The registry is read under the resident's scope alone: another
+  # resident's row for the same path is not this resident's document.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp registered(resident_id, path, full) do
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
       nil ->
-        {:error,
-         Error.new(:seshat_no_such_document, :seshat_documents_not_registered, path: path)}
+        if File.regular?(full),
+          do: {:error, Error.new(:seshat_not_adopted, :seshat_documents_not_adopted, path: path)},
+          else:
+            {:error,
+             Error.new(:seshat_no_such_document, :seshat_documents_not_registered, path: path)}
 
       row ->
         {:ok, row}
+    end
+  end
+
+  # A registered document's file read as it is on disk; gone is the
+  # registry outliving the file (the index marks it `missing_at`), said
+  # as that, with the instant the index first found it gone when it has.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp present(row, full) do
+    case File.read(full) do
+      {:ok, content} ->
+        {:ok, content}
+
+      {:error, reason} when reason in [:enoent, :enotdir] ->
+        {:error,
+         Error.caught(:seshat_document_missing, :seshat_documents_file_missing, reason,
+           path: row.path,
+           missing_at: row.missing_at
+         )}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:seshat_no_such_file, :seshat_documents_present_read, reason,
+           path: row.path
+         )}
     end
   end
 

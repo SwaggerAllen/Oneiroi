@@ -1,0 +1,270 @@
+{
+  "provenance": {
+    "what": "Every route Oneiroi.Proteus.Honcho.HTTP calls, as the deployed Honcho declares it: the path, the query parameters, the request body's pydantic model and the response's, field by field. Read from the server's own source at the commit the production Honcho is built from, not from an SDK or the docs (proteus #9).",
+    "repository": "https://github.com/plastic-labs/honcho",
+    "commit": "6f91136b4e8d4b41de75f05d0cea822a1520b3a4",
+    "version": "3.5.0 (pyproject.toml at that commit; pydantic 2.13.4, fastapi 0.136.1, fastapi-pagination 0.15.12 in its uv.lock)",
+    "read": "2026-11-01, through raw.githubusercontent.com at the commit",
+    "files": [
+      "src/main.py (every router mounted under /v3)",
+      "src/routers/workspaces.py",
+      "src/routers/peers.py",
+      "src/routers/sessions.py",
+      "src/routers/messages.py",
+      "src/routers/conclusions.py",
+      "src/routers/keys.py",
+      "src/schemas/api.py",
+      "src/schemas/configuration.py",
+      "src/utils/pagination.py (pagination_params: page >= 1, 1 <= size <= 100)",
+      "src/utils/filter.py (the filter keys each list accepts)",
+      "src/config.py (MAX_MESSAGE_SIZE = 25000)",
+      "src/exceptions.py (FilterError and ValidationException are 422)"
+    ],
+    "reread_when": "Honcho is redeployed from any other commit: re-read these files at the new commit and rewrite this file, or the fakes hold the client to a server that is no longer there. No test can see the deployed commit (render.yaml deploys branch main by hand), so the first sign of drift is `rejected: 422` sync rows on the Honcho page and the sync_failures check."
+  },
+  "server": {
+    "names": "A field with an alias is sent under the alias (`id`, `peer_id`, `peers`). Where the model sets populate_by_name (WorkspaceCreate, PeerCreate, SessionCreate) the server also takes the field's own name (`name`, `peer_names`); MessageCreate does not set it, so `peer_name` there is a missing `peer_id`: 422. By this schema that is the one refusal in the bodies the client sent before, and it matches every production sync failure on 11-01 (29 of them, all `rejected: 422`, after the workspace, peers and card had been set); inferred from the source, not replayed against the live server.",
+    "extra": "No request model sets extra=forbid, so the server ignores a body field it does not declare, and FastAPI ignores an undeclared query parameter.",
+    "filters": "A conclusions filter key outside the public mapping falls back to the raw column name (filter.py, for internal callers), which is why `observer`/`observed` were answered; a message filter key outside its mapping is a FilterError, 422."
+  },
+  "fakes": "The in-memory Honcho and the loopback Honcho in the tests refuse with 422 everything the server refuses, and also, deliberately stricter than the server: a field's own name where an alias exists, any undeclared body field, any undeclared query parameter, and a filter key outside the public mapping. Each of those is a spelling the server either takes on sufferance or silently drops, and a dropped field is a bound or a key the client believes it set (the context call's `tokens` was one).",
+  "routes": {
+    "POST /v3/workspaces": {
+      "router": "src/routers/workspaces.py get_or_create_workspace",
+      "query": {},
+      "body": "WorkspaceCreate",
+      "status": [200, 201],
+      "response": "Workspace"
+    },
+    "POST /v3/workspaces/{workspace_id}/peers": {
+      "router": "src/routers/peers.py get_or_create_peer",
+      "query": {},
+      "body": "PeerCreate",
+      "status": [200, 201],
+      "response": "Peer"
+    },
+    "PUT /v3/workspaces/{workspace_id}/peers/{peer_id}": {
+      "router": "src/routers/peers.py update_peer",
+      "query": {},
+      "body": "PeerUpdate",
+      "status": [200],
+      "response": "Peer"
+    },
+    "POST /v3/workspaces/{workspace_id}/peers/list": {
+      "router": "src/routers/peers.py get_peers",
+      "query": {"$ref": "page"},
+      "body": "PeerGet",
+      "body_optional": true,
+      "status": [200],
+      "response": "Page[Peer]"
+    },
+    "GET /v3/workspaces/{workspace_id}/peers/{peer_id}/card": {
+      "router": "src/routers/peers.py get_peer_card",
+      "query": {"target": {"type": "string"}},
+      "body": null,
+      "status": [200],
+      "response": "PeerCardResponse"
+    },
+    "PUT /v3/workspaces/{workspace_id}/peers/{peer_id}/card": {
+      "router": "src/routers/peers.py set_peer_card",
+      "query": {"target": {"type": "string"}},
+      "body": "PeerCardSet",
+      "status": [200],
+      "response": "PeerCardResponse"
+    },
+    "GET /v3/workspaces/{workspace_id}/peers/{peer_id}/context": {
+      "router": "src/routers/peers.py get_peer_context",
+      "query": {
+        "target": {"type": "string"},
+        "search_query": {"type": "string"},
+        "search_top_k": {"type": "integer", "minimum": 1, "maximum": 100},
+        "search_max_distance": {"type": "number", "minimum": 0, "maximum": 1},
+        "include_most_frequent": {"type": "boolean"},
+        "max_conclusions": {"type": "integer", "minimum": 1, "maximum": 100}
+      },
+      "body": null,
+      "status": [200],
+      "response": "PeerContext"
+    },
+    "POST /v3/workspaces/{workspace_id}/sessions": {
+      "router": "src/routers/sessions.py get_or_create_session",
+      "query": {},
+      "body": "SessionCreate",
+      "status": [200, 201],
+      "response": "Session"
+    },
+    "POST /v3/workspaces/{workspace_id}/sessions/list": {
+      "router": "src/routers/sessions.py get_sessions",
+      "query": {"$ref": "page", "include_scopes": {"type": "boolean"}},
+      "body": "WorkspaceSessionGet",
+      "body_optional": true,
+      "status": [200],
+      "response": "Page[Session]"
+    },
+    "GET /v3/workspaces/{workspace_id}/sessions/{session_id}/summaries": {
+      "router": "src/routers/sessions.py get_session_summaries",
+      "query": {},
+      "body": null,
+      "status": [200],
+      "response": "SessionSummaries"
+    },
+    "POST /v3/workspaces/{workspace_id}/sessions/{session_id}/messages": {
+      "router": "src/routers/messages.py create_messages_for_session",
+      "query": {},
+      "body": "MessageBatchCreate",
+      "status": [201],
+      "response": "list[Message]"
+    },
+    "POST /v3/workspaces/{workspace_id}/sessions/{session_id}/messages/list": {
+      "router": "src/routers/messages.py get_messages",
+      "query": {"$ref": "page"},
+      "body": "MessageGet",
+      "body_optional": true,
+      "status": [200],
+      "response": "Page[Message]"
+    },
+    "POST /v3/workspaces/{workspace_id}/conclusions/list": {
+      "router": "src/routers/conclusions.py list_conclusions",
+      "query": {"$ref": "page"},
+      "body": "ConclusionGet",
+      "body_optional": true,
+      "status": [200],
+      "response": "Page[Conclusion]"
+    },
+    "DELETE /v3/workspaces/{workspace_id}/conclusions/{conclusion_id}": {
+      "router": "src/routers/conclusions.py delete_conclusion",
+      "query": {},
+      "body": null,
+      "status": [204],
+      "response": null
+    },
+    "POST /v3/keys": {
+      "router": "src/routers/keys.py create_key",
+      "query": {
+        "workspace_id": {"type": "string"},
+        "peer_id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "expires_at": {"type": "datetime"},
+        "scope_id": {"type": "string"}
+      },
+      "body": null,
+      "status": [200],
+      "response": "Key"
+    }
+  },
+  "query": {
+    "page": {
+      "source": "src/utils/pagination.py pagination_params, and each list route's `reverse`",
+      "fields": {
+        "page": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "size": {"type": "integer", "minimum": 1, "maximum": 100},
+        "cursor": {"type": "string"},
+        "reverse": {"type": "boolean"}
+      }
+    }
+  },
+  "models": {
+    "WorkspaceCreate": {
+      "source": "src/schemas/api.py WorkspaceCreate (populate_by_name)",
+      "fields": {
+        "id": {"field": "name", "by_name": true, "type": "string", "required": true, "min_length": 1, "max_length": 512, "pattern": "^[a-zA-Z0-9_-]+$"},
+        "metadata": {"type": "object"},
+        "configuration": {"type": "object"}
+      }
+    },
+    "PeerCreate": {
+      "source": "src/schemas/api.py PeerCreate (populate_by_name)",
+      "fields": {
+        "id": {"field": "name", "by_name": true, "type": "string", "required": true, "min_length": 1, "max_length": 512, "pattern": "^[a-zA-Z0-9_-]+$"},
+        "metadata": {"type": "object", "nullable": true},
+        "configuration": {"type": "object", "nullable": true}
+      }
+    },
+    "PeerUpdate": {
+      "source": "src/schemas/api.py PeerUpdate",
+      "fields": {
+        "metadata": {"type": "object", "nullable": true},
+        "configuration": {"type": "object", "nullable": true}
+      }
+    },
+    "PeerGet": {
+      "source": "src/schemas/api.py PeerGet",
+      "fields": {
+        "filters": {"type": "object", "nullable": true, "keys": ["id", "created_at", "is_active", "workspace_id", "session_id", "peer_id", "metadata"]},
+        "kind": {"type": "string", "nullable": true, "enum": ["scope", "all"]}
+      }
+    },
+    "PeerCardSet": {
+      "source": "src/schemas/api.py PeerCardSet",
+      "fields": {
+        "peer_card": {"type": "array", "required": true, "items": {"type": "string"}}
+      }
+    },
+    "SessionCreate": {
+      "source": "src/schemas/api.py SessionCreate (populate_by_name)",
+      "fields": {
+        "id": {"field": "name", "by_name": true, "type": "string", "required": true, "min_length": 1, "max_length": 512, "pattern": "^[a-zA-Z0-9_-]+$"},
+        "metadata": {"type": "object", "nullable": true},
+        "peers": {"field": "peer_names", "by_name": true, "type": "object", "nullable": true, "values": "SessionPeerConfig"},
+        "configuration": {"type": "object", "nullable": true},
+        "scopes": {"type": "array", "nullable": true, "max_length": 100, "items": {"type": "string"}}
+      }
+    },
+    "SessionPeerConfig": {
+      "source": "src/schemas/configuration.py SessionPeerConfig",
+      "fields": {
+        "observe_me": {"type": "boolean", "nullable": true},
+        "observe_others": {"type": "boolean", "nullable": true}
+      }
+    },
+    "WorkspaceSessionGet": {
+      "source": "src/schemas/api.py WorkspaceSessionGet",
+      "fields": {
+        "filters": {"type": "object", "nullable": true, "keys": ["id", "created_at", "is_active", "workspace_id", "session_id", "peer_id", "metadata"]},
+        "scope": {"type": "string", "nullable": true},
+        "in_no_scope": {"type": "boolean"}
+      }
+    },
+    "MessageBatchCreate": {
+      "source": "src/schemas/api.py MessageBatchCreate",
+      "fields": {
+        "messages": {"type": "array", "required": true, "min_length": 1, "max_length": 100, "items": {"model": "MessageCreate"}}
+      }
+    },
+    "MessageCreate": {
+      "source": "src/schemas/api.py MessageCreate (no populate_by_name: `peer_name` is not taken)",
+      "fields": {
+        "content": {"type": "string", "required": true, "min_length": 0, "max_length": 25000},
+        "peer_id": {"field": "peer_name", "by_name": false, "type": "string", "required": true},
+        "metadata": {"type": "object", "nullable": true},
+        "configuration": {"type": "object", "nullable": true},
+        "created_at": {"type": "datetime", "nullable": true}
+      }
+    },
+    "MessageGet": {
+      "source": "src/schemas/api.py MessageGet; keys from filter.py ALLOWED_EXTERNAL_TO_INTERNAL_COLUMN_MAPPING_MESSAGES",
+      "fields": {
+        "filters": {"type": "object", "nullable": true, "keys": ["workspace_id", "session_id", "peer_id", "token_count", "created_at", "metadata"]}
+      }
+    },
+    "ConclusionGet": {
+      "source": "src/schemas/api.py ConclusionGet; keys from filter.py ALLOWED_EXTERNAL_TO_INTERNAL_COLUMN_MAPPING_DOCUMENTS",
+      "fields": {
+        "filters": {"type": "object", "nullable": true, "keys": ["id", "session_id", "workspace_id", "observer_id", "observed_id", "level", "source_ids", "source_message_ids", "times_derived", "metadata"]}
+      }
+    }
+  },
+  "responses": {
+    "Workspace": {"source": "src/schemas/api.py Workspace, by serialization alias", "keys": ["id", "uid", "metadata", "configuration", "created_at"]},
+    "Peer": {"source": "src/schemas/api.py Peer, by serialization alias", "keys": ["id", "uid", "workspace_id", "created_at", "metadata", "configuration"]},
+    "Session": {"source": "src/schemas/api.py Session, by serialization alias; `scopes` only when include_scopes", "keys": ["id", "uid", "is_active", "workspace_id", "metadata", "configuration", "created_at"]},
+    "Message": {"source": "src/schemas/api.py Message, by serialization alias", "keys": ["id", "content", "peer_id", "session_id", "metadata", "created_at", "workspace_id", "token_count"]},
+    "Conclusion": {"source": "src/schemas/api.py Conclusion, by serialization alias", "keys": ["id", "content", "observer_id", "observed_id", "session_id", "level", "source_ids", "source_message_ids", "times_derived", "created_at"]},
+    "PeerCardResponse": {"source": "src/schemas/api.py PeerCardResponse; null when the observer holds no card", "keys": ["peer_card"]},
+    "PeerContext": {"source": "src/schemas/api.py PeerContext; representation and peer_card may be null", "keys": ["peer_id", "target_id", "representation", "peer_card"]},
+    "SessionSummaries": {"source": "src/schemas/api.py SessionSummaries; each summary a Summary or null", "keys": ["id", "short_summary", "long_summary"], "nested": {"short_summary": "Summary", "long_summary": "Summary"}},
+    "Summary": {"source": "src/schemas/api.py Summary; message_id is the message's public id (message_public_id), the internal one excluded", "keys": ["content", "message_id", "summary_type", "created_at", "token_count"]},
+    "Page": {"source": "fastapi_pagination Page, the offset mode (no `cursor` sent)", "keys": ["items", "total", "page", "size", "pages"]},
+    "Key": {"source": "src/routers/keys.py create_key", "keys": ["key"]}
+  }
+}

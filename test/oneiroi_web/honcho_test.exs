@@ -48,6 +48,10 @@ defmodule OneiroiWeb.HonchoTest do
     assert %{"moved" => false} =
              conn |> post("/v1/residents/#{id}/honcho/card-audit", %{}) |> json_response(200)
 
+    # The replay of failed syncs (proteus #19), with none to replay.
+    assert %{"synced" => [], "uncaptured" => [], "stopped" => nil} =
+             conn |> post("/v1/residents/#{id}/honcho/replay", %{}) |> json_response(200)
+
     Honcho.put_conclusions(id, "resident-" <> id, "witness-" <> account.id, [
       %{id: "c1", content: "Allergic to cats."}
     ])

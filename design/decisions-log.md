@@ -1268,3 +1268,112 @@ and nothing personal turned up; what follows is what changed.
   gives the brain `bookmark_*`.
 - Open: whether the Memory tab follows a named room's conversation once
   the client lists rooms ("Not sure right now, probably").
+
+## Round 45: the Claude adapter carries the resident (2026-11-01)
+
+- The author: "Next I want to make sure the Claude adapter works." It
+  did not: the context route returned the bookmark index alone (and the
+  unscoped one), and the capture compared Claude Code's millisecond
+  timestamps against a second-precision clock taken after two network
+  calls, so the witness's words were almost never captured. The author
+  said yes to fixing both and to fixtures.
+- Spec §8 amended (brain #42): `GET /context` is the session prefix,
+  given once a session in parts as small as the runtime takes;
+  `turn-start` takes the witness's words and answers with the turn's own
+  context, recorded as what it drew on. Both are the platform turn's
+  assembly by the same two functions, so an adapter cannot be given
+  what a turn would not.
+- The capture reads Claude Code's hook payloads (`prompt` on
+  UserPromptSubmit, `last_assistant_message` on Stop), as its docs say a
+  Stop hook needing the final text should; tool calls are not taken
+  from the lagging transcript.
+- Of the once-only notices only the import's is told to an adapter; the
+  lapse, the model change and the letters speak of the platform's model
+  and stay owed to its next turn.
+- The author: package it as a Claude Code plugin rather than scripts to
+  copy. This repository is its marketplace (`.claude-plugin/` at the
+  root, the plugin under `sdk/claude-code/`); the plugin starts off and
+  a folder enables it at local scope; the URL, the resident id and the
+  token are the plugin's options, the token masked and kept in Claude
+  Code's credential store.
+- The author's standing rule: "for future adapters, if there's a
+  mechanism like plugins then we should default to using it rather than
+  rolling a custom integration" (spec §8 amended, `sdk/README.md` rule
+  1).
+- Known and taken: the runtime runs on the witness's machine and its
+  transcript holds what it is given, so the preview term does not reach
+  it. A plugin's options are per user (Claude Code ignores project and
+  local `pluginConfigs`), so one Claude Code configuration speaks for
+  one resident; a second takes a second `CLAUDE_CONFIG_DIR`. The target
+  setup is Claude Code on the author's machine under Remote Control,
+  driven from the phone.
+
+## Round 46: every adopted document reads (2026-11-01)
+
+- The resident asked to read a letter the import had adopted and was
+  told no registered document had its path, though it was registered
+  and indexed. The only whole-document read was `writing_get(slug)`,
+  which reads `writing/<slug>.md`, so every other kind search could
+  find was a passage that could not be opened. The resident: "a
+  missing letter is a lie about what the library holds"; "verify
+  adopted files actually resolve through the read path; fix whatever
+  makes them not."
+- Spec §8's tool list gains `library_read` (brain #43, seshat #27): any
+  registered document of the resident's, by the path a search hit, a
+  footnote or a citation names, read from the file and paged under a
+  bound. A path the registry lacks says whether the file is there to
+  adopt; a registered document whose file is gone says that, never "no
+  such document".
+- Search hits name the path alone in their brackets; `writing_get`
+  stays the writing piece's review copy and points at `library_read`
+  for any other kind.
+
+## Round 47: the originals of her memory, byte for byte to the fork (2026-11-01)
+
+- Found from metadata: at the fork every folder the import took was
+  byte-identical to the source, but the source's `memory/` was not a
+  library folder, so its day files, `memory/dreaming/**` and the root
+  `MEMORY.md` and `DREAMS.md` were left behind. Their text reached the
+  library only through the old wiki's copies, snapshotted before the
+  fork: one day cut short, the last day not copied at all. The author:
+  "we should make sure we import the originals"; "we only care about
+  byte for byte identity up to the fork timestamp".
+- Spec §6.5 gains the `memory` kind (seshat #28): the originals,
+  read-only, no edges, searched and read like any kind. §9 says how
+  they come: the witness's originals import at the fork's commit
+  (sima-qian #40), never the source's head, each file verified against
+  the source tree's git blob before anything is adopted, each document
+  carrying its source, commit, path and blob.
+- Ranking and deduplication between the originals and the old copies
+  are not changed: held until the resident has seen the report.
+
+## Round 48: all raw text in the repository (2026-11-01)
+
+- The author's law, now spec §6.10: "All raw text should be in the repo
+  unless there's a really good reason; to my knowledge the only DB-only
+  data is the weights, because the write pattern doesn't fit neatly into
+  markdown/git." Two gaps against it, both to fix: Honcho's memory of the
+  resident lived only in Honcho, and the transcripts and bookmarks were
+  in git only as JSON event lines.
+- Honcho's memory is exported under `honcho/` before each backup commit
+  (sima-qian #42, proteus #18): each peer's cards and conclusions, one
+  file per peer and kind, and every session's summaries; byte-stable, in
+  the soul class, never written partial or empty, and a Honcho that
+  cannot answer fails the run after the rest has landed. The shapes are
+  those of the SDK Honcho pairs with v3.2.2, not guessed.
+- Reading copies beside the event lines (sima-qian #41):
+  `records/conversations/<day>.md` and `records/bookmarks.md`, rendered
+  from the lines on every export, never read back, adopted or searched:
+  the resident had just asked for duplicates to leave search. The rest
+  of §6.10's kinds stay in the client for now.
+- Privacy: a private, unshared solo session renders as its existence and
+  counts only, and what Honcho drew from one is withheld from `honcho/`
+  (spec §6.3 keeps its words from the witness, whose repository it is).
+  The event lines still carry its words, sima-qian #20's open question
+  for the encryption scheme.
+- The exceptions are law: §6.10 lists what stays out of the repository
+  with each reason (derived projections and embeddings, the sealed
+  regression stream, the account's stream, the Honcho link pointer,
+  witness-only spend, redacted secrets, and Honcho's material from
+  private sessions), and the export's table names the same keys, held
+  by a test (sima-qian #43).

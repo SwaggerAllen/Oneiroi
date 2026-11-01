@@ -1,0 +1,45 @@
+{
+  "name": "oneiroi",
+  "displayName": "Oneiroi",
+  "version": "0.1.0",
+  "description": "A resident of Oneiroi as this Claude Code session's brain: her identity and agreement at session start, her memory with each message, her memory tools over MCP, and every turn captured into her transcripts.",
+  "author": {
+    "name": "Oneiroi"
+  },
+  "repository": "https://github.com/SwaggerAllen/Oneiroi",
+  "license": "Apache-2.0",
+  "keywords": [
+    "oneiroi",
+    "memory",
+    "resident"
+  ],
+  "defaultEnabled": false,
+  "userConfig": {
+    "url": {
+      "type": "string",
+      "title": "Oneiroi URL",
+      "description": "The platform's address, with no path.",
+      "default": "https://oneiroi.onrender.com",
+      "required": true
+    },
+    "resident": {
+      "type": "string",
+      "title": "Resident id",
+      "description": "The resident this session is the brain of: the id in the address of any of her pages.",
+      "required": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Adapter token",
+      "description": "The brain-role adapter token Oneiroi showed once when the adapter was registered.",
+      "sensitive": true,
+      "required": true
+    },
+    "record_fixtures": {
+      "type": "directory",
+      "title": "Record hook payloads to",
+      "description": "Optional. A folder where each hook copies Claude Code's raw payload, to record real fixtures. Leave empty to record nothing.",
+      "required": false
+    }
+  }
+}
