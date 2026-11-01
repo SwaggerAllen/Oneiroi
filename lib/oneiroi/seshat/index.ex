@@ -144,7 +144,52 @@ defmodule Oneiroi.Seshat.Index do
 
   defp embed(_resident_id, _model, [], _actor), do: {:ok, []}
 
+  # In batches (seshat #15): one request per batch, each metered on the
+  # ledger as it is made, and the run's vectors in the chunks' order. A
+  # batch that fails fails the run, which then writes nothing, as one
+  # failing request always did.
   defp embed(resident_id, model, texts, actor) do
+    texts
+    |> batches(
+      Config.fetch!(:seshat, :embed_batch_inputs),
+      Config.fetch!(:seshat, :embed_batch_chars)
+    )
+    |> Enum.reduce_while({:ok, []}, fn batch, {:ok, done} ->
+      case embed_batch(resident_id, model, batch, actor) do
+        {:ok, vectors} -> {:cont, {:ok, [vectors | done]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, done} -> {:ok, done |> Enum.reverse() |> Enum.concat()}
+      error -> error
+    end
+  end
+
+  @doc false
+  # Public for its test: `texts` in order, cut into runs of at most
+  # `inputs` texts and `chars` characters; a text longer than `chars` on
+  # its own is a batch of its own.
+  @spec batches([String.t()], pos_integer(), pos_integer()) :: [[String.t()]]
+  def batches(texts, inputs, chars) do
+    texts
+    |> Enum.chunk_while(
+      {[], 0, 0},
+      fn text, {batch, n, size} ->
+        len = String.length(text)
+
+        if batch != [] and (n + 1 > inputs or size + len > chars),
+          do: {:cont, Enum.reverse(batch), {[text], 1, len}},
+          else: {:cont, {[text | batch], n + 1, size + len}}
+      end,
+      fn
+        {[], _, _} -> {:cont, {[], 0, 0}}
+        {batch, _, _} -> {:cont, Enum.reverse(batch), {[], 0, 0}}
+      end
+    )
+  end
+
+  defp embed_batch(resident_id, model, texts, actor) do
     width = Config.fetch!(:seshat, :embedding_width)
 
     with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor) do

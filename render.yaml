@@ -35,6 +35,20 @@ services:
     # old one keeps serving.
     healthCheckPath: /health
     autoDeployTrigger: commit
+    # Every resident's working repository lives under SIMA_QIAN_ROOT,
+    # /var/lib/oneiroi/sima_qian by default (sima-qian #23): the clone an
+    # import makes, history and all, and the files every library document
+    # reads from. Without a disk that was the container's own filesystem,
+    # replaced on every deploy, and every merge deploys; the database rows
+    # pointing at those files would have outlived them. Found before Lily's
+    # import, with no resident yet. Render documents a service with a disk
+    # as one instance whose deploys stop the old before starting the new,
+    # so there is no zero-downtime overlap. 5 GB is a guess, well over her
+    # repository; it can grow and cannot shrink.
+    disk:
+      name: oneiroi-records
+      mountPath: /var/lib/oneiroi
+      sizeGB: 5
     envVars:
       - key: DATABASE_URL
         fromDatabase:

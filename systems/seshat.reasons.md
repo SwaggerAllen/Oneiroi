@@ -113,3 +113,13 @@ a filesystem's own bound on a name. The whole path had no bound at all
 while every column holding one is `:string`, 255 wide in Postgres, so a
 deep enough path would have failed in a projector rather than at the
 check; it is bounded there now.
+
+## #15, the batches
+The index sent every changed chunk in one request. Sized before Lily's
+import, her library is about 549,000 tokens in a thousand-odd chunks,
+where OpenAI documents an embeddings request at most 2,048 inputs and
+300,000 tokens; the request would very likely have been refused and the
+import would have completed with her library unsearchable. The bounds
+are set well under those documented limits and are guesses, not
+measurements against OpenRouter.
+
