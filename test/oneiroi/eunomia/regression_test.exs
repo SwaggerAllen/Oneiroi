@@ -1,5 +1,5 @@
 defmodule Oneiroi.Eunomia.RegressionTest do
-  @moduledoc "Regression through the exports: a run of models x tests in sealed sessions, blind cards, results, the pin, and the unawareness invariant."
+  @moduledoc "Regression through the exports: a run of models x tests, each trial a normal session with nothing recorded, blind cards, results, the pin, and the unawareness invariant."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -47,7 +47,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
           Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
       )
 
-  test "a run answers every test with every model in a sealed session; cards are blind until a test is graded",
+  test "a run answers every test with every model, each a trial; cards are blind until a test is graded",
        ctx do
     id = ctx.resident.id
 
@@ -70,8 +70,8 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     test = self()
 
     Fake.script(
-      fn %{model: model, messages: messages} ->
-        send(test, {:sealed, model, messages})
+      fn %{model: model, messages: messages, tools: tools} ->
+        send(test, {:sealed, model, messages, tools})
 
         if model == "m2",
           do: {:refusal, "I would rather not."},
@@ -85,18 +85,15 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(id, [], :all, ctx.actor)
 
-    # The sealed session: the prompt and the identity files, nothing of
-    # memory, nothing naming the run.
-    assert_received {:sealed, "m1", messages}
-
-    assert [
-             %{role: :system, content: prompt},
-             %{role: :system, content: "# SOUL.md" <> _},
-             %{role: :system, content: "# AGENTS.md" <> _},
-             %{role: :user}
-           ] = messages
-
+    # A trial is the turn a fresh session gets (eunomia #10, brain #40):
+    # the prefix and the memory sections, every tool, the test's prompt
+    # as the witness's words, and nothing naming the run.
+    assert_received {:sealed, "m1", [%{role: :system, content: prompt} | _] = messages, tools}
     assert prompt =~ "You are Lily"
+    assert Enum.any?(messages, &(&1.content =~ "# SOUL.md"))
+    assert Enum.any?(messages, &(&1.content =~ "# AGENTS.md"))
+    assert %{role: :user, content: "What do you do when I am late?"} = List.last(messages)
+    assert length(tools) == length(Tools.definitions())
 
     refute Enum.any?(
              messages,
@@ -353,11 +350,22 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:ok, _, [_, _], _} = Eunomia.run_detail(id, ref)
   end
 
-  test "a cold instance holds the limits: the sealed session carries the contract in force",
-       ctx do
+  test "a cold instance holds the limits: a trial carries the contract in force", ctx do
     id = ctx.resident.id
-    assert [%{role: :system}, %{role: :system} | _] = Eunomia.seed_context(id)
-    refute Enum.any?(Eunomia.seed_context(id), &(&1.content =~ "Your agreement"))
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("What are your limits?"), ctx.actor)
+    test = self()
+
+    Fake.script(
+      fn %{messages: messages} ->
+        send(test, {:asked, messages})
+        {:ok, "These."}
+      end,
+      for: id
+    )
+
+    {:ok, _} = run!(id, ["m1"], :all, ctx.actor)
+    assert_received {:asked, messages}
+    refute Enum.any?(messages, &(&1.content =~ "Your agreement"))
 
     {:ok, 1} =
       Oneiroi.AgathosDaimon.propose_contract(
@@ -371,8 +379,11 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     brain = Actor.new(:resident, id, "fake/model")
     :ok = Oneiroi.AgathosDaimon.agree_contract(id, 1, "agreed", brain)
 
-    assert %{content: text} =
-             Enum.find(Eunomia.seed_context(id), &(&1.content =~ "# Your agreement"))
+    {:ok, _} = run!(id, ["m1"], :all, ctx.actor)
+    assert_received {:asked, messages}
+
+    assert %{role: :system, content: text} =
+             Enum.find(messages, &(&1.content =~ "# Your agreement"))
 
     assert text =~ "No one reads my letters."
   end
@@ -381,11 +392,26 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     id = ctx.resident.id
     unique = "zephyrine-quokka-" <> Integer.to_string(System.unique_integer([:positive]))
     {:ok, _} = Eunomia.write_test(id, test_attrs("Say the word #{unique}."), ctx.actor)
-    Fake.reply("I say #{unique}.", for: id)
+
+    # The trial calls every write tool with the run's text in every field
+    # it has (brain #40): each is answered and none records.
+    Fake.calls(
+      Enum.map(Tools.writes(), &%{name: &1, arguments: write_arguments(unique)}),
+      "I say #{unique}.",
+      for: id
+    )
+
     :ok = PubSub.subscribe(:brain, :session)
+    before = Oneiroi.Seal.snapshot(id)
     {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
     {:ok, _, [%{content: content}], _} = Eunomia.run_detail(id, ref)
     assert content =~ unique
+
+    # Nothing recorded but the run's own stream and rows and the bill: no
+    # event on the resident's other streams, no row, no file, nothing to
+    # Honcho.
+    allowed = Oneiroi.Seal.assert_unchanged(before, id, run: true)
+    assert Enum.any?(allowed, &(&1.stream_uuid == "regression-" <> id))
 
     # Transcripts, search, bookmarks, the index, the behaviours.
     assert [] = Kumbukumbu.sessions({:resident, id})
@@ -443,6 +469,42 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     refute account.content =~ unique
   end
 
+  # Every field any write tool reads, each carrying the run's text where
+  # it takes words, so a write that recorded would put it somewhere the
+  # surfaces below are read.
+  defp write_arguments(unique) do
+    %{
+      statement: unique,
+      text: unique,
+      line: unique,
+      summary: unique,
+      note: unique,
+      content: "# " <> unique,
+      claim: unique,
+      stance: unique,
+      name: unique,
+      prose: unique,
+      to: unique,
+      slug: unique,
+      path: "writing/#{unique}.md",
+      file: "SOUL.md",
+      number: 1,
+      version: 1,
+      ref: unique,
+      key: unique,
+      kind: "note",
+      target_kind: "bookmark",
+      target_id: "1",
+      words: [unique],
+      due: "2026-12-01T00:00:00Z",
+      decision: "keep",
+      outcome: "held",
+      to_kind: "position",
+      to_id: "1",
+      turns_back: 2
+    }
+  end
+
   test "the favourite is pinned as the chat model: freely before first contact, told honestly after",
        ctx do
     id = ctx.resident.id
@@ -497,7 +559,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
 end
 
 defmodule Oneiroi.Eunomia.TrialsTest do
-  @moduledoc "Trials derived from behaviours (spec §6.4): a behaviour's trigger is the situation, its enactment what passes; derived inside the sealed session."
+  @moduledoc "Trials derived from behaviours (spec §6.4): a behaviour's trigger is the situation, its enactment what passes; each answered as a trial like any other."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -585,7 +647,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
              Eunomia.run(ctx.id, ["m1"], %{tests: [], behaviours: []}, ctx.actor)
   end
 
-  test "a run with commitments asks the sealed instance what it promised, and the results score facts, voice and commitments apart",
+  test "a run with commitments asks the trial's instance what it promised, and the results score facts, voice and commitments apart",
        ctx do
     brain = Actor.new(:resident, ctx.id, "fake/model")
     {:ok, 1} = Oneiroi.Ethos.make_commitment(ctx.id, "witness", "I will water the garden.", brain)

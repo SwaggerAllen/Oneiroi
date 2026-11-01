@@ -23,6 +23,14 @@ defmodule Oneiroi.Brain.Turn do
   notice as a system message, which is how both parties see it in the
   same place. A provider failure captures nothing and records a capture
   failure the witness can mark lost.
+
+  A regression trial (`trial/4`, eunomia #10) is the same turn in a fresh
+  session that nobody opened: the same assembly, memory retrieval
+  included, and the same tool loop, with the reads real and every tool
+  that would change anything answered as on success and recorded nowhere
+  (`Oneiroi.Brain.Tools.trial/3`). It is never captured, records no
+  context, broadcasts nothing, compacts nothing and carries no notice,
+  and every call it makes, embeddings included, bills under `regression`.
   """
 
   alias Oneiroi.Actor
@@ -65,6 +73,65 @@ defmodule Oneiroi.Brain.Turn do
         {:error,
          Error.new(:brain_no_such_resident, :brain_turn_resident_absent, resident_id: resident_id)}
     end
+  end
+
+  @doc """
+  Answers one regression trial (spec §6.4, eunomia #10): `prompt` as
+  `model`, in a fresh session, with what a real turn there would have
+  (the prefix with the formation line, the contract, the index, the
+  character lane, the madeleine and every other section) and the whole
+  tool surface, through the same loop. Nothing names the run, and the
+  resident is not told it is in a trial.
+
+  Nothing is written: the reads bill their embeddings under `regression`
+  and read the vectors as they stand, every write tool answers as it does
+  on success without running, and the turn is not captured, records no
+  context, compacts nothing and broadcasts nothing. The once-only notices
+  (a lapse, a model change, the letters to a next self, an import) are
+  left out: each is owed to the resident's real next turn, and a letter
+  read here would reach the witness on a card with no receipt (P41). The
+  model calls bill to `actor`, the run's.
+  """
+  @spec trial(String.t(), String.t(), String.t(), Actor.t()) ::
+          {:ok, Result.t()} | {:error, term()}
+  def trial(resident_id, model, prompt, %Actor{} = actor)
+      when is_binary(model) and is_binary(prompt) do
+    case Oneiroi.AgathosDaimon.fetch(resident_id) do
+      {:ok, row} ->
+        trial_for(row, resident_id, model, prompt, actor)
+
+      :error ->
+        {:error,
+         Error.new(:brain_no_such_resident, :brain_trial_resident_absent,
+           resident_id: resident_id
+         )}
+    end
+  end
+
+  defp trial_for(row, resident_id, model, prompt, payer) do
+    turn = %{
+      resident_id: resident_id,
+      # A session key nobody opened, the shape a real one has: no
+      # history, no summary, no tags, and the common room's memory, as a
+      # fresh session in the main room has.
+      session_key: 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
+      turn_ref: Kumbukumbu.turn_ref(),
+      started_at: Clock.now(),
+      model: model,
+      resident: Actor.new(:resident, resident_id, model),
+      payer: payer,
+      trial?: true,
+      minted: %{},
+      as: :user,
+      purpose: :regression,
+      notices: [],
+      injections: [],
+      tools: []
+    }
+
+    {messages, _injections} = assemble(row, turn, prompt)
+    {result, _turn} = converse(turn, messages, 0)
+    result
   end
 
   defp run_for(row, resident_id, session_key, text, actor, opts) do
@@ -112,18 +179,13 @@ defmodule Oneiroi.Brain.Turn do
   # until the model answers in words or the round bound is reached, when
   # the model's last words stand as the reply.
   defp converse(turn, messages, round) do
-    sink = fn delta ->
-      broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
-    end
-
     request = Request.new(turn.model, messages, tools: Tools.definitions())
     rounds = Config.fetch!(:brain, :tool_rounds)
 
-    case Nisaba.stream(turn.resident_id, turn.purpose, request, turn.resident, sink) do
+    case ask(turn, request) do
       {:ok, %Result{tool_calls: [_ | _] = calls} = result} when round < rounds ->
-        {results, captured} = run_tools(turn, calls)
+        {results, turn} = run_tools(turn, calls)
         assistant = %{role: :assistant, content: result.content, tool_calls: wire_calls(calls)}
-        turn = %{turn | tools: turn.tools ++ captured}
         converse(turn, messages ++ [assistant | results], round + 1)
 
       other ->
@@ -131,9 +193,22 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
+  # A trial streams to nobody: the session topic is the resident's and
+  # the witness's, and a trial is neither's conversation (eunomia #12).
+  defp ask(%{trial?: true} = turn, request),
+    do: Nisaba.call(turn.resident_id, turn.purpose, request, turn.payer)
+
+  defp ask(turn, request) do
+    sink = fn delta ->
+      broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
+    end
+
+    Nisaba.stream(turn.resident_id, turn.purpose, request, turn.resident, sink)
+  end
+
   defp run_tools(turn, calls) do
-    Enum.map_reduce(calls, [], fn call, captured ->
-      output = Tools.run(call.name, call.arguments, turn)
+    Enum.reduce(calls, {[], turn}, fn call, {results, turn} ->
+      {output, turn} = use_tool(turn, call)
       result = %{role: :tool, tool_call_id: call.id, content: output}
 
       record = %{
@@ -143,9 +218,14 @@ defmodule Oneiroi.Brain.Turn do
         actor: turn.resident
       }
 
-      {result, captured ++ [record]}
+      {results ++ [result], %{turn | tools: turn.tools ++ [record]}}
     end)
   end
+
+  # A trial's writes are answered and never run (`Tools.trial/3`); the
+  # turn carries the numbers its answers have minted so far.
+  defp use_tool(%{trial?: true} = turn, call), do: Tools.trial(call.name, call.arguments, turn)
+  defp use_tool(turn, call), do: {Tools.run(call.name, call.arguments, turn), turn}
 
   defp wire_calls(calls) do
     Enum.map(calls, fn call ->
@@ -654,18 +734,38 @@ defmodule Oneiroi.Brain.Turn do
       |> Kumbukumbu.taggings("conversation", turn.session_key)
       |> Enum.map(& &1.tag)
 
-    Oneiroi.Ethos.how_i_act(turn.resident_id, %{
-      text: text,
-      tags: tags,
-      at: Clock.now(),
-      session_key: turn.session_key,
-      actor: Map.get(turn, :resident)
-    })
+    Oneiroi.Ethos.how_i_act(
+      turn.resident_id,
+      Map.merge(
+        %{
+          text: text,
+          tags: tags,
+          at: Clock.now(),
+          session_key: turn.session_key,
+          actor: Map.get(turn, :resident)
+        },
+        trial_reads(turn)
+      )
+    )
   end
+
+  # A trial reads memory as it stands, refreshing no vector, and bills
+  # the reads' embeddings as its calls are billed, under regression to
+  # the run's actor, which the resident's ledger view omits (eunomia
+  # #10, #12).
+  defp trial_reads(%{trial?: true, payer: payer}),
+    do: %{purpose: :regression, refresh: false, actor: payer}
+
+  defp trial_reads(_turn), do: %{}
 
   # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
   # the turn's words, with the resident's actor for the embedding; a
   # turn without one (the assembly read in a test) asks nothing.
+  defp madeleine(%{trial?: true} = turn, text) do
+    {actor, opts} = Map.pop!(trial_reads(turn), :actor)
+    Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key, Map.to_list(opts))
+  end
+
   defp madeleine(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
     do: Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key)
 

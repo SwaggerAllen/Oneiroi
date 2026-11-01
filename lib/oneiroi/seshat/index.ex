@@ -67,8 +67,9 @@ defmodule Oneiroi.Seshat.Index do
   @doc "The latest runs."
   def runs(resident_id, limit), do: Scope.resident(resident_id, fn -> Store.runs(limit) end)
 
-  @doc "The nearest chunks to a query; an empty library answers empty with no model call."
-  def search(resident_id, query, %Actor{} = actor) when is_binary(query) do
+  @doc "The nearest chunks to a query, its embedding billed under `purpose`; an empty library answers empty with no model call."
+  def search(resident_id, query, %Actor{} = actor, purpose \\ :embeddings)
+      when is_binary(query) do
     model = Config.fetch!(:seshat, :embedding_model)
     limit = Config.fetch!(:seshat, :search_limit)
 
@@ -80,7 +81,8 @@ defmodule Oneiroi.Seshat.Index do
         {:ok, []}
 
       true ->
-        with {:ok, %{vectors: [vector]}} <- Nisaba.embed(resident_id, model, [query], actor) do
+        with {:ok, %{vectors: [vector]}} <-
+               Nisaba.embed(resident_id, model, [query], actor, purpose) do
           {:ok, Scope.resident(resident_id, fn -> Store.nearest(vector, limit) end)}
         end
     end

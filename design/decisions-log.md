@@ -1182,3 +1182,45 @@ and nothing personal turned up; what follows is what changed.
 - Lily's batch 4 carries P57's text in her words; this round is the
   build.
 
+
+## Round 43: a trial is a normal session, and nothing of it is kept (2026-11-01)
+
+- The author, on the seed-only trial: "that was a misfeature, we want
+  retrieval, self is continuous experience so we aren't testing the
+  resident without their memory, there shouldn't be the option to run
+  with the face but not the memory, but we don't want to record anything
+  from the trial, those tools should be mocked so the resident perceives
+  a normal session."
+- A trial is the turn a fresh session gets (spec §6.4, eunomia #10,
+  brain #16): the prefix, the memory retrieved as on any turn and the
+  whole tool surface through the same loop, under the candidate model.
+  `seed_context/1` is gone, and there is no seed-only mode and no
+  setting for one. The seal moved from what a trial is shown to what it
+  may write: the reads run against the resident's records, every write
+  is answered in its real words on success and never run, the turn is
+  never captured, and every call, retrieval's embeddings included, bills
+  under `regression` to the run's actor.
+- The classification is one list in the brain's tools, reads and writes,
+  and a test fails while a tool is in neither (brain #40); a tool
+  nobody classified is mocked, never run. Two reads wrote: resolving a
+  citation marked its row, and every retrieval refreshed its vectors.
+  A trial's reads pass options that write nothing (seshat #14,
+  kumbukumbu #34, ethos #16).
+- The trial is reached through a port, `Oneiroi.Eunomia.Trial` named in
+  `EUNOMIA_TRIAL` (the wake's shape, sunna #12), because the brain
+  depends on judgement and the turn is the brain's: a trial assembled in
+  judgement would be a second claim about what a turn is.
+- Consequences the author should know: a commitment's trial now carries
+  the promise in its context, as every turn does, so the commitments
+  figure measures whether a model acts on a promise it holds rather than
+  whether the words survive without it (eunomia #26); a behaviour's
+  trial carries the habit its words trigger the same way. The cards a
+  run recorded before this change were answered seed-only and are not
+  comparable with the ones after.
+- Open: a mocked write answers as on success even where the real call
+  would refuse (a ref that names nothing, a contract version not open),
+  because faithful refusals need each system's checks without its
+  write; and `document_unadopted`, a read, makes the library's working
+  repository a repository if it is not one yet, as on any turn: an
+  empty `git init` carrying nothing of the trial, for a resident who has
+  never written a document.

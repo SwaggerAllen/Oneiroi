@@ -2,7 +2,9 @@ defmodule Oneiroi.Eunomia do
   @moduledoc """
   Judgement (spec §6.4): in this phase, regression per resident, sealed
   (F42). Tests are three texts; a run is models x tests, every candidate
-  answering every test in a sealed session; each answer is a blind card
+  answering every test in a trial, a normal turn in a fresh session with
+  the resident's memory and tools whose writes record nothing, answered
+  through the trial port (`Oneiroi.Eunomia.Trial`); each answer is a blind card
   the witness grades pass or fail, with favourites; model names show only
   once every card in a test is graded; the favourite can be pinned as the
   chat model through the resident system.
@@ -48,6 +50,7 @@ defmodule Oneiroi.Eunomia do
     exports: [
       Error,
       Regression,
+      Trial,
       Router,
       Suite,
       Judgement,
@@ -201,9 +204,23 @@ defmodule Oneiroi.Eunomia do
        default: "5",
        tag: :bound,
        usage:
-         "how many of the nightly pass's resume points the brain is shown each turn, newest first (spec §6.4, P34: dormant is not abandoned); a guess at what a prefix can carry without growing with the person"}
+         "how many of the nightly pass's resume points the brain is shown each turn, newest first (spec §6.4, P34: dormant is not abandoned); a guess at what a prefix can carry without growing with the person"},
+      {:trial, "EUNOMIA_TRIAL",
+       cast: &__MODULE__.cast_trial/1,
+       default: "brain",
+       usage:
+         "which trial port implementation answers a regression trial (`Oneiroi.Eunomia.Trial`, eunomia #10): brain, a normal turn in a fresh session with memory and every tool, the writes answered and never recorded; the only one, and no seed-only mode exists"}
     ]
   end
+
+  # The module as an atom rather than an alias, as the schedule names its
+  # wake (sunna #12): the brain depends on this system, so an alias here
+  # is the cycle the port exists to avoid.
+  @doc false
+  def cast_trial("brain"), do: {:ok, :"Elixir.Oneiroi.Brain"}
+
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_trial(other), do: {:error, "is #{inspect(other)}, expected \"brain\""}
 
   @impl Oneiroi.Component
   def oban_queues do
@@ -395,10 +412,6 @@ defmodule Oneiroi.Eunomia do
   @spec run_detail(String.t(), String.t()) ::
           {:ok, Oneiroi.Eunomia.Store.Run.t(), [map()], [map()]} | {:error, term()}
   defexport(run_detail(resident_id, run_ref), do: Regression.run_detail(resident_id, run_ref))
-
-  @doc "The sealed session's context (spec §6.4): the brain's prompt file and the identity files, nothing of memory."
-  @spec seed_context(String.t()) :: [map()]
-  defexport(seed_context(resident_id), do: Regression.seed_context(resident_id))
 
   # ---- judgement (spec §6.4) ----
 

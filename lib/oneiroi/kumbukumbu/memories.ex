@@ -295,11 +295,17 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   def tagged(resident_id, slug), do: Scope.resident(resident_id, fn -> Store.tagged(slug) end)
 
-  @doc "The madeleine for a turn's words: the vectors refreshed (embedding what changed), then one adjacent, unheard bookmark or nil; within the room of `session_key` when given (spec §6.3, P23)."
-  def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil) do
-    _ = Madeleine.refresh(resident_id, actor)
+  @doc """
+  The madeleine for a turn's words: the vectors refreshed (embedding what
+  changed), then one adjacent, unheard bookmark or nil; within the room of
+  `session_key` when given (spec §6.3, P23). `refresh: false` reads the
+  vectors as they stand and `purpose:` bills the query elsewhere than
+  `embeddings`: a regression trial's turn passes both (eunomia #10).
+  """
+  def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil, opts \\ []) do
+    if Keyword.get(opts, :refresh, true), do: _ = Madeleine.refresh(resident_id, actor)
     keys = session_key && Conversations.room(resident_id, session_key).keys
-    Madeleine.recall(resident_id, text, actor, keys)
+    Madeleine.recall(resident_id, text, actor, keys, Keyword.get(opts, :purpose, :embeddings))
   end
 
   @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`, over every bookmark."

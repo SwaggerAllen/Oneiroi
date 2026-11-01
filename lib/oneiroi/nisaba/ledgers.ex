@@ -105,10 +105,10 @@ defmodule Oneiroi.Nisaba.Ledgers do
     end)
   end
 
-  @doc "Embeds the texts under the `embeddings` purpose on the platform-pinned model; metered and recorded like a call."
-  def embed(resident_id, model, texts, %Actor{} = actor)
+  @doc "Embeds the texts under `purpose` (`embeddings` but for a regression trial's retrieval) on the platform-pinned model; metered and recorded like a call."
+  def embed(resident_id, model, texts, %Actor{} = actor, purpose)
       when is_binary(model) and is_list(texts) do
-    metered(resident_id, :embeddings, actor, fn provider, key ->
+    metered(resident_id, purpose, actor, fn provider, key ->
       provider.embed(model, texts, key)
     end)
   end

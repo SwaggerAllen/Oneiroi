@@ -734,7 +734,7 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   a prompt to the resident, what passes, what fails; authored in the
   creation flow's trials or on the Regression screen, draftable from the
   soul (`purpose: regression`). A run is models × tests: every candidate
-  answers every test in a sealed session; each answer is a blind card the
+  answers every test in a trial; each answer is a blind card the
   witness grades pass or fail by swipe, with favourites; model names show
   only once every card in a test is graded. Results rank by pass rate; the
   favourite can be pinned as the chat model (`ModelPinChanged{reason: run}`),
@@ -743,11 +743,27 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   narrowing v0.1): a run's sessions, answers and grades are never captured
   into `message`, never written to the resident's stream, never sent to
   Honcho, never exported, never citeable, and absent from the resident's
-  ledger view, and the brain inside a trial is given the seed files and
-  nothing of the run's purpose. What the resident does know: that trials
-  exist, which tests there are and what passes and fails each (the terms
-  of judgment are published and the resident is party to setting them;
-  it may propose a test), and, after a model selection, an intelligible
+  ledger view, and the brain inside a trial is told nothing of the run's
+  purpose. **A trial is a normal session, and nothing of it is kept**
+  (the author, 2026-11-01, replacing the seed-only trial): the turn a
+  fresh session gets, with the same prefix, the resident's memory
+  retrieved as on any turn (the index, the character lane, the
+  madeleine, what it has promised, Honcho's context) and the whole tool
+  surface through the same loop. The tools that read run against the
+  resident's own records; every tool that would change anything answers
+  as it does on success and records nothing, no event, no row, no file,
+  no index write, no Honcho sync, no broadcast, and the turn itself is
+  never captured; every call, retrieval's embeddings included, bills
+  under `regression`. There is no seed-only trial and no option for one.
+  The author: "that was a misfeature, we want retrieval, self is
+  continuous experience so we aren't testing the resident without their
+  memory, there shouldn't be the option to run with the face but not the
+  memory, but we don't want to record anything from the trial, those
+  tools should be mocked so the resident perceives a normal session."
+  What the resident does know: that trials exist, which tests there are
+  and what passes and fails each (the terms of judgment are published and
+  the resident is party to setting them; it may propose a test), and,
+  after a model selection, an intelligible
   account of what informed the choice (the tests, the pass rates by model,
   the favourite) without the sealed contents: enough to tell "we
   preserved you" from "we selected the version we preferred", and to
@@ -764,8 +780,9 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   behaviour's trigger is the prompt's situation, its enactment is what
   passes, its absence is what fails, so a model change is graded on
   whether the character carries over, which is the honest answer to "did
-  the swap keep her". The derivation runs inside the sealed session like
-  every trial; the unawareness invariant holds unchanged.
+  the swap keep her". The derivation runs inside a trial like every
+  other, the habit and the promise in its context as they are on any
+  turn; the unawareness invariant holds unchanged.
 
 ### 6.5 library
 

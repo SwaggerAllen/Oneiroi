@@ -304,7 +304,14 @@ defmodule Oneiroi.Nisaba do
   @spec embed(String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
           {:ok, Oneiroi.Nisaba.Provider.Embedding.t()} | {:error, term()}
   defexport(embed(resident_id, model, texts, actor),
-    do: Ledgers.embed(resident_id, model, texts, actor)
+    do: Ledgers.embed(resident_id, model, texts, actor, :embeddings)
+  )
+
+  @doc "The same embedding billed under `purpose`: a regression trial's retrieval bills as `regression`, which the resident's ledger view omits (spec §6.4), not as the resident's own `embeddings`."
+  @spec embed(String.t(), String.t(), [String.t()], Oneiroi.Actor.t(), atom()) ::
+          {:ok, Oneiroi.Nisaba.Provider.Embedding.t()} | {:error, term()}
+  defexport(embed(resident_id, model, texts, actor, purpose),
+    do: Ledgers.embed(resident_id, model, texts, actor, purpose)
   )
 
   # ---- the subscription and the insurance floor (spec §6.2 F53, §6.11 F46) ----
