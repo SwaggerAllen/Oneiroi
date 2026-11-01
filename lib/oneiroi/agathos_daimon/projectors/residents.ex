@@ -195,6 +195,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
           last_backup_sequence: e.sequence,
           last_backup_root: e.root,
           last_backup_commit: e.commit,
+          last_backup_at: e.at,
           root_mismatched_at: nil
         )
   end)
