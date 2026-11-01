@@ -60,6 +60,7 @@ defmodule Oneiroi.SimaQian.Import do
            {:ok, translated} <- translate(how, id, witness_account_id, actor),
            {:ok, adopted} <- library().adopt_all(id, actor),
            ledger = account(clone, translated, seeds, adopted),
+           :ok <- Backup.start_fresh(Backup.dir(id), Enum.map(ledger.left_behind, &elem(&1, 0))),
            :ok <-
              AgathosDaimon.complete_import(
                id,
@@ -150,19 +151,21 @@ defmodule Oneiroi.SimaQian.Import do
   defp custody(:replayed, id, witness_account_id, actor),
     do: with({:ok, _} <- Rebuild.custody(id, witness_account_id, actor), do: :ok)
 
-  # The clone becomes the working repository, history and all, so the
-  # next backup commits on top of the source's commits. The origin
-  # remote goes with the clone's config, where the clone URL (and any
-  # token in it) would otherwise sit on disk until the witness sets a
-  # remote of their own.
+  # The clone is copied whole so the seeds, the translation and the
+  # library read it in place; once the accounting knows what was left
+  # behind, `Backup.start_fresh/2` takes the source's `.git` and every
+  # left-behind file out (sima-qian #39).
   # sobelow_skip ["Traversal.FileModule"]
   defp place(clone, id) do
     dest = Backup.dir(id)
     File.mkdir_p!(Path.dirname(dest))
 
+    # The clone is copied whole, `.git` with it, and made the platform's
+    # own by `Backup.start_fresh/2` once the accounting knows what was
+    # left behind.
     case File.cp_r(clone, dest) do
       {:ok, _copied} ->
-        Git.forget_remote(dest)
+        :ok
 
       {:error, reason, path} ->
         {:error,

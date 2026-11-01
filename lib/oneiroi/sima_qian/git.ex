@@ -155,10 +155,23 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
-  @doc "Removes the `origin` remote a clone carries, and with it the clone URL in the repository's config."
-  @spec forget_remote(Path.t()) :: :ok | {:error, Error.t()}
-  def forget_remote(dir) do
-    with {:ok, _} <- git(dir, ["remote", "remove", "origin"]), do: :ok
+  @doc "Whether `dir` has a commit at `HEAD`."
+  @spec head?(Path.t()) :: boolean()
+  def head?(dir), do: match?({:ok, _}, git(dir, ["rev-parse", "--verify", "-q", "HEAD"]))
+
+  @doc """
+  The trailers on the history's first commit: where the repository began,
+  which a head committed on top of someone else's history does not say.
+  """
+  @spec root_trailers(Path.t()) :: %{optional(String.t()) => String.t()}
+  def root_trailers(dir) do
+    with {:ok, roots} <- git(dir, ["rev-list", "--max-parents=0", "HEAD"]),
+         [root | _] <- String.split(roots, "\n", trim: true),
+         {:ok, out} <- git(dir, ["log", "-1", "--format=%(trailers:only,unfold)", root]) do
+      out |> String.split("\n", trim: true) |> Enum.flat_map(&trailer/1) |> Map.new()
+    else
+      _ -> %{}
+    end
   end
 
   @doc "The trailers on `HEAD`'s message, as `%{\"Oneiroi-Root\" => ...}`."

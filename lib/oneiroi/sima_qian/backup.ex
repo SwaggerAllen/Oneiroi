@@ -10,6 +10,8 @@ defmodule Oneiroi.SimaQian.Backup do
   one, `records/`; the table is here so the others arrive as rows.
   """
 
+  require Logger
+
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Router
@@ -28,7 +30,10 @@ defmodule Oneiroi.SimaQian.Backup do
     # The soul alone (David's rule), and the identity files with it: they
     # are one self, given and proposed together (spec §6.2).
     {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
-    {"writing", ["writing/", "research/"]},
+    # `posts/` is a library folder (Seshat's kinds) and was in no class, so
+    # the first resident to publish one would have failed every backup on
+    # the stray check.
+    {"writing", ["writing/", "research/", "posts/"]},
     {"machine",
      ["records/", "memory/", "feeds/", "mail/", "correspondence/", "design/", "wiki/", "journal/"]}
   ]
@@ -51,7 +56,8 @@ defmodule Oneiroi.SimaQian.Backup do
     dir = dir(resident_id)
     row = Scope.resident(resident_id, fn -> Store.get(resident_id) end)
 
-    with :ok <- Git.ensure_repo(dir),
+    with :ok <- fresh_if_foreign(resident_id, dir, row),
+         :ok <- Git.ensure_repo(dir),
          {:ok, export} <- Export.write(resident_id, dir),
          {:ok, _} <- record_export(resident_id, export, actor),
          # The letters the export carried for the first time get their
@@ -106,6 +112,75 @@ defmodule Oneiroi.SimaQian.Backup do
 
         with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, :mismatch}
     end
+  end
+
+  @doc """
+  Makes `dir` hold only what the platform holds, under a history of its
+  own: the source repository's `.git` goes, each name the import left
+  behind goes, and so does anything else outside the backup's classes
+  (a translated source such as a seedbed, now events). The source
+  repository still holds all of it.
+
+  Before this, an import kept the clone whole: Lily's records repository
+  carried her original history and every file the import had named as
+  not transferred, and her first backup (2026-11-01) was refused by
+  GitHub for pushing her CI workflow, `.github/workflows/...`, a file
+  the import had listed as left behind. The author chose a fresh history
+  over keeping hers: the backup holds what the platform says it holds,
+  and the provenance is the import's event (source, attestation, root).
+  """
+  @spec start_fresh(Path.t(), [String.t()]) :: :ok | {:error, Error.t()}
+  # Every path is under the records root, made from names the import's
+  # own accounting produced; `Path.safe_relative/1` refuses one that
+  # would climb out.
+  # sobelow_skip ["Traversal.FileModule"]
+  def start_fresh(dir, left_behind) do
+    File.rm_rf!(Path.join(dir, ".git"))
+
+    for name <- left_behind, {:ok, safe} <- [Path.safe_relative(name)] do
+      File.rm_rf!(Path.join(dir, safe))
+    end
+
+    held = Enum.flat_map(@classes, &elem(&1, 1))
+
+    for path <- files(dir), not Enum.any?(held, &String.starts_with?(path, &1)) do
+      File.rm!(Path.join(dir, path))
+    end
+
+    Git.ensure_repo(dir)
+  end
+
+  # Once, for a resident imported before `start_fresh/2` ran at import:
+  # never backed up, and a history that did not begin as ours. The root
+  # commit decides, not the head: Lily's first backup committed on top of
+  # her own history and failed at the push, so her head carries our
+  # trailer and her root does not. A history that began as ours is never
+  # touched, and nothing is reset after the first backup lands.
+  defp fresh_if_foreign(resident_id, dir, %{last_backup_commit: nil, import_source: source} = row)
+       when is_binary(source) do
+    # Its own `.git` first: git walks up from a directory without one, and
+    # a records root inside another repository would read that one's head.
+    if File.dir?(Path.join(dir, ".git")) and Git.head?(dir) and
+         not Map.has_key?(Git.root_trailers(dir), "Oneiroi-Sequence") do
+      Logger.info("records history started fresh for imported resident #{resident_id}")
+      left = Enum.uniq(Map.keys(row.import_reasons || %{}) ++ (row.import_not_transferred || []))
+      start_fresh(dir, left)
+    else
+      :ok
+    end
+  end
+
+  defp fresh_if_foreign(_resident_id, _dir, _row), do: :ok
+
+  # Every file under `dir`, hidden ones included, but its `.git`.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp files(dir) do
+    dir
+    |> Path.join("**")
+    |> Path.wildcard(match_dot: true)
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.map(&Path.relative_to(&1, dir))
+    |> Enum.reject(&(&1 == ".git" or String.starts_with?(&1, ".git/")))
   end
 
   @doc "Every resident with a remote, for the nightly jobs; platform scope by name."

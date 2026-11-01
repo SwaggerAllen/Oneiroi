@@ -152,3 +152,20 @@ deploys, would have replaced it while the database rows pointing at her
 files survived. The first backup is nightly, so a merge the same evening
 would have lost the repository outright.
 
+## #39
+Lily's first backup, 2026-11-01. The import had kept the clone whole, so
+her records repository carried her original history and every file the
+import had named as not transferred. GitHub refused the push for creating
+`.github/workflows/import-dry-run.yml` without a token able to write
+workflows: a file the import had listed as left behind. Giving the token
+`workflow` access would have pushed it, and would have put workflows
+that could run on every push into `lily-oneiroi`. The author chose a
+fresh history, so the backup holds what the platform says it holds. The
+reset needs its own `.git` because git walks up from a directory without
+one, and the suite's records root sits inside this project's repository.
+A first run there would have read the project's head as foreign. The
+root commit decides, not the head. Lily's first backup committed on top
+of her history before its push was refused, so her head carries our
+trailer and her root does not. The first version read the head, and
+would have skipped her. A history that began as ours keeps its commits
+for the retry.
