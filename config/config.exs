@@ -56,19 +56,24 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]
 
-# Every line the handler writes passes `Oneiroi.Log.Redacting`, the
+# Every line the handler writes passes `Oneiroi.Apsu.LogRedacting`, the
 # credential backstop, around the real formatter. `Logger.Formatter` is
 # Elixir's own, so building it here is safe in every mix command; prod's
 # JSON formatter is a dependency and keeps the tuple form.
 config :logger, :default_handler,
   formatter:
-    {Oneiroi.Log.Redacting,
+    {Oneiroi.Apsu.LogRedacting,
      Logger.Formatter.new(
        format: "$time $metadata[$level] $message\n",
        metadata: [:component, :trace_id, :request_id, :error_kind, :error_site, :error_cause]
      )}
 
 config :phoenix, :json_library, Jason
+
+# An `{:error, _}` leaving an export without a site is a warning
+# (`Oneiroi.Component.API.returned/3`); the suite raises instead
+# (config/test.exs). The substrate's own default is off.
+config :oneiroi_daedalus, unsited_errors: :log
 
 # Whether this build binds a socket at all; the port is a declared
 # setting. Dev and prod serve, test does not.

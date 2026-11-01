@@ -75,10 +75,10 @@ defmodule Oneiroi.Error do
   The crash report that leaked a token on 2026-11-01 printed exactly
   that.
 
-  `mix oneiroi.audit`'s `error_site` check holds the sites to being
-  literal, prefixed and unique, and `Oneiroi.Component.API` refuses an
-  export's `{:error, _}` that carries none (`:raise` under test, a
-  warning otherwise).
+  `Oneiroi.Component.API.returned/3` can refuse an export's `{:error, _}`
+  that carries none, as the project configures it. A project's audit can
+  hold the sites to literal, prefixed and unique: Oneiroi's Apsu
+  registers that check as a policy (systems/daedalus.md #8).
 
   ## Remedy presence is not re-checked here
 

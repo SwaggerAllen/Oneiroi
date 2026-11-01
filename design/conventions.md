@@ -222,6 +222,21 @@ the sixteen systems of spec §6.
 - **Deliberate error kinds are registered** (`errors/0`), spine-prefixed,
   each with a meaning and a remedy; declared and constructed are checked
   both ways.
+- **Every error names its site.** `Error.new(kind, site, details)` builds
+  one this code decided on; `Error.caught(kind, site, cause, details)`
+  wraps a failure that started elsewhere (an exception, an exit, a
+  library's `{:error, reason}`) once, where it is first matched, keeping
+  only the cause's class. A site is an atom with the system's prefix,
+  written at exactly one line in the project, so a response or a log
+  line leads to the line that built it. The JSON envelope carries it,
+  with the request id. No bare `{:error, :atom}` or `{:error, "text"}`
+  is built anywhere but a pattern. Every `rescue` and `catch` wraps or
+  raises again. The audit's `error_site` check holds all of this. An
+  `{:error, _}` leaving an export without a site raises under the suite
+  and is a warning in production (`Oneiroi.Component.API.returned/3`).
+  On 2026-11-01 the first real import answered a bare 500. It was found
+  by reading the log by timestamp, and even a well-formed error could
+  not have said which of a kind's 25 constructions it came from.
 - **Model-call failures follow the three-way taxonomy:** refusal (a fact
   about the work, shown as the resident's words, never styled as an error),
   transport (retryable), schema-invalid (cancelled). A refusal is captured
@@ -287,6 +302,22 @@ to a human, so a flaky suite defeats the automation.
   setting comes back wrapped; `unwrap/1` at the call site is the only way
   in and is meant to be visible in review; the audit reports an unwrap
   inside a `Logger` call.
+- **A credential in a request is wrapped where it arrives.** The
+  controller wraps a password, a code, a key, a token or a URL carrying
+  one. It is unwrapped (`Secret.reveal/1`) only at the line that uses it,
+  and never into a binary's arguments: git reads a token from a private
+  credential file. A crash report prints the arguments of the frame that
+  raised. On 2026-11-01 that frame was `System.cmd`, and Lily's read
+  token went into the service log. The tests watch each boundary with a
+  call trace, because the ports also take a plain value.
+- **Every log line passes the redacting formatter**
+  (`Oneiroi.Apsu.LogRedacting`) in every environment. It scrubs URL userinfo
+  and the token shapes in use. It is a backstop for the paths no rule
+  sees, and widening its list is a measured change.
+- **A log line about an error carries its metadata, not the error**
+  (`Oneiroi.Error.metadata/1`: kind, site and the cause's class). A
+  foreign error's message is never logged, because that message is where
+  a credential or a tenant's data rides.
 - **The boundary is instrumented** by `defexport`: spans per export, custom
   events registered and checked declared-versus-emitted both ways.
 - **Trace context threads through Oban and PubSub** by the platform's

@@ -1,8 +1,8 @@
-defmodule Oneiroi.Audit.ErrorSiteTest do
+defmodule Oneiroi.Apsu.Policies.ErrorSiteTest do
   @moduledoc "The error_site check: every error built or caught names a unique, prefixed site, and patterns are not errors."
   use ExUnit.Case, async: true
 
-  alias Oneiroi.Audit.Checks.ErrorSite
+  alias Oneiroi.Apsu.Policies.ErrorSite
 
   setup do
     dir = Path.join(System.tmp_dir!(), "oneiroi-error-site-#{System.unique_integer([:positive])}")

@@ -14,8 +14,7 @@ defmodule Oneiroi.Component.UnsitedTest do
     def errors, do: [{:unsited_missing, "no such thing", remedy: "check the id"}]
 
     defexport fail do
-      {:error,
-       Oneiroi.Component.UnsitedTest.Exporting.Error.new(:unsited_missing, :unsited_test_fail)}
+      {:error, __MODULE__.Error.new(:unsited_missing, :unsited_test_fail)}
     end
 
     defexport fail_bare do
@@ -50,10 +49,17 @@ defmodule Oneiroi.Component.UnsitedTest do
     assert {:error, %{site: :unsited_test_fail}} = Exporting.fail()
   end
 
-  test "otherwise it is a warning and the result is unchanged" do
-    Application.delete_env(:oneiroi_daedalus, :unsited_errors)
+  test "under :log, it is a warning and the result is unchanged" do
+    Application.put_env(:oneiroi_daedalus, :unsited_errors, :log)
 
     log = capture_log(fn -> assert {:error, :not_found} = Exporting.fail_bare() end)
     assert log =~ "unsited.fail_bare returned an error with no site"
+  end
+
+  test "unset, the substrate does nothing: it ships into platforms that chose no policy" do
+    Application.delete_env(:oneiroi_daedalus, :unsited_errors)
+
+    log = capture_log(fn -> assert {:error, :not_found} = Exporting.fail_bare() end)
+    assert log == ""
   end
 end

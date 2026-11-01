@@ -99,7 +99,6 @@ defmodule Oneiroi.Audit.Source do
   def read(path) do
     case File.read(path) do
       {:ok, text} -> parse(path, text)
-      # oneiroi:allow error_site: a report line naming its own path and line, not an error
       {:error, reason} -> {:error, "#{path}: cannot be read (#{:file.format_error(reason)})"}
     end
   end
@@ -152,11 +151,9 @@ defmodule Oneiroi.Audit.Source do
     {ast, comments} = Code.string_to_quoted_with_comments!(text, file: path)
     {:ok, %__MODULE__{path: path, ast: ast, comments: comments}}
   rescue
-    # oneiroi:allow error_site: a report line naming its own path and line, not an error
     error ->
       line = if is_map(error), do: Map.get(error, :line, 0), else: 0
 
-      # oneiroi:allow error_site: a report line naming its own path and line, not an error
       {:error, "#{path}:#{line}: does not parse (#{describe(error)})"}
   end
 

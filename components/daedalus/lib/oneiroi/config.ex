@@ -308,7 +308,6 @@ defmodule Oneiroi.Config do
     cond do
       Keyword.has_key?(opts, :default) -> cast(Keyword.fetch!(opts, :default), opts)
       Keyword.get(opts, :required, true) == false -> {:ok, nil}
-      # oneiroi:allow error_site: a report line printed with its setting at boot
       true -> {:error, "is not set"}
     end
   end
@@ -320,7 +319,6 @@ defmodule Oneiroi.Config do
   defp apply_cast(:integer, raw) do
     case Integer.parse(raw) do
       {integer, ""} -> {:ok, integer}
-      # oneiroi:allow error_site: a report line printed with its setting at boot
       _ -> {:error, "is not an integer"}
     end
   end
@@ -328,15 +326,12 @@ defmodule Oneiroi.Config do
   defp apply_cast(:boolean, "true"), do: {:ok, true}
   defp apply_cast(:boolean, "false"), do: {:ok, false}
 
-  # oneiroi:allow error_site: a report line printed with its setting at boot
   defp apply_cast(:boolean, _raw), do: {:error, ~s(is not "true" or "false")}
 
   defp apply_cast(fun, raw) when is_function(fun, 1) do
     case fun.(raw) do
       {:ok, value} -> {:ok, value}
-      # oneiroi:allow error_site: a report line printed with its setting at boot
       {:error, reason} -> {:error, "is invalid: #{reason}"}
-      # oneiroi:allow error_site: a report line, for a cast that broke its contract
       other -> {:error, "cast returned #{inspect(other)}, expected {:ok, _} or {:error, _}"}
     end
   rescue
@@ -344,7 +339,6 @@ defmodule Oneiroi.Config do
     # reported alongside everything else rather than aborting the pass.
     # The exception's *module* only: a message is a channel for the
     # rejected value, and this report never names values.
-    # oneiroi:allow error_site: a report line printed with its setting at boot
     exception -> {:error, "cast raised #{inspect(exception.__struct__)}"}
   end
 

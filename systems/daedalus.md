@@ -62,6 +62,18 @@ two words meet.
   package that ships into trees we do not own, is the allowlist mistake
   the license check was designed against.
 
+- **#11 Every error carries its site, and the policy is the project's.**
+  `Oneiroi.Error` builds errors with a `site`, an atom with the
+  component's prefix written at one line, and `caught/4` keeps a
+  foreign failure's class as its `cause`. `defexport` can refuse an
+  unsited `{:error, _}` leaving a boundary. The substrate owns the shape
+  and checks the prefix when an error is built. Whether the refusal
+  raises, warns or does nothing is the project's setting
+  (`unsited_errors`, default off), and the static check that sites are
+  literal and unique is Oneiroi's policy, registered by Apsu (#8). The
+  2026-11-01 import answered a bare 500 that only a timestamp search
+  could explain (conventions §8).
+
 ## #9 Initial vs target
 
 Initial: Daedalus as lifted plus #6. Target: the ES property

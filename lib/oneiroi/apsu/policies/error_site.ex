@@ -1,4 +1,4 @@
-defmodule Oneiroi.Audit.Checks.ErrorSite do
+defmodule Oneiroi.Apsu.Policies.ErrorSite do
   @moduledoc """
   Every place an error starts carries a site, and no two places share
   one (`Oneiroi.Error`'s "Every error carries its site").

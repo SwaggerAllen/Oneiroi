@@ -121,15 +121,18 @@ defmodule Oneiroi.Component.API do
   string) is a failure nobody wrapped, and the operator who meets it has
   no line to go to.
 
-  Under `config :oneiroi_daedalus, unsited_errors: :raise` (the test
-  suite) that raises, naming the export and the reason's class, so a
-  path the suite exercises cannot ship one. Otherwise it is logged as a
-  warning and the result passes unchanged: turning a 422 into a crash in
-  production would be the wrong trade for a rule about diagnosis.
+  The project chooses how hard: `config :oneiroi_daedalus,
+  unsited_errors:` `:raise` names the export and the reason's class in
+  an exception (Oneiroi's test suite, so a path a test exercises cannot
+  ship one), `:log` warns and passes the result unchanged (Oneiroi
+  everywhere else: turning a 422 into a crash in production would be the
+  wrong trade for a rule about diagnosis), and the default, `:off`, does
+  nothing. The default is off because the substrate ships into the SDK
+  that other platforms embed (systems/daedalus.md #8).
 
-  The static half is `mix oneiroi.audit`'s `error_site` check, which
-  sees construction and `rescue`; this sees what neither can, a
-  library's `{:error, reason}` passed straight through a `with`.
+  Oneiroi's static half is Apsu's `error_site` policy, which sees
+  construction and `rescue`; this sees what neither can, a library's
+  `{:error, reason}` passed straight through a `with`.
   """
   @spec returned(atom(), atom(), result) :: result when result: term()
   def returned(slug, name, {:error, reason} = result) do
@@ -138,9 +141,10 @@ defmodule Oneiroi.Component.API do
         "#{slug}.#{name} returned an error with no site " <>
           "(#{inspect(Oneiroi.Error.describe(reason))}): build it with new/3 or wrap it with caught/4"
 
-      case Application.get_env(:oneiroi_daedalus, :unsited_errors, :log) do
+      case Application.get_env(:oneiroi_daedalus, :unsited_errors, :off) do
         :raise -> raise ArgumentError, message
-        _log -> Logger.warning(message)
+        :log -> Logger.warning(message)
+        _off -> :ok
       end
     end
 

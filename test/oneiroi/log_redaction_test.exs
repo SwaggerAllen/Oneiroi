@@ -18,7 +18,7 @@ defmodule Oneiroi.LogRedactionTest do
 
   test "the handler running this suite" do
     {:ok, %{formatter: {module, config}}} = :logger.get_handler_config(:default)
-    assert module == Oneiroi.Log.Redacting
+    assert module == Oneiroi.Apsu.LogRedacting
     refute module.format(event(), config) =~ @token
   end
 
@@ -30,7 +30,7 @@ defmodule Oneiroi.LogRedactionTest do
         )
 
       {module, inner} = config[:logger][:default_handler][:formatter]
-      assert module == Oneiroi.Log.Redacting
+      assert module == Oneiroi.Apsu.LogRedacting
 
       line = module.format(event(), inner)
       assert line =~ "github.com/a/b.git"

@@ -1,8 +1,8 @@
-defmodule Oneiroi.Log.RedactingTest do
+defmodule Oneiroi.Apsu.LogRedactingTest do
   @moduledoc "The log backstop: every credential shape in use is scrubbed, and ordinary text is not."
   use ExUnit.Case, async: true
 
-  alias Oneiroi.Log.Redacting
+  alias Oneiroi.Apsu.LogRedacting, as: Redacting
 
   test "the crash report line from 2026-11-01, token and all" do
     line =

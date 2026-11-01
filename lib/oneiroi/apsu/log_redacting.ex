@@ -1,4 +1,4 @@
-defmodule Oneiroi.Log.Redacting do
+defmodule Oneiroi.Apsu.LogRedacting do
   @moduledoc """
   The log handler's formatter, wrapping the real one: every line the
   handler writes is formatted as usual and then scrubbed of the
