@@ -29,7 +29,11 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     # The imported kind is the import's alone (kumbukumbu #37): a client
     # naming it would open a session the nightly pass never reads.
     if kind == Conversation.imported() do
-      {:error, Error.new(:kumbukumbu_kind_invalid, kind: kind, kinds: Conversation.kinds())}
+      {:error,
+       Error.new(:kumbukumbu_kind_invalid, :kumbukumbu_conversations_open_kind_imported,
+         kind: kind,
+         kinds: Conversation.kinds()
+       )}
     else
       with :ok <-
              dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor),
@@ -97,7 +101,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       turn_ref: turn_ref
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   @doc """
@@ -119,12 +123,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       messages: Enum.map(messages, &wire_message/1)
     }
 
-    case Router.dispatch(command) do
-      {:ok, _events} -> :ok
-      {:error, :no_such_session} -> {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
-      {:error, :empty_turn} -> {:error, Error.new(:kumbukumbu_empty_turn)}
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, _events} <- dispatch(command), do: :ok
   end
 
   def record_context(resident_id, key, turn_ref, injections, %Actor{} = actor)
@@ -139,7 +138,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       injections: Enum.map(injections, &Map.take(&1, [:label, :tokens, :reason, :text, :refs]))
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   @doc "Records a compaction: the summary covering the session's messages through a store sequence (spec §5)."
@@ -155,12 +154,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       summary: summary
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} -> :ok
-      {:error, :summary_empty} -> {:error, Error.new(:kumbukumbu_summary_empty)}
-      {:error, :no_such_session} -> {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   def fail_capture(resident_id, key, turn_ref, reason, %Actor{} = actor) when is_binary(reason) do
@@ -174,7 +168,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       reason: reason
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   def resolve_failure(resident_id, key, turn_ref, how, note, %Actor{} = actor) do
@@ -189,16 +183,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       how: how
     }
 
-    case Router.dispatch(command) do
-      {:ok, _} ->
-        :ok
-
-      {:error, :no_such_failure} ->
-        {:error, Error.new(:kumbukumbu_no_such_failure, turn_ref: turn_ref)}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   def share_session(resident_id, key, note, %Actor{} = actor) do
@@ -211,7 +196,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       session_key: key
     }
 
-    with {:ok, _} <- Router.dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: :ok
   end
 
   # ---- reads ----
@@ -227,10 +212,14 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     Scope.run(scope, fn ->
       case {scope, Store.session(key)} do
         {_scope, nil} ->
-          {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+          {:error,
+           Error.new(:kumbukumbu_no_such_session, :kumbukumbu_transcript_session_absent, key: key)}
 
         {{:account, _}, %{private: true, shared: false}} ->
-          {:error, Error.new(:kumbukumbu_session_private, key: key)}
+          {:error,
+           Error.new(:kumbukumbu_session_private, :kumbukumbu_transcript_session_private,
+             key: key
+           )}
 
         {_scope, session} ->
           {:ok, session, Store.messages(key)}
@@ -251,7 +240,10 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     Scope.resident(resident_id, fn ->
       case Store.session(key) do
         nil ->
-          {:error, Error.new(:kumbukumbu_no_such_session, key: key)}
+          {:error,
+           Error.new(:kumbukumbu_no_such_session, :kumbukumbu_uncompacted_session_absent,
+             key: key
+           )}
 
         s ->
           count = Store.messages_after(key, s.compacted_through)
@@ -319,18 +311,37 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       domain: domain
     }
 
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  # The aggregate's refusals arrive sited (`Conversation`); what else a
+  # dispatch answers, the actor middleware's refusal or the store's own
+  # failure, is wrapped here, once, where it is first matched.
+  defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, _} ->
-        :ok
+      {:ok, events} ->
+        {:ok, events}
 
-      {:error, :domain_invalid} ->
-        {:error, Error.new(:kumbukumbu_domain_invalid, domain: domain)}
+      {:error, %Error{}} = refused ->
+        refused
 
-      {:error, :kind_invalid} ->
-        {:error, Error.new(:kumbukumbu_kind_invalid, kind: kind, kinds: Conversation.kinds())}
+      {:error, {:refused, problems} = refusal} ->
+        {:error,
+         Error.caught(
+           :kumbukumbu_command_refused,
+           :kumbukumbu_conversations_command_refused,
+           refusal,
+           problems: problems
+         )}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error,
+         Error.caught(
+           :kumbukumbu_dispatch_failed,
+           :kumbukumbu_conversations_dispatch_failed,
+           reason,
+           command: command.__struct__
+         )}
     end
   end
 

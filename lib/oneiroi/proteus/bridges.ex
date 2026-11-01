@@ -52,8 +52,6 @@ defmodule Oneiroi.Proteus.Bridges do
              }),
            {:ok, _} <- set_card(resident_id, "provision", actor) do
         :ok
-      else
-        {:error, reason} -> {:error, failure(reason)}
       end
     end
   end
@@ -89,8 +87,6 @@ defmodule Oneiroi.Proteus.Bridges do
          {:ok, _} <-
            dispatch(%Commands.AddPeer{actor: actor, at: Clock.now(), id: resident_id, peer: peer}) do
       :ok
-    else
-      {:error, reason} -> {:error, failure(reason)}
     end
   end
 
@@ -136,8 +132,6 @@ defmodule Oneiroi.Proteus.Bridges do
              source: source
            }) do
       {:ok, if(events == [], do: :unchanged, else: :set)}
-    else
-      {:error, reason} -> {:error, failure(reason)}
     end
   end
 
@@ -176,7 +170,7 @@ defmodule Oneiroi.Proteus.Bridges do
           reason: reason_text(reason)
         }
 
-        with {:ok, _} <- dispatch(command), do: {:error, failure(reason)}
+        with {:ok, _} <- dispatch(command), do: {:error, reason}
     end
   end
 
@@ -213,7 +207,7 @@ defmodule Oneiroi.Proteus.Bridges do
 
       {:error, reason} ->
         record_sync(resident_id, session_key, turn_ref, 0, reason_text(reason), actor)
-        {:error, failure(reason)}
+        {:error, reason}
     end
   end
 
@@ -319,8 +313,6 @@ defmodule Oneiroi.Proteus.Bridges do
              expires_at: expires_at
            }) do
       {:ok, key, expires_at}
-    else
-      {:error, reason} -> {:error, failure(reason)}
     end
   end
 
@@ -333,32 +325,55 @@ defmodule Oneiroi.Proteus.Bridges do
 
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
-      {:ok, row} -> {:ok, row}
-      :error -> {:error, :no_such_resident}
+      {:ok, row} ->
+        {:ok, row}
+
+      :error ->
+        {:error,
+         Error.new(:proteus_no_such_resident, :proteus_bridges_resident_absent,
+           resident_id: resident_id
+         )}
     end
   end
 
-  defp failure({:transport, reason}),
-    do: Error.new(:proteus_honcho_unreachable, reason: reason_text(reason))
+  # What the bridge records of a failure on the resident's stream:
+  # Honcho's side as `transport: <cause>` or `rejected: <status>`, ours
+  # by kind. Never a body or a message, which can carry a tenant's words.
+  defp reason_text(%{kind: :proteus_honcho_unreachable} = e), do: "transport: " <> cause_text(e)
 
-  defp failure({:rejected, reason}),
-    do: Error.new(:proteus_honcho_rejected, reason: reason_text(reason))
+  defp reason_text(%{kind: :proteus_honcho_rejected} = e),
+    do: "rejected: " <> to_string(Keyword.get(e.details, :status) || cause_text(e))
 
-  defp failure(%{kind: _} = error), do: error
-  defp failure(:not_provisioned), do: Error.new(:proteus_not_provisioned)
-  defp failure(other), do: Error.new(:proteus_honcho_rejected, reason: reason_text(other))
+  defp reason_text(%{kind: kind}), do: Atom.to_string(kind)
 
-  defp reason_text({kind, detail}) when is_atom(kind), do: "#{kind}: #{reason_text(detail)}"
-  defp reason_text(%{kind: kind}) when is_atom(kind), do: Atom.to_string(kind)
-  defp reason_text(atom) when is_atom(atom), do: Atom.to_string(atom)
-  defp reason_text(text) when is_binary(text), do: text
-  defp reason_text(other), do: other |> inspect() |> String.slice(0, 200)
+  # The cause's class, or the line that built the error when it wraps nothing.
+  defp cause_text(%{cause: nil, site: site}), do: Atom.to_string(site)
 
+  defp cause_text(%{cause: cause}),
+    do: cause |> Atom.to_string() |> String.replace_prefix("Elixir.", "")
+
+  # The aggregate's refusals arrive sited (`Bridge`); what else a
+  # dispatch answers, the actor middleware's refusal or the store's own
+  # failure, is wrapped here, once, where it is first matched.
   defp dispatch(command) do
     case Router.dispatch(command) do
-      {:ok, events} -> {:ok, events}
-      {:error, :not_provisioned} -> {:error, Error.new(:proteus_not_provisioned)}
-      {:error, reason} -> {:error, reason}
+      {:ok, events} ->
+        {:ok, events}
+
+      {:error, %Error{}} = refused ->
+        refused
+
+      {:error, {:refused, problems} = refusal} ->
+        {:error,
+         Error.caught(:proteus_command_refused, :proteus_bridges_command_refused, refusal,
+           problems: problems
+         )}
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:proteus_dispatch_failed, :proteus_bridges_dispatch_failed, reason,
+           command: command.__struct__
+         )}
     end
   end
 end

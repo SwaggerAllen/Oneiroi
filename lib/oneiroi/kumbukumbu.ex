@@ -165,6 +165,8 @@ defmodule Oneiroi.Kumbukumbu do
 
   @doc false
   def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
   def cast_tree(other), do: {:error, "is #{inspect(other)}, expected \"ethos\""}
 
   @impl Oneiroi.Component
@@ -255,7 +257,20 @@ defmodule Oneiroi.Kumbukumbu do
        remedy: "give the number of the soul line the moment evidences, or none"},
       {:kumbukumbu_register_invalid,
        "a bookmark's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
-       remedy: "say which register the moment was in, or leave it"}
+       remedy: "say which register the moment was in, or leave it"},
+      {:kumbukumbu_how_invalid, "a capture failure is resolved as retried or marked_lost",
+       remedy:
+         "say which: retried when the turn was captured again, marked_lost when it never will be"},
+      {:kumbukumbu_embedding_mismatch,
+       "the provider answered vectors that do not fit the texts sent: another count, or another width",
+       remedy:
+         "the embedding model and KUMBUKUMBU_EMBEDDING_WIDTH disagree; the refresh changed nothing and runs again on the next turn"},
+      {:kumbukumbu_command_refused,
+       "the command was refused before memory read it: an actor, an instant or a decision's note was missing",
+       remedy: "a decision carries a note; the details name what was missing"},
+      {:kumbukumbu_dispatch_failed,
+       "the command did not complete: the event store failed, or a projection did not catch up in time",
+       remedy: "the platform's; retry, and read the cause on the log line"}
     ]
   end
 

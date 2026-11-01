@@ -59,11 +59,8 @@ defmodule OneiroiWeb.HonchoController do
       {:error, %{kind: kind} = e} when kind == :proteus_not_provisioned ->
         error(conn, 404, e)
 
-      {:error, %{kind: _} = e} ->
+      {:error, e} ->
         error(conn, 502, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :refused, :web_honcho_audit_card_refused, inspect(reason))
     end
   end
 

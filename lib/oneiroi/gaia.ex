@@ -113,7 +113,19 @@ defmodule Oneiroi.Gaia do
       {:gaia_key_required, "the key was empty",
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
       {:gaia_no_key, "the account holds no OpenRouter key",
-       remedy: "store one on the Ledger screen; every model call for a resident spends it"}
+       remedy: "store one on the Ledger screen; every model call for a resident spends it"},
+      {:gaia_account_exists, "an account already holds that id",
+       remedy: "log in to it; an account is created once"},
+      {:gaia_no_such_account, "no account has that id",
+       remedy: "create the account first, or read the id off the principal"},
+      {:gaia_no_such_token, "no live token of the account has that hash",
+       remedy: "read the token list; a revoked token is already revoked"},
+      {:gaia_command_refused,
+       "the command was refused before identity read it: an actor or an instant was missing",
+       remedy: "the details name what was missing; it is the caller's bug, not the account's"},
+      {:gaia_dispatch_failed,
+       "the command did not complete: the event store failed, or a projection did not catch up in time",
+       remedy: "the platform's; retry, and read the cause on the log line"}
     ]
   end
 
@@ -185,7 +197,7 @@ defmodule Oneiroi.Gaia do
   defexport(revoke_key(account_id, actor), do: Accounts.revoke_key(account_id, actor))
 
   @doc "The witness's key, wrapped as a secret, for the provider port."
-  @spec key_for(String.t()) :: {:ok, Oneiroi.Config.Secret.t()} | {:error, :gaia_no_key}
+  @spec key_for(String.t()) :: {:ok, Oneiroi.Config.Secret.t()} | {:error, Oneiroi.Gaia.Error.t()}
   defexport(key_for(account_id), do: Accounts.key_for(account_id))
 
   @doc "Whether a key is stored and since when."

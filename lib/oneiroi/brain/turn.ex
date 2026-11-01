@@ -58,8 +58,12 @@ defmodule Oneiroi.Brain.Turn do
           {:ok, map()} | {:error, term()}
   def run(resident_id, session_key, text, %Actor{} = actor, opts \\ []) when is_binary(text) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, row} -> run_for(row, resident_id, session_key, text, actor, opts)
-      :error -> {:error, :no_such_resident}
+      {:ok, row} ->
+        run_for(row, resident_id, session_key, text, actor, opts)
+
+      :error ->
+        {:error,
+         Error.new(:brain_no_such_resident, :brain_turn_resident_absent, resident_id: resident_id)}
     end
   end
 
@@ -167,6 +171,9 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # A budget stop: the message and an honest notice, kept where both read.
+  # The captured turn rides the error's details because the caller answers
+  # with it (the 402 shows the witness what was kept), not to be logged:
+  # `Oneiroi.Error.metadata/1` carries the kind, the site and the cause.
   defp conclude({{:error, %Nisaba.Error{kind: :nisaba_budget_exceeded} = stop}, turn}, _original) do
     notice = %{
       role: :system,
@@ -176,8 +183,15 @@ defmodule Oneiroi.Brain.Turn do
     }
 
     case finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [notice]) do
-      {:ok, captured} -> {:error, {stop, captured}}
-      other -> other
+      {:ok, captured} ->
+        {:error,
+         Error.caught(:brain_budget_stopped, :brain_turn_budget_stopped, stop,
+           stop: stop,
+           turn: captured
+         )}
+
+      other ->
+        other
     end
   end
 
@@ -194,7 +208,12 @@ defmodule Oneiroi.Brain.Turn do
     )
 
     broadcast(turn.resident_id, turn.session_key, {:failed, turn.turn_ref, reason})
-    {:error, Error.new(:brain_turn_failed, turn_ref: turn.turn_ref, reason: reason)}
+
+    {:error,
+     Error.caught(:brain_turn_failed, :brain_turn_provider_failed, failure,
+       turn_ref: turn.turn_ref,
+       reason: reason
+     )}
   end
 
   defp finish(turn, messages) do

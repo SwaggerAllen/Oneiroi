@@ -5,6 +5,7 @@ defmodule Oneiroi.Kumbukumbu.ConversationTest do
   alias Oneiroi.Actor
   alias Oneiroi.Kumbukumbu.Commands
   alias Oneiroi.Kumbukumbu.Conversation
+  alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events
 
   @at ~U[2026-10-29 12:00:00.000000Z]
@@ -64,10 +65,18 @@ defmodule Oneiroi.Kumbukumbu.ConversationTest do
     assert %Events.SessionOpened{kind: "main"} = Conversation.execute(%Conversation{}, open)
     assert [] = Conversation.execute(opened(), open)
 
-    assert {:error, :kind_invalid} =
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_kind_invalid,
+              site: :kumbukumbu_conversation_open_kind_invalid
+            }} =
              Conversation.execute(%Conversation{}, %{open | kind: "regression"})
 
-    assert {:error, :no_such_session} = Conversation.execute(%Conversation{}, capture())
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_session,
+              site: :kumbukumbu_conversation_session_absent
+            }} = Conversation.execute(%Conversation{}, capture())
   end
 
   test "a turn captured twice is one event, and an empty turn is refused" do
@@ -77,7 +86,10 @@ defmodule Oneiroi.Kumbukumbu.ConversationTest do
     once = Conversation.apply(opened(), event)
     # The same content under another ref is the same turn: the key is the content's.
     assert [] = Conversation.execute(once, capture("t2"))
-    assert {:error, :empty_turn} = Conversation.execute(opened(), %{capture() | messages: []})
+
+    assert {:error,
+            %Error{kind: :kumbukumbu_empty_turn, site: :kumbukumbu_conversation_capture_empty}} =
+             Conversation.execute(opened(), %{capture() | messages: []})
 
     different = %{capture("t3") | started_at: ~U[2026-10-29 12:05:00.000000Z]}
     assert %Events.TurnCaptured{turn_ref: "t3"} = Conversation.execute(once, different)
@@ -107,14 +119,27 @@ defmodule Oneiroi.Kumbukumbu.ConversationTest do
     assert %Events.CaptureFailureResolved{how: "marked_lost"} =
              event = Conversation.execute(failed, resolve)
 
-    assert {:error, :no_such_failure} =
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_failure,
+              site: :kumbukumbu_conversation_resolve_failure_absent
+            }} =
              Conversation.execute(Conversation.apply(failed, event), resolve)
 
-    assert {:error, :how_invalid} = Conversation.execute(failed, %{resolve | how: "shrugged"})
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_how_invalid,
+              site: :kumbukumbu_conversation_resolve_how_invalid
+            }} = Conversation.execute(failed, %{resolve | how: "shrugged"})
 
     # A later capture of the turn clears the failure too.
     captured = Conversation.apply(failed, Conversation.execute(failed, capture("t9")))
-    assert {:error, :no_such_failure} = Conversation.execute(captured, resolve)
+
+    assert {:error,
+            %Error{
+              kind: :kumbukumbu_no_such_failure,
+              site: :kumbukumbu_conversation_resolve_failure_absent
+            }} = Conversation.execute(captured, resolve)
   end
 
   test "the turn key is the start instant and the hash of the messages' hashes" do

@@ -11,6 +11,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   """
 
   alias Oneiroi.Kumbukumbu.Commands
+  alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events
 
   defstruct [
@@ -46,16 +47,33 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
 
   def execute(%__MODULE__{state: :absent}, %Commands.OpenSession{} = c) do
     cond do
-      c.kind not in [@imported | @kinds] -> {:error, :kind_invalid}
-      not domain_ok?(c.domain) -> {:error, :domain_invalid}
-      true -> open(c)
+      c.kind not in [@imported | @kinds] ->
+        {:error,
+         Error.new(:kumbukumbu_kind_invalid, :kumbukumbu_conversation_open_kind_invalid,
+           kind: c.kind,
+           kinds: @kinds
+         )}
+
+      not domain_ok?(c.domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_conversation_open_domain_invalid,
+           domain: c.domain
+         )}
+
+      true ->
+        open(c)
     end
   end
 
   # Opening an open session is the adapter saying hello again: no event.
   def execute(%__MODULE__{}, %Commands.OpenSession{}), do: []
 
-  def execute(%__MODULE__{state: :absent}, _command), do: {:error, :no_such_session}
+  def execute(%__MODULE__{state: :absent}, command),
+    do:
+      {:error,
+       Error.new(:kumbukumbu_no_such_session, :kumbukumbu_conversation_session_absent,
+         key: Map.get(command, :session_key)
+       )}
 
   def execute(%__MODULE__{started: started}, %Commands.StartTurn{} = c) do
     if MapSet.member?(started, c.turn_ref),
@@ -73,7 +91,10 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   def execute(%__MODULE__{turns: turns}, %Commands.CaptureTurn{} = c) do
     cond do
       c.messages == [] ->
-        {:error, :empty_turn}
+        {:error,
+         Error.new(:kumbukumbu_empty_turn, :kumbukumbu_conversation_capture_empty,
+           turn_ref: c.turn_ref
+         )}
 
       MapSet.member?(turns, turn_key(c.started_at, c.messages)) ->
         []
@@ -112,7 +133,10 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
         []
 
       not is_binary(c.summary) or String.trim(c.summary) == "" ->
-        {:error, :summary_empty}
+        {:error,
+         Error.new(:kumbukumbu_summary_empty, :kumbukumbu_conversation_compact_summary_empty,
+           key: c.session_key
+         )}
 
       true ->
         %Events.Compacted{
@@ -143,10 +167,16 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   def execute(%__MODULE__{failures: failures}, %Commands.ResolveCaptureFailure{} = c) do
     cond do
       not Map.has_key?(failures, c.turn_ref) ->
-        {:error, :no_such_failure}
+        {:error,
+         Error.new(:kumbukumbu_no_such_failure, :kumbukumbu_conversation_resolve_failure_absent,
+           turn_ref: c.turn_ref
+         )}
 
       c.how not in ["retried", "marked_lost"] ->
-        {:error, :how_invalid}
+        {:error,
+         Error.new(:kumbukumbu_how_invalid, :kumbukumbu_conversation_resolve_how_invalid,
+           turn_ref: c.turn_ref
+         )}
 
       true ->
         %Events.CaptureFailureResolved{

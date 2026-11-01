@@ -100,11 +100,8 @@ defmodule OneiroiWeb.MemoryController do
       {:ok, ref} ->
         conn |> put_status(201) |> json(%{ref: ref})
 
-      {:error, %{kind: _} = e} ->
+      {:error, e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :not_proposed, :web_memory_propose_not_proposed, inspect(reason))
     end
   end
 
@@ -353,10 +350,7 @@ defmodule OneiroiWeb.MemoryController do
             ],
        do: error(conn, 404, e)
 
-  defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
-
-  defp respond(conn, {:error, reason}),
-    do: problem(conn, 422, :refused, :web_memory_respond_refused, inspect(reason))
+  defp respond(conn, {:error, e}), do: error(conn, 422, e)
 
   defp integer(n) when is_integer(n), do: n
 

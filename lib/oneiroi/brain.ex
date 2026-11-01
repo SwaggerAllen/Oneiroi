@@ -89,7 +89,19 @@ defmodule Oneiroi.Brain do
     [
       {:brain_turn_failed, "the turn did not complete and nothing was captured for it",
        remedy:
-         "the provider failure is recorded as a capture failure on the session; retry the message"}
+         "the provider failure is recorded as a capture failure on the session; retry the message"},
+      {:brain_budget_stopped,
+       "the budget line is spent: the message and a notice saying so were captured, and no reply was asked for",
+       remedy:
+         "raise the budget line, or wait for its period to turn; the details carry the captured turn and the ledger's stop"},
+      {:brain_no_such_resident, "no resident has that id",
+       remedy: "read the id off the resident list"},
+      {:brain_file_unknown, "the file is not one of the resident's identity files",
+       remedy: "draft one of the identity files the resident system names"},
+      {:brain_summary_empty, "the model answered the compaction with no words",
+       remedy: "nothing was compacted; the next turn tries again"},
+      {:brain_session_unavailable, "the session's process could not be started",
+       remedy: "retry the message; the log line carries the cause"}
     ]
   end
 

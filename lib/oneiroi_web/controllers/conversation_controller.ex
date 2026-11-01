@@ -64,17 +64,8 @@ defmodule OneiroiWeb.ConversationController do
       {:ok, key} ->
         conn |> put_status(201) |> json(%{key: key})
 
-      {:error, %Kumbukumbu.Error{} = e} ->
+      {:error, e} ->
         error(conn, 422, e)
-
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :session_not_opened,
-          :web_conversation_create_session_not_opened,
-          inspect(reason)
-        )
     end
   end
 
@@ -108,14 +99,16 @@ defmodule OneiroiWeb.ConversationController do
       {:ok, turn} ->
         conn |> put_status(201) |> json(turn)
 
-      {:error, {%{kind: :nisaba_budget_exceeded} = stop, turn}} ->
-        conn |> put_status(402) |> json(Map.put(turn, :stopped, stop_body(stop)))
+      {:error, %{kind: :brain_budget_stopped, details: details}} ->
+        conn
+        |> put_status(402)
+        |> json(Map.put(details[:turn], :stopped, stop_body(details[:stop])))
 
-      {:error, %{kind: _} = e} ->
+      {:error, %{kind: :brain_no_such_resident} = e} ->
+        error(conn, 422, e)
+
+      {:error, e} ->
         error(conn, 502, e)
-
-      {:error, reason} ->
-        problem(conn, 422, :turn_not_run, :web_conversation_turn_turn_not_run, inspect(reason))
     end
   end
 
@@ -189,14 +182,11 @@ defmodule OneiroiWeb.ConversationController do
       :ok ->
         send_resp(conn, 204, "")
 
-      {:error, %Kumbukumbu.Error{} = e} ->
+      {:error, %{kind: :kumbukumbu_no_such_failure} = e} ->
         error(conn, 404, e)
 
-      {:error, {:refused, problems}} ->
-        problem(conn, 422, :refused, :web_conversation_resolve_refused, inspect(problems))
-
-      {:error, reason} ->
-        problem(conn, 422, :not_resolved, :web_conversation_resolve_not_resolved, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -261,15 +251,21 @@ defmodule OneiroiWeb.ConversationController do
       when is_list(messages) do
     turn_ref = Map.get(params, "turn_ref") || Kumbukumbu.turn_ref()
 
-    with {:ok, started_at, _} <- parse_started(started),
+    with {:ok, started_at} <- parse_started(started),
          {:ok, built} <- build_messages(messages, actor(conn)),
          :ok <- Kumbukumbu.capture(id, key, turn_ref, started_at, built, actor(conn)) do
       conn |> put_status(201) |> json(%{turn_ref: turn_ref})
     else
-      {:error, %Kumbukumbu.Error{} = e} ->
-        error(conn, 404, e)
+      :started_at_invalid ->
+        problem(
+          conn,
+          422,
+          :started_at_invalid,
+          :web_conversation_capture_started_at_invalid,
+          "started_at is an ISO 8601 instant with its offset"
+        )
 
-      {:error, :message_invalid} ->
+      :message_invalid ->
         problem(
           conn,
           422,
@@ -278,8 +274,12 @@ defmodule OneiroiWeb.ConversationController do
           "each message needs a role and content"
         )
 
-      {:error, reason} ->
-        problem(conn, 422, :not_captured, :web_conversation_capture_not_captured, inspect(reason))
+      {:error, %{kind: kind} = e}
+      when kind in [:kumbukumbu_no_such_session, :kumbukumbu_empty_turn] ->
+        error(conn, 404, e)
+
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -293,8 +293,16 @@ defmodule OneiroiWeb.ConversationController do
         "session_key, started_at and messages are required"
       )
 
-  defp parse_started(iso) when is_binary(iso), do: DateTime.from_iso8601(iso)
-  defp parse_started(_other), do: {:error, :started_at_invalid}
+  # The request's own fields, checked at the edge: a bare atom names the
+  # problem/5 the capture answers with, and no component sees it.
+  defp parse_started(iso) when is_binary(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, at, _offset} -> {:ok, at}
+      {:error, _reason} -> :started_at_invalid
+    end
+  end
+
+  defp parse_started(_other), do: :started_at_invalid
 
   operation(:turn_start,
     summary: "An adapter reports a turn beginning (spec §8) and gets the ref to capture it under",
@@ -316,17 +324,11 @@ defmodule OneiroiWeb.ConversationController do
       :ok ->
         conn |> put_status(201) |> json(%{turn_ref: turn_ref})
 
-      {:error, :no_such_session} ->
-        error(conn, 404, Kumbukumbu.Error.new(:kumbukumbu_no_such_session, key: key))
+      {:error, %{kind: :kumbukumbu_no_such_session} = e} ->
+        error(conn, 404, e)
 
-      {:error, reason} ->
-        problem(
-          conn,
-          422,
-          :turn_not_started,
-          :web_conversation_turn_start_turn_not_started,
-          inspect(reason)
-        )
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -413,7 +415,7 @@ defmodule OneiroiWeb.ConversationController do
           :invalid
       end)
 
-    if :invalid in built, do: {:error, :message_invalid}, else: {:ok, built}
+    if :invalid in built, do: :message_invalid, else: {:ok, built}
   end
 
   # An adapter captures as the resident; the user messages in its turn are

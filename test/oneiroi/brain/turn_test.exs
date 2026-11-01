@@ -224,9 +224,15 @@ defmodule Oneiroi.Brain.TurnTest do
     :ok = Nisaba.set_budget(ctx.resident.id, :chat, 1, :month, ctx.actor)
     assert {:ok, _} = Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "one", ctx.actor)
 
-    assert {:error, {%Nisaba.Error{kind: :nisaba_budget_exceeded}, %{messages: [_, notice]}}} =
-             Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "two", ctx.actor)
+    assert {:error,
+            %Oneiroi.Brain.Error{
+              kind: :brain_budget_stopped,
+              site: :brain_turn_budget_stopped,
+              details: details
+            }} = Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "two", ctx.actor)
 
+    assert %Nisaba.Error{kind: :nisaba_budget_exceeded} = details[:stop]
+    assert %{messages: [_, notice]} = details[:turn]
     assert notice.role == :system and notice.content =~ "budget line for chat is spent"
     {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
     assert ["user", "assistant", "user", "system"] = Enum.map(messages, & &1.role)

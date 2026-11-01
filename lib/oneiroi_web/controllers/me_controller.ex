@@ -2,7 +2,6 @@ defmodule OneiroiWeb.MeController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.Config.Secret
-  alias Oneiroi.Gaia.Error, as: IdentityError
   alias OpenApiSpex.Schema
 
   tags(["identity"])
@@ -47,11 +46,8 @@ defmodule OneiroiWeb.MeController do
       :ok ->
         send_resp(conn, 204, "")
 
-      {:error, :gaia_key_required} ->
-        error(conn, 422, IdentityError.new(:gaia_key_required))
-
-      {:error, reason} ->
-        problem(conn, 422, :key_not_stored, :web_me_store_key_key_not_stored, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 
@@ -65,11 +61,11 @@ defmodule OneiroiWeb.MeController do
       :ok ->
         send_resp(conn, 204, "")
 
-      {:error, :gaia_no_key} ->
-        error(conn, 404, IdentityError.new(:gaia_no_key))
+      {:error, %{kind: :gaia_no_key} = e} ->
+        error(conn, 404, e)
 
-      {:error, reason} ->
-        problem(conn, 422, :key_not_revoked, :web_me_revoke_key_key_not_revoked, inspect(reason))
+      {:error, e} ->
+        error(conn, 422, e)
     end
   end
 end
