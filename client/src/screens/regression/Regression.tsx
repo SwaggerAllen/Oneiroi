@@ -733,16 +733,27 @@ function Results({ results, chatModel, onPin }: { results: RegressionResult[]; c
                 {r.model === chatModel ? (
                   <span style={{ fontSize: 13, color: 'var(--ok)' }}>✓ The chat model now</span>
                 ) : onPin ? (
+                  // Two taps on purpose: the pin changes who answers in
+                  // the conversation. The second tap is a question with
+                  // both answers on it, never a button that only renames
+                  // the first: a renamed button reads as done, and the
+                  // pin was taken for set twice with no request sent.
                   confirming === r.model ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        setConfirming(null);
-                        onPin(r.model);
-                      }}
-                    >
-                      Chat on this one from now
-                    </Button>
+                    <span role="group" aria-label={`Pin ${r.model} for chat?`} style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: 13 }}>Chat on this model from the next message?</span>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          setConfirming(null);
+                          onPin(r.model);
+                        }}
+                      >
+                        Yes, pin it
+                      </Button>
+                      <Button variant="quiet" onClick={() => setConfirming(null)}>
+                        Cancel
+                      </Button>
+                    </span>
                   ) : (
                     <Button onClick={() => setConfirming(r.model)}>Pin for chat</Button>
                   )

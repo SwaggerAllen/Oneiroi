@@ -16,7 +16,7 @@ collapsed "How Lily got there" (the resident's name) listing the
 trial's tool calls in order, each marked read or mocked, with its
 arguments and, behind a further fold, what came back, a cut result
 said to be cut (eunomia #31); the results by pass rate once
-revealed, and the pin, which confirms in place. A refused request shows
+revealed, and the pin, which confirms in place as a question with both answers on it ("Chat on this model from the next message?", Yes, pin it / Cancel): the first version renamed the button to its confirmation, which read as done, and a witness took the pin for set twice with no request sent. A refused request shows
 the server's meaning, with its site and request id as a reference. Not
 built: the swipe (buttons grade), the by-test matrix and the by-model
 view, and drafting a test from the soul. The state list lives in the

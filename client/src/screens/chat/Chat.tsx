@@ -43,6 +43,10 @@ export function Chat({
   onProposeBookmark,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
+  // Which model answered, as the server recorded it on the reply: the
+  // pin is otherwise invisible here, and a pin that did not take was
+  // only found by asking the resident who she was.
+  const lastModel = [...messages].reverse().find((m) => m.role === 'assistant')?.actor.model ?? null;
   const submit = () => {
     const text = draft.trim();
     if (!text || sending) return;
@@ -51,7 +55,7 @@ export function Chat({
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <TopBar title={residentName} line="Main conversation" />
+      <TopBar title={residentName} line={lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {messages.length === 0 && !streaming ? (
           <EmptyState text={`Say something to ${residentName}.`} />
@@ -187,31 +191,12 @@ function Reply({
         </div>
       ) : null}
       {injections && message.role === 'assistant' ? (
-        <ul
-          style={{
-            margin: 0,
-            padding: 'var(--space-3)',
-            listStyle: 'none',
-            background: 'var(--surface-sunken)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: 13,
-            lineHeight: '18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-1)',
-          }}
-        >
-          {injections.map((inj) => (
-            <li key={inj.position}>
-              <strong>{inj.label}</strong>, about {inj.tokens} tokens: {inj.reason}
-              {inj.text ? (
-                <pre style={{ margin: 'var(--space-1) 0 0', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  {inj.text}
-                </pre>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <div style={panel}>
+          <Sections
+            name="What this reply drew on"
+            sections={injections.map((inj) => ({ key: String(inj.position), label: inj.label, tokens: inj.tokens, reason: inj.reason, text: inj.text, note: null }))}
+          />
+        </div>
       ) : null}
     </div>
   );
@@ -223,34 +208,87 @@ function Reply({
 // counts and what is withheld are all the server's.
 function Preview({ preview }: { preview: ContextPreview }) {
   return (
-    <section
-      aria-label="The next turn, previewed"
-      style={{
-        padding: 'var(--space-3)',
-        background: 'var(--surface-sunken)',
-        borderRadius: 'var(--radius-md)',
-        fontSize: 13,
-        lineHeight: '18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-2)',
-        overflowWrap: 'anywhere',
-      }}
-    >
+    <section aria-label="The next turn, previewed" style={panel}>
       <p style={{ margin: 0, color: 'var(--ink-muted)' }}>{preview.description}</p>
-      <ol style={{ margin: 0, paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-        {preview.sections.map((section, i) => (
-          <li key={`${section.label}-${i}`}>
-            <strong>{section.label}</strong>, about {section.tokens} tokens: {section.reason}
-            {section.text !== null ? (
-              <pre style={{ margin: 'var(--space-1) 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                {section.text}
-              </pre>
-            ) : null}
-            <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--ink-faint)' }}>{section.note}</p>
+      <Sections
+        name="What the next turn is given"
+        sections={preview.sections.map((section, i) => ({
+          key: `${section.label}-${i}`,
+          label: section.label,
+          tokens: section.tokens,
+          reason: section.reason,
+          text: section.text,
+          note: section.note,
+        }))}
+      />
+    </section>
+  );
+}
+
+const panel = {
+  padding: 'var(--space-3)',
+  background: 'var(--surface-sunken)',
+  borderRadius: 'var(--radius-md)',
+  fontSize: 13,
+  lineHeight: '18px',
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 'var(--space-2)',
+  overflowWrap: 'anywhere' as const,
+};
+
+interface SectionRow {
+  key: string;
+  label: string;
+  tokens: number;
+  reason: string;
+  text: string | null;
+  note: string | null;
+}
+
+// The overview first, every section closed: its label and size on one
+// line, so the whole assembly reads at a glance on a phone. A section
+// opens to its reason, its words where the server sent them and its
+// note. The author asked for it this way after the first preview showed
+// every section's whole text at once ("minimized by default, with
+// minimizeable sections so I can see an overview and then dive down").
+// Open all and Close all are the two ways down and back at once.
+function Sections({ name, sections }: { name: string; sections: SectionRow[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const all = sections.length > 0 && sections.every((s) => open[s.key]);
+  return (
+    <>
+      {sections.length > 1 ? (
+        <div>
+          <Button variant="quiet" onClick={() => setOpen(all ? {} : Object.fromEntries(sections.map((s) => [s.key, true])))}>
+            {all ? 'Close all' : 'Open all'}
+          </Button>
+        </div>
+      ) : null}
+      <ol aria-label={name} style={{ margin: 0, paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        {sections.map((section) => (
+          <li key={section.key}>
+            <details
+              open={Boolean(open[section.key])}
+              onToggle={(event) => {
+                const now = (event.currentTarget as HTMLDetailsElement).open;
+                setOpen((o) => (Boolean(o[section.key]) === now ? o : { ...o, [section.key]: now }));
+              }}
+            >
+              <summary style={{ cursor: 'pointer' }}>
+                <strong>{section.label}</strong> · about {section.tokens} tokens
+              </summary>
+              <p style={{ margin: 'var(--space-1) 0 0' }}>{section.reason}</p>
+              {section.text !== null ? (
+                <pre style={{ margin: 'var(--space-1) 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  {section.text}
+                </pre>
+              ) : null}
+              {section.note ? <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--ink-faint)' }}>{section.note}</p> : null}
+            </details>
           </li>
         ))}
       </ol>
-    </section>
+    </>
   );
 }
