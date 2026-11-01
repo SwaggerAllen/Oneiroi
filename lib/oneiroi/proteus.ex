@@ -238,6 +238,10 @@ defmodule Oneiroi.Proteus do
   @spec delete_conclusion(String.t(), String.t()) :: :ok | {:error, term()}
   defexport(delete_conclusion(resident_id, id), do: Bridges.delete_conclusion(resident_id, id))
 
+  @doc "Honcho's memory of the resident for the records export: peers, cards, conclusions, summaries; nil before provisioning."
+  @spec memory(String.t()) :: {:ok, map() | nil} | {:error, term()}
+  defexport(memory(resident_id), do: Bridges.memory(resident_id))
+
   @doc "The bridge row, or nil before provisioning."
   @spec bridge(String.t()) :: Oneiroi.Proteus.Store.Bridge.t() | nil
   defexport(bridge(resident_id), do: Bridges.bridge(resident_id))

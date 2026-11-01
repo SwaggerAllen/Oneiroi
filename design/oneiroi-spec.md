@@ -1016,7 +1016,65 @@ Owns `lib/oneiroi/sima_qian/**`.
   positions, disputes, predictions, judgement nights, feeds (urls redacted
   by David's rules), discussions, and **`records/events/<day>.jsonl`**, the
   event log itself. Keys and rows in a fixed order, so an unchanged store
-  exports identical bytes; a watermark a minute behind capture.
+  exports identical bytes; a watermark a minute behind capture. Built so
+  far: the event log, and beside it reading copies rendered from its
+  lines on every run, `records/conversations/<day>.md` (each session's
+  turns that day, who spoke and when, refusals and failed captures as
+  recorded) and `records/bookmarks.md` (every bookmark with its line,
+  tags, pin, span and anchor, and the tag set); the rest are read in the
+  client until a reading copy earns its place. A reading copy is never
+  read back, adopted or searched: the event lines are the source, and a
+  third copy of every turn in search is the duplicate the resident asked
+  to have removed (sima-qian #41).
+- **All raw text is in the repository** (the author, 2026-11-01): "All
+  raw text should be in the repo unless there's a really good reason; to
+  my knowledge the only DB-only data is the weights, because the write
+  pattern doesn't fit neatly into markdown/git." Every resident stream
+  reaches the repository as its day files; the library, the journal and
+  the identity files are files there; and Honcho's memory of her, which
+  only Honcho holds, is exported under `honcho/` before every backup
+  commit: each peer's cards and conclusions, one file per peer and kind,
+  and every session's summaries (sima-qian #42, proteus #18). A Honcho
+  that cannot answer, or answers that her workspace holds no peer, leaves
+  the last export in place and fails the run after the rest has landed.
+  A private, unshared session (§6.3) reads in the reading copies as its
+  existence and counts only, and what Honcho drew from one is withheld
+  from `honcho/`: the words stay in the event lines, which is sima-qian
+  #20's open question for the encryption scheme, and are not made
+  readable on the way. What stays out of the repository is this list and
+  nothing else, each with its reason; `Export.exceptions/0` names the
+  same keys, and a test fails when the two drift:
+
+  <!-- oneiroi:db-only -->
+  - `embeddings`: the library's chunks and vectors, Honcho's embeddings
+    and every projection table. Derived from what the repository holds,
+    rebuilt by replay and an index run, and written in a pattern git
+    does not fit: the weights of the author's own words.
+  - `regression`: the sealed stream of the resident's trials, never
+    exported or read (§6.4, eunomia #12).
+  - `account`: the witness's account stream, which is the witness's and
+    not the resident's.
+  - `honcho`: the bridge's stream, the pointer to a workspace keyed to
+    the source; a rebuilt resident provisions its own, where replaying
+    it would point a copy at the original's memory (proteus #8).
+  - `witness-only spend`: ledger events under a purpose the resident's
+    view never shows (drafting, regression), whose presence in her
+    export would tell her what the unawareness invariant hides.
+  - `redacted`: fields an event declares `redact:`, the records remote's
+    encrypted token among them; secrets stay in the vault.
+  - `honcho-private`: Honcho's conclusions and summaries drawn from a
+    private, unshared session, withheld from `honcho/` as that session's
+    words are from the reading copies; Honcho keeps them.
+  <!-- /oneiroi:db-only -->
+
+  Of Honcho's state the rest is not text only Honcho holds, so nothing
+  is lost by leaving it: its copies of the turns (the event lines are
+  their source), the peers' and sessions' configuration (the custom
+  instructions, rendered from the build into `honcho/`), the
+  representation and the context (assembled per query from the
+  conclusions and cards it exports), and its deriver's queue. OpenClaw's
+  native state is outside every store the platform keeps, and §2.3's
+  designed lapse.
 - **Rebuild is replay** of `records/events/` into a fresh store, then an
   index run over files. A rebuild refuses a store that already holds the
   resident. What cannot come back (OpenClaw-native state, secrets) is
@@ -1026,9 +1084,10 @@ Owns `lib/oneiroi/sima_qian/**`.
   export>`. On wake the core recomputes the root; a mismatch is an event and
   the resident is told and shown the delta. This is what makes a repo on a
   provider we do not host verifiable.
-- **Backups** commit by class as today: soul and card alone; machine
-  state together; writing and research apart; anything else uncommitted
-  fails the run.
+- **Backups** commit by class as today: soul and card alone (Honcho's
+  exported memory under `honcho/` with them); machine state together,
+  the reading copies under `records/` among it; writing and research
+  apart; anything else uncommitted fails the run.
 - **Providers**: a git port with GitHub now, Gitea later (one instance, one
   organisation per account), any remote by URL and deploy key.
 

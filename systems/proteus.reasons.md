@@ -65,3 +65,14 @@ did not follow the port the server opened. Both are fixed by making the
 two sides agree by construction rather than by trusting the platform's
 report.
 
+## #18
+The author, 11-01: "All raw text should be in the repo unless there's a
+really good reason." Honcho derives text about her that nothing else
+holds. The brief was not to guess endpoints: the client's own paths were
+read from v3.2.2's routers but its bodies from docs, so the reads were
+taken from the released SDK paired with that version instead, the
+nearest thing to the server's own word this side of the pinned image.
+Whole or not at all because a partial read written as the export would
+say Honcho had forgotten what it had not. `port` is a parameter only so
+the HTTP boundary's test can read through `Honcho.HTTP` while the suite's
+setting stays the in-memory Honcho.

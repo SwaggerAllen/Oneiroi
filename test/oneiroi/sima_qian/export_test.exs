@@ -173,4 +173,29 @@ defmodule Oneiroi.SimaQian.ExportTest do
     assert %Oneiroi.AgathosDaimon.Events.ExportWritten{through: 3} = written.data
     assert %Oneiroi.AgathosDaimon.Events.BackupCommitted{sequence: 3} = committed.data
   end
+
+  # The author's law (spec §6.10): all raw text is in the repository but
+  # for the reasons the spec lists, and the export's table is the code's
+  # copy of that list. Read from the spec's own block, so an exception
+  # added in either place without the other is a failure here.
+  test "the exceptions the export keeps out are the spec's list, key for key, and every stream it leaves out is one" do
+    spec = File.read!(Path.join(File.cwd!(), "design/oneiroi-spec.md"))
+    [_, block] = String.split(spec, "<!-- oneiroi:db-only -->", parts: 2)
+    [block, _] = String.split(block, "<!-- /oneiroi:db-only -->", parts: 2)
+
+    listed =
+      for line <- String.split(block, "\n"),
+          [_, key] <- [Regex.run(~r/^\s*- `([^`]+)`:/, line)],
+          do: key
+
+    assert listed != []
+    assert Enum.sort(listed) == listed |> Enum.uniq() |> Enum.sort()
+    assert Enum.sort(listed) == Enum.sort(Map.keys(Export.exceptions()))
+
+    for {stream, why} <- Export.not_exported() do
+      assert Export.exceptions()[stream] == why
+    end
+
+    assert Enum.all?(Map.values(Export.exceptions()), &(&1 =~ ~r/\w/))
+  end
 end

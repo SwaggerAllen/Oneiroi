@@ -51,6 +51,13 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   @doc "Seeds the context an observer holds on a target."
   def put_context(ws, observer, target, text), do: put({ws, :context, {observer, target}}, text)
 
+  @doc "Seeds the card an observer holds of another peer (its own is `set_card/3`'s)."
+  def put_card(ws, observer, target, card), do: put({ws, :card, {observer, target}}, card)
+
+  @doc "Seeds a session's summaries, each `%{content, through}` or nil."
+  def put_summaries(ws, session, short, long),
+    do: put({ws, :summaries, session}, %{short: short, long: long})
+
   # ---- the port ----
 
   @impl true
@@ -112,7 +119,58 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
     end
   end
 
+  @impl true
+  def peers(ws) do
+    with :ok <- scripted(ws) do
+      {:ok, ws |> entries(:peer) |> Enum.map(&elem(&1, 0)) |> Enum.sort()}
+    end
+  end
+
+  @impl true
+  def peer_card(ws, peer, peer),
+    do: with(:ok <- scripted(ws), do: {:ok, get({ws, :card, peer}, nil)})
+
+  def peer_card(ws, observer, target),
+    do: with(:ok <- scripted(ws), do: {:ok, get({ws, :card, {observer, target}}, nil)})
+
+  # A seeded conclusion carries the fields it was given; the pair comes
+  # from where it was seeded, and the rest take what Honcho gives an
+  # explicit conclusion drawn from no session.
+  @impl true
+  def all_conclusions(ws) do
+    with :ok <- scripted(ws) do
+      {:ok,
+       for {{observer, observed}, list} <- entries(ws, :conclusions), c <- list do
+         Map.merge(
+           %{session: nil, level: "explicit", sources: [], created_at: nil},
+           Map.merge(c, %{observer: observer, observed: observed})
+         )
+       end}
+    end
+  end
+
+  @impl true
+  def sessions(ws) do
+    with :ok <- scripted(ws) do
+      {:ok, ws |> entries(:session) |> Enum.map(&elem(&1, 0)) |> Enum.sort()}
+    end
+  end
+
+  @impl true
+  def summaries(ws, session),
+    do:
+      with(
+        :ok <- scripted(ws),
+        do: {:ok, get({ws, :summaries, session}, %{short: nil, long: nil})}
+      )
+
   # ---- helpers ----
+
+  defp entries(ws, kind) do
+    table()
+    |> :ets.match_object({{ws, kind, :_}, :_})
+    |> Enum.map(fn {{_ws, _kind, key}, value} -> {key, value} end)
+  end
 
   defp scripted(ws) do
     case Process.get(@fail_key) || get({ws, :fail, :fail}, nil) do

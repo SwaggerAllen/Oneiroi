@@ -1346,3 +1346,34 @@ and nothing personal turned up; what follows is what changed.
   carrying its source, commit, path and blob.
 - Ranking and deduplication between the originals and the old copies
   are not changed: held until the resident has seen the report.
+
+## Round 48: all raw text in the repository (2026-11-01)
+
+- The author's law, now spec §6.10: "All raw text should be in the repo
+  unless there's a really good reason; to my knowledge the only DB-only
+  data is the weights, because the write pattern doesn't fit neatly into
+  markdown/git." Two gaps against it, both to fix: Honcho's memory of the
+  resident lived only in Honcho, and the transcripts and bookmarks were
+  in git only as JSON event lines.
+- Honcho's memory is exported under `honcho/` before each backup commit
+  (sima-qian #42, proteus #18): each peer's cards and conclusions, one
+  file per peer and kind, and every session's summaries; byte-stable, in
+  the soul class, never written partial or empty, and a Honcho that
+  cannot answer fails the run after the rest has landed. The shapes are
+  those of the SDK Honcho pairs with v3.2.2, not guessed.
+- Reading copies beside the event lines (sima-qian #41):
+  `records/conversations/<day>.md` and `records/bookmarks.md`, rendered
+  from the lines on every export, never read back, adopted or searched:
+  the resident had just asked for duplicates to leave search. The rest
+  of §6.10's kinds stay in the client for now.
+- Privacy: a private, unshared solo session renders as its existence and
+  counts only, and what Honcho drew from one is withheld from `honcho/`
+  (spec §6.3 keeps its words from the witness, whose repository it is).
+  The event lines still carry its words, sima-qian #20's open question
+  for the encryption scheme.
+- The exceptions are law: §6.10 lists what stays out of the repository
+  with each reason (derived projections and embeddings, the sealed
+  regression stream, the account's stream, the Honcho link pointer,
+  witness-only spend, redacted secrets, and Honcho's material from
+  private sessions), and the export's table names the same keys, held
+  by a test (sima-qian #43).

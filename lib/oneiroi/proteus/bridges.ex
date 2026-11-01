@@ -293,6 +293,61 @@ defmodule Oneiroi.Proteus.Bridges do
 
   def delete_conclusion(resident_id, id), do: port().delete_conclusion(resident_id, id)
 
+  @doc """
+  Everything Honcho holds about the resident's workspace that is text
+  only Honcho holds (proteus #18), for the records export: every peer;
+  every card each peer holds, of itself and of each other peer; every
+  conclusion; and every session's summaries. `{:ok, nil}` before the
+  bridge is provisioned, when there is no workspace to read. One failed
+  read fails the whole, so a part is never taken for the whole.
+  `port` is the setting's in every caller but the HTTP boundary's test.
+  """
+  @spec memory(String.t(), module()) :: {:ok, map() | nil} | {:error, term()}
+  def memory(resident_id, port \\ port()) do
+    case bridge(resident_id) do
+      nil -> {:ok, nil}
+      %{workspace: ws} -> read_memory(port, ws)
+    end
+  end
+
+  defp read_memory(port, ws) do
+    with {:ok, peers} <- port.peers(ws),
+         {:ok, cards} <- cards(port, ws, peers),
+         {:ok, conclusions} <- port.all_conclusions(ws),
+         {:ok, sessions} <- port.sessions(ws),
+         {:ok, summaries} <- summaries(port, ws, sessions) do
+      {:ok, %{peers: peers, cards: cards, conclusions: conclusions, summaries: summaries}}
+    end
+  end
+
+  # Each peer's card of itself and of every other peer, where it holds one.
+  defp cards(port, ws, peers) do
+    pairs = for observer <- peers, target <- peers, do: {observer, target}
+
+    Enum.reduce_while(pairs, {:ok, []}, fn {observer, target}, {:ok, acc} ->
+      case port.peer_card(ws, observer, target) do
+        {:ok, lines} when is_list(lines) and lines != [] ->
+          {:cont, {:ok, acc ++ [%{observer: observer, target: target, lines: lines}]}}
+
+        {:ok, _none} ->
+          {:cont, {:ok, acc}}
+
+        error ->
+          {:halt, error}
+      end
+    end)
+  end
+
+  defp summaries(port, ws, sessions) do
+    Enum.reduce_while(sessions, {:ok, []}, fn session, {:ok, acc} ->
+      case port.summaries(ws, session) do
+        {:ok, %{short: nil, long: nil}} -> {:cont, {:ok, acc}}
+        {:ok, both} -> {:cont, {:ok, acc ++ [Map.put(both, :session, session)]}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
   def bridge(resident_id), do: Scope.resident(resident_id, fn -> Store.bridge() end)
   def syncs(resident_id, limit), do: Scope.resident(resident_id, fn -> Store.syncs(limit) end)
 

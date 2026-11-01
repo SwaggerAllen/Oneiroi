@@ -108,6 +108,118 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
     end
   end
 
+  # ---- the reads the records export takes (proteus #18) ----
+  #
+  # These shapes are read from the Python SDK Honcho pairs with v3.2.2
+  # (honcho-ai 2.5.1, by Honcho's compatibility guide): its `routes`,
+  # the request each call makes, and the pydantic models it validates
+  # the answer with (`PageResponse`, `PeerResponse`, `PeerCardResponse`,
+  # `ConclusionResponse`, `SessionResponse`, `SessionSummariesResponse`).
+  # A list is `POST .../list?page=N&size=M` with no body when nothing is
+  # filtered, answering `{items, page, size, total, pages}`; the SDK caps
+  # a conclusions page at 100. Still claims about the server until the
+  # pinned image answers them (#9), but claims a released client makes
+  # against that server, where the writes above are claims from docs.
+
+  @page_size 100
+
+  @impl true
+  def peers(ws) do
+    with {:ok, items} <- every_page(["workspaces", ws, "peers", "list"]) do
+      {:ok, items |> Enum.map(&to_string(&1["id"])) |> Enum.uniq() |> Enum.sort()}
+    end
+  end
+
+  @impl true
+  def peer_card(ws, observer, target) do
+    params = if observer == target, do: [], else: [target: target]
+
+    case get(["workspaces", ws, "peers", observer, "card"], params) do
+      {:ok, %{"peer_card" => lines}} when is_list(lines) ->
+        {:ok, Enum.map(lines, &to_string/1)}
+
+      {:ok, %{"peer_card" => nil}} ->
+        {:ok, nil}
+
+      {:ok, _other} ->
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_http_card_unreadable, answer: :unreadable)}
+
+      error ->
+        error
+    end
+  end
+
+  @impl true
+  def all_conclusions(ws) do
+    with {:ok, items} <- every_page(["workspaces", ws, "conclusions", "list"]) do
+      {:ok, items |> Enum.map(&held_conclusion/1) |> Enum.uniq_by(& &1.id)}
+    end
+  end
+
+  @impl true
+  def sessions(ws) do
+    with {:ok, items} <- every_page(["workspaces", ws, "sessions", "list"]) do
+      {:ok, items |> Enum.map(&to_string(&1["id"])) |> Enum.uniq() |> Enum.sort()}
+    end
+  end
+
+  @impl true
+  def summaries(ws, session) do
+    case get(["workspaces", ws, "sessions", session, "summaries"], []) do
+      {:ok, %{} = body} ->
+        {:ok, %{short: summary(body["short_summary"]), long: summary(body["long_summary"])}}
+
+      {:ok, _other} ->
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_http_summaries_unreadable,
+           answer: :unreadable
+         )}
+
+      error ->
+        error
+    end
+  end
+
+  defp held_conclusion(item) do
+    %{
+      id: to_string(item["id"]),
+      content: to_string(item["content"]),
+      observer: to_string(item["observer_id"]),
+      observed: to_string(item["observed_id"]),
+      session: item["session_id"],
+      level: to_string(item["level"] || "explicit"),
+      sources: Enum.map(item["source_ids"] || [], &to_string/1),
+      created_at: item["created_at"]
+    }
+  end
+
+  defp summary(%{"content" => content} = s) when is_binary(content),
+    do: %{content: content, through: s["message_id"]}
+
+  defp summary(_none), do: nil
+
+  # Every page of a list, from the first to the last the server counts.
+  # A page past what it said there would be ends the walk too, so a list
+  # that shrinks while it is read cannot loop.
+  defp every_page(path, page \\ 1, acc \\ []) do
+    case request(:post, path, params: [page: page, size: @page_size]) do
+      {:ok, %{"items" => items} = body} when is_list(items) ->
+        pages = body["pages"]
+
+        if is_integer(pages) and page < pages and items != [],
+          do: every_page(path, page + 1, acc ++ items),
+          else: {:ok, acc ++ items}
+
+      {:ok, _other} ->
+        {:error,
+         Error.new(:proteus_honcho_rejected, :proteus_http_page_unreadable, answer: :unreadable)}
+
+      error ->
+        error
+    end
+  end
+
   # ---- transport ----
 
   defp post(path, body, params \\ []), do: request(:post, path, json: body, params: params)
