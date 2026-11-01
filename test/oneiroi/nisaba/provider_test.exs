@@ -33,7 +33,17 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       asks = %{role: :assistant, content: "", tool_calls: [call]}
       answers = %{role: :tool, tool_call_id: "c1", content: "done"}
       user = %{role: :user, content: "hi"}
-      refused = &match?({:error, {:schema_invalid, {:status, 400, _}}}, Fake.complete(&1, "k"))
+
+      refused =
+        &match?(
+          {:error,
+           %{
+             kind: :nisaba_request_refused,
+             site: :nisaba_fake_wire_refused,
+             details: [reason: {:status, 400, _}]
+           }},
+          Fake.complete(&1, "k")
+        )
 
       assert {:ok, %Result{}} =
                Fake.complete(Request.new("m", [user, asks, answers], tools: tools), "k")
@@ -63,7 +73,9 @@ defmodule Oneiroi.Nisaba.ProviderTest do
                Fake.complete(@request, "k")
 
       Fake.fail(:transport)
-      assert {:error, {:transport, :scripted}} = Fake.complete(@request, "k")
+
+      assert {:error, %{kind: :nisaba_provider_failed, site: :nisaba_fake_scripted_transport}} =
+               Fake.complete(@request, "k")
 
       Fake.clear()
 
@@ -97,7 +109,10 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert usage.cost_nanos == 11 * Fake.nanos_per_token()
 
       Fake.embed_fail(:transport)
-      assert {:error, {:transport, :scripted}} = Fake.embed("fake/embed", ["x"], "k")
+
+      assert {:error, %{kind: :nisaba_provider_failed, site: :nisaba_fake_scripted_transport}} =
+               Fake.embed("fake/embed", ["x"], "k")
+
       Fake.clear()
       assert {:ok, _} = Fake.embed("fake/embed", ["x"], "k")
     end
@@ -169,7 +184,12 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert r.refusal? and r.content == "I can't help with that."
       assert r.usage.estimated and r.usage.cost_nanos == 0
 
-      assert {:error, {:schema_invalid, _}} = OpenRouter.parse(%{"error" => %{"message" => "no"}})
+      assert {:error,
+              %{
+                kind: :nisaba_request_refused,
+                site: :nisaba_open_router_completion_body,
+                details: [reason: {:unexpected_body, "no"}]
+              }} = OpenRouter.parse(%{"error" => %{"message" => "no"}})
 
       # A streamed refusal is raw text: its message is kept and its
       # metadata, where a moderation hit's input would sit, is not.
@@ -327,17 +347,32 @@ defmodule Oneiroi.Nisaba.ProviderTest do
         }
       ]
 
-      assert {:error, {:transport, {:status, "server_error", "Provider disconnected"}}} =
-               SSE.outcome(absorbed(chunks))
+      assert {:error,
+              %{
+                kind: :nisaba_provider_failed,
+                site: :nisaba_open_router_stream_error_event,
+                details: [reason: {:status, "server_error", "Provider disconnected"}]
+              }} = SSE.outcome(absorbed(chunks))
     end
 
     test "a finish of error without an error body fails it too" do
       chunks = [%{"choices" => [%{"delta" => %{}, "finish_reason" => "error"}]}]
-      assert {:error, {:transport, {:status, "error", _}}} = SSE.outcome(absorbed(chunks))
+
+      assert {:error,
+              %{
+                kind: :nisaba_provider_failed,
+                site: :nisaba_open_router_stream_finished_in_error,
+                details: [reason: {:status, "error", _}]
+              }} = SSE.outcome(absorbed(chunks))
     end
 
     test "nothing at all is a failure; a silent reply with its usage is a reply" do
-      assert {:error, {:transport, {:status, 200, "the stream carried nothing"}}} =
+      assert {:error,
+              %{
+                kind: :nisaba_provider_failed,
+                site: :nisaba_open_router_stream_carried_nothing,
+                details: [reason: {:status, 200, "the stream carried nothing"}]
+              }} =
                SSE.outcome(
                  absorbed([%{"choices" => [%{"delta" => %{}, "finish_reason" => "stop"}]}])
                )
@@ -373,10 +408,20 @@ defmodule Oneiroi.Nisaba.ProviderTest do
 
       assert vectors == [[1.0, 0.0], [0.5, 0.5]]
 
-      assert {:error, {:schema_invalid, :embedding_shape}} =
+      assert {:error,
+              %{
+                kind: :nisaba_request_refused,
+                site: :nisaba_open_router_embedding_shape,
+                details: [reason: :embedding_shape]
+              }} =
                OpenRouter.parse_embedding(%{"data" => [%{"embedding" => "no"}]}, "m")
 
-      assert {:error, {:schema_invalid, {:unexpected_body, _}}} =
+      assert {:error,
+              %{
+                kind: :nisaba_request_refused,
+                site: :nisaba_open_router_embedding_body,
+                details: [reason: {:unexpected_body, "nope"}]
+              }} =
                OpenRouter.parse_embedding(%{"error" => %{"message" => "nope"}}, "m")
     end
   end

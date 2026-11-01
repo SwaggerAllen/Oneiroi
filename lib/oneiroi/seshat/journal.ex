@@ -6,6 +6,7 @@ defmodule Oneiroi.Seshat.Journal do
   holds which todos are done.
   """
 
+  alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.JournalCommands, as: Commands
 
@@ -20,16 +21,21 @@ defmodule Oneiroi.Seshat.Journal do
   def execute(%__MODULE__{days: days}, %Commands.AddJournalEntry{} = c) do
     cond do
       not day_ok?(c.day) ->
-        {:error, :day_invalid}
+        {:error,
+         Error.new(:seshat_day_invalid, :seshat_add_entry_day_invalid, day: inspect(c.day))}
 
       c.kind not in @kinds ->
-        {:error, :kind_invalid}
+        {:error,
+         Error.new(:seshat_entry_kind_invalid, :seshat_add_entry_kind_invalid, kinds: @kinds)}
 
       not text_ok?(c.text, c.imported) ->
-        {:error, :text_invalid}
+        {:error, Error.new(:seshat_entry_text_invalid, :seshat_add_entry_text_invalid)}
 
       not Oneiroi.Register.ok?(c.register) ->
-        {:error, :register_invalid}
+        {:error,
+         Error.new(:seshat_register_invalid, :seshat_add_entry_register_invalid,
+           registers: Oneiroi.Register.all()
+         )}
 
       true ->
         %{count: count} = Map.get(days, c.day, %{count: 0, todos: %{}})
@@ -50,7 +56,11 @@ defmodule Oneiroi.Seshat.Journal do
   def execute(%__MODULE__{days: days}, %Commands.MarkTodoDone{} = c) do
     case get_in(days, [c.day, :todos, c.number]) do
       nil ->
-        {:error, :no_such_todo}
+        {:error,
+         Error.new(:seshat_no_such_todo, :seshat_mark_todo_no_such_todo,
+           day: c.day,
+           number: c.number
+         )}
 
       true ->
         []

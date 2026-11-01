@@ -80,5 +80,5 @@ defmodule Oneiroi.Ethos.Evidence do
   end
 
   defp party(%Actor{kind: kind}) when kind in [:resident, :witness], do: :ok
-  defp party(%Actor{}), do: {:error, Error.new(:ethos_not_a_party)}
+  defp party(%Actor{}), do: {:error, Error.new(:ethos_not_a_party, :ethos_evidence_party_only)}
 end

@@ -72,17 +72,22 @@ defmodule Oneiroi.Seshat.CitationsTest do
           nil,
           3
         ] do
-      assert {:error, :path_invalid} = Kinds.normalize(bad), inspect(bad)
+      assert {:error, %{kind: :seshat_path_invalid}} = Kinds.normalize(bad), inspect(bad)
     end
 
     # Names up to 255, a path up to 255, the width of its column: the
     # rehearsal of 2026-10-31 left a 104-character name of Lily's behind.
     assert {:ok, _} = Kinds.normalize("wiki/" <> String.duplicate("a", 104) <> ".md")
     assert {:ok, _} = Kinds.normalize("wiki/" <> String.duplicate("a", 250))
-    assert {:error, :path_invalid} = Kinds.normalize("wiki/" <> String.duplicate("a", 256))
+
+    assert {:error, %{kind: :seshat_path_invalid}} =
+             Kinds.normalize("wiki/" <> String.duplicate("a", 256))
+
     long_path = "wiki/" <> String.duplicate("a/", 125) <> "b.md"
     assert byte_size(long_path) > 255
-    assert {:error, :path_invalid} = Kinds.normalize(long_path)
+
+    assert {:error, %{kind: :seshat_path_invalid, site: :seshat_kinds_path_too_long}} =
+             Kinds.normalize(long_path)
 
     # Why, in the words an import tells the resident (sima-qian #22).
     assert Kinds.refusal("wiki/ok.md") == nil

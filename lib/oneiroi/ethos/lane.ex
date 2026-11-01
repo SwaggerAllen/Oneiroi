@@ -20,6 +20,7 @@ defmodule Oneiroi.Ethos.Lane do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Ethos.Error
   alias Oneiroi.Ethos.Store
   alias Oneiroi.Nisaba
   alias Oneiroi.Scope
@@ -130,10 +131,14 @@ defmodule Oneiroi.Ethos.Lane do
     with {:ok, %{vectors: vectors}} <- Nisaba.embed(resident_id, model, texts, actor) do
       cond do
         length(vectors) != length(texts) ->
-          {:error, "the provider answered #{length(vectors)} vectors for #{length(texts)} texts"}
+          {:error,
+           Error.new(:ethos_embedding_mismatched, :ethos_lane_vector_count,
+             vectors: length(vectors),
+             texts: length(texts)
+           )}
 
         Enum.any?(vectors, &(length(&1) != width)) ->
-          {:error, "the provider answered a vector of another width than #{width}"}
+          {:error, Error.new(:ethos_embedding_mismatched, :ethos_lane_vector_width, width: width)}
 
         true ->
           {:ok, vectors}

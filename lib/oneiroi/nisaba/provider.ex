@@ -7,9 +7,10 @@ defmodule Oneiroi.Nisaba.Provider do
   Failures follow the three-way taxonomy of conventions §8. A refusal is
   not a failure: it is an ordinary result with `refusal?` set and the
   model's own words as `content`, shown as what it is (spec §5). A
-  transport failure (`{:transport, reason}`) is retryable; a request the
-  provider rejects as malformed or unauthorised (`{:schema_invalid,
-  reason}`) is cancelled.
+  transport failure (`nisaba_provider_failed`) is retryable; a request the
+  provider rejects as malformed or unauthorised (`nisaba_request_refused`)
+  is cancelled. Both are sited `Oneiroi.Nisaba.Error`s built in the
+  adapter, at the line that read the failure.
   """
 
   defmodule Usage do
@@ -82,7 +83,7 @@ defmodule Oneiroi.Nisaba.Provider do
     @type t :: %__MODULE__{model: String.t() | nil, vectors: [[float()]], usage: Usage.t()}
   end
 
-  @type failure :: {:transport, term()} | {:schema_invalid, term()}
+  @type failure :: Oneiroi.Nisaba.Error.t()
   @type sink :: (String.t() -> any())
 
   @doc "Completes the request on the witness's key."

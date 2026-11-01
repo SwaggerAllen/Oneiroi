@@ -244,7 +244,15 @@ defmodule Oneiroi.Ethos do
       {:ethos_commitment_closed, "that commitment was kept or released already",
        remedy: "a closed commitment stays as what it became; make a new one"},
       {:ethos_commitment_invalid, "a commitment names a person and says what is promised",
-       remedy: "give both, in your own words"}
+       remedy: "give both, in your own words"},
+      {:ethos_embedding_mismatched,
+       "the provider answered vectors that do not fit the trigger lane: another count than the texts sent, or another width than ETHOS_EMBEDDING_WIDTH",
+       remedy:
+         "set ETHOS_EMBEDDING_WIDTH to the model's width, or pin a model that answers it; the refresh retries on the next turn"},
+      {:ethos_dispatch_failed,
+       "the command did not reach the character aggregate: the command middleware or the event store refused it",
+       remedy:
+         "retry; if it repeats, an operator reads the log line carrying this error's site and cause"}
     ]
   end
 

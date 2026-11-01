@@ -7,12 +7,23 @@ defmodule Oneiroi.Apsu.Jobs do
   """
   require Logger
 
-  @doc "Enqueues `worker` with `args`, carrying the trace id."
-  @spec enqueue(module(), map(), keyword()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  alias Oneiroi.Apsu.Error
+
+  @doc "Enqueues `worker` with `args`, carrying the trace id; Oban's refusal is wrapped here, once."
+  @spec enqueue(module(), map(), keyword()) :: {:ok, Oban.Job.t()} | {:error, Error.t()}
   def enqueue(worker, args, opts \\ []) when is_atom(worker) and is_map(args) do
-    args
-    |> Map.put("trace_id", Keyword.get(Logger.metadata(), :trace_id))
-    |> worker.new(opts)
-    |> Oban.insert()
+    inserted =
+      args
+      |> Map.put("trace_id", Keyword.get(Logger.metadata(), :trace_id))
+      |> worker.new(opts)
+      |> Oban.insert()
+
+    case inserted do
+      {:ok, job} ->
+        {:ok, job}
+
+      {:error, reason} ->
+        {:error, Error.caught(:apsu_enqueue_failed, :apsu_jobs_insert_refused, reason)}
+    end
   end
 end

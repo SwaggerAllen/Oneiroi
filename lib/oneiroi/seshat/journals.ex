@@ -295,36 +295,29 @@ defmodule Oneiroi.Seshat.Journals do
       :ok ->
         :ok
 
-      {:error, %{kind: :sunna_day_invalid}} ->
-        {:error, Error.new(:seshat_day_invalid, day: inspect(day))}
+      {:error, %{kind: :sunna_day_invalid} = refused} ->
+        {:error,
+         Error.caught(:seshat_day_invalid, :seshat_journals_open_day_invalid, refused,
+           day: inspect(day)
+         )}
 
       other ->
         other
     end
   end
 
+  # The aggregate's refusals are sited already and pass; anything else
+  # (the command middleware, the event store) is wrapped here, once.
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
         {:ok, events}
 
-      {:error, :day_invalid} ->
-        {:error, Error.new(:seshat_day_invalid, day: inspect(command.day))}
+      {:error, %Error{}} = refused ->
+        refused
 
-      {:error, :register_invalid} ->
-        {:error, Error.new(:seshat_register_invalid, registers: Oneiroi.Register.all())}
-
-      {:error, :kind_invalid} ->
-        {:error, Error.new(:seshat_entry_kind_invalid, kinds: Journal.kinds())}
-
-      {:error, :text_invalid} ->
-        {:error, Error.new(:seshat_entry_text_invalid)}
-
-      {:error, :no_such_todo} ->
-        {:error, Error.new(:seshat_no_such_todo, day: command.day, number: command.number)}
-
-      {:error, other} ->
-        {:error, other}
+      {:error, reason} ->
+        {:error, Error.caught(:seshat_dispatch_failed, :seshat_journals_dispatch_failed, reason)}
     end
   end
 end

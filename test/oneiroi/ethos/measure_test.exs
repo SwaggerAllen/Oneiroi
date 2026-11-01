@@ -132,7 +132,7 @@ defmodule Oneiroi.Ethos.MeasureTest do
 
     s = Character.apply(%Character{}, Character.execute(%Character{}, take))
 
-    assert {:error, :baseline_fresh} =
+    assert {:error, %{kind: :ethos_baseline_fresh, site: :ethos_take_baseline_fresh}} =
              Character.execute(s, %{take | at: ~U[2026-11-01 12:00:00Z]})
 
     assert %{at: ~U[2026-11-02 12:00:00Z]} =

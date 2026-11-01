@@ -17,6 +17,8 @@ defmodule Oneiroi.Seshat.Kinds do
   the writable kinds from this table).
   """
 
+  alias Oneiroi.Seshat.Error
+
   @kinds [
     %{
       kind: "writing",
@@ -149,20 +151,30 @@ defmodule Oneiroi.Seshat.Kinds do
   `..` or empty), at most 255 characters each and 255 in all, under a
   registered folder; nothing here reaches the filesystem unchecked.
   """
-  @spec normalize(term()) :: {:ok, String.t()} | {:error, :path_invalid}
+  @spec normalize(term()) :: {:ok, String.t()} | {:error, Error.t()}
   def normalize(path) when is_binary(path) do
     segments = String.split(path, "/")
 
     cond do
-      byte_size(path) > @path_max -> {:error, :path_invalid}
-      length(segments) < 2 -> {:error, :path_invalid}
-      not Enum.all?(segments, &Regex.match?(@segment, &1)) -> {:error, :path_invalid}
-      is_nil(kind_of(path)) -> {:error, :path_invalid}
-      true -> {:ok, path}
+      byte_size(path) > @path_max ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_too_long)}
+
+      length(segments) < 2 ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_no_folder, path: path)}
+
+      not Enum.all?(segments, &Regex.match?(@segment, &1)) ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_segment_refused, path: path)}
+
+      is_nil(kind_of(path)) ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_outside_folders, path: path)}
+
+      true ->
+        {:ok, path}
     end
   end
 
-  def normalize(_other), do: {:error, :path_invalid}
+  def normalize(_other),
+    do: {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_not_text)}
 
   @doc """
   Why the library cannot hold `path`, in words a resident is told, or
