@@ -4,6 +4,24 @@ defmodule Oneiroi.ApsuTest do
   alias Oneiroi.Apsu
   alias Oneiroi.Component.Composer
 
+  test "Lifeline rescues orphaned jobs after the declared bound, which outlasts the longest regression run" do
+    minutes = Oneiroi.Config.fetch!(:apsu, :lifeline_rescue_after_minutes)
+    plugins = Keyword.fetch!(Apsu.oban_config(), :plugins)
+
+    assert {Oban.Lifeline, [rescue_after: {^minutes, :minutes}]} =
+             List.keyfind(plugins, Oban.Lifeline, 0)
+
+    # Time alone decides a rescue, so a live job older than the bound is
+    # taken for orphaned and runs twice: the bound must exceed the
+    # longest run the regression bounds allow at the request timeout.
+    longest_ms =
+      Oneiroi.Config.fetch!(:eunomia, :run_models_max) *
+        Oneiroi.Config.fetch!(:eunomia, :run_tests_max) *
+        Oneiroi.Config.fetch!(:nisaba, :request_timeout_ms)
+
+    assert minutes * 60_000 > longest_ms
+  end
+
   test "the roster validates and the platform is on it" do
     assert Composer.validate!(Oneiroi.Boot.components()) == :ok
     assert Apsu in Oneiroi.Boot.components()

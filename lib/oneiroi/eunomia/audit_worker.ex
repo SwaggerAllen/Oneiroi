@@ -5,7 +5,12 @@ defmodule Oneiroi.Eunomia.AuditWorker do
   platform scope, named here (eunomia #19); the roster is the resident
   system's platform-scoped export.
   """
-  use Oneiroi.Worker, queue: :eunomia_weekly
+  # One attempt (eunomia #30): the pass calls the judge for every
+  # resident and keeps no once-a-week mark, so a retry, after a crash or
+  # after Lifeline rescues an orphan, would judge the residents already
+  # done again, on their witnesses' keys, and raise their flags twice.
+  # An interrupted week is discarded and the next week runs.
+  use Oneiroi.Worker, queue: :eunomia_weekly, max_attempts: 1
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon

@@ -7,7 +7,10 @@ defmodule Oneiroi.Eunomia.RunWorker do
   `Oneiroi.Worker`'s construction; its reads take the resident's scope
   by name (`Regression.answer_run/3`).
   """
-  use Oneiroi.Worker, queue: :eunomia_regression
+  # One attempt, declared on the worker so every insert carries it:
+  # Lifeline then discards an orphaned run's job rather than answering
+  # it again, and the sweep fails the run (`RunSweepWorker`).
+  use Oneiroi.Worker, queue: :eunomia_regression, max_attempts: 1
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Jobs
@@ -33,7 +36,6 @@ defmodule Oneiroi.Eunomia.RunWorker do
     args = %{"resident_id" => resident_id, "run_ref" => ref, "actor" => Map.from_struct(actor)}
 
     case Jobs.enqueue(__MODULE__, args,
-           max_attempts: 1,
            unique: [period: :infinity, keys: [:resident_id, :run_ref]]
          ) do
       {:ok, _job} ->

@@ -80,3 +80,15 @@ passed throughout, because its expected origin and the plug's were read
 from the same unset config and agreed with each other: a fake agreeing
 with the code under test, the shape orchestration's `CLAUDE.md` records
 for its tracker fake.
+
+## #20
+On Render a deploy restarts the node (the disk rules out zero-downtime),
+and Oban's default shutdown grace is fifteen seconds (its
+`Oban.Config`), so any job running across a
+deploy was left `executing` with nothing to move it again. Before
+Lifeline nothing did: a nightly pass that straddled a deploy was simply
+lost, and a regression run read "running" forever. The bound is derived,
+not measured: 8 x 32 calls at 120 s is 512 minutes, and no run's
+length has been measured. An orphaned job waits the whole bound out. A
+shorter bound would rescue a live run and answer it twice on the
+witness's key.

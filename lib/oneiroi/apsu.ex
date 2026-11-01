@@ -79,6 +79,22 @@ defmodule Oneiroi.Apsu do
        default: "2",
        tag: :bound,
        usage: "Oban's concurrency per declared queue; a bound until a queue is measured"},
+      # Lifeline moves a job still `executing` after this long back to
+      # `available`, or to `discarded` if it has no attempt left: the
+      # rescue for a job orphaned when the node stopped mid-run, which on
+      # Render is every deploy. It is time alone, so it must exceed the
+      # longest job that is still legitimately running, or Lifeline
+      # rescues a live job and it runs twice. The longest is a regression
+      # run: EUNOMIA_RUN_MODELS_MAX x EUNOMIA_RUN_TESTS_MAX calls (8 x 32)
+      # at up to NISABA_REQUEST_TIMEOUT_MS (120 s) each, 512 minutes;
+      # Req does not retry a POST. 540 is that with a margin, and a test
+      # holds it above the product of the three settings.
+      {:lifeline_rescue_after_minutes, "APSU_LIFELINE_RESCUE_AFTER_MINUTES",
+       cast: :integer,
+       default: "540",
+       tag: :bound,
+       usage:
+         "how long a job may stay executing before Oban's Lifeline takes it for orphaned and rescues it; a guess derived from the longest regression run the bounds allow at the request timeout, not a measured run, and it must stay above that product"},
       {:vault_key, "APSU_VAULT_KEY",
        cast: &Vault.cast_key/1,
        secret: true,
@@ -239,9 +255,10 @@ defmodule Oneiroi.Apsu do
   @doc """
   Oban's configuration, composed from every system's `oban_queues/0`:
   the queues at the declared concurrency and the crontab from the
-  queues' `cron:` entries. A root artifact composed from declarations,
-  never edited (conventions §4). In test Oban runs in manual mode and
-  starts no queue.
+  queues' `cron:` entries, and Lifeline's rescue of orphaned jobs. A
+  root artifact composed from declarations, never edited (conventions
+  §4). In test Oban runs in manual mode and starts no queue and no
+  plugin.
   """
   @spec oban_config() :: keyword()
   def oban_config do
@@ -258,6 +275,20 @@ defmodule Oneiroi.Apsu do
     Keyword.merge(base, Application.get_env(:oneiroi, Oban, []))
   end
 
-  defp plugins([]), do: []
-  defp plugins(crontab), do: [{Oban.Plugins.Cron, crontab: crontab}]
+  # Lifeline is always on (eunomia #30): without it a job orphaned by a
+  # deploy stays `executing` forever, and so does whatever it was doing.
+  # It rescues every queue's orphans, not only the one that asked for
+  # it; a rescued job with attempts left runs again, which every worker
+  # must survive (conventions §7), and one that must not run twice
+  # declares a single attempt and is discarded instead.
+  defp plugins(crontab) do
+    lifeline =
+      {Oban.Lifeline,
+       rescue_after: {Oneiroi.Config.fetch!(:apsu, :lifeline_rescue_after_minutes), :minutes}}
+
+    case crontab do
+      [] -> [lifeline]
+      entries -> [{Oban.Plugins.Cron, crontab: entries}, lifeline]
+    end
+  end
 end

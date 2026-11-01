@@ -140,6 +140,13 @@ schema, `projection_versions`) and the application role.
   compares a browser's `Origin` against the result. The test source
   sets it to a name that is not localhost, so the suite can tell the
   declared origin from the listener's.
+- **#20 Oban's Lifeline rescues every queue's orphans after
+  `APSU_LIFELINE_RESCUE_AFTER_MINUTES` (540).** A job still `executing`
+  that long goes back to `available`, or to `discarded` when it has no
+  attempt left. Time alone decides, so the bound sits above the longest
+  legitimate job, a full regression run at the request timeout, and a
+  test holds it above that product. A worker that must not run twice
+  declares `max_attempts: 1` on `Oneiroi.Worker` (eunomia #30).
 
 ## #10 Initial vs target
 
