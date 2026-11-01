@@ -101,7 +101,9 @@ defmodule Oneiroi.SimaQian.Import do
   @spec record_url(String.t()) :: String.t()
   def record_url(url), do: Git.public_url(url)
 
-  defp scheme_ok(url) do
+  @doc "Whether a URL carries one of the configured schemes (sima-qian #16): the import's check, and the originals import's."
+  @spec scheme_ok(String.t()) :: :ok | {:error, Error.t()}
+  def scheme_ok(url) do
     schemes = Config.fetch!(:sima_qian, :import_schemes)
 
     case URI.parse(url) do
@@ -330,8 +332,13 @@ defmodule Oneiroi.SimaQian.Import do
 
   defp nested(root, path, c) do
     cond do
+      # The library's own words for the folder: "outside the folders the
+      # library holds" for a folder it has no kind for, and for a kind
+      # it takes only as originals (memory), that the originals import
+      # brings it (seshat #28), so the resident is not told the library
+      # cannot hold what it can.
       root not in c.folders ->
-        {:left, root, "outside the folders the library holds"}
+        {:left, root, library().refusal(path)}
 
       MapSet.member?(c.adopted, path) ->
         :held

@@ -161,7 +161,7 @@ defmodule Oneiroi.Seshat do
   def events do
     [
       {Oneiroi.Seshat.Events.DocumentWritten, 1},
-      {Oneiroi.Seshat.Events.DocumentAdopted, 1},
+      {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 2},
@@ -176,8 +176,11 @@ defmodule Oneiroi.Seshat do
        "a path is relative, under a registered kind's folder, with plain segments and no `..`",
        remedy: "name the file as `<kind>/<name>.md`; the kinds are the registry's"},
       {:seshat_kind_not_writable,
-       "that kind is written by the platform (mail, feeds, correspondence, the journal), never through a document write",
+       "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy: "write under writing, design, research, wiki or posts"},
+      {:seshat_originals_only,
+       "that kind takes files only through the originals import, which records where each came from",
+       remedy: "the witness imports the originals from the source repository at a pinned commit"},
       {:seshat_too_large, "the file is larger than the library's bound",
        remedy: "split it, or raise SESHAT_DOCUMENT_BYTES with a reason"},
       {:seshat_no_such_document, "no registered document has that path",
@@ -251,10 +254,10 @@ defmodule Oneiroi.Seshat do
   @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
 
-  @doc "The kinds' folders: what an import treats as transferred (sima-qian #15)."
+  @doc "The kinds' folders an import adopts: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28)."
   @impl Oneiroi.SimaQian.Library
   @spec folders() :: [String.t()]
-  defexport(folders(), do: Enum.map(Kinds.all(), & &1.folder))
+  defexport(folders(), do: for(k <- Kinds.all(), k.adoption != :originals, do: k.folder))
 
   @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
   @impl Oneiroi.SimaQian.Library
@@ -268,6 +271,19 @@ defmodule Oneiroi.Seshat do
   defexport(import_journal(resident_id, entries, actor),
     do: Journals.import_entries(resident_id, entries, actor)
   )
+
+  @doc "Registers the files the originals import copied, each `%{path, provenance}`, and runs the index once when any was new; the records system's library port (seshat #28)."
+  @impl Oneiroi.SimaQian.Library
+  @spec adopt_originals(String.t(), [map()], Oneiroi.Actor.t()) ::
+          {:ok, %{adopted: [String.t()], indexed: boolean()}} | {:error, term()}
+  defexport(adopt_originals(resident_id, files, actor),
+    do: Documents.adopt_originals(resident_id, files, actor)
+  )
+
+  @doc "Why the originals import cannot take a path as a document (a hidden name, not text, outside the kinds that take originals), or nil; the records system's library port (seshat #28)."
+  @impl Oneiroi.SimaQian.Library
+  @spec original_refusal(String.t()) :: String.t() | nil
+  defexport(original_refusal(path), do: Kinds.original_refusal(path))
 
   @doc "Files in the repository under a kind's folder that no document registers."
   @spec unadopted(String.t()) :: [String.t()]

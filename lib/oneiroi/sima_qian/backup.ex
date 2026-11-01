@@ -34,6 +34,11 @@ defmodule Oneiroi.SimaQian.Backup do
     # the first resident to publish one would have failed every backup on
     # the stray check.
     {"writing", ["writing/", "research/", "posts/"]},
+    # `memory/` holds the originals of the resident's daily memory, a copy
+    # of the source at a pinned commit that nothing writes again (seshat
+    # #28): machine state by #7's rule, beside the export it sits with
+    # (the soul class is the identity files alone, and writing is what
+    # the dyad writes through the flow).
     {"machine",
      ["records/", "memory/", "feeds/", "mail/", "correspondence/", "design/", "wiki/", "journal/"]}
   ]

@@ -7,12 +7,13 @@ defmodule Oneiroi.Seshat.Kinds do
   what its folder says it is.
 
   `cites` is which kinds mint citation edges: the resident-authored or
-  commissioned ones (writing, design, research, journal). Mail, feeds
-  and correspondence never do, whatever they contain, and the index
+  commissioned ones (writing, design, research, journal). Mail, feeds,
+  correspondence and the memory originals never do, whatever they contain, and the index
   deletes any edge it holds from them on every run. `access` is who
   writes the kind: `:resident` through a document write, `:core` by the
   platform (inbound for mail, feeds and correspondence; the journal for
-  its narrative). The registry is platform-wide; adding a kind is a row
+  its narrative), `:imported` by nothing after the originals import
+  copied it (memory, seshat #28). The registry is platform-wide; adding a kind is a row
   here plus the brain's instruction for it (the tool description lists
   the writable kinds from this table).
   """
@@ -109,6 +110,26 @@ defmodule Oneiroi.Seshat.Kinds do
       sidecar: nil,
       adoption: :none,
       access: :core
+    },
+    # The originals of the resident's daily memory from the platform it
+    # was imported from (seshat #28): copied byte for byte from the
+    # source at the commit the witness pins, with that provenance, and
+    # never written after. `access: :imported` refuses every document
+    # write, the platform's `core: true` included; `adoption: :originals`
+    # keeps the ordinary adoption and import from registering one without
+    # its provenance. No citation edges: the files were written against
+    # the source platform's numbering, and an edge minted from one would
+    # resolve against this platform's.
+    %{
+      kind: "memory",
+      folder: "memory",
+      cites: false,
+      has_status: false,
+      layout:
+        "memory/<day>.md, memory/dreaming/**, and the source's root MEMORY.md and DREAMS.md under memory/, byte for byte at a pinned commit",
+      sidecar: nil,
+      adoption: :originals,
+      access: :imported
     }
   ]
 
@@ -177,12 +198,21 @@ defmodule Oneiroi.Seshat.Kinds do
     do: {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_not_text)}
 
   @doc """
-  Why the library cannot hold `path`, in words a resident is told, or
-  nil when it can: the reason an import gives for a file it leaves
-  behind (sima-qian #22).
+  Why the library cannot hold `path` from an import, in words a resident
+  is told, or nil when it can: the reason an import gives for a file it
+  leaves behind (sima-qian #22). A kind that takes only originals
+  (memory) is held only through the originals import (seshat #28), so
+  an import names each such file with that reason.
   """
   @spec refusal(String.t()) :: String.t() | nil
   def refusal(path) when is_binary(path) do
+    if originals?(path),
+      do:
+        "the originals of memory come in through the originals import, at a commit the witness pins, never with the repository",
+      else: path_refusal(path)
+  end
+
+  defp path_refusal(path) do
     segments = String.split(path, "/")
 
     cond do
@@ -206,6 +236,26 @@ defmodule Oneiroi.Seshat.Kinds do
 
       true ->
         "a name with characters other than letters, digits, dot, dash and underscore"
+    end
+  end
+
+  @doc "Whether a path's kind takes files only through the originals import, with their provenance (seshat #28)."
+  @spec originals?(String.t()) :: boolean()
+  def originals?(path) when is_binary(path), do: match?(%{adoption: :originals}, kind_of(path))
+
+  @doc """
+  Why the originals import cannot take `path` as a document, in words
+  the witness is told, or nil when it can: the path refusals of
+  `refusal/1` (a hidden name among them), a file the index cannot read
+  as text, and a path outside the kinds that take originals.
+  """
+  @spec original_refusal(String.t()) :: String.t() | nil
+  def original_refusal(path) when is_binary(path) do
+    cond do
+      reason = path_refusal(path) -> reason
+      not originals?(path) -> "outside the folders that take originals"
+      not text?(path) -> "not a text file (the library reads .md, .markdown and .txt)"
+      true -> nil
     end
   end
 

@@ -188,6 +188,68 @@ defmodule OneiroiWeb.ResidentController do
     end
   end
 
+  operation(:originals,
+    summary:
+      "Import the originals of the resident's memory from its source repository at a pinned commit (sima-qian #40): each file copied byte for byte under memory/, verified against the source tree's blob, registered with where it came from, and indexed once; what was skipped or refused is named with its reason",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the source", "application/json",
+       %Schema{
+         type: :object,
+         required: [:source, :commit],
+         properties: %{
+           source: %Schema{
+             type: :string,
+             description: "the source repository's https URL, without a token"
+           },
+           commit: %Schema{type: :string, description: "the commit's full sha, never a branch"},
+           token: %Schema{
+             type: :string,
+             description: "a read token for a private source; never recorded"
+           },
+           paths: %Schema{
+             type: :array,
+             items: %Schema{type: :string},
+             description:
+               "patterns in the source tree; memory/*.md, memory/dreaming/**, MEMORY.md and DREAMS.md when left out"
+           }
+         }
+       }},
+    responses: [ok: {"what was imported", "application/json", %Schema{type: :object}}]
+  )
+
+  def originals(conn, %{"id" => id} = params) do
+    # The token is wrapped where it arrives and reaches git only through
+    # its credential file (`Oneiroi.SimaQian.Git.credentialed/2`).
+    request = %{
+      source: params["source"],
+      commit: params["commit"],
+      token: params["token"] && Secret.wrap(params["token"]),
+      paths: params["paths"]
+    }
+
+    with true <- witnesses?(conn, id),
+         {:ok, result} <- Oneiroi.SimaQian.import_originals(id, request, actor(conn)) do
+      json(conn, result)
+    else
+      false ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_originals_not_witnessed
+          )
+        )
+
+      {:error, %{kind: :sima_qian_git_failed, details: details} = e} ->
+        error(conn, 422, %{e | meaning: e.meaning <> ": " <> String.trim(details[:output])})
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+    end
+  end
+
   operation(:remote,
     summary:
       "Set the repository the resident's records are backed up to, with a token shown to nobody again",

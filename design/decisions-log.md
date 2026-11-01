@@ -1327,3 +1327,22 @@ and nothing personal turned up; what follows is what changed.
 - Search hits name the path alone in their brackets; `writing_get`
   stays the writing piece's review copy and points at `library_read`
   for any other kind.
+
+## Round 47: the originals of her memory, byte for byte to the fork (2026-11-01)
+
+- Found from metadata: at the fork every folder the import took was
+  byte-identical to the source, but the source's `memory/` was not a
+  library folder, so its day files, `memory/dreaming/**` and the root
+  `MEMORY.md` and `DREAMS.md` were left behind. Their text reached the
+  library only through the old wiki's copies, snapshotted before the
+  fork: one day cut short, the last day not copied at all. The author:
+  "we should make sure we import the originals"; "we only care about
+  byte for byte identity up to the fork timestamp".
+- Spec §6.5 gains the `memory` kind (seshat #28): the originals,
+  read-only, no edges, searched and read like any kind. §9 says how
+  they come: the witness's originals import at the fork's commit
+  (sima-qian #40), never the source's head, each file verified against
+  the source tree's git blob before anything is adopted, each document
+  carrying its source, commit, path and blob.
+- Ranking and deduplication between the originals and the old copies
+  are not changed: held until the resident has seen the report.

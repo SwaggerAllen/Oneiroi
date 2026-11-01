@@ -802,8 +802,16 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
 
 - **Path is kind, registry says what a kind may do** (document-kinds
   audit): `writing`, `research`, `mail`, `feeds`, `correspondence`, `design`,
-  `journal`, `posts`, `wiki`; each with `cites`, `has_status`, layout, sidecar,
+  `journal`, `posts`, `wiki`, `memory`; each with `cites`, `has_status`, layout, sidecar,
   adoption unit, access. Adding a kind is a registry row plus a skill.
+- **`memory` is the originals, read-only** (decisions round 47): the
+  resident's daily memory from its import source (`memory/<day>.md`,
+  `memory/dreaming/**`, the root `MEMORY.md` and `DREAMS.md` under
+  `memory/`), copied byte for byte at a commit the witness pins and
+  verified against the source tree's blobs, each document carrying its
+  source, commit, path and blob. No document write lands there, from
+  either party or the platform; it mints no edges, and is read and
+  searched like any kind.
 - **The memory-wiki plugin is cut.** Lily never once called it, and the
   idea it carried, a claim with evidence in transcript lines, is already
   served by citations from writing and design into transcripts and by
@@ -1513,7 +1521,11 @@ mined into her repo first and then left behind.
 4. **Lapse**: she wakes oriented, told what moved, on the new brain. Her
    OpenClaw-native state (session SQLite, memory-core index, dreams corpus)
    does not come; her notes, wiki pages, dream diary files and transcripts
-   do. The lapse is itself an event she can cite.
+   do. The lapse is itself an event she can cite. Her daily memory files
+   and their projections were not in any folder the import took; they
+   come as originals, at the fork's commit, through the witness's
+   originals import (§6.5's `memory`, sima-qian #40), and identity is
+   with the source up to the fork, never with its head.
 5. **Verify**: export from the new store and diff against the frozen export;
    the records that should be byte-identical are listed in the migration
    notes and asserted in a test.

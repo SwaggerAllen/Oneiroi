@@ -6,7 +6,8 @@ defmodule Oneiroi.Seshat.Commands do
   end
 
   defmodule AdoptDocument do
-    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes]
+    # `provenance` is the originals import's (seshat #28), nil otherwise.
+    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :provenance]
   end
 
   defmodule PublishPiece do

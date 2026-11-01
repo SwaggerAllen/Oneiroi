@@ -70,6 +70,7 @@ defmodule Oneiroi.Seshat.Documents do
   # sobelow_skip ["Traversal.FileModule"]
   def adopt(resident_id, path, %Actor{} = actor) do
     with {:ok, path} <- normalize(path),
+         :ok <- not_originals(path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, content} <- read_file(Path.join(dir, path)),
          kind = Kinds.kind_of(path),
@@ -110,6 +111,60 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
+  @doc """
+  Registers the files the originals import copied (seshat #28), each
+  `%{path, provenance}` with the provenance `%{source, commit, path,
+  blob}`, as found on disk, and runs the index once when any was new. A
+  path registered already is no event, so a run at the same commit
+  changes nothing. The records system copied and verified the bytes;
+  this only registers what is there.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  def adopt_originals(resident_id, files, %Actor{} = actor) when is_list(files) do
+    with {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         {:ok, adopted} <- register_originals(resident_id, dir, files, actor) do
+      indexed = adopted == [] or match?({:ok, _}, Index.run(resident_id, actor))
+      {:ok, %{adopted: adopted, indexed: indexed}}
+    end
+  end
+
+  defp register_originals(resident_id, dir, files, actor) do
+    Enum.reduce_while(files, {:ok, []}, fn %{path: path, provenance: provenance}, {:ok, acc} ->
+      with {:ok, path} <- normalize(path),
+           true <- Kinds.originals?(path) || refused_original(path),
+           {:ok, content} <- read_file(Path.join(dir, path)),
+           {:ok, events} <-
+             dispatch(%Commands.AdoptDocument{
+               actor: actor,
+               at: Clock.now(),
+               id: resident_id,
+               path: path,
+               kind: Kinds.kind_of(path).kind,
+               hash: hash(content),
+               bytes: byte_size(content),
+               provenance: provenance
+             }) do
+        {:cont, {:ok, if(events == [], do: acc, else: acc ++ [path])}}
+      else
+        {:error, _} = refused -> {:halt, refused}
+      end
+    end)
+  end
+
+  defp refused_original(path),
+    do: {:error, Error.new(:seshat_path_invalid, :seshat_documents_original_outside, path: path)}
+
+  # A kind that takes originals is registered only with its provenance,
+  # through `adopt_originals/3`: an ordinary adoption would register the
+  # file as found, with nothing saying which source and commit it is.
+  defp not_originals(path) do
+    if Kinds.originals?(path),
+      do:
+        {:error,
+         Error.new(:seshat_originals_only, :seshat_documents_adopt_originals_only, path: path)},
+      else: :ok
+  end
+
   # sobelow_skip ["Traversal.FileModule"]
   defp register(resident_id, dir, path, actor) do
     with {:ok, path} <- normalize(path),
@@ -137,6 +192,7 @@ defmodule Oneiroi.Seshat.Documents do
       registered = resident_id |> list() |> MapSet.new(& &1.path)
 
       Kinds.all()
+      |> Enum.reject(&(&1.adoption == :originals))
       |> Enum.flat_map(fn kind -> files_under(dir, kind.folder) end)
       |> Enum.reject(&MapSet.member?(registered, &1))
       |> Enum.sort()
@@ -268,6 +324,13 @@ defmodule Oneiroi.Seshat.Documents do
     kind = Kinds.kind_of(path)
 
     cond do
+      # Read-only: the originals import's copy is the record, and a write
+      # from either party, or the platform's own core write, would make
+      # the file something other than the source's bytes at its commit.
+      kind.access == :imported ->
+        {:error,
+         Error.new(:seshat_kind_not_writable, :seshat_documents_kind_read_only, kind: kind.kind)}
+
       kind.access != :resident and not core? ->
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_not_writable,

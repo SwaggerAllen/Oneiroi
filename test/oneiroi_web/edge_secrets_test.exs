@@ -96,6 +96,21 @@ defmodule OneiroiWeb.EdgeSecretsTest do
     assert %Secret{} = url
   end
 
+  test "the originals import's token", %{conn: conn, account: account} do
+    resident = Fixtures.resident!(account)
+
+    [_id, request, _actor] =
+      traced({Oneiroi.SimaQian, :import_originals, 3}, fn ->
+        post(conn, "/v1/residents/#{resident.id}/originals", %{
+          source: "https://127.0.0.1:9/x.git",
+          commit: String.duplicate("0", 40),
+          token: "github_pat_TESTONLY"
+        })
+      end)
+
+    assert %Secret{} = request.token
+  end
+
   test "the backup remote's token", %{conn: conn, account: account} do
     resident = Fixtures.resident!(account)
 

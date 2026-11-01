@@ -388,7 +388,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "library_read",
-        "Read a document of any kind in your library (writing, correspondence, mail, research, design, wiki, journal, posts, feeds) whole, from the file: path exactly as a search hit, a footnote or a citation names it. A long document comes in pages; the first line says which page it is and the from that reads the next.",
+        "Read a document of any kind in your library (#{Enum.map_join(Seshat.Kinds.all(), ", ", & &1.kind)}) whole, from the file: path exactly as a search hit, a footnote or a citation names it. A long document comes in pages; the first line says which page it is and the from that reads the next.",
         %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
         [:path]
       ),
@@ -1154,7 +1154,7 @@ defmodule Oneiroi.Brain.Tools do
         Enum.map_join(
           hits,
           "\n",
-          &"[#{&1.path}] passage #{&1.ordinal} of #{&1.title}: #{&1.text}"
+          &"[#{&1.path}] passage #{&1.ordinal} of #{&1.title}#{imported(&1, " (", ")")}: #{&1.text}"
         )
 
       other ->
@@ -1589,7 +1589,7 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp page_header(row, content, from, upto, total) do
-    head = "#{row.path} (#{row.kind}, #{byte_size(content)} bytes)"
+    head = "#{row.path} (#{row.kind}, #{byte_size(content)} bytes#{imported(row, ", ", "")})"
 
     cond do
       from == 0 and upto >= total ->
@@ -1602,6 +1602,14 @@ defmodule Oneiroi.Brain.Tools do
         "#{head}, characters #{from} to #{upto} of #{total}; library_read with this path and from: #{upto} reads the next page."
     end
   end
+
+  # Where an original came from (seshat #28), on its search hits and its
+  # read: the source, the pinned commit short, and the path there.
+  defp imported(%{source_repo: repo, source_commit: commit, source_path: path}, open, close)
+       when is_binary(repo) and is_binary(commit),
+       do: "#{open}imported from #{repo}@#{String.slice(commit, 0, 12)}:#{path}#{close}"
+
+  defp imported(_document, _open, _close), do: ""
 
   defp line_end(chunk, size) do
     case :binary.matches(chunk, "\n") do

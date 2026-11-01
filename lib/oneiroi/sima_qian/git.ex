@@ -20,6 +20,7 @@ defmodule Oneiroi.SimaQian.Git do
   alias Oneiroi.SimaQian.Error
 
   @env [{"GIT_TERMINAL_PROMPT", "0"}]
+  @binary "git"
   @identity ["-c", "user.name=Oneiroi", "-c", "user.email=oneiroi@records.invalid"]
 
   @doc "Makes `dir` a repository on `main` if it is not one."
@@ -155,6 +156,60 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
+  @doc """
+  Fetches exactly `commit` of `remote` into a bare repository made at
+  `dir`, one commit deep, and checks the commit is there under its full
+  name: the originals import's source, read at the commit the witness
+  pins and never at a branch's head (sima-qian #40). A remote that
+  carries a token goes through `credentialed/2`, as a clone does.
+  """
+  @spec fetch_commit(String.t() | Secret.t(), String.t(), Path.t()) :: :ok | {:error, Error.t()}
+  def fetch_commit(remote, commit, dir) do
+    with :ok <- init_bare(dir),
+         {:ok, _} <-
+           credentialed(remote, fn url, config ->
+             git(dir, config ++ ["fetch", "-q", "--no-tags", "--depth=1", url, commit])
+           end),
+         {:ok, found} <- git(dir, ["rev-parse", "--verify", "-q", commit <> "^{commit}"]) do
+      if String.trim(found) == commit,
+        do: :ok,
+        else:
+          {:error,
+           Error.new(:sima_qian_git_failed, :sima_qian_git_fetch_commit_other,
+             output: "the fetch answered #{String.trim(found)} for #{commit}",
+             status: 0
+           )}
+    end
+  end
+
+  @doc "Every entry of `commit`'s tree, recursively: `%{mode, type, blob, path}`, the path from the root."
+  @spec tree(Path.t(), String.t()) :: {:ok, [map()]} | {:error, Error.t()}
+  def tree(dir, commit) do
+    with {:ok, out} <- git(dir, ["ls-tree", "-r", "-z", "--full-tree", commit]) do
+      {:ok,
+       out
+       |> String.split(<<0>>, trim: true)
+       |> Enum.map(fn line ->
+         [meta, path] = String.split(line, "\t", parts: 2)
+         [mode, type, blob] = String.split(meta, " ")
+         %{mode: mode, type: type, blob: blob, path: path}
+       end)}
+    end
+  end
+
+  @doc "A blob's bytes exactly, by its sha."
+  @spec blob(Path.t(), String.t()) :: {:ok, binary()} | {:error, Error.t()}
+  def blob(dir, sha), do: run(@binary, dir, ["cat-file", "blob", sha], false)
+
+  @doc "The git blob sha of a file on disk, in `dir`'s object format, read without any filter: what a copy is verified against."
+  @spec blob_sha(Path.t(), Path.t()) :: {:ok, String.t()} | {:error, Error.t()}
+  def blob_sha(dir, file) do
+    # Expanded, because git runs in `dir` and the records root may be
+    # relative (the suite's is).
+    with {:ok, out} <- git(dir, ["hash-object", "--no-filters", "--", Path.expand(file)]),
+         do: {:ok, String.trim(out)}
+  end
+
   @doc "Whether `dir` has a commit at `HEAD`."
   @spec head?(Path.t()) :: boolean()
   def head?(dir), do: match?({:ok, _}, git(dir, ["rev-parse", "--verify", "-q", "HEAD"]))
@@ -211,8 +266,6 @@ defmodule Oneiroi.SimaQian.Git do
     Secret.wrap(URI.to_string(%{uri | userinfo: "x-access-token:" <> token}))
   end
 
-  @binary "git"
-
   @doc "The binary this port runs, which the runtime image must carry."
   @spec binary() :: String.t()
   def binary, do: @binary
@@ -239,9 +292,13 @@ defmodule Oneiroi.SimaQian.Git do
   # reaches it: this module passes `@binary`, and only the port's own test
   # names another.
   # sobelow_skip ["CI.System"]
-  @spec run(String.t(), Path.t(), [String.t()]) :: {:ok, String.t()} | {:error, Error.t()}
-  def run(binary, dir, args) do
-    case System.cmd(binary, args, cd: dir, env: @env, stderr_to_stdout: true) do
+  #
+  # `merge_stderr` false keeps git's stdout as it wrote it, for a read of
+  # bytes (a blob) that a warning on stderr would otherwise corrupt.
+  @spec run(String.t(), Path.t(), [String.t()], boolean()) ::
+          {:ok, String.t()} | {:error, Error.t()}
+  def run(binary, dir, args, merge_stderr \\ true) do
+    case System.cmd(binary, args, cd: dir, env: @env, stderr_to_stdout: merge_stderr) do
       {out, 0} ->
         {:ok, out}
 

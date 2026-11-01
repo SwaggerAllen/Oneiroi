@@ -169,3 +169,29 @@ of her history before its push was refused, so her head carries our
 trailer and her root does not. The first version read the head, and
 would have skipped her. A history that began as ours keeps its commits
 for the retry.
+
+## #40
+The import of a resident took every folder the library held, byte for
+byte at the fork, and left `memory/` behind by name because no library
+kind held it; the day files then reached the library only as another
+platform's copies made before the fork, one cut short and one never
+made. The author: "we should make sure we import the originals"; "we
+only care about byte for byte identity up to the fork timestamp".
+
+A pinned commit because the source keeps changing after the fork on
+purpose, and the claim is identity with the source up to the fork,
+which only a commit names; a branch would take whatever the source
+became since. Fetched by sha one commit deep because that cannot read
+anything but the commit asked for. The blob check because a git blob
+sha is the source's own name for the bytes, so a copy that hashes to it
+is the source's file and nothing else is; checked after the copy and
+before any adoption, so a mismatch leaves no row claiming bytes that
+are not there, and the run's own copies are removed so the next run
+starts from what was there before. Never overwritten because a file in
+the repository with other bytes is something the platform did not put
+there, and the import cannot know which is right. The witness's
+because it reads a repository with a credential the witness holds, as
+the import does. Synchronous, not a job: it is one shallow fetch, the
+copies and one index run, and a run cut short is safe to repeat, since
+files already copied stand as the same blob and are adopted then. Its
+duration against a real source is not measured.

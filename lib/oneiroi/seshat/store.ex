@@ -35,6 +35,10 @@ defmodule Oneiroi.Seshat.Store do
       field(:written_by_kind, :string)
       field(:published_url, :string)
       field(:published_at, :utc_datetime_usec)
+      field(:source_repo, :string)
+      field(:source_commit, :string)
+      field(:source_path, :string)
+      field(:source_blob, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -198,6 +202,9 @@ defmodule Oneiroi.Seshat.Store do
           kind: d.kind,
           title: d.title,
           status: d.status,
+          source_repo: d.source_repo,
+          source_commit: d.source_commit,
+          source_path: d.source_path,
           distance: cosine_distance(c.embedding, ^vector)
         }
       )

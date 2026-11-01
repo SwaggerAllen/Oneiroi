@@ -98,7 +98,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.refusal("notes/a.md") =~ "outside the folders"
 
     assert Kinds.minting() == ~w(writing research design journal)
-    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence)
+    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory)
     assert Kinds.writable() == ~w(writing research design wiki posts)
   end
 

@@ -56,7 +56,11 @@ defmodule Oneiroi.Seshat.Projectors.Library do
         versions: 1,
         registered_at: e.at,
         written_at: e.at,
-        written_by_kind: actor_kind(e.actor)
+        written_by_kind: actor_kind(e.actor),
+        source_repo: provenance(e, "source"),
+        source_commit: provenance(e, "commit"),
+        source_path: provenance(e, "path"),
+        source_blob: provenance(e, "blob")
       },
       on_conflict: :nothing,
       conflict_target: [:resident_id, :path]
@@ -84,4 +88,11 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
   defp actor_kind(%{kind: kind}), do: Atom.to_string(kind)
   defp actor_kind(_other), do: nil
+
+  # An original's provenance (seshat #28): built with atom keys, read back
+  # from the log with string keys; nil on every other adoption.
+  defp provenance(%{provenance: %{} = p}, key),
+    do: Map.get(p, key) || Map.get(p, String.to_existing_atom(key))
+
+  defp provenance(_event, _key), do: nil
 end
