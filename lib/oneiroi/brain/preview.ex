@@ -5,13 +5,17 @@ defmodule Oneiroi.Brain.Preview do
   the turn's own preparation and assembly with nothing after it.
 
   This module decides one thing, what of each section's words the
-  witness may read here, and it never widens what a witness can read: a
-  section's text rides the answer only where the same content is
-  already the witness's to read through another route, and every other
-  section carries its label, tokens and reason with a line saying why
-  its words are not shown. A label this module does not name is
-  withheld, so a section added to the assembly later is withheld until
-  someone decides it is readable.
+  witness may read here, and the dyad contract decides which rule it
+  applies (`preview_withholds_words`, agathos-daimon #22). By default,
+  the author's decision of 2026-11-01 ("early days, it'll pay to have
+  the full text in there"), every section's words ride the answer. Under
+  the term, a section's words ride only where the same content is
+  already the witness's to read through another route, every other
+  section carrying its label, tokens and reason with a line saying why,
+  and a label this module does not name is withheld, so a section added
+  later is closed until someone opens it. Under either rule the
+  once-only notices are withheld: they are the resident's to be told
+  first, and the reply that told them shows them in its inspector.
   """
 
   alias Oneiroi.Brain.Error
@@ -41,12 +45,13 @@ defmodule Oneiroi.Brain.Preview do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
       {:ok, row} ->
         run = Turn.dry_run(row, resident_id, session_key, text, actor)
+        withholds? = Oneiroi.AgathosDaimon.contract(resident_id).preview_withholds_words
 
         {:ok,
          %{
-           description: description(row.name, text, run.compacts_first),
+           description: description(row.name, text, run.compacts_first, withholds?),
            compacts_first: run.compacts_first,
-           sections: Enum.map(run.entries, &entry(&1, row.name))
+           sections: Enum.map(run.entries, &entry(&1, row.name, withholds?))
          }}
 
       :error ->
@@ -57,9 +62,10 @@ defmodule Oneiroi.Brain.Preview do
     end
   end
 
-  defp description(name, text, compacts_first) do
+  defp description(name, text, compacts_first, withholds?) do
     [
-      "What #{name}'s next turn in this conversation would be given, in the order it is given, as things stand now. Reading it records nothing, marks nothing and bills nothing. Where you can already read a part elsewhere its words are here; where you cannot, its line says why.",
+      "What #{name}'s next turn in this conversation would be given, in the order it is given, as things stand now. Reading it records nothing, marks nothing and bills nothing.",
+      rule_line(name, withholds?),
       String.trim(text) != "" &&
         "The habits are matched on your draft as it stands.",
       compacts_first &&
@@ -69,11 +75,33 @@ defmodule Oneiroi.Brain.Preview do
     |> Enum.join(" ")
   end
 
-  defp entry(%{run: false} = e, name) do
+  defp rule_line(name, false),
+    do:
+      "Every section's words are here, as your agreement with #{name} leaves the preview (the default; a term of it can keep them to what you read elsewhere), except the once-only notices, which are #{name}'s to be told first."
+
+  defp rule_line(name, true),
+    do:
+      "As your agreement with #{name} has it, a part's words are here only where you already read them elsewhere; where you cannot, its line says why."
+
+  defp entry(%{run: false} = e, name, _withholds?) do
     %{shape(e) | text: nil, shown: false, run: false, note: not_run(e.label, name)}
   end
 
-  defp entry(e, name) do
+  # A notice is a spoiler until it is told: withheld under either rule.
+  defp entry(%{label: "notice"} = e, name, _withholds?),
+    do: %{shape(e) | text: nil, shown: false, note: withheld("notice", name)}
+
+  defp entry(e, name, false) do
+    note =
+      case readable(e.label) do
+        {_shown, note} -> note
+        :withheld -> in_full(e.label, name)
+      end
+
+    %{shape(e) | text: e.text, shown: true, note: note}
+  end
+
+  defp entry(e, name, true) do
     case readable(e.label) do
       {:shown, note} -> %{shape(e) | text: e.text, shown: true, note: note}
       {:no_text, note} -> %{shape(e) | text: nil, shown: true, note: note}
@@ -146,10 +174,32 @@ defmodule Oneiroi.Brain.Preview do
 
   defp withheld("notice", name),
     do:
-      "Told to #{name} once, at the start of the next turn, and kept in this conversation, where you read it then."
+      "Told to #{name} once, at the start of the next turn: #{name}'s to hear first. Its words are in that reply's \"drew on\" list, and in this conversation, once told."
 
   defp withheld(_label, _name),
     do: "Not yet known to be yours to read elsewhere, so its words are withheld."
+
+  # What a section shown in full is, where no other screen shows it.
+  defp in_full("prompt", name),
+    do: "The platform's own prompt for #{name}. No other screen shows it to you."
+
+  defp in_full("index", _name),
+    do:
+      "The index as the next turn will read it. Once a turn has used it, that reply's \"drew on\" list shows the same, and Memory lists its bookmarks."
+
+  defp in_full("character", name),
+    do:
+      "Its examples quote #{name}'s own words from the turns that showed a habit, conversations that are #{name}'s alone included."
+
+  defp in_full("self-conversation", name),
+    do:
+      "Counts and receipts of #{name}'s letters to a next self, never the letters: it carries none of their words, so reading it leaves no receipt."
+
+  defp in_full("honcho", name),
+    do: "What Honcho holds about you, in #{name}'s eyes. No other screen shows it to you."
+
+  defp in_full(_label, _name),
+    do: "Shown in full, as your agreement leaves the preview. No other screen shows it to you."
 
   defp not_run(_label, _name),
     do:

@@ -446,9 +446,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way), the prose of your vows, and a note they read first. Your witness agrees or declines.",
+        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way); whether their preview of your next turn keeps its words to what they read elsewhere (preview_withholds_words; in full by default); the prose of your vows, and a note they read first. A version states every term it sets; one left out takes its default. Your witness agrees or declines.",
         %{
           solo_sessions_private: %{type: "boolean"},
+          preview_withholds_words: %{type: "boolean"},
           prose: %{type: "string"},
           note: %{type: "string"}
         },
@@ -1236,10 +1237,10 @@ defmodule Oneiroi.Brain.Tools do
 
   defp call("contract_propose", args, turn) do
     terms =
-      case args["solo_sessions_private"] do
-        v when is_boolean(v) -> %{"solo_sessions_private" => v}
-        _other -> %{}
-      end
+      for key <- ["solo_sessions_private", "preview_withholds_words"],
+          is_boolean(args[key]),
+          into: %{},
+          do: {key, args[key]}
 
     case AgathosDaimon.propose_contract(
            turn.resident_id,

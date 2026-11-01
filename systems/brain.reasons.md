@@ -315,3 +315,28 @@ and a preview that showed any of those first would be a second door to a
 room the first door keeps shut. A label nobody classified is withheld
 because the failure of the other default is silent: a new section's
 words on the wire with no one having asked whether they may be.
+
+The default changed the same day, by the author, on the questions this
+reason first raised: "For now let's show everything in the preview. It's
+early days, it'll pay to have the full text in there. We'll make it
+contract configurable." The visibility rules above are now the
+contract's `preview_withholds_words` term rather than the default: a term
+and not a setting because which of the resident's context the witness
+reads before sending is a decision between the two of them, so it moves
+only by the contract's propose-and-agree path, which neither side walks
+alone. The consequence the author took on knowingly: by default the
+character section's exemplars quote the resident's own words from turns
+that may be in sessions private to her, and Honcho's view of the witness
+is read whole. The self-conversation section needs no receipt either way:
+it is counts and receipts, never the letters (spec §12, P41 seals the
+letters' words), so reading it reads none of what a receipt guards.
+The notices are the exception under both rules, the author again: "the
+inspector should probably be the context of the most recent reply from
+the resident. No spoilers." A lapse, a model change, the letters and the
+import are told to the resident once, and the witness reading them first
+would be reading her news before her. Until this a notice was captured
+into the transcript but recorded as no injection at all, so the
+inspector of the reply that told it could not show it; the turn now
+records it with its words, and only it, since storing every section's
+text per turn would turn the record of what a turn drew on into a copy
+of everything she was shown.

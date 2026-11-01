@@ -2,7 +2,8 @@ defmodule OneiroiWeb.ContextPreviewTest do
   @moduledoc """
   The two witness reads of what the resident is given (kumbukumbu #38,
   brain #41): Memory's index as it stands now, and Chat's preview of the
-  next turn; withheld words never on the wire; another account answered
+  next turn, whole by default and, under the contract's term, with
+  withheld words never on the wire; another account answered
   404 and an adapter's token refused before the controller.
   """
   use OneiroiWeb.ConnCase, async: false
@@ -97,7 +98,8 @@ defmodule OneiroiWeb.ContextPreviewTest do
     assert d =~ "0 bookmarks listed"
   end
 
-  test "the preview answers the sections, and withheld words are not on the wire", ctx do
+  test "the preview answers every section whole by default, and under the contract's term withheld words are not on the wire",
+       ctx do
     :ok = Oneiroi.Gaia.store_key(ctx.account.id, "sk-or-test", ctx.actor)
     :ok = AgathosDaimon.write_file(ctx.id, "SOUL.md", "# Soul\n\nCurious.", %{}, ctx.actor)
     Model.reply("I hear you.", for: ctx.id)
@@ -121,13 +123,34 @@ defmodule OneiroiWeb.ContextPreviewTest do
     assert %{"description" => _, "compacts_first" => false, "sections" => sections} =
              json_response(response, 200)
 
-    refute body =~ "HONCHO-ONLY"
-
+    # By default the preview is whole (the author's decision, round 44).
     by = Map.new(sections, &{&1["label"], &1})
+    assert %{"text" => "HONCHO-ONLY words", "shown" => true} = by["honcho"]
+    assert %{"text" => "#1 " <> _, "shown" => true} = by["index"]
+    assert %{"text" => "# SOUL.md" <> _, "shown" => true} = by["SOUL.md"]
+
+    # Under the contract's term, withheld words are not on the wire.
+    {:ok, version} =
+      AgathosDaimon.propose_contract(
+        ctx.id,
+        %{"preview_withholds_words" => true},
+        "",
+        "keep it to what I read",
+        ctx.actor
+      )
+
+    :ok = AgathosDaimon.agree_contract(ctx.id, version, "agreed", ctx.brain)
+
+    response =
+      ctx.conn |> post("/v1/residents/#{ctx.id}/sessions/#{ctx.key}/preview", %{text: "hi"})
+
+    refute response.resp_body =~ "HONCHO-ONLY"
+    by = response |> json_response(200) |> Map.fetch!("sections") |> Map.new(&{&1["label"], &1})
     assert %{"text" => nil, "shown" => false, "note" => note} = by["honcho"]
     assert note =~ "No screen shows it to you."
     assert %{"text" => nil, "shown" => false} = by["index"]
     assert %{"text" => "# SOUL.md" <> _, "shown" => true} = by["SOUL.md"]
+    assert body =~ "HONCHO-ONLY"
     assert %{"run" => false, "text" => nil} = by["madeleine"]
   end
 

@@ -74,7 +74,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  @doc "The contract as it stands: the version in force with its terms, the open proposal, and the solo-session privacy term as the schedule reads it."
+  @doc "The contract as it stands: the version in force with its terms, the open proposal, the solo-session privacy term as the schedule reads it, and the preview term as the brain's preview reads it (brain #41)."
   def contract(resident_id) do
     Scope.resident(resident_id, fn ->
       versions = Store.contracts()
@@ -90,6 +90,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
         in_force: in_force && shape(in_force),
         open: open && shape(open),
         solo_sessions_private: solo_private?(in_force),
+        preview_withholds_words: preview_withholds?(in_force),
         since: since,
         due:
           since != nil and DateTime.compare(DateTime.add(since, term, :day), Clock.now()) != :gt
@@ -219,15 +220,33 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp solo_private?(%{terms: terms}),
     do: Map.get(terms || %{}, "solo_sessions_private", false) == true
 
-  defp terms_words(terms) do
-    case Map.get(terms || %{}, "solo_sessions_private") do
-      true ->
-        "your solo sessions (free time, hands) are hidden from your witness entirely, their receipts included, until you share one."
+  # The preview term (brain #41): absent is the default, the preview in
+  # full; true keeps its words to what the witness reads elsewhere.
+  defp preview_withholds?(nil), do: false
 
-      _other ->
-        "your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
-    end
+  defp preview_withholds?(%{terms: terms}),
+    do: Map.get(terms || %{}, "preview_withholds_words", false) == true
+
+  defp terms_words(terms) do
+    solo =
+      case Map.get(terms || %{}, "solo_sessions_private") do
+        true ->
+          "your solo sessions (free time, hands) are hidden from your witness entirely, their receipts included, until you share one."
+
+        _other ->
+          "your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
+      end
+
+    solo <> " " <> preview_words(Map.get(terms || %{}, "preview_withholds_words"))
   end
+
+  defp preview_words(true),
+    do:
+      "Your witness's preview of your next turn shows its words only where they read them elsewhere."
+
+  defp preview_words(_default),
+    do:
+      "Your witness may preview your next turn's context in full before sending, its once-only notices excepted."
 
   defp shape(c) do
     %{

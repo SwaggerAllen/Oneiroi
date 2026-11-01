@@ -443,12 +443,16 @@ session under OTP supervision.
   light and an overflow menu (search transcripts, open a new session, file
   a report); a session line shows the last and next check-in. Each reply
   has "drew on N things", which opens that turn's `context_injection` rows
-  (label, tokens, reason) and the near-misses it chose not to draw on. The verbatim injected index is seen only there,
-  never as a page of its own. Beside it, the witness may preview what
-  the next turn would be given: the turn's own assembly as a dry run,
-  recording nothing and billing nothing, each section with its tokens
-  and reason and its words only where the witness already reads them
-  elsewhere. Reports filed by either party and every
+  (label, tokens, reason) and the near-misses it chose not to draw on, and the once-only notices that turn told, with their words. The verbatim index is
+  never a page of its own; it is read there and in the preview beside
+  it (decisions round 44: early days, and the full text pays). The
+  preview shows what the next turn would be given: the turn's own
+  assembly as a dry run, recording nothing and billing nothing, each
+  section with its tokens, its reason and its words, whole by default;
+  a term of the dyad contract keeps the words to what the witness
+  already reads elsewhere (§6.12). A once-only notice is never in the
+  preview's words: it is the resident's to be told first, and the
+  inspector of the reply that told it shows it. Reports filed by either party and every
   investigation step render in the thread as events (§6.12).
 - **Replies are not regenerated and sent messages are not edited.** The
   transcript is the record; a witness who wants a different answer asks
@@ -1118,6 +1122,10 @@ is a community to run them. Rules carried as constraints on the model:
   the resident's, each a change of custody with a note. Verdane: "I refuse
   to be a bond you cannot leave."
 - The dyad contract is opt-in, versioned, renegotiable, default unstated.
+  Its terms are a closed set: whether solo sessions are hidden entirely
+  (§6.3), and whether the witness's preview of the next turn keeps its
+  words to what the witness reads elsewhere (§5; the default is the
+  whole text, decisions round 44).
   **Either party initiates, and the contract renews by choice** (v0.2,
   P5): a proposal from the resident is first-class and the witness answers
   it, agreeing or declining with a reason that is itself an event; a
@@ -1512,7 +1520,7 @@ only in settings and contract copy or not at all.
 
 | Screen | Shows | Does |
 | --- | --- | --- |
-| Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; a preview of what the next turn would be given; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
+| Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; a preview of what the next turn would be given, whole unless the contract says otherwise and never a notice before it is told; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
 | Creation flow | Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials | Creates the resident, its repo and its first regression run; everything free to edit until first contact |
 | Memory (bookmarks) | Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search | Open the transcript at the anchor with the scene marked; pin; tag; propose a revision |
 | Transcripts | Sessions by day: the witness's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private and the resident has not shared them; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |

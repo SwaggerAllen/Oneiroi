@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewOpen, PreviewClosed } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +12,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewOpen, PreviewClosed]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -44,8 +44,18 @@ describe('Chat', () => {
     expect(screen.getByText('drew on 4 things')).toBeTruthy();
   });
 
+  it('the preview renders the server sections whole, and a notice by its note alone', () => {
+    render(<PreviewWhole />);
+    const items = screen.getAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('strong')?.textContent)).toEqual(['prompt', 'index', 'honcho', 'transcript', 'notice']);
+    expect(screen.getByText(/Walks to the weir/)).toBeTruthy();
+    expect(items[1].querySelector('pre')?.textContent).toContain('#1 2026-10-26 the garden');
+    expect(items[4].querySelector('pre')).toBeNull();
+    expect(screen.getByText(/to hear first/)).toBeTruthy();
+  });
+
   it('the preview renders the server sections in order: words where sent, the note where withheld', () => {
-    render(<PreviewOpen />);
+    render(<PreviewUnderTerm />);
     const items = screen.getAllByRole('listitem');
     expect(items.map((li) => li.querySelector('strong')?.textContent)).toEqual([
       'prompt',

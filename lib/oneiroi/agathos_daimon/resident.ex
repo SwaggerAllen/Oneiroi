@@ -47,7 +47,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     exported_letters: MapSet.new()
   ]
 
-  @contract_terms ~w(solo_sessions_private)
+  # The contract's closed terms (spec §6.12): whether solo sessions are
+  # hidden entirely, and whether the witness's preview of the next turn
+  # keeps its words to what the witness reads elsewhere (brain #41).
+  @contract_terms ~w(solo_sessions_private preview_withholds_words)
   @prose_limit 4_000
 
   @roles ~w(brain reader worker)

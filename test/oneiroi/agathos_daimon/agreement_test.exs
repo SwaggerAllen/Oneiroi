@@ -136,6 +136,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
                  name: "contract_propose",
                  arguments: %{
                    solo_sessions_private: false,
+                   preview_withholds_words: true,
                    prose: "Let us share.",
                    note: "I changed my mind"
                  }
@@ -159,7 +160,21 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
       Enum.find_index(shown, &(&1.role == :system and &1.content =~ "bookmark is listed"))
 
     assert is_integer(contract_at) and is_integer(index_at) and contract_at < index_at
-    assert %{open: %{version: 5, proposed_by: "resident"}} = AgathosDaimon.contract(id)
+    # The preview term (brain #41) rides the same path, both terms stated.
+    assert %{
+             open: %{
+               version: 5,
+               proposed_by: "resident",
+               terms: %{"solo_sessions_private" => false, "preview_withholds_words" => true}
+             },
+             preview_withholds_words: false
+           } = AgathosDaimon.contract(id)
+
+    assert AgathosDaimon.contract_text(id) =~
+             "Open, version 5, proposed by the resident: your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it. Your witness's preview of your next turn shows its words only where they read them elsewhere."
+
+    assert AgathosDaimon.contract_text(id) =~
+             "In force, version 4: your solo sessions (free time, hands) are hidden from your witness entirely, their receipts included, until you share one. Your witness may preview your next turn's context in full before sending, its once-only notices excepted."
   end
 
   test "the contract renews by choice: due a year after it was agreed or last renewed, a flag and never a lapse; renewed by either party",

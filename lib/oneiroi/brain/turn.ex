@@ -148,7 +148,10 @@ defmodule Oneiroi.Brain.Turn do
     turn = prepare(row, resident_id, session_key, text, actor, opts)
     Compaction.maybe(turn)
     {messages, injections} = assemble(row, turn, text)
-    turn = %{turn | injections: injections}
+    # The once-only notices are recorded with their words on the turn
+    # that tells them, so the reply's inspector shows what it was told
+    # (brain #41); every other section keeps the text it kept before.
+    turn = %{turn | injections: injections ++ notice_injections(turn)}
     broadcast(resident_id, session_key, {:turn_started, turn.turn_ref})
 
     turn
@@ -233,18 +236,23 @@ defmodule Oneiroi.Brain.Turn do
         }
       end)
 
-    notices =
-      Enum.zip_with(turn.notice_kinds, turn.notices, fn kind, notice ->
-        %{
-          label: "notice",
-          tokens: tokens(notice.content),
-          reason: notice_reason(kind),
-          text: notice.content,
-          run: true
-        }
-      end)
+    notices = Enum.map(notice_injections(turn), &Map.put(&1, :run, true))
 
     %{entries: entries ++ notices, compacts_first: Compaction.due?(turn)}
+  end
+
+  # One injection a notice, after the transcript as the notices follow
+  # the history in the request: label, tokens, the kind as the reason,
+  # and the words, for the inspector of the reply that told them.
+  defp notice_injections(turn) do
+    Enum.zip_with(turn.notice_kinds, turn.notices, fn kind, notice ->
+      %{
+        label: "notice",
+        tokens: tokens(notice.content),
+        reason: notice_reason(kind),
+        text: notice.content
+      }
+    end)
   end
 
   defp notice_reason(:lapse), do: "the lapse, told once (spec §6.11)"

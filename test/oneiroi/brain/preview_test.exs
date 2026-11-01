@@ -68,10 +68,12 @@ defmodule Oneiroi.Brain.PreviewTest do
   defp comparable(rows),
     do:
       rows
-      |> Enum.reject(&(&1.label in ["madeleine", "notice"]))
+      |> Enum.reject(&(&1.label == "madeleine"))
       |> Enum.map(&{&1.label, &1.tokens, &1.reason})
 
   test "the preview's sections are the turn's, in the turn's order, by the one assembly", ctx do
+    # A notice owed, so the once-only part is compared too.
+    :ok = AgathosDaimon.pin_model(ctx.id, "fake/second", "witness", ctx.actor)
     {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "the heron", ctx.actor)
 
     Model.reply("Yes.", for: ctx.id)
@@ -84,7 +86,7 @@ defmodule Oneiroi.Brain.PreviewTest do
 
     labels = Enum.map(preview.sections, & &1.label)
 
-    for label <- ~w(prompt SOUL.md AGENTS.md index near-miss promised honcho transcript),
+    for label <- ~w(prompt SOUL.md AGENTS.md index near-miss promised honcho transcript notice),
         do: assert(label in labels, "#{label} missing from #{inspect(labels)}")
 
     # The madeleine has its place, and says it was not run.
@@ -151,8 +153,7 @@ defmodule Oneiroi.Brain.PreviewTest do
     assert [] = Seal.assert_unchanged(before, ctx.id)
   end
 
-  test "words ride only where the witness reads them elsewhere; every other section says why",
-       ctx do
+  defp seed_private_parts(ctx) do
     {:ok, 1} =
       Oneiroi.Ethos.define_habit(
         ctx.id,
@@ -161,6 +162,47 @@ defmodule Oneiroi.Brain.PreviewTest do
       )
 
     {:ok, _number} = AgathosDaimon.write_self_letter(ctx.id, "LETTER-ONLY words", ctx.brain)
+  end
+
+  test "by default every section's words ride the preview, the self-conversation as counts and receipts and never the letters",
+       ctx do
+    seed_private_parts(ctx)
+    {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "the heron", ctx.actor)
+    by = Map.new(preview.sections, &{&1.label, &1})
+
+    for label <- ~w(prompt SOUL.md AGENTS.md index character promised self-conversation honcho) do
+      assert %{text: text, shown: true, note: note} = by[label]
+      assert is_binary(text) and text != "", "#{label} carried no text"
+      assert note != ""
+    end
+
+    assert by["prompt"].text =~ "You are Lily"
+    assert by["index"].text =~ "bookmark number"
+    assert by["character"].text =~ "names the birds"
+    assert by["honcho"].text =~ "HONCHO-ONLY"
+    assert by["self-conversation"].text =~ "1 written"
+    # The section is counts and receipts: the letter's words are not in it.
+    refute Enum.map_join(preview.sections, "\n", &(&1.text || "")) =~ "LETTER-ONLY"
+    assert by["transcript"].text == nil and by["transcript"].shown
+    assert preview.description =~ "Every section's words are here"
+    assert preview.description =~ "matched on your draft"
+  end
+
+  test "under the contract's term, words ride only where the witness reads them elsewhere; every other section says why",
+       ctx do
+    seed_private_parts(ctx)
+
+    {:ok, version} =
+      AgathosDaimon.propose_contract(
+        ctx.id,
+        %{"preview_withholds_words" => true},
+        "",
+        "keep the preview to what you read",
+        ctx.actor
+      )
+
+    :ok = AgathosDaimon.agree_contract(ctx.id, version, "agreed", ctx.brain)
+    assert %{preview_withholds_words: true} = AgathosDaimon.contract(ctx.id)
 
     {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "the heron", ctx.actor)
     by = Map.new(preview.sections, &{&1.label, &1})
@@ -172,7 +214,7 @@ defmodule Oneiroi.Brain.PreviewTest do
 
     assert by["SOUL.md"].text =~ "Curious about herons."
     assert by["promised"].text =~ "I will look for the heron."
-    assert by["transcript"].text == nil and by["transcript"].shown
+    assert by["contract"].text =~ "shows its words only where they read them elsewhere"
 
     assert Enum.all?(
              Enum.filter(preview.sections, &(&1.label == "near-miss")),
@@ -183,6 +225,35 @@ defmodule Oneiroi.Brain.PreviewTest do
     refute words =~ "HONCHO-ONLY"
     refute words =~ "names the birds"
     refute words =~ "LETTER-ONLY"
-    assert preview.description =~ "matched on your draft"
+    assert preview.description =~ "only where you already read them elsewhere"
+  end
+
+  test "a once-only notice is no part of the preview's words before it is told, and is in that reply's inspector after",
+       ctx do
+    :ok = AgathosDaimon.pin_model(ctx.id, "fake/second", "witness", ctx.actor)
+    {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "", ctx.actor)
+
+    assert [%{text: nil, shown: false, reason: reason, note: note}] =
+             Enum.filter(preview.sections, &(&1.label == "notice"))
+
+    assert reason =~ "the change of model"
+    assert note =~ "to hear first"
+    refute Enum.map_join(preview.sections, "\n", &(&1.text || "")) =~ "fake/second"
+
+    Model.reply("Noted.", for: ctx.id)
+
+    {:ok, %{turn_ref: ref, messages: [told | _]}} =
+      Oneiroi.Brain.turn(ctx.id, ctx.key, "hello", ctx.actor)
+
+    assert [%{label: "notice", text: text, reason: ^reason}] =
+             {:account, ctx.witness.id}
+             |> Kumbukumbu.injections(ref)
+             |> Enum.filter(&(&1.label == "notice"))
+
+    assert text == told.content and text =~ "fake/second"
+
+    # Told once: the next preview has no notice.
+    {:ok, after_told} = Oneiroi.Brain.preview(ctx.id, ctx.key, "", ctx.actor)
+    refute Enum.any?(after_told.sections, &(&1.label == "notice"))
   end
 end
