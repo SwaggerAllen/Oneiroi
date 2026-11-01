@@ -240,7 +240,7 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_a_party, "the contract is the dyad's: the resident and its witness",
        remedy: "propose or decide as one of the two"},
       {:agathos_daimon_terms_invalid,
-       "the terms are a map of the closed keys (solo_sessions_private) to true or false",
+       "the terms are a map of the closed keys (solo_sessions_private, preview_withholds_words) to true or false",
        remedy: "name the terms the contract knows"},
       {:agathos_daimon_prose_invalid, "the contract's prose is at most 4,000 characters",
        remedy: "say it shorter"},

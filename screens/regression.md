@@ -11,7 +11,11 @@ starting a run on models named by their OpenRouter slugs, over every
 test or the ones chosen; the runs, newest first; a run's cards arriving
 over its channel while it answers (eunomia #30), blind until every
 answer to a test is graded, graded pass or fail, favourited, a refusal
-in its words and a failure as no answer; the results by pass rate once
+in its words and a failure as no answer, and under each answer a
+collapsed "How Lily got there" (the resident's name) listing the
+trial's tool calls in order, each marked read or mocked, with its
+arguments and, behind a further fold, what came back, a cut result
+said to be cut (eunomia #31); the results by pass rate once
 revealed, and the pin, which confirms in place. A refused request shows
 the server's meaning, with its site and request id as a reference. Not
 built: the swipe (buttons grade), the by-test matrix and the by-model

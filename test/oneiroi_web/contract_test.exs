@@ -565,7 +565,10 @@ defmodule OneiroiWeb.ContractTest do
 
     assert %{
              "run" => %{"cards" => 2, "state" => "finished"},
-             "cards" => [%{"model" => nil, "card_ref" => c1}, %{"model" => nil, "card_ref" => c2}],
+             "cards" => [
+               %{"model" => nil, "card_ref" => c1, "trace" => []},
+               %{"model" => nil, "card_ref" => c2, "trace" => []}
+             ],
              "results" => []
            } =
              conn |> get("/v1/residents/#{id}/regression/runs/#{ref}") |> json_response(200)

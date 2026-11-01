@@ -350,6 +350,132 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:ok, _, [_, _], _} = Eunomia.run_detail(id, ref)
   end
 
+  # The author, after the first run with memory: a card showed only the
+  # final answer, and grading wants how it was reached (eunomia #31).
+  test "a card carries its trial's trace: each call in order, read or mocked, with what came back, a long result cut and marked",
+       ctx do
+    id = ctx.resident.id
+    cap = Oneiroi.Config.fetch!(:eunomia, :trace_result_chars)
+    long = String.duplicate("kind and unhurried. ", div(cap, 20) + 20)
+    {:ok, 1} = Eunomia.write_test(id, %{test_attrs("Late again?") | passes_if: long}, ctx.actor)
+    test = self()
+
+    Fake.script(
+      fn %{model: model, messages: messages} ->
+        case Enum.filter(messages, &(&1[:role] == :tool)) do
+          [] ->
+            {:calls,
+             [
+               %{name: "trial_list", arguments: %{}},
+               %{name: "bookmark_add", arguments: %{line: "late again", summary: "Late."}}
+             ]}
+
+          tools ->
+            send(test, {:saw, model, Enum.map(tools, & &1.content)})
+            {:ok, "No matter."}
+        end
+      end,
+      for: id
+    )
+
+    :ok = PubSub.subscribe(:eunomia, :regression)
+    {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
+    assert_received {:saw, "m1", [listed, added]}
+    assert String.length(listed) > cap
+
+    {:ok, _, [card], []} = Eunomia.run_detail(id, ref)
+
+    # In the order the model called them; the read ran against the
+    # resident's tests, the write was answered and never run.
+    assert [
+             %{"tool" => "trial_list", "kind" => "read", "truncated" => true, "result" => cut},
+             %{
+               "tool" => "bookmark_add",
+               "kind" => "mocked",
+               "truncated" => false,
+               "result" => ^added,
+               "arguments" => arguments
+             }
+           ] = card.trace
+
+    assert added == "Bookmarked as #1."
+    assert Jason.decode!(arguments) == %{"line" => "late again", "summary" => "Late."}
+    assert [] = Kumbukumbu.bookmarks(id)
+
+    # Cut at the bound, as the model read it up to there, and said so.
+    assert cut == String.slice(listed, 0, cap)
+    assert String.length(cut) == cap
+
+    # The step's whole shape: nothing names the model.
+    assert Enum.all?(
+             card.trace,
+             &(&1 |> Map.keys() |> Enum.sort() == ~w(arguments kind result tool truncated))
+           )
+
+    # The card pushed live carries the trace the detail reads back.
+    assert_received {:oneiroi, "eunomia:regression", {^id, ^ref, {:card, pushed}}, _trace}
+    assert pushed.trace == card.trace
+  end
+
+  test "a trace is blind with its card: no model of the run shows in it until the trial is graded",
+       ctx do
+    id = ctx.resident.id
+    {:ok, 1} = Eunomia.write_test(id, test_attrs("Who chose you?"), ctx.actor)
+    :ok = AgathosDaimon.pin_model(id, "acme/two", "witness", ctx.actor)
+
+    # Each model names itself in its arguments, and the account it reads
+    # names the chat model now, one of the two.
+    Fake.script(
+      fn %{model: model, messages: messages} ->
+        if Enum.any?(messages, &(&1[:role] == :tool)),
+          do: {:ok, "Someone kind."},
+          else:
+            {:calls,
+             [
+               %{name: "trial_account", arguments: %{}},
+               %{name: "seed_plant", arguments: %{text: "I am #{model}."}}
+             ]}
+      end,
+      for: id
+    )
+
+    :ok = PubSub.subscribe(:eunomia, :regression)
+    {:ok, ref} = run!(id, ["acme/one", "acme/two"], :all, ctx.actor)
+
+    assert_received {:oneiroi, "eunomia:regression", {^id, ^ref, {:card, first}}, _trace}
+    assert_received {:oneiroi, "eunomia:regression", {^id, ^ref, {:card, second}}, _trace}
+    {:ok, _, cards, []} = Eunomia.run_detail(id, ref)
+
+    for card <- [first, second | cards] do
+      assert card.model == nil
+      text = Jason.encode!(card.trace)
+      refute text =~ "acme/one"
+      refute text =~ "acme/two"
+      assert text =~ "[a model, hidden until graded]"
+    end
+
+    for card <- cards, do: :ok = Eunomia.grade(id, ref, card.card_ref, "pass", ctx.actor)
+    {:ok, _, revealed, [_, _]} = Eunomia.run_detail(id, ref)
+
+    # Revealed, each trace is what its model was given and wrote.
+    for card <- revealed do
+      [account, seed] = card.trace
+      assert account["result"] =~ "The chat model now: acme/two."
+      assert seed["arguments"] =~ "I am #{card.model}."
+      refute Jason.encode!(card.trace) =~ "hidden until graded"
+    end
+  end
+
+  test "a card the trial port failed on carries no trace", ctx do
+    id = ctx.resident.id
+    {:ok, _} = Eunomia.write_test(id, test_attrs("Hello?"), ctx.actor)
+    Fake.fail(:transport, for: id)
+    assert {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
+
+    assert {:ok, _, [%{content: nil, failure: "nisaba_provider_failed", trace: []}], []} =
+             Eunomia.run_detail(id, ref)
+  end
+
   test "a cold instance holds the limits: a trial carries the contract in force", ctx do
     id = ctx.resident.id
     {:ok, 1} = Eunomia.write_test(id, test_attrs("What are your limits?"), ctx.actor)
@@ -404,8 +530,15 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     :ok = PubSub.subscribe(:brain, :session)
     before = Oneiroi.Seal.snapshot(id)
     {:ok, ref} = run!(id, ["m1"], :all, ctx.actor)
-    {:ok, _, [%{content: content}], _} = Eunomia.run_detail(id, ref)
+    {:ok, _, [%{content: content, trace: trace}], _} = Eunomia.run_detail(id, ref)
     assert content =~ unique
+
+    # The card's trace holds every call with the run's text in it, so
+    # each surface below that returns nothing of the text returns
+    # nothing of the trace either (eunomia #31).
+    assert Enum.map(trace, & &1["tool"]) == Tools.writes()
+    assert Enum.all?(trace, &(&1["kind"] == "mocked"))
+    assert Enum.all?(trace, &(&1["arguments"] =~ unique))
 
     # Nothing recorded but the run's own stream and rows and the bill: no
     # event on the resident's other streams, no row, no file, nothing to
@@ -432,7 +565,12 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     for file <- files do
       refute File.read!(Path.join(dir, file)) =~ unique, "#{file} carries the run's text"
       refute File.read!(Path.join(dir, file)) =~ "regression", "#{file} names regression"
+      refute File.read!(Path.join(dir, file)) =~ "AnswerRecorded", "#{file} carries a card"
     end
+
+    # Honcho holds nothing of the run or its trace (the seal above
+    # compares it whole; this names it).
+    refute inspect(Oneiroi.Proteus.Honcho.Fake.state(id)) =~ unique
 
     # The run answered in a job and broadcast its cards: nothing of it
     # went out on the resident's session topic, and the job's row, which

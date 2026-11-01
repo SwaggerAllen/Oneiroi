@@ -3,6 +3,8 @@ import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
   Bookmark,
+  ContextPreview,
+  IndexNow,
   Injection,
   Ledger as LedgerData,
   Message,
@@ -89,6 +91,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
   const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [preview, setPreview] = useState<ContextPreview | null>(null);
 
   const reload = useCallback(
     (k: string) =>
@@ -129,7 +132,19 @@ function ChatContainer({ resident }: { resident: Resident }) {
       drewOn={drewOn}
       injections={injections}
       sending={sending}
+      preview={preview}
+      onPreview={(draft) => {
+        if (preview) {
+          setPreview(null);
+          return;
+        }
+        api
+          .preview(resident.id, key, draft)
+          .then(setPreview)
+          .catch(() => setPreview(null));
+      }}
       onSend={(text) => {
+        setPreview(null);
         setSending(true);
         api
           .send(resident.id, key, text)
@@ -165,9 +180,11 @@ function ChatContainer({ resident }: { resident: Resident }) {
 function MemoryContainer({ resident }: { resident: Resident }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [index, setIndex] = useState<IndexNow | null>(null);
   const load = useCallback(() => {
     api.bookmarks(resident.id).then(setBookmarks);
     api.tags(resident.id).then(setTags);
+    api.indexNow(resident.id).then(setIndex);
   }, [resident.id]);
   useEffect(() => load(), [load]);
   return (
@@ -175,7 +192,7 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       residentName={resident.name}
       bookmarks={bookmarks}
       tags={tags}
-      indexBudget={1500}
+      index={index}
       onPin={(n) => api.pin(resident.id, n).then(load)}
       onUnpin={(n) => api.unpin(resident.id, n).then(load)}
     />

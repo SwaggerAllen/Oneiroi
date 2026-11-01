@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Bookmark, Tag } from '../../api/types';
+import type { Bookmark, IndexNow, Tag } from '../../api/types';
 import { BookmarkCard } from '../../components/BookmarkCard';
 import { EmptyState } from '../../components/EmptyState';
 import { Tabs } from '../../components/Tabs';
@@ -9,7 +9,9 @@ export interface MemoryProps {
   residentName: string;
   bookmarks: Bookmark[];
   tags: Tag[];
-  indexBudget: number;
+  // What the index holds now, as the server built and worded it; null
+  // until it has answered.
+  index: IndexNow | null;
   onPin?: (number: number) => void;
   onUnpin?: (number: number) => void;
   onOpen?: (bookmark: Bookmark) => void;
@@ -19,12 +21,19 @@ type TabId = 'index' | 'all' | 'pinned' | `tag:${string}`;
 
 // Memory (spec §10): rows with pin or index marker, the line, when, who
 // bookmarked, who pinned, the span, tags; tabs In the index (with the
-// budget as a caption), All, Pinned, and one per tag; search.
-export function Memory({ residentName, bookmarks, tags, indexBudget, onPin, onUnpin, onOpen }: MemoryProps) {
+// server's own description as a caption), All, Pinned, and one per tag;
+// search. The index tab lists what the server says the index holds now,
+// in its order; the client knows nothing of how the index is built.
+export function Memory({ residentName, bookmarks, tags, index, onPin, onUnpin, onOpen }: MemoryProps) {
   const [tab, setTab] = useState<TabId>('index');
   const [query, setQuery] = useState('');
   const active = tags.filter((t) => t.state === 'active');
-  const inIndex = bookmarks.filter((b) => b.last_indexed_at !== null);
+  const byNumber = new Map(bookmarks.map((b) => [b.number, b]));
+  const listed = new Set(index?.listed ?? []);
+  const inIndex = (index?.listed ?? []).flatMap((n) => {
+    const b = byNumber.get(n);
+    return b ? [b] : [];
+  });
   const pinned = bookmarks.filter((b) => b.pinned_at !== null);
   const tabs: Array<{ id: TabId; label: string; count?: number }> = [
     { id: 'index', label: 'In the index', count: inIndex.length },
@@ -59,9 +68,9 @@ export function Memory({ residentName, bookmarks, tags, indexBudget, onPin, onUn
           }}
         />
         <Tabs tabs={tabs} current={tab} onChange={setTab} />
-        {tab === 'index' ? (
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-faint)' }}>
-            Injected every turn under {indexBudget} tokens, a bound; pins take at most half.
+        {tab === 'index' && index ? (
+          <p style={{ margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--ink-faint)', overflowWrap: 'anywhere' }}>
+            {index.description}
           </p>
         ) : null}
       </div>
@@ -70,7 +79,15 @@ export function Memory({ residentName, bookmarks, tags, indexBudget, onPin, onUn
           <EmptyState text={bookmarks.length === 0 ? `${residentName} has not bookmarked anything yet.` : 'Nothing here.'} />
         ) : (
           rows.map((b) => (
-            <BookmarkCard key={b.number} bookmark={b} residentName={residentName} onPin={onPin} onUnpin={onUnpin} onOpen={onOpen} />
+            <BookmarkCard
+              key={b.number}
+              bookmark={b}
+              residentName={residentName}
+              inIndex={listed.has(b.number)}
+              onPin={onPin}
+              onUnpin={onUnpin}
+              onOpen={onOpen}
+            />
           ))
         )}
       </main>

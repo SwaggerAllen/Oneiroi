@@ -51,6 +51,35 @@ export interface Injection {
   text: string | null;
 }
 
+// What the index holds now (kumbukumbu #38): the numbers listed, in the
+// index's order, and the server's own words for the rule. The client
+// renders these and restates nothing of how the index is built.
+export interface IndexNow {
+  listed: number[];
+  left_out: number;
+  elsewhere: number;
+  description: string;
+}
+
+// One section of the next turn's preview (brain #41), decided and worded
+// by the server: `text` is null where the words are withheld or there
+// are none, and `note` says where else they are read, or why not.
+export interface PreviewSection {
+  label: string;
+  tokens: number;
+  reason: string;
+  text: string | null;
+  shown: boolean;
+  run: boolean;
+  note: string;
+}
+
+export interface ContextPreview {
+  description: string;
+  compacts_first: boolean;
+  sections: PreviewSection[];
+}
+
 export interface Turn {
   turn_ref: string;
   messages: Array<{ role: string; content: string; sent_at: string; actor: Actor; refusal: boolean }>;
@@ -154,6 +183,19 @@ export interface RegressionRun {
 
 export type Grade = 'pass' | 'fail';
 
+// One tool call of a trial's turn, in order (eunomia #31): a read ran
+// against the resident's records, a mocked call was answered as on
+// success and never run. `result` is what the model was given back, cut
+// at the server's bound when `truncated`. Blind with its card: while
+// `model` is null, the run's model names in it are replaced.
+export interface TraceStep {
+  tool: string;
+  arguments: string;
+  kind: 'read' | 'mocked';
+  result: string;
+  truncated: boolean;
+}
+
 export interface RegressionCard {
   card_ref: string;
   test_number: number | null;
@@ -165,6 +207,9 @@ export interface RegressionCard {
   grade: Grade | null;
   favourite: boolean;
   model: string | null;
+  // Empty for a card that called no tool, failed, or was recorded before
+  // traces were kept.
+  trace: TraceStep[];
 }
 
 export interface RegressionResult {

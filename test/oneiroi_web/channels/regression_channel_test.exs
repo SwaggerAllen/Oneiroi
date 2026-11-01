@@ -57,7 +57,15 @@ defmodule OneiroiWeb.RegressionChannelTest do
     assert %{discard: 0, failure: 0, success: 1} =
              Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
 
-    assert_push "card", %{model: nil, test_number: 1, content: "hello back", card_ref: c1}
+    # With its trace (eunomia #31): this trial called no tool.
+    assert_push "card", %{
+      model: nil,
+      test_number: 1,
+      content: "hello back",
+      card_ref: c1,
+      trace: []
+    }
+
     assert_push "card", %{model: nil, test_number: 1, card_ref: c2}
     assert_push "finished", %{state: "finished", cards: 2}
     refute_push "finished", _

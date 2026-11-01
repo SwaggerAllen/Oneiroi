@@ -1224,3 +1224,47 @@ and nothing personal turned up; what follows is what changed.
   repository a repository if it is not one yet, as on any turn: an
   empty `git init` carrying nothing of the trial, for a resident who has
   never written a document.
+
+## Round 44: what the index holds now, and what she will see next (2026-11-01)
+
+- The author, after an import: "in memory -> in the index nothing is
+  listed." The tab filtered on `last_indexed_at`, set only by a live
+  turn's `ContextAssembled`, so a resident with no live turn since
+  arriving showed an empty index over a full memory. The row's marker
+  now means the index holds the bookmark now (the server's build for
+  the common room, the main conversation's room), and `last_indexed_at`
+  stays as when a turn last listed it (spec §6.3 amended; kumbukumbu
+  #38).
+- The client knows nothing of how context is made (the author): the
+  index's budget, its pin share and its order, and the preview's
+  sections, order and withholding, are the server's, sent as numbers and
+  sentences the client renders. The hardcoded budget is gone.
+- The preview of the next turn sits beside the inspector in Chat (spec
+  §5 and §10 amended; brain #41): the turn's own assembly as a dry run,
+  recording nothing and billing nothing; the madeleine not run and the
+  vector lane left out, each saying so.
+- Its words, the author on the questions this round first left open:
+  "For now let's show everything in the preview. It's early days, it'll
+  pay to have the full text in there. We'll make it contract
+  configurable." Whole by default, the prompt, the index's own text, the
+  character section with its exemplars, the self-conversation section
+  and Honcho's context included; the contract's new closed term
+  `preview_withholds_words` keeps them to what the witness reads
+  elsewhere, changed only by propose and agree (spec §6.12 amended,
+  agathos-daimon #22). Spec §5's "the verbatim injected index is seen
+  only there" is changed to allow the preview: the index is still never
+  a page of its own. Known and taken: by default the exemplars can quote
+  the resident's words from sessions private to her. The
+  self-conversation section is counts and receipts, never the letters,
+  so it needs no receipt.
+- No spoilers (the author): "the inspector should probably be the
+  context of the most recent reply from the resident." A once-only
+  notice is never in the preview's words, under either rule; the turn
+  that tells it records it as an injection with its words, so that
+  reply's inspector shows it. No other section's text is newly recorded.
+- `bookmark_list` pages back through the bookmarks within the room,
+  pins alone on asking, and the index's footer counts the pins its half
+  left out (kumbukumbu #39, brain #10). No law change: spec §8 already
+  gives the brain `bookmark_*`.
+- Open: whether the Memory tab follows a named room's conversation once
+  the client lists rooms ("Not sure right now, probably").

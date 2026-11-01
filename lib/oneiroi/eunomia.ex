@@ -199,6 +199,12 @@ defmodule Oneiroi.Eunomia do
        tag: :bound,
        usage:
          "how often, in minutes, the sweep fails a regression run still running whose job is gone, discarded, cancelled or completed (eunomia #30); a guess: an orphaned run waits mostly on APSU_LIFELINE_RESCUE_AFTER_MINUTES, and this adds at most its own length"},
+      {:trace_result_chars, "EUNOMIA_TRACE_RESULT_CHARS",
+       cast: :integer,
+       default: "2000",
+       tag: :bound,
+       usage:
+         "how many characters of each tool result a regression card's trace keeps, the rest cut and the cut marked with the whole length (eunomia #31); a guess, not measured: enough to read what a search or a file read gave back, small enough that a deck of EUNOMIA_RUN_MODELS_MAX x EUNOMIA_RUN_TESTS_MAX cards stays a page a phone can hold"},
       {:resumes_shown, "EUNOMIA_RESUMES_SHOWN",
        cast: :integer,
        default: "5",
@@ -252,7 +258,7 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.TestWritten, 1},
       {Oneiroi.Eunomia.Events.TestChanged, 1},
       {Oneiroi.Eunomia.Events.RunStarted, 2},
-      {Oneiroi.Eunomia.Events.AnswerRecorded, 2},
+      {Oneiroi.Eunomia.Events.AnswerRecorded, 3},
       {Oneiroi.Eunomia.Events.RunFinished, 1},
       {Oneiroi.Eunomia.Events.RunFailed, 1},
       {Oneiroi.Eunomia.Events.AnswerGraded, 1},

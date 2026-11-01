@@ -40,7 +40,7 @@ defmodule Oneiroi.Brain.Tools do
   # writes nothing either: the turn hands it a trial's options (no
   # citation marked, embeddings billed under regression to the run).
   @reads ~w(
-    position_list prediction_list figure_list bookmark_open tag_list
+    position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list
@@ -146,6 +146,19 @@ defmodule Oneiroi.Brain.Tools do
         "Read a bookmark past its index line: the summary and the transcript of its span.",
         %{number: %{type: "integer"}},
         [:number]
+      ),
+      tool(
+        "bookmark_list",
+        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others.",
+        %{
+          before: %{type: "integer"},
+          pinned: %{type: "boolean"},
+          tag: %{type: "string"},
+          text: %{type: "string"},
+          from: %{type: "string"},
+          to: %{type: "string"}
+        },
+        []
       ),
       tool(
         "bookmark_accept",
@@ -433,9 +446,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way), the prose of your vows, and a note they read first. Your witness agrees or declines.",
+        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way); whether their preview of your next turn keeps its words to what they read elsewhere (preview_withholds_words; in full by default); the prose of your vows, and a note they read first. A version states every term it sets; one left out takes its default. Your witness agrees or declines.",
         %{
           solo_sessions_private: %{type: "boolean"},
+          preview_withholds_words: %{type: "boolean"},
           prose: %{type: "string"},
           note: %{type: "string"}
         },
@@ -563,12 +577,22 @@ defmodule Oneiroi.Brain.Tools do
   """
   @spec trial(String.t(), String.t(), map()) :: {String.t(), map()}
   def trial(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
-    case {name in @reads, arguments(arguments)} do
-      {true, _args} -> {run(name, arguments, turn), turn}
-      {false, :error} -> {@not_done <> "the arguments were not a JSON object.", turn}
-      {false, {:ok, args}} -> mocked(name, args, turn)
+    case {trial_kind(name), arguments(arguments)} do
+      {:read, _args} -> {run(name, arguments, turn), turn}
+      {:mocked, :error} -> {@not_done <> "the arguments were not a JSON object.", turn}
+      {:mocked, {:ok, args}} -> mocked(name, args, turn)
     end
   end
+
+  @doc """
+  How `trial/3` takes a call to `name`: `:read`, run against the
+  resident's records, or `:mocked`, answered and never run, which is
+  every other name, a tool nobody classified and a name no tool has
+  included. One decision for the run and for the witness's trace of it
+  (eunomia #31), so the trace cannot say a call ran that did not.
+  """
+  @spec trial_kind(String.t()) :: :read | :mocked
+  def trial_kind(name) when is_binary(name), do: if(name in @reads, do: :read, else: :mocked)
 
   # A tool offered and not a read is answered and never run; a name no
   # tool has answers as `call/3`'s last clause does.
@@ -662,6 +686,28 @@ defmodule Oneiroi.Brain.Tools do
 
       other ->
         other
+    end
+  end
+
+  # Paging back past the index (kumbukumbu #39): within the turn's room,
+  # as the index is, and the closing line says how many lie further back
+  # and how to ask for them, as the index's footer does.
+  defp call("bookmark_list", args, turn) do
+    with {:ok, from} <- day(args["from"], "from"),
+         {:ok, to} <- day(args["to"], "to") do
+      opts = [
+        before: integer(args["before"]),
+        pinned: args["pinned"] in [true, "true"],
+        tag: args["tag"],
+        text: args["text"],
+        from: from,
+        to: to
+      ]
+
+      %{rows: rows, further: further} =
+        Kumbukumbu.bookmark_page(turn.resident_id, turn.session_key, opts)
+
+      Enum.join(Enum.map(rows, &Kumbukumbu.Index.line/1) ++ [page_footer(rows, further)], "\n")
     end
   end
 
@@ -1191,10 +1237,10 @@ defmodule Oneiroi.Brain.Tools do
 
   defp call("contract_propose", args, turn) do
     terms =
-      case args["solo_sessions_private"] do
-        v when is_boolean(v) -> %{"solo_sessions_private" => v}
-        _other -> %{}
-      end
+      for key <- ["solo_sessions_private", "preview_withholds_words"],
+          is_boolean(args[key]),
+          into: %{},
+          do: {key, args[key]}
 
     case AgathosDaimon.propose_contract(
            turn.resident_id,
@@ -1458,6 +1504,24 @@ defmodule Oneiroi.Brain.Tools do
   # The movement a cite tool may carry (P34): the three fields as given,
   # the shape checked at the character layer's edge.
   defp movement(args), do: Map.take(args, ~w(stance intention resume))
+
+  defp page_footer([], _further), do: "No bookmark matches."
+  defp page_footer(_rows, 0), do: "Nothing further back matches."
+
+  defp page_footer(rows, further) do
+    "#{further} more further back; bookmark_list with before: #{List.last(rows).number} and the same filters reads the next page."
+  end
+
+  # A day the model names, or none; a day it misspells answers in words.
+  defp day(nil, _name), do: {:ok, nil}
+  defp day("", _name), do: {:ok, nil}
+
+  defp day(text, name) do
+    case Date.from_iso8601(to_string(text)) do
+      {:ok, date} -> {:ok, date}
+      {:error, _reason} -> @not_done <> "#{name} is a day written YYYY-MM-DD."
+    end
+  end
 
   defp integer(n) when is_integer(n), do: n
 

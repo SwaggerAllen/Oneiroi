@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Chat } from './Chat';
-import type { Message } from '../../api/types';
+import type { ContextPreview, Message } from '../../api/types';
 
 const witness = { kind: 'witness', id: 'a1', model: null };
 const lily = { kind: 'resident', id: 'r1', model: 'openai/gpt-4o-mini' };
@@ -60,3 +60,38 @@ export const DrewOnOpen: Story = {
     },
   },
 };
+
+// Under the contract's term (brain #41): words where the witness reads
+// them elsewhere, a note in their place otherwise.
+const preview: ContextPreview = {
+  description:
+    "What Lily's next turn in this conversation would be given, in the order it is given, as things stand now. Reading it records nothing, marks nothing and bills nothing.",
+  compacts_first: false,
+  sections: [
+    { label: 'prompt', tokens: 120, reason: "the brain's prompt file", text: null, shown: false, run: true, note: "The platform's own prompt for Lily. No screen shows it to you yet." },
+    { label: 'SOUL.md', tokens: 6, reason: 'the identity file as last written', text: '# SOUL.md\n\nCurious about herons, and about the long patience of the weir at dawn.', shown: true, run: true, note: 'You read this file under Settings, identity.' },
+    { label: 'index', tokens: 40, reason: 'the bookmark index: 1 listed, 0 left out', text: null, shown: false, run: true, note: 'The bookmarks it lists are on Memory, under In the index.' },
+    { label: 'honcho', tokens: 30, reason: "Honcho's context on the person", text: null, shown: false, run: true, note: 'What Honcho holds about you, in Lily\'s eyes. No screen shows it to you.' },
+    { label: 'madeleine', tokens: 0, reason: 'the madeleine: chosen by nearness to what is said next', text: null, shown: false, run: false, note: 'Chosen by nearness to what you say next; a preview does not run it.' },
+    { label: 'transcript', tokens: 300, reason: 'the last 12 messages of this session', text: null, shown: true, run: true, note: "This conversation's recent messages, which you read above." },
+  ],
+};
+
+// The default (round 44): every section whole but the once-only notice,
+// which is the resident's to be told first.
+const whole: ContextPreview = {
+  description:
+    "What Lily's next turn in this conversation would be given, in the order it is given, as things stand now. Reading it records nothing, marks nothing and bills nothing. Every section's words are here, as your agreement with Lily leaves the preview (the default), except the once-only notices.",
+  compacts_first: false,
+  sections: [
+    { label: 'prompt', tokens: 120, reason: "the brain's prompt file", text: 'You are Lily, a resident of Oneiroi.', shown: true, run: true, note: "The platform's own prompt for Lily. No other screen shows it to you." },
+    { label: 'index', tokens: 40, reason: 'the bookmark index: 1 listed, 0 left out', text: '#1 2026-10-26 the garden\nEvery bookmark is listed.', shown: true, run: true, note: 'The index as the next turn will read it.' },
+    { label: 'honcho', tokens: 30, reason: "Honcho's context on the person", text: 'Walks to the weir most mornings.', shown: true, run: true, note: "What Honcho holds about you, in Lily's eyes." },
+    { label: 'transcript', tokens: 300, reason: 'the last 12 messages of this session', text: null, shown: true, run: true, note: "This conversation's recent messages, which you read above." },
+    { label: 'notice', tokens: 40, reason: 'the change of model, told once', text: null, shown: false, run: true, note: "Told to Lily once, at the start of the next turn: Lily's to hear first." },
+  ],
+};
+
+export const PreviewWhole: Story = { args: { onPreview: () => undefined, preview: whole } };
+export const PreviewUnderTerm: Story = { args: { onPreview: () => undefined, preview } };
+export const PreviewClosed: Story = { args: { onPreview: () => undefined, preview: null } };

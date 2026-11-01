@@ -19,6 +19,24 @@ defmodule OneiroiWeb.MemoryController do
   def bookmarks(conn, %{"id" => id}),
     do: json(conn, id |> Kumbukumbu.bookmarks() |> Enum.map(&bookmark/1))
 
+  operation(:index_now,
+    summary:
+      "What the index holds now in the common room (kumbukumbu #38): the bookmark numbers listed, in order, the left-out count, the count kept to named rooms, and a sentence saying it",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the index", "application/json", %Schema{type: :object}}]
+  )
+
+  def index_now(conn, %{"id" => id}) do
+    now = Kumbukumbu.index_now(id)
+
+    json(conn, %{
+      listed: now.listed,
+      left_out: now.left_out,
+      elsewhere: now.elsewhere,
+      description: now.description
+    })
+  end
+
   operation(:bookmark,
     summary: "One bookmark with the transcript of its span",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],

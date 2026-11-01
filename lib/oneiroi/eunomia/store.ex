@@ -63,6 +63,7 @@ defmodule Oneiroi.Eunomia.Store do
       field(:content, :string)
       field(:refusal, :boolean, default: false)
       field(:failure, :string)
+      field(:trace, {:array, :map}, default: [])
       field(:grade, :string)
       field(:favourite, :boolean, default: false)
       field(:recorded_at, :utc_datetime_usec)

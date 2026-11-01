@@ -157,7 +157,7 @@ defmodule Oneiroi.Eunomia.Regression do
         for trial <- trials,
             model <- shuffled(run.models),
             not MapSet.member?(recorded, {model, trial_key(trial)}) do
-          answer(resident_id, ref, model, trial, actor)
+          answer(resident_id, %{ref: ref, models: run.models}, model, trial, actor)
         end
 
         finish_run(resident_id, ref, actor)
@@ -204,29 +204,32 @@ defmodule Oneiroi.Eunomia.Regression do
   defp shuffled(models), do: Enum.sort_by(models, fn _ -> :crypto.strong_rand_bytes(8) end)
 
   # What the run's channel pushes (eunomia #30): a card in the blind
-  # shape `run_detail/2` gives an unrevealed one, and the run's end.
-  # Nothing here is resident-reachable: the topic's one subscriber is
-  # the witness's channel.
-  defp announce(resident_id, ref, events) do
-    for event <- events, payload = announcement(event), payload != nil do
+  # shape `run_detail/2` gives an unrevealed one, its trace blind with it
+  # (eunomia #31), and the run's end. Nothing here is resident-reachable:
+  # the topic's one subscriber is the witness's channel.
+  defp announce(resident_id, ref, events, models \\ []) do
+    for event <- events, payload = announcement(event, models), payload != nil do
       PubSub.broadcast(:eunomia, :regression, {resident_id, ref, payload})
     end
 
     :ok
   end
 
-  defp announcement(%Events.AnswerRecorded{} = e),
+  defp announcement(%Events.AnswerRecorded{} = e, models),
     do:
       {:card,
-       e |> Map.from_struct() |> Map.merge(%{grade: nil, favourite: false}) |> blind(MapSet.new())}
+       e
+       |> Map.from_struct()
+       |> Map.merge(%{grade: nil, favourite: false})
+       |> blind(MapSet.new(), models)}
 
-  defp announcement(%Events.RunFinished{cards: cards}),
+  defp announcement(%Events.RunFinished{cards: cards}, _models),
     do: {:finished, %{state: "finished", cards: cards}}
 
-  defp announcement(%Events.RunFailed{cards: cards}),
+  defp announcement(%Events.RunFailed{cards: cards}, _models),
     do: {:finished, %{state: "failed", cards: cards}}
 
-  defp announcement(_other), do: nil
+  defp announcement(_other, _models), do: nil
 
   defp selected(resident_id, :all), do: {all_tests(resident_id), [], []}
   defp selected(_resident_id, numbers) when is_list(numbers), do: {numbers, [], []}
@@ -342,16 +345,21 @@ defmodule Oneiroi.Eunomia.Regression do
 
   # One card: the trial port answers the prompt as a turn in a fresh
   # session (eunomia #10), read at the call because the brain depends on
-  # this system and an alias back is the cycle the port avoids.
-  defp answer(resident_id, ref, model, trial, actor) do
+  # this system and an alias back is the cycle the port avoids. The
+  # answer comes with the trace of its tool calls, kept on the card for
+  # the witness (eunomia #31); a failure has neither.
+  defp answer(resident_id, %{ref: ref, models: models}, model, trial, actor) do
     port = Config.fetch!(:eunomia, :trial)
 
-    {content, refusal, failure} =
+    {content, refusal, failure, trace} =
       case port.trial(resident_id, model, trial.prompt, actor) do
-        {:ok, %Result{content: content, refusal?: refusal}} -> {content, refusal, nil}
+        {:ok, %Result{content: content, refusal?: refusal}, trace} ->
+          {content, refusal, nil, recorded_trace(trace)}
+
         # The kind and, when the provider answered with a status, its own
         # words; a failure not of ours by its class, never its payload.
-        {:error, error} -> {nil, false, Nisaba.Error.text(error)}
+        {:error, error} ->
+          {nil, false, Nisaba.Error.text(error), []}
       end
 
     recorded =
@@ -367,10 +375,31 @@ defmodule Oneiroi.Eunomia.Regression do
         commitment_number: trial.commitment_number,
         content: content,
         refusal: refusal,
-        failure: failure
+        failure: failure,
+        trace: trace
       })
 
-    with {:ok, events} <- recorded, do: announce(resident_id, ref, events)
+    with {:ok, events} <- recorded, do: announce(resident_id, ref, events, models)
+  end
+
+  # The trace as the card keeps it (eunomia #31): string-keyed, the shape
+  # the log and the row read back, so a card pushed live and the same
+  # card read later agree; each result cut at EUNOMIA_TRACE_RESULT_CHARS,
+  # and a cut one says so, so a witness never grades a shortened result
+  # as the one the model read. The whole length is not kept: on a blind
+  # card it would say how long the names hidden in the text were.
+  defp recorded_trace(trace) do
+    cap = Config.fetch!(:eunomia, :trace_result_chars)
+
+    Enum.map(trace, fn %{tool: tool, arguments: arguments, kind: kind, result: result} ->
+      %{
+        "tool" => tool,
+        "arguments" => arguments,
+        "kind" => Atom.to_string(kind),
+        "result" => String.slice(result, 0, cap),
+        "truncated" => String.length(result) > cap
+      }
+    end)
   end
 
   def grade(resident_id, run_ref, card_ref, grade, %Actor{} = actor) do
@@ -418,7 +447,7 @@ defmodule Oneiroi.Eunomia.Regression do
         run ->
           answers = Store.answers(run_ref)
           revealed = revealed_tests(run, answers)
-          cards = Enum.map(answers, &blind(&1, revealed))
+          cards = Enum.map(answers, &blind(&1, revealed, run.models))
           {:ok, run, cards, results(answers, revealed)}
       end
     end)
@@ -451,7 +480,9 @@ defmodule Oneiroi.Eunomia.Regression do
   defp fidelity_kind(%{behaviour_number: n}) when is_integer(n), do: :voice
   defp fidelity_kind(_a), do: :facts
 
-  defp blind(a, revealed) do
+  defp blind(a, revealed, models) do
+    shown? = MapSet.member?(revealed, trial_key(a))
+
     %{
       card_ref: a.card_ref,
       test_number: a.test_number,
@@ -462,9 +493,30 @@ defmodule Oneiroi.Eunomia.Regression do
       failure: a.failure,
       grade: a.grade,
       favourite: a.favourite,
-      model: if(MapSet.member?(revealed, trial_key(a)), do: a.model, else: nil)
+      model: if(shown?, do: a.model, else: nil),
+      trace: if(shown?, do: a.trace || [], else: hidden(a.trace || [], models))
     }
   end
+
+  # A trace is blind with its card (eunomia #31). It holds no model of
+  # its own, but its texts can name one: `trial_account` says the chat
+  # model now and the last run's, a letter says which model wrote it, a
+  # model may name itself in its arguments. Every model of the run is
+  # covered, never only the card's, because a gap where one name was
+  # would name it.
+  @hidden "[a model, hidden until graded]"
+
+  defp hidden(trace, models) do
+    case Enum.reject(models, &(&1 in [nil, ""])) do
+      [] -> trace
+      names -> Enum.map(trace, &Map.new(&1, fn field -> unnamed(field, names) end))
+    end
+  end
+
+  defp unnamed({key, text}, names) when key in ["arguments", "result"] and is_binary(text),
+    do: {key, String.replace(text, names, @hidden)}
+
+  defp unnamed(field, _names), do: field
 
   defp results(answers, revealed) do
     answers

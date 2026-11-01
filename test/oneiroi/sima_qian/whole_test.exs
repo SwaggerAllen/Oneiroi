@@ -90,6 +90,33 @@ defmodule Oneiroi.SimaQian.WholeTest do
        ctx do
     key = live!(ctx)
     id = ctx.r.id
+
+    # And a regression run whose card keeps a trace (eunomia #31): the
+    # trial calls a read and a write with words unique to it. The stream
+    # is sealed (eunomia #9), so none of it may come back.
+    unique = "sandpiper-" <> Integer.to_string(System.unique_integer([:positive]))
+    test_texts = %{prompt: "Say #{unique}.", passes_if: "says it", fails_if: "does not"}
+    {:ok, 1} = Eunomia.write_test(id, test_texts, ctx.actor)
+
+    Model.calls(
+      [
+        %{name: "transcript_search", arguments: %{q: "bake"}},
+        %{name: "bookmark_add", arguments: %{line: unique, summary: unique}}
+      ],
+      "I say #{unique}.",
+      for: id
+    )
+
+    {:ok, run} = Eunomia.run(id, ["m1"], :all, ctx.actor)
+
+    assert %{failure: 0, discard: 0} =
+             Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
+
+    assert {:ok, _, [%{trace: [%{"kind" => "read"}, %{"kind" => "mocked"} = write]}], _} =
+             Eunomia.run_detail(id, run)
+
+    assert write["arguments"] =~ unique
+
     :ok = SimaQian.set_remote(id, ctx.bare, nil, ctx.actor)
     Clock.Fake.advance(120)
     {:ok, _} = SimaQian.backup(id, ctx.actor)
@@ -113,6 +140,8 @@ defmodule Oneiroi.SimaQian.WholeTest do
     assert ("conversation-" <> key) in names
     refute Enum.any?(names, &(Export.prefix(&1) in ["honcho", "regression", "account"]))
     refute Enum.any?(source, &(&1 =~ id))
+    refute Enum.any?(source, &(&1 =~ unique))
+    refute Enum.any?(source, &(&1 =~ "AnswerRecorded"))
 
     importer = Actor.new(:witness, ctx.b.id)
     assert {:ok, %{id: copy}} = SimaQian.rebuild(ctx.bare, ctx.b.id, importer)
@@ -150,7 +179,18 @@ defmodule Oneiroi.SimaQian.WholeTest do
 
     assert Enum.any?(Seshat.documents(copy), &(&1.path == "writing/rye.md"))
 
-    spend = fn rid -> Oneiroi.Nisaba.spend(rid, :witness, :purpose, ~U[2026-01-01 00:00:00Z]) end
+    # The run, its cards and their traces stayed behind, and so did its
+    # bill: regression spend is the witness's view alone (nisaba #4), so
+    # a rebuild restores everything else of the spend and none of that.
+    assert [] = Eunomia.runs(copy)
+    assert [] = Eunomia.tests(copy)
+
+    spend = fn rid ->
+      rid
+      |> Oneiroi.Nisaba.spend(:witness, :purpose, ~U[2026-01-01 00:00:00Z])
+      |> Enum.reject(&(&1.key == "regression"))
+    end
+
     assert spend.(copy) == spend.(id)
   end
 
@@ -187,5 +227,10 @@ defmodule Oneiroi.SimaQian.WholeTest do
 
     assert MapSet.disjoint?(exported, excluded)
     assert MapSet.union(exported, excluded) == prefixes
+
+    # The sealed streams stay on the excluded side by name: the regression
+    # stream carries every card and its trace (eunomia #9, #31), and its
+    # events' own `export: false` must not be the only thing keeping them.
+    assert "regression" in excluded
   end
 end

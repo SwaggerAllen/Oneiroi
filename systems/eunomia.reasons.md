@@ -206,3 +206,37 @@ declaration read before settings load, so the cron ticks every minute
 and the worker acts on the minutes the setting divides. The audit and
 wash passes were already one crash away from judging residents twice;
 Lifeline added a second way to retry them, and one attempt closes both.
+
+## #31
+The author, after the first run with memory: a card showed only the
+final answer, and grading wanted how it was reached, which tools, with
+what, and what came back; "Yeah that would be helpful." Once a trial
+had memory and tools (#10), an answer could be right for a reason the
+witness could not see: a fact read from the transcript and one
+invented read the same on the card.
+
+The port returns it rather than the brain recording it because a turn
+records nothing (brain #16) and the card is this system's (#9, #30):
+the trace rides the return and lands only on the sealed stream. The
+kind is read from the decision the loop runs on, not re-derived, so the
+trace cannot say a write ran. Cut at a bound because a run is up to
+8 x 32 cards, each with as many calls as the loop's rounds allow, and
+a read can return a whole document; the bound is a guess at what a
+card can carry and still be read on a phone, and its usage line says
+so. Marked when cut because a witness grading a shortened result as the
+one the model read would be grading a different turn.
+
+Blind with the card because the trace is part of the card: a model
+name in a tool's result, or in the model's own arguments, would reveal
+by text what #11 hides by position. Every model of the run is replaced,
+never only the card's, because a gap where one name was would name it.
+No whole length is kept for the same reason: the difference between it
+and the visible text would measure the hidden names. A failed card
+keeps none because the port answers a failure with the failure alone,
+and a partial loop would be graded as the run of a turn that never
+ended.
+
+Not a decisions-log entry: the seal (spec §6.4, #12) is about what the
+resident can reach, and the witness already holds every card; this is
+more of the witness's view inside it, with no new reader, store or
+surface.

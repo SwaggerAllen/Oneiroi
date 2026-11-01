@@ -67,6 +67,7 @@ defmodule Oneiroi.Eunomia.Projectors.Regression do
         content: e.content,
         refusal: e.refusal == true,
         failure: e.failure,
+        trace: e.trace || [],
         recorded_at: e.at
       },
       on_conflict: :nothing,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Injection, Message } from '../../api/types';
+import type { ContextPreview, Injection, Message } from '../../api/types';
 import { ActorChip } from '../../components/ActorChip';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
@@ -15,14 +15,20 @@ export interface ChatProps {
   injections?: Record<string, Injection[]>;
   drewOn?: Record<string, number>;
   sending?: boolean;
+  // What the next turn would be given, as the server assembled and
+  // worded it (brain #41); null while closed.
+  preview?: ContextPreview | null;
   onSend: (text: string) => void;
+  // Opens the preview with the draft as it stands, or closes it.
+  onPreview?: (draft: string) => void;
   onInspect?: (turnRef: string) => void;
   onProposeBookmark?: (message: Message) => void;
 }
 
 // Chat is home (spec §10): the main conversation as a transcript, refusals
-// in the resident's words, "drew on N things" per reply, the composer.
-// Replies are not regenerated and sent messages are not edited.
+// in the resident's words, "drew on N things" per reply (what that turn
+// drew on), the preview of what the next turn would be given, the
+// composer. Replies are not regenerated and sent messages are not edited.
 export function Chat({
   residentName,
   messages,
@@ -30,7 +36,9 @@ export function Chat({
   injections = {},
   drewOn = {},
   sending = false,
+  preview = null,
   onSend,
+  onPreview,
   onInspect,
   onProposeBookmark,
 }: ChatProps) {
@@ -68,6 +76,16 @@ export function Chat({
           </p>
         ) : null}
       </main>
+      {onPreview ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-3)' }}>
+          <div>
+            <Button variant="quiet" onClick={() => onPreview(draft)}>
+              {preview ? 'Close the preview' : `What ${residentName} will see next`}
+            </Button>
+          </div>
+          {preview ? <Preview preview={preview} /> : null}
+        </div>
+      ) : null}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -196,5 +214,43 @@ function Reply({
         </ul>
       ) : null}
     </div>
+  );
+}
+
+// The next turn's sections in the order the server assembled them; each
+// shows its words where the server sent them and its note otherwise. The
+// client decides nothing here: which sections exist, their order, their
+// counts and what is withheld are all the server's.
+function Preview({ preview }: { preview: ContextPreview }) {
+  return (
+    <section
+      aria-label="The next turn, previewed"
+      style={{
+        padding: 'var(--space-3)',
+        background: 'var(--surface-sunken)',
+        borderRadius: 'var(--radius-md)',
+        fontSize: 13,
+        lineHeight: '18px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-2)',
+        overflowWrap: 'anywhere',
+      }}
+    >
+      <p style={{ margin: 0, color: 'var(--ink-muted)' }}>{preview.description}</p>
+      <ol style={{ margin: 0, paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        {preview.sections.map((section, i) => (
+          <li key={`${section.label}-${i}`}>
+            <strong>{section.label}</strong>, about {section.tokens} tokens: {section.reason}
+            {section.text !== null ? (
+              <pre style={{ margin: 'var(--space-1) 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                {section.text}
+              </pre>
+            ) : null}
+            <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--ink-faint)' }}>{section.note}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

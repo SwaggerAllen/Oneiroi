@@ -224,6 +224,46 @@ defmodule OneiroiWeb.ConversationController do
     )
   end
 
+  operation(:preview,
+    summary:
+      "What the resident will see next in this session (brain #41): the next turn's assembly as a dry run, every section in order with its tokens and reason, its words only where you read them elsewhere; nothing recorded",
+    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    request_body:
+      {"the draft so far", "application/json",
+       %Schema{type: :object, properties: %{text: %Schema{type: :string}}}},
+    responses: [ok: {"the preview", "application/json", %Schema{type: :object}}]
+  )
+
+  # A POST that writes nothing: the draft rides the body, never the URL,
+  # since a query string is what an access log keeps. Witness-only: an
+  # adapter's token is not in `@adapter_actions` here, and the session
+  # must be one this account reads, so a private session or another
+  # account's is a 404 as its transcript is.
+  def preview(%{assigns: %{principal: p}} = conn, %{"id" => id, "key" => key} = params) do
+    text = if is_binary(params["text"]), do: params["text"], else: ""
+
+    with {:ok, %{resident_id: ^id}, _messages} <-
+           Kumbukumbu.transcript({:account, p.account_id}, key),
+         {:ok, preview} <- Oneiroi.Brain.preview(id, key, text, actor(conn)) do
+      json(conn, preview)
+    else
+      {:ok, _elsewhere, _messages} ->
+        problem(
+          conn,
+          404,
+          :no_such_session,
+          :web_conversation_preview_session_elsewhere,
+          "no session with that key is this resident's"
+        )
+
+      {:error, %Kumbukumbu.Error{} = e} ->
+        error(conn, 404, e)
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
   operation(:capture,
     summary:
       "An adapter captures a turn (spec §8): idempotent on the session, the start instant and the content",

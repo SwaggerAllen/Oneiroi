@@ -25,7 +25,8 @@ defmodule Oneiroi.Eunomia.Commands do
         :commitment_number,
         :content,
         :refusal,
-        :failure
+        :failure,
+        :trace
       ]
   end
 

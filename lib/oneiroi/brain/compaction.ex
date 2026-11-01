@@ -26,11 +26,24 @@ defmodule Oneiroi.Brain.Compaction do
   @doc "Compacts the turn's session if it has outgrown its window; `:ok`, `:skipped`, or the failure."
   @spec maybe(map()) :: :ok | :skipped | {:error, term()}
   def maybe(turn) do
+    case over_the_line(turn) do
+      {:ok, session} -> compact(turn, session)
+      :no -> :skipped
+    end
+  end
+
+  @doc "Whether the turn's session has outgrown its window, so its next turn compacts first; reads, compacts nothing (brain #41)."
+  @spec due?(map()) :: boolean()
+  def due?(turn), do: over_the_line(turn) != :no
+
+  # One line for the turn and the preview, so the preview cannot say a
+  # compaction is coming that the turn would not run.
+  defp over_the_line(turn) do
     threshold = Config.fetch!(:brain, :compact_after_messages)
 
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do
-      {:ok, session, count} when count >= threshold -> compact(turn, session)
-      _other -> :skipped
+      {:ok, session, count} when count >= threshold -> {:ok, session}
+      _other -> :no
     end
   end
 

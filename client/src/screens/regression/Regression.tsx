@@ -8,6 +8,7 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   TestTexts,
+  TraceStep,
 } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -70,6 +71,7 @@ export function Regression({
       <Screen title="Regression" line={`Trying models as ${residentName}`} error={error}>
         <RunView
           detail={open}
+          residentName={residentName}
           tests={tests}
           chatModel={chatModel}
           onClose={onCloseRun}
@@ -93,7 +95,7 @@ export function Regression({
       {tab === 'tests' ? (
         <TestsView residentName={residentName} tests={tests} onWriteTest={onWriteTest} onChangeTest={onChangeTest} />
       ) : (
-        <RunsView tests={tests} runs={runs} onStartRun={onStartRun} onOpenRun={onOpenRun} />
+        <RunsView residentName={residentName} tests={tests} runs={runs} onStartRun={onStartRun} onOpenRun={onOpenRun} />
       )}
     </Screen>
   );
@@ -276,11 +278,13 @@ function TextArea({ label, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement
 // ---- runs ----
 
 function RunsView({
+  residentName,
   tests,
   runs,
   onStartRun,
   onOpenRun,
 }: {
+  residentName: string;
   tests: RegressionTest[];
   runs: RegressionRun[];
   onStartRun?: (models: string[], tests: number[] | 'all') => void;
@@ -288,7 +292,7 @@ function RunsView({
 }) {
   return (
     <>
-      {onStartRun ? <StartRun tests={tests} onStartRun={onStartRun} /> : null}
+      {onStartRun ? <StartRun residentName={residentName} tests={tests} onStartRun={onStartRun} /> : null}
       {runs.length === 0 ? (
         <EmptyState text="No runs yet." />
       ) : (
@@ -324,7 +328,15 @@ function RunsView({
   );
 }
 
-function StartRun({ tests, onStartRun }: { tests: RegressionTest[]; onStartRun: (models: string[], tests: number[] | 'all') => void }) {
+function StartRun({
+  residentName,
+  tests,
+  onStartRun,
+}: {
+  residentName: string;
+  tests: RegressionTest[];
+  onStartRun: (models: string[], tests: number[] | 'all') => void;
+}) {
   const [models, setModels] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
   const [which, setWhich] = useState<'all' | 'some'>('all');
@@ -338,8 +350,8 @@ function StartRun({ tests, onStartRun }: { tests: RegressionTest[]; onStartRun: 
   return (
     <Card title="Start a run">
       <p style={{ margin: 0, fontSize: 15, lineHeight: '22px', color: 'var(--ink-muted)' }}>
-        Each model answers each test once, on your key, with the files that make up who it is and nothing else. The answers come in while you
-        watch, and you can leave and come back.
+        Each model answers each test once, on your key, as {residentName} would in a new conversation, with the memory and the tools, and
+        nothing written in it kept. The answers come in while you watch, and you can leave and come back.
       </p>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <Field
@@ -422,6 +434,7 @@ function StartRun({ tests, onStartRun }: { tests: RegressionTest[]; onStartRun: 
 
 function RunView({
   detail,
+  residentName,
   tests,
   chatModel,
   onClose,
@@ -430,6 +443,7 @@ function RunView({
   onPin,
 }: {
   detail: RegressionRunDetail;
+  residentName: string;
   tests: RegressionTest[];
   chatModel: string | null;
   onClose?: () => void;
@@ -462,7 +476,14 @@ function RunView({
             <Card key={key} title={label}>
               {prompt ? <p style={{ margin: 0, fontSize: 15, lineHeight: '22px', color: 'var(--ink-muted)' }}>You said: {prompt}</p> : null}
               {deck.map((card, i) => (
-                <AnswerCard key={card.card_ref} card={card} position={i + 1} onGrade={onGrade} onFavourite={onFavourite} />
+                <AnswerCard
+                  key={card.card_ref}
+                  card={card}
+                  position={i + 1}
+                  residentName={residentName}
+                  onGrade={onGrade}
+                  onFavourite={onFavourite}
+                />
               ))}
             </Card>
           );
@@ -491,11 +512,13 @@ function Progress({ run, answered, graded }: { run: RegressionRun; answered: num
 function AnswerCard({
   card,
   position,
+  residentName,
   onGrade,
   onFavourite,
 }: {
   card: RegressionCard;
   position: number;
+  residentName: string;
   onGrade?: (cardRef: string, grade: Grade) => void;
   onFavourite?: (cardRef: string) => void;
 }) {
@@ -513,6 +536,7 @@ function AnswerCard({
         )}
       </div>
       <Answer card={card} />
+      <Trace residentName={residentName} trace={card.trace} />
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         {onGrade ? (
           <>
@@ -575,6 +599,107 @@ function Answer({ card }: { card: RegressionCard }) {
       {card.content}
     </p>
   );
+}
+
+// How the answer was reached (eunomia #31): the trial's tool calls in
+// the order she made them, collapsed under the answer so the deck stays
+// a deck. Nothing shows for an empty trace, because an empty one is
+// also every card recorded before traces were kept, and "no tools were
+// called" would be a claim about those that nobody measured.
+function Trace({ residentName, trace }: { residentName: string; trace: TraceStep[] }) {
+  if (trace.length === 0) return null;
+  const heading = `How ${residentName} got there`;
+  return (
+    <details style={{ borderRadius: 'var(--radius-sm)', background: 'var(--surface-sunken)', padding: 'var(--space-2) var(--space-3)' }}>
+      <summary style={{ cursor: 'pointer', fontSize: 13, lineHeight: '20px', fontWeight: 500, color: 'var(--ink-muted)' }}>
+        {heading} · {plural(trace.length, 'step')}
+      </summary>
+      <p style={{ margin: 'var(--space-2) 0 0', fontSize: 12, lineHeight: '16px', color: 'var(--ink-muted)' }}>
+        A read looked at {residentName}&apos;s own records. A mocked step would have changed something: it was answered as if done, and
+        nothing was kept.
+      </p>
+      <ol aria-label={heading} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
+        {trace.map((step, i) => (
+          <Step key={i} step={step} position={i + 1} residentName={residentName} />
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+// Text from the turn, wrapped rather than scrolled sideways, so a long
+// path or a search result reads on a phone.
+const traceText = {
+  margin: 0,
+  fontFamily: 'var(--font-mono)',
+  fontSize: 12,
+  lineHeight: '18px',
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+  maxWidth: '100%',
+} as const;
+
+function Step({ step, position, residentName }: { step: TraceStep; position: number; residentName: string }) {
+  return (
+    <li
+      aria-label={`Step ${position}: ${step.tool}`}
+      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: 'var(--space-2) 0', borderTop: '1px solid var(--hairline)' }}
+    >
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{position}.</span>
+        <code style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{step.tool}</code>
+        <Marker kind={step.kind} />
+      </div>
+      <pre style={{ ...traceText, color: 'var(--ink-muted)' }}>{argumentsText(step.arguments)}</pre>
+      <details>
+        <summary style={{ cursor: 'pointer', fontSize: 12, lineHeight: '20px', color: 'var(--ink-muted)' }}>
+          {step.truncated ? 'What came back, cut short here' : 'What came back'}
+        </summary>
+        <pre style={{ ...traceText, padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)' }}>
+          {step.result}
+        </pre>
+        {step.truncated ? (
+          <p style={{ margin: 'var(--space-1) 0 0', fontSize: 12, lineHeight: '16px', color: 'var(--warn)' }}>
+            Cut here for this card. {residentName} was given all of it.
+          </p>
+        ) : null}
+      </details>
+    </li>
+  );
+}
+
+function Marker({ kind }: { kind: TraceStep['kind'] }) {
+  const read = kind === 'read';
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '0 var(--space-2)',
+        borderRadius: 'var(--radius-pill)',
+        border: `1px solid ${read ? 'var(--hairline-strong)' : 'var(--warn)'}`,
+        background: read ? 'transparent' : 'var(--warn-tint)',
+        fontSize: 12,
+        lineHeight: '18px',
+        color: 'var(--ink)',
+      }}
+    >
+      {read ? 'read' : 'mocked'}
+    </span>
+  );
+}
+
+// The arguments as the model wrote them, laid out when they are the
+// JSON object a call should carry, and as written when they are not.
+function argumentsText(raw: string) {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.keys(parsed).length === 0 ? 'with nothing' : JSON.stringify(parsed, null, 2);
+    }
+  } catch {
+    // Not JSON: shown as written below.
+  }
+  return raw.trim() === '' || raw.trim() === 'null' ? 'with nothing' : raw;
 }
 
 function Results({ results, chatModel, onPin }: { results: RegressionResult[]; chatModel: string | null; onPin?: (model: string) => void }) {
