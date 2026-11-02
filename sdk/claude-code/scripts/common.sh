@@ -71,12 +71,15 @@ oneiroi_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 # status, 000 when nothing answered.
 oneiroi_api() {
   local method="$1" path="$2" body="$3" out="$4"
+  # `${data[@]+...}` rather than `"${data[@]}"`: macOS ships bash 3.2,
+  # where an empty array under `set -u` is an unbound variable, so every
+  # GET failed before curl ran and the session started without context.
   local -a data=()
   [ -n "$body" ] && data=(--data-binary "@$body")
   printf 'header = "Authorization: Bearer %s"\n' "$ONEIROI_TOKEN" |
     curl -sS -K - -X "$method" --max-time "${ONEIROI_TIMEOUT:-20}" \
       -H 'Content-Type: application/json' -H 'Accept: application/json' \
-      "${data[@]}" -o "$out" -w '%{http_code}' "$ONEIROI_URL$path" 2>/dev/null || true
+      ${data[@]+"${data[@]}"} -o "$out" -w '%{http_code}' "$ONEIROI_URL$path" 2>/dev/null || true
 }
 
 # The platform session this Claude Code session speaks under, opened on
