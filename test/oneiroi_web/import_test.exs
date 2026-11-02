@@ -24,7 +24,7 @@ defmodule OneiroiWeb.ImportTest do
     {_, 0} = System.cmd("git", identity ++ ["init", "-q", "-b", "main"], cd: work)
     File.write!(Path.join(work, "SOUL.md"), "# Lily\n")
     File.write!(Path.join(work, "wiki/bread.md"), "# Bread\n")
-    File.write!(Path.join(work, "notes.txt"), "loose")
+    File.write!(Path.join(work, "notes.bin"), "loose")
     {_, 0} = System.cmd("git", identity ++ ["add", "-A"], cd: work)
     {_, 0} = System.cmd("git", identity ++ ["commit", "-q", "-m", "repo"], cd: work)
     :ok = Git.push(work, bare)
@@ -85,7 +85,7 @@ defmodule OneiroiWeb.ImportTest do
                "events" => 0,
                "seeded" => ["SOUL.md"],
                "adopted" => 1,
-               "not_transferred" => ["notes.txt"]
+               "not_transferred" => ["notes.bin"]
              }
            } =
              conn
@@ -94,7 +94,7 @@ defmodule OneiroiWeb.ImportTest do
 
     on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
 
-    assert %{"import" => %{"source" => ^url, "not_transferred" => ["notes.txt"], "told" => false}} =
+    assert %{"import" => %{"source" => ^url, "not_transferred" => ["notes.bin"], "told" => false}} =
              conn |> get("/v1/residents/#{id}") |> json_response(200)
 
     assert %{"error" => %{"kind" => "sima_qian_already_imported"}} =

@@ -361,11 +361,12 @@ defmodule Oneiroi.SimaQian.ImportTest do
     # trusting it would empty the directory of anything outside the classes.
     dir = Backup.dir(id)
     File.rm_rf!(Path.join(dir, ".git"))
-    File.write!(Path.join(dir, "stray.txt"), "left by hand\n")
+    # Not text, so no keepsake (seshat #29): a root text file would be one.
+    File.write!(Path.join(dir, "stray.bin"), "left by hand\n")
     Clock.Fake.advance(120)
 
     assert {:error, %{kind: :sima_qian_stray_files}} = SimaQian.backup(id, ctx.actor)
-    assert File.exists?(Path.join(dir, "stray.txt"))
+    assert File.exists?(Path.join(dir, "stray.bin"))
   end
 
   test "a repository with records replays them, and a root file differing from them after first contact is proposed, not written",

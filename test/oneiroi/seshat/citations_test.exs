@@ -97,9 +97,17 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.refusal("wiki/a b.md") =~ "characters other than"
     assert Kinds.refusal("notes/a.md") =~ "outside the folders"
 
+    # A keepsake is a root name alone (seshat #29); the root's reserved
+    # names and anything not text still have no kind.
+    assert {:ok, "pocket-andrew.md"} = Kinds.normalize("pocket-andrew.md")
+    assert %{kind: "keepsake"} = Kinds.kind_of("pocket-andrew.md")
+    assert is_nil(Kinds.kind_of("SOUL.md")) and is_nil(Kinds.kind_of("photo.png"))
+    assert {:error, _} = Kinds.normalize("README.md")
+    assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
+
     assert Kinds.minting() == ~w(writing research design journal)
-    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory)
-    assert Kinds.writable() == ~w(writing research design wiki posts)
+    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory keepsake)
+    assert Kinds.writable() == ~w(writing research design wiki posts keepsake)
   end
 
   test "the chunker splits on paragraphs up to the bound and a long paragraph at the bound" do
