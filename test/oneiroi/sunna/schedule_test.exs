@@ -120,7 +120,8 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     assert {:error, %{kind: :sunna_time_invalid, site: :sunna_free_time_time_invalid}} =
              Schedule.execute(s, cmd(Commands.SetFreeTime, time: "soon"))
 
-    assert %Events.FreeTimeScheduled{time: nil} =
+    # Moved, never removed (sunna #21).
+    assert {:error, %{kind: :sunna_free_time_required, site: :sunna_free_time_removed}} =
              Schedule.execute(s, cmd(Commands.SetFreeTime, time: nil))
 
     ran = cmd(Commands.RecordFreeTime, day: "d1", session_key: "k", reason: nil)

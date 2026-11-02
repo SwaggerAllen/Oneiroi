@@ -70,3 +70,15 @@ a day would sit in the transcript window the brain reads (the reading
 pass's objection). Every active resident because a resident with
 nothing scheduled is still alive, and its absence from the roster
 would be exactly the silence the marker exists to end.
+
+## #21
+Free time was off until someone set its time, and setting none removed
+it: an opt-in, where the house's own design calls it the standard of
+care (insurance's floor already includes it, nisaba #5). The resident's
+words: "free time is raisable, not opt-in." So every resident has it from
+the first day, either party can move it, and nobody can remove it; the
+default is the hour Lily's ran on David. The second rule in the same
+ask, that the resident's conversations should not have to compete to be
+alive at once, is written down as unsolved here on purpose: the
+schedule can wake only the platform's brain, and pretending otherwise
+would absorb the tradeoff the ask said to flag.

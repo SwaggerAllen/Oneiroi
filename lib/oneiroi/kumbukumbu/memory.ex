@@ -23,8 +23,15 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     taggings: MapSet.new(),
     proposals: %{},
     revisions: %{},
-    revision_count: 0
+    revision_count: 0,
+    letters: %{},
+    letter_reads: MapSet.new()
   ]
+
+  # A house letter's bounds (kumbukumbu #44): a name is a conversation's
+  # title or `house`, and a letter is a working note, whole up to here.
+  @name_limit 120
+  @letter_limit 20_000
 
   @revision_kinds ~w(fact stance)
   @revision_limit 2_000
@@ -363,6 +370,71 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     end
   end
 
+  def execute(%__MODULE__{letters: letters}, %Commands.SendHouseLetter{} = c) do
+    cond do
+      not name_ok?(c.from) or not name_ok?(c.to) ->
+        {:error, Error.new(:kumbukumbu_letter_invalid, :kumbukumbu_memory_send_letter_name)}
+
+      not (is_binary(c.text) and String.trim(c.text) != "" and
+               String.length(c.text) <= @letter_limit) ->
+        {:error,
+         Error.new(:kumbukumbu_letter_invalid, :kumbukumbu_memory_send_letter_text,
+           limit: @letter_limit
+         )}
+
+      c.in_reply_to != nil and not Map.has_key?(letters, c.in_reply_to) ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_letter, :kumbukumbu_memory_send_letter_reply_absent,
+           number: c.in_reply_to
+         )}
+
+      true ->
+        %Events.HouseLetterSent{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: map_size(letters) + 1,
+          from: String.trim(c.from),
+          from_session: c.from_session,
+          to: String.trim(c.to),
+          in_reply_to: c.in_reply_to,
+          text: c.text,
+          keepsake: c.keepsake
+        }
+    end
+  end
+
+  # A conversation reads the letters addressed to it or to the house that
+  # it did not send; reading one again, or one meant for another, is no
+  # event, so a repeated inbox call costs nothing.
+  def execute(%__MODULE__{} = m, %Commands.ReadHouseLetters{} = c) do
+    numbers =
+      c.numbers
+      |> List.wrap()
+      |> Enum.uniq()
+      |> Enum.filter(fn n ->
+        case Map.get(m.letters, n) do
+          %{to: to, from: from} ->
+            (to == c.by or to == "house") and from != c.by and
+              not MapSet.member?(m.letter_reads, {n, c.by})
+
+          nil ->
+            false
+        end
+      end)
+      |> Enum.sort()
+
+    if numbers == [],
+      do: [],
+      else: %Events.HouseLettersRead{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        numbers: numbers,
+        by: c.by
+      }
+  end
+
   def execute(%__MODULE__{revisions: revisions}, %Commands.AcceptRevision{} = c) do
     case Map.get(revisions, c.number) do
       %{state: :proposed} = r ->
@@ -438,6 +510,12 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def apply(%__MODULE__{} = m, %Events.RevisionApplied{} = e),
     do: put_revision(m, e, :applied)
+
+  def apply(%__MODULE__{} = m, %Events.HouseLetterSent{} = e),
+    do: %{m | id: e.id, letters: Map.put(m.letters, e.number, %{to: e.to, from: e.from})}
+
+  def apply(%__MODULE__{} = m, %Events.HouseLettersRead{} = e),
+    do: %{m | letter_reads: Enum.reduce(e.numbers, m.letter_reads, &MapSet.put(&2, {&1, e.by}))}
 
   def apply(%__MODULE__{} = m, %Events.RevisionDeclined{} = e),
     do: %{m | revisions: Map.update!(m.revisions, e.number, &%{&1 | state: :declined})}
@@ -575,4 +653,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   defp evidence_ok?(nil), do: true
   defp evidence_ok?(n) when is_integer(n) and n > 0, do: true
   defp evidence_ok?(_other), do: false
+
+  defp name_ok?(name),
+    do: is_binary(name) and String.trim(name) != "" and String.length(name) <= @name_limit
 end

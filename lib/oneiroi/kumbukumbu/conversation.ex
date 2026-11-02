@@ -64,6 +64,25 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   def runtime_name(runtime, adapter), do: Map.get(@runtime_names, runtime) || adapter
 
   @doc """
+  What a conversation is called where a person, or another conversation,
+  reads it (kumbukumbu #40): `Oneiroi chat` for the main session, an
+  adapter's by its runtime and folder (`Claude Code · Oneiroi`). One rule
+  for the conversation list and for addressing a house letter (#44).
+  """
+  @spec title(map()) :: String.t()
+  def title(%{kind: "main"}), do: "Oneiroi chat"
+  def title(%{kind: "free_time"}), do: "Free time"
+  def title(%{kind: "hands"}), do: "Hands"
+  def title(%{kind: "imported", adapter: adapter}), do: "Imported from #{adapter}"
+
+  def title(%{kind: "adapter"} = s) do
+    runtime = runtime_name(s.runtime, s.adapter)
+    if s.label, do: "#{runtime} · #{s.label}", else: runtime
+  end
+
+  def title(%{kind: kind}), do: kind
+
+  @doc """
   Whether the witness may write in a session of `kind` (kumbukumbu
   #40): not in an adapter's, whose runtime holds the conversation and
   where the witness replies, nor in an import's, which was said

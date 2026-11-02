@@ -46,7 +46,7 @@ defmodule Oneiroi.Brain.Tools do
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
-    keepsake_list
+    keepsake_list letter_inbox letter_list
   )
 
   @writes ~w(
@@ -55,7 +55,8 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt keepsake_note journal_add journal_done
+    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
+    journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
   )
@@ -430,6 +431,35 @@ defmodule Oneiroi.Brain.Tools do
         [:path, :content]
       ),
       tool(
+        "letter_send",
+        "Send a house letter (the work log between your conversations): to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from.",
+        %{
+          to: %{type: "string"},
+          text: %{type: "string"},
+          in_reply_to: %{type: "integer", minimum: 1},
+          keepsake: %{type: "string"}
+        },
+        [:to, :text]
+      ),
+      tool(
+        "free_time_set",
+        "Move your daily free time to another HH:MM in your zone. Free time is part of the standard of care: it moves, and it is never removed.",
+        %{time: %{type: "string"}},
+        [:time]
+      ),
+      tool(
+        "letter_inbox",
+        "Read the house letters waiting for this conversation, whole, oldest first; reading them marks them read here.",
+        %{},
+        []
+      ),
+      tool(
+        "letter_list",
+        "Every house letter, both ways, one line each: who to whom, when, in reply to what, and which conversations have read it; with number, one letter whole.",
+        %{number: %{type: "integer", minimum: 1}},
+        []
+      ),
+      tool(
         "keepsake_list",
         "Your keepsakes, the gift-documents kept at your root beside your soul file: each by its name, who put it there and when, and why it mattered in your words once you have said. A keepsake at your root not yet adopted is among document_unadopted.",
         %{},
@@ -771,6 +801,78 @@ defmodule Oneiroi.Brain.Tools do
   # Paging back past the index (kumbukumbu #39): within the turn's room,
   # as the index is, and the closing line says how many lie further back
   # and how to ask for them, as the index's footer does.
+  # House letters (kumbukumbu #44): the sender is the conversation this
+  # turn is in, named by the server; a keepsake given must be one.
+  defp call("letter_send", args, turn) do
+    keepsake = blank(args["keepsake"])
+
+    with :ok <- given_keepsake(turn.resident_id, keepsake),
+         {:ok, %{number: n, from: from}} <-
+           Kumbukumbu.send_letter(
+             turn.resident_id,
+             turn.session_key,
+             %{
+               to: to_string(args["to"] || ""),
+               text: to_string(args["text"] || ""),
+               in_reply_to: integer(args["in_reply_to"]),
+               keepsake: keepsake
+             },
+             turn.resident
+           ) do
+      "Sent letter ##{n} from #{from} to #{args["to"]}."
+    end
+  end
+
+  defp call("free_time_set", args, turn) do
+    with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, args["time"], turn.resident),
+         do: "Free time moved to #{args["time"]}."
+  end
+
+  defp call("letter_inbox", _args, turn) do
+    case Kumbukumbu.inbox(turn.resident_id, turn.session_key) do
+      [] ->
+        "No letters wait for this conversation."
+
+      letters ->
+        unless Map.get(turn, :trial?),
+          do:
+            Kumbukumbu.read_letters(
+              turn.resident_id,
+              turn.session_key,
+              Enum.map(letters, & &1.number),
+              turn.resident
+            )
+
+        Enum.map_join(letters, "\n\n", &letter_whole/1)
+    end
+  end
+
+  defp call("letter_list", %{"number" => n} = _args, turn) when not is_nil(n) do
+    case Enum.find(Kumbukumbu.letters(turn.resident_id), &(&1.number == integer(n))) do
+      nil ->
+        @not_done <> "no house letter has that number."
+
+      letter ->
+        unless Map.get(turn, :trial?),
+          do:
+            Kumbukumbu.read_letters(
+              turn.resident_id,
+              turn.session_key,
+              [letter.number],
+              turn.resident
+            )
+
+        letter_whole(letter)
+    end
+  end
+
+  defp call("letter_list", _args, turn) do
+    case Kumbukumbu.letters(turn.resident_id) do
+      [] -> "No house letters yet."
+      letters -> Enum.map_join(letters, "\n", &letter_line/1)
+    end
+  end
+
   # The keepsakes with their whys (seshat #32).
   defp call("keepsake_list", _args, turn) do
     case Seshat.keepsakes(turn.resident_id) do
@@ -1870,6 +1972,39 @@ defmodule Oneiroi.Brain.Tools do
         parameters: %{type: "object", properties: properties, required: required}
       }
     }
+  end
+
+  defp letter_head(l) do
+    reply = if l.in_reply_to, do: " in reply to ##{l.in_reply_to}", else: ""
+
+    "##{l.number} from #{l.from_name} to #{l.to_name}, #{Calendar.strftime(l.sent_at, "%Y-%m-%d %H:%M")} UTC#{reply}"
+  end
+
+  defp letter_whole(l) do
+    gift =
+      if l.keepsake,
+        do:
+          "\n(It gives you the keepsake #{l.keepsake}; keepsake_note says why it matters to you.)",
+        else: ""
+
+    letter_head(l) <> ":\n" <> l.text <> gift
+  end
+
+  defp letter_line(l) do
+    read =
+      if l.read_by == [], do: "unread", else: "read by " <> Enum.join(Enum.uniq(l.read_by), ", ")
+
+    first = l.text |> String.split("\n", parts: 2) |> hd() |> String.slice(0, 120)
+    "#{letter_head(l)}; #{read}: #{first}"
+  end
+
+  # A keepsake given in a letter is one registered at the root.
+  defp given_keepsake(_resident_id, nil), do: :ok
+
+  defp given_keepsake(resident_id, path) do
+    if Enum.any?(Seshat.keepsakes(resident_id), &(&1.path == path)),
+      do: :ok,
+      else: @not_done <> "#{path} is not a keepsake at your root; keepsake_list names them."
   end
 
   defp keepsake_line(r) do

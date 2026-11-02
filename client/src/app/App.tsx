@@ -137,6 +137,8 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
   const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
   const [sending, setSending] = useState(false);
+  // The witness's message as sent, shown until the captured turn lands.
+  const [pending, setPending] = useState<string | null>(null);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
   // The newest page of a conversation, joined to what was paged in
@@ -250,6 +252,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       drewOn={drewOn}
       injections={injections}
       sending={sending}
+      pending={pending}
       preview={preview}
       onPreview={(draft) => {
         if (preview) {
@@ -263,6 +266,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       }}
       onSend={(text) => {
         setPreview(null);
+        setPending(text);
         setSending(true);
         api
           .send(resident.id, key, text)
@@ -270,7 +274,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
           .catch(() => undefined)
           .finally(() => {
             setSending(false);
-            void reload(key);
+            void reload(key).finally(() => setPending(null));
           });
       }}
       onInspect={(turnRef) => {

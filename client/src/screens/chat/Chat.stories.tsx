@@ -143,3 +143,9 @@ export const ReadOnly: Story = {
     },
   },
 };
+
+// The witness's message the moment it is sent, before the turn lands,
+// with the reply already streaming (the chat-UI survey's third pattern).
+export const Sending: Story = {
+  args: { pending: 'And the beans — did they take?\nThe second row looked thin.', sending: true, streaming: { turnRef: 't2', text: 'They took, mostly. The second' } },
+};

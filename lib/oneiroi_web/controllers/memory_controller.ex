@@ -37,6 +37,32 @@ defmodule OneiroiWeb.MemoryController do
     })
   end
 
+  operation(:letters,
+    summary:
+      "The house letters (kumbukumbu #44): the work log between the resident's conversations, every letter both ways, oldest first, with who sent it, to whom, in reply to what, the keepsake it gives and the conversations that have read it",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the letters", "application/json", %Schema{type: :array}}]
+  )
+
+  def letters(conn, %{"id" => id}) do
+    json(
+      conn,
+      Enum.map(Kumbukumbu.letters(id), fn l ->
+        %{
+          number: l.number,
+          from: l.from_name,
+          to: l.to_name,
+          in_reply_to: l.in_reply_to,
+          text: l.text,
+          keepsake: l.keepsake,
+          sent_at: l.sent_at,
+          read_by: Enum.uniq(l.read_by),
+          read_at: l.read_at
+        }
+      end)
+    )
+  end
+
   operation(:retrieval,
     summary:
       "How retrieval has been used, target by target (kumbukumbu #43): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",

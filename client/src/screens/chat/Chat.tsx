@@ -22,6 +22,9 @@ export interface ChatProps {
   injections?: Record<string, Injection[]>;
   drewOn?: Record<string, number>;
   sending?: boolean;
+  // The witness's message as sent, shown at once until the captured turn
+  // replaces it (the chat-UI survey's third pattern).
+  pending?: string | null;
   // What the next turn would be given, as the server assembled and
   // worded it (brain #41); null while closed.
   preview?: ContextPreview | null;
@@ -71,6 +74,7 @@ export function Chat({
   injections = {},
   drewOn = {},
   sending = false,
+  pending = null,
   preview = null,
   more = false,
   onOlder,
@@ -215,6 +219,30 @@ export function Chat({
               />
             </Fragment>
           ))}
+          {pending ? (
+            <div
+              aria-label="Sending"
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 0 }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  padding: 'var(--space-2) var(--space-3)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--witness-tint)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 15,
+                  lineHeight: '22px',
+                  maxWidth: 'min(var(--measure), 100%)',
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {pending}
+              </p>
+              <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>sending…</span>
+            </div>
+          ) : null}
           {streaming ? (
             <p
               aria-live="polite"
@@ -278,36 +306,79 @@ export function Chat({
           style={{
             display: 'flex',
             flex: 'none',
+            alignItems: 'flex-end',
             gap: 'var(--space-2)',
             padding: 'var(--space-3) var(--space-4)',
             borderTop: '1px solid var(--hairline)',
             background: 'var(--surface-raised)',
           }}
         >
-          <input
-            aria-label="Message"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={`Write to ${residentName}`}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              minHeight: 'var(--control-h)',
-              padding: '0 var(--space-3)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--hairline)',
-              background: 'var(--surface)',
-              color: 'var(--ink)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-            }}
-          />
+          <Composer draft={draft} onDraft={setDraft} onSubmit={submit} placeholder={`Write to ${residentName}`} />
           <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
             Send
           </Button>
         </form>
       ) : null}
     </div>
+  );
+}
+
+// The composer (the chat-UI survey's first two patterns): a box that
+// grows with its text to about eight lines and then scrolls inside
+// itself; Enter sends and Shift+Enter is a newline; nothing sends while
+// an input method is composing a character.
+const COMPOSER_MAX = 8 * 22 + 16;
+
+function Composer({
+  draft,
+  onDraft,
+  onSubmit,
+  placeholder,
+}: {
+  draft: string;
+  onDraft: (text: string) => void;
+  onSubmit: () => void;
+  placeholder: string;
+}) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX)}px`;
+    el.style.overflowY = el.scrollHeight > COMPOSER_MAX ? 'auto' : 'hidden';
+  }, [draft]);
+  return (
+    <textarea
+      ref={box}
+      aria-label="Message"
+      rows={1}
+      value={draft}
+      onChange={(event) => onDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          onSubmit();
+        }
+      }}
+      placeholder={placeholder}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        minHeight: 'var(--control-h)',
+        maxHeight: COMPOSER_MAX,
+        padding: 'var(--space-2) var(--space-3)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--hairline)',
+        background: 'var(--surface)',
+        color: 'var(--ink)',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 15,
+        lineHeight: '22px',
+        resize: 'none',
+        boxSizing: 'border-box',
+      }}
+    />
   );
 }
 

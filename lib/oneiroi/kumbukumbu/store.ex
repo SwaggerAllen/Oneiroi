@@ -158,6 +158,28 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule HouseLetter do
+    @moduledoc "A letter between conversations of the resident (kumbukumbu #44), and which conversations have read it."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_house_letter" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:from_name, :string)
+      field(:from_session, :string)
+      field(:to_name, :string)
+      field(:in_reply_to, :integer)
+      field(:text, :string)
+      field(:keepsake, :string)
+      field(:by_kind, :string)
+      field(:sent_at, :utc_datetime_usec)
+      field(:read_by, {:array, :string}, default: [])
+      field(:read_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Revision do
     @moduledoc "A correction to memory (F13): who made it, why, to what, and whether it holds, is proposed or was declined."
     use Ecto.Schema
@@ -347,6 +369,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
     Repo.all(query)
   end
+
+  @doc "Every house letter, oldest first (kumbukumbu #44)."
+  @spec house_letters() :: [HouseLetter.t()]
+  def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))
 
   @doc """
   A page of a session's messages, in order: the last `limit` before the

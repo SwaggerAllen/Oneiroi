@@ -50,7 +50,11 @@ defmodule OneiroiWeb.SessionChannelTest do
 
     ref = push(socket, "send", %{"text" => "hello channel"})
     assert_reply ref, :ok
-    assert_push "turn_started", %{turn_ref: turn_ref}
+    # The turn assembles its context before it says it started (index,
+    # madeleine, character, the open conversations, letters): a first
+    # turn on a fresh session measured ~180ms locally on 2026-11-02, past
+    # the default 100ms window, and the test is of order, not latency.
+    assert_push "turn_started", %{turn_ref: turn_ref}, 5_000
     assert_push "delta", %{text: _}, 5_000
 
     assert_push "turn",

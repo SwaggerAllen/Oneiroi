@@ -697,17 +697,7 @@ defmodule OneiroiWeb.ConversationController do
 
   defp cursor(_none), do: nil
 
-  defp title(%{kind: "main"}), do: "Oneiroi chat"
-  defp title(%{kind: "free_time"}), do: "Free time"
-  defp title(%{kind: "hands"}), do: "Hands"
-  defp title(%{kind: "imported", adapter: adapter}), do: "Imported from #{adapter}"
-
-  defp title(%{kind: "adapter"} = s) do
-    runtime = Kumbukumbu.Conversation.runtime_name(s.runtime, s.adapter)
-    if s.label, do: "#{runtime} · #{s.label}", else: runtime
-  end
-
-  defp title(%{kind: kind}), do: kind
+  defp title(s), do: Kumbukumbu.Conversation.title(s)
 
   defp message(m) do
     %{
