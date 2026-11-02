@@ -76,6 +76,15 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
+  fold(%Events.KeepsakeNoted{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :noted,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [note: e.note, noted_at: e.at]
+    )
+  end)
+
   fold(%Events.DiscussionOpened{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

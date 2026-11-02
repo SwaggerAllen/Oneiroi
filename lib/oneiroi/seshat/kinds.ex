@@ -92,7 +92,8 @@ defmodule Oneiroi.Seshat.Kinds do
       folder: "system",
       cites: true,
       has_status: false,
-      layout: "system/<name>.md: how the resident runs, in her words (tool notes, conventions, her AGENTS.md)",
+      layout:
+        "system/<name>.md: how the resident runs, in her words (tool notes, conventions, her AGENTS.md)",
       sidecar: nil,
       adoption: :decided,
       access: :resident

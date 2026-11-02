@@ -39,6 +39,8 @@ defmodule Oneiroi.Seshat.Store do
       field(:source_commit, :string)
       field(:source_path, :string)
       field(:source_blob, :string)
+      field(:note, :string)
+      field(:noted_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

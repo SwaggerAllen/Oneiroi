@@ -663,4 +663,35 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
     assert description =~ "keepsake"
   end
+
+  # Seshat #32: what a pin carries for a bookmark, beside a gift that is
+  # never edited.
+  test "the keepsakes index carries why each mattered, in the resident's words and hers alone",
+       ctx do
+    id = ctx.id
+    {:ok, _} = Seshat.write(id, "pocket-andrew.md", "# Pocket Andrew\n", ctx.actor)
+    {:ok, _} = Seshat.write(id, "writing/pond.md", "# Pond\n", ctx.brain)
+    turn = live_turn(ctx)
+
+    assert Tools.run("keepsake_list", ~s({}), turn) ==
+             "pocket-andrew.md (Pocket Andrew): written by your witness on 2026-10-26. Why: not yet said (keepsake_note says it)"
+
+    why = "The second gift; filed beside my soul file on purpose."
+
+    assert Tools.run("keepsake_note", Jason.encode!(%{name: "pocket-andrew.md", why: why}), turn) ==
+             "Noted why pocket-andrew.md mattered."
+
+    assert [%{path: "pocket-andrew.md", note: ^why, noted_at: %DateTime{}}] = Seshat.keepsakes(id)
+    assert Tools.run("keepsake_list", ~s({}), turn) =~ "Why: #{why}"
+
+    # The witness can ask; only the resident says it. Only of a keepsake, in a line.
+    assert {:error, %Seshat.Error{kind: :seshat_not_the_resident}} =
+             Seshat.note_keepsake(id, "pocket-andrew.md", "his words", ctx.actor)
+
+    assert {:error, %Seshat.Error{kind: :seshat_not_a_keepsake}} =
+             Seshat.note_keepsake(id, "writing/pond.md", "not a gift", ctx.brain)
+
+    assert {:error, %Seshat.Error{kind: :seshat_keepsake_note_invalid}} =
+             Seshat.note_keepsake(id, "pocket-andrew.md", String.duplicate("w", 1_001), ctx.brain)
+  end
 end

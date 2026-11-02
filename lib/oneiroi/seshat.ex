@@ -59,10 +59,12 @@ defmodule Oneiroi.Seshat do
       Commands.AdoptDocument,
       Commands.PublishPiece,
       Commands.OpenDiscussion,
+      Commands.NoteKeepsake,
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DiscussionOpened,
+      Events.KeepsakeNoted,
       Store,
       Store.Document,
       Store.Chunk,
@@ -164,6 +166,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
+      {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
@@ -179,6 +182,13 @@ defmodule Oneiroi.Seshat do
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy: "write under writing, design, research, wiki or posts"},
+      {:seshat_not_a_keepsake, "no keepsake is registered at that name",
+       remedy: "list the keepsakes; one at the root not yet adopted is adopted first"},
+      {:seshat_keepsake_note_invalid,
+       "why a keepsake mattered is a line of up to 1,000 characters",
+       remedy: "say it in a line or a few; the keepsake itself holds the rest"},
+      {:seshat_not_the_resident, "why a keepsake mattered is the resident's to say",
+       remedy: "the resident writes it; the witness can ask"},
       {:seshat_keepsake_kept,
        "a keepsake is written once and kept as it is; that name holds one already",
        remedy: "write the new version as a keepsake of its own, under another name"},
@@ -298,6 +308,17 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.SimaQian.Library
   @spec original_refusal(String.t()) :: String.t() | nil
   defexport(original_refusal(path), do: Kinds.original_refusal(path))
+
+  @doc "The keepsakes, each with who put it there, when, and why it mattered in the resident's words when she has said (seshat #32)."
+  @spec keepsakes(String.t()) :: [map()]
+  defexport(keepsakes(resident_id), do: Documents.keepsakes(resident_id))
+
+  @doc "The resident says why a keepsake mattered (seshat #32); the latest stands."
+  @spec note_keepsake(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(note_keepsake(resident_id, path, note, actor),
+    do: Documents.note_keepsake(resident_id, path, note, actor)
+  )
 
   @doc "Files in the repository under a kind's folder that no document registers."
   @spec unadopted(String.t()) :: [String.t()]

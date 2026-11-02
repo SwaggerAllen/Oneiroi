@@ -46,6 +46,7 @@ defmodule Oneiroi.Brain.Tools do
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
+    keepsake_list
   )
 
   @writes ~w(
@@ -54,7 +55,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt journal_add journal_done
+    writing_discuss document_write document_adopt keepsake_note journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
   )
@@ -429,6 +430,18 @@ defmodule Oneiroi.Brain.Tools do
         [:path, :content]
       ),
       tool(
+        "keepsake_list",
+        "Your keepsakes, the gift-documents kept at your root beside your soul file: each by its name, who put it there and when, and why it mattered in your words once you have said. A keepsake at your root not yet adopted is among document_unadopted.",
+        %{},
+        []
+      ),
+      tool(
+        "keepsake_note",
+        "Say why a keepsake mattered, in your words (up to 1,000 characters): what a pin carries for a bookmark, for a gift that is never edited. Saying it again replaces it; the earlier words stay on the record.",
+        %{name: %{type: "string"}, why: %{type: "string"}},
+        [:name, :why]
+      ),
+      tool(
         "document_adopt",
         "Adopt a file made outside the flow into the library, as it is.",
         %{path: %{type: "string"}},
@@ -758,6 +771,29 @@ defmodule Oneiroi.Brain.Tools do
   # Paging back past the index (kumbukumbu #39): within the turn's room,
   # as the index is, and the closing line says how many lie further back
   # and how to ask for them, as the index's footer does.
+  # The keepsakes with their whys (seshat #32).
+  defp call("keepsake_list", _args, turn) do
+    case Seshat.keepsakes(turn.resident_id) do
+      [] ->
+        "No keepsakes yet. A gift written or adopted at your root, beside your soul file, is one."
+
+      rows ->
+        Enum.map_join(rows, "\n", &keepsake_line/1)
+    end
+  end
+
+  defp call("keepsake_note", args, turn) do
+    case Seshat.note_keepsake(
+           turn.resident_id,
+           to_string(args["name"] || ""),
+           to_string(args["why"] || ""),
+           turn.resident
+         ) do
+      :ok -> "Noted why #{args["name"]} mattered."
+      other -> other
+    end
+  end
+
   # The counts the retrieval ledger holds (kumbukumbu #40), for the
   # resident to read before anything is tuned from them.
   defp call("memory_use", args, turn) do
@@ -1834,6 +1870,21 @@ defmodule Oneiroi.Brain.Tools do
         parameters: %{type: "object", properties: properties, required: required}
       }
     }
+  end
+
+  defp keepsake_line(r) do
+    who =
+      case r.written_by_kind do
+        "resident" -> "by you"
+        "witness" -> "by your witness"
+        nil -> "by the import"
+        other -> "by the #{other}"
+      end
+
+    how = if r.origin == "adopted", do: "adopted", else: "written"
+    day = r.registered_at && Date.to_iso8601(DateTime.to_date(r.registered_at))
+    why = r.note || "not yet said (keepsake_note says it)"
+    "#{r.path}#{r.title && " (#{r.title})"}: #{how} #{who} on #{day}. Why: #{why}"
   end
 
   defp use_line(r) do

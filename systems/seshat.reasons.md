@@ -203,3 +203,11 @@ since: nothing enters a place without being decided into it. A rule a
 person keeps by habit lapses; one written into the registry cannot. The
 `system` shelf exists from the start under the same rule, as she asked,
 so it cannot become the next catch-all.
+
+## #32
+A pin says a bookmark matters; a keepsake, written once and never
+edited, had no place to say why. The why cannot live in the gift's own
+file without editing it, and a note in the wiki would be the catch-all
+again, so it is an event of its own beside the document. It is the
+resident's alone because the meaning of a gift is the receiver's to
+say; the witness can ask.

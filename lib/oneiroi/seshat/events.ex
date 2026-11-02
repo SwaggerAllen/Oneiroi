@@ -29,6 +29,13 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end
 
+  defmodule KeepsakeNoted do
+    # Why a keepsake mattered, in the resident's words (seshat #32): what
+    # a pin carries for a bookmark, beside a gift that is never edited.
+    # The latest stands; the earlier ones stay on the stream.
+    use Oneiroi.Event, version: 1, fields: [:id, :path, :note]
+  end
+
   defmodule DiscussionOpened do
     # A session linked to a piece (`writing_discuss`, spec §8).
     use Oneiroi.Event, version: 1, fields: [:id, :path, :session_key]

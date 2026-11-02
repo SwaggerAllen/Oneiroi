@@ -315,6 +315,25 @@ defmodule Oneiroi.Seshat.Documents do
   def publish(_resident_id, _path, _url, %Actor{}),
     do: {:error, Error.new(:seshat_not_the_witness, :seshat_documents_publish_witness_only)}
 
+  @doc "The keepsakes, by name: each row with its note, the resident's why, when she has given one (seshat #32)."
+  def keepsakes(resident_id),
+    do: resident_id |> list() |> Enum.filter(&(&1.kind == "keepsake")) |> Enum.sort_by(& &1.path)
+
+  @doc "Records why a keepsake mattered, in the resident's words (seshat #32)."
+  def note_keepsake(resident_id, path, note, %Actor{} = actor) do
+    with {:ok, path} <- normalize(path),
+         {:ok, _} <-
+           dispatch(%Commands.NoteKeepsake{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             path: path,
+             note: note
+           }) do
+      :ok
+    end
+  end
+
   @doc "Links a session to a piece as its discussion."
   def discuss(resident_id, path, session_key, %Actor{} = actor) when is_binary(session_key) do
     with {:ok, path} <- normalize(path),

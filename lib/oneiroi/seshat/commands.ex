@@ -14,6 +14,10 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :path, :url]
   end
 
+  defmodule NoteKeepsake do
+    use Oneiroi.Command, fields: [:id, :path, :note]
+  end
+
   defmodule OpenDiscussion do
     use Oneiroi.Command, fields: [:id, :path, :session_key]
   end
