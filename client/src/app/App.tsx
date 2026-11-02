@@ -13,11 +13,13 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   Resident,
+  Session,
   Tag,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
 import { Chat } from '../screens/chat/Chat';
+import { Conversations } from '../screens/chat/Conversations';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -85,7 +87,11 @@ export function App() {
 }
 
 function ChatContainer({ resident }: { resident: Resident }) {
+  // The Oneiroi chat's key, and the conversation open now: the chat, or
+  // one the list opened (kumbukumbu #40).
   const [key, setKey] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [drewOn, setDrewOn] = useState<Record<string, number>>({});
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
@@ -95,8 +101,9 @@ function ChatContainer({ resident }: { resident: Resident }) {
 
   const reload = useCallback(
     (k: string) =>
-      api.transcript(resident.id, k).then(({ messages: rows }) => {
+      api.transcript(resident.id, k).then(({ messages: rows, drew_on }) => {
         setMessages(rows);
+        setDrewOn((d) => ({ ...d, ...drew_on }));
         setStreaming(null);
       }),
     [resident.id],
@@ -105,28 +112,60 @@ function ChatContainer({ resident }: { resident: Resident }) {
   useEffect(() => {
     api.mainSession(resident.id).then(({ key: k }) => {
       setKey(k);
-      void reload(k);
+      setOpen(k);
     });
-  }, [resident.id, reload]);
+  }, [resident.id]);
 
+  // The list is read again whenever a conversation opens, so a Claude
+  // Code conversation begun since shows without a reload.
   useEffect(() => {
-    if (!key) return;
-    let leave: () => void = () => undefined;
-    api.socketToken().then(({ token }) => {
-      leave = joinSession(token, resident.id, key, {
-        onStarted: (turnRef) => setStreaming({ turnRef, text: '' }),
-        onDelta: (turnRef, text) => setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text })),
-        onTurn: () => void reload(key),
-        onFailed: () => setStreaming(null),
-      });
-    });
-    return () => leave();
-  }, [key, resident.id, reload]);
+    if (!open) return;
+    void reload(open);
+    api
+      .sessions(resident.id)
+      .then(setSessions)
+      .catch(() => setSessions([]));
+  }, [open, reload, resident.id]);
 
-  if (!key) return null;
+  // Only the Oneiroi chat streams: another conversation is answered
+  // where it happens and read here as captured.
+  useEffect(() => {
+    if (!key || open !== key) return;
+    let leave: () => void = () => undefined;
+    api
+      .socketToken()
+      .then(({ token }) => {
+        leave = joinSession(token, resident.id, key, {
+          onStarted: (turnRef) => setStreaming({ turnRef, text: '' }),
+          onDelta: (turnRef, text) => setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text })),
+          onTurn: () => void reload(key),
+          onFailed: () => setStreaming(null),
+        });
+      })
+      // Without the stream the reply still lands on the reload after
+      // the send; the transcript is read either way.
+      .catch(() => undefined);
+    return () => leave();
+  }, [key, open, resident.id, reload]);
+
+  const shown = sessions.find((s) => s.key === open);
+  // Anything but the chat is as the server says, and read only until it
+  // has said.
+  const conversation = open !== key ? { title: shown?.title ?? 'Conversation', writable: shown?.writable ?? false } : undefined;
+
+  // A conversation opens closed: no inspector and no preview carried over.
+  const openConversation = (k: string) => {
+    setInjections({});
+    setPreview(null);
+    setOpen(k);
+  };
+
+  if (!key || !open) return null;
   return (
     <Chat
       residentName={resident.name}
+      conversation={conversation}
+      conversations={<Conversations sessions={sessions} chatKey={key} current={open} onOpen={openConversation} />}
       messages={messages}
       streaming={streaming}
       drewOn={drewOn}

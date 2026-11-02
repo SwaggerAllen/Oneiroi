@@ -141,6 +141,9 @@ defmodule Oneiroi.Brain.Preview do
   defp readable_section("figures"), do: {:shown, "You read these counters with the audits."}
   defp readable_section("journal"), do: {:shown, "You read today's journal in the Library."}
 
+  defp readable_section("where"),
+    do: {:shown, "You read these conversations, by name and folder, under Chat."}
+
   defp readable_section("summary"),
     do: {:shown, "You read this summary with this conversation's record."}
 

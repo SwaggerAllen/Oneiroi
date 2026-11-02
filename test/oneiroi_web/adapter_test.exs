@@ -36,7 +36,9 @@ defmodule OneiroiWeb.AdapterTest do
              |> post("/v1/residents/#{id}/sessions", %{kind: "main"})
              |> json_response(201)
 
-    assert [%{adapter: "claude-code", kind: "main", participants: [party]}] =
+    # Sent as `main`, as a plugin built before the kind sends it, and
+    # opened as the adapter's own conversation (kumbukumbu #40).
+    assert [%{adapter: "claude-code", kind: "adapter", participants: [party]}] =
              Kumbukumbu.sessions({:resident, id})
 
     assert party == ctx.account.id

@@ -16,14 +16,34 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # §6.3's visibility rule); a solo session carries the witness's, since
     # solo sessions are the witness's to read by default. Version 2 adds
     # `domain` (P23): the room, a slug or nil for the common room; the
-    # store restarts for v0.2, so the upcaster is identity.
+    # store restarts for v0.2, so the upcaster is identity. Version 3
+    # adds `label` and `runtime` (kumbukumbu #40): what an adapter's
+    # conversation is called, the base name of the folder the runtime
+    # ran in and never its path, and which runtime it is (`claude-code`),
+    # each nil when not given; an earlier version reads as nil for both,
+    # which is the truth about it. The kind `adapter` arrived with it, a
+    # value and not a shape: the upcaster gives a session an adapter
+    # opened as `main` before it the kind one opened now gets, by the
+    # one rule in `Kinds.kind_for/2`.
     use Oneiroi.Event,
-      version: 2,
-      fields: [:id, :resident_id, :session_key, :kind, :adapter, :participants, :domain]
+      version: 3,
+      fields: [
+        :id,
+        :resident_id,
+        :session_key,
+        :kind,
+        :adapter,
+        :participants,
+        :domain,
+        :label,
+        :runtime
+      ]
   end
 
   defimpl Commanded.Event.Upcaster, for: SessionOpened do
-    def upcast(event, _metadata), do: event
+    alias Oneiroi.Kumbukumbu.Kinds
+
+    def upcast(event, _metadata), do: %{event | kind: Kinds.kind_for(event.kind, event.adapter)}
   end
 
   defmodule SessionMadePrivate do

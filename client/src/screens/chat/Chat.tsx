@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { ContextPreview, Injection, Message } from '../../api/types';
 import { ActorChip } from '../../components/ActorChip';
 import { Button } from '../../components/Button';
@@ -8,6 +8,12 @@ import { TopBar } from '../../components/TopBar';
 
 export interface ChatProps {
   residentName: string;
+  // The conversation shown, as the server named it (kumbukumbu #40);
+  // absent, the Oneiroi chat. One that is not writable is read here and
+  // answered where it happens, so it has no composer and no preview.
+  conversation?: { title: string; writable: boolean };
+  // The list of conversations, rendered under the top bar.
+  conversations?: ReactNode;
   messages: Message[];
   // The reply being streamed, by turn ref, until the turn lands.
   streaming?: { turnRef: string; text: string } | null;
@@ -29,8 +35,13 @@ export interface ChatProps {
 // in the resident's words, "drew on N things" per reply (what that turn
 // drew on), the preview of what the next turn would be given, the
 // composer. Replies are not regenerated and sent messages are not edited.
+// The same screen reads another conversation (a Claude Code one) when
+// the server says it is not writable: the transcript and the inspector,
+// with no composer and no preview (kumbukumbu #40).
 export function Chat({
   residentName,
+  conversation,
+  conversations = null,
   messages,
   streaming = null,
   injections = {},
@@ -43,6 +54,7 @@ export function Chat({
   onProposeBookmark,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
+  const writable = conversation?.writable ?? true;
   // Which model answered, as the server recorded it on the reply: the
   // pin is otherwise invisible here, and a pin that did not take was
   // only found by asking the resident who she was.
@@ -55,10 +67,20 @@ export function Chat({
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <TopBar title={residentName} line={lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'} />
+      <TopBar
+        title={residentName}
+        line={
+          !writable
+            ? `${conversation?.title} · read here, answered there`
+            : lastModel
+              ? `Main conversation · last reply on ${lastModel}`
+              : 'Main conversation'
+        }
+      />
+      {conversations}
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {messages.length === 0 && !streaming ? (
-          <EmptyState text={`Say something to ${residentName}.`} />
+          <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
         ) : null}
         {messages.map((m) => (
           <Reply
@@ -80,7 +102,21 @@ export function Chat({
           </p>
         ) : null}
       </main>
-      {onPreview ? (
+      {!writable ? (
+        <p
+          role="note"
+          style={{
+            margin: 0,
+            padding: 'var(--space-3) var(--space-4)',
+            borderTop: '1px solid var(--hairline)',
+            color: 'var(--ink-muted)',
+            fontSize: 14,
+          }}
+        >
+          {`A conversation of its own, separate from your chat with ${residentName}. You reply to ${residentName} there, not here.`}
+        </p>
+      ) : null}
+      {writable && onPreview ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-3)' }}>
           <div>
             <Button variant="quiet" onClick={() => onPreview(draft)}>
@@ -90,40 +126,42 @@ export function Chat({
           {preview ? <Preview preview={preview} /> : null}
         </div>
       ) : null}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-        style={{
-          display: 'flex',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-3) var(--space-4)',
-          borderTop: '1px solid var(--hairline)',
-          background: 'var(--surface-raised)',
-        }}
-      >
-        <input
-          aria-label="Message"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={`Write to ${residentName}`}
-          style={{
-            flex: 1,
-            minHeight: 'var(--control-h)',
-            padding: '0 var(--space-3)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--hairline)',
-            background: 'var(--surface)',
-            color: 'var(--ink)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+      {writable ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
           }}
-        />
-        <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
-          Send
-        </Button>
-      </form>
+          style={{
+            display: 'flex',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-3) var(--space-4)',
+            borderTop: '1px solid var(--hairline)',
+            background: 'var(--surface-raised)',
+          }}
+        >
+          <input
+            aria-label="Message"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={`Write to ${residentName}`}
+            style={{
+              flex: 1,
+              minHeight: 'var(--control-h)',
+              padding: '0 var(--space-3)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--hairline)',
+              background: 'var(--surface)',
+              color: 'var(--ink)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+            }}
+          />
+          <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
+            Send
+          </Button>
+        </form>
+      ) : null}
     </div>
   );
 }
