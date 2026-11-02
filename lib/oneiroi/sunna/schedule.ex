@@ -13,7 +13,7 @@ defmodule Oneiroi.Sunna.Schedule do
   defstruct [
     :id,
     checkins: %{},
-    free_time: nil,
+    free_times: nil,
     free_time_days: %{},
     quiet: nil,
     dates: %{},
@@ -26,6 +26,9 @@ defmodule Oneiroi.Sunna.Schedule do
   @time ~r/\A([01]\d|2[0-3]):[0-5]\d\z/
   @date_kinds ~w(deadline anniversary window recurring)
   @label_limit 60
+  # A bound (sunna #22): free time is one to this many slots a day, so a
+  # list cannot grow into a resident who is never not on her own time.
+  @free_time_slots 4
 
   @doc "The kinds a date takes (spec §6.7)."
   @spec date_kinds() :: [String.t()]
@@ -168,26 +171,37 @@ defmodule Oneiroi.Sunna.Schedule do
 
   # ---- free time ----
 
-  def execute(%__MODULE__{free_time: current}, %Commands.SetFreeTime{} = c) do
+  def execute(%__MODULE__{free_times: current}, %Commands.SetFreeTime{} = c) do
+    times = List.wrap(c.times)
+
     cond do
-      # Free time moves and is never removed (sunna #21).
-      is_nil(c.time) ->
+      # Free time moves and is never removed (sunna #21): at least one slot.
+      times == [] ->
         {:error, Error.new(:sunna_free_time_required, :sunna_free_time_removed)}
 
-      not time_ok?(c.time) ->
+      not Enum.all?(times, &time_ok?/1) ->
         {:error, Error.new(:sunna_time_invalid, :sunna_free_time_time_invalid)}
 
-      current == c.time ->
+      length(times) > @free_time_slots or length(Enum.uniq(times)) != length(times) ->
+        {:error,
+         Error.new(:sunna_free_time_invalid, :sunna_free_time_slots_invalid,
+           slots: length(times),
+           bound: @free_time_slots
+         )}
+
+      current == Enum.sort(times) ->
         []
 
       true ->
-        %Events.FreeTimeScheduled{actor: c.actor, at: c.at, id: c.id, time: c.time}
+        %Events.FreeTimeScheduled{actor: c.actor, at: c.at, id: c.id, times: Enum.sort(times)}
     end
   end
 
   def execute(%__MODULE__{free_time_days: days}, %Commands.RecordFreeTime{} = c) do
     cond do
-      Map.has_key?(days, c.day) ->
+      # A slot runs once a day; a day recorded before slots (a version 1
+      # event, `:all`) had its one free time, and runs no other.
+      Map.has_key?(days, {c.day, c.slot}) or Map.has_key?(days, {c.day, :all}) ->
         []
 
       is_binary(c.session_key) ->
@@ -196,6 +210,7 @@ defmodule Oneiroi.Sunna.Schedule do
           at: c.at,
           id: c.id,
           day: c.day,
+          slot: c.slot,
           session_key: c.session_key
         }
 
@@ -205,6 +220,7 @@ defmodule Oneiroi.Sunna.Schedule do
           at: c.at,
           id: c.id,
           day: c.day,
+          slot: c.slot,
           reason: c.reason || "unknown"
         }
     end
@@ -307,13 +323,13 @@ defmodule Oneiroi.Sunna.Schedule do
     do: %{s | id: e.id, hours: MapSet.put(s.hours, e.hour)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeScheduled{} = e),
-    do: %{s | id: e.id, free_time: e.time}
+    do: %{s | id: e.id, free_times: e.times || List.wrap(e.time)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeRan{} = e),
-    do: %{s | free_time_days: Map.put(s.free_time_days, e.day, :ran)}
+    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, :ran)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeFailed{} = e),
-    do: %{s | free_time_days: Map.put(s.free_time_days, e.day, :failed)}
+    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, :failed)}
 
   def apply(%__MODULE__{} = s, %Events.QuietHoursSet{} = e),
     do: %{s | id: e.id, quiet: quiet_of(e)}

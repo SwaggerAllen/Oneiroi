@@ -68,18 +68,22 @@ defmodule Oneiroi.Sunna.TickWorker do
     :ok
   end
 
-  # Every resident has free time, at the time set or the default
-  # (sunna #21), so a resident nobody configured still gets it.
+  # Every resident has free time, at the slots set or the default
+  # (sunna #21, #22), so a resident nobody configured still gets it. A
+  # slot runs once a day; a day recorded before slots (slot nil) had its
+  # one free time and runs no other.
   defp free_time(resident_id, settings, local, day) do
-    time = Schedules.free_time_of(settings)
-    last_day = settings && settings.free_time_day
-    scheduled = Schedules.at_time(local, time)
+    ran = Scope.resident(resident_id, fn -> Schedules.free_time_ran(settings, day) end)
     late = Oneiroi.Config.fetch!(:sunna, :late_minutes) * 60
-    since = DateTime.diff(local, scheduled, :second)
 
-    if last_day != day and since >= 0 and since <= late,
-      do: Schedules.run_free_time(resident_id, day, @actor),
-      else: :wait
+    for time <- Schedules.free_times_of(settings),
+        not Map.has_key?(ran, time) and not Map.has_key?(ran, nil),
+        since = DateTime.diff(local, Schedules.at_time(local, time), :second),
+        since >= 0 and since <= late do
+      Schedules.run_free_time(resident_id, day, time, @actor)
+    end
+
+    :ok
   end
 
   # Today's outcomes from the firing rows, in the aggregate's vocabulary.

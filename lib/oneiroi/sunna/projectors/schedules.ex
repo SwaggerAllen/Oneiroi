@@ -6,7 +6,7 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
 
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
-  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, Hour, Settings}
+  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, FreeTimeRun, Hour, Settings}
 
   fold(%Events.CheckinSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -64,23 +64,30 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
   end)
 
   fold(%Events.FreeTimeScheduled{} = e, _metadata, fn multi ->
-    settings(multi, e.id, free_time: e.time)
+    times = e.times || List.wrap(e.time)
+    settings(multi, e.id, free_times: times, free_time: List.last(times))
   end)
 
+  # The settings row keeps the last run of any slot (what the schedule
+  # route has always said); each slot's run is its own row (sunna #22).
   fold(%Events.FreeTimeRan{} = e, _metadata, fn multi ->
-    settings(multi, e.id,
+    multi
+    |> settings(e.id,
       free_time_day: e.day,
       free_time_outcome: "ran",
       free_time_session_key: e.session_key
     )
+    |> free_time_run(e, "ran", e.session_key)
   end)
 
   fold(%Events.FreeTimeFailed{} = e, _metadata, fn multi ->
-    settings(multi, e.id,
+    multi
+    |> settings(e.id,
       free_time_day: e.day,
       free_time_outcome: "failed: " <> e.reason,
       free_time_session_key: nil
     )
+    |> free_time_run(e, "failed: " <> e.reason, nil)
   end)
 
   fold(%Events.QuietHoursSet{} = e, _metadata, fn multi ->
@@ -150,6 +157,22 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
       )
 
   # One settings row per resident, made on first use.
+  defp free_time_run(multi, e, outcome, session_key) do
+    Multi.insert(
+      multi,
+      :free_time_run,
+      %FreeTimeRun{
+        resident_id: e.id,
+        day: e.day,
+        slot: e.slot,
+        outcome: outcome,
+        session_key: session_key,
+        at: e.at
+      },
+      on_conflict: :nothing
+    )
+  end
+
   defp settings(multi, id, set) do
     Multi.insert(
       multi,

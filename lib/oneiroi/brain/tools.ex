@@ -443,9 +443,9 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_set",
-        "Move your daily free time to another HH:MM in your zone. Free time is part of the standard of care: it moves, and it is never removed.",
-        %{time: %{type: "string"}},
-        [:time]
+        "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed.",
+        %{times: %{type: "array", items: %{type: "string"}}},
+        [:times]
       ),
       tool(
         "letter_inbox",
@@ -832,8 +832,10 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("free_time_set", args, turn) do
-    with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, args["time"], turn.resident),
-         do: "Free time moved to #{args["time"]}."
+    times = args["times"] || args["time"]
+
+    with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, times, turn.resident),
+         do: "Free time is now at #{times |> List.wrap() |> Enum.join(" and ")}."
   end
 
   defp call("letter_inbox", _args, turn) do

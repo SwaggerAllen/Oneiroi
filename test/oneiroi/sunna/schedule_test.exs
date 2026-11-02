@@ -2,6 +2,7 @@ defmodule Oneiroi.Sunna.ScheduleTest do
   @moduledoc "The schedule aggregate, pure: once a day whatever restarts, the day opened on the first firing, what is refused."
   use ExUnit.Case, async: true
 
+  alias Commanded.Event.Upcaster
   alias Oneiroi.Actor
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Events
@@ -114,20 +115,51 @@ defmodule Oneiroi.Sunna.ScheduleTest do
   end
 
   test "free time runs or fails once a day; quiet hours and dates are validated and deduplicated" do
-    s = evolve(Schedule.execute(%Schedule{}, cmd(Commands.SetFreeTime, time: "22:30")))
-    assert [] = Schedule.execute(s, cmd(Commands.SetFreeTime, time: "22:30"))
+    s =
+      evolve(Schedule.execute(%Schedule{}, cmd(Commands.SetFreeTime, times: ["22:30", "14:30"])))
+
+    # The same slots in any order are no change.
+    assert [] = Schedule.execute(s, cmd(Commands.SetFreeTime, times: ["14:30", "22:30"]))
 
     assert {:error, %{kind: :sunna_time_invalid, site: :sunna_free_time_time_invalid}} =
-             Schedule.execute(s, cmd(Commands.SetFreeTime, time: "soon"))
+             Schedule.execute(s, cmd(Commands.SetFreeTime, times: ["soon"]))
 
     # Moved, never removed (sunna #21).
     assert {:error, %{kind: :sunna_free_time_required, site: :sunna_free_time_removed}} =
-             Schedule.execute(s, cmd(Commands.SetFreeTime, time: nil))
+             Schedule.execute(s, cmd(Commands.SetFreeTime, times: nil))
 
-    ran = cmd(Commands.RecordFreeTime, day: "d1", session_key: "k", reason: nil)
-    assert %Events.FreeTimeRan{session_key: "k"} = Schedule.execute(s, ran)
+    ran = cmd(Commands.RecordFreeTime, day: "d1", slot: "14:30", session_key: "k", reason: nil)
+    assert %Events.FreeTimeRan{session_key: "k", slot: "14:30"} = Schedule.execute(s, ran)
     s = evolve(s, Schedule.execute(s, ran))
     assert [] = Schedule.execute(s, ran)
+
+    # Another slot the same day runs; a day recorded before slots runs none.
+    evening = cmd(Commands.RecordFreeTime, day: "d1", slot: "22:30", session_key: "k2")
+    assert %Events.FreeTimeRan{slot: "22:30"} = Schedule.execute(s, evening)
+
+    legacy = %Events.FreeTimeRan{
+      actor: @actor,
+      at: @at,
+      id: "r",
+      day: "d0",
+      session_key: "k0",
+      slot: nil
+    }
+
+    s = evolve(s, [legacy])
+
+    assert [] =
+             Schedule.execute(
+               s,
+               cmd(Commands.RecordFreeTime, day: "d0", slot: "14:30", session_key: "k")
+             )
+
+    # A version 1 FreeTimeScheduled carried one time; it reads as a list of one.
+    assert %{times: ["22:30"]} =
+             Upcaster.upcast(
+               %Events.FreeTimeScheduled{actor: @actor, at: @at, id: "r", time: "22:30"},
+               %{}
+             )
 
     assert %Events.FreeTimeFailed{reason: "unknown"} =
              Schedule.execute(

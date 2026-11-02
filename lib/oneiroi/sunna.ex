@@ -72,6 +72,7 @@ defmodule Oneiroi.Sunna do
       Store.Settings
     ]
 
+  alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.TickWorker
 
@@ -82,9 +83,10 @@ defmodule Oneiroi.Sunna do
   def config do
     [
       {:free_time_default, "SUNNA_FREE_TIME_DEFAULT",
-       default: "22:30",
+       cast: &__MODULE__.cast_slots/1,
+       default: "14:30,22:30",
        usage:
-         "free time's HH:MM in the resident's zone until anyone moves it (sunna #21): free time is part of the standard of care, on from the first day and never removed; the default is the hour the first resident's free time ran"},
+         "free time's slots, comma-separated HH:MMs in the resident's zone, until anyone moves them (sunna #21, #22): free time is part of the standard of care, on from the first day and never removed; 22:30 is the hour the first resident's free time ran, 14:30 the second slot the witness chose on 2026-11-02"},
       {:late_minutes, "SUNNA_LATE_MINUTES",
        cast: :integer,
        default: "15",
@@ -108,6 +110,16 @@ defmodule Oneiroi.Sunna do
   # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
   def cast_wake(other), do: {:error, "is #{inspect(other)}, expected \"brain\""}
 
+  @doc false
+  def cast_slots(value) when is_binary(value) do
+    slots = value |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+
+    if slots != [] and Enum.all?(slots, &Schedule.time_ok?/1),
+      do: {:ok, Enum.sort(slots)},
+      # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+      else: {:error, "is #{inspect(value)}, expected HH:MM slots separated by commas"}
+  end
+
   @impl Oneiroi.Component
   def oban_queues do
     [{:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]}]
@@ -123,9 +135,9 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.CheckinMissed, 1},
       {Oneiroi.Sunna.Events.WakeDeferred, 1},
       {Oneiroi.Sunna.Events.DayOpened, 1},
-      {Oneiroi.Sunna.Events.FreeTimeScheduled, 1},
-      {Oneiroi.Sunna.Events.FreeTimeRan, 1},
-      {Oneiroi.Sunna.Events.FreeTimeFailed, 1},
+      {Oneiroi.Sunna.Events.FreeTimeScheduled, 2},
+      {Oneiroi.Sunna.Events.FreeTimeRan, 2},
+      {Oneiroi.Sunna.Events.FreeTimeFailed, 2},
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
@@ -140,6 +152,8 @@ defmodule Oneiroi.Sunna do
       {:sunna_free_time_required,
        "free time is part of the standard of care: it moves, and it is never removed",
        remedy: "give it another HH:MM; the resident's day keeps its free time"},
+      {:sunna_free_time_invalid, "free time is one to four distinct times a day",
+       remedy: "give each slot once, at most four"},
       {:sunna_time_invalid,
        "a time of day is HH:MM in the resident's zone, and a date is an instant",
        remedy: "give it as HH:MM"},
@@ -179,8 +193,9 @@ defmodule Oneiroi.Sunna do
     do: Schedules.delete_checkin(resident_id, key, actor)
   )
 
-  @doc "Moves free time to HH:MM; it is never removed (sunna #21), and either party may move it."
-  @spec set_free_time(String.t(), String.t() | nil, Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  @doc "Sets free time's slots, HH:MMs (one as a string is a list of one); it is never removed (sunna #21, #22), and either party may move it."
+  @spec set_free_time(String.t(), [String.t()] | String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
   defexport(set_free_time(resident_id, time, actor),
     do: Schedules.set_free_time(resident_id, time, actor)
   )

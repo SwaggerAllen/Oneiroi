@@ -86,16 +86,23 @@ defmodule OneiroiWeb.ScheduleController do
     do: respond(conn, Sunna.delete_checkin(id, key, actor(conn)))
 
   operation(:set_free_time,
-    summary: "Set free time's time of day, or null for none",
+    summary:
+      "Set free time's slots: `times`, one to four HH:MMs (`time` alone is a list of one); free time is never removed",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"free time", "application/json",
-       %Schema{type: :object, properties: %{time: %Schema{type: :string, nullable: true}}}},
+       %Schema{
+         type: :object,
+         properties: %{
+           times: %Schema{type: :array, items: %Schema{type: :string}},
+           time: %Schema{type: :string, nullable: true}
+         }
+       }},
     responses: [no_content: "set"]
   )
 
   def set_free_time(conn, %{"id" => id} = params),
-    do: respond(conn, Sunna.set_free_time(id, params["time"], actor(conn)))
+    do: respond(conn, Sunna.set_free_time(id, params["times"] || params["time"], actor(conn)))
 
   operation(:set_quiet_hours,
     summary: "Set quiet hours from a time to a time (may cross midnight), or both null to clear",
@@ -172,7 +179,7 @@ defmodule OneiroiWeb.ScheduleController do
       firings: Enum.map(today.firings, &firing_json/1),
       last: today.last,
       next: today.next,
-      free_time: today.free_time,
+      free_times: today.free_times,
       free_time_last: free_time_last(today.free_time_last),
       quiet: today.quiet,
       dates: Enum.map(today.dates, &date_json/1)

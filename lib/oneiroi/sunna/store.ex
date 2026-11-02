@@ -82,6 +82,22 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule FreeTimeRun do
+    @moduledoc "One free-time slot's run on a day (sunna #22): ran, or failed with its reason; `slot` is nil for a day recorded before slots."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_free_time_run" do
+      field(:resident_id, :binary_id)
+      field(:day, :string)
+      field(:slot, :string)
+      field(:outcome, :string)
+      field(:session_key, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Settings do
     @moduledoc "The resident's one schedule row: free time, quiet hours, the last free-time run."
     use Ecto.Schema
@@ -89,6 +105,7 @@ defmodule Oneiroi.Sunna.Store do
     schema "sunna_schedule" do
       field(:resident_id, :binary_id, primary_key: true)
       field(:free_time, :string)
+      field(:free_times, {:array, :string})
       field(:quiet_from, :string)
       field(:quiet_to, :string)
       field(:free_time_day, :string)
@@ -128,6 +145,11 @@ defmodule Oneiroi.Sunna.Store do
 
   @spec dates() :: [Date.t()]
   def dates, do: Repo.all(from(d in Date, order_by: d.on))
+
+  @doc "The free-time runs recorded on a day, any slot."
+  @spec free_time_runs(String.t()) :: [FreeTimeRun.t()]
+  def free_time_runs(day),
+    do: Repo.all(from(r in FreeTimeRun, where: r.day == ^day, order_by: r.at))
 
   @spec settings() :: Settings.t() | nil
   def settings, do: Repo.one(from(s in Settings, limit: 1))

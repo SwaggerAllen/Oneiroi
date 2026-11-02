@@ -262,3 +262,66 @@ export interface RunEnd {
   state: Exclude<RunState, 'running'>;
   cards: number;
 }
+
+// The schedule route's today (sunna, spec §6.7): every time is HH:MM in
+// the resident's zone.
+export interface ScheduleCheckin {
+  key: string;
+  label: string;
+  time: string;
+  last_day: string | null;
+  last_outcome: string | null;
+  last_at: string | null;
+}
+
+export interface ScheduleFiring {
+  key: string;
+  day: string;
+  outcome: string;
+  at: string;
+  until: string | null;
+}
+
+export interface ScheduleDate {
+  number: number;
+  title: string;
+  on: string;
+  kind: string;
+  days_to: number;
+}
+
+// One free-time slot and what it did today: "ran", "failed: <kind>", or
+// null when it has not come yet (sunna #22).
+export interface FreeTimeSlot {
+  time: string;
+  today: string | null;
+}
+
+export interface ScheduleToday {
+  day: string;
+  now: string;
+  timezone: string;
+  checkins: ScheduleCheckin[];
+  firings: ScheduleFiring[];
+  last: { label: string; time: string; at: string } | null;
+  next: { label: string; time: string; tomorrow: boolean } | null;
+  free_times: FreeTimeSlot[];
+  free_time_last: { day: string; outcome: string } | null;
+  quiet: { from: string; to: string } | null;
+  dates: ScheduleDate[];
+}
+
+// A house letter (kumbukumbu #44): the work log between Lily's
+// conversations, addressed by name; `read_by` names the conversations
+// that read it.
+export interface HouseLetter {
+  number: number;
+  from: string;
+  to: string;
+  in_reply_to: number | null;
+  text: string;
+  keepsake: string | null;
+  sent_at: string;
+  read_by: string[];
+  read_at: string | null;
+}

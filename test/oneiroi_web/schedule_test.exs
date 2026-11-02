@@ -53,7 +53,7 @@ defmodule OneiroiWeb.ScheduleTest do
            |> response(204)
 
     assert conn
-           |> put("/v1/residents/#{id}/schedule/free-time", %{time: "22:30"})
+           |> put("/v1/residents/#{id}/schedule/free-time", %{times: ["14:30", "22:30"]})
            |> response(204)
 
     assert conn
@@ -80,7 +80,10 @@ defmodule OneiroiWeb.ScheduleTest do
              "checkins" => [%{"key" => ^key, "label" => "morning", "time" => "06:30"}],
              "firings" => [],
              "next" => %{"label" => "morning", "tomorrow" => true},
-             "free_time" => "22:30",
+             "free_times" => [
+               %{"time" => "14:30", "today" => nil},
+               %{"time" => "22:30", "today" => nil}
+             ],
              "free_time_last" => nil,
              "quiet" => %{"from" => "23:00", "to" => "07:00"},
              "dates" => [%{"number" => 1, "title" => "visa interview", "days_to" => 10}]
