@@ -389,6 +389,20 @@ defmodule Oneiroi.Kumbukumbu do
           | {:error, term()}
   defexport(transcript(scope, key), do: Conversations.transcript(scope, key))
 
+  @doc "A page of a session's transcript: the last `limit` messages before a `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
+  @spec transcript_page(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {integer(), integer()} | nil,
+          pos_integer()
+        ) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()],
+           boolean()}
+          | {:error, term()}
+  defexport(transcript_page(scope, key, before, limit),
+    do: Conversations.transcript_page(scope, key, before, limit)
+  )
+
   @doc "The last `count` messages of a session, for the brain's live transcript."
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(recent(resident_id, key, count), do: Conversations.recent(resident_id, key, count))

@@ -34,6 +34,9 @@ export interface Session {
 }
 
 export interface Message {
+  // `sequence:position`, the message's place in its session: what a page
+  // of the transcript reads back from. Absent on a turn's own messages.
+  cursor?: string;
   session_key: string;
   turn_ref: string;
   role: 'user' | 'assistant' | 'system' | 'tool' | string;

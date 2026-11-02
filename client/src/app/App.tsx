@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
@@ -18,6 +18,7 @@ import type {
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
 import { Chat } from '../screens/chat/Chat';
+import { compareCursor, mergeNewest } from '../screens/chat/page';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -72,8 +73,21 @@ export function App() {
   if (!resident) return <EmptyState text="No resident yet: the creation flow arrives with the next screens." />;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', maxWidth: 'var(--content-max)', margin: '0 auto' }}>
-      <div style={{ flex: 1 }}>
+    // The shell is the screen's height and never scrolls itself: the nav
+    // stays at the bottom and each screen scrolls inside the space left
+    // (Chat its transcript alone, so its bar and composer stay put).
+    // `dvh`, not `vh`, so a phone's browser bar does not push the nav off.
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+        overflow: 'hidden',
+        maxWidth: 'var(--content-max)',
+        margin: '0 auto',
+      }}
+    >
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: destination === 'chat' ? 'hidden' : 'auto' }}>
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
@@ -84,19 +98,50 @@ export function App() {
   );
 }
 
+// How many messages a page of the transcript holds.
+const PAGE = 50;
+
+// Where the witness last read to, per session, kept in this browser: a
+// convenience of the reader's, never the record's.
+const readKey = (key: string) => `oneiroi:last-read:${key}`;
+function storedRead(key: string): string | null {
+  try {
+    return localStorage.getItem(readKey(key));
+  } catch {
+    return null;
+  }
+}
+function storeRead(key: string, cursor: string) {
+  try {
+    const was = localStorage.getItem(readKey(key));
+    if (!was || compareCursor(cursor, was) > 0) localStorage.setItem(readKey(key), cursor);
+  } catch {
+    // A browser that keeps nothing reads every visit as the first.
+  }
+}
+
 function ChatContainer({ resident }: { resident: Resident }) {
   const [key, setKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [more, setMore] = useState(false);
+  const [lastRead, setLastRead] = useState<string | null>(null);
+  const older = useRef(false);
   const [drewOn, setDrewOn] = useState<Record<string, number>>({});
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
   const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
+  // The newest page, joined to what was paged in before it; `more` is
+  // the server's word only when nothing older was loaded yet.
   const reload = useCallback(
     (k: string) =>
-      api.transcript(resident.id, k).then(({ messages: rows }) => {
-        setMessages(rows);
+      api.transcriptPage(resident.id, k, PAGE).then(({ messages: rows, more: earlier }) => {
+        setMessages((loaded) => {
+          const merged = mergeNewest(loaded, rows);
+          if (merged.length === rows.length) setMore(earlier);
+          return merged;
+        });
         setStreaming(null);
       }),
     [resident.id],
@@ -104,10 +149,27 @@ function ChatContainer({ resident }: { resident: Resident }) {
 
   useEffect(() => {
     api.mainSession(resident.id).then(({ key: k }) => {
+      // Held as it was on opening, so the marker stays put while reading.
+      setLastRead(storedRead(k));
       setKey(k);
       void reload(k);
     });
   }, [resident.id, reload]);
+
+  const loadOlder = useCallback(() => {
+    const first = messages[0]?.cursor;
+    if (!key || !first || older.current) return;
+    older.current = true;
+    api
+      .transcriptPage(resident.id, key, PAGE, first)
+      .then(({ messages: rows, more: earlier }) => {
+        setMessages((loaded) => [...rows, ...loaded]);
+        setMore(earlier);
+      })
+      .finally(() => {
+        older.current = false;
+      });
+  }, [key, messages, resident.id]);
 
   useEffect(() => {
     if (!key) return;
@@ -128,6 +190,10 @@ function ChatContainer({ resident }: { resident: Resident }) {
     <Chat
       residentName={resident.name}
       messages={messages}
+      more={more}
+      onOlder={loadOlder}
+      lastRead={lastRead}
+      onRead={(cursor) => storeRead(key, cursor)}
       streaming={streaming}
       drewOn={drewOn}
       injections={injections}

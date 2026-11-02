@@ -15,6 +15,16 @@ const meta = {
   title: 'Screens/Chat',
   component: Chat,
   args: { residentName: 'Lily', messages, onSend: () => undefined, onInspect: () => undefined, drewOn: { t1: 4 } },
+  parameters: { layout: 'fullscreen' },
+  // The space the shell gives Chat: the screen's height, less nothing
+  // here, so the transcript scrolls inside it as it does in the app.
+  decorators: [
+    (Story) => (
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof Chat>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -95,3 +105,26 @@ const whole: ContextPreview = {
 export const PreviewWhole: Story = { args: { onPreview: () => undefined, preview: whole } };
 export const PreviewUnderTerm: Story = { args: { onPreview: () => undefined, preview } };
 export const PreviewClosed: Story = { args: { onPreview: () => undefined, preview: null } };
+
+// The resident's stress test for the overflow: a wall of text with a word
+// longer than the screen, and a tool call that runs for screens.
+const longCall = `library_read({"path":"design/oneiroi-spec.md"}) -> ${'§6.5 the library holds every kind of document. '.repeat(60)}\n${'{"kind":"writing","path":"writing/the-bake-off.md","hash":"' + 'a'.repeat(400) + '"}\n'.repeat(12)}`;
+export const LongToolCall: Story = {
+  args: {
+    messages: [
+      messages[0],
+      { ...messages[1], content: longCall },
+      { ...messages[2], content: `A wall of my own: ${'https://example.com/' + 'x'.repeat(300)} and then ${'the words go on, '.repeat(80)}` },
+    ],
+  },
+};
+
+// Paged in from the newest: earlier messages remain, and a marker where
+// the last visit left off (cursors are `sequence:position`).
+const paged: Message[] = Array.from({ length: 12 }, (_, i) => ({
+  ...messages[i % 2 === 0 ? 0 : 2],
+  cursor: `${i + 1}:0`,
+  turn_ref: `t${i + 1}`,
+  content: i % 2 === 0 ? `Question ${i / 2 + 1}` : `Answer ${(i + 1) / 2}`,
+}));
+export const Unread: Story = { args: { messages: paged, more: true, onOlder: () => undefined, lastRead: '6:0', onRead: () => undefined } };

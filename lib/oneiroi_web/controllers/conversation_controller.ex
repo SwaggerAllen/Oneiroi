@@ -70,10 +70,37 @@ defmodule OneiroiWeb.ConversationController do
   end
 
   operation(:show,
-    summary: "A session's transcript",
-    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    summary:
+      "A session's transcript: whole, or with `limit` a page of the last messages before `before` (a message's `cursor`), with `more` saying whether earlier ones remain",
+    parameters: [
+      id: [in: :path, type: :string],
+      key: [in: :path, type: :string],
+      limit: [in: :query, type: :integer],
+      before: [in: :query, type: :string]
+    ],
     responses: [ok: {"the session and its messages", "application/json", %Schema{type: :object}}]
   )
+
+  # A page when `limit` is given: the chat opens on the newest and pages
+  # back as the reader scrolls up. A `before` that is not a cursor reads
+  # as the newest page, never as an error, since it can only come from a
+  # client that lost its place.
+  def show(%{assigns: %{principal: p}} = conn, %{"key" => key, "limit" => limit} = params) do
+    limit = limit |> integer() |> Kernel.||(50) |> max(1) |> min(500)
+
+    case Kumbukumbu.transcript_page(
+           {:account, p.account_id},
+           key,
+           cursor(params["before"]),
+           limit
+         ) do
+      {:ok, s, messages, more} ->
+        json(conn, %{session: session(s), messages: Enum.map(messages, &message/1), more: more})
+
+      {:error, %Kumbukumbu.Error{} = e} ->
+        error(conn, 404, e)
+    end
+  end
 
   def show(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
     case Kumbukumbu.transcript({:account, p.account_id}, key) do
@@ -573,8 +600,21 @@ defmodule OneiroiWeb.ConversationController do
     }
   end
 
+  defp cursor(text) when is_binary(text) do
+    with [s, p] <- String.split(text, ":"),
+         {sequence, ""} <- Integer.parse(s),
+         {position, ""} <- Integer.parse(p) do
+      {sequence, position}
+    else
+      _not_a_cursor -> nil
+    end
+  end
+
+  defp cursor(_none), do: nil
+
   defp message(m) do
     %{
+      cursor: "#{m.sequence}:#{m.position}",
       session_key: m.session_key,
       turn_ref: m.turn_ref,
       role: m.role,

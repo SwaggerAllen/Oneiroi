@@ -248,6 +248,36 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc """
+  A page of a session's messages, in order: the last `limit` before the
+  `{sequence, position}` cursor, or the last `limit` of all when the
+  cursor is nil, and whether earlier ones remain. The chat reads the
+  newest page first and pages back as the reader scrolls up, so a long
+  conversation is never read whole to show its last screen.
+  """
+  @spec messages_page(String.t(), {integer(), integer()} | nil, pos_integer()) ::
+          {[Message.t()], boolean()}
+  def messages_page(key, before, limit) do
+    rows =
+      from(m in Message,
+        where: m.session_key == ^key,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^(limit + 1)
+      )
+      |> before_cursor(before)
+      |> Repo.all()
+
+    {rows |> Enum.take(limit) |> Enum.reverse(), length(rows) > limit}
+  end
+
+  defp before_cursor(query, nil), do: query
+
+  defp before_cursor(query, {sequence, position}),
+    do:
+      from(m in query,
+        where: m.sequence < ^sequence or (m.sequence == ^sequence and m.position < ^position)
+      )
+
+  @doc """
   The last `count` messages of a session since its compaction, in order:
   the live transcript the brain is shown. One statement, joined on the
   session's watermark, because the capture-cost test budgets this read

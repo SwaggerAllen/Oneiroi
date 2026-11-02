@@ -209,6 +209,20 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   # the account by the projector too (kumbukumbu #28), so the policy and
   # this refusal say the same thing.
   def transcript(scope, key) do
+    with {:ok, session, _} <- visible(scope, key),
+         do: {:ok, session, Scope.run(scope, fn -> Store.messages(key) end)}
+  end
+
+  @doc "A page of a session's transcript under a scope: the session, the last `limit` messages before the `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
+  def transcript_page(scope, key, before, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      {messages, more} = Scope.run(scope, fn -> Store.messages_page(key, before, limit) end)
+      {:ok, session, messages, more}
+    end
+  end
+
+  # The session as `transcript/2` lets a scope see it, without its messages.
+  defp visible(scope, key) do
     Scope.run(scope, fn ->
       case {scope, Store.session(key)} do
         {_scope, nil} ->
@@ -222,7 +236,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
            )}
 
         {_scope, session} ->
-          {:ok, session, Store.messages(key)}
+          {:ok, session, nil}
       end
     end)
   end

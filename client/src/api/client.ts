@@ -63,6 +63,14 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/sessions/${key}`,
     ),
+  // The last `limit` messages before a cursor (the newest without one),
+  // and whether earlier ones remain: the chat opens on the newest page
+  // and pages back as the reader scrolls up.
+  transcriptPage: (residentId: string, key: string, limit: number, before?: string) =>
+    call<{ session: Session; messages: Message[]; more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+    ),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
   injections: (residentId: string, turnRef: string) =>
