@@ -211,8 +211,24 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert %{free_time_last: {"2026-10-27", "failed: brain_turn_failed"}} = Sunna.today(ctx.id)
     assert [_, _] = Kumbukumbu.sessions({:resident, ctx.id})
 
-    :ok = Sunna.set_free_time(ctx.id, nil, ctx.actor)
-    assert %{free_time: nil} = Sunna.today(ctx.id)
+    # Moved, never removed (sunna #21); the resident moves it too.
+    assert {:error, %Sunna.Error{kind: :sunna_free_time_required}} =
+             Sunna.set_free_time(ctx.id, nil, ctx.actor)
+
+    assert %{free_time: "08:00"} = Sunna.today(ctx.id)
+    :ok = Sunna.set_free_time(ctx.id, "23:15", Oneiroi.Actor.new(:resident, ctx.id))
+    assert %{free_time: "23:15"} = Sunna.today(ctx.id)
+  end
+
+  # Sunna #21: free time is the standard of care, not something switched on.
+  test "a resident nobody configured has free time at the default, and it runs", ctx do
+    assert %{free_time: "22:30"} = Sunna.today(ctx.id)
+    assert [] = Kumbukumbu.sessions({:resident, ctx.id})
+
+    # The suite's clock is 08:00 in the resident's zone (New York); to 22:30.
+    Clock.Fake.advance(14 * 3600 + 30 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [%{kind: "free_time", private: true}] = Kumbukumbu.sessions({:resident, ctx.id})
   end
 
   test "dates are rows with a kind, counted on the read, shown to the brain as a section, and refused when malformed",

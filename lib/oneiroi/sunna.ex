@@ -81,6 +81,10 @@ defmodule Oneiroi.Sunna do
   @impl Oneiroi.Component
   def config do
     [
+      {:free_time_default, "SUNNA_FREE_TIME_DEFAULT",
+       default: "22:30",
+       usage:
+         "free time's HH:MM in the resident's zone until anyone moves it (sunna #21): free time is part of the standard of care, on from the first day and never removed; the default is the hour the first resident's free time ran"},
       {:late_minutes, "SUNNA_LATE_MINUTES",
        cast: :integer,
        default: "15",
@@ -133,6 +137,9 @@ defmodule Oneiroi.Sunna do
   @impl Oneiroi.Component
   def errors do
     [
+      {:sunna_free_time_required,
+       "free time is part of the standard of care: it moves, and it is never removed",
+       remedy: "give it another HH:MM; the resident's day keeps its free time"},
       {:sunna_time_invalid,
        "a time of day is HH:MM in the resident's zone, and a date is an instant",
        remedy: "give it as HH:MM"},
@@ -172,7 +179,7 @@ defmodule Oneiroi.Sunna do
     do: Schedules.delete_checkin(resident_id, key, actor)
   )
 
-  @doc "Sets free time's HH:MM, or nil for none."
+  @doc "Moves free time to HH:MM; it is never removed (sunna #21), and either party may move it."
   @spec set_free_time(String.t(), String.t() | nil, Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(set_free_time(resident_id, time, actor),
     do: Schedules.set_free_time(resident_id, time, actor)

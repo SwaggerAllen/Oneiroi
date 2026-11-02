@@ -68,10 +68,11 @@ defmodule Oneiroi.Sunna.TickWorker do
     :ok
   end
 
-  defp free_time(_resident_id, nil, _local, _day), do: :none
-  defp free_time(_resident_id, %{free_time: nil}, _local, _day), do: :none
-
-  defp free_time(resident_id, %{free_time: time, free_time_day: last_day}, local, day) do
+  # Every resident has free time, at the time set or the default
+  # (sunna #21), so a resident nobody configured still gets it.
+  defp free_time(resident_id, settings, local, day) do
+    time = Schedules.free_time_of(settings)
+    last_day = settings && settings.free_time_day
     scheduled = Schedules.at_time(local, time)
     late = Oneiroi.Config.fetch!(:sunna, :late_minutes) * 60
     since = DateTime.diff(local, scheduled, :second)

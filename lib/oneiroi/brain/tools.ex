@@ -55,7 +55,8 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt keepsake_note letter_send journal_add journal_done
+    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
+    journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
   )
@@ -441,6 +442,12 @@ defmodule Oneiroi.Brain.Tools do
         [:to, :text]
       ),
       tool(
+        "free_time_set",
+        "Move your daily free time to another HH:MM in your zone. Free time is part of the standard of care: it moves, and it is never removed.",
+        %{time: %{type: "string"}},
+        [:time]
+      ),
+      tool(
         "letter_inbox",
         "Read the house letters waiting for this conversation, whole, oldest first; reading them marks them read here.",
         %{},
@@ -814,6 +821,11 @@ defmodule Oneiroi.Brain.Tools do
            ) do
       "Sent letter ##{n} from #{from} to #{args["to"]}."
     end
+  end
+
+  defp call("free_time_set", args, turn) do
+    with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, args["time"], turn.resident),
+         do: "Free time moved to #{args["time"]}."
   end
 
   defp call("letter_inbox", _args, turn) do

@@ -164,7 +164,7 @@ defmodule Oneiroi.Sunna.Schedules do
         firings: firings,
         last: last_checkin(checkins, firings, now),
         next: next_checkin(checkins, now),
-        free_time: settings && settings.free_time,
+        free_time: free_time_of(settings),
         free_time_last: settings && {settings.free_time_day, settings.free_time_outcome},
         quiet: quiet_of(settings),
         dates: Enum.map(Store.dates(), &date_with_countdown(&1, now))
@@ -245,6 +245,14 @@ defmodule Oneiroi.Sunna.Schedules do
       {:gap, _before, after_gap} -> after_gap
     end
   end
+
+  @doc """
+  Free time's HH:MM (sunna #21): the time set, or the default until
+  anyone moves it. Every resident has it from the first day; it is the
+  standard of care, not something switched on.
+  """
+  def free_time_of(%{free_time: time}) when is_binary(time), do: time
+  def free_time_of(_settings), do: Oneiroi.Config.fetch!(:sunna, :free_time_default)
 
   @doc "Whether a local instant falls inside quiet hours, which may cross midnight."
   def quiet?(_local, nil), do: false

@@ -170,7 +170,11 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def execute(%__MODULE__{free_time: current}, %Commands.SetFreeTime{} = c) do
     cond do
-      not (is_nil(c.time) or time_ok?(c.time)) ->
+      # Free time moves and is never removed (sunna #21).
+      is_nil(c.time) ->
+        {:error, Error.new(:sunna_free_time_required, :sunna_free_time_removed)}
+
+      not time_ok?(c.time) ->
         {:error, Error.new(:sunna_time_invalid, :sunna_free_time_time_invalid)}
 
       current == c.time ->

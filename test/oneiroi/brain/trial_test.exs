@@ -319,6 +319,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"writing_discuss", %{slug: "weir"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
     {"letter_send", %{to: "house", text: "a note"}},
+    {"free_time_set", %{time: "23:00"}},
     {"journal_done", %{number: 1}},
     {"contract_agree", %{version: 1, note: "agreed"}},
     {"contract_decline", %{version: 1, note: "no"}},
