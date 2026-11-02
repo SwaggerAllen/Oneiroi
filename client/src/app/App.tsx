@@ -13,6 +13,7 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   Resident,
+  RetrievalCount,
   Tag,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
@@ -247,10 +248,15 @@ function MemoryContainer({ resident }: { resident: Resident }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [index, setIndex] = useState<IndexNow | null>(null);
+  const [retrieval, setRetrieval] = useState<RetrievalCount[] | null>(null);
   const load = useCallback(() => {
     api.bookmarks(resident.id).then(setBookmarks);
     api.tags(resident.id).then(setTags);
     api.indexNow(resident.id).then(setIndex);
+    api
+      .retrieval(resident.id)
+      .then(setRetrieval)
+      .catch(() => setRetrieval(null));
   }, [resident.id]);
   useEffect(() => load(), [load]);
   return (
@@ -259,6 +265,7 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       bookmarks={bookmarks}
       tags={tags}
       index={index}
+      retrieval={retrieval}
       onPin={(n) => api.pin(resident.id, n).then(load)}
       onUnpin={(n) => api.unpin(resident.id, n).then(load)}
     />

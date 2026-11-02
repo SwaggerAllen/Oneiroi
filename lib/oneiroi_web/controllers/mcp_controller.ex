@@ -73,10 +73,16 @@ defmodule OneiroiWeb.MCPController do
     arguments = Map.get(params, "arguments", %{})
     turn = turn_of(adapter)
 
+    encoded = Phoenix.json_library().encode!(arguments)
+
     text =
       if name in @needs_turn and turn.turn_ref == nil,
         do: "No turn is open: report turn-start first, then call this.",
-        else: Tools.run(name, Phoenix.json_library().encode!(arguments), turn)
+        else: Tools.run(name, encoded, turn)
+
+    # What the call did with retrieval's targets, counted against the
+    # runtime's open turn (`Oneiroi.Brain.Uses`).
+    :ok = Tools.record_uses(name, encoded, text, turn)
 
     {:ok, %{content: [%{type: "text", text: text}], isError: false}}
   end

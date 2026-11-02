@@ -125,6 +125,22 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     }
   end
 
+  # A turn that retrieved nothing records nothing.
+  def execute(%__MODULE__{}, %Commands.RecordRetrieval{uses: []}), do: []
+
+  def execute(%__MODULE__{}, %Commands.RecordRetrieval{} = c) do
+    %Events.RetrievalRecorded{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      resident_id: c.resident_id,
+      session_key: c.session_key,
+      turn_ref: c.turn_ref,
+      ref: c.ref,
+      uses: c.uses
+    }
+  end
+
   # A summary covering nothing new is no event: the brain that compacts
   # twice over the same messages leaves one record.
   def execute(%__MODULE__{compacted_through: through}, %Commands.CompactSession{} = c) do
@@ -250,6 +266,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   end
 
   def apply(%__MODULE__{} = s, %Events.ContextAssembled{}), do: s
+  def apply(%__MODULE__{} = s, %Events.RetrievalRecorded{}), do: s
 
   def apply(%__MODULE__{} = s, %Events.Compacted{} = e),
     do: %{s | compacted_through: e.through_sequence}

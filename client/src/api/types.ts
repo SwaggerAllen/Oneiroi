@@ -33,6 +33,18 @@ export interface Session {
   summary: string | null;
 }
 
+// What retrieval did with one target (kumbukumbu #40): the target in
+// citation form, how often it was considered, returned and used, and
+// when last returned and used. The resident reads the same numbers.
+export interface RetrievalCount {
+  target: string;
+  considered: number;
+  returned: number;
+  used: number;
+  last_returned_at: string | null;
+  last_used_at: string | null;
+}
+
 export interface Message {
   // `sequence:position`, the message's place in its session: what a page
   // of the transcript reads back from. Absent on a turn's own messages.

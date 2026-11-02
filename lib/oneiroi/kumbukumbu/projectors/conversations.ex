@@ -6,7 +6,15 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
 
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events
-  alias Oneiroi.Kumbukumbu.Store.{Bookmark, CaptureFailure, ContextInjection, Message, Session}
+
+  alias Oneiroi.Kumbukumbu.Store.{
+    Bookmark,
+    CaptureFailure,
+    ContextInjection,
+    Message,
+    RetrievalUse,
+    Session
+  }
 
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -135,6 +143,44 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       )
     end)
     |> mark_indexed(e)
+  end)
+
+  fold(%Events.RetrievalRecorded{} = e, _metadata, fn multi ->
+    multi =
+      Multi.run(multi, :party, fn repo, _changes ->
+        {:ok,
+         repo.one(
+           from(s in Session,
+             where: s.resident_id == ^e.resident_id and s.key == ^e.session_key,
+             select: s.account_id
+           )
+         )}
+      end)
+
+    e.uses
+    |> Enum.with_index()
+    |> Enum.reduce(multi, fn {use, i}, multi ->
+      Multi.insert(
+        multi,
+        {:use, i},
+        fn %{party: party} ->
+          %RetrievalUse{
+            resident_id: e.resident_id,
+            ref: e.ref,
+            position: i,
+            account_id: party,
+            session_key: e.session_key,
+            turn_ref: e.turn_ref,
+            target: field(use, :target),
+            stage: field(use, :stage),
+            via: field(use, :via),
+            at: e.at
+          }
+        end,
+        on_conflict: :nothing,
+        conflict_target: [:resident_id, :ref, :position]
+      )
+    end)
   end)
 
   fold(%Events.Compacted{} = e, _metadata, fn multi ->

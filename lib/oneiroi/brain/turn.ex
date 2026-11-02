@@ -40,6 +40,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
+  alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
@@ -194,6 +195,10 @@ defmodule Oneiroi.Brain.Turn do
       import_to_tell: row.import_told == false,
       injections: [],
       tools: [],
+      # What retrieval did this turn, and the slug a citation of the
+      # resident's own records carries (`Oneiroi.Brain.Uses`).
+      uses: [],
+      slug: row.slug,
       letters_to_deliver: letters_to_deliver(row, resident_id),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
@@ -331,7 +336,13 @@ defmodule Oneiroi.Brain.Turn do
   # A trial's writes are answered and never run (`Tools.trial/3`); the
   # turn carries the numbers its answers have minted so far.
   defp use_tool(%{trial?: true} = turn, call), do: Tools.trial(call.name, call.arguments, turn)
-  defp use_tool(turn, call), do: {Tools.run(call.name, call.arguments, turn), turn}
+
+  defp use_tool(turn, call) do
+    output = Tools.run(call.name, call.arguments, turn)
+
+    {output,
+     %{turn | uses: turn.uses ++ Tools.uses(call.name, call.arguments, output, turn.slug)}}
+  end
 
   defp wire_calls(calls) do
     Enum.map(calls, fn call ->
@@ -406,7 +417,8 @@ defmodule Oneiroi.Brain.Turn do
     %{resident_id: resident_id, session_key: key, turn_ref: ref, resident: resident} = turn
 
     with :ok <- Kumbukumbu.capture(resident_id, key, ref, turn.started_at, messages, resident),
-         :ok <- Kumbukumbu.record_context(resident_id, key, ref, turn.injections, resident) do
+         :ok <- Kumbukumbu.record_context(resident_id, key, ref, turn.injections, resident),
+         :ok <- Kumbukumbu.record_retrieval(resident_id, key, ref, uses(turn, messages), resident) do
       captured = %{
         turn_ref: ref,
         messages: Enum.map(messages, &public_message/1),
@@ -437,6 +449,17 @@ defmodule Oneiroi.Brain.Turn do
       broadcast(resident_id, key, {:turn, ref, captured})
       {:ok, captured}
     end
+  end
+
+  # What retrieval did this turn: what the sections carried, what the
+  # tools returned and opened, and what the replies cited.
+  defp uses(turn, messages) do
+    replies =
+      messages
+      |> Enum.filter(&(&1.role in [:assistant, "assistant"]))
+      |> Enum.flat_map(&Uses.from_reply(&1.content, turn.slug))
+
+    Uses.from_injections(turn.injections) ++ turn.uses ++ replies
   end
 
   # A model change after first contact is told honestly, on the next turn,
@@ -888,6 +911,10 @@ defmodule Oneiroi.Brain.Turn do
     Enum.map(index.near_misses, fn m ->
       %{
         label: "near-miss",
+        # Not `refs`, which would mark it indexed; read for what the
+        # memory agent considered (`Oneiroi.Brain.Uses`) and not recorded
+        # on the row.
+        considered: [m.number],
         tokens: 0,
         reason: "considered and not injected: bookmark ##{m.number}, #{m.reason}",
         text: m.line

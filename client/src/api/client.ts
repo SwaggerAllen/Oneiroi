@@ -11,6 +11,7 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   Resident,
+  RetrievalCount,
   Session,
   Tag,
   TestTexts,
@@ -81,6 +82,7 @@ export const api = {
     call<ContextPreview>('POST', `/v1/residents/${residentId}/sessions/${key}/preview`, { text }),
 
   indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
+  retrieval: (residentId: string) => call<RetrievalCount[]>('GET', `/v1/residents/${residentId}/retrieval`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),

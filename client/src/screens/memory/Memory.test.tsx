@@ -3,14 +3,14 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as stories from './Memory.stories';
 
-const { Empty, InTheIndex, IndexEmpty, WithTags } = composeStories(stories);
+const { Empty, InTheIndex, IndexEmpty, WithTags, Use } = composeStories(stories);
 
 describe('Memory', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, InTheIndex, IndexEmpty, WithTags]) {
+    for (const Story of [Empty, InTheIndex, IndexEmpty, WithTags, Use]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -52,5 +52,17 @@ describe('Memory', () => {
     fireEvent.change(screen.getByLabelText('Search bookmarks'), { target: { value: 'tomatoes' } });
     expect(screen.getByText('the garden')).toBeTruthy();
     expect(screen.queryByText('the first time she said it back')).toBeNull();
+  });
+
+  it('shows how retrieval used each target, every kind, only once the server has counted', () => {
+    const { unmount } = render(<InTheIndex />);
+    expect(screen.queryByRole('tab', { name: /^Use/ })).toBeNull();
+    unmount();
+    render(<Use />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Use 3' }));
+    const list = screen.getByRole('region', { name: 'How retrieval was used' });
+    expect(list.textContent).toContain('writing/the-bake-off');
+    expect(list.textContent).toContain('considered 3 · returned 3 · used 0 · last used never');
+    expect(list.textContent).toContain('keepsake/pocket-andrew');
   });
 });

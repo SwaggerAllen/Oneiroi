@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Bookmark, IndexNow, Tag } from '../../api/types';
+import type { Bookmark, IndexNow, RetrievalCount, Tag } from '../../api/types';
 import { BookmarkCard } from '../../components/BookmarkCard';
 import { EmptyState } from '../../components/EmptyState';
 import { Tabs } from '../../components/Tabs';
@@ -12,19 +12,22 @@ export interface MemoryProps {
   // What the index holds now, as the server built and worded it; null
   // until it has answered.
   index: IndexNow | null;
+  // How retrieval has used each target, as the server counted it; the
+  // tab shows when the server has answered.
+  retrieval?: RetrievalCount[] | null;
   onPin?: (number: number) => void;
   onUnpin?: (number: number) => void;
   onOpen?: (bookmark: Bookmark) => void;
 }
 
-type TabId = 'index' | 'all' | 'pinned' | `tag:${string}`;
+type TabId = 'index' | 'all' | 'pinned' | 'use' | `tag:${string}`;
 
 // Memory (spec §10): rows with pin or index marker, the line, when, who
 // bookmarked, who pinned, the span, tags; tabs In the index (with the
 // server's own description as a caption), All, Pinned, and one per tag;
 // search. The index tab lists what the server says the index holds now,
 // in its order; the client knows nothing of how the index is built.
-export function Memory({ residentName, bookmarks, tags, index, onPin, onUnpin, onOpen }: MemoryProps) {
+export function Memory({ residentName, bookmarks, tags, index, retrieval = null, onPin, onUnpin, onOpen }: MemoryProps) {
   const [tab, setTab] = useState<TabId>('index');
   const [query, setQuery] = useState('');
   const active = tags.filter((t) => t.state === 'active');
@@ -39,6 +42,7 @@ export function Memory({ residentName, bookmarks, tags, index, onPin, onUnpin, o
     { id: 'index', label: 'In the index', count: inIndex.length },
     { id: 'all', label: 'All', count: bookmarks.length },
     { id: 'pinned', label: 'Pinned', count: pinned.length },
+    ...(retrieval ? [{ id: 'use' as TabId, label: 'Use', count: retrieval.length }] : []),
     ...active.map((t) => ({ id: `tag:${t.slug}` as TabId, label: t.slug })),
   ];
   const byTab =
@@ -75,7 +79,9 @@ export function Memory({ residentName, bookmarks, tags, index, onPin, onUnpin, o
         ) : null}
       </div>
       <main style={{ flex: 1, padding: '0 var(--space-4)' }}>
-        {rows.length === 0 ? (
+        {tab === 'use' && retrieval ? (
+          <Use residentName={residentName} rows={retrieval} />
+        ) : rows.length === 0 ? (
           <EmptyState text={bookmarks.length === 0 ? `${residentName} has not bookmarked anything yet.` : 'Nothing here.'} />
         ) : (
           rows.map((b) => (
@@ -92,5 +98,34 @@ export function Memory({ residentName, bookmarks, tags, index, onPin, onUnpin, o
         )}
       </main>
     </div>
+  );
+}
+
+// How retrieval has used each target, every kind of edge (the resident's
+// work order, 2026-11-02): considered by the memory agent, returned to
+// the brain, used by it. The same numbers the resident reads with
+// memory_use, and nothing is reweighted from them until both have.
+function Use({ residentName, rows }: { residentName: string; rows: RetrievalCount[] }) {
+  const day = (at: string | null) => (at ? at.slice(0, 10) : 'never');
+  return (
+    <section aria-label="How retrieval was used" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingTop: 'var(--space-3)' }}>
+      <p style={{ margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--ink-faint)' }}>
+        Considered: the memory agent ranked it. Returned: it was put in front of {residentName}. Used: {residentName} opened, read or cited it.{' '}
+        {residentName} reads the same numbers; nothing is reweighted from them until you have both looked.
+      </p>
+      {rows.length === 0 ? (
+        <EmptyState text="Nothing is counted yet." />
+      ) : (
+        <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          {rows.map((r) => (
+            <li key={r.target} style={{ fontSize: 13, lineHeight: '18px', overflowWrap: 'anywhere' }}>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{r.target}</strong>
+              <br />
+              considered {r.considered} · returned {r.returned} · used {r.used} · last used {day(r.last_used_at)}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

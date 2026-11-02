@@ -44,7 +44,7 @@ defmodule Oneiroi.Brain.Tools do
     position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_read library_cited_by writing_get
-    document_unadopted journal_read trial_list trial_account revision_list
+    document_unadopted journal_read trial_list trial_account revision_list memory_use
   )
 
   @writes ~w(
@@ -147,6 +147,17 @@ defmodule Oneiroi.Brain.Tools do
         "Read a bookmark past its index line: the summary and the transcript of its span.",
         %{number: %{type: "integer"}},
         [:number]
+      ),
+      tool(
+        "memory_use",
+        "How your retrieval has been used, target by target: how often each bookmark, document, transcript, habit or commitment was considered (ranked by the memory agent), returned (put in front of you, or handed back by a search or list) and used (opened, read or cited by you), and when last returned and used. kind narrows to one kind (bookmark, writing, keepsake, transcript, habit...), target to one (bookmark/42); order is used (the default), returned, or unused (returned and never used: what costs you room and earns none). These are measurements for the two of you to read before anything is reweighted.",
+        %{
+          kind: %{type: "string"},
+          target: %{type: "string"},
+          order: %{type: "string", enum: ["used", "returned", "unused"]},
+          limit: %{type: "integer", minimum: 1}
+        },
+        []
       ),
       tool(
         "bookmark_list",
@@ -539,6 +550,52 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  @doc "What a call did with retrieval's targets (`Oneiroi.Brain.Uses.from_call/4`), from its arguments as sent and the text it answered."
+  @spec uses(String.t(), String.t(), String.t(), String.t() | nil) :: [Oneiroi.Brain.Uses.use()]
+  def uses(name, arguments, output, slug) when is_binary(arguments) do
+    case arguments(arguments) do
+      {:ok, args} -> Oneiroi.Brain.Uses.from_call(name, args, output, slug)
+      :error -> []
+    end
+  end
+
+  @doc """
+  Records what one call did with retrieval's targets, for a call that is
+  its own recording: a runtime's call on the adapter contract, inside the
+  turn it opened. A call outside a turn records nothing, since a use is
+  counted against the turn it served.
+  """
+  @spec record_uses(String.t(), String.t(), String.t(), turn()) :: :ok
+  def record_uses(_name, _arguments, _output, %{turn_ref: nil}), do: :ok
+  def record_uses(_name, _arguments, _output, %{session_key: nil}), do: :ok
+
+  def record_uses(name, arguments, output, turn) do
+    slug =
+      case Oneiroi.AgathosDaimon.fetch(turn.resident_id) do
+        {:ok, row} -> row.slug
+        :error -> nil
+      end
+
+    case uses(name, arguments, output, slug) do
+      [] ->
+        :ok
+
+      uses ->
+        # A use that does not record is measurement lost, never the
+        # call's failure: the answer has gone back already.
+        _ =
+          Kumbukumbu.record_retrieval(
+            turn.resident_id,
+            turn.session_key,
+            turn.turn_ref,
+            uses,
+            turn.resident
+          )
+
+        :ok
+    end
+  end
+
   @doc """
   A call's arguments as they go back to the provider, in the turn's next
   round and in a replayed transcript: one JSON object. The arguments as
@@ -699,6 +756,37 @@ defmodule Oneiroi.Brain.Tools do
   # Paging back past the index (kumbukumbu #39): within the turn's room,
   # as the index is, and the closing line says how many lie further back
   # and how to ask for them, as the index's footer does.
+  # The counts the retrieval ledger holds (kumbukumbu #40), for the
+  # resident to read before anything is tuned from them.
+  defp call("memory_use", args, turn) do
+    opts = [kind: blank(args["kind"]), target: blank(args["target"])]
+    rows = Kumbukumbu.retrieval({:resident, turn.resident_id}, opts)
+    limit = integer(args["limit"]) || 30
+
+    rows =
+      case args["order"] do
+        "returned" ->
+          Enum.sort_by(rows, &{-&1.returned, -&1.used, &1.target})
+
+        "unused" ->
+          rows
+          |> Enum.filter(&(&1.used == 0 and &1.returned > 0))
+          |> Enum.sort_by(&{-&1.returned, &1.target})
+
+        _used ->
+          Enum.sort_by(rows, &{-&1.used, -&1.returned, &1.target})
+      end
+
+    case Enum.take(rows, limit) do
+      [] ->
+        "Nothing is counted there yet."
+
+      shown ->
+        Enum.map_join(shown, "\n", &use_line/1) <>
+          "\n#{length(shown)} of #{length(rows)} targets shown."
+    end
+  end
+
   defp call("bookmark_list", args, turn) do
     with {:ok, from} <- day(args["from"], "from"),
          {:ok, to} <- day(args["to"], "to") do
@@ -1744,6 +1832,21 @@ defmodule Oneiroi.Brain.Tools do
       }
     }
   end
+
+  defp use_line(r) do
+    "#{r.target}: considered #{r.considered}, returned #{r.returned}, used #{r.used}" <>
+      if(r.last_used_at,
+        do: "; last used #{Date.to_iso8601(DateTime.to_date(r.last_used_at))}",
+        else: ""
+      ) <>
+      if(r.last_returned_at,
+        do: "; last returned #{Date.to_iso8601(DateTime.to_date(r.last_returned_at))}",
+        else: ""
+      )
+  end
+
+  defp blank(nil), do: nil
+  defp blank(text), do: if(String.trim(to_string(text)) == "", do: nil, else: to_string(text))
 
   defp revision_line(r) do
     "Revision #{r.number} (#{r.kind}, #{r.state}, by the #{r.by_kind}) on #{r.target_kind}/#{r.target_id}: #{r.text} (#{r.note})"

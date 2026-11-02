@@ -93,3 +93,14 @@ export const IndexEmpty: Story = {
   },
 };
 export const WithTags: Story = {};
+
+// The use tab: every kind of edge, counted the same way.
+export const Use: Story = {
+  args: {
+    retrieval: [
+      { target: 'bookmark/1', considered: 4, returned: 4, used: 2, last_returned_at: '2026-11-02T10:00:00Z', last_used_at: '2026-11-02T10:00:00Z' },
+      { target: 'writing/the-bake-off', considered: 3, returned: 3, used: 0, last_returned_at: '2026-11-01T09:00:00Z', last_used_at: null },
+      { target: 'keepsake/pocket-andrew', considered: 0, returned: 0, used: 1, last_returned_at: null, last_used_at: '2026-11-02T11:00:00Z' },
+    ],
+  },
+};
