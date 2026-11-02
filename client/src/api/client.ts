@@ -6,7 +6,6 @@ import type {
   IndexNow,
   Injection,
   Ledger,
-  Message,
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
@@ -15,6 +14,7 @@ import type {
   Session,
   Tag,
   TestTexts,
+  Transcript,
   Turn,
 } from './types';
 
@@ -59,16 +59,15 @@ export const api = {
 
   mainSession: (residentId: string) =>
     call<{ key: string }>('POST', `/v1/residents/${residentId}/sessions`, { kind: 'main' }),
+  // Last spoken in first, each named by the server (kumbukumbu #40).
+  sessions: (residentId: string) => call<Session[]>('GET', `/v1/residents/${residentId}/sessions`),
   transcript: (residentId: string, key: string) =>
-    call<{ session: Session; messages: Message[] }>(
-      'GET',
-      `/v1/residents/${residentId}/sessions/${key}`,
-    ),
+    call<Transcript>('GET', `/v1/residents/${residentId}/sessions/${key}`),
   // The last `limit` messages before a cursor (the newest without one),
   // and whether earlier ones remain: the chat opens on the newest page
   // and pages back as the reader scrolls up.
   transcriptPage: (residentId: string, key: string, limit: number, before?: string) =>
-    call<{ session: Session; messages: Message[]; more: boolean }>(
+    call<Transcript & { more: boolean }>(
       'GET',
       `/v1/residents/${residentId}/sessions/${key}?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
     ),

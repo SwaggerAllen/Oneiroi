@@ -63,10 +63,12 @@ defmodule Oneiroi.Brain.AdapterTest do
   defp recorded(ctx, ref),
     do: {:account, ctx.witness.id} |> Kumbukumbu.injections(ref) |> Enum.sort_by(& &1.position)
 
+  # `where` differs by construction (brain #44): each conversation is
+  # told where it is, and the platform's that the adapter's is open.
   defp comparable(rows),
     do:
       rows
-      |> Enum.reject(&(&1.label in ~w(madeleine transcript notice runtime)))
+      |> Enum.reject(&(&1.label in ~w(madeleine transcript notice runtime where)))
       |> Enum.map(&{&1.label, &1.tokens, &1.reason})
 
   test "the prefix and the turn are the platform turn's sections, in its order, and the turn records what it handed over",
@@ -106,7 +108,7 @@ defmodule Oneiroi.Brain.AdapterTest do
 
     labels = Enum.map(adapter_rows, & &1.label)
 
-    for label <- ~w(prompt SOUL.md AGENTS.md runtime index near-miss promised honcho),
+    for label <- ~w(prompt SOUL.md AGENTS.md runtime where index near-miss promised honcho),
         do: assert(label in labels, "#{label} missing from #{inspect(labels)}")
 
     refute "transcript" in labels

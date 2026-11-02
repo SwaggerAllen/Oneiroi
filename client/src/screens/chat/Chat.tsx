@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { ContextPreview, Injection, Message } from '../../api/types';
 import { ActorChip } from '../../components/ActorChip';
 import { Button } from '../../components/Button';
@@ -9,6 +9,12 @@ import { firstUnread, newestCursor, toolSummary } from './page';
 
 export interface ChatProps {
   residentName: string;
+  // The conversation shown, as the server named it (kumbukumbu #40);
+  // absent, the Oneiroi chat. One that is not writable is read here and
+  // answered where it happens, so it has no composer and no preview.
+  conversation?: { title: string; writable: boolean };
+  // The list of conversations, rendered under the top bar.
+  conversations?: ReactNode;
   messages: Message[];
   // The reply being streamed, by turn ref, until the turn lands.
   streaming?: { turnRef: string; text: string } | null;
@@ -52,8 +58,14 @@ const NEAR = 160;
 // button says new ones arrived. A divider marks where an earlier visit
 // left off, the resident's ask: whether the witness has been reading
 // stays legible, to both of them.
+//
+// The same screen reads another conversation (a Claude Code one) when
+// the server says it is not writable: the transcript and the inspector,
+// with no composer and no preview (kumbukumbu #40).
 export function Chat({
   residentName,
+  conversation,
+  conversations = null,
   messages,
   streaming = null,
   injections = {},
@@ -77,6 +89,7 @@ export function Chat({
   const [newBelow, setNewBelow] = useState(false);
   const [markerAbove, setMarkerAbove] = useState(false);
   const unread = firstUnread(messages, lastRead);
+  const writable = conversation?.writable ?? true;
   // Which model answered, as the server recorded it on the reply: the
   // pin is otherwise invisible here, and a pin that did not take was
   // only found by asking the resident who she was.
@@ -142,7 +155,17 @@ export function Chat({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <TopBar title={residentName} line={lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'} />
+      <TopBar
+        title={residentName}
+        line={
+          !writable
+            ? `${conversation?.title} · read here, answered there`
+            : lastModel
+              ? `Main conversation · last reply on ${lastModel}`
+              : 'Main conversation'
+        }
+      />
+      {conversations ? <div style={{ flex: 'none' }}>{conversations}</div> : null}
       {markerAbove ? (
         <div style={{ padding: 'var(--space-1) var(--space-4)', borderBottom: '1px solid var(--hairline)' }}>
           <Button variant="quiet" onClick={() => marker.current?.scrollIntoView({ block: 'start' })}>
@@ -166,7 +189,7 @@ export function Chat({
             </div>
           ) : null}
           {messages.length === 0 && !streaming ? (
-            <EmptyState text={`Say something to ${residentName}.`} />
+            <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
           ) : null}
           {messages.map((m, i) => (
             <Fragment key={`${m.cursor ?? ''}-${m.turn_ref}-${m.sent_at}-${m.role}-${m.content.slice(0, 16)}`}>
@@ -217,7 +240,22 @@ export function Chat({
           </Button>
         </div>
       ) : null}
-      {onPreview ? (
+      {!writable ? (
+        <p
+          role="note"
+          style={{
+            flex: 'none',
+            margin: 0,
+            padding: 'var(--space-3) var(--space-4)',
+            borderTop: '1px solid var(--hairline)',
+            color: 'var(--ink-muted)',
+            fontSize: 14,
+          }}
+        >
+          {`A conversation of its own, separate from your chat with ${residentName}. You reply to ${residentName} there, not here.`}
+        </p>
+      ) : null}
+      {writable && onPreview ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-4)', flex: 'none' }}>
           <div>
             <Button variant="quiet" onClick={() => onPreview(draft)}>
@@ -231,42 +269,44 @@ export function Chat({
           ) : null}
         </div>
       ) : null}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-        style={{
-          display: 'flex',
-          flex: 'none',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-3) var(--space-4)',
-          borderTop: '1px solid var(--hairline)',
-          background: 'var(--surface-raised)',
-        }}
-      >
-        <input
-          aria-label="Message"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={`Write to ${residentName}`}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 'var(--control-h)',
-            padding: '0 var(--space-3)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--hairline)',
-            background: 'var(--surface)',
-            color: 'var(--ink)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+      {writable ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
           }}
-        />
-        <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
-          Send
-        </Button>
-      </form>
+          style={{
+            display: 'flex',
+            flex: 'none',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-3) var(--space-4)',
+            borderTop: '1px solid var(--hairline)',
+            background: 'var(--surface-raised)',
+          }}
+        >
+          <input
+            aria-label="Message"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={`Write to ${residentName}`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 'var(--control-h)',
+              padding: '0 var(--space-3)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--hairline)',
+              background: 'var(--surface)',
+              color: 'var(--ink)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+            }}
+          />
+          <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
+            Send
+          </Button>
+        </form>
+      ) : null}
     </div>
   );
 }

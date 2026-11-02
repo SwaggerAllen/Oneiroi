@@ -1,5 +1,5 @@
 defmodule Oneiroi.Brain.UsesTest do
-  @moduledoc "What retrieval did with each target in a turn (kumbukumbu #40): considered, returned and used, read off the sections, the tools and the replies, recorded once a turn, and read back by both parties."
+  @moduledoc "What retrieval did with each target in a turn (kumbukumbu #43): considered, returned and used, read off the sections, the tools and the replies, recorded once a turn, and read back by both parties."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor

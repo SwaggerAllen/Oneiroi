@@ -12,9 +12,9 @@
 # MCP server under this turn, as events of their own.
 #
 # Posted with the turn's ref and the platform's start instant,
-# idempotent on (session, start instant, content); spooled first and
-# delivered with everything spooled before it, so a turn is never lost
-# to a blip and never stored twice.
+# idempotent on (session, start instant, content); spooled first, in this
+# session's own spool, and delivered with everything spooled before it,
+# so a turn is never lost to a blip and never stored twice.
 #
 # `stop_hook_active` is true when another Stop hook kept Claude going.
 # This hook never does (it never exits 2 and prints no decision); on
@@ -57,7 +57,7 @@ main() {
   fi
   rm -f "$state/messages.json" "$state/reply"
 
-  oneiroi_deliver
+  oneiroi_deliver "$state"
 }
 
 main "$@"

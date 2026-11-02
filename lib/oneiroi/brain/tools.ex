@@ -794,7 +794,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # The counts the retrieval ledger holds (kumbukumbu #40), for the
+  # The counts the retrieval ledger holds (kumbukumbu #43), for the
   # resident to read before anything is tuned from them.
   defp call("memory_use", args, turn) do
     opts = [kind: blank(args["kind"]), target: blank(args["target"])]

@@ -128,3 +128,18 @@ const paged: Message[] = Array.from({ length: 12 }, (_, i) => ({
   content: i % 2 === 0 ? `Question ${i / 2 + 1}` : `Answer ${(i + 1) / 2}`,
 }));
 export const Unread: Story = { args: { messages: paged, more: true, onOlder: () => undefined, lastRead: '6:0', onRead: () => undefined } };
+
+// A Claude Code conversation (kumbukumbu #40): read here, answered
+// there, with its replies' inspector and no composer or preview.
+export const ReadOnly: Story = {
+  args: {
+    conversation: { title: 'Claude Code · Oneiroi', writable: false },
+    onPreview: () => undefined,
+    injections: {
+      t1: [
+        { label: 'where', tokens: 60, reason: 'where this conversation is (kumbukumbu #42)', position: 0, text: 'This conversation is in Claude Code, in the folder Oneiroi.' },
+        { label: 'index', tokens: 40, reason: 'the bookmark index under 1500 tokens: 1 listed, 0 left out', position: 1, text: '#1 2026-10-26 the garden' },
+      ],
+    },
+  },
+};

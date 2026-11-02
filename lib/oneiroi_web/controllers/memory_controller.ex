@@ -39,7 +39,7 @@ defmodule OneiroiWeb.MemoryController do
 
   operation(:retrieval,
     summary:
-      "How retrieval has been used, target by target (kumbukumbu #40): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",
+      "How retrieval has been used, target by target (kumbukumbu #43): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",
     parameters: [id: [in: :path, type: :string], kind: [in: :query, type: :string]],
     responses: [ok: {"the counts", "application/json", %Schema{type: :array}}]
   )

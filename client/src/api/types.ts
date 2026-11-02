@@ -23,17 +23,25 @@ export interface Resident {
   chat_model: string | null;
 }
 
+// A conversation as the server names it (kumbukumbu #40): `title` is
+// what it is called, `place` the folder an adapter's ran in, and
+// `writable` whether it takes a message here. The client groups and
+// labels by these and decides none of them.
 export interface Session {
   key: string;
   resident_id: string;
   kind: string;
   adapter: string | null;
+  title: string;
+  place: string | null;
+  writable: boolean;
   turns: number;
+  opened_at: string;
   last_turn_at: string | null;
   summary: string | null;
 }
 
-// What retrieval did with one target (kumbukumbu #40): the target in
+// What retrieval did with one target (kumbukumbu #43): the target in
 // citation form, how often it was considered, returned and used, and
 // when last returned and used. The resident reads the same numbers.
 export interface RetrievalCount {
@@ -43,6 +51,13 @@ export interface RetrievalCount {
   used: number;
   last_returned_at: string | null;
   last_used_at: string | null;
+}
+
+// A transcript, with each turn's count for "drew on N things".
+export interface Transcript {
+  session: Session;
+  messages: Message[];
+  drew_on: Record<string, number>;
 }
 
 export interface Message {

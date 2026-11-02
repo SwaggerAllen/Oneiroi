@@ -14,11 +14,13 @@ import type {
   RegressionTest,
   Resident,
   RetrievalCount,
+  Session,
   Tag,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
 import { Chat } from '../screens/chat/Chat';
+import { Conversations } from '../screens/chat/Conversations';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
@@ -122,7 +124,11 @@ function storeRead(key: string, cursor: string) {
 }
 
 function ChatContainer({ resident }: { resident: Resident }) {
+  // The Oneiroi chat's key, and the conversation open now: the chat, or
+  // one the list opened (kumbukumbu #40).
   const [key, setKey] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [more, setMore] = useState(false);
   const [lastRead, setLastRead] = useState<string | null>(null);
@@ -133,16 +139,21 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const [sending, setSending] = useState(false);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
-  // The newest page, joined to what was paged in before it; `more` is
-  // the server's word only when nothing older was loaded yet.
+  // The newest page of a conversation, joined to what was paged in
+  // before it of the same conversation; `more` is the server's word only
+  // when nothing older was loaded yet.
   const reload = useCallback(
     (k: string) =>
-      api.transcriptPage(resident.id, k, PAGE).then(({ messages: rows, more: earlier }) => {
+      api.transcriptPage(resident.id, k, PAGE).then(({ messages: rows, more: earlier, drew_on }) => {
         setMessages((loaded) => {
-          const merged = mergeNewest(loaded, rows);
+          const merged = mergeNewest(
+            loaded.filter((m) => m.session_key === k),
+            rows,
+          );
           if (merged.length === rows.length) setMore(earlier);
           return merged;
         });
+        setDrewOn((d) => ({ ...d, ...drew_on }));
         setStreaming(null);
       }),
     [resident.id],
@@ -153,48 +164,88 @@ function ChatContainer({ resident }: { resident: Resident }) {
       // Held as it was on opening, so the marker stays put while reading.
       setLastRead(storedRead(k));
       setKey(k);
-      void reload(k);
+      setOpen(k);
     });
-  }, [resident.id, reload]);
+  }, [resident.id]);
 
+  // Earlier messages of the conversation open now, put above.
   const loadOlder = useCallback(() => {
     const first = messages[0]?.cursor;
-    if (!key || !first || older.current) return;
+    if (!open || !first || older.current) return;
     older.current = true;
     api
-      .transcriptPage(resident.id, key, PAGE, first)
-      .then(({ messages: rows, more: earlier }) => {
+      .transcriptPage(resident.id, open, PAGE, first)
+      .then(({ messages: rows, more: earlier, drew_on }) => {
         setMessages((loaded) => [...rows, ...loaded]);
+        setDrewOn((d) => ({ ...d, ...drew_on }));
         setMore(earlier);
       })
       .finally(() => {
         older.current = false;
       });
-  }, [key, messages, resident.id]);
+  }, [open, messages, resident.id]);
 
+  // The list is read again whenever a conversation opens, so a Claude
+  // Code conversation begun since shows without a reload.
   useEffect(() => {
-    if (!key) return;
-    let leave: () => void = () => undefined;
-    api.socketToken().then(({ token }) => {
-      leave = joinSession(token, resident.id, key, {
-        onStarted: (turnRef) => setStreaming({ turnRef, text: '' }),
-        onDelta: (turnRef, text) => setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text })),
-        onTurn: () => void reload(key),
-        onFailed: () => setStreaming(null),
-      });
-    });
-    return () => leave();
-  }, [key, resident.id, reload]);
+    if (!open) return;
+    void reload(open);
+    api
+      .sessions(resident.id)
+      .then(setSessions)
+      .catch(() => setSessions([]));
+  }, [open, reload, resident.id]);
 
-  if (!key) return null;
+  // Only the Oneiroi chat streams: another conversation is answered
+  // where it happens and read here as captured.
+  useEffect(() => {
+    if (!key || open !== key) return;
+    let leave: () => void = () => undefined;
+    api
+      .socketToken()
+      .then(({ token }) => {
+        leave = joinSession(token, resident.id, key, {
+          onStarted: (turnRef) => setStreaming({ turnRef, text: '' }),
+          onDelta: (turnRef, text) => setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text })),
+          onTurn: () => void reload(key),
+          onFailed: () => setStreaming(null),
+        });
+      })
+      // Without the stream the reply still lands on the reload after
+      // the send; the transcript is read either way.
+      .catch(() => undefined);
+    return () => leave();
+  }, [key, open, resident.id, reload]);
+
+  const shown = sessions.find((s) => s.key === open);
+  // Anything but the chat is as the server says, and read only until it
+  // has said.
+  const conversation = open !== key ? { title: shown?.title ?? 'Conversation', writable: shown?.writable ?? false } : undefined;
+
+  // A conversation opens closed: no inspector and no preview carried
+  // over, its own pages from the newest, and its own read marker.
+  const openConversation = (k: string) => {
+    setInjections({});
+    setPreview(null);
+    setMessages([]);
+    setMore(false);
+    setLastRead(storedRead(k));
+    setOpen(k);
+  };
+
+  if (!key || !open) return null;
   return (
     <Chat
+      // A fresh screen per conversation, so its scroll place starts at the end.
+      key={open}
       residentName={resident.name}
+      conversation={conversation}
+      conversations={<Conversations sessions={sessions} chatKey={key} current={open} onOpen={openConversation} />}
       messages={messages}
       more={more}
       onOlder={loadOlder}
       lastRead={lastRead}
-      onRead={(cursor) => storeRead(key, cursor)}
+      onRead={(cursor) => storeRead(open, cursor)}
       streaming={streaming}
       drewOn={drewOn}
       injections={injections}

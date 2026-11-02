@@ -1377,3 +1377,50 @@ and nothing personal turned up; what follows is what changed.
   witness-only spend, redacted secrets, and Honcho's material from
   private sessions), and the export's table names the same keys, held
   by a test (sima-qian #43).
+
+## Round 49: the Oneiroi chat stays the Oneiroi chat (2026-11-02)
+
+- The author: "Are we able to pipe the Claude transcripts into a
+  different session instead of the main one in the UI? It's going to
+  confuse both me and Lily since Claude and Oneiroi chat are two
+  different use cases so I'm likely to be running them on different
+  tasks at the same time." Found in the code before any Claude Code
+  session had opened in production: each Claude Code session already
+  opened its own session, as kind `main`, and the chat's
+  `main_session/3` took the newest `main` session with no adapter
+  filter, so the first Claude Code session would have become the
+  witness's chat and the platform's brain would have answered there.
+- The kind, decided by the author: "Only the Oneiroi chat should be the
+  canonical, Claude is a secondary platform." The main session is the
+  platform's own conversation with the witness, kind `main` through the
+  platform's adapter, the oldest of them; a session an adapter's token
+  opens is kind `adapter` whatever the body says, so a plugin built
+  before the kind, which sends `main`, still lands right (kumbukumbu
+  #40). `SessionOpened` is version 3 with `label` (the folder's base
+  name, never its path) and `runtime`; its upcaster gives a session an
+  adapter opened as `main` before the rule the kind one opened now gets.
+  Spec §6.3 and §8 say so.
+- Then, scope from the author: "make sure that having Claude-Lily active
+  in multiple repos doesn't cause confusion." Several Claude Code
+  sessions open at once, in different repositories and two in one, plus
+  the Oneiroi chat, are the normal case:
+  - Each conversation is told where it is and which others are open
+    now, by runtime and folder alone, and that memory is one across
+    them (brain #44, kumbukumbu #42); no conversation carries another's
+    words.
+  - A memory tool's call names its turn (kumbukumbu #41). Researched
+    first: Claude Code sends an HTTP MCP server nothing per session, its
+    `headersHelper` sees the server's name and URL and no session, and
+    `CLAUDE_CODE_SESSION_ID` reaches a stdio server only, keeping the id
+    it was spawned with across `/clear` (Claude Code's MCP, plugin and
+    environment-variable references, read 2026-11-02). So the turn's
+    ref rides the context and every tool takes it as `turn`; a call
+    naming no open turn of the adapter's goes to the newest, and says
+    where when it chose among several.
+  - The plugin keeps everything per Claude Code session: its state, its
+    turn in flight, and now its spool, so two sessions stopping at once
+    never deliver or open a conversation for each other's turns.
+  - The witness's Chat lists the other conversations apart, grouped by
+    the name the server gives them (Claude Code by folder), newest
+    first, each read only with its "drew on" inspector; the platform
+    refuses a witness's message to an adapter's conversation.
