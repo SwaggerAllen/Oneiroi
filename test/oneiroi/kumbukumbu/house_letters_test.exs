@@ -136,4 +136,33 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
     assert run("letter_send", %{to: "house", text: "x", keepsake: "nope.md"}, chat) =~
              "Not done: nope.md is not a keepsake at your root"
   end
+
+  # The free-time queue: a brief to "Free time" waits for the next one.
+  test "a brief addressed to Free time is told to the next free time, which reads it", ctx do
+    :ok = Oneiroi.Gaia.store_key(ctx.witness.id, "sk-or-test", ctx.actor)
+    on_exit(fn -> Oneiroi.Nisaba.Provider.Fake.clear(for: ctx.id) end)
+
+    {:ok, _} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        ctx.code,
+        %{to: "Free time", text: "Read Andrew's Substack and tell me what landed."},
+        ctx.lily
+      )
+
+    # The suite's clock is 12:01 here (Etc/UTC, a minute on from setup).
+    :ok = Oneiroi.Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Oneiroi.Sunna.tick(ctx.id)
+
+    [%{key: key}] =
+      Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "free_time"))
+
+    {:ok, _session, messages} = Kumbukumbu.transcript({:resident, ctx.id}, key)
+    ref = hd(messages).turn_ref
+
+    assert %{text: "1 house letter waits for this conversation, from Claude Code · Oneiroi." <> _} =
+             Enum.find(Kumbukumbu.injections({:resident, ctx.id}, ref), &(&1.label == "letters"))
+
+    assert [%{to_name: "Free time"}] = Kumbukumbu.inbox(ctx.id, key)
+  end
 end
