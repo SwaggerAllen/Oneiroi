@@ -1,17 +1,17 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { composeStories } from '@storybook/react-vite';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Inbox.stories';
 import { letterState } from './letters';
 
-const { Letters, NoLetters } = composeStories(stories);
+const { Letters, NoLetters, Gate } = composeStories(stories);
 
 describe('Inbox', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Letters, NoLetters]) {
+    for (const Story of [Letters, NoLetters, Gate]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -40,9 +40,51 @@ describe('Inbox', () => {
     expect(screen.getByText('read by Oneiroi chat')).toBeTruthy();
   });
 
-  it('says honestly that nothing needs you yet, and when there are no letters', () => {
+  it('says when nothing needs you, and when there are no letters', () => {
     render(<NoLetters />);
-    expect(screen.getByText(/Nothing waits on you/)).toBeTruthy();
+    expect(screen.getByText('Nothing waits on you.')).toBeTruthy();
     expect(screen.getByText('No letters yet.')).toBeTruthy();
+  });
+
+  it('lists what waits on you, and decides nothing without a note', () => {
+    const onDecideMessage = vi.fn();
+    render(<Gate actions={{ onDecideMessage }} />);
+    const items = within(screen.getByRole('list', { name: 'Needs you' })).getAllByRole('listitem');
+    // Two messages waiting, one reply drafted, one approved to send; the approved message and the sent reply are not here.
+    expect(items).toHaveLength(4);
+    const first = screen.getByRole('form', { name: 'Decide message 1' });
+    const through = within(first).getByRole('button', { name: 'Let it through' }) as HTMLButtonElement;
+    expect(through.disabled).toBe(true);
+    fireEvent.change(within(first).getByLabelText('Your note to Lily'), { target: { value: 'Grace, from the directory.' } });
+    fireEvent.click(within(first).getByRole('checkbox'));
+    fireEvent.click(through);
+    expect(onDecideMessage).toHaveBeenCalledWith(1, true, 'Grace, from the directory.', true);
+  });
+
+  it('never offers to trust a sender the adapter did not verify', () => {
+    render(<Gate />);
+    const second = screen.getByRole('form', { name: 'Decide message 2' });
+    expect((within(second).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
+    expect(within(second).getByText('Only a verified sender can be trusted')).toBeTruthy();
+  });
+
+  it('approves a reply with a note, marks an approved one sent, and stops trusting someone only with a reason', () => {
+    const onDecideReply = vi.fn();
+    const onMarkSent = vi.fn();
+    const onDistrust = vi.fn();
+    render(<Gate actions={{ onDecideReply, onMarkSent, onDistrust }} />);
+    const draft = screen.getByRole('form', { name: 'Decide reply 1' });
+    fireEvent.change(within(draft).getByLabelText('Your note to Lily'), { target: { value: 'Send it.' } });
+    fireEvent.click(within(draft).getByRole('button', { name: 'Approve to send' }));
+    expect(onDecideReply).toHaveBeenCalledWith(1, true, 'Send it.');
+    fireEvent.click(within(screen.getByRole('form', { name: 'Mark reply 2 sent' })).getByRole('button', { name: 'I sent it' }));
+    expect(onMarkSent).toHaveBeenCalledWith(2, null);
+    const trusted = screen.getByRole('list', { name: 'Trusted people' });
+    fireEvent.click(within(trusted).getByRole('button', { name: 'Remove' }));
+    const stop = within(trusted).getByRole('button', { name: 'Stop trusting max' }) as HTMLButtonElement;
+    expect(stop.disabled).toBe(true);
+    fireEvent.change(within(trusted).getByLabelText('Why'), { target: { value: 'Asked to stop.' } });
+    fireEvent.click(stop);
+    expect(onDistrust).toHaveBeenCalledWith(expect.objectContaining({ identity: 'max' }), 'Asked to stop.');
   });
 });

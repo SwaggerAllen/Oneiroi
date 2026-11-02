@@ -2,6 +2,8 @@ import type {
   ApiError,
   Bookmark,
   ContextPreview,
+  CorrespondenceMessage,
+  Correspondent,
   Grade,
   HouseLetter,
   IndexNow,
@@ -10,6 +12,7 @@ import type {
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
+  Reply,
   Resident,
   RetrievalCount,
   ScheduleToday,
@@ -110,6 +113,20 @@ export const api = {
       note,
     }),
 
+  correspondence: (residentId: string, state?: string) =>
+    call<CorrespondenceMessage[]>('GET', `/v1/residents/${residentId}/correspondence${state ? `?state=${state}` : ''}`),
+  decideMessage: (residentId: string, number: number, approve: boolean, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/correspondence/${number}/decision`, { approve, note }),
+  correspondents: (residentId: string) => call<Correspondent[]>('GET', `/v1/residents/${residentId}/correspondents`),
+  trust: (residentId: string, platform: string, identity: string, name: string | null, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/correspondents`, { platform, identity, name, note }),
+  distrust: (residentId: string, platform: string, identity: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/correspondents/distrust`, { platform, identity, note }),
+  replies: (residentId: string) => call<Reply[]>('GET', `/v1/residents/${residentId}/replies`),
+  decideReply: (residentId: string, number: number, approve: boolean, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),
+  markSent: (residentId: string, number: number, url: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
   schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
   setFreeTime: (residentId: string, times: string[]) =>

@@ -295,7 +295,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"report_file", %{text: "Nothing to report but herons."}},
     {"contract_propose", %{prose: "My letters are mine.", note: "proposing"}},
     {"journal_add", %{kind: "note", text: "Saw the heron."}},
-    {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}}
+    {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}},
+    {"reply_draft",
+     %{platform: "email", account: "lily@example.com", to: "grace@example.com", text: "Herons."}}
   ]
 
   @done [

@@ -29,6 +29,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Proteus,
       Oneiroi.Seshat,
       Oneiroi.Sunna,
+      Oneiroi.Xenia,
       Jason
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
