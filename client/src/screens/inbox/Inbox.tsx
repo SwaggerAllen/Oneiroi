@@ -1,24 +1,30 @@
 import { useState } from 'react';
-import type { HouseLetter } from '../../api/types';
+import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
 import { Card } from '../../components/Card';
 import { Tabs } from '../../components/Tabs';
 import { TopBar } from '../../components/TopBar';
 import { isOpen, letterState, stateLine } from './letters';
+import { Blocked, Correspondence, type GateActions, NeedsYou } from './NeedsYou';
 
 export interface InboxProps {
   residentName: string;
   letters: HouseLetter[];
+  messages?: CorrespondenceMessage[];
+  replies?: Reply[];
+  blocks?: Block[];
+  actions?: GateActions;
 }
 
 type Tab = 'open' | 'all';
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 
-// Inbox (spec §10, screens/inbox.md). Built so far: Needs you, which has
-// nothing to list until the correspondence gate exists, and the house
-// letters, the work log between the resident's conversations
-// (kumbukumbu #44), with where each stands read off the letters.
-export function Inbox({ residentName, letters }: InboxProps) {
+// Inbox (spec §10, screens/inbox.md): Needs you (the replies waiting for
+// your yes, the approved ones to send; xenia #13), the correspondence
+// that reached the resident with a way to block a sender, the blocks
+// (xenia #12), and the house letters between the resident's
+// conversations (kumbukumbu #44).
+export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {} }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
   const open = newest.filter((l) => isOpen(letterState(l, letters)));
@@ -27,11 +33,14 @@ export function Inbox({ residentName, letters }: InboxProps) {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Inbox" />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <Card title="Needs you">
-          <p style={muted}>
-            Nothing waits on you. Replies {residentName} drafts for you to send will show here once the sending gate is built.
-          </p>
-        </Card>
+        <NeedsYou
+          residentName={residentName}
+          drafted={replies.filter((r) => r.state === 'drafted')}
+          approved={replies.filter((r) => r.state === 'approved')}
+          actions={actions}
+        />
+        <Correspondence residentName={residentName} messages={messages} blocks={blocks} onBlock={actions.onBlock} />
+        <Blocked residentName={residentName} blocks={blocks} onUnblock={actions.onUnblock} />
         <section aria-label="Letters" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <h2 style={{ margin: 0, fontSize: 16, lineHeight: '22px', fontWeight: 600 }}>Letters between {residentName}’s conversations</h2>
           <Tabs<Tab>

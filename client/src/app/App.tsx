@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
+  Block,
+  CorrespondenceMessage,
   HouseLetter,
   Bookmark,
   ContextPreview,
@@ -13,6 +15,7 @@ import type {
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
+  Reply,
   Resident,
   ScheduleToday,
   RetrievalCount,
@@ -337,17 +340,38 @@ function MemoryContainer({ resident }: { resident: Resident }) {
 }
 
 function InboxContainer({ resident }: { resident: Resident }) {
-  const [letters, setLetters] = useState<HouseLetter[] | null>(null);
+  const id = resident.id;
+  const [data, setData] = useState<{
+    letters: HouseLetter[];
+    messages: CorrespondenceMessage[];
+    replies: Reply[];
+    blocks: Block[];
+  } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  useEffect(() => {
-    api
-      .letters(resident.id)
-      .then(setLetters)
+  const load = useCallback(() => {
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id)])
+      .then(([letters, messages, replies, blocks]) => setData({ letters, messages, replies, blocks }))
       .catch((e: unknown) => setError(asApiError(e)));
-  }, [resident.id]);
-  if (error) return <ErrorNotice error={error} />;
-  if (!letters) return null;
-  return <Inbox residentName={resident.name} letters={letters} />;
+  }, [id]);
+  useEffect(() => load(), [load]);
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!data) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Inbox
+        residentName={resident.name}
+        {...data}
+        actions={{
+          onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
+          onMarkSent: (number, url) => act(api.markSent(id, number, url)),
+          onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
+          onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
+        }}
+      />
+    </>
+  );
 }
 
 function ScheduleContainer({ resident }: { resident: Resident }) {

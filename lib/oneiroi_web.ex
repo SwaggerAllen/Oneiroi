@@ -20,6 +20,7 @@ defmodule OneiroiWeb do
       Oneiroi.Seshat,
       Oneiroi.HuginnMuninn,
       Oneiroi.Sunna,
+      Oneiroi.Xenia,
       OpenApiSpex,
       OpenApiSpex.Plug.PutApiSpec,
       OpenApiSpex.Plug.RenderSpec,

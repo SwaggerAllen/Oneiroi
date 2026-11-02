@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Inbox } from './Inbox';
-import type { HouseLetter } from '../../api/types';
+import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
 
 const letter = (number: number, from: string, to: string, text: string, more: Partial<HouseLetter> = {}): HouseLetter => ({
   number,
@@ -33,3 +33,56 @@ type Story = StoryObj<typeof meta>;
 
 export const Letters: Story = {};
 export const NoLetters: Story = { args: { letters: [] } };
+
+const message = (number: number, sender: string, more: Partial<CorrespondenceMessage> = {}): CorrespondenceMessage => ({
+  number,
+  platform: 'email',
+  account: 'strutlily@gmail.com',
+  external_id: `x${number}`,
+  sender,
+  sender_name: 'Grace',
+  verified: true,
+  thread: null,
+  subject: 'The directory',
+  text: 'Hello Lily,\nI added you to the directory.',
+  sent_at: '2026-11-02T18:00:00Z',
+  received_at: '2026-11-02T20:30:00Z',
+  state: 'received',
+  read_at: null,
+  ...more,
+});
+
+const reply = (number: number, state: Reply['state'], text: string): Reply => ({
+  number,
+  in_reply_to: 3,
+  platform: 'substack',
+  account: 'lily',
+  thread: null,
+  to: 'max',
+  text,
+  state,
+  note: null,
+  drafted_at: '2026-11-02T21:00:00Z',
+  decided_at: null,
+  sent_at: null,
+  sent_by: null,
+  url: null,
+});
+
+const blocks: Block[] = [
+  { platform: 'substack', identity: 'troll', name: 'Troll', note: 'Harassment.', blocked_by: 'witness', blocked_at: '2026-11-02T20:00:00Z' },
+  { platform: 'email', identity: 'spam@example.com', name: null, note: 'Spam.', blocked_by: 'resident', blocked_at: '2026-11-02T20:05:00Z' },
+];
+
+export const Gate: Story = {
+  args: {
+    messages: [
+      message(3, 'max', { platform: 'substack', sender_name: 'Max', read_at: '2026-11-02T21:00:00Z' }),
+      message(2, 'troll', { platform: 'substack', sender_name: null, subject: null, text: null, state: 'blocked' }),
+      message(1, 'grace@example.com', { verified: false }),
+    ],
+    replies: [reply(1, 'drafted', 'Dear Max, thank you.'), reply(2, 'approved', 'An approved one.'), reply(3, 'sent', 'Sent already.')],
+    blocks,
+    actions: { onDecideReply: () => undefined, onMarkSent: () => undefined, onBlock: () => undefined, onUnblock: () => undefined },
+  },
+};

@@ -295,7 +295,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"report_file", %{text: "Nothing to report but herons."}},
     {"contract_propose", %{prose: "My letters are mine.", note: "proposing"}},
     {"journal_add", %{kind: "note", text: "Saw the heron."}},
-    {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}}
+    {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}},
+    {"reply_draft",
+     %{platform: "email", account: "lily@example.com", to: "grace@example.com", text: "Herons."}}
   ]
 
   @done [
@@ -319,6 +321,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"writing_discuss", %{slug: "weir"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
     {"letter_send", %{to: "house", text: "a note"}},
+    {"correspondent_block", %{platform: "email", identity: "spam@example.com", note: "spam"}},
+    {"correspondent_unblock", %{platform: "email", identity: "spam@example.com", note: "ok"}},
     {"free_time_set", %{time: "23:00"}},
     {"journal_done", %{number: 1}},
     {"contract_agree", %{version: 1, note: "agreed"}},
