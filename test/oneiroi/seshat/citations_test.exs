@@ -24,6 +24,21 @@ defmodule Oneiroi.Seshat.CitationsTest do
            ] = Citations.extract(text)
   end
 
+  # A session key is base64url, so it may open or close on `-` or `_`;
+  # the pattern cut such a key short, and the review's transcript
+  # reference went missing at random (the documents suite's flake).
+  test "a transcript key that opens or closes on - or _ is cited whole, and a full stop still is not" do
+    text =
+      "our talk (lily:transcript/EC8Xu4wA2jkIiBXFYrus7_). Then lily:transcript/-abc9Z-, and lily:bookmark/42."
+
+    assert [
+             "lily:transcript/EC8Xu4wA2jkIiBXFYrus7_",
+             "lily:transcript/-abc9Z-",
+             "lily:bookmark/42"
+           ] =
+             text |> Citations.extract() |> Enum.map(& &1.target)
+  end
+
   test "the publish copy strips every citation and the frontmatter and tidies the spaces" do
     text =
       "---\nstatus: final\n---\n# Bake-off\n\nI held it (lily:position/7) then, and lily:bookmark/42 says so."

@@ -33,9 +33,11 @@ defmodule Oneiroi.Seshat.Citations do
   # may cite a day of the memory originals, and the originals mint no
   # edge of their own.
   @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory keepsake system habit seed soul commitment)
-  # A ref ends on a letter, digit or `#`-less anchor character, so the full
-  # stop closing a sentence stays with the sentence.
-  @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/
+  # A ref opens and closes on a letter, a digit, `-` or `_`, so the full
+  # stop closing a sentence stays with the sentence; `-` and `_` because a
+  # session key is base64url and opens or closes on them about one time
+  # in sixteen, which cut a transcript citation short.
+  @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9_-](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9_-])?)/
 
   # ---- parsing, pure ----
 
