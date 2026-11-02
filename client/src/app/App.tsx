@@ -13,12 +13,14 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   Resident,
+  ScheduleToday,
   RetrievalCount,
   Session,
   Tag,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { Conversations } from '../screens/chat/Conversations';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
@@ -26,6 +28,7 @@ import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
 import { Regression } from '../screens/regression/Regression';
+import { Schedule } from '../screens/schedule/Schedule';
 import { Login } from './Login';
 import { joinRun, joinSession } from './socket';
 
@@ -93,6 +96,7 @@ export function App() {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: destination === 'chat' ? 'hidden' : 'auto' }}>
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
+        {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
@@ -324,6 +328,41 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       onPin={(n) => api.pin(resident.id, n).then(load)}
       onUnpin={(n) => api.unpin(resident.id, n).then(load)}
     />
+  );
+}
+
+function ScheduleContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [today, setToday] = useState<ScheduleToday | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  // A fresh screen per load, so each form starts from what the server says.
+  const [version, setVersion] = useState(0);
+  const load = useCallback(() => {
+    api
+      .schedule(id)
+      .then((t) => {
+        setToday(t);
+        setVersion((v) => v + 1);
+      })
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!today) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Schedule
+        key={version}
+        residentName={resident.name}
+        today={today}
+        onSetFreeTime={(times) => act(api.setFreeTime(id, times))}
+        onAddCheckin={(label, time) => act(api.addCheckin(id, label, time))}
+        onDeleteCheckin={(key) => act(api.deleteCheckin(id, key))}
+        onSetQuietHours={(from, to) => act(api.setQuietHours(id, from, to))}
+      />
+    </>
   );
 }
 

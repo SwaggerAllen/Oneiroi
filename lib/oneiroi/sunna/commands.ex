@@ -22,7 +22,8 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule SetFreeTime do
-    use Oneiroi.Command, fields: [:id, :time]
+    # `times`: the day's free-time slots as HH:MMs (sunna #22).
+    use Oneiroi.Command, fields: [:id, :times]
   end
 
   defmodule OpenDay do
@@ -32,7 +33,7 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule RecordFreeTime do
-    use Oneiroi.Command, fields: [:id, :day, :session_key, :reason]
+    use Oneiroi.Command, fields: [:id, :day, :slot, :session_key, :reason]
   end
 
   defmodule SetQuietHours do

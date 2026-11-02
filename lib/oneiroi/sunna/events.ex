@@ -45,15 +45,37 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule FreeTimeScheduled do
-    use Oneiroi.Event, version: 1, fields: [:id, :time]
+    # Version 2 adds `times` (sunna #22): free time is a list of slots, a
+    # day's HH:MMs in order. A version 1 event carried one `time`, which
+    # the upcaster reads as a list of one; `time` stays a field so the
+    # stored payload still decodes.
+    use Oneiroi.Event, version: 2, fields: [:id, :time, :times]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: FreeTimeScheduled do
+    def upcast(%{times: nil, time: time} = event, _metadata) when is_binary(time),
+      do: %{event | times: [time]}
+
+    def upcast(event, _metadata), do: event
   end
 
   defmodule FreeTimeRan do
-    use Oneiroi.Event, version: 1, fields: [:id, :day, :session_key]
+    # Version 2 adds `slot` (sunna #22), the HH:MM of the slot that ran;
+    # nil on a version 1 event, from when a day had one free time.
+    use Oneiroi.Event, version: 2, fields: [:id, :day, :session_key, :slot]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: FreeTimeRan do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule FreeTimeFailed do
-    use Oneiroi.Event, version: 1, fields: [:id, :day, :reason]
+    # Version 2 adds `slot`, as FreeTimeRan's.
+    use Oneiroi.Event, version: 2, fields: [:id, :day, :reason, :slot]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: FreeTimeFailed do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule QuietHoursSet do

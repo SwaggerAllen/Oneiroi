@@ -47,8 +47,14 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
-  def set_free_time(resident_id, time, %Actor{} = actor) do
-    command = %Commands.SetFreeTime{actor: actor, at: Clock.now(), id: resident_id, time: time}
+  def set_free_time(resident_id, times, %Actor{} = actor) do
+    command = %Commands.SetFreeTime{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      times: if(is_binary(times), do: [times], else: times)
+    }
+
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
@@ -155,6 +161,7 @@ defmodule Oneiroi.Sunna.Schedules do
       checkins = Store.checkins()
       firings = Store.firings(day)
       settings = Store.settings()
+      ran = free_time_ran(settings, day)
 
       %{
         day: day,
@@ -164,7 +171,8 @@ defmodule Oneiroi.Sunna.Schedules do
         firings: firings,
         last: last_checkin(checkins, firings, now),
         next: next_checkin(checkins, now),
-        free_time: free_time_of(settings),
+        free_times:
+          Enum.map(free_times_of(settings), &%{time: &1, today: Map.get(ran, &1, ran[nil])}),
         free_time_last: settings && {settings.free_time_day, settings.free_time_outcome},
         quiet: quiet_of(settings),
         dates: Enum.map(Store.dates(), &date_with_countdown(&1, now))
@@ -247,12 +255,30 @@ defmodule Oneiroi.Sunna.Schedules do
   end
 
   @doc """
-  Free time's HH:MM (sunna #21): the time set, or the default until
-  anyone moves it. Every resident has it from the first day; it is the
-  standard of care, not something switched on.
+  Free time's slots, HH:MMs in order (sunna #21, #22): the ones set, or
+  the default until anyone moves them. Every resident has free time from
+  the first day; it is the standard of care, not something switched on.
   """
-  def free_time_of(%{free_time: time}) when is_binary(time), do: time
-  def free_time_of(_settings), do: Oneiroi.Config.fetch!(:sunna, :free_time_default)
+  def free_times_of(%{free_times: [_ | _] = times}), do: times
+  # A row from before slots holds its one time in `free_time` alone.
+  def free_times_of(%{free_time: time}) when is_binary(time), do: [time]
+  def free_times_of(_settings), do: Oneiroi.Config.fetch!(:sunna, :free_time_default)
+
+  @doc """
+  What each slot did on `day`, slot to outcome. A day whose run was
+  recorded before slots has no run rows, only the settings row's last
+  run; it is read as the day's one free time, under the `nil` slot, and
+  every slot counts it as its own.
+  """
+  def free_time_ran(settings, day) do
+    case Store.free_time_runs(day) do
+      [] when is_map(settings) ->
+        if settings.free_time_day == day, do: %{nil => settings.free_time_outcome}, else: %{}
+
+      runs ->
+        Map.new(runs, &{&1.slot, &1.outcome})
+    end
+  end
 
   @doc "Whether a local instant falls inside quiet hours, which may cross midnight."
   def quiet?(_local, nil), do: false
@@ -347,8 +373,8 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
-  @doc "Runs free time for the day: a solo session of its own kind, the brain woken on the free-time line; the outcome recorded once."
-  def run_free_time(resident_id, day, %Actor{} = actor) do
+  @doc "Runs one free-time slot for the day: a solo session of its own kind, the brain woken on the free-time line; the outcome recorded once."
+  def run_free_time(resident_id, day, slot, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <-
            Kumbukumbu.open_session(
@@ -365,26 +391,27 @@ defmodule Oneiroi.Sunna.Schedules do
            ),
          {:ok, _} <-
            wake(resident_id, key, Prompt.render!("free_time", %{name: row.name}), :free_time) do
-      record_free_time(resident_id, day, key, nil, actor)
+      record_free_time(resident_id, {day, slot}, key, nil, actor)
     else
       {:error, %{site: _} = e} ->
-        record_free_time(resident_id, day, nil, e, actor)
+        record_free_time(resident_id, {day, slot}, nil, e, actor)
 
       {:error, reason} ->
         failure = Error.caught(:sunna_free_time_failed, :sunna_free_time_open_failed, reason)
-        record_free_time(resident_id, day, nil, failure, actor)
+        record_free_time(resident_id, {day, slot}, nil, failure, actor)
     end
   end
 
   # The recorded reason is the failure's kind, never the failure itself:
   # the event is kept for good, and a foreign reason's payload is where a
   # credential or a tenant's words would ride.
-  defp record_free_time(resident_id, day, key, failure, actor) do
+  defp record_free_time(resident_id, {day, slot}, key, failure, actor) do
     command = %Commands.RecordFreeTime{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
       day: day,
+      slot: slot,
       session_key: key,
       reason: failure && Atom.to_string(failure.kind)
     }

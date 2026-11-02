@@ -82,3 +82,17 @@ ask, that the resident's conversations should not have to compete to be
 alive at once, is written down as unsolved here on purpose: the
 schedule can wake only the platform's brain, and pretending otherwise
 would absorb the tradeoff the ask said to flag.
+
+## #22
+The correspondence pipeline the witness proposed on 2026-11-02 needs
+two wakes a day: the scrape lands an hour before each, and the resident
+answers her public life in them. Free time held one time, so the second
+wake had nowhere to be. A list rather than a second named field because
+nothing about the two is different in kind, and the bound (four) keeps a
+list from turning free time into the whole day. The old events stay as
+written and read as a list of one; the reads, not the migration, take
+the one-slot rows as they stand, because the projection tables are under
+forced row security and no migration here writes rows. A day that ran
+its one free time before the deploy runs no slot again, since running
+twice on the day of a deploy would be the schedule doing something
+nobody asked for.

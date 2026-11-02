@@ -11,6 +11,7 @@ import type {
   RegressionTest,
   Resident,
   RetrievalCount,
+  ScheduleToday,
   Session,
   Tag,
   TestTexts,
@@ -108,6 +109,17 @@ export const api = {
       note,
     }),
 
+  schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
+  setFreeTime: (residentId: string, times: string[]) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
+  addCheckin: (residentId: string, label: string, time: string) =>
+    call<{ key: string }>('POST', `/v1/residents/${residentId}/schedule/checkins`, { label, time }),
+  changeCheckin: (residentId: string, key: string, label: string, time: string) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time }),
+  deleteCheckin: (residentId: string, key: string) =>
+    call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
+  setQuietHours: (residentId: string, from: string | null, to: string | null) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/quiet-hours`, { from, to }),
   ledger: (residentId: string) => call<Ledger>('GET', `/v1/residents/${residentId}/ledger`),
   setBudget: (residentId: string, purpose: string, cap: string | null, period: string) =>
     call<void>('PUT', `/v1/residents/${residentId}/ledger/budgets/${purpose}`, { cap, period }),

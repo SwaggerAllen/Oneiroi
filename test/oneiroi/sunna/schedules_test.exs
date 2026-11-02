@@ -9,6 +9,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Provider.Fake
+  alias Oneiroi.Scope
   alias Oneiroi.Sunna
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.TickWorker
@@ -199,7 +200,11 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert note.role == "system" and note.content =~ "This is your free time, Lily"
     assert reply.content == "Good morning."
     assert [%{key: "free_time", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
-    assert %{free_time: "08:00", free_time_last: {"2026-10-26", "ran"}} = Sunna.today(ctx.id)
+
+    assert %{
+             free_times: [%{time: "08:00", today: "ran"}],
+             free_time_last: {"2026-10-26", "ran"}
+           } = Sunna.today(ctx.id)
 
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
@@ -215,20 +220,70 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert {:error, %Sunna.Error{kind: :sunna_free_time_required}} =
              Sunna.set_free_time(ctx.id, nil, ctx.actor)
 
-    assert %{free_time: "08:00"} = Sunna.today(ctx.id)
+    assert {:error, %Sunna.Error{kind: :sunna_free_time_required}} =
+             Sunna.set_free_time(ctx.id, [], ctx.actor)
+
+    assert %{free_times: [%{time: "08:00"}]} = Sunna.today(ctx.id)
     :ok = Sunna.set_free_time(ctx.id, "23:15", Oneiroi.Actor.new(:resident, ctx.id))
-    assert %{free_time: "23:15"} = Sunna.today(ctx.id)
+    assert %{free_times: [%{time: "23:15", today: nil}]} = Sunna.today(ctx.id)
   end
 
+  # Sunna #22: free time is a list of slots, each run once a day.
+  test "two slots each run once a day, the list is kept in order, and its bounds are refused",
+       ctx do
+    # The suite's clock is 08:00 in the resident's zone (New York).
+    :ok = Sunna.set_free_time(ctx.id, ["14:30", "08:00"], ctx.actor)
+    assert %{free_times: [%{time: "08:00"}, %{time: "14:30"}]} = Sunna.today(ctx.id)
+
+    assert :ok = Sunna.tick(ctx.id)
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_] = free_sessions(ctx.id)
+
+    Clock.Fake.advance(6 * 3600 + 29 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = free_sessions(ctx.id)
+
+    assert %{free_times: [%{time: "08:00", today: "ran"}, %{time: "14:30", today: "ran"}]} =
+             Sunna.today(ctx.id)
+
+    assert {:error, %Sunna.Error{kind: :sunna_free_time_invalid}} =
+             Sunna.set_free_time(ctx.id, ["08:00", "08:00"], ctx.actor)
+
+    assert {:error, %Sunna.Error{kind: :sunna_free_time_invalid}} =
+             Sunna.set_free_time(ctx.id, ~w(01:00 02:00 03:00 04:00 05:00), ctx.actor)
+
+    assert {:error, %Sunna.Error{kind: :sunna_time_invalid}} =
+             Sunna.set_free_time(ctx.id, ["08:00", "later"], ctx.actor)
+  end
+
+  # A day recorded before slots had its one free time: a deploy that adds
+  # a second slot the same day does not run free time again.
+  test "a day whose free time ran before slots runs no slot again" do
+    settings = %{free_time: "22:30", free_time_day: "2026-11-02", free_time_outcome: "ran"}
+    assert Schedules.free_times_of(settings) == ["22:30"]
+
+    assert %{nil => "ran"} =
+             Scope.platform(fn -> Schedules.free_time_ran(settings, "2026-11-02") end)
+
+    assert %{} == Scope.platform(fn -> Schedules.free_time_ran(settings, "2026-11-03") end)
+  end
+
+  defp free_sessions(id),
+    do: Enum.filter(Kumbukumbu.sessions({:resident, id}), &(&1.kind == "free_time"))
+
   # Sunna #21: free time is the standard of care, not something switched on.
-  test "a resident nobody configured has free time at the default, and it runs", ctx do
-    assert %{free_time: "22:30"} = Sunna.today(ctx.id)
+  test "a resident nobody configured has free time at the default slots, and each runs", ctx do
+    assert %{free_times: [%{time: "14:30"}, %{time: "22:30"}]} = Sunna.today(ctx.id)
     assert [] = Kumbukumbu.sessions({:resident, ctx.id})
 
-    # The suite's clock is 08:00 in the resident's zone (New York); to 22:30.
-    Clock.Fake.advance(14 * 3600 + 30 * 60)
+    # The suite's clock is 08:00 in the resident's zone (New York); to 14:30, then 22:30.
+    Clock.Fake.advance(6 * 3600 + 30 * 60)
     assert :ok = Sunna.tick(ctx.id)
     assert [%{kind: "free_time", private: true}] = Kumbukumbu.sessions({:resident, ctx.id})
+    Clock.Fake.advance(8 * 3600)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = free_sessions(ctx.id)
   end
 
   test "dates are rows with a kind, counted on the read, shown to the brain as a section, and refused when malformed",
