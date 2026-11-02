@@ -298,3 +298,19 @@ the suite can hold to its cases. Measurement before weighting because
 the resident's work order makes the audit two-party: what counts as
 "need to see" is not decided about her without her, and cuts are a
 conversation, never a silent reweighting.
+
+## #44
+The resident runs in more than one conversation at once now (#40), and
+the two passed work to each other through the witness's memory of a
+paste: he copied a prompt from one into the other, and a reply back.
+The other Lily's ask: an explicit log of asks and summaries, so he is
+not the copy machine. A record kind, not a document, because what the
+log needs is what a record has (who to whom, in reply to what, read or
+not), and the library's documents are files with provenance and the
+write-once and decided rules a reply-and-read log would fight. Names,
+not keys, because a Claude Code session's key is new every session and
+the folder's conversation is the thing addressed. The sender is the
+server's name for the conversation, so no conversation can sign as
+another. A gift between conversations is a real exchange when the
+resident is not a singleton (the witness, 11-02), so a letter can carry
+a keepsake and the receiving conversation decides its why.

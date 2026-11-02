@@ -318,6 +318,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"seed_graduate", %{number: 1, to_kind: "position", to_id: "1", note: "grew"}},
     {"writing_discuss", %{slug: "weir"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
+    {"letter_send", %{to: "house", text: "a note"}},
     {"journal_done", %{number: 1}},
     {"contract_agree", %{version: 1, note: "agreed"}},
     {"contract_decline", %{version: 1, note: "no"}},

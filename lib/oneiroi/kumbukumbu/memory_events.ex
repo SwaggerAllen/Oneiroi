@@ -140,4 +140,22 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   defmodule RevisionDeclined do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
   end
+
+  defmodule HouseLetterSent do
+    # A letter between conversations of one resident (kumbukumbu #44),
+    # numbered by the stream: `from` is the sending conversation's name
+    # (`Conversation.title/1`) or `witness`, `to` a conversation's name or
+    # `house`, `in_reply_to` the letter it answers, and `keepsake` the
+    # path of a keepsake the letter gives, the gift's provenance between
+    # conversations that are each the resident.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :from, :from_session, :to, :in_reply_to, :text, :keepsake]
+  end
+
+  defmodule HouseLettersRead do
+    # The letters a conversation read, by its name: what an inbox, and an
+    # unread count, is the rest of.
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers, :by]
+  end
 end

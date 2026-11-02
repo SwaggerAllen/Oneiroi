@@ -19,6 +19,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu.Conversation
   alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
@@ -527,6 +528,95 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with :ok <- witness_only(actor) do
       fields = [actor: actor, at: Clock.now(), id: resident_id, slug: slug] ++ extra
       with {:ok, _} <- dispatch(struct!(module, fields)), do: :ok
+    end
+  end
+
+  # ---- house letters (kumbukumbu #44) ----
+
+  @doc """
+  Sends a house letter from the conversation `session_key` names (its
+  title is the sender, the server's name for it) or, with `session_key`
+  nil, from the witness; to a conversation's name or `house`. `attrs`
+  carry `to`, `text`, and optionally `in_reply_to` and `keepsake`.
+  """
+  def send_letter(resident_id, session_key, attrs, %Actor{} = actor) when is_map(attrs) do
+    with {:ok, from} <- sender(resident_id, session_key, actor) do
+      command = %Commands.SendHouseLetter{
+        actor: actor,
+        at: Clock.now(),
+        id: resident_id,
+        from: from,
+        from_session: session_key,
+        to: attrs[:to],
+        in_reply_to: attrs[:in_reply_to],
+        text: attrs[:text],
+        keepsake: attrs[:keepsake]
+      }
+
+      case dispatch(command) do
+        {:ok, [%Events.HouseLetterSent{number: n, from: from}]} -> {:ok, %{number: n, from: from}}
+        other -> other
+      end
+    end
+  end
+
+  @doc "Every house letter, oldest first, each with the conversations that read it."
+  def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
+
+  @doc "The letters for the conversation `session_key` names, to it or to the house, that it did not send and has not read."
+  def inbox(resident_id, session_key) do
+    case name_of(resident_id, session_key) do
+      nil -> []
+      name -> resident_id |> letters() |> Enum.filter(&unread_by?(&1, name))
+    end
+  end
+
+  @doc "The conversation `session_key` names reads these letters: each one for it is marked read by its name."
+  def read_letters(resident_id, session_key, numbers, %Actor{} = actor) do
+    case name_of(resident_id, session_key) do
+      nil ->
+        :ok
+
+      name ->
+        command = %Commands.ReadHouseLetters{
+          actor: actor,
+          at: Clock.now(),
+          id: resident_id,
+          numbers: numbers,
+          by: name
+        }
+
+        with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  @doc "A conversation's name, by its key; nil for a key the resident has no session under."
+  def name_of(_resident_id, nil), do: nil
+
+  def name_of(resident_id, session_key) do
+    case Scope.resident(resident_id, fn -> Store.session(session_key) end) do
+      nil -> nil
+      session -> Conversation.title(session)
+    end
+  end
+
+  defp unread_by?(letter, name),
+    do:
+      (letter.to_name == name or letter.to_name == "house") and letter.from_name != name and
+        name not in letter.read_by
+
+  defp sender(_resident_id, nil, %Actor{kind: :witness}), do: {:ok, "witness"}
+
+  defp sender(resident_id, session_key, %Actor{}) do
+    case name_of(resident_id, session_key) do
+      nil ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_session, :kumbukumbu_memories_letter_session_absent,
+           key: session_key
+         )}
+
+      name ->
+        {:ok, name}
     end
   end
 

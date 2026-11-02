@@ -74,7 +74,10 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.RevisionProposed,
       Events.Memory.RevisionApplied,
       Events.Memory.RevisionDeclined,
+      Events.Memory.HouseLetterSent,
+      Events.Memory.HouseLettersRead,
       Store.Revision,
+      Store.HouseLetter,
       Events.Memory.TagProposed,
       Events.Memory.TagApproved,
       Events.Memory.TagRejected,
@@ -209,6 +212,8 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRejected, 1},
@@ -257,6 +262,11 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_letter_invalid,
+       "a house letter is a text of up to 20,000 characters, to a conversation's name or `house`",
+       remedy: "address it to the Oneiroi chat, a Claude Code conversation by its name, or house"},
+      {:kumbukumbu_no_such_letter, "no house letter has that number",
+       remedy: "list the letters; a reply answers one that was sent"},
       {:kumbukumbu_no_such_revision, "no proposed revision has that number",
        remedy: "read the revisions; an applied or declined one is decided"},
       {:kumbukumbu_no_such_proposal, "no open proposal has that ref",
@@ -718,6 +728,34 @@ defmodule Oneiroi.Kumbukumbu do
   )
 
   # ---- revisions (spec §6.3, F13) ----
+
+  @doc "Sends a house letter (kumbukumbu #44) from the conversation the key names, or from the witness with a nil key: attrs to, text, and optionally in_reply_to and keepsake."
+  @spec send_letter(String.t(), String.t() | nil, map(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(send_letter(resident_id, session_key, attrs, actor),
+    do: Memories.send_letter(resident_id, session_key, attrs, actor)
+  )
+
+  @doc "Every house letter, oldest first, with the conversations that read each."
+  @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
+  defexport(letters(resident_id), do: Memories.letters(resident_id))
+
+  @doc "The house letters for the conversation the key names that it has not read."
+  @spec inbox(String.t(), String.t() | nil) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
+  defexport(inbox(resident_id, session_key), do: Memories.inbox(resident_id, session_key))
+
+  @doc "The conversation the key names reads these house letters."
+  @spec read_letters(String.t(), String.t() | nil, [integer()], Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(read_letters(resident_id, session_key, numbers, actor),
+    do: Memories.read_letters(resident_id, session_key, numbers, actor)
+  )
+
+  @doc "What the conversation a key names is called (kumbukumbu #40), or nil."
+  @spec conversation_name(String.t(), String.t() | nil) :: String.t() | nil
+  defexport(conversation_name(resident_id, session_key),
+    do: Memories.name_of(resident_id, session_key)
+  )
 
   @doc "Revises a memory: attrs target_kind, target_id, kind (fact or stance), text, note; a fact by either party or a stance by the resident applies, a stance by the witness is proposed."
   @spec revise(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

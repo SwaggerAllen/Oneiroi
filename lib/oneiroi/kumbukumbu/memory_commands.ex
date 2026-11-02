@@ -79,4 +79,16 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   defmodule DeclineRevision do
     use Oneiroi.Command, decision: true, fields: [:id, :number]
   end
+
+  # House letters (kumbukumbu #44): from one conversation of the resident
+  # to another, or to the house; `from` and `from_session` are the
+  # sender's conversation as the server names it, never the caller's word.
+  defmodule SendHouseLetter do
+    use Oneiroi.Command,
+      fields: [:id, :from, :from_session, :to, :in_reply_to, :text, :keepsake]
+  end
+
+  defmodule ReadHouseLetters do
+    use Oneiroi.Command, fields: [:id, :numbers, :by]
+  end
 end

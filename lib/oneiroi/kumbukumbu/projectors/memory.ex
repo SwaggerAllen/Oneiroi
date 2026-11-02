@@ -6,7 +6,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
 
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
-  alias Oneiroi.Kumbukumbu.Store.{Bookmark, BookmarkProposal, Revision, Tag, Tagging}
+  alias Oneiroi.Kumbukumbu.Store.{Bookmark, BookmarkProposal, HouseLetter, Revision, Tag, Tagging}
 
   fold(%Events.BookmarkAdded{} = e, _metadata, fn multi ->
     multi
@@ -101,6 +101,46 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
         where: r.resident_id == ^e.id and r.number == ^e.number and r.state == "proposed"
       ),
       set: [state: "applied", decided_at: e.at, decision_note: e.note]
+    )
+  end)
+
+  fold(%Events.HouseLetterSent{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :house_letter,
+      %HouseLetter{
+        resident_id: e.id,
+        number: e.number,
+        from_name: e.from,
+        from_session: e.from_session,
+        to_name: e.to,
+        in_reply_to: e.in_reply_to,
+        text: e.text,
+        keepsake: e.keepsake,
+        by_kind: actor_field(e.actor, :kind),
+        sent_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  # A read adds the reader's name to each letter's list and keeps the
+  # first instant any conversation read it.
+  fold(%Events.HouseLettersRead{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :house_letters_read,
+      from(l in HouseLetter,
+        where: l.resident_id == ^e.id and l.number in ^e.numbers,
+        update: [
+          set: [
+            read_by: fragment("array_append(?, ?)", l.read_by, ^e.by),
+            read_at: fragment("coalesce(?, ?)", l.read_at, ^e.at)
+          ]
+        ]
+      ),
+      []
     )
   end)
 

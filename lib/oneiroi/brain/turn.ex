@@ -811,6 +811,7 @@ defmodule Oneiroi.Brain.Turn do
 
     sections =
       where_section(turn, session) ++
+        letters_section(turn) ++
         section(
           "index",
           index.text,
@@ -882,6 +883,33 @@ defmodule Oneiroi.Brain.Turn do
   # are, by name and folder alone. No other conversation's words ride
   # either: each session's history is its own (`Kumbukumbu.recent/3`
   # reads one key). A trial is a session nobody opened, told nothing.
+  # House letters waiting for this conversation (kumbukumbu #44): how
+  # many and from whom, never their words, which `letter_inbox` reads
+  # and marks. Nothing when none wait; a trial is told nothing.
+  defp letters_section(%{trial?: true}), do: []
+
+  defp letters_section(turn) do
+    case Kumbukumbu.inbox(turn.resident_id, turn.session_key) do
+      [] ->
+        []
+
+      waiting ->
+        from = waiting |> Enum.map(& &1.from_name) |> Enum.uniq() |> Enum.join(", ")
+
+        text =
+          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send answers."
+
+        # The text rides the row, as the index's does: it is a count and
+        # names, nothing of the letters, and the inspector shows it.
+        section(
+          "letters",
+          text,
+          "house letters waiting here (kumbukumbu #44): #{length(waiting)}, by sender alone, none of their words",
+          %{text: text}
+        )
+    end
+  end
+
   defp where_section(%{trial?: true}, _session), do: []
 
   defp where_section(turn, %{kind: "adapter"} = session) do
