@@ -45,8 +45,13 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
     actor ++ at ++ note
   end
 
+  # `function_exported?/3` is false for a module not loaded yet, so the
+  # module is loaded first: before this, the first decision of a command
+  # after a cold start passed without its note (CI on xenia's first run,
+  # 2026-11-02, where the suite had not yet loaded `DecideMessage`).
   defp decision?(%module{}) do
-    function_exported?(module, :__decision__?, 0) and module.__decision__?()
+    Code.ensure_loaded?(module) and function_exported?(module, :__decision__?, 0) and
+      module.__decision__?()
   end
 
   defp decision?(_other), do: false

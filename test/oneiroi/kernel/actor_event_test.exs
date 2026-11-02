@@ -1,5 +1,5 @@
 defmodule Oneiroi.ActorEventTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Oneiroi.Actor
   alias Oneiroi.Commanded.Middleware.Actor, as: Middleware
@@ -36,6 +36,21 @@ defmodule Oneiroi.ActorEventTest do
     assert restored == event
     assert Plain.__version__() == 1
     refute Plain.__decision__?()
+  end
+
+  # The regression (2026-11-02, xenia's first CI run): the decision check
+  # asked `function_exported?/3`, which is false for a module not loaded
+  # yet, so a decision built from a struct whose module had not been
+  # loaded passed without its note. Unloading it here makes the cold
+  # start happen on purpose, whatever order the suite ran in.
+  test "a decision still needs its note when its command's module is not loaded yet" do
+    module = Oneiroi.Xenia.Commands.TrustCorrespondent
+    command = struct(module, actor: Actor.platform(), at: @at, id: "x", note: "")
+    :code.purge(module)
+    :code.delete(module)
+    :code.purge(module)
+    refute :code.is_loaded(module)
+    assert Middleware.problems(command) == [:note_required]
   end
 
   test "the middleware refuses a command without an actor, an instant, or a decision's note" do
