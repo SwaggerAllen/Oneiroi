@@ -1,8 +1,8 @@
-export type Destination = 'chat' | 'memory' | 'schedule' | 'ledger' | 'regression';
+export type Destination = 'chat' | 'memory' | 'schedule' | 'inbox' | 'more' | 'ledger' | 'regression';
 
-// Chat is home; there is no dashboard (spec §10). The spec's five are
-// Chat, Memory, Schedule, Inbox and More; until More exists, the screens
-// it will hold (Ledger, Regression) sit here beside the three built.
+// Chat is home; there is no dashboard (spec §10). The spec's five:
+// Chat, Memory, Schedule, Inbox and More, which holds Ledger and
+// Regression, so More is lit while either is open.
 export function BottomNav({
   current,
   onChange,
@@ -14,9 +14,10 @@ export function BottomNav({
     { id: 'chat', label: 'Chat' },
     { id: 'memory', label: 'Memory' },
     { id: 'schedule', label: 'Schedule' },
-    { id: 'ledger', label: 'Ledger' },
-    { id: 'regression', label: 'Regression' },
+    { id: 'inbox', label: 'Inbox' },
+    { id: 'more', label: 'More' },
   ];
+  const lit = current === 'ledger' || current === 'regression' ? 'more' : current;
   return (
     <nav
       aria-label="Main"
@@ -32,14 +33,14 @@ export function BottomNav({
         <button
           key={item.id}
           type="button"
-          aria-current={item.id === current ? 'page' : undefined}
+          aria-current={item.id === lit ? 'page' : undefined}
           onClick={() => onChange(item.id)}
           style={{
             flex: 1,
             minHeight: 'var(--control-h)',
             border: 'none',
             background: 'transparent',
-            color: item.id === current ? 'var(--witness)' : 'var(--ink-muted)',
+            color: item.id === lit ? 'var(--witness)' : 'var(--ink-muted)',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 500,

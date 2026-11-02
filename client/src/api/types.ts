@@ -310,3 +310,18 @@ export interface ScheduleToday {
   quiet: { from: string; to: string } | null;
   dates: ScheduleDate[];
 }
+
+// A house letter (kumbukumbu #44): the work log between Lily's
+// conversations, addressed by name; `read_by` names the conversations
+// that read it.
+export interface HouseLetter {
+  number: number;
+  from: string;
+  to: string;
+  in_reply_to: number | null;
+  text: string;
+  keepsake: string | null;
+  sent_at: string;
+  read_by: string[];
+  read_at: string | null;
+}

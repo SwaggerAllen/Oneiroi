@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
+  HouseLetter,
   Bookmark,
   ContextPreview,
   IndexNow,
@@ -29,6 +30,8 @@ import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
 import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
+import { Inbox } from '../screens/inbox/Inbox';
+import { More } from '../screens/more/More';
 import { Login } from './Login';
 import { joinRun, joinSession } from './socket';
 
@@ -97,6 +100,8 @@ export function App() {
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
+        {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
+        {destination === 'more' ? <More onOpen={go} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
@@ -329,6 +334,20 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       onUnpin={(n) => api.unpin(resident.id, n).then(load)}
     />
   );
+}
+
+function InboxContainer({ resident }: { resident: Resident }) {
+  const [letters, setLetters] = useState<HouseLetter[] | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  useEffect(() => {
+    api
+      .letters(resident.id)
+      .then(setLetters)
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [resident.id]);
+  if (error) return <ErrorNotice error={error} />;
+  if (!letters) return null;
+  return <Inbox residentName={resident.name} letters={letters} />;
 }
 
 function ScheduleContainer({ resident }: { resident: Resident }) {

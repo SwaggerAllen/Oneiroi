@@ -5,10 +5,21 @@ paths:
 
 # inbox
 
-Inbox (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
+Inbox (spec §10), partly built 2026-11-02: `client/src/screens/inbox/`
+(`Inbox.tsx`, `letters.ts`, stories and tests), a bottom-nav
+destination loaded by `InboxContainer` in `client/src/app/App.tsx` from
+`GET /v1/residents/:id/letters`. The state list lives in the stories
 (DESIGN §4); nothing here names a state.
+
+Built: Needs you, saying honestly that nothing waits yet; the house
+letters between the resident's conversations (kumbukumbu #44), Open and
+All, newest first, each with where it stands read off the letters
+(`letters.ts`: answered when replied to, closed when it is a reply and
+read, in hand when read and unanswered, waiting on the clock when an
+unread brief to Free time, waiting on its addressee otherwise; the
+queue of `design/correspondence-pipeline.md`). Not built: everything
+below, which waits on the correspondence records, the whitelist (F23 as
+amended) and the sending gate.
 
 ## #1 Shows
 

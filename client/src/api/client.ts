@@ -3,6 +3,7 @@ import type {
   Bookmark,
   ContextPreview,
   Grade,
+  HouseLetter,
   IndexNow,
   Injection,
   Ledger,
@@ -109,6 +110,7 @@ export const api = {
       note,
     }),
 
+  letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
   schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
