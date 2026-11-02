@@ -24,16 +24,13 @@ defmodule Oneiroi.Xenia.Commands do
       ]
   end
 
-  defmodule DecideMessage do
-    # The witness's reading (F23): approve or reject, with a note.
-    use Oneiroi.Command, decision: true, fields: [:id, :number, :approve]
-  end
-
-  defmodule TrustCorrespondent do
+  defmodule BlockCorrespondent do
+    # Either party blocks an identity on a platform, with a note (xenia
+    # #12); only the party who set a block lifts it.
     use Oneiroi.Command, decision: true, fields: [:id, :platform, :identity, :name]
   end
 
-  defmodule DistrustCorrespondent do
+  defmodule UnblockCorrespondent do
     use Oneiroi.Command, decision: true, fields: [:id, :platform, :identity]
   end
 

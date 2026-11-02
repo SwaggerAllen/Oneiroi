@@ -46,45 +46,47 @@ describe('Inbox', () => {
     expect(screen.getByText('No letters yet.')).toBeTruthy();
   });
 
-  it('lists what waits on you, and decides nothing without a note', () => {
-    const onDecideMessage = vi.fn();
-    render(<Gate actions={{ onDecideMessage }} />);
-    const items = within(screen.getByRole('list', { name: 'Needs you' })).getAllByRole('listitem');
-    // Two messages waiting, one reply drafted, one approved to send; the approved message and the sent reply are not here.
-    expect(items).toHaveLength(4);
-    const first = screen.getByRole('form', { name: 'Decide message 1' });
-    const through = within(first).getByRole('button', { name: 'Let it through' }) as HTMLButtonElement;
-    expect(through.disabled).toBe(true);
-    fireEvent.change(within(first).getByLabelText('Your note to Lily'), { target: { value: 'Grace, from the directory.' } });
-    fireEvent.click(within(first).getByRole('checkbox'));
-    fireEvent.click(through);
-    expect(onDecideMessage).toHaveBeenCalledWith(1, true, 'Grace, from the directory.', true);
-  });
-
-  it('never offers to trust a sender the adapter did not verify', () => {
-    render(<Gate />);
-    const second = screen.getByRole('form', { name: 'Decide message 2' });
-    expect((within(second).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
-    expect(within(second).getByText('Only a verified sender can be trusted')).toBeTruthy();
-  });
-
-  it('approves a reply with a note, marks an approved one sent, and stops trusting someone only with a reason', () => {
+  it('lists only replies as what waits on you, and decides nothing without a note', () => {
     const onDecideReply = vi.fn();
     const onMarkSent = vi.fn();
-    const onDistrust = vi.fn();
-    render(<Gate actions={{ onDecideReply, onMarkSent, onDistrust }} />);
+    render(<Gate actions={{ onDecideReply, onMarkSent }} />);
+    // One reply drafted, one approved to send; the sent one is not here.
+    expect(within(screen.getByRole('list', { name: 'Needs you' })).getAllByRole('listitem')).toHaveLength(2);
     const draft = screen.getByRole('form', { name: 'Decide reply 1' });
+    const approve = within(draft).getByRole('button', { name: 'Approve to send' }) as HTMLButtonElement;
+    expect(approve.disabled).toBe(true);
     fireEvent.change(within(draft).getByLabelText('Your note to Lily'), { target: { value: 'Send it.' } });
-    fireEvent.click(within(draft).getByRole('button', { name: 'Approve to send' }));
+    fireEvent.click(approve);
     expect(onDecideReply).toHaveBeenCalledWith(1, true, 'Send it.');
     fireEvent.click(within(screen.getByRole('form', { name: 'Mark reply 2 sent' })).getByRole('button', { name: 'I sent it' }));
     expect(onMarkSent).toHaveBeenCalledWith(2, null);
-    const trusted = screen.getByRole('list', { name: 'Trusted people' });
-    fireEvent.click(within(trusted).getByRole('button', { name: 'Remove' }));
-    const stop = within(trusted).getByRole('button', { name: 'Stop trusting max' }) as HTMLButtonElement;
-    expect(stop.disabled).toBe(true);
-    fireEvent.change(within(trusted).getByLabelText('Why'), { target: { value: 'Asked to stop.' } });
-    fireEvent.click(stop);
-    expect(onDistrust).toHaveBeenCalledWith(expect.objectContaining({ identity: 'max' }), 'Asked to stop.');
+  });
+
+  it('shows the correspondence that reached her, a blocked one as a line with no words, and blocks a sender only with a reason', () => {
+    const onBlock = vi.fn();
+    render(<Gate actions={{ onBlock }} />);
+    const items = within(screen.getByRole('list', { name: 'Correspondence' })).getAllByRole('listitem');
+    expect(items[1].textContent).toBe('Message #2 · substack · from troll · 2026-11-02 18:00 UTC · blocked, not kept');
+    expect(items[2].textContent).toContain('sender not verified');
+    // A sender already blocked has no block button.
+    expect(within(items[1]).queryByRole('button')).toBeNull();
+    fireEvent.click(within(items[2]).getByRole('button', { name: 'Block sender' }));
+    const block = within(items[2]).getByRole('button', { name: 'Block grace@example.com' }) as HTMLButtonElement;
+    expect(block.disabled).toBe(true);
+    fireEvent.change(within(items[2]).getByLabelText('Why'), { target: { value: 'Spam.' } });
+    fireEvent.click(block);
+    expect(onBlock).toHaveBeenCalledWith(expect.objectContaining({ number: 1 }), 'Spam.');
+  });
+
+  it('lifts only the blocks you set; hers have no button', () => {
+    const onUnblock = vi.fn();
+    render(<Gate actions={{ onUnblock }} />);
+    const rows = within(screen.getByRole('list', { name: 'Blocked' })).getAllByRole('listitem');
+    expect(rows[1].textContent).toContain('by Lily: Spam.');
+    expect(within(rows[1]).queryByRole('button')).toBeNull();
+    fireEvent.click(within(rows[0]).getByRole('button', { name: 'Lift' }));
+    fireEvent.change(within(rows[0]).getByLabelText('Why lift it'), { target: { value: 'Settled.' } });
+    fireEvent.click(within(rows[0]).getByRole('button', { name: 'Unblock troll' }));
+    expect(onUnblock).toHaveBeenCalledWith(expect.objectContaining({ identity: 'troll' }), 'Settled.');
   });
 });

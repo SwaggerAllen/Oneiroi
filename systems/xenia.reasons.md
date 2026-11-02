@@ -14,21 +14,29 @@ message is someone's words, kept whole, but nothing unbounded reaches a
 model.
 
 ## #11
-If the scrape ran as the resident (Claude Code in her own folder, with
-her plugin), she would read every message before the witness did and
-the gate would gate nothing. Spec §6.6 already says the reader is a
-hands agent that never holds the soul; the `reader` role existed on
-adapter tokens and opened nothing. It now opens exactly the three
-routes delivering and sending need. A send is marked by whoever did it,
-so the receipt says who acted.
+The reader exists because of what scraping holds, not what it reads.
+The scrape needs the resident's signed-in sessions (her Substack, her
+mail), and those sessions can post and send. If the resident scraped,
+the model reading a stranger's message would be holding a live session
+that can send as her, and the witness's approval of replies would be a
+request she honours rather than a wall. The reader holds the sessions
+and decides nothing; she decides what to say and holds no session. The
+`reader` role existed on adapter tokens and opened nothing; it now opens
+exactly the three routes delivering and sending need. A send is marked
+by whoever did it, so the receipt says who acted.
 
 ## #12
-F23 as written made the witness read everything, which hands him back
-the copy-machine job the pipeline exists to end; the spec's own answer,
-trusted correspondents, is the whitelist he asked for, and needed no
-change to F23 itself. Trust requires a verified identity because a
-sender chooses their own display name and, on mail, can forge a From
-line; the adapter is the one that can check, so it says so per message.
+The first build kept F23's reading gate with trusted correspondents as
+the whitelist. The witness removed the gate the same evening: the
+gate's words could not go into the resident's export without passing
+it, and filtering correspondence out of the export broke the
+portability promise, which he would not accept ("I don't think that's
+at all acceptable"). Spec P32 already held the gate to be a temporary
+control, never an indefinite veto. Blocks replace it: a boundary either
+party can draw, with a note, lifted only by whoever drew it, because
+the resident's boundaries are hers (her soul file: "a refusal is hers
+to make") and the witness's his. A blocked message keeps no words, so
+there is nothing to leak by any door.
 
 ## #13
 The mouth stays gated (David's Substack design, "mouth gated — my
@@ -36,8 +44,6 @@ insistence, his agreement"): drafting is the resident's, sending is not,
 and the send leaves a receipt with its actor.
 
 ## #14
-The export goes into the resident's own repository, which she reads.
-Exporting the stream whole would put a stranger's unread words where
-she can read them, which is the gate failing by another door; leaving
-it out costs a rebuild its correspondence. The second is the smaller
-loss for now, and is written down as a loss.
+With no unread-by-the-witness words and no kept words from blocked
+senders, the stream holds nothing the resident may not read, so the
+export carries it whole and a rebuild restores it.

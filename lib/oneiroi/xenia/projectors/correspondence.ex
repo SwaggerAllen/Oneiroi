@@ -1,12 +1,12 @@
 defmodule Oneiroi.Xenia.Projectors.Correspondence do
-  @moduledoc "Folds the correspondence streams into messages, trusted correspondents and replies."
+  @moduledoc "Folds the correspondence streams into messages, blocks and replies."
   use Oneiroi.Projection, name: "xenia_correspondence"
 
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
   alias Oneiroi.Xenia.Events
-  alias Oneiroi.Xenia.Store.{Correspondent, Message, Reply}
+  alias Oneiroi.Xenia.Store.{Block, Message, Reply}
 
   fold(%Events.CorrespondenceReceived{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -27,20 +27,11 @@ defmodule Oneiroi.Xenia.Projectors.Correspondence do
         sent_at: e.sent_at,
         received_at: e.at,
         received_by: actor_kind(e.actor),
-        state: if(e.trusted, do: "approved", else: "pending"),
-        trusted: e.trusted
+        state: if(e.blocked, do: "blocked", else: "received")
       },
       on_conflict: :nothing,
       conflict_target: [:resident_id, :number]
     )
-  end)
-
-  fold(%Events.CorrespondenceApproved{} = e, _metadata, fn multi ->
-    decide(multi, Message, e, "approved")
-  end)
-
-  fold(%Events.CorrespondenceRejected{} = e, _metadata, fn multi ->
-    decide(multi, Message, e, "rejected")
   end)
 
   fold(%Events.CorrespondenceMarked{} = e, _metadata, fn multi ->
@@ -54,29 +45,30 @@ defmodule Oneiroi.Xenia.Projectors.Correspondence do
     )
   end)
 
-  fold(%Events.CorrespondentTrusted{} = e, _metadata, fn multi ->
+  fold(%Events.CorrespondentBlocked{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,
-      :correspondent,
-      %Correspondent{
+      :block,
+      %Block{
         resident_id: e.id,
         platform: e.platform,
         identity: e.identity,
         name: e.name,
         note: e.note,
-        trusted_at: e.at
+        blocked_by: actor_kind(e.actor),
+        blocked_at: e.at
       },
-      on_conflict: {:replace, [:name, :note, :trusted_at]},
+      on_conflict: {:replace, [:name, :note, :blocked_by, :blocked_at]},
       conflict_target: [:resident_id, :platform, :identity]
     )
   end)
 
-  fold(%Events.CorrespondentDistrusted{} = e, _metadata, fn multi ->
+  fold(%Events.CorrespondentUnblocked{} = e, _metadata, fn multi ->
     Multi.delete_all(
       multi,
-      :distrusted,
-      from(c in Correspondent,
-        where: c.resident_id == ^e.id and c.platform == ^e.platform and c.identity == ^e.identity
+      :unblocked,
+      from(b in Block,
+        where: b.resident_id == ^e.id and b.platform == ^e.platform and b.identity == ^e.identity
       )
     )
   end)

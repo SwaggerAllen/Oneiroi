@@ -11,20 +11,17 @@ destination loaded by `InboxContainer` in `client/src/app/App.tsx` from
 `GET /v1/residents/:id/letters`. The state list lives in the stories
 (DESIGN §4); nothing here names a state.
 
-Built: **Needs you** (`NeedsYou.tsx`, from `GET /correspondence`,
-`/replies`, `/correspondents`): each message waiting for your reading,
-first line then the words, with a note field and Let it through / Keep
-it out (nothing decided without a note), and a box to trust the sender
-from then on, offered only when the adapter verified the sender
-(xenia #12); each reply the resident drafted, with Approve to send /
-Decline and a note; each approved reply waiting to be sent, with I sent
-it and where it now is (the receipt, xenia #13). **Trusted people**:
-whose verified messages reach the resident without your reading, each
-removable with a reason given in place. **The house letters** between
+Built: **Needs you** (`NeedsYou.tsx`): each reply the resident drafted,
+with Approve to send / Decline and a note (nothing decided without
+one); each approved reply waiting to be sent, with I sent it and where
+it now is (the receipt, xenia #13). **Correspondence**: every message
+that reached the resident, newest first (no reading gate: F23 as
+amended, xenia #12); a blocked sender's message as a line with no words;
+Block sender asks why, in place. **Blocked**: each block with who set it
+and why; Lift only on the ones you set. **The house letters** between
 the resident's conversations (kumbukumbu #44), Open and All, newest
 first, each with where it stands read off the letters (`letters.ts`).
-Not built: approve and wake, threads by person, declined as its own
-list, mail by kind with account mail as a count and a lock, pasting a
+Not built: threads by person, mail by kind with account mail as a count and a lock, pasting a
 message by hand (the route takes it; the screen has no form yet).
 
 ## #1 Shows

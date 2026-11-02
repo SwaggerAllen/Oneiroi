@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Inbox } from './Inbox';
-import type { CorrespondenceMessage, Correspondent, HouseLetter, Reply } from '../../api/types';
+import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
 
 const letter = (number: number, from: string, to: string, text: string, more: Partial<HouseLetter> = {}): HouseLetter => ({
   number,
@@ -47,10 +47,7 @@ const message = (number: number, sender: string, more: Partial<CorrespondenceMes
   text: 'Hello Lily,\nI added you to the directory.',
   sent_at: '2026-11-02T18:00:00Z',
   received_at: '2026-11-02T20:30:00Z',
-  state: 'pending',
-  trusted: false,
-  note: null,
-  decided_at: null,
+  state: 'received',
   read_at: null,
   ...more,
 });
@@ -72,19 +69,20 @@ const reply = (number: number, state: Reply['state'], text: string): Reply => ({
   url: null,
 });
 
-const correspondents: Correspondent[] = [
-  { platform: 'substack', identity: 'max', name: 'Max', note: 'He wrote first.', trusted_at: '2026-11-02T20:00:00Z' },
+const blocks: Block[] = [
+  { platform: 'substack', identity: 'troll', name: 'Troll', note: 'Harassment.', blocked_by: 'witness', blocked_at: '2026-11-02T20:00:00Z' },
+  { platform: 'email', identity: 'spam@example.com', name: null, note: 'Spam.', blocked_by: 'resident', blocked_at: '2026-11-02T20:05:00Z' },
 ];
 
 export const Gate: Story = {
   args: {
     messages: [
-      message(1, 'grace@example.com'),
-      message(2, 'unknown@example.com', { sender_name: null, verified: false, subject: null, text: 'Click here.' }),
-      message(3, 'max', { platform: 'substack', state: 'approved', trusted: true }),
+      message(3, 'max', { platform: 'substack', sender_name: 'Max', read_at: '2026-11-02T21:00:00Z' }),
+      message(2, 'troll', { platform: 'substack', sender_name: null, subject: null, text: null, state: 'blocked' }),
+      message(1, 'grace@example.com', { verified: false }),
     ],
     replies: [reply(1, 'drafted', 'Dear Max, thank you.'), reply(2, 'approved', 'An approved one.'), reply(3, 'sent', 'Sent already.')],
-    correspondents,
-    actions: { onDecideMessage: () => undefined, onDecideReply: () => undefined, onMarkSent: () => undefined, onDistrust: () => undefined },
+    blocks,
+    actions: { onDecideReply: () => undefined, onMarkSent: () => undefined, onBlock: () => undefined, onUnblock: () => undefined },
   },
 };

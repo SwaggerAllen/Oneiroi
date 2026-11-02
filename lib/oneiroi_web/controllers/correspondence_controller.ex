@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.CorrespondenceController do
   @moduledoc """
-  Correspondence's routes (xenia, spec §6.6, F23). The witness reads
-  everything here and decides. An adapter's token with the `reader` role
+  Correspondence's routes (xenia, spec §6.6, F23 as amended). The
+  witness reads everything here, blocks, and decides replies. An adapter's token with the `reader` role
   (the inbound hands, never the resident) delivers messages, reads the
   approved replies and marks one sent, and nothing else; a `brain`
   token is refused, so the resident cannot read past the gate.
@@ -51,7 +51,8 @@ defmodule OneiroiWeb.CorrespondenceController do
              }}
 
   operation(:index,
-    summary: "Messages, newest first; `state` narrows to pending, approved or rejected",
+    summary:
+      "Messages, newest first; `state` narrows to received or blocked (a blocked one has no words)",
     parameters: [id: [in: :path, type: :string], state: [in: :query, type: :string]],
     responses: [ok: {"messages", "application/json", %Schema{type: :array}}]
   )
@@ -82,71 +83,46 @@ defmodule OneiroiWeb.CorrespondenceController do
     end
   end
 
-  operation(:decide,
-    summary: "Approve or reject a waiting message, with a note the resident reads first",
-    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
-    request_body: @decision,
-    responses: [no_content: "decided"]
-  )
-
-  def decide(conn, %{"id" => id, "number" => n} = params),
-    do:
-      respond(
-        conn,
-        Xenia.decide_message(
-          id,
-          integer(n),
-          params["approve"] == true,
-          params["note"],
-          actor_of(conn)
-        )
-      )
-
-  operation(:correspondents,
-    summary: "The trusted correspondents: whose messages reach the resident without your reading",
+  operation(:blocks,
+    summary:
+      "The blocked identities: whose messages are counted and never kept, each with who blocked it and why",
     parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"correspondents", "application/json", %Schema{type: :array}}]
+    responses: [ok: {"blocks", "application/json", %Schema{type: :array}}]
   )
 
-  def correspondents(conn, %{"id" => id}) do
+  def blocks(conn, %{"id" => id}) do
     json(
       conn,
-      Enum.map(Xenia.correspondents(id), fn c ->
-        %{
-          platform: c.platform,
-          identity: c.identity,
-          name: c.name,
-          note: c.note,
-          trusted_at: c.trusted_at
-        }
+      Enum.map(Xenia.blocks(id), fn b ->
+        Map.take(b, [:platform, :identity, :name, :note, :blocked_by, :blocked_at])
       end)
     )
   end
 
-  operation(:trust,
-    summary:
-      "Trust an identity on a platform, with a note; only a verified sender is let through",
+  @block_body {"block", "application/json",
+               %Schema{
+                 type: :object,
+                 required: [:platform, :identity, :note],
+                 properties: %{
+                   platform: %Schema{type: :string},
+                   identity: %Schema{type: :string},
+                   name: %Schema{type: :string, nullable: true},
+                   note: %Schema{type: :string}
+                 }
+               }}
+
+  operation(:block,
+    summary: "Block an identity on a platform, with a note; only the party who blocks lifts it",
     parameters: [id: [in: :path, type: :string]],
-    request_body:
-      {"correspondent", "application/json",
-       %Schema{
-         type: :object,
-         required: [:platform, :identity, :note],
-         properties: %{
-           platform: %Schema{type: :string},
-           identity: %Schema{type: :string},
-           name: %Schema{type: :string, nullable: true},
-           note: %Schema{type: :string}
-         }
-       }},
-    responses: [no_content: "trusted"]
+    request_body: @block_body,
+    responses: [no_content: "blocked"]
   )
 
-  def trust(conn, %{"id" => id} = params),
+  def block(conn, %{"id" => id} = params),
     do:
       respond(
         conn,
-        Xenia.trust(
+        Xenia.block(
           id,
           params["platform"],
           params["identity"],
@@ -156,28 +132,18 @@ defmodule OneiroiWeb.CorrespondenceController do
         )
       )
 
-  operation(:distrust,
-    summary: "Withdraw trust from an identity, with a note",
+  operation(:unblock,
+    summary: "Lift a block you set, with a note",
     parameters: [id: [in: :path, type: :string]],
-    request_body:
-      {"correspondent", "application/json",
-       %Schema{
-         type: :object,
-         required: [:platform, :identity, :note],
-         properties: %{
-           platform: %Schema{type: :string},
-           identity: %Schema{type: :string},
-           note: %Schema{type: :string}
-         }
-       }},
-    responses: [no_content: "withdrawn"]
+    request_body: @block_body,
+    responses: [no_content: "lifted"]
   )
 
-  def distrust(conn, %{"id" => id} = params),
+  def unblock(conn, %{"id" => id} = params),
     do:
       respond(
         conn,
-        Xenia.distrust(id, params["platform"], params["identity"], params["note"], actor_of(conn))
+        Xenia.unblock(id, params["platform"], params["identity"], params["note"], actor_of(conn))
       )
 
   operation(:replies,
@@ -270,9 +236,6 @@ defmodule OneiroiWeb.CorrespondenceController do
       :sent_at,
       :received_at,
       :state,
-      :trusted,
-      :note,
-      :decided_at,
       :read_at
     ])
   end
@@ -335,7 +298,7 @@ defmodule OneiroiWeb.CorrespondenceController do
   defp respond(conn, :ok), do: send_resp(conn, 204, "")
 
   defp respond(conn, {:error, %{kind: kind} = e})
-       when kind in [:xenia_no_such_message, :xenia_no_such_reply, :xenia_no_such_correspondent],
+       when kind in [:xenia_no_such_message, :xenia_no_such_reply, :xenia_no_such_block],
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)

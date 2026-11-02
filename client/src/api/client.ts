@@ -2,8 +2,8 @@ import type {
   ApiError,
   Bookmark,
   ContextPreview,
+  Block,
   CorrespondenceMessage,
-  Correspondent,
   Grade,
   HouseLetter,
   IndexNow,
@@ -115,13 +115,11 @@ export const api = {
 
   correspondence: (residentId: string, state?: string) =>
     call<CorrespondenceMessage[]>('GET', `/v1/residents/${residentId}/correspondence${state ? `?state=${state}` : ''}`),
-  decideMessage: (residentId: string, number: number, approve: boolean, note: string) =>
-    call<void>('POST', `/v1/residents/${residentId}/correspondence/${number}/decision`, { approve, note }),
-  correspondents: (residentId: string) => call<Correspondent[]>('GET', `/v1/residents/${residentId}/correspondents`),
-  trust: (residentId: string, platform: string, identity: string, name: string | null, note: string) =>
-    call<void>('POST', `/v1/residents/${residentId}/correspondents`, { platform, identity, name, note }),
-  distrust: (residentId: string, platform: string, identity: string, note: string) =>
-    call<void>('POST', `/v1/residents/${residentId}/correspondents/distrust`, { platform, identity, note }),
+  blocks: (residentId: string) => call<Block[]>('GET', `/v1/residents/${residentId}/blocks`),
+  block: (residentId: string, platform: string, identity: string, name: string | null, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/blocks`, { platform, identity, name, note }),
+  unblock: (residentId: string, platform: string, identity: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/blocks/lift`, { platform, identity, note }),
   replies: (residentId: string) => call<Reply[]>('GET', `/v1/residents/${residentId}/replies`),
   decideReply: (residentId: string, number: number, approve: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),

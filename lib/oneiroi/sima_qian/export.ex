@@ -48,7 +48,7 @@ defmodule Oneiroi.SimaQian.Export do
   # The resident's streams, by prefix (sima-qian #20). Every router's
   # prefix is here or in `@not_exported`, which the export test asserts
   # against the routers themselves.
-  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription)
+  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription xenia)
 
   # Everything of the resident's that the repository does not carry,
   # each with the reason (sima-qian #43). The author's law (spec §6.10):
@@ -63,9 +63,6 @@ defmodule Oneiroi.SimaQian.Export do
     "regression" =>
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia #12)"},
     "account" => {:stream, "the witness's account, not the resident's"},
-    "xenia" =>
-      {:stream,
-       "third parties' words, some the witness has not read through: the export is a surface the resident reads, so carrying pending messages would carry them past the gate (xenia #14); held until an export can carry only what reached her"},
     "honcho" =>
       {:stream,
        "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus #8), where replaying this would point a copy at the original's memory"},

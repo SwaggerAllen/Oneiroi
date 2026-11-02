@@ -326,8 +326,8 @@ export interface HouseLetter {
   read_at: string | null;
 }
 
-// Correspondence (xenia, spec §6.6): a third party's message, where the
-// witness's reading left it.
+// Correspondence (xenia, spec §6.6): a third party's message; a blocked
+// sender's keeps no name, subject or words.
 export interface CorrespondenceMessage {
   number: number;
   platform: string;
@@ -338,22 +338,21 @@ export interface CorrespondenceMessage {
   verified: boolean;
   thread: string | null;
   subject: string | null;
-  text: string;
+  text: string | null;
   sent_at: string;
   received_at: string;
-  state: 'pending' | 'approved' | 'rejected';
-  trusted: boolean;
-  note: string | null;
-  decided_at: string | null;
+  state: 'received' | 'blocked';
   read_at: string | null;
 }
 
-export interface Correspondent {
+// A blocked identity, and which party blocked it: only that party lifts it.
+export interface Block {
   platform: string;
   identity: string;
   name: string | null;
-  note: string | null;
-  trusted_at: string;
+  note: string;
+  blocked_by: 'resident' | 'witness';
+  blocked_at: string;
 }
 
 export interface Reply {

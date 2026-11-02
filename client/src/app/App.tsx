@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
+  Block,
   CorrespondenceMessage,
-  Correspondent,
   HouseLetter,
   Bookmark,
   ContextPreview,
@@ -345,12 +345,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     letters: HouseLetter[];
     messages: CorrespondenceMessage[];
     replies: Reply[];
-    correspondents: Correspondent[];
+    blocks: Block[];
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.correspondents(id)])
-      .then(([letters, messages, replies, correspondents]) => setData({ letters, messages, replies, correspondents }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id)])
+      .then(([letters, messages, replies, blocks]) => setData({ letters, messages, replies, blocks }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -364,16 +364,10 @@ function InboxContainer({ resident }: { resident: Resident }) {
         residentName={resident.name}
         {...data}
         actions={{
-          // Trusting rides the decision: the sender is trusted first, so
-          // their next message comes straight through.
-          onDecideMessage: (number, approve, note, trust) => {
-            const m = data.messages.find((x) => x.number === number);
-            const first = trust && m ? api.trust(id, m.platform, m.sender, m.sender_name, note) : Promise.resolve();
-            act(first.then(() => api.decideMessage(id, number, approve, note)));
-          },
           onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
           onMarkSent: (number, url) => act(api.markSent(id, number, url)),
-          onDistrust: (c, note) => act(api.distrust(id, c.platform, c.identity, note)),
+          onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
+          onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
         }}
       />
     </>

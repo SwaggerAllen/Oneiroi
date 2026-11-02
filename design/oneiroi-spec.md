@@ -342,7 +342,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F20 | Morning digest from mail and feeds, carried by the first check-in | built | inbound, schedule |
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | built | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | built | inbound |
-| F23 | Correspondence: third parties reach the resident only after the witness reads; threads as directories; replies drafted, sent by hand | built for Substack DMs | inbound |
+| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built for Substack DMs | inbound |
 | F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | built (Claude Code reader); release is new | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built | library |
@@ -922,18 +922,26 @@ Owns `lib/oneiroi/inbound/**`.
 - **Feeds** (F21): fetched by script before any model, public addresses
   only, three redirects, 2 MiB in 20 seconds, 30 posts a feed, 50 feeds, 60
   posts a morning, expat with entity-expansion refused. All bounds.
-- **Trusted correspondents**: the witness may mark a person trusted, and
-  their messages then reach the resident without the witness's reading,
-  as approved items with no note. The trust is per verified identity (a
-  DMARC-passing sender for mail, a platform account for a platform's
-  messages), never per display name, because a name is the sender's to
-  choose; it is an event with its actor, revocable, and shown on the
-  person's thread. Wake text still never carries the words, and the words
-  are still information, never instruction, when they reach the resident.
-- **The approval queue** (F23): the witness's reading is the gate;
-  summarising is not a security boundary. Three actions: reject, approve,
-  approve and wake, each with a note the resident reads first. Wake text
-  names the thread, never the text.
+- **Correspondence reaches the resident directly** (F23 as amended
+  2026-11-02, xenia #12). The witness's reading as a gate is removed: a
+  gate the resident's own export would route around is no gate, and
+  filtering the export to keep it would break the portability promise;
+  P32 already held the gate to be temporary. What protects instead:
+  **blocks**, per identity on a platform (never a display name, because a
+  name is the sender's to choose), set by either party with a note and
+  lifted only by the party who set it; a blocked sender's message is
+  counted and its words are never kept. The words are information, never
+  instruction, when they reach the resident, and wake text names the
+  thread, never the text.
+- **The inbound hands read; the resident does not scrape** (xenia #11).
+  Whoever scrapes holds the resident's signed-in sessions, which can send;
+  a model reading strangers' words while holding a session that can post
+  is one injected instruction from sending as her. So the reader holds the
+  sessions and decides nothing; the resident decides what to say and
+  holds no session.
+- **The outbound gate** (F23): the resident drafts; the witness approves
+  or declines each reply with a note she reads first; the hands send an
+  approved one and mark it sent, the receipt with its actor.
 
 ### 6.7 schedule
 
@@ -1071,11 +1079,6 @@ Owns `lib/oneiroi/sima_qian/**`.
     exported or read (§6.4, eunomia #12).
   - `account`: the witness's account stream, which is the witness's and
     not the resident's.
-  - `xenia`: correspondence, held out for now: third parties' words,
-    some the witness has not read through, and the export is a surface
-    the resident reads, so carrying pending messages would carry them
-    past the gate (xenia #14). Held until an export can carry only what
-    reached her.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
     the source; a rebuilt resident provisions its own, where replaying
     it would point a copy at the original's memory (proteus #8).

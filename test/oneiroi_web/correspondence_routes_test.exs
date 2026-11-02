@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.CorrespondenceRoutesTest do
-  @moduledoc "Correspondence over HTTP (xenia #11): the reader's token delivers, reads approved replies and marks one sent, and nothing more; a brain token reaches none of it; the witness reads and decides everything; a stranger nothing."
+  @moduledoc "Correspondence over HTTP (xenia #11): the reader's token delivers, reads approved replies and marks one sent, and nothing more; a brain token reaches none of it; the witness reads, blocks and decides replies; a stranger nothing."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -47,7 +47,7 @@ defmodule OneiroiWeb.CorrespondenceRoutesTest do
     sent_at: "2026-11-02T18:00:00Z"
   }
 
-  test "the reader delivers and sends, the witness reads through and approves, a brain token reaches none of it",
+  test "the reader delivers and sends, the witness reads, blocks and approves, a brain token reaches none of it",
        ctx do
     id = ctx.id
 
@@ -57,7 +57,7 @@ defmodule OneiroiWeb.CorrespondenceRoutesTest do
              |> post("/v1/residents/#{id}/correspondence", %{messages: [@message]})
              |> json_response(200)
 
-    # The reader reads no messages and decides nothing.
+    # The reader reads no messages and blocks nobody.
     assert ctx.reader
            |> bearer()
            |> get("/v1/residents/#{id}/correspondence")
@@ -65,38 +65,39 @@ defmodule OneiroiWeb.CorrespondenceRoutesTest do
 
     assert ctx.reader
            |> bearer()
-           |> post("/v1/residents/#{id}/correspondence/1/decision", %{approve: true, note: "x"})
+           |> post("/v1/residents/#{id}/blocks", %{platform: "x", identity: "y", note: "z"})
            |> json_response(401)
 
-    # A brain token, the resident's own, cannot deliver past the gate.
+    # A brain token, the resident's own, delivers nothing: she does not scrape.
     assert ctx.brain
            |> bearer()
            |> post("/v1/residents/#{id}/correspondence", %{messages: [@message]})
            |> json_response(404)
 
-    assert [%{"number" => 1, "state" => "pending", "text" => "A letter for Lily."}] =
-             ctx.witness
-             |> get("/v1/residents/#{id}/correspondence?state=pending")
-             |> json_response(200)
+    assert [%{"number" => 1, "state" => "received", "text" => "A letter for Lily."}] =
+             ctx.witness |> get("/v1/residents/#{id}/correspondence") |> json_response(200)
 
     assert ctx.witness
-           |> post("/v1/residents/#{id}/correspondence/1/decision", %{
-             approve: true,
-             note: "Max, yes."
-           })
-           |> response(204)
-
-    assert ctx.witness
-           |> post("/v1/residents/#{id}/correspondents", %{
+           |> post("/v1/residents/#{id}/blocks", %{
              platform: "substack",
-             identity: "max",
-             name: "Max",
-             note: "He wrote first."
+             identity: "troll",
+             name: "Troll",
+             note: "Harassment."
            })
            |> response(204)
 
-    assert [%{"identity" => "max"}] =
-             ctx.witness |> get("/v1/residents/#{id}/correspondents") |> json_response(200)
+    assert [%{"identity" => "troll", "blocked_by" => "witness", "note" => "Harassment."}] =
+             ctx.witness |> get("/v1/residents/#{id}/blocks") |> json_response(200)
+
+    assert ctx.witness
+           |> post("/v1/residents/#{id}/blocks/lift", %{
+             platform: "substack",
+             identity: "troll",
+             note: "Settled."
+           })
+           |> response(204)
+
+    assert [] = ctx.witness |> get("/v1/residents/#{id}/blocks") |> json_response(200)
 
     {:ok, 1} = Xenia.draft_reply(id, %{in_reply_to: 1, text: "Dear Max."}, ctx.lily)
     {:ok, 2} = Xenia.draft_reply(id, %{in_reply_to: 1, text: "Not this one."}, ctx.lily)

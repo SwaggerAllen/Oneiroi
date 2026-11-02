@@ -5,7 +5,7 @@ defmodule Oneiroi.Xenia.Store do
   alias Oneiroi.Repo
 
   defmodule Message do
-    @moduledoc "A third party's message: who, from where, the words, and where the witness's reading left it."
+    @moduledoc "A third party's message: who, from where, and the words, which are nil when its sender was blocked."
     use Ecto.Schema
     @primary_key false
     schema "xenia_message" do
@@ -24,26 +24,24 @@ defmodule Oneiroi.Xenia.Store do
       field(:received_at, :utc_datetime_usec)
       field(:received_by, :string)
       field(:state, :string)
-      field(:trusted, :boolean)
-      field(:note, :string)
-      field(:decided_at, :utc_datetime_usec)
       field(:read_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
   end
 
-  defmodule Correspondent do
-    @moduledoc "A trusted identity on a platform: whose messages reach the resident without the witness's reading."
+  defmodule Block do
+    @moduledoc "A blocked identity on a platform: whose messages are counted and never kept, and which party set it."
     use Ecto.Schema
     @primary_key false
-    schema "xenia_correspondent" do
+    schema "xenia_block" do
       field(:resident_id, :binary_id, primary_key: true)
       field(:platform, :string, primary_key: true)
       field(:identity, :string, primary_key: true)
       field(:name, :string)
       field(:note, :string)
-      field(:trusted_at, :utc_datetime_usec)
+      field(:blocked_by, :string)
+      field(:blocked_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -83,9 +81,8 @@ defmodule Oneiroi.Xenia.Store do
   @spec message(pos_integer()) :: Message.t() | nil
   def message(number), do: Repo.one(from(m in Message, where: m.number == ^number))
 
-  @spec correspondents() :: [Correspondent.t()]
-  def correspondents,
-    do: Repo.all(from(c in Correspondent, order_by: [c.platform, c.identity]))
+  @spec blocks() :: [Block.t()]
+  def blocks, do: Repo.all(from(b in Block, order_by: [b.platform, b.identity]))
 
   @spec replies(String.t() | nil) :: [Reply.t()]
   def replies(nil), do: Repo.all(from(r in Reply, order_by: [desc: r.number]))

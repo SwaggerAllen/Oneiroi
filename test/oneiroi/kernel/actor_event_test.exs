@@ -44,7 +44,7 @@ defmodule Oneiroi.ActorEventTest do
   # loaded passed without its note. Unloading it here makes the cold
   # start happen on purpose, whatever order the suite ran in.
   test "a decision still needs its note when its command's module is not loaded yet" do
-    module = Oneiroi.Xenia.Commands.TrustCorrespondent
+    module = Oneiroi.Xenia.Commands.BlockCorrespondent
     command = struct(module, actor: Actor.platform(), at: @at, id: "x", note: "")
     :code.purge(module)
     :code.delete(module)

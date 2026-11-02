@@ -1,7 +1,7 @@
 defmodule Oneiroi.Xenia.Inbox do
   @moduledoc """
   Correspondence's service functions (spec §6.6, F23): the command edge
-  for receiving, reading through, trusting, marking, drafting, deciding
+  for receiving, blocking, marking, drafting, deciding
   and sending; and the reads the Inbox screen and the resident's tools
   take, each under the resident's scope.
   """
@@ -57,21 +57,8 @@ defmodule Oneiroi.Xenia.Inbox do
       else: {:ok, Enum.map(list, &receive_message(resident_id, &1, actor))}
   end
 
-  def decide_message(resident_id, number, approve?, note, %Actor{} = actor) do
-    %Commands.DecideMessage{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      number: number,
-      approve: approve?,
-      note: note
-    }
-    |> dispatch()
-    |> ok()
-  end
-
-  def trust(resident_id, platform, identity, name, note, %Actor{} = actor) do
-    %Commands.TrustCorrespondent{
+  def block(resident_id, platform, identity, name, note, %Actor{} = actor) do
+    %Commands.BlockCorrespondent{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
@@ -84,8 +71,8 @@ defmodule Oneiroi.Xenia.Inbox do
     |> ok()
   end
 
-  def distrust(resident_id, platform, identity, note, %Actor{} = actor) do
-    %Commands.DistrustCorrespondent{
+  def unblock(resident_id, platform, identity, note, %Actor{} = actor) do
+    %Commands.UnblockCorrespondent{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
@@ -155,19 +142,13 @@ defmodule Oneiroi.Xenia.Inbox do
   def message(resident_id, number),
     do: Scope.resident(resident_id, fn -> Store.message(number) end)
 
-  def correspondents(resident_id),
-    do: Scope.resident(resident_id, fn -> Store.correspondents() end)
+  def blocks(resident_id), do: Scope.resident(resident_id, fn -> Store.blocks() end)
 
   def replies(resident_id, state \\ nil),
     do: Scope.resident(resident_id, fn -> Store.replies(state) end)
 
-  @doc "What waits on the witness here: messages to read through and replies to approve (the `needs_you` share of spec §5)."
-  def needs_you(resident_id) do
-    %{
-      messages: length(messages(resident_id, "pending")),
-      replies: length(replies(resident_id, "drafted"))
-    }
-  end
+  @doc "What waits on the witness here: the replies to approve (the `needs_you` share of spec §5)."
+  def needs_you(resident_id), do: %{replies: length(replies(resident_id, "drafted"))}
 
   defp ok({:ok, _events}), do: :ok
   defp ok(other), do: other

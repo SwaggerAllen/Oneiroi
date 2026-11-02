@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import type { CorrespondenceMessage, Correspondent, HouseLetter, Reply } from '../../api/types';
+import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
 import { Card } from '../../components/Card';
 import { Tabs } from '../../components/Tabs';
 import { TopBar } from '../../components/TopBar';
 import { isOpen, letterState, stateLine } from './letters';
-import { type GateActions, NeedsYou, Trusted } from './NeedsYou';
+import { Blocked, Correspondence, type GateActions, NeedsYou } from './NeedsYou';
 
 export interface InboxProps {
   residentName: string;
   letters: HouseLetter[];
   messages?: CorrespondenceMessage[];
   replies?: Reply[];
-  correspondents?: Correspondent[];
+  blocks?: Block[];
   actions?: GateActions;
 }
 
@@ -19,11 +19,12 @@ type Tab = 'open' | 'all';
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 
-// Inbox (spec §10, screens/inbox.md): Needs you (correspondence waiting
-// for your reading, replies for your yes, approved ones to send; xenia
-// #12, #13), the trusted people, and the house letters, the work log
-// between the resident's conversations (kumbukumbu #44).
-export function Inbox({ residentName, letters, messages = [], replies = [], correspondents = [], actions = {} }: InboxProps) {
+// Inbox (spec §10, screens/inbox.md): Needs you (the replies waiting for
+// your yes, the approved ones to send; xenia #13), the correspondence
+// that reached the resident with a way to block a sender, the blocks
+// (xenia #12), and the house letters between the resident's
+// conversations (kumbukumbu #44).
+export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {} }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
   const open = newest.filter((l) => isOpen(letterState(l, letters)));
@@ -34,12 +35,12 @@ export function Inbox({ residentName, letters, messages = [], replies = [], corr
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <NeedsYou
           residentName={residentName}
-          pending={messages.filter((m) => m.state === 'pending')}
           drafted={replies.filter((r) => r.state === 'drafted')}
           approved={replies.filter((r) => r.state === 'approved')}
           actions={actions}
         />
-        <Trusted residentName={residentName} correspondents={correspondents} onDistrust={actions.onDistrust} />
+        <Correspondence residentName={residentName} messages={messages} blocks={blocks} onBlock={actions.onBlock} />
+        <Blocked residentName={residentName} blocks={blocks} onUnblock={actions.onUnblock} />
         <section aria-label="Letters" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <h2 style={{ margin: 0, fontSize: 16, lineHeight: '22px', fontWeight: 600 }}>Letters between {residentName}’s conversations</h2>
           <Tabs<Tab>

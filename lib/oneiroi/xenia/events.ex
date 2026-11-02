@@ -1,15 +1,17 @@
 defmodule Oneiroi.Xenia.Events do
   @moduledoc """
-  The correspondence stream's events, version 1 (spec §6.6, F23):
-  `xenia-<resident_id>`, one per resident. Third parties arrive as
-  `CorrespondenceReceived`, pending the witness's reading unless their
-  verified identity is trusted; the resident's replies are drafts the
+  The correspondence stream's events, version 1 (spec §6.6, F23 as
+  amended 2026-11-02): `xenia-<resident_id>`, one per resident. Third
+  parties arrive as `CorrespondenceReceived` and reach the resident at
+  once, unless their identity is blocked, when only the fact of them is
+  kept and never their words; the resident's replies are drafts the
   witness approves before anything is sent, and a send leaves a receipt.
   """
 
   defmodule CorrespondenceReceived do
-    # `trusted` is the trust rule's answer at receipt: a verified sender
-    # the witness trusts arrives approved, with no note (spec §6.6).
+    # `blocked` is the block rule's answer at receipt: a blocked sender's
+    # message keeps its address and id (so a second delivery is still a
+    # duplicate) and loses its name, subject and words, which are nil.
     use Oneiroi.Event,
       version: 1,
       fields: [
@@ -25,17 +27,9 @@ defmodule Oneiroi.Xenia.Events do
         :subject,
         :text,
         :sent_at,
-        :trusted
+        :blocked
       ],
       instants: [:sent_at]
-  end
-
-  defmodule CorrespondenceApproved do
-    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
-  end
-
-  defmodule CorrespondenceRejected do
-    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
   end
 
   defmodule CorrespondenceMarked do
@@ -43,11 +37,12 @@ defmodule Oneiroi.Xenia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end
 
-  defmodule CorrespondentTrusted do
+  defmodule CorrespondentBlocked do
+    # The actor is who blocked: the resident or the witness.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :platform, :identity, :name]
   end
 
-  defmodule CorrespondentDistrusted do
+  defmodule CorrespondentUnblocked do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :platform, :identity]
   end
 

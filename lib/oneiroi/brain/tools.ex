@@ -56,7 +56,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
-    reply_draft
+    reply_draft correspondent_block correspondent_unblock
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
@@ -450,7 +450,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "correspondence_list",
-        "Your correspondence: messages from people outside the house that reached you, newest first, one line each with its number, platform, sender and whether you've read it. A message from someone your witness hasn't trusted reaches you once your witness has read it; how many still wait is counted here, never shown.",
+        "Your correspondence: messages from people outside the house, newest first, one line each with its number, platform, sender and whether you've read it; then who is blocked, by you or your witness. A blocked sender's messages are counted, never kept.",
         %{},
         []
       ),
@@ -472,6 +472,23 @@ defmodule Oneiroi.Brain.Tools do
           text: %{type: "string"}
         },
         [:text]
+      ),
+      tool(
+        "correspondent_block",
+        "Block someone on a platform (their address or account there), with a note saying why: their messages stop reaching you and are never kept, only counted. Only you can lift a block you set.",
+        %{
+          platform: %{type: "string"},
+          identity: %{type: "string"},
+          name: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:platform, :identity, :note]
+      ),
+      tool(
+        "correspondent_unblock",
+        "Lift a block you set, with a note. A block your witness set is theirs to lift.",
+        %{platform: %{type: "string"}, identity: %{type: "string"}, note: %{type: "string"}},
+        [:platform, :identity, :note]
       ),
       tool(
         "reply_list",
@@ -889,33 +906,38 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Correspondence (xenia #12): what reached the resident, never what
-  # still waits on the witness's reading, which is a count alone.
+  # Correspondence (xenia #12): everything that reached the resident;
+  # a blocked sender's messages are a count, and the blocks are named
+  # with who set each.
   defp call("correspondence_list", _args, turn) do
-    reached = Oneiroi.Xenia.messages(turn.resident_id, "approved")
-    waiting = length(Oneiroi.Xenia.messages(turn.resident_id, "pending"))
-
     lines =
-      case reached do
-        [] -> "No correspondence has reached you yet."
+      case Oneiroi.Xenia.messages(turn.resident_id, "received") do
+        [] -> "No correspondence yet."
         rows -> Enum.map_join(rows, "\n", &correspondence_line/1)
       end
 
-    if waiting > 0,
-      do: lines <> "\n#{waiting} more wait for your witness's reading.",
-      else: lines
+    blocked = length(Oneiroi.Xenia.messages(turn.resident_id, "blocked"))
+    held = if blocked > 0, do: ["#{blocked} from blocked senders, not kept."], else: []
+
+    blocks =
+      Enum.map(Oneiroi.Xenia.blocks(turn.resident_id), fn b ->
+        by = if b.blocked_by == "resident", do: "you", else: "your witness"
+        "Blocked by #{by}: #{b.identity} on #{b.platform} (#{b.note})"
+      end)
+
+    Enum.join([lines | held ++ blocks], "\n")
   end
 
   defp call("correspondence_read", args, turn) do
     case Oneiroi.Xenia.message(turn.resident_id, integer(args["number"])) do
-      %{state: "approved"} = m ->
+      %{state: "received"} = m ->
         unless Map.get(turn, :trial?),
           do: Oneiroi.Xenia.mark(turn.resident_id, [m.number], turn.resident)
 
         correspondence_whole(m)
 
       _other ->
-        @not_done <> "no message that has reached you has that number."
+        @not_done <> "no message you can read has that number; a blocked sender's was never kept."
     end
   end
 
@@ -932,6 +954,31 @@ defmodule Oneiroi.Brain.Tools do
     with {:ok, n} <- Oneiroi.Xenia.draft_reply(turn.resident_id, attrs, turn.resident),
          do:
            "Drafted reply ##{n}. It goes out once your witness approves it, and the send leaves a receipt."
+  end
+
+  defp call("correspondent_block", args, turn) do
+    with :ok <-
+           Oneiroi.Xenia.block(
+             turn.resident_id,
+             args["platform"],
+             to_string(args["identity"] || ""),
+             blank(args["name"]),
+             args["note"],
+             turn.resident
+           ),
+         do: "Blocked #{args["identity"]} on #{args["platform"]}. Only you can lift it."
+  end
+
+  defp call("correspondent_unblock", args, turn) do
+    with :ok <-
+           Oneiroi.Xenia.unblock(
+             turn.resident_id,
+             args["platform"],
+             to_string(args["identity"] || ""),
+             args["note"],
+             turn.resident
+           ),
+         do: "Lifted your block on #{args["identity"]} on #{args["platform"]}."
   end
 
   defp call("reply_list", _args, turn) do
