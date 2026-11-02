@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +12,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -159,5 +159,29 @@ describe('Chat', () => {
     expect(screen.getByRole('note').textContent).toMatch(/You reply to Lily there, not here/);
     expect(screen.getByText('drew on 4 things')).toBeTruthy();
     expect(screen.getByRole('list', { name: 'What this reply drew on' }).querySelectorAll('li')).toHaveLength(2);
+  });
+
+  it('sends on Enter, keeps Shift+Enter as a newline, and never sends while a character is being composed', () => {
+    const onSend = vi.fn();
+    render(<Chat residentName="Lily" messages={[]} onSend={onSend} />);
+    const box = screen.getByLabelText('Message') as HTMLTextAreaElement;
+    expect(box.tagName).toBe('TEXTAREA');
+    fireEvent.change(box, { target: { value: 'first line' } });
+    fireEvent.keyDown(box, { key: 'Enter', shiftKey: true });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.keyDown(box, { key: 'Enter', isComposing: true });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: 'first line\nsecond line' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledWith('first line\nsecond line');
+    expect(box.value).toBe('');
+  });
+
+  it('shows the witness message at once, marked as sending, beside the streaming reply', () => {
+    render(<Sending />);
+    const sending = screen.getByLabelText('Sending');
+    expect(sending.textContent).toContain('The second row looked thin.');
+    expect(sending.textContent).toContain('sending…');
+    expect(screen.getByText('They took, mostly. The second')).toBeTruthy();
   });
 });
