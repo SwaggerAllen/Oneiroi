@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
   ApiError,
+  CorrespondenceMessage,
+  Correspondent,
   HouseLetter,
   Bookmark,
   ContextPreview,
@@ -13,6 +15,7 @@ import type {
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
+  Reply,
   Resident,
   ScheduleToday,
   RetrievalCount,
@@ -337,17 +340,44 @@ function MemoryContainer({ resident }: { resident: Resident }) {
 }
 
 function InboxContainer({ resident }: { resident: Resident }) {
-  const [letters, setLetters] = useState<HouseLetter[] | null>(null);
+  const id = resident.id;
+  const [data, setData] = useState<{
+    letters: HouseLetter[];
+    messages: CorrespondenceMessage[];
+    replies: Reply[];
+    correspondents: Correspondent[];
+  } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  useEffect(() => {
-    api
-      .letters(resident.id)
-      .then(setLetters)
+  const load = useCallback(() => {
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.correspondents(id)])
+      .then(([letters, messages, replies, correspondents]) => setData({ letters, messages, replies, correspondents }))
       .catch((e: unknown) => setError(asApiError(e)));
-  }, [resident.id]);
-  if (error) return <ErrorNotice error={error} />;
-  if (!letters) return null;
-  return <Inbox residentName={resident.name} letters={letters} />;
+  }, [id]);
+  useEffect(() => load(), [load]);
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!data) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Inbox
+        residentName={resident.name}
+        {...data}
+        actions={{
+          // Trusting rides the decision: the sender is trusted first, so
+          // their next message comes straight through.
+          onDecideMessage: (number, approve, note, trust) => {
+            const m = data.messages.find((x) => x.number === number);
+            const first = trust && m ? api.trust(id, m.platform, m.sender, m.sender_name, note) : Promise.resolve();
+            act(first.then(() => api.decideMessage(id, number, approve, note)));
+          },
+          onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
+          onMarkSent: (number, url) => act(api.markSent(id, number, url)),
+          onDistrust: (c, note) => act(api.distrust(id, c.platform, c.identity, note)),
+        }}
+      />
+    </>
+  );
 }
 
 function ScheduleContainer({ resident }: { resident: Resident }) {

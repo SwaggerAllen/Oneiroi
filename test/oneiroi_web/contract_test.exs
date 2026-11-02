@@ -167,14 +167,19 @@ defmodule OneiroiWeb.ContractTest do
            |> json_response(404)
   end
 
-  # The adapter contract's routes (spec §8, brain #42), the only ones an
+  # The adapter contract's routes (spec §8, brain #42, xenia #11), the only ones an
   # adapter's token opens. Read off the router, so a route added under
   # one of these shapes, or a clause added to the list, fails here.
   @adapter_routes [
     {"POST", "/v1/residents/:id/sessions"},
     {"POST", "/v1/residents/:id/turn-start"},
     {"POST", "/v1/residents/:id/turns"},
-    {"GET", "/v1/residents/:id/context"}
+    {"GET", "/v1/residents/:id/context"},
+    # The inbound hands' three (xenia #11), held to the reader role by
+    # the controller.
+    {"POST", "/v1/residents/:id/correspondence"},
+    {"GET", "/v1/residents/:id/replies"},
+    {"POST", "/v1/residents/:id/replies/:number/sent"}
   ]
 
   test "an adapter's token opens exactly the adapter contract's routes" do

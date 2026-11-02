@@ -2,10 +2,11 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   @moduledoc """
   Halts with 401 when `OneiroiWeb.Plugs.Authenticate` found no principal.
 
-  An adapter's token (spec §8) is a principal for four paths and nothing
-  else: opening its session, starting a turn (which answers with the
-  turn's context), capturing one, reading the session prefix (brain
-  #42). Everything under `/v1` beyond those is an account's, so
+  An adapter's token (spec §8) is a principal for a listed set of paths
+  and nothing else: opening its session, starting a turn (which answers
+  with the turn's context), capturing one, reading the session prefix
+  (brain #42); and, for the inbound hands, delivering correspondence,
+  reading approved replies and marking one sent (xenia #11). Everything under `/v1` beyond those is an account's, so
   an adapter's token there is refused here, before any controller reads
   an account off it. The list is explicit so the test can assert it.
   """
@@ -34,6 +35,12 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("POST", ["v1", "residents", _id, "turn-start"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "turns"]), do: true
   def adapter_path?("GET", ["v1", "residents", _id, "context"]), do: true
+  # The inbound hands' three (xenia #11): deliver messages, read the
+  # approved replies, mark one sent; the controller holds them to the
+  # `reader` role, so a brain token reaches none of the words.
+  def adapter_path?("POST", ["v1", "residents", _id, "correspondence"]), do: true
+  def adapter_path?("GET", ["v1", "residents", _id, "replies"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "replies", _n, "sent"]), do: true
   def adapter_path?(_method, _path), do: false
 
   defp refuse(conn) do

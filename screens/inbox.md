@@ -11,15 +11,21 @@ destination loaded by `InboxContainer` in `client/src/app/App.tsx` from
 `GET /v1/residents/:id/letters`. The state list lives in the stories
 (DESIGN §4); nothing here names a state.
 
-Built: Needs you, saying honestly that nothing waits yet; the house
-letters between the resident's conversations (kumbukumbu #44), Open and
-All, newest first, each with where it stands read off the letters
-(`letters.ts`: answered when replied to, closed when it is a reply and
-read, in hand when read and unanswered, waiting on the clock when an
-unread brief to Free time, waiting on its addressee otherwise; the
-queue of `design/correspondence-pipeline.md`). Not built: everything
-below, which waits on the correspondence records, the whitelist (F23 as
-amended) and the sending gate.
+Built: **Needs you** (`NeedsYou.tsx`, from `GET /correspondence`,
+`/replies`, `/correspondents`): each message waiting for your reading,
+first line then the words, with a note field and Let it through / Keep
+it out (nothing decided without a note), and a box to trust the sender
+from then on, offered only when the adapter verified the sender
+(xenia #12); each reply the resident drafted, with Approve to send /
+Decline and a note; each approved reply waiting to be sent, with I sent
+it and where it now is (the receipt, xenia #13). **Trusted people**:
+whose verified messages reach the resident without your reading, each
+removable with a reason given in place. **The house letters** between
+the resident's conversations (kumbukumbu #44), Open and All, newest
+first, each with where it stands read off the letters (`letters.ts`).
+Not built: approve and wake, threads by person, declined as its own
+list, mail by kind with account mail as a count and a lock, pasting a
+message by hand (the route takes it; the screen has no form yet).
 
 ## #1 Shows
 
