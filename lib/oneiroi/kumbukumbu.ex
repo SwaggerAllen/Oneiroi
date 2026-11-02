@@ -265,6 +265,10 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_letter_invalid,
        "a house letter is a text of up to 20,000 characters, to a conversation's name or `house`",
        remedy: "address it to the Oneiroi chat, a Claude Code conversation by its name, or house"},
+      {:kumbukumbu_letter_unaddressed,
+       "no conversation answers to that name, so the letter would never be read",
+       remedy:
+         "address it by a name from the list: house, Free time, the Oneiroi chat, or a conversation's name exactly as the list gives it"},
       {:kumbukumbu_no_such_letter, "no house letter has that number",
        remedy: "list the letters; a reply answers one that was sent"},
       {:kumbukumbu_no_such_revision, "no proposed revision has that number",

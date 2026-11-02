@@ -540,7 +540,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   carry `to`, `text`, and optionally `in_reply_to` and `keepsake`.
   """
   def send_letter(resident_id, session_key, attrs, %Actor{} = actor) when is_map(attrs) do
-    with {:ok, from} <- sender(resident_id, session_key, actor) do
+    with {:ok, from} <- sender(resident_id, session_key, actor),
+         :ok <- addressed(resident_id, attrs[:to]) do
       command = %Commands.SendHouseLetter{
         actor: actor,
         at: Clock.now(),
@@ -558,6 +559,20 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         other -> other
       end
     end
+  end
+
+  @doc """
+  The names a house letter can be addressed to (kumbukumbu #44): `house`,
+  `Free time` and the Oneiroi chat, which are always there to be written
+  to, and the name of every conversation this resident has had. A letter
+  to any other name would wait for a reader that never comes.
+  """
+  def addresses(resident_id) do
+    titles =
+      Scope.resident(resident_id, fn -> Store.sessions() end)
+      |> Enum.map(&Conversation.title/1)
+
+    Enum.uniq(["house", "Free time", "Oneiroi chat" | titles])
   end
 
   @doc "Every house letter, oldest first, each with the conversations that read it."
@@ -604,6 +619,26 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do:
       (letter.to_name == name or letter.to_name == "house") and letter.from_name != name and
         name not in letter.read_by
+
+  # A name no conversation answers to is refused before the letter is
+  # sent: on 2026-11-02 a Claude Code conversation that opened before the
+  # hook named its folder was called `Claude Code`, a letter to `Claude
+  # Code · Oneiroi` was accepted, and nothing would ever have read it.
+  # A malformed `to` is the aggregate's to refuse, as it always was.
+  defp addressed(resident_id, to) when is_binary(to) and to != "" do
+    names = addresses(resident_id)
+
+    if to in names,
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:kumbukumbu_letter_unaddressed, :kumbukumbu_memories_letter_unaddressed,
+           to: to,
+           names: names
+         )}
+  end
+
+  defp addressed(_resident_id, _to), do: :ok
 
   defp sender(_resident_id, nil, %Actor{kind: :witness}), do: {:ok, "witness"}
 

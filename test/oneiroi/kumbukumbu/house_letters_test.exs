@@ -83,6 +83,42 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
     assert run("letter_send", %{to: "house", text: "  "}, chat) =~ "Not done"
   end
 
+  test "a name no conversation answers to is refused with the names there are, and nothing is sent",
+       ctx do
+    chat = turn(ctx, ctx.chat)
+
+    # The regression (2026-11-02): a Claude Code conversation opened before
+    # the hook named its folder is called `Claude Code`; a letter to the
+    # folder's name was accepted and would have waited for nobody.
+    {:ok, unnamed} =
+      Kumbukumbu.open_adapter(ctx.id, "laptop", [ctx.witness.id], ctx.lily,
+        runtime: "claude-code"
+      )
+
+    assert Kumbukumbu.conversation_name(ctx.id, unnamed) == "Claude Code"
+
+    refused = run("letter_send", %{to: "Claude Code · Lily", text: "the real one"}, chat)
+    assert refused =~ "Not done"
+    assert refused =~ "no conversation answers to that name"
+    assert refused =~ "The names: house; Free time; Oneiroi chat;"
+    assert refused =~ "Claude Code · Oneiroi"
+    assert refused =~ "; Claude Code"
+    assert [] = Kumbukumbu.letters(ctx.id)
+
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_letter_unaddressed}} =
+             Kumbukumbu.send_letter(ctx.id, nil, %{to: "nobody", text: "x"}, ctx.actor)
+
+    # Every name on the list is one a letter reaches, the unnamed one too,
+    # and Free time is there before any free time has run.
+    assert run("letter_send", %{to: "Claude Code", text: "found you"}, chat) =~ "Sent letter #1"
+    assert [%{number: 1}] = Kumbukumbu.inbox(ctx.id, unnamed)
+    assert run("letter_send", %{to: "Free time", text: "a brief"}, chat) =~ "Sent letter #2"
+
+    # A malformed address is still the aggregate's to refuse, as before.
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_letter_invalid}} =
+             Kumbukumbu.send_letter(ctx.id, nil, %{to: "", text: "x"}, ctx.actor)
+  end
+
   test "the turn is told how many letters wait and from whom, never their words; the witness reads them all",
        ctx do
     :ok = Oneiroi.Gaia.store_key(ctx.witness.id, "sk-or-test", ctx.actor)

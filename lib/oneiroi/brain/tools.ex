@@ -432,7 +432,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations): to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from.",
+        "Send a house letter (the work log between your conversations): to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. A name no conversation answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
@@ -820,6 +820,14 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident
            ) do
       "Sent letter ##{n} from #{from} to #{args["to"]}."
+    else
+      # The names travel with the refusal: the remedy says to pick one,
+      # and the error's text alone does not say which there are.
+      {:error, %{kind: :kumbukumbu_letter_unaddressed, details: details}} = refused ->
+        text(refused) <> " The names: " <> Enum.join(details[:names], "; ") <> "."
+
+      other ->
+        other
     end
   end
 
