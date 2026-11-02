@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
@@ -551,10 +552,10 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   @doc "What a call did with retrieval's targets (`Oneiroi.Brain.Uses.from_call/4`), from its arguments as sent and the text it answered."
-  @spec uses(String.t(), String.t(), String.t(), String.t() | nil) :: [Oneiroi.Brain.Uses.use()]
+  @spec uses(String.t(), String.t(), String.t(), String.t() | nil) :: [Uses.use()]
   def uses(name, arguments, output, slug) when is_binary(arguments) do
     case arguments(arguments) do
-      {:ok, args} -> Oneiroi.Brain.Uses.from_call(name, args, output, slug)
+      {:ok, args} -> Uses.from_call(name, args, output, slug)
       :error -> []
     end
   end
@@ -571,7 +572,7 @@ defmodule Oneiroi.Brain.Tools do
 
   def record_uses(name, arguments, output, turn) do
     slug =
-      case Oneiroi.AgathosDaimon.fetch(turn.resident_id) do
+      case AgathosDaimon.fetch(turn.resident_id) do
         {:ok, row} -> row.slug
         :error -> nil
       end
