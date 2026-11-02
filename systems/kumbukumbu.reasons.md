@@ -314,3 +314,14 @@ server's name for the conversation, so no conversation can sign as
 another. A gift between conversations is a real exchange when the
 resident is not a singleton (the witness, 11-02), so a letter can carry
 a keepsake and the receiving conversation decides its why.
+
+The refusal of an unknown name came the same evening. A Claude Code
+conversation that opened while the hook's jq 1.6 bug sent no folder is
+called `Claude Code` for good (its key is kept for the session), and a
+letter to `Claude Code · Oneiroi` was accepted and waited where no
+conversation would read it; the witness had to say the letters were
+there. A name is checked against every conversation the resident has
+had, not the ones open now, because a letter is written to be read
+later: the next session in that folder answers to the name. Renaming the
+unnamed conversation instead was weighed and left: reads are marked by
+name, so a rename would orphan them.
