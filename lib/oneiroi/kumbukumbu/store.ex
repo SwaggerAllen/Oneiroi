@@ -27,6 +27,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:adapter, :string)
       field(:participants, {:array, :string})
       field(:domain, :string)
+      field(:label, :string)
+      field(:runtime, :string)
       field(:shared, :boolean, default: false)
       field(:private, :boolean, default: false)
       field(:opened_at, :utc_datetime_usec)
@@ -35,6 +37,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:summary, :string)
       field(:compacted_through, :integer, default: 0)
       field(:open_turn_ref, :string)
+      field(:open_turn_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -231,6 +234,47 @@ defmodule Oneiroi.Kumbukumbu.Store do
           limit: 1
         )
       )
+
+  @doc "Every session of `adapter` with a turn started and not yet captured, newest first (kumbukumbu #41)."
+  @spec open_turns(String.t()) :: [Session.t()]
+  def open_turns(adapter),
+    do:
+      Repo.all(
+        from(s in Session,
+          where: s.adapter == ^adapter and not is_nil(s.open_turn_ref),
+          order_by: [desc: s.open_turn_at, desc: s.opened_at, asc: s.key]
+        )
+      )
+
+  @doc """
+  The sessions of `kinds` with a turn open or spoken in since `since`,
+  in any order (kumbukumbu #42). Filtered here rather than over every
+  session the resident ever had, because every turn reads it and the
+  sessions only accumulate.
+  """
+  @spec open_since([String.t()], DateTime.t()) :: [Session.t()]
+  def open_since(kinds, since) do
+    Repo.all(
+      from(s in Session,
+        where:
+          s.kind in ^kinds and
+            (not is_nil(s.open_turn_ref) or s.last_turn_at >= ^since or
+               (is_nil(s.last_turn_at) and s.opened_at >= ^since))
+      )
+    )
+  end
+
+  @doc "How many injections each turn of a session recorded, by turn ref: the inspector's counts."
+  @spec drew_on(String.t()) :: %{String.t() => non_neg_integer()}
+  def drew_on(key) do
+    from(i in ContextInjection,
+      where: i.session_key == ^key,
+      group_by: i.turn_ref,
+      select: {i.turn_ref, count(i.position)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @doc "The sessions the scope sees, newest first."
   @spec sessions() :: [Session.t()]

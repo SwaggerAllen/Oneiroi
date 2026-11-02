@@ -37,6 +37,7 @@ main() {
   [ -n "$session" ] || return 0
   [ "$source" = resume ] && return 0
   state="$(oneiroi_state "$session")" || return 0
+  [ "$part" = 1 ] && oneiroi_label "$state" "$payload"
 
   out="$(mktemp)"
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/context?runtime=claude-code&limit=$ONEIROI_LIMIT&part=$part&of=$parts" "" "$out")"

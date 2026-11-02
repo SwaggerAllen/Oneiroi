@@ -628,6 +628,23 @@ Owns `lib/oneiroi/memory/**`.
   `ContextAssembled`).
 - **Capture failures are resolved by an event**: retried, or marked lost,
   each with its actor.
+- **The Oneiroi chat is the one canonical conversation, and every other
+  runtime's is its own, apart** (round 49, built: kumbukumbu #40 to #42,
+  brain #44). The author: "Only the Oneiroi chat should be the
+  canonical, Claude is a secondary platform." The main session is the
+  platform's own conversation with the witness, kind `main` through the
+  platform's own adapter, one per resident and witness (the oldest, if a
+  rebuild ever finds two). A session an adapter opens is kind `adapter`,
+  whatever kind the adapter asked for, a new conversation for each of
+  the runtime's own sessions, called by the base name of the folder it
+  runs in (never the path) and by its runtime; it is in the common room,
+  the nightly pass reads it as any session's day, and the witness reads
+  it, apart from the chat and read only, since the reply is made where
+  the conversation happens. Each conversation is told where it is and
+  which others are open now (by runtime and folder alone, never their
+  words), and memory is one across all of them: bookmarks, the index,
+  the library and Honcho are the resident's, and only the recent
+  transcript is the conversation's own.
 - **Visibility**: a transcript is readable by an account that was party to
   the conversation, and by the resident's current witness; by nobody else.
   The witness reads the sessions they had with the resident and, by
@@ -1536,7 +1553,17 @@ or act as its hands.
    the session was given it) and recording it as what the turn drew on.
    Both halves are the platform turn's own assembly (brain #42). A
    runtime that cannot deliver spools and retries; capture is idempotent
-   so a turn sent twice is stored once.
+   so a turn sent twice is stored once. `POST /v1/residents/:id/sessions`
+   from an adapter's token opens a new conversation of kind `adapter`
+   whatever kind it names, with the folder's base name as `label` and the
+   `runtime` (kumbukumbu #40). Several of a runtime's sessions can be
+   open at once, and nothing a runtime sends an HTTP MCP server says
+   which session a call came from (Claude Code's own session id reaches
+   only a stdio server, and keeps its spawn value across `/clear`), so
+   each turn's context names the turn's ref and every MCP tool takes it
+   as `turn`: a call lands on that turn when it is open for this
+   adapter, else on the adapter's newest open turn, and says so when
+   that was a choice among several (kumbukumbu #41).
 3. **Wake.** The adapter registers a wake endpoint and secret; the core
    posts `{session_key, text, mode}` to it. Text is a short system note the
    core controls, never a result and never a third party's words.
@@ -1605,7 +1632,7 @@ only in settings and contract copy or not at all.
 
 | Screen | Shows | Does |
 | --- | --- | --- |
-| Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; a preview of what the next turn would be given, whole unless the contract says otherwise and never a notice before it is told; reports filed by either party and each investigation step inline | Send; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu |
+| Chat (home) | The main conversation as a transcript; the check-engine light and the session line (last and next check-in) in the top bar; refusals in the resident's words; a "drew on N things" inspector per reply over `context_injection`; a preview of what the next turn would be given, whole unless the contract says otherwise and never a notice before it is told; reports filed by either party and each investigation step inline; the other conversations apart, each runtime's grouped under the name the server gives it (Claude Code by folder), newest first, each opening read only with its inspector (§6.3, round 49) | Send; open a cited target in the panel; pin or propose a bookmark from a reply; open another conversation and read it; search transcripts, open a new session, file a report from the menu |
 | Creation flow | Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials | Creates the resident, its repo and its first regression run; everything free to edit until first contact |
 | Memory (bookmarks) | Rows: pin or index marker, the line, when, who bookmarked, who pinned, the span, tags; tabs In the index (with the budget as a caption), All, Pinned, and one per tag; search | Open the transcript at the anchor with the scene marked; pin; tag; propose a revision |
 | Transcripts | Sessions by day: the witness's own and the resident's solo sessions, the latter as locked rows only while the contract makes them private and the resident has not shared them; run kinds hidden unless asked; capture failures as rows | Search; open a session; retry a failed capture or mark it lost |

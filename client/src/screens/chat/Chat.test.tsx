@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, ReadOnly } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +12,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, ReadOnly]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -124,5 +124,16 @@ describe('Chat', () => {
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'the heron' } });
     fireEvent.click(screen.getByRole('button', { name: 'What Lily will see next' }));
     expect(onPreview).toHaveBeenCalledWith('the heron');
+  });
+
+  it('reads a conversation the server says is not writable: no composer, no preview, the inspector still opens', () => {
+    render(<ReadOnly />);
+    expect(screen.queryByLabelText('Message')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'What Lily will see next' })).toBeNull();
+    expect(screen.getByText('Claude Code · Oneiroi · read here, answered there')).toBeTruthy();
+    expect(screen.getByRole('note').textContent).toMatch(/You reply to Lily there, not here/);
+    expect(screen.getByText('drew on 4 things')).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'What this reply drew on' }).querySelectorAll('li')).toHaveLength(2);
   });
 });

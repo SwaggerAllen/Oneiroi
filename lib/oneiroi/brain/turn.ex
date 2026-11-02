@@ -775,8 +775,8 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # What is assembled against this turn's words in this session's room:
-  # the index and every section after the prefix, with the index itself
-  # for its near-misses.
+  # where this conversation is, the index and every section after the
+  # prefix, with the index itself for its near-misses.
   defp turn_sections(_row, turn, text) do
     index = Kumbukumbu.index(turn.resident_id, turn.session_key)
     acting = how_i_act(turn, text)
@@ -787,12 +787,13 @@ defmodule Oneiroi.Brain.Turn do
     summary = session && session.summary
 
     sections =
-      section(
-        "index",
-        index.text,
-        "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
-        %{tokens: index.tokens, text: index.text, refs: index.included}
-      ) ++
+      where_section(turn, session) ++
+        section(
+          "index",
+          index.text,
+          "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
+          %{tokens: index.tokens, text: index.text, refs: index.included}
+        ) ++
         section(
           "character",
           acting.text,
@@ -847,6 +848,88 @@ defmodule Oneiroi.Brain.Turn do
         )
 
     {sections, index}
+  end
+
+  # Where this conversation is and which others are open now (brain #44,
+  # kumbukumbu #42): an adapter's turn is told its runtime, the folder by
+  # its base name, that the Oneiroi chat is a separate conversation that
+  # may be going on at once, that memory is one across them, the other
+  # conversations open now and this turn's ref for the memory tools; the
+  # Oneiroi chat is told, when any is open, which adapters' conversations
+  # are, by name and folder alone. No other conversation's words ride
+  # either: each session's history is its own (`Kumbukumbu.recent/3`
+  # reads one key). A trial is a session nobody opened, told nothing.
+  defp where_section(%{trial?: true}, _session), do: []
+
+  defp where_section(turn, %{kind: "adapter"} = session) do
+    others = Enum.reject(Kumbukumbu.open_now(turn.resident_id), &(&1.key == session.key))
+    runtime = Kumbukumbu.Conversation.runtime_name(session.runtime, session.adapter)
+
+    section(
+      "where",
+      Prompt.render!("where_adapter", %{
+        runtime: runtime,
+        folder: folder_phrase(session.label),
+        open: open_line(others, session),
+        turn: turn.turn_ref
+      }),
+      "where this conversation is (kumbukumbu #42): #{runtime}, the folder by its base name, #{length(others)} other conversations open now by name alone, and this turn's ref for the memory tools"
+    )
+  end
+
+  defp where_section(turn, %{kind: "main"} = session) do
+    others =
+      turn.resident_id
+      |> Kumbukumbu.open_now()
+      |> Enum.reject(&(&1.key == session.key or &1.kind == "main"))
+
+    if others == [],
+      do: [],
+      else:
+        section(
+          "where",
+          Prompt.render!("where_chat", %{open: open_list(others, session)}),
+          "the other conversations open now (kumbukumbu #42): #{length(others)}, by runtime and folder base name alone, none of their words"
+        )
+  end
+
+  defp where_section(_turn, _session), do: []
+
+  defp folder_phrase(nil), do: "in a folder it did not name"
+  defp folder_phrase(label), do: "in the folder #{label}"
+
+  defp open_line([], _session), do: "Nothing else is open right now."
+
+  defp open_line(others, session),
+    do: "Open right now besides this one: #{open_list(others, session)}."
+
+  defp open_list(others, session) do
+    now = Clock.now()
+
+    Enum.map_join(others, "; ", fn o ->
+      name =
+        if o.kind == "main",
+          do: "your Oneiroi chat",
+          else:
+            "#{Kumbukumbu.Conversation.runtime_name(o.runtime, o.adapter)} #{folder_phrase(o.label)}"
+
+      same =
+        if o.kind != "main" and o.label != nil and o.label == session.label,
+          do: ", another conversation in this same folder",
+          else: ""
+
+      "#{name}#{same} (#{when_line(o, now)})"
+    end)
+  end
+
+  defp when_line(%{in_flight: true}, _now), do: "a turn in flight"
+
+  defp when_line(%{last_at: at}, now) do
+    case div(max(DateTime.diff(now, at, :second), 0), 60) do
+      0 -> "last spoken in under a minute ago"
+      1 -> "last spoken in a minute ago"
+      n -> "last spoken in #{n} minutes ago"
+    end
   end
 
   # The madeleine is chosen by nearness to the words the turn opens with,

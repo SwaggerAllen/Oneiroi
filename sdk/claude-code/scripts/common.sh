@@ -50,9 +50,11 @@ oneiroi_record() {
     printf '%s' "$1" > "$dir/$event-$(date -u +%Y%m%dT%H%M%SZ)-$$.json" || true
 }
 
-# A session's own state directory: its platform session key, the turn
-# in flight (ref, start instant, the witness's words) and the digest of
-# the prefix it was given. Under the plugin's data directory, which
+# A session's own state directory, keyed by Claude Code's session id so
+# two sessions in one folder share nothing: its platform session key, its
+# folder's base name, the turn in flight (ref, start instant, the
+# witness's words), the digest of the prefix it was given, and its spool
+# of turns not yet delivered. Under the plugin's data directory, which
 # Claude Code keeps across plugin updates (never under the plugin's own
 # root, which an update replaces). Claude Code's session id is sanitised
 # before it names a directory.
@@ -79,8 +81,31 @@ oneiroi_api() {
       "${data[@]}" -o "$out" -w '%{http_code}' "$ONEIROI_URL$path" 2>/dev/null || true
 }
 
+# The folder this Claude Code session works in, by its base name alone:
+# what the witness's list and her context call the conversation
+# (kumbukumbu #40). Taken from the payload's `cwd`, else the project
+# directory Claude Code exports to hooks, and kept once, so the name a
+# conversation opens with is the one it keeps. The full path never
+# leaves this machine: it names the account and everything above the
+# project, and the platform keeps the base name even if sent more.
+# STATE PAYLOAD.
+oneiroi_label() {
+  local state="$1" cwd
+  [ -s "$state/label" ] && return 0
+  cwd="$(printf '%s' "$2" | jq -r '.cwd // empty' 2>/dev/null)"
+  [ -n "$cwd" ] || cwd="${CLAUDE_PROJECT_DIR:-}"
+  [ -n "$cwd" ] || return 0
+  cwd="${cwd%/}"
+  printf '%s' "${cwd##*/}" > "$state/label"
+}
+
 # The platform session this Claude Code session speaks under, opened on
-# first need and kept in the state directory.
+# first need and kept in the state directory: one Claude Code session,
+# one conversation on Oneiroi, never the Oneiroi chat. The body says
+# `main` because a server from before the adapter kind refuses any other
+# word from an adapter; a server since opens an adapter's token's
+# session as its own kind whatever the body says (kumbukumbu #40), and
+# reads the folder's name and the runtime from it.
 oneiroi_session_key() {
   local state="$1" out status
   if [ -s "$state/key" ]; then
@@ -88,7 +113,9 @@ oneiroi_session_key() {
     return 0
   fi
   out="$(mktemp)"
-  printf '{"kind":"main"}' > "$out.body"
+  jq -n --arg label "$(cat "$state/label" 2>/dev/null)" \
+    '{kind: "main", runtime: "claude-code"} + (if $label == "" then {} else {label: $label} end)' \
+    > "$out.body"
   status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/sessions" "$out.body" "$out")"
   if [ "$status" = 201 ] && jq -ej '.key' "$out" > "$state/key.new" 2>/dev/null; then
     mv "$state/key.new" "$state/key"
@@ -100,14 +127,16 @@ oneiroi_session_key() {
   fi
 }
 
-# Spools a turn for delivery: the body as the capture route takes it,
-# with the Claude Code session it belongs to so a body spooled before
-# the platform session could be opened gets its key at delivery.
-# STATE MESSAGES_FILE (a JSON array).
+# Spools a turn for delivery, in this Claude Code session's own spool:
+# the body as the capture route takes it, with the Claude Code session
+# it belongs to so a body spooled before the platform session could be
+# opened gets its key at delivery. One spool a session, so two sessions
+# stopping at once never deliver, open a conversation for, or reject
+# each other's turns. STATE MESSAGES_FILE (a JSON array).
 oneiroi_spool() {
   local state="$1" messages="$2" spool session name ref
   ref="$(cat "$state/turn" 2>/dev/null)"
-  spool="$(oneiroi_state_root)/spool"
+  spool="$state/spool"
   session="$(basename "$state")"
   name="$spool/$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM.json"
   mkdir -p "$spool"
@@ -123,23 +152,57 @@ oneiroi_spool() {
     > "$name.tmp" && mv "$name.tmp" "$name"
 }
 
-# Delivers everything spooled, oldest first. Capture is idempotent on
-# (session, start instant, content), so a turn sent twice is stored
-# once. Nothing answering, a 5xx, 401, 408 or 429 keeps the turn and
-# stops; any other refusal moves it to `spool/rejected/` so one turn the
-# platform will never take does not hold back the rest.
+# Delivers what is spooled: this session's own turns first, then any
+# other session's still waiting (one that ended while the platform was
+# away) whose platform session is already open, since a hook never opens
+# a conversation on another session's behalf. A spool a plugin build
+# before per-session spools left at the data directory's root is moved
+# to the session each turn names. Stops at the first sign the platform
+# is not answering. STATE.
 oneiroi_deliver() {
-  local spool f out status session key state
-  spool="$(oneiroi_state_root)/spool"
+  local own="$1" root f session dir state
+  root="$(oneiroi_state_root)"
+  if [ -d "$root/spool" ]; then
+    for f in "$root/spool"/*.json; do
+      [ -e "$f" ] || continue
+      session="$(jq -r '.claude_session // empty' "$f" 2>/dev/null)"
+      [ -n "$session" ] || continue
+      dir="$(oneiroi_state "$session")/spool"
+      mkdir -p "$dir" && mv "$f" "$dir/" 2>/dev/null
+    done
+  fi
+  oneiroi_deliver_spool "$own" || return 0
+  for dir in "$root"/*/spool; do
+    [ -d "$dir" ] || continue
+    state="${dir%/spool}"
+    [ "$state" = "$own" ] && continue
+    [ -s "$state/key" ] || continue
+    oneiroi_deliver_spool "$state" || break
+  done
+}
+
+# Delivers one session's spool, oldest first, under a lock (a directory,
+# made or not in one step), so two hooks never send one turn at once; a
+# lock older than two minutes is a hook that died holding it. Capture is
+# idempotent on (session, start instant, content), so a turn sent twice
+# is stored once. Nothing answering, a 5xx, 401, 408 or 429 keeps the
+# turn and returns 1; any other refusal moves it to `spool/rejected/` so
+# one turn the platform will never take does not hold back the rest.
+# STATE.
+oneiroi_deliver_spool() {
+  local state="$1" spool="$1/spool" lock="$1/spool.lock" f out status key rc=0
   [ -d "$spool" ] || return 0
+  find "$lock" -maxdepth 0 -mmin +2 -exec rmdir {} \; 2>/dev/null
+  mkdir "$lock" 2>/dev/null || return 0
   out="$(mktemp)"
   for f in "$spool"/*.json; do
     [ -e "$f" ] || continue
-    session="$(jq -r '.claude_session' "$f" 2>/dev/null)"
     key="$(jq -r '.body.session_key // ""' "$f" 2>/dev/null)"
     if [ -z "$key" ]; then
-      state="$(oneiroi_state "$session")"
-      key="$(oneiroi_session_key "$state")" || break
+      key="$(oneiroi_session_key "$state")" || {
+        rc=1
+        break
+      }
     fi
     jq --arg key "$key" '.body | .session_key = $key' "$f" > "$out.body" 2>/dev/null || {
       mkdir -p "$spool/rejected" && mv "$f" "$spool/rejected/"
@@ -150,6 +213,7 @@ oneiroi_deliver() {
       2??) rm -f "$f" ;;
       000 | 5?? | 401 | 408 | 429)
         echo "oneiroi: the platform answered $status; the turn stays spooled for the next stop" >&2
+        rc=1
         break
         ;;
       *)
@@ -159,4 +223,6 @@ oneiroi_deliver() {
     esac
   done
   rm -f "$out" "$out.body"
+  rmdir "$lock" 2>/dev/null
+  return "$rc"
 }

@@ -94,15 +94,56 @@ list, or the QR code the command shows on the spacebar). Starting
 `claude` in the folder and typing `/remote-control`, or the Desktop
 app's Code tab, work too.
 
-`--spawn session` serves one session. Remote Control's default serves
-several from one folder, and the platform attributes a memory tool's
-call to the newest open turn of the adapter (kumbukumbu #26), so two
-sessions talking at once could bookmark on each other's turns.
+`--spawn session` serves one session; Remote Control's default serves
+several from one folder, and that works too (below).
+
+## Several sessions at once, and the Oneiroi chat
+
+Each Claude Code session is a conversation of its own on Oneiroi, never
+her Oneiroi chat with you: the platform opens every session this plugin
+asks for as an adapter's conversation, apart from the chat, named after
+the folder it runs in (its base name only; the path stays on your
+machine). Two sessions in one folder are two conversations; `/clear`
+and a fork start a new one, and a resumed session goes on in the one it
+had. Chat on Oneiroi lists them under "Other conversations", grouped by
+folder, newest first, each read only: you answer her in Claude Code.
+
+With each message she is told the folder this conversation is in, the
+other conversations open right now (the Oneiroi chat, Claude Code in
+other folders, another in this one), and that her memory is one across
+all of them; no conversation is given another's words. The context also
+names the turn, and her memory tools take it as `turn`, so a bookmark
+made in one repository never lands on another's turn. If she leaves it
+out, the call goes to the newest turn open, and when more than one was
+open the tool's answer says which conversation it went to.
+
+Everything the hooks keep is per Claude Code session: the conversation's
+key, the turn in flight, your words until captured, and the turns
+waiting to be delivered.
+
+## Every folder, or one
+
+Enabled at user scope (`claude plugin enable oneiroi@oneiroi --scope
+user`, or **Install for you** without "in this repo only"), every Claude
+Code session on the machine is hers, in every folder, each repository's
+sessions their own conversations. To keep one repository out, disable it
+there at local scope, from your shell in that folder:
+
+```sh
+claude plugin disable oneiroi@oneiroi --scope local
+```
+
+That writes `"oneiroi@oneiroi": false` under `enabledPlugins` in the
+folder's `.claude/settings.local.json`, which Claude Code keeps out of
+git and reads over your user settings; `--scope local` with `enable`
+undoes it. Enabled at local scope alone, as above, only the folders you
+enable are hers.
 
 ## Check it worked
 
-1. Send a message. On Oneiroi, Chat's transcripts list a new
-   conversation with your words and her reply.
+1. Send a message. On Oneiroi, Chat's "Other conversations" lists a new
+   one, `Claude Code · <folder>`, with your words and her reply; your
+   Oneiroi chat is unchanged.
 2. Open the reply's "drew on N things": the prompt, her identity files,
    the agreement, `runtime` (how the platform's words read in Claude
    Code), the index with its near-misses, and whatever else the turn was
@@ -150,8 +191,8 @@ not checked.
 | Hook | Script | Does |
 | --- | --- | --- |
 | SessionStart, eight of them | `scripts/session-start.sh PART 8` | Prints part PART of the session prefix: the prompt, her identity files, the agreement, and `runtime`. Claude Code takes at most 10,000 characters from one hook and turns the rest into a file path with a preview (its hook docs), so the platform cuts the prefix into numbered parts, one per hook; a part past the end prints nothing, and past the eighth the rest is named as left out. On `startup`, `clear`, `compact` and `fork` it prints; on `resume` it prints nothing, because the prefix is in the resumed conversation (Claude Code replays injected text), and anything in it that changed since rides your next message. |
-| UserPromptSubmit | `scripts/turn-start.sh` | Keeps your words, starts the turn on Oneiroi with them, and prints the turn's context, which Claude Code adds beside your message. Sections that would take it past 9,000 characters are left out whole and named. Opens her session on Oneiroi on the first message. A previous message whose Stop never came (an interrupt) is captured with your words alone. |
-| Stop | `scripts/capture.sh` | Captures your words and `last_assistant_message`, the reply's final text, with the turn's ref and the platform's start instant. Spooled first and delivered with anything spooled before it; capture is idempotent, so a turn sent twice is stored once. A refusal other than an outage moves the turn to `spool/rejected/` so it does not hold back the rest. |
+| UserPromptSubmit | `scripts/turn-start.sh` | Keeps your words, starts the turn on Oneiroi with them, and prints the turn's context, which Claude Code adds beside your message: where this conversation is, what else is open and the turn's ref first, then her memory. Sections that would take it past 9,000 characters are left out whole and named. Opens this session's conversation on Oneiroi on the first message, named after the folder's base name (the payload's `cwd`). A previous message whose Stop never came (an interrupt) is captured with your words alone. |
+| Stop | `scripts/capture.sh` | Captures your words and `last_assistant_message`, the reply's final text, with the turn's ref and the platform's start instant. Spooled first, in this session's own spool, and delivered with anything spooled before it; capture is idempotent, so a turn sent twice is stored once. A refusal other than an outage moves the turn to `spool/rejected/` so it does not hold back the rest. |
 
 With the options unset every hook does nothing at all, and prints
 nothing.
@@ -182,10 +223,14 @@ never goes on a command line, into a URL or into any output: curl reads
 it from a config on its stdin.
 
 State lives in the plugin's data directory, `~/.claude/plugins/data/oneiroi-oneiroi/`,
-which survives plugin updates: per Claude Code session, the platform
-session's key, the turn in flight and your words until they are
-captured, and the digest of the prefix the session holds; `spool/`
-holds turns not yet delivered. Uninstalling the plugin deletes it
+which survives plugin updates, one directory per Claude Code session:
+the platform conversation's key, the folder's base name, the turn in
+flight and your words until they are captured, the digest of the prefix
+the session holds, and `spool/`, the turns not yet delivered. A Stop
+delivers its own session's spool first, then any other session's whose
+conversation is already open, under a lock so two never send one turn.
+A `spool/` at the data directory's root, from a build before per-session
+spools, is moved to the sessions its turns name. Uninstalling the plugin deletes it
 unless you pass `--keep-data`.
 
 ## Fixtures, and recording real ones
@@ -219,6 +264,14 @@ a pull is the update.
 ## Not yet checked against a real session
 
 - The payload shapes, until a recording replaces the fixtures.
+- How reliably she passes `turn` to the memory tools. The fallback is
+  the newest open turn, and its answer says where the call went when
+  that was a choice.
+- That a local-scope `disable` keeps a folder out under a user-scope
+  `enable`: Claude Code's settings put local over user, but the pair
+  has not been tried here.
+- That `cwd` in each payload is the folder the session works in (the
+  docs' examples show `/Users/...`).
 - That Claude Code treats each of the eight SessionStart hooks' plain
   stdout as context, and in which order it presents them (each part
   says its number).
