@@ -37,6 +37,33 @@ defmodule OneiroiWeb.MemoryController do
     })
   end
 
+  operation(:retrieval,
+    summary:
+      "How retrieval has been used, target by target (kumbukumbu #43): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",
+    parameters: [id: [in: :path, type: :string], kind: [in: :query, type: :string]],
+    responses: [ok: {"the counts", "application/json", %Schema{type: :array}}]
+  )
+
+  def retrieval(conn, %{"id" => id} = params) do
+    rows = Kumbukumbu.retrieval({:resident, id}, kind: params["kind"])
+
+    json(
+      conn,
+      rows
+      |> Enum.sort_by(&{-&1.used, -&1.returned, &1.target})
+      |> Enum.map(
+        &Map.take(&1, [
+          :target,
+          :considered,
+          :returned,
+          :used,
+          :last_returned_at,
+          :last_used_at
+        ])
+      )
+    )
+  end
+
   operation(:bookmark,
     summary: "One bookmark with the transcript of its span",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],

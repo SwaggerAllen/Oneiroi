@@ -93,16 +93,39 @@ defmodule Oneiroi.SimaQian.BackupTest do
     working: working
   } do
     :ok = Git.ensure_repo(working)
-    File.write!(Path.join(working, "notes.txt"), "by hand\n")
+    # Not text, so no keepsake (seshat #29): a root text file would be one.
+    File.write!(Path.join(working, "notes.bin"), "by hand\n")
 
     assert {:error,
-            %Oneiroi.SimaQian.Error{kind: :sima_qian_stray_files, details: [paths: ["notes.txt"]]}} =
+            %Oneiroi.SimaQian.Error{kind: :sima_qian_stray_files, details: [paths: ["notes.bin"]]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     assert git!(bare, ["log", "-1", "--format=%s", "main"]) ==
              "Records: machine through sequence 3"
 
     assert %{last_backup_sequence: 3} = row(r.id)
+  end
+
+  # Seshat #29: a keepsake is a root file named by itself, not by a
+  # folder, so its class is the root's keepsakes as they stand.
+  test "keepsakes at the root are committed in a class of their own after the soul, and are no strays",
+       %{r: r, actor: actor, bare: bare, working: working} do
+    :ok = Git.ensure_repo(working)
+    File.write!(Path.join(working, "pocket-andrew.md"), "# Pocket Andrew\n")
+    File.write!(Path.join(working, "ledger.txt"), "kept\n")
+
+    assert {:ok, %{commits: [{"soul", _}, {"keepsake", keepsake}, {"machine", _}]}} =
+             Oneiroi.SimaQian.backup(r.id, actor)
+
+    assert git!(bare, ["show", "--name-only", "--format=%s", keepsake]) ==
+             "Records: keepsake through sequence 3\n\nledger.txt\npocket-andrew.md"
+
+    # A reserved name at the root is still a stray, whatever it holds.
+    File.write!(Path.join(working, "README.md"), "by hand\n")
+
+    assert {:error,
+            %Oneiroi.SimaQian.Error{kind: :sima_qian_stray_files, details: [paths: ["README.md"]]}} =
+             Oneiroi.SimaQian.backup(r.id, actor)
   end
 
   test "a resident without a remote is backed up locally and the nightly job skips it", %{

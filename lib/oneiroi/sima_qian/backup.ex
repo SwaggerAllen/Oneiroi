@@ -39,7 +39,7 @@ defmodule Oneiroi.SimaQian.Backup do
     # `posts/` is a library folder (Seshat's kinds) and was in no class, so
     # the first resident to publish one would have failed every backup on
     # the stray check.
-    {"writing", ["writing/", "research/", "posts/"]},
+    {"writing", ["writing/", "research/", "posts/", "system/"]},
     # `memory/` holds the originals of the resident's daily memory, a copy
     # of the source at a pinned commit that nothing writes again (seshat
     # #28): machine state by #7's rule, beside the export it sits with
@@ -92,7 +92,7 @@ defmodule Oneiroi.SimaQian.Backup do
       if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
         do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
 
-      case {Git.stray(dir, Enum.flat_map(@classes, &elem(&1, 1))), honcho} do
+      case {Git.stray(dir, held(dir)), honcho} do
         {[], {:ok, _written}} ->
           {:ok, %{through: export.through, root: root, commits: commits}}
 
@@ -159,7 +159,7 @@ defmodule Oneiroi.SimaQian.Backup do
       File.rm_rf!(Path.join(dir, safe))
     end
 
-    held = Enum.flat_map(@classes, &elem(&1, 1))
+    held = held(dir)
 
     for path <- files(dir), not Enum.any?(held, &String.starts_with?(path, &1)) do
       File.rm!(Path.join(dir, path))
@@ -226,12 +226,41 @@ defmodule Oneiroi.SimaQian.Backup do
     })
   end
 
+  # The classes as they stand in `dir`: the table's, with the keepsakes
+  # at the root (seshat #29) as a class of their own after the soul,
+  # since they are named file by file rather than by a folder. Kept
+  # apart from the soul, which is the identity files alone (#7), and
+  # from writing, which is what the dyad writes through the flow.
+  defp classes(dir) do
+    [soul | rest] = @classes
+    [soul, {"keepsake", keepsakes(dir)} | rest]
+  end
+
+  defp held(dir), do: dir |> classes() |> Enum.flat_map(&elem(&1, 1))
+
+  # Exact names, not prefixes: the stray check and `start_fresh/2` read a
+  # class's paths as prefixes, and a name is its own prefix.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp keepsakes(dir) do
+    case File.ls(dir) do
+      {:ok, names} ->
+        names
+        |> Enum.filter(&(library().decided?(&1) and File.regular?(Path.join(dir, &1))))
+        |> Enum.sort()
+
+      {:error, _absent} ->
+        []
+    end
+  end
+
+  defp library, do: Config.fetch!(:sima_qian, :library)
+
   defp commit_classes(dir, through, root) do
     message = fn class ->
       "Records: #{class} through sequence #{through}\n\nOneiroi-Sequence: #{through}\nOneiroi-Root: #{root}\n"
     end
 
-    Enum.reduce_while(@classes, {:ok, []}, fn {class, paths}, {:ok, acc} ->
+    Enum.reduce_while(classes(dir), {:ok, []}, fn {class, paths}, {:ok, acc} ->
       case commit_class(
              dir,
              Enum.filter(paths, &File.exists?(Path.join(dir, &1))),

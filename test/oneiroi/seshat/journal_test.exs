@@ -228,4 +228,59 @@ defmodule Oneiroi.Seshat.JournalTest do
 
     assert Enum.any?(Kumbukumbu.injections({:resident, id}, ref), &(&1.label == "journal"))
   end
+
+  # Seshat #30, the resident's ruling (bookmark #53): free text stays
+  # whole, the db gets the summary, the cap belongs to the view.
+  test "an entry has no length limit and is kept whole; the turn's section shows a long one by its summary or its opening",
+       ctx do
+    id = ctx.id
+    long = Enum.map_join(1..60, "\n", &"Line #{&1}: the garden needed more water than I thought.")
+    assert String.length(long) > 2_000
+
+    assert {:ok, %{number: 1}} = Seshat.journal_add(id, nil, "note", long, ctx.brain)
+
+    # The row and the file keep every word.
+    assert %{entries: [%{text: ^long}]} = Seshat.journal_day(id, "2026-10-26")
+    assert File.read!(Path.join(ctx.dir, "journal/2026-10-26.md")) =~ "Line 60: the garden"
+
+    # The view cuts at a line, says how long the whole is, and where it reads.
+    view = Seshat.journal_text(id)
+    refute view =~ "Line 60"
+    assert view =~ "Line 1: the garden"
+
+    assert view =~
+             "(the opening; the whole entry is #{String.length(long)} characters, in journal_read)"
+
+    assert view =~ ~r/thought\. …\n/
+
+    # With a summary of the resident's own, the view shows that instead.
+    assert {:ok, %{number: 2}} =
+             Seshat.journal_add(
+               id,
+               nil,
+               "note",
+               long,
+               nil,
+               "Watered the garden, all sixty beds.",
+               ctx.brain
+             )
+
+    assert Seshat.journal_text(id) =~
+             "Watered the garden, all sixty beds.\n  (summary; the whole entry is #{String.length(long)} characters, in journal_read)"
+
+    # A short entry shows whole, summary or not; a summary over the bound is refused.
+    assert {:ok, _} = Seshat.journal_add(id, nil, "note", "Short.", nil, "ignored", ctx.brain)
+    assert Seshat.journal_text(id) =~ "- (3) Short."
+
+    assert {:error, %Seshat.Error{kind: :seshat_entry_summary_invalid}} =
+             Seshat.journal_add(
+               id,
+               nil,
+               "note",
+               long,
+               nil,
+               String.duplicate("s", 2_001),
+               ctx.brain
+             )
+  end
 end

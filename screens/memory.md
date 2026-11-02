@@ -13,7 +13,7 @@ Open: once the client lists rooms, the tab is expected to follow a named room's 
 
 ## #1 Shows
 
-Rows: pin or index marker (the index as it stands now), the line, when, who bookmarked, who pinned, the span, tags, and when a turn last listed it; tabs In the index (with the server's description, budget included, as a caption), All, Pinned, and one per tag; search.
+Rows: pin or index marker (the index as it stands now), the line, when, who bookmarked, who pinned, the span, tags, and when a turn last listed it; tabs In the index (with the server's description, budget included, as a caption), All, Pinned, and one per tag; search. A Use tab, once the server has counted, lists every target retrieval touched, every kind of edge, with how often it was considered, returned and used and when last used (kumbukumbu #43): the same numbers the resident reads with `memory_use`, under a caption saying nothing is reweighted from them until both have looked.
 
 ## #2 Does
 

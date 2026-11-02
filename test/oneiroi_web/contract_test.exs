@@ -266,6 +266,22 @@ defmodule OneiroiWeb.ContractTest do
     assert %{"messages" => [%{"content" => "hi"}, _]} =
              conn |> get("/v1/residents/#{id}/sessions/#{key}") |> json_response(200)
 
+    # A page: the newest first, then back from a message's cursor, with
+    # `more` saying whether earlier ones remain; a cursor that is not one
+    # reads as the newest page.
+    assert %{"messages" => [%{"role" => "assistant", "cursor" => newest}], "more" => true} =
+             conn |> get("/v1/residents/#{id}/sessions/#{key}", %{limit: 1}) |> json_response(200)
+
+    assert %{"messages" => [%{"content" => "hi"}], "more" => false} =
+             conn
+             |> get("/v1/residents/#{id}/sessions/#{key}", %{limit: 1, before: newest})
+             |> json_response(200)
+
+    assert %{"messages" => [_, %{"cursor" => ^newest}], "more" => false} =
+             conn
+             |> get("/v1/residents/#{id}/sessions/#{key}", %{limit: 5, before: "not-a-cursor"})
+             |> json_response(200)
+
     # Newest first, so the reply that quotes "hi" leads and the message follows.
     assert [%{"role" => "assistant"}, %{"content" => "hi"}] =
              conn

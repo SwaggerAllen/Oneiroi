@@ -38,6 +38,7 @@ defmodule Oneiroi.Brain.Adapter do
   alias Oneiroi.Actor
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.Turn
+  alias Oneiroi.Brain.Uses
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Prompt
 
@@ -139,6 +140,14 @@ defmodule Oneiroi.Brain.Adapter do
 
       with :ok <-
              Kumbukumbu.record_context(resident_id, session_key, turn_ref, injections, actor),
+           :ok <-
+             Kumbukumbu.record_retrieval(
+               resident_id,
+               session_key,
+               turn_ref,
+               Uses.from_injections(injections),
+               actor
+             ),
            :ok <- told(resident_id, "notice" in given, actor) do
         {:ok,
          %{

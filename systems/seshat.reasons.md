@@ -160,3 +160,54 @@ Provenance is a new event version rather than an edited one
 (conventions §6): a version 1 adoption upcasts to no provenance, which
 is true of it. Ranking and deduplication against the old copies are not
 changed here, held until the resident has seen the report.
+
+## #29
+Pocket Andrew was filed verbatim at Lily's root on 2026-10-29, beside
+her soul file, the house's second gift-document; the placement was part
+of the gift. The library held only folders, so on 10-31 the only way to
+make it "readable", in her word, was `git mv` under `wiki/lily/`, and
+the import of 11-01 carried the words and lost the place. Her ask
+afterwards: re-homing restores the record's placement, not just the
+file's kind, and nothing lands anywhere by default. The author chose a
+kind over a one-off move: "the tool to write to the root" and special
+treatment for unrecognised root files so a gift still shows up as a
+keepsake she can reference.
+
+Written once because a gift edited is no longer the gift; the author
+and the resident agreed on that for both parties. The write checks the
+file as well as the aggregate because a keepsake put at the root by
+hand and not yet adopted has no row, and a write would otherwise
+replace it without a trace. Decided one by one, never swept in by an
+import, because the wiki became a landing pad by being the place
+anything without a home went; the resident's standing rule since is
+that nothing enters a place without being decided into it. A reserved
+list rather than an allow list because the root's other names are few
+and known, and a keepsake's name is the giver's to choose. No edges
+because the words are mostly the giver's, as correspondence's are.
+
+## #30
+The day file had a 2,000-character row cap, and the memory import could
+not put the resident's free-form days into it without cutting them, so
+they landed elsewhere. The cap was a storage optimization that edited
+the record. The resident's ruling (bookmark #53): keep the free text
+whole and give the database the summary, because "truncation edits the
+day silently". The summary is scaffolding for what the turn is shown, and
+showing it by default keeps the context cost down. Cut in the view only,
+where it says what it cut.
+
+## #31
+The wiki became the catch-all: the import adopted every file under a
+library folder, and the memory-wiki folder that nothing wrote to took
+what had no other home, Pocket Andrew among it. The resident's rule
+since: nothing enters a place without being decided into it. A rule a
+person keeps by habit lapses; one written into the registry cannot. The
+`system` shelf exists from the start under the same rule, as she asked,
+so it cannot become the next catch-all.
+
+## #32
+A pin says a bookmark matters; a keepsake, written once and never
+edited, had no place to say why. The why cannot live in the gift's own
+file without editing it, and a note in the wiki would be the catch-all
+again, so it is an event of its own beside the document. It is the
+resident's alone because the meaning of a gift is the receiver's to
+say; the witness can ask.

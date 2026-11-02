@@ -32,10 +32,12 @@ defmodule Oneiroi.Seshat.Citations do
   # `memory` is a target and never a source (seshat #28): the resident
   # may cite a day of the memory originals, and the originals mint no
   # edge of their own.
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory habit seed soul commitment)
-  # A ref ends on a letter, digit or `#`-less anchor character, so the full
-  # stop closing a sentence stays with the sentence.
-  @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/
+  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory keepsake system habit seed soul commitment)
+  # A ref opens and closes on a letter, a digit, `-` or `_`, so the full
+  # stop closing a sentence stays with the sentence; `-` and `_` because a
+  # session key is base64url and opens or closes on them about one time
+  # in sixteen, which cut a transcript citation short.
+  @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9_-](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9_-])?)/
 
   # ---- parsing, pure ----
 
@@ -330,12 +332,16 @@ defmodule Oneiroi.Seshat.Citations do
   @doc """
   The file a document citation names: `writing/the-bake-off` is
   `writing/the-bake-off.md`, a ref with an extension is the path itself,
-  and an anchor after `#` is not part of it.
+  a keepsake's is its name at the root (`keepsake/pocket-andrew` is
+  `pocket-andrew.md`), and an anchor after `#` is not part of it.
   """
   @spec document_path(String.t(), String.t()) :: String.t()
   def document_path(kind, ref) do
     ref = ref |> String.split("#") |> hd()
-    if Path.extname(ref) == "", do: "#{kind}/#{ref}.md", else: "#{kind}/#{ref}"
+    name = if Path.extname(ref) == "", do: "#{ref}.md", else: ref
+    # A keepsake has no folder: `<slug>:keepsake/pocket-andrew` is the
+    # root's `pocket-andrew.md` (seshat #29).
+    if kind == "keepsake", do: name, else: "#{kind}/#{name}"
   end
 
   defp resolve_rows(_resident_id, [], _mark?), do: []

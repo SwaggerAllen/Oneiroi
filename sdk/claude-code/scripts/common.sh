@@ -73,12 +73,15 @@ oneiroi_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 # status, 000 when nothing answered.
 oneiroi_api() {
   local method="$1" path="$2" body="$3" out="$4"
+  # `${data[@]+...}` rather than `"${data[@]}"`: macOS ships bash 3.2,
+  # where an empty array under `set -u` is an unbound variable, so every
+  # GET failed before curl ran and the session started without context.
   local -a data=()
   [ -n "$body" ] && data=(--data-binary "@$body")
   printf 'header = "Authorization: Bearer %s"\n' "$ONEIROI_TOKEN" |
     curl -sS -K - -X "$method" --max-time "${ONEIROI_TIMEOUT:-20}" \
       -H 'Content-Type: application/json' -H 'Accept: application/json' \
-      "${data[@]}" -o "$out" -w '%{http_code}' "$ONEIROI_URL$path" 2>/dev/null || true
+      ${data[@]+"${data[@]}"} -o "$out" -w '%{http_code}' "$ONEIROI_URL$path" 2>/dev/null || true
 }
 
 # The folder this Claude Code session works in, by its base name alone:
@@ -113,8 +116,11 @@ oneiroi_session_key() {
     return 0
   fi
   out="$(mktemp)"
-  jq -n --arg label "$(cat "$state/label" 2>/dev/null)" \
-    '{kind: "main", runtime: "claude-code"} + (if $label == "" then {} else {label: $label} end)' \
+  # `label` is jq 1.6's keyword, as a key and as `$label`, and refused
+  # the whole expression there, so the session opened with no name: the
+  # variable is `$name` and the key is quoted.
+  jq -n --arg name "$(cat "$state/label" 2>/dev/null)" \
+    '{kind: "main", runtime: "claude-code"} + (if $name == "" then {} else {"label": $name} end)' \
     > "$out.body"
   status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/sessions" "$out.body" "$out")"
   if [ "$status" = 201 ] && jq -ej '.key' "$out" > "$state/key.new" 2>/dev/null; then

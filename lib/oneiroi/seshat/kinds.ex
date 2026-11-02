@@ -13,9 +13,16 @@ defmodule Oneiroi.Seshat.Kinds do
   writes the kind: `:resident` through a document write, `:core` by the
   platform (inbound for mail, feeds and correspondence; the journal for
   its narrative), `:imported` by nothing after the originals import
-  copied it (memory, seshat #28). The registry is platform-wide; adding a kind is a row
+  copied it (memory, seshat #28), `:keepsake` once by either party and
+  never again (seshat #29). The registry is platform-wide; adding a kind is a row
   here plus the brain's instruction for it (the tool description lists
   the writable kinds from this table).
+
+  One kind has no folder: a keepsake is a text file at the repository's
+  root, beside the soul file, under any name the root does not already
+  give to something else (`reserved/0`). Its path is its name alone,
+  so `kind_of/1` reads a one-segment text path as a keepsake and every
+  other one-segment path as nothing.
   """
 
   alias Oneiroi.Seshat.Error
@@ -61,6 +68,10 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
+    # Decided, never swept (seshat #31): the wiki became the catch-all an
+    # import landed everything homeless in, Pocket Andrew among it, so a
+    # file enters it by a write or by its own adoption, never by an
+    # import's whole-repository one.
     %{
       kind: "wiki",
       folder: "wiki",
@@ -68,7 +79,23 @@ defmodule Oneiroi.Seshat.Kinds do
       has_status: false,
       layout: "wiki/<page>.md, plain and searchable (the memory-wiki plugin is cut)",
       sidecar: nil,
-      adoption: :file,
+      adoption: :decided,
+      access: :resident
+    },
+    # The resident's notes on how she runs (seshat #31): tool notes,
+    # conventions, her own AGENTS.md beside the build's rendered one. Her
+    # words about the machinery, apart from the soul file's voice, and
+    # decided from the day it exists, so it cannot become the next
+    # catch-all.
+    %{
+      kind: "system",
+      folder: "system",
+      cites: true,
+      has_status: false,
+      layout:
+        "system/<name>.md: how the resident runs, in her words (tool notes, conventions, her AGENTS.md)",
+      sidecar: nil,
+      adoption: :decided,
       access: :resident
     },
     %{
@@ -130,8 +157,38 @@ defmodule Oneiroi.Seshat.Kinds do
       sidecar: nil,
       adoption: :originals,
       access: :imported
+    },
+    # A keepsake (seshat #29): a gift-document kept at the root, beside
+    # the soul file, where its placement is part of what it is. Pocket
+    # Andrew was filed there on 2026-10-29 and moved under wiki/ by the
+    # import of 2026-11-01 only because the library could not hold a
+    # root file; the move kept the words and lost the place. Written
+    # once by either party and never again (`access: :keepsake`), since
+    # a gift edited is no longer the gift; a later version is a keepsake
+    # of its own. `adoption: :decided`: an unregistered root file is
+    # offered among the unadopted and adopted one by one, never by an
+    # import's whole-repository adoption, so the root cannot become the
+    # catch-all the wiki became. Cited, never citing: the words are
+    # mostly the giver's.
+    %{
+      kind: "keepsake",
+      folder: nil,
+      cites: false,
+      has_status: false,
+      layout:
+        "<name>.md at the repository root, beside the soul file; any name but the root's reserved ones",
+      sidecar: nil,
+      adoption: :decided,
+      access: :keepsake
     }
   ]
+
+  # The names the root already gives to something else: the identity
+  # files (spec §6.2), the build's rendered AGENTS.md, and the files
+  # another platform's repository keeps there (David's README, MEMORY and
+  # DREAMS, a coding agent's CLAUDE.md). None of them is a keepsake,
+  # whatever it holds, and an import names each as it did before.
+  @reserved ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md AGENTS.md README.md CLAUDE.md MEMORY.md DREAMS.md HEARTBEAT.md TOOLS.md)
 
   # A segment opens on a letter or digit, so `.`, `..` and a hidden file
   # fail here; a separate `..` clause was inert beside it and is gone.
@@ -148,12 +205,50 @@ defmodule Oneiroi.Seshat.Kinds do
   @spec all() :: [map()]
   def all, do: @kinds
 
-  @doc "The kind a path belongs to, by its first segment, or nil."
+  @doc "The kind a path belongs to, by its first segment, or nil; a path of one segment is a keepsake when it is a keepsake's name (`keepsake_name?/1`), and nothing otherwise."
   @spec kind_of(String.t()) :: map() | nil
   def kind_of(path) when is_binary(path) do
-    folder = path |> String.split("/") |> hd()
-    Enum.find(@kinds, &(&1.folder == folder))
+    case String.split(path, "/") do
+      [name] ->
+        if keepsake_name?(name), do: Enum.find(@kinds, &(&1.kind == "keepsake"))
+
+      [folder | _rest] ->
+        Enum.find(@kinds, &(&1.folder == folder and not is_nil(&1.folder)))
+    end
   end
+
+  @doc "The root names that are never keepsakes (seshat #29)."
+  @spec reserved() :: [String.t()]
+  def reserved, do: @reserved
+
+  @doc """
+  Whether a name at the repository root is a keepsake's: a text file
+  (`text?/1`), a plain segment the registry accepts, and none of the
+  root's reserved names. What the backup's keepsake class holds and what
+  `unadopted/1` offers from the root.
+  """
+  @spec keepsake_name?(String.t()) :: boolean()
+  def keepsake_name?(name) when is_binary(name) do
+    Regex.match?(@segment, name) and text?(name) and name not in @reserved
+  end
+
+  def keepsake_name?(_other), do: false
+
+  @doc "Whether a path is a keepsake's."
+  @spec keepsake?(String.t()) :: boolean()
+  def keepsake?(path) when is_binary(path), do: match?(%{kind: "keepsake"}, kind_of(path))
+
+  @doc """
+  Whether a path the library accepts belongs to a kind whose files are
+  decided into it one by one (seshat #29, #31): the keepsakes, the wiki
+  and the system shelf. An import leaves such a file where it is and the
+  library offers it; nothing adopts it but its own adoption or a write.
+  """
+  @spec decided?(String.t()) :: boolean()
+  def decided?(path) when is_binary(path),
+    do: match?({:ok, _}, normalize(path)) and match?(%{adoption: :decided}, kind_of(path))
+
+  def decided?(_other), do: false
 
   @doc "The kinds that mint citation edges."
   @spec minting() :: [String.t()]
@@ -163,14 +258,15 @@ defmodule Oneiroi.Seshat.Kinds do
   @spec non_minting() :: [String.t()]
   def non_minting, do: for(k <- @kinds, not k.cites, do: k.kind)
 
-  @doc "The kinds a document write may land in."
+  @doc "The kinds a document write may land in (a keepsake once)."
   @spec writable() :: [String.t()]
-  def writable, do: for(k <- @kinds, k.access == :resident, do: k.kind)
+  def writable, do: for(k <- @kinds, k.access in [:resident, :keepsake], do: k.kind)
 
   @doc """
   A path as the library accepts it: relative, plain segments (no `.`,
   `..` or empty), at most 255 characters each and 255 in all, under a
-  registered folder; nothing here reaches the filesystem unchecked.
+  registered folder or, alone, a keepsake's name at the root; nothing
+  here reaches the filesystem unchecked.
   """
   @spec normalize(term()) :: {:ok, String.t()} | {:error, Error.t()}
   def normalize(path) when is_binary(path) do
@@ -180,7 +276,7 @@ defmodule Oneiroi.Seshat.Kinds do
       byte_size(path) > @path_max ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_too_long)}
 
-      length(segments) < 2 ->
+      length(segments) < 2 and not keepsake_name?(path) ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_no_folder, path: path)}
 
       not Enum.all?(segments, &Regex.match?(@segment, &1)) ->
@@ -218,6 +314,9 @@ defmodule Oneiroi.Seshat.Kinds do
     cond do
       match?({:ok, _}, normalize(path)) ->
         nil
+
+      path in @reserved ->
+        "a file at the root that is not an identity file"
 
       is_nil(kind_of(path)) ->
         "outside the folders the library holds"

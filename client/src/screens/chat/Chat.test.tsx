@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, ReadOnly } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +12,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, ReadOnly]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -124,6 +124,30 @@ describe('Chat', () => {
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'the heron' } });
     fireEvent.click(screen.getByRole('button', { name: 'What Lily will see next' }));
     expect(onPreview).toHaveBeenCalledWith('the heron');
+  });
+
+  it('starts a long tool call closed on its first line and size, and opens it whole', () => {
+    const { container } = render(<LongToolCall />);
+    const details = container.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary')?.textContent).toMatch(/^library_read\(.{1,200}…\d+ lines · [\d,]+ characters$/);
+    // The short call in the conversation has nothing to fold.
+    cleanup();
+    const short = render(<Conversation />);
+    expect(short.container.querySelector('details')).toBeNull();
+    expect(screen.getByText('bookmark_add({"line":"the garden"}) -> Bookmarked as #1.')).toBeTruthy();
+  });
+
+  it('marks where the last visit left off, asks for earlier messages, and records reading to the end', () => {
+    const onOlder = vi.fn();
+    const onRead = vi.fn();
+    render(<Unread onOlder={onOlder} onRead={onRead} />);
+    const marker = screen.getByRole('separator', { name: 'New since you last read' });
+    expect(marker.nextElementSibling?.textContent).toContain('Answer 4');
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier messages' }));
+    expect(onOlder).toHaveBeenCalled();
+    // The transcript opens at its end, so reading to the newest is recorded.
+    expect(onRead).toHaveBeenCalledWith('12:0');
   });
 
   it('reads a conversation the server says is not writable: no composer, no preview, the inspector still opens', () => {

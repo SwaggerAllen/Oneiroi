@@ -60,6 +60,7 @@ defmodule Oneiroi.SimaQian.Import do
            {:ok, translated} <- translate(how, id, witness_account_id, actor),
            {:ok, adopted} <- library().adopt_all(id, actor),
            ledger = account(clone, translated, seeds, adopted),
+           :ok <- verify(clone, Backup.dir(id), ledger.library),
            :ok <- Backup.start_fresh(Backup.dir(id), Enum.map(ledger.left_behind, &elem(&1, 0))),
            :ok <-
              AgathosDaimon.complete_import(
@@ -253,21 +254,63 @@ defmodule Oneiroi.SimaQian.Import do
       adopted: MapSet.new(adopted.adopted),
       skipped: MapSet.new(adopted.skipped),
       folders: library().folders(),
-      identity: AgathosDaimon.identity_files()
+      identity: AgathosDaimon.identity_files(),
+      decided?: fn path -> library().decided?(path) end
     }
 
-    {left, unaccounted} =
+    {left, unaccounted, held} =
       clone
       |> files()
-      |> Enum.reduce({%{}, []}, fn path, {left, unaccounted} ->
+      |> Enum.reduce({%{}, [], []}, fn path, {left, unaccounted, held} ->
         case place_of(path, context) do
-          :held -> {left, unaccounted}
-          {:left, name, reason} -> {Map.put_new(left, name, reason), unaccounted}
-          {:unaccounted, reason} -> {Map.put_new(left, path, reason), [path | unaccounted]}
+          :held -> {left, unaccounted, [path | held]}
+          {:left, name, reason} -> {Map.put_new(left, name, reason), unaccounted, held}
+          {:unaccounted, reason} -> {Map.put_new(left, path, reason), [path | unaccounted], held}
         end
       end)
 
-    %{left_behind: Enum.sort(left), unaccounted: Enum.sort(unaccounted)}
+    %{
+      left_behind: Enum.sort(left),
+      unaccounted: Enum.sort(unaccounted),
+      library: held |> Enum.filter(&library?(&1, context)) |> Enum.sort()
+    }
+  end
+
+  # The placed file hashes to its blob at the commit; a file the commit
+  # does not hold, or one that cannot be read, is not the same.
+  defp same?(path, dest, blobs) do
+    case {Map.fetch(blobs, path), Git.blob_sha(dest, Path.join(dest, path))} do
+      {{:ok, sha}, {:ok, sha}} -> true
+      _different -> false
+    end
+  end
+
+  # A file the library holds or offers: one it adopted, or one of a kind
+  # decided in one by one (seshat #29, #31). What `verify/3` reads.
+  defp library?(path, c), do: MapSet.member?(c.adopted, path) or c.decided?.(path)
+
+  @doc """
+  Holds every file the library took or offers to the source's bytes
+  (sima-qian #45): each one in the placed repository against its blob in
+  the clone's commit, hashed as git hashes a blob with no filter. One
+  that differs fails the import, naming it, before the history is made
+  the platform's. The lesson of 2026-11-01: the rehearsals compared
+  counts, the counts matched, and the counts said nothing about bytes.
+  """
+  # Public for its test, which hands it a copy that drifted.
+  # sobelow_skip ["Traversal.FileModule"]
+  def verify(clone, dest, paths) do
+    with {:ok, tree} <- Git.tree(clone, "HEAD") do
+      blobs = Map.new(tree, &{&1.path, &1.blob})
+
+      drifted = Enum.reject(paths, &same?(&1, dest, blobs))
+
+      if drifted == [],
+        do: :ok,
+        else:
+          {:error,
+           Error.new(:sima_qian_import_mismatch, :sima_qian_import_verify, paths: drifted)}
+    end
   end
 
   # Every file under the clone, hidden ones included, but its `.git`.
@@ -298,6 +341,14 @@ defmodule Oneiroi.SimaQian.Import do
 
       # A root file another platform's translation read: the seedbed.
       name in c.read ->
+        :held
+
+      # A keepsake (seshat #29) stays where it was placed, beside the
+      # soul file, and is offered among the unadopted rather than adopted:
+      # each one is decided into the library, never swept in. Pocket
+      # Andrew was filed at Lily's root and could only cross under wiki/
+      # before this.
+      c.decided?.(name) ->
         :held
 
       true ->
@@ -341,6 +392,11 @@ defmodule Oneiroi.SimaQian.Import do
         {:left, root, library().refusal(path)}
 
       MapSet.member?(c.adopted, path) ->
+        :held
+
+      # A decided kind's file (the wiki, the system shelf; seshat #31)
+      # stays where it was and is offered, never swept in.
+      c.decided?.(path) ->
         :held
 
       reason = library().refusal(path) ->

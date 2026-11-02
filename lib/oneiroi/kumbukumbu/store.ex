@@ -105,6 +105,26 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule RetrievalUse do
+    @moduledoc "One thing retrieval did with one target in a turn: considered, returned or used, and through what (the resident's work order, 2026-11-02)."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_retrieval_use" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:position, :integer, primary_key: true)
+      field(:account_id, :binary_id)
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:target, :string)
+      field(:stage, :string)
+      field(:via, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Bookmark do
     @moduledoc "A moment with a span (spec §6.3): the resident's line and summary, the anchor turn, the pin and the weight."
     use Ecto.Schema
@@ -290,6 +310,73 @@ defmodule Oneiroi.Kumbukumbu.Store do
       )
     )
   end
+
+  @doc """
+  Each target retrieval has touched, with how many times it was
+  considered, returned and used, and when it was last returned and last
+  used; `kind` narrows to targets of one kind (`bookmark`), `target` to
+  one. Counted across sessions under the scope, so the resident's read is
+  everything and a witness's is the sessions they are party to.
+  """
+  @spec retrieval_counts(keyword()) :: [map()]
+  def retrieval_counts(opts \\ []) do
+    query =
+      from(u in RetrievalUse,
+        group_by: u.target,
+        select: %{
+          target: u.target,
+          considered: filter(count(u.position), u.stage == "considered"),
+          returned: filter(count(u.position), u.stage == "returned"),
+          used: filter(count(u.position), u.stage == "used"),
+          last_returned_at: filter(max(u.at), u.stage == "returned"),
+          last_used_at: filter(max(u.at), u.stage == "used")
+        }
+      )
+
+    query =
+      case opts[:kind] do
+        nil -> query
+        kind -> from(u in query, where: like(u.target, ^"#{kind}/%"))
+      end
+
+    query =
+      case opts[:target] do
+        nil -> query
+        target -> from(u in query, where: u.target == ^target)
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  A page of a session's messages, in order: the last `limit` before the
+  `{sequence, position}` cursor, or the last `limit` of all when the
+  cursor is nil, and whether earlier ones remain. The chat reads the
+  newest page first and pages back as the reader scrolls up, so a long
+  conversation is never read whole to show its last screen.
+  """
+  @spec messages_page(String.t(), {integer(), integer()} | nil, pos_integer()) ::
+          {[Message.t()], boolean()}
+  def messages_page(key, before, limit) do
+    rows =
+      from(m in Message,
+        where: m.session_key == ^key,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^(limit + 1)
+      )
+      |> before_cursor(before)
+      |> Repo.all()
+
+    {rows |> Enum.take(limit) |> Enum.reverse(), length(rows) > limit}
+  end
+
+  defp before_cursor(query, nil), do: query
+
+  defp before_cursor(query, {sequence, position}),
+    do:
+      from(m in query,
+        where: m.sequence < ^sequence or (m.sequence == ^sequence and m.position < ^position)
+      )
 
   @doc """
   The last `count` messages of a session since its compaction, in order:

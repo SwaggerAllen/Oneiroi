@@ -154,6 +154,10 @@ defmodule Oneiroi.SimaQian do
       {:sima_qian_git_unstarted, "git could not start on this server",
        remedy:
          "the details name the binary and why: enoent is a runtime image without git (test/oneiroi/runtime_image_test.exs holds the image to it)"},
+      {:sima_qian_import_mismatch,
+       "a file the library took or offers is not the source's bytes at the imported commit",
+       remedy:
+         "nothing was made the platform's; the paths are named: read them against the source, and import again once the cause is found"},
       {:sima_qian_copy_failed, "the clone could not be copied into the records root",
        remedy:
          "the cause is the file system's reason; check the disk under SIMA_QIAN_ROOT, its space and its owner"},

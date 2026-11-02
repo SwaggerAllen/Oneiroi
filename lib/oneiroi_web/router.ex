@@ -100,6 +100,7 @@ defmodule OneiroiWeb.Router do
       delete("/residents/:id/adapters/:adapter", ResidentController, :revoke_adapter)
       get("/residents/:id/bookmarks", MemoryController, :bookmarks)
       get("/residents/:id/index", MemoryController, :index_now)
+      get("/residents/:id/retrieval", MemoryController, :retrieval)
       get("/residents/:id/bookmarks/:number", MemoryController, :bookmark)
       post("/residents/:id/bookmarks/:number/pin", MemoryController, :pin)
       delete("/residents/:id/bookmarks/:number/pin", MemoryController, :unpin)

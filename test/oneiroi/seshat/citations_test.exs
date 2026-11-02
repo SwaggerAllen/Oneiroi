@@ -24,6 +24,21 @@ defmodule Oneiroi.Seshat.CitationsTest do
            ] = Citations.extract(text)
   end
 
+  # A session key is base64url, so it may open or close on `-` or `_`;
+  # the pattern cut such a key short, and the review's transcript
+  # reference went missing at random (the documents suite's flake).
+  test "a transcript key that opens or closes on - or _ is cited whole, and a full stop still is not" do
+    text =
+      "our talk (lily:transcript/EC8Xu4wA2jkIiBXFYrus7_). Then lily:transcript/-abc9Z-, and lily:bookmark/42."
+
+    assert [
+             "lily:transcript/EC8Xu4wA2jkIiBXFYrus7_",
+             "lily:transcript/-abc9Z-",
+             "lily:bookmark/42"
+           ] =
+             text |> Citations.extract() |> Enum.map(& &1.target)
+  end
+
   test "the publish copy strips every citation and the frontmatter and tidies the spaces" do
     text =
       "---\nstatus: final\n---\n# Bake-off\n\nI held it (lily:position/7) then, and lily:bookmark/42 says so."
@@ -97,9 +112,23 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.refusal("wiki/a b.md") =~ "characters other than"
     assert Kinds.refusal("notes/a.md") =~ "outside the folders"
 
-    assert Kinds.minting() == ~w(writing research design journal)
-    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory)
-    assert Kinds.writable() == ~w(writing research design wiki posts)
+    # A keepsake is a root name alone (seshat #29); the root's reserved
+    # names and anything not text still have no kind.
+    assert {:ok, "pocket-andrew.md"} = Kinds.normalize("pocket-andrew.md")
+    assert %{kind: "keepsake"} = Kinds.kind_of("pocket-andrew.md")
+    assert is_nil(Kinds.kind_of("SOUL.md")) and is_nil(Kinds.kind_of("photo.png"))
+    assert {:error, _} = Kinds.normalize("README.md")
+    assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
+
+    assert Kinds.minting() == ~w(writing research design journal system)
+    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory keepsake)
+    assert Kinds.writable() == ~w(writing research design wiki system posts keepsake)
+
+    # Decided one by one (seshat #29, #31): a keepsake, a wiki page, a
+    # system note; never the writing, and nothing the registry refuses.
+    assert Kinds.decided?("pocket-andrew.md")
+    assert Kinds.decided?("wiki/bread.md") and Kinds.decided?("system/tools.md")
+    refute Kinds.decided?("writing/essay.md") or Kinds.decided?("wiki/a b.md")
   end
 
   test "the chunker splits on paragraphs up to the bound and a long paragraph at the bound" do

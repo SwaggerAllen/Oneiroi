@@ -10,6 +10,7 @@ import type {
   RegressionRunDetail,
   RegressionTest,
   Resident,
+  RetrievalCount,
   Session,
   Tag,
   TestTexts,
@@ -62,6 +63,14 @@ export const api = {
   sessions: (residentId: string) => call<Session[]>('GET', `/v1/residents/${residentId}/sessions`),
   transcript: (residentId: string, key: string) =>
     call<Transcript>('GET', `/v1/residents/${residentId}/sessions/${key}`),
+  // The last `limit` messages before a cursor (the newest without one),
+  // and whether earlier ones remain: the chat opens on the newest page
+  // and pages back as the reader scrolls up.
+  transcriptPage: (residentId: string, key: string, limit: number, before?: string) =>
+    call<Transcript & { more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+    ),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
   injections: (residentId: string, turnRef: string) =>
@@ -72,6 +81,7 @@ export const api = {
     call<ContextPreview>('POST', `/v1/residents/${residentId}/sessions/${key}/preview`, { text }),
 
   indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
+  retrieval: (residentId: string) => call<RetrievalCount[]>('GET', `/v1/residents/${residentId}/retrieval`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),

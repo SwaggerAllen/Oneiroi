@@ -93,6 +93,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.StartTurn,
       Commands.CaptureTurn,
       Commands.RecordContext,
+      Commands.RecordRetrieval,
       Commands.FailCapture,
       Commands.ResolveCaptureFailure,
       Commands.ShareSession,
@@ -101,6 +102,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.TurnStarted,
       Events.TurnCaptured,
       Events.ContextAssembled,
+      Events.RetrievalRecorded,
       Events.CaptureFailed,
       Events.CaptureFailureResolved,
       Events.SessionShared,
@@ -108,7 +110,8 @@ defmodule Oneiroi.Kumbukumbu do
       Store.Session,
       Store.Message,
       Store.CaptureFailure,
-      Store.ContextInjection
+      Store.ContextInjection,
+      Store.RetrievalUse
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
@@ -192,6 +195,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
+      {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 1},
       {Oneiroi.Kumbukumbu.Events.Compacted, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
@@ -354,6 +358,17 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor)
   )
 
+  @doc "Records what retrieval did in a turn: each use `%{target, stage, via}`, stage considered, returned or used."
+  @spec record_retrieval(String.t(), String.t(), String.t(), [map()], Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(record_retrieval(resident_id, key, turn_ref, uses, actor),
+    do: Conversations.record_retrieval(resident_id, key, turn_ref, uses, actor)
+  )
+
+  @doc "Each target retrieval touched, with how often it was considered, returned and used, and when last returned and used; `kind:` or `target:` narrows it."
+  @spec retrieval(Oneiroi.Scope.t(), keyword()) :: [map()]
+  defexport(retrieval(scope, opts), do: Conversations.retrieval(scope, opts))
+
   @doc "Records what was put in front of the brain for a turn, each blob with its reason."
   @spec record_context(String.t(), String.t(), String.t(), [map()], Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
@@ -409,6 +424,20 @@ defmodule Oneiroi.Kumbukumbu do
           {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
           | {:error, term()}
   defexport(transcript(scope, key), do: Conversations.transcript(scope, key))
+
+  @doc "A page of a session's transcript: the last `limit` messages before a `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
+  @spec transcript_page(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {integer(), integer()} | nil,
+          pos_integer()
+        ) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()],
+           boolean()}
+          | {:error, term()}
+  defexport(transcript_page(scope, key, before, limit),
+    do: Conversations.transcript_page(scope, key, before, limit)
+  )
 
   @doc "The last `count` messages of a session, for the brain's live transcript."
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]

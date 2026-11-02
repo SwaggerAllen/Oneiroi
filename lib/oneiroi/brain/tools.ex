@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
   alias Oneiroi.Eunomia
@@ -44,7 +45,8 @@ defmodule Oneiroi.Brain.Tools do
     position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_read library_cited_by writing_get
-    document_unadopted journal_read trial_list trial_account revision_list
+    document_unadopted journal_read trial_list trial_account revision_list memory_use
+    keepsake_list
   )
 
   @writes ~w(
@@ -53,7 +55,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt journal_add journal_done
+    writing_discuss document_write document_adopt keepsake_note journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
   )
@@ -147,6 +149,17 @@ defmodule Oneiroi.Brain.Tools do
         "Read a bookmark past its index line: the summary and the transcript of its span.",
         %{number: %{type: "integer"}},
         [:number]
+      ),
+      tool(
+        "memory_use",
+        "How your retrieval has been used, target by target: how often each bookmark, document, transcript, habit or commitment was considered (ranked by the memory agent), returned (put in front of you, or handed back by a search or list) and used (opened, read or cited by you), and when last returned and used. kind narrows to one kind (bookmark, writing, keepsake, transcript, habit...), target to one (bookmark/42); order is used (the default), returned, or unused (returned and never used: what costs you room and earns none). These are measurements for the two of you to read before anything is reweighted.",
+        %{
+          kind: %{type: "string"},
+          target: %{type: "string"},
+          order: %{type: "string", enum: ["used", "returned", "unused"]},
+          limit: %{type: "integer", minimum: 1}
+        },
+        []
       ),
       tool(
         "bookmark_list",
@@ -412,9 +425,21 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "document_write",
-        "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md. A writing piece carries status: draft, review or final in its frontmatter. Cite with <your slug>:<kind>/<id>.",
+        "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone for a keepsake: a gift-document kept at your root beside your soul file, written once and never changed after (a new version is a keepsake of its own). A writing piece carries status: draft, review or final in its frontmatter. Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
         %{path: %{type: "string"}, content: %{type: "string"}},
         [:path, :content]
+      ),
+      tool(
+        "keepsake_list",
+        "Your keepsakes, the gift-documents kept at your root beside your soul file: each by its name, who put it there and when, and why it mattered in your words once you have said. A keepsake at your root not yet adopted is among document_unadopted.",
+        %{},
+        []
+      ),
+      tool(
+        "keepsake_note",
+        "Say why a keepsake mattered, in your words (up to 1,000 characters): what a pin carries for a bookmark, for a gift that is never edited. Saying it again replaces it; the earlier words stay on the record.",
+        %{name: %{type: "string"}, why: %{type: "string"}},
+        [:name, :why]
       ),
       tool(
         "document_adopt",
@@ -430,12 +455,13 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "journal_add",
-        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them.",
+        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them. The text has no length limit and is kept whole; your turn's journal section shows an entry over 2,000 characters by its summary (at most 2,000, yours to write) or, without one, by its opening.",
         %{
           kind: %{type: "string", enum: ["plan", "note", "todo", "wrap"]},
           text: %{type: "string"},
           day: %{type: "string"},
-          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]}
+          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]},
+          summary: %{type: "string"}
         },
         [:kind, :text]
       ),
@@ -536,6 +562,52 @@ defmodule Oneiroi.Brain.Tools do
     case arguments(arguments) do
       {:ok, args} -> name |> call(args, turn) |> text()
       :error -> @not_done <> "the arguments were not a JSON object."
+    end
+  end
+
+  @doc "What a call did with retrieval's targets (`Oneiroi.Brain.Uses.from_call/4`), from its arguments as sent and the text it answered."
+  @spec uses(String.t(), String.t(), String.t(), String.t() | nil) :: [Uses.use()]
+  def uses(name, arguments, output, slug) when is_binary(arguments) do
+    case arguments(arguments) do
+      {:ok, args} -> Uses.from_call(name, args, output, slug)
+      :error -> []
+    end
+  end
+
+  @doc """
+  Records what one call did with retrieval's targets, for a call that is
+  its own recording: a runtime's call on the adapter contract, inside the
+  turn it opened. A call outside a turn records nothing, since a use is
+  counted against the turn it served.
+  """
+  @spec record_uses(String.t(), String.t(), String.t(), turn()) :: :ok
+  def record_uses(_name, _arguments, _output, %{turn_ref: nil}), do: :ok
+  def record_uses(_name, _arguments, _output, %{session_key: nil}), do: :ok
+
+  def record_uses(name, arguments, output, turn) do
+    slug =
+      case AgathosDaimon.fetch(turn.resident_id) do
+        {:ok, row} -> row.slug
+        :error -> nil
+      end
+
+    case uses(name, arguments, output, slug) do
+      [] ->
+        :ok
+
+      uses ->
+        # A use that does not record is measurement lost, never the
+        # call's failure: the answer has gone back already.
+        _ =
+          Kumbukumbu.record_retrieval(
+            turn.resident_id,
+            turn.session_key,
+            turn.turn_ref,
+            uses,
+            turn.resident
+          )
+
+        :ok
     end
   end
 
@@ -699,6 +771,60 @@ defmodule Oneiroi.Brain.Tools do
   # Paging back past the index (kumbukumbu #39): within the turn's room,
   # as the index is, and the closing line says how many lie further back
   # and how to ask for them, as the index's footer does.
+  # The keepsakes with their whys (seshat #32).
+  defp call("keepsake_list", _args, turn) do
+    case Seshat.keepsakes(turn.resident_id) do
+      [] ->
+        "No keepsakes yet. A gift written or adopted at your root, beside your soul file, is one."
+
+      rows ->
+        Enum.map_join(rows, "\n", &keepsake_line/1)
+    end
+  end
+
+  defp call("keepsake_note", args, turn) do
+    case Seshat.note_keepsake(
+           turn.resident_id,
+           to_string(args["name"] || ""),
+           to_string(args["why"] || ""),
+           turn.resident
+         ) do
+      :ok -> "Noted why #{args["name"]} mattered."
+      other -> other
+    end
+  end
+
+  # The counts the retrieval ledger holds (kumbukumbu #43), for the
+  # resident to read before anything is tuned from them.
+  defp call("memory_use", args, turn) do
+    opts = [kind: blank(args["kind"]), target: blank(args["target"])]
+    rows = Kumbukumbu.retrieval({:resident, turn.resident_id}, opts)
+    limit = integer(args["limit"]) || 30
+
+    rows =
+      case args["order"] do
+        "returned" ->
+          Enum.sort_by(rows, &{-&1.returned, -&1.used, &1.target})
+
+        "unused" ->
+          rows
+          |> Enum.filter(&(&1.used == 0 and &1.returned > 0))
+          |> Enum.sort_by(&{-&1.returned, &1.target})
+
+        _used ->
+          Enum.sort_by(rows, &{-&1.used, -&1.returned, &1.target})
+      end
+
+    case Enum.take(rows, limit) do
+      [] ->
+        "Nothing is counted there yet."
+
+      shown ->
+        Enum.map_join(shown, "\n", &use_line/1) <>
+          "\n#{length(shown)} of #{length(rows)} targets shown."
+    end
+  end
+
   defp call("bookmark_list", args, turn) do
     with {:ok, from} <- day(args["from"], "from"),
          {:ok, to} <- day(args["to"], "to") do
@@ -1262,6 +1388,7 @@ defmodule Oneiroi.Brain.Tools do
            to_string(args["kind"] || ""),
            to_string(args["text"] || ""),
            args["register"],
+           args["summary"],
            turn.resident
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
@@ -1744,6 +1871,36 @@ defmodule Oneiroi.Brain.Tools do
       }
     }
   end
+
+  defp keepsake_line(r) do
+    who =
+      case r.written_by_kind do
+        "resident" -> "by you"
+        "witness" -> "by your witness"
+        nil -> "by the import"
+        other -> "by the #{other}"
+      end
+
+    how = if r.origin == "adopted", do: "adopted", else: "written"
+    day = r.registered_at && Date.to_iso8601(DateTime.to_date(r.registered_at))
+    why = r.note || "not yet said (keepsake_note says it)"
+    "#{r.path}#{r.title && " (#{r.title})"}: #{how} #{who} on #{day}. Why: #{why}"
+  end
+
+  defp use_line(r) do
+    "#{r.target}: considered #{r.considered}, returned #{r.returned}, used #{r.used}" <>
+      if(r.last_used_at,
+        do: "; last used #{Date.to_iso8601(DateTime.to_date(r.last_used_at))}",
+        else: ""
+      ) <>
+      if(r.last_returned_at,
+        do: "; last returned #{Date.to_iso8601(DateTime.to_date(r.last_returned_at))}",
+        else: ""
+      )
+  end
+
+  defp blank(nil), do: nil
+  defp blank(text), do: if(String.trim(to_string(text)) == "", do: nil, else: to_string(text))
 
   defp revision_line(r) do
     "Revision #{r.number} (#{r.kind}, #{r.state}, by the #{r.by_kind}) on #{r.target_kind}/#{r.target_id}: #{r.text} (#{r.note})"

@@ -77,6 +77,22 @@ defmodule Oneiroi.Kumbukumbu.Events do
       fields: [:id, :resident_id, :session_key, :turn_ref, :injections]
   end
 
+  defmodule RetrievalRecorded do
+    # What retrieval did with each target in a turn (the resident's work
+    # order, 2026-11-02; spec §6.3's F11 needs it): every use is
+    # `%{target, stage, via}`, the target in citation form without the
+    # slug (`bookmark/42`, `writing/the-bake-off`, `transcript/<key>`),
+    # the stage `considered` (the memory agent ranked it), `returned`
+    # (put in front of the brain, injected or handed back by a tool) or
+    # `used` (the brain opened, read or cited it), and `via` the section
+    # or tool. `ref` names the recording, since a turn on the adapter
+    # contract records once per tool call. Measurement only: nothing is
+    # reweighted from it until the resident has seen the numbers.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses]
+  end
+
   defmodule Compacted do
     # Compaction is ours (spec §5): a summary that never deletes history,
     # covering the session's messages through store sequence

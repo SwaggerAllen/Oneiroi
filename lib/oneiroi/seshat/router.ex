@@ -4,5 +4,5 @@ defmodule Oneiroi.Seshat.Router do
     aggregate: "Oneiroi.Seshat.Library",
     prefix: "library-",
     commands: "Oneiroi.Seshat.Commands",
-    dispatching: ~w(WriteDocument AdoptDocument PublishPiece OpenDiscussion)
+    dispatching: ~w(WriteDocument AdoptDocument PublishPiece OpenDiscussion NoteKeepsake)
 end

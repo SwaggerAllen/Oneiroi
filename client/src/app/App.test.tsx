@@ -73,10 +73,14 @@ describe('App', () => {
       '/v1/residents': { status: 200, body: [lily] },
       'POST /v1/residents/r1/sessions': { status: 201, body: { key: 'chat' } },
       'GET /v1/residents/r1/sessions': { status: 200, body: [session('cc', 'Claude Code · Oneiroi', false), session('chat', 'Oneiroi chat', true)] },
-      '/v1/residents/r1/sessions/chat': { status: 200, body: { session: session('chat', 'Oneiroi chat', true), messages: [reply('chat', 'Hello from the chat.')], drew_on: {} } },
-      '/v1/residents/r1/sessions/cc': {
+      // The chat reads a conversation a page at a time, newest first.
+      '/v1/residents/r1/sessions/chat?limit=50': {
         status: 200,
-        body: { session: session('cc', 'Claude Code · Oneiroi', false), messages: [reply('cc', 'The tests pass.')], drew_on: { 't-cc': 9 } },
+        body: { session: session('chat', 'Oneiroi chat', true), messages: [reply('chat', 'Hello from the chat.')], drew_on: {}, more: false },
+      },
+      '/v1/residents/r1/sessions/cc?limit=50': {
+        status: 200,
+        body: { session: session('cc', 'Claude Code · Oneiroi', false), messages: [reply('cc', 'The tests pass.')], drew_on: { 't-cc': 9 }, more: false },
       },
     });
     vi.stubGlobal('fetch', fetch);

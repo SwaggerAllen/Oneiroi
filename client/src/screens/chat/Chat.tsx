@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { ContextPreview, Injection, Message } from '../../api/types';
 import { ActorChip } from '../../components/ActorChip';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { RefusalBlock } from '../../components/RefusalBlock';
 import { TopBar } from '../../components/TopBar';
+import { firstUnread, newestCursor, toolSummary } from './page';
 
 export interface ChatProps {
   residentName: string;
@@ -24,6 +25,17 @@ export interface ChatProps {
   // What the next turn would be given, as the server assembled and
   // worded it (brain #41); null while closed.
   preview?: ContextPreview | null;
+  // Earlier messages remain on the server, and how to ask for them: the
+  // transcript opens on its newest page and pages back as the reader
+  // scrolls up.
+  more?: boolean;
+  onOlder?: () => void;
+  // The cursor of the last message read on an earlier visit, held as it
+  // was when the conversation opened, so the marker stays where the
+  // reader left off while they read; and the call that records reading
+  // to the end.
+  lastRead?: string | null;
+  onRead?: (cursor: string) => void;
   onSend: (text: string) => void;
   // Opens the preview with the draft as it stands, or closes it.
   onPreview?: (draft: string) => void;
@@ -31,10 +43,22 @@ export interface ChatProps {
   onProposeBookmark?: (message: Message) => void;
 }
 
+// How close to an edge counts as at it, in pixels.
+const NEAR = 160;
+
 // Chat is home (spec §10): the main conversation as a transcript, refusals
 // in the resident's words, "drew on N things" per reply (what that turn
 // drew on), the preview of what the next turn would be given, the
 // composer. Replies are not regenerated and sent messages are not edited.
+//
+// The top bar, the composer and the shell's nav stay where they are and
+// only the transcript scrolls. It opens on the newest message, pages back
+// as the reader nears the top without moving what they are reading, and
+// follows new messages only while the reader is at the end; otherwise a
+// button says new ones arrived. A divider marks where an earlier visit
+// left off, the resident's ask: whether the witness has been reading
+// stays legible, to both of them.
+//
 // The same screen reads another conversation (a Claude Code one) when
 // the server says it is not writable: the transcript and the inspector,
 // with no composer and no preview (kumbukumbu #40).
@@ -48,12 +72,23 @@ export function Chat({
   drewOn = {},
   sending = false,
   preview = null,
+  more = false,
+  onOlder,
+  lastRead = null,
+  onRead,
   onSend,
   onPreview,
   onInspect,
   onProposeBookmark,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
+  const log = useRef<HTMLDivElement>(null);
+  const marker = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true);
+  const shape = useRef<{ first: string | undefined; count: number; height: number }>({ first: undefined, count: 0, height: 0 });
+  const [newBelow, setNewBelow] = useState(false);
+  const [markerAbove, setMarkerAbove] = useState(false);
+  const unread = firstUnread(messages, lastRead);
   const writable = conversation?.writable ?? true;
   // Which model answered, as the server recorded it on the reply: the
   // pin is otherwise invisible here, and a pin that did not take was
@@ -65,8 +100,61 @@ export function Chat({
     onSend(text);
     setDraft('');
   };
+
+  const toEnd = () => {
+    const el = log.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    atEnd.current = true;
+    setNewBelow(false);
+  };
+
+  const read = () => {
+    const cursor = newestCursor(messages);
+    if (cursor && onRead) onRead(cursor);
+  };
+
+  // Before paint: older messages put above keep the reader's place; new
+  // ones below are followed only from the end; the first page opens at
+  // the end.
+  useLayoutEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const before = shape.current;
+    const first = messages[0]?.cursor ?? messages[0]?.sent_at;
+    if (before.count === 0 && messages.length > 0) {
+      el.scrollTop = el.scrollHeight;
+      atEnd.current = true;
+    } else if (before.first !== undefined && first !== before.first && messages.length > before.count) {
+      el.scrollTop += el.scrollHeight - before.height;
+    } else if (atEnd.current) {
+      el.scrollTop = el.scrollHeight;
+    } else if (messages.length > before.count || streaming) {
+      setNewBelow(true);
+    }
+    shape.current = { first, count: messages.length, height: el.scrollHeight };
+  }, [messages, streaming]);
+
+  useEffect(() => {
+    if (atEnd.current) read();
+    // Reading is recorded when the newest message is in view, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  const onScroll = () => {
+    const el = log.current;
+    if (!el) return;
+    atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR;
+    if (atEnd.current) {
+      setNewBelow(false);
+      read();
+    }
+    if (more && onOlder && el.scrollTop < NEAR) onOlder();
+    const m = marker.current;
+    setMarkerAbove(m ? m.getBoundingClientRect().top < el.getBoundingClientRect().top : false);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <TopBar
         title={residentName}
         line={
@@ -77,35 +165,86 @@ export function Chat({
               : 'Main conversation'
         }
       />
-      {conversations}
-      <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        {messages.length === 0 && !streaming ? (
-          <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
-        ) : null}
-        {messages.map((m) => (
-          <Reply
-            key={`${m.turn_ref}-${m.sent_at}-${m.role}-${m.content.slice(0, 16)}`}
-            message={m}
-            residentName={residentName}
-            drewOn={drewOn[m.turn_ref]}
-            injections={injections[m.turn_ref]}
-            onInspect={onInspect}
-            onProposeBookmark={onProposeBookmark}
-          />
-        ))}
-        {streaming ? (
-          <p
-            aria-live="polite"
-            style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 17, lineHeight: '26px', color: 'var(--ink-muted)' }}
-          >
-            {streaming.text}
-          </p>
-        ) : null}
-      </main>
+      {conversations ? <div style={{ flex: 'none' }}>{conversations}</div> : null}
+      {markerAbove ? (
+        <div style={{ padding: 'var(--space-1) var(--space-4)', borderBottom: '1px solid var(--hairline)' }}>
+          <Button variant="quiet" onClick={() => marker.current?.scrollIntoView({ block: 'start' })}>
+            Back to where you left off
+          </Button>
+        </div>
+      ) : null}
+      <div
+        ref={log}
+        role="log"
+        aria-label="Conversation"
+        onScroll={onScroll}
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+      >
+        <main style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minWidth: 0 }}>
+          {more && onOlder ? (
+            <div style={{ textAlign: 'center' }}>
+              <Button variant="quiet" onClick={onOlder}>
+                Earlier messages
+              </Button>
+            </div>
+          ) : null}
+          {messages.length === 0 && !streaming ? (
+            <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
+          ) : null}
+          {messages.map((m, i) => (
+            <Fragment key={`${m.cursor ?? ''}-${m.turn_ref}-${m.sent_at}-${m.role}-${m.content.slice(0, 16)}`}>
+              {i === unread ? (
+                <div
+                  ref={marker}
+                  role="separator"
+                  aria-label="New since you last read"
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--witness)', fontSize: 12 }}
+                >
+                  <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
+                  New since you last read
+                  <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
+                </div>
+              ) : null}
+              <Reply
+                message={m}
+                residentName={residentName}
+                drewOn={drewOn[m.turn_ref]}
+                injections={injections[m.turn_ref]}
+                onInspect={onInspect}
+                onProposeBookmark={onProposeBookmark}
+              />
+            </Fragment>
+          ))}
+          {streaming ? (
+            <p
+              aria-live="polite"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-serif)',
+                fontSize: 17,
+                lineHeight: '26px',
+                color: 'var(--ink-muted)',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {streaming.text}
+            </p>
+          ) : null}
+        </main>
+      </div>
+      {newBelow ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-1)', borderTop: '1px solid var(--hairline)' }}>
+          <Button variant="quiet" onClick={toEnd}>
+            New messages below
+          </Button>
+        </div>
+      ) : null}
       {!writable ? (
         <p
           role="note"
           style={{
+            flex: 'none',
             margin: 0,
             padding: 'var(--space-3) var(--space-4)',
             borderTop: '1px solid var(--hairline)',
@@ -117,13 +256,17 @@ export function Chat({
         </p>
       ) : null}
       {writable && onPreview ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-3)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-4)', flex: 'none' }}>
           <div>
             <Button variant="quiet" onClick={() => onPreview(draft)}>
               {preview ? 'Close the preview' : `What ${residentName} will see next`}
             </Button>
           </div>
-          {preview ? <Preview preview={preview} /> : null}
+          {preview ? (
+            <div style={{ maxHeight: '40dvh', overflowY: 'auto' }}>
+              <Preview preview={preview} />
+            </div>
+          ) : null}
         </div>
       ) : null}
       {writable ? (
@@ -134,6 +277,7 @@ export function Chat({
           }}
           style={{
             display: 'flex',
+            flex: 'none',
             gap: 'var(--space-2)',
             padding: 'var(--space-3) var(--space-4)',
             borderTop: '1px solid var(--hairline)',
@@ -147,6 +291,7 @@ export function Chat({
             placeholder={`Write to ${residentName}`}
             style={{
               flex: 1,
+              minWidth: 0,
               minHeight: 'var(--control-h)',
               padding: '0 var(--space-3)',
               borderRadius: 'var(--radius-md)',
@@ -184,15 +329,9 @@ function Reply({
   const mine = message.role === 'user';
   const system = message.role === 'system';
   const tool = message.role === 'tool';
-  if (tool) {
-    return (
-      <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-faint)' }}>
-        {message.content}
-      </p>
-    );
-  }
+  if (tool) return <ToolCall content={message.content} />;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: mine ? 'flex-end' : 'stretch' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: mine ? 'flex-end' : 'stretch', minWidth: 0 }}>
       <ActorChip actor={message.actor} name={mine ? 'you' : system ? 'Oneiroi' : residentName} />
       {message.refusal ? (
         <RefusalBlock text={message.content} />
@@ -207,8 +346,9 @@ function Reply({
             fontSize: mine || system ? 15 : 17,
             lineHeight: mine || system ? '22px' : '26px',
             color: system ? 'var(--ink-muted)' : 'var(--ink)',
-            maxWidth: 'var(--measure)',
+            maxWidth: 'min(var(--measure), 100%)',
             whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
           }}
         >
           {message.content}
@@ -237,6 +377,25 @@ function Reply({
         </div>
       ) : null}
     </div>
+  );
+}
+
+// A tool call starts closed (the resident's ask): its first line, cut to
+// the width, and how long the whole is; it opens to every word. Some run
+// to ten seconds of scrolling, and the conversation is what the screen
+// is for. A call of one short line has nothing to fold.
+function ToolCall({ content }: { content: string }) {
+  const { line, more } = toolSummary(content);
+  const text = { margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-faint)', minWidth: 0 } as const;
+  if (!more) return <p style={{ ...text, overflowWrap: 'anywhere' }}>{line}</p>;
+  return (
+    <details style={{ ...text, display: 'block' }}>
+      <summary style={{ cursor: 'pointer', display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', minWidth: 0 }}>
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{line}</span>
+        <span style={{ flex: 'none', fontFamily: 'var(--font-sans)' }}>{more}</span>
+      </summary>
+      <pre style={{ margin: 'var(--space-1) 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: 'inherit' }}>{content}</pre>
+    </details>
   );
 }
 

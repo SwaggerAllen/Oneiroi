@@ -216,6 +216,29 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc """
+  Records what retrieval did in a turn: each use `%{target, stage, via}`
+  (`Events.RetrievalRecorded`). Nothing is recorded for a turn that
+  retrieved nothing.
+  """
+  def record_retrieval(resident_id, key, turn_ref, uses, %Actor{} = actor) when is_list(uses) do
+    command = %Commands.RecordRetrieval{
+      actor: actor,
+      at: Clock.now(),
+      id: stream(resident_id, key),
+      resident_id: resident_id,
+      session_key: key,
+      turn_ref: turn_ref,
+      ref: 12 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
+      uses: Enum.map(uses, &Map.take(&1, [:target, :stage, :via]))
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "Each target retrieval touched, with its counts by stage, under the scope (`Store.retrieval_counts/1`)."
+  def retrieval(scope, opts \\ []), do: Scope.run(scope, fn -> Store.retrieval_counts(opts) end)
+
   @doc "Records a compaction: the summary covering the session's messages through a store sequence (spec §5)."
   def compact(resident_id, key, turn_ref, through_sequence, summary, %Actor{} = actor) do
     command = %Commands.CompactSession{
@@ -284,6 +307,20 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   # the account by the projector too (kumbukumbu #28), so the policy and
   # this refusal say the same thing.
   def transcript(scope, key) do
+    with {:ok, session, _} <- visible(scope, key),
+         do: {:ok, session, Scope.run(scope, fn -> Store.messages(key) end)}
+  end
+
+  @doc "A page of a session's transcript under a scope: the session, the last `limit` messages before the `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
+  def transcript_page(scope, key, before, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      {messages, more} = Scope.run(scope, fn -> Store.messages_page(key, before, limit) end)
+      {:ok, session, messages, more}
+    end
+  end
+
+  # The session as `transcript/2` lets a scope see it, without its messages.
+  defp visible(scope, key) do
     Scope.run(scope, fn ->
       case {scope, Store.session(key)} do
         {_scope, nil} ->
@@ -297,7 +334,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
            )}
 
         {_scope, session} ->
-          {:ok, session, Store.messages(key)}
+          {:ok, session, nil}
       end
     end)
   end

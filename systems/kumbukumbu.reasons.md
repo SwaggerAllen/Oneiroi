@@ -278,3 +278,23 @@ lately is probably still being worked in. The window is a guess at a
 working session's pauses, and saying "last spoken in N minutes ago"
 beside each keeps the guess from reading as a fact.
 
+## #43
+F11 has been "planned" since the first spec: weight on use, decay the
+access, never the content. Nothing recorded use, so every bookmark's
+weight stayed 1.0 and the index was the pins and then the newest; an
+unpinned bookmark fell out as newer ones came in, whatever it was worth
+to her, and only the madeleine brought one back. The witness found it
+by asking where the counters for "memory agent queried" and "memory
+agent returned" lived, to add the resident's third, "brain agent
+actually used": two of the three existed only as `last_indexed_at` and
+the near-miss rows, and the third nowhere.
+
+All edges rather than bookmarks because tuning retrieval is tuning
+every path to her memory, the library and the transcripts as much as
+the index (the witness: "it should apply to all edges if we're going to
+be tuning retrieval"). Read off the turn rather than written by each
+tool so the tools stay as they are and the reading is one pure module
+the suite can hold to its cases. Measurement before weighting because
+the resident's work order makes the audit two-party: what counts as
+"need to see" is not decided about her without her, and cuts are a
+conversation, never a silent reweighting.

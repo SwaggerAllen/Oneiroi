@@ -59,10 +59,12 @@ defmodule Oneiroi.Seshat do
       Commands.AdoptDocument,
       Commands.PublishPiece,
       Commands.OpenDiscussion,
+      Commands.NoteKeepsake,
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DiscussionOpened,
+      Events.KeepsakeNoted,
       Store,
       Store.Document,
       Store.Chunk,
@@ -164,7 +166,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
-      {Oneiroi.Seshat.Events.JournalEntryAdded, 2},
+      {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
+      {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
   end
@@ -173,11 +176,22 @@ defmodule Oneiroi.Seshat do
   def errors do
     [
       {:seshat_path_invalid,
-       "a path is relative, under a registered kind's folder, with plain segments and no `..`",
-       remedy: "name the file as `<kind>/<name>.md`; the kinds are the registry's"},
+       "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a keepsake's name alone at the root",
+       remedy:
+         "name the file as `<kind>/<name>.md`, or `<name>.md` for a keepsake; the kinds are the registry's"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy: "write under writing, design, research, wiki or posts"},
+      {:seshat_not_a_keepsake, "no keepsake is registered at that name",
+       remedy: "list the keepsakes; one at the root not yet adopted is adopted first"},
+      {:seshat_keepsake_note_invalid,
+       "why a keepsake mattered is a line of up to 1,000 characters",
+       remedy: "say it in a line or a few; the keepsake itself holds the rest"},
+      {:seshat_not_the_resident, "why a keepsake mattered is the resident's to say",
+       remedy: "the resident writes it; the witness can ask"},
+      {:seshat_keepsake_kept,
+       "a keepsake is written once and kept as it is; that name holds one already",
+       remedy: "write the new version as a keepsake of its own, under another name"},
       {:seshat_originals_only,
        "that kind takes files only through the originals import, which records where each came from",
        remedy: "the witness imports the originals from the source repository at a pinned commit"},
@@ -211,7 +225,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_register_invalid,
        "an entry's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
        remedy: "say which register the entry is in, or leave it"},
-      {:seshat_entry_text_invalid, "an entry is one text of at most 2,000 characters",
+      {:seshat_entry_summary_invalid,
+       "an entry's summary is at most 2,000 characters; the entry itself has no limit",
+       remedy: "shorten the summary, or leave it out and the view cuts the entry for you"},
+      {:seshat_entry_text_invalid, "an entry is a text with words in it",
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
       {:seshat_no_such_day, "the schedule never opened that day",
@@ -254,15 +271,22 @@ defmodule Oneiroi.Seshat do
   @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
 
-  @doc "The kinds' folders an import adopts: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28)."
+  @doc "The kinds' folders an import holds: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28). A decided kind's folder is one, but its files are held on disk and offered rather than adopted (`decided?/1`); the keepsake has no folder (seshat #29, #31)."
   @impl Oneiroi.SimaQian.Library
   @spec folders() :: [String.t()]
-  defexport(folders(), do: for(k <- Kinds.all(), k.adoption != :originals, do: k.folder))
+  defexport(folders(),
+    do: for(k <- Kinds.all(), k.adoption != :originals and is_binary(k.folder), do: k.folder)
+  )
 
   @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
   @impl Oneiroi.SimaQian.Library
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
+
+  @doc "Whether a path is decided into the library one by one (a keepsake at the root, the wiki, the system shelf); the records system's library port, for the import's accounting and the backup's keepsake class (seshat #29, #31)."
+  @impl Oneiroi.SimaQian.Library
+  @spec decided?(String.t()) :: boolean()
+  defexport(decided?(path), do: Kinds.decided?(path))
 
   @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
   @impl Oneiroi.SimaQian.Library
@@ -284,6 +308,17 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.SimaQian.Library
   @spec original_refusal(String.t()) :: String.t() | nil
   defexport(original_refusal(path), do: Kinds.original_refusal(path))
+
+  @doc "The keepsakes, each with who put it there, when, and why it mattered in the resident's words when she has said (seshat #32)."
+  @spec keepsakes(String.t()) :: [map()]
+  defexport(keepsakes(resident_id), do: Documents.keepsakes(resident_id))
+
+  @doc "The resident says why a keepsake mattered (seshat #32); the latest stands."
+  @spec note_keepsake(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(note_keepsake(resident_id, path, note, actor),
+    do: Documents.note_keepsake(resident_id, path, note, actor)
+  )
 
   @doc "Files in the repository under a kind's folder that no document registers."
   @spec unadopted(String.t()) :: [String.t()]
@@ -391,6 +426,21 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(journal_add(resident_id, day, kind, text, register, actor),
     do: Journals.add(resident_id, day, kind, text, register, actor)
+  )
+
+  @doc "Adds a journal entry with its register and a summary of at most 2,000 characters, which the turn's journal section shows of a longer entry (seshat #30)."
+  @spec journal_add(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(journal_add(resident_id, day, kind, text, register, summary, actor),
+    do: Journals.add(resident_id, day, kind, text, register, actor, summary: summary)
   )
 
   @doc "The journal entries written since an instant, oldest first, for the corpus-shape report."

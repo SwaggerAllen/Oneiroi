@@ -79,12 +79,19 @@ defmodule OneiroiWeb.MCPController do
     attribution = Kumbukumbu.attribute(adapter.resident_id, adapter.adapter, ref(named))
     turn = turn_of(adapter, attribution)
 
+    encoded = Phoenix.json_library().encode!(arguments)
+
     text =
-      if name in @needs_turn and turn.turn_ref == nil,
-        do: "No turn is open: report turn-start first, then call this.",
-        else:
-          Tools.run(name, Phoenix.json_library().encode!(arguments), turn) <>
-            fallback_note(name, named, attribution)
+      if name in @needs_turn and turn.turn_ref == nil do
+        "No turn is open: report turn-start first, then call this."
+      else
+        output = Tools.run(name, encoded, turn)
+        # What the call did with retrieval's targets, counted against the
+        # turn it landed on (`Oneiroi.Brain.Uses`), read off the tool's own
+        # answer before the note on where it landed is added.
+        :ok = Tools.record_uses(name, encoded, output, turn)
+        output <> fallback_note(name, named, attribution)
+      end
 
     {:ok,
      %{

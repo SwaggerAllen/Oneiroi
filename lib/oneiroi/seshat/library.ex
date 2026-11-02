@@ -4,7 +4,8 @@ defmodule Oneiroi.Seshat.Library do
   holds the registered documents by path with their kind, last hash and
   published URL, and the discussions opened. A write whose hash is the
   current one is no event; an adoption of a registered path is no event;
-  only a kind with a status is published.
+  only a kind with a status is published; a keepsake, once registered,
+  is never written again (seshat #29).
   """
 
   alias Oneiroi.Seshat.Commands
@@ -20,6 +21,11 @@ defmodule Oneiroi.Seshat.Library do
     case Map.get(documents, c.path) do
       %{hash: hash} when hash == c.hash ->
         []
+
+      # A keepsake is written once (seshat #29).
+      %{kind: "keepsake"} ->
+        {:error,
+         Error.new(:seshat_keepsake_kept, :seshat_write_document_keepsake_kept, path: c.path)}
 
       _new_or_changed ->
         %Events.DocumentWritten{
@@ -75,6 +81,34 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # Why a keepsake mattered is the resident's to say (seshat #32), of a
+  # registered keepsake, in a line of up to 1,000 characters; the same
+  # words again are no event.
+  def execute(%__MODULE__{documents: documents}, %Commands.NoteKeepsake{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error, Error.new(:seshat_not_the_resident, :seshat_note_keepsake_resident_only)}
+
+      not match?(%{kind: "keepsake"}, Map.get(documents, c.path)) ->
+        {:error, Error.new(:seshat_not_a_keepsake, :seshat_note_keepsake_not_one, path: c.path)}
+
+      not (is_binary(c.note) and String.trim(c.note) != "" and String.length(c.note) <= 1_000) ->
+        {:error, Error.new(:seshat_keepsake_note_invalid, :seshat_note_keepsake_invalid)}
+
+      Map.get(documents, c.path)[:note] == String.trim(c.note) ->
+        []
+
+      true ->
+        %Events.KeepsakeNoted{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          path: c.path,
+          note: String.trim(c.note)
+        }
+    end
+  end
+
   def execute(%__MODULE__{} = l, %Commands.OpenDiscussion{} = c) do
     cond do
       not Map.has_key?(l.documents, c.path) ->
@@ -99,6 +133,9 @@ defmodule Oneiroi.Seshat.Library do
 
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
   def apply(%__MODULE__{} = l, %Events.DocumentAdopted{} = e), do: register(l, e)
+
+  def apply(%__MODULE__{} = l, %Events.KeepsakeNoted{} = e),
+    do: %{l | documents: Map.update!(l.documents, e.path, &Map.put(&1, :note, e.note))}
 
   # Updated by key, not with `put_in(l.documents[path].url, url)` as the
   # first version had it: that form returns the whole struct, so the
