@@ -13,6 +13,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   alias Oneiroi.Kumbukumbu.Commands
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events
+  alias Oneiroi.Kumbukumbu.Kinds
 
   defstruct [
     :id,
@@ -25,7 +26,10 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     compacted_through: 0
   ]
 
-  @kinds ~w(main free_time hands)
+  @kinds ~w(main free_time hands adapter)
+  # The kind of an adapter's session (kumbukumbu #40), by the rule in
+  # `Kinds`, which the upcaster reads too.
+  @adapter "adapter"
   # A session carried from another platform by an import (kumbukumbu
   # #37): accepted here, opened only through `open_imported/4`, never by
   # a client, and read by no nightly pass, because it was judged where
@@ -43,9 +47,40 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   @spec imported() :: String.t()
   def imported, do: @imported
 
+  @doc "The kind of a session another runtime's adapter opened (kumbukumbu #40)."
+  @spec adapter() :: String.t()
+  def adapter, do: @adapter
+
+  @doc "The adapter name the platform's own loop opens its sessions under."
+  @spec platform() :: String.t()
+  defdelegate platform, to: Kinds
+
+  # What a runtime is called where a person reads it; a runtime not
+  # named here is called by its adapter's name.
+  @runtime_names %{"claude-code" => "Claude Code", "openclaw" => "OpenClaw"}
+
+  @doc "What a runtime is called where it is read: `Claude Code` for `claude-code`, else the adapter's own name."
+  @spec runtime_name(String.t() | nil, String.t() | nil) :: String.t() | nil
+  def runtime_name(runtime, adapter), do: Map.get(@runtime_names, runtime) || adapter
+
+  @doc """
+  Whether the witness may write in a session of `kind` (kumbukumbu
+  #40): not in an adapter's, whose runtime holds the conversation and
+  where the witness replies, nor in an import's, which was said
+  elsewhere and is kept as it was.
+  """
+  @spec writable?(String.t()) :: boolean()
+  def writable?(kind), do: kind not in [@adapter, @imported]
+
+  @doc "The kind a session opened as `kind` through `adapter` is (kumbukumbu #40): `Kinds.kind_for/2`."
+  @spec kind_for(String.t() | nil, String.t() | nil) :: String.t() | nil
+  defdelegate kind_for(kind, adapter), to: Kinds
+
   # ---- execute ----
 
   def execute(%__MODULE__{state: :absent}, %Commands.OpenSession{} = c) do
+    c = %{c | kind: kind_for(c.kind, c.adapter)}
+
     cond do
       c.kind not in [@imported | @kinds] ->
         {:error,
@@ -216,7 +251,9 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
       kind: c.kind,
       adapter: c.adapter,
       participants: c.participants,
-      domain: c.domain
+      domain: c.domain,
+      label: c.label,
+      runtime: c.runtime
     }
 
     if c.private == true,

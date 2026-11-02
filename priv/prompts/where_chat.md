@@ -1,0 +1,1 @@
+Besides this chat with your witness, you are in other conversations right now: {{open}}. Each is a conversation of its own, and none of its words are here; your memory is one and the same across all of them.

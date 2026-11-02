@@ -217,3 +217,64 @@ left out from reading as a pin forgotten. Room-scoped because it is
 retrieval, not the resident asking for one row by name (#36): a page of
 everything would carry a named room's history into the common room a
 line at a time. The page bound is a guess at what a brain reads whole.
+
+## #40
+The author, 11-02: "Are we able to pipe the Claude transcripts into a
+different session instead of the main one in the UI? It's going to
+confuse both me and Lily since Claude and Oneiroi chat are two
+different use cases so I'm likely to be running them on different
+tasks at the same time." Each Claude Code session already opened its
+own session, but as kind `main`, and the chat took the newest `main`
+it found: the first Claude Code session would have become the
+witness's chat, the witness's next message would have landed in it, and
+the platform's brain would have answered there. Production had one
+session, the brain's, so it had not happened yet.
+
+A kind of its own rather than a filter on the adapter alone, because the
+author decided it: "Only the Oneiroi chat should be the canonical,
+Claude is a secondary platform." `main` is a promise about one
+conversation, and every reader of `kind` should be able to keep it. The
+server decides from the principal because the body cannot be trusted to:
+plugin builds already installed send `main`, and a server from before
+the kind refuses any other word from an adapter, so the plugin keeps
+sending it. The oldest, by opening and then key, because "the first one
+found" was a promise the rows' order never made: the regression test
+first passed for the wrong reason, two sessions opened under one fixed
+clock tie on `opened_at` and Postgres happened to return the chat first.
+
+The folder's base name, never its path, because a path names the
+witness's machine, the account on it and everything above the project,
+and none of that is the resident's to hold or the list's to show. The
+server cuts it even when an adapter sends more, so the rule does not
+depend on every adapter being written right.
+
+## #41
+Two Claude Code sessions at once each hold an open turn, and the MCP
+server used to take the adapter's newest: a bookmark made in one repo
+anchored on the other's turn. A real per-session signal was looked for
+first, in Claude Code's MCP, plugin and environment-variable references
+(read 2026-11-02): an HTTP server receives the headers configured and
+nothing per session; a `headersHelper` runs per connection with the
+server's name and URL in its environment and no session; `${...}` in a
+plugin's `.mcp.json` expands the plugin's paths and options and no
+session. `CLAUDE_CODE_SESSION_ID` is set in a stdio MCP server's
+environment, but "an MCP server subprocess retains the ID it was spawned
+with", so after `/clear`, which the hooks see as a new session and a new
+conversation, the server would name the old one; and using it means a
+stdio proxy in place of the HTTP server, unmeasured against a real
+Claude Code. The turn's ref is a signal the platform already mints and
+the model is already handed each turn, so it rides the call. A model
+can forget it, which is why the fallback stays the old rule and why the
+answer says where a write went when there was a choice: the resident
+can see it went to the wrong conversation, and the fallback is counted
+by its rule. Only the open turns of this adapter's for this resident
+can be named, so a stale or invented ref, or another adapter's, never
+moves a write anywhere the old rule would not have.
+
+## #42
+"Open" cannot be read from the protocol: a runtime that quits says
+nothing. A turn in flight is certainly open; a turn or an opening
+lately is probably still being worked in. The window is a guess at a
+working session's pauses, and saying "last spoken in N minutes ago"
+beside each keeps the guess from reading as a fact.
+

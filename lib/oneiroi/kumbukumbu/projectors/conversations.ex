@@ -20,6 +20,8 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
         adapter: e.adapter,
         participants: e.participants,
         domain: Map.get(e, :domain),
+        label: Map.get(e, :label),
+        runtime: Map.get(e, :runtime),
         opened_at: e.at
       },
       on_conflict: :nothing,
@@ -34,7 +36,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       multi,
       :open_turn,
       from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
-      set: [open_turn_ref: e.turn_ref]
+      set: [open_turn_ref: e.turn_ref, open_turn_at: instant(e.at, e.at)]
     )
   end)
 
@@ -94,7 +96,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
           s.resident_id == ^e.resident_id and s.key == ^e.session_key and
             s.open_turn_ref == ^e.turn_ref
       ),
-      set: [open_turn_ref: nil]
+      set: [open_turn_ref: nil, open_turn_at: nil]
     )
   end)
 

@@ -7,9 +7,12 @@
 # character lane and the madeleine run on the words just typed, what the
 # resident has promised, the movement, dates, figures, journal, Honcho,
 # a once-only notice when one is owed, and any part of the session prefix
-# that changed since the session was given it. The platform records what
-# it handed over as the turn's ContextAssembled, so the reply's "drew on"
-# inspector shows it, and attributes the memory tools' calls to this turn.
+# that changed since the session was given it, and where this
+# conversation is: its folder, the other conversations open now, and this
+# turn's ref, which the memory tools take as `turn` so a call lands on
+# this conversation and not another open at the same time (kumbukumbu
+# #41, #42). The platform records what it handed over as the turn's
+# ContextAssembled, so the reply's "drew on" inspector shows it.
 #
 # A turn whose Stop never came (Claude Code skips Stop on an interrupt)
 # is captured here with the witness's words alone, so they are not lost.
@@ -30,6 +33,7 @@ main() {
   session="$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null)"
   [ -n "$session" ] || return 0
   state="$(oneiroi_state "$session")" || return 0
+  oneiroi_label "$state" "$payload"
 
   if [ -f "$state/prompt" ]; then
     jq -n --rawfile u "$state/prompt" --arg at "$(cat "$state/started" 2>/dev/null)" \

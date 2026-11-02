@@ -271,7 +271,7 @@ defmodule OneiroiWeb.ClaudeCodeHooksTest do
     )
 
     assert transcript(ctx, key) == []
-    assert [_spooled] = Path.wildcard(Path.join(ctx.data, "spool/*.json"))
+    assert [_spooled] = Path.wildcard(Path.join(ctx.data, "#{session}/spool/*.json"))
 
     say.("second words")
     stop.("second reply", nil)
@@ -283,7 +283,7 @@ defmodule OneiroiWeb.ClaudeCodeHooksTest do
              {"assistant", "second reply", "resident"}
            ]
 
-    assert [] = Path.wildcard(Path.join(ctx.data, "spool/*.json"))
+    assert [] = Path.wildcard(Path.join(ctx.data, "**/spool/*.json"))
 
     # Stop again with nothing pending, and with another hook's
     # continuation repeating the same reply: nothing is sent at all. Read
@@ -337,6 +337,180 @@ defmodule OneiroiWeb.ClaudeCodeHooksTest do
              {"user", "after the interrupt", "witness"},
              {"assistant", "answer", "resident"}
            ]
+  end
+
+  test "sessions open at once, two in one folder and one in another, interleaved: each its own conversation, state, spool and turn, called by its folder's base name",
+       ctx do
+    n = System.unique_integer([:positive])
+    here = "/Users/allen/src/Oneiroi"
+    there = "/Users/allen/src/catapult"
+    sessions = [{"s1-#{n}", here}, {"s2-#{n}", here}, {"s3-#{n}", there}]
+    [{s1, _}, {s2, _}, {s3, _}] = sessions
+    cwd = Map.new(sessions)
+
+    payload = fn name, session, changes ->
+      fixture(name, Map.merge(%{"session_id" => session, "cwd" => cwd[session]}, changes))
+    end
+
+    say = fn session, words ->
+      [out] =
+        hook(
+          ctx,
+          "UserPromptSubmit",
+          payload.("user_prompt_submit", session, %{"prompt" => words})
+        )
+
+      out
+    end
+
+    stop = fn session, reply, env ->
+      hook(
+        ctx,
+        "Stop",
+        payload.("stop", session, %{
+          "stop_hook_active" => false,
+          "last_assistant_message" => reply
+        }),
+        env
+      )
+    end
+
+    for {session, _cwd} <- sessions,
+        do:
+          hook(ctx, "SessionStart", payload.("session_start", session, %{"source" => "startup"}))
+
+    one = say.(s1, "one: the tests")
+    three = say.(s3, "three: the build")
+    two = say.(s2, "two: the docs")
+
+    [k1, k2, k3] = Enum.map([s1, s2, s3], &session_key(ctx, &1))
+    assert Enum.uniq([k1, k2, k3]) == [k1, k2, k3]
+    ref = fn session -> ctx.data |> Path.join("#{session}/turn") |> File.read!() end
+
+    # Each is told where it is, which others are open, and its own turn.
+    for {out, session} <- [{one, s1}, {two, s2}, {three, s3}],
+        do: assert(out =~ "This turn is `#{ref.(session)}`.")
+
+    assert two =~ "This conversation is in Claude Code, in the folder Oneiroi."
+
+    assert two =~
+             "Claude Code in the folder Oneiroi, another conversation in this same folder (a turn in flight)"
+
+    assert two =~ "Claude Code in the folder catapult (a turn in flight)"
+    assert three =~ "This conversation is in Claude Code, in the folder catapult."
+    refute Enum.any?([one, two, three], &(&1 =~ "/Users/allen"))
+
+    for {key, label} <- [{k1, "Oneiroi"}, {k2, "Oneiroi"}, {k3, "catapult"}],
+        do:
+          assert(
+            {:ok, %{kind: "adapter", label: ^label, runtime: "claude-code"}, _} =
+              Kumbukumbu.transcript({:resident, ctx.id}, key)
+          )
+
+    # Her memory tools, called from session one while three's and two's
+    # turns are newer, land on one's turn when they name it.
+    %{"result" => %{"content" => [%{"text" => "Bookmarked as #2."}]}} =
+      build_conn()
+      |> put_req_header("authorization", "Bearer " <> ctx.token)
+      |> post("/mcp", %{
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: %{name: "bookmark_add", arguments: %{line: "the tests", turn: ref.(s1)}}
+      })
+      |> json_response(200)
+
+    one_ref = ref.(s1)
+
+    assert {:ok, %{session_key: ^k1, anchor_ref: ^one_ref}, _span} =
+             Kumbukumbu.bookmark(ctx.id, 2)
+
+    # Three stops while the platform is away: its turn waits in its own
+    # spool. One's stop delivers its own, then three's, whose conversation
+    # is open; two's spool is never touched by either.
+    down =
+      List.keystore(
+        options(ctx),
+        "CLAUDE_PLUGIN_OPTION_URL",
+        0,
+        {"CLAUDE_PLUGIN_OPTION_URL", "http://127.0.0.1:1"}
+      )
+
+    stop.(s3, "three: green", down)
+    assert [_] = Path.wildcard(Path.join(ctx.data, "#{s3}/spool/*.json"))
+    assert [] = Path.wildcard(Path.join(ctx.data, "#{s1}/spool/*.json"))
+    assert transcript(ctx, k3) == []
+
+    stop.(s1, "one: passing", nil)
+    stop.(s2, "two: written", nil)
+
+    assert transcript(ctx, k1) == [
+             {"user", "one: the tests", "witness"},
+             {"assistant", "one: passing", "resident"}
+           ]
+
+    assert transcript(ctx, k2) == [
+             {"user", "two: the docs", "witness"},
+             {"assistant", "two: written", "resident"}
+           ]
+
+    assert transcript(ctx, k3) == [
+             {"user", "three: the build", "witness"},
+             {"assistant", "three: green", "resident"}
+           ]
+
+    assert [] = Path.wildcard(Path.join(ctx.data, "**/spool/*.json"))
+
+    # The folder's path stays on the machine: no state file holds it.
+    for file <- files_under(ctx.data),
+        do: refute(File.read!(file) =~ "/Users/allen", "#{file} holds the path")
+  end
+
+  test "a spool an earlier build left at the data directory's root is delivered to the session it names",
+       ctx do
+    session = "s-#{System.unique_integer([:positive])}"
+
+    hook(
+      ctx,
+      "SessionStart",
+      fixture("session_start", %{"session_id" => session, "source" => "startup"})
+    )
+
+    hook(
+      ctx,
+      "UserPromptSubmit",
+      fixture("user_prompt_submit", %{"session_id" => session, "prompt" => "now"})
+    )
+
+    key = session_key(ctx, session)
+
+    legacy = Path.join(ctx.data, "spool")
+    File.mkdir_p!(legacy)
+
+    File.write!(
+      Path.join(legacy, "20261101T000000Z-1-1.json"),
+      Jason.encode!(%{
+        claude_session: session,
+        body: %{
+          session_key: key,
+          started_at: "2026-10-26T11:00:00Z",
+          messages: [%{role: "user", content: "left behind", sent_at: "2026-10-26T11:00:00Z"}]
+        }
+      })
+    )
+
+    hook(
+      ctx,
+      "Stop",
+      fixture("stop", %{
+        "session_id" => session,
+        "stop_hook_active" => false,
+        "last_assistant_message" => "then"
+      })
+    )
+
+    assert {"user", "left behind", "witness"} in transcript(ctx, key)
+    assert [] = Path.wildcard(Path.join(ctx.data, "**/*.json"))
   end
 
   test "with the plugin's options unset a hook does nothing at all: no output, no state, no recording",

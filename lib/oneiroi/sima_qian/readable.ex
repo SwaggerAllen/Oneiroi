@@ -102,10 +102,13 @@ defmodule Oneiroi.SimaQian.Readable do
   defp opening(day, %{"at" => at, "data" => data} = opened) do
     if String.starts_with?(at, day) do
       room = if data["domain"], do: " in the room `#{data["domain"]}`", else: ""
+      # An adapter's conversation by the folder it ran in, the base name
+      # the server kept (kumbukumbu #40).
+      folder = if data["label"], do: " in the folder `#{data["label"]}`", else: ""
       parties = Enum.map_join(data["participants"] || [], ", ", &"`#{&1}`")
 
       "Opened at #{time(at, day)} by #{who(opened["actor"])}#{room}, through " <>
-        "`#{data["adapter"]}`; parties: #{if(parties == "", do: "none", else: parties)}.\n\n"
+        "`#{data["adapter"]}`#{folder}; parties: #{if(parties == "", do: "none", else: parties)}.\n\n"
     else
       "Continued from an earlier day.\n\n"
     end

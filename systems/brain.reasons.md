@@ -401,3 +401,18 @@ The page bound is a guess: 12,000 characters is about 3,000 tokens at
 four bytes a token, against a document bound of 256 KiB (seshat #26),
 so the longest document is some twenty-two pages. Nothing measured
 what a turn's context spares one read.
+
+## #44
+The author, 11-02: "make sure that having Claude-Lily active in multiple
+repos doesn't cause confusion." With the chat and several Claude Code
+sessions open at once, a resident told nothing of where she is would
+take work in one repository for work in another, or answer the chat as
+if it were the session she had just been coding in. Naming the folder
+and the others open is the least that tells her; their words would be
+the confusion the separation exists to end, and a transcript is not the
+platform's to carry from one runtime into another. The turn's ref is in
+the same section because it is how her tool calls stay on this
+conversation (kumbukumbu #41), and it is only useful where she reads it.
+The chat is told only while something else is open, because a line
+saying nothing is open, every turn, is a cost for no news.
+

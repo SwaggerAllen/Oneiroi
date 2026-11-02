@@ -165,9 +165,18 @@ defmodule Oneiroi.Kumbukumbu do
        default: "30",
        tag: :bound,
        usage:
-         "how long after a recall the same bookmark is not recalled again (P10: non-repeating); a guess"}
+         "how long after a recall the same bookmark is not recalled again (P10: non-repeating); a guess"},
+      {:open_minutes, "KUMBUKUMBU_OPEN_MINUTES",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "how long after its last turn a conversation still counts as open (kumbukumbu #42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"}
     ]
   end
+
+  @impl Oneiroi.Component
+  def telemetry_events, do: [[:oneiroi, :kumbukumbu, :turn_attributed]]
 
   @doc false
   def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
@@ -178,7 +187,7 @@ defmodule Oneiroi.Kumbukumbu do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Kumbukumbu.Events.SessionOpened, 2},
+      {Oneiroi.Kumbukumbu.Events.SessionOpened, 3},
       {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
@@ -215,7 +224,8 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_no_such_session, "no session with that key is open for the resident",
        remedy: "open one, or read the key off the session list"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
-       remedy: "main, free_time or hands; a regression session is never captured (spec §6.4)"},
+       remedy:
+         "main, free_time or hands; an adapter's and an import's are opened by their own routes, and a regression session is never captured (spec §6.4)"},
       {:kumbukumbu_domain_invalid,
        "a session's domain is a slug: a letter, then letters, digits or hyphens, at most 32",
        remedy:
@@ -312,7 +322,18 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.open_imported(resident_id, adapter, participants, actor)
   )
 
-  @doc "The main session between a resident and a witness, opened on first ask."
+  @doc "Opens a session another runtime's adapter holds, kind `adapter`, called by its folder's base name and its runtime (kumbukumbu #40); returns its key."
+  @spec open_adapter(String.t(), String.t(), [String.t()], Oneiroi.Actor.t(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(open_adapter(resident_id, adapter, participants, actor, opts),
+    do: Conversations.open_adapter(resident_id, adapter, participants, actor, opts)
+  )
+
+  @doc "What a folder is called in a conversation's name: its base name alone, never its path (kumbukumbu #40)."
+  @spec folder_label(term()) :: String.t() | nil
+  defexport(folder_label(path), do: Conversations.folder_label(path))
+
+  @doc "The platform's own conversation with a witness: kind `main` through the platform's adapter, the oldest, opened on first ask (kumbukumbu #40)."
   @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(main_session(resident_id, account_id, actor),
@@ -443,6 +464,26 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "An adapter's open turn, `{session_key, turn_ref}`, or nil (spec §8)."
   @spec open_turn(String.t(), String.t()) :: {String.t(), String.t()} | nil
   defexport(open_turn(resident_id, adapter), do: Conversations.open_turn(resident_id, adapter))
+
+  @doc "The turn an adapter's tool call belongs to and the rule that chose it: the named open turn, else the newest (kumbukumbu #41)."
+  @spec attribute(String.t(), String.t(), String.t() | nil) :: %{
+          session_key: String.t() | nil,
+          turn_ref: String.t() | nil,
+          label: String.t() | nil,
+          rule: :named | :newest | :none,
+          open: non_neg_integer()
+        }
+  defexport(attribute(resident_id, adapter, turn_ref),
+    do: Conversations.attribute(resident_id, adapter, turn_ref)
+  )
+
+  @doc "The resident's conversations open now, the main one and the adapters', newest first (kumbukumbu #42)."
+  @spec open_now(String.t()) :: [map()]
+  defexport(open_now(resident_id), do: Conversations.open_now(resident_id))
+
+  @doc "How many things each turn of a session drew on, by turn ref, under a scope."
+  @spec drew_on(Oneiroi.Scope.t(), String.t()) :: %{String.t() => non_neg_integer()}
+  defexport(drew_on(scope, key), do: Conversations.drew_on(scope, key))
 
   @doc "Every message of a session after its compaction, in order."
   @spec since_compaction(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]

@@ -6,7 +6,6 @@ import type {
   IndexNow,
   Injection,
   Ledger,
-  Message,
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
@@ -14,6 +13,7 @@ import type {
   Session,
   Tag,
   TestTexts,
+  Transcript,
   Turn,
 } from './types';
 
@@ -58,11 +58,10 @@ export const api = {
 
   mainSession: (residentId: string) =>
     call<{ key: string }>('POST', `/v1/residents/${residentId}/sessions`, { kind: 'main' }),
+  // Last spoken in first, each named by the server (kumbukumbu #40).
+  sessions: (residentId: string) => call<Session[]>('GET', `/v1/residents/${residentId}/sessions`),
   transcript: (residentId: string, key: string) =>
-    call<{ session: Session; messages: Message[] }>(
-      'GET',
-      `/v1/residents/${residentId}/sessions/${key}`,
-    ),
+    call<Transcript>('GET', `/v1/residents/${residentId}/sessions/${key}`),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
   injections: (residentId: string, turnRef: string) =>

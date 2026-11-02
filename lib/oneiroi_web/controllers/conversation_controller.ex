@@ -15,20 +15,34 @@ defmodule OneiroiWeb.ConversationController do
   @adapter_actions ~w(create turn_start capture context)a
 
   operation(:index,
-    summary: "The resident's sessions this account was party to, newest first",
+    summary:
+      "The resident's sessions this account was party to, last spoken in first, each with what it is called and whether you can write in it",
     parameters: [id: [in: :path, type: :string]],
     responses: [ok: {"sessions", "application/json", %Schema{type: :array}}]
   )
 
+  # Ordered by when each was last spoken in, not opened: a Claude Code
+  # conversation opened in the morning and worked in all day is the
+  # newest, and the client groups by `title` in this order (kumbukumbu
+  # #40).
   def index(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
     rows =
-      {:account, p.account_id} |> Kumbukumbu.sessions() |> Enum.filter(&(&1.resident_id == id))
+      {:account, p.account_id}
+      |> Kumbukumbu.sessions()
+      |> Enum.filter(&(&1.resident_id == id))
+      |> Enum.sort_by(
+        &DateTime.to_unix(Kumbukumbu.Conversations.last_at(&1), :microsecond),
+        :desc
+      )
 
     json(conn, Enum.map(rows, &session/1))
   end
 
   operation(:create,
-    summary: "Open a session, or return the main one between this account and the resident",
+    summary:
+      "Open a session, or return the main one between this account and the resident; an adapter's token always opens a new conversation of its own",
+    description:
+      "For a witness, `main` is the Oneiroi chat, opened once and found again. For an adapter's token the kind sent is not read: every session it opens is a new one of kind `adapter` (kumbukumbu #40), called by `label`, of which only the folder's base name is kept, and `runtime`. A plugin built before the kind existed sends `main` and still lands as an adapter's conversation.",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the kind", "application/json",
@@ -40,6 +54,15 @@ defmodule OneiroiWeb.ConversationController do
              type: :string,
              description:
                "the room (spec §6.3, P23): a slug such as intimate, business or family; absent for the common room"
+           },
+           label: %Schema{
+             type: :string,
+             description:
+               "an adapter's: the folder the runtime runs in, of which the server keeps the base name alone"
+           },
+           runtime: %Schema{
+             type: :string,
+             description: "an adapter's: the runtime, such as claude-code"
            }
          }
        }},
@@ -51,10 +74,20 @@ defmodule OneiroiWeb.ConversationController do
 
     result =
       case {Map.get(params, "kind", "main"), adapter(conn)} do
+        # The principal decides, never the body: the Oneiroi chat is the
+        # canonical conversation and an adapter's is secondary to it
+        # (kumbukumbu #40), and the plugin keeps sending `main` so it
+        # still works against a server from before the kind.
+        {_kind, %{}} ->
+          Kumbukumbu.open_adapter(id, adapter_name, [party], actor(conn),
+            label: params["label"],
+            runtime: params["runtime"]
+          )
+
         {"main", nil} ->
           Kumbukumbu.main_session(id, party, actor(conn))
 
-        {kind, _} ->
+        {kind, nil} ->
           Kumbukumbu.open_session(id, kind, adapter_name, [party], actor(conn),
             domain: Map.get(params, "domain")
           )
@@ -78,7 +111,14 @@ defmodule OneiroiWeb.ConversationController do
   def show(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
     case Kumbukumbu.transcript({:account, p.account_id}, key) do
       {:ok, s, messages} ->
-        json(conn, %{session: session(s), messages: Enum.map(messages, &message/1)})
+        json(conn, %{
+          session: session(s),
+          messages: Enum.map(messages, &message/1),
+          # Each turn's count for "drew on N things", so a reply read
+          # later, or in a conversation the witness did not send in,
+          # opens the same inspector a reply just sent does.
+          drew_on: Kumbukumbu.drew_on({:account, p.account_id}, key)
+        })
 
       {:error, %Kumbukumbu.Error{} = e} ->
         error(conn, 404, e)
@@ -94,7 +134,41 @@ defmodule OneiroiWeb.ConversationController do
     responses: [created: {"the captured turn", "application/json", %Schema{type: :object}}]
   )
 
-  def turn(conn, %{"id" => id, "key" => key, "text" => text}) when is_binary(text) do
+  def turn(%{assigns: %{principal: p}} = conn, %{"id" => id, "key" => key, "text" => text})
+      when is_binary(text) do
+    case read_only(p, key) do
+      nil -> run_turn(conn, id, key, text)
+      s -> read_only_problem(conn, s)
+    end
+  end
+
+  def turn(conn, _params),
+    do:
+      problem(conn, 422, :text_required, :web_conversation_turn_text_required, "text is required")
+
+  # A conversation the witness replies in elsewhere (kumbukumbu #40): the
+  # platform's brain answering in it would put the Oneiroi chat's turn in
+  # a Claude Code conversation, the confusion the kind exists to end.
+  defp read_only(%{account_id: account_id}, key) do
+    case Kumbukumbu.transcript({:account, account_id}, key) do
+      {:ok, s, _messages} -> if Kumbukumbu.Conversation.writable?(s.kind), do: nil, else: s
+      {:error, _e} -> nil
+    end
+  end
+
+  defp read_only(_principal, _key), do: nil
+
+  defp read_only_problem(conn, s),
+    do:
+      problem(
+        conn,
+        409,
+        :read_only,
+        :web_conversation_turn_read_only,
+        "#{title(s)} is read here: it is answered where it happens"
+      )
+
+  defp run_turn(conn, id, key, text) do
     case Oneiroi.Brain.turn(id, key, text, actor(conn)) do
       {:ok, turn} ->
         conn |> put_status(201) |> json(turn)
@@ -111,10 +185,6 @@ defmodule OneiroiWeb.ConversationController do
         error(conn, 502, e)
     end
   end
-
-  def turn(conn, _params),
-    do:
-      problem(conn, 422, :text_required, :web_conversation_turn_text_required, "text is required")
 
   operation(:search,
     summary: "Messages holding the text, newest first, unweighted",
@@ -556,12 +626,22 @@ defmodule OneiroiWeb.ConversationController do
   defp stop_body(stop),
     do: %{kind: Atom.to_string(stop.kind), meaning: stop.meaning, remedy: stop.remedy}
 
+  # What each conversation is called and whether the witness writes in
+  # it, decided here so the client holds none of the rule (kumbukumbu
+  # #40): `title` names it and is what the client groups by, `place` is
+  # the folder an adapter's ran in, `writable` says whether it takes a
+  # message.
   defp session(s) do
     %{
       key: s.key,
       resident_id: s.resident_id,
       kind: s.kind,
       adapter: s.adapter,
+      runtime: s.runtime,
+      label: s.label,
+      title: title(s),
+      place: s.label,
+      writable: Kumbukumbu.Conversation.writable?(s.kind),
       participants: s.participants,
       domain: s.domain,
       shared: s.shared,
@@ -572,6 +652,18 @@ defmodule OneiroiWeb.ConversationController do
       compacted_through: s.compacted_through
     }
   end
+
+  defp title(%{kind: "main"}), do: "Oneiroi chat"
+  defp title(%{kind: "free_time"}), do: "Free time"
+  defp title(%{kind: "hands"}), do: "Hands"
+  defp title(%{kind: "imported", adapter: adapter}), do: "Imported from #{adapter}"
+
+  defp title(%{kind: "adapter"} = s) do
+    runtime = Kumbukumbu.Conversation.runtime_name(s.runtime, s.adapter)
+    if s.label, do: "#{runtime} · #{s.label}", else: runtime
+  end
+
+  defp title(%{kind: kind}), do: kind
 
   defp message(m) do
     %{
