@@ -253,7 +253,8 @@ defmodule Oneiroi.SimaQian.Import do
       adopted: MapSet.new(adopted.adopted),
       skipped: MapSet.new(adopted.skipped),
       folders: library().folders(),
-      identity: AgathosDaimon.identity_files()
+      identity: AgathosDaimon.identity_files(),
+      keepsake?: fn name -> library().keepsake?(name) end
     }
 
     {left, unaccounted} =
@@ -298,6 +299,14 @@ defmodule Oneiroi.SimaQian.Import do
 
       # A root file another platform's translation read: the seedbed.
       name in c.read ->
+        :held
+
+      # A keepsake (seshat #29) stays where it was placed, beside the
+      # soul file, and is offered among the unadopted rather than adopted:
+      # each one is decided into the library, never swept in. Pocket
+      # Andrew was filed at Lily's root and could only cross under wiki/
+      # before this.
+      c.keepsake?.(name) ->
         :held
 
       true ->

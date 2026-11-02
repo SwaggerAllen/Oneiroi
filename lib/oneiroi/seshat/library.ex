@@ -4,7 +4,8 @@ defmodule Oneiroi.Seshat.Library do
   holds the registered documents by path with their kind, last hash and
   published URL, and the discussions opened. A write whose hash is the
   current one is no event; an adoption of a registered path is no event;
-  only a kind with a status is published.
+  only a kind with a status is published; a keepsake, once registered,
+  is never written again (seshat #29).
   """
 
   alias Oneiroi.Seshat.Commands
@@ -20,6 +21,11 @@ defmodule Oneiroi.Seshat.Library do
     case Map.get(documents, c.path) do
       %{hash: hash} when hash == c.hash ->
         []
+
+      # A keepsake is written once (seshat #29).
+      %{kind: "keepsake"} ->
+        {:error,
+         Error.new(:seshat_keepsake_kept, :seshat_write_document_keepsake_kept, path: c.path)}
 
       _new_or_changed ->
         %Events.DocumentWritten{

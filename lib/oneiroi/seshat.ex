@@ -173,11 +173,15 @@ defmodule Oneiroi.Seshat do
   def errors do
     [
       {:seshat_path_invalid,
-       "a path is relative, under a registered kind's folder, with plain segments and no `..`",
-       remedy: "name the file as `<kind>/<name>.md`; the kinds are the registry's"},
+       "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a keepsake's name alone at the root",
+       remedy:
+         "name the file as `<kind>/<name>.md`, or `<name>.md` for a keepsake; the kinds are the registry's"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy: "write under writing, design, research, wiki or posts"},
+      {:seshat_keepsake_kept,
+       "a keepsake is written once and kept as it is; that name holds one already",
+       remedy: "write the new version as a keepsake of its own, under another name"},
       {:seshat_originals_only,
        "that kind takes files only through the originals import, which records where each came from",
        remedy: "the witness imports the originals from the source repository at a pinned commit"},
@@ -254,15 +258,22 @@ defmodule Oneiroi.Seshat do
   @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
 
-  @doc "The kinds' folders an import adopts: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28)."
+  @doc "The kinds' folders an import adopts: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28); nor is the keepsake, which has no folder and is decided one by one (seshat #29)."
   @impl Oneiroi.SimaQian.Library
   @spec folders() :: [String.t()]
-  defexport(folders(), do: for(k <- Kinds.all(), k.adoption != :originals, do: k.folder))
+  defexport(folders(),
+    do: for(k <- Kinds.all(), k.adoption not in [:originals, :decided], do: k.folder)
+  )
 
   @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
   @impl Oneiroi.SimaQian.Library
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
+
+  @doc "Whether a name at the repository's root is a keepsake's; the records system's library port, for the import's accounting and the backup's keepsake class (seshat #29)."
+  @impl Oneiroi.SimaQian.Library
+  @spec keepsake?(String.t()) :: boolean()
+  defexport(keepsake?(name), do: Kinds.keepsake_name?(name))
 
   @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
   @impl Oneiroi.SimaQian.Library

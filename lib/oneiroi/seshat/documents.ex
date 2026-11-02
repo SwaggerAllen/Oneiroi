@@ -9,9 +9,10 @@ defmodule Oneiroi.Seshat.Documents do
   sees the file at once rather than tomorrow.
 
   Who writes: either party, through a document write, into a kind the
-  registry marks `:resident`; the platform's kinds (mail, feeds,
-  correspondence, the journal) are refused here and written by their
-  systems. Publishing is the witness's (spec §10's Library screen).
+  registry marks `:resident`, and a keepsake once (seshat #29); the
+  platform's kinds (mail, feeds, correspondence, the journal) are
+  refused here and written by their systems. Publishing is the
+  witness's (spec §10's Library screen).
   """
 
   alias Oneiroi.Actor
@@ -41,6 +42,7 @@ defmodule Oneiroi.Seshat.Documents do
          {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false)),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         :ok <- not_kept(kind, path, Path.join(dir, path), content),
          {:ok, events} <-
            dispatch(%Commands.WriteDocument{
              actor: actor,
@@ -98,10 +100,13 @@ defmodule Oneiroi.Seshat.Documents do
   returned, so the import can say it did not transfer; the index runs
   once over everything adopted rather than once per file, because an
   import of a repository with hundreds of files is the case this exists
-  for and each run reads every document row.
+  for and each run reads every document row. A keepsake is never
+  adopted here (seshat #29): it stays on offer in `unadopted/1`, to be
+  decided into the library one by one.
   """
   def adopt_all(resident_id, %Actor{} = actor) do
     with paths when is_list(paths) <- unadopted(resident_id),
+         paths = Enum.reject(paths, &Kinds.keepsake?/1),
          {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       {adopted, skipped} =
         Enum.split_with(paths, &(register(resident_id, dir, &1, actor) == :ok))
@@ -185,17 +190,32 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  @doc "Files under a kind's folder that no document registers, sorted; what the Library screen offers to adopt."
+  @doc "Files under a kind's folder, and keepsakes at the root, that no document registers, sorted; what the Library screen offers to adopt."
   # sobelow_skip ["Traversal.FileModule"]
   def unadopted(resident_id) do
     with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       registered = resident_id |> list() |> MapSet.new(& &1.path)
 
       Kinds.all()
-      |> Enum.reject(&(&1.adoption == :originals))
+      |> Enum.reject(&(&1.adoption == :originals or is_nil(&1.folder)))
       |> Enum.flat_map(fn kind -> files_under(dir, kind.folder) end)
+      |> Enum.concat(keepsakes_at(dir))
       |> Enum.reject(&MapSet.member?(registered, &1))
       |> Enum.sort()
+    end
+  end
+
+  # The keepsakes' files at the root, registered or not (seshat #29).
+  # sobelow_skip ["Traversal.FileModule"]
+  defp keepsakes_at(dir) do
+    case File.ls(dir) do
+      {:ok, names} ->
+        names
+        |> Enum.filter(&(Kinds.keepsake_name?(&1) and File.regular?(Path.join(dir, &1))))
+        |> Enum.sort()
+
+      {:error, _absent} ->
+        []
     end
   end
 
@@ -331,7 +351,7 @@ defmodule Oneiroi.Seshat.Documents do
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_read_only, kind: kind.kind)}
 
-      kind.access != :resident and not core? ->
+      kind.access not in [:resident, :keepsake] and not core? ->
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_not_writable,
            kind: kind.kind
@@ -344,6 +364,28 @@ defmodule Oneiroi.Seshat.Documents do
         {:ok, kind}
     end
   end
+
+  # A keepsake is written once (seshat #29): a file already at its name,
+  # registered or found there, is kept as it is unless the write is the
+  # same bytes, which changes nothing. The aggregate refuses a changed
+  # hash for a registered one too; this also covers a gift put at the
+  # root by hand and not yet adopted, which a write would otherwise
+  # replace with nothing recorded of what it was.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp not_kept(%{access: :keepsake}, path, full, content) do
+    case File.read(full) do
+      {:ok, ^content} ->
+        :ok
+
+      {:ok, _other} ->
+        {:error, Error.new(:seshat_keepsake_kept, :seshat_documents_keepsake_kept, path: path)}
+
+      {:error, _absent} ->
+        :ok
+    end
+  end
+
+  defp not_kept(_kind, _path, _full, _content), do: :ok
 
   defp size_ok(content) do
     bound = Config.fetch!(:seshat, :document_bytes)

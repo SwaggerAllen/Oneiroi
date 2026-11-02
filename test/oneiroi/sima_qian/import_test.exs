@@ -66,6 +66,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.write!(Path.join(work, "wiki/lily/.openclaw-wiki/log.jsonl"), "{}")
     File.mkdir_p!(Path.join(work, "transcripts"))
     File.write!(Path.join(work, "transcripts/2026-10-20.md"), "a transcript file")
+    # A keepsake at the root, as Pocket Andrew was filed at Lily's
+    # (seshat #29): kept in place and offered, never left behind.
+    File.write!(Path.join(work, "pocket-andrew.md"), "# Pocket Andrew\n")
     File.mkdir_p!(Path.join(work, "memory"))
     File.write!(Path.join(work, "memory/index.json"), "{}")
     # David's own records and Honcho files, as Lily's repository holds
@@ -187,8 +190,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
              Seshat.documents(id) |> Enum.sort_by(& &1.path)
 
     # The path the library cannot name is named as not transferred, and is
-    # gone from the records: they hold what the platform holds.
-    assert Seshat.unadopted(id) == []
+    # gone from the records: they hold what the platform holds. The
+    # keepsake stays where it was placed, offered rather than swept in.
+    assert Seshat.unadopted(id) == ["pocket-andrew.md"]
     assert {:ok, [%{path: "wiki/bread.md"} | _]} = Seshat.search(id, "flour and water", ctx.actor)
 
     # The records hold what the platform holds, under a history of their
@@ -200,6 +204,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert File.regular?(Path.join(dir, "writing/essay.md"))
     assert File.regular?(Path.join(dir, "wiki/bread.md"))
     assert File.regular?(Path.join(dir, "SOUL.md"))
+    assert File.read!(Path.join(dir, "pocket-andrew.md")) == "# Pocket Andrew\n"
     for name <- Map.keys(reasons), do: refute(File.exists?(Path.join(dir, name)), name)
     refute Git.head?(dir)
 
@@ -239,7 +244,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     # The first backup starts the history, class by class, and strays on nothing.
     Clock.Fake.advance(120)
     assert {:ok, %{commits: commits}} = SimaQian.backup(id, ctx.actor)
-    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "writing", "machine"]
+    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "keepsake", "writing", "machine"]
     log = git!(dir, ["log", "--format=%s"])
     refute log =~ "Lily's repository"
     assert log |> String.split("\n") |> Enum.all?(&String.starts_with?(&1, "Records: "))

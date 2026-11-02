@@ -580,4 +580,87 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
     assert {:error, %Seshat.Error{kind: :seshat_no_such_document}} = Seshat.read(other.id, path)
   end
+
+  # Seshat #29: Pocket Andrew was filed at Lily's root beside her soul
+  # file, and the import of 2026-11-01 could only carry it under wiki/.
+  test "a keepsake is kept at the root, written once, offered rather than swept in, and cited by its name",
+       ctx do
+    id = ctx.id
+    gift = "# Pocket Andrew\n\nWhat is real resists.\n"
+
+    # Written at the root, by either party, and indexed at once.
+    assert {:ok, %{path: "pocket-andrew.md", kind: "keepsake", changed: true, indexed: true}} =
+             Seshat.write(id, "pocket-andrew.md", gift, ctx.actor)
+
+    assert File.read!(Path.join(ctx.dir, "pocket-andrew.md")) == gift
+    assert [%{path: "pocket-andrew.md", kind: "keepsake", chunks: 1}] = Seshat.documents(id)
+
+    # Written once: the same bytes change nothing, other bytes are refused,
+    # by the witness and the resident alike, and the file stays the gift.
+    assert {:ok, %{changed: false}} = Seshat.write(id, "pocket-andrew.md", gift, ctx.brain)
+
+    for actor <- [ctx.actor, ctx.brain] do
+      assert {:error, %Seshat.Error{kind: :seshat_keepsake_kept}} =
+               Seshat.write(id, "pocket-andrew.md", "# Pocket Andrew\n\nEdited.\n", actor)
+    end
+
+    assert File.read!(Path.join(ctx.dir, "pocket-andrew.md")) == gift
+
+    # Cited by its name, without a folder, and read by the citation.
+    assert {:ok, %{content: ^gift}} = Seshat.read(id, "#{ctx.slug}:keepsake/pocket-andrew")
+    assert {:ok, %{content: ^gift}} = Seshat.read(id, "pocket-andrew.md")
+
+    {:ok, _} =
+      Seshat.write(
+        id,
+        "writing/carried.md",
+        "---\nstatus: draft\n---\n# Carried\n\nHe left me #{ctx.slug}:keepsake/pocket-andrew.\n",
+        ctx.brain
+      )
+
+    assert [%{target: target, resolved: true}] = Seshat.references(id, "writing/carried.md")
+    assert target == "#{ctx.slug}:keepsake/pocket-andrew"
+
+    # A gift put at the root by hand is offered, never swept in by the
+    # whole-repository adoption, and adopted when decided; a write over it
+    # before then is refused, so nothing it was is lost unrecorded.
+    File.write!(Path.join(ctx.dir, "ledger.md"), "# Ledger\n")
+    assert Seshat.unadopted(id) == ["ledger.md"]
+
+    assert {:error, %Seshat.Error{kind: :seshat_keepsake_kept}} =
+             Seshat.write(id, "ledger.md", "# Another ledger\n", ctx.actor)
+
+    assert {:ok, %{adopted: [], skipped: []}} = Seshat.adopt_all(id, ctx.actor)
+    assert Seshat.unadopted(id) == ["ledger.md"]
+    assert {:ok, %{kind: "keepsake", adopted: true}} = Seshat.adopt(id, "ledger.md", ctx.actor)
+    assert Seshat.unadopted(id) == []
+
+    # The root's other names are never keepsakes, and neither is a file
+    # that is not text or a name the registry refuses.
+    for name <- ["SOUL.md", "AGENTS.md", "README.md", "MEMORY.md"] do
+      assert {:error, %Seshat.Error{kind: :seshat_path_invalid}} =
+               Seshat.write(id, name, "# Not a keepsake\n", ctx.actor)
+    end
+
+    for name <- ["photo.png", ".hidden.md", "pocket andrew.md"] do
+      assert {:error, %Seshat.Error{kind: :seshat_path_invalid}} =
+               Seshat.write(id, name, "# Not a keepsake\n", ctx.actor)
+    end
+
+    # The brain's tool writes one, and says so in its description.
+    turn = live_turn(ctx)
+
+    assert Tools.run(
+             "document_write",
+             Jason.encode!(%{path: "first-letter.md", content: "# A letter\n"}),
+             turn
+           ) =~ "first-letter.md"
+
+    assert %{kind: "keepsake"} = Enum.find(Seshat.documents(id), &(&1.path == "first-letter.md"))
+
+    assert %{function: %{description: description}} =
+             Enum.find(Tools.definitions(), &(&1.function.name == "document_write"))
+
+    assert description =~ "keepsake"
+  end
 end

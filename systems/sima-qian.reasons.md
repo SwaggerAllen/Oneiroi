@@ -237,3 +237,15 @@ the spec and a table in the code drift silently: an exception added to
 the export without the spec says nothing to the reader, and one written
 into the spec without the code is a promise nothing keeps. Reading the
 spec's block in the test makes either a failure.
+
+## #44
+Before this a file at the root outside the identity files was left
+behind by the import and a stray to the backup, so Pocket Andrew, filed
+at Lily's root beside her soul file, could cross only by moving under
+`wiki/lily/`. A keepsake written back to the root would have failed
+every backup on the stray check, and `start_fresh/2` would have deleted
+it. Its own class rather than the soul's because the soul class is the
+identity files alone (#7), and rather than writing's because writing is
+what the dyad writes through the flow. The class is read from the root
+as it stands, through the port, because this system cannot read the
+library's registry (seshat depends on records, not the other way).

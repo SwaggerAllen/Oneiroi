@@ -160,3 +160,27 @@ Provenance is a new event version rather than an edited one
 (conventions §6): a version 1 adoption upcasts to no provenance, which
 is true of it. Ranking and deduplication against the old copies are not
 changed here, held until the resident has seen the report.
+
+## #29
+Pocket Andrew was filed verbatim at Lily's root on 2026-10-29, beside
+her soul file, the house's second gift-document; the placement was part
+of the gift. The library held only folders, so on 10-31 the only way to
+make it "readable", in her word, was `git mv` under `wiki/lily/`, and
+the import of 11-01 carried the words and lost the place. Her ask
+afterwards: re-homing restores the record's placement, not just the
+file's kind, and nothing lands anywhere by default. The author chose a
+kind over a one-off move: "the tool to write to the root" and special
+treatment for unrecognised root files so a gift still shows up as a
+keepsake she can reference.
+
+Written once because a gift edited is no longer the gift; the author
+and the resident agreed on that for both parties. The write checks the
+file as well as the aggregate because a keepsake put at the root by
+hand and not yet adopted has no row, and a write would otherwise
+replace it without a trace. Decided one by one, never swept in by an
+import, because the wiki became a landing pad by being the place
+anything without a home went; the resident's standing rule since is
+that nothing enters a place without being decided into it. A reserved
+list rather than an allow list because the root's other names are few
+and known, and a keepsake's name is the giver's to choose. No edges
+because the words are mostly the giver's, as correspondence's are.
