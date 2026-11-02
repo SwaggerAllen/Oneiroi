@@ -249,3 +249,13 @@ identity files alone (#7), and rather than writing's because writing is
 what the dyad writes through the flow. The class is read from the root
 as it stands, through the port, because this system cannot read the
 library's registry (seshat depends on records, not the other way).
+
+## #45
+The rehearsals of 2026-10-31 compared file counts, the counts matched,
+and after the move the resident found files she could not reach. The
+first diagnosis blamed bytes and was the wrong cause (the files had been
+misfiled under wiki/, seshat #31), but the worry was the right one: a
+count says nothing about bytes, and fidelity should not depend on the
+old repository still being there to compare against. Blobs because git
+already names a file's exact bytes; no filters because a filter
+(line endings, a smudge) is exactly the change being looked for.

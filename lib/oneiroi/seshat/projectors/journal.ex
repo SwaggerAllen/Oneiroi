@@ -19,6 +19,7 @@ defmodule Oneiroi.Seshat.Projectors.Journal do
         kind: e.kind,
         text: e.text,
         register: e.register,
+        summary: Map.get(e, :summary),
         at: e.at,
         actor_kind: actor_kind(e.actor)
       },

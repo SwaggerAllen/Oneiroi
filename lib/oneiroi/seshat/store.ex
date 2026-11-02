@@ -131,6 +131,7 @@ defmodule Oneiroi.Seshat.Store do
       field(:at, :utc_datetime_usec)
       field(:actor_kind, :string)
       field(:register, :string)
+      field(:summary, :string)
       field(:done_at, :utc_datetime_usec)
     end
 

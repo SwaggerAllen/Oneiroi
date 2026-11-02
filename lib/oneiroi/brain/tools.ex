@@ -442,12 +442,13 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "journal_add",
-        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them.",
+        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them. The text has no length limit and is kept whole; your turn's journal section shows an entry over 2,000 characters by its summary (at most 2,000, yours to write) or, without one, by its opening.",
         %{
           kind: %{type: "string", enum: ["plan", "note", "todo", "wrap"]},
           text: %{type: "string"},
           day: %{type: "string"},
-          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]}
+          register: %{type: "string", enum: ["correction", "praise", "instruction", "play"]},
+          summary: %{type: "string"}
         },
         [:kind, :text]
       ),
@@ -1351,6 +1352,7 @@ defmodule Oneiroi.Brain.Tools do
            to_string(args["kind"] || ""),
            to_string(args["text"] || ""),
            args["register"],
+           args["summary"],
            turn.resident
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."

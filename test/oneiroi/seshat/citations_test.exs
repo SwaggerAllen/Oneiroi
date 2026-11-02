@@ -105,9 +105,15 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert {:error, _} = Kinds.normalize("README.md")
     assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
 
-    assert Kinds.minting() == ~w(writing research design journal)
+    assert Kinds.minting() == ~w(writing research design journal system)
     assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory keepsake)
-    assert Kinds.writable() == ~w(writing research design wiki posts keepsake)
+    assert Kinds.writable() == ~w(writing research design wiki system posts keepsake)
+
+    # Decided one by one (seshat #29, #31): a keepsake, a wiki page, a
+    # system note; never the writing, and nothing the registry refuses.
+    assert Kinds.decided?("pocket-andrew.md")
+    assert Kinds.decided?("wiki/bread.md") and Kinds.decided?("system/tools.md")
+    refute Kinds.decided?("writing/essay.md") or Kinds.decided?("wiki/a b.md")
   end
 
   test "the chunker splits on paragraphs up to the bound and a long paragraph at the bound" do

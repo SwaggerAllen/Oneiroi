@@ -125,21 +125,24 @@ defmodule Oneiroi.SimaQian.DryRunTest do
   test "a file the adoption neither took nor refused is unaccounted, named, and fails the rehearsal" do
     dir = Path.join(System.tmp_dir!(), "oneiroi-account-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(dir) end)
-    write!(dir, "wiki/seen.md", "x")
-    write!(dir, "wiki/missed.md", "x")
-    write!(dir, "wiki/.hidden/log.jsonl", "x")
+    # Under writing/, which adoption takes whole; the wiki's files are
+    # held on disk and offered now (seshat #31), so a miss there is none.
+    write!(dir, "writing/seen.md", "x")
+    write!(dir, "writing/missed.md", "x")
+    write!(dir, "writing/.hidden/log.jsonl", "x")
+    write!(dir, "wiki/offered.md", "x")
 
     ledger =
       Import.account(dir, nil, %{kept: []}, %{
-        adopted: ["wiki/seen.md"],
+        adopted: ["writing/seen.md"],
         skipped: []
       })
 
-    assert ledger.unaccounted == ["wiki/missed.md"]
+    assert ledger.unaccounted == ["writing/missed.md"]
 
     assert [
-             {"wiki/.hidden/log.jsonl", "a hidden name, which the library does not hold"},
-             {"wiki/missed.md", "missed by the library's adoption" <> _}
+             {"writing/.hidden/log.jsonl", "a hidden name, which the library does not hold"},
+             {"writing/missed.md", "missed by the library's adoption" <> _}
            ] = ledger.left_behind
 
     report = %{import: %{unaccounted: ledger.unaccounted}}

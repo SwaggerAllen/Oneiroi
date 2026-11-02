@@ -28,8 +28,12 @@ defmodule Oneiroi.Seshat.Journals do
   def add(resident_id, day, kind, text, %Actor{} = actor),
     do: add(resident_id, day, kind, text, nil, actor)
 
-  @doc "Adds an entry with its register (correction, praise, instruction, play or nil; spec §6.13, P8)."
-  def add(resident_id, day, kind, text, register, %Actor{} = actor) do
+  @doc """
+  Adds an entry with its register (correction, praise, instruction, play
+  or nil; spec §6.13, P8) and, in `opts`, a `summary:` of at most 2,000
+  characters for an entry longer than the turn's view shows (seshat #30).
+  """
+  def add(resident_id, day, kind, text, register, %Actor{} = actor, opts \\ []) do
     day = day || today(resident_id)
 
     with :ok <- open_day(resident_id, day, actor),
@@ -41,7 +45,8 @@ defmodule Oneiroi.Seshat.Journals do
              day: day,
              kind: kind,
              text: text,
-             register: register
+             register: register,
+             summary: blank_to_nil(opts[:summary])
            }),
          :ok <- render_day(resident_id, day, actor) do
       {:ok, %{day: day, number: event.number, kind: kind}}
@@ -181,9 +186,64 @@ defmodule Oneiroi.Seshat.Journals do
 
     case Scope.resident(resident_id, fn -> Store.journal_entries(day) end) do
       [] -> ""
-      entries -> render(day, entries)
+      entries -> render(day, Enum.map(entries, &viewed/1))
     end
   end
+
+  # What the turn's journal section shows of an entry (seshat #30): the
+  # whole of one under the view's bound; of a longer one, its summary, or
+  # its opening cut at a line or a sentence when it has none, saying in
+  # either case how long the whole is and where it reads. The row and the
+  # day's file keep every word: the cap belongs to the view.
+  @view_chars 2_000
+  defp viewed(%{text: text} = e) do
+    length = String.length(text)
+
+    cond do
+      length <= @view_chars ->
+        e
+
+      summary = Map.get(e, :summary) ->
+        %{
+          e
+          | text:
+              "#{summary}\n(summary; the whole entry is #{length} characters, in journal_read)"
+        }
+
+      true ->
+        %{
+          e
+          | text:
+              "#{opening(text)} …\n(the opening; the whole entry is #{length} characters, in journal_read)"
+        }
+    end
+  end
+
+  # The longest opening under the bound that ends at a line, else at a
+  # sentence (keeping its full stop), else at a word, else the bound.
+  defp opening(text) do
+    cut = String.slice(text, 0, @view_chars)
+
+    end_at =
+      last_match(cut, "\n", 0) || last_match(cut, ". ", 1) || last_match(cut, " ", 0) ||
+        byte_size(cut)
+
+    cut |> binary_part(0, end_at) |> String.trim_trailing()
+  end
+
+  # The byte offset after which to cut: the last match of `mark`, plus
+  # `keep` bytes of it.
+  defp last_match(text, mark, keep) do
+    case :binary.matches(text, mark) do
+      [] -> nil
+      found -> found |> List.last() |> elem(0) |> Kernel.+(keep)
+    end
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(text),
+    do: if(String.trim(to_string(text)) == "", do: nil, else: to_string(text))
 
   @doc "The day's narrative, rendered from its rows: a heading per kind in the journal's order, todos with their state."
   @spec render(String.t(), [map()]) :: String.t()

@@ -184,3 +184,22 @@ that nothing enters a place without being decided into it. A reserved
 list rather than an allow list because the root's other names are few
 and known, and a keepsake's name is the giver's to choose. No edges
 because the words are mostly the giver's, as correspondence's are.
+
+## #30
+The day file had a 2,000-character row cap, and the memory import could
+not put the resident's free-form days into it without cutting them, so
+they landed elsewhere. The cap was a storage optimization that edited
+the record. The resident's ruling (bookmark #53): keep the free text
+whole and give the database the summary, because "truncation edits the
+day silently". The summary is scaffolding for what the turn is shown, and
+showing it by default keeps the context cost down. Cut in the view only,
+where it says what it cut.
+
+## #31
+The wiki became the catch-all: the import adopted every file under a
+library folder, and the memory-wiki folder that nothing wrote to took
+what had no other home, Pocket Andrew among it. The resident's rule
+since: nothing enters a place without being decided into it. A rule a
+person keeps by habit lapses; one written into the registry cannot. The
+`system` shelf exists from the start under the same rule, as she asked,
+so it cannot become the next catch-all.

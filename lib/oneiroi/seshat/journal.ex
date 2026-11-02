@@ -13,7 +13,9 @@ defmodule Oneiroi.Seshat.Journal do
   defstruct [:id, days: %{}]
 
   @kinds ~w(plan note todo wrap)
-  @text_limit 2_000
+  # The summary's bound, never the entry's (seshat #30): free text stays
+  # whole, and the cap belongs to the view.
+  @summary_limit 2_000
 
   @doc "The entry kinds, in the order the day renders them."
   def kinds, do: @kinds
@@ -28,8 +30,11 @@ defmodule Oneiroi.Seshat.Journal do
         {:error,
          Error.new(:seshat_entry_kind_invalid, :seshat_add_entry_kind_invalid, kinds: @kinds)}
 
-      not text_ok?(c.text, c.imported) ->
+      not text_ok?(c.text) ->
         {:error, Error.new(:seshat_entry_text_invalid, :seshat_add_entry_text_invalid)}
+
+      not summary_ok?(c.summary) ->
+        {:error, Error.new(:seshat_entry_summary_invalid, :seshat_add_entry_summary_invalid)}
 
       not Oneiroi.Register.ok?(c.register) ->
         {:error,
@@ -48,7 +53,8 @@ defmodule Oneiroi.Seshat.Journal do
           number: count + 1,
           kind: c.kind,
           text: String.trim(c.text),
-          register: c.register
+          register: c.register,
+          summary: c.summary && String.trim(c.summary)
         }
     end
   end
@@ -81,8 +87,12 @@ defmodule Oneiroi.Seshat.Journal do
 
   defp day_ok?(day), do: is_binary(day) and match?({:ok, _}, Date.from_iso8601(day))
 
-  defp text_ok?(text, true), do: is_binary(text) and String.trim(text) != ""
+  defp text_ok?(text), do: is_binary(text) and String.trim(text) != ""
 
-  defp text_ok?(text, _live),
-    do: is_binary(text) and String.trim(text) != "" and String.length(text) <= @text_limit
+  defp summary_ok?(nil), do: true
+
+  defp summary_ok?(summary),
+    do:
+      is_binary(summary) and String.trim(summary) != "" and
+        String.length(summary) <= @summary_limit
 end

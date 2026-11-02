@@ -164,7 +164,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
-      {Oneiroi.Seshat.Events.JournalEntryAdded, 2},
+      {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
   end
@@ -215,7 +215,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_register_invalid,
        "an entry's register is correction, praise, instruction or play, or none (spec §6.13, P8)",
        remedy: "say which register the entry is in, or leave it"},
-      {:seshat_entry_text_invalid, "an entry is one text of at most 2,000 characters",
+      {:seshat_entry_summary_invalid,
+       "an entry's summary is at most 2,000 characters; the entry itself has no limit",
+       remedy: "shorten the summary, or leave it out and the view cuts the entry for you"},
+      {:seshat_entry_text_invalid, "an entry is a text with words in it",
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
       {:seshat_no_such_day, "the schedule never opened that day",
@@ -258,11 +261,11 @@ defmodule Oneiroi.Seshat do
   @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
 
-  @doc "The kinds' folders an import adopts: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28); nor is the keepsake, which has no folder and is decided one by one (seshat #29)."
+  @doc "The kinds' folders an import holds: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28). A decided kind's folder is one, but its files are held on disk and offered rather than adopted (`decided?/1`); the keepsake has no folder (seshat #29, #31)."
   @impl Oneiroi.SimaQian.Library
   @spec folders() :: [String.t()]
   defexport(folders(),
-    do: for(k <- Kinds.all(), k.adoption not in [:originals, :decided], do: k.folder)
+    do: for(k <- Kinds.all(), k.adoption != :originals and is_binary(k.folder), do: k.folder)
   )
 
   @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
@@ -270,10 +273,10 @@ defmodule Oneiroi.Seshat do
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
 
-  @doc "Whether a name at the repository's root is a keepsake's; the records system's library port, for the import's accounting and the backup's keepsake class (seshat #29)."
+  @doc "Whether a path is decided into the library one by one (a keepsake at the root, the wiki, the system shelf); the records system's library port, for the import's accounting and the backup's keepsake class (seshat #29, #31)."
   @impl Oneiroi.SimaQian.Library
-  @spec keepsake?(String.t()) :: boolean()
-  defexport(keepsake?(name), do: Kinds.keepsake_name?(name))
+  @spec decided?(String.t()) :: boolean()
+  defexport(decided?(path), do: Kinds.decided?(path))
 
   @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
   @impl Oneiroi.SimaQian.Library
@@ -402,6 +405,21 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(journal_add(resident_id, day, kind, text, register, actor),
     do: Journals.add(resident_id, day, kind, text, register, actor)
+  )
+
+  @doc "Adds a journal entry with its register and a summary of at most 2,000 characters, which the turn's journal section shows of a longer entry (seshat #30)."
+  @spec journal_add(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(journal_add(resident_id, day, kind, text, register, summary, actor),
+    do: Journals.add(resident_id, day, kind, text, register, actor, summary: summary)
   )
 
   @doc "The journal entries written since an instant, oldest first, for the corpus-shape report."

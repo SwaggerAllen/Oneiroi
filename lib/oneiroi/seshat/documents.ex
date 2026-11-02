@@ -100,13 +100,14 @@ defmodule Oneiroi.Seshat.Documents do
   returned, so the import can say it did not transfer; the index runs
   once over everything adopted rather than once per file, because an
   import of a repository with hundreds of files is the case this exists
-  for and each run reads every document row. A keepsake is never
-  adopted here (seshat #29): it stays on offer in `unadopted/1`, to be
-  decided into the library one by one.
+  for and each run reads every document row. A file of a decided kind
+  (a keepsake, the wiki, the system shelf; seshat #29, #31) is never
+  adopted here: it stays on offer in `unadopted/1`, to be decided into
+  the library one by one.
   """
   def adopt_all(resident_id, %Actor{} = actor) do
     with paths when is_list(paths) <- unadopted(resident_id),
-         paths = Enum.reject(paths, &Kinds.keepsake?/1),
+         paths = Enum.reject(paths, &Kinds.decided?/1),
          {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       {adopted, skipped} =
         Enum.split_with(paths, &(register(resident_id, dir, &1, actor) == :ok))

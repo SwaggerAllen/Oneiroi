@@ -32,7 +32,7 @@ defmodule Oneiroi.Seshat.Citations do
   # `memory` is a target and never a source (seshat #28): the resident
   # may cite a day of the memory originals, and the originals mint no
   # edge of their own.
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory keepsake habit seed soul commitment)
+  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory keepsake system habit seed soul commitment)
   # A ref ends on a letter, digit or `#`-less anchor character, so the full
   # stop closing a sentence stays with the sentence.
   @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9])?)/

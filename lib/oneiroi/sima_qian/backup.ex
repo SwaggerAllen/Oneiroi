@@ -39,7 +39,7 @@ defmodule Oneiroi.SimaQian.Backup do
     # `posts/` is a library folder (Seshat's kinds) and was in no class, so
     # the first resident to publish one would have failed every backup on
     # the stray check.
-    {"writing", ["writing/", "research/", "posts/"]},
+    {"writing", ["writing/", "research/", "posts/", "system/"]},
     # `memory/` holds the originals of the resident's daily memory, a copy
     # of the source at a pinned commit that nothing writes again (seshat
     # #28): machine state by #7's rule, beside the export it sits with
@@ -245,7 +245,7 @@ defmodule Oneiroi.SimaQian.Backup do
     case File.ls(dir) do
       {:ok, names} ->
         names
-        |> Enum.filter(&(library().keepsake?(&1) and File.regular?(Path.join(dir, &1))))
+        |> Enum.filter(&(library().decided?(&1) and File.regular?(Path.join(dir, &1))))
         |> Enum.sort()
 
       {:error, _absent} ->

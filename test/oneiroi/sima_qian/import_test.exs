@@ -14,6 +14,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.Error, as: SimaQianError
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Merkle
@@ -111,7 +112,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
               events: 0,
               seeded: ["SOUL.md", "USER.md"],
               proposed: [],
-              adopted: 3,
+              # The writing alone: the wiki's pages are held and offered,
+              # decided in one by one, never swept (seshat #31).
+              adopted: 1,
               indexed: true,
               not_transferred: [
                 "README.md",
@@ -182,17 +185,14 @@ defmodule Oneiroi.SimaQian.ImportTest do
              %{name: "USER.md"}
            ] = AgathosDaimon.files(id)
 
-    assert [
-             %{path: "wiki/bread.md", kind: "wiki", origin: "adopted"},
-             %{path: "wiki/sources/" <> @long},
-             %{path: "writing/essay.md", kind: "writing", chunks: 1}
-           ] =
-             Seshat.documents(id) |> Enum.sort_by(& &1.path)
+    assert [%{path: "writing/essay.md", kind: "writing", chunks: 1}] = Seshat.documents(id)
 
     # The path the library cannot name is named as not transferred, and is
     # gone from the records: they hold what the platform holds. The
-    # keepsake stays where it was placed, offered rather than swept in.
-    assert Seshat.unadopted(id) == ["pocket-andrew.md"]
+    # keepsake and the wiki's pages stay where they were placed, offered
+    # rather than swept in; one is decided in, and searches.
+    assert Seshat.unadopted(id) == ["pocket-andrew.md", "wiki/bread.md", "wiki/sources/" <> @long]
+    assert {:ok, %{kind: "wiki", adopted: true}} = Seshat.adopt(id, "wiki/bread.md", ctx.actor)
     assert {:ok, [%{path: "wiki/bread.md"} | _]} = Seshat.search(id, "flour and water", ctx.actor)
 
     # The records hold what the platform holds, under a history of their
@@ -480,5 +480,45 @@ defmodule Oneiroi.SimaQian.ImportTest do
              "https://github.com/a/lily.git"
 
     assert Import.record_url("/tmp/bare") == "/tmp/bare"
+  end
+
+  # Sima Qian #45: the rehearsals of 2026-10-31 compared counts, and the
+  # counts matched while the bytes went unread.
+  test "every file the library took or offers is held to the source commit's blob, and a drifted one is named" do
+    work = Path.join(System.tmp_dir!(), "oneiroi-verify-#{System.unique_integer([:positive])}")
+    dest = work <> "-placed"
+    on_exit(fn -> File.rm_rf!(work) && File.rm_rf!(dest) end)
+    File.mkdir_p!(Path.join(work, "wiki"))
+    File.write!(Path.join(work, "pocket-andrew.md"), "# Pocket Andrew\n\nWhat is real resists.\n")
+    File.write!(Path.join(work, "wiki/bread.md"), "# Bread\n")
+    git!(work, ["init", "-q", "-b", "main"])
+    git!(work, ["add", "-A"])
+
+    git!(work, [
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@example.invalid",
+      "commit",
+      "-q",
+      "-m",
+      "source"
+    ])
+
+    {:ok, _} = File.cp_r(work, dest)
+
+    assert :ok = Import.verify(work, dest, ["pocket-andrew.md", "wiki/bread.md"])
+
+    # One byte changed in the placed copy, and a path the commit never held.
+    File.write!(Path.join(dest, "pocket-andrew.md"), "# Pocket Andrew\n\nWhat is real resists!\n")
+
+    assert {:error, %SimaQianError{kind: :sima_qian_import_mismatch, details: details}} =
+             Import.verify(work, dest, [
+               "pocket-andrew.md",
+               "wiki/bread.md",
+               "wiki/new.md"
+             ])
+
+    assert details[:paths] == ["pocket-andrew.md", "wiki/new.md"]
   end
 end

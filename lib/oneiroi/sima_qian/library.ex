@@ -32,8 +32,8 @@ defmodule Oneiroi.SimaQian.Library do
   @doc "The kinds' folders: what an import counts as transferred."
   @callback folders() :: [String.t()]
 
-  @doc "Whether a name at the repository's root is a keepsake's (seshat #29): a file the import leaves where it is, on offer, and the backup commits in its own class."
-  @callback keepsake?(name :: String.t()) :: boolean()
+  @doc "Whether a path is decided into the library one by one (seshat #29, #31): a keepsake at the root, a wiki page, a system note. The import leaves such a file where it is, on offer; the backup commits the root's in a class of their own."
+  @callback decided?(path :: String.t()) :: boolean()
 
   @doc "Why the library cannot hold a path, in words the resident is told, or nil when it can (sima-qian #22)."
   @callback refusal(path :: String.t()) :: String.t() | nil

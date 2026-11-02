@@ -68,6 +68,10 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
+    # Decided, never swept (seshat #31): the wiki became the catch-all an
+    # import landed everything homeless in, Pocket Andrew among it, so a
+    # file enters it by a write or by its own adoption, never by an
+    # import's whole-repository one.
     %{
       kind: "wiki",
       folder: "wiki",
@@ -75,7 +79,22 @@ defmodule Oneiroi.Seshat.Kinds do
       has_status: false,
       layout: "wiki/<page>.md, plain and searchable (the memory-wiki plugin is cut)",
       sidecar: nil,
-      adoption: :file,
+      adoption: :decided,
+      access: :resident
+    },
+    # The resident's notes on how she runs (seshat #31): tool notes,
+    # conventions, her own AGENTS.md beside the build's rendered one. Her
+    # words about the machinery, apart from the soul file's voice, and
+    # decided from the day it exists, so it cannot become the next
+    # catch-all.
+    %{
+      kind: "system",
+      folder: "system",
+      cites: true,
+      has_status: false,
+      layout: "system/<name>.md: how the resident runs, in her words (tool notes, conventions, her AGENTS.md)",
+      sidecar: nil,
+      adoption: :decided,
       access: :resident
     },
     %{
@@ -217,6 +236,18 @@ defmodule Oneiroi.Seshat.Kinds do
   @doc "Whether a path is a keepsake's."
   @spec keepsake?(String.t()) :: boolean()
   def keepsake?(path) when is_binary(path), do: match?(%{kind: "keepsake"}, kind_of(path))
+
+  @doc """
+  Whether a path the library accepts belongs to a kind whose files are
+  decided into it one by one (seshat #29, #31): the keepsakes, the wiki
+  and the system shelf. An import leaves such a file where it is and the
+  library offers it; nothing adopts it but its own adoption or a write.
+  """
+  @spec decided?(String.t()) :: boolean()
+  def decided?(path) when is_binary(path),
+    do: match?({:ok, _}, normalize(path)) and match?(%{adoption: :decided}, kind_of(path))
+
+  def decided?(_other), do: false
 
   @doc "The kinds that mint citation edges."
   @spec minting() :: [String.t()]

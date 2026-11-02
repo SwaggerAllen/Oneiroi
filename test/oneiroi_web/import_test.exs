@@ -84,7 +84,8 @@ defmodule OneiroiWeb.ImportTest do
                "attestation" => "none",
                "events" => 0,
                "seeded" => ["SOUL.md"],
-               "adopted" => 1,
+               # wiki/bread.md is held and offered, never swept in (seshat #31).
+               "adopted" => 0,
                "not_transferred" => ["notes.bin"]
              }
            } =
