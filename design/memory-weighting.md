@@ -96,10 +96,14 @@ weights at 0 this is plain relevance, so the first day works.
 
 Kept, as the spec has it, against character metastasising and as fodder
 for spontaneity. A fifth of the index budget is sampled rather than
-ranked: from outside the ranked set, deterministic per resident per day
-(so the text is stable within the day, and cacheable), and marked as
-explored in the turn's record so the measurements tell "ranked and
-ignored" from "explored and ignored". Explored picks learn like the rest:
+ranked, from outside the ranked set, **drawn fresh on every call** of
+the memory agent: a different set each turn. This supersedes F11's
+"deterministic, stable within a day", whose reason (a cacheable index
+text) went when the index became ranked against each turn's words. The
+draw is made at the command edge and its picks are recorded in the
+turn's event, so a replay reads them rather than drawing again (the
+purity floor, conventions §6). The picks are marked as explored, so the
+measurements tell "ranked and ignored" from "explored and ignored". Explored picks learn like the rest:
 used, they gain edges to what they were used with, which is how a new
 association forms. The madeleine (one unheard bookmark by nearness)
 stays as it is.
