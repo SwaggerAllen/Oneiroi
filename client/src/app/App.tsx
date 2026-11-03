@@ -43,6 +43,7 @@ import { More } from '../screens/more/More';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
+import { useRefocus } from './refocus';
 import { joinRun, joinSession } from './socket';
 
 // The shell (spec §10): Chat is home; the nav holds the three destinations
@@ -161,6 +162,8 @@ function ChatContainer({ resident }: { resident: Resident }) {
   // per conversation until their turns land; and whether the stream is up.
   const [outbox, setOutbox] = useState<Outgoing[]>([]);
   const [connection, setConnection] = useState<Connection>('connecting');
+  // Bumped to join the stream again with a fresh token (client #13).
+  const [stream, setStream] = useState(0);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
   // The newest page of a conversation, joined to what was paged in
@@ -224,10 +227,27 @@ function ChatContainer({ resident }: { resident: Resident }) {
       .catch(() => setSessions([]));
   }, [open, reload, resident.id]);
 
+  // Back on the page (client #13): the conversation open now and the
+  // list are read again, since a phone suspends the stream while away
+  // and turns land without it. The stream is joined again with a fresh
+  // token when it is not up or the page was away long enough for the
+  // token (five minutes) to have gone: the socket's own retries reuse
+  // the token it was opened with, and a refused one leaves it down.
+  useRefocus((away) => {
+    if (!open) return;
+    void reload(open);
+    api
+      .sessions(resident.id)
+      .then(setSessions)
+      .catch(() => undefined);
+    if (connection !== 'connected' || away > 30_000) setStream((n) => n + 1);
+  });
+
   // Only the Oneiroi chat streams: another conversation is answered
   // where it happens and read here as captured.
   useEffect(() => {
     if (!key || open !== key) return;
+    void stream;
     let leave: () => void = () => undefined;
     api
       .socketToken()
@@ -258,7 +278,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       // says the stream is down.
       .catch(() => setConnection('offline'));
     return () => leave();
-  }, [key, open, resident.id, reload]);
+  }, [key, open, resident.id, reload, stream]);
 
   // A message is done when its turn is in the transcript with a reply;
   // what is left is the outbox (read off the chat's own transcript).
@@ -411,6 +431,8 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       .catch(() => setRetrieval(null));
   }, [resident.id]);
   useEffect(() => load(), [load]);
+  // Read again on coming back to the page (client #13).
+  useRefocus(() => load());
   return (
     <Memory
       residentName={resident.name}
@@ -440,6 +462,8 @@ function InboxContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
+  // Read again on coming back to the page (client #13).
+  useRefocus(() => load());
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
   if (!data) return error ? <ErrorNotice error={error} /> : null;
@@ -532,6 +556,8 @@ function ConnectionsContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
+  // Read again on coming back to the page (client #13).
+  useRefocus(() => load());
   if (!adapters) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -575,6 +601,8 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
+  // Read again on coming back to the page (client #13).
+  useRefocus(() => load());
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
   if (!today) return error ? <ErrorNotice error={error} /> : null;
@@ -601,6 +629,8 @@ function LedgerContainer({ resident }: { resident: Resident }) {
     api.ledger(resident.id).then(setLedger);
   }, [resident.id]);
   useEffect(() => load(), [load]);
+  // Read again on coming back to the page (client #13).
+  useRefocus(() => load());
   if (!ledger) return null;
   return (
     <Ledger
