@@ -12,7 +12,7 @@ defmodule Oneiroi.SDK.MixProject do
       app: :oneiroi_sdk,
       version: "0.1.0",
       # Floor, not pin: the pin is .tool-versions and CI enforces it.
-      elixir: "~> 1.17",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),

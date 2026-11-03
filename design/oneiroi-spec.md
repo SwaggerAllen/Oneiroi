@@ -175,7 +175,7 @@ and nothing else.
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Core | Elixir 1.17 / OTP 27, Phoenix | Catapult's stack and practices; orchestration's assumed stack; OTP is the right substrate for many long-lived per-resident processes |
+| Core | Elixir 1.19 / OTP 28, Phoenix | Catapult's stack and practices; orchestration's assumed stack; OTP is the right substrate for many long-lived per-resident processes |
 | Events | Commanded 1.4 + EventStore (Postgres) | Strict event sourcing with a library that has carried complex LLM flows in Catapult; MIT |
 | Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries |
 | Data | Postgres 16+, pgvector | One database for events, projections and vectors; joins with Honcho stay plain SQL |

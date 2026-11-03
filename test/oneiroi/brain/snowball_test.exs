@@ -10,8 +10,10 @@ defmodule Oneiroi.Brain.SnowballTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.History
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -61,11 +63,11 @@ defmodule Oneiroi.Brain.SnowballTest do
       resident_id: ctx.resident.id,
       session_key: ctx.key,
       turn_ref: "t-again",
-      started_at: Oneiroi.Apsu.Clock.now(),
+      started_at: Clock.now(),
       resident: Actor.new(:resident, ctx.resident.id, "fake/model")
     }
 
-    second = Oneiroi.Brain.Tools.run("transcript_search", ~s({"q":"astroturf"}), turn)
+    second = Tools.run("transcript_search", ~s({"q":"astroturf"}), turn)
 
     assert first =~ "astroturf" and String.length(first) < 1_000
     refute second =~ "transcript_search("

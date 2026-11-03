@@ -1,6 +1,6 @@
 # The OTP release, built on hexpm's Elixir image and run on slim Debian.
-# The base pins the closest published image to .tool-versions' 27.3.4.
-FROM hexpm/elixir:1.17.3-erlang-27.3.4.16-debian-bookworm-20260803-slim AS build
+# The base pins the published image matching .tool-versions' 28.5.0.5.
+FROM hexpm/elixir:1.19.5-erlang-28.5.0.5-debian-bookworm-20260824-slim AS build
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends build-essential git curl ca-certificates && \

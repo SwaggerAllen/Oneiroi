@@ -15,7 +15,7 @@ own it says so. Three Catapult rules invert here and are marked.
 
 ## 1. Toolchain and dependencies
 
-- **Elixir 1.17+ / OTP 27, Phoenix 1.8+, pinned exactly in
+- **Elixir 1.19+ / OTP 28, Phoenix 1.8+, pinned exactly in
   `.tool-versions`; CI reads the same file with `version-type: strict`.**
   One toolchain source; drift between dev and CI is a class of flake we
   refuse to debug. Node 22 for the client, pinned in the same file.

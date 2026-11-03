@@ -11,7 +11,7 @@ defmodule Oneiroi.Daedalus.MixProject do
       version: "0.1.0",
       # Floor, not pin: the pin lives in .tool-versions and CI enforces
       # it; the floor is what lets older local toolchains compile.
-      elixir: "~> 1.17",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),

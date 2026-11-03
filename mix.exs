@@ -10,7 +10,7 @@ defmodule Oneiroi.MixProject do
       app: :oneiroi,
       version: "0.1.0",
       # Floor, not pin: the pin is .tool-versions and CI enforces it.
-      elixir: "~> 1.17",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
