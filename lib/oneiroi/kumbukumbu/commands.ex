@@ -33,6 +33,13 @@ defmodule Oneiroi.Kumbukumbu.Commands do
     use Oneiroi.Command, fields: [:id, :resident_id, :session_key, :turn_ref, :injections]
   end
 
+  # A submitted message's ref claimed before its turn runs (kumbukumbu
+  # #47): `stale_before` is the instant a claim older than which, never
+  # captured, may be taken again (its turn died with its process).
+  defmodule ClaimTurn do
+    use Oneiroi.Command, fields: [:id, :resident_id, :session_key, :turn_ref, :stale_before]
+  end
+
   defmodule RecordRetrieval do
     use Oneiroi.Command,
       fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses, :embedding_model]

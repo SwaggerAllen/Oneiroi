@@ -1050,7 +1050,7 @@ defmodule Oneiroi.Brain.Turn do
         from = waiting |> Enum.map(& &1.from_name) |> Enum.uniq() |> Enum.join(", ")
 
         text =
-          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send answers."
+          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send with in_reply_to answers each in its thread."
 
         # The text rides the row, as the index's does: it is a count and
         # names, nothing of the letters, and the inspector shows it.

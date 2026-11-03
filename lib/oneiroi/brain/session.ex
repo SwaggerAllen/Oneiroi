@@ -20,9 +20,11 @@ defmodule Oneiroi.Brain.Session do
   use GenServer
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu
 
   @registry :brain_registry
   @supervisor :brain_sessions
@@ -84,12 +86,12 @@ defmodule Oneiroi.Brain.Session do
 
   @impl GenServer
   def handle_call({:run, item}, from, state) do
-    item = %{item | ref: item.ref || Oneiroi.Kumbukumbu.turn_ref()}
+    item = %{item | ref: item.ref || Kumbukumbu.turn_ref()}
     {:noreply, enqueue(state, Map.put(item, :from, from))}
   end
 
   def handle_call({:submit, item}, _from, state) do
-    if seen?(state, item.ref) do
+    if seen?(state, item.ref) or claimed_elsewhere?(state, item) do
       {:reply, {:ok, %{turn_ref: item.ref, state: "duplicate"}}, state}
     else
       ahead = :queue.len(state.queue) + if(state.running, do: 1, else: 0)
@@ -154,11 +156,37 @@ defmodule Oneiroi.Brain.Session do
     next(%{state | running: nil, recent: recent})
   end
 
+  # The claim on the stream (kumbukumbu #47): what this process's memory
+  # cannot know, another instance's turn under the same ref (a deploy's
+  # overlap) or this process's own before a restart. A claim older than
+  # the turn timeout, never captured, died with its turn and is taken
+  # again. A claim that could not be recorded lets the message run: a
+  # rare second turn is better than a lost message.
+  defp claimed_elsewhere?(state, item) do
+    stale_before =
+      DateTime.add(
+        Clock.now(),
+        -Config.fetch!(:brain, :turn_timeout_ms),
+        :millisecond
+      )
+
+    case Kumbukumbu.claim_turn(
+           state.resident_id,
+           state.session_key,
+           item.ref,
+           stale_before,
+           item.actor
+         ) do
+      :duplicate -> true
+      _claimed_or_failed -> false
+    end
+  end
+
   defp seen?(state, ref) do
     ref in state.recent or
       match?(%{ref: ^ref}, state.running) or
       Enum.any?(:queue.to_list(state.queue), &(&1.ref == ref)) or
-      Oneiroi.Kumbukumbu.turn_messages(state.resident_id, ref) != []
+      Kumbukumbu.turn_messages(state.resident_id, ref) != []
   end
 
   defp status(state, ref, what, detail),

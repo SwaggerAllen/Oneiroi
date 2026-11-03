@@ -246,6 +246,25 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       else: nil
   end
 
+  @doc "Claims a submitted ref before its turn runs: `:claimed` or `:duplicate` (kumbukumbu #47)."
+  def claim_turn(resident_id, key, turn_ref, stale_before, %Actor{} = actor) do
+    command = %Commands.ClaimTurn{
+      actor: actor,
+      at: Clock.now(),
+      id: stream(resident_id, key),
+      resident_id: resident_id,
+      session_key: key,
+      turn_ref: turn_ref,
+      stale_before: stale_before
+    }
+
+    case dispatch(command) do
+      {:ok, [_claimed]} -> :claimed
+      {:ok, []} -> :duplicate
+      other -> other
+    end
+  end
+
   @doc "Each target retrieval touched, with its counts by stage, under the scope (`Store.retrieval_counts/1`)."
   def retrieval(scope, opts \\ []), do: Scope.run(scope, fn -> Store.retrieval_counts(opts) end)
 

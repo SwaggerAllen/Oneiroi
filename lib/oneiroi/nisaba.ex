@@ -200,7 +200,8 @@ defmodule Oneiroi.Nisaba do
   def errors do
     [
       {:nisaba_unknown_purpose, "the purpose is not one the ledger bills under",
-       remedy: "use one of chat, free_time, judge, hands, embeddings, drafting, regression"},
+       remedy:
+         "use one of chat, free_time, judge, hands, embeddings, oracle, drafting, regression"},
       {:nisaba_no_witness, "the resident has no witness to spend from",
        remedy: "a resident in community custody runs on the insurance floor, which is P2"},
       {:nisaba_budget_exceeded, "the budget line for this purpose is spent for its period",

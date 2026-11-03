@@ -23,7 +23,11 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     turns: MapSet.new(),
     started: MapSet.new(),
     failures: %{},
-    compacted_through: 0
+    compacted_through: 0,
+    # Submitted refs (kumbukumbu #47): claimed, ref => instant, until
+    # captured; captured refs are held so a late retry stays a duplicate.
+    claims: %{},
+    captured: MapSet.new()
   ]
 
   @kinds ~w(main free_time hands adapter)
@@ -180,6 +184,32 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   end
 
   # A turn that retrieved nothing records nothing.
+  # A ref is claimed once (kumbukumbu #47): a captured one, or one claimed
+  # since `stale_before`, is a duplicate and produces nothing; a claim
+  # older than that and never captured died with its turn and is taken
+  # again. Two instances claiming at once write against one stream
+  # version, so one of them sees the other's claim.
+  def execute(%__MODULE__{captured: captured, claims: claims}, %Commands.ClaimTurn{} = c) do
+    cond do
+      MapSet.member?(captured, c.turn_ref) ->
+        []
+
+      match?(%DateTime{}, claims[c.turn_ref]) and
+          DateTime.compare(claims[c.turn_ref], c.stale_before) != :lt ->
+        []
+
+      true ->
+        %Events.TurnClaimed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: c.resident_id,
+          session_key: c.session_key,
+          turn_ref: c.turn_ref
+        }
+    end
+  end
+
   def execute(%__MODULE__{}, %Commands.RecordRetrieval{uses: []}), do: []
 
   def execute(%__MODULE__{}, %Commands.RecordRetrieval{} = c) do
@@ -314,10 +344,15 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   def apply(%__MODULE__{} = s, %Events.TurnStarted{} = e),
     do: %{s | started: MapSet.put(s.started, e.turn_ref)}
 
+  def apply(%__MODULE__{} = s, %Events.TurnClaimed{} = e),
+    do: %{s | claims: Map.put(s.claims, e.turn_ref, e.at)}
+
   def apply(%__MODULE__{} = s, %Events.TurnCaptured{} = e) do
     %{
       s
-      | turns: MapSet.put(s.turns, turn_key(e.started_at, e.messages)),
+      | claims: Map.delete(s.claims, e.turn_ref),
+        captured: MapSet.put(s.captured, e.turn_ref),
+        turns: MapSet.put(s.turns, turn_key(e.started_at, e.messages)),
         failures: Map.delete(s.failures, e.turn_ref)
     }
   end

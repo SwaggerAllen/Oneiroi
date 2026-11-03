@@ -77,6 +77,18 @@ defmodule Oneiroi.Kumbukumbu.Events do
       fields: [:id, :resident_id, :session_key, :turn_ref, :injections]
   end
 
+  defmodule TurnClaimed do
+    # A submitted message's ref, claimed on the conversation's stream
+    # before its turn runs (kumbukumbu #47): the claim is what makes a
+    # retry a duplicate across processes and instances, since the stream's
+    # version check lets one claim win. Machinery, not her life: not
+    # exported.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :session_key, :turn_ref],
+      export: false
+  end
+
   defmodule RetrievalRecorded do
     # What retrieval did with each target in a turn (the resident's work
     # order, 2026-11-02; spec §6.3's F11 needs it): every use is

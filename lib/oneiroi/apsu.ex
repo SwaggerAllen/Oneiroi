@@ -5,7 +5,8 @@ defmodule Oneiroi.Apsu do
   (plan P0.2): the one Repo and the migrator, the event store and the
   Commanded application, Oban with the queues every system declares, the
   vault, the injected clock, and the audit checks that are Oneiroi's own
-  (`gates`, `skips`, `tables`).
+  (`gates`, `skips`, `tables`, `free_text`,
+  `error_site`, `projector_scope`).
   """
   use Oneiroi.System, slug: :apsu
 

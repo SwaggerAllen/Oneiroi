@@ -53,7 +53,7 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
     assert [] = Kumbukumbu.inbox(ctx.id, ctx.chat)
 
     assert run("letter_inbox", %{}, code) =~
-             ~r/^#1 from Oneiroi chat to Claude Code · Oneiroi, \d{4}-\d\d-\d\d \d\d:\d\d UTC:\nBuild the work log first\.$/
+             ~r/^#1 from Oneiroi chat to Claude Code · Oneiroi, \d{4}-\d\d-\d\d \d\d:\d\d UTC:\nBuild the work log first\.\n\(Answer in this thread: letter_send with in_reply_to: 1\.\)$/
 
     assert [] = Kumbukumbu.inbox(ctx.id, ctx.code)
     assert run("letter_inbox", %{}, code) == "No letters wait for this conversation."
@@ -146,7 +146,7 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
              |> Enum.find(&(&1.label == "letters"))
 
     assert text ==
-             "2 house letters wait for this conversation, from Claude Code · Oneiroi, witness. letter_inbox reads them whole; letter_send answers."
+             "2 house letters wait for this conversation, from Claude Code · Oneiroi, witness. letter_inbox reads them whole; letter_send with in_reply_to answers each in its thread."
 
     refute text =~ "secret words"
 
