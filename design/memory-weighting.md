@@ -53,18 +53,41 @@ A new table, `kumbukumbu_edge (from, to, w, touched_at)`, beside the
 citations and never merged with them. An edge x → y reads: *when x is in
 play, y is worth bringing.* Neutral is 0; only edges ever touched exist.
 
-The update, once per turn, from that turn's C, R and U:
+The update, once per turn, from that turn's C, R and U (S is the seed,
+below):
 
 | Outcome | Edges | Change |
 |---|---|---|
-| a and b both returned | a → b, b → a | +α |
-| c considered and not returned, r returned | r → c | −α |
+| s in the seed and r both returned | s → r | +α |
 | u and v both used | u → v, v → u | +β |
 | a returned and not used, u used | u → a | −α |
 
 So a memory surfaced and ignored while Haven is in play weakens
 Haven-memories → it, and nothing else: in its own context its edges are
 untouched. Direction is what carries that.
+
+**Amended after the resident's review** (Position #45, 2026-11-03;
+the witness agreed, to be revisited if the tuning does not help):
+
+- *No rule from the ranker's own cut.* The first draft had "c
+  considered and not returned, r returned: r → c, −α". It is the ranker
+  learning from its own cut: a near-miss gains a negative edge, ranks
+  lower, misses by more, and none of the other rules can lift it,
+  since each needs the memory returned. A wrong negative is invisible
+  (nobody sees what never comes back), so a negative is written only
+  from behaviour: rule three. Whether a near-miss deserves better is
+  the exploration share's question. Considered-and-rejected is still
+  recorded, as measurement only.
+- *Co-return is written from the seed alone.* "Both returned" mostly
+  means "both similar to the same turn", which the score's base term
+  already says; the edge worth writing is s → r with s actually in
+  play, which is also the edge the score reads.
+- *A correction takes no negative update.* A bookmark in the
+  correction register is never the target of rule three: its value is
+  an error that did not happen, which leaves no trace, so a negative
+  rule would teach retrieval to bury the memories that guard against
+  the stale-frame error. It still decays toward neutral and still
+  earns positives.
 
 **Bounds.** Soft, so no clique or hub runs away: an increase is
 `w += Δ(1 − w)`, a decrease `w −= Δ(1 + w)`, keeping every weight in
@@ -128,7 +151,7 @@ tagged as a guess:
 |---|---|---|
 | K | 40 | considered per turn |
 | seed | 5 | top of C that anchors the edges |
-| α | 0.05 | the returned / rejected step |
+| α | 0.05 | the co-return and ignored step |
 | β | 0.15 | the used step |
 | λ | 0.3 | how much the edges move a score |
 | threshold | to measure | the reject line, set from the first week's distribution |
@@ -143,6 +166,14 @@ After a week: considered:returned below 1:1 on the high-volume targets,
 returned-and-used up, and the pins' returns gone from the index (they
 are in the prefix). The two of you read the numbers before any setting
 is moved.
+
+## Filed, not silently superseded
+
+Two standing rules give way to this design and go to the spec's next
+batch as proposals, each with its reason, rather than being overridden
+in code: F11's deterministic, stable-within-a-day exploration share
+(now drawn fresh per call), and kumbukumbu #20's pins-first index (pins
+now in the stable prefix).
 
 ## Open
 

@@ -13,7 +13,8 @@ defmodule Oneiroi.Seshat.Library do
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.Kinds
 
-  defstruct [:id, documents: %{}, discussions: MapSet.new()]
+  # `oracles`: number => :open | :answered | :failed (seshat #34).
+  defstruct [:id, documents: %{}, discussions: MapSet.new(), oracles: %{}]
 
   @url ~r/\Ahttps?:\/\/[^\s]+\z/
 
@@ -145,6 +146,86 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # ---- the oracle (brain #49, seshat #34) ----
+
+  # Each question named and its sources a list of refs; numbered in the
+  # same dispatch from the oracle sequence, so a replay reproduces them.
+  def execute(%__MODULE__{oracles: oracles}, %Commands.DispatchOracle{} = c) do
+    questions = List.wrap(c.questions)
+
+    if questions != [] and Enum.all?(questions, &oracle_question?/1) do
+      first = (oracles |> Map.keys() |> Enum.max(fn -> 0 end)) + 1
+
+      questions
+      |> Enum.with_index(first)
+      |> Enum.map(fn {q, n} ->
+        %Events.OracleDispatched{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: n,
+          question: String.trim(q.question),
+          sources: q.sources,
+          session_key: c.session_key
+        }
+      end)
+    else
+      {:error, Error.new(:seshat_oracle_invalid, :seshat_dispatch_oracle_invalid)}
+    end
+  end
+
+  def execute(%__MODULE__{oracles: oracles}, %Commands.AnswerOracle{} = c) do
+    case Map.get(oracles, c.number) do
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_oracle, :seshat_answer_oracle_absent, number: c.number)}
+
+      :open ->
+        %Events.OracleAnswered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          path: c.path,
+          confidence: c.confidence,
+          read: c.read || [],
+          used: c.used || [],
+          model: c.actor.model
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def execute(%__MODULE__{oracles: oracles}, %Commands.FailOracle{} = c) do
+    case Map.get(oracles, c.number) do
+      nil ->
+        {:error, Error.new(:seshat_no_such_oracle, :seshat_fail_oracle_absent, number: c.number)}
+
+      :open ->
+        %Events.OracleFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          reason: c.reason
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def apply(%__MODULE__{} = l, %Events.OracleDispatched{} = e),
+    do: %{l | id: e.id, oracles: Map.put(l.oracles, e.number, :open)}
+
+  def apply(%__MODULE__{} = l, %Events.OracleAnswered{} = e),
+    do: %{l | oracles: Map.put(l.oracles, e.number, :answered)}
+
+  def apply(%__MODULE__{} = l, %Events.OracleFailed{} = e),
+    do: %{l | oracles: Map.put(l.oracles, e.number, :failed)}
+
   def apply(%__MODULE__{} = s, %Events.DocumentRemoved{} = e),
     do: %{s | documents: Map.delete(s.documents, e.path)}
 
@@ -177,4 +258,11 @@ defmodule Oneiroi.Seshat.Library do
       k -> k.has_status
     end
   end
+
+  defp oracle_question?(%{question: q, sources: sources}),
+    do:
+      is_binary(q) and String.trim(q) != "" and is_list(sources) and
+        Enum.all?(sources, &is_binary/1)
+
+  defp oracle_question?(_other), do: false
 end

@@ -31,7 +31,9 @@ defmodule Oneiroi.Brain do
       Oneiroi.SimaQian,
       Oneiroi.Sunna,
       Oneiroi.Xenia,
-      Jason
+      Jason,
+      # The oracle's worker (brain #49), as every system with a worker has.
+      Oban
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
 
@@ -99,6 +101,24 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many characters of a past tool answer a replayed transcript carries: the call and the head of its answer, enough to know what was looked at; the model can call again for the rest. A bound, not measured"},
+      {:oracle_batch, "BRAIN_ORACLE_BATCH",
+       cast: :integer,
+       default: "5",
+       tag: :bound,
+       usage:
+         "how many questions one oracle dispatch may carry (brain #49), each its own parallel read; a guess at a batch worth its spend"},
+      {:oracle_chunk_chars, "BRAIN_ORACLE_CHUNK_CHARS",
+       cast: :integer,
+       default: "40000",
+       tag: :bound,
+       usage:
+         "how many characters of the named sources the oracle reads at once (about 10,000 tokens); past it, the sources are read in parts of this size first and their notes given to the answer; a guess"},
+      {:oracle_max_chunks, "BRAIN_ORACLE_MAX_CHUNKS",
+       cast: :integer,
+       default: "60",
+       tag: :bound,
+       usage:
+         "how many parts of one source the oracle reads for one question, each a call carrying her prefix; past it the rest are named as unread; a bound on one question's spend, a guess"},
       {:source_dir, "BRAIN_SOURCE_DIR",
        default: ".",
        usage:
@@ -129,6 +149,8 @@ defmodule Oneiroi.Brain do
        remedy: "read the id off the resident list"},
       {:brain_file_unknown, "the file is not one of the resident's identity files",
        remedy: "draft one of the identity files the resident system names"},
+      {:brain_oracle_silent, "the oracle's reading answered no words",
+       remedy: "ask the question again; it may need narrower sources"},
       {:brain_summary_empty, "the model answered the compaction with no words",
        remedy: "nothing was compacted; the next turn tries again"},
       {:brain_path_invalid,
@@ -147,6 +169,10 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def processes,
     do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
+
+  # The oracle's reads (brain #49): on demand, no cron.
+  @impl Oneiroi.Component
+  def oban_queues, do: [{:brain_oracle, []}]
 
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session]

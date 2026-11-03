@@ -72,7 +72,7 @@ defmodule Oneiroi.Brain.TurnTest do
     [index] = Enum.filter(rows, &(&1.label == "index"))
     misses = Enum.filter(rows, &(&1.label == "near-miss"))
     assert misses != []
-    assert index.reason =~ "#{length(misses)} left out"
+    assert index.reason =~ "#{length(misses)} considered and not returned"
     assert Enum.all?(misses, &(&1.tokens == 0 and &1.reason =~ "considered and not injected"))
     assert Enum.all?(misses, &(&1.text =~ "bookmark number"))
 
@@ -85,7 +85,7 @@ defmodule Oneiroi.Brain.TurnTest do
              Kumbukumbu.bookmark(id, String.to_integer(number))
   end
 
-  test "the madeleine: a bookmark the index left out and the words sit near is surfaced once, with its reason, and marked recalled, never indexed",
+  test "the ranked index brings the bookmark the words sit near first, and the madeleine never repeats what the index returned",
        ctx do
     id = ctx.resident.id
     resident = Actor.new(:resident, id, "fake/model")
@@ -130,26 +130,18 @@ defmodule Oneiroi.Brain.TurnTest do
 
     rows = Kumbukumbu.injections({:account, ctx.witness.id}, ref)
     [index] = Enum.filter(rows, &(&1.label == "index"))
-    refute index.text =~ "greenhouse"
-    [recall] = Enum.filter(rows, &(&1.label == "madeleine"))
 
-    assert recall.text =~ "# A madeleine" and
-             recall.text =~ "#1 2026-10-26: the greenhouse thermometer broke"
+    # Ranked by nearness (kumbukumbu #46): the greenhouse comes first, and
+    # it was the seed the edges are read from.
+    assert index.text =~ ~r/\A#1 2026-10-26 the greenhouse thermometer broke/
+    assert index.reason =~ "the ranked index (kumbukumbu #46)"
 
-    assert recall.reason =~ "adjacent and unheard: #1" and String.length(recall.reason) <= 255
+    # The madeleine reaches past what the index returned: never #1 now.
+    for recall <- Enum.filter(rows, &(&1.label == "madeleine")) do
+      refute recall.text =~ "#1 2026-10-26"
+    end
 
-    assert {:ok, %{last_indexed_at: nil, last_recalled_at: %DateTime{}}, _span} =
-             Kumbukumbu.bookmark(id, 1)
-
-    # Not again within the window.
-    assert {:ok, %{turn_ref: ref2}} =
-             Oneiroi.Brain.turn(id, ctx.key, "the greenhouse thermometer?", ctx.actor)
-
-    assert [] =
-             Enum.filter(
-               Kumbukumbu.injections({:account, ctx.witness.id}, ref2),
-               &(&1.label == "madeleine")
-             )
+    assert {:ok, %{last_indexed_at: %DateTime{}}, _span} = Kumbukumbu.bookmark(id, 1)
   end
 
   test "an injection's reason is fitted to its row's width at the write, cut with a mark" do

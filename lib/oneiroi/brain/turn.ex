@@ -116,6 +116,54 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
+  @doc """
+  An oracle's turn (brain #49): the resident's whole assembly against
+  `text`, the question and its materials (the prefix, her state, the
+  ranked index, the madeleine, how she acts, her promises), on `model`,
+  every read tool and no write, billed to her under `oracle`. Nothing
+  is captured, streamed or remembered: the answer is the caller's to
+  write down. `{:ok, result, reads}`, each read tool call it made as
+  `%{tool, arguments, result}`, or the provider's failure.
+  """
+  @spec oracle(map(), String.t(), String.t(), String.t()) ::
+          {:ok, Result.t(), [map()]} | {:error, term()}
+  def oracle(row, resident_id, model, text) do
+    turn = %{
+      resident_id: resident_id,
+      # A conversation nobody opened, as a trial's: the common room's
+      # memory, no history.
+      session_key: 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
+      turn_ref: nil,
+      started_at: Clock.now(),
+      model: model,
+      resident: Actor.new(:resident, resident_id, model),
+      oracle?: true,
+      as: :user,
+      purpose: :oracle,
+      notices: [],
+      injections: [],
+      tools: [],
+      trace: []
+    }
+
+    {messages, _injections} = assemble(row, turn, text)
+
+    case converse(turn, messages, 0) do
+      {{:ok, %Result{} = result}, turn} -> {:ok, result, turn.trace}
+      {failure, _turn} -> failure
+    end
+  end
+
+  @doc false
+  # The stable prefix as messages (the prompt, the identity files, the
+  # contract, the pins), for the oracle's chunk reads: her voice reading.
+  def prefix_messages(row, resident_id) do
+    row
+    |> prefix_sections(%{resident_id: resident_id})
+    |> Enum.map(& &1.message)
+    |> Enum.reject(&is_nil/1)
+  end
+
   defp trial_for(row, resident_id, model, prompt, payer) do
     turn = %{
       resident_id: resident_id,
@@ -280,18 +328,55 @@ defmodule Oneiroi.Brain.Turn do
     rounds = Config.fetch!(:brain, :tool_rounds)
 
     case ask(turn, request) do
-      {:ok, %Result{tool_calls: [_ | _] = calls} = result} when round < rounds ->
-        {results, turn} = run_tools(turn, calls)
-        assistant = %{role: :assistant, content: result.content, tool_calls: wire_calls(calls)}
-        converse(turn, messages ++ [assistant | results], round + 1)
+      {:ok, %Result{tool_calls: [_ | _] = calls} = result} ->
+        cond do
+          # The reply with its memory_feedback (kumbukumbu #46): the call
+          # is recorded and the reply stands, with no further round, so
+          # the feedback costs no extra call.
+          feedback_only?(calls, result) ->
+            {_results, turn} = run_tools(turn, calls)
+            {{:ok, %{result | tool_calls: []}}, turn}
+
+          round < rounds ->
+            {results, turn} = run_tools(turn, calls)
+
+            assistant = %{
+              role: :assistant,
+              content: result.content,
+              tool_calls: wire_calls(calls)
+            }
+
+            converse(turn, messages ++ [assistant | results], round + 1)
+
+          true ->
+            {{:ok, result}, turn}
+        end
 
       other ->
         {other, turn}
     end
   end
 
+  # A cut answer names the oracle (brain #49), the size trigger: the
+  # question is still hers to name, so nothing is dispatched for her.
+  defp oracle_hint(output) do
+    if output =~ "\n[cut: ",
+      do: output <> " To read it whole, ask the oracle a named question about it (oracle_ask).",
+      else: output
+  end
+
+  defp feedback_only?(calls, %Result{content: content}) do
+    is_binary(content) and String.trim(content) != "" and
+      Enum.all?(calls, &(&1.name == "memory_feedback"))
+  end
+
   # A trial streams to nobody: the session topic is the resident's and
   # the witness's, and a trial is neither's conversation (eunomia #12).
+  # The oracle (brain #49) bills her ledger under `oracle` and streams to
+  # nobody: it has no conversation of its own.
+  defp ask(%{oracle?: true} = turn, request),
+    do: Nisaba.call(turn.resident_id, :oracle, request, turn.resident)
+
   defp ask(%{trial?: true} = turn, request),
     do: Nisaba.call(turn.resident_id, turn.purpose, request, turn.payer)
 
@@ -308,7 +393,7 @@ defmodule Oneiroi.Brain.Turn do
   defp run_tools(turn, calls) do
     Enum.reduce(calls, {[], turn}, fn call, {results, turn} ->
       {output, turn} = use_tool(turn, call)
-      output = Cut.cut(output, Config.fetch!(:brain, :tool_result_chars))
+      output = output |> Cut.cut(Config.fetch!(:brain, :tool_result_chars)) |> oracle_hint()
       result = %{role: :tool, tool_call_id: call.id, content: output}
 
       record = %{
@@ -342,6 +427,19 @@ defmodule Oneiroi.Brain.Turn do
   # A trial's writes are answered and never run (`Tools.trial/3`); the
   # turn carries the numbers its answers have minted so far.
   defp use_tool(%{trial?: true} = turn, call), do: Tools.trial(call.name, call.arguments, turn)
+
+  # The oracle reads everything she can read and writes nothing but its
+  # answer (brain #49): a write is refused in words, never pretended.
+  defp use_tool(%{oracle?: true} = turn, call) do
+    if Tools.trial_kind(call.name) == :read do
+      output = Tools.run(call.name, call.arguments, turn)
+      # What it read, for the oracle's read set (brain #49).
+      step = %{tool: call.name, arguments: call.arguments, result: output}
+      {output, %{turn | trace: turn.trace ++ [step]}}
+    else
+      {Tools.not_done() <> "the oracle reads; it writes nothing but its answer.", turn}
+    end
+  end
 
   defp use_tool(turn, call) do
     status(turn, "tool", %{name: call.name})
@@ -815,16 +913,42 @@ defmodule Oneiroi.Brain.Turn do
         "contract",
         Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
         "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
-      )
+      ) ++ pins_section(turn)
+  end
+
+  # The pins (kumbukumbu #45, brain #48): decisions, so in the stable
+  # prefix with the identity files and cached with them, and never in the
+  # ranked index. They change rarely; an adapter's session sees a new one
+  # at its next prefix.
+  defp pins_section(turn) do
+    case Kumbukumbu.pins(turn.resident_id, Map.get(turn, :session_key)) do
+      [] ->
+        []
+
+      pins ->
+        text =
+          "# Pinned\n\nThe moments you pinned: decisions, kept in front of you always and never ranked. bookmark_open(number) reads any.\n\n" <>
+            Enum.map_join(pins, "\n", &Kumbukumbu.Index.line/1)
+
+        section(
+          "pins",
+          text,
+          "the pins (kumbukumbu #45): #{length(pins)} decisions in the stable prefix, never ranked",
+          %{refs: Enum.map(pins, & &1.number)}
+        )
+    end
   end
 
   # What is assembled against this turn's words in this session's room:
   # where this conversation is, the index and every section after the
   # prefix, with the index itself for its near-misses.
   defp turn_sections(_row, turn, text) do
-    index = Kumbukumbu.index(turn.resident_id, turn.session_key)
+    # The turn's words are embedded once, for the ranked index and the
+    # madeleine both (kumbukumbu #46).
+    vector = memory_query(turn, text)
+    index = Kumbukumbu.ranked_index(turn.resident_id, turn.session_key, vector)
     acting = how_i_act(turn, text)
-    recall = madeleine(turn, text)
+    recall = madeleine(turn, vector, index.included)
     promised = Oneiroi.Ethos.promised(turn.resident_id)
     resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
     {session, _count} = session_of(turn)
@@ -837,8 +961,14 @@ defmodule Oneiroi.Brain.Turn do
         section(
           "index",
           index.text,
-          "the bookmark index under #{Config.fetch!(:kumbukumbu, :index_tokens)} tokens: #{length(index.included)} listed, #{index.left_out} left out",
-          %{tokens: index.tokens, text: index.text, refs: index.included}
+          index_reason(index),
+          %{
+            tokens: index.tokens,
+            text: index.text,
+            refs: index.included,
+            seeds: index.seeds,
+            explored: index.explored
+          }
         ) ++
         section(
           "character",
@@ -909,6 +1039,7 @@ defmodule Oneiroi.Brain.Turn do
   # many and from whom, never their words, which `letter_inbox` reads
   # and marks. Nothing when none wait; a trial is told nothing.
   defp letters_section(%{trial?: true}), do: []
+  defp letters_section(%{oracle?: true}), do: []
 
   defp letters_section(turn) do
     case Kumbukumbu.inbox(turn.resident_id, turn.session_key) do
@@ -981,6 +1112,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp where_section(%{trial?: true}, _session), do: []
+  defp where_section(%{oracle?: true}, _session), do: []
 
   defp where_section(turn, %{kind: "adapter"} = session) do
     others = Enum.reject(Kumbukumbu.open_now(turn.resident_id), &(&1.key == session.key))
@@ -1088,6 +1220,14 @@ defmodule Oneiroi.Brain.Turn do
   # and did not inject, each with the reason it lost, as injection rows
   # that carry no message and no `refs`, so a near-miss never counts as
   # indexed. Max: "the near-misses are where a character quietly bends."
+  defp index_reason(%{considered: nil} = index),
+    do:
+      "the bookmark index by recency, no vector this turn: #{length(index.included)} listed, #{index.left_out} left out"
+
+  defp index_reason(index),
+    do:
+      "the ranked index (kumbukumbu #46): #{index.considered} considered, #{length(index.included) - length(index.explored)} returned by rank and #{length(index.explored)} drawn at random, #{length(index.near_misses)} considered and not returned"
+
   defp near_misses(index) do
     Enum.map(index.near_misses, fn m ->
       %{
@@ -1211,17 +1351,24 @@ defmodule Oneiroi.Brain.Turn do
   # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
   # the turn's words, with the resident's actor for the embedding; a
   # turn without one (the assembly read in a test) asks nothing.
-  defp madeleine(%{preview?: true}, _text), do: nil
+  # The turn's words as a vector (kumbukumbu #46): none in a preview,
+  # which calls no model; a trial's bills as the trial's reads do.
+  defp memory_query(%{preview?: true}, _text), do: nil
 
-  defp madeleine(%{trial?: true} = turn, text) do
+  defp memory_query(%{trial?: true} = turn, text) do
     {actor, opts} = Map.pop!(trial_reads(turn), :actor)
-    Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key, Map.to_list(opts))
+    Kumbukumbu.memory_query(turn.resident_id, text, actor, Map.to_list(opts))
   end
 
-  defp madeleine(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
-    do: Kumbukumbu.madeleine(turn.resident_id, text, actor, turn.session_key)
+  defp memory_query(%{resident: %Oneiroi.Actor{} = actor} = turn, text),
+    do: Kumbukumbu.memory_query(turn.resident_id, text, actor, [])
 
-  defp madeleine(_turn, _text), do: nil
+  defp memory_query(_turn, _text), do: nil
+
+  defp madeleine(%{preview?: true}, _vector, _indexed), do: nil
+
+  defp madeleine(turn, vector, indexed),
+    do: Kumbukumbu.madeleine_near(turn.resident_id, vector, turn.session_key, indexed)
 
   defp madeleine_text(nil), do: ""
 

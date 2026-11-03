@@ -504,6 +504,45 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
   # ---- memory ----
 
+  defmodule Edge do
+    @moduledoc "A learned retrieval edge (kumbukumbu #46): when `from` is in play, how worth bringing `to` is, as a deviation from neutral last touched at `touched_at`."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_edge" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:from_number, :integer, primary_key: true)
+      field(:to_number, :integer, primary_key: true)
+      field(:w, :float)
+      field(:touched_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule EdgeTurn do
+    @moduledoc "What a turn returned and what was seen used, until its feedback teaches the use rules once (kumbukumbu #46)."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_edge_turn" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:turn_ref, :string, primary_key: true)
+      field(:returned, {:array, :integer}, default: [])
+      field(:used, {:array, :integer}, default: [])
+      field(:indexed, :boolean, default: false)
+      field(:feedback, :boolean, default: false)
+      field(:learned_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The learned edges out of `froms`, as stored (undecayed)."
+  @spec edges_from([pos_integer()]) :: [Edge.t()]
+  def edges_from([]), do: []
+  def edges_from(froms), do: Repo.all(from(e in Edge, where: e.from_number in ^froms))
+
   defmodule Vector do
     @moduledoc "One row of the madeleine's index (spec §6.3, P10): a bookmark's words, or the limits, embedded; derived, rebuilt from the rows."
     use Ecto.Schema

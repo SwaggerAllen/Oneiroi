@@ -22,7 +22,13 @@ Add, change, delete a check-in; set times and quiet hours; pause the resident.
 Built: free time's slots moved as a whole list (sunna #22: one to four,
 never none, so a list of one has no remove button); a check-in added or
 deleted (the delete confirms in place); quiet hours set or cleared; the
-dates listed with their countdowns. Not built yet: changing a check-in's
+dates listed with their countdowns; the resident's time zone, which
+every time here is read in, set from a list or, when this device is
+elsewhere, in one tap (`PUT /v1/residents/:id/timezone`; Lily's stayed
+UTC until 2026-11-03, and her free time ran at 6:30 and 14:30 Pacific).
+Times are chosen by hour and minute (`TimeField`), never an
+`<input type="time">`: on an iPhone a cleared one looks set while it is
+empty, and the second check-in could not be added. Not built yet: changing a check-in's
 label or time in place (the route exists, `PUT .../checkins/:key`),
 adding or changing a date here, and pausing the resident, which has no
 route of its own on this screen.

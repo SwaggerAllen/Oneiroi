@@ -172,6 +172,7 @@ export const api = {
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/quiet-hours`, { from, to }),
+  setTimezone: (residentId: string, timezone: string) => call<void>('PUT', `/v1/residents/${residentId}/timezone`, { timezone }),
   ledger: (residentId: string) => call<Ledger>('GET', `/v1/residents/${residentId}/ledger`),
   setBudget: (residentId: string, purpose: string, cap: string | null, period: string) =>
     call<void>('PUT', `/v1/residents/${residentId}/ledger/budgets/${purpose}`, { cap, period }),

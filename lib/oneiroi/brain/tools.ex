@@ -49,7 +49,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
-    source_list source_read source_search repo_list repo_read repo_log
+    source_list source_read source_search repo_list repo_read repo_log oracle_list
   )
 
   @writes ~w(
@@ -57,7 +57,7 @@ defmodule Oneiroi.Brain.Tools do
     figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
-    self_letter_write state_set state_clear seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    self_letter_write state_set state_clear memory_feedback oracle_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove
     journal_add journal_done
@@ -334,6 +334,44 @@ defmodule Oneiroi.Brain.Tools do
         "Your commitments, open and closed, with their numbers.",
         %{},
         []
+      ),
+      tool(
+        "oracle_ask",
+        "Ask the oracle: an invocation of you, with all your memory and every read tool, for questions too long to read in a turn. Each question is named and read on its own, in parallel; give the sources it should read beside your memory (bookmark/<n>, transcript/<conversation>, a library path, repo:<path>, source:<path>), or none. Each answer is written under oracle/ with its confidence, and this conversation gets a letter when it lands. It writes nothing else and keeps nothing after.",
+        %{
+          questions: %{
+            type: "array",
+            items: %{
+              type: "object",
+              properties: %{
+                question: %{type: "string"},
+                sources: %{type: "array", items: %{type: "string"}}
+              },
+              required: ["question"]
+            }
+          }
+        },
+        [:questions]
+      ),
+      tool(
+        "oracle_list",
+        "The oracle's questions, newest first, found deliberately: source (one named at dispatch), read (one it read, named or opened, e.g. bookmark/12), used (one its answer drew on), status (open, answered, failed), asked_by (resident, witness), q (words in the question).",
+        %{
+          source: %{type: "string"},
+          read: %{type: "string"},
+          used: %{type: "string"},
+          status: %{type: "string", enum: ["open", "answered", "failed"]},
+          asked_by: %{type: "string"},
+          q: %{type: "string"},
+          limit: %{type: "integer", minimum: 1}
+        },
+        []
+      ),
+      tool(
+        "memory_feedback",
+        "Say which of the bookmarks in front of you this turn helped, by number, with your reply (it ends the turn, no further round): the ranked index learns from it which memories are worth bringing alongside which. Name what you drew on, opened or not; an empty list says none did. Pins are decisions and need no feedback.",
+        %{used: %{type: "array", items: %{type: "integer"}}},
+        [:used]
       ),
       tool(
         "state_set",
@@ -1358,6 +1396,64 @@ defmodule Oneiroi.Brain.Tools do
         args["note"],
         turn.resident
       )
+
+  # The oracle (brain #49): named questions, dispatched together, each
+  # read in the background; the numbers come back now and the answers
+  # by letter.
+  defp call("oracle_ask", args, turn) do
+    questions = args["questions"] |> List.wrap()
+    bound = Oneiroi.Config.fetch!(:brain, :oracle_batch)
+
+    with :ok <- within_batch(questions, bound),
+         {:ok, numbers} <-
+           Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
+      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1))
+      dispatched(numbers)
+    end
+  end
+
+  defp call("oracle_list", args, turn) do
+    opts =
+      [
+        source: args["source"],
+        read: args["read"],
+        used: args["used"],
+        status: args["status"],
+        asked_by: args["asked_by"],
+        q: args["q"],
+        limit: integer(args["limit"]) || 20
+      ]
+      |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
+
+    case Seshat.oracles(turn.resident_id, opts) do
+      [] -> "No oracle question matches."
+      rows -> Enum.map_join(rows, "\n", &oracle_line/1)
+    end
+  end
+
+  # The use the ranked index learns from (kumbukumbu #46): recorded as
+  # `used` through `feedback`, which is what teaches the use rules.
+  defp call("memory_feedback", args, turn) do
+    numbers = args["used"] |> List.wrap() |> Enum.flat_map(&feedback_number/1) |> Enum.uniq()
+    uses = Enum.map(numbers, &%{target: "bookmark/#{&1}", stage: "used", via: "feedback"})
+    # An empty list still says the feedback came: a turn where nothing helped.
+    uses =
+      if uses == [],
+        do: [%{target: "turn/#{turn.turn_ref}", stage: "used", via: "feedback"}],
+        else: uses
+
+    case Kumbukumbu.record_retrieval(
+           turn.resident_id,
+           turn.session_key,
+           turn.turn_ref,
+           uses,
+           turn.resident
+         ) do
+      :ok when numbers == [] -> "Noted: none of them helped this turn."
+      :ok -> "Noted: #{Enum.map_join(numbers, ", ", &"##{&1}")} helped."
+      other -> other
+    end
+  end
 
   defp call("state_set", args, turn) do
     case AgathosDaimon.set_state_line(
@@ -2392,5 +2488,44 @@ defmodule Oneiroi.Brain.Tools do
       {:error, _} ->
         @not_done <> "a path is relative and plain, with no .. in it."
     end
+  end
+
+  defp feedback_number(n) when is_integer(n) and n > 0, do: [n]
+
+  defp feedback_number(n) when is_binary(n) do
+    case Integer.parse(String.trim_leading(n, "#")) do
+      {n, ""} when n > 0 -> [n]
+      _ -> []
+    end
+  end
+
+  defp feedback_number(_n), do: []
+
+  # The oracle's worker, named at the call rather than aliased: the
+  # worker reaches the turn, which reaches these tools, and a reference
+  # here would close that cycle (the compile-connected rule's reason).
+  defp oracle_worker, do: Module.concat([Oneiroi, Brain, OracleWorker])
+
+  defp within_batch(questions, bound) when length(questions) <= bound, do: :ok
+
+  defp within_batch(_questions, bound),
+    do: @not_done <> "at most #{bound} questions a dispatch (a bound); send the rest in another."
+
+  defp dispatched(numbers) do
+    "Dispatched as question#{if length(numbers) == 1, do: "", else: "s"} #{Enum.map_join(numbers, ", ", &"##{&1}")}. " <>
+      "Each answer is written under oracle/ and this conversation gets a letter when it lands."
+  end
+
+  defp oracle_line(o) do
+    asked = "asked by the #{o.asked_by}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}"
+
+    settled =
+      if o.path,
+        do:
+          " → #{o.path}, confidence #{o.confidence}; read #{length(o.read)}, used #{Enum.join(o.used, ", ")}",
+        else: ""
+
+    reason = if o.reason, do: " → #{o.reason}", else: ""
+    "##{o.number} [#{o.status}] #{o.question} (#{asked})#{settled}#{reason}"
   end
 end

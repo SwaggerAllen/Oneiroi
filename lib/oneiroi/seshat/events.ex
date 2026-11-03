@@ -47,4 +47,26 @@ defmodule Oneiroi.Seshat.Events do
     # A session linked to a piece (`writing_discuss`, spec §8).
     use Oneiroi.Event, version: 1, fields: [:id, :path, :session_key]
   end
+
+  defmodule OracleDispatched do
+    # One question put to the oracle (brain #49, seshat #34): named at
+    # dispatch, never "find something interesting", with the sources it
+    # is to read beside her whole memory, and the conversation that
+    # asked, which is told when it lands. The actor says who asked.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :question, :sources, :session_key]
+  end
+
+  defmodule OracleAnswered do
+    # The answer, written at `path` under oracle/, with the confidence
+    # it stated; `model` is the instance that read, from the actor.
+    # `read`: every source it read (named and opened by its tools);
+    # `used`: what its answer says it drew on; both in citation form.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :path, :confidence, :read, :used, :model]
+  end
+
+  defmodule OracleFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
 end

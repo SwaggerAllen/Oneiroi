@@ -26,4 +26,19 @@ defmodule Oneiroi.Seshat.Commands do
   defmodule OpenDiscussion do
     use Oneiroi.Command, fields: [:id, :path, :session_key]
   end
+
+  # The oracle (brain #49, seshat #34): questions dispatched together,
+  # each numbered from the library's oracle sequence; `questions` are
+  # `%{question, sources}`, `session_key` the conversation that asked.
+  defmodule DispatchOracle do
+    use Oneiroi.Command, fields: [:id, :questions, :session_key]
+  end
+
+  defmodule AnswerOracle do
+    use Oneiroi.Command, fields: [:id, :number, :path, :confidence, :read, :used]
+  end
+
+  defmodule FailOracle do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
 end

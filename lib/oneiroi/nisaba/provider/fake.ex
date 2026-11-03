@@ -30,6 +30,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
           {:ok, String.t()}
           | {:refusal, String.t()}
           | {:calls, [map()]}
+          | {:calls, [map()], String.t()}
           | {:error, Oneiroi.Nisaba.Provider.failure()}
 
   @doc "Scripts the answers: a function of the request, for this process or, with `for:`, for a resident from any process."
@@ -119,6 +120,8 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
       {:ok, text} -> {:ok, result(request, text, false)}
       {:refusal, text} -> {:ok, result(request, text, true)}
       {:calls, calls} -> {:ok, calls_result(request, calls)}
+      # Words and calls in one message: a reply with its memory_feedback.
+      {:calls, calls, text} -> {:ok, %{calls_result(request, calls) | content: text}}
       {:error, failure} -> {:error, failure}
     end
   end

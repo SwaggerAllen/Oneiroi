@@ -68,7 +68,9 @@ defmodule Oneiroi.Brain.PreviewTest do
   defp comparable(rows),
     do:
       rows
-      |> Enum.reject(&(&1.label == "madeleine"))
+      # The madeleine and the ranked index (with its near-misses) are
+      # chosen by nearness to the words, which a preview cannot embed.
+      |> Enum.reject(&(&1.label in ["madeleine", "index", "near-miss"]))
       |> Enum.map(&{&1.label, &1.tokens, &1.reason})
 
   test "the preview's sections are the turn's, in the turn's order, by the one assembly", ctx do
@@ -86,7 +88,7 @@ defmodule Oneiroi.Brain.PreviewTest do
 
     labels = Enum.map(preview.sections, & &1.label)
 
-    for label <- ~w(prompt SOUL.md AGENTS.md index near-miss promised honcho transcript notice),
+    for label <- ~w(prompt SOUL.md AGENTS.md index promised honcho transcript notice),
         do: assert(label in labels, "#{label} missing from #{inspect(labels)}")
 
     # The madeleine has its place, and says it was not run.

@@ -67,12 +67,16 @@ defmodule Oneiroi.Seshat do
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.DocumentRemoved,
+      Events.OracleDispatched,
+      Events.OracleAnswered,
+      Events.OracleFailed,
       Store,
       Store.Document,
       Store.Chunk,
       Store.Reference,
       Store.IndexRun,
       Store.Discussion,
+      Store.Oracle,
       Store.JournalEntry,
       Journal,
       Journals,
@@ -88,6 +92,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
+  alias Oneiroi.Seshat.Oracles
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -170,6 +175,9 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
+      {Oneiroi.Seshat.Events.OracleDispatched, 1},
+      {Oneiroi.Seshat.Events.OracleAnswered, 1},
+      {Oneiroi.Seshat.Events.OracleFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
@@ -204,6 +212,11 @@ defmodule Oneiroi.Seshat do
        remedy: "the witness imports the originals from the source repository at a pinned commit"},
       {:seshat_too_large, "the file is larger than the library's bound",
        remedy: "split it, or raise SESHAT_DOCUMENT_BYTES with a reason"},
+      {:seshat_oracle_invalid,
+       "an oracle is asked named questions, each with its sources as a list of refs",
+       remedy: "name the question; give the sources it should read, or none"},
+      {:seshat_no_such_oracle, "no oracle question has that number",
+       remedy: "list the oracle's questions"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -268,6 +281,37 @@ defmodule Oneiroi.Seshat do
   defexport(write(resident_id, path, content, actor),
     do: Documents.write(resident_id, path, content, actor)
   )
+
+  # ---- the oracle (brain #49, seshat #34) ----
+
+  @doc "Dispatches named questions to the oracle, each `%{question, sources}`, from the conversation `session_key`; their numbers."
+  @spec dispatch_oracle(String.t(), String.t() | nil, [map()], Oneiroi.Actor.t()) ::
+          {:ok, [pos_integer()]} | {:error, term()}
+  defexport(dispatch_oracle(resident_id, session_key, questions, actor),
+    do: Oracles.dispatch(resident_id, session_key, questions, actor)
+  )
+
+  @doc "Writes the oracle's answer to question `number` under oracle/, attributed to `actor`, and records it answered; the path."
+  @spec answer_oracle(String.t(), pos_integer(), String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(answer_oracle(resident_id, number, content, measured, actor),
+    do: Oracles.answer(resident_id, number, content, measured, actor)
+  )
+
+  @doc "Records oracle question `number` as failed, with the reason in words."
+  @spec fail_oracle(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(fail_oracle(resident_id, number, reason, actor),
+    do: Oracles.fail(resident_id, number, reason, actor)
+  )
+
+  @doc "The oracle's questions, newest first, found deliberately: `source:` (named), `read:`, `used:`, `status:`, `asked_by:`, `q:`, `limit:`."
+  @spec oracles(String.t(), keyword()) :: [Oneiroi.Seshat.Store.Oracle.t()]
+  defexport(oracles(resident_id, opts), do: Oracles.oracles(resident_id, opts))
+
+  @doc "One oracle question by number, or nil."
+  @spec oracle(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Oracle.t() | nil
+  defexport(oracle(resident_id, number), do: Oracles.oracle(resident_id, number))
 
   @doc "Removes a scratch or human document (seshat #33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
   @spec remove(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
