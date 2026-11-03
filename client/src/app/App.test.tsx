@@ -95,6 +95,57 @@ describe('App', () => {
     expect(screen.queryByText('Hello from the chat.')).toBeNull();
   });
 
+  // Client #13: a phone suspends the page's stream while it is away, so
+  // coming back reads the conversation again and joins the stream anew.
+  it('reads the open conversation again and asks for a fresh stream when the page comes back', async () => {
+    const lily = { id: 'r1', slug: 'lily', name: 'Lily', state: 'awake', first_contact_at: null, formation_until: null, chat_model: null };
+    const actor = { kind: 'resident', id: 'r1', model: null };
+    const session = {
+      key: 'chat',
+      resident_id: 'r1',
+      kind: 'main',
+      adapter: 'brain',
+      title: 'Oneiroi chat',
+      place: null,
+      writable: true,
+      turns: 1,
+      opened_at: '2026-11-02T13:00:00Z',
+      last_turn_at: '2026-11-02T14:00:00Z',
+      summary: null,
+    };
+    const reply = (n: number, content: string) => ({
+      session_key: 'chat',
+      turn_ref: `t-${n}`,
+      role: 'assistant',
+      content,
+      sent_at: `2026-11-02T14:0${n}:00Z`,
+      cursor: `c${n}`,
+      actor,
+      refusal: false,
+    });
+    const page = { session, messages: [reply(1, 'Before you left.')], drew_on: {}, more: false };
+    const fetch = fakeFetch({
+      '/v1/me': { status: 200, body: { email: 'a@b', residents: ['r1'] } },
+      '/v1/residents': { status: 200, body: [lily] },
+      'POST /v1/residents/r1/sessions': { status: 201, body: { key: 'chat' } },
+      'GET /v1/residents/r1/sessions': { status: 200, body: [session] },
+      '/v1/residents/r1/sessions/chat?limit=50': { status: 200, body: page },
+    });
+    vi.stubGlobal('fetch', fetch);
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Before you left.')).toBeTruthy());
+    const tokens = () => fetch.mock.calls.filter(([url]) => String(url).endsWith('/socket-token')).length;
+    await waitFor(() => expect(tokens()).toBe(1));
+
+    // A turn landed while the page was away; nothing on the stream said so.
+    page.messages = [reply(1, 'Before you left.'), reply(2, 'While you were away.')];
+    window.dispatchEvent(new Event('focus'));
+
+    await waitFor(() => expect(screen.getByText('While you were away.')).toBeTruthy());
+    // The stream was down (no token here), so it is joined again, freshly.
+    await waitFor(() => expect(tokens()).toBe(2));
+  });
+
   // Brain #45: a message is never lost on the wire. It goes under the
   // client's own ref; a failed request (here Render's HTML 502) keeps it,
   // marked not sent; Retry sends it again under the same ref, so the
