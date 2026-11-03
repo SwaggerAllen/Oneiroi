@@ -11,14 +11,7 @@ export function Tabs<T extends string>({
   wrap?: boolean;
 }) {
   return (
-    <div
-      role="tablist"
-      style={{
-        display: "flex",
-        gap: "var(--space-1)",
-        ...(wrap ? { flexWrap: "wrap" } : { overflowX: "auto" }),
-      }}
-    >
+    <div role="tablist" style={{ display: 'flex', gap: 'var(--space-1)', ...(wrap ? { flexWrap: 'wrap' } : { overflowX: 'auto' }) }}>
       {tabs.map((tab) => {
         const selected = tab.id === current;
         return (
@@ -29,23 +22,21 @@ export function Tabs<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             style={{
-              minHeight: "var(--control-h-sm)",
-              padding: "0 var(--space-3)",
-              border: "none",
-              borderBottom: selected
-                ? "2px solid var(--witness)"
-                : "2px solid transparent",
-              background: "transparent",
-              color: selected ? "var(--ink)" : "var(--ink-muted)",
-              fontFamily: "var(--font-sans)",
+              minHeight: 'var(--control-h-sm)',
+              padding: '0 var(--space-3)',
+              border: 'none',
+              borderBottom: selected ? '2px solid var(--witness)' : '2px solid transparent',
+              background: 'transparent',
+              color: selected ? 'var(--ink)' : 'var(--ink-muted)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              whiteSpace: "nowrap",
-              cursor: "pointer",
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
             }}
           >
             {tab.label}
-            {tab.count !== undefined ? ` ${tab.count}` : ""}
+            {tab.count !== undefined ? ` ${tab.count}` : ''}
           </button>
         );
       })}

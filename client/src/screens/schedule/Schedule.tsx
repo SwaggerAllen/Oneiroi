@@ -3,6 +3,7 @@ import type { FreeTimeSlot, ScheduleCheckin, ScheduleToday } from '../../api/typ
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
+import { TimeField } from '../../components/TimeField';
 import { TopBar } from '../../components/TopBar';
 
 export interface ScheduleProps {
@@ -12,6 +13,8 @@ export interface ScheduleProps {
   onAddCheckin?: (label: string, time: string) => void;
   onDeleteCheckin?: (key: string) => void;
   onSetQuietHours?: (from: string | null, to: string | null) => void;
+  // Sets the resident's zone, the one every time here is read in.
+  onSetTimezone?: (timezone: string) => void;
 }
 
 // The bound sunna #22 sets: free time is one to four slots a day.
@@ -24,11 +27,12 @@ const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', fl
 // free time's slots with what each did today, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetQuietHours }: ScheduleProps) {
+export function Schedule({ residentName, today, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetQuietHours, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <Zone residentName={residentName} timezone={today.timezone} onSet={onSetTimezone} />
         <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
         <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} />
         <Quiet quiet={today.quiet} onSet={onSetQuietHours} />
@@ -93,12 +97,7 @@ function FreeTime({ residentName, slots, onSet }: { residentName: string; slots:
         >
           {times.map((t, i) => (
             <div key={i} style={row}>
-              <Field
-                label={`Slot ${i + 1}`}
-                type="time"
-                value={t}
-                onChange={(e) => setTimes(times.map((x, j) => (j === i ? e.target.value : x)))}
-              />
+              <TimeField label={`Slot ${i + 1}`} value={t} onChange={(v) => setTimes(times.map((x, j) => (j === i ? v : x)))} />
               {times.length > 1 ? (
                 <Button type="button" variant="quiet" onClick={() => setTimes(times.filter((_, j) => j !== i))}>
                   Remove slot {i + 1}
@@ -152,7 +151,7 @@ function Checkins({ today, onAdd, onDelete }: { today: ScheduleToday; onAdd?: (l
           style={row}
         >
           <Field label="Label" value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} />
-          <Field label="Time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          <TimeField label="Time" value={time} onChange={setTime} />
           <Button variant="primary" type="submit" disabled={label.trim() === '' || time === ''}>
             Add the check-in
           </Button>
@@ -186,6 +185,85 @@ function Checkin({ checkin, today, onDelete }: { checkin: ScheduleCheckin; today
   );
 }
 
+// The zone every time on this screen is read in (2026-11-03): Lily's was
+// never set, so it stayed UTC, and free time set for 14:30 and 22:30 ran at
+// 6:30 and 14:30 Pacific. The device's own zone is one tap away.
+function Zone({ residentName, timezone, onSet }: { residentName: string; timezone: string; onSet?: (timezone: string) => void }) {
+  const device = deviceZone();
+  const [chosen, setChosen] = useState(timezone);
+  const zones = allZones(timezone, device);
+  return (
+    <Card title="Time zone">
+      <p style={muted}>
+        Every time here is {residentName}'s, in {timezone}.
+        {device && device !== timezone ? ` This device is in ${device}.` : ''}
+      </p>
+      {onSet ? (
+        <form
+          aria-label="Set the time zone"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (chosen && chosen !== timezone) onSet(chosen);
+          }}
+          style={row}
+        >
+          {device && device !== timezone ? (
+            <Button type="button" onClick={() => onSet(device)}>
+              Use {device}
+            </Button>
+          ) : null}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 13 }}>
+            <span style={{ fontWeight: 500, color: 'var(--ink-muted)' }}>Zone</span>
+            <select
+              value={chosen}
+              onChange={(e) => setChosen(e.target.value)}
+              style={{
+                minHeight: 'var(--control-h)',
+                padding: '0 var(--space-2)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--hairline)',
+                background: 'var(--surface-raised)',
+                color: 'var(--ink)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                maxWidth: '100%',
+              }}
+            >
+              {zones.map((z) => (
+                <option key={z} value={z}>
+                  {z}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button variant="primary" type="submit" disabled={chosen === timezone}>
+            Set the zone
+          </Button>
+        </form>
+      ) : null}
+    </Card>
+  );
+}
+
+function deviceZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+// Every zone the browser knows, with the current and the device's always in it.
+function allZones(current: string, device: string | null): string[] {
+  let known: string[] = [];
+  try {
+    known = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone') ?? [];
+  } catch {
+    known = [];
+  }
+  return [...new Set([current, ...(device ? [device] : []), ...known])].sort();
+}
+
 function Quiet({ quiet, onSet }: { quiet: ScheduleToday['quiet']; onSet?: (from: string | null, to: string | null) => void }) {
   const [from, setFrom] = useState(quiet?.from ?? '');
   const [to, setTo] = useState(quiet?.to ?? '');
@@ -203,8 +281,8 @@ function Quiet({ quiet, onSet }: { quiet: ScheduleToday['quiet']; onSet?: (from:
           }}
           style={row}
         >
-          <Field label="From" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <Field label="To" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+          <TimeField label="From" value={from} onChange={setFrom} />
+          <TimeField label="To" value={to} onChange={setTo} />
           <Button variant="primary" type="submit" disabled={!from || !to}>
             Set quiet hours
           </Button>

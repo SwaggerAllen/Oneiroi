@@ -35,7 +35,7 @@ describe('Schedule', () => {
     const save = screen.getByRole('button', { name: 'Save free time' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Add a slot' }));
-    fireEvent.change(screen.getByLabelText('Slot 2'), { target: { value: '14:30' } });
+    pick('Slot 2', '14:30');
     fireEvent.click(save);
     expect(onSetFreeTime).toHaveBeenCalledWith(['22:30', '14:30']);
     fireEvent.click(screen.getByRole('button', { name: 'Add a slot' }));
@@ -58,11 +58,54 @@ describe('Schedule', () => {
     const onSetQuietHours = vi.fn();
     render(<Today onAddCheckin={onAddCheckin} onSetQuietHours={onSetQuietHours} />);
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'midday' } });
-    fireEvent.change(screen.getByLabelText('Time'), { target: { value: '12:00' } });
+    pick('Time', '12:00');
     fireEvent.click(screen.getByRole('button', { name: 'Add the check-in' }));
     expect(onAddCheckin).toHaveBeenCalledWith('midday', '12:00');
     expect(screen.getByText(/Free time doesn't\./)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear quiet hours' }));
     expect(onSetQuietHours).toHaveBeenCalledWith(null, null);
   });
+
+  // The second check-in (the witness, 2026-11-03): the form clears its time
+  // after an add, and on an iPhone a cleared time input looked set while it
+  // was empty, so the button stayed disabled. The hour and minute are chosen,
+  // and a chosen hour alone is a time on the hour.
+  it('adds a second check-in after the first, the form cleared between them', () => {
+    const onAddCheckin = vi.fn();
+    render(<Today onAddCheckin={onAddCheckin} />);
+    const add = screen.getByRole('button', { name: 'Add the check-in' }) as HTMLButtonElement;
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'midday' } });
+    pick('Time', '12:00');
+    fireEvent.click(add);
+    expect(add.disabled).toBe(true);
+    expect((screen.getByLabelText('Time hour') as HTMLSelectElement).value).toBe('');
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'evening' } });
+    fireEvent.change(screen.getByLabelText('Time hour'), { target: { value: '21' } });
+    expect(add.disabled).toBe(false);
+    fireEvent.click(add);
+    expect(onAddCheckin).toHaveBeenNthCalledWith(2, 'evening', '21:00');
+  });
+
+  it('says the zone every time is read in, and offers the device zone when they differ', () => {
+    const onSetTimezone = vi.fn();
+    render(<Today onSetTimezone={onSetTimezone} />);
+    const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const zone = within(screen.getByRole('form', { name: 'Set the time zone' }));
+    const set = zone.getByRole('button', { name: 'Set the zone' }) as HTMLButtonElement;
+    expect(set.disabled).toBe(true);
+    fireEvent.change(zone.getByLabelText('Zone'), { target: { value: 'Europe/London' } });
+    fireEvent.click(set);
+    expect(onSetTimezone).toHaveBeenCalledWith('Europe/London');
+    if (device !== 'America/Los_Angeles') {
+      fireEvent.click(zone.getByRole('button', { name: `Use ${device}` }));
+      expect(onSetTimezone).toHaveBeenLastCalledWith(device);
+    }
+  });
 });
+
+// Picks a time by its hour and minute, as a person does.
+function pick(label: string, time: string) {
+  const [h, m] = time.split(':');
+  fireEvent.change(screen.getByLabelText(`${label} hour`), { target: { value: h } });
+  fireEvent.change(screen.getByLabelText(`${label} minute`), { target: { value: m } });
+}

@@ -32,6 +32,7 @@ const meta = {
     onAddCheckin: () => undefined,
     onDeleteCheckin: () => undefined,
     onSetQuietHours: () => undefined,
+    onSetTimezone: () => undefined,
   },
 } satisfies Meta<typeof Schedule>;
 export default meta;
@@ -49,4 +50,10 @@ export const Unconfigured: Story = {
 
 export const OneSlotFailed: Story = {
   args: { today: { ...today, free_times: [{ time: '22:30', today: 'failed: brain_turn_failed' }] } },
+};
+
+// The zone never set (Lily's, until 2026-11-03): every time is read in UTC,
+// and a device elsewhere is offered in one tap.
+export const ZoneUnset: Story = {
+  args: { today: { ...today, timezone: 'Etc/UTC' } },
 };
