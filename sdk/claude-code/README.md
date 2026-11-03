@@ -193,6 +193,7 @@ not checked.
 | SessionStart, eight of them | `scripts/session-start.sh PART 8` | Prints part PART of the session prefix: the prompt, her identity files, the agreement, and `runtime`. Claude Code takes at most 10,000 characters from one hook and turns the rest into a file path with a preview (its hook docs), so the platform cuts the prefix into numbered parts, one per hook; a part past the end prints nothing, and past the eighth the rest is named as left out. On `startup`, `clear`, `compact` and `fork` it prints; on `resume` it prints nothing, because the prefix is in the resumed conversation (Claude Code replays injected text), and anything in it that changed since rides your next message. |
 | UserPromptSubmit | `scripts/turn-start.sh` | Keeps your words, starts the turn on Oneiroi with them, and prints the turn's context, which Claude Code adds beside your message: where this conversation is, what else is open and the turn's ref first, then her memory. Sections that would take it past 9,000 characters are left out whole and named. Opens this session's conversation on Oneiroi on the first message, named after the folder's base name (the payload's `cwd`). A previous message whose Stop never came (an interrupt) is captured with your words alone. |
 | Stop | `scripts/capture.sh` | Captures your words and `last_assistant_message`, the reply's final text, with the turn's ref and the platform's start instant. Spooled first, in this session's own spool, and delivered with anything spooled before it; capture is idempotent, so a turn sent twice is stored once. A refusal other than an outage moves the turn to `spool/rejected/` so it does not hold back the rest. |
+| Stop, in the background | `scripts/letter-watch.sh` | Watches for house letters to this session's conversation and wakes the session when one arrives, so an answer reaches the session that sent the question (kumbukumbu #48). An `asyncRewake` hook: it polls Oneiroi every 30 seconds for the letters waiting (numbers and senders only, nothing marked read) and exits 2 for a letter it has not woken the session for, which Claude Code turns into a wake, idle or not, with that line. Each stop replaces the watch before it; it ends with Claude Code, on a refused token, or after a day. At most `ONEIROI_WAKES_PER_HOUR` (6) wakes an hour; the interval is `ONEIROI_WATCH_SECONDS`. |
 
 With the options unset every hook does nothing at all, and prints
 nothing.
@@ -204,8 +205,9 @@ compacts it, a cost per message (about the index's size and what rides
 with it) that the platform's own loop, which replaces its context each
 turn, does not pay. Not measured.
 
-Every hook exits 0: on UserPromptSubmit an exit of 2 blocks your
-message, and on Stop it keeps Claude going.
+Every hook but the letter watch exits 0: on UserPromptSubmit an exit of
+2 blocks your message, and on Stop it keeps Claude going. The watch runs
+in the background, where an exit of 2 is the wake.
 
 Tool calls between your message and the reply are not captured as
 messages: they would have to come from the transcript file, which
@@ -284,4 +286,10 @@ a pull is the update.
   before Claude Code checks the URL at load (`claude plugin validate`
   passes it).
 
-Wake (interface 3) lands with the hands phase.
+- That Claude Code honours `asyncRewake` from a plugin's hooks file, and
+  wakes an idle session in the terminal as its hook docs say, rather
+  than only in the test's shell.
+
+Wake (interface 3): letters wake the open session through the letter
+watch (kumbukumbu #48); the platform's other wakes (check-ins, results)
+reach a Claude Code session with the hands phase.

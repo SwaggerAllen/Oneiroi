@@ -35,6 +35,9 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("POST", ["v1", "residents", _id, "turn-start"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "turns"]), do: true
   def adapter_path?("GET", ["v1", "residents", _id, "context"]), do: true
+  # The letters waiting for a conversation, by number and sender alone,
+  # so an adapter can wake its session when one arrives (kumbukumbu #48).
+  def adapter_path?("GET", ["v1", "residents", _id, "sessions", _key, "letters"]), do: true
   # The inbound hands' three (xenia #11): deliver messages, read the
   # approved replies, mark one sent; the controller holds them to the
   # `reader` role, so a brain token reaches none of the words.

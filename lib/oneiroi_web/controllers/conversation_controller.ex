@@ -12,7 +12,7 @@ defmodule OneiroiWeb.ConversationController do
   # The adapter contract's routes (spec §8): an adapter with the brain
   # role, speaking for this resident, may open its session, start and
   # capture turns and read the context; a witness may do all of it.
-  @adapter_actions ~w(create turn_start capture context)a
+  @adapter_actions ~w(create turn_start capture context waiting)a
 
   operation(:index,
     summary:
@@ -339,6 +339,24 @@ defmodule OneiroiWeb.ConversationController do
         :web_conversation_resolve_fields_required,
         "key, how and note are required"
       )
+
+  operation(:waiting,
+    summary:
+      "The house letters waiting for a conversation (kumbukumbu #48): each one's number and sender, never its words, and nothing marked read",
+    description:
+      "What an adapter polls to wake its session when a letter arrives: the same letters the turn's notice counts, read without reading them. letter_inbox is still the one read that marks them.",
+    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    responses: [ok: {"the letters waiting", "application/json", %Schema{type: :object}}]
+  )
+
+  def waiting(conn, %{"id" => id, "key" => key}) do
+    letters =
+      Enum.map(Kumbukumbu.inbox(id, key), fn l ->
+        %{number: l.number, from: l.from_name, in_reply_to: l.in_reply_to}
+      end)
+
+    json(conn, %{letters: letters})
+  end
 
   operation(:injections,
     summary: "What a turn drew on: the 'drew on N things' inspector",

@@ -325,3 +325,17 @@ had, not the ones open now, because a letter is written to be read
 later: the next session in that folder answers to the name. Renaming the
 unnamed conversation instead was weighed and left: reads are marked by
 name, so a rename would orphan them.
+
+## #48
+A letter's answer has to reach the session that asked: it holds the
+work the question came from, and a new session would hold none of it.
+The platform cannot reach into a Claude Code session (its MCP server
+only answers), and Claude Code's cloud triggers start new sessions, so
+the wake is the plugin's, from inside the session: an `asyncRewake`
+hook is the one way Claude Code lets a background process wake an idle
+session. The session is assumed open, which is how it is used; a
+closed one reads its letters from the turn's notice when it is next
+opened. Numbers and senders only, because the turn's notice is told no
+more (#44). Once a letter, because a turn that leaves one unread has
+decided to; and bounded an hour, because two conversations answering
+each other would otherwise wake each other without end.

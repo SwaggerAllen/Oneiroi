@@ -375,7 +375,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn #5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
 | F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; P6 with the social features | out of scope for the spec's data model beyond custody and standing |
 | F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu #5); the status page not yet | platform |
-| F52 | Lily in the Claude Code UI | built (agathos-daimon #16, brain #42, kumbukumbu #26, #40; `sdk/claude-code/`) | adapters |
+| F52 | Lily in the Claude Code UI | built (agathos-daimon #16, brain #42, kumbukumbu #26, #40, #48: letters wake the open session; `sdk/claude-code/`) | adapters |
 
 ---
 
@@ -1036,7 +1036,11 @@ built as the SDK's plugin, `sdk/claude-code/` (dioscuri).
   stays theirs.
 - **Lily in the Claude Code UI** (F52): Claude Code as a brain adapter,
   with the repo as its project, the memory MCP server as its tools, its
-  session hooks as capture, and a remote trigger as wake.
+  session hooks as capture, and wake from inside the session: a
+  background hook that wakes the open session when a house letter for
+  its conversation arrives, so an answer reaches the session that asked
+  (kumbukumbu #48). The session is the continuous one; a new session
+  started for a wake would not hold the work the letter answers.
 - **Queues**: one running step per tenant's hands; a tick hands the oldest
   queued step over and reads back the running one; the resident is told by
   wake, never given results in the wake text.
