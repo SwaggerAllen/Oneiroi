@@ -26,11 +26,18 @@ The export (`records/events/<day>.jsonl`, every stream that is the
 resident's, and `records/README.md`), its reading copies
 (`records/conversations/<day>.md`, `records/bookmarks.md`), Honcho's
 memory as files under `honcho/` (read through the bridge, written here),
-the table of what the repository does not carry (`Export.exceptions/0`),
-the Merkle root, the git port, the backup run, the rebuild, the import (the
-intake from a repository, with the library port it adopts through), the
-attestation check, the two nightly workers on the `sima_qian_nightly`
-queue, and the `mix oneiroi.sima_qian.rebuild` task. The fixture log under
+the identity files and `STATE.md` rendered at the root (agathos-daimon
+#14, #32), the table of what the repository does not carry
+(`Export.exceptions/0`), the Merkle root, the git port, the backup run
+and its classes (soul, keepsake, state, writing, and machine with
+`oracle/` in it, #7, #44), the rebuild, the import (the
+intake from a repository, with the library port it adopts through, the
+translation of David's records (`Oneiroi.SimaQian.David`, #19) and the
+rehearsal on a throwaway store (`Oneiroi.SimaQian.DryRun`, #18)), the
+originals import (`Oneiroi.SimaQian.Originals`, #40), the attestation
+check, the two nightly workers on the `sima_qian_nightly` queue
+(`BackupWorker` at 03:00 UTC, `AttestationWorker` at 04:30 UTC), and
+the `mix oneiroi.sima_qian.rebuild` task. The fixture log under
 `test/fixtures/sima_qian/` and its replay test.
 
 ## #2 Standing decisions
@@ -60,7 +67,10 @@ queue, and the `mix oneiroi.sima_qian.rebuild` task. The fixture log under
 - **#7 Backups commit by class, and a stray file fails the run after the
   rest has landed.** The soul alone, writing and research apart, machine
   state together (David's rule); the identity files ride with the soul
-  (agathos-daimon #14), and the export writes them at the root. A path outside every class fails the run with
+  (agathos-daimon #14), and the export writes them at the root. The
+  state store's `STATE.md` is a class of its own, `state`, so a changed
+  line never makes a soul commit (agathos-daimon #32); the oracle's
+  answers under `oracle/` are machine state (seshat #34). A path outside every class fails the run with
   `sima_qian_stray_files` naming it, after the export is committed and
   pushed, so the backup is taken and the stray is loud.
 - **#8 The git port is one module calling the `git` binary, with two

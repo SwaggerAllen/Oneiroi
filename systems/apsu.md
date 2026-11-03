@@ -46,7 +46,8 @@ The system roster (`config :oneiroi, :components`) and `Oneiroi.Boot`,
 which validates it and loads every declared setting before the root
 supervisor starts; `Oneiroi.System`, the macro every system adopts; the
 composed `Oneiroi.Application`; the endpoint, the router and the `/v1`
-scope; `/health`; the `gates`, `skips` and `tables` audit checks; the
+scope; `/health`; the `gates`, `skips`, `tables`, `free_text`, `error_site`
+and `projector_scope` audit checks (`Oneiroi.Apsu.Policies.*`); the
 Dockerfile and the Render blueprint. The kernel under
 `lib/oneiroi/kernel/`: the Repo and its migrator, the scope, the event
 and command macros with the actor middleware, the projection and router
@@ -113,7 +114,7 @@ schema, `projection_versions`) and the application role.
   `use Oneiroi.Event` and `use Oneiroi.Command` make the fields enforced
   keys, and `Oneiroi.Commanded.Middleware.Actor` refuses a command whose
   actor is invalid, whose instant is missing, or whose note is blank on a
-  decision. An event's `version:` is listed in its system's `events/0`;
+  decision, or whose bounded name (`bounds:`) is too long. An event's `version:` is listed in its system's `events/0`;
   a shape change is a new version with an upcaster, and the fixture log
   under `test/fixtures/sima_qian/` is the test that fails without one.
 - **#16 The macro modules are leaves.** `Oneiroi.Event` is the macro and
@@ -147,12 +148,29 @@ schema, `projection_versions`) and the application role.
   legitimate job, a full regression run at the request timeout, and a
   test holds it above that product. A worker that must not run twice
   declares `max_attempts: 1` on `Oneiroi.Worker` (eunomia #30).
+- **#21 A projector parks an event it cannot fold; it never stops the
+  app.** `use Oneiroi.Projection` routes every handler error to
+  `Oneiroi.Projection.failed/4`: a transient Postgres refusal or a lost
+  connection is retried 3 times at 500 ms times the attempt, and
+  anything else, or a transient one past its retries, is skipped,
+  logged at error with the projector, the event's number, type and
+  stream (never its data), and told as `[:oneiroi, :projection, :parked]`
+  telemetry. The event stays in the store for a replay once the fold is
+  fixed (conventions §6, 2026-11-03).
+- **#22 Free text is `:text`; a bound belongs on the command.** The
+  `free_text` check reads every migration from `20261103000010` on and
+  reports an `add` or `modify` of `:string` (Ecto's `varchar(255)`)
+  unless the name is an identifier by name or suffix. A name that should
+  be short is bounded with `use Oneiroi.Command, bounds: [field: max]`,
+  and the actor middleware refuses an overlong one as
+  `<field>_too_long` at dispatch, before any event exists (conventions
+  §6, §12).
 
 ## #10 Initial vs target
 
 Initial (P0): the roster, the boot, the endpoint with `/health` and the
 `/v1` router, the kernel above, Oban, the event store on Postgres in
-every environment, the three checks, JSON logs, the Dockerfile and
+every environment, the audit checks, JSON logs, the Dockerfile and
 blueprint. Target: PromEx, the status page, the fleet pins checked
 against the catalogue (spec §6.16).
 

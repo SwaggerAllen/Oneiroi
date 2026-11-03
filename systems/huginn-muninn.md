@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/huginn_muninn/**
   - lib/oneiroi/huginn_muninn.ex
   - lib/oneiroi_web/controllers/figure_controller.ex
+  - lib/mix/tasks/oneiroi.quietcheck.ex
   - priv/repo/migrations/*_huginn_muninn.exs
   - test/oneiroi/huginn_muninn/**
 ---
@@ -30,8 +31,9 @@ The audits aggregate on `audits-<resident_id>` (`Audits`, `Commands`,
 the `huginn_muninn_counter`, `huginn_muninn_increment`,
 `huginn_muninn_audit` and `huginn_muninn_run` projections; figures
 (`Figures`) and the checklist with the light (`Checks`); the nightly run
-(`NightlyWorker`); the figures, light and checks routes under
-`/v1/residents/:id`; the `root_mismatched_at` column on the resident row
+(`NightlyWorker`); quietcheck (`Quietcheck`, the hourly
+`QuietcheckWorker` at a quarter past, `mix oneiroi.quietcheck`; #20);
+the figures, light and checks routes under `/v1/residents/:id`; the `root_mismatched_at` column on the resident row
 (agathos-daimon #20).
 
 ## #2 Standing decisions
@@ -45,9 +47,9 @@ Carried from spec §6.13; the reason for each is there.
 
 Decided in the build:
 
-- **#9 A counter is a key the witness names and a value nobody writes.** `define_counter/4` and `retire_counter/3` are the witness's; `increment/5` is either party's, by a non-zero integer (negative corrects) with a note, and the event carries the actor, so a concession counted by the resident's tool and one counted by the witness are told apart on the row (the concession-count pattern). The projection folds the value; the aggregate folds it too, for its own rules; neither is ever set.
+- **#9 A counter is a key the witness names and a value nobody writes.** `define_counter/4` and `retire_counter/3` are the witness's; `increment/5` is either party's, by a non-zero integer (negative corrects) with a note, and the event carries the actor, so a concession counted by the resident's tool and one counted by the witness are told apart on the row (the concession-count pattern). The projection folds the value; the aggregate folds it too, for its own rules; neither is ever set. A counter's key and label are names, bounded on the command at 64 and 120 characters (`bounds:`, refused at dispatch as `key_too_long` or `label_too_long`), and so is a witness's audit's (#11); a note is free text and is not bounded.
 - **#10 A countdown is a figure read from the schedule, never a row here.** `figures/1` lists the counters and then every date's countdown as `date/<number>` with its days-to derived now (sunna #15); `figure/2` finds either by key, so `<slug>:figure/date/3` resolves like `<slug>:figure/tea`. The brain's `figures` section carries the counters alone, because the dates section already carries the countdowns and one place is the rule.
-- **#11 A witness's audit is a rule over a figure, and the built-in checklist reads rows.** `define_audit/3` names a figure, a comparison (`>=`, `<=`, `==`, `>`, `<`), an integer, a tone when it fails (`warn` or `fail`) and whether it counts toward the light. The built-in audits, with whether each counts: the last backup's root matched (`attestation`, counts), no capture failure is open (`capture_failures`, counts), the last twenty turns reached Honcho (`sync_failures`, counts), fewer than `HUGINN_MUNINN_MISSED_CHECKINS_WARN` check-ins missed this week (`missed_checkins`, warns, does not count), no prediction past due unresolved (`overdue_predictions`, warns, does not count), every citation that once resolved still does (`citation_drift`, warns, counts) planned days were wrapped (`journal_delta`, warns, does not count): the two of #5, read from the library (#15); and the agreement within its year (`contract_due`, warns, does not count; agathos-daimon #26).
+- **#11 A witness's audit is a rule over a figure, and the built-in checklist reads rows.** `define_audit/3` names a figure, a comparison (`>=`, `<=`, `==`, `>`, `<`), an integer, a tone when it fails (`warn` or `fail`) and whether it counts toward the light. The built-in audits, with whether each counts: the last backup's root matched (`attestation`, counts), no capture failure is open (`capture_failures`, counts), the last twenty turns reached Honcho (`sync_failures`, counts), fewer than `HUGINN_MUNINN_MISSED_CHECKINS_WARN` check-ins missed this week (`missed_checkins`, warns, does not count), no prediction past due unresolved (`overdue_predictions`, warns, does not count), every citation that once resolved still does (`citation_drift`, warns, counts), planned days were wrapped (`journal_delta`, warns, does not count): the two of #5, read from the library (#15); and the agreement within its year (`contract_due`, warns, does not count; agathos-daimon #26).
 - **#12 Every run is an event with a tone, and the light is read from the latest.** `run_audits/2` records `AuditRun{key, builtin, tone, value, finding}` for every audit, built-in and the witness's, nightly at 05:00 UTC after the judgement pass for every active resident (a cross-tenant job under the platform scope, named here) and by hand from the client. `light/1` takes each audit's latest run; the findings are those of the audits that count whose tone is not silent, and the state is fail if any of them fails, warn if any warns, else silent (#16). A result is never a leaderboard: nothing here compares residents.
 - **#14 This system is the library's figures port.** `figure/2` implements `Oneiroi.Seshat.Figures`, named in `SESHAT_FIGURES`, so `<slug>:figure/<key>` resolves here without the library depending on the audits (seshat #14); the audits depend on the library for the citation drift audit (#5), which is why the edge runs this way and the other half is a port.
 - **#19 Open wash flags are a warning until the resident decides them.** `wash_flags` reads the wash's open flags (eunomia #25) and warns with their count, naming the two tools; silent when none wait, saying it read the rows and not the files. It does not count toward the light: a flag is a proposal the resident has not answered, not a failure.

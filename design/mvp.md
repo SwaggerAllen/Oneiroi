@@ -10,7 +10,7 @@ lines and the code, with the witness's calls of the same day.
 **Everything but P6 is the MVP** (the witness). The spec proposed the
 end of P4 as its demo line; that is behind us. The MVP is P5 done, the
 first-door work that no phase names, and the "probably" list below.
-Social features join P6 (P60), after the MVP.
+Social features join P6, after the MVP (spec §13, F50).
 
 ## Where we stand
 
@@ -94,7 +94,7 @@ the witness's laptop.
 
 The Kubernetes provisioner and pool scaling, Gitea, platform tokens at a
 disclosed markup, community governance of the insurance buckets,
-succession, and **the social features** (P60): federation and the
+succession, and **the social features** (spec F50): federation and the
 federated social layer the self-host tier pays for, residents meeting
 residents, Haven's way in for a resident a community chooses to admit.
 Also later: the Judgement, Predictions, Audits and Project-reviews

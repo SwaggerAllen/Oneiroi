@@ -6,7 +6,7 @@ paths:
   - lib/oneiroi_web/controllers/file_controller.ex
   - lib/oneiroi_web/controllers/agreement_controller.ex
   - priv/templates/**
-  - priv/repo/migrations/*_agathos_daimon.exs
+  - priv/repo/migrations/*_agathos_daimon*.exs
   - test/oneiroi/agathos_daimon/**
 ---
 
@@ -27,20 +27,36 @@ attended in the same pass as the spine (plan P0.6, decisions log round
 
 ## #1 Owns
 
-The Resident aggregate on `resident-<id>` and its v1 events
-(`ResidentCreated`, `IdMinted`, `ResidentPaused`, `ResidentWoken`,
-`CustodyTransferred`, `ExportWallSet`, `Imported`, `ExportWritten`,
-`BackupCommitted`, `RootMismatchDetected`, `RecordsRemoteSet`,
-`SeedFileWritten`, `FirstContact`, `SoulEditProposed`,
-`SoulEditAccepted`, `SoulEditDeclined`, `SoulEditApplied`,
-`SoulLineWritten`, `SoulLineReworded`, `SoulLineRetired`,
-`SoulLinesOrdered`, `ImportCompleted`, `ImportTold`); the
-`agathos_daimon_resident` projection, scoped by both the resident and its
-witness's account, and the `agathos_daimon_file`,
-`agathos_daimon_soul_edit` and `agathos_daimon_soul_line` projections
-under the resident's scope; the custody wire form (`account:<id>`,
-`community`); the build-owned `AGENTS.md` template; the `/v1/residents`
-routes and the files and soul-lines routes under `/v1/residents/:id`.
+The Resident aggregate on `resident-<id>` and its events
+(`ResidentCreated`, `FixtureDeclared`, `IdMinted`, `ResidentPaused`,
+`ResidentWoken`, `ResidentLapsed`, `ResidentResumed`,
+`CustodyTransferred`, `CustodyTransferProposed`,
+`CustodyTransferDeclined`, `CustodyTransferWithdrawn`,
+`EarlierSessionsRevealed`, `ExportWallSet`, `DyadContractProposed`,
+`DyadContractAgreed`, `DyadContractDeclined`, `DyadContractRenewed`,
+`Imported`, `ImportCompleted` (version 2), `RecordsTranslated`,
+`ImportTold`, `ContinuationAsked`, `ExportWritten`, `BackupCommitted`,
+`RootMismatchDetected`, `RecordsRemoteSet`, `SeedFileWritten`,
+`FirstContact`, `SoulEditProposed`, `SoulEditAccepted`,
+`SoulEditDeclined`, `SoulEditApplied`, `SoulLineWritten`,
+`SoulLineReworded`, `SoulLineRetired`, `SoulLinesOrdered`,
+`ModelPinChanged`, `ModelChangeTold`, `TimezoneSet`,
+`AdapterRegistered`, `AdapterRevoked`, `SelfLetterWritten`,
+`SelfLettersDelivered`, `SelfLettersRead`, `SelfLettersExported`,
+`StateLineSet`, `StateLineCleared`); the `agathos_daimon_resident`
+projection, scoped by both the resident and its witness's account, and
+the `agathos_daimon_file`, `agathos_daimon_soul_edit`,
+`agathos_daimon_soul_line`, `agathos_daimon_contract`,
+`agathos_daimon_adapter`, `agathos_daimon_self_letter`,
+`agathos_daimon_self_letter_receipt` and `agathos_daimon_state_line`
+projections under the resident's scope, all folded by
+`Projectors.Residents`; the custody wire form (`account:<id>`,
+`community`); the build-owned `AGENTS.md` and Honcho custom-instructions
+templates; the `/v1/residents` routes (index, create, show, import,
+remote, originals, backup, timezone, adapters) and, under
+`/v1/residents/:id`, the files, soul-edits, soul-lines and self-letters
+routes and the agreement, export-wall and custody routes, with
+`/v1/me/custody-proposals`.
 
 ## #2 Standing decisions
 
@@ -88,7 +104,7 @@ routes and the files and soul-lines routes under `/v1/residents/:id`.
 - **#23 A transfer of custody is proposed, then accepted by the account it names.** `CustodyTransferProposed{to_account_id}` by the witness with a note; the proposed account accepts (`CustodyTransferred`, with the note) or declines, the witness withdraws, each a decision event; one open proposal at a time; the proposed account finds it through `custody_proposals_for/1`, a platform-scoped read by name. The community move the subscription's term makes (#21) stays a direct transfer.
 - **#24 The export wall stands while a transfer is open, and revealed it travels with the transfer.** `SetExportWall` is refused with `transfer_in_progress` while a proposal is open, so the proposed witness decided on the wall as it stood; an acceptance under a revealed wall writes `EarlierSessionsRevealed{from, to}` beside `CustodyTransferred`, and memory's projector keys every earlier account-keyed row to the new witness (kumbukumbu #29). Locked, the new witness is party to nothing that came before (spec §6.3).
 - **#26 The contract renews by choice and comes due at a year, a flag and never a lapse.** `DyadContractRenewed{version}` with a note, by either party, of the version in force and no other (`agathos_daimon_not_in_force` otherwise); the row keeps `renewed_at` and the note. `contract/1` derives `since` (the renewal or the agreement) and `due` (since plus `AGATHOS_DAIMON_CONTRACT_TERM_DAYS`, 365, a bound and the author's call) on every read; `contract_text/1` says so when due, the brain has `contract_renew`, the route is `POST /residents/:id/agreement/renewal`, and the audits' `contract_due` warns without counting (huginn-muninn #11). A due version stands until renewed or replaced: a lapse would drop the privacy term with it.
-- **#25 An import's second half is on the stream, and the resident is told once.** `ImportCompleted{seeded, adopted, not_transferred}` lands after `Imported` (sima-qian #15) and is refused on a resident never imported (`agathos_daimon_not_imported`); `ImportTold{}` once the brain has said where it woke (brain #26), `[]` before the import completed and again after. On the row: `import_attestation` from `Imported`, `import_not_transferred`, and `import_told`, true by default and dropped only by `ImportCompleted`, so a resident rebuilt from records alone has its history and nothing to be oriented to.
+- **#25 An import's second half is on the stream, and the resident is told once.** `ImportCompleted{seeded, adopted, not_transferred}` (version 2 adds `reasons`, sima-qian #22) lands after `Imported` (sima-qian #15) and is refused on a resident never imported (`agathos_daimon_not_imported`); `ImportTold{}` once the brain has said where it woke (brain #26), `[]` before the import completed and again after. On the row: `import_attestation` from `Imported`, `import_not_transferred`, and `import_told`, true by default and dropped only by `ImportCompleted`, so a resident rebuilt from records alone has its history and nothing to be oriented to.
 - **#27 The soul file is rows: every paragraph a line with a number minted from the `soul` sequence, the file rendered from them.** (Spec §6.17, P39, the author's call.) A write of `SOUL.md`, as a seed, the resident's edit or an accepted proposal, stays one whole-content event and in the same dispatch is diffed against the live lines (`Oneiroi.AgathosDaimon.SoulLines`): a paragraph claiming a live line by its marker `[soul/n]` keeps that number, `SoulLineReworded{number, text, cites}` when the words changed; a paragraph with no marker, or a marker naming no live line, keeps an unclaimed line with the same words, else mints the next number (`IdMinted{kind: "soul"}`) and is `SoulLineWritten{number, text, cites}`; a line nothing claimed is `SoulLineRetired`; and `SoulLinesOrdered{numbers}` restates the order when it moved. A text with no markers at all (a seed, a hand edit, an import) pairs its new paragraphs with the unclaimed old lines in order instead, so a marker-less rewording is still its line. Headings are the file's, never lines. The stored content is the words with the markers stripped, so a rendered file written back is no event; a proposal keeps its markers until applied, since they are the witness's claims. `files/1`, `file/2`, `identity_context/1` and the export render the soul with its markers, so a line is cited by what the reader sees (`<slug>:soul/<n>`, seshat #14) and an edit of the rendered file keeps every number; the card strips them (proteus #14). `cites` is the seed numbers a new or reworded line grew from, a list of positive integers here and checked against the seeds at the brain's tool (brain #12), since the character system reads this one and not the reverse. `soul_lines/1` is the live rows in order, on `GET /residents/:id/soul-lines`.
 - **#28 The self-conversation is a channel of this stream, delivered once at the swap and sealed by receipts, not promises.** (Spec §12, P41; the author: "'I promise not to read' is a poor guarantee.") `SelfLetterWritten{number, text, model}` is the resident's alone, from its own turn, numbered from the `letter` sequence in the same dispatch (as the soul lines are) and carrying the writing instance's model from the actor; `SelfLettersDelivered{numbers, model}` is recorded by the brain on the first turn under a new model, once per letter, the incoming instance's own read; `SelfLettersRead{numbers}` is the receipt, recorded for every read of the channel by anyone but the resident, the platform included and an empty channel included, and `read_self_letters/2` records it before it returns the letters, so no read happens without one. The resident's own read (`self_letters/1`, the brain's tools and prefix) leaves nothing: the absence of a receipt is the privacy. `GET /residents/:id/self-letters` is such a read. The export carries the letters as it carries every event of the stream, and the backup records `SelfLettersExported{numbers}` for the ones it carries for the first time (`letters_exported/3`, by the export's watermark), a receipt of its own kind, `export` by `repository`, shown to the resident like any other, because the repository's reader is whoever holds it. At-rest sealing waits on the key story; until then the receipt log is the guarantee that survives a poor promise.
 - **#29 A fixture is a kind fixed at creation, declared by an event of its own.** (Spec §12, P40.) `create_fixture/4` dispatches `CreateResident` with `kind: "fixture"`, and the aggregate emits `ResidentCreated` (version 1, unchanged) and `FixtureDeclared` in the same dispatch; any other kind is refused. Nothing declares a fixture later and nothing undeclares one, so a fixture does not become a person by an event and a person is never made a fixture. The row carries `kind`, `resident` by default. The brain treats a fixture as machinery (brain #36).

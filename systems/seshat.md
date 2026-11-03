@@ -28,10 +28,25 @@ by slice: the library first, the journal next.
 
 ## #1 Owns
 
-`lib/oneiroi/seshat/**`, the library controller, its migrations and
-tests. The files themselves live in the resident's repository on disk,
-which is records' (sima-qian #14): this system writes there and the
-backup commits by class.
+`lib/oneiroi/seshat/**`, the library and journal controllers, its
+migrations and tests. The library aggregate on `library-<resident_id>`
+and its events (`DocumentWritten`, `DocumentAdopted` (version 2),
+`DocumentRemoved`, `PiecePublished`, `DiscussionOpened`,
+`KeepsakeNoted`, `OracleDispatched`, `OracleAnswered`,
+`OracleFailed`); the journal aggregate on `journal-<resident_id>` and
+its events (`JournalEntryAdded` (version 3), `JournalTodoDone`); the
+`seshat_document`, `seshat_chunk`, `seshat_reference`,
+`seshat_index_run`, `seshat_discussion`, `seshat_oracle` and
+`seshat_journal_entry` projections under the resident's scope, folded
+by `Projectors.Library` and `Projectors.Journal`; the kinds registry
+and the shelf (`Oneiroi.Seshat.Kinds`, the `oracle` kind among them,
+#34, #35); the index run (`Oneiroi.Seshat.Index`, and `IndexWorker` on
+the `seshat_nightly` queue at 03:15 UTC); citations
+(`Oneiroi.Seshat.Citations`) and the figures port; the oracle's records
+(`Oneiroi.Seshat.Oracles`); the `/v1/residents/:id/library` and
+`/v1/residents/:id/journal` routes. The files themselves live in the
+resident's repository on disk, which is records' (sima-qian #14): this
+system writes there and the backup commits by class.
 
 ## #2 Standing decisions
 

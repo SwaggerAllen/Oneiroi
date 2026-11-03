@@ -7,6 +7,9 @@ paths:
   - lib/oneiroi_web/channels/regression_channel.ex
   - priv/prompts/judge_dispute.md
   - priv/prompts/judge_night.md
+  - priv/prompts/judge_audit.md
+  - priv/prompts/judge_wash.md
+  - priv/prompts/judge_continuation.md
   - priv/repo/migrations/*_eunomia*.exs
   - test/oneiroi/eunomia/**
 ---
@@ -37,17 +40,27 @@ events (`TestWritten`, `TestChanged`, `RunStarted` at version 2,
 `AnswerGraded`, `AnswerFavourited`), none exported; the
 `eunomia_regression_test`, `eunomia_regression_run` and
 `eunomia_regression_answer` projections under the resident's scope; the
-regression routes and the model-pin route under `/v1/residents/:id`.
+run's job (`RunWorker`) and its sweep (`RunSweepWorker`) on the
+`eunomia_regression` queue; the `regression:<resident_id>:<run_ref>`
+channel (`RegressionChannel`); the regression routes and the model-pin
+route under `/v1/residents/:id`.
 
 The judgement aggregate on `judgement-<resident_id>` (`Judgement`,
 `JudgementCommands`, `Events.Judgement`, `JudgementRouter`) with
 `PositionTaken`, `PositionReplaced`, `DisputeChecked`, `DisputeSettled`,
-`NightJudged`, `NightFailed`, `PredictionLogged`, `PredictionResolved`
-and `JudgeModelChanged`, exported like any resident record; the
+`NightJudged` (version 3), `NightFailed`, `PredictionLogged`,
+`PredictionResolved`, `JudgeModelChanged`, `AuditRun` (version 2),
+`AuditFailed`, `AuditFlagRaised`, `AuditFlagApproved`,
+`AuditFlagDeleted`, `WashRun`, `WashFailed`, `WashFlagRaised` and
+`WashFlagResolved`, exported like any resident record; the
 `eunomia_position`, `eunomia_dispute`, `eunomia_prediction`,
-`eunomia_night` and `eunomia_judge_change` projections; the judge's two
-calls (`Judge`) and prompt files; the nightly job (`NightWorker`); the
-judgement routes under `/v1/residents/:id`.
+`eunomia_night`, `eunomia_judge_change`, `eunomia_audit`,
+`eunomia_audit_flag`, `eunomia_wash` and `eunomia_wash_flag`
+projections; the judge's calls (`Judge`'s dispute advice, night and
+continuation check, `MemoryAudit`'s and `Wash`'s passes) and their
+prompt files; the nightly job (`NightWorker`)
+and the weekly ones (`AuditWorker`, `WashWorker`); the judgement routes
+under `/v1/residents/:id`.
 
 ## #2 Standing decisions
 

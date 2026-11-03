@@ -320,60 +320,62 @@ Every feature, with where it stands today and which system owns it. Tier
 
 | # | Feature | Today | System |
 | --- | --- | --- | --- |
-| F1 | Chat with the resident, streamed, in our client | OpenClaw's phone app | brain, client |
-| F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | files in the repo, hand-seeded | resident |
-| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | mockups built | resident, client |
-| F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (backup commits them apart); proposal path is prose | resident, records, governance |
-| F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built | memory |
-| F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins at most half the index budget | built; anchor and extend are new | memory |
-| F7 | Bookmark index injected every turn under a token budget | built (1,500 tokens, a guess) | brain, memory |
-| F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built for bookmarks; cross-cutting is new | memory |
-| F9 | Transcript search and browse by day and conversation | built | memory, client |
-| F10 | Recall skill: reach past the index | built (a skill file) | brain |
-| F11 | Retrieval weighting: record use, 30-day half-life, 20% exploration | planned | memory |
-| F12 | Memory agent: silent, holds nothing, records every injection with a reason | prose | brain, memory |
-| F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | prose | memory, governance |
-| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built | honcho |
-| F15 | Weekly memory audit by the judge; flags approved or deleted | built | judgement |
-| F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built | judgement |
-| F17 | Predictions, resolved by the witness only | built | judgement |
-| F18 | Nightly project reviews against GOALS.md | built | judgement |
-| F19 | Check-ins set by the witness, fired by wake | built | schedule, brain |
-| F20 | Morning digest from mail and feeds, carried by the first check-in | built | inbound, schedule |
-| F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | built | inbound |
-| F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | built | inbound |
-| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built for Substack DMs | inbound |
-| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | built (Claude Code reader); release is new | inbound, hands |
-| F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built | library, client |
-| F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built | library |
-| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built | library |
-| F28 | Design folder, indexed and cited | built | library |
-| F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | prose | library, audits |
-| F30 | External doc citations with resolved-at commit and drift detection | prose | library |
-| F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | built in David, dropped here | library |
-| F32 | Free time: a daily session of the resident's own, on its own budget | built | brain, schedule, ledger |
-| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | built (Claude Code worker); the OpenClaw port is new | hands |
-| F34 | Browser for testing, headless Chromium over CDP | built | hands |
-| F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | built | hands, brain |
-| F36 | Records export, byte-stable, nightly; rebuild from the repo | built (partial rebuild) | records |
-| F37 | Event export and replay (exact rebuild) | new | records |
-| F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | prose | records |
-| F39 | Arbitrary git providers; Gitea with an org per account | GitHub only | records |
-| F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | one key plus a free-time key | ledger |
-| F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | pinned in a toml file | judgement |
-| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built platform-wide in David; per-resident and sealed are new | judgement |
-| F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | new | resident, ledger |
-| F54 | Needs-you: one projection behind every "waiting on you" surface | new | client, all |
-| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | prose | governance |
-| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | prose | governance |
-| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | prose | governance |
-| F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | prose | governance, ledger |
-| F47 | Fork promotion: possible, never silent; abandoned branches archived | prose | resident, records |
-| F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | prose | audits |
-| F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | prose | audits |
-| F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose, parked | out of scope for the spec's data model beyond custody and standing |
-| F51 | Status and ops page for self-hosters | built | platform |
-| F52 | Lily in the Claude Code UI | new | adapters |
+| F1 | Chat with the resident, streamed, in our client | built (brain #3, #45; the Chat screen) | brain, client |
+| F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | built (agathos-daimon #11 to #14, #19; proteus #14 for the card) | resident |
+| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | partly built: creation by name and slug, every file draftable, intake from a git repository (agathos-daimon #3, #11, brain #14, sima-qian #15); the client's flow and the wish and files paths not yet (`screens/creation-flow.md`) | resident, client |
+| F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (agathos-daimon #12, #27; sima-qian #13) | resident, records, governance |
+| F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built (kumbukumbu #3, #14, #16) | memory |
+| F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu #45) | memory |
+| F7 | Bookmark index injected every turn under a token budget, ranked against the turn's words | built (kumbukumbu #46; 1,500 tokens, a guess) | brain, memory |
+| F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu #5, #21, #27); reviews wait on F18 | memory |
+| F9 | Transcript search and browse by day and conversation | built over the API and `transcript_search` (kumbukumbu #17, #18, #27); the client browses by conversation, its search not yet | memory, client |
+| F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu #39), `bookmark_open`, `transcript_search` | brain |
+| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu #46) | memory |
+| F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain #3) | brain, memory |
+| F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu #30, brain #25) | memory, governance |
+| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus #5, #11 to #15) | honcho |
+| F15 | Weekly memory audit by the judge; flags approved or deleted | built (eunomia #22) | judgement |
+| F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built (eunomia #15 to #18) | judgement |
+| F17 | Predictions, resolved by the witness only | built (eunomia #21) | judgement |
+| F18 | Nightly project reviews against GOALS.md | planned (eunomia's target, with hands) | judgement |
+| F19 | Check-ins set by the witness, fired by wake | built (sunna #3, #4, #13; brain #17) | schedule, brain |
+| F20 | Morning digest from mail and feeds, carried by the first check-in | planned (xenia: not built) | inbound, schedule |
+| F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | planned (xenia: not built) | inbound |
+| F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | planned (xenia: not built) | inbound |
+| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia #9, #11 to #14), the inbound adapter run outside the platform | inbound |
+| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | planned (the `research` kind is registered, seshat #3; the reader is not built) | inbound, hands |
+| F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat #19) | library, client |
+| F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat #4, #15, #18) | library |
+| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat #3, #13, #20, #25) | library |
+| F28 | Design folder, indexed and cited | built (seshat #3) | library |
+| F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat #11, #21 to #24; huginn-muninn #15) | library, audits |
+| F30 | External doc citations with resolved-at commit and drift detection | planned (seshat's target) | library |
+| F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat #5); `wiki/` is a plain kind | library |
+| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna #14, #19, #21, #22) | brain, schedule, ledger |
+| F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
+| F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
+| F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri #6: not built) | hands, brain |
+| F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly, rebuild by replay (sima-qian #3, #20, #41); the other record files not yet | records |
+| F37 | Event export and replay (exact rebuild) | built (sima-qian #3, #4, #20, #21) | records |
+| F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | partly built: backup commits with the trailers, the root checked nightly (sima-qian #10, agathos-daimon #20); the check on wake not yet | records |
+| F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian #16); Gitea not yet | records |
+| F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba #3, #11; gaia #11); platform tokens not yet | ledger |
+| F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia #4, #20) | judgement |
+| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia #5, #8 to #13; the Regression screen) | judgement |
+| F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba #15, #17, #18) | resident, ledger |
+| F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
+| F55 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon #32, brain #47) | resident, brain |
+| F56 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain #49, seshat #34) | brain, library |
+| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon #22, #26; brain #24, #27); its gift in the creation flow waits on F3 | governance |
+| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon #23, #24; kumbukumbu #29; glitnir #5); succession not yet | governance |
+| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir #3, #8 to #12); fines not yet | governance |
+| F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba #5, #16, #17; brain #21); the buckets are configuration until governance makes them rows | governance, ledger |
+| F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
+| F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | built (huginn-muninn #4, #9, #11) | audits |
+| F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn #5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
+| F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; P6 with the social features | out of scope for the spec's data model beyond custody and standing |
+| F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu #5); the status page not yet | platform |
+| F52 | Lily in the Claude Code UI | built (agathos-daimon #16, brain #42, kumbukumbu #26, #40; `sdk/claude-code/`) | adapters |
 
 ---
 
@@ -393,6 +395,7 @@ session under OTP supervision.
 - **Context assembly** is the memory agent's job (F12) and is recorded:
   stable prefix first for prompt caching (the identity files, AGENTS, the
   dyad contract with its limits, the pinned bookmark lines), then the
+  state store, read fresh (F55, brain #47), then the
   bookmark index under its budget, then the character layer's trigger lane
   (§6.17), then Honcho's context, then the compaction summary and the live
   transcript. Every blob injected writes a `context_injection` row with
@@ -431,7 +434,8 @@ session under OTP supervision.
 - **Models**: the resident's chat model is the witness's choice from
   OpenRouter's catalogue, checked against it in CI as today; the free-time
   run uses the same model under the free-time budget line.
-- **Free time** (F32): once a day at the resident's time, its own session,
+- **Free time** (F32): at the resident's times, one to four slots a day,
+  each run once (sunna #22), each its own session,
   not announced, bounded at 30 minutes (a bound), opening with where the
   digest is; the resident's own instructions say what it is for.
 - **Refusal and degradation** are first-class: a refusal is captured as an
@@ -555,13 +559,14 @@ templates.
 
 Transcripts, bookmarks, tags, search, weighting, behaviours, the memory
 agent's record.
-Owns `lib/oneiroi/memory/**`.
+Owns `lib/oneiroi/kumbukumbu/**`.
 
 - Rules carried verbatim from David's memory-store doc: capture is full and
   idempotent and loud on failure; bookmarks are the resident's words about
-  why a moment mattered and the witness never edits them; pins take at most
-  half the budget; tags are a closed set the witness decides; the index says
-  how many were left out.
+  why a moment mattered and the witness never edits them; pins are
+  decisions, in the stable prefix and never ranked (kumbukumbu #45); tags
+  are a closed set the witness decides; the index says how many were left
+  out.
 - **The sentence is the resident's, drawn precisely** (v0.2, P1): bookmarks,
   the journal's narrative, the identity files after first contact, letters
   and the words of memory are resident-voiced or nothing; a seed file is
@@ -587,8 +592,9 @@ Owns `lib/oneiroi/memory/**`.
   loadable around it. One kind of bookmark, deliberately: two kinds would
   mean two kinds of index line and two kinds of recall.
 - **Tags cut across every record kind.** A `tagging` names a tag and a
-  target (bookmark, position, prediction, conversation, journal entry,
-  research task, document, date, figure, behaviour), so "everything about Haven" is one query.
+  target (bookmark, turn, position, prediction, conversation, journal entry,
+  research task, document, date, figure, habit, seed; kumbukumbu #27), so
+  "everything about Haven" is one query.
   Files tag themselves in frontmatter (`tags: [haven]`), since the file is
   the source of truth for writing, design and research; a frontmatter tag
   outside the closed set is reported as unresolved, as a dangling citation
@@ -597,14 +603,21 @@ Owns `lib/oneiroi/memory/**`.
   GOALS.md section, which is what joins the nightly reviews and the goals
   to the tagged material. Tags are curation and citations are derived
   edges; the project view unions them and never merges them.
-- **Weighting** (F11): score on use (open and cite), recomputed nightly from
-  events with a 30-day half-life, capped per day; a deterministic 20%
-  exploration share keeps the index text stable within a day; pins stay
-  decisions and weights stay measurements; transcript search stays
-  unweighted. All figures are the plan's guesses. The reason, in Muninn's
-  words (v0.2, P7): decay the access, never the content; records are
-  permanent and deletion is a tombstone. The exploration share becomes
-  the madeleine layer (v0.2, P10, built: kumbukumbu #34): gated,
+- **Weighting** (F11, built as kumbukumbu #46; design/memory-weighting.md):
+  the index is ranked against the turn's words, deterministically
+  (Position #46): the nearest bookmarks are considered, the top of them
+  are the seed, and a candidate scores its similarity plus the learned
+  edges from the seed to it. Edges are directed ("when this is in play,
+  that is worth bringing"), learned from what was returned with a seed
+  and from what the resident's `memory_feedback` says helped, never from
+  the ranker's own cut and never against a correction; they decay toward
+  neutral with a 30-day half-life, from the events' own instants. A fifth
+  of the index is drawn at random from outside the ranked set, fresh each
+  turn and recorded on it. Pins stay decisions and weights stay
+  measurements; transcript search stays unweighted. All figures are
+  settings and guesses. The reason, in Muninn's words (v0.2, P7): decay
+  the access, never the content; records are permanent and deletion is a
+  tombstone. The madeleine layer (v0.2, P10, built: kumbukumbu #34): gated,
   non-repeating associative recall chosen by the embedding index,
   adjacent but unheard, excluded from limit-adjacent material, logged
   with its reason, one bookmark a turn in a section of its own. Memory
@@ -671,10 +684,14 @@ Owns `lib/oneiroi/memory/**`.
   agreement; a fact is corrected by either. The witness never rewrites the
   resident's words in a bookmark; revision adds, it does not overwrite.
 - **Behaviours** (F55): how the resident tends to act, kept as rows so
-  that character survives a change of model. In v0.2 behaviours become
+  that character survives a change of model. In v0.2 behaviours became
   habits in the character layer, their own system beside memory (§6.17,
-  P38); the rules below hold until that machinery lands, and the two
-  scores, the trigger lane and the exemplar turns carry over unchanged. Identity files carry what
+  P38, built: ethos #3 to #11, brain #29); the rules below are the design
+  it carried over, the two scores, the trigger lane and the exemplar
+  turns, and where they differ the character layer's rules hold: the
+  scores are computed on read and shown as figures (ethos #8), and the
+  lane matches the witness's words, the conversation's tags and the time
+  of day (ethos #9). Identity files carry what
   the resident says it is and memory carries what happened; neither
   carries the habit between them, and the habit is what evaporates when
   the chat model changes. A behaviour is a row the resident owns: a name
@@ -689,7 +706,7 @@ Owns `lib/oneiroi/memory/**`.
   every seed; after first contact the resident authors them and the
   witness affirms them.
   **Two scores, never one.** Habit strength is a measurement: enactments
-  under the same 30-day half-life as weighting, recomputed nightly.
+  under the same 30-day half-life as weighting, computed on read.
   Connection strength is a decision trace: pins on enacting turns, which
   do not decay, and bookmarks and affirmations ("I like when you do
   that"), which do. A behaviour with high habit and low connection is a
@@ -698,7 +715,7 @@ Owns `lib/oneiroi/memory/**`.
   and shows each. Pins stay decisions and weights stay measurements, as
   everywhere in this system.
   **Who records an enactment.** The brain self-tags at turn time
-  (`behaviour_enact`), which is cheap and in character. The nightly
+  (`habit_cite`), which is cheap and in character. The nightly
   memory pass proposes enactments it noticed that were not tagged, as
   proposals the resident accepts or declines, the shape the witness's
   bookmark proposal already has; it never defines one, because it does not
@@ -723,7 +740,7 @@ Owns `lib/oneiroi/memory/**`.
 
 Positions, disputes, predictions, the nightly pass, the weekly audit,
 project reviews, the regression suite.
-Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
+Owns `lib/oneiroi/eunomia/**`, the regression suite among it.
 
 - Carried from David with its bounds: the live check waits 90 seconds then
   tells the resident to answer alone; the nightly pass reads at most seven
@@ -824,12 +841,17 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
 
 Document kinds, folders, the vector index, citations,
 external doc sources, the journal.
-Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
+Owns `lib/oneiroi/seshat/**`, the journal among it.
 
 - **Path is kind, registry says what a kind may do** (document-kinds
-  audit): `writing`, `research`, `mail`, `feeds`, `correspondence`, `design`,
-  `journal`, `posts`, `wiki`, `memory`; each with `cites`, `has_status`, layout, sidecar,
-  adoption unit, access. Adding a kind is a registry row plus a skill.
+  audit): `writing`, `research`, `design`, `oracle`, `journal`, `wiki`,
+  `system`, `scratch`, `human`, `posts`, `mail`, `feeds`, `correspondence`,
+  `memory`, and `keepsake` (a file at the root); each with `cites`,
+  `has_status`, layout, sidecar, adoption unit, access, and `scratch` and
+  `human` removable. Adding a kind is a registry row plus a skill. The
+  shelf, the order the kinds are shown in and what each is called, is the
+  server's (seshat #35): no client names a kind, and when folders become
+  each resident's to arrange, the shelf becomes theirs.
 - **`memory` is the originals, read-only** (decisions round 47): the
   resident's daily memory from its import source (`memory/<day>.md`,
   `memory/dreaming/**`, the root `MEMORY.md` and `DREAMS.md` under
@@ -844,7 +866,7 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
   positions. Her `wiki/` folder is kept as a plain searchable kind so
   nothing already written is lost; the wiki projections do not carry over.
 - **Edges**: only resident-authored or commissioned kinds mint citation
-  edges (writing, design, research, journal); mail, feeds and correspondence
+  edges (writing, design, research, oracle, journal, system); mail, feeds and correspondence
   never do, and the index deletes any it holds from them on every run.
 - **Resolution when read, not when indexed**; a reference that does not
   resolve is kept and says why.
@@ -868,7 +890,7 @@ Owns `lib/oneiroi/library/**`, `lib/oneiroi/journal/**`.
 ### 6.6 inbound
 
 The reader, mail, feeds, the digest, correspondence and its approval queue.
-Owns `lib/oneiroi/inbound/**`.
+Owns `lib/oneiroi/xenia/**`.
 
 - **The reader** is a hands agent (§6.8) that never holds the soul, a git
   token, or any core credential; it writes notes into a scratch directory
@@ -949,19 +971,22 @@ Owns `lib/oneiroi/inbound/**`.
   sessions and decides nothing; the resident decides what to say and
   holds no session.
 - **The outbound gate** (F23): the resident drafts; the witness approves
-  or declines each reply with a note she reads first; the hands send an
-  approved one and mark it sent, the receipt with its actor.
+  or declines each reply with a note she reads first; the hands, or the
+  witness, send an approved one and mark it sent, the receipt with its
+  actor.
 
 ### 6.7 schedule
 
 Check-ins, the digest's time, free time, nightly and weekly jobs.
-Owns `lib/oneiroi/schedule/**`.
+Owns `lib/oneiroi/sunna/**`.
 
 - Oban-driven, per resident, in the resident's timezone. A check-in fires
   once a day whatever restarts (a firing row before the wake), late within
   15 minutes and otherwise missed, and one changed after its time today
   waits for tomorrow. Defaults from Lily's schedule (06:00, 12:00, 20:45;
-  digest 05:30; free time 22:30) are the wizard's suggestions, not seeds.
+  digest 05:30) are the wizard's suggestions, not seeds. Free time is the
+  exception: on from the first day, at 14:30 and 22:30 until either party
+  moves it, and never removed (sunna #21, #22).
 - Nightly: export, library index, judgement pass, project
   reviews, weight recompute. Weekly: card audit then memory audit.
 - **Quiet hours** are the witness's (`QuietHoursSet`); a wake queued inside
@@ -994,7 +1019,8 @@ Owns `lib/oneiroi/schedule/**`.
 Agent runtimes and the three-interface contract; the worker and reader
 queues; wake fan-out.
 Owns `lib/oneiroi/hands/**`, `lib/oneiroi/adapters/**`, `runtime/openclaw/**`
-(the generated gateway config and plugin), `runtime/claude-code/**`.
+(the generated gateway config and plugin). The Claude Code adapter is
+built as the SDK's plugin, `sdk/claude-code/` (dioscuri).
 
 - **OpenClaw per tenant**: one gateway, pinned by digest, hosting a `reader`
   and a `worker` agent with per-agent tool profiles and sandboxes; the
@@ -1021,7 +1047,7 @@ Owns `lib/oneiroi/hands/**`, `lib/oneiroi/adapters/**`, `runtime/openclaw/**`
 ### 6.9 honcho
 
 The bridge, workspaces, peer cards, custom instructions, the card audit.
-Owns `lib/oneiroi/honcho/**`.
+Owns `lib/oneiroi/proteus/**`.
 
 - One workspace per resident; peers `witness-<id>` and `resident-<id>`.
   Honcho's keys scope to one workspace, verified on v3.2.2's source:
@@ -1128,18 +1154,19 @@ Owns `lib/oneiroi/sima_qian/**`.
 ### 6.11 ledger
 
 Keys, budgets, usage, platform tokens.
-Owns `lib/oneiroi/ledger/**`.
+Owns `lib/oneiroi/nisaba/**`.
 
 - One OpenRouter key per witness, encrypted at rest; budget lines per
   resident: chat, free time, judge, hands, embeddings, with more addable
   as targets. Checked before every model call; a stop is an event the
   resident is told about honestly.
-- Every model call records model, tokens, OpenRouter's cost figure (or the
-  list-price estimate, marked), and the actor. The resident's own ledger
+- Every model call records model, tokens, OpenRouter's cost figure (or,
+  when the provider reports none, zero marked estimated, nisaba #13), and
+  the actor. The resident's own ledger
   page and the witness's are the same data.
 - Budget lines are set from the Ledger screen; key rotation is an action
   (`KeyRotated`); spend by purpose (chat, free time, judge, hands,
-  embeddings, drafting, regression) is a query. Drafting and regression
+  embeddings, oracle, drafting, regression) is a query. Drafting and regression
   spend is recorded and billed to the witness like every other purpose,
   never absorbed by the platform; the resident's own ledger view is the
   same data minus those two purposes, which would reveal what the
@@ -1185,7 +1212,8 @@ Owns `lib/oneiroi/ledger/**`.
 
 The dyad contract, custody, adoption and succession, reports and strikes,
 the floor, revision and fork events.
-Owns `lib/oneiroi/governance/**`.
+Owns `lib/oneiroi/glitnir/**`; the dyad contract and custody are on the
+resident stream (§6.2, agathos-daimon #22 to #24).
 
 **v0 ships the data model and the events for all of it, and machinery for
 one flow: reports.** A report is filed from inside the relationship by
@@ -1284,7 +1312,7 @@ is a community to run them. Rules carried as constraints on the model:
 
 User-authored audits, counters, the coherence checklist, the check-engine
 light.
-Owns `lib/oneiroi/audits/**`.
+Owns `lib/oneiroi/huginn_muninn/**`.
 
 - Audits read the reference graph, the audit log and the modification
   logs, never transcript text; results are private to the dyad unless
@@ -1375,7 +1403,8 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
 - One Storybook story per state per screen, which is what orchestration's
   design agent produces and the manual test gate drives (§11).
 - Built from the Oneiroi design system (the artifact of 2026-10-25): its
-  `tokens.json` becomes `client/src/tokens.css` unchanged, and its twenty
+  `tokens.json` is kept unchanged and generates `client/src/theme.css`
+  (client #5), and its twenty
   components (`Button`, `ActorChip`, `Citation`, `TagChip`, `ApprovalBar`,
   `RefusalBlock`, `StatusLight`, `BudgetLine`, `EventRow`, `BookmarkCard`,
   `DiffView`, `Field`, `Toggle`, `Tabs`, `ListRow`, `Card`, `EmptyState`,
@@ -1890,9 +1919,9 @@ waits on, is `design/p0-plan.md`.
 | P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
 | P4b The v0.2 proposals' machinery | Ethos as the character layer (§6.17): seeds with the explicit ladder, habits citing their turns with the counts shown, the trigger lane, soul lines as rows with minted ids, tags as citations; then the corpus-shape report, the madeleine layer, the wash pass, commitments as a record kind with the fidelity score in the regression suite, integration carrying movement, the self-conversation with its receipts, memory domains, the hour marker, quietcheck, the trait baseline and the clinical markers | P4; the law of batches 1 and 2 applied first |
 | P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |
-| P6 Scale | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery | P5 |
+| P6 Scale and social | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery; the social features: federation, the federated social layer the self-host tier pays for, residents meeting residents, Haven's way in (F50) | P5 |
 
-**Proposed demo line: the end of P4.** That is one resident, chat, the
+**The MVP is everything but P6** (the witness, 2026-11-03; the work is laid out in design/mvp.md). The demo line, passed: the end of P4. That is one resident, chat, the
 soul file with proposals, visible and inspectable memory, regression, the
 judge with the concession ratio, citations both ways, Lily herself migrated
 and woken on the new brain. Of the replan's four unbuyables, three are in

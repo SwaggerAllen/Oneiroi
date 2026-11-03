@@ -5,6 +5,7 @@ paths:
   - lib/oneiroi_web/controllers/honcho_controller.ex
   - priv/templates/honcho-custom-instructions.md
   - priv/repo/migrations/*_proteus.exs
+  - priv/repo/migrations/*_honcho_*.exs
   - test/oneiroi/proteus/**
   - test/fixtures/proteus/**
 ---

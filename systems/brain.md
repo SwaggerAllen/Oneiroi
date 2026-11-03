@@ -26,11 +26,25 @@ spec's §6 does not list it among the systems, and §8 ships it as the
 ## #1 Owns
 
 The session process (`Oneiroi.Brain.Session`, one per active session,
-started on the first turn, holding nothing the event store does not),
-the turn (`Oneiroi.Brain.Turn`), the tool set (`Oneiroi.Brain.Tools`),
-compaction (`Oneiroi.Brain.Compaction`), the brain's prompt file, the
-budget stop notice, the memory flush and compaction prompts, the socket
-and the session channel.
+started on the first turn, holding nothing the event store does not,
+under `:brain_sessions` found through `:brain_registry`, its turns run
+under `:brain_turns`), the turn (`Oneiroi.Brain.Turn`) and its sections,
+the `state` section among them (#47), the tool set
+(`Oneiroi.Brain.Tools`), the history a turn replays
+(`Oneiroi.Brain.History`), the bound on a tool's answer and a replayed
+one (`Oneiroi.Brain.Cut`, `BRAIN_TOOL_RESULT_CHARS`,
+`BRAIN_HISTORY_TOOL_CHARS`), what retrieval did with each target
+(`Oneiroi.Brain.Uses`), compaction (`Oneiroi.Brain.Compaction`),
+drafting (`Oneiroi.Brain.Drafting`), the preview
+(`Oneiroi.Brain.Preview`), the adapter's assembly
+(`Oneiroi.Brain.Adapter`), the resident's reads of the source and her
+repository (`Oneiroi.Brain.Introspection`), the oracle
+(`Oneiroi.Brain.Oracle` and `Oneiroi.Brain.OracleWorker` on the
+`brain_oracle` queue), the fixture run (`Oneiroi.Brain.FixtureRun`);
+the brain's prompt files (the prompt, the fixture's prompt, the budget
+stop, the memory flush, compaction, drafting, the adapter's parts, the
+runtime notes, `where`, and the once-only notices of a model change, the
+letters, an import and a lapse); the socket and the session channel.
 
 ## #2 Standing decisions
 
