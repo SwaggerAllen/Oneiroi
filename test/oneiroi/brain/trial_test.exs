@@ -150,7 +150,8 @@ defmodule Oneiroi.Brain.TrialTest do
       {:asked, %{messages: messages}} ->
         case Enum.filter(messages, &(&1[:role] == :tool)) do
           [] -> answers()
-          tools -> Enum.map(tools, & &1.content)
+          # The round's count (brain #51) is the turn's, not the tool's.
+          tools -> Enum.map(tools, &String.replace(&1.content, ~r/\n\n\(Tool round .*\z/s, ""))
         end
     after
       0 -> flunk("no request carried the tools' answers")
