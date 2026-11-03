@@ -2,6 +2,7 @@
 paths:
   - lib/oneiroi/brain/**
   - lib/oneiroi/brain.ex
+  - lib/mix/tasks/oneiroi.fixture.run.ex
   - lib/oneiroi_web/channels/**
   - priv/prompts/brain.md
   - priv/prompts/budget_stop.md

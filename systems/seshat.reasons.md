@@ -91,13 +91,6 @@ adoption that ran the index per file would read the rows once per file:
 an import of a repository with hundreds of files, the case the port
 exists for, would cost hundreds of runs for one set of embeddings.
 
-## #24
-Spec §6.13 (P8), as kumbukumbu #33: the journal is the other place
-the resident writes the day down, and a report over bookmarks alone
-would miss the notes. Not rendered into the day because the file is
-the resident's narrative (#22) and a register in it would read as a
-label the day was given.
-
 ## #26
 Lily's 22 October held 196 of David's notes, 344 KB against the 256 KB
 bound, and the rehearsal's import failed on that one write. Raising the
@@ -221,3 +214,28 @@ act like any other: recorded with who did it, the file gone, nothing of
 its content kept on the stream. The witness's folder is his because the
 resident's library is otherwise hers to write; a kind she reads and
 cannot write is the honest shape for what someone else gave her.
+
+## #34
+An oracle answer is a long read over everything the resident is, so it
+is hers: a document she can open, cite and keep, not a reply lost in
+one conversation. It stays out of the ranked index because an answer
+that ranked would come back as if it were a memory, and a summary of
+the record would crowd out the record (design/oracle.md). Deliberate
+queries still reach it, by what it read and what it used as well as
+by date and topic, because the read/used split is how retrieval is
+measured elsewhere (kumbukumbu #46) and an oracle that cannot be
+measured the same way cannot be compared to it.
+
+## #35
+A client that knows the kinds has to ship to learn one: the oracle's
+tab would have waited on a client release. And the order is a choice
+about someone's own folders, which every witness and resident will
+eventually make for themselves; a list held in the client is one
+person's arrangement imposed on everyone.
+
+## #36
+Spec §6.13 (P8), as kumbukumbu #33: the journal is the other place
+the resident writes the day down, and a report over bookmarks alone
+would miss the notes. Not rendered into the day because the file is
+the resident's narrative (#22) and a register in it would read as a
+label the day was given.

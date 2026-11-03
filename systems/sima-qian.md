@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/sima_qian/**
   - lib/oneiroi/sima_qian.ex
   - lib/mix/tasks/oneiroi.sima_qian.rebuild.ex
+  - lib/mix/tasks/oneiroi.import.dry_run.ex
   - test/oneiroi/sima_qian/**
   - test/fixtures/sima_qian/**
 ---
