@@ -158,19 +158,35 @@ defmodule OneiroiWeb.ConversationController do
   end
 
   operation(:turn,
-    summary: "Send a message and wait for the turn: the reply streams on the channel too",
+    summary:
+      "Send a message. With `client_ref` (brain #45) it is taken at once and answered 202 with `running`, `queued` or `duplicate`, the turn arriving on the channel; a retry under the same ref never runs twice. Without it, the call waits for the turn",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
     request_body:
       {"the message", "application/json",
-       %Schema{type: :object, required: [:text], properties: %{text: %Schema{type: :string}}}},
-    responses: [created: {"the captured turn", "application/json", %Schema{type: :object}}]
+       %Schema{
+         type: :object,
+         required: [:text],
+         properties: %{
+           text: %Schema{type: :string},
+           client_ref: %Schema{
+             type: :string,
+             description: "the client's id for this message: 8 to 64 of A–Z a–z 0–9 _ -"
+           }
+         }
+       }},
+    responses: [
+      created: {"the captured turn", "application/json", %Schema{type: :object}},
+      accepted:
+        {"taken: running, queued or duplicate", "application/json", %Schema{type: :object}}
+    ]
   )
 
   def turn(%{assigns: %{principal: p}} = conn, %{"id" => id, "key" => key, "text" => text})
       when is_binary(text) do
-    case read_only(p, key) do
-      nil -> run_turn(conn, id, key, text)
-      s -> read_only_problem(conn, s)
+    case {read_only(p, key), conn.params["client_ref"]} do
+      {%{} = s, _ref} -> read_only_problem(conn, s)
+      {nil, nil} -> run_turn(conn, id, key, text)
+      {nil, ref} -> submit_turn(conn, id, key, text, ref)
     end
   end
 
@@ -199,6 +215,28 @@ defmodule OneiroiWeb.ConversationController do
         :web_conversation_turn_read_only,
         "#{title(s)} is read here: it is answered where it happens"
       )
+
+  # Brain #45: the message is taken at once under the client's ref.
+  @client_ref ~r/\A[A-Za-z0-9_-]{8,64}\z/
+
+  defp submit_turn(conn, id, key, text, ref) do
+    with true <- is_binary(ref) and Regex.match?(@client_ref, ref),
+         {:ok, taken} <- Oneiroi.Brain.submit(id, key, text, actor(conn), ref) do
+      conn |> put_status(202) |> json(taken)
+    else
+      false ->
+        problem(
+          conn,
+          422,
+          :client_ref_invalid,
+          :web_conversation_turn_client_ref_invalid,
+          "client_ref is 8 to 64 of A-Z a-z 0-9 _ -"
+        )
+
+      {:error, e} ->
+        error(conn, 503, e)
+    end
+  end
 
   defp run_turn(conn, id, key, text) do
     case Oneiroi.Brain.turn(id, key, text, actor(conn)) do

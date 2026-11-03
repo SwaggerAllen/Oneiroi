@@ -46,7 +46,15 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  const json = text ? (JSON.parse(text) as unknown) : null;
+  // A proxy's error page (Render's 502 is HTML) is not JSON: it must still
+  // arrive as a failed request with its status, never as a parse error
+  // that reads like a bug and loses the status (brain #45).
+  let json: unknown = null;
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    if (response.ok) throw new RequestFailed(response.status, null);
+  }
   if (!response.ok) {
     const error = (json as { error?: ApiError } | null)?.error ?? null;
     throw new RequestFailed(response.status, error);
@@ -78,6 +86,13 @@ export const api = {
     ),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
+  // Taken at once under the client's ref (brain #45); the turn arrives on the channel.
+  submit: (residentId: string, key: string, text: string, clientRef: string) =>
+    call<{ turn_ref: string; state: 'running' | 'queued' | 'duplicate'; ahead?: number }>(
+      'POST',
+      `/v1/residents/${residentId}/sessions/${key}/turns`,
+      { text, client_ref: clientRef },
+    ),
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 

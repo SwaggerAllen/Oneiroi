@@ -265,6 +265,23 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
              |> json_response(201)
 
+    # Brain #45: under the client's ref a message is taken at once and
+    # answered 202; a retry is a duplicate; a ref out of shape is refused.
+    assert %{"turn_ref" => ^ref, "state" => "duplicate"} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{
+               text: "hi",
+               client_ref: ref
+             })
+             |> json_response(202)
+
+    assert %{"error" => %{"kind" => "client_ref_invalid"}} =
+             conn
+             |> put_req_header("origin", origin())
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi", client_ref: "no!"})
+             |> json_response(422)
+
     assert [%{"key" => ^key, "turns" => 1}] =
              conn |> get("/v1/residents/#{id}/sessions") |> json_response(200)
 

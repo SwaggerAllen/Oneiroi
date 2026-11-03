@@ -13,6 +13,13 @@ The preview sits beside the inspector: the inspector is what a turn drew on, the
 
 The main conversation as a transcript; the other conversations apart, Claude Code's grouped by folder, newest first, each read only (the author, round 49: "Claude and Oneiroi chat are two different use cases"); the check-engine light and the session line (last and next check-in) in the top bar, with the model the last reply was recorded under, so a pin that did not take is visible here rather than found by asking the resident; refusals in the resident's words; a "drew on N things" inspector per reply; the preview of what the next turn would be given; both open on an overview, every section closed to its label and size, each opening to its reason, words and note, with Open all and Close all (the author asked for an overview to dive down from, after the first preview showed every section whole at once); reports filed by either party and each investigation step inline.
 
+Brain #45: messages on their way are an outbox, each under its own ref
+with where it is (sending, queued, delivered, not sent with Retry, not
+answered with Send again); the top bar carries a connection dot and,
+while a turn runs, what the resident is doing (thinking, using a named
+tool, writing). Sending never waits for the last reply: the next
+message queues.
+
 ## #2 Does
 
 Send; open another conversation and read it; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu.

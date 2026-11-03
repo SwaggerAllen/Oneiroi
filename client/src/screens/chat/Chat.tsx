@@ -5,6 +5,8 @@ import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { RefusalBlock } from '../../components/RefusalBlock';
 import { TopBar } from '../../components/TopBar';
+import { ConnectionDot } from '../../components/ConnectionDot';
+import { type Connection, itemLine, type Outgoing, statusLine } from './outbox';
 import { firstUnread, newestCursor, toolSummary } from './page';
 
 export interface ChatProps {
@@ -21,10 +23,15 @@ export interface ChatProps {
   // What each reply drew on, by turn ref, once opened.
   injections?: Record<string, Injection[]>;
   drewOn?: Record<string, number>;
-  sending?: boolean;
-  // The witness's message as sent, shown at once until the captured turn
-  // replaces it (the chat-UI survey's third pattern).
-  pending?: string | null;
+  // The witness's messages on their way (brain #45), each shown at once
+  // with where it is until its turn lands in the transcript.
+  outbox?: Outgoing[];
+  // Whether the stream is up: the dot in the top bar.
+  connection?: Connection;
+  // Send an unsent message again under its own ref; send a failed one's
+  // words again as a new message; or put a notice away.
+  onRetry?: (ref: string) => void;
+  onDismiss?: (ref: string) => void;
   // What the next turn would be given, as the server assembled and
   // worded it (brain #41); null while closed.
   preview?: ContextPreview | null;
@@ -73,8 +80,10 @@ export function Chat({
   streaming = null,
   injections = {},
   drewOn = {},
-  sending = false,
-  pending = null,
+  outbox = [],
+  connection,
+  onRetry,
+  onDismiss,
   preview = null,
   more = false,
   onOlder,
@@ -100,7 +109,7 @@ export function Chat({
   const lastModel = [...messages].reverse().find((m) => m.role === 'assistant')?.actor.model ?? null;
   const submit = () => {
     const text = draft.trim();
-    if (!text || sending) return;
+    if (!text) return;
     onSend(text);
     setDraft('');
   };
@@ -164,10 +173,10 @@ export function Chat({
         line={
           !writable
             ? `${conversation?.title} · read here, answered there`
-            : lastModel
-              ? `Main conversation · last reply on ${lastModel}`
-              : 'Main conversation'
+            : (statusLine(outbox, residentName) ??
+              (lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'))
         }
+        right={connection ? <ConnectionDot state={connection} /> : undefined}
       />
       {conversations ? <div style={{ flex: 'none' }}>{conversations}</div> : null}
       {markerAbove ? (
@@ -219,30 +228,59 @@ export function Chat({
               />
             </Fragment>
           ))}
-          {pending ? (
-            <div
-              aria-label="Sending"
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 0 }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  padding: 'var(--space-2) var(--space-3)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--witness-tint)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  lineHeight: '22px',
-                  maxWidth: 'min(var(--measure), 100%)',
-                  whiteSpace: 'pre-wrap',
-                  overflowWrap: 'anywhere',
-                }}
+          {outbox.map((item) => {
+            // A failed turn's words were kept on the server, so once the
+            // transcript has them only the notice is shown here.
+            const inTranscript = messages.some((m) => m.turn_ref === item.ref);
+            return (
+              <div
+                key={item.ref}
+                aria-label={item.state === 'failed' ? 'Not answered' : item.state === 'unsent' ? 'Not sent' : 'Sending'}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 0 }}
               >
-                {pending}
-              </p>
-              <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>sending…</span>
-            </div>
-          ) : null}
+                {inTranscript ? null : (
+                  <p
+                    style={{
+                      margin: 0,
+                      padding: 'var(--space-2) var(--space-3)',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--witness-tint)',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 15,
+                      lineHeight: '22px',
+                      maxWidth: 'min(var(--measure), 100%)',
+                      whiteSpace: 'pre-wrap',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {item.text}
+                  </p>
+                )}
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: item.state === 'failed' || item.state === 'unsent' ? 'var(--danger)' : 'var(--ink-faint)',
+                  }}
+                >
+                  {itemLine(item, residentName)}
+                </span>
+                {(item.state === 'unsent' || item.state === 'failed') && (onRetry || onDismiss) ? (
+                  <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    {onRetry ? (
+                      <Button variant="quiet" onClick={() => onRetry(item.ref)}>
+                        {item.state === 'unsent' ? 'Retry' : 'Send again'}
+                      </Button>
+                    ) : null}
+                    {onDismiss ? (
+                      <Button variant="quiet" onClick={() => onDismiss(item.ref)}>
+                        Dismiss
+                      </Button>
+                    ) : null}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
           {streaming ? (
             <p
               aria-live="polite"
@@ -314,7 +352,7 @@ export function Chat({
           }}
         >
           <Composer draft={draft} onDraft={setDraft} onSubmit={submit} placeholder={`Write to ${residentName}`} />
-          <Button variant="primary" type="submit" disabled={sending || draft.trim() === ''}>
+          <Button variant="primary" type="submit" disabled={draft.trim() === ''}>
             Send
           </Button>
         </form>

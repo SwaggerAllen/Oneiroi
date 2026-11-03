@@ -98,9 +98,12 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def errors do
     [
-      {:brain_turn_failed, "the turn did not complete and nothing was captured for it",
+      {:brain_turn_failed,
+       "the turn did not complete: the witness's words were kept and no reply was captured (brain #45)",
        remedy:
-         "the provider failure is recorded as a capture failure on the session; retry the message"},
+         "the provider failure is recorded as a capture failure on the session; send the message again"},
+      {:brain_turn_crashed, "the turn's process stopped before it answered",
+       remedy: "send the message again; the session's next message still runs"},
       {:brain_budget_stopped,
        "the budget line is spent: the message and a notice saying so were captured, and no reply was asked for",
        remedy:
@@ -117,7 +120,8 @@ defmodule Oneiroi.Brain do
   end
 
   @impl Oneiroi.Component
-  def processes, do: [{:brain_registry, :local}, {:brain_sessions, :local}]
+  def processes,
+    do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
 
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session]
@@ -126,9 +130,23 @@ defmodule Oneiroi.Brain do
   def children do
     [
       {Registry, keys: :unique, name: :brain_registry},
-      {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one}
+      {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
+      # The turns a session runs off its own process (brain #45).
+      {Task.Supervisor, name: :brain_turns}
     ]
   end
+
+  @doc """
+  Takes the witness's message under the client's ref and answers at once
+  (brain #45): `running`, `queued` with how many wait ahead, or
+  `duplicate` when that ref was taken before. The turn's outcome arrives
+  on the session topic.
+  """
+  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(submit(resident_id, session_key, text, actor, ref),
+    do: Session.submit(resident_id, session_key, text, actor, ref)
+  )
 
   @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

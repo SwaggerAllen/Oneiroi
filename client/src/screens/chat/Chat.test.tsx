@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +12,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -177,11 +177,49 @@ describe('Chat', () => {
     expect(box.value).toBe('');
   });
 
-  it('shows the witness message at once, marked as sending, beside the streaming reply', () => {
+  it('shows the witness message at once beside the streaming reply, and the header says what the resident is doing', () => {
     render(<Sending />);
     const sending = screen.getByLabelText('Sending');
     expect(sending.textContent).toContain('The second row looked thin.');
-    expect(sending.textContent).toContain('sending…');
     expect(screen.getByText('They took, mostly. The second')).toBeTruthy();
+    expect(screen.getByText('Lily is writing…')).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy();
+  });
+
+  it('keeps a message the server never took, says the stream is down, and retries it under its own ref', () => {
+    const onRetry = vi.fn();
+    render(<Offline onRetry={onRetry} />);
+    expect(screen.getByRole('status', { name: /Offline/ })).toBeTruthy();
+    const unsent = screen.getByLabelText('Not sent');
+    expect(unsent.textContent).toContain('Did you walk to the weir?');
+    expect(unsent.textContent).toContain('not sent yet: no connection');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledWith('r-weir-00001');
+  });
+
+  it('names the tool in use, and a message waiting behind it says it is queued', () => {
+    render(<Busy />);
+    // The newest message still on its way speaks for the header.
+    expect(screen.getByText('Queued: Lily is finishing another reply')).toBeTruthy();
+    expect(screen.getAllByText('queued')).toHaveLength(1);
+    cleanup();
+    render(<Busy outbox={[{ ref: 'r-first-0001', text: 'Bookmark the garden?', state: 'tool', detail: 'bookmark_add', attempts: 1 }]} />);
+    expect(screen.getByText('Lily is using bookmark_add…')).toBeTruthy();
+  });
+
+  it('says a turn was not answered and why, and offers to send it again', () => {
+    const onRetry = vi.fn();
+    render(<NotAnswered onRetry={onRetry} />);
+    expect(screen.getByLabelText('Not answered').textContent).toContain("Lily couldn't answer: nisaba_provider_failed");
+    fireEvent.click(screen.getByRole('button', { name: 'Send again' }));
+    expect(onRetry).toHaveBeenCalledWith('r-fail-00001');
+  });
+
+  it('lets the witness send while a reply is still on its way: the next message queues', () => {
+    const onSend = vi.fn();
+    render(<Busy onSend={onSend} />);
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'one more' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(onSend).toHaveBeenCalledWith('one more');
   });
 });
