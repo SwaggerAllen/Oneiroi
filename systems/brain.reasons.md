@@ -483,3 +483,12 @@ reading and answer", which is what it was meant to say. The oracle's
 own bound is higher because long reads are its purpose. A failure that
 remains says what happened, because one word gave the resident nothing
 to act on.
+
+## #51
+A bound she cannot see is one she can only run into, and #50's ask is
+then a surprise in the middle of a reading. Told the count as it goes,
+she can choose to read less widely and answer while rounds remain. In
+the tool results rather than the prefix, because the prefix is shared
+with runtimes whose loop is not this one (a Claude Code session has
+its own), and because the count changes every round, which the cached
+prefix must not.

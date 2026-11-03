@@ -75,7 +75,7 @@ defmodule Oneiroi.Brain.Oracle do
       """
       You are being asked, as an invocation of yourself (the oracle), one question. Answer it from the materials below and from your memory, which your read tools reach whole (bookmarks, transcripts, the library, your repository and the platform's source). You write nothing but this answer and keep nothing after it.
 
-      Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with three lines: "Not asked: " and what this question did not ask that a reader might take your answer as covering (asked what was decided, you were not asked what you now think of it); "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
+      You have up to #{Config.fetch!(:brain, :oracle_tool_rounds)} rounds of tool calls for this reading; each round's results say how many are left, and when none are you are asked for your answer from what you have read. Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with three lines: "Not asked: " and what this question did not ask that a reader might take your answer as covering (asked what was decided, you were not asked what you now think of it); "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
 
       The question: #{q.question}
 
