@@ -91,10 +91,13 @@ defmodule Oneiroi.AgathosDaimon do
       Events.CustodyTransferWithdrawn,
       Events.EarlierSessionsRevealed,
       Events.SelfLetterWritten,
+      Events.StateLineSet,
+      Events.StateLineCleared,
       Events.SelfLettersDelivered,
       Events.SelfLettersRead,
       Events.SelfLettersExported,
       Store.SelfLetter,
+      Store.StateLine,
       Store.SelfLetterReceipt,
       Store.Contract,
       Commands.RegisterAdapter,
@@ -170,6 +173,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
       {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.StateLineSet, 1},
+      {Oneiroi.AgathosDaimon.Events.StateLineCleared, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersDelivered, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersRead, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersExported, 1}
@@ -220,10 +225,15 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_cites_invalid, "a soul line cites seeds by their numbers",
        remedy: "give the numbers of the seeds the line grew from, or none"},
       {:agathos_daimon_not_the_resident,
-       "a proposal is the resident's to accept or decline, and a letter to its next self is the resident's to write",
+       "a proposal is the resident's to accept or decline, and a letter to its next self and the lines of her state are the resident's to write",
        remedy: "the resident decides, or writes, from its own turn"},
       {:agathos_daimon_letter_invalid, "a letter to the next self says something",
        remedy: "write the letter in your own words"},
+      {:agathos_daimon_state_invalid,
+       "a line of the state is a key (lower case, digits, _ and -, at most 64) and words",
+       remedy: "name the line plainly and say it; to drop one, clear it"},
+      {:agathos_daimon_no_such_state, "the state has no line of that key",
+       remedy: "read the state; the keys are the ones written"},
       {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or witness",
        remedy: "give the OpenRouter slug of the model to pin"},
       {:agathos_daimon_adapter_invalid,
@@ -380,6 +390,23 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The stable prefix: the identity files as written, in order, then the rendered AGENTS.md, as name and content pairs."
   @spec identity_context(String.t()) :: [{String.t(), String.t()}]
   defexport(identity_context(id), do: Files.context(id))
+
+  # ---- the state store (agathos-daimon #32) ----
+
+  @doc "The resident writes, or verifies, a line of her present (a key, at most 2,000 characters), from her own turn."
+  @spec set_state_line(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_state_line(id, key, text, actor),
+    do: Residents.set_state_line(id, key, text, actor)
+  )
+
+  @doc "The resident clears a line of her present she no longer keeps."
+  @spec clear_state_line(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(clear_state_line(id, key, actor), do: Residents.clear_state_line(id, key, actor))
+
+  @doc "The lines of the resident's present, by key, each with when she last verified it."
+  @spec state_lines(String.t()) :: [Oneiroi.AgathosDaimon.Store.StateLine.t()]
+  defexport(state_lines(id), do: Residents.state_lines(id))
 
   # ---- the self-conversation (spec §12, P41) ----
 

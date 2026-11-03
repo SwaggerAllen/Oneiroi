@@ -37,6 +37,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
+  alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
@@ -307,6 +308,7 @@ defmodule Oneiroi.Brain.Turn do
   defp run_tools(turn, calls) do
     Enum.reduce(calls, {[], turn}, fn call, {results, turn} ->
       {output, turn} = use_tool(turn, call)
+      output = Cut.cut(output, Config.fetch!(:brain, :tool_result_chars))
       result = %{role: :tool, tool_call_id: call.id, content: output}
 
       record = %{
@@ -829,7 +831,8 @@ defmodule Oneiroi.Brain.Turn do
     summary = session && session.summary
 
     sections =
-      where_section(turn, session) ++
+      state_section(turn) ++
+        where_section(turn, session) ++
         letters_section(turn) ++
         section(
           "index",
@@ -926,6 +929,54 @@ defmodule Oneiroi.Brain.Turn do
           "house letters waiting here (kumbukumbu #44): #{length(waiting)}, by sender alone, none of their words",
           %{text: text}
         )
+    end
+  end
+
+  # The state store (agathos-daimon #32, brain #47): her present in her
+  # own words, first after the identity files and the contract, read
+  # fresh on every turn and overwritten in place. Placed here rather
+  # than in the stable prefix: the prefix is what an adapter's session is
+  # given once, and a present given once is the stale present this cures
+  # (the sixth caught error, a migration called planned the day it was
+  # done). Caching loses nothing: everything after the contract already
+  # changes on every turn.
+  @state_keys ~w(where day numbers noticing)
+
+  defp state_section(turn) do
+    lines = Oneiroi.AgathosDaimon.state_lines(turn.resident_id)
+    by_key = Map.new(lines, &{&1.key, &1})
+    others = lines |> Enum.map(& &1.key) |> Enum.reject(&(&1 in @state_keys)) |> Enum.sort()
+    now = Clock.now()
+
+    body =
+      Enum.map_join(@state_keys ++ others, "\n", fn key ->
+        case Map.get(by_key, key) do
+          nil -> "- **#{key}**: (not written yet)"
+          line -> "- **#{key}** (verified #{freshness(line.verified_at, now)}): #{line.text}"
+        end
+      end)
+
+    text =
+      "# Where things stand\n\nYour present, in your words, one line per key, each with when you last verified it. " <>
+        "When a line changes, or you confirm it still holds, rewrite it with state_set; it is overwritten, " <>
+        "and the transcript and your repository keep every version. Add a key of your own when one earns it; " <>
+        "clear it with state_clear when it stops. Keep it small: this is the present, not the archive.\n\n" <>
+        body
+
+    section(
+      "state",
+      text,
+      "the state store (agathos-daimon #32): #{length(lines)} line(s) of the resident's present, read fresh, overwritten in place"
+    )
+  end
+
+  defp freshness(at, now) do
+    stamp = Calendar.strftime(at, "%Y-%m-%d %H:%M UTC")
+
+    case DateTime.diff(now, at, :day) do
+      0 -> "#{stamp}, today"
+      1 -> "#{stamp}, a day ago"
+      days -> "#{stamp}, #{days} days ago"
     end
   end
 

@@ -39,8 +39,115 @@ defmodule Oneiroi.Projection do
         Oneiroi.Scope.put(:platform)
         {:ok, config}
       end
+
+      # One event a projector cannot fold never stops the app (2026-11-03,
+      # the outage this is the lesson of): see `Oneiroi.Projection.failed/4`.
+      @impl Commanded.Event.Handler
+      def error(error, event, context),
+        do: Oneiroi.Projection.failed(unquote(name), error, event, context)
     end
   end
+
+  require Logger
+
+  alias Commanded.Event.FailureContext
+
+  # A transient failure is retried this many times, waiting this long
+  # times the attempt between them: bounds, guesses, not measured.
+  @retries 3
+  @backoff_ms 500
+
+  # The database's own transient refusals, by Postgres code: what a retry
+  # can cure. Anything else is the event or the code, and a retry would
+  # meet it again.
+  @transient ~w(serialization_failure deadlock_detected lock_not_available query_canceled
+                admin_shutdown crash_shutdown cannot_connect_now too_many_connections)a
+
+  @doc """
+  What a projector does with an event it could not fold (2026-11-03): a
+  transient failure (the connection, a deadlock, a serialization
+  conflict) is retried #{@retries} times with backoff; anything else, and a
+  transient one past its retries, is set aside: logged at error with the
+  projector, the event's number, type and stream, and the reason, and
+  told as `[:oneiroi, :projection, :parked]` telemetry, the hook an alert
+  takes when there is alerting. The event itself is never lost: it stays
+  in the store, and the projector can be replayed over it once the fold
+  is fixed.
+
+  Stopping instead, the library's default, restarted the projector onto
+  the same event until the supervisor gave up and the app went down with
+  it: one row too long for its column took every resident offline for an
+  hour. One projection a row behind is a bug; the platform down is
+  everybody's day.
+  """
+  @spec failed(String.t(), term(), struct() | nil, FailureContext.t()) ::
+          :skip | {:retry, non_neg_integer(), FailureContext.t()}
+  def failed(name, error, event, %FailureContext{} = failure) do
+    reason = reason(error)
+    context = failure.context || %{}
+    attempts = Map.get(context, :attempts, 0) + 1
+
+    if transient?(reason) and attempts <= @retries do
+      {:retry, @backoff_ms * attempts,
+       %{failure | context: Map.put(context, :attempts, attempts)}}
+    else
+      park(name, reason, event, failure.metadata || %{}, attempts)
+      :skip
+    end
+  end
+
+  defp reason({:error, reason}), do: reason
+  defp reason({:error, reason, _stacktrace}), do: reason
+  defp reason(other), do: other
+
+  defp transient?(%Postgrex.Error{postgres: %{code: code}}), do: code in @transient
+
+  # A lost connection is DBConnection's, which is not on this boundary's
+  # list of dependencies; named at the call rather than referenced.
+  defp transient?(%{__struct__: module}),
+    do: module == Module.concat([DBConnection, ConnectionError])
+
+  defp transient?(_reason), do: false
+
+  # The event's identity and the failure's kind, never the event's data:
+  # a transcript's words are not the log's to keep.
+  defp park(name, reason, event, metadata, attempts) do
+    facts = %{
+      projector: name,
+      event_type: event_type(event),
+      event_number: Map.get(metadata, :event_number),
+      stream_id: Map.get(metadata, :stream_id),
+      attempts: attempts,
+      reason: describe(reason)
+    }
+
+    Logger.error(
+      "projection parked an event it could not fold: #{facts.projector} at event " <>
+        "#{facts.event_number} (#{facts.event_type}, stream #{facts.stream_id}) after " <>
+        "#{attempts} attempt(s): #{facts.reason}; the event is kept in the store, and the " <>
+        "projection is one event behind until it is replayed",
+      component: :projection,
+      error_kind: :projection_parked,
+      error_site: name,
+      error_cause: facts.reason
+    )
+
+    :telemetry.execute([:oneiroi, :projection, :parked], %{count: 1}, facts)
+  end
+
+  defp event_type(%{__struct__: module}), do: inspect(module)
+  defp event_type(_event), do: "unknown"
+
+  # The kind of failure, without the values that caused it: a Postgres
+  # error says its code and message, which name the column's limit and
+  # not the row's words.
+  defp describe(%Postgrex.Error{postgres: %{code: code, message: message}}),
+    do: "postgres #{code}: #{message}"
+
+  defp describe(%{__exception__: true} = exception), do: inspect(exception.__struct__)
+  defp describe(reason) when is_atom(reason), do: inspect(reason)
+  defp describe(%{__struct__: module}), do: inspect(module)
+  defp describe(_reason), do: "an error term"
 
   @doc "The library's `project/3`, with the platform scope set on the connection first."
   defmacro fold(event, metadata, lambda) do

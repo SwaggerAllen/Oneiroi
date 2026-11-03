@@ -20,7 +20,7 @@ carrying a file map; the reason behind each numbered rule is in the
 
 ## Toolchain
 
-Pinned in `.tool-versions` (Erlang 27.3.4, Elixir 1.17.3-otp-27, Node
+Pinned in `.tool-versions` (Erlang 28.5.0.5, Elixir 1.19.5-otp-28, Node
 22); CI reads the same file strictly, and `mix.exs` floors match. The
 pinned toolchain is the only supported one.
 

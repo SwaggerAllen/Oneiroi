@@ -301,6 +301,8 @@ defmodule Oneiroi.Brain.TrialTest do
   ]
 
   @done [
+    {"state_set", %{key: "noticing", text: "Herons at dusk."}},
+    {"state_clear", %{key: "noticing"}},
     {"dispute_settle", %{ref: "abc", outcome: "held", note: "seen often"}},
     {"figure_increment", %{key: "herons", note: "one more"}},
     {"bookmark_extend", %{number: 1, turns_back: 2}},

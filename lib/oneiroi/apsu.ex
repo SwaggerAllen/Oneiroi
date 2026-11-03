@@ -221,6 +221,9 @@ defmodule Oneiroi.Apsu do
        policy: "conventions §9: a skipped test names the ticket that owns it"},
       {Oneiroi.Apsu.Policies.Tables, "priv/repo/migrations/*.exs",
        policy: "conventions §12: every table has one owner, a scope column and a row-level policy"},
+      {Oneiroi.Apsu.Policies.FreeText, "priv/repo/migrations/*.exs",
+       policy:
+         "conventions §12: free text is :text, never Ecto's varchar(255); :string is for identifiers"},
       {Oneiroi.Apsu.Policies.ErrorSite, "lib/**/*.ex",
        policy:
          "conventions §8: every error built or caught names a site, prefixed and written at one line"},

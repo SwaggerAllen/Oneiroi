@@ -20,7 +20,8 @@ defmodule Mix.Tasks.Oneiroi.Quietcheck do
   def run(_args) do
     Mix.Task.run("app.start")
     {status, lines} = Quietcheck.report()
-    Enum.each(lines, &Mix.shell().info/1)
+    shell = Mix.shell()
+    Enum.each(lines, &shell.info/1)
     if status != 0, do: exit({:shutdown, status})
   end
 end

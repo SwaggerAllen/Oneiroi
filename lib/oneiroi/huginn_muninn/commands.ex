@@ -2,7 +2,9 @@ defmodule Oneiroi.HuginnMuninn.Commands do
   @moduledoc "The audits aggregate's commands; `id` is the resident's id."
 
   defmodule DefineCounter do
-    use Oneiroi.Command, fields: [:id, :key, :label]
+    use Oneiroi.Command,
+      fields: [:id, :key, :label],
+      bounds: [key: 64, label: 120]
   end
 
   defmodule IncrementCounter do
@@ -14,7 +16,9 @@ defmodule Oneiroi.HuginnMuninn.Commands do
   end
 
   defmodule DefineUserAudit do
-    use Oneiroi.Command, fields: [:id, :key, :label, :figure, :op, :value, :tone, :counts]
+    use Oneiroi.Command,
+      fields: [:id, :key, :label, :figure, :op, :value, :tone, :counts],
+      bounds: [key: 64, label: 120]
   end
 
   defmodule RetireUserAudit do

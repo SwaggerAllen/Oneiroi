@@ -259,7 +259,7 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/sessions", %{})
              |> json_response(201)
 
-    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 4} =
+    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 5} =
              conn
              |> put_req_header("origin", origin())
              |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
@@ -313,6 +313,7 @@ defmodule OneiroiWeb.ContractTest do
     assert [
              %{"label" => "prompt"},
              %{"label" => "AGENTS.md"},
+             %{"label" => "state"},
              %{"label" => "index", "text" => _},
              %{"label" => "transcript"}
            ] =

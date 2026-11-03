@@ -17,7 +17,9 @@ defmodule Oneiroi.Brain.History do
   assistant's words, which no provider refuses.
   """
 
+  alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Tools
+  alias Oneiroi.Config
 
   @roles %{"user" => :user, "assistant" => :assistant, "system" => :system}
   @record ~r/\A([A-Za-z0-9_-]+)\((.*?)\) -> (.*)\z/s
@@ -39,7 +41,7 @@ defmodule Oneiroi.Brain.History do
   @spec words([%{role: String.t(), content: String.t() | nil}]) :: [map()]
   def words(rows) do
     Enum.map(rows, fn
-      %{role: "tool", content: content} -> %{role: :assistant, content: content}
+      %{role: "tool", content: content} -> %{role: :assistant, content: past(content || "")}
       %{role: role, content: content} -> %{role: Map.fetch!(@roles, role), content: content}
     end)
   end
@@ -57,14 +59,18 @@ defmodule Oneiroi.Brain.History do
 
         [
           %{role: :assistant, content: "", tool_calls: [call]},
-          %{role: :tool, tool_call_id: id, content: output}
+          %{role: :tool, tool_call_id: id, content: past(output)}
         ]
 
       nil ->
-        [%{role: :assistant, content: content}]
+        [%{role: :assistant, content: past(content || "")}]
     end
   end
 
   defp message(%{role: role, content: content}, _n),
     do: [%{role: Map.fetch!(@roles, role), content: content}]
+
+  # A past tool answer replays as its head: what was looked at, not all
+  # of what came back.
+  defp past(text), do: Cut.cut(text, Config.fetch!(:brain, :history_tool_chars))
 end

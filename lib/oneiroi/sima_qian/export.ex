@@ -218,7 +218,36 @@ defmodule Oneiroi.SimaQian.Export do
     File.mkdir_p!(Path.join(dir, "honcho"))
     path = Path.join("honcho", "custom-instructions.md")
     File.write!(Path.join(dir, path), Oneiroi.AgathosDaimon.custom_instructions(resident_id))
-    written ++ [path]
+    written ++ [path] ++ state_file(resident_id, dir)
+  end
+
+  # The state store (agathos-daimon #32) as `STATE.md`, rendered from
+  # its rows: absolute instants only, so an unchanged state writes
+  # identical bytes. No line, no file; a file whose last line was cleared
+  # is removed.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp state_file(resident_id, dir) do
+    full = Path.join(dir, "STATE.md")
+
+    case Oneiroi.AgathosDaimon.state_lines(resident_id) do
+      [] ->
+        File.rm(full)
+        []
+
+      lines ->
+        body =
+          Enum.map_join(lines, "\n\n", fn l ->
+            "## #{l.key}\n\n_verified #{DateTime.to_iso8601(l.verified_at)}_\n\n#{l.text}"
+          end)
+
+        File.write!(
+          full,
+          "# STATE\n\nWhere things stand, in the resident's words, overwritten in place; the history is in `records/events/` and this file's own.\n\n" <>
+            body <> "\n"
+        )
+
+        ["STATE.md"]
+    end
   end
 
   @doc "The watermark: the instant an event must be at or before to be exported on this run."

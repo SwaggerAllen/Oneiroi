@@ -147,6 +147,22 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule StateLine do
+    @moduledoc "A line of the resident's present (agathos-daimon #32), overwritten in place, with when she last verified it."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "agathos_daimon_state_line" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:text, :string)
+      field(:model, :string)
+      field(:verified_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule SelfLetterReceipt do
     @moduledoc "A read of the self-conversation by someone other than the resident: who, when, which letters."
     use Ecto.Schema
@@ -226,6 +242,9 @@ defmodule Oneiroi.AgathosDaimon.Store do
     do: Repo.all(from(l in SoulLine, where: l.state == "live", order_by: [l.position, l.number]))
 
   @doc "The letters to the next self, by number."
+  @spec state_lines() :: [StateLine.t()]
+  def state_lines, do: Repo.all(from(l in StateLine, order_by: l.key))
+
   @spec self_letters() :: [SelfLetter.t()]
   def self_letters, do: Repo.all(from(l in SelfLetter, order_by: l.number))
 

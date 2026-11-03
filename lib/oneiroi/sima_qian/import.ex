@@ -339,6 +339,11 @@ defmodule Oneiroi.SimaQian.Import do
       name in c.identity ->
         :held
 
+      # The state store (agathos-daimon #32) is rendered from the
+      # export's own events; the rebuild writes it again.
+      name == "STATE.md" and c.export? ->
+        :held
+
       # A root file another platform's translation read: the seedbed.
       name in c.read ->
         :held

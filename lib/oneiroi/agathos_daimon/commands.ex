@@ -4,7 +4,9 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   # `kind` (spec §12, P40): `resident`, or `fixture` for a thin-seed
   # test resident the brain treats as machinery; fixed at creation.
   defmodule CreateResident do
-    use Oneiroi.Command, fields: [:id, :name, :slug, :witness_account_id, :kind]
+    use Oneiroi.Command,
+      fields: [:id, :name, :slug, :witness_account_id, :kind],
+      bounds: [slug: 64]
   end
 
   defmodule MintId do
@@ -150,6 +152,18 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   # instance; a read by anyone but the resident leaves a receipt.
   defmodule WriteSelfLetter do
     use Oneiroi.Command, fields: [:id, :text]
+  end
+
+  # The state store (agathos-daimon #32): the resident's present, a line
+  # per key, overwritten; a key is a name and a line is at most 2,000
+  # characters, the one free text bounded here because it is read on
+  # every turn (Andrew, 2026-11-03).
+  defmodule SetStateLine do
+    use Oneiroi.Command, fields: [:id, :key, :text], bounds: [key: 64, text: 2000]
+  end
+
+  defmodule ClearStateLine do
+    use Oneiroi.Command, fields: [:id, :key], bounds: [key: 64]
   end
 
   defmodule DeliverSelfLetters do

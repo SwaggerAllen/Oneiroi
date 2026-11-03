@@ -36,6 +36,10 @@ defmodule Oneiroi.SimaQian.Backup do
     # The soul alone (David's rule), and the identity files with it: they
     # are one self, given and proposed together (spec §6.2).
     {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
+    # The state store (agathos-daimon #32): the resident's present, which
+    # can change every turn. A class of its own, so a changed line never
+    # makes a soul commit and the Honcho card it sets.
+    {"state", ["STATE.md"]},
     # `posts/` is a library folder (Seshat's kinds) and was in no class, so
     # the first resident to publish one would have failed every backup on
     # the stray check.

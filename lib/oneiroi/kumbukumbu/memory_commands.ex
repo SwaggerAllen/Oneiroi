@@ -39,7 +39,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   end
 
   defmodule ProposeTag do
-    use Oneiroi.Command, decision: true, fields: [:id, :slug]
+    use Oneiroi.Command, decision: true, fields: [:id, :slug], bounds: [slug: 64]
   end
 
   defmodule ApproveTag do
@@ -51,7 +51,9 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   end
 
   defmodule CreateTag do
-    use Oneiroi.Command, fields: [:id, :slug]
+    use Oneiroi.Command,
+      fields: [:id, :slug],
+      bounds: [slug: 64]
   end
 
   defmodule RetireTag do

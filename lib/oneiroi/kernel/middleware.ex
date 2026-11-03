@@ -31,7 +31,7 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
   @impl Commanded.Middleware
   def after_failure(pipeline), do: pipeline
 
-  @doc "Everything wrong with a command's attribution, all at once."
+  @doc "Everything wrong with a command's attribution and its bounded names, all at once."
   @spec problems(struct()) :: [atom()]
   def problems(command) do
     actor = if Oneiroi.Actor.valid?(Map.get(command, :actor)), do: [], else: [:actor_required]
@@ -42,7 +42,41 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
         do: [:note_required],
         else: []
 
-    actor ++ at ++ note
+    actor ++ at ++ note ++ overlong(command)
+  end
+
+  # The bounded names (`Oneiroi.Command`'s `bounds:`), checked as a
+  # changeset over the command's values: one refusal per field too long.
+  defp overlong(%module{} = command) do
+    bounds =
+      if Code.ensure_loaded?(module) and function_exported?(module, :__bounds__, 0),
+        do: module.__bounds__(),
+        else: []
+
+    if bounds == [] do
+      []
+    else
+      types = Map.new(bounds, fn {field, _max, _problem} -> {field, :string} end)
+      values = Map.new(bounds, fn {field, _max, _problem} -> {field, Map.get(command, field)} end)
+
+      changeset =
+        Enum.reduce(bounds, Ecto.Changeset.cast({%{}, types}, values, Map.keys(types)), fn
+          {field, max, _problem}, changeset ->
+            Ecto.Changeset.validate_length(changeset, field, max: max)
+        end)
+
+      # Length errors alone: a value that is not text is the aggregate's
+      # to refuse, and not a name too long.
+      for {field, _max, problem} <- bounds, too_long?(changeset, field), do: problem
+    end
+  end
+
+  defp overlong(_command), do: []
+
+  defp too_long?(changeset, field) do
+    Enum.any?(changeset.errors, fn {f, {_message, opts}} ->
+      f == field and opts[:validation] == :length
+    end)
   end
 
   # `function_exported?/3` is false for a module not loaded yet, so the

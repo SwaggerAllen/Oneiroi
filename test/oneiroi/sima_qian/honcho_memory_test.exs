@@ -361,7 +361,13 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
   } do
     :ok = Oneiroi.Proteus.provision(r.id, actor)
 
-    honcho!(%{peers: ["resident-" <> r.id], cards: %{}, conclusions: [], sessions: [], down: true})
+    honcho!(%{
+      peers: ["resident-" <> r.id],
+      cards: %{},
+      conclusions: [],
+      sessions: [],
+      down: true
+    })
 
     assert {:error,
             %Oneiroi.Proteus.Error{kind: :proteus_honcho_rejected, details: [status: 503]}} =

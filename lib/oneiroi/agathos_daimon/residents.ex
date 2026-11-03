@@ -99,6 +99,23 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  # ---- the state store (agathos-daimon #32) ----
+
+  @doc "The resident writes, or verifies, a line of her present."
+  def set_state_line(id, key, text, %Actor{} = actor) do
+    command = %Commands.SetStateLine{actor: actor, at: Clock.now(), id: id, key: key, text: text}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  @doc "The resident clears a line she no longer keeps."
+  def clear_state_line(id, key, %Actor{} = actor) do
+    command = %Commands.ClearStateLine{actor: actor, at: Clock.now(), id: id, key: key}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  @doc "The lines of her present, by key."
+  def state_lines(id), do: Scope.resident(id, fn -> Store.state_lines() end)
+
   # ---- the self-conversation (spec §12, P41) ----
 
   @doc "The resident writes a letter to its next self; returns its number."
