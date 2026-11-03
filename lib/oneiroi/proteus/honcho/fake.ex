@@ -257,24 +257,39 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
     end
   end
 
-  # Created on first use by whichever process gets there; a second
-  # creator finds it made and uses it.
+  # Made on first use and owned by a process of its own that never exits.
+  # Owned by the test process that first used it, the table went with
+  # that process, and a later test's on_exit `:ets.delete` raised on a
+  # table that was gone (CI on PR #45). Two first users race; the loser's
+  # owner finds it made and stops.
   defp table do
-    case :ets.whereis(@table) do
-      :undefined ->
+    if :ets.whereis(@table) == :undefined, do: own_table()
+    @table
+  end
+
+  defp own_table do
+    parent = self()
+    ref = make_ref()
+
+    spawn(fn ->
+      made =
         try do
           :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
         rescue
-          # Another creator got there first, which is the table made;
-          # any other badarg is raised again.
+          # The race, lost: the table is there. Any other refusal is not
+          # this one and goes on up.
           error in ArgumentError ->
             if :ets.whereis(@table) == :undefined,
               do: reraise(error, __STACKTRACE__),
-              else: @table
+              else: nil
         end
 
-      _ref ->
-        @table
+      send(parent, ref)
+      if made, do: Process.sleep(:infinity)
+    end)
+
+    receive do
+      ^ref -> :ok
     end
   end
 end
