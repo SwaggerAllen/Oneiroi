@@ -21,8 +21,8 @@ describe('Memory', () => {
     // The caption is the server's sentence, rendered as sent.
     expect(screen.getByText(/1 bookmark listed under a budget of 40 tokens \(a bound\)/)).toBeTruthy();
     // Listed by the server though no turn has marked it.
-    expect(screen.getByText('in the index')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'In the index 1' })).toBeTruthy();
+    expect(screen.getByText('every turn')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Every turn 1' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'All 2' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Pinned 1' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'haven' })).toBeTruthy();
@@ -33,7 +33,7 @@ describe('Memory', () => {
 
   it('an index listing nothing says why in the server words and shows no row', () => {
     render(<IndexEmpty />);
-    expect(screen.getByRole('tab', { name: 'In the index 0' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Every turn 0' })).toBeTruthy();
     expect(screen.getByText(/listed only in that room's conversations/)).toBeTruthy();
     expect(screen.getByText('Nothing here.')).toBeTruthy();
   });
@@ -42,7 +42,7 @@ describe('Memory', () => {
     render(<WithTags />);
     fireEvent.click(screen.getByRole('tab', { name: 'All 2' }));
     expect(screen.getByText('last listed in a turn 2026-10-20')).toBeTruthy();
-    expect(screen.getAllByText('in the index')).toHaveLength(1);
+    expect(screen.getAllByText('every turn')).toHaveLength(1);
   });
 
   it('a tag tab shows what carries it and search narrows the rows', () => {

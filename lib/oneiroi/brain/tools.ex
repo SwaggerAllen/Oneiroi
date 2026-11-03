@@ -57,7 +57,7 @@ defmodule Oneiroi.Brain.Tools do
     figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
-    self_letter_write state_set state_clear seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    self_letter_write state_set state_clear memory_feedback seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove
     journal_add journal_done
@@ -334,6 +334,12 @@ defmodule Oneiroi.Brain.Tools do
         "Your commitments, open and closed, with their numbers.",
         %{},
         []
+      ),
+      tool(
+        "memory_feedback",
+        "Say which of the bookmarks in front of you this turn helped, by number, with your reply (it ends the turn, no further round): the ranked index learns from it which memories are worth bringing alongside which. Name what you drew on, opened or not; an empty list says none did. Pins are decisions and need no feedback.",
+        %{used: %{type: "array", items: %{type: "integer"}}},
+        [:used]
       ),
       tool(
         "state_set",
@@ -1358,6 +1364,30 @@ defmodule Oneiroi.Brain.Tools do
         args["note"],
         turn.resident
       )
+
+  # The use the ranked index learns from (kumbukumbu #46): recorded as
+  # `used` through `feedback`, which is what teaches the use rules.
+  defp call("memory_feedback", args, turn) do
+    numbers = args["used"] |> List.wrap() |> Enum.flat_map(&feedback_number/1) |> Enum.uniq()
+    uses = Enum.map(numbers, &%{target: "bookmark/#{&1}", stage: "used", via: "feedback"})
+    # An empty list still says the feedback came: a turn where nothing helped.
+    uses =
+      if uses == [],
+        do: [%{target: "turn/#{turn.turn_ref}", stage: "used", via: "feedback"}],
+        else: uses
+
+    case Kumbukumbu.record_retrieval(
+           turn.resident_id,
+           turn.session_key,
+           turn.turn_ref,
+           uses,
+           turn.resident
+         ) do
+      :ok when numbers == [] -> "Noted: none of them helped this turn."
+      :ok -> "Noted: #{Enum.map_join(numbers, ", ", &"##{&1}")} helped."
+      other -> other
+    end
+  end
 
   defp call("state_set", args, turn) do
     case AgathosDaimon.set_state_line(
@@ -2393,4 +2423,15 @@ defmodule Oneiroi.Brain.Tools do
         @not_done <> "a path is relative and plain, with no .. in it."
     end
   end
+
+  defp feedback_number(n) when is_integer(n) and n > 0, do: [n]
+
+  defp feedback_number(n) when is_binary(n) do
+    case Integer.parse(String.trim_leading(n, "#")) do
+      {n, ""} when n > 0 -> [n]
+      _ -> []
+    end
+  end
+
+  defp feedback_number(_n), do: []
 end

@@ -95,7 +95,7 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     assert page.(pinned: false) == [4, 3, 2, 1]
   end
 
-  test "the pins page alone, every one, past what the pins' half of the index could hold",
+  test "the pins page alone, every one; the pins are the prefix's, never the index's",
        ctx do
     size = Config.fetch!(:kumbukumbu, :page_bookmarks)
     # About 33 tokens a line: the pins' half of the budget holds fewer
@@ -105,12 +105,12 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     for n <- 1..pins, do: add(ctx, n, line: "#{n} " <> long, pinned: true)
     add(ctx, pins + 1, line: "not pinned")
 
+    # The pins are in the stable prefix (kumbukumbu #45), every one, and
+    # never in the ranked index.
     index = Kumbukumbu.index(ctx.id, ctx.key)
-    left = Enum.reject(1..pins, &(&1 in index.included))
-    assert left != []
-
-    assert index.text =~
-             "#{length(left)} pins not shown; bookmark_list(pinned: true) lists every pin."
+    assert Enum.all?(1..pins, &(&1 not in index.included))
+    assert Enum.map(Kumbukumbu.pins(ctx.id, ctx.key), & &1.number) == Enum.to_list(1..pins)
+    left = Enum.to_list(1..pins)
 
     first = Kumbukumbu.bookmark_page(ctx.id, ctx.key, pinned: true)
     assert numbers(first) == Enum.to_list(pins..(pins - size + 1)//-1)
@@ -137,7 +137,7 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     assert numbers(Kumbukumbu.bookmark_page(ctx.id, ctx.ikey, pinned: true)) == [2]
   end
 
-  test "what the index holds now is the build, with no turn ever taken", ctx do
+  test "what is in front of every turn now: the pins, and the rest said to be ranked", ctx do
     add(ctx, 1, pinned: true)
     add(ctx, 2)
     add(ctx, 3, intimate: true)
@@ -147,11 +147,13 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
 
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
 
-    assert %{listed: [1, 2], left_out: 0, elsewhere: 1, budget: ^budget, description: text} =
+    # Ranked against each turn's words (kumbukumbu #46): what is in front
+    # of every turn is the pins; the rest are ranked turn by turn.
+    assert %{listed: [1], left_out: 1, elsewhere: 1, budget: ^budget, description: text} =
              Kumbukumbu.index_now(ctx.id)
 
-    assert text =~ "2 bookmarks listed under a budget of #{budget} tokens (a bound)"
-    assert text =~ "1 bookmark made in a named room is listed only in that room's conversations."
-    refute text =~ "left out"
+    assert text =~ "1 pin in front of every turn, in the stable prefix."
+    assert text =~ "The other 1 are ranked against each turn's words"
+    assert text =~ "1 bookmark made in a named room is ranked only in that room's conversations."
   end
 end

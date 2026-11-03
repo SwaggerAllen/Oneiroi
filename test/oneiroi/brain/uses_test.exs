@@ -163,10 +163,10 @@ defmodule Oneiroi.Brain.UsesTest do
       assert [
                %{
                  target: "bookmark/1",
-                 # The index listed it and the madeleine surfaced it: two
-                 # sections returned it, each having considered it.
-                 considered: 2,
-                 returned: 2,
+                 # The ranked index returned it (kumbukumbu #46), and the
+                 # madeleine reaches past what the index returned.
+                 considered: 1,
+                 returned: 1,
                  used: 2,
                  last_used_at: %DateTime{},
                  last_returned_at: %DateTime{}
@@ -182,7 +182,7 @@ defmodule Oneiroi.Brain.UsesTest do
       }
 
       assert Tools.run("memory_use", ~s({}), turn) =~
-               ~r/^bookmark\/1: considered 2, returned 2, used 2; last used \d{4}-\d\d-\d\d; last returned \d{4}-\d\d-\d\d\n1 of 1 targets shown\.$/
+               ~r/^bookmark\/1: considered 1, returned 1, used 2; last used \d{4}-\d\d-\d\d; last returned \d{4}-\d\d-\d\d\n1 of 1 targets shown\.$/
 
       assert Tools.run("memory_use", ~s({"order":"unused"}), turn) ==
                "Nothing is counted there yet."

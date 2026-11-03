@@ -23,10 +23,11 @@ export interface MemoryProps {
 type TabId = 'index' | 'all' | 'pinned' | 'use' | `tag:${string}`;
 
 // Memory (spec §10): rows with pin or index marker, the line, when, who
-// bookmarked, who pinned, the span, tags; tabs In the index (with the
+// bookmarked, who pinned, the span, tags; tabs Every turn (with the
 // server's own description as a caption), All, Pinned, and one per tag;
-// search. The index tab lists what the server says the index holds now,
-// in its order; the client knows nothing of how the index is built.
+// search. The first tab lists what the server says is in front of every
+// turn: the pins, now that the rest are ranked against each turn's words
+// (kumbukumbu #45, #46); the client knows nothing of how that is chosen.
 export function Memory({ residentName, bookmarks, tags, index, retrieval = null, onPin, onUnpin, onOpen }: MemoryProps) {
   const [tab, setTab] = useState<TabId>('index');
   const [query, setQuery] = useState('');
@@ -39,7 +40,7 @@ export function Memory({ residentName, bookmarks, tags, index, retrieval = null,
   });
   const pinned = bookmarks.filter((b) => b.pinned_at !== null);
   const tabs: Array<{ id: TabId; label: string; count?: number }> = [
-    { id: 'index', label: 'In the index', count: inIndex.length },
+    { id: 'index', label: 'Every turn', count: inIndex.length },
     { id: 'all', label: 'All', count: bookmarks.length },
     { id: 'pinned', label: 'Pinned', count: pinned.length },
     ...(retrieval ? [{ id: 'use' as TabId, label: 'Use', count: retrieval.length }] : []),

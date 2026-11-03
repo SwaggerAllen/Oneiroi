@@ -133,6 +133,68 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
+      # Ranked memory (kumbukumbu #46, design/memory-weighting.md): every
+      # number below is a guess, read against the before
+      # (design/memory-weighting-baseline.md) and moved only by the two of
+      # them.
+      {:index_lines, "KUMBUKUMBU_INDEX_LINES",
+       cast: :integer,
+       default: "10",
+       tag: :bound,
+       usage:
+         "how many bookmarks the ranked index returns a turn, ranked and explored together, within the token budget: 'top five over topical twenty' (the work order); a guess"},
+      {:index_explore_percent, "KUMBUKUMBU_INDEX_EXPLORE_PERCENT",
+       cast: :integer,
+       default: "20",
+       tag: :bound,
+       usage:
+         "the share of the index's lines drawn at random from outside the ranked set, fresh each turn (F11's 20%, against character metastasising and for spontaneity); a guess"},
+      {:index_considered, "KUMBUKUMBU_INDEX_CONSIDERED",
+       cast: :integer,
+       default: "40",
+       tag: :bound,
+       usage: "how many bookmarks nearest the turn's words the memory agent weighs (C); a guess"},
+      {:index_seeds, "KUMBUKUMBU_INDEX_SEEDS",
+       cast: :integer,
+       default: "5",
+       tag: :bound,
+       usage:
+         "how many of the nearest are the turn's seed, what it is about: the edges read from them and learned from them; a guess"},
+      {:index_min_similarity_percent, "KUMBUKUMBU_INDEX_MIN_SIMILARITY_PERCENT",
+       cast: :integer,
+       default: "0",
+       tag: :bound,
+       usage:
+         "the reject line, as a percent of cosine similarity plus edges; 0 until the first week's scores are read (each rejected one's score is recorded with its reason), then set from them"},
+      {:edge_alpha_permille, "KUMBUKUMBU_EDGE_ALPHA_PERMILLE",
+       cast: :integer,
+       default: "50",
+       tag: :bound,
+       usage:
+         "α in thousandths: the step of a seed's co-return and of an ignored return (kumbukumbu #46); a guess"},
+      {:edge_beta_permille, "KUMBUKUMBU_EDGE_BETA_PERMILLE",
+       cast: :integer,
+       default: "150",
+       tag: :bound,
+       usage: "β in thousandths: the step between two memories both used; a guess, larger than α"},
+      {:edge_lambda_percent, "KUMBUKUMBU_EDGE_LAMBDA_PERCENT",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "λ in hundredths: how far the learned edges from the seed move a candidate's score beside its similarity; a guess"},
+      {:edge_half_life_days, "KUMBUKUMBU_EDGE_HALF_LIFE_DAYS",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "the half-life of a learned edge's decay toward neutral (F11's 30 days): decay the access, never the content"},
+      {:edge_floor_permille, "KUMBUKUMBU_EDGE_FLOOR_PERMILLE",
+       cast: :integer,
+       default: "10",
+       tag: :bound,
+       usage:
+         "ε in thousandths: an edge whose decayed weight is nearer neutral than this is removed when next touched; a guess"},
       {:page_bookmarks, "KUMBUKUMBU_PAGE_BOOKMARKS",
        cast: :integer,
        default: "20",
@@ -310,7 +372,11 @@ defmodule Oneiroi.Kumbukumbu do
 
   @impl Oneiroi.Component
   def children,
-    do: [Oneiroi.Kumbukumbu.Projectors.Conversations, Oneiroi.Kumbukumbu.Projectors.Memory]
+    do: [
+      Oneiroi.Kumbukumbu.Projectors.Conversations,
+      Oneiroi.Kumbukumbu.Projectors.Memory,
+      Oneiroi.Kumbukumbu.Projectors.Edges
+    ]
 
   @doc "Opens a session of a kind for the resident with the accounts party to it; returns its key."
   @spec open_session(String.t(), String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
@@ -717,6 +783,29 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line; nil, or a key no session has, is the common room."
   @spec index(String.t(), String.t() | nil) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
+
+  @doc "The turn's words embedded once (kumbukumbu #46): the vector the ranked index and the madeleine share, or nil; refreshes the bookmarks' vectors first."
+  @spec memory_query(String.t(), String.t(), Oneiroi.Actor.t(), keyword()) :: [float()] | nil
+  defexport(memory_query(resident_id, text, actor, opts),
+    do: Memories.memory_query(resident_id, text, actor, opts)
+  )
+
+  @doc "The madeleine for a vector already embedded, within the room of `session_key` (kumbukumbu #46)."
+  @spec madeleine_near(String.t(), [float()] | nil, String.t() | nil, [pos_integer()]) ::
+          map() | nil
+  defexport(madeleine_near(resident_id, vector, session_key, exclude),
+    do: Memories.madeleine_near(resident_id, vector, session_key, exclude)
+  )
+
+  @doc "The ranked index for this turn's vector within the room of `session_key` (kumbukumbu #46); by recency without one."
+  @spec ranked_index(String.t(), String.t() | nil, [float()] | nil) :: map()
+  defexport(ranked_index(resident_id, session_key, vector),
+    do: Memories.ranked_index(resident_id, session_key, vector)
+  )
+
+  @doc "The pins within the room of `session_key`, oldest first: the stable prefix's, never the ranked index's (kumbukumbu #45)."
+  @spec pins(String.t(), String.t() | nil) :: [map()]
+  defexport(pins(resident_id, session_key), do: Memories.pins(resident_id, session_key))
 
   @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu #38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
   @spec index_now(String.t()) :: map()

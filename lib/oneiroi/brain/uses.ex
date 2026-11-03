@@ -41,8 +41,17 @@ defmodule Oneiroi.Brain.Uses do
       refs = inj |> field(:refs) |> List.wrap()
 
       case label do
+        # The ranked index (kumbukumbu #46): the ranked are considered and
+        # returned; the explored were drawn, not ranked, so returned
+        # through `explored` alone; the seed is recorded as `seed`, what
+        # the learned edges are read from and written from.
         "index" ->
-          Enum.flat_map(refs, &both("bookmark/#{&1}", "index"))
+          explored = inj |> field(:explored) |> List.wrap()
+          seeds = inj |> field(:seeds) |> List.wrap()
+
+          Enum.flat_map(refs -- explored, &both("bookmark/#{&1}", "index")) ++
+            Enum.map(explored, &use("bookmark/#{&1}", "returned", "explored")) ++
+            Enum.map(seeds, &use("bookmark/#{&1}", "seed", "index"))
 
         "near-miss" ->
           inj

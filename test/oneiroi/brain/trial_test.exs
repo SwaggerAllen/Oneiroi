@@ -175,10 +175,12 @@ defmodule Oneiroi.Brain.TrialTest do
     system = messages |> Enum.filter(&(&1.role == :system)) |> Enum.map_join("\n\n", & &1.content)
     assert hd(messages).content =~ "You are Lily"
     assert system =~ "# SOUL.md"
-    # Retrieval: the index, the madeleine, how I act, the promise, the
-    # movement-free prefix's sections and Honcho's context on the person.
+    # Retrieval: the ranked index (which, over two bookmarks, returns
+    # both and leaves the madeleine nothing it has not returned), how I
+    # act, the promise, the movement-free prefix's sections and Honcho's
+    # context on the person.
     assert system =~ "the heron by the weir at dawn"
-    assert system =~ "# A madeleine"
+    assert system =~ "memory_feedback(used: [numbers])"
     assert system =~ "# How I act"
     assert system =~ "names the birds"
     assert system =~ "I will look for the heron on Sunday."
@@ -301,6 +303,7 @@ defmodule Oneiroi.Brain.TrialTest do
   ]
 
   @done [
+    {"memory_feedback", %{used: [1]}},
     {"state_set", %{key: "noticing", text: "Herons at dusk."}},
     {"state_clear", %{key: "noticing"}},
     {"dispute_settle", %{ref: "abc", outcome: "held", note: "seen often"}},

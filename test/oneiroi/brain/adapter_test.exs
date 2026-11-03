@@ -64,12 +64,18 @@ defmodule Oneiroi.Brain.AdapterTest do
     do: {:account, ctx.witness.id} |> Kumbukumbu.injections(ref) |> Enum.sort_by(& &1.position)
 
   # `where` differs by construction (brain #44): each conversation is
-  # told where it is, and the platform's that the adapter's is open.
+  # told where it is, and the platform's that the adapter's is open. The
+  # ranked index draws a fifth of its lines at random each call
+  # (kumbukumbu #46), so its text, its tokens and its near-misses differ
+  # turn by turn; its label and its place are compared.
   defp comparable(rows),
     do:
       rows
-      |> Enum.reject(&(&1.label in ~w(madeleine transcript notice runtime where)))
-      |> Enum.map(&{&1.label, &1.tokens, &1.reason})
+      |> Enum.reject(&(&1.label in ~w(madeleine transcript notice runtime where near-miss)))
+      |> Enum.map(fn
+        %{label: "index"} -> {"index"}
+        row -> {row.label, row.tokens, row.reason}
+      end)
 
   test "the prefix and the turn are the platform turn's sections, in its order, and the turn records what it handed over",
        ctx do
@@ -88,7 +94,8 @@ defmodule Oneiroi.Brain.AdapterTest do
 
     # The per-turn part: the index and after, and none of the prefix the
     # session already holds.
-    assert turn.text =~ "bookmark number 60"
+    assert turn.text =~ ~r/#\d+ \d{4}-\d\d-\d\d bookmark number \d+/
+    assert turn.text =~ "memory_feedback(used: [numbers])"
     assert turn.text =~ "I will look for the heron."
     assert turn.text =~ "HONCHO-ONLY"
     refute turn.text =~ "You are Lily"
@@ -97,7 +104,11 @@ defmodule Oneiroi.Brain.AdapterTest do
     assert {ctx.key, turn.turn_ref} == Kumbukumbu.open_turn(ctx.id, "claude-code")
 
     # The index's refs marked what it listed, as a platform turn's do.
-    assert {:ok, %{last_indexed_at: %DateTime{}}, _span} = Kumbukumbu.bookmark(ctx.id, 60)
+    [listed | _] =
+      Regex.run(~r/#(\d+) \d{4}-\d\d-\d\d bookmark number/, turn.text, capture: :all_but_first)
+
+    assert {:ok, %{last_indexed_at: %DateTime{}}, _span} =
+             Kumbukumbu.bookmark(ctx.id, String.to_integer(listed))
 
     Model.reply("Yes.", for: ctx.id)
     {:ok, %{turn_ref: platform}} = Oneiroi.Brain.turn(ctx.id, ctx.main, "the heron", ctx.actor)

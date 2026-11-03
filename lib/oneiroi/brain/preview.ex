@@ -188,7 +188,7 @@ defmodule Oneiroi.Brain.Preview do
 
   defp in_full("index", _name),
     do:
-      "The index as the next turn will read it. Once a turn has used it, that reply's \"drew on\" list shows the same, and Memory lists its bookmarks."
+      "The index by recency. The next turn ranks it against your words instead (kumbukumbu #46), which costs an embedding, so a preview cannot show that turn's; once a turn has run, its \"drew on\" list shows what it was given."
 
   defp in_full("character", name),
     do:

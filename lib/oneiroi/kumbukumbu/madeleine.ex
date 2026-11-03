@@ -93,9 +93,49 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
     end
   end
 
+  @doc """
+  The turn's words as a vector, embedded once for the madeleine and the
+  ranked index both (kumbukumbu #46), or nil: blank words, no bookmark
+  embedded yet, or the provider's failure. Bills under `purpose`.
+  """
+  @spec query(String.t(), String.t(), Actor.t(), atom()) :: [float()] | nil
+  def query(resident_id, text, %Actor{} = actor, purpose \\ :embeddings) when is_binary(text) do
+    model = Config.fetch!(:kumbukumbu, :embedding_model)
+
+    cond do
+      String.trim(text) == "" ->
+        nil
+
+      not Scope.resident(resident_id, fn ->
+        Enum.any?(Store.vectors(), &(&1.kind == "bookmark"))
+      end) ->
+        nil
+
+      true ->
+        case embed(resident_id, model, [text], actor, purpose) do
+          {:ok, [vector]} -> vector
+          _failed -> nil
+        end
+    end
+  end
+
+  @doc """
+  The madeleine for a vector already embedded (`query/4`), within the
+  room `keys`, never one of `exclude`: the ranked index is itself ranked
+  by nearness now (kumbukumbu #46), so what it returned this turn is not
+  unheard, and the madeleine reaches past it.
+  """
+  @spec recall_near(String.t(), [float()] | nil, [String.t()] | nil, [pos_integer()]) ::
+          recall() | nil
+  def recall_near(resident_id, vector, keys, exclude \\ [])
+  def recall_near(_resident_id, nil, _keys, _exclude), do: nil
+
+  def recall_near(resident_id, vector, keys, exclude),
+    do: choose(resident_id, vector, keys, exclude)
+
   # `keys` is the room (spec §6.3, P23): a bookmark of a session outside
   # it is not adjacent to anything said here, whatever its distance.
-  defp choose(resident_id, vector, keys) do
+  defp choose(resident_id, vector, keys, exclude \\ []) do
     bound = Config.fetch!(:kumbukumbu, :madeleine_distance_percent) / 100
     now = Clock.now()
     unheard = DateTime.add(now, -Config.fetch!(:kumbukumbu, :madeleine_unheard_days), :day)
@@ -107,6 +147,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
       rows =
         Store.bookmarks()
         |> Enum.filter(&(is_nil(keys) or &1.session_key in keys))
+        |> Enum.reject(&(&1.number in exclude))
         |> Map.new(&{&1.number, &1})
 
       vector

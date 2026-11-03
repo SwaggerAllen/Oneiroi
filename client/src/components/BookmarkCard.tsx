@@ -44,7 +44,7 @@ export function BookmarkCard({
           {bookmark.line}
         </p>
         {pinned ? <span style={{ fontSize: 12, color: 'var(--witness)' }}>pinned</span> : null}
-        {inIndex ? <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>in the index</span> : null}
+        {inIndex ? <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>every turn</span> : null}
       </div>
       {bookmark.summary ? (
         <p style={{ margin: 0, fontSize: 15, lineHeight: '22px', color: 'var(--ink-muted)' }}>{bookmark.summary}</p>

@@ -58,7 +58,7 @@ defmodule OneiroiWeb.ContextPreviewTest do
       Kumbukumbu.add_bookmark(ctx.id, %{session_key: key, anchor_ref: ref, line: line}, ctx.brain)
   end
 
-  test "Memory's index is what the index holds now, with no turn ever taken, worded by the server",
+  test "Memory's index is what is in front of every turn now (the pins) and how the rest are ranked, worded by the server",
        ctx do
     {:ok, ikey} =
       Kumbukumbu.open_session(ctx.id, "free_time", "brain", [ctx.account.id], ctx.actor,
@@ -75,14 +75,15 @@ defmodule OneiroiWeb.ContextPreviewTest do
     budget = Oneiroi.Config.fetch!(:kumbukumbu, :index_tokens)
 
     assert %{
-             "listed" => [1, 3],
-             "left_out" => 0,
+             "listed" => [1],
+             "left_out" => 1,
              "elsewhere" => 1,
              "description" => description
            } = ctx.conn |> get("/v1/residents/#{ctx.id}/index") |> json_response(200)
 
     assert description =~ "under a budget of #{budget} tokens (a bound)"
-    assert description =~ "listed only in that room's conversations"
+    assert description =~ "1 pin in front of every turn, in the stable prefix."
+    assert description =~ "ranked only in that room's conversations"
 
     # Every row is unmarked: the tab never read last_indexed_at.
     assert ctx.conn
@@ -95,7 +96,7 @@ defmodule OneiroiWeb.ContextPreviewTest do
     assert %{"listed" => [], "left_out" => 0, "elsewhere" => 0, "description" => d} =
              ctx.conn |> get("/v1/residents/#{ctx.id}/index") |> json_response(200)
 
-    assert d =~ "0 bookmarks listed"
+    assert d =~ "0 pins in front of every turn"
   end
 
   test "the preview answers every section whole by default, and under the contract's term withheld words are not on the wire",
