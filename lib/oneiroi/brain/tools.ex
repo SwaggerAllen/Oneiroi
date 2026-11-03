@@ -1659,7 +1659,7 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, commits} ->
         Enum.map_join(commits, "\n", &"#{&1.sha} #{&1.at} #{&1.author}: #{&1.subject}")
 
-      {:error, :invalid} ->
+      {:error, %{kind: :brain_path_invalid}} ->
         @not_done <> "a path is relative and plain, with no .. in it."
 
       {:error, _e} ->
@@ -2313,7 +2313,7 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, entries} ->
         Enum.map_join(entries, "\n", &entry_line/1)
 
-      {:error, :absent} ->
+      {:error, %{kind: :brain_path_absent}} ->
         @not_done <> "no folder there."
 
       {:error, _} ->
@@ -2339,14 +2339,14 @@ defmodule Oneiroi.Brain.Tools do
         "#{path} (#{total} characters), this page to #{next}; read from #{next} for the next:\n" <>
           text
 
-      {:error, :sealed} ->
+      {:error, %{kind: :brain_path_sealed}} ->
         @not_done <>
           "#{path} is sealed: the judge's prompts are witness-only, by an explicit list."
 
-      {:error, :binary} ->
+      {:error, %{kind: :brain_path_binary}} ->
         @not_done <> "#{path} is not text."
 
-      {:error, :absent} ->
+      {:error, %{kind: :brain_path_absent}} ->
         @not_done <> "no file at #{path}."
 
       {:error, _} ->

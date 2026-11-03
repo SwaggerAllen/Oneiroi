@@ -18,6 +18,7 @@ defmodule Oneiroi.Brain.Introspection do
   a repository's `.git` are not listed.
   """
 
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Config
   alias Oneiroi.SimaQian
 
@@ -46,12 +47,14 @@ defmodule Oneiroi.Brain.Introspection do
   def sealed?({:repo, _id}, _path), do: false
 
   @doc "A directory's entries, folders first, each `%{name, dir?, sealed?}`; `nil` or `\"\"` is the root."
-  @spec list(scope(), String.t() | nil) :: {:ok, [map()]} | {:error, :invalid | :absent}
+  @spec list(scope(), String.t() | nil) :: {:ok, [map()]} | {:error, Error.t()}
   def list(scope, path) do
     with {:ok, rel} <- relative(path || ""),
          {:ok, root} <- root(scope),
          full = Path.join(root, rel),
-         true <- File.dir?(full) || {:error, :absent},
+         true <-
+           File.dir?(full) ||
+             {:error, Error.new(:brain_path_absent, :brain_introspection_list_absent, path: rel)},
          {:ok, names} <- File.ls(full) do
       entries =
         names
@@ -75,17 +78,20 @@ defmodule Oneiroi.Brain.Introspection do
   @doc """
   A text file's content from `from` (a character offset), at most a
   page: `{:ok, text, next}` where `next` is where the following page
-  starts, or nil at the end. A sealed path is `{:error, :sealed}`.
+  starts, or nil at the end. A sealed path is refused as `brain_path_sealed`.
   """
   @spec read(scope(), String.t(), non_neg_integer()) ::
           {:ok, String.t(), non_neg_integer() | nil, non_neg_integer()}
-          | {:error, :invalid | :absent | :sealed | :binary}
+          | {:error, Error.t()}
   def read(scope, path, from \\ 0) do
     page = Config.fetch!(:brain, :library_read_chars)
 
     with {:ok, rel} <- relative(path),
-         true <- rel != "" || {:error, :invalid},
-         false <- sealed?(scope, rel) && {:error, :sealed},
+         true <-
+           rel != "" || {:error, Error.new(:brain_path_invalid, :brain_introspection_read_root)},
+         false <-
+           sealed?(scope, rel) &&
+             {:error, Error.new(:brain_path_sealed, :brain_introspection_read_sealed, path: rel)},
          {:ok, root} <- root(scope),
          {:ok, content} <- text(Path.join(root, rel)) do
       total = String.length(content)
@@ -97,12 +103,12 @@ defmodule Oneiroi.Brain.Introspection do
   end
 
   @doc "Lines matching `query` (case-insensitive, literal) across the source's text files, sealed ones skipped: `%{path, line, text}`, at most #{@hits}."
-  @spec search(scope(), String.t()) :: {:ok, [map()]} | {:error, :invalid}
+  @spec search(scope(), String.t()) :: {:ok, [map()]} | {:error, Error.t()}
   def search(scope, query) when is_binary(query) do
     needle = query |> String.trim() |> String.downcase()
 
     if needle == "" do
-      {:error, :invalid}
+      {:error, Error.new(:brain_path_invalid, :brain_introspection_search_empty)}
     else
       with {:ok, root} <- root(scope) do
         {:ok,
@@ -126,14 +132,22 @@ defmodule Oneiroi.Brain.Introspection do
       path |> String.trim() |> String.trim_trailing("/") |> String.split("/", trim: false)
 
     cond do
-      path |> String.trim() |> String.trim_trailing("/") == "" -> {:ok, ""}
-      String.starts_with?(String.trim(path), "/") -> {:error, :invalid}
-      Enum.any?(segments, &(&1 in ["", ".", ".."] or &1 in @skipped)) -> {:error, :invalid}
-      true -> {:ok, Enum.join(segments, "/")}
+      path |> String.trim() |> String.trim_trailing("/") == "" ->
+        {:ok, ""}
+
+      String.starts_with?(String.trim(path), "/") ->
+        {:error, Error.new(:brain_path_invalid, :brain_introspection_path_absolute)}
+
+      Enum.any?(segments, &(&1 in ["", ".", ".."] or &1 in @skipped)) ->
+        {:error, Error.new(:brain_path_invalid, :brain_introspection_path_segment)}
+
+      true ->
+        {:ok, Enum.join(segments, "/")}
     end
   end
 
-  defp relative(_path), do: {:error, :invalid}
+  defp relative(_path),
+    do: {:error, Error.new(:brain_path_invalid, :brain_introspection_path_not_text)}
 
   # sobelow_skip ["Traversal.FileModule"]
   defp text(full) do
@@ -141,13 +155,13 @@ defmodule Oneiroi.Brain.Introspection do
       {:ok, bytes} ->
         if String.valid?(bytes) and not String.contains?(bytes, <<0>>),
           do: {:ok, bytes},
-          else: {:error, :binary}
+          else: {:error, Error.new(:brain_path_binary, :brain_introspection_read_binary)}
 
       {:error, :eisdir} ->
-        {:error, :invalid}
+        {:error, Error.new(:brain_path_invalid, :brain_introspection_read_folder)}
 
       {:error, _} ->
-        {:error, :absent}
+        {:error, Error.new(:brain_path_absent, :brain_introspection_read_absent)}
     end
   end
 

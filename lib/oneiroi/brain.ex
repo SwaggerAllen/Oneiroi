@@ -119,6 +119,14 @@ defmodule Oneiroi.Brain do
        remedy: "draft one of the identity files the resident system names"},
       {:brain_summary_empty, "the model answered the compaction with no words",
        remedy: "nothing was compacted; the next turn tries again"},
+      {:brain_path_invalid,
+       "a path in the source or the repository is relative and plain: no .., no absolute path, no .git or build output",
+       remedy: "name the file from the root, as the listing shows it"},
+      {:brain_path_absent, "nothing is at that path", remedy: "list the folder first"},
+      {:brain_path_sealed,
+       "the file is sealed: the judge's prompts are witness-only, by an explicit list (brain #46)",
+       remedy: "ask the witness; the list itself is in the spec and open to argument"},
+      {:brain_path_binary, "the file is not text", remedy: "read a text file"},
       {:brain_session_unavailable, "the session's process could not be started",
        remedy: "retry the message; the log line carries the cause"}
     ]
