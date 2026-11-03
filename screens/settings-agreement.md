@@ -1,22 +1,28 @@
 ---
 paths:
   - client/src/screens/settings-agreement/**
+  - client/src/screens/connections/**
 ---
 
 # settings-agreement
 
-Settings: agreement and custody (spec §10). Not built: this doc is the screen's file map and
+Settings: agreement and custody (spec §10). Not built, but for its adapters part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.
 
 Connections, the adapters part, built 2026-11-02:
-`client/src/screens/connections/` under More, from
-`GET/POST/DELETE /v1/residents/:id/adapters`: what holds a token for the
-resident and in which role (brain, reader, worker, each said in words),
-a token issued by name and role and shown once with Copy, a revoke that
-confirms in place, the revoked listed apart. The rest of this screen
-(the contract, custody, the export wall) is not built here.
+`client/src/screens/connections/` (`Connections.tsx`, stories and
+tests) under More, loaded by `ConnectionsContainer` in
+`client/src/app/App.tsx` from `GET/POST/DELETE
+/v1/residents/:id/adapters`: what holds a token for the resident, each
+with its role (brain, reader, worker, each said in words) and since
+when; a token issued by a lowercase name and a role and shown once
+with Copy and "I've saved it" (issuing a name again replaces its
+token); a revoke that confirms in place; the revoked listed apart with
+the day. Not built: an adapter's state, last capture and wakes today,
+suspending rather than revoking, and the rest of this screen (the
+contract and its versions, custody, the export wall).
 
 ## #1 Shows
 

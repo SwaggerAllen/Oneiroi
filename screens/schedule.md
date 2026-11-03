@@ -11,6 +11,29 @@ loaded by `ScheduleContainer` in `client/src/app/App.tsx` from
 `GET /v1/residents/:id/schedule`. The state list lives in the stories
 (DESIGN §4); nothing here names a state.
 
+Built: the top bar names the day and the zone every time is read in.
+**Time zone**: the resident's zone, set from every zone the browser
+knows or, when this device is elsewhere, in one tap ("Use <zone>")
+(`PUT /v1/residents/:id/timezone`; Lily's stayed UTC until 2026-11-03,
+and her free time ran at 6:30 and 14:30 Pacific). **Free time**: each
+slot with what it did today, moved as a whole list
+(`PUT .../schedule/free-time`; sunna #22: one to four, never none, so a
+list of one has no remove button and a fifth cannot be added, said as
+a bound). **Check-ins**: the next one, each with today's outcome or its
+last, added by label and time (`POST .../schedule/checkins`) or deleted
+(`DELETE .../checkins/:key`, confirming in place). **Quiet hours**: set
+or cleared (`PUT .../schedule/quiet-hours`). **Dates**: listed with
+their kind and countdown. Every time is chosen by hour and minute
+(`TimeField`, two selects, minutes in fives with a saved minute off
+the step kept as its own option), never an `<input type="time">`: on
+an iPhone a cleared one looks set while it is empty, and the second
+check-in could not be added. Not built: the last check-in and today's
+events, the digest, nightly and weekly jobs, changing a check-in's
+label or time in place (the route exists, `PUT .../checkins/:key`, and
+`api.changeCheckin` calls it, but nothing on the screen does), adding
+or changing a date here, and pausing the resident, which has no route
+of its own on this screen.
+
 ## #1 Shows
 
 Today in the resident's zone: last and next check-in, today's events; the day's check-ins, digest and free time with last firings; quiet hours; nightly and weekly jobs.
@@ -18,20 +41,6 @@ Today in the resident's zone: last and next check-in, today's events; the day's 
 ## #2 Does
 
 Add, change, delete a check-in; set times and quiet hours; pause the resident.
-
-Built: free time's slots moved as a whole list (sunna #22: one to four,
-never none, so a list of one has no remove button); a check-in added or
-deleted (the delete confirms in place); quiet hours set or cleared; the
-dates listed with their countdowns; the resident's time zone, which
-every time here is read in, set from a list or, when this device is
-elsewhere, in one tap (`PUT /v1/residents/:id/timezone`; Lily's stayed
-UTC until 2026-11-03, and her free time ran at 6:30 and 14:30 Pacific).
-Times are chosen by hour and minute (`TimeField`), never an
-`<input type="time">`: on an iPhone a cleared one looks set while it is
-empty, and the second check-in could not be added. Not built yet: changing a check-in's
-label or time in place (the route exists, `PUT .../checkins/:key`),
-adding or changing a date here, and pausing the resident, which has no
-route of its own on this screen.
 
 ## #3 Rules from the design system
 

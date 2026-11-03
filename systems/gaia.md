@@ -46,7 +46,10 @@ task that creates the one account.
   every export. Passkeys are later (spec §6.1).
 - **#4 Sessions and tokens are random ids with only the hash stored.**
   Thirty days for a session, from `GAIA_SESSION_TTL_DAYS`; a token
-  until revoked. The raw value is returned once and never written.
+  until revoked. The raw value is returned once and never written. A
+  token's label is a name, bounded at 120 characters on the command
+  (`IssueToken`'s `bounds:`) and refused at dispatch as
+  `label_too_long`.
 - **#5 The cookie is `__Host-oneiroi`, `HttpOnly`, `Secure`,
   `SameSite=Strict`, and every mutation without a bearer token checks
   `Origin`.** The Origin plug is the CSRF defence: a script's bearer

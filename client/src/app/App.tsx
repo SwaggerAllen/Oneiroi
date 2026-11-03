@@ -8,6 +8,7 @@ import type {
   HouseLetter,
   LibraryDocument,
   LibraryHit,
+  ShelfKind,
   Bookmark,
   ContextPreview,
   IndexNow,
@@ -463,6 +464,7 @@ function InboxContainer({ resident }: { resident: Resident }) {
 function LibraryContainer({ resident }: { resident: Resident }) {
   const id = resident.id;
   const [documents, setDocuments] = useState<LibraryDocument[] | null>(null);
+  const [shelf, setShelf] = useState<ShelfKind[]>([]);
   const [open, setOpen] = useState<{ path: string; content: string } | null>(null);
   const [hits, setHits] = useState<LibraryHit[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -470,7 +472,10 @@ function LibraryContainer({ resident }: { resident: Resident }) {
   const load = useCallback(() => {
     api
       .library(id)
-      .then((l) => setDocuments(l.documents))
+      .then((l) => {
+        setShelf(l.kinds);
+        setDocuments(l.documents);
+      })
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -483,6 +488,7 @@ function LibraryContainer({ resident }: { resident: Resident }) {
       <Library
         residentName={resident.name}
         documents={documents}
+        shelf={shelf}
         open={open}
         onOpen={(path) =>
           api

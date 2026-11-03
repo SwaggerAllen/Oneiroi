@@ -869,7 +869,7 @@ and nothing personal turned up; what follows is what changed.
 ## Round 30: the corpus-shape report (2026-10-30)
 
 - P8 lands as a register on the resident's writes and a built-in audit
-  over them (kumbukumbu #33, seshat #24, huginn-muninn #18). The
+  over them (kumbukumbu #33, seshat #36, huginn-muninn #18). The
   register (correction, praise, instruction, play, or none) is the
   resident's own tag at write time on a bookmark or a journal row, never
   a later judgement and never a model call; the list lives in the

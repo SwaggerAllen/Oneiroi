@@ -97,6 +97,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.CaptureTurn,
       Commands.RecordContext,
       Commands.RecordRetrieval,
+      Commands.ClaimTurn,
       Commands.FailCapture,
       Commands.ResolveCaptureFailure,
       Commands.ShareSession,
@@ -106,6 +107,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.TurnCaptured,
       Events.ContextAssembled,
       Events.RetrievalRecorded,
+      Events.TurnClaimed,
       Events.CaptureFailed,
       Events.CaptureFailureResolved,
       Events.SessionShared,
@@ -260,7 +262,8 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
-      {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 1},
+      {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
+      {Oneiroi.Kumbukumbu.Events.TurnClaimed, 1},
       {Oneiroi.Kumbukumbu.Events.Compacted, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
@@ -436,6 +439,17 @@ defmodule Oneiroi.Kumbukumbu do
           :ok | {:error, term()}
   defexport(capture(resident_id, key, turn_ref, started_at, messages, actor),
     do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor)
+  )
+
+  @doc """
+  Claims a submitted message's ref before its turn runs (kumbukumbu #47):
+  `:claimed`, or `:duplicate` when the ref was captured, or claimed since
+  `stale_before` (another process or instance has it in hand).
+  """
+  @spec claim_turn(String.t(), String.t(), String.t(), DateTime.t(), Oneiroi.Actor.t()) ::
+          :claimed | :duplicate | {:error, term()}
+  defexport(claim_turn(resident_id, key, turn_ref, stale_before, actor),
+    do: Conversations.claim_turn(resident_id, key, turn_ref, stale_before, actor)
   )
 
   @doc "Records what retrieval did in a turn: each use `%{target, stage, via}`, stage considered, returned or used."

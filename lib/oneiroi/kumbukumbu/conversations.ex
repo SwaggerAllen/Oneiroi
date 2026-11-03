@@ -230,10 +230,39 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       session_key: key,
       turn_ref: turn_ref,
       ref: 12 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
-      uses: Enum.map(uses, &Map.take(&1, [:target, :stage, :via]))
+      uses: Enum.map(uses, &Map.take(&1, [:target, :stage, :via])),
+      embedding_model: ranked_with(uses)
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  # A recording whose index was ranked carries its seed; it is stamped
+  # with the embedding model the ranking's vectors came from (kumbukumbu
+  # #46), which is the model configured now, the one the turn just read.
+  defp ranked_with(uses) do
+    if Enum.any?(uses, &(Map.get(&1, :stage) == "seed")),
+      do: Config.fetch!(:kumbukumbu, :embedding_model),
+      else: nil
+  end
+
+  @doc "Claims a submitted ref before its turn runs: `:claimed` or `:duplicate` (kumbukumbu #47)."
+  def claim_turn(resident_id, key, turn_ref, stale_before, %Actor{} = actor) do
+    command = %Commands.ClaimTurn{
+      actor: actor,
+      at: Clock.now(),
+      id: stream(resident_id, key),
+      resident_id: resident_id,
+      session_key: key,
+      turn_ref: turn_ref,
+      stale_before: stale_before
+    }
+
+    case dispatch(command) do
+      {:ok, [_claimed]} -> :claimed
+      {:ok, []} -> :duplicate
+      other -> other
+    end
   end
 
   @doc "Each target retrieval touched, with its counts by stage, under the scope (`Store.retrieval_counts/1`)."

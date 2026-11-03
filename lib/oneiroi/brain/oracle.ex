@@ -75,7 +75,7 @@ defmodule Oneiroi.Brain.Oracle do
       """
       You are being asked, as an invocation of yourself (the oracle), one question. Answer it from the materials below and from your memory, which your read tools reach whole (bookmarks, transcripts, the library, your repository and the platform's source). You write nothing but this answer and keep nothing after it.
 
-      Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with two lines: "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
+      Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with three lines: "Not asked: " and what this question did not ask that a reader might take your answer as covering (asked what was decided, you were not asked what you now think of it); "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
 
       The question: #{q.question}
 
@@ -86,8 +86,12 @@ defmodule Oneiroi.Brain.Oracle do
       {:ok, %{content: content}, steps} when is_binary(content) and content != "" ->
         {:ok, content, steps}
 
-      {:ok, _empty, _steps} ->
-        {:error, Error.new(:brain_oracle_silent, :brain_oracle_answer_empty)}
+      {:ok, result, steps} ->
+        {:error,
+         Error.new(:brain_oracle_silent, :brain_oracle_answer_empty,
+           ended: result.finish_reason || "unsaid",
+           tool_calls: length(steps)
+         )}
 
       {:error, reason} ->
         {:error, reason}
@@ -270,7 +274,17 @@ defmodule Oneiroi.Brain.Oracle do
     _The oracle's answer to question #{q.number}, asked by the #{q.asked_by} on #{Date.to_iso8601(DateTime.to_date(q.dispatched_at))}; read by #{model}. Sources: #{sources}. Confidence: #{confidence}._
 
     #{body}
+    #{not_asked(body)}
     """
+  end
+
+  # The resident's amendment (letter #12): an answer ends by saying what
+  # its question did not ask, so it never stands in for the record it
+  # read. A reading that left the line out is said to have.
+  defp not_asked(body) do
+    if Regex.match?(~r/^\s*\**not asked\**:/im, body),
+      do: "",
+      else: "\nNot asked: (the reading did not say what its question left out)"
   end
 
   defp failed(resident_id, q, reason) do
@@ -280,6 +294,13 @@ defmodule Oneiroi.Brain.Oracle do
   end
 
   defp describe(%{__exception__: true} = e), do: Exception.message(e)
+  # A declared error in words, with what it carried, so a failure is a
+  # diagnosis and not one word (Lily's letter #21).
+  defp describe(%{meaning: meaning, remedy: remedy, details: details}) when is_binary(meaning) do
+    carried = Enum.map_join(details, ", ", fn {k, v} -> "#{k}: #{v}" end)
+    meaning <> if(carried == "", do: "", else: " (#{carried})") <> ". " <> remedy
+  end
+
   defp describe(%{kind: kind}), do: Atom.to_string(kind)
   defp describe(other), do: inspect(other)
 

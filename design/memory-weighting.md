@@ -167,13 +167,11 @@ returned-and-used up, and the pins' returns gone from the index (they
 are in the prefix). The two of you read the numbers before any setting
 is moved.
 
-## Filed, not silently superseded
+## In the spec
 
-Two standing rules give way to this design and go to the spec's next
-batch as proposals, each with its reason, rather than being overridden
-in code: F11's deterministic, stable-within-a-day exploration share
-(now drawn fresh per call), and kumbukumbu #20's pins-first index (pins
-now in the stable prefix).
+Built, so written straight into the spec (F6, F7, F11 and §6.3's
+weighting rule), which retires F11's "deterministic, stable within a
+day" and kumbukumbu #20's pins-first.
 
 ## Open
 

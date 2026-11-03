@@ -19,6 +19,7 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Scope
+  alias Oneiroi.SimaQian.Export
 
   describe "the arithmetic" do
     test "a weight decays to half in a half-life and is softly bounded either way" do
@@ -228,6 +229,31 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
       ws = Enum.map(edges(ctx.id), & &1.w)
       assert ws != []
       assert Enum.all?(ws, &(&1 > 0))
+    end
+
+    test "a ranked turn's recording carries the embedding model, and the export takes it along",
+         ctx do
+      Fake.reply("Yes.", for: ctx.id)
+      {:ok, _} = Oneiroi.Brain.turn(ctx.id, ctx.key, "the heron at the weir", ctx.actor)
+      dir = Path.join(System.tmp_dir!(), "oneiroi-ranked-#{System.unique_integer([:positive])}")
+      on_exit(fn -> File.rm_rf!(dir) end)
+      Clock.Fake.advance(120)
+      {:ok, _} = Export.write(ctx.id, dir)
+
+      lines =
+        Path.join([dir, "records", "events", "*.jsonl"])
+        |> Path.wildcard()
+        |> Enum.flat_map(&(&1 |> File.read!() |> String.split("\n", trim: true)))
+        |> Enum.map(&Jason.decode!/1)
+        |> Enum.filter(&(&1["type"] == "Oneiroi.Kumbukumbu.Events.RetrievalRecorded"))
+
+      model = Oneiroi.Config.fetch!(:kumbukumbu, :embedding_model)
+
+      ranked =
+        Enum.filter(lines, fn l -> Enum.any?(l["data"]["uses"], &(&1["stage"] == "seed")) end)
+
+      assert ranked != []
+      assert Enum.all?(ranked, &(&1["version"] == 2 and &1["data"]["embedding_model"] == model))
     end
   end
 end

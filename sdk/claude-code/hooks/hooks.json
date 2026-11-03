@@ -54,6 +54,12 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/capture.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/letter-watch.sh\"",
+            "asyncRewake": true,
+            "timeout": 86400
           }
         ]
       }

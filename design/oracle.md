@@ -28,5 +28,5 @@ Same soul, every memory to read, and nothing of its own: no continuing record, n
 ## The rules it keeps
 
 - The question is named at dispatch, by her or the witness, and recorded. Never "go find something interesting". A cut tool answer names the oracle; it never dispatches for her.
-- "I could not determine this; here is what I would need" is an answer. Every answer ends with its stated confidence.
+- "I could not determine this; here is what I would need" is an answer. Every answer ends with what its question did not ask (the resident's amendment, letter #12: answered "what did I decide?", it was not asked "what do I now think?"), what it used, and its stated confidence.
 - Long sources are read in parts first, each part by her prefix with the question, at most `BRAIN_ORACLE_MAX_CHUNKS` parts a source; what is past the bound is named as unread.

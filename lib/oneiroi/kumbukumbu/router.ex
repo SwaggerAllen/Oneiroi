@@ -5,5 +5,5 @@ defmodule Oneiroi.Kumbukumbu.Router do
     prefix: "conversation-",
     commands: "Oneiroi.Kumbukumbu.Commands",
     dispatching:
-      ~w(OpenSession StartTurn CaptureTurn RecordContext RecordRetrieval CompactSession FailCapture ResolveCaptureFailure ShareSession)
+      ~w(OpenSession StartTurn CaptureTurn RecordContext RecordRetrieval ClaimTurn CompactSession FailCapture ResolveCaptureFailure ShareSession)
 end

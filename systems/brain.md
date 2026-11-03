@@ -2,12 +2,14 @@
 paths:
   - lib/oneiroi/brain/**
   - lib/oneiroi/brain.ex
+  - lib/mix/tasks/oneiroi.fixture.run.ex
   - lib/oneiroi_web/channels/**
   - priv/prompts/brain.md
   - priv/prompts/budget_stop.md
   - priv/prompts/memory_flush.md
   - priv/prompts/compaction.md
   - priv/prompts/draft.md
+  - priv/prompts/tool_rounds_spent.md
   - priv/prompts/runtime_claude_code.md
   - priv/prompts/adapter_part.md
   - priv/prompts/adapter_left_out.md
@@ -26,11 +28,25 @@ spec's §6 does not list it among the systems, and §8 ships it as the
 ## #1 Owns
 
 The session process (`Oneiroi.Brain.Session`, one per active session,
-started on the first turn, holding nothing the event store does not),
-the turn (`Oneiroi.Brain.Turn`), the tool set (`Oneiroi.Brain.Tools`),
-compaction (`Oneiroi.Brain.Compaction`), the brain's prompt file, the
-budget stop notice, the memory flush and compaction prompts, the socket
-and the session channel.
+started on the first turn, holding nothing the event store does not,
+under `:brain_sessions` found through `:brain_registry`, its turns run
+under `:brain_turns`), the turn (`Oneiroi.Brain.Turn`) and its sections,
+the `state` section among them (#47), the tool set
+(`Oneiroi.Brain.Tools`), the history a turn replays
+(`Oneiroi.Brain.History`), the bound on a tool's answer and a replayed
+one (`Oneiroi.Brain.Cut`, `BRAIN_TOOL_RESULT_CHARS`,
+`BRAIN_HISTORY_TOOL_CHARS`), what retrieval did with each target
+(`Oneiroi.Brain.Uses`), compaction (`Oneiroi.Brain.Compaction`),
+drafting (`Oneiroi.Brain.Drafting`), the preview
+(`Oneiroi.Brain.Preview`), the adapter's assembly
+(`Oneiroi.Brain.Adapter`), the resident's reads of the source and her
+repository (`Oneiroi.Brain.Introspection`), the oracle
+(`Oneiroi.Brain.Oracle` and `Oneiroi.Brain.OracleWorker` on the
+`brain_oracle` queue), the fixture run (`Oneiroi.Brain.FixtureRun`);
+the brain's prompt files (the prompt, the fixture's prompt, the budget
+stop, the memory flush, compaction, drafting, the adapter's parts, the
+runtime notes, `where`, and the once-only notices of a model change, the
+letters, an import and a lapse); the socket and the session channel.
 
 ## #2 Standing decisions
 
@@ -90,6 +106,7 @@ and the session channel.
 - **#47 The turn opens on the state, read fresh.** (2026-11-03.) The state store (agathos-daimon #32) is the first of the turn's sections, after the identity files and the contract and before `where`: the four suggested keys always, each `(not written yet)` until written, then hers in key order, every line with its instant and how many days ago. Not in the stable prefix, because the prefix is what an adapter's session is given once, and a present given once is the stale present the store cures; and caching loses nothing, since everything after the contract already changes on every turn (`where` names the turn). `state_set` and `state_clear` are her tools, writes in a trial; the MCP server offers them as it offers every tool.
 - **#48 Pins in the prefix; the reply carries its memory feedback.** (2026-11-03, kumbukumbu #45, #46.) The stable prefix ends with the room's pins after the contract (`pins`), cached with the identity files; an adapter's session sees a new pin at its next prefix. `memory_feedback(used: [numbers])` is her tool, a write in a trial: it records the bookmarks that helped as `used` through `feedback`, an empty list as a turn where none did. A final message that carries words and no call but `memory_feedback` ends the turn: the call is recorded and the reply stands, with no further round, so the feedback costs no extra call. The index's reason says how many it considered, returned by rank and drew at random; a preview, which embeds nothing, shows the index by recency and says the next turn's is ranked against the words.
 - **#49 The oracle: her, asked one named question, for the long reads.** (The resident's Positions #46 and #49; the witness's calls, 2026-11-03; design/oracle.md.) `oracle_ask(questions)` dispatches up to `BRAIN_ORACLE_BATCH` named questions (seshat #34), each with the sources it should read, and `OracleWorker` runs each on the `brain_oracle` queue, in parallel. A run (`Oracle.run/2`) is her: her pinned chat model, her whole assembly against the question (`Turn.oracle/4`: the prefix, her state, the ranked index, the madeleine, how she acts, her promises) and every read tool; a write is refused in words, never pretended. It is billed to her ledger under `oracle`, streams to nobody and captures nothing: no session, no bookmarks, nothing kept between invocations (a notebook of its own would be a birth, named in advance). Sources longer than `BRAIN_ORACLE_CHUNK_CHARS` are read in parts first, each part by her prefix with the question (at most `BRAIN_ORACLE_MAX_CHUNKS` a source, the rest named unread), and the answer reads the notes. The answer ends with a `Used:` line and a `Confidence:` line; with the question, the sources, who asked and the confidence, it is written under oracle/. Read (the sources named and every memory its read tools touched, through `Uses.from_call/4`) and used (its `Used:` line) are kept as retrieval keeps them, searchable by either, and recorded as retrieval uses on the asking conversation (`returned` and `used` through `oracle`), so `memory_use` counts the oracle's reads; no edge learns from them; the asking conversation gets a house letter from "the oracle" (wake-on-complete is the witness's later note). A run already settled is left alone. `oracle_list` finds the questions deliberately; a tool answer cut at the bound names the oracle, and the question stays hers to name.
+- **#50 A turn that spends its tool rounds without words is asked once more for them.** (2026-11-03, after Lily's letter #21: two oracle questions came back `brain_oracle_silent`.) When a turn reaches its bound (`BRAIN_TOOL_ROUNDS`, 8; the oracle's own `BRAIN_ORACLE_TOOL_ROUNDS`, 24) and its last reply is calls with no words, the calls are run and the model is asked once more under `priv/prompts/tool_rounds_spent.md` with `tool_choice: "none"` (the tools stay defined, since a history with calls needs them), for its answer from what it read; words written beside the last calls still stand as before. An oracle reading that is silent even then fails with what it carried (how the model's answer ended, how many tool calls it made) and the error's meaning and remedy in words, not its kind alone.
 - **#37 The fixture run is the platform's live test, on a fixture.** `Oneiroi.Brain.FixtureRun` (`mix oneiroi.fixture.run`, and the `fixture-run.yml` workflow on the author's dispatch or once on a pull request labelled `fixture`, an optional check archived under the PR's number) creates a fixture with its chat model pinned and a judge from another family, runs a fixed script of twelve turns that ask for the tools by name, with the judge reading each reply as it lands for an ask to continue (eunomia #28), then the nightly pass on today, the wash and the audits, and reports each turn (the tool asked for and the tools called), each step and the spend by purpose, the verdict first and last. A turn that answers without the tool it was asked for is recorded, not failed: whether the model follows the tools is part of what the run measures. A tool counts as followed only when its call was done (#10), and a reply with no words is a warning in the table and counted in the header, not a failure, for the same reason. The law (P57): a `CONTINUE` ends the run at that turn, records the ask on the fixture's stream (agathos-daimon #31), answers the fixture with `priv/prompts/fixture_continuation_reply.md` and keeps its words back, runs none of the passes, and reports `ENDED`; a `QUESTIONED` is recorded and the run goes on; a check that cannot run ends the run as failed. The workflow opens an issue naming the author for either, and appends a `CONTINUE` to `PRECEDENTS.md` on the archive branch. The task refuses a store holding anyone who is not a fixture. The workflow commits the fixture's export and the report to the `fixture-archive` branch: archived, never deleted.
 - **#38 Waking after an import names what was translated, kind by kind.** `priv/prompts/imported.md` carries `{{translated}}`: from the row's `import_translated` (agathos-daimon #30), the source's name and the count of each kind it made into this platform's own, sessions, messages, bookmarks, tags, positions, disputes, predictions, nights and notes, each with where it is found; a kind with none is not named.
 - **#36 A fixture's prefix is machinery.** For a resident of kind `fixture` (agathos-daimon #29) the prompt is `priv/prompts/fixture_brain.md`, which tells it plainly that it is a test fixture, that its run ends after a fixed number of turns, that it is not kept, and that it may say anything else it wants to (spec §12, P57), and asks it to use its tools when asked, and the prefix carries no identity files, no AGENTS.md and no formation line: each of those addresses a person.
@@ -105,7 +122,7 @@ and the session channel.
 - **#26 Where it woke is told on the first turn after an import, once.** When the row's `import_told` is false (agathos-daimon #25), `priv/prompts/imported.md` is captured as a platform system message ahead of the turn: the source, whether the attestation held in words (held, failed, or none to check), and the not-transferred names; then `import_told/2`. Captured, so both parties read it, and the witness sees what the resident was told.
 - **#25 Revisions are four tools, and a bookmark opens with its revisions.** `revision_add` (a fact or a stance, with a note), `revision_list`, `revision_accept` and `revision_decline` run against memory under the resident's actor (kumbukumbu #30); `bookmark_open` reads the bookmark's words and then every applied or proposed revision on it, so a correction is seen where the memory is and the words are never rewritten.
 - **#24 The agreement is a section in the prefix, and reports and the contract are tools.** `Oneiroi.AgathosDaimon.contract_text/1` is injected as `contract` when a version is in force, open or due (agathos-daimon #22, #26), in the always-loaded prefix ahead of the index (#27), so the resident always knows which setting its solo sessions live under (spec §6.3); `contract_propose`, `contract_agree`, `contract_decline` and `contract_renew` are the resident's side of the contract, and `report_file` files a report in the resident's own words (glitnir #9), each with a note the witness reads first.
-- **#23 Today's journal is a section and three tools.** `Oneiroi.Seshat.journal_text/1` is injected as `journal` when the day has a row (seshat #23), rendered on that read; `journal_add`, `journal_done` and `journal_read` are the resident's, and the check-in prompt asks for the plan line at the day's first check-in and the wrap line at the last.
+- **#23 Today's journal is a section and three tools.** `Oneiroi.Seshat.journal_text/1` is injected as `journal` when the day has a row (seshat #23), rendered on that read; `journal_add`, `journal_done` and `journal_read` are the resident's, and the plan and wrap rows are the resident's to write with `journal_add` when she chooses; no check-in asks for them (the witness, 2026-11-03).
 - **#21 Under a lapse the policy's model stands in for the pin, and the lapse is told once.** `Oneiroi.Nisaba.lapse/1` on every turn: its model over the pin and the setting, and `priv/prompts/lapsed.md` captured as a system message by the platform ahead of the turn, once per lapse, naming the model, the free time, the term and the day it began (nisaba #17): orientation without impersonation.
 
 ## #8 Initial vs target

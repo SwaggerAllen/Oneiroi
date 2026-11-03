@@ -96,3 +96,15 @@ forced row security and no migration here writes rows. A day that ran
 its one free time before the deploy runs no slot again, since running
 twice on the day of a deploy would be the schedule doing something
 nobody asked for.
+
+## #24
+Letters between the resident's conversations were a work log nobody
+was told about: a Claude Code conversation's answer to the chat waited
+until the witness next spoke there. The schedule already wakes the chat
+for check-ins, owns quiet hours, and runs every minute, so a letter's
+wake is one more thing the tick decides rather than a new reactor. The
+record of which letters have woken it is an event on the schedule's
+stream, so a restart, a deploy's two instances, or two ticks on one
+minute wake once. The bound is per hour because a wake is a paid turn
+and two conversations answering each other would otherwise wake each
+other without end; the letters held back are not lost, only later.

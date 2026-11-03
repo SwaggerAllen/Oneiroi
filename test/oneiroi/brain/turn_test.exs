@@ -144,6 +144,77 @@ defmodule Oneiroi.Brain.TurnTest do
     assert {:ok, %{last_indexed_at: %DateTime{}}, _span} = Kumbukumbu.bookmark(id, 1)
   end
 
+  # The duplicate of 2026-11-03 (kumbukumbu #47): a deploy's overlap, or a
+  # session process restarted mid-turn, left the new process's memory
+  # empty while the first turn still ran, and the client's retry under
+  # the same ref ran a second turn. The claim is on the stream.
+  test "a retry is a duplicate across a session process's restart while the first turn still runs",
+       ctx do
+    id = ctx.resident.id
+    test_pid = self()
+
+    Fake.script(
+      fn request ->
+        send(test_pid, :running)
+
+        receive do
+          :go -> :ok
+        after
+          5_000 -> :ok
+        end
+
+        {:ok, "Answered " <> List.last(request.messages)[:content] <> "."}
+      end,
+      for: id
+    )
+
+    assert {:ok, %{state: "running"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "once", ctx.actor, "ref-once-00001")
+
+    assert_receive :running, 5_000
+
+    # The session's process goes, as an old instance's does at a deploy;
+    # its turn runs on.
+    [{pid, _}] = Registry.lookup(:brain_registry, {id, ctx.key})
+    GenServer.stop(pid)
+    # The registry lets go of a stopped process a moment after it stops.
+    gone(id, ctx.key, pid)
+
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "once", ctx.actor, "ref-once-00001")
+
+    refute_receive :running, 200
+
+    for task <- Task.Supervisor.children(:brain_turns), do: send(task, :go)
+    assert_receive {:oneiroi, _, {^id, _, {:turn, "ref-once-00001", _}}, _}, 5_000
+  end
+
+  test "a claim is taken once, again only when stale, and never after its capture", ctx do
+    id = ctx.resident.id
+    actor = ctx.actor
+    now = Clock.now()
+    fresh = DateTime.add(now, -60, :second)
+    stale = DateTime.add(now, 1, :second)
+
+    assert :claimed = Kumbukumbu.claim_turn(id, ctx.key, "ref-claim-0001", fresh, actor)
+    assert :duplicate = Kumbukumbu.claim_turn(id, ctx.key, "ref-claim-0001", fresh, actor)
+    # Claimed before `stale_before`, never captured: its turn died; take it again.
+    assert :claimed = Kumbukumbu.claim_turn(id, ctx.key, "ref-claim-0001", stale, actor)
+
+    :ok =
+      Kumbukumbu.capture(
+        id,
+        ctx.key,
+        "ref-claim-0001",
+        now,
+        [%{role: :user, content: "kept", sent_at: now, actor: actor}],
+        Actor.new(:resident, id, "fake/model")
+      )
+
+    # Captured, it is never claimed again, however late the retry.
+    assert :duplicate = Kumbukumbu.claim_turn(id, ctx.key, "ref-claim-0001", stale, actor)
+  end
+
   test "an injection's reason is fitted to its row's width at the write, cut with a mark" do
     assert Turn.fit("short") == "short"
     long = String.duplicate("r", 300)
@@ -359,6 +430,17 @@ defmodule Oneiroi.Brain.TurnTest do
              Oneiroi.Brain.turn(id, ctx.key, "what do you hold?", ctx.actor)
 
     assert {:status, ref, "tool", %{name: "position_list"}} in events(id, ctx.key)
+  end
+
+  defp gone(id, key, pid, tries \\ 50) do
+    case Registry.lookup(:brain_registry, {id, key}) do
+      [{^pid, _}] when tries > 0 ->
+        Process.sleep(10)
+        gone(id, key, pid, tries - 1)
+
+      _gone ->
+        :ok
+    end
   end
 
   defp eventually(read, count, tries \\ 50) do

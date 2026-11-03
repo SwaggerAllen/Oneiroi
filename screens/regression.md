@@ -6,11 +6,13 @@ paths:
 # regression
 
 Regression (spec §10). Built as `Regression` with `RegressionContainer`
-in the shell: the tests, written and edited as three texts side by side;
+in the shell, under More, from `.../regression/tests` and
+`.../regression/runs`: the tests, written and edited as three texts side by side;
 starting a run on models named by their OpenRouter slugs, over every
-test or the ones chosen; the runs, newest first; a run's cards arriving
+test or the ones chosen; the runs, newest first; a run's cards, grouped by trial (a test, or a
+habit or promise the run drew in) and arriving
 over its channel while it answers (eunomia #30), blind until every
-answer to a test is graded, graded pass or fail, favourited, a refusal
+answer to a test is graded, graded pass or fail with buttons, favourited, a refusal
 in its words and a failure as no answer, and under each answer a
 collapsed "How Lily got there" (the resident's name) listing the
 trial's tool calls in order, each marked read or mocked, with its

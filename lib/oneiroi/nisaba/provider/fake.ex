@@ -66,10 +66,11 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @spec calls([map()], String.t(), keyword()) :: :ok
   def calls(calls, reply, opts \\ []) when is_list(calls) and is_binary(reply) do
     script(
-      fn %Request{messages: messages, tools: tools} ->
-        if tools == [] or Enum.any?(messages, &(&1[:role] == :tool)),
-          do: {:ok, reply},
-          else: {:calls, calls}
+      fn %Request{messages: messages, tools: tools} = request ->
+        if tools == [] or request.tool_choice == "none" or
+             Enum.any?(messages, &(&1[:role] == :tool)),
+           do: {:ok, reply},
+           else: {:calls, calls}
       end,
       opts
     )

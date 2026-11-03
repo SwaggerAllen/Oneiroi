@@ -210,6 +210,9 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
     |> put_unless_nil(:max_tokens, request.max_tokens)
     |> put_unless_nil(:temperature, request.temperature)
     |> put_unless_empty(:tools, request.tools)
+    |> then(
+      &if(request.tool_choice, do: Map.put(&1, :tool_choice, request.tool_choice), else: &1)
+    )
   end
 
   @doc "A result from a non-streaming response body; public for the same reason as `body/2`."

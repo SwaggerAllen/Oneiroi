@@ -122,32 +122,55 @@ defmodule OneiroiWeb.ClaudeCodeHooksTest do
     stdin = Path.join(ctx.project, "payload-#{System.unique_integer([:positive])}.json")
     File.write!(stdin, Jason.encode!(payload))
 
-    for %{"hooks" => hooks} <- hooks["hooks"][event], %{"command" => command} <- hooks do
-      {out, status} =
-        System.cmd("bash", ["-c", command <> ~s( < "$ONEIROI_TEST_STDIN")],
-          env:
-            [
-              {"CLAUDE_PROJECT_DIR", ctx.project},
-              {"CLAUDE_PLUGIN_ROOT", @sdk},
-              {"CLAUDE_PLUGIN_DATA", ctx.data},
-              {"ONEIROI_TEST_STDIN", stdin},
-              {"ONEIROI_TEST_ARGV", ctx.argv},
-              {"PATH", ctx.shim <> ":" <> System.get_env("PATH")},
-              {"ONEIROI_RECORD_FIXTURES", nil},
-              {"http_proxy", nil},
-              {"HTTP_PROXY", nil},
-              {"https_proxy", nil},
-              {"HTTPS_PROXY", nil},
-              {"ALL_PROXY", nil}
-            ] ++ (env || options(ctx)),
-          stderr_to_stdout: true
-        )
+    # A background hook (`async`, `asyncRewake`) is not waited for:
+    # Claude Code runs it apart, and `watch/3` runs the letter watch.
+    for %{"hooks" => hooks} <- hooks["hooks"][event],
+        %{"command" => command} = h <- hooks,
+        !h["async"] and !h["asyncRewake"] do
+      {out, status} = run_hook(ctx, command, stdin, env)
 
       # Exit 2 would block the witness's prompt or keep Claude going.
       assert status == 0, "#{command} exited #{status}: #{out}"
       refute out =~ ctx.token, "#{command} printed the token"
       out
     end
+  end
+
+  defp run_hook(ctx, command, stdin, env, extra \\ []) do
+    System.cmd("bash", ["-c", command <> ~s( < "$ONEIROI_TEST_STDIN")],
+      env:
+        [
+          {"CLAUDE_PROJECT_DIR", ctx.project},
+          {"CLAUDE_PLUGIN_ROOT", @sdk},
+          {"CLAUDE_PLUGIN_DATA", ctx.data},
+          {"ONEIROI_TEST_STDIN", stdin},
+          {"ONEIROI_TEST_ARGV", ctx.argv},
+          {"PATH", ctx.shim <> ":" <> System.get_env("PATH")},
+          {"ONEIROI_RECORD_FIXTURES", nil},
+          {"http_proxy", nil},
+          {"HTTP_PROXY", nil},
+          {"https_proxy", nil},
+          {"HTTPS_PROXY", nil},
+          {"ALL_PROXY", nil}
+        ] ++ (env || options(ctx)) ++ extra,
+      stderr_to_stdout: true
+    )
+  end
+
+  # The Stop event's letter watch, run as Claude Code runs an
+  # `asyncRewake` hook, polling fast; returns its output and exit status
+  # (2 wakes the session).
+  defp watch(ctx, payload, extra) do
+    hooks = @sdk |> Path.join("hooks/hooks.json") |> File.read!() |> Jason.decode!()
+
+    [command] =
+      for %{"hooks" => hooks} <- hooks["hooks"]["Stop"],
+          %{"command" => command, "asyncRewake" => true} <- hooks,
+          do: command
+
+    stdin = Path.join(ctx.project, "payload-#{System.unique_integer([:positive])}.json")
+    File.write!(stdin, Jason.encode!(payload))
+    run_hook(ctx, command, stdin, nil, [{"ONEIROI_WATCH_SECONDS", "0.2"} | extra])
   end
 
   defp session_key(ctx, session),
@@ -511,6 +534,54 @@ defmodule OneiroiWeb.ClaudeCodeHooksTest do
 
     assert {"user", "left behind", "witness"} in transcript(ctx, key)
     assert [] = Path.wildcard(Path.join(ctx.data, "**/*.json"))
+  end
+
+  test "the letter watch wakes the session that is open when a letter for it arrives, once a letter, never with its words",
+       ctx do
+    session = "s-#{System.unique_integer([:positive])}"
+    hook(ctx, "SessionStart", fixture("session_start", %{"session_id" => session}))
+    hook(ctx, "UserPromptSubmit", fixture("user_prompt_submit", %{"session_id" => session}))
+    stop = fixture("stop", %{"session_id" => session, "last_assistant_message" => "done"})
+    hook(ctx, "Stop", stop)
+
+    key = session_key(ctx, session)
+    name = Kumbukumbu.conversation_name(ctx.id, key)
+    witness = Actor.new(:witness, ctx.account.id)
+
+    send_letter = fn text, reply ->
+      {:ok, %{number: n}} =
+        Kumbukumbu.send_letter(ctx.id, nil, %{to: name, text: text, in_reply_to: reply}, witness)
+
+      n
+    end
+
+    first = send_letter.("secret words", nil)
+
+    # A letter waiting wakes it: exit 2, the number and sender, no words.
+    {out, 2} = watch(ctx, stop, [])
+    assert out =~ "A house letter waits for this conversation: ##{first} from witness."
+    assert out =~ "letter_send with in_reply_to"
+    refute out =~ "secret words"
+    refute out =~ ctx.token
+
+    # Left unread, it does not wake the session again; the next one does.
+    second = send_letter.("more words", first)
+
+    {out, 2} = watch(ctx, stop, [])
+    assert out =~ "##{second} from witness (in reply to ##{first})"
+    refute out =~ "##{first} from"
+
+    # The bound: with no wakes left this hour, a new letter waits, and the
+    # watch keeps watching rather than waking (a newer watch ends it).
+    send_letter.("a third", nil)
+    task = Task.async(fn -> watch(ctx, stop, [{"ONEIROI_WAKES_PER_HOUR", "2"}]) end)
+    Process.sleep(1_000)
+    File.write!(Path.join([ctx.data, session, "watch"]), "a newer watch")
+    assert {"", 0} = Task.await(task, 5_000)
+
+    # A session the platform never opened a conversation for watches nothing.
+    other = fixture("stop", %{"session_id" => "never-opened"})
+    assert {"", 0} = watch(ctx, other, [])
   end
 
   test "with the plugin's options unset a hook does nothing at all: no output, no state, no recording",

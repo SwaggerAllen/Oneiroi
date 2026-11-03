@@ -138,3 +138,10 @@ intimate room read out in business is the leak Red described, through
 a door the index does not guard. The habit stays matched because the
 disposition is the person's everywhere; only the quoted moment is
 held.
+
+## #20
+A habit's name is a label the brain's section and the index print, and
+its column is `varchar(255)`. A stored event has to project, so the
+limit sits on the command, which can still refuse; the 2026-11-03
+outage was a projection meeting a value its column could not hold
+(conventions §6). 120 is a guess at a label, not a measure.

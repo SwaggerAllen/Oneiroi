@@ -325,7 +325,7 @@ defmodule Oneiroi.Brain.Turn do
   # the model's last words stand as the reply.
   defp converse(turn, messages, round) do
     request = Request.new(turn.model, messages, tools: Tools.definitions())
-    rounds = Config.fetch!(:brain, :tool_rounds)
+    rounds = rounds(turn)
 
     case ask(turn, request) do
       {:ok, %Result{tool_calls: [_ | _] = calls} = result} ->
@@ -348,6 +348,22 @@ defmodule Oneiroi.Brain.Turn do
 
             converse(turn, messages ++ [assistant | results], round + 1)
 
+          # The rounds are spent (brain #50): words the model wrote with
+          # its last calls stand; with none, the calls are run and it is
+          # asked once more, able to call nothing, for its answer from
+          # what it has, so a turn that read until the bound still says
+          # something rather than nothing.
+          blank?(result.content) ->
+            {results, turn} = run_tools(turn, calls)
+
+            assistant = %{
+              role: :assistant,
+              content: result.content,
+              tool_calls: wire_calls(calls)
+            }
+
+            last_word(turn, messages ++ [assistant | results])
+
           true ->
             {{:ok, result}, turn}
         end
@@ -356,6 +372,27 @@ defmodule Oneiroi.Brain.Turn do
         {other, turn}
     end
   end
+
+  defp last_word(turn, messages) do
+    nudge = %{role: :user, content: Prompt.render!("tool_rounds_spent")}
+
+    request =
+      Request.new(turn.model, messages ++ [nudge],
+        tools: Tools.definitions(),
+        tool_choice: "none"
+      )
+
+    case ask(turn, request) do
+      {:ok, %Result{} = result} -> {{:ok, %{result | tool_calls: []}}, turn}
+      other -> {other, turn}
+    end
+  end
+
+  # The oracle reads for a long question and has rounds of its own.
+  defp rounds(%{oracle?: true}), do: Config.fetch!(:brain, :oracle_tool_rounds)
+  defp rounds(_turn), do: Config.fetch!(:brain, :tool_rounds)
+
+  defp blank?(content), do: not is_binary(content) or String.trim(content) == ""
 
   # A cut answer names the oracle (brain #49), the size trigger: the
   # question is still hers to name, so nothing is dispatched for her.
@@ -1050,7 +1087,7 @@ defmodule Oneiroi.Brain.Turn do
         from = waiting |> Enum.map(& &1.from_name) |> Enum.uniq() |> Enum.join(", ")
 
         text =
-          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send answers."
+          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send with in_reply_to answers each in its thread."
 
         # The text rides the row, as the index's does: it is a count and
         # names, nothing of the letters, and the inspector shows it.

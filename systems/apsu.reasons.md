@@ -92,3 +92,17 @@ not measured: 8 x 32 calls at 120 s is 512 minutes, and no run's
 length has been measured. An orphaned job waits the whole bound out. A
 shorter bound would rescue a live run and answer it twice on the
 witness's key.
+
+## #21
+Commanded's default for a handler error is to stop. On 2026-11-03 a
+provider's refusal of some 330 characters overflowed a `varchar(255)`
+column; the projector stopped, its supervisor restarted it onto the same
+event until it gave up, and the app went down with it: every resident
+offline for an hour. One projection an event behind is a bug to replay;
+the platform down is everyone's day.
+
+## #22
+The same outage: the column was `:string` because Ecto's default is
+`varchar(255)`, a limit nobody chose. A limit at the projection is a
+crash at the projection, because a stored event has to project; so the
+limit, where one is wanted, sits on the command, which can still refuse.

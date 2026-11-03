@@ -175,6 +175,7 @@ defmodule OneiroiWeb.ContractTest do
     {"POST", "/v1/residents/:id/turn-start"},
     {"POST", "/v1/residents/:id/turns"},
     {"GET", "/v1/residents/:id/context"},
+    {"GET", "/v1/residents/:id/sessions/:key/letters"},
     # The inbound hands' three (xenia #11), held to the reader role by
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},
@@ -233,6 +234,38 @@ defmodule OneiroiWeb.ContractTest do
       |> json_response(201)
 
     assert Map.keys(witness_start) == ["turn_ref"]
+  end
+
+  test "an adapter reads which letters wait for its conversation, by number and sender, without reading them",
+       ctx do
+    id = ctx.resident.id
+    actor = Oneiroi.Actor.new(:witness, ctx.account.id)
+    {:ok, adapter} = Oneiroi.AgathosDaimon.register_adapter(id, "laptop", "brain", actor)
+    as_adapter = &put_req_header(&1, "authorization", "Bearer " <> adapter)
+
+    %{"key" => key} =
+      ctx.conn
+      |> as_adapter.()
+      |> post("/v1/residents/#{id}/sessions", %{kind: "main", label: "Oneiroi"})
+      |> json_response(201)
+
+    waiting = fn ->
+      ctx.conn |> as_adapter.() |> get("/v1/residents/#{id}/sessions/#{key}/letters")
+    end
+
+    assert %{"letters" => []} = waiting.() |> json_response(200)
+
+    name = Oneiroi.Kumbukumbu.conversation_name(id, key)
+
+    {:ok, %{number: n}} =
+      Oneiroi.Kumbukumbu.send_letter(id, nil, %{to: name, text: "secret words"}, actor)
+
+    body = waiting.() |> json_response(200)
+    assert %{"letters" => [%{"number" => ^n, "from" => "witness", "in_reply_to" => nil}]} = body
+    refute Jason.encode!(body) =~ "secret words"
+
+    # Polling marks nothing read: the letter still waits.
+    assert [%{number: ^n}] = Oneiroi.Kumbukumbu.inbox(id, key)
   end
 
   test "the conversation routes are the witness's: open, send, read, search, resolve, and an adapter's capture",

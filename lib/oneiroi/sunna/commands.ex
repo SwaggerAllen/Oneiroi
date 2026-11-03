@@ -52,6 +52,13 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :hour]
   end
 
+  # A letter's wake (sunna #24): the letters waiting for the Oneiroi
+  # chat that a conversation sent it; `limit` is how many such wakes an
+  # hour allows.
+  defmodule WakeForLetters do
+    use Oneiroi.Command, fields: [:id, :numbers, :limit]
+  end
+
   defmodule RemoveDate do
     use Oneiroi.Command, fields: [:id, :number]
   end

@@ -106,6 +106,12 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :hour]
   end
 
+  defmodule LettersWoke do
+    # A letter's wake (sunna #24): the Oneiroi chat woken for these
+    # letters, each once, before the wake runs.
+    use Oneiroi.Event, version: 1, fields: [:id, :numbers]
+  end
+
   defmodule DateRemoved do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end

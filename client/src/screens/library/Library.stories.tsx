@@ -38,12 +38,24 @@ const documents: LibraryDocument[] = [
   }),
 ];
 
+// The server's shelf (seshat #35), as the library endpoint gives it.
+const shelf = [
+  ['keepsake', 'Keepsakes'],
+  ['human', 'Yours'],
+  ['writing', 'Writing'],
+  ['design', 'Design'],
+  ['research', 'Research'],
+  ['oracle', 'The oracle'],
+  ['scratch', 'Scratch'],
+].map(([kind, label], position) => ({ kind, label, position }));
+
 const meta = {
   title: 'Screens/Library',
   component: Library,
   args: {
     residentName: 'Lily',
     documents,
+    shelf,
     onOpen: () => undefined,
     onClose: () => undefined,
     onAdd: () => undefined,

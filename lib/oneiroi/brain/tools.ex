@@ -528,11 +528,16 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations): to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. A name no conversation answers to is refused, with the names there are.",
+        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. A name no conversation answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
-          in_reply_to: %{type: "integer", minimum: 1},
+          in_reply_to: %{
+            type: "integer",
+            minimum: 1,
+            description:
+              "The number of the letter this answers; its thread. Leave it out only to start a new thread."
+          },
           keepsake: %{type: "string"}
         },
         [:to, :text]
@@ -629,7 +634,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "journal_add",
-        "Add a row to your journal for today (or a given ISO day): a plan line at the day's first check-in, notes and todos as the day goes, a wrap line of what actually happened at the last; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them. The text has no length limit and is kept whole; your turn's journal section shows an entry over 2,000 characters by its summary (at most 2,000, yours to write) or, without one, by its opening.",
+        "Add a row to your journal for today (or a given ISO day): a plan line for the day, notes and todos as it goes, a wrap line of what actually happened; register, when the row records a correction, praise, an instruction or play. Rows are the record; the day's file is rendered from them. The text has no length limit and is kept whole; your turn's journal section shows an entry over 2,000 characters by its summary (at most 2,000, yours to write) or, without one, by its opening.",
         %{
           kind: %{type: "string", enum: ["plan", "note", "todo", "wrap"]},
           text: %{type: "string"},
@@ -1427,7 +1432,7 @@ defmodule Oneiroi.Brain.Tools do
 
     case Seshat.oracles(turn.resident_id, opts) do
       [] -> "No oracle question matches."
-      rows -> Enum.map_join(rows, "\n", &oracle_line/1)
+      rows -> Enum.map_join(rows, "\n", &oracle_line(&1, turn.resident_id))
     end
   end
 
@@ -2353,7 +2358,11 @@ defmodule Oneiroi.Brain.Tools do
           "\n(It gives you the keepsake #{l.keepsake}; keepsake_note says why it matters to you.)",
         else: ""
 
-    letter_head(l) <> ":\n" <> l.text <> gift
+    # Answered in its thread, not as a new one (the witness, 2026-11-03:
+    # every answer had started a thread of its own).
+    letter_head(l) <>
+      ":\n" <>
+      l.text <> gift <> "\n(Answer in this thread: letter_send with in_reply_to: #{l.number}.)"
   end
 
   defp letter_line(l) do
@@ -2516,8 +2525,18 @@ defmodule Oneiroi.Brain.Tools do
       "Each answer is written under oracle/ and this conversation gets a letter when it lands."
   end
 
-  defp oracle_line(o) do
-    asked = "asked by the #{o.asked_by}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}"
+  # Who wanted to know (the resident's floor ask, letter #15): the asker
+  # and the conversation they asked from, so a dispatch can be pointed at.
+  defp oracle_line(o, resident_id) do
+    from =
+      case Kumbukumbu.conversation_name(resident_id, o.session_key) do
+        nil -> ""
+        name -> " from #{name}"
+      end
+
+    asked =
+      "asked by the #{o.asked_by}#{from}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}" <>
+        if(o.model, do: ", read by #{o.model}", else: "")
 
     settled =
       if o.path,

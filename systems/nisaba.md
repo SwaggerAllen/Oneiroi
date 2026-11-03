@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/nisaba/**
   - lib/oneiroi/nisaba.ex
   - lib/oneiroi_web/controllers/ledger_controller.ex
+  - lib/oneiroi_web/controllers/subscription_controller.ex
   - priv/prompts/**
   - priv/repo/migrations/*_nisaba.exs
   - test/oneiroi/nisaba/**
@@ -29,15 +30,20 @@ request and result shapes, the OpenRouter implementation over Req and
 the in-memory fake); the ledger aggregate on `ledger-<resident_id>` and
 its v1 events (`BudgetSet`, `ModelCallRecorded`, `BudgetExceeded`); the
 `nisaba_budget` and `nisaba_usage` projections under the resident's
-scope; the prompt loader over `priv/prompts/`; the `model_port` and
-`prompts` audit checks; the `/v1/residents/:id/ledger` routes. The
+scope; the closed list of purposes a call is billed under
+(`Oneiroi.Nisaba.Purpose`, #4); the subscription aggregate on
+`subscription-<resident_id>`, its events, the `nisaba_subscription`
+projection and the insurance buckets (#15, #16); `SubscriptionWorker`
+(#18); the prompt loader over `priv/prompts/`; the `model_port` and
+`prompts` audit checks; the `/v1/residents/:id/ledger` and
+`/v1/residents/:id/subscription` routes. The
 witness's key is identity's (`systems/gaia.md` #11): the ledger reads
 it through `Oneiroi.Gaia.key_for/1` and holds no copy.
 
 ## #2 Standing decisions
 
 - **#3 One OpenRouter key per witness, encrypted at rest; budget lines per resident, checked before every model call; a stop is an event the resident is told about honestly.** Carried from spec §6.11. The check reads the line and the period's spend from the projection before the provider is called; the stop is written by the aggregate on the call that crossed the cap, once per period.
-- **#4 Every model call records model, tokens, the cost figure and the actor; drafting and regression spend is billed to the witness and hidden only from the resident's view.** Carried from spec §6.11. `budgets/2` and `spend/4` take a view, and the resident's omits the two purposes.
+- **#4 Every model call records model, tokens, the cost figure and the actor; drafting and regression spend is billed to the witness and hidden only from the resident's view.** Carried from spec §6.11. `budgets/2` and `spend/4` take a view, and the resident's omits the two purposes. The purposes are eight, in the order the screen lists them: `chat`, `free_time`, `judge`, `hands`, `embeddings`, `oracle`, `drafting`, `regression`; `oracle` is the resident's own long reads on her pinned model (brain #49), hers to see and budget.
 - **#5 Insurance is policy on four axes cut into buckets; the floor includes free time; buckets are rows a governance process can change within platform bounds, never code.** Carried from spec §6.11; the data lands with the subscription in P2.
 - **#9 The ledger has its own stream, `ledger-<resident_id>`.** Spec §3.1 places the ledger's events "within `resident-<id>`"; Commanded holds one aggregate per stream, and a ledger writes a row per model call, the resident's own volume. The records bookkeeping of P0 sits on the resident stream because it is a few events a night; the ledger's are not. The records export reads the resident stream only, so the ledger is not exported yet: what an export of spend would carry, with the two hidden purposes, is an open question for the author rather than a line to write.
 - **#10 Money is an integer count of nano-dollars.** OpenRouter reports costs with more places than a cent and a float in an event replays differently on another machine. The API speaks dollars as decimal strings.

@@ -18,7 +18,9 @@ defmodule Oneiroi.Sunna.Schedule do
     quiet: nil,
     dates: %{},
     days: MapSet.new(),
-    hours: MapSet.new()
+    hours: MapSet.new(),
+    letters_woken: MapSet.new(),
+    letter_wakes: []
   ]
 
   @hour ~r/\A\d{4}-\d{2}-\d{2}T([01]\d|2[0-3])\z/
@@ -153,6 +155,21 @@ defmodule Oneiroi.Sunna.Schedule do
 
       true ->
         %Events.HourMarked{actor: c.actor, at: c.at, id: c.id, hour: c.hour}
+    end
+  end
+
+  # A letter's wake (sunna #24): each letter wakes the chat once, and at
+  # most `limit` wakes in the hour before the command's instant; a letter
+  # held back by the bound is taken by a later tick.
+  def execute(%__MODULE__{} = s, %Commands.WakeForLetters{} = c) do
+    fresh = c.numbers |> Enum.reject(&MapSet.member?(s.letters_woken, &1)) |> Enum.sort()
+    hour_ago = DateTime.add(c.at, -3600, :second)
+    recent = Enum.count(s.letter_wakes, &(DateTime.compare(&1, hour_ago) == :gt))
+
+    cond do
+      fresh == [] -> []
+      recent >= c.limit -> []
+      true -> %Events.LettersWoke{actor: c.actor, at: c.at, id: c.id, numbers: fresh}
     end
   end
 
@@ -321,6 +338,19 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.HourMarked{} = e),
     do: %{s | id: e.id, hours: MapSet.put(s.hours, e.hour)}
+
+  def apply(%__MODULE__{} = s, %Events.LettersWoke{} = e) do
+    hour_ago = DateTime.add(e.at, -3600, :second)
+
+    %{
+      s
+      | id: e.id,
+        letters_woken: MapSet.union(s.letters_woken, MapSet.new(e.numbers)),
+        letter_wakes: [
+          e.at | Enum.filter(s.letter_wakes, &(DateTime.compare(&1, hour_ago) == :gt))
+        ]
+    }
+  end
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeScheduled{} = e),
     do: %{s | id: e.id, free_times: e.times || List.wrap(e.time)}

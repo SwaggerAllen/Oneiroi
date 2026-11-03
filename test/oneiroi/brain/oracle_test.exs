@@ -99,7 +99,7 @@ defmodule Oneiroi.Brain.OracleTest do
 
         if Enum.any?(messages, &(&1[:role] == :tool)) do
           {:ok,
-           "At dawn, by the weir: bookmark #1.\nUsed: bookmark/1\nConfidence: high, it is in the bookmark itself."}
+           "At dawn, by the weir: bookmark #1.\nNot asked: whether it mattered to you then.\nUsed: bookmark/1\nConfidence: high, it is in the bookmark itself."}
         else
           {:calls,
            [
@@ -135,6 +135,8 @@ defmodule Oneiroi.Brain.OracleTest do
     assert {:ok, %{content: content}} = Seshat.read(ctx.id, path)
     assert content =~ "# When did the heron first come up?"
     assert content =~ "asked by the resident"
+    assert content =~ "Not asked: whether it mattered to you then."
+    refute content =~ "the reading did not say what its question left out"
     assert content =~ "Sources: bookmark/1. Confidence: high"
 
     assert Enum.any?(
@@ -147,6 +149,9 @@ defmodule Oneiroi.Brain.OracleTest do
     assert [%{read: read, used: ["bookmark/1"]}] = Seshat.oracles(ctx.id, used: "bookmark/1")
     assert "bookmark/1" in read
     assert [%{number: 1}] = Seshat.oracles(ctx.id, read: "bookmark/1")
+    listed = Tools.run("oracle_list", ~s({"used":"bookmark/1"}), ctx.turn)
+    assert listed =~ "read by fake/model"
+    assert listed =~ ~r/asked by the resident from [^,]+,/
     assert [] = Seshat.oracles(ctx.id, used: "bookmark/9")
 
     assert [%{target: "bookmark/1", returned: returned, used: used}] =
@@ -199,6 +204,62 @@ defmodule Oneiroi.Brain.OracleTest do
 
     assert [%{status: "answered", confidence: "medium, from the notes."}] =
              Seshat.oracles(ctx.id, [])
+  end
+
+  # Lily's letter #21: two heavier questions came back brain_oracle_silent,
+  # the reading having spent its tool rounds and written no words.
+  test "a reading that spends every tool round is asked for its answer from what it read (brain #50)",
+       ctx do
+    ask(ctx, [%{question: "Everything about the heron?"}])
+    test = self()
+
+    Fake.script(
+      fn request ->
+        if request.tool_choice == "none" do
+          send(test, {:last_word, request.messages})
+          {:ok, "Dawn, by the weir.\nUsed: bookmark/1\nConfidence: medium, read until the bound."}
+        else
+          {:calls, [%{name: "bookmark_open", arguments: %{number: 1}}]}
+        end
+      end,
+      for: ctx.id
+    )
+
+    assert :ok = Oracle.run(ctx.id, 1)
+    assert_received {:last_word, messages}
+    assert List.last(messages).content =~ "You have used every round of tool calls"
+    # The last round's calls were run before it was asked.
+    assert List.last(Enum.filter(messages, &(&1[:role] == :tool))).content =~ "the heron"
+
+    rounds = Oneiroi.Config.fetch!(:brain, :oracle_tool_rounds)
+    assert rounds > Oneiroi.Config.fetch!(:brain, :tool_rounds)
+    assert length(Enum.filter(messages, &(&1[:role] == :tool))) == rounds + 1
+
+    assert [%{status: "answered", confidence: "medium" <> _}] = Seshat.oracles(ctx.id, [])
+  end
+
+  test "a reading that still says nothing fails with a diagnosis, not one word", ctx do
+    ask(ctx, [%{question: "Anything at all?"}])
+
+    Fake.script(
+      fn request ->
+        if request.tool_choice == "none",
+          do: {:ok, ""},
+          else: {:calls, [%{name: "bookmark_open", arguments: %{number: 1}}]}
+      end,
+      for: ctx.id
+    )
+
+    assert :ok = Oracle.run(ctx.id, 1)
+    assert [%{status: "failed", reason: reason}] = Seshat.oracles(ctx.id, [])
+    assert reason =~ "the oracle's reading answered no words (ended: "
+    assert reason =~ "tool_calls: "
+    assert reason =~ "ask the question again"
+
+    assert Enum.any?(
+             Kumbukumbu.letters(ctx.id),
+             &(&1.from_name == "the oracle" and &1.text =~ "answered no words (ended: ")
+           )
   end
 
   test "a reading that fails is recorded as failed, and the conversation is told so", ctx do

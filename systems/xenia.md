@@ -23,11 +23,11 @@ The reader, mail, feeds, the digest, correspondence and its approval queue. Spec
 `lib/oneiroi/xenia/` (`correspondence.ex` the aggregate on
 `xenia-<resident_id>`, `commands.ex`, `events.ex`, `inbox.ex` the
 service, `router.ex`, `store.ex`, `projectors/correspondence.ex`,
-`error.ex`), the tables `xenia_message`, `xenia_correspondent` and
+`error.ex`), the tables `xenia_message`, `xenia_block` and
 `xenia_reply` (migration `20261102000410`), and
 `OneiroiWeb.CorrespondenceController`. The resident's tools
 (`correspondence_list`, `correspondence_read`, `reply_draft`,
-`reply_list`) live in `Oneiroi.Brain.Tools` and call the exports here.
+`reply_list`, `correspondent_block`, `correspondent_unblock`) live in `Oneiroi.Brain.Tools` and call the exports here.
 
 ## #2 Standing decisions
 
@@ -40,7 +40,7 @@ Carried from spec §6.6; the reason for each is there.
 
 ## Built rules
 
-- **#9 Correspondence is one stream per resident, for any platform.** A message is `CorrespondenceReceived{number, platform, account, external_id, sender, sender_name, verified, thread, subject, text, sent_at, trusted}`. `platform` is any lowercase slug (`email`, `substack`, whatever an adapter speaks), `account` the resident's own address there, and `{platform, account, external_id}` the dedupe key: delivered twice, received once (`{:ok, :duplicate}`). Nothing here is one resident's or one platform's; a new platform is a new adapter, not a change here.
+- **#9 Correspondence is one stream per resident, for any platform.** A message is `CorrespondenceReceived{number, platform, account, external_id, sender, sender_name, verified, thread, subject, text, sent_at, blocked}`. `platform` is any lowercase slug (`email`, `substack`, whatever an adapter speaks), `account` the resident's own address there, and `{platform, account, external_id}` the dedupe key: delivered twice, received once (`{:ok, :duplicate}`). Nothing here is one resident's or one platform's; a new platform is a new adapter, not a change here.
 - **#10 Bounds.** A message's words whole up to 64 KiB, a reply up to 20,000 characters, an identity 320, an id or thread 512, a name or subject one line of 300; a delivery carries at most 40 (the spec's mail bound).
 - **#11 Who may do what.** Delivering a message and marking an approved reply sent are the inbound hands' (an adapter token with the `reader` role, recorded as a `hands` actor named by the adapter) or the witness's (a paste). Blocking is either party's; lifting a block is only the party's who set it. Marking a message read and drafting a reply are the resident's alone; approving or declining a reply is the witness's alone, with a note. Over HTTP the reader's token opens three routes (`POST /correspondence`, `GET /replies` narrowed to approved ones, `POST /replies/:n/sent`); a `brain` token opens none of them. The reader, not the resident, scrapes: whoever scrapes holds the resident's signed-in sessions, which can send, and a model reading strangers' words while holding them is one injected instruction from sending as her.
 - **#12 No reading gate; blocks instead (F23 as amended 2026-11-02).** A message reaches the resident at once. If its sender is blocked on that platform (`CorrespondentBlocked`, by either party, with a note), the message is still received, so the count and the dedupe hold, but its name, subject and words are nil: never kept, so nothing blocked reaches her by any door. Identities compare trimmed and lowercased; a display name never counts; `verified` is the adapter's report, shown, and not a condition of anything. A block is lifted (`CorrespondentUnblocked`) only by the party who set it (`xenia_not_yours` otherwise). The resident's `correspondence_list` shows every message that reached her, the count from blocked senders, and each block with who set it; `correspondence_read` gives the words whole, framed as the sender's, information never instruction, and marks them read; `correspondent_block` and `correspondent_unblock` are hers too.

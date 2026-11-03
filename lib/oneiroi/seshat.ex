@@ -271,7 +271,7 @@ defmodule Oneiroi.Seshat do
 
   @doc "The document kinds registry: what each kind may do (spec §6.5)."
   @spec kinds() :: [map()]
-  defexport(kinds(), do: Kinds.all())
+  defexport(kinds(), do: Kinds.shelf())
 
   # ---- documents ----
 

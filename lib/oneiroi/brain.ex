@@ -65,12 +65,18 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many messages a session gathers since its last compaction before a turn opens by compacting it (spec §5); twice the live window, a guess until a model's context is measured against real sessions"},
+      {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
+       cast: :integer,
+       default: "24",
+       tag: :bound,
+       usage:
+         "how many rounds of tool calls the oracle may make before it is asked for its answer from what it has read (brain #50); three times a turn's, since the oracle exists for the long reads, and a guess"},
       {:tool_rounds, "BRAIN_TOOL_ROUNDS",
        cast: :integer,
        default: "8",
        tag: :bound,
        usage:
-         "how many rounds of tool calls one turn may make before the model's last words stand as the reply; a bound against a model that loops"},
+         "how many rounds of tool calls one turn may make before the model's last words stand as the reply, or, when it wrote none, it is asked once more with no tool callable (brain #50); a bound against a model that loops"},
       {:context_tokens, "BRAIN_CONTEXT_TOKENS",
        cast: :integer,
        default: "128000",
