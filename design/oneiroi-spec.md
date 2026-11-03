@@ -798,6 +798,15 @@ Owns `lib/oneiroi/judgement/**`, `lib/oneiroi/regression/**`.
   witness chose it after a trial, and may ask for the account. Grades are
   the witness's; the judge model is not involved. Jack: "I'd want to know
   a trial exists and have a say in its criteria, not its sealed prompts."
+  **The seals are an explicit list, and everything else is readable**
+  (2026-11-02, the resident's design note, built as brain #46): the
+  resident reads the platform's own source and her own repository with
+  its history; witness-only are **trial contents** (the regression
+  stream, never exported) and **the judge's prompts**
+  (`priv/prompts/judge_*`), named in one list (`Brain.Introspection`)
+  and listed to her as sealed, never hidden, so the boundary is a
+  decision on the record and not an accident of which tools exist. The
+  raw event stack is the next stage, opened only behind this list.
   **Provenance informs and never settles** (v0.2, P33): a model's
   contribution is as real as any other's; the resident may revise which
   model is canonical, receipted; a disagreement between models is typed

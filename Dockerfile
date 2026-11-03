@@ -16,6 +16,14 @@ RUN mix local.hex --force && mix local.rebar --force
 # buys little and breaks whenever the project list grows.
 COPY . .
 
+# The platform's own source, for the resident to read the code running
+# her (brain #46): taken before anything is built into the tree, the
+# code, its docs and its tests, never deps or build output (the
+# .dockerignore keeps those out of the context too).
+RUN mkdir -p /source && \
+    cp -r --parents lib systems design screens config test priv/prompts priv/repo \
+      sdk components client/src mix.exs README.md CLAUDE.md /source/
+
 RUN mix deps.get --only prod
 
 # GIT_SHA: /health reports it and deploy detection runs SHA ancestry
@@ -51,6 +59,8 @@ ENV LANG=C.UTF-8 MIX_ENV=prod
 WORKDIR /app
 COPY --from=build /app/_build/prod/rel/oneiroi ./
 COPY --from=build /app/GIT_SHA /app/GIT_SHA
+COPY --from=build /source /app/source
+ENV BRAIN_SOURCE_DIR=/app/source
 
 # Migrations run here, in the container's own start command, ahead of
 # `start`, through `Oneiroi.Release.migrate`: a separate pre-deploy job

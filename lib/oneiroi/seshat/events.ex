@@ -25,6 +25,13 @@ defmodule Oneiroi.Seshat.Events do
     def upcast(event, _metadata), do: event
   end
 
+  defmodule DocumentRemoved do
+    # A document of a removable kind (scratch, human) taken out of the
+    # library (seshat #33), by whom: the file leaves the repository and
+    # the event is what stays of it, never its content.
+    use Oneiroi.Event, version: 1, fields: [:id, :path, :kind]
+  end
+
   defmodule PiecePublished do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end

@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Nisaba,
       Oneiroi.Proteus,
       Oneiroi.Seshat,
+      Oneiroi.SimaQian,
       Oneiroi.Sunna,
       Oneiroi.Xenia,
       Jason
@@ -86,6 +87,10 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many characters of a document one library_read answers before it says where the next page starts (brain #43): about 3,000 tokens at four bytes a token, a guess at what one read may take of a turn's context, not measured"},
+      {:source_dir, "BRAIN_SOURCE_DIR",
+       default: ".",
+       usage:
+         "where the platform's own source is, for the resident to read the code running her (brain #46): the image copies it to /app/source and sets this; a checkout's root otherwise"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",
@@ -98,9 +103,12 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def errors do
     [
-      {:brain_turn_failed, "the turn did not complete and nothing was captured for it",
+      {:brain_turn_failed,
+       "the turn did not complete: the witness's words were kept and no reply was captured (brain #45)",
        remedy:
-         "the provider failure is recorded as a capture failure on the session; retry the message"},
+         "the provider failure is recorded as a capture failure on the session; send the message again"},
+      {:brain_turn_crashed, "the turn's process stopped before it answered",
+       remedy: "send the message again; the session's next message still runs"},
       {:brain_budget_stopped,
        "the budget line is spent: the message and a notice saying so were captured, and no reply was asked for",
        remedy:
@@ -111,13 +119,22 @@ defmodule Oneiroi.Brain do
        remedy: "draft one of the identity files the resident system names"},
       {:brain_summary_empty, "the model answered the compaction with no words",
        remedy: "nothing was compacted; the next turn tries again"},
+      {:brain_path_invalid,
+       "a path in the source or the repository is relative and plain: no .., no absolute path, no .git or build output",
+       remedy: "name the file from the root, as the listing shows it"},
+      {:brain_path_absent, "nothing is at that path", remedy: "list the folder first"},
+      {:brain_path_sealed,
+       "the file is sealed: the judge's prompts are witness-only, by an explicit list (brain #46)",
+       remedy: "ask the witness; the list itself is in the spec and open to argument"},
+      {:brain_path_binary, "the file is not text", remedy: "read a text file"},
       {:brain_session_unavailable, "the session's process could not be started",
        remedy: "retry the message; the log line carries the cause"}
     ]
   end
 
   @impl Oneiroi.Component
-  def processes, do: [{:brain_registry, :local}, {:brain_sessions, :local}]
+  def processes,
+    do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
 
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session]
@@ -126,9 +143,23 @@ defmodule Oneiroi.Brain do
   def children do
     [
       {Registry, keys: :unique, name: :brain_registry},
-      {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one}
+      {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
+      # The turns a session runs off its own process (brain #45).
+      {Task.Supervisor, name: :brain_turns}
     ]
   end
+
+  @doc """
+  Takes the witness's message under the client's ref and answers at once
+  (brain #45): `running`, `queued` with how many wait ahead, or
+  `duplicate` when that ref was taken before. The turn's outcome arrives
+  on the session topic.
+  """
+  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(submit(resident_id, session_key, text, actor, ref),
+    do: Session.submit(resident_id, session_key, text, actor, ref)
+  )
 
   @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

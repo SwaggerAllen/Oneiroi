@@ -1,4 +1,5 @@
 import type {
+  Adapter,
   ApiError,
   Bookmark,
   ContextPreview,
@@ -7,6 +8,7 @@ import type {
   Grade,
   HouseLetter,
   IndexNow,
+  LibraryIndex,
   Injection,
   Ledger,
   RegressionRun,
@@ -46,7 +48,15 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  const json = text ? (JSON.parse(text) as unknown) : null;
+  // A proxy's error page (Render's 502 is HTML) is not JSON: it must still
+  // arrive as a failed request with its status, never as a parse error
+  // that reads like a bug and loses the status (brain #45).
+  let json: unknown = null;
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    if (response.ok) throw new RequestFailed(response.status, null);
+  }
   if (!response.ok) {
     const error = (json as { error?: ApiError } | null)?.error ?? null;
     throw new RequestFailed(response.status, error);
@@ -78,6 +88,13 @@ export const api = {
     ),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
+  // Taken at once under the client's ref (brain #45); the turn arrives on the channel.
+  submit: (residentId: string, key: string, text: string, clientRef: string) =>
+    call<{ turn_ref: string; state: 'running' | 'queued' | 'duplicate'; ahead?: number }>(
+      'POST',
+      `/v1/residents/${residentId}/sessions/${key}/turns`,
+      { text, client_ref: clientRef },
+    ),
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 
@@ -125,6 +142,21 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),
   markSent: (residentId: string, number: number, url: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
+  library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  document: (residentId: string, path: string) =>
+    call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
+  writeDocument: (residentId: string, path: string, content: string) =>
+    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  removeDocument: (residentId: string, path: string) =>
+    call<void>('DELETE', `/v1/residents/${residentId}/library/documents/${path}`),
+  adapters: (residentId: string) => call<Adapter[]>('GET', `/v1/residents/${residentId}/adapters`),
+  registerAdapter: (residentId: string, adapter: string, role: string) =>
+    call<{ adapter: string; role: string; token: string }>('POST', `/v1/residents/${residentId}/adapters`, { adapter, role }),
+  revokeAdapter: (residentId: string, adapter: string) =>
+    call<void>('DELETE', `/v1/residents/${residentId}/adapters/${adapter}`),
+  letterAddresses: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/addresses`),
+  sendLetter: (residentId: string, to: string, text: string) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
   schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
   setFreeTime: (residentId: string, times: string[]) =>

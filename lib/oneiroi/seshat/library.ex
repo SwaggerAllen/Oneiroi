@@ -40,6 +40,20 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  def execute(%__MODULE__{documents: documents}, %Commands.RemoveDocument{} = c) do
+    cond do
+      not Map.has_key?(documents, c.path) ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_remove_document_absent, path: c.path)}
+
+      not Kinds.removable?(Kinds.kind_of(c.path) || %{}) ->
+        {:error, Error.new(:seshat_not_removable, :seshat_remove_document_kind, path: c.path)}
+
+      true ->
+        %Events.DocumentRemoved{actor: c.actor, at: c.at, id: c.id, path: c.path, kind: c.kind}
+    end
+  end
+
   def execute(%__MODULE__{documents: documents}, %Commands.AdoptDocument{} = c) do
     if Map.has_key?(documents, c.path),
       do: [],
@@ -130,6 +144,9 @@ defmodule Oneiroi.Seshat.Library do
         }
     end
   end
+
+  def apply(%__MODULE__{} = s, %Events.DocumentRemoved{} = e),
+    do: %{s | documents: Map.delete(s.documents, e.path)}
 
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
   def apply(%__MODULE__{} = l, %Events.DocumentAdopted{} = e), do: register(l, e)

@@ -6,7 +6,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
   alias Ecto.Multi
   alias Oneiroi.Seshat.Events
-  alias Oneiroi.Seshat.Store.{Discussion, Document}
+  alias Oneiroi.Seshat.Store.{Chunk, Discussion, Document, Reference}
 
   # A write sets the provenance columns and leaves the index's own
   # (hash, title, status, embedded_with, indexed_at, chunks) to the next
@@ -40,6 +40,24 @@ defmodule Oneiroi.Seshat.Projectors.Library do
         inc: [versions: 1]
       ],
       conflict_target: [:resident_id, :path]
+    )
+  end)
+
+  # Removed (seshat #33): the row, its chunks and the edges it minted go;
+  # the stream keeps that it was, by whom.
+  fold(%Events.DocumentRemoved{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.delete_all(
+      :document,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path)
+    )
+    |> Multi.delete_all(
+      :chunks,
+      from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.path)
+    )
+    |> Multi.delete_all(
+      :references,
+      from(r in Reference, where: r.resident_id == ^e.id and r.from_path == ^e.path)
     )
   end)
 

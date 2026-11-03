@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
+  Adapter,
   ApiError,
   Block,
   CorrespondenceMessage,
   HouseLetter,
+  LibraryDocument,
   Bookmark,
   ContextPreview,
   IndexNow,
@@ -28,6 +30,7 @@ import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { Conversations } from '../screens/chat/Conversations';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
+import { type Connection, loadOutbox, newRef, type Outgoing, saveOutbox, settle, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -35,6 +38,8 @@ import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
+import { Library } from '../screens/library/Library';
+import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
 import { joinRun, joinSession } from './socket';
 
@@ -105,6 +110,8 @@ export function App() {
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
         {destination === 'more' ? <More onOpen={go} /> : null}
+        {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
+        {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
@@ -148,9 +155,10 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const [drewOn, setDrewOn] = useState<Record<string, number>>({});
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
   const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
-  const [sending, setSending] = useState(false);
-  // The witness's message as sent, shown until the captured turn lands.
-  const [pending, setPending] = useState<string | null>(null);
+  // The witness's messages on their way (brain #45), kept in this browser
+  // per conversation until their turns land; and whether the stream is up.
+  const [outbox, setOutbox] = useState<Outgoing[]>([]);
+  const [connection, setConnection] = useState<Connection>('connecting');
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
   // The newest page of a conversation, joined to what was paged in
@@ -177,6 +185,10 @@ function ChatContainer({ resident }: { resident: Resident }) {
     api.mainSession(resident.id).then(({ key: k }) => {
       // Held as it was on opening, so the marker stays put while reading.
       setLastRead(storedRead(k));
+      // What this browser kept from before a reload comes back as not
+      // yet sent, and goes again under its own ref (brain #45: the server
+      // answers a ref it has taken as a duplicate).
+      setOutbox(loadOutbox(k).map((i) => (i.state === 'failed' ? i : { ...i, state: 'unsent', error: undefined })));
       setKey(k);
       setOpen(k);
     });
@@ -219,17 +231,83 @@ function ChatContainer({ resident }: { resident: Resident }) {
       .socketToken()
       .then(({ token }) => {
         leave = joinSession(token, resident.id, key, {
-          onStarted: (turnRef) => setStreaming({ turnRef, text: '' }),
-          onDelta: (turnRef, text) => setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text })),
+          onStarted: (turnRef) => {
+            setStreaming({ turnRef, text: '' });
+            setOutbox((o) => update(o, turnRef, { state: 'running' }));
+          },
+          onDelta: (turnRef, text) => {
+            setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text }));
+            setOutbox((o) => update(o, turnRef, { state: 'writing' }));
+          },
+          onStatus: (turnRef, state, detail) => {
+            if (state === 'queued' || state === 'thinking' || state === 'tool')
+              setOutbox((o) => update(o, turnRef, { state, detail: detail?.name }));
+          },
           onTurn: () => void reload(key),
-          onFailed: () => setStreaming(null),
+          onFailed: (turnRef, reason) => {
+            setStreaming(null);
+            setOutbox((o) => update(o, turnRef, { state: 'failed', error: reason }));
+            void reload(key);
+          },
+          onConnection: setConnection,
         });
       })
-      // Without the stream the reply still lands on the reload after
-      // the send; the transcript is read either way.
-      .catch(() => undefined);
+      // Without the stream the reply still lands on a reload; the dot
+      // says the stream is down.
+      .catch(() => setConnection('offline'));
     return () => leave();
   }, [key, open, resident.id, reload]);
+
+  // A message is done when its turn is in the transcript with a reply;
+  // what is left is the outbox (read off the chat's own transcript).
+  const answered = new Set(open === key ? messages.filter((m) => m.role === 'assistant').map((m) => m.turn_ref) : []);
+  const live = settle(outbox, answered);
+  useEffect(() => {
+    if (key) saveOutbox(key, live);
+  }, [key, live]);
+
+  const deliver = useCallback(
+    (item: Outgoing) => {
+      if (!key) return;
+      setOutbox((o) => update(o, item.ref, { state: 'sending', attempts: item.attempts + 1 }));
+      api
+        .submit(resident.id, key, item.text, item.ref)
+        .then((taken) => {
+          setOutbox((o) => update(o, item.ref, { state: taken.state === 'queued' ? 'queued' : 'running' }));
+          if (taken.state === 'duplicate') void reload(key);
+        })
+        .catch((e: unknown) => {
+          // Refused for what it is (a 4xx other than a timeout or a
+          // limit) stays unsent with the server's words, for the witness
+          // to retry or put away; anything else goes again by itself.
+          const refused = e instanceof RequestFailed && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429;
+          setOutbox((o) => update(o, item.ref, { state: 'unsent', error: refused ? (e as RequestFailed).message : undefined }));
+        });
+    },
+    [key, resident.id, reload],
+  );
+
+  // Unsent messages go again when the stream comes back, and every ten
+  // seconds while they wait: a failed request is retried, never dropped.
+  const retryRefs = live
+    .filter((i) => i.state === 'unsent' && !i.error && i.attempts < 30)
+    .map((i) => i.ref)
+    .join(' ');
+  const outboxRef = useRef(live);
+  useEffect(() => {
+    outboxRef.current = live;
+  });
+  useEffect(() => {
+    if (connection !== 'connected' || retryRefs === '') return;
+    const go = () =>
+      outboxRef.current.filter((i) => retryRefs.split(' ').includes(i.ref) && i.state === 'unsent').forEach(deliver);
+    const first = setTimeout(go, 500);
+    const every = setInterval(go, 10_000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [connection, retryRefs, deliver]);
 
   const shown = sessions.find((s) => s.key === open);
   // Anything but the chat is as the server says, and read only until it
@@ -263,8 +341,20 @@ function ChatContainer({ resident }: { resident: Resident }) {
       streaming={streaming}
       drewOn={drewOn}
       injections={injections}
-      sending={sending}
-      pending={pending}
+      outbox={open === key ? live : []}
+      connection={open === key ? connection : undefined}
+      onRetry={(ref) => {
+        const item = live.find((i) => i.ref === ref);
+        if (!item) return;
+        if (item.state === 'unsent') deliver(item);
+        else {
+          // A failed turn's words are kept already: its retry is a new message.
+          const again: Outgoing = { ref: newRef(), text: item.text, state: 'sending', attempts: 0 };
+          setOutbox((o) => [...o.filter((i) => i.ref !== ref), again]);
+          deliver(again);
+        }
+      }}
+      onDismiss={(ref) => setOutbox((o) => o.filter((i) => i.ref !== ref))}
       preview={preview}
       onPreview={(draft) => {
         if (preview) {
@@ -278,16 +368,9 @@ function ChatContainer({ resident }: { resident: Resident }) {
       }}
       onSend={(text) => {
         setPreview(null);
-        setPending(text);
-        setSending(true);
-        api
-          .send(resident.id, key, text)
-          .then((turn) => setDrewOn((d) => ({ ...d, [turn.turn_ref]: turn.drew_on })))
-          .catch(() => undefined)
-          .finally(() => {
-            setSending(false);
-            void reload(key).finally(() => setPending(null));
-          });
+        const item: Outgoing = { ref: newRef(), text, state: 'sending', attempts: 0 };
+        setOutbox((o) => [...o, item]);
+        deliver(item);
       }}
       onInspect={(turnRef) => {
         if (injections[turnRef]) {
@@ -346,11 +429,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     messages: CorrespondenceMessage[];
     replies: Reply[];
     blocks: Block[];
+    addresses: string[];
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id)])
-      .then(([letters, messages, replies, blocks]) => setData({ letters, messages, replies, blocks }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id)])
+      .then(([letters, messages, replies, blocks, addresses]) => setData({ letters, messages, replies, blocks, addresses }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -363,12 +447,91 @@ function InboxContainer({ resident }: { resident: Resident }) {
       <Inbox
         residentName={resident.name}
         {...data}
+        onSendLetter={(to, text) => act(api.sendLetter(id, to, text))}
         actions={{
           onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
           onMarkSent: (number, url) => act(api.markSent(id, number, url)),
           onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
           onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
         }}
+      />
+    </>
+  );
+}
+
+function LibraryContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [documents, setDocuments] = useState<LibraryDocument[] | null>(null);
+  const [open, setOpen] = useState<{ path: string; content: string } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .library(id)
+      .then((l) => setDocuments(l.documents))
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!documents) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Library
+        residentName={resident.name}
+        documents={documents}
+        open={open}
+        onOpen={(path) =>
+          api
+            .document(id, path)
+            .then((d) => setOpen({ path, content: d.content }))
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onClose={() => setOpen(null)}
+        onAdd={(path, content) => act(api.writeDocument(id, path, content))}
+        onRemove={(path) => {
+          if (open?.path === path) setOpen(null);
+          act(api.removeDocument(id, path));
+        }}
+      />
+    </>
+  );
+}
+
+function ConnectionsContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [adapters, setAdapters] = useState<Adapter[] | null>(null);
+  const [issued, setIssued] = useState<{ adapter: string; token: string } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .adapters(id)
+      .then(setAdapters)
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  if (!adapters) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Connections
+        residentName={resident.name}
+        adapters={adapters}
+        issued={issued}
+        onRegister={(adapter, role) =>
+          api
+            .registerAdapter(id, adapter, role)
+            .then((r) => setIssued({ adapter: r.adapter, token: r.token }))
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onRevoke={(adapter) =>
+          api
+            .revokeAdapter(id, adapter)
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onDismissToken={() => setIssued(null)}
       />
     </>
   );

@@ -371,3 +371,32 @@ export interface Reply {
   sent_by: string | null;
   url: string | null;
 }
+
+// A document the library holds (seshat): its path says its kind.
+export interface LibraryDocument {
+  path: string;
+  kind: string;
+  title: string | null;
+  status: string | null;
+  bytes: number | null;
+  versions: number;
+  written_at: string | null;
+  written_by: string | null;
+  missing_at: string | null;
+  // Why a keepsake mattered, in the resident's words (seshat #32).
+  note: string | null;
+}
+
+export interface LibraryIndex {
+  documents: LibraryDocument[];
+  unadopted: string[];
+}
+
+// An adapter registered for the resident (spec §8): a runtime that speaks
+// for her (`brain`) or her hands (`reader`, `worker`).
+export interface Adapter {
+  adapter: string;
+  role: string;
+  registered_at: string;
+  revoked_at: string | null;
+}

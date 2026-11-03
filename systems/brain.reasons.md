@@ -416,3 +416,32 @@ conversation (kumbukumbu #41), and it is only useful where she reads it.
 The chat is told only while something else is open, because a line
 saying nothing is open, every turn, is a cost for no news.
 
+## #45
+The witness sent one message three times on 2026-11-02 and could not
+tell why. Reading the code found three ways a message vanished: the
+client swallowed every failed send and cleared what it had shown; a
+provider failure recorded the failure "with nothing of the content", so
+the words were gone with the reply; and a send while a turn ran waited
+behind it inside one long request that gave up at 180 seconds while the
+server went on. Each needed its own fix, and none was visible without
+state to look at, so the connection and the turn's progress are shown,
+not inferred. The client chooses the ref because only the client knows
+whether two sends are one message tried twice or two messages; the
+server keeps refs it has seen, and the store answers for the ones it
+has captured, so a retry across a restart is still one turn. Render's
+502 is an HTML page, and parsing it as JSON turned a server outage into
+what looked like a client bug.
+
+## #46
+The resident asked to read the house (the platform's source, "the shape
+of the house") and herself (her repository, "so I can debug myself":
+the clobber class of bookmark #34 becomes catchable when she can read
+her own day file's history), and set the order herself. Her design note
+asked that the boundary be "a decision on the record, not an accident
+of which tools existed", so the seals are one explicit list, and a
+sealed file is listed as sealed rather than hidden: she can see where
+the line is and argue with it. The judge's prompts are sealed because a
+judge whose instructions the judged can read is a judge the judged can
+write to. The source is bundled into the image rather than fetched, so
+what she reads is what runs her, and a self-hoster's resident reads
+theirs the same way, with no network and no rate limit.

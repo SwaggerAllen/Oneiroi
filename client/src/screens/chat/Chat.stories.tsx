@@ -147,5 +147,42 @@ export const ReadOnly: Story = {
 // The witness's message the moment it is sent, before the turn lands,
 // with the reply already streaming (the chat-UI survey's third pattern).
 export const Sending: Story = {
-  args: { pending: 'And the beans — did they take?\nThe second row looked thin.', sending: true, streaming: { turnRef: 't2', text: 'They took, mostly. The second' } },
+  args: {
+    outbox: [{ ref: 'r-beans-0001', text: 'And the beans — did they take?\nThe second row looked thin.', state: 'writing', attempts: 1 }],
+    connection: 'connected',
+    streaming: { turnRef: 'r-beans-0001', text: 'They took, mostly. The second' },
+  },
+};
+
+// The stream is down (brain #45): the dot says so, and a message that
+// never reached the server waits under its own ref with Retry.
+export const Offline: Story = {
+  args: {
+    connection: 'offline',
+    outbox: [{ ref: 'r-weir-00001', text: 'Did you walk to the weir?', state: 'unsent', attempts: 2 }],
+    onRetry: () => undefined,
+    onDismiss: () => undefined,
+  },
+};
+
+// A second message waits behind the first while the resident uses a tool.
+export const Busy: Story = {
+  args: {
+    connection: 'connected',
+    outbox: [
+      { ref: 'r-first-0001', text: 'Bookmark the garden?', state: 'tool', detail: 'bookmark_add', attempts: 1 },
+      { ref: 'r-second-002', text: 'And the beans?', state: 'queued', attempts: 1 },
+    ],
+  },
+};
+
+// The turn ran and no reply came: the words were kept, the notice says
+// why, and the message can be sent again.
+export const NotAnswered: Story = {
+  args: {
+    connection: 'connected',
+    outbox: [{ ref: 'r-fail-00001', text: 'Are you there?', state: 'failed', error: 'nisaba_provider_failed', attempts: 1 }],
+    onRetry: () => undefined,
+    onDismiss: () => undefined,
+  },
 };

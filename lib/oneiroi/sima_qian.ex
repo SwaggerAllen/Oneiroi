@@ -39,6 +39,7 @@ defmodule Oneiroi.SimaQian do
     exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Originals, Rebuild]
 
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
@@ -221,6 +222,17 @@ defmodule Oneiroi.SimaQian do
   @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."
   @spec repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
   defexport(repository_dir(resident_id), do: Backup.repository_dir(resident_id))
+
+  @doc "The history of the resident's repository, or of one path in it, newest first (brain #46)."
+  @spec repository_log(String.t(), String.t() | nil, pos_integer()) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(repository_log(resident_id, path, limit),
+    do:
+      with(
+        {:ok, dir} <- Backup.repository_dir(resident_id),
+        do: Git.log(dir, path, limit)
+      )
+  )
 
   @doc "Recomputes the root over a resident's export and compares it with the last backup's."
   @spec attest(String.t(), Oneiroi.Actor.t()) ::

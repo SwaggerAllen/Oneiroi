@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Inbox.stories';
 import { letterState } from './letters';
 
-const { Letters, NoLetters, Gate } = composeStories(stories);
+const { Letters, NoLetters, Gate, Writing } = composeStories(stories);
 
 describe('Inbox', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Letters, NoLetters, Gate]) {
+    for (const Story of [Letters, NoLetters, Gate, Writing]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -88,5 +88,15 @@ describe('Inbox', () => {
     fireEvent.change(within(rows[0]).getByLabelText('Why lift it'), { target: { value: 'Settled.' } });
     fireEvent.click(within(rows[0]).getByRole('button', { name: 'Unblock troll' }));
     expect(onUnblock).toHaveBeenCalledWith(expect.objectContaining({ identity: 'troll' }), 'Settled.');
+  });
+
+  it('writes a letter, to Free time unless told otherwise', () => {
+    const onSendLetter = vi.fn();
+    render(<Writing onSendLetter={onSendLetter} />);
+    const form = screen.getByRole('form', { name: 'Write a letter' });
+    expect((within(form).getByLabelText('To') as HTMLSelectElement).value).toBe('Free time');
+    fireEvent.change(within(form).getByLabelText('Letter'), { target: { value: 'Read the scrape pass first.' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Send the letter' }));
+    expect(onSendLetter).toHaveBeenCalledWith('Free time', 'Read the scrape pass first.');
   });
 });

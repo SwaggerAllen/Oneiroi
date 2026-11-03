@@ -34,6 +34,8 @@ type Story = StoryObj<typeof meta>;
 export const Letters: Story = {};
 export const NoLetters: Story = { args: { letters: [] } };
 
+export const Writing: Story = { args: { addresses: ['house', 'Free time', 'Oneiroi chat', 'Claude Code · Lily'], onSendLetter: () => undefined } };
+
 const message = (number: number, sender: string, more: Partial<CorrespondenceMessage> = {}): CorrespondenceMessage => ({
   number,
   platform: 'email',

@@ -39,7 +39,7 @@ defmodule Oneiroi.Seshat.Documents do
   @doc "Writes a file through the flow (`core: true` for a kind the platform writes); returns the path, the kind, whether anything changed, and whether the index ran clean."
   def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
     with {:ok, path} <- normalize(path),
-         {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false)),
+         {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false), actor),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          :ok <- not_kept(kind, path, Path.join(dir, path), content),
@@ -352,6 +352,54 @@ defmodule Oneiroi.Seshat.Documents do
   def discussions(resident_id, path),
     do: Scope.resident(resident_id, fn -> Store.discussions(path) end)
 
+  @doc """
+  Removes a document of a removable kind (seshat #33): the act is an
+  event with its actor, the file leaves the repository, and the index
+  forgets its chunks. A scratch document is either party's to remove; a
+  human one only the witness's, as only the witness writes it.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  def remove(resident_id, path, %Actor{} = actor) do
+    with {:ok, path} <- normalize(path),
+         kind when not is_nil(kind) <- Kinds.kind_of(path),
+         :ok <- removable(kind, actor),
+         {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         {:ok, _events} <-
+           dispatch(%Commands.RemoveDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             path: path,
+             kind: kind.kind
+           }) do
+      _ = File.rm(Path.join(dir, path))
+      Index.run(resident_id, actor)
+      :ok
+    else
+      nil ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_documents_remove_no_kind, path: path)}
+
+      other ->
+        other
+    end
+  end
+
+  defp removable(kind, %Actor{kind: by}) do
+    cond do
+      not Kinds.removable?(kind) ->
+        {:error, Error.new(:seshat_not_removable, :seshat_documents_remove_kind, kind: kind.kind)}
+
+      kind.access == :witness and by != :witness ->
+        {:error,
+         Error.new(:seshat_kind_not_writable, :seshat_documents_remove_witness_only,
+           kind: kind.kind
+         )}
+
+      true ->
+        :ok
+    end
+  end
+
   # ---- helpers ----
 
   @doc "The SHA-256 of a file's bytes, hex, lower case: what decides a re-embed."
@@ -360,9 +408,20 @@ defmodule Oneiroi.Seshat.Documents do
 
   defp normalize(path), do: Kinds.normalize(path)
 
-  defp writable_kind(path, core?) do
+  defp writable_kind(path, core?, %Actor{kind: by}) do
     kind = Kinds.kind_of(path)
+    with :ok <- witness_only(kind, by, core?), do: kind_writable(kind, path, core?)
+  end
 
+  # The witness's own (seshat #33): the resident reads them, never writes them.
+  defp witness_only(%{access: :witness} = kind, by, false) when by != :witness,
+    do:
+      {:error,
+       Error.new(:seshat_kind_not_writable, :seshat_documents_kind_witness_only, kind: kind.kind)}
+
+  defp witness_only(_kind, _by, _core?), do: :ok
+
+  defp kind_writable(kind, path, core?) do
     cond do
       # Read-only: the originals import's copy is the record, and a write
       # from either party, or the platform's own core write, would make
@@ -371,7 +430,7 @@ defmodule Oneiroi.Seshat.Documents do
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_read_only, kind: kind.kind)}
 
-      kind.access not in [:resident, :keepsake] and not core? ->
+      kind.access not in [:resident, :keepsake, :witness] and not core? ->
         {:error,
          Error.new(:seshat_kind_not_writable, :seshat_documents_kind_not_writable,
            kind: kind.kind

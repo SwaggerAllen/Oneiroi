@@ -65,5 +65,33 @@ defmodule OneiroiWeb.HouseRoutesTest do
 
     assert other |> get("/v1/residents/#{ctx.id}/letters") |> json_response(404)
     assert other |> get("/v1/residents/#{ctx.id}/retrieval") |> json_response(404)
+
+    assert other
+           |> post("/v1/residents/#{ctx.id}/letters", %{to: "house", text: "x"})
+           |> json_response(404)
+  end
+
+  # The witness writes letters too: a brief to Free time is the queue's
+  # front door from the client; a name nobody answers to is refused.
+  test "the witness writes a house letter to a name the house answers to, and reads the names",
+       ctx do
+    names = ctx.conn |> get("/v1/residents/#{ctx.id}/letters/addresses") |> json_response(200)
+    assert ["house", "Free time", "Oneiroi chat" | _] = names
+
+    assert %{"number" => 1} =
+             ctx.conn
+             |> post("/v1/residents/#{ctx.id}/letters", %{
+               to: "Free time",
+               text: "Read the scrape pass."
+             })
+             |> json_response(201)
+
+    assert [%{"from" => "witness", "to" => "Free time"}] =
+             ctx.conn |> get("/v1/residents/#{ctx.id}/letters") |> json_response(200)
+
+    assert %{"error" => %{"kind" => "kumbukumbu_letter_unaddressed"}} =
+             ctx.conn
+             |> post("/v1/residents/#{ctx.id}/letters", %{to: "nobody", text: "x"})
+             |> json_response(422)
   end
 end

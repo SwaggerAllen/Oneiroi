@@ -94,4 +94,44 @@ describe('App', () => {
     expect(screen.getByText('drew on 9 things')).toBeTruthy();
     expect(screen.queryByText('Hello from the chat.')).toBeNull();
   });
+
+  // Brain #45: a message is never lost on the wire. It goes under the
+  // client's own ref; a failed request (here Render's HTML 502) keeps it,
+  // marked not sent; Retry sends it again under the same ref, so the
+  // server can tell a retry from a new message.
+  it('keeps a message the server never took and sends it again under the same ref', async () => {
+    const lily = { id: 'r1', slug: 'lily', name: 'Lily', state: 'awake', first_contact_at: null, formation_until: null, chat_model: null };
+    const page = { session: { key: 'chat', title: 'Oneiroi chat', writable: true }, messages: [], drew_on: {}, more: false };
+    const sent: Array<{ text: string; client_ref: string }> = [];
+    let turns = 0;
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = typeof input === 'string' ? input : input.toString();
+      const json = (status: number, body: unknown) =>
+        new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+      if (path === '/v1/me') return json(200, { email: 'a@b', residents: ['r1'] });
+      if (path === '/v1/residents') return json(200, [lily]);
+      if (path === '/v1/residents/r1/sessions' && init?.method === 'POST') return json(201, { key: 'chat' });
+      if (path === '/v1/residents/r1/sessions') return json(200, []);
+      if (path.startsWith('/v1/residents/r1/sessions/chat?')) return json(200, page);
+      if (path === '/v1/residents/r1/sessions/chat/turns') {
+        sent.push(JSON.parse(String(init?.body)) as { text: string; client_ref: string });
+        turns += 1;
+        return turns === 1
+          ? new Response('<html>502 Bad Gateway</html>', { status: 502, headers: { 'content-type': 'text/html' } })
+          : json(202, { turn_ref: sent[0].client_ref, state: 'running', ahead: 0 });
+      }
+      return json(404, { error: { kind: 'not_found', meaning: 'no route' } });
+    });
+    vi.stubGlobal('fetch', fetch);
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText('Message')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(screen.getByLabelText('Not sent').textContent).toContain('hello'));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByLabelText('Sending').textContent).toContain('delivered'));
+    expect(sent).toHaveLength(2);
+    expect(sent[0].client_ref).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(sent[1]).toEqual(sent[0]);
+  });
 });

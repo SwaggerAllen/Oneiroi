@@ -238,13 +238,19 @@ defmodule Oneiroi.Brain.TurnTest do
     assert ["user", "assistant", "user", "system"] = Enum.map(messages, & &1.role)
   end
 
-  test "a provider failure captures nothing and records a capture failure", ctx do
+  # Brain #45: the witness's words outlive a failed reply. Before, a
+  # provider failure kept nothing of the message, and the witness sent it
+  # again by hand (2026-11-02: one message, three times).
+  test "a provider failure keeps the witness's words, captures no reply, and records a capture failure",
+       ctx do
     Fake.fail(:transport, for: ctx.resident.id)
 
     assert {:error, %Oneiroi.Brain.Error{kind: :brain_turn_failed}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello", ctx.actor)
 
-    assert {:ok, _s, []} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
+    assert {:ok, _s, [%{role: "user", content: "hello"}]} =
+             Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
+
     assert [%{reason: "nisaba_provider_failed"}] = Kumbukumbu.failures({:account, ctx.witness.id})
     assert Enum.any?(events(ctx.resident.id, ctx.key), &match?({:failed, _, _}, &1))
   end
@@ -280,5 +286,96 @@ defmodule Oneiroi.Brain.TurnTest do
     {:ok, s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
     assert s.turns == 2 and length(messages) == 4
     assert ["user", "assistant", "user", "assistant"] = Enum.map(messages, & &1.role)
+  end
+
+  # Brain #45: a message taken under the client's ref is answered at once,
+  # runs once whatever the retries, waits its turn behind another, and the
+  # turn says what it is doing as it goes.
+  test "a submitted message is taken at once, queued behind a running one, never run twice, and says what it is doing",
+       ctx do
+    id = ctx.resident.id
+    test_pid = self()
+
+    # The first reply holds until the test lets it go, so the second
+    # message is taken while the first still runs.
+    Fake.script(
+      fn request ->
+        if Enum.any?(request.messages, &(&1[:content] == "first")) and
+             not Enum.any?(request.messages, &(&1[:content] == "second")) do
+          send(test_pid, :first_running)
+
+          receive do
+            :go -> :ok
+          after
+            5_000 -> :ok
+          end
+        end
+
+        # Each reply its own words: under the suite's frozen clock two
+        # identical replies at one instant would read as one message.
+        {:ok, "Answered " <> List.last(request.messages)[:content] <> "."}
+      end,
+      for: id
+    )
+
+    assert {:ok, %{turn_ref: "ref-first-0001", state: "running"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "first", ctx.actor, "ref-first-0001")
+
+    assert_receive :first_running, 5_000
+
+    assert {:ok, %{state: "queued", ahead: 1}} =
+             Oneiroi.Brain.submit(id, ctx.key, "second", ctx.actor, "ref-second-002")
+
+    # A retry of either, while they run or wait, is the same message.
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "first", ctx.actor, "ref-first-0001")
+
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "second", ctx.actor, "ref-second-002")
+
+    for pid <- Task.Supervisor.children(:brain_turns), do: send(pid, :go)
+
+    assert_receive {:oneiroi, _, {^id, _, {:turn, "ref-first-0001", _}}, _}, 5_000
+    assert_receive {:oneiroi, _, {^id, _, {:turn, "ref-second-002", _}}, _}, 5_000
+
+    # The broadcast can run ahead of the read model by a moment.
+    assert ["first", "Answered first.", "second", "Answered second."] =
+             eventually(
+               fn ->
+                 {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
+                 Enum.map(messages, & &1.content)
+               end,
+               4
+             )
+
+    # After the turn, a retry is still the same message: the store knows it.
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "first", ctx.actor, "ref-first-0001")
+
+    seen = events(id, ctx.key)
+    assert {:status, "ref-second-002", "queued", %{ahead: 1}} in seen
+    assert Enum.any?(seen, &match?({:status, "ref-second-002", "thinking", _}, &1))
+  end
+
+  test "a tool call says its name before it runs", ctx do
+    id = ctx.resident.id
+
+    Fake.calls([%{name: "position_list", arguments: %{}}], "Kept.", for: id)
+
+    assert {:ok, %{turn_ref: ref}} =
+             Oneiroi.Brain.turn(id, ctx.key, "what do you hold?", ctx.actor)
+
+    assert {:status, ref, "tool", %{name: "position_list"}} in events(id, ctx.key)
+  end
+
+  defp eventually(read, count, tries \\ 50) do
+    value = read.()
+
+    if length(value) >= count or tries == 0 do
+      value
+    else
+      Process.sleep(20)
+      eventually(read, count, tries - 1)
+    end
   end
 end

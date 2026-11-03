@@ -184,7 +184,9 @@ defmodule Oneiroi.Brain.Turn do
     %{
       resident_id: resident_id,
       session_key: session_key,
-      turn_ref: Kumbukumbu.turn_ref(),
+      # The client's ref when the message came by `submit` (brain #45),
+      # so its retry is known for the same turn.
+      turn_ref: Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref(),
       started_at: started_at,
       model: model,
       resident: Actor.new(:resident, resident_id, model),
@@ -293,6 +295,8 @@ defmodule Oneiroi.Brain.Turn do
     do: Nisaba.call(turn.resident_id, turn.purpose, request, turn.payer)
 
   defp ask(turn, request) do
+    status(turn, "thinking", nil)
+
     sink = fn delta ->
       broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
     end
@@ -338,6 +342,7 @@ defmodule Oneiroi.Brain.Turn do
   defp use_tool(%{trial?: true} = turn, call), do: Tools.trial(call.name, call.arguments, turn)
 
   defp use_tool(turn, call) do
+    status(turn, "tool", %{name: call.name})
     output = Tools.run(call.name, call.arguments, turn)
 
     {output,
@@ -392,9 +397,23 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  # A provider failure: nothing captured, a failure the witness can resolve.
+  # A provider failure: the witness's words are captured alone, so a
+  # message is never lost with the reply (brain #45), and the failure is
+  # recorded for the witness to resolve. A wake's note is the core's,
+  # and is not kept as if someone had said it.
   defp conclude({{:error, failure}, turn}, _original) do
     reason = failure_reason(failure)
+
+    if turn.as == :user,
+      do:
+        Kumbukumbu.capture(
+          turn.resident_id,
+          turn.session_key,
+          turn.turn_ref,
+          turn.started_at,
+          [turn.opening],
+          turn.resident
+        )
 
     Kumbukumbu.fail_capture(
       turn.resident_id,
@@ -1219,6 +1238,12 @@ defmodule Oneiroi.Brain.Turn do
   def tokens(_other), do: 0
 
   @doc false
+  # What the turn is doing now (brain #45), for the client's status line:
+  # `thinking` before each model call, `tool` with its name before each
+  # call to one. Streamed words say `writing` by themselves.
+  defp status(turn, what, detail),
+    do: broadcast(turn.resident_id, turn.session_key, {:status, turn.turn_ref, what, detail})
+
   def broadcast(resident_id, session_key, payload),
     do: PubSub.broadcast(:brain, :session, {resident_id, session_key, payload})
 end

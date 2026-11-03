@@ -10,6 +10,14 @@ what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.
 
+Connections, the adapters part, built 2026-11-02:
+`client/src/screens/connections/` under More, from
+`GET/POST/DELETE /v1/residents/:id/adapters`: what holds a token for the
+resident and in which role (brain, reader, worker, each said in words),
+a token issued by name and role and shown once with Copy, a revoke that
+confirms in place, the revoked listed apart. The rest of this screen
+(the contract, custody, the export wall) is not built here.
+
 ## #1 Shows
 
 The dyad contract and its versions; who looks after the resident; the export wall in words; adapters with state, last capture and wakes today.
