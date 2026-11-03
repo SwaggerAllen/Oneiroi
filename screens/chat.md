@@ -20,6 +20,12 @@ while a turn runs, what the resident is doing (thinking, using a named
 tool, writing). Sending never waits for the last reply: the next
 message queues.
 
+Client #13: coming back to the page (the tab shown again, the window
+focused, the network back) reads the open conversation and the list
+again, and joins the stream again with a fresh token when it was down
+or the page was away more than thirty seconds, so turns that landed
+while a phone had the page suspended show without a reload.
+
 ## #2 Does
 
 Send; open another conversation and read it; open a cited target in the panel; pin or propose a bookmark from a reply; search transcripts, open a new session, file a report from the menu.
