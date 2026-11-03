@@ -2517,7 +2517,9 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp oracle_line(o) do
-    asked = "asked by the #{o.asked_by}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}"
+    asked =
+      "asked by the #{o.asked_by}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}" <>
+        if(o.model, do: ", read by #{o.model}", else: "")
 
     settled =
       if o.path,
