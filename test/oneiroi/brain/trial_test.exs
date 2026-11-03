@@ -321,6 +321,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"writing_discuss", %{slug: "weir"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
     {"letter_send", %{to: "house", text: "a note"}},
+    {"document_remove", %{path: "scratch/pad.md"}},
     {"correspondent_block", %{platform: "email", identity: "spam@example.com", note: "spam"}},
     {"correspondent_unblock", %{platform: "email", identity: "spam@example.com", note: "ok"}},
     {"free_time_set", %{time: "23:00"}},

@@ -121,8 +121,11 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
 
     assert Kinds.minting() == ~w(writing research design journal system)
-    assert Kinds.non_minting() == ~w(wiki posts mail feeds correspondence memory keepsake)
-    assert Kinds.writable() == ~w(writing research design wiki system posts keepsake)
+
+    assert Kinds.non_minting() ==
+             ~w(wiki scratch human posts mail feeds correspondence memory keepsake)
+
+    assert Kinds.writable() == ~w(writing research design wiki system scratch posts keepsake)
 
     # Decided one by one (seshat #29, #31): a keepsake, a wiki page, a
     # system note; never the writing, and nothing the registry refuses.

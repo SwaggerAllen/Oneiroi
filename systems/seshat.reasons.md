@@ -211,3 +211,13 @@ file without editing it, and a note in the wiki would be the catch-all
 again, so it is an event of its own beside the document. It is the
 resident's alone because the meaning of a gift is the receiver's to
 say; the witness can ask.
+
+## #33
+The YC application's workshop pad had to live in design/ with a note
+saying it would move "when the scratch/ kind exists", and the witness's
+own posts, given to the resident to read, had no kind at all. A
+temporary document needs what no kind had, removal, and removal is an
+act like any other: recorded with who did it, the file gone, nothing of
+its content kept on the stream. The witness's folder is his because the
+resident's library is otherwise hers to write; a kind she reads and
+cannot write is the honest shape for what someone else gave her.

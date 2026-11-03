@@ -60,11 +60,13 @@ defmodule Oneiroi.Seshat do
       Commands.PublishPiece,
       Commands.OpenDiscussion,
       Commands.NoteKeepsake,
+      Commands.RemoveDocument,
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
+      Events.DocumentRemoved,
       Store,
       Store.Document,
       Store.Chunk,
@@ -167,6 +169,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
+      {Oneiroi.Seshat.Events.DocumentRemoved, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
@@ -181,7 +184,11 @@ defmodule Oneiroi.Seshat do
          "name the file as `<kind>/<name>.md`, or `<name>.md` for a keepsake; the kinds are the registry's"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
-       remedy: "write under writing, design, research, wiki or posts"},
+       remedy:
+         "write under writing, design, research, wiki, scratch or posts; human/ is the witness's"},
+      {:seshat_not_removable,
+       "only a scratch or human document is removed; every other kind is kept, as its history is the point",
+       remedy: "write the document again, or leave it; scratch is for what is meant to go"},
       {:seshat_not_a_keepsake, "no keepsake is registered at that name",
        remedy: "list the keepsakes; one at the root not yet adopted is adopted first"},
       {:seshat_keepsake_note_invalid,
@@ -261,6 +268,10 @@ defmodule Oneiroi.Seshat do
   defexport(write(resident_id, path, content, actor),
     do: Documents.write(resident_id, path, content, actor)
   )
+
+  @doc "Removes a scratch or human document (seshat #33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
+  @spec remove(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(remove(resident_id, path, actor), do: Documents.remove(resident_id, path, actor))
 
   @doc "Adopts a file made outside the flow, registering it; the index runs."
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

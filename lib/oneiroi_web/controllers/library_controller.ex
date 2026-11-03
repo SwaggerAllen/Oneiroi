@@ -69,6 +69,20 @@ defmodule OneiroiWeb.LibraryController do
     end
   end
 
+  operation(:remove,
+    summary:
+      "Remove a scratch or human document (seshat #33): recorded with you as its actor; every other kind is kept",
+    parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],
+    responses: [no_content: "removed"]
+  )
+
+  def remove(conn, %{"id" => id, "path" => path}) do
+    case Seshat.remove(id, Enum.join(path, "/"), actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:adopt,
     summary: "Adopt a file made outside the flow, as it is",
     parameters: [id: [in: :path, type: :string]],

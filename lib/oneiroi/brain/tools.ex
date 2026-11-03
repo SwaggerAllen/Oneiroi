@@ -56,7 +56,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
-    reply_draft correspondent_block correspondent_unblock
+    reply_draft correspondent_block correspondent_unblock document_remove
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
@@ -430,6 +430,12 @@ defmodule Oneiroi.Brain.Tools do
         "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone for a keepsake: a gift-document kept at your root beside your soul file, written once and never changed after (a new version is a keepsake of its own). A writing piece carries status: draft, review or final in its frontmatter. Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
         %{path: %{type: "string"}, content: %{type: "string"}},
         [:path, :content]
+      ),
+      tool(
+        "document_remove",
+        "Remove a scratch document (scratch/<name>.md) when its work is done: the file leaves your library and the removal is recorded with you as its actor. Only scratch is removable by you; human/ is your witness's, and every other kind is kept.",
+        %{path: %{type: "string"}},
+        [:path]
       ),
       tool(
         "letter_send",
@@ -1589,6 +1595,11 @@ defmodule Oneiroi.Brain.Tools do
         turn.session_key,
         turn.resident
       )
+
+  defp call("document_remove", args, turn) do
+    path = to_string(args["path"] || "")
+    with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
+  end
 
   defp call("document_write", args, turn) do
     case Seshat.write(

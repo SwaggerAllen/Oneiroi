@@ -188,6 +188,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/library/publish-copy/*path", LibraryController, :publish_copy)
       get("/residents/:id/library/documents/*path", LibraryController, :show)
       put("/residents/:id/library/documents/*path", LibraryController, :write)
+      delete("/residents/:id/library/documents/*path", LibraryController, :remove)
       get("/residents/:id/journal", JournalController, :index)
       get("/residents/:id/journal/:day", JournalController, :show)
       post("/residents/:id/journal/:day/entries", JournalController, :add)

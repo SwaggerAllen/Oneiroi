@@ -98,6 +98,38 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :decided,
       access: :resident
     },
+    # Temporary documents (seshat #33): workshop state meant to go away
+    # when its work is done, a scratch pad, a draft being argued over.
+    # Removable, which no other kind is, and minting no citation edges,
+    # since an edge to a page that will be removed dangles by design.
+    %{
+      kind: "scratch",
+      folder: "scratch",
+      cites: false,
+      has_status: false,
+      layout:
+        "scratch/<name>.md: temporary workshop state (a scratch pad), removed when its work is done",
+      sidecar: nil,
+      adoption: :decided,
+      access: :resident,
+      removable: true
+    },
+    # The witness's own documents that belong nowhere else (seshat #33):
+    # posts of theirs, notes, references they upload for the resident to
+    # read. Written by the witness alone (`access: :witness`); the
+    # resident reads and cites into them and never writes them, and the
+    # witness's words mint no edges, as a sender's never do.
+    %{
+      kind: "human",
+      folder: "human",
+      cites: false,
+      has_status: false,
+      layout: "human/<name>.md: the witness's own documents that belong nowhere else",
+      sidecar: nil,
+      adoption: :decided,
+      access: :witness,
+      removable: true
+    },
     %{
       kind: "posts",
       folder: "posts",
@@ -204,6 +236,10 @@ defmodule Oneiroi.Seshat.Kinds do
   @doc "Every kind, in the registry's order."
   @spec all() :: [map()]
   def all, do: @kinds
+
+  @doc "Whether a kind's documents may be removed (seshat #33): scratch and human, and nothing else."
+  @spec removable?(map()) :: boolean()
+  def removable?(kind), do: Map.get(kind, :removable, false)
 
   @doc "The kind a path belongs to, by its first segment, or nil; a path of one segment is a keepsake when it is a keepsake's name (`keepsake_name?/1`), and nothing otherwise."
   @spec kind_of(String.t()) :: map() | nil
