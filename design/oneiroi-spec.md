@@ -436,8 +436,8 @@ session under OTP supervision.
   run uses the same model under the free-time budget line.
 - **Free time** (F32): at the resident's times, one to four slots a day,
   each run once (sunna #22), each its own session,
-  not announced, bounded at 30 minutes (a bound), opening with where the
-  digest is; the resident's own instructions say what it is for.
+  not announced and not bounded in time (the witness, 2026-11-03), opening
+  with where the digest is; the resident's own instructions say what it is for.
 - **Refusal and degradation** are first-class: a refusal is captured as an
   ordinary `TurnCaptured` (never a `CaptureFailed`) and shown as what it
   is, never censored into a defect state; a budget stop or a smaller
@@ -875,8 +875,9 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   at; a nightly drift audit says "the rule you cited said X at commit; it
   now says Z". External docs never mint edges.
 - **Journal** (F29): rows as the queryable spine, `journal/<day>.md` as the
-  narrative; the check-in writes plan rows, the wrap writes actuals; the
-  delta feeds audits. **The day row is created by the schedule when the
+  narrative; the resident writes the plan and the wrap (the actuals) with
+  `journal_add` when she chooses, and no check-in asks for them (the
+  witness, 2026-11-03); the delta feeds audits. **The day row is created by the schedule when the
   day's first check-in fires** (§6.7), so a day the resident never wrote
   is a row with a plan and no actuals and no narrative, visible on the
   Schedule screen and to the check-engine light, rather than an absent
@@ -988,7 +989,8 @@ Owns `lib/oneiroi/sunna/**`.
   exception: on from the first day, at 14:30 and 22:30 until either party
   moves it, and never removed (sunna #21, #22).
 - Nightly: export, library index, judgement pass, project
-  reviews, weight recompute. Weekly: card audit then memory audit.
+  reviews. (No weight recompute: retrieval weights decay from their
+  instants when read, kumbukumbu #46.) Weekly: card audit then memory audit.
 - **Quiet hours** are the witness's (`QuietHoursSet`); a wake queued inside
   them is deferred to their end (`WakeDeferred{until}`), and the Schedule
   screen says so in words.
