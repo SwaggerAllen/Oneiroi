@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, RequestFailed } from '../api/client';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, RequestFailed } from "../api/client";
 import type {
   Adapter,
   ApiError,
@@ -7,6 +7,7 @@ import type {
   CorrespondenceMessage,
   HouseLetter,
   LibraryDocument,
+  LibraryHit,
   Bookmark,
   ContextPreview,
   IndexNow,
@@ -23,25 +24,33 @@ import type {
   RetrievalCount,
   Session,
   Tag,
-} from '../api/types';
-import { BottomNav, type Destination } from '../components/BottomNav';
-import { EmptyState } from '../components/EmptyState';
-import { ErrorNotice } from '../components/ErrorNotice';
-import { Chat } from '../screens/chat/Chat';
-import { Conversations } from '../screens/chat/Conversations';
-import { compareCursor, mergeNewest } from '../screens/chat/page';
-import { type Connection, loadOutbox, newRef, type Outgoing, saveOutbox, settle, update } from '../screens/chat/outbox';
-import { Ledger } from '../screens/ledger/Ledger';
-import { Memory } from '../screens/memory/Memory';
-import { sortCards } from '../screens/regression/deck';
-import { Regression } from '../screens/regression/Regression';
-import { Schedule } from '../screens/schedule/Schedule';
-import { Inbox } from '../screens/inbox/Inbox';
-import { More } from '../screens/more/More';
-import { Library } from '../screens/library/Library';
-import { Connections } from '../screens/connections/Connections';
-import { Login } from './Login';
-import { joinRun, joinSession } from './socket';
+} from "../api/types";
+import { BottomNav, type Destination } from "../components/BottomNav";
+import { EmptyState } from "../components/EmptyState";
+import { ErrorNotice } from "../components/ErrorNotice";
+import { Chat } from "../screens/chat/Chat";
+import { Conversations } from "../screens/chat/Conversations";
+import { compareCursor, mergeNewest } from "../screens/chat/page";
+import {
+  type Connection,
+  loadOutbox,
+  newRef,
+  type Outgoing,
+  saveOutbox,
+  settle,
+  update,
+} from "../screens/chat/outbox";
+import { Ledger } from "../screens/ledger/Ledger";
+import { Memory } from "../screens/memory/Memory";
+import { sortCards } from "../screens/regression/deck";
+import { Regression } from "../screens/regression/Regression";
+import { Schedule } from "../screens/schedule/Schedule";
+import { Inbox } from "../screens/inbox/Inbox";
+import { More } from "../screens/more/More";
+import { Library } from "../screens/library/Library";
+import { Connections } from "../screens/connections/Connections";
+import { Login } from "./Login";
+import { joinRun, joinSession } from "./socket";
 
 // The shell (spec §10): Chat is home; the nav holds the three destinations
 // built in this phase; the first resident the account witnesses is the
@@ -50,7 +59,9 @@ export function App() {
   const [me, setMe] = useState<{ email: string } | null | undefined>(undefined);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [resident, setResident] = useState<Resident | null>(null);
-  const [destination, setDestination] = useState<Destination>(() => (location.hash.slice(1) as Destination) || 'chat');
+  const [destination, setDestination] = useState<Destination>(
+    () => (location.hash.slice(1) as Destination) || "chat",
+  );
 
   useEffect(() => {
     api
@@ -82,12 +93,19 @@ export function App() {
               setLoginError(null);
               setMe(m);
             })
-            .catch((e: unknown) => setLoginError(e instanceof RequestFailed ? e.message : 'could not sign in'))
+            .catch((e: unknown) =>
+              setLoginError(
+                e instanceof RequestFailed ? e.message : "could not sign in",
+              ),
+            )
         }
       />
     );
   }
-  if (!resident) return <EmptyState text="No resident yet: the creation flow arrives with the next screens." />;
+  if (!resident)
+    return (
+      <EmptyState text="No resident yet: the creation flow arrives with the next screens." />
+    );
 
   return (
     // The shell is the screen's height and never scrolls itself: the nav
@@ -96,24 +114,46 @@ export function App() {
     // `dvh`, not `vh`, so a phone's browser bar does not push the nav off.
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100dvh',
-        overflow: 'hidden',
-        maxWidth: 'var(--content-max)',
-        margin: '0 auto',
+        display: "flex",
+        flexDirection: "column",
+        height: "100dvh",
+        overflow: "hidden",
+        maxWidth: "var(--content-max)",
+        margin: "0 auto",
       }}
     >
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: destination === 'chat' ? 'hidden' : 'auto' }}>
-        {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
-        {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
-        {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
-        {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
-        {destination === 'more' ? <More onOpen={go} /> : null}
-        {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
-        {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
-        {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
-        {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflowY: destination === "chat" ? "hidden" : "auto",
+        }}
+      >
+        {destination === "chat" ? <ChatContainer resident={resident} /> : null}
+        {destination === "memory" ? (
+          <MemoryContainer resident={resident} />
+        ) : null}
+        {destination === "schedule" ? (
+          <ScheduleContainer resident={resident} />
+        ) : null}
+        {destination === "inbox" ? (
+          <InboxContainer resident={resident} />
+        ) : null}
+        {destination === "more" ? <More onOpen={go} /> : null}
+        {destination === "library" ? (
+          <LibraryContainer resident={resident} />
+        ) : null}
+        {destination === "connections" ? (
+          <ConnectionsContainer resident={resident} />
+        ) : null}
+        {destination === "ledger" ? (
+          <LedgerContainer resident={resident} />
+        ) : null}
+        {destination === "regression" ? (
+          <RegressionContainer resident={resident} />
+        ) : null}
       </div>
       <BottomNav current={destination} onChange={go} />
     </div>
@@ -136,7 +176,8 @@ function storedRead(key: string): string | null {
 function storeRead(key: string, cursor: string) {
   try {
     const was = localStorage.getItem(readKey(key));
-    if (!was || compareCursor(cursor, was) > 0) localStorage.setItem(readKey(key), cursor);
+    if (!was || compareCursor(cursor, was) > 0)
+      localStorage.setItem(readKey(key), cursor);
   } catch {
     // A browser that keeps nothing reads every visit as the first.
   }
@@ -154,11 +195,14 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const older = useRef(false);
   const [drewOn, setDrewOn] = useState<Record<string, number>>({});
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
-  const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
+  const [streaming, setStreaming] = useState<{
+    turnRef: string;
+    text: string;
+  } | null>(null);
   // The witness's messages on their way (brain #45), kept in this browser
   // per conversation until their turns land; and whether the stream is up.
   const [outbox, setOutbox] = useState<Outgoing[]>([]);
-  const [connection, setConnection] = useState<Connection>('connecting');
+  const [connection, setConnection] = useState<Connection>("connecting");
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
   // The newest page of a conversation, joined to what was paged in
@@ -166,18 +210,20 @@ function ChatContainer({ resident }: { resident: Resident }) {
   // when nothing older was loaded yet.
   const reload = useCallback(
     (k: string) =>
-      api.transcriptPage(resident.id, k, PAGE).then(({ messages: rows, more: earlier, drew_on }) => {
-        setMessages((loaded) => {
-          const merged = mergeNewest(
-            loaded.filter((m) => m.session_key === k),
-            rows,
-          );
-          if (merged.length === rows.length) setMore(earlier);
-          return merged;
-        });
-        setDrewOn((d) => ({ ...d, ...drew_on }));
-        setStreaming(null);
-      }),
+      api
+        .transcriptPage(resident.id, k, PAGE)
+        .then(({ messages: rows, more: earlier, drew_on }) => {
+          setMessages((loaded) => {
+            const merged = mergeNewest(
+              loaded.filter((m) => m.session_key === k),
+              rows,
+            );
+            if (merged.length === rows.length) setMore(earlier);
+            return merged;
+          });
+          setDrewOn((d) => ({ ...d, ...drew_on }));
+          setStreaming(null);
+        }),
     [resident.id],
   );
 
@@ -188,7 +234,13 @@ function ChatContainer({ resident }: { resident: Resident }) {
       // What this browser kept from before a reload comes back as not
       // yet sent, and goes again under its own ref (brain #45: the server
       // answers a ref it has taken as a duplicate).
-      setOutbox(loadOutbox(k).map((i) => (i.state === 'failed' ? i : { ...i, state: 'unsent', error: undefined })));
+      setOutbox(
+        loadOutbox(k).map((i) =>
+          i.state === "failed"
+            ? i
+            : { ...i, state: "unsent", error: undefined },
+        ),
+      );
       setKey(k);
       setOpen(k);
     });
@@ -232,21 +284,28 @@ function ChatContainer({ resident }: { resident: Resident }) {
       .then(({ token }) => {
         leave = joinSession(token, resident.id, key, {
           onStarted: (turnRef) => {
-            setStreaming({ turnRef, text: '' });
-            setOutbox((o) => update(o, turnRef, { state: 'running' }));
+            setStreaming({ turnRef, text: "" });
+            setOutbox((o) => update(o, turnRef, { state: "running" }));
           },
           onDelta: (turnRef, text) => {
-            setStreaming((s) => ({ turnRef, text: (s?.turnRef === turnRef ? s.text : '') + text }));
-            setOutbox((o) => update(o, turnRef, { state: 'writing' }));
+            setStreaming((s) => ({
+              turnRef,
+              text: (s?.turnRef === turnRef ? s.text : "") + text,
+            }));
+            setOutbox((o) => update(o, turnRef, { state: "writing" }));
           },
           onStatus: (turnRef, state, detail) => {
-            if (state === 'queued' || state === 'thinking' || state === 'tool')
-              setOutbox((o) => update(o, turnRef, { state, detail: detail?.name }));
+            if (state === "queued" || state === "thinking" || state === "tool")
+              setOutbox((o) =>
+                update(o, turnRef, { state, detail: detail?.name }),
+              );
           },
           onTurn: () => void reload(key),
           onFailed: (turnRef, reason) => {
             setStreaming(null);
-            setOutbox((o) => update(o, turnRef, { state: 'failed', error: reason }));
+            setOutbox((o) =>
+              update(o, turnRef, { state: "failed", error: reason }),
+            );
             void reload(key);
           },
           onConnection: setConnection,
@@ -254,13 +313,17 @@ function ChatContainer({ resident }: { resident: Resident }) {
       })
       // Without the stream the reply still lands on a reload; the dot
       // says the stream is down.
-      .catch(() => setConnection('offline'));
+      .catch(() => setConnection("offline"));
     return () => leave();
   }, [key, open, resident.id, reload]);
 
   // A message is done when its turn is in the transcript with a reply;
   // what is left is the outbox (read off the chat's own transcript).
-  const answered = new Set(open === key ? messages.filter((m) => m.role === 'assistant').map((m) => m.turn_ref) : []);
+  const answered = new Set(
+    open === key
+      ? messages.filter((m) => m.role === "assistant").map((m) => m.turn_ref)
+      : [],
+  );
   const live = settle(outbox, answered);
   useEffect(() => {
     if (key) saveOutbox(key, live);
@@ -269,19 +332,35 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const deliver = useCallback(
     (item: Outgoing) => {
       if (!key) return;
-      setOutbox((o) => update(o, item.ref, { state: 'sending', attempts: item.attempts + 1 }));
+      setOutbox((o) =>
+        update(o, item.ref, { state: "sending", attempts: item.attempts + 1 }),
+      );
       api
         .submit(resident.id, key, item.text, item.ref)
         .then((taken) => {
-          setOutbox((o) => update(o, item.ref, { state: taken.state === 'queued' ? 'queued' : 'running' }));
-          if (taken.state === 'duplicate') void reload(key);
+          setOutbox((o) =>
+            update(o, item.ref, {
+              state: taken.state === "queued" ? "queued" : "running",
+            }),
+          );
+          if (taken.state === "duplicate") void reload(key);
         })
         .catch((e: unknown) => {
           // Refused for what it is (a 4xx other than a timeout or a
           // limit) stays unsent with the server's words, for the witness
           // to retry or put away; anything else goes again by itself.
-          const refused = e instanceof RequestFailed && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429;
-          setOutbox((o) => update(o, item.ref, { state: 'unsent', error: refused ? (e as RequestFailed).message : undefined }));
+          const refused =
+            e instanceof RequestFailed &&
+            e.status >= 400 &&
+            e.status < 500 &&
+            e.status !== 408 &&
+            e.status !== 429;
+          setOutbox((o) =>
+            update(o, item.ref, {
+              state: "unsent",
+              error: refused ? (e as RequestFailed).message : undefined,
+            }),
+          );
         });
     },
     [key, resident.id, reload],
@@ -290,17 +369,21 @@ function ChatContainer({ resident }: { resident: Resident }) {
   // Unsent messages go again when the stream comes back, and every ten
   // seconds while they wait: a failed request is retried, never dropped.
   const retryRefs = live
-    .filter((i) => i.state === 'unsent' && !i.error && i.attempts < 30)
+    .filter((i) => i.state === "unsent" && !i.error && i.attempts < 30)
     .map((i) => i.ref)
-    .join(' ');
+    .join(" ");
   const outboxRef = useRef(live);
   useEffect(() => {
     outboxRef.current = live;
   });
   useEffect(() => {
-    if (connection !== 'connected' || retryRefs === '') return;
+    if (connection !== "connected" || retryRefs === "") return;
     const go = () =>
-      outboxRef.current.filter((i) => retryRefs.split(' ').includes(i.ref) && i.state === 'unsent').forEach(deliver);
+      outboxRef.current
+        .filter(
+          (i) => retryRefs.split(" ").includes(i.ref) && i.state === "unsent",
+        )
+        .forEach(deliver);
     const first = setTimeout(go, 500);
     const every = setInterval(go, 10_000);
     return () => {
@@ -312,7 +395,13 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const shown = sessions.find((s) => s.key === open);
   // Anything but the chat is as the server says, and read only until it
   // has said.
-  const conversation = open !== key ? { title: shown?.title ?? 'Conversation', writable: shown?.writable ?? false } : undefined;
+  const conversation =
+    open !== key
+      ? {
+          title: shown?.title ?? "Conversation",
+          writable: shown?.writable ?? false,
+        }
+      : undefined;
 
   // A conversation opens closed: no inspector and no preview carried
   // over, its own pages from the newest, and its own read marker.
@@ -332,7 +421,14 @@ function ChatContainer({ resident }: { resident: Resident }) {
       key={open}
       residentName={resident.name}
       conversation={conversation}
-      conversations={<Conversations sessions={sessions} chatKey={key} current={open} onOpen={openConversation} />}
+      conversations={
+        <Conversations
+          sessions={sessions}
+          chatKey={key}
+          current={open}
+          onOpen={openConversation}
+        />
+      }
       messages={messages}
       more={more}
       onOlder={loadOlder}
@@ -346,10 +442,15 @@ function ChatContainer({ resident }: { resident: Resident }) {
       onRetry={(ref) => {
         const item = live.find((i) => i.ref === ref);
         if (!item) return;
-        if (item.state === 'unsent') deliver(item);
+        if (item.state === "unsent") deliver(item);
         else {
           // A failed turn's words are kept already: its retry is a new message.
-          const again: Outgoing = { ref: newRef(), text: item.text, state: 'sending', attempts: 0 };
+          const again: Outgoing = {
+            ref: newRef(),
+            text: item.text,
+            state: "sending",
+            attempts: 0,
+          };
           setOutbox((o) => [...o.filter((i) => i.ref !== ref), again]);
           deliver(again);
         }
@@ -368,7 +469,12 @@ function ChatContainer({ resident }: { resident: Resident }) {
       }}
       onSend={(text) => {
         setPreview(null);
-        const item: Outgoing = { ref: newRef(), text, state: 'sending', attempts: 0 };
+        const item: Outgoing = {
+          ref: newRef(),
+          text,
+          state: "sending",
+          attempts: 0,
+        };
         setOutbox((o) => [...o, item]);
         deliver(item);
       }}
@@ -381,14 +487,24 @@ function ChatContainer({ resident }: { resident: Resident }) {
           });
           return;
         }
-        api.injections(resident.id, turnRef).then((rows) => setInjections((i) => ({ ...i, [turnRef]: rows })));
+        api
+          .injections(resident.id, turnRef)
+          .then((rows) => setInjections((i) => ({ ...i, [turnRef]: rows })));
       }}
       onProposeBookmark={(message) => {
-        const line = prompt('Suggest a line for the bookmark (Lily writes or accepts it)');
+        const line = prompt(
+          "Suggest a line for the bookmark (Lily writes or accepts it)",
+        );
         if (!line) return;
-        const note = prompt('A note Lily reads first');
+        const note = prompt("A note Lily reads first");
         if (!note) return;
-        void api.proposeBookmark(resident.id, message.session_key, message.turn_ref, line, note);
+        void api.proposeBookmark(
+          resident.id,
+          message.session_key,
+          message.turn_ref,
+          line,
+          note,
+        );
       }}
     />
   );
@@ -433,13 +549,24 @@ function InboxContainer({ resident }: { resident: Resident }) {
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id)])
-      .then(([letters, messages, replies, blocks, addresses]) => setData({ letters, messages, replies, blocks, addresses }))
+    Promise.all([
+      api.letters(id),
+      api.correspondence(id),
+      api.replies(id),
+      api.blocks(id),
+      api.letterAddresses(id),
+    ])
+      .then(([letters, messages, replies, blocks, addresses]) =>
+        setData({ letters, messages, replies, blocks, addresses }),
+      )
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
   const act = (p: Promise<unknown>) =>
-    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+    p
+      .then(() => setError(null))
+      .then(load)
+      .catch((e: unknown) => setError(asApiError(e)));
   if (!data) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -449,10 +576,13 @@ function InboxContainer({ resident }: { resident: Resident }) {
         {...data}
         onSendLetter={(to, text) => act(api.sendLetter(id, to, text))}
         actions={{
-          onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
+          onDecideReply: (number, approve, note) =>
+            act(api.decideReply(id, number, approve, note)),
           onMarkSent: (number, url) => act(api.markSent(id, number, url)),
-          onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
-          onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
+          onBlock: (m, note) =>
+            act(api.block(id, m.platform, m.sender, m.sender_name, note)),
+          onUnblock: (b, note) =>
+            act(api.unblock(id, b.platform, b.identity, note)),
         }}
       />
     </>
@@ -462,7 +592,11 @@ function InboxContainer({ resident }: { resident: Resident }) {
 function LibraryContainer({ resident }: { resident: Resident }) {
   const id = resident.id;
   const [documents, setDocuments] = useState<LibraryDocument[] | null>(null);
-  const [open, setOpen] = useState<{ path: string; content: string } | null>(null);
+  const [open, setOpen] = useState<{ path: string; content: string } | null>(
+    null,
+  );
+  const [hits, setHits] = useState<LibraryHit[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
     api
@@ -472,7 +606,10 @@ function LibraryContainer({ resident }: { resident: Resident }) {
   }, [id]);
   useEffect(() => load(), [load]);
   const act = (p: Promise<unknown>) =>
-    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+    p
+      .then(() => setError(null))
+      .then(load)
+      .catch((e: unknown) => setError(asApiError(e)));
   if (!documents) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -493,6 +630,19 @@ function LibraryContainer({ resident }: { resident: Resident }) {
           if (open?.path === path) setOpen(null);
           act(api.removeDocument(id, path));
         }}
+        hits={hits}
+        searching={searching}
+        onSearch={(q) => {
+          setSearching(true);
+          api
+            .librarySearch(id, q)
+            .then((h) => {
+              setHits(h);
+              setError(null);
+            })
+            .catch((e: unknown) => setError(asApiError(e)))
+            .finally(() => setSearching(false));
+        }}
       />
     </>
   );
@@ -501,7 +651,10 @@ function LibraryContainer({ resident }: { resident: Resident }) {
 function ConnectionsContainer({ resident }: { resident: Resident }) {
   const id = resident.id;
   const [adapters, setAdapters] = useState<Adapter[] | null>(null);
-  const [issued, setIssued] = useState<{ adapter: string; token: string } | null>(null);
+  const [issued, setIssued] = useState<{
+    adapter: string;
+    token: string;
+  } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
     api
@@ -554,7 +707,10 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
   }, [id]);
   useEffect(() => load(), [load]);
   const act = (p: Promise<unknown>) =>
-    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+    p
+      .then(() => setError(null))
+      .then(load)
+      .catch((e: unknown) => setError(asApiError(e)));
   if (!today) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -582,7 +738,9 @@ function LedgerContainer({ resident }: { resident: Resident }) {
   return (
     <Ledger
       ledger={ledger}
-      onSetBudget={(purpose, cap, period) => api.setBudget(resident.id, purpose, cap, period).then(load)}
+      onSetBudget={(purpose, cap, period) =>
+        api.setBudget(resident.id, purpose, cap, period).then(load)
+      }
       onStoreKey={(key) => api.storeKey(key).then(load)}
     />
   );
@@ -592,7 +750,10 @@ function LedgerContainer({ resident }: { resident: Resident }) {
 // it sent one, else the plain fact.
 function asApiError(e: unknown): ApiError {
   if (e instanceof RequestFailed && e.error) return e.error;
-  return { kind: 'request_failed', meaning: e instanceof Error ? e.message : 'the request did not complete' };
+  return {
+    kind: "request_failed",
+    meaning: e instanceof Error ? e.message : "the request did not complete",
+  };
 }
 
 function RegressionContainer({ resident }: { resident: Resident }) {
@@ -611,11 +772,7 @@ function RegressionContainer({ resident }: { resident: Resident }) {
   useEffect(() => load(), [load]);
 
   const read = useCallback(
-    (ref: string) =>
-      api
-        .regressionRun(id, ref)
-        .then(setOpen)
-        .catch(fail),
+    (ref: string) => api.regressionRun(id, ref).then(setOpen).catch(fail),
     [id, fail],
   );
 
@@ -624,7 +781,7 @@ function RegressionContainer({ resident }: { resident: Resident }) {
   // the run again. The join reads it once more, for any card recorded
   // between the first read and the join.
   const openRef = open?.run.ref ?? null;
-  const running = open?.run.state === 'running';
+  const running = open?.run.state === "running";
   useEffect(() => {
     if (!openRef || !running) return;
     let leave: () => void = () => undefined;
@@ -637,8 +794,14 @@ function RegressionContainer({ resident }: { resident: Resident }) {
           onJoined: () => void read(openRef),
           onCard: (card: RegressionCard) =>
             setOpen((d) =>
-              d && d.run.ref === openRef && !d.cards.some((c) => c.card_ref === card.card_ref)
-                ? { ...d, cards: sortCards([...d.cards, card]), run: { ...d.run, cards: d.run.cards + 1 } }
+              d &&
+              d.run.ref === openRef &&
+              !d.cards.some((c) => c.card_ref === card.card_ref)
+                ? {
+                    ...d,
+                    cards: sortCards([...d.cards, card]),
+                    run: { ...d.run, cards: d.run.cards + 1 },
+                  }
                 : d,
             ),
           onFinished: () => {
@@ -669,7 +832,9 @@ function RegressionContainer({ resident }: { resident: Resident }) {
       chatModel={pinned ?? resident.chat_model}
       error={error}
       onWriteTest={(texts) => act(api.writeTest(id, texts), () => load())}
-      onChangeTest={(number, texts) => act(api.changeTest(id, number, texts), () => load())}
+      onChangeTest={(number, texts) =>
+        act(api.changeTest(id, number, texts), () => load())
+      }
       onStartRun={(models, which) =>
         act(api.startRun(id, models, which), ({ ref }) => {
           load();
@@ -684,8 +849,14 @@ function RegressionContainer({ resident }: { resident: Resident }) {
         setOpen(null);
         load();
       }}
-      onGrade={(card, grade) => openRef && act(api.grade(id, openRef, card, grade), () => void read(openRef))}
-      onFavourite={(card) => openRef && act(api.favourite(id, openRef, card), () => void read(openRef))}
+      onGrade={(card, grade) =>
+        openRef &&
+        act(api.grade(id, openRef, card, grade), () => void read(openRef))
+      }
+      onFavourite={(card) =>
+        openRef &&
+        act(api.favourite(id, openRef, card), () => void read(openRef))
+      }
       onPin={(model) => act(api.pinModel(id, model), () => setPinned(model))}
     />
   );

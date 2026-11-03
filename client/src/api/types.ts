@@ -400,3 +400,13 @@ export interface Adapter {
   registered_at: string;
   revoked_at: string | null;
 }
+
+// A passage the library's search found nearest a query (seshat): the
+// document it is in and the words.
+export interface LibraryHit {
+  path: string;
+  kind: string;
+  title: string | null;
+  text: string;
+  distance: number;
+}
