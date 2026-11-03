@@ -86,8 +86,12 @@ defmodule Oneiroi.Brain.Oracle do
       {:ok, %{content: content}, steps} when is_binary(content) and content != "" ->
         {:ok, content, steps}
 
-      {:ok, _empty, _steps} ->
-        {:error, Error.new(:brain_oracle_silent, :brain_oracle_answer_empty)}
+      {:ok, result, steps} ->
+        {:error,
+         Error.new(:brain_oracle_silent, :brain_oracle_answer_empty,
+           ended: result.finish_reason || "unsaid",
+           tool_calls: length(steps)
+         )}
 
       {:error, reason} ->
         {:error, reason}
@@ -290,6 +294,13 @@ defmodule Oneiroi.Brain.Oracle do
   end
 
   defp describe(%{__exception__: true} = e), do: Exception.message(e)
+  # A declared error in words, with what it carried, so a failure is a
+  # diagnosis and not one word (Lily's letter #21).
+  defp describe(%{meaning: meaning, remedy: remedy, details: details}) when is_binary(meaning) do
+    carried = Enum.map_join(details, ", ", fn {k, v} -> "#{k}: #{v}" end)
+    meaning <> if(carried == "", do: "", else: " (#{carried})") <> ". " <> remedy
+  end
+
   defp describe(%{kind: kind}), do: Atom.to_string(kind)
   defp describe(other), do: inspect(other)
 

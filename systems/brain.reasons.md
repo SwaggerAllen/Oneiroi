@@ -445,3 +445,41 @@ judge whose instructions the judged can read is a judge the judged can
 write to. The source is bundled into the image rather than fetched, so
 what she reads is what runs her, and a self-hoster's resident reads
 theirs the same way, with no network and no rate limit.
+
+## #47
+The present changes from turn to turn and the prefix should not: put
+in the prefix, every change would break the prompt cache for the whole
+identity above it. So the state is its own section right after the
+prefix, read fresh each turn. The resident keeps it with a tool, a line
+per key, and may add keys of her own (the witness, 2026-11-03: a
+discipline audited from time to time, not a schema); 2,000 characters
+a line keeps it the present and not the archive.
+
+## #48
+A pin is a decision, not a measurement: nothing should rank it, budget
+it against the index or count it as considered and unused, which the
+measurement of 2026-11-03 showed it was every turn (bookmark/1 99:99:0).
+Pins change rarely, so they belong in the stable prefix, where they are
+also cached. `memory_feedback` rides the reply rather than costing a
+round, so saying what was used is free.
+
+## #49
+Some questions need more reading than a turn holds. The answer has to
+be hers, so it runs on her pinned chat model with her prefix and every
+read tool over all of her memory (the witness: a self is continuous
+experience, and an oracle without the whole record would not be her).
+It runs apart and answers by letter because it is long; its answers
+live under `oracle/` and out of the ranked index, so a summary of the
+record never crowds out the record, while staying findable by what it
+read and used, the same split retrieval is measured by.
+
+## #50
+The bound on tool rounds is against a model that loops, but a model
+that is still reading when it reaches the bound is not looping, and
+letting its last reply stand gave nothing: the oracle's heavier
+questions, the ones it exists for, came back silent (Lily's letter
+#21). Asking once more with no tool callable turns the bound into "stop
+reading and answer", which is what it was meant to say. The oracle's
+own bound is higher because long reads are its purpose. A failure that
+remains says what happened, because one word gave the resident nothing
+to act on.

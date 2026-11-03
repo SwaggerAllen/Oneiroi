@@ -32,10 +32,20 @@ defmodule Oneiroi.Nisaba.Provider do
     (`:system`, `:user`, `:assistant`, `:tool`) and `:content`; a system
     message's content comes from `Oneiroi.Nisaba.Prompt`, never from a
     literal (the `prompts` check). `tools` are OpenAI-shaped tool
-    definitions, passed through for the brain.
+    definitions, passed through for the brain; `tool_choice` `"none"`
+    keeps them defined (a history with tool calls needs them) while the
+    model may call none, for a turn's last word (brain #50).
     """
     @enforce_keys [:model]
-    defstruct [:model, messages: [], max_tokens: nil, temperature: nil, tools: [], metadata: %{}]
+    defstruct [
+      :model,
+      messages: [],
+      max_tokens: nil,
+      temperature: nil,
+      tools: [],
+      tool_choice: nil,
+      metadata: %{}
+    ]
 
     @type message :: %{required(:role) => atom(), required(:content) => String.t() | nil}
     @type t :: %__MODULE__{
@@ -44,6 +54,7 @@ defmodule Oneiroi.Nisaba.Provider do
             max_tokens: pos_integer() | nil,
             temperature: float() | nil,
             tools: [map()],
+            tool_choice: String.t() | nil,
             metadata: map()
           }
 
