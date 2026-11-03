@@ -371,7 +371,13 @@ defmodule Oneiroi.Eunomia.RegressionTest do
              ]}
 
           tools ->
-            send(test, {:saw, model, Enum.map(tools, & &1.content)})
+            # The round's count (brain #51) is the turn's, not the tool's.
+            send(
+              test,
+              {:saw, model,
+               Enum.map(tools, &String.replace(&1.content, ~r/\n\n\(Tool round .*\z/s, ""))}
+            )
+
             {:ok, "No matter."}
         end
       end,

@@ -119,6 +119,7 @@ defmodule Oneiroi.Brain.OracleTest do
     assert system =~ "# Where things stand"
     assert List.last(first).content =~ "The question: When did the heron first come up?"
     assert List.last(first).content =~ "## Source: bookmark/1"
+    assert List.last(first).content =~ "You have up to 24 rounds of tool calls"
 
     # The read ran; the write was refused, and nothing was written.
     assert_received {:asked, second}
@@ -234,6 +235,13 @@ defmodule Oneiroi.Brain.OracleTest do
     rounds = Oneiroi.Config.fetch!(:brain, :oracle_tool_rounds)
     assert rounds > Oneiroi.Config.fetch!(:brain, :tool_rounds)
     assert length(Enum.filter(messages, &(&1[:role] == :tool))) == rounds + 1
+
+    # The running count (brain #51): each round's results say where she is.
+    tools = messages |> Enum.filter(&(&1[:role] == :tool)) |> Enum.map(& &1.content)
+    assert hd(tools) =~ "(Tool round 1 of #{rounds} this turn; #{rounds - 1} left."
+    assert Enum.at(tools, rounds - 1) =~ "(Tool round #{rounds} of #{rounds} this turn; 0 left."
+    # The spent round's calls carry no count: the ask that follows says it.
+    refute List.last(tools) =~ "(Tool round"
 
     assert [%{status: "answered", confidence: "medium" <> _}] = Seshat.oracles(ctx.id, [])
   end

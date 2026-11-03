@@ -339,6 +339,7 @@ defmodule Oneiroi.Brain.Turn do
 
           round < rounds ->
             {results, turn} = run_tools(turn, calls)
+            results = counted(results, round + 1, rounds)
 
             assistant = %{
               role: :assistant,
@@ -386,6 +387,18 @@ defmodule Oneiroi.Brain.Turn do
       {:ok, %Result{} = result} -> {{:ok, %{result | tool_calls: []}}, turn}
       other -> {other, turn}
     end
+  end
+
+  # The running count (brain #51): the last result of each round says
+  # which round it was, of how many, and what happens when they are
+  # spent, so the bound is something she can plan around rather than
+  # meet. Only the model reads it; the captured calls are as they ran.
+  defp counted([], _round, _rounds), do: []
+
+  defp counted(results, round, rounds) do
+    {last, rest} = List.pop_at(results, -1)
+    note = Prompt.render!("tool_round", %{round: round, rounds: rounds, left: rounds - round})
+    rest ++ [%{last | content: last.content <> "\n\n" <> note}]
   end
 
   # The oracle reads for a long question and has rounds of its own.
