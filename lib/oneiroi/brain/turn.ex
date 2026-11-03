@@ -37,6 +37,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
+  alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
@@ -307,6 +308,7 @@ defmodule Oneiroi.Brain.Turn do
   defp run_tools(turn, calls) do
     Enum.reduce(calls, {[], turn}, fn call, {results, turn} ->
       {output, turn} = use_tool(turn, call)
+      output = Cut.cut(output, Config.fetch!(:brain, :tool_result_chars))
       result = %{role: :tool, tool_call_id: call.id, content: output}
 
       record = %{

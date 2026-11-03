@@ -468,7 +468,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   def search(text, limit) do
     Repo.all(
       from(m in Message,
-        where: ilike(m.content, ^search_pattern(text)),
+        where: ilike(m.content, ^search_pattern(text)) and m.role != "tool",
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit
       )
@@ -480,7 +480,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
   def search(text, limit, keys) when is_list(keys) do
     Repo.all(
       from(m in Message,
-        where: ilike(m.content, ^search_pattern(text)) and m.session_key in ^keys,
+        where:
+          ilike(m.content, ^search_pattern(text)) and m.session_key in ^keys and
+            m.role != "tool",
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit
       )

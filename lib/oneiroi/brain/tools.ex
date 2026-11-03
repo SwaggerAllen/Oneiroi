@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
@@ -224,7 +225,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search every transcript for a phrase, newest first; reaches past the index.",
+        "Search every transcript for a phrase, newest first; reaches past the index. Each hit is the words around the phrase, not the whole message; tool calls are not searched.",
         %{q: %{type: "string"}},
         [:q]
       ),
@@ -1194,7 +1195,11 @@ defmodule Oneiroi.Brain.Tools do
         "Nothing in the transcripts holds that."
 
       rows ->
-        Enum.map_join(rows, "\n", &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{&1.content}")
+        Enum.map_join(
+          rows,
+          "\n",
+          &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{Cut.around(&1.content || "", to_string(args["q"]), 160)}"
+        )
     end
   end
 
