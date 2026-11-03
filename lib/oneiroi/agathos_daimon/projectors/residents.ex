@@ -29,7 +29,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     SelfLetter,
     SelfLetterReceipt,
     SoulEdit,
-    SoulLine
+    SoulLine,
+    StateLine
   }
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
@@ -427,6 +428,32 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end
 
   defp actor_field(_other, _key), do: nil
+
+  # ---- the state store (agathos-daimon #32) ----
+
+  fold(%Events.StateLineSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:state_line, e.key},
+      %StateLine{
+        resident_id: e.id,
+        key: e.key,
+        text: e.text,
+        model: e.model,
+        verified_at: e.at
+      },
+      on_conflict: {:replace, [:text, :model, :verified_at]},
+      conflict_target: [:resident_id, :key]
+    )
+  end)
+
+  fold(%Events.StateLineCleared{} = e, _metadata, fn multi ->
+    Multi.delete_all(
+      multi,
+      {:state_line_cleared, e.key},
+      from(l in StateLine, where: l.resident_id == ^e.id and l.key == ^e.key)
+    )
+  end)
 
   # ---- the self-conversation (spec §12, P41) ----
 

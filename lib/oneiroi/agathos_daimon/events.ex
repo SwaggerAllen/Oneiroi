@@ -270,6 +270,19 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :model]
   end
 
+  defmodule StateLineSet do
+    # A line of the resident's present (agathos-daimon #32), written or
+    # verified: `at` is when she last verified it, and the same words
+    # again are a verification, kept as one. `model` is the instance that
+    # wrote it, from the actor.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :text, :model]
+  end
+
+  defmodule StateLineCleared do
+    # A line she no longer keeps; its words stay in the stream.
+    use Oneiroi.Event, version: 1, fields: [:id, :key]
+  end
+
   defmodule SelfLettersDelivered do
     # The incoming instance read them on its first turn under `model`,
     # once: a delivery, never a receipt, because the resident's own read

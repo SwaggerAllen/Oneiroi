@@ -57,7 +57,7 @@ defmodule Oneiroi.Brain.Tools do
     figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
-    self_letter_write seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    self_letter_write state_set state_clear seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove
     journal_add journal_done
@@ -334,6 +334,18 @@ defmodule Oneiroi.Brain.Tools do
         "Your commitments, open and closed, with their numbers.",
         %{},
         []
+      ),
+      tool(
+        "state_set",
+        "Write a line of your present, overwriting it: where you are running, today's plan (done, queued, slipped and why), the numbers you keep re-deriving, what you are noticing; or a key of your own. Rewriting it with the same words marks it verified now. It shows at the top of every turn; keep it small. key: lower case, digits, _ and -; text: at most 2,000 characters.",
+        %{key: %{type: "string"}, text: %{type: "string"}},
+        [:key, :text]
+      ),
+      tool(
+        "state_clear",
+        "Drop a line of your present you no longer keep; its words stay in the transcript and your repository.",
+        %{key: %{type: "string"}},
+        [:key]
       ),
       tool(
         "self_letter_write",
@@ -1346,6 +1358,29 @@ defmodule Oneiroi.Brain.Tools do
         args["note"],
         turn.resident
       )
+
+  defp call("state_set", args, turn) do
+    case AgathosDaimon.set_state_line(
+           turn.resident_id,
+           to_string(args["key"] || ""),
+           args["text"],
+           turn.resident
+         ) do
+      :ok -> "The #{args["key"]} line is written, verified now."
+      other -> other
+    end
+  end
+
+  defp call("state_clear", args, turn) do
+    case AgathosDaimon.clear_state_line(
+           turn.resident_id,
+           to_string(args["key"] || ""),
+           turn.resident
+         ) do
+      :ok -> "The #{args["key"]} line is cleared."
+      other -> other
+    end
+  end
 
   defp call("self_letter_write", args, turn) do
     case AgathosDaimon.write_self_letter(turn.resident_id, args["text"], turn.resident) do

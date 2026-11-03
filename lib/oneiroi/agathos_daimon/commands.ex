@@ -154,6 +154,18 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :text]
   end
 
+  # The state store (agathos-daimon #32): the resident's present, a line
+  # per key, overwritten; a key is a name and a line is at most 2,000
+  # characters, the one free text bounded here because it is read on
+  # every turn (Andrew, 2026-11-03).
+  defmodule SetStateLine do
+    use Oneiroi.Command, fields: [:id, :key, :text], bounds: [key: 64, text: 2000]
+  end
+
+  defmodule ClearStateLine do
+    use Oneiroi.Command, fields: [:id, :key], bounds: [key: 64]
+  end
+
   defmodule DeliverSelfLetters do
     use Oneiroi.Command, fields: [:id, :numbers, :model]
   end

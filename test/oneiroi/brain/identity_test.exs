@@ -49,7 +49,7 @@ defmodule Oneiroi.Brain.IdentityTest do
 
     refute prompt =~ "still settling"
 
-    assert ["prompt", "SOUL.md", "USER.md", "AGENTS.md", "index", "transcript"] =
+    assert ["prompt", "SOUL.md", "USER.md", "AGENTS.md", "state", "index", "transcript"] =
              {:account, ctx.witness.id} |> Kumbukumbu.injections(ref) |> Enum.map(& &1.label)
 
     assert {:ok, %{first_contact_at: %DateTime{}}} = AgathosDaimon.fetch(id)

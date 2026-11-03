@@ -216,11 +216,12 @@ defmodule Oneiroi.Seshat.Kinds do
   ]
 
   # The names the root already gives to something else: the identity
-  # files (spec §6.2), the build's rendered AGENTS.md, and the files
+  # files (spec §6.2), the state store's STATE.md (agathos-daimon #32),
+  # the build's rendered AGENTS.md, and the files
   # another platform's repository keeps there (David's README, MEMORY and
   # DREAMS, a coding agent's CLAUDE.md). None of them is a keepsake,
   # whatever it holds, and an import names each as it did before.
-  @reserved ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md AGENTS.md README.md CLAUDE.md MEMORY.md DREAMS.md HEARTBEAT.md TOOLS.md)
+  @reserved ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md STATE.md AGENTS.md README.md CLAUDE.md MEMORY.md DREAMS.md HEARTBEAT.md TOOLS.md)
 
   # A segment opens on a letter or digit, so `.`, `..` and a hidden file
   # fail here; a separate `..` clause was inert beside it and is gone.

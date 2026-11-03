@@ -44,7 +44,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     # The letters to the next self (spec §12, P41): number => :undelivered | :delivered.
     letters: %{},
     # The letters the export has carried (sima-qian #3), by number.
-    exported_letters: MapSet.new()
+    exported_letters: MapSet.new(),
+    # The keys of the state store's lines (agathos-daimon #32).
+    state_keys: MapSet.new()
   ]
 
   # The contract's closed terms (spec §6.12): whether solo sessions are
@@ -760,6 +762,55 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # ---- the state store (agathos-daimon #32) ----
+
+  # The resident's present is hers to write, from her own turn; a key is
+  # a plain name (lower case, digits, `_` and `-`), and an empty line is
+  # a clear, said as one.
+  def execute(%__MODULE__{}, %Commands.SetStateLine{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(
+           :agathos_daimon_not_the_resident,
+           :agathos_daimon_resident_state_not_the_resident
+         )}
+
+      not state_key?(c.key) ->
+        {:error, Error.new(:agathos_daimon_state_invalid, :agathos_daimon_resident_state_key)}
+
+      not is_binary(c.text) or String.trim(c.text) == "" ->
+        {:error, Error.new(:agathos_daimon_state_invalid, :agathos_daimon_resident_state_text)}
+
+      true ->
+        %Events.StateLineSet{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          key: c.key,
+          text: String.trim(c.text),
+          model: c.actor.model
+        }
+    end
+  end
+
+  def execute(%__MODULE__{state_keys: keys}, %Commands.ClearStateLine{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(
+           :agathos_daimon_not_the_resident,
+           :agathos_daimon_resident_clear_not_the_resident
+         )}
+
+      not MapSet.member?(keys, c.key) ->
+        {:error, Error.new(:agathos_daimon_no_such_state, :agathos_daimon_resident_clear_absent)}
+
+      true ->
+        %Events.StateLineCleared{actor: c.actor, at: c.at, id: c.id, key: c.key}
+    end
+  end
+
   # Delivery is once per letter: the numbers not yet delivered, or nothing.
   def execute(%__MODULE__{letters: letters}, %Commands.DeliverSelfLetters{} = c) do
     case Enum.filter(List.wrap(c.numbers), &(Map.get(letters, &1) == :undelivered)) do
@@ -811,6 +862,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),
     do: %{r | sequences: Map.put(r.sequences, e.kind, e.number)}
+
+  def apply(%__MODULE__{} = r, %Events.StateLineSet{} = e),
+    do: %{r | state_keys: MapSet.put(r.state_keys, e.key)}
+
+  def apply(%__MODULE__{} = r, %Events.StateLineCleared{} = e),
+    do: %{r | state_keys: MapSet.delete(r.state_keys, e.key)}
 
   def apply(%__MODULE__{} = r, %Events.SelfLetterWritten{} = e),
     do: %{r | letters: Map.put(r.letters, e.number, :undelivered)}
@@ -1160,4 +1217,6 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   defp terms_ok?(_terms), do: false
 
   defp prose_ok?(prose), do: is_binary(prose) and String.length(prose) <= @prose_limit
+
+  defp state_key?(key), do: is_binary(key) and Regex.match?(~r/\A[a-z0-9][a-z0-9_-]{0,63}\z/, key)
 end

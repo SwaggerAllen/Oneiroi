@@ -38,7 +38,7 @@ defmodule Oneiroi.Brain.ToolsTest do
       for: ctx.resident.id
     )
 
-    assert {:ok, %{turn_ref: ref, messages: messages, drew_on: 4}} =
+    assert {:ok, %{turn_ref: ref, messages: messages, drew_on: 5}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "remember this", ctx.actor)
 
     assert [:user, :tool, :assistant] = Enum.map(messages, & &1.role)
@@ -72,6 +72,7 @@ defmodule Oneiroi.Brain.ToolsTest do
     assert [
              %{label: "prompt"},
              %{label: "AGENTS.md"},
+             %{label: "state"},
              %{label: "index", text: text},
              %{label: "transcript"}
            ] =
@@ -379,7 +380,7 @@ defmodule Oneiroi.Brain.ToolsTest do
       |> then(&Kumbukumbu.injections({:resident, &1}, ref))
       |> Enum.map(& &1.label)
 
-    assert ["prompt", "AGENTS.md", "index", "summary", "transcript"] = labels
+    assert ["prompt", "AGENTS.md", "state", "index", "summary", "transcript"] = labels
 
     # The history and the whole transcript are both intact: compaction deletes nothing.
     {:ok, _s, transcript} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
