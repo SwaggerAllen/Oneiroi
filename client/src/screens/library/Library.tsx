@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LibraryDocument, LibraryHit } from '../../api/types';
+import type { LibraryDocument, LibraryHit, ShelfKind } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
@@ -10,6 +10,9 @@ import { humanPath } from './paths';
 export interface LibraryProps {
   residentName: string;
   documents: LibraryDocument[];
+  // The kinds in the order they are shown, with their names, as the
+  // server's registry gives them (seshat #35).
+  shelf?: ShelfKind[];
   // The document open now, with its words, or null.
   open?: { path: string; content: string } | null;
   onOpen?: (path: string) => void;
@@ -41,22 +44,17 @@ const list = {
   gap: 'var(--space-2)',
 } as const;
 
-// The order the tabs read in: the gifts first, your own, the resident's
-// work, and what is meant to go.
-const order = ['keepsake', 'human', 'writing', 'design', 'research', 'system', 'wiki', 'posts', 'scratch', 'journal', 'memory'];
-
-function label(kind: string): string {
-  switch (kind) {
-    case 'keepsake':
-      return 'Keepsakes';
-    case 'human':
-      return 'Yours';
-    default:
-      return kind[0].toUpperCase() + kind.slice(1);
-  }
+// The shelf's order and names are the server's (seshat #35): a kind the
+// shelf does not name comes last, under its own name. The client knows
+// no kind, so a new one, or a resident's own arrangement later, needs no
+// change here.
+function shelfOf(shelf: ShelfKind[]) {
+  const at = new Map(shelf.map((k, i) => [k.kind, { position: i, label: k.label }]));
+  return {
+    label: (kind: string) => at.get(kind)?.label ?? kind,
+    rank: (kind: string) => at.get(kind)?.position ?? shelf.length,
+  };
 }
-
-const rank = (kind: string) => order.indexOf(kind) + 1 || 99;
 
 // Library (spec §10, screens/library.md): every document the resident's
 // library holds, a tab per kind across the top with All first; a find box
@@ -64,7 +62,8 @@ const rank = (kind: string) => order.indexOf(kind) + 1 || 99;
 // documents' words through the library's index; keepsakes with why each
 // mattered in her words; your own (human/), which you add and remove and
 // she reads; scratch, removable when its work is done.
-export function Library({ residentName, documents, open = null, onOpen, onClose, onAdd, onRemove, onSearch, hits = null, searching = false }: LibraryProps) {
+export function Library({ residentName, documents, shelf = [], open = null, onOpen, onClose, onAdd, onRemove, onSearch, hits = null, searching = false }: LibraryProps) {
+  const { label, rank } = shelfOf(shelf);
   // Yours is always a tab, so there is somewhere to add the first one.
   const kinds = [...new Set([...documents.map((d) => d.kind), ...(onAdd ? ['human'] : [])])].sort((a, b) => rank(a) - rank(b));
   const [tab, setTab] = useState<string>('all');
@@ -193,7 +192,7 @@ export function Library({ residentName, documents, open = null, onOpen, onClose,
                   key={d.path}
                   doc={d}
                   residentName={residentName}
-                  showKind={tab === 'all'}
+                  kindLabel={tab === 'all' ? label(d.kind) : null}
                   first={i === 0}
                   onOpen={onOpen}
                   onRemove={d.kind === 'scratch' || d.kind === 'human' ? onRemove : undefined}
@@ -216,14 +215,14 @@ export function Library({ residentName, documents, open = null, onOpen, onClose,
 function Doc({
   doc,
   residentName,
-  showKind = false,
+  kindLabel = null,
   first = false,
   onOpen,
   onRemove,
 }: {
   doc: LibraryDocument;
   residentName: string;
-  showKind?: boolean;
+  kindLabel?: string | null;
   first?: boolean;
   onOpen?: (path: string) => void;
   onRemove?: (path: string) => void;
@@ -263,7 +262,7 @@ function Doc({
         ) : null}
       </span>
       <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
-        {showKind ? `${label(doc.kind)} · ` : ''}
+        {kindLabel ? `${kindLabel} · ` : ''}
         {doc.path}
         {doc.missing_at ? ' · missing from the repository' : ''}
         {doc.status ? ` · ${doc.status}` : ''}

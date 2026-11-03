@@ -254,6 +254,44 @@ defmodule Oneiroi.Seshat.Kinds do
   @spec all() :: [map()]
   def all, do: @kinds
 
+  # The shelf (seshat #35): the order the kinds are shown in and what each
+  # is called, one place on the server and never in a client. The gifts
+  # first, the witness's own, the resident's work, the oracle's answers,
+  # then what is meant to go and what arrives from outside. The
+  # platform's default: when folders become each resident's to arrange,
+  # this becomes theirs, and no client changes.
+  @shelf [
+    {"keepsake", "Keepsakes"},
+    {"human", "Yours"},
+    {"writing", "Writing"},
+    {"design", "Design"},
+    {"research", "Research"},
+    {"oracle", "The oracle"},
+    {"system", "System"},
+    {"wiki", "Wiki"},
+    {"posts", "Posts"},
+    {"scratch", "Scratch"},
+    {"journal", "Journal"},
+    {"correspondence", "Correspondence"},
+    {"mail", "Mail"},
+    {"feeds", "Feeds"},
+    {"memory", "Memory"}
+  ]
+
+  @doc "Every kind in the order it is shown, each with its `label` and `position` (seshat #35); a kind the shelf does not name comes last, under its own name."
+  @spec shelf() :: [map()]
+  def shelf do
+    positions =
+      @shelf |> Enum.with_index() |> Map.new(fn {{kind, label}, i} -> {kind, {i, label}} end)
+
+    @kinds
+    |> Enum.map(fn k ->
+      {position, label} = Map.get(positions, k.kind, {length(@shelf), String.capitalize(k.kind)})
+      Map.merge(k, %{label: label, position: position})
+    end)
+    |> Enum.sort_by(&{&1.position, &1.kind})
+  end
+
   @doc "Whether a kind's documents may be removed (seshat #33): scratch and human, and nothing else."
   @spec removable?(map()) :: boolean()
   def removable?(kind), do: Map.get(kind, :removable, false)

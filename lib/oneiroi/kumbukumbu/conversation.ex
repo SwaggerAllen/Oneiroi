@@ -191,7 +191,8 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
       session_key: c.session_key,
       turn_ref: c.turn_ref,
       ref: c.ref,
-      uses: c.uses
+      uses: c.uses,
+      embedding_model: c.embedding_model
     }
   end
 

@@ -144,4 +144,17 @@ defmodule Oneiroi.Seshat.CitationsTest do
              "aaaaa"
            ]
   end
+
+  test "the shelf: every kind once, in the server's order with its name, the gifts first (seshat #35)" do
+    shelf = Kinds.shelf()
+    assert Enum.sort(Enum.map(shelf, & &1.kind)) == Enum.sort(Enum.map(Kinds.all(), & &1.kind))
+
+    assert [
+             %{kind: "keepsake", label: "Keepsakes", position: 0},
+             %{kind: "human", label: "Yours"} | _
+           ] = shelf
+
+    assert %{label: "The oracle"} = Enum.find(shelf, &(&1.kind == "oracle"))
+    assert shelf == Enum.sort_by(shelf, & &1.position)
+  end
 end

@@ -88,9 +88,20 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # or tool. `ref` names the recording, since a turn on the adapter
     # contract records once per tool call. Measurement only: nothing is
     # reweighted from it until the resident has seen the numbers.
+    #
+    # Version 2 adds `embedding_model` (kumbukumbu #46, the resident's
+    # letter #12): the model the ranked index's vectors came from, on a
+    # recording whose index was ranked (it carries a `seed`), so "the
+    # ranking is deterministic given its embeddings" holds across an
+    # export and a move. Nil on every other recording, and on a version 1
+    # event, which predates the ranking.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses]
+      version: 2,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses, :embedding_model]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: RetrievalRecorded do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule Compacted do

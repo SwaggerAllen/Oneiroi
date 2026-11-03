@@ -387,7 +387,16 @@ export interface LibraryDocument {
   note: string | null;
 }
 
+// A document kind as the shelf shows it (seshat #35): its name and its
+// place, the server's.
+export interface ShelfKind {
+  kind: string;
+  label: string;
+  position: number;
+}
+
 export interface LibraryIndex {
+  kinds: ShelfKind[];
   documents: LibraryDocument[];
   unadopted: string[];
 }

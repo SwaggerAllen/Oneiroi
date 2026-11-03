@@ -34,7 +34,8 @@ defmodule Oneiroi.Kumbukumbu.Commands do
   end
 
   defmodule RecordRetrieval do
-    use Oneiroi.Command, fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses]
+    use Oneiroi.Command,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :ref, :uses, :embedding_model]
   end
 
   defmodule CompactSession do

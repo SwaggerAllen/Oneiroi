@@ -12,8 +12,9 @@ Library (spec §10), partly built 2026-11-02: `client/src/screens/library/`
 state list lives in the stories (DESIGN §4).
 
 Built: a tab per kind across the top, All first and each with its
-count, in the order keepsakes, yours (`human/`, always present so the
-first can be added), the resident's kinds, scratch and the journal last
+count, in the server's shelf order and under its names (seshat #35; the
+client knows no kind), yours (`human/`) always present so the
+first can be added
 (the tabs wrap on a phone rather than scroll, so none is out of sight).
 A Find box narrows the tab by title and path as you type; "Search the
 words" runs the library's own index (`GET .../library/search?q=`, one

@@ -260,7 +260,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
-      {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 1},
+      {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
       {Oneiroi.Kumbukumbu.Events.Compacted, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},

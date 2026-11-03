@@ -99,7 +99,7 @@ defmodule Oneiroi.Brain.OracleTest do
 
         if Enum.any?(messages, &(&1[:role] == :tool)) do
           {:ok,
-           "At dawn, by the weir: bookmark #1.\nUsed: bookmark/1\nConfidence: high, it is in the bookmark itself."}
+           "At dawn, by the weir: bookmark #1.\nNot asked: whether it mattered to you then.\nUsed: bookmark/1\nConfidence: high, it is in the bookmark itself."}
         else
           {:calls,
            [
@@ -135,6 +135,8 @@ defmodule Oneiroi.Brain.OracleTest do
     assert {:ok, %{content: content}} = Seshat.read(ctx.id, path)
     assert content =~ "# When did the heron first come up?"
     assert content =~ "asked by the resident"
+    assert content =~ "Not asked: whether it mattered to you then."
+    refute content =~ "the reading did not say what its question left out"
     assert content =~ "Sources: bookmark/1. Confidence: high"
 
     assert Enum.any?(
