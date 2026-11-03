@@ -149,7 +149,9 @@ defmodule Oneiroi.Brain.OracleTest do
     assert [%{read: read, used: ["bookmark/1"]}] = Seshat.oracles(ctx.id, used: "bookmark/1")
     assert "bookmark/1" in read
     assert [%{number: 1}] = Seshat.oracles(ctx.id, read: "bookmark/1")
-    assert Tools.run("oracle_list", ~s({"used":"bookmark/1"}), ctx.turn) =~ "read by fake/model"
+    listed = Tools.run("oracle_list", ~s({"used":"bookmark/1"}), ctx.turn)
+    assert listed =~ "read by fake/model"
+    assert listed =~ ~r/asked by the resident from [^,]+,/
     assert [] = Seshat.oracles(ctx.id, used: "bookmark/9")
 
     assert [%{target: "bookmark/1", returned: returned, used: used}] =

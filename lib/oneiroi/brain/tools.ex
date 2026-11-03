@@ -1427,7 +1427,7 @@ defmodule Oneiroi.Brain.Tools do
 
     case Seshat.oracles(turn.resident_id, opts) do
       [] -> "No oracle question matches."
-      rows -> Enum.map_join(rows, "\n", &oracle_line/1)
+      rows -> Enum.map_join(rows, "\n", &oracle_line(&1, turn.resident_id))
     end
   end
 
@@ -2516,9 +2516,17 @@ defmodule Oneiroi.Brain.Tools do
       "Each answer is written under oracle/ and this conversation gets a letter when it lands."
   end
 
-  defp oracle_line(o) do
+  # Who wanted to know (the resident's floor ask, letter #15): the asker
+  # and the conversation they asked from, so a dispatch can be pointed at.
+  defp oracle_line(o, resident_id) do
+    from =
+      case Kumbukumbu.conversation_name(resident_id, o.session_key) do
+        nil -> ""
+        name -> " from #{name}"
+      end
+
     asked =
-      "asked by the #{o.asked_by}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}" <>
+      "asked by the #{o.asked_by}#{from}, #{Date.to_iso8601(DateTime.to_date(o.dispatched_at))}" <>
         if(o.model, do: ", read by #{o.model}", else: "")
 
     settled =
