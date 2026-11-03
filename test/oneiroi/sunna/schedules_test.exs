@@ -148,6 +148,92 @@ defmodule Oneiroi.Sunna.SchedulesTest do
              Sunna.set_checkin(ctx.id, nil, "x", "8am", ctx.actor)
   end
 
+  # sunna #24: a letter another conversation sends the Oneiroi chat wakes it.
+  defp letters_setup(ctx) do
+    lily = Actor.new(:resident, ctx.id)
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
+
+    {:ok, code} =
+      Kumbukumbu.open_adapter(ctx.id, "laptop", [ctx.witness.id], lily,
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
+    send = fn from, actor, to, text ->
+      {:ok, %{number: n}} = Kumbukumbu.send_letter(ctx.id, from, %{to: to, text: text}, actor)
+      n
+    end
+
+    {main, fn text -> send.(code, lily, "Oneiroi chat", text) end, send, code, lily}
+  end
+
+  test "a letter from another conversation wakes the Oneiroi chat once, by number and sender, never its words",
+       ctx do
+    {main, letter, send, code, lily} = letters_setup(ctx)
+    first = letter.("secret words")
+
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note, reply] = transcript(ctx, main)
+    assert note.role == "system" and note.actor_kind == "platform"
+
+    assert note.content =~
+             "another of your conversations wrote to you here: ##{first} from Claude Code · Oneiroi."
+
+    assert note.content =~ "letter_send with in_reply_to"
+    refute note.content =~ "secret words"
+    assert reply.content == "Good morning."
+    assert [%{key: "chat", calls: 1}] = Nisaba.spend(ctx.id, :witness, :purpose, @since)
+
+    # Left unread, it wakes nothing again.
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = transcript(ctx, main)
+
+    # The witness's own letter, a house letter and a brief for Free time wake nothing.
+    send.(nil, ctx.actor, "Oneiroi chat", "from the witness")
+    send.(code, lily, "house", "to everyone")
+    send.(code, lily, "Free time", "a brief")
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = transcript(ctx, main)
+
+    # At most six wakes an hour: five more letters wake it, the seventh
+    # waits for the hour to turn, and then wakes it.
+    for _ <- 1..5 do
+      letter.("again")
+      Clock.Fake.advance(60)
+      assert :ok = Sunna.tick(ctx.id)
+    end
+
+    # (The fake model answers the first wake only; each wake is its note.)
+    notes = fn -> ctx |> transcript(main) |> Enum.filter(&(&1.role == "system")) end
+    assert length(notes.()) == 6
+    held = letter.("held")
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert length(notes.()) == 6
+
+    Clock.Fake.advance(3600)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_ | _] = all = notes.()
+    assert length(all) == 7
+    assert List.last(all).content =~ "##{held} from Claude Code · Oneiroi."
+  end
+
+  test "a letter waits out quiet hours and wakes the chat when they end", ctx do
+    :ok = Sunna.set_quiet_hours(ctx.id, "07:00", "09:00", ctx.actor)
+    {main, letter, _send, _code, _lily} = letters_setup(ctx)
+    n = letter.("in the night")
+
+    assert :ok = Sunna.tick(ctx.id)
+    assert [] = transcript(ctx, main)
+
+    Clock.Fake.advance(60 * 60 + 60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note, _reply] = transcript(ctx, main)
+    assert note.content =~ "##{n} from Claude Code · Oneiroi."
+  end
+
   test "quiet hours defer a wake to their end, written in the firing row; crossing midnight and clearing",
        ctx do
     :ok = Sunna.set_quiet_hours(ctx.id, "07:00", "09:00", ctx.actor)

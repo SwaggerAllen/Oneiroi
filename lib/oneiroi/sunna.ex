@@ -49,6 +49,8 @@ defmodule Oneiroi.Sunna do
       Commands.SetDate,
       Commands.RemoveDate,
       Commands.MarkHour,
+      Commands.WakeForLetters,
+      Events.LettersWoke,
       Events.CheckinSet,
       Events.CheckinChanged,
       Events.CheckinDeleted,
@@ -93,6 +95,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how late a check-in or free time may fire before it is missed (spec §6.7's 15-minute window); a bound carried from David"},
+      {:letter_wakes_per_hour, "SUNNA_LETTER_WAKES_PER_HOUR",
+       cast: :integer,
+       default: "6",
+       tag: :bound,
+       usage:
+         "how many times an hour a letter from another of the resident's conversations may wake the Oneiroi chat (sunna #24), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A guess, as the Claude Code plugin's six"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
@@ -142,7 +150,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
       {Oneiroi.Sunna.Events.DateRemoved, 1},
-      {Oneiroi.Sunna.Events.HourMarked, 1}
+      {Oneiroi.Sunna.Events.HourMarked, 1},
+      {Oneiroi.Sunna.Events.LettersWoke, 1}
     ]
   end
 

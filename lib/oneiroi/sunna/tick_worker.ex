@@ -65,6 +65,7 @@ defmodule Oneiroi.Sunna.TickWorker do
     end
 
     free_time(resident_id, settings, local, day)
+    _ = Schedules.wake_for_letters(resident_id, local, quiet, @actor)
     :ok
   end
 

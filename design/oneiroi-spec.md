@@ -364,8 +364,11 @@ Every feature, with where it stands today and which system owns it. Tier
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia #5, #8 to #13; the Regression screen) | judgement |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba #15, #17, #18) | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
-| F55 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon #32, brain #47) | resident, brain |
-| F56 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain #49, seshat #34) | brain, library |
+| F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos #3 to #11, brain #29) | character |
+| F56 | Dates: important dates as rows with an owner, an instant and a kind, citeable and taggable; a countdown counted on the read, never written | built (sunna #8) | schedule |
+| F57 | Figures: a number anyone cites lives as a row, a counter the fold of its increments with their actors, never a literal in a file | built (huginn-muninn #8) | audits |
+| F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon #32, brain #47) | resident, brain |
+| F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain #49, seshat #34) | brain, library |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon #22, #26; brain #24, #27); its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon #23, #24; kumbukumbu #29; glitnir #5); succession not yet | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir #3, #8 to #12); fines not yet | governance |
@@ -395,7 +398,7 @@ session under OTP supervision.
 - **Context assembly** is the memory agent's job (F12) and is recorded:
   stable prefix first for prompt caching (the identity files, AGENTS, the
   dyad contract with its limits, the pinned bookmark lines), then the
-  state store, read fresh (F55, brain #47), then the
+  state store, read fresh (F58, brain #47), then the
   bookmark index under its budget, then the character layer's trigger lane
   (§6.17), then Honcho's context, then the compaction summary and the live
   transcript. Every blob injected writes a `context_injection` row with
@@ -991,6 +994,12 @@ Owns `lib/oneiroi/sunna/**`.
 - Nightly: export, library index, judgement pass, project
   reviews. (No weight recompute: retrieval weights decay from their
   instants when read, kumbukumbu #46.) Weekly: card audit then memory audit.
+- **Letters wake the chat** (sunna #24): a house letter another of the
+  resident's conversations sends the Oneiroi chat wakes it on the next
+  tick, each letter once, at most six wakes an hour, never inside quiet
+  hours; the note names the letters, never their words. A letter from the
+  witness, to the house or to Free time wakes nothing. A Claude Code
+  conversation is woken by its own plugin (kumbukumbu #48).
 - **Quiet hours** are the witness's (`QuietHoursSet`); a wake queued inside
   them is deferred to their end (`WakeDeferred{until}`), and the Schedule
   screen says so in words.

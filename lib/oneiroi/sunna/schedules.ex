@@ -19,6 +19,7 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.Events
   alias Oneiroi.Sunna.Router
   alias Oneiroi.Sunna.Store
 
@@ -417,6 +418,65 @@ defmodule Oneiroi.Sunna.Schedules do
     }
 
     with {:ok, _} <- dispatch(command), do: if(key, do: :ok, else: {:error, failure})
+  end
+
+  @doc """
+  Wakes the Oneiroi chat for the letters another of the resident's
+  conversations sent it (sunna #24): each once, at most
+  `SUNNA_LETTER_WAKES_PER_HOUR` wakes an hour, never inside quiet hours
+  (the tick asks again after them). The note names each letter's number
+  and sender, never its words. A letter from the witness wakes nothing:
+  the witness is in that conversation already.
+  """
+  def wake_for_letters(resident_id, local, quiet, %Actor{} = actor) do
+    with false <- quiet?(local, quiet),
+         true <- letter_waits?(resident_id),
+         {:ok, row} <- resident(resident_id),
+         {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, actor),
+         name = Kumbukumbu.conversation_name(resident_id, key),
+         [_ | _] = letters <-
+           resident_id
+           |> Kumbukumbu.inbox(key)
+           |> Enum.filter(&(&1.to_name == name and is_binary(&1.from_session))),
+         command = %Commands.WakeForLetters{
+           actor: actor,
+           at: Clock.now(),
+           id: resident_id,
+           numbers: Enum.map(letters, & &1.number),
+           limit: Config.fetch!(:sunna, :letter_wakes_per_hour)
+         },
+         {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <- dispatch(command),
+         {:ok, _} <- wake(resident_id, key, letters_note(letters, numbers), :chat) do
+      :ok
+    else
+      {:error, _} = failed -> failed
+      _nothing_to_wake_for -> :ok
+    end
+  end
+
+  # Whether any letter a conversation sent waits unread for the one it
+  # names, the house and Free time aside (neither is woken): read every
+  # minute before anything opens the chat, so a resident with no letters
+  # costs one read and opens nothing.
+  defp letter_waits?(resident_id) do
+    resident_id
+    |> Kumbukumbu.letters()
+    |> Enum.any?(
+      &(is_binary(&1.from_session) and &1.to_name not in ["house", "Free time"] and
+          &1.to_name not in &1.read_by)
+    )
+  end
+
+  defp letters_note(letters, numbers) do
+    listed =
+      letters
+      |> Enum.filter(&(&1.number in numbers))
+      |> Enum.map_join(", ", fn l ->
+        "##{l.number} from #{l.from_name}" <>
+          if(l.in_reply_to, do: " (in reply to ##{l.in_reply_to})", else: "")
+      end)
+
+    Prompt.render!("letters_wake", %{letters: listed})
   end
 
   defp wake_main(resident_id, note, actor) do
