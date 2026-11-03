@@ -5,10 +5,21 @@ paths:
 
 # library
 
-Library (spec §10). Not built: this doc is the screen's file map and
-what the UI pass left for it, so a design pass finds a record rather
-than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Library (spec §10), partly built 2026-11-02: `client/src/screens/library/`
+(`Library.tsx`, `paths.ts`, stories and tests), under More, loaded by
+`LibraryContainer` in `client/src/app/App.tsx` from
+`GET /v1/residents/:id/library` and `.../library/documents/*path`. The
+state list lives in the stories (DESIGN §4).
+
+Built: every document by kind, keepsakes first with why each mattered
+in the resident's words (seshat #32), then yours (`human/`, seshat #33),
+the resident's kinds, and scratch last; a document opens and reads
+whole; scratch and human documents are removed with the button turned
+into its consequence; a document of yours is added by pasting or from a
+.md or .txt file, under a name made safe (`humanPath`). Not built:
+writing by status with the review copy, publish, research tasks and
+source release, digests, the journal's plan versus actuals, feeds,
+adopting a file made outside the flow.
 
 ## #1 Shows
 

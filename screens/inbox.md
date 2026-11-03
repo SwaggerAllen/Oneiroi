@@ -20,7 +20,10 @@ amended, xenia #12); a blocked sender's message as a line with no words;
 Block sender asks why, in place. **Blocked**: each block with who set it
 and why; Lift only on the ones you set. **The house letters** between
 the resident's conversations (kumbukumbu #44), Open and All, newest
-first, each with where it stands read off the letters (`letters.ts`).
+first, each with where it stands read off the letters (`letters.ts`),
+and **Write a letter**: from you to a conversation by name, to Free time
+(the default, the queue's front door) or to the house
+(`POST /letters`, `GET /letters/addresses`).
 Not built: threads by person, mail by kind with account mail as a count and a lock, pasting a
 message by hand (the route takes it; the screen has no form yet).
 

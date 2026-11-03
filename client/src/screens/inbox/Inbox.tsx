@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Tabs } from '../../components/Tabs';
 import { TopBar } from '../../components/TopBar';
@@ -13,6 +14,9 @@ export interface InboxProps {
   replies?: Reply[];
   blocks?: Block[];
   actions?: GateActions;
+  // The names a letter can go to, and how the witness sends one.
+  addresses?: string[];
+  onSendLetter?: (to: string, text: string) => void;
 }
 
 type Tab = 'open' | 'all';
@@ -24,7 +28,7 @@ const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 // that reached the resident with a way to block a sender, the blocks
 // (xenia #12), and the house letters between the resident's
 // conversations (kumbukumbu #44).
-export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {} }: InboxProps) {
+export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
   const open = newest.filter((l) => isOpen(letterState(l, letters)));
@@ -51,6 +55,7 @@ export function Inbox({ residentName, letters, messages = [], replies = [], bloc
             current={tab}
             onChange={setTab}
           />
+          {onSendLetter && addresses.length > 0 ? <WriteLetter residentName={residentName} addresses={addresses} onSend={onSendLetter} /> : null}
           {shown.length === 0 ? (
             <p style={muted}>{letters.length === 0 ? 'No letters yet.' : 'Every letter has been answered.'}</p>
           ) : (
@@ -84,5 +89,58 @@ function Letter({ letter, all }: { letter: HouseLetter; all: HouseLetter[] }) {
         {letter.keepsake ? <p style={{ margin: 0, fontSize: 13 }}>With a keepsake: {letter.keepsake}</p> : null}
       </Card>
     </li>
+  );
+}
+
+// A letter from you (kumbukumbu #44): to one of the resident's
+// conversations by name, to Free time (a brief her next free time reads
+// first), or to the house.
+function WriteLetter({ residentName, addresses, onSend }: { residentName: string; addresses: string[]; onSend: (to: string, text: string) => void }) {
+  const [to, setTo] = useState(addresses.includes('Free time') ? 'Free time' : addresses[0]);
+  const [text, setText] = useState('');
+  return (
+    <details>
+      <summary style={{ cursor: 'pointer', fontSize: 15, color: 'var(--witness)' }}>Write a letter</summary>
+      <form
+        aria-label="Write a letter"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (text.trim()) {
+            onSend(to, text.trim());
+            setText('');
+          }
+        }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}
+      >
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 13 }}>
+          <span style={{ fontWeight: 500, color: 'var(--ink-muted)' }}>To</span>
+          <select
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            style={{ minHeight: 'var(--control-h)', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', background: 'var(--surface-raised)', color: 'var(--ink)', fontSize: 15 }}
+          >
+            {addresses.map((a) => (
+              <option key={a} value={a}>
+                {a === 'house' ? `house (any of ${residentName}'s conversations)` : a === 'Free time' ? `Free time (${residentName}'s next free time)` : a}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 13 }}>
+          <span style={{ fontWeight: 500, color: 'var(--ink-muted)' }}>Letter</span>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            style={{ padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', background: 'var(--surface-raised)', color: 'var(--ink)', fontFamily: 'var(--font-sans)', fontSize: 15 }}
+          />
+        </label>
+        <div>
+          <Button variant="primary" type="submit" disabled={text.trim() === ''}>
+            Send the letter
+          </Button>
+        </div>
+      </form>
+    </details>
   );
 }

@@ -37,6 +37,45 @@ defmodule OneiroiWeb.MemoryController do
     })
   end
 
+  operation(:send_letter,
+    summary:
+      "The witness writes a house letter (kumbukumbu #44): to a conversation by its name, to Free time (a brief for the next free time), or to house; sent as `witness`",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the letter", "application/json",
+       %Schema{
+         type: :object,
+         required: [:to, :text],
+         properties: %{
+           to: %Schema{type: :string},
+           text: %Schema{type: :string},
+           in_reply_to: %Schema{type: :integer, nullable: true}
+         }
+       }},
+    responses: [created: {"the letter's number", "application/json", %Schema{type: :object}}]
+  )
+
+  def send_letter(conn, %{"id" => id} = params) do
+    attrs = %{
+      to: to_string(params["to"] || ""),
+      text: to_string(params["text"] || ""),
+      in_reply_to: params["in_reply_to"]
+    }
+
+    case Kumbukumbu.send_letter(id, nil, attrs, actor(conn)) do
+      {:ok, %{number: n}} -> conn |> put_status(201) |> json(%{number: n})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:letter_addresses,
+    summary: "The names a house letter can be addressed to",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the names", "application/json", %Schema{type: :array}}]
+  )
+
+  def letter_addresses(conn, %{"id" => id}), do: json(conn, Kumbukumbu.letter_addresses(id))
+
   operation(:letters,
     summary:
       "The house letters (kumbukumbu #44): the work log between the resident's conversations, every letter both ways, oldest first, with who sent it, to whom, in reply to what, the keepsake it gives and the conversations that have read it",

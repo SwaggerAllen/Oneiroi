@@ -733,6 +733,10 @@ defmodule Oneiroi.Kumbukumbu do
 
   # ---- revisions (spec §6.3, F13) ----
 
+  @doc "The names a house letter can be addressed to: house, Free time, the Oneiroi chat and every conversation the resident has had (kumbukumbu #44)."
+  @spec letter_addresses(String.t()) :: [String.t()]
+  defexport(letter_addresses(resident_id), do: Memories.addresses(resident_id))
+
   @doc "Sends a house letter (kumbukumbu #44) from the conversation the key names, or from the witness with a nil key: attrs to, text, and optionally in_reply_to and keepsake."
   @spec send_letter(String.t(), String.t() | nil, map(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}

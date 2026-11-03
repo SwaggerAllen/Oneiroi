@@ -9,12 +9,11 @@ const { Built } = composeStories(stories);
 describe('More', () => {
   afterEach(cleanup);
 
-  it('opens Ledger and Regression, and the nav lights More while either is open', () => {
+  it('opens the screens it holds, and the nav lights More while one is open', () => {
     const onOpen = vi.fn();
     render(<Built onOpen={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Ledger' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Regression' }));
-    expect(onOpen.mock.calls).toEqual([['ledger'], ['regression']]);
+    for (const name of ['Library', 'Connections', 'Ledger', 'Regression']) fireEvent.click(screen.getByRole('button', { name }));
+    expect(onOpen.mock.calls).toEqual([['library'], ['connections'], ['ledger'], ['regression']]);
     cleanup();
     render(<BottomNav current="ledger" onChange={() => undefined} />);
     expect(screen.getByRole('button', { name: 'More' }).getAttribute('aria-current')).toBe('page');

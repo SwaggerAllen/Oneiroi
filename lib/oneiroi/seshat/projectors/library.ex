@@ -51,7 +51,10 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       :document,
       from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path)
     )
-    |> Multi.delete_all(:chunks, from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.path))
+    |> Multi.delete_all(
+      :chunks,
+      from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.path)
+    )
     |> Multi.delete_all(
       :references,
       from(r in Reference, where: r.resident_id == ^e.id and r.from_path == ^e.path)

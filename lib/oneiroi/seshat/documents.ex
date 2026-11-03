@@ -410,7 +410,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   defp writable_kind(path, core?, %Actor{kind: by}) do
     kind = Kinds.kind_of(path)
-    with :ok <- witness_only(kind, by, core?), do: writable_kind(kind, path, core?)
+    with :ok <- witness_only(kind, by, core?), do: kind_writable(kind, path, core?)
   end
 
   # The witness's own (seshat #33): the resident reads them, never writes them.
@@ -421,7 +421,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   defp witness_only(_kind, _by, _core?), do: :ok
 
-  defp writable_kind(kind, path, core?) do
+  defp kind_writable(kind, path, core?) do
     cond do
       # Read-only: the originals import's copy is the record, and a write
       # from either party, or the platform's own core write, would make

@@ -1,4 +1,5 @@
 import type {
+  Adapter,
   ApiError,
   Bookmark,
   ContextPreview,
@@ -7,6 +8,7 @@ import type {
   Grade,
   HouseLetter,
   IndexNow,
+  LibraryIndex,
   Injection,
   Ledger,
   RegressionRun,
@@ -140,6 +142,21 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),
   markSent: (residentId: string, number: number, url: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
+  library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  document: (residentId: string, path: string) =>
+    call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
+  writeDocument: (residentId: string, path: string, content: string) =>
+    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  removeDocument: (residentId: string, path: string) =>
+    call<void>('DELETE', `/v1/residents/${residentId}/library/documents/${path}`),
+  adapters: (residentId: string) => call<Adapter[]>('GET', `/v1/residents/${residentId}/adapters`),
+  registerAdapter: (residentId: string, adapter: string, role: string) =>
+    call<{ adapter: string; role: string; token: string }>('POST', `/v1/residents/${residentId}/adapters`, { adapter, role }),
+  revokeAdapter: (residentId: string, adapter: string) =>
+    call<void>('DELETE', `/v1/residents/${residentId}/adapters/${adapter}`),
+  letterAddresses: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/addresses`),
+  sendLetter: (residentId: string, to: string, text: string) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
   schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
   setFreeTime: (residentId: string, times: string[]) =>

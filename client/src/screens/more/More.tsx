@@ -2,14 +2,16 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { TopBar } from '../../components/TopBar';
 
-export type MoreScreen = 'ledger' | 'regression';
+export type MoreScreen = 'library' | 'connections' | 'ledger' | 'regression';
 
 // More (spec §10): the screens that are not one of the four daily
 // destinations. The spec gives it five collapsed groups (Library,
-// Judgement, the resident, Account, Platform); until those screens
-// exist it lists the two that are built.
+// Judgement, the resident, Account, Platform); until those exist it
+// lists the screens that are built.
 export function More({ onOpen }: { onOpen: (screen: MoreScreen) => void }) {
   const items: Array<{ id: MoreScreen; label: string; line: string }> = [
+    { id: 'library', label: 'Library', line: 'Every document, the keepsakes, and your own.' },
+    { id: 'connections', label: 'Connections', line: 'What holds a token: Claude Code, the reader.' },
     { id: 'ledger', label: 'Ledger', line: 'Your key, budget lines and what has been spent.' },
     { id: 'regression', label: 'Regression', line: 'Tests across models, graded blind.' },
   ];

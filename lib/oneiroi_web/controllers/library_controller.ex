@@ -223,7 +223,9 @@ defmodule OneiroiWeb.LibraryController do
       written_at: d.written_at,
       written_by: d.written_by_kind,
       published_url: d.published_url,
-      published_at: d.published_at
+      published_at: d.published_at,
+      # Why a keepsake mattered, in the resident's words (seshat #32).
+      note: d.note
     }
   end
 

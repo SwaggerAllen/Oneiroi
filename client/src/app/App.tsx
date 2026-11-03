@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import type {
+  Adapter,
   ApiError,
   Block,
   CorrespondenceMessage,
   HouseLetter,
+  LibraryDocument,
   Bookmark,
   ContextPreview,
   IndexNow,
@@ -36,6 +38,8 @@ import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
+import { Library } from '../screens/library/Library';
+import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
 import { joinRun, joinSession } from './socket';
 
@@ -106,6 +110,8 @@ export function App() {
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
         {destination === 'more' ? <More onOpen={go} /> : null}
+        {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
+        {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
@@ -423,11 +429,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     messages: CorrespondenceMessage[];
     replies: Reply[];
     blocks: Block[];
+    addresses: string[];
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id)])
-      .then(([letters, messages, replies, blocks]) => setData({ letters, messages, replies, blocks }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id)])
+      .then(([letters, messages, replies, blocks, addresses]) => setData({ letters, messages, replies, blocks, addresses }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -440,12 +447,91 @@ function InboxContainer({ resident }: { resident: Resident }) {
       <Inbox
         residentName={resident.name}
         {...data}
+        onSendLetter={(to, text) => act(api.sendLetter(id, to, text))}
         actions={{
           onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
           onMarkSent: (number, url) => act(api.markSent(id, number, url)),
           onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
           onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
         }}
+      />
+    </>
+  );
+}
+
+function LibraryContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [documents, setDocuments] = useState<LibraryDocument[] | null>(null);
+  const [open, setOpen] = useState<{ path: string; content: string } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .library(id)
+      .then((l) => setDocuments(l.documents))
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!documents) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Library
+        residentName={resident.name}
+        documents={documents}
+        open={open}
+        onOpen={(path) =>
+          api
+            .document(id, path)
+            .then((d) => setOpen({ path, content: d.content }))
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onClose={() => setOpen(null)}
+        onAdd={(path, content) => act(api.writeDocument(id, path, content))}
+        onRemove={(path) => {
+          if (open?.path === path) setOpen(null);
+          act(api.removeDocument(id, path));
+        }}
+      />
+    </>
+  );
+}
+
+function ConnectionsContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [adapters, setAdapters] = useState<Adapter[] | null>(null);
+  const [issued, setIssued] = useState<{ adapter: string; token: string } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .adapters(id)
+      .then(setAdapters)
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  if (!adapters) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <Connections
+        residentName={resident.name}
+        adapters={adapters}
+        issued={issued}
+        onRegister={(adapter, role) =>
+          api
+            .registerAdapter(id, adapter, role)
+            .then((r) => setIssued({ adapter: r.adapter, token: r.token }))
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onRevoke={(adapter) =>
+          api
+            .revokeAdapter(id, adapter)
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onDismissToken={() => setIssued(null)}
       />
     </>
   );
