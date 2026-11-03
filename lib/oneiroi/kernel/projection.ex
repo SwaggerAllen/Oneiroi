@@ -126,8 +126,10 @@ defmodule Oneiroi.Projection do
         "#{facts.event_number} (#{facts.event_type}, stream #{facts.stream_id}) after " <>
         "#{attempts} attempt(s): #{facts.reason}; the event is kept in the store, and the " <>
         "projection is one event behind until it is replayed",
-      projector: name,
-      event_number: facts.event_number
+      component: :projection,
+      error_kind: :projection_parked,
+      error_site: name,
+      error_cause: facts.reason
     )
 
     :telemetry.execute([:oneiroi, :projection, :parked], %{count: 1}, facts)

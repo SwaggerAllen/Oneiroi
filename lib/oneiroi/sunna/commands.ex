@@ -2,7 +2,9 @@ defmodule Oneiroi.Sunna.Commands do
   @moduledoc "The schedule aggregate's commands; `id` is the resident's id."
 
   defmodule SetCheckin do
-    use Oneiroi.Command, fields: [:id, :key, :label, :time, :day]
+    use Oneiroi.Command,
+      fields: [:id, :key, :label, :time, :day],
+      bounds: [key: 64, label: 120]
   end
 
   defmodule DeleteCheckin do

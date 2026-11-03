@@ -23,11 +23,15 @@ defmodule Oneiroi.Ethos.Commands do
   end
 
   defmodule DefineHabit do
-    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance, :seed_number]
+    use Oneiroi.Command,
+      fields: [:id, :number, :name, :trigger, :stance, :seed_number],
+      bounds: [name: 120]
   end
 
   defmodule ChangeHabit do
-    use Oneiroi.Command, fields: [:id, :number, :name, :trigger, :stance]
+    use Oneiroi.Command,
+      fields: [:id, :number, :name, :trigger, :stance],
+      bounds: [name: 120]
   end
 
   defmodule AffirmHabit do

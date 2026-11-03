@@ -194,6 +194,27 @@ the sixteen systems of spec §6.
 - **Every event carries its actor and, for model output, the model slug
   (spec §3.1); every decision event carries `note`.** The event validator
   refuses one without, at the command edge.
+- **Free text is `:text`, and a bound belongs on the command.** A
+  migration's `:string` is Ecto's `varchar(255)`, a limit nobody chose;
+  `:string` is for identifiers alone (ids, refs, keys, slugs, kinds,
+  states, hashes, tags, labels), and the `free_text` check reads every
+  migration from `20261103000010` on. Free text carries no length limit
+  the database does not demand. The names that should be short (tags,
+  labels, keys, slugs) are bounded on their command with `bounds:` and
+  refused at dispatch as `<field>_too_long`, before any event exists:
+  a stored event has to project, so a limit at the projection is a crash
+  at the projection. On 2026-11-03 a provider's 330-character refusal
+  overflowed a capture failure's varchar(255), and the projector stopped
+  on it.
+- **A projector parks what it cannot fold; it never stops the app.**
+  `Oneiroi.Projection` retries a transient failure (a lost connection, a
+  deadlock) three times with backoff, then skips the event and logs it
+  at error with the projector, the event's number, type and stream, never
+  its data, and emits `[:oneiroi, :projection, :parked]` for the alert.
+  The library's default stopped the handler; restarted onto the same
+  event, it took the app down with it, every resident offline for an
+  hour (2026-11-03). One projection an event behind is a bug to replay;
+  the platform down is everyone's day.
 - **Properties are the floor:** replay determinism for reducers,
   idempotency for workers, round trip for upcasters.
 - **Per-resident id sequences** are allocated by the resident aggregate,

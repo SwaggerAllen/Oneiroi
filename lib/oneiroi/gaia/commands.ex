@@ -18,7 +18,9 @@ defmodule Oneiroi.Gaia.Commands do
   end
 
   defmodule IssueToken do
-    use Oneiroi.Command, fields: [:id, :token_hash, :label]
+    use Oneiroi.Command,
+      fields: [:id, :token_hash, :label],
+      bounds: [label: 120]
   end
 
   defmodule RevokeToken do
