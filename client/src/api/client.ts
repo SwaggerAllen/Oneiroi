@@ -8,6 +8,7 @@ import type {
   Grade,
   HouseLetter,
   IndexNow,
+  LibraryHit,
   LibraryIndex,
   Injection,
   Ledger,
@@ -143,6 +144,8 @@ export const api = {
   markSent: (residentId: string, number: number, url: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  librarySearch: (residentId: string, q: string) =>
+    call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
   document: (residentId: string, path: string) =>
     call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
   writeDocument: (residentId: string, path: string, content: string) =>
