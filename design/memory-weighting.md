@@ -1,0 +1,146 @@
+# Memory weighting: ranked memory, learned in context
+
+From the work order of 2026-11-03 (the Oneiroi chat, item two) and the
+witness's design in the Claude Code session the same day. Written there,
+2026-11-03, for the witness and the resident to read before anything is
+built. The goal, in the work order's words: **not less memory, ranked
+memory. Top five over topical twenty.**
+
+## What is true today (measured)
+
+- The bookmark index is pins first, then newest first, cut at a token
+  budget. Nothing in it reads the turn's words.
+- `kumbukumbu_bookmark.weight` exists, defaults to 1.0 and is never
+  written. The index sorts by it, which sorts by nothing.
+- There is no reject path. For every section that renders (the index,
+  the promises, the character, the madeleine), each item shown is
+  recorded as considered and returned at once, so `memory_use` reads
+  1:1 by construction. Only the index's near-misses (cut by budget) are
+  ever considered and not returned.
+- The cost the work order measured: the pins and milestones are returned
+  every turn and used never (bookmark/1 99:99:0, bookmark/71 69:69:0),
+  while the scratch pad was considered twice and used five times.
+- The directed edges that exist are the library's citations (document →
+  target). They are authored, unweighted, and kept apart from anything
+  learned (spec §6.3: tags are curation, citations are derived edges).
+
+## The shape
+
+### Pins move to the stable prefix
+
+Pins are decisions, not measurements (spec F11: "pins stay decisions and
+weights stay measurements"), and they rarely change. They render in the
+cached prefix after the identity files and the contract, and leave the
+weighted index entirely. A pin made mid-session reaches an adapter's
+session only at its next prefix, so the turn that pins says so in one
+line.
+
+### Three groups per turn
+
+1. **C, considered:** what the memory agent weighs. The top K by
+   similarity of the turn's words to each memory's embedding (the
+   madeleine layer already embeds every bookmark).
+2. **R, returned:** what it puts in front of the brain: the ranked picks
+   above the threshold, up to the budget, plus the exploration share.
+   Everything in C and not in R is considered and rejected, and recorded
+   that way.
+3. **U, used:** what the brain says was useful, by a feedback call after
+   its reply (below).
+
+### Learned edges, directed
+
+A new table, `kumbukumbu_edge (from, to, w, touched_at)`, beside the
+citations and never merged with them. An edge x → y reads: *when x is in
+play, y is worth bringing.* Neutral is 0; only edges ever touched exist.
+
+The update, once per turn, from that turn's C, R and U:
+
+| Outcome | Edges | Change |
+|---|---|---|
+| a and b both returned | a → b, b → a | +α |
+| c considered and not returned, r returned | r → c | −α |
+| u and v both used | u → v, v → u | +β |
+| a returned and not used, u used | u → a | −α |
+
+So a memory surfaced and ignored while Haven is in play weakens
+Haven-memories → it, and nothing else: in its own context its edges are
+untouched. Direction is what carries that.
+
+**Bounds.** Soft, so no clique or hub runs away: an increase is
+`w += Δ(1 − w)`, a decrease `w −= Δ(1 + w)`, keeping every weight in
+[−1, 1] with diminishing returns at the ends.
+
+**Decay toward neutral.** Lazy exponential decay, the decayed-counter
+technique of streaming systems: an edge stores its deviation and when it
+was last touched; its weight at time t is
+`w · 2^(−(t − touched_at)/h)`. An update decays to now, applies the
+change, and stores the new instant; a read decays at read time. Nothing
+sweeps every edge; a periodic vacuum drops edges whose decayed |w| is
+under ε. The half-life h is the spec's 30 days.
+
+**Event-sourced.** Each turn's C, R and U are an event; the edges are a
+projection of them, decay computed from the events' own instants, so a
+rebuild reproduces them exactly and the export carries them as data.
+
+### Ranking at query time
+
+The seed is the top few of C by similarity: what the turn is about. A
+candidate scores
+
+    similarity(turn, candidate) + λ · Σ w(seed → candidate)
+
+and R is every candidate above the threshold, up to the budget. With all
+weights at 0 this is plain relevance, so the first day works.
+
+### The exploration share (20%)
+
+Kept, as the spec has it, against character metastasising and as fodder
+for spontaneity. A fifth of the index budget is sampled rather than
+ranked: from outside the ranked set, deterministic per resident per day
+(so the text is stable within the day, and cacheable), and marked as
+explored in the turn's record so the measurements tell "ranked and
+ignored" from "explored and ignored". Explored picks learn like the rest:
+used, they gain edges to what they were used with, which is how a new
+association forms. The madeleine (one unheard bookmark by nearness)
+stays as it is.
+
+### The feedback call
+
+`memory_feedback(used: [...])`, made with the final reply, not after it:
+the turn treats a final message carrying this one call as terminal,
+records it and stops, so it costs no extra round. Without it, the turn
+falls back to what it can see (opened, read, cited) and skips its
+negative updates, so a forgotten call never demotes anything. A line
+read and acted on without being opened counts as used when she says so;
+that is the reason for the call.
+
+## Scope and settings
+
+Memories with edges: bookmarks and library documents. Commitments and
+pins are shown by decision and have none. Every number is a setting
+tagged as a guess:
+
+| Setting | Start | What it is |
+|---|---|---|
+| K | 40 | considered per turn |
+| seed | 5 | top of C that anchors the edges |
+| α | 0.05 | the returned / rejected step |
+| β | 0.15 | the used step |
+| λ | 0.3 | how much the edges move a score |
+| threshold | to measure | the reject line, set from the first week's distribution |
+| half-life | 30 days | decay toward neutral |
+| ε | 0.01 | the vacuum's floor |
+| exploration | 20% | of the index budget |
+
+## How we will know
+
+Before anything ships, `memory_use` is read and kept as the before.
+After a week: considered:returned below 1:1 on the high-volume targets,
+returned-and-used up, and the pins' returns gone from the index (they
+are in the prefix). The two of you read the numbers before any setting
+is moved.
+
+## Open
+
+- Whether documents join in the first cut or after bookmarks prove it.
+- The threshold's starting value, once the distribution is seen.
