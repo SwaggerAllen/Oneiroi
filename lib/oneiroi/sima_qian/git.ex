@@ -197,6 +197,33 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
+  @doc """
+  The history of `dir`, or of `path` in it, newest first, at most
+  `limit` commits: `%{sha, at, author, subject}` (brain #46, the
+  resident's own repository read by her). A repository with no commit
+  yet has no history.
+  """
+  @spec log(Path.t(), String.t() | nil, pos_integer()) :: {:ok, [map()]} | {:error, Error.t()}
+  def log(dir, path, limit) do
+    if head?(dir) do
+      args =
+        ["log", "-n", Integer.to_string(limit), "--format=%h%x1f%aI%x1f%an%x1f%s"] ++
+          if(path, do: ["--", path], else: [])
+
+      with {:ok, out} <- git(dir, args) do
+        {:ok,
+         out
+         |> String.split("\n", trim: true)
+         |> Enum.map(fn line ->
+           [sha, at, author, subject] = String.split(line, <<31>>, parts: 4)
+           %{sha: sha, at: at, author: author, subject: subject}
+         end)}
+      end
+    else
+      {:ok, []}
+    end
+  end
+
   @doc "A blob's bytes exactly, by its sha."
   @spec blob(Path.t(), String.t()) :: {:ok, binary()} | {:error, Error.t()}
   def blob(dir, sha), do: run(@binary, dir, ["cat-file", "blob", sha], false)

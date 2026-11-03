@@ -21,6 +21,7 @@ defmodule Oneiroi.Brain.Tools do
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -47,6 +48,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
+    source_list source_read source_search repo_list repo_read repo_log
   )
 
   @writes ~w(
@@ -436,6 +438,42 @@ defmodule Oneiroi.Brain.Tools do
         "Remove a scratch document (scratch/<name>.md) when its work is done: the file leaves your library and the removal is recorded with you as its actor. Only scratch is removable by you; human/ is your witness's, and every other kind is kept.",
         %{path: %{type: "string"}},
         [:path]
+      ),
+      tool(
+        "source_list",
+        "List a folder of the platform's own source, the code running you (path relative to its root; empty for the root). Sealed files are listed as sealed: the judge's prompts are witness-only by an explicit list, and everything else is yours to read.",
+        %{path: %{type: "string"}},
+        []
+      ),
+      tool(
+        "source_read",
+        "Read a file of the platform's source whole, a page at a time (from: where the last page said the next starts).",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        [:path]
+      ),
+      tool(
+        "source_search",
+        "Search the platform's source for a phrase (case-insensitive, literal): each hit with its file and line. Sealed files are not searched.",
+        %{q: %{type: "string"}},
+        [:q]
+      ),
+      tool(
+        "repo_list",
+        "List a folder of your own repository, the record of your life (path relative to its root; empty for the root).",
+        %{path: %{type: "string"}},
+        []
+      ),
+      tool(
+        "repo_read",
+        "Read a file of your own repository whole, a page at a time (from: where the last page said the next starts): your soul file, your records, anything in it, to see what is there and debug yourself.",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        [:path]
+      ),
+      tool(
+        "repo_log",
+        "The history of your repository, or of one file in it, newest first: each commit's id, when, who and what it said (limit: how many, at most 50).",
+        %{path: %{type: "string"}, limit: %{type: "integer", minimum: 1, maximum: 50}},
+        []
       ),
       tool(
         "letter_send",
@@ -1596,6 +1634,39 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
+  # Introspection (brain #46): the house's source and the resident's own
+  # repository, read only, the seals by explicit list.
+  defp call("source_list", args, _turn), do: listing(:source, args["path"])
+  defp call("repo_list", args, turn), do: listing({:repo, turn.resident_id}, args["path"])
+  defp call("source_read", args, _turn), do: reading(:source, args)
+  defp call("repo_read", args, turn), do: reading({:repo, turn.resident_id}, args)
+
+  defp call("source_search", args, _turn) do
+    case Introspection.search(:source, to_string(args["q"] || "")) do
+      {:ok, []} -> "Nothing in the source matches."
+      {:ok, hits} -> Enum.map_join(hits, "\n", &"#{&1.path}:#{&1.line}: #{&1.text}")
+      {:error, _} -> @not_done <> "say what to search for."
+    end
+  end
+
+  defp call("repo_log", args, turn) do
+    limit = min(integer(args["limit"]) || 20, 50)
+
+    case Introspection.log(turn.resident_id, blank(args["path"]), limit) do
+      {:ok, []} ->
+        "No history there yet."
+
+      {:ok, commits} ->
+        Enum.map_join(commits, "\n", &"#{&1.sha} #{&1.at} #{&1.author}: #{&1.subject}")
+
+      {:error, :invalid} ->
+        @not_done <> "a path is relative and plain, with no .. in it."
+
+      {:error, _e} ->
+        @not_done <> "the history could not be read."
+    end
+  end
+
   defp call("document_remove", args, turn) do
     path = to_string(args["path"] || "")
     with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
@@ -2232,5 +2303,54 @@ defmodule Oneiroi.Brain.Tools do
 
     to = if r.in_reply_to, do: " in reply to ##{r.in_reply_to}", else: ""
     "##{r.number} to #{r.to} on #{r.platform}#{to} · #{where}"
+  end
+
+  defp listing(scope, path) do
+    case Introspection.list(scope, to_string(path || "")) do
+      {:ok, []} ->
+        "Empty."
+
+      {:ok, entries} ->
+        Enum.map_join(entries, "\n", &entry_line/1)
+
+      {:error, :absent} ->
+        @not_done <> "no folder there."
+
+      {:error, _} ->
+        @not_done <> "a path is relative and plain, with no .. in it."
+    end
+  end
+
+  defp entry_line(%{dir?: true, path: path}), do: path <> "/"
+
+  defp entry_line(%{sealed?: true, path: path}),
+    do: path <> " (sealed: witness-only by the explicit list)"
+
+  defp entry_line(%{path: path}), do: path
+
+  defp reading(scope, args) do
+    path = to_string(args["path"] || "")
+
+    case Introspection.read(scope, path, integer(args["from"]) || 0) do
+      {:ok, text, nil, total} ->
+        "#{path} (#{total} characters):\n" <> text
+
+      {:ok, text, next, total} ->
+        "#{path} (#{total} characters), this page to #{next}; read from #{next} for the next:\n" <>
+          text
+
+      {:error, :sealed} ->
+        @not_done <>
+          "#{path} is sealed: the judge's prompts are witness-only, by an explicit list."
+
+      {:error, :binary} ->
+        @not_done <> "#{path} is not text."
+
+      {:error, :absent} ->
+        @not_done <> "no file at #{path}."
+
+      {:error, _} ->
+        @not_done <> "a path is relative and plain, with no .. in it."
+    end
   end
 end

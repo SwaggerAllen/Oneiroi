@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Nisaba,
       Oneiroi.Proteus,
       Oneiroi.Seshat,
+      Oneiroi.SimaQian,
       Oneiroi.Sunna,
       Oneiroi.Xenia,
       Jason
@@ -86,6 +87,10 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many characters of a document one library_read answers before it says where the next page starts (brain #43): about 3,000 tokens at four bytes a token, a guess at what one read may take of a turn's context, not measured"},
+      {:source_dir, "BRAIN_SOURCE_DIR",
+       default: ".",
+       usage:
+         "where the platform's own source is, for the resident to read the code running her (brain #46): the image copies it to /app/source and sets this; a checkout's root otherwise"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",
