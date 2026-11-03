@@ -38,6 +38,22 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :file,
       access: :resident
     },
+    # The oracle's answers (brain #49, seshat #34): an invocation of the
+    # resident asked one question over her whole memory and the sources
+    # named, its answer written here by the platform on her behalf and
+    # attributed. Cites, so its sources are edges; out of the ranked
+    # index's path, found deliberately (`oracles/2`).
+    %{
+      kind: "oracle",
+      folder: "oracle",
+      cites: true,
+      has_status: false,
+      layout:
+        "oracle/<number>-<slug>.md: an oracle's answer, with its question, sources, confidence and dispatch",
+      sidecar: nil,
+      adoption: :none,
+      access: :core
+    },
     %{
       kind: "research",
       folder: "research",

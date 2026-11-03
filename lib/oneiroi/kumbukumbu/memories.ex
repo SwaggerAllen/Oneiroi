@@ -718,6 +718,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
+  @doc "A house letter from the oracle to the conversation `session_key` (brain #49); nothing when that conversation has no name."
+  def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
+    case name_of(resident_id, session_key) do
+      nil -> {:ok, :no_conversation}
+      name -> send_letter(resident_id, nil, %{to: name, text: text}, actor)
+    end
+  end
+
   @doc """
   The names a house letter can be addressed to (kumbukumbu #44): `house`,
   `Free time` and the Oneiroi chat, which are always there to be written
@@ -798,6 +806,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp addressed(_resident_id, _to), do: :ok
 
   defp sender(_resident_id, nil, %Actor{kind: :witness}), do: {:ok, "witness"}
+  # The oracle's landing notice (brain #49): the platform, writing for no
+  # conversation of its own.
+  defp sender(_resident_id, nil, %Actor{kind: :platform}), do: {:ok, "the oracle"}
 
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do

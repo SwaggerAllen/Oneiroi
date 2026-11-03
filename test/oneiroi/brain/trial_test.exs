@@ -303,6 +303,7 @@ defmodule Oneiroi.Brain.TrialTest do
   ]
 
   @done [
+    {"oracle_ask", %{questions: [%{question: "the herons?"}]}},
     {"memory_feedback", %{used: [1]}},
     {"state_set", %{key: "noticing", text: "Herons at dusk."}},
     {"state_clear", %{key: "noticing"}},

@@ -833,6 +833,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.send_letter(resident_id, session_key, attrs, actor)
   )
 
+  @doc "A house letter from the oracle to the conversation `session_key` (brain #49), sent by the platform."
+  @spec letter_to_session(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, term()} | {:error, term()}
+  defexport(letter_to_session(resident_id, session_key, text, actor),
+    do: Memories.letter_to_session(resident_id, session_key, text, actor)
+  )
+
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))

@@ -6,7 +6,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
   alias Ecto.Multi
   alias Oneiroi.Seshat.Events
-  alias Oneiroi.Seshat.Store.{Chunk, Discussion, Document, Reference}
+  alias Oneiroi.Seshat.Store.{Chunk, Discussion, Document, Oracle, Reference}
 
   # A write sets the provenance columns and leaves the index's own
   # (hash, title, status, embedded_with, indexed_at, chunks) to the next
@@ -110,6 +110,53 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       %Discussion{resident_id: e.id, path: e.path, session_key: e.session_key, opened_at: e.at},
       on_conflict: :nothing,
       conflict_target: [:resident_id, :path, :session_key]
+    )
+  end)
+
+  # ---- the oracle (seshat #34) ----
+
+  fold(%Events.OracleDispatched{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:oracle, e.number},
+      %Oracle{
+        resident_id: e.id,
+        number: e.number,
+        question: e.question,
+        sources: e.sources || [],
+        session_key: e.session_key,
+        asked_by: actor_kind(e.actor) || "platform",
+        status: "open",
+        dispatched_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.OracleAnswered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:oracle, e.number},
+      from(o in Oracle, where: o.resident_id == ^e.id and o.number == ^e.number),
+      set: [
+        status: "answered",
+        path: e.path,
+        confidence: e.confidence,
+        read: e.read || [],
+        used: e.used || [],
+        model: e.model,
+        settled_at: e.at
+      ]
+    )
+  end)
+
+  fold(%Events.OracleFailed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:oracle, e.number},
+      from(o in Oracle, where: o.resident_id == ^e.id and o.number == ^e.number),
+      set: [status: "failed", reason: e.reason, settled_at: e.at]
     )
   end)
 

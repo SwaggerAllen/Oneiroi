@@ -106,6 +106,77 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Oracle do
+    @moduledoc "One question put to the oracle (seshat #34): what, of which sources, by whom, and how it settled."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "seshat_oracle" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:question, :string)
+      field(:sources, {:array, :string}, default: [])
+      field(:read, {:array, :string}, default: [])
+      field(:used, {:array, :string}, default: [])
+      field(:session_key, :string)
+      field(:asked_by, :string)
+      field(:status, :string)
+      field(:path, :string)
+      field(:confidence, :string)
+      field(:model, :string)
+      field(:reason, :string)
+      field(:dispatched_at, :utc_datetime_usec)
+      field(:settled_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc """
+  The oracle's questions, newest first, narrowed deliberately: `source:`
+  one it read (a ref, exactly), `status:` open, answered or failed,
+  `asked_by:` resident or witness, `q:` words in the question.
+  """
+  @spec oracles(keyword()) :: [Oracle.t()]
+  def oracles(opts) do
+    query = from(o in Oracle, order_by: [desc: o.number])
+
+    query =
+      Enum.reduce(opts, query, fn
+        {:source, source}, q when is_binary(source) ->
+          from(o in q, where: ^source in o.sources)
+
+        {:read, ref}, q when is_binary(ref) ->
+          from(o in q, where: ^ref in o.read)
+
+        {:used, ref}, q when is_binary(ref) ->
+          from(o in q, where: ^ref in o.used)
+
+        {:status, status}, q when is_binary(status) ->
+          from(o in q, where: o.status == ^status)
+
+        {:asked_by, by}, q when is_binary(by) ->
+          from(o in q, where: o.asked_by == ^by)
+
+        {:q, words}, q when is_binary(words) ->
+          from(o in q, where: ilike(o.question, ^"%#{escape(words)}%"))
+
+        {:limit, n}, q when is_integer(n) ->
+          from(o in q, limit: ^n)
+
+        _other, q ->
+          q
+      end)
+
+    Repo.all(query)
+  end
+
+  @doc "One oracle question by its number, or nil."
+  @spec oracle(pos_integer()) :: Oracle.t() | nil
+  def oracle(number), do: Repo.one(from(o in Oracle, where: o.number == ^number))
+
+  defp escape(words), do: String.replace(words, ~r/[%_\\]/, &("\\" <> &1))
+
   defmodule Discussion do
     @moduledoc "A session linked to a piece."
     use Ecto.Schema

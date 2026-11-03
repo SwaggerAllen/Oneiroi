@@ -50,7 +50,17 @@ defmodule Oneiroi.SimaQian.Backup do
     # (the soul class is the identity files alone, and writing is what
     # the dyad writes through the flow).
     {"machine",
-     ["records/", "memory/", "feeds/", "mail/", "correspondence/", "design/", "wiki/", "journal/"]}
+     [
+       "records/",
+       "memory/",
+       "feeds/",
+       "mail/",
+       "correspondence/",
+       "design/",
+       "wiki/",
+       "journal/",
+       "oracle/"
+     ]}
   ]
 
   def set_remote(resident_id, url, token, %Actor{} = actor) when is_binary(url) do

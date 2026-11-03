@@ -5,5 +5,5 @@ defmodule Oneiroi.Seshat.Router do
     prefix: "library-",
     commands: "Oneiroi.Seshat.Commands",
     dispatching:
-      ~w(WriteDocument RemoveDocument AdoptDocument PublishPiece OpenDiscussion NoteKeepsake)
+      ~w(WriteDocument RemoveDocument AdoptDocument PublishPiece OpenDiscussion NoteKeepsake DispatchOracle AnswerOracle FailOracle)
 end
