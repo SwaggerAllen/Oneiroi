@@ -581,11 +581,21 @@ defmodule Oneiroi.Brain.Turn do
 
     broadcast(turn.resident_id, turn.session_key, {:failed, turn.turn_ref, reason})
 
-    {:error,
-     Error.caught(:brain_turn_failed, :brain_turn_provider_failed, failure,
-       turn_ref: turn.turn_ref,
-       reason: reason
-     )}
+    e =
+      Error.caught(:brain_turn_failed, :brain_turn_provider_failed, failure,
+        turn_ref: turn.turn_ref,
+        reason: reason
+      )
+
+    # Said in the log as well as to the stream (brain#54): a witness away
+    # from the page misses the broadcast, and the log is where the
+    # operator looks. The class and the ref, never the words.
+    Logger.warning(
+      "brain: a turn failed (#{turn.purpose}, #{turn.turn_ref})",
+      [component: "brain"] ++ Oneiroi.Error.metadata(e)
+    )
+
+    {:error, e}
   end
 
   defp finish(turn, messages) do

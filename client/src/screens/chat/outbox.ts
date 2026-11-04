@@ -23,7 +23,14 @@ export interface Outgoing {
   // Why it failed or went unsent, in the server's words when it gave any.
   error?: string;
   attempts: number;
+  // When it was first sent, and when its present state began (ms since
+  // the epoch), for the timers the witness reads (brain#54).
+  sentAt?: number;
+  since?: number;
 }
+
+// The states a turn is under way in: taken and not yet answered.
+export const underWay: OutState[] = ['queued', 'running', 'thinking', 'tool', 'writing'];
 
 export type Connection = 'connected' | 'connecting' | 'offline';
 
@@ -34,8 +41,34 @@ export function newRef(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function update(items: Outgoing[], ref: string, change: Partial<Outgoing>): Outgoing[] {
-  return items.map((i) => (i.ref === ref ? { ...i, ...change } : i));
+// A change of state restarts the state's timer; the same state again
+// (a retry answered as a duplicate, another round's `thinking`) keeps it.
+export function update(items: Outgoing[], ref: string, change: Partial<Outgoing>, now = Date.now()): Outgoing[] {
+  return items.map((i) => {
+    if (i.ref !== ref) return i;
+    const moved = change.state !== undefined && change.state !== i.state;
+    return { ...i, ...change, sentAt: i.sentAt ?? now, since: moved || i.since === undefined ? now : i.since };
+  });
+}
+
+// The failures the server recorded (kumbukumbu capture failures), read
+// back so a failure broadcast while the page was away is not missed: a
+// message under way whose turn failed says so (brain#54).
+export function failedFrom(items: Outgoing[], failures: { turn_ref: string; reason: string }[], now = Date.now()): Outgoing[] {
+  const by = new Map(failures.map((f) => [f.turn_ref, f.reason]));
+  return items.reduce<Outgoing[]>((out, i) => {
+    const reason = by.get(i.ref);
+    return reason !== undefined && i.state !== 'failed' ? update(out, i.ref, { state: 'failed', error: reason }, now) : out;
+  }, items);
+}
+
+// How long, said short: 42s, 3m 05s, 1h 02m.
+export function elapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
 // A message is done when its turn is in the transcript with a reply.
@@ -45,9 +78,18 @@ export function settle(items: Outgoing[], answered: Set<string>): Outgoing[] {
 
 // What the resident is doing now, for the header: the newest message
 // that is still on its way says it.
-export function statusLine(items: Outgoing[], name: string): string | null {
+// Each says how long it has been so (brain#54), and, once that differs,
+// how long since the message went.
+export function statusLine(items: Outgoing[], name: string, now = Date.now()): string | null {
   const live = [...items].reverse().find((i) => i.state !== 'failed' && i.state !== 'unsent');
   if (!live) return null;
+  const words = stateWords(live, name);
+  if (!words || live.since === undefined) return words;
+  const sent = live.sentAt !== undefined && live.since - live.sentAt >= 5_000 ? ` · sent ${elapsed(now - live.sentAt)} ago` : '';
+  return `${words} ${elapsed(now - live.since)}${sent}`;
+}
+
+function stateWords(live: Outgoing, name: string): string | null {
   switch (live.state) {
     case 'sending':
       return 'Sending…';

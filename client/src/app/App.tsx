@@ -34,7 +34,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
-import { type Connection, loadOutbox, newRef, type Outgoing, saveOutbox, settle, update } from '../screens/chat/outbox';
+import { type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -47,6 +47,10 @@ import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
 import { useRefocus } from './refocus';
 import { joinRun, joinSession } from './socket';
+
+// The server's bound on one turn (BRAIN_TURN_TIMEOUT_MS's default): past
+// it with no word, a turn under way is asked after.
+const TURN_BOUND_MS = 180_000;
 
 // The shell (spec §10): Chat is home; the nav holds the three destinations
 // built in this phase; the first resident the account witnesses is the
@@ -201,6 +205,17 @@ function ChatContainer({ resident }: { resident: Resident }) {
     });
   }, [resident.id]);
 
+  // A failure the stream said while the page was away, read back from
+  // the server's record of it (brain#54).
+  const recover = useCallback(
+    () =>
+      api
+        .captureFailures(resident.id)
+        .then((failures) => setOutbox((o) => failedFrom(o, failures)))
+        .catch(() => undefined),
+    [resident.id],
+  );
+
   // Earlier messages of the conversation open now, put above.
   const loadOlder = useCallback(() => {
     const first = messages[0]?.cursor;
@@ -228,22 +243,6 @@ function ChatContainer({ resident }: { resident: Resident }) {
       .then(setSessions)
       .catch(() => setSessions([]));
   }, [open, reload, resident.id]);
-
-  // Back on the page (client#13): the conversation open now and the
-  // list are read again, since a phone suspends the stream while away
-  // and turns land without it. The stream is joined again with a fresh
-  // token when it is not up or the page was away long enough for the
-  // token (five minutes) to have gone: the socket's own retries reuse
-  // the token it was opened with, and a refused one leaves it down.
-  useRefocus((away) => {
-    if (!open) return;
-    void reload(open);
-    api
-      .sessions(resident.id)
-      .then(setSessions)
-      .catch(() => undefined);
-    if (connection !== 'connected' || away > 30_000) setStream((n) => n + 1);
-  });
 
   // Only the Oneiroi chat streams: another conversation is answered
   // where it happens and read here as captured.
@@ -293,12 +292,18 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const deliver = useCallback(
     (item: Outgoing) => {
       if (!key) return;
-      setOutbox((o) => update(o, item.ref, { state: 'sending', attempts: item.attempts + 1 }));
+      // Asking after a turn already under way leaves its state, and its
+      // timer, as they are.
+      const asking = underWay.includes(item.state);
+      setOutbox((o) => update(o, item.ref, asking ? { attempts: item.attempts + 1 } : { state: 'sending', attempts: item.attempts + 1 }));
       api
         .submit(resident.id, key, item.text, item.ref)
         .then((taken) => {
-          setOutbox((o) => update(o, item.ref, { state: taken.state === 'queued' ? 'queued' : 'running' }));
-          if (taken.state === 'duplicate') void reload(key);
+          if (taken.state === 'duplicate') {
+            setOutbox((o) => o.map((i) => (i.ref === item.ref && !underWay.includes(i.state) && i.state !== 'failed' ? { ...i, state: 'running', since: Date.now() } : i)));
+            void reload(key);
+            void recover();
+          } else setOutbox((o) => update(o, item.ref, { state: taken.state === 'queued' ? 'queued' : 'running' }));
         })
         .catch((e: unknown) => {
           // Refused for what it is (a 4xx other than a timeout or a
@@ -308,7 +313,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
           setOutbox((o) => update(o, item.ref, { state: 'unsent', error: refused ? (e as RequestFailed).message : undefined }));
         });
     },
-    [key, resident.id, reload],
+    [key, resident.id, reload, recover],
   );
 
   // Unsent messages go again when the stream comes back, and every ten
@@ -332,6 +337,28 @@ function ChatContainer({ resident }: { resident: Resident }) {
       clearInterval(every);
     };
   }, [connection, retryRefs, deliver]);
+
+  // Back on the page (client#13): the conversation open now and the
+  // list are read again, since a phone suspends the stream while away
+  // and turns land without it. The stream is joined again with a fresh
+  // token when it is not up or the page was away long enough for the
+  // token (five minutes) to have gone: the socket's own retries reuse
+  // the token it was opened with, and a refused one leaves it down.
+  useRefocus((away) => {
+    if (!open) return;
+    void reload(open);
+    void recover();
+    // A turn under way with no word for longer than a turn may take is
+    // asked after under its own ref: a live one answers as a duplicate
+    // and nothing changes; one lost to a restart runs again (brain#54).
+    const stale = Date.now() - TURN_BOUND_MS;
+    outboxRef.current.filter((i) => underWay.includes(i.state) && (i.since ?? 0) < stale).forEach((i) => deliver(i));
+    api
+      .sessions(resident.id)
+      .then(setSessions)
+      .catch(() => undefined);
+    if (connection !== 'connected' || away > 30_000) setStream((n) => n + 1);
+  });
 
   const shown = sessions.find((s) => s.key === open);
   // Anything but the chat is as the server says, and read only until it

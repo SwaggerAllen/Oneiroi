@@ -100,6 +100,13 @@ export const api = {
       `/v1/residents/${residentId}/sessions/${key}/turns`,
       { text, client_ref: clientRef },
     ),
+  // The turns that failed and are not yet resolved: read back on return
+  // so a failure broadcast while away is still seen (brain#54).
+  captureFailures: (residentId: string) =>
+    call<{ turn_ref: string; session_key: string; reason: string; failed_at: string }[]>(
+      'GET',
+      `/v1/residents/${residentId}/capture-failures`,
+    ),
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 

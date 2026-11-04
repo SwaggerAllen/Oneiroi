@@ -508,3 +508,17 @@ itself rather than from each system's records because a pass can make
 anything a tool can make, and the tool calls are the one place every
 kind of making is already written down, in order, with the line the
 platform answered.
+
+## #54
+The outcome of a submitted turn travelled one way only, over the
+stream, and a phone away from the page has no stream: its token lapses
+and the socket is refused until the page returns. A failure said once to
+nobody left the message under "thinking" for good, because a retry of
+the same ref is rightly a duplicate and the duplicate said nothing of
+how the turn ended. The failure was already recorded; the client never
+read it back, so that is the fix rather than a new channel. A task that
+died recorded nothing at all, and neither ending reached the log, so the
+operator's one view of production showed requests answered 202 and
+nothing after. The timer is there because "thinking" for ten seconds and
+for ten minutes read the same, and only one of them is fine.
+
