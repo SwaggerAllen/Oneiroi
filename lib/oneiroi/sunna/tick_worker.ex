@@ -73,13 +73,20 @@ defmodule Oneiroi.Sunna.TickWorker do
   # (sunna#21, #22), so a resident nobody configured still gets it. A
   # slot runs once a day; a day recorded before slots (slot nil) had its
   # one free time and runs no other.
+  # A slot has run when a run was recorded at or after its instant
+  # (sunna#27), not when a run carries its label: a change of zone gives a
+  # later slot the label of an earlier run, and the label once swallowed
+  # it. A day recorded before slots (slot nil) still had its one.
   defp free_time(resident_id, settings, local, day) do
     ran = Scope.resident(resident_id, fn -> Schedules.free_time_ran(settings, day) end)
+    recent = Scope.resident(resident_id, fn -> Store.free_time_history(8) end)
     late = Oneiroi.Config.fetch!(:sunna, :late_minutes) * 60
 
     for time <- Schedules.free_times_of(settings),
-        not Map.has_key?(ran, time) and not Map.has_key?(ran, nil),
-        since = DateTime.diff(local, Schedules.at_time(local, time), :second),
+        not Map.has_key?(ran, nil),
+        slot = Schedules.at_time(local, time),
+        not Enum.any?(recent, &(DateTime.compare(&1.at, slot) != :lt)),
+        since = DateTime.diff(local, slot, :second),
         since >= 0 and since <= late do
       Schedules.run_free_time(resident_id, day, time, @actor)
     end

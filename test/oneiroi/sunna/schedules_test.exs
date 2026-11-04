@@ -345,6 +345,37 @@ defmodule Oneiroi.Sunna.SchedulesTest do
 
   # A day recorded before slots had its one free time: a deploy that adds
   # a second slot the same day does not run free time again.
+  # sunna#27: on 2026-11-03 the witness moved the zone from UTC to Pacific
+  # after the 22:30 UTC run; that night's 22:30 Pacific slot carried the
+  # same day and slot and was taken as already run.
+  test "a slot whose label an earlier run carries, under another zone, still runs, and runs once",
+       ctx do
+    :ok = AgathosDaimon.set_timezone(ctx.id, "Etc/UTC", ctx.actor)
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+
+    # 12:00 UTC: the slot runs.
+    assert :ok = Sunna.tick(ctx.id)
+
+    free = fn ->
+      Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "free_time"))
+    end
+
+    assert [_] = free.()
+
+    # The zone moves to New York (UTC-4): its 12:00 the same day is 16:00
+    # UTC, the same day and slot by label, and another slot by the clock.
+    :ok = AgathosDaimon.set_timezone(ctx.id, @zone, ctx.actor)
+    Fake.reply("Good afternoon.", for: ctx.id)
+    Clock.Fake.advance(4 * 3600)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = free.()
+
+    # And once: the next minute is no third run.
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, _] = free.()
+  end
+
   test "a day whose free time ran before slots runs no slot again" do
     settings = %{free_time: "22:30", free_time_day: "2026-11-02", free_time_outcome: "ran"}
     assert Schedules.free_times_of(settings) == ["22:30"]
