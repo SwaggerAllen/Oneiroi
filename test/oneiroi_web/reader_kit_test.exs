@@ -310,6 +310,9 @@ defmodule OneiroiWeb.ReaderKitTest do
 
     [run] = calls(ctx)
     [args] = Regex.run(~r/^ARGS .*$/m, run)
+    # The answer file is granted as Edit: Claude Code ignores Write(path).
+    assert args =~ "Edit(/work/digested.json)"
+    refute args =~ "Write("
     assert args =~ "mcp__claude_ai_Gmail__search_threads"
     refute args =~ "browser_type"
     refute args =~ "Bash"
