@@ -9,14 +9,27 @@ defmodule Oneiroi.Sunna.Events do
 
   defmodule CheckinSet do
     # Carries the day it was set on, as a change does: one set after its
-    # time today is not missed today, it waits for tomorrow.
-    use Oneiroi.Event, version: 1, fields: [:id, :key, :label, :time, :day]
+    # time today is not missed today, it waits for tomorrow. Version 2
+    # adds what the note carries (sunna#28): `parts`, the catalog's keys
+    # checked, and `prompt`, the witness's own words; a version 1 event
+    # reads as the note it always was, the dates and no words.
+    use Oneiroi.Event, version: 2, fields: [:id, :key, :label, :time, :day, :parts, :prompt]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: CheckinSet do
+    def upcast(%{parts: nil} = event, _metadata), do: %{event | parts: ["dates"]}
+    def upcast(event, _metadata), do: event
   end
 
   defmodule CheckinChanged do
     # Carries the day it was changed on, so one changed after its time
-    # today waits for tomorrow (spec §6.7).
-    use Oneiroi.Event, version: 1, fields: [:id, :key, :label, :time, :day]
+    # today waits for tomorrow (spec §6.7). Version 2 as CheckinSet's.
+    use Oneiroi.Event, version: 2, fields: [:id, :key, :label, :time, :day, :parts, :prompt]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: CheckinChanged do
+    def upcast(%{parts: nil} = event, _metadata), do: %{event | parts: ["dates"]}
+    def upcast(event, _metadata), do: event
   end
 
   defmodule CheckinDeleted do

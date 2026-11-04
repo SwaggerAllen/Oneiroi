@@ -186,8 +186,9 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>
     call<{ key: string }>('POST', `/v1/residents/${residentId}/schedule/checkins`, { label, time }),
-  changeCheckin: (residentId: string, key: string, label: string, time: string) =>
-    call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time }),
+  // `note` left out keeps what the check-in carries (sunna#28).
+  changeCheckin: (residentId: string, key: string, label: string, time: string, note?: { parts: string[]; prompt: string }) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time, ...note }),
   deleteCheckin: (residentId: string, key: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>

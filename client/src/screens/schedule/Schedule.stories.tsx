@@ -7,8 +7,8 @@ const today: ScheduleToday = {
   now: '2026-11-02T15:10:00-08:00',
   timezone: 'America/Los_Angeles',
   checkins: [
-    { key: 'a', label: 'morning', time: '09:00', last_day: '2026-11-02', last_outcome: 'fired', last_at: '2026-11-02T17:00:00Z' },
-    { key: 'b', label: 'night', time: '21:30', last_day: '2026-11-01', last_outcome: 'fired', last_at: '2026-11-02T05:30:00Z' },
+    { key: 'a', label: 'morning', time: '09:00', parts: ['dates', 'plan', 'needs_you'], prompt: 'Start from the post draft.', last_day: '2026-11-02', last_outcome: 'fired', last_at: '2026-11-02T17:00:00Z' },
+    { key: 'b', label: 'night', time: '21:30', parts: ['dates'], prompt: null, last_day: '2026-11-01', last_outcome: 'fired', last_at: '2026-11-02T05:30:00Z' },
   ],
   firings: [{ key: 'a', day: '2026-11-02', outcome: 'fired', at: '2026-11-02T17:00:00Z', until: null }],
   last: { label: 'morning', time: '09:00', at: '2026-11-02T09:00:00-08:00' },
@@ -20,6 +20,14 @@ const today: ScheduleToday = {
   free_time_last: { day: '2026-11-02', outcome: 'ran' },
   quiet: { from: '23:00', to: '07:00' },
   dates: [{ number: 1, title: 'YC replies', on: '2026-12-11T17:00:00Z', kind: 'deadline', days_to: 39 }],
+  checkin_parts: [
+    { key: 'dates', label: 'Dates', about: 'The important dates with their countdowns, counted today.' },
+    { key: 'plan', label: "Today's plan", about: "Today's journal: her plan rows and the todos still open, or that none is written." },
+    { key: 'free_time', label: 'Free time', about: "Today's free-time slots, and how each that has come went." },
+    { key: 'research', label: 'Research', about: 'Research questions settled since yesterday, and how many are still open.' },
+    { key: 'letters', label: 'Letters', about: 'House letters waiting for this chat, by number and sender.' },
+    { key: 'needs_you', label: 'Waiting on you', about: 'What waits on the person who looks after her: replies to approve.' },
+  ],
 };
 
 const meta = {
@@ -31,6 +39,7 @@ const meta = {
     onSetFreeTime: () => undefined,
     onAddCheckin: () => undefined,
     onDeleteCheckin: () => undefined,
+    onSetCheckinNote: () => undefined,
     onSetQuietHours: () => undefined,
     onSetTimezone: () => undefined,
   },

@@ -273,6 +273,56 @@ defmodule Oneiroi.Sunna.SchedulesTest do
              Sunna.set_quiet_hours(ctx.id, "22", nil, ctx.actor)
   end
 
+  # sunna#28 (the witness, 2026-11-04: "some check boxes so I can compose
+  # from pre-existing parts and write stuff in myself").
+  test "a check-in's note carries the witness's words and the parts he checked, in the catalog's order",
+       ctx do
+    {:ok, key} =
+      Sunna.set_checkin(ctx.id, nil, "morning", "08:05", ctx.actor,
+        parts: ["needs_you", "plan", "free_time"],
+        prompt: "Look over the post draft first."
+      )
+
+    :ok = Sunna.set_free_time(ctx.id, "21:00", ctx.actor)
+
+    # A change of time alone keeps what the note carries.
+    {:ok, ^key} = Sunna.set_checkin(ctx.id, key, "morning", "08:05", ctx.actor)
+
+    assert [
+             %{
+               parts: ["needs_you", "plan", "free_time"],
+               prompt: "Look over the post draft first."
+             }
+           ] =
+             Sunna.today(ctx.id).checkins
+
+    assert {:error, %Sunna.Error{kind: :sunna_parts_invalid}} =
+             Sunna.set_checkin(ctx.id, key, "morning", "08:05", ctx.actor, parts: ["horoscope"])
+
+    Clock.Fake.advance(5 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
+    assert [note | _] = transcript(ctx, main)
+    c = note.content
+    assert c =~ "This is your morning check-in, at 08:05"
+    assert c =~ "From the person who looks after you:\n\nLook over the post draft first."
+    assert c =~ "# Today's plan\n\nNo plan written for 2026-10-26"
+    assert c =~ "- 21:00: still ahead"
+    assert c =~ "# Waiting on the person who looks after you\n\nNothing."
+    refute c =~ "# Letters"
+
+    # The catalog's order, whatever order they were checked in.
+    order = for h <- ["# Today's plan", "# Free time", "# Waiting on"], do: :binary.match(c, h)
+    assert order == Enum.sort(order)
+
+    # Words cleared with an empty prompt; the parts stay.
+    {:ok, ^key} = Sunna.set_checkin(ctx.id, key, "morning", "08:05", ctx.actor, prompt: "  ")
+
+    assert [%{prompt: nil, parts: ["needs_you", "plan", "free_time"]}] =
+             Sunna.today(ctx.id).checkins
+  end
+
   test "free time opens a session of its own kind on its own budget line, once a day, and a failure is recorded",
        ctx do
     :ok = Sunna.set_free_time(ctx.id, "08:00", ctx.actor)

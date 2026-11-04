@@ -339,7 +339,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F17 | Predictions, resolved by the witness only | built (eunomia#21) | judgement |
 | F18 | Nightly project reviews against GOALS.md | planned (eunomia's target, with hands) | judgement |
 | F19 | Check-ins set by the witness, fired by wake | built (sunna#3, #4, #13; brain#17) | schedule, brain |
-| F20 | Morning digest from mail and feeds, carried by the first check-in | planned (xenia: not built) | inbound, schedule |
+| F20 | Morning digest from mail and feeds, carried by the first check-in | partly built: each check-in's note is composed by the witness from his words and a catalog of parts (sunna#28); a mail and feeds part is not built (xenia) | inbound, schedule |
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | planned (xenia: not built) | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | planned (xenia: not built) | inbound |
 | F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia#9, #11 to #14), the inbound adapter run outside the platform | inbound |

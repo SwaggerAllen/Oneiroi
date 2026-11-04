@@ -139,3 +139,16 @@ slot is a time; its label in the zone of the moment is only its name. A window t
 the same slot was tried and dropped: it is not what a witness expects
 when he moves the zone, and the tick's own question (has anything run
 since this slot's time?) is what keeps a slot from running twice.
+
+## #28
+Every morning the witness typed what was on deck into the chat, because
+the check-in arrived knowing only its own name. Her letter proposed a
+fixed digest; he wanted to compose it himself, from parts and his own
+words, since what matters at a morning check-in is not what matters at
+night, and a fixed digest is one more thing to argue with. The parts
+read records rather than asking a model, so a check-in costs the turn
+it already paid for, and a part says when it has nothing so a checked
+box never looks broken. The brain renders them through the wake port
+because the schedule cannot read the journal or the letters without a
+cycle; the dates stay here, where they are counted.
+

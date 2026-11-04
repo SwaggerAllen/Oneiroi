@@ -28,7 +28,7 @@ so nothing here opens its conversation. Read with the schedule and
 again on coming back to the page; while it has not come the section is
 not shown. **Check-ins**: the next one, each with today's outcome or its
 last, added by label and time (`POST .../schedule/checkins`) or deleted
-(`DELETE .../checkins/:key`, confirming in place). **Quiet hours**: set
+(`DELETE .../checkins/:key`, confirming in place). Each says what its note carries ("Carries: your words, Dates, Today's plan"), and "Edit the note" opens, in place, a box for the witness's own words and a checkbox for each part of the server's catalog with what it reads; saving sends the parts in the catalog's order and the words (`PUT .../checkins/:key`, sunna#28). **Quiet hours**: set
 or cleared (`PUT .../schedule/quiet-hours`). **Dates**: listed with
 their kind and countdown. Every time is chosen by hour and minute
 (`TimeField`, two selects, minutes in fives with a saved minute off
@@ -37,7 +37,7 @@ an iPhone a cleared one looks set while it is empty, and the second
 check-in could not be added. Not built: the last check-in and today's
 events, the digest, nightly and weekly jobs, changing a check-in's
 label or time in place (the route exists, `PUT .../checkins/:key`, and
-`api.changeCheckin` calls it, but nothing on the screen does), adding
+the note editor uses it, but nothing on the screen edits label or time), adding
 or changing a date here, and pausing the resident, which has no route
 of its own on this screen.
 
