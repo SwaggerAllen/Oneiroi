@@ -339,3 +339,15 @@ opened. Numbers and senders only, because the turn's notice is told no
 more (#44). Once a letter, because a turn that leaves one unread has
 decided to; and bounded an hour, because two conversations answering
 each other would otherwise wake each other without end.
+
+## #49
+The transcripts are the largest text the resident owns and were the
+only text she could not search by what it says: to find the three
+arguments for the announcement post she had to guess the words she had
+used (letter #26). Passages rather than whole messages, because a long
+message is about several things and a hit should land on the one. A
+worker rather than the search, because the first search would otherwise
+embed months of messages while she waited; and every ten minutes,
+because a turn should be findable the same evening. Within the room
+alone, as the phrase search is, because a domain is a line the
+resident's memory keeps whichever way it is searched.

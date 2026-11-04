@@ -117,6 +117,16 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
 
     assert [%{turn_ref: "t-main"}] = Kumbukumbu.search({:resident, id}, "garden", 20, id, ctx.key)
 
+    # By meaning too (kumbukumbu #49): the intimate turn is nearest the
+    # words and is never a passage the common room is answered.
+    :ok = Oneiroi.Gaia.store_key(ctx.witness.id, "sk-or-test", ctx.actor)
+    assert {:ok, %{messages: embedded}} = Kumbukumbu.refresh_passages(id, ctx.actor)
+    assert embedded >= 2
+    assert {:ok, near} = Kumbukumbu.search_meaning(id, ctx.key, "night", 5, ctx.brain)
+    refute Enum.any?(near, &(&1.turn_ref == "t-intimate"))
+    assert {:ok, inside} = Kumbukumbu.search_meaning(id, ctx.ikey, "night", 5, ctx.brain)
+    assert Enum.any?(inside, &(&1.turn_ref == "t-intimate"))
+
     # The madeleine: the intimate bookmark sits nearest the words and is not surfaced in the common room.
     # In the common room the choice is a common-room bookmark or nothing, never the intimate one.
     refute match?(
@@ -155,7 +165,8 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
     assert {:ok, %{turn_ref: ref, messages: [_, searched, _]}} =
              Oneiroi.Brain.turn(id, ctx.key, "how is the garden?", ctx.actor)
 
-    assert searched.content =~ "Nothing in the transcripts holds that."
+    assert searched.content =~ "No message holds that phrase."
+    refute searched.content =~ "t-intimate"
     assert_received {:request, messages}
 
     acting =

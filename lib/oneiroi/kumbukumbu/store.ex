@@ -561,6 +561,76 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Passage do
+    @moduledoc "One passage of a captured message, embedded (kumbukumbu #49): the transcripts by meaning; derived, rebuilt from the messages."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_passage" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:session_key, :string, primary_key: true)
+      field(:sent_at, :utc_datetime_usec, primary_key: true)
+      field(:hash, :string, primary_key: true)
+      field(:part, :integer, primary_key: true)
+      field(:turn_ref, :string)
+      field(:role, :string)
+      field(:text, :string)
+      field(:model, :string)
+      field(:embedding, Pgvector.Ecto.Vector)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The oldest messages with words that have no passages yet: the user's and the resident's, never a tool's or a note."
+  @spec unembedded_messages(pos_integer()) :: [Message.t()]
+  def unembedded_messages(limit) do
+    Repo.all(
+      from(m in Message,
+        left_join: p in Passage,
+        on:
+          p.resident_id == m.resident_id and p.session_key == m.session_key and
+            p.sent_at == m.sent_at and p.hash == m.hash and p.part == 0,
+        where: is_nil(p.hash) and m.role in ["user", "assistant"] and m.content != "",
+        order_by: [asc: m.sent_at],
+        limit: ^limit
+      )
+    )
+  end
+
+  @doc "Puts passages, a message's parts at once."
+  def put_passages([]), do: :ok
+
+  def put_passages(rows) do
+    rows
+    |> Enum.chunk_every(500)
+    |> Enum.each(fn chunk ->
+      Repo.insert_all(Passage, chunk,
+        on_conflict: {:replace, [:text, :model, :embedding, :at]},
+        conflict_target: [:resident_id, :session_key, :sent_at, :hash, :part]
+      )
+    end)
+  end
+
+  @doc "The passages nearest a vector among the sessions named, nearest first."
+  def nearest_passages(vector, keys, limit) when is_list(keys) do
+    Repo.all(
+      from(p in Passage,
+        where: p.session_key in ^keys,
+        order_by: cosine_distance(p.embedding, ^vector),
+        limit: ^limit,
+        select: %{
+          session_key: p.session_key,
+          turn_ref: p.turn_ref,
+          sent_at: p.sent_at,
+          role: p.role,
+          text: p.text,
+          distance: cosine_distance(p.embedding, ^vector)
+        }
+      )
+    )
+  end
+
   @doc "The madeleine's rows, by kind and number."
   @spec vectors() :: [Vector.t()]
   def vectors, do: Repo.all(from(v in Vector, order_by: [v.kind, v.number]))

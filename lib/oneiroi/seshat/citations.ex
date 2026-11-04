@@ -32,19 +32,41 @@ defmodule Oneiroi.Seshat.Citations do
   # `memory` is a target and never a source (seshat #28): the resident
   # may cite a day of the memory originals, and the originals mint no
   # edge of their own.
-  @kinds ~w(bookmark position prediction date figure transcript writing design research journal wiki posts memory keepsake system habit seed soul commitment)
+  # The record kinds, which are rows and not documents; every document
+  # kind comes from the registry (`Kinds.all/0`) at the call, so a kind
+  # added there is citable the day it lands. `human`, `oracle` and
+  # `scratch` were not, because this list was written out by hand: found
+  # when the resident cited the witness's posts by sentence (letter #26).
+  @record_kinds ~w(bookmark position prediction date figure transcript habit seed soul commitment)
   # A ref opens and closes on a letter, a digit, `-` or `_`, so the full
   # stop closing a sentence stays with the sentence; `-` and `_` because a
   # session key is base64url and opens or closes on them about one time
   # in sixteen, which cut a transcript citation short.
-  @citation ~r/(?<![\w\/:])([a-z][a-z0-9-]*):(#{Enum.join(@kinds, "|")})\/([A-Za-z0-9_-](?:[A-Za-z0-9_.\/#:-]*[A-Za-z0-9_-])?)/
+  # Built once a node, from the kinds the registry names at the time.
+  defp citation do
+    case :persistent_term.get({__MODULE__, :citation}, nil) do
+      nil ->
+        kinds = Enum.uniq(@record_kinds ++ Enum.map(Kinds.all(), & &1.kind))
+
+        regex =
+          Regex.compile!(
+            "(?<![\\w\\/:])([a-z][a-z0-9-]*):(#{Enum.join(kinds, "|")})\\/([A-Za-z0-9_-](?:[A-Za-z0-9_.\\/#:-]*[A-Za-z0-9_-])?)"
+          )
+
+        :persistent_term.put({__MODULE__, :citation}, regex)
+        regex
+
+      regex ->
+        regex
+    end
+  end
 
   # ---- parsing, pure ----
 
   @doc "Every citation in a text, in order of first appearance, each once: slug, kind, ref and the target as written."
   @spec extract(String.t()) :: [map()]
   def extract(text) when is_binary(text) do
-    @citation
+    citation()
     |> Regex.scan(text)
     |> Enum.map(fn [_whole, slug, kind, ref] ->
       %{slug: slug, kind: kind, ref: ref, target: "#{slug}:#{kind}/#{ref}"}
@@ -63,7 +85,7 @@ defmodule Oneiroi.Seshat.Citations do
         strip_parenthetical(whole, inner)
       end)
     )
-    |> String.replace(@citation, "")
+    |> String.replace(citation(), "")
     |> String.replace(~r/[ \t]+([,.;:!?])/, "\\1")
     |> String.replace(~r/[ \t]{2,}/, " ")
   end
@@ -72,12 +94,12 @@ defmodule Oneiroi.Seshat.Citations do
   # "and", commas) goes whole; one with words of its own keeps them.
   defp strip_parenthetical(whole, inner) do
     cond do
-      not Regex.match?(@citation, inner) ->
+      not Regex.match?(citation(), inner) ->
         whole
 
       Regex.match?(
         ~r/\A[\s,;]*(?:(?:see|cf\.?|and|also|the)\s*[,;]?\s*)*\z/i,
-        String.replace(inner, @citation, "")
+        String.replace(inner, citation(), "")
       ) ->
         ""
 

@@ -239,3 +239,10 @@ the resident writes the day down, and a report over bookmarks alone
 would miss the notes. Not rendered into the day because the file is
 the resident's narrative (#22) and a register in it would read as a
 label the day was given.
+
+## #37
+A list of kinds written out by hand beside a registry of kinds drifts
+from it, silently: nothing failed when a kind was added, a citation into
+it just did not parse. Read from the registry, a kind is citable the day
+it lands, and the test that cites every registered kind fails if one is
+not.
