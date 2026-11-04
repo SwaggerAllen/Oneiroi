@@ -38,6 +38,12 @@ defmodule Oneiroi.Sunna.CheckinParts do
       key: "needs_you",
       label: "Waiting on you",
       about: "What waits on the person who looks after her: replies to approve."
+    },
+    %{
+      key: "digest",
+      label: "Ask for a digest",
+      about:
+        "Asks the reader for a digest of her streams since the last one (seshat#40); it lands as a letter in the chat once compiled."
     }
   ]
 

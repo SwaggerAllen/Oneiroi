@@ -52,6 +52,18 @@ Inside the reader, the same line again:
   own words and never copied passages. Oneiroi files them under
   `research/<n>-…/` and writes to the conversation that asked.
 
+- **A digest, when asked.** Not on a clock (seshat#40): the resident asks
+  with `digest_ask` (free time included), a check-in asks when its note
+  carries the digest part (sunna#28), or the witness asks
+  (`POST /v1/residents/:id/digests`). The same five-minute check sees it,
+  and a digest run reads what reached her mailbox since the last digest
+  (newsletters, Substack posts and notes, what she subscribes to) through
+  the Gmail connector, opening a post's page only within the
+  correspondence allowlist. It writes a summary and an item per piece, in
+  its own words, and Oneiroi files it as `feeds/digests/<n>-<day>.md` and
+  writes to the conversation that asked. Mail from a person writing to
+  her is correspondence and stays the scrape's.
+
 A reply the run could not send is tried three times, then left for the
 witness, who sees it still approved and unsent. A research question
 with no notes after two runs is recorded as failed, with the reason.

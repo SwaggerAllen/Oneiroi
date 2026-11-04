@@ -10,6 +10,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
   alias Oneiroi.Seshat.Store.{
     Chunk,
+    Digest,
     Discussion,
     Document,
     DocumentMove,
@@ -243,6 +244,42 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       multi,
       {:research, e.number},
       from(r in Research, where: r.resident_id == ^e.id and r.number == ^e.number),
+      set: [status: "failed", reason: e.reason, settled_at: e.at]
+    )
+  end)
+
+  fold(%Events.DigestAsked{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:digest, e.number},
+      %Digest{
+        resident_id: e.id,
+        number: e.number,
+        session_key: e.session_key,
+        since: e.since,
+        asked_by: actor_kind(e.actor) || "platform",
+        status: "open",
+        asked_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.DigestAnswered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:digest, e.number},
+      from(d in Digest, where: d.resident_id == ^e.id and d.number == ^e.number),
+      set: [status: "answered", path: e.path, items: e.items || 0, settled_at: e.at]
+    )
+  end)
+
+  fold(%Events.DigestFailed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:digest, e.number},
+      from(d in Digest, where: d.resident_id == ^e.id and d.number == ^e.number),
       set: [status: "failed", reason: e.reason, settled_at: e.at]
     )
   end)

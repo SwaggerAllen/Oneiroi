@@ -1,6 +1,7 @@
 defmodule OneiroiWeb.ReaderController do
   @moduledoc """
-  The reader's allowlists (xenia#16) and research (seshat#38). The
+  The reader's allowlists (xenia#16), research (seshat#38) and digests
+  (seshat#40). The
   witness reads and sets the two allowlists, asks research and reads it;
   the `reader` adapter reads the allowlists, the open questions, and
   answers or fails one. A `brain` token is refused: the resident asks
@@ -17,7 +18,7 @@ defmodule OneiroiWeb.ReaderController do
 
   tags(["reader"])
 
-  @reader_actions ~w(sites research answer failed)a
+  @reader_actions ~w(sites research answer failed digests answer_digest fail_digest)a
 
   plug(:allowed)
 
@@ -141,6 +142,97 @@ defmodule OneiroiWeb.ReaderController do
     end
   end
 
+  # ---- digests (seshat#40) ----
+
+  operation(:digests,
+    summary:
+      "Digests asked of the reader, newest first, each with the instant it covers from. The reader is given the open one alone",
+    parameters: [id: [in: :path, type: :string], status: [in: :query, type: :string]],
+    responses: [ok: {"digests", "application/json", %Schema{type: :array}}]
+  )
+
+  def digests(conn, %{"id" => id} = params) do
+    status = if adapter(conn), do: "open", else: params["status"]
+    opts = if status, do: [status: status], else: []
+    json(conn, id |> Seshat.digests(opts) |> Enum.map(&digest_json/1))
+  end
+
+  operation(:ask_digest,
+    summary:
+      "The witness asks the reader for a digest of the resident's streams since the last one; the open one's number if one is open",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def ask_digest(conn, %{"id" => id}) do
+    case Seshat.ask_digest(id, nil, actor(conn)) do
+      {:ok, n, state} -> conn |> put_status(201) |> json(%{number: n, state: state})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:answer_digest,
+    summary:
+      "The reader answers a digest: a summary and an item per piece read (source, title, link, notes in its own words), written under feeds/digests/",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"what it read", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           summary: %Schema{type: :string},
+           items: %Schema{type: :array, items: %Schema{type: :object}}
+         }
+       }},
+    responses: [ok: {"the file", "application/json", %Schema{type: :object}}]
+  )
+
+  def answer_digest(conn, %{"id" => id, "number" => n} = params) do
+    found = %{summary: params["summary"], items: List.wrap(params["items"])}
+
+    case Seshat.answer_digest(id, integer(n), found, actor_of(conn)) do
+      {:ok, path} -> json(conn, %{path: path})
+      {:error, %{kind: :seshat_no_such_digest} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:fail_digest,
+    summary: "The reader could not compile a digest, and says why",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, properties: %{reason: %Schema{type: :string}}}},
+    responses: [no_content: "recorded"]
+  )
+
+  def fail_digest(conn, %{"id" => id, "number" => n} = params) do
+    case Seshat.fail_digest(
+           id,
+           integer(n),
+           to_string(params["reason"] || "no reason given"),
+           actor_of(conn)
+         ) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, %{kind: :seshat_no_such_digest} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  defp digest_json(d),
+    do:
+      Map.take(d, [
+        :number,
+        :since,
+        :asked_by,
+        :status,
+        :path,
+        :items,
+        :reason,
+        :asked_at,
+        :settled_at
+      ])
+
   defp research_json(r),
     do:
       Map.take(r, [
@@ -180,9 +272,14 @@ defmodule OneiroiWeb.ReaderController do
 
     ok? =
       case adapter(conn) do
-        %AdapterPrincipal{resident_id: ^id, role: "reader"} -> action in @reader_actions
-        %AdapterPrincipal{} -> false
-        nil -> witnesses?(conn, id) and action not in [:answer, :failed]
+        %AdapterPrincipal{resident_id: ^id, role: "reader"} ->
+          action in @reader_actions
+
+        %AdapterPrincipal{} ->
+          false
+
+        nil ->
+          witnesses?(conn, id) and action not in [:answer, :failed, :answer_digest, :fail_digest]
       end
 
     if ok?,
