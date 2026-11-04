@@ -17,54 +17,48 @@ export interface ConversationsProps {
 // server's order, newest first, each conversation a row of its own with
 // when and how many turns. The client groups by the server's `title`
 // and decides nothing about what a conversation is or whether it takes a
-// message. Folded by default, so on a phone the chat stays the screen.
+// message. The chat opens and closes it as a panel from a button in its
+// top bar ("Conversations · N"): folded under the top bar as a grey line,
+// the witness never found it.
 export function Conversations({ sessions, chatKey, current, onOpen }: ConversationsProps) {
-  const others = sessions.filter((s) => s.key !== chatKey);
-  if (others.length === 0) return null;
   const groups: { title: string; rows: Session[] }[] = [];
-  for (const s of others) {
+  for (const s of sessions) {
+    if (s.key === chatKey) continue;
     const group = groups.find((g) => g.title === s.title);
     if (group) group.rows.push(s);
     else groups.push({ title: s.title, rows: [s] });
   }
   return (
-    <details
-      open={current !== chatKey}
-      style={{ padding: 'var(--space-2) var(--space-4)', borderBottom: '1px solid var(--hairline)', fontSize: 14 }}
-    >
-      <summary style={{ cursor: 'pointer', color: 'var(--ink-muted)' }}>
-        Other conversations · {others.length}
-      </summary>
-      <nav aria-label="Conversations" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingTop: 'var(--space-2)' }}>
-        <div>
-          <Button
-            variant={current === chatKey ? 'primary' : 'quiet'}
-            aria-current={current === chatKey ? 'true' : undefined}
-            onClick={() => onOpen(chatKey)}
-          >
-            Oneiroi chat
-          </Button>
-        </div>
-        {groups.map((group) => (
-          <section key={group.title} aria-label={group.title}>
-            <h2 style={{ margin: 0, fontSize: 13, lineHeight: '18px', fontWeight: 600 }}>{group.title}</h2>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' }}>
-              {group.rows.map((s) => (
-                <li key={s.key}>
-                  <Button
-                    variant={s.key === current ? 'primary' : 'quiet'}
-                    aria-current={s.key === current ? 'true' : undefined}
-                    onClick={() => onOpen(s.key)}
-                  >
-                    {when(s)} · {s.turns === 1 ? '1 turn' : `${s.turns} turns`}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </nav>
-    </details>
+    <nav aria-label="Conversations" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-4)', fontSize: 14 }}>
+      <h2 style={{ margin: 0, fontSize: 16, lineHeight: '22px', fontWeight: 600 }}>Conversations</h2>
+      <div>
+        <Button
+          variant={current === chatKey ? 'primary' : 'quiet'}
+          aria-current={current === chatKey ? 'true' : undefined}
+          onClick={() => onOpen(chatKey)}
+        >
+          Oneiroi chat
+        </Button>
+      </div>
+      {groups.map((group) => (
+        <section key={group.title} aria-label={group.title}>
+          <h3 style={{ margin: 0, fontSize: 13, lineHeight: '18px', fontWeight: 600 }}>{group.title}</h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' }}>
+            {group.rows.map((s) => (
+              <li key={s.key}>
+                <Button
+                  variant={s.key === current ? 'primary' : 'quiet'}
+                  aria-current={s.key === current ? 'true' : undefined}
+                  onClick={() => onOpen(s.key)}
+                >
+                  {when(s)} · {s.turns === 1 ? '1 turn' : `${s.turns} turns`}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </nav>
   );
 }
 

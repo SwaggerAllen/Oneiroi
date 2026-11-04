@@ -11,6 +11,7 @@ import type {
   ShelfKind,
   Bookmark,
   ContextPreview,
+  FreeTimeRun,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -32,7 +33,6 @@ import { BottomNav, type Destination } from '../components/BottomNav';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
-import { Conversations } from '../screens/chat/Conversations';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
 import { type Connection, loadOutbox, newRef, type Outgoing, saveOutbox, settle, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
@@ -356,7 +356,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       key={open}
       residentName={resident.name}
       conversation={conversation}
-      conversations={<Conversations sessions={sessions} chatKey={key} current={open} onOpen={openConversation} />}
+      conversations={{ sessions, chatKey: key, current: open, onOpen: openConversation }}
       messages={messages}
       more={more}
       onOlder={loadOlder}
@@ -619,6 +619,9 @@ function ConnectionsContainer({ resident }: { resident: Resident }) {
 function ScheduleContainer({ resident }: { resident: Resident }) {
   const id = resident.id;
   const [today, setToday] = useState<ScheduleToday | null>(null);
+  // Free time, remembered (brain#53): read beside the schedule; while it
+  // has not come, or did not, the screen goes without it.
+  const [remembered, setRemembered] = useState<FreeTimeRun[] | undefined>(undefined);
   const [error, setError] = useState<ApiError | null>(null);
   // A fresh screen per load, so each form starts from what the server says.
   const [version, setVersion] = useState(0);
@@ -630,6 +633,10 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         setVersion((v) => v + 1);
       })
       .catch((e: unknown) => setError(asApiError(e)));
+    api
+      .freeTimeRuns(id)
+      .then(setRemembered)
+      .catch(() => undefined);
   }, [id]);
   useEffect(() => load(), [load]);
   // Read again on coming back to the page (client#13).
@@ -644,6 +651,7 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         key={version}
         residentName={resident.name}
         today={today}
+        remembered={remembered}
         onSetFreeTime={(times) => act(api.setFreeTime(id, times))}
         onAddCheckin={(label, time) => act(api.addCheckin(id, label, time))}
         onDeleteCheckin={(key) => act(api.deleteCheckin(id, key))}

@@ -297,6 +297,21 @@ export interface FreeTimeSlot {
   today: string | null;
 }
 
+// One free-time run remembered (brain#53, sunna#25), newest first: its
+// day and slot ("HH:MM" in the resident's zone, null when it ran off a
+// slot), "ran" or "failed: <reason>", its turns, and the receipts of
+// what it made, the platform's words and never hers. Free time is
+// private as to its words, so its conversation is named and not opened.
+export interface FreeTimeRun {
+  day: string;
+  slot: string | null;
+  outcome: string;
+  session_key: string | null;
+  at: string;
+  turns: number;
+  did: { tool: string; result: string }[];
+}
+
 export interface ScheduleToday {
   day: string;
   now: string;

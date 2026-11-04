@@ -19,7 +19,14 @@ and her free time ran at 6:30 and 14:30 Pacific). **Free time**: each
 slot with what it did today, moved as a whole list
 (`PUT .../schedule/free-time`; sunna#22: one to four, never none, so a
 list of one has no remove button and a fifth cannot be added, said as
-a bound). **Check-ins**: the next one, each with today's outcome or its
+a bound). **Free time, remembered** (brain#53, sunna#25): the latest
+runs from `GET .../schedule/free-time`, newest first, each with its day
+and slot, ran or failed with the reason, its turns, and the receipts of
+what it made as a short list in the platform's words ("nothing
+written" when it made nothing); free time is private as to its words,
+so nothing here opens its conversation. Read with the schedule and
+again on coming back to the page; while it has not come the section is
+not shown. **Check-ins**: the next one, each with today's outcome or its
 last, added by label and time (`POST .../schedule/checkins`) or deleted
 (`DELETE .../checkins/:key`, confirming in place). **Quiet hours**: set
 or cleared (`PUT .../schedule/quiet-hours`). **Dates**: listed with

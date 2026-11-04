@@ -5,6 +5,7 @@ import type {
   ContextPreview,
   Block,
   CorrespondenceMessage,
+  FreeTimeRun,
   Grade,
   HouseLetter,
   IndexNow,
@@ -172,6 +173,8 @@ export const api = {
     call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
   schedule: (residentId: string) => call<ScheduleToday>('GET', `/v1/residents/${residentId}/schedule`),
+  freeTimeRuns: (residentId: string, limit?: number) =>
+    call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/free-time${limit ? `?limit=${limit}` : ''}`),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ContextPreview, Injection, Message } from '../../api/types';
 import { ActorChip } from '../../components/ActorChip';
 import { Button } from '../../components/Button';
@@ -6,6 +6,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { RefusalBlock } from '../../components/RefusalBlock';
 import { TopBar } from '../../components/TopBar';
 import { ConnectionDot } from '../../components/ConnectionDot';
+import { Conversations, type ConversationsProps } from './Conversations';
 import { type Connection, itemLine, type Outgoing, statusLine } from './outbox';
 import { firstUnread, newestCursor, toolSummary } from './page';
 
@@ -15,8 +16,10 @@ export interface ChatProps {
   // absent, the Oneiroi chat. One that is not writable is read here and
   // answered where it happens, so it has no composer and no preview.
   conversation?: { title: string; writable: boolean };
-  // The list of conversations, rendered under the top bar.
-  conversations?: ReactNode;
+  // The list of conversations (kumbukumbu#40), opened and closed as a
+  // panel over the transcript from a button in the top bar; opening one
+  // closes the panel.
+  conversations?: ConversationsProps;
   messages: Message[];
   // The reply being streamed, by turn ref, until the turn lands.
   streaming?: { turnRef: string; text: string } | null;
@@ -75,7 +78,7 @@ const NEAR = 160;
 export function Chat({
   residentName,
   conversation,
-  conversations = null,
+  conversations,
   messages,
   streaming = null,
   injections = {},
@@ -101,6 +104,17 @@ export function Chat({
   const shape = useRef<{ first: string | undefined; count: number; height: number }>({ first: undefined, count: 0, height: 0 });
   const [newBelow, setNewBelow] = useState(false);
   const [markerAbove, setMarkerAbove] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const listId = useId();
+  const listButton = useRef<HTMLButtonElement>(null);
+  const listPanel = useRef<HTMLDivElement>(null);
+  // How many conversations there are besides the Oneiroi chat: the count
+  // on the button; with none, there is no button.
+  const others = conversations ? conversations.sessions.filter((s) => s.key !== conversations.chatKey).length : 0;
+  const closeList = () => {
+    setListOpen(false);
+    listButton.current?.focus();
+  };
   const unread = firstUnread(messages, lastRead);
   const writable = conversation?.writable ?? true;
   // Which model answered, as the server recorded it on the reply: the
@@ -153,6 +167,14 @@ export function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
+  // The panel opened takes the focus to the conversation open now, so the
+  // keyboard is in the list it just opened.
+  useEffect(() => {
+    if (!listOpen) return;
+    const panel = listPanel.current;
+    (panel?.querySelector<HTMLElement>('[aria-current="true"]') ?? panel)?.focus();
+  }, [listOpen]);
+
   const onScroll = () => {
     const el = log.current;
     if (!el) return;
@@ -176,9 +198,19 @@ export function Chat({
             : (statusLine(outbox, residentName) ??
               (lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'))
         }
-        right={connection ? <ConnectionDot state={connection} /> : undefined}
+        right={
+          others > 0 || connection ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flex: 'none' }}>
+              {others > 0 ? (
+                <Button ref={listButton} aria-expanded={listOpen} aria-controls={listId} onClick={() => (listOpen ? closeList() : setListOpen(true))}>
+                  Conversations · {others}
+                </Button>
+              ) : null}
+              {connection ? <ConnectionDot state={connection} /> : null}
+            </div>
+          ) : undefined
+        }
       />
-      {conversations ? <div style={{ flex: 'none' }}>{conversations}</div> : null}
       {markerAbove ? (
         <div style={{ padding: 'var(--space-1) var(--space-4)', borderBottom: '1px solid var(--hairline)' }}>
           <Button variant="quiet" onClick={() => marker.current?.scrollIntoView({ block: 'start' })}>
@@ -186,118 +218,148 @@ export function Chat({
           </Button>
         </div>
       ) : null}
-      <div
-        ref={log}
-        role="log"
-        aria-label="Conversation"
-        onScroll={onScroll}
-        style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
-      >
-        <main style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minWidth: 0 }}>
-          {more && onOlder ? (
-            <div style={{ textAlign: 'center' }}>
-              <Button variant="quiet" onClick={onOlder}>
-                Earlier messages
-              </Button>
-            </div>
-          ) : null}
-          {messages.length === 0 && !streaming ? (
-            <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
-          ) : null}
-          {messages.map((m, i) => (
-            <Fragment key={`${m.cursor ?? ''}-${m.turn_ref}-${m.sent_at}-${m.role}-${m.content.slice(0, 16)}`}>
-              {i === unread ? (
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        {conversations && listOpen ? (
+          <div
+            id={listId}
+            ref={listPanel}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') closeList();
+            }}
+            style={{
+              position: 'absolute',
+              inset: '0 0 auto 0',
+              maxHeight: '100%',
+              overflowY: 'auto',
+              zIndex: 1,
+              background: 'var(--surface-raised)',
+              borderBottom: '1px solid var(--hairline)',
+              boxShadow: 'var(--shadow-raised)',
+            }}
+          >
+            <Conversations
+              {...conversations}
+              onOpen={(key) => {
+                setListOpen(false);
+                conversations.onOpen(key);
+              }}
+            />
+          </div>
+        ) : null}
+        <div
+          ref={log}
+          role="log"
+          aria-label="Conversation"
+          onScroll={onScroll}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+        >
+          <main style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minWidth: 0 }}>
+            {more && onOlder ? (
+              <div style={{ textAlign: 'center' }}>
+                <Button variant="quiet" onClick={onOlder}>
+                  Earlier messages
+                </Button>
+              </div>
+            ) : null}
+            {messages.length === 0 && !streaming ? (
+              <EmptyState text={writable ? `Say something to ${residentName}.` : 'Nothing captured here yet.'} />
+            ) : null}
+            {messages.map((m, i) => (
+              <Fragment key={`${m.cursor ?? ''}-${m.turn_ref}-${m.sent_at}-${m.role}-${m.content.slice(0, 16)}`}>
+                {i === unread ? (
+                  <div
+                    ref={marker}
+                    role="separator"
+                    aria-label="New since you last read"
+                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--witness)', fontSize: 12 }}
+                  >
+                    <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
+                    New since you last read
+                    <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
+                  </div>
+                ) : null}
+                <Reply
+                  message={m}
+                  residentName={residentName}
+                  drewOn={drewOn[m.turn_ref]}
+                  injections={injections[m.turn_ref]}
+                  onInspect={onInspect}
+                  onProposeBookmark={onProposeBookmark}
+                />
+              </Fragment>
+            ))}
+            {outbox.map((item) => {
+              // A failed turn's words were kept on the server, so once the
+              // transcript has them only the notice is shown here.
+              const inTranscript = messages.some((m) => m.turn_ref === item.ref);
+              return (
                 <div
-                  ref={marker}
-                  role="separator"
-                  aria-label="New since you last read"
-                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--witness)', fontSize: 12 }}
+                  key={item.ref}
+                  aria-label={item.state === 'failed' ? 'Not answered' : item.state === 'unsent' ? 'Not sent' : 'Sending'}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 0 }}
                 >
-                  <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
-                  New since you last read
-                  <span style={{ flex: 1, borderTop: '1px solid var(--witness)' }} />
-                </div>
-              ) : null}
-              <Reply
-                message={m}
-                residentName={residentName}
-                drewOn={drewOn[m.turn_ref]}
-                injections={injections[m.turn_ref]}
-                onInspect={onInspect}
-                onProposeBookmark={onProposeBookmark}
-              />
-            </Fragment>
-          ))}
-          {outbox.map((item) => {
-            // A failed turn's words were kept on the server, so once the
-            // transcript has them only the notice is shown here.
-            const inTranscript = messages.some((m) => m.turn_ref === item.ref);
-            return (
-              <div
-                key={item.ref}
-                aria-label={item.state === 'failed' ? 'Not answered' : item.state === 'unsent' ? 'Not sent' : 'Sending'}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)', minWidth: 0 }}
-              >
-                {inTranscript ? null : (
-                  <p
+                  {inTranscript ? null : (
+                    <p
+                      style={{
+                        margin: 0,
+                        padding: 'var(--space-2) var(--space-3)',
+                        borderRadius: 'var(--radius-lg)',
+                        background: 'var(--witness-tint)',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 15,
+                        lineHeight: '22px',
+                        maxWidth: 'min(var(--measure), 100%)',
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {item.text}
+                    </p>
+                  )}
+                  <span
                     style={{
-                      margin: 0,
-                      padding: 'var(--space-2) var(--space-3)',
-                      borderRadius: 'var(--radius-lg)',
-                      background: 'var(--witness-tint)',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 15,
-                      lineHeight: '22px',
-                      maxWidth: 'min(var(--measure), 100%)',
-                      whiteSpace: 'pre-wrap',
-                      overflowWrap: 'anywhere',
+                      fontSize: 12,
+                      color: item.state === 'failed' || item.state === 'unsent' ? 'var(--danger)' : 'var(--ink-faint)',
                     }}
                   >
-                    {item.text}
-                  </p>
-                )}
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: item.state === 'failed' || item.state === 'unsent' ? 'var(--danger)' : 'var(--ink-faint)',
-                  }}
-                >
-                  {itemLine(item, residentName)}
-                </span>
-                {(item.state === 'unsent' || item.state === 'failed') && (onRetry || onDismiss) ? (
-                  <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                    {onRetry ? (
-                      <Button variant="quiet" onClick={() => onRetry(item.ref)}>
-                        {item.state === 'unsent' ? 'Retry' : 'Send again'}
-                      </Button>
-                    ) : null}
-                    {onDismiss ? (
-                      <Button variant="quiet" onClick={() => onDismiss(item.ref)}>
-                        Dismiss
-                      </Button>
-                    ) : null}
+                    {itemLine(item, residentName)}
                   </span>
-                ) : null}
-              </div>
-            );
-          })}
-          {streaming ? (
-            <p
-              aria-live="polite"
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-serif)',
-                fontSize: 17,
-                lineHeight: '26px',
-                color: 'var(--ink-muted)',
-                whiteSpace: 'pre-wrap',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {streaming.text}
-            </p>
-          ) : null}
-        </main>
+                  {(item.state === 'unsent' || item.state === 'failed') && (onRetry || onDismiss) ? (
+                    <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                      {onRetry ? (
+                        <Button variant="quiet" onClick={() => onRetry(item.ref)}>
+                          {item.state === 'unsent' ? 'Retry' : 'Send again'}
+                        </Button>
+                      ) : null}
+                      {onDismiss ? (
+                        <Button variant="quiet" onClick={() => onDismiss(item.ref)}>
+                          Dismiss
+                        </Button>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+            {streaming ? (
+              <p
+                aria-live="polite"
+                style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 17,
+                  lineHeight: '26px',
+                  color: 'var(--ink-muted)',
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {streaming.text}
+              </p>
+            ) : null}
+          </main>
+        </div>
       </div>
       {newBelow ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-1)', borderTop: '1px solid var(--hairline)' }}>

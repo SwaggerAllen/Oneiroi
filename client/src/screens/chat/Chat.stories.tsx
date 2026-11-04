@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Chat } from './Chat';
 import type { ContextPreview, Message } from '../../api/types';
+import { sessions } from './Conversations.stories';
 
 const witness = { kind: 'witness', id: 'a1', model: null };
 const lily = { kind: 'resident', id: 'r1', model: 'openai/gpt-4o-mini' };
@@ -142,6 +143,17 @@ export const ReadOnly: Story = {
       ],
     },
   },
+};
+
+// The conversations list (kumbukumbu#40): a button in the top bar,
+// "Conversations · 3", opens and closes it as a panel over the transcript.
+export const WithConversations: Story = {
+  args: { connection: 'connected', conversations: { sessions, chatKey: 'chat', current: 'chat', onOpen: () => undefined } },
+};
+
+// A Claude Code conversation open, reached from the list.
+export const ReadOnlyFromTheList: Story = {
+  args: { ...ReadOnly.args, conversations: { sessions, chatKey: 'chat', current: 'c2', onOpen: () => undefined } },
 };
 
 // The witness's message the moment it is sent, before the turn lands,

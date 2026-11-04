@@ -20,7 +20,8 @@ describe('Conversations', () => {
   it('groups the other conversations under the server names, in its order, each a row of its own', () => {
     render(<ChatOpen />);
     const nav = screen.getByRole('navigation', { name: 'Conversations' });
-    expect(Array.from(nav.querySelectorAll('h2')).map((h) => h.textContent)).toEqual(['Claude Code · Oneiroi', 'Claude Code · catapult']);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Conversations');
+    expect(Array.from(nav.querySelectorAll('h3')).map((h) => h.textContent)).toEqual(['Claude Code · Oneiroi', 'Claude Code · catapult']);
     const oneiroi = screen.getByRole('region', { name: 'Claude Code · Oneiroi' });
     const rows = Array.from(oneiroi.querySelectorAll('li')).map((li) => li.textContent);
     expect(rows).toHaveLength(2);
@@ -29,19 +30,20 @@ describe('Conversations', () => {
     expect(screen.getByRole('button', { name: 'Oneiroi chat' }).getAttribute('aria-current')).toBe('true');
   });
 
-  it('opens a conversation by its key, and shows nothing when the chat is the only one', () => {
+  it('opens a conversation by its key, and lists the chat alone when it is the only one', () => {
     const onOpen = vi.fn();
     const { unmount } = render(<Conversations sessions={stories.sessions} chatKey="chat" current="chat" onOpen={onOpen} />);
     fireEvent.click(screen.getByRole('button', { name: /2 turns/ }));
     expect(onOpen).toHaveBeenCalledWith('c3');
     unmount();
-    const { container } = render(<OnlyTheChat />);
-    expect(container.textContent).toBe('');
+    render(<OnlyTheChat />);
+    const nav = screen.getByRole('navigation', { name: 'Conversations' });
+    expect(Array.from(nav.querySelectorAll('button')).map((b) => b.textContent)).toEqual(['Oneiroi chat']);
   });
 
-  it('marks the conversation open and unfolds the list while one is', () => {
+  it('marks the conversation open now', () => {
     render(<ClaudeCodeOpen />);
     expect(screen.getByRole('button', { name: /7 turns/ }).getAttribute('aria-current')).toBe('true');
-    expect((screen.getByText(/Other conversations/).closest('details') as HTMLDetailsElement).open).toBe(true);
+    expect(screen.getByRole('button', { name: 'Oneiroi chat' }).getAttribute('aria-current')).toBeNull();
   });
 });

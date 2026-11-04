@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Schedule } from './Schedule';
-import type { ScheduleToday } from '../../api/types';
+import type { FreeTimeRun, ScheduleToday } from '../../api/types';
 
 const today: ScheduleToday = {
   day: '2026-11-02',
@@ -57,3 +57,24 @@ export const OneSlotFailed: Story = {
 export const ZoneUnset: Story = {
   args: { today: { ...today, timezone: 'Etc/UTC' } },
 };
+
+// Free time, remembered (brain#53): each run with what it made, in the
+// platform's words; a run that wrote nothing says so, a failed one why.
+export const runs: FreeTimeRun[] = [
+  {
+    day: '2026-11-03',
+    slot: '14:30',
+    outcome: 'ran',
+    session_key: 'free-2026-11-03-1430',
+    at: '2026-11-03T22:41:00Z',
+    turns: 6,
+    did: [
+      { tool: 'journal_add', result: 'Added note 1 to 2026-11-03.' },
+      { tool: 'bookmark_add', result: 'Bookmarked as #96.' },
+    ],
+  },
+  { day: '2026-11-02', slot: '22:30', outcome: 'ran', session_key: 'free-2026-11-02-2230', at: '2026-11-03T06:35:00Z', turns: 2, did: [] },
+  { day: '2026-11-02', slot: '14:30', outcome: 'failed: brain_turn_failed', session_key: null, at: '2026-11-02T22:30:05Z', turns: 0, did: [] },
+];
+export const Remembered: Story = { args: { remembered: runs } };
+export const NothingRemembered: Story = { args: { remembered: [] } };
