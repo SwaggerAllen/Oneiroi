@@ -19,6 +19,8 @@ defmodule Oneiroi.Brain.Session do
   """
   use GenServer
 
+  require Logger
+
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Error
@@ -120,6 +122,7 @@ defmodule Oneiroi.Brain.Session do
         %{running: %{task: %Task{ref: task_ref}}} = state
       ) do
     failure = Error.caught(:brain_turn_crashed, :brain_session_turn_crashed, reason)
+    crashed(state, state.running, failure)
     {:noreply, done(state, {:error, failure})}
   end
 
@@ -148,6 +151,35 @@ defmodule Oneiroi.Brain.Session do
       {:empty, _queue} ->
         %{state | running: nil}
     end
+  end
+
+  # A turn that died said nothing on its way out (brain#54): the witness's
+  # words are kept, the failure recorded where a client reads it back and
+  # broadcast to one that is listening, and the operator's log says so. A
+  # wake's note is the core's and is not kept as if someone had said it.
+  defp crashed(state, item, failure) do
+    %{resident_id: id, session_key: key} = state
+    resident = Actor.new(:resident, id)
+    reason = "the turn stopped on a fault before it answered"
+
+    if Keyword.get(item.opts, :as) != :note,
+      do:
+        Kumbukumbu.capture(
+          id,
+          key,
+          item.ref,
+          Clock.now(),
+          [%{role: :user, content: item.text, sent_at: Clock.now(), actor: item.actor}],
+          resident
+        )
+
+    Kumbukumbu.fail_capture(id, key, item.ref, reason, resident)
+    Turn.broadcast(id, key, {:failed, item.ref, reason})
+
+    Logger.error(
+      "brain: a turn crashed (#{item.ref})",
+      [component: "brain"] ++ Oneiroi.Error.metadata(failure)
+    )
   end
 
   defp done(%{running: item} = state, result) do

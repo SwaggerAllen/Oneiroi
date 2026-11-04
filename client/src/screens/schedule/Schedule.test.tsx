@@ -73,6 +73,26 @@ describe('Schedule', () => {
     expect(onDeleteCheckin).toHaveBeenCalledWith('a');
   });
 
+  // sunna#28: the witness composes each check-in's note from the
+  // catalog's parts and his own words.
+  it("says what each check-in's note carries, and saves its parts in the catalog's order with his words", () => {
+    const onSetCheckinNote = vi.fn();
+    render(<Today onSetCheckinNote={onSetCheckinNote} />);
+    const items = screen.getAllByRole('listitem').filter((li) => li.textContent?.includes('Carries:'));
+    expect(items[0].textContent).toMatch(/Carries: your words, Dates, Today's plan, Waiting on you/);
+    expect(items[1].textContent).toMatch(/Carries: DatesEdit the note/);
+
+    fireEvent.click(within(items[1]).getByRole('button', { name: 'Edit the note' }));
+    const form = screen.getByRole('form', { name: 'The note for night' });
+    fireEvent.click(within(form).getByRole('checkbox', { name: /Letters/ }));
+    fireEvent.click(within(form).getByRole('checkbox', { name: /Today's plan/ }));
+    fireEvent.change(within(form).getByRole('textbox', { name: 'Your words' }), { target: { value: 'How did the day go?' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save the note' }));
+
+    expect(onSetCheckinNote).toHaveBeenCalledWith(expect.objectContaining({ key: 'b' }), ['dates', 'plan', 'letters'], 'How did the day go?');
+    expect(screen.queryByRole('form', { name: 'The note for night' })).toBeNull();
+  });
+
   it('adds a check-in and sets or clears quiet hours', () => {
     const onAddCheckin = vi.fn();
     const onSetQuietHours = vi.fn();

@@ -41,6 +41,38 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # Seshat #39: a registered document to a path nothing holds, its bytes
+  # as registered. Into a keepsake is deciding it one (#31); a keepsake
+  # moved is still never edited, so the move carries the same hash.
+  def execute(%__MODULE__{documents: documents}, %Commands.MoveDocument{} = c) do
+    case {Map.get(documents, c.from), Map.has_key?(documents, c.to)} do
+      {nil, _taken} ->
+        {:error, Error.new(:seshat_no_such_document, :seshat_move_document_absent, path: c.from)}
+
+      {_doc, true} ->
+        {:error, Error.new(:seshat_move_target_taken, :seshat_move_document_taken, path: c.to)}
+
+      {%{hash: hash}, false} when hash != c.hash ->
+        {:error,
+         Error.new(:seshat_not_movable, :seshat_move_document_changed,
+           path: c.from,
+           reason: "the file is not what was registered; write it first"
+         )}
+
+      {_doc, false} ->
+        %Events.DocumentMoved{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          from: c.from,
+          to: c.to,
+          from_kind: c.from_kind,
+          to_kind: c.to_kind,
+          hash: c.hash
+        }
+    end
+  end
+
   def execute(%__MODULE__{documents: documents}, %Commands.RemoveDocument{} = c) do
     cond do
       not Map.has_key?(documents, c.path) ->
@@ -297,6 +329,11 @@ defmodule Oneiroi.Seshat.Library do
 
   def apply(%__MODULE__{} = l, %Events.OracleFailed{} = e),
     do: %{l | oracles: Map.put(l.oracles, e.number, :failed)}
+
+  def apply(%__MODULE__{} = s, %Events.DocumentMoved{} = e) do
+    {doc, documents} = Map.pop(s.documents, e.from)
+    %{s | documents: Map.put(documents, e.to, %{doc | kind: e.to_kind})}
+  end
 
   def apply(%__MODULE__{} = s, %Events.DocumentRemoved{} = e),
     do: %{s | documents: Map.delete(s.documents, e.path)}

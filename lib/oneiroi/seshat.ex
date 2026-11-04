@@ -61,12 +61,14 @@ defmodule Oneiroi.Seshat do
       Commands.OpenDiscussion,
       Commands.NoteKeepsake,
       Commands.RemoveDocument,
+      Commands.MoveDocument,
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.DocumentRemoved,
+      Events.DocumentMoved,
       Events.OracleDispatched,
       Events.OracleAnswered,
       Events.OracleFailed,
@@ -180,6 +182,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
+      {Oneiroi.Seshat.Events.DocumentMoved, 1},
       {Oneiroi.Seshat.Events.OracleDispatched, 1},
       {Oneiroi.Seshat.Events.OracleAnswered, 1},
       {Oneiroi.Seshat.Events.OracleFailed, 1},
@@ -202,6 +205,13 @@ defmodule Oneiroi.Seshat do
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
          "write under writing, design, research, wiki, scratch or posts; human/ is the witness's"},
+      {:seshat_not_movable,
+       "a document moves only between kinds the mover may write, its bytes unchanged; a system's own kinds and the originals stay where they are (seshat#39)",
+       remedy:
+         "write the document where it belongs instead, or ask the party who may write both kinds"},
+      {:seshat_move_target_taken,
+       "a move never overwrites: a document or a file is already at the new path",
+       remedy: "choose another path, or remove what is there if its kind allows"},
       {:seshat_not_removable,
        "only a scratch or human document is removed; every other kind is kept, as its history is the point",
        remedy: "write the document again, or leave it; scratch is for what is meant to go"},
@@ -360,6 +370,11 @@ defmodule Oneiroi.Seshat do
   @doc "Removes a scratch or human document (seshat#33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
   @spec remove(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(remove(resident_id, path, actor), do: Documents.remove(resident_id, path, actor))
+
+  @doc "Moves a document from one path, and so one kind, to another, its bytes unchanged (seshat#39); the old path's citations follow it."
+  @spec move(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{from: String.t(), to: String.t(), kind: String.t()}} | {:error, term()}
+  defexport(move(resident_id, from, to, actor), do: Documents.move(resident_id, from, to, actor))
 
   @doc "Adopts a file made outside the flow, registering it; the index runs."
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

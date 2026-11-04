@@ -15,7 +15,18 @@ defmodule OneiroiWeb.ScheduleController do
                    required: [:label, :time],
                    properties: %{
                      label: %Schema{type: :string},
-                     time: %Schema{type: :string, description: "HH:MM in the resident's zone"}
+                     time: %Schema{type: :string, description: "HH:MM in the resident's zone"},
+                     parts: %Schema{
+                       type: :array,
+                       items: %Schema{type: :string},
+                       description:
+                         "the catalog's keys the note carries (sunna#28); left out keeps what it had"
+                     },
+                     prompt: %Schema{
+                       type: :string,
+                       description:
+                         "the witness's own words, at most 4,000 characters; empty clears, left out keeps"
+                     }
                    }
                  }}
 
@@ -73,7 +84,7 @@ defmodule OneiroiWeb.ScheduleController do
   )
 
   def set_checkin(conn, %{"id" => id} = params) do
-    case Sunna.set_checkin(id, nil, params["label"], params["time"], actor(conn)) do
+    case Sunna.set_checkin(id, nil, params["label"], params["time"], actor(conn), note(params)) do
       {:ok, key} -> conn |> put_status(201) |> json(%{key: key})
       other -> respond(conn, other)
     end
@@ -87,7 +98,7 @@ defmodule OneiroiWeb.ScheduleController do
   )
 
   def change_checkin(conn, %{"id" => id, "key" => key} = params) do
-    case Sunna.set_checkin(id, key, params["label"], params["time"], actor(conn)) do
+    case Sunna.set_checkin(id, key, params["label"], params["time"], actor(conn), note(params)) do
       {:ok, _key} -> send_resp(conn, 204, "")
       other -> respond(conn, other)
     end
@@ -185,6 +196,13 @@ defmodule OneiroiWeb.ScheduleController do
   def remove_date(conn, %{"id" => id, "number" => number}),
     do: respond(conn, Sunna.remove_date(id, integer(number), actor(conn)))
 
+  # What the note carries, as far as the body says (sunna#28).
+  defp note(params) do
+    for {field, key} <- [parts: "parts", prompt: "prompt"],
+        Map.has_key?(params, key),
+        do: {field, params[key]}
+  end
+
   # ---- shapes ----
 
   defp today_json(today) do
@@ -199,7 +217,8 @@ defmodule OneiroiWeb.ScheduleController do
       free_times: today.free_times,
       free_time_last: free_time_last(today.free_time_last),
       quiet: today.quiet,
-      dates: Enum.map(today.dates, &date_json/1)
+      dates: Enum.map(today.dates, &date_json/1),
+      checkin_parts: Sunna.CheckinParts.all()
     }
   end
 
@@ -208,6 +227,8 @@ defmodule OneiroiWeb.ScheduleController do
       key: c.key,
       label: c.label,
       time: c.time,
+      parts: c.parts || ["dates"],
+      prompt: c.prompt,
       last_day: c.last_day,
       last_outcome: c.last_outcome,
       last_at: c.last_at

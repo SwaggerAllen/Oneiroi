@@ -46,6 +46,21 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule DocumentMove do
+    @moduledoc "Where a document moved from and to (seshat#39): a citation of the old path follows it."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_document_move" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:from_path, :string, primary_key: true)
+      field(:to_path, :string)
+      field(:moved_at, :utc_datetime_usec)
+      field(:moved_by_kind, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Chunk do
     @moduledoc "One chunk of a document with its vector."
     use Ecto.Schema
@@ -284,6 +299,19 @@ defmodule Oneiroi.Seshat.Store do
 
   @spec document(String.t()) :: Document.t() | nil
   def document(path), do: Repo.one(from(d in Document, where: d.path == ^path))
+
+  @doc "Where a path moved to, following moves to the last (seshat#39); nil if it never moved. A chain is at most as long as the moves, and a cycle stops at the path it began from."
+  def moved_to(path, seen \\ MapSet.new()) do
+    case Repo.one(from(m in DocumentMove, where: m.from_path == ^path, select: m.to_path)) do
+      nil ->
+        nil
+
+      to ->
+        if MapSet.member?(seen, to),
+          do: to,
+          else: moved_to(to, MapSet.put(seen, path)) || to
+    end
+  end
 
   @doc "Completes a document row with what the index read of it."
   def update_document(path, fields) when is_list(fields) do

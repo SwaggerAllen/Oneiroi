@@ -100,6 +100,13 @@ export const api = {
       `/v1/residents/${residentId}/sessions/${key}/turns`,
       { text, client_ref: clientRef },
     ),
+  // The turns that failed and are not yet resolved: read back on return
+  // so a failure broadcast while away is still seen (brain#54).
+  captureFailures: (residentId: string) =>
+    call<{ turn_ref: string; session_key: string; reason: string; failed_at: string }[]>(
+      'GET',
+      `/v1/residents/${residentId}/capture-failures`,
+    ),
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 
@@ -154,6 +161,9 @@ export const api = {
     call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
   writeDocument: (residentId: string, path: string, content: string) =>
     call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
+  moveDocument: (residentId: string, from: string, to: string) =>
+    call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
   removeDocument: (residentId: string, path: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/library/documents/${path}`),
   adapters: (residentId: string) => call<Adapter[]>('GET', `/v1/residents/${residentId}/adapters`),
@@ -179,8 +189,9 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>
     call<{ key: string }>('POST', `/v1/residents/${residentId}/schedule/checkins`, { label, time }),
-  changeCheckin: (residentId: string, key: string, label: string, time: string) =>
-    call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time }),
+  // `note` left out keeps what the check-in carries (sunna#28).
+  changeCheckin: (residentId: string, key: string, label: string, time: string, note?: { parts: string[]; prompt: string }) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time, ...note }),
   deleteCheckin: (residentId: string, key: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>

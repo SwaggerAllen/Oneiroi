@@ -341,13 +341,23 @@ defmodule Oneiroi.Seshat.Citations do
 
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
       nil ->
-        {:unresolved, "no document #{path}"}
+        moved(resident_id, path)
 
       %{missing_at: at} when not is_nil(at) ->
         {:unresolved, "#{path} is missing from the repository"}
 
       row ->
         {:ok, row.title || path}
+    end
+  end
+
+  # A citation of a path a document moved from follows it (seshat#39).
+  defp moved(resident_id, path) do
+    with to when is_binary(to) <- Scope.resident(resident_id, fn -> Store.moved_to(path) end),
+         %{missing_at: nil} = row <- Scope.resident(resident_id, fn -> Store.document(to) end) do
+      {:ok, "#{row.title || to} (moved to #{to})"}
+    else
+      _none -> {:unresolved, "no document #{path}"}
     end
   end
 

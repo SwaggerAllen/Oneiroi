@@ -98,6 +98,15 @@ export function Chat({
   onProposeBookmark,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
+  // The status line's timer (brain#54) ticks while a message is under way.
+  const [now, setNow] = useState(() => Date.now());
+  const ticking = statusLine(outbox, residentName) !== null;
+  useEffect(() => {
+    if (!ticking) return;
+    setNow(Date.now());
+    const every = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(every);
+  }, [ticking]);
   const log = useRef<HTMLDivElement>(null);
   const marker = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
@@ -195,7 +204,7 @@ export function Chat({
         line={
           !writable
             ? `${conversation?.title} · read here, answered there`
-            : (statusLine(outbox, residentName) ??
+            : (statusLine(outbox, residentName, now) ??
               (lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'))
         }
         right={

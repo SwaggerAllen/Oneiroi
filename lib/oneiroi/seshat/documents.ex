@@ -353,6 +353,83 @@ defmodule Oneiroi.Seshat.Documents do
     do: Scope.resident(resident_id, fn -> Store.discussions(path) end)
 
   @doc """
+  Moves a document from one path to another (seshat#39): from one kind to
+  another when the folders differ, its bytes unchanged. The mover may
+  write both kinds (`write/4`'s rule, so a system's own kinds and the
+  originals never move, and the witness's own folder is his); the old
+  path is a registered document whose file is what was registered; the
+  new path holds nothing, registered or on disk. Into a keepsake, the
+  new name is a keepsake's (a text file at the root). The file is renamed
+  in the repository, the index re-keyed without an embedding, and a
+  citation of the old path follows to the new one.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  def move(resident_id, from, to, %Actor{} = actor) do
+    with {:ok, from} <- normalize(from),
+         {:ok, to} <- normalize(to),
+         {:ok, from_kind} <- movable(from, actor),
+         {:ok, to_kind} <- movable(to, actor),
+         {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         :ok <- target_free(to, Path.join(dir, to)),
+         {:ok, content} <- source(from, Path.join(dir, from)),
+         {:ok, _events} <-
+           dispatch(%Commands.MoveDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             from: from,
+             to: to,
+             from_kind: from_kind.kind,
+             to_kind: to_kind.kind,
+             hash: hash(content)
+           }) do
+      full = Path.join(dir, to)
+      File.mkdir_p!(Path.dirname(full))
+      File.rename!(Path.join(dir, from), full)
+      {:ok, %{from: from, to: to, kind: to_kind.kind}}
+    end
+  end
+
+  # A kind the mover could write a file into, by `write/4`'s rule.
+  defp movable(path, actor) do
+    case Kinds.kind_of(path) do
+      nil ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_documents_move_no_kind, path: path)}
+
+      _kind ->
+        case writable_kind(path, false, actor) do
+          {:ok, kind} ->
+            {:ok, kind}
+
+          {:error, e} ->
+            {:error,
+             Error.new(:seshat_not_movable, :seshat_documents_move_kind,
+               path: path,
+               reason: e.meaning
+             )}
+        end
+    end
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp target_free(to, full) do
+    if File.exists?(full),
+      do: {:error, Error.new(:seshat_move_target_taken, :seshat_documents_move_taken, path: to)},
+      else: :ok
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp source(from, full) do
+    case File.read(full) do
+      {:ok, content} ->
+        {:ok, content}
+
+      {:error, _absent} ->
+        {:error, Error.new(:seshat_no_such_document, :seshat_documents_move_absent, path: from)}
+    end
+  end
+
+  @doc """
   Removes a document of a removable kind (seshat#33): the act is an
   event with its actor, the file leaves the repository, and the index
   forgets its chunks. A scratch document is either party's to remove; a

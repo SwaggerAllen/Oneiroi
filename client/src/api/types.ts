@@ -269,6 +269,10 @@ export interface ScheduleCheckin {
   key: string;
   label: string;
   time: string;
+  // What its note carries (sunna#28): the catalog's keys checked, and
+  // the witness's own words.
+  parts: string[];
+  prompt: string | null;
   last_day: string | null;
   last_outcome: string | null;
   last_at: string | null;
@@ -324,6 +328,14 @@ export interface ScheduleToday {
   free_time_last: { day: string; outcome: string } | null;
   quiet: { from: string; to: string } | null;
   dates: ScheduleDate[];
+  // What a check-in's note can carry, in the note's order (sunna#28).
+  checkin_parts: CheckinPart[];
+}
+
+export interface CheckinPart {
+  key: string;
+  label: string;
+  about: string;
 }
 
 // A house letter (kumbukumbu#44): the work log between Lily's

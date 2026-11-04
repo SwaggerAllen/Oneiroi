@@ -5,6 +5,12 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes]
   end
 
+  defmodule MoveDocument do
+    # Seshat #39: a document taken from one path, and so one kind, to
+    # another, its bytes unchanged (`hash` is what they hash to).
+    use Oneiroi.Command, fields: [:id, :from, :to, :from_kind, :to_kind, :hash]
+  end
+
   defmodule RemoveDocument do
     # Seshat #33: a removable kind's document taken out of the library.
     use Oneiroi.Command, fields: [:id, :path, :kind]

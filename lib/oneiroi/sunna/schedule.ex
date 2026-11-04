@@ -6,6 +6,7 @@ defmodule Oneiroi.Sunna.Schedule do
   happened, so a check-in fires once a day whatever restarts.
   """
 
+  alias Oneiroi.Sunna.CheckinParts
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Events
@@ -43,12 +44,20 @@ defmodule Oneiroi.Sunna.Schedule do
   # ---- check-ins ----
 
   def execute(%__MODULE__{checkins: checkins}, %Commands.SetCheckin{} = c) do
+    # A command that says nothing of its parts carries the dates, the
+    # note every check-in had before sunna#28.
+    c = %{c | parts: c.parts || ["dates"]}
+
     cond do
       not time_ok?(c.time) ->
         {:error, Error.new(:sunna_time_invalid, :sunna_checkin_time_invalid)}
 
       not label_ok?(c.label) ->
         {:error, Error.new(:sunna_label_invalid, :sunna_checkin_label_invalid)}
+
+      not parts_ok?(c.parts) ->
+        {:error,
+         Error.new(:sunna_parts_invalid, :sunna_checkin_parts_invalid, parts: CheckinParts.keys())}
 
       not Map.has_key?(checkins, c.key) ->
         %Events.CheckinSet{
@@ -58,7 +67,9 @@ defmodule Oneiroi.Sunna.Schedule do
           key: c.key,
           label: c.label,
           time: c.time,
-          day: c.day
+          day: c.day,
+          parts: c.parts,
+          prompt: c.prompt
         }
 
       same_checkin?(checkins[c.key], c) ->
@@ -72,7 +83,9 @@ defmodule Oneiroi.Sunna.Schedule do
           key: c.key,
           label: c.label,
           time: c.time,
-          day: c.day
+          day: c.day,
+          parts: c.parts,
+          prompt: c.prompt
         }
     end
   end
@@ -316,13 +329,24 @@ defmodule Oneiroi.Sunna.Schedule do
           Map.put(s.checkins, e.key, %{
             label: e.label,
             time: e.time,
+            parts: e.parts,
+            prompt: e.prompt,
             changed_day: e.day,
             outcomes: %{}
           })
     }
 
   def apply(%__MODULE__{} = s, %Events.CheckinChanged{} = e) do
-    update_in(s.checkins[e.key], &%{&1 | label: e.label, time: e.time, changed_day: e.day})
+    update_in(
+      s.checkins[e.key],
+      &Map.merge(&1, %{
+        label: e.label,
+        time: e.time,
+        parts: e.parts,
+        prompt: e.prompt,
+        changed_day: e.day
+      })
+    )
   end
 
   def apply(%__MODULE__{} = s, %Events.CheckinDeleted{} = e),
@@ -402,7 +426,16 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
-  defp same_checkin?(%{label: label, time: time}, c), do: label == c.label and time == c.time
+  defp same_checkin?(was, c),
+    do:
+      was.label == c.label and was.time == c.time and Map.get(was, :parts) == c.parts and
+        Map.get(was, :prompt) == c.prompt
+
+  # The parts a note carries are the catalog's keys, each once.
+  defp parts_ok?(parts),
+    do:
+      is_list(parts) and parts == Enum.uniq(parts) and
+        Enum.all?(parts, &(&1 in CheckinParts.keys()))
 
   defp day_ok?(day), do: is_binary(day) and match?({:ok, _}, Date.from_iso8601(day))
 

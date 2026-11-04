@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { itemLine, newRef, type Outgoing, settle, statusLine, update } from './outbox';
+import { elapsed, failedFrom, itemLine, newRef, type Outgoing, settle, statusLine, update } from './outbox';
 
 const item = (ref: string, state: Outgoing['state'], more: Partial<Outgoing> = {}): Outgoing => ({ ref, text: ref, state, attempts: 0, ...more });
 
@@ -22,6 +22,33 @@ describe('outbox', () => {
     expect(statusLine([item('a', 'sending')], 'Lily')).toBe('Sending…');
     expect(statusLine([item('a', 'thinking')], 'Lily')).toBe('Lily is thinking…');
     expect(statusLine([item('a', 'tool', { detail: 'bookmark_add' })], 'Lily')).toBe('Lily is using bookmark_add…');
+  });
+
+  // brain#54: the witness waited minutes on "thinking" with nothing to
+  // say how long, or that the turn had failed while the page was away.
+  it('times the present state, keeps the timer across the same state, and says when it was sent', () => {
+    const sent = update([item('a', 'sending')], 'a', { state: 'running' }, 1_000);
+    expect(sent[0]).toMatchObject({ sentAt: 1_000, since: 1_000 });
+    const again = update(sent, 'a', { state: 'running', attempts: 1 }, 50_000);
+    expect(again[0].since).toBe(1_000);
+    const tool = update(again, 'a', { state: 'tool', detail: 'bookmark_list' }, 100_000);
+    expect(tool[0]).toMatchObject({ sentAt: 1_000, since: 100_000 });
+    expect(statusLine(tool, 'Lily', 142_000)).toBe('Lily is using bookmark_list… 42s · sent 2m 21s ago');
+    expect(statusLine(sent, 'Lily', 3_000)).toBe('Lily is thinking… 2s');
+    expect(elapsed(3_725_000)).toBe('1h 02m');
+  });
+
+  it('reads a failure the server recorded onto the message it belongs to', () => {
+    const items = [item('a', 'thinking'), item('b', 'running'), item('c', 'failed', { error: 'earlier' })];
+    const after = failedFrom(items, [
+      { turn_ref: 'a', reason: 'nisaba_provider_failed' },
+      { turn_ref: 'c', reason: 'later' },
+    ]);
+    expect(after.map((i) => [i.state, i.error])).toEqual([
+      ['failed', 'nisaba_provider_failed'],
+      ['running', undefined],
+      ['failed', 'earlier'],
+    ]);
   });
 
   it('says why a message did not go or was not answered', () => {

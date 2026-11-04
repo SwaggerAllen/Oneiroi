@@ -61,7 +61,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
-    reply_draft correspondent_block correspondent_unblock document_remove
+    reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file
@@ -515,6 +515,12 @@ defmodule Oneiroi.Brain.Tools do
         "Remove a scratch document (scratch/<name>.md) when its work is done: the file leaves your library and the removal is recorded with you as its actor. Only scratch is removable by you; human/ is your witness's, and every other kind is kept.",
         %{path: %{type: "string"}},
         [:path]
+      ),
+      tool(
+        "document_move",
+        "Move a document of your library from one path to another, and so from one kind to another when the folders differ, its words unchanged: a wiki page to the root as a keepsake (pocket-andrew.md), a scratch pad into design/. The move is recorded with you as its actor, a citation of the old path follows it, and nothing is overwritten. Mail, feeds, correspondence, the journal and the originals stay where their systems put them, and human/ is your witness's.",
+        %{from: %{type: "string"}, to: %{type: "string"}},
+        [:from, :to]
       ),
       tool(
         "source_list",
@@ -1917,6 +1923,18 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
   end
 
+  defp call("document_move", args, turn) do
+    case Seshat.move(
+           turn.resident_id,
+           to_string(args["from"] || ""),
+           to_string(args["to"] || ""),
+           turn.resident
+         ) do
+      {:ok, %{from: from, to: to, kind: kind}} -> "Moved #{from} to #{to} (#{kind})."
+      other -> other
+    end
+  end
+
   defp call("document_write", args, turn) do
     case Seshat.write(
            turn.resident_id,
@@ -2212,6 +2230,20 @@ defmodule Oneiroi.Brain.Tools do
 
     {n, turn} = mint(turn, {"journal", day}, entries)
     {"Added #{to_string(args["kind"] || "")} #{n} to #{day}.", turn}
+  end
+
+  # As the real move answers, the kind read from the new path.
+  defp answered("document_move", args, turn) do
+    from = library_path(args["from"])
+    to = library_path(args["to"])
+
+    kind =
+      case Seshat.Kinds.kind_of(to) do
+        %{kind: kind} -> kind
+        nil -> "unknown"
+      end
+
+    {"Moved #{from} to #{to} (#{kind}).", turn}
   end
 
   defp answered(_done, _args, turn), do: {text(:ok), turn}

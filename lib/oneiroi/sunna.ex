@@ -39,6 +39,7 @@ defmodule Oneiroi.Sunna do
       TickWorker,
       FreeTimeWorker,
       Wake,
+      CheckinParts,
       Commands.SetCheckin,
       Commands.DeleteCheckin,
       Commands.FireCheckin,
@@ -146,8 +147,8 @@ defmodule Oneiroi.Sunna do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Sunna.Events.CheckinSet, 1},
-      {Oneiroi.Sunna.Events.CheckinChanged, 1},
+      {Oneiroi.Sunna.Events.CheckinSet, 2},
+      {Oneiroi.Sunna.Events.CheckinChanged, 2},
       {Oneiroi.Sunna.Events.CheckinDeleted, 1},
       {Oneiroi.Sunna.Events.CheckinFired, 1},
       {Oneiroi.Sunna.Events.CheckinMissed, 1},
@@ -178,6 +179,9 @@ defmodule Oneiroi.Sunna do
        remedy: "give it as HH:MM"},
       {:sunna_label_invalid, "a label or a title is one line of at most 60 characters",
        remedy: "shorten it"},
+      {:sunna_parts_invalid,
+       "a check-in's parts are keys of the parts catalog, each once (sunna#28)",
+       remedy: "check them from the catalog the schedule gives"},
       {:sunna_hour_invalid, "an hour marker is the local hour as YYYY-MM-DDTHH",
        remedy: "the tick builds it; a hand-made one is a bug"},
       {:sunna_kind_invalid, "a date's kind is deadline, anniversary, window or recurring",
@@ -204,6 +208,20 @@ defmodule Oneiroi.Sunna do
           {:ok, String.t()} | {:error, term()}
   defexport(set_checkin(resident_id, key, label, time, actor),
     do: Schedules.set_checkin(resident_id, key, label, time, actor)
+  )
+
+  @doc "Sets a check-in with what its note carries (sunna#28): `parts:` from `CheckinParts.keys/0`, `prompt:` the witness's words; either left out keeps what it had."
+  @spec set_checkin(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          Oneiroi.Actor.t(),
+          keyword()
+        ) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(set_checkin(resident_id, key, label, time, actor, opts),
+    do: Schedules.set_checkin(resident_id, key, label, time, actor, opts)
   )
 
   @doc "Deletes a check-in."

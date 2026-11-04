@@ -20,4 +20,13 @@ defmodule Oneiroi.Sunna.Wake do
               note :: String.t(),
               purpose :: atom()
             ) :: {:ok, map()} | {:error, term()}
+
+  @doc """
+  One part of a check-in's note (sunna#28), by its catalog key, read now:
+  the text to carry, or nil when the implementation has no such part. The
+  dates are this system's own and never asked.
+  """
+  @callback checkin_part(resident_id :: String.t(), key :: String.t()) :: String.t() | nil
+
+  @optional_callbacks checkin_part: 2
 end

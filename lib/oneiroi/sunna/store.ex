@@ -13,6 +13,8 @@ defmodule Oneiroi.Sunna.Store do
       field(:key, :string, primary_key: true)
       field(:label, :string)
       field(:time, :string)
+      field(:parts, {:array, :string}, default: ["dates"])
+      field(:prompt, :string)
       field(:changed_day, :string)
       field(:last_day, :string)
       field(:last_outcome, :string)

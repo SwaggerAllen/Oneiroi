@@ -319,6 +319,27 @@ defmodule Oneiroi.Brain.TurnTest do
     assert Enum.any?(events(ctx.resident.id, ctx.key), &match?({:failed, _, _}, &1))
   end
 
+  # Brain #54: a submitted turn that died said nothing, so the witness's
+  # client showed "thinking" until he gave up (2026-11-04: two messages,
+  # minutes, no word). It now keeps the words, records the failure a
+  # client reads back, and broadcasts it.
+  test "a submitted turn that crashes keeps the words, records the failure and says so", ctx do
+    id = ctx.resident.id
+    Fake.script(fn _request -> raise "the provider's client fell over" end, for: id)
+
+    assert {:ok, %{state: "running"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "hello?", ctx.actor, "ref-crash-0001")
+
+    assert_receive {:oneiroi, _, {^id, _, {:failed, "ref-crash-0001", reason}}, _}, 5_000
+    assert reason =~ "fault"
+
+    assert [%{turn_ref: "ref-crash-0001"}] =
+             eventually(fn -> Kumbukumbu.failures({:account, ctx.witness.id}) end, 4)
+
+    assert {:ok, _s, [%{role: "user", content: "hello?"}]} =
+             Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
+  end
+
   test "a refused request keeps the provider's status and words on the failure", ctx do
     Fake.script(
       fn _request ->

@@ -3,8 +3,8 @@ defmodule Oneiroi.Sunna.Commands do
 
   defmodule SetCheckin do
     use Oneiroi.Command,
-      fields: [:id, :key, :label, :time, :day],
-      bounds: [key: 64, label: 120]
+      fields: [:id, :key, :label, :time, :day, :parts, :prompt],
+      bounds: [key: 64, label: 120, prompt: 4_000]
   end
 
   defmodule DeleteCheckin do

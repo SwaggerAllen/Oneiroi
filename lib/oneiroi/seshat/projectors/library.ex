@@ -6,7 +6,17 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
   alias Ecto.Multi
   alias Oneiroi.Seshat.Events
-  alias Oneiroi.Seshat.Store.{Chunk, Discussion, Document, Oracle, Reference, Research}
+  alias Oneiroi.Seshat.Kinds
+
+  alias Oneiroi.Seshat.Store.{
+    Chunk,
+    Discussion,
+    Document,
+    DocumentMove,
+    Oracle,
+    Reference,
+    Research
+  }
 
   # A write sets the provenance columns and leaves the index's own
   # (hash, title, status, embedded_with, indexed_at, chunks) to the next
@@ -40,6 +50,44 @@ defmodule Oneiroi.Seshat.Projectors.Library do
         inc: [versions: 1]
       ],
       conflict_target: [:resident_id, :path]
+    )
+  end)
+
+  # Moved (seshat#39): the row, its chunks and its edges are re-keyed to
+  # the new path, so the move costs no embedding (the bytes are the
+  # same); the edges stay only if the new kind mints them. The move
+  # itself is a row, which a citation of the old path follows.
+  fold(%Events.DocumentMoved{} = e, _metadata, fn multi ->
+    cites? = match?(%{cites: true}, Enum.find(Kinds.all(), &(&1.kind == e.to_kind)))
+    refs = from(r in Reference, where: r.resident_id == ^e.id and r.from_path == ^e.from)
+
+    multi
+    |> Multi.update_all(
+      :document,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.from),
+      set: [path: e.to, kind: e.to_kind]
+    )
+    |> Multi.update_all(
+      :chunks,
+      from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.from),
+      set: [path: e.to]
+    )
+    |> then(fn m ->
+      if cites?,
+        do: Multi.update_all(m, :references, refs, set: [from_path: e.to, from_kind: e.to_kind]),
+        else: Multi.delete_all(m, :references, refs)
+    end)
+    |> Multi.insert(
+      :move,
+      %DocumentMove{
+        resident_id: e.id,
+        from_path: e.from,
+        to_path: e.to,
+        moved_at: e.at,
+        moved_by_kind: actor_kind(e.actor)
+      },
+      on_conflict: {:replace, [:to_path, :moved_at, :moved_by_kind]},
+      conflict_target: [:resident_id, :from_path]
     )
   end)
 

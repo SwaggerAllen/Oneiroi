@@ -17,6 +17,8 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
         key: e.key,
         label: e.label,
         time: e.time,
+        parts: e.parts || ["dates"],
+        prompt: e.prompt,
         changed_day: e.day,
         set_at: e.at
       },
@@ -29,6 +31,8 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     set_checkin(multi, e.id, e.key,
       label: e.label,
       time: e.time,
+      parts: e.parts || ["dates"],
+      prompt: e.prompt,
       changed_day: e.day,
       set_at: e.at
     )

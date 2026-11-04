@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FreeTimeRun, FreeTimeSlot, ScheduleCheckin, ScheduleToday } from '../../api/types';
+import type { CheckinPart, FreeTimeRun, FreeTimeSlot, ScheduleCheckin, ScheduleToday } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
@@ -14,6 +14,8 @@ export interface ScheduleProps {
   onSetFreeTime?: (times: string[]) => void;
   onAddCheckin?: (label: string, time: string) => void;
   onDeleteCheckin?: (key: string) => void;
+  // What a check-in's note carries: the parts checked and the witness's words (sunna#28).
+  onSetCheckinNote?: (checkin: ScheduleCheckin, parts: string[], prompt: string) => void;
   onSetQuietHours?: (from: string | null, to: string | null) => void;
   // Sets the resident's zone, the one every time here is read in.
   onSetTimezone?: (timezone: string) => void;
@@ -30,7 +32,7 @@ const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', fl
 // what each made, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetQuietHours, onSetTimezone }: ScheduleProps) {
+export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
@@ -38,7 +40,7 @@ export function Schedule({ residentName, today, remembered, onSetFreeTime, onAdd
         <Zone residentName={residentName} timezone={today.timezone} onSet={onSetTimezone} />
         <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
         {remembered ? <Remembered residentName={residentName} runs={remembered} /> : null}
-        <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} />
+        <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} onSetNote={onSetCheckinNote} />
         <Quiet quiet={today.quiet} onSet={onSetQuietHours} />
         <Card title="Dates">
           {today.dates.length === 0 ? (
@@ -166,7 +168,17 @@ function Remembered({ residentName, runs }: { residentName: string; runs: FreeTi
   );
 }
 
-function Checkins({ today, onAdd, onDelete }: { today: ScheduleToday; onAdd?: (label: string, time: string) => void; onDelete?: (key: string) => void }) {
+function Checkins({
+  today,
+  onAdd,
+  onDelete,
+  onSetNote,
+}: {
+  today: ScheduleToday;
+  onAdd?: (label: string, time: string) => void;
+  onDelete?: (key: string) => void;
+  onSetNote?: (checkin: ScheduleCheckin, parts: string[], prompt: string) => void;
+}) {
   const [label, setLabel] = useState('');
   const [time, setTime] = useState('');
   const fired = new Map(today.firings.map((f) => [f.key, f.outcome]));
@@ -178,7 +190,7 @@ function Checkins({ today, onAdd, onDelete }: { today: ScheduleToday; onAdd?: (l
       {today.checkins.length > 0 ? (
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {today.checkins.map((c) => (
-            <Checkin key={c.key} checkin={c} today={fired.get(c.key) ?? null} onDelete={onDelete} />
+            <Checkin key={c.key} checkin={c} today={fired.get(c.key) ?? null} catalog={today.checkin_parts ?? []} onDelete={onDelete} onSetNote={onSetNote} />
           ))}
         </ul>
       ) : null}
@@ -206,25 +218,113 @@ function Checkins({ today, onAdd, onDelete }: { today: ScheduleToday; onAdd?: (l
 
 // A destructive action confirms once, in place: the button becomes its
 // consequence (screens/schedule.md #3), never a modal.
-function Checkin({ checkin, today, onDelete }: { checkin: ScheduleCheckin; today: string | null; onDelete?: (key: string) => void }) {
+function Checkin({
+  checkin,
+  today,
+  catalog,
+  onDelete,
+  onSetNote,
+}: {
+  checkin: ScheduleCheckin;
+  today: string | null;
+  catalog: CheckinPart[];
+  onDelete?: (key: string) => void;
+  onSetNote?: (checkin: ScheduleCheckin, parts: string[], prompt: string) => void;
+}) {
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const carries = catalog.filter((p) => (checkin.parts ?? ['dates']).includes(p.key)).map((p) => p.label);
+  if (checkin.prompt) carries.unshift('your words');
   return (
-    <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', fontSize: 15 }}>
-      <span>
-        <strong style={{ fontWeight: 600 }}>{checkin.time}</strong> {checkin.label}{' '}
-        <span style={{ color: 'var(--ink-muted)' }}>· {today ? `today: ${today}` : checkin.last_day ? `last ${checkin.last_outcome} ${checkin.last_day}` : 'not run yet'}</span>
-      </span>
-      {onDelete ? (
-        <Button
-          type="button"
-          variant="quiet"
-          onClick={() => (confirming ? onDelete(checkin.key) : setConfirming(true))}
-          onBlur={() => setConfirming(false)}
-        >
-          {confirming ? `Delete ${checkin.label}` : 'Delete'}
-        </Button>
+    <li style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', fontSize: 15 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <span style={{ minWidth: 0 }}>
+          <strong style={{ fontWeight: 600 }}>{checkin.time}</strong> {checkin.label}{' '}
+          <span style={{ color: 'var(--ink-muted)' }}>· {today ? `today: ${today}` : checkin.last_day ? `last ${checkin.last_outcome} ${checkin.last_day}` : 'not run yet'}</span>
+          <br />
+          <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>Carries: {carries.length > 0 ? carries.join(', ') : 'only the check-in line'}</span>
+        </span>
+        <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
+          {onSetNote ? (
+            <Button type="button" variant="quiet" aria-expanded={editing} onClick={() => setEditing((e) => !e)}>
+              {editing ? 'Close' : 'Edit the note'}
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              type="button"
+              variant="quiet"
+              onClick={() => (confirming ? onDelete(checkin.key) : setConfirming(true))}
+              onBlur={() => setConfirming(false)}
+            >
+              {confirming ? `Delete ${checkin.label}` : 'Delete'}
+            </Button>
+          ) : null}
+        </span>
+      </div>
+      {editing && onSetNote ? (
+        <NoteEditor
+          checkin={checkin}
+          catalog={catalog}
+          onSave={(parts, prompt) => {
+            onSetNote(checkin, parts, prompt);
+            setEditing(false);
+          }}
+        />
       ) : null}
     </li>
+  );
+}
+
+// What a check-in's note carries (sunna#28): the witness's own words
+// first, then the parts he checks, which the server reads from records
+// when it fires. The catalog and its order are the server's.
+function NoteEditor({ checkin, catalog, onSave }: { checkin: ScheduleCheckin; catalog: CheckinPart[]; onSave: (parts: string[], prompt: string) => void }) {
+  const [parts, setParts] = useState<string[]>(checkin.parts ?? ['dates']);
+  const [prompt, setPrompt] = useState(checkin.prompt ?? '');
+  const toggle = (key: string) => setParts((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
+  return (
+    <form
+      aria-label={`The note for ${checkin.label}`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(
+          catalog.map((p) => p.key).filter((k) => parts.includes(k)),
+          prompt,
+        );
+      }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-3)', border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)' }}
+    >
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        <span style={{ fontWeight: 600 }}>Your words</span>
+        <textarea
+          value={prompt}
+          maxLength={4000}
+          rows={3}
+          placeholder="Anything you want her to start from at this check-in."
+          onChange={(e) => setPrompt(e.target.value)}
+          style={{ font: 'inherit', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+        />
+      </label>
+      <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        <legend style={{ fontWeight: 600, padding: 0, marginBottom: 'var(--space-1)' }}>Parts, read when it fires</legend>
+        {catalog.map((p) => (
+          <label key={p.key} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+            <input type="checkbox" checked={parts.includes(p.key)} onChange={() => toggle(p.key)} style={{ marginTop: 4 }} />
+            <span>
+              {p.label}
+              <br />
+              <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{p.about}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <div>
+        <Button variant="primary" type="submit">
+          Save the note
+        </Button>
+      </div>
+    </form>
   );
 }
 

@@ -18,6 +18,7 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Scope
+  alias Oneiroi.Sunna.CheckinParts
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Events
@@ -27,7 +28,11 @@ defmodule Oneiroi.Sunna.Schedules do
   # ---- check-ins ----
 
   @doc "Sets a check-in by key (a fresh one when nil); returns the key."
-  def set_checkin(resident_id, key, label, time, %Actor{} = actor) do
+  # `parts:` and `prompt:` say what the note carries (sunna#28); either
+  # left out keeps what the check-in had, or the dates and no words for a
+  # new one, so a change of time alone never clears the witness's prompt.
+  def set_checkin(resident_id, key, label, time, %Actor{} = actor, opts \\ []) do
+    was = key && Enum.find(checkins(resident_id), &(&1.key == key))
     key = key || fresh_key()
     day = resident_id |> local_now() |> local_day()
 
@@ -38,7 +43,9 @@ defmodule Oneiroi.Sunna.Schedules do
       key: key,
       label: label,
       time: time,
-      day: day
+      day: day,
+      parts: Keyword.get_lazy(opts, :parts, fn -> (was && was.parts) || ["dates"] end),
+      prompt: blank_nil(Keyword.get_lazy(opts, :prompt, fn -> was && was.prompt end))
     }
 
     with {:ok, _} <- dispatch(command), do: {:ok, key}
@@ -580,17 +587,49 @@ defmodule Oneiroi.Sunna.Schedules do
 
   # The note is the core's (spec §8): the check-in's label and time, the
   # next check-in, and the dates counted now.
+  # The note (sunna#28): the platform's frame (which check-in, when the
+  # next is), then the witness's own words when he wrote any, then each
+  # part he checked, in the catalog's order. The dates are this system's;
+  # every other part is read by the brain through the wake port, which
+  # can see the journal, the letters and the library this system cannot.
+  # A part with nothing to say says so in a line rather than vanishing.
   defp checkin_note(resident_id, checkin) do
     now = local_now(resident_id)
     next = resident_id |> checkins() |> next_checkin(now)
+    parts = checkin.parts || ["dates"]
 
-    Prompt.render!("checkin", %{
-      label: checkin.label,
-      time: checkin.time,
-      next: if(next, do: "#{next.label} at #{next.time}", else: "none set"),
-      dates: dates_text(resident_id)
-    })
+    frame =
+      Prompt.render!("checkin", %{
+        label: checkin.label,
+        time: checkin.time,
+        next: if(next, do: "#{next.label} at #{next.time}", else: "none set")
+      })
+
+    words =
+      if checkin.prompt,
+        do: ["From the person who looks after you:\n\n" <> checkin.prompt],
+        else: []
+
+    sections =
+      for key <- CheckinParts.keys(), key in parts do
+        part_text(resident_id, key)
+      end
+
+    Enum.join([String.trim(frame) | words] ++ Enum.reject(sections, &(&1 in [nil, ""])), "\n\n")
   end
+
+  defp part_text(resident_id, "dates"), do: dates_text(resident_id)
+
+  defp part_text(resident_id, key) do
+    wake = Config.fetch!(:sunna, :wake)
+
+    if function_exported?(wake, :checkin_part, 2),
+      do: wake.checkin_part(resident_id, key),
+      else: nil
+  end
+
+  defp blank_nil(nil), do: nil
+  defp blank_nil(text) when is_binary(text), do: if(String.trim(text) == "", do: nil, else: text)
 
   defp resident(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
