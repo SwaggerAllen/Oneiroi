@@ -32,6 +32,13 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :kind]
   end
 
+  defmodule DocumentMoved do
+    # A document moved from one path, and so one kind, to another
+    # (seshat#39), by whom, its bytes unchanged: the move is the record
+    # of where it was, and a citation of the old path follows it.
+    use Oneiroi.Event, version: 1, fields: [:id, :from, :to, :from_kind, :to_kind, :hash]
+  end
+
   defmodule PiecePublished do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end

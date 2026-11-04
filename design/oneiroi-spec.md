@@ -851,7 +851,9 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   `system`, `scratch`, `human`, `posts`, `mail`, `feeds`, `correspondence`,
   `memory`, and `keepsake` (a file at the root); each with `cites`,
   `has_status`, layout, sidecar, adoption unit, access, and `scratch` and
-  `human` removable. Adding a kind is a registry row plus a skill. The
+  `human` removable. A document moves from kind to kind, its bytes
+  unchanged, between kinds the mover may write, and a citation of its old
+  path follows it (seshat#39). Adding a kind is a registry row plus a skill. The
   shelf, the order the kinds are shown in and what each is called, is the
   server's (seshat#35): no client names a kind, and when folders become
   each resident's to arrange, the shelf becomes theirs.

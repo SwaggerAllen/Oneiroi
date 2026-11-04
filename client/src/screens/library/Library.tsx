@@ -21,6 +21,9 @@ export interface LibraryProps {
   onAdd?: (name: string, content: string) => void;
   // Removes a scratch or human document; only those are removable.
   onRemove?: (path: string) => void;
+  // Moves a document to another path, and so another kind (seshat#39);
+  // the server says what may move where.
+  onMove?: (from: string, to: string) => void;
   // Searches the words of every document (the library's own index); the
   // passages found, nearest first, or null before any search.
   onSearch?: (query: string) => void;
@@ -62,7 +65,7 @@ function shelfOf(shelf: ShelfKind[]) {
 // documents' words through the library's index; keepsakes with why each
 // mattered in her words; your own (human/), which you add and remove and
 // she reads; scratch, removable when its work is done.
-export function Library({ residentName, documents, shelf = [], open = null, onOpen, onClose, onAdd, onRemove, onSearch, hits = null, searching = false }: LibraryProps) {
+export function Library({ residentName, documents, shelf = [], open = null, onOpen, onClose, onAdd, onRemove, onMove, onSearch, hits = null, searching = false }: LibraryProps) {
   const { label, rank } = shelfOf(shelf);
   // Yours is always a tab, so there is somewhere to add the first one.
   const kinds = [...new Set([...documents.map((d) => d.kind), ...(onAdd ? ['human'] : [])])].sort((a, b) => rank(a) - rank(b));
@@ -196,6 +199,7 @@ export function Library({ residentName, documents, shelf = [], open = null, onOp
                   first={i === 0}
                   onOpen={onOpen}
                   onRemove={d.kind === 'scratch' || d.kind === 'human' ? onRemove : undefined}
+                  onMove={STAYS.has(d.kind) ? undefined : onMove}
                 />
               ))}
             </ul>
@@ -212,6 +216,10 @@ export function Library({ residentName, documents, shelf = [], open = null, onOp
   );
 }
 
+// The kinds their systems write, which never move (seshat#39); the
+// server refuses them too, and this only spares the button.
+const STAYS = new Set(['mail', 'feeds', 'correspondence', 'journal', 'memory', 'originals']);
+
 function Doc({
   doc,
   residentName,
@@ -219,6 +227,7 @@ function Doc({
   first = false,
   onOpen,
   onRemove,
+  onMove,
 }: {
   doc: LibraryDocument;
   residentName: string;
@@ -226,8 +235,11 @@ function Doc({
   first?: boolean;
   onOpen?: (path: string) => void;
   onRemove?: (path: string) => void;
+  onMove?: (from: string, to: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [to, setTo] = useState(doc.path);
   const name = doc.title ?? doc.path;
   return (
     <li
@@ -255,12 +267,35 @@ function Doc({
         ) : (
           <span>{name}</span>
         )}
-        {onRemove ? (
-          <Button variant="quiet" onClick={() => (confirming ? onRemove(doc.path) : setConfirming(true))} onBlur={() => setConfirming(false)}>
-            {confirming ? `Remove ${doc.path}` : 'Remove'}
-          </Button>
-        ) : null}
+        <span style={{ display: 'flex', gap: 'var(--space-1)', flex: 'none' }}>
+          {onMove ? (
+            <Button variant="quiet" aria-expanded={moving} onClick={() => setMoving((m) => !m)}>
+              {moving ? 'Close' : 'Move'}
+            </Button>
+          ) : null}
+          {onRemove ? (
+            <Button variant="quiet" onClick={() => (confirming ? onRemove(doc.path) : setConfirming(true))} onBlur={() => setConfirming(false)}>
+              {confirming ? `Remove ${doc.path}` : 'Remove'}
+            </Button>
+          ) : null}
+        </span>
       </span>
+      {moving && onMove ? (
+        <form
+          aria-label={`Move ${doc.path}`}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (to.trim() && to.trim() !== doc.path) onMove(doc.path, to.trim());
+            setMoving(false);
+          }}
+          style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}
+        >
+          <Field label="New path (a name alone at the root is a keepsake)" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Button variant="primary" type="submit" disabled={to.trim() === '' || to.trim() === doc.path}>
+            Move it
+          </Button>
+        </form>
+      ) : null}
       <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
         {kindLabel ? `${kindLabel} · ` : ''}
         {doc.path}

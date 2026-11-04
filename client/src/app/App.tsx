@@ -555,6 +555,10 @@ function LibraryContainer({ resident }: { resident: Resident }) {
           if (open?.path === path) setOpen(null);
           act(api.removeDocument(id, path));
         }}
+        onMove={(from, to) => {
+          if (open?.path === from) setOpen(null);
+          act(api.moveDocument(id, from, to));
+        }}
         hits={hits}
         searching={searching}
         onSearch={(q) => {

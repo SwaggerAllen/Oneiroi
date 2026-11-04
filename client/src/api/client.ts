@@ -161,6 +161,9 @@ export const api = {
     call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
   writeDocument: (residentId: string, path: string, content: string) =>
     call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
+  moveDocument: (residentId: string, from: string, to: string) =>
+    call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
   removeDocument: (residentId: string, path: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/library/documents/${path}`),
   adapters: (residentId: string) => call<Adapter[]>('GET', `/v1/residents/${residentId}/adapters`),

@@ -60,6 +60,7 @@ const meta = {
     onClose: () => undefined,
     onAdd: () => undefined,
     onRemove: () => undefined,
+    onMove: () => undefined,
   },
 } satisfies Meta<typeof Library>;
 export default meta;

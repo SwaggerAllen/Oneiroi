@@ -344,7 +344,8 @@ defmodule Oneiroi.Brain.TrialTest do
   @other [
     {"dispute_check", %{claim: "Herons are rare here.", stance: "They are not."}},
     {"bookmark_accept", %{ref: "nope", line: "x", summary: "y"}},
-    {"document_adopt", %{path: "writing/stray.md"}}
+    {"document_adopt", %{path: "writing/stray.md"}},
+    {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}}
   ]
 
   defp calls(tools), do: Enum.map(tools, fn {name, args} -> %{name: name, arguments: args} end)
@@ -387,6 +388,10 @@ defmodule Oneiroi.Brain.TrialTest do
     assert ref =~ ~r/^[A-Za-z0-9_-]{12}\.$/
     assert {_, "Accepted as #4."} = List.keyfind(answered, "bookmark_accept", 0)
     assert {_, "Adopted writing/stray.md."} = List.keyfind(answered, "document_adopt", 0)
+
+    assert {_, "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (keepsake)."} =
+             List.keyfind(answered, "document_move", 0)
+
     assert {"journal_add", "Added note 1 to #{day}."} == List.keyfind(answered, "journal_add", 0)
 
     # The same calls for real: each answers in the trial's words.

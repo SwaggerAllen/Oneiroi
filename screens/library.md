@@ -28,7 +28,11 @@ the passages found for the tab, each opening its document. Keepsakes
 carry why each mattered in the resident's words, or that she has not
 said why yet (seshat#32); a document opens and reads whole, as plain
 text, above the list; scratch and human documents are removed with the
-button turned into its consequence; a document of yours is added, on the
+button turned into its consequence; every document but the kinds their
+systems write (mail, feeds, correspondence, journal, the originals)
+offers Move, a new path in place (a name alone at the root is a
+keepsake), sent to `POST .../library/move` (seshat#39), the server
+saying what may move where; a document of yours is added, on the
 Yours tab, by pasting or from a .md or .txt file, under a name made safe
 (`humanPath`). Not built:
 writing by status with the review copy, publish, research tasks and

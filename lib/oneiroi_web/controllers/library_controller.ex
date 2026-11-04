@@ -83,6 +83,35 @@ defmodule OneiroiWeb.LibraryController do
     end
   end
 
+  operation(:move,
+    summary:
+      "Move a document from one path, and so one kind, to another, its bytes unchanged (seshat#39); a citation of the old path follows it, and nothing is overwritten",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"from and to", "application/json",
+       %Schema{
+         type: :object,
+         required: [:from, :to],
+         properties: %{from: %Schema{type: :string}, to: %Schema{type: :string}}
+       }},
+    responses: [ok: {"where it went", "application/json", %Schema{type: :object}}]
+  )
+
+  def move(conn, %{"id" => id, "from" => from, "to" => to})
+      when is_binary(from) and is_binary(to) do
+    case Seshat.move(id, from, to, actor(conn)) do
+      {:ok, moved} -> json(conn, moved)
+      other -> respond(conn, other)
+    end
+  end
+
+  def move(conn, _params),
+    do:
+      respond(
+        conn,
+        {:error, Oneiroi.Seshat.Error.new(:seshat_path_invalid, :seshat_web_move_paths_required)}
+      )
+
   operation(:adopt,
     summary: "Adopt a file made outside the flow, as it is",
     parameters: [id: [in: :path, type: :string]],

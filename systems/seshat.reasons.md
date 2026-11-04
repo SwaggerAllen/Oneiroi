@@ -256,3 +256,19 @@ research kind because that is where a source and what was read from it
 already had a layout (`task.md` and a note per source). Summaries and
 not excerpts because the pages are other people's: the link carries
 their words, the note carries what bears on her question.
+
+## #39
+The only way to put a document somewhere else was to edit the backup by
+hand, and the backup is a copy of what the platform holds, not a second
+place to keep things: the one hand commit made every later push a
+non-fast-forward, and the platform would have put the file back where
+it had it anyway. A pull from the remote was the other answer, and it
+had one use case, which this is. A move keeps the bytes because an edit
+already has its path, the write; it never overwrites because a move
+that replaces something is a removal nobody asked for; and it follows
+write's rule for who may touch which kind because moving a file into a
+kind is writing it there. The index is re-keyed rather than re-embedded
+because the words are the same, and a move should not cost a model call.
+Old citations follow because a citation is how the rest of the library
+already names the page, and a move should not quietly break it.
+

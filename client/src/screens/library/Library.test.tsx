@@ -80,6 +80,21 @@ describe('Library', () => {
     expect(onRemove).toHaveBeenCalledWith('scratch/yc-application.md');
   });
 
+  // seshat#39: a document moves from kind to kind in the platform, never
+  // by hand on the backup (2026-11-04, Pocket Andrew).
+  it('moves a document to a new path, and offers no move for what its system writes', () => {
+    const onMove = vi.fn();
+    render(<Shelves onMove={onMove} />);
+    fireEvent.click(screen.getByRole('tab', { name: /Scratch/ }));
+    const scratch = screen.getByRole('list', { name: 'Scratch' });
+    fireEvent.click(within(scratch).getByRole('button', { name: 'Move' }));
+    const form = screen.getByRole('form', { name: 'Move scratch/yc-application.md' });
+    fireEvent.change(within(form).getByRole('textbox'), { target: { value: 'design/yc-application.md' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Move it' }));
+    expect(onMove).toHaveBeenCalledWith('scratch/yc-application.md', 'design/yc-application.md');
+    expect(screen.queryByRole('form', { name: 'Move scratch/yc-application.md' })).toBeNull();
+  });
+
   it('adds a document of yours under human/, named safely', () => {
     const onAdd = vi.fn();
     render(<Shelves onAdd={onAdd} />);
