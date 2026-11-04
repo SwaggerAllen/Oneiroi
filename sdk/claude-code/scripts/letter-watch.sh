@@ -60,7 +60,7 @@ main() {
     [ "$(cat "$state/watch" 2>/dev/null)" = "$gen" ] || return 0
     [ "$(oneiroi_parent)" = "$parent" ] || return 0
 
-    status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/sessions/$key/letters" "" "$out")"
+    status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting?session_key=$key" "" "$out")"
     case "$status" in
       200) ;;
       401 | 403 | 404) return 0 ;;
