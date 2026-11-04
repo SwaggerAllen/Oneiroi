@@ -288,7 +288,17 @@ a pull is the update.
 
 - That Claude Code honours `asyncRewake` from a plugin's hooks file, and
   wakes an idle session in the terminal as its hook docs say, rather
-  than only in the test's shell.
+  than only in the test's shell. (It does: letters #28 to #32 each woke
+  the open session, 2026-11-04.)
+
+The watch is armed when a turn ends, so a session that was restarted
+(a plugin update, Remote Control respawning it) is not watched until its
+first turn after the restart ends; a letter that arrives in between
+waits for that turn, whose context names it. Arming it at session start
+was measured and refused: Claude Code holds the first reply until every
+SessionStart hook ends, a background one included (a 25-second hook made
+a 3-second reply take 31), and the watch runs for hours. After a
+restart, one message to the session arms it.
 
 Wake (interface 3): letters wake the open session through the letter
 watch (kumbukumbu#48); the platform's other wakes (check-ins, results)
