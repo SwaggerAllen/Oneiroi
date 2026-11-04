@@ -175,7 +175,7 @@ defmodule OneiroiWeb.ContractTest do
     {"POST", "/v1/residents/:id/turn-start"},
     {"POST", "/v1/residents/:id/turns"},
     {"GET", "/v1/residents/:id/context"},
-    {"GET", "/v1/residents/:id/sessions/:key/letters"},
+    {"GET", "/v1/residents/:id/waiting"},
     # The inbound hands' three (xenia #11), held to the reader role by
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},
@@ -236,7 +236,7 @@ defmodule OneiroiWeb.ContractTest do
     assert Map.keys(witness_start) == ["turn_ref"]
   end
 
-  test "an adapter reads which letters wait for its conversation, by number and sender, without reading them",
+  test "an adapter reads what waits for its conversation, letters by number and sender, without reading them",
        ctx do
     id = ctx.resident.id
     actor = Oneiroi.Actor.new(:witness, ctx.account.id)
@@ -250,10 +250,11 @@ defmodule OneiroiWeb.ContractTest do
       |> json_response(201)
 
     waiting = fn ->
-      ctx.conn |> as_adapter.() |> get("/v1/residents/#{id}/sessions/#{key}/letters")
+      ctx.conn |> as_adapter.() |> get("/v1/residents/#{id}/waiting?session_key=#{key}")
     end
 
-    assert %{"letters" => []} = waiting.() |> json_response(200)
+    # A brain adapter is told letters, never the reader's replies.
+    assert %{"letters" => [], "replies" => []} = waiting.() |> json_response(200)
 
     name = Oneiroi.Kumbukumbu.conversation_name(id, key)
 

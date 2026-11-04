@@ -47,3 +47,16 @@ and the send leaves a receipt with its actor.
 With no unread-by-the-witness words and no kept words from blocked
 senders, the stream holds nothing the resident may not read, so the
 export carries it whole and a rebuild restores it.
+
+## #15
+The reader reads strangers' words while signed in as the resident, so
+what it can do while reading is what a stranger can make it do. The
+token stays with a script no message reaches; the scrape has no way to
+type, so no message can make it send; the browser cannot leave
+Substack, so no page can carry what it holds elsewhere; and a send is
+given nothing to read but the replies the witness approved. Sending is
+woken by what waits rather than scheduled, so an approved reply goes in
+minutes and not at the next scrape, by the same contract the Claude
+Code plugin's letter watch uses (kumbukumbu #48). Substack's pages are
+read rather than its endpoints called, because no endpoint has been
+verified and a page is what a signed-in reader is sure to have.

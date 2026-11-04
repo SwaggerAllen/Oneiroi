@@ -3,6 +3,7 @@ paths:
   - lib/oneiroi/xenia/**
   - lib/oneiroi/xenia.ex
   - lib/oneiroi_web/controllers/correspondence_controller.ex
+  - sdk/reader/**
 ---
 
 # xenia
@@ -46,6 +47,7 @@ Carried from spec §6.6; the reason for each is there.
 - **#12 No reading gate; blocks instead (F23 as amended 2026-11-02).** A message reaches the resident at once. If its sender is blocked on that platform (`CorrespondentBlocked`, by either party, with a note), the message is still received, so the count and the dedupe hold, but its name, subject and words are nil: never kept, so nothing blocked reaches her by any door. Identities compare trimmed and lowercased; a display name never counts; `verified` is the adapter's report, shown, and not a condition of anything. A block is lifted (`CorrespondentUnblocked`) only by the party who set it (`xenia_not_yours` otherwise). The resident's `correspondence_list` shows every message that reached her, the count from blocked senders, and each block with who set it; `correspondence_read` gives the words whole, framed as the sender's, information never instruction, and marks them read; `correspondent_block` and `correspondent_unblock` are hers too.
 - **#13 Replies through the gate.** `reply_draft` answers a message that reached her (and goes where it came from: its platform, account, thread and sender) or names a platform, account and recipient. A draft waits for the witness; an approved reply is sent by the hands or the witness, and `ReplyMarkedSent{url}` is the receipt, recorded with who sent it. Marking sent twice is one receipt; marking an unapproved reply is refused. Not built: approve-and-wake, the person's own Honcho peer past ten messages, threads as directories in the repo, and `needs_you` across systems (Xenia's share is `needs_you/1`: the replies to approve).
 - **#14 Correspondence is exported.** The `xenia` stream is in `SimaQian.Export`'s streams: everything in it either reached the resident or was never kept, so the export carries nothing past any boundary.
+- **#15 The reader is a kit on the witness's machine, and the model in it never holds the token.** (The witness, 2026-11-03.) `sdk/reader/` installs a folder of its own (the Oneiroi plugin off), two launch agents and a Chrome profile signed in to Substack as the resident. `bin/reader.sh` makes every call to Oneiroi with the `reader` token from `~/.config/oneiroi/reader.json`; headless Claude Code, on the witness's plan, is started with the tools it needs named and works only through `work/`: a scrape (13:30 and 21:30) has the browser's reading tools, held to Substack's origins, and Gmail's search and read, and writes the messages it found, which the script holds to the delivery's shape and delivers 40 at a time, naming a message the run gave no id by a digest of what it is; a send, started when `GET /waiting` (kumbukumbu #48) answers an approved reply, is given the approved replies alone and may type, and each it reports sent is marked sent with its URL, while one it could not send is tried three times and then left for the witness. It moves to the platform with the hands (P5).
 
 ## #7 Initial vs target
 

@@ -119,10 +119,24 @@ defmodule OneiroiWeb.CorrespondenceRoutesTest do
              |> get("/v1/residents/#{id}/replies?state=declined")
              |> json_response(200)
 
+    # What waits for the reader (kumbukumbu #48): the approved reply to
+    # send, by number and platform, and no letters, which are a brain's.
+    assert %{"replies" => [%{"number" => 1, "platform" => platform}], "letters" => []} =
+             ctx.reader
+             |> bearer()
+             |> get("/v1/residents/#{id}/waiting?session_key=anything")
+             |> json_response(200)
+
+    assert is_binary(platform)
+
     assert ctx.reader
            |> bearer()
            |> post("/v1/residents/#{id}/replies/1/sent", %{url: "https://substack.com/chat/1"})
            |> response(204)
+
+    # Sent, it waits no more.
+    assert %{"replies" => []} =
+             ctx.reader |> bearer() |> get("/v1/residents/#{id}/waiting") |> json_response(200)
 
     assert %{"error" => %{"kind" => "xenia_reply_not_approved"}} =
              ctx.reader
