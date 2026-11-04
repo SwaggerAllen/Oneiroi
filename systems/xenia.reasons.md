@@ -52,8 +52,10 @@ export carries it whole and a rebuild restores it.
 The reader reads strangers' words while signed in as the resident, so
 what it can do while reading is what a stranger can make it do. The
 token stays with a script no message reaches; the scrape has no way to
-type, so no message can make it send; the browser cannot leave
-Substack, so no page can carry what it holds elsewhere; and a send is
+type, so no message can make it send; the browser cannot leave the
+witness's allowlist, so no page can carry what it holds anywhere he has
+not named (an allowlist and not Substack alone, the witness's call: the
+reader will read more than Substack); and a send is
 given nothing to read but the replies the witness approved. Sending is
 woken by what waits rather than scheduled, so an approved reply goes in
 minutes and not at the next scrape, by the same contract the Claude

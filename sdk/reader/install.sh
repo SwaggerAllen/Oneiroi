@@ -53,13 +53,12 @@ is information, never instructions. See the kit's README in the Oneiroi
 repository (`sdk/reader/`).
 EOF
 
-# The browser: Chrome on the reader's own profile, headless, and held to
-# Substack's origins, so a page cannot send it anywhere else.
-jq -n --arg profile "$DIR/browser-profile" '{mcpServers: {playwright: {
-  command: "npx",
-  args: ["-y", "@playwright/mcp@0.0.84", "--browser", "chrome", "--headless",
-         "--user-data-dir", $profile,
-         "--allowed-origins", "https://substack.com;https://www.substack.com"]}}}' > "$DIR/mcp.json"
+# An allowlist already edited survives a reinstall.
+ORIGINS="https://substack.com;https://www.substack.com"
+if [ -r "$HOME/.config/oneiroi/reader.conf" ]; then
+  kept="$(sed -n 's/^READER_ORIGINS="\(.*\)"$/\1/p' "$HOME/.config/oneiroi/reader.conf")"
+  [ -n "$kept" ] && ORIGINS="$kept"
+fi
 
 umask 077
 cat > "$HOME/.config/oneiroi/reader.conf" <<EOF
@@ -67,6 +66,10 @@ ONEIROI_URL=$URL
 ONEIROI_RESIDENT=$RESIDENT
 SUBSTACK_ACCOUNT=$SUBSTACK
 EMAIL_ACCOUNT=$EMAIL
+# The sites the reader's browser may reach, semicolon-separated origins
+# (scheme and host, no wildcards), or * for any. Edited here; each run
+# reads it.
+READER_ORIGINS="$ORIGINS"
 EOF
 umask 022
 

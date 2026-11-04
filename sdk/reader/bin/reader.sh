@@ -14,12 +14,13 @@
 #
 # The model never holds the Oneiroi token: this script makes every call
 # to Oneiroi, and headless Claude Code only reads and writes JSON files
-# in `work/`. The browser reaches Substack's origins alone. A scrape run
+# in `work/`. The browser reaches only the sites on the allowlist
+# (READER_ORIGINS in reader.conf, Substack's by default). A scrape run
 # cannot type, so a stranger's message cannot make it send anything; a
 # send run is given the approved replies and nothing else to do.
 #
 # Reads ~/.config/oneiroi/reader.conf (ONEIROI_URL, ONEIROI_RESIDENT,
-# SUBSTACK_ACCOUNT, EMAIL_ACCOUNT) and the token from
+# SUBSTACK_ACCOUNT, EMAIL_ACCOUNT, READER_ORIGINS) and the token from
 # ~/.config/oneiroi/reader.json, never from the environment of a model.
 set -uo pipefail
 
@@ -62,8 +63,9 @@ lock() {
 # since a headless run asks nobody.
 model() {
   local prompt="$1" tools="$2"
+  browser_config
   (cd "$READER" && "${ONEIROI_CLAUDE:-claude}" -p "$(cat "$KIT/prompts/$prompt.md")" \
-    --mcp-config "$READER/mcp.json" \
+    --mcp-config "$WORK/mcp.json" \
     --allowedTools "$tools" \
     --max-turns "${ONEIROI_READER_TURNS:-80}" \
     --output-format text)
@@ -155,6 +157,19 @@ scrape() {
   done
   echo "$started" > "$STATE/last-scrape"
   say "$count message(s) delivered"
+}
+
+# The browser for this run: Chrome on the reader's own profile,
+# headless, held to the allowlist read from reader.conf at the run, so
+# the list is edited there and nothing is reinstalled. `*` lifts it.
+DEFAULT_ORIGINS="https://substack.com;https://www.substack.com"
+
+browser_config() {
+  local origins="${READER_ORIGINS:-$DEFAULT_ORIGINS}"
+  jq -n --arg profile "$READER/browser-profile" --arg origins "$origins" '{mcpServers: {playwright: {
+    command: "npx",
+    args: (["-y", "@playwright/mcp@0.0.84", "--browser", "chrome", "--headless", "--user-data-dir", $profile]
+           + (if $origins == "*" then [] else ["--allowed-origins", $origins] end))}}}' > "$WORK/mcp.json"
 }
 
 # The browser's tools: reading moves through pages and never types.
