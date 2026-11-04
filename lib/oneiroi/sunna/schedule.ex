@@ -216,12 +216,13 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def execute(%__MODULE__{free_time_days: days}, %Commands.RecordFreeTime{} = c) do
     cond do
-      # A slot runs once a day; a day recorded before slots (a version 1
-      # event, `:all`) had its one free time, and runs no other. "Once"
-      # is by the instant (sunna#27): a run under the same day and slot
-      # hours away is another slot that a change of zone gave the same
-      # label, and runs.
-      ran_near?(Map.get(days, {c.day, c.slot}), c.at) or Map.has_key?(days, {c.day, :all}) ->
+      # A day recorded before slots (a version 1 event, `:all`) had its
+      # one free time, and runs no other. Otherwise the tick decides
+      # whether a slot has run, by its instant (sunna#27); a run whose day
+      # and slot an earlier run carries, after a change of zone, is
+      # another slot and is recorded.
+      # The same record again, at the same instant, is the same run.
+      Map.has_key?(days, {c.day, :all}) or Map.get(days, {c.day, c.slot}) == c.at ->
         []
 
       is_binary(c.session_key) ->
@@ -412,14 +413,4 @@ defmodule Oneiroi.Sunna.Schedule do
   defp quiet_of(%{from: from, to: to}), do: %{from: from, to: to}
 
   defp date_of(c), do: %{title: c.title, on: c.on, kind: c.kind}
-
-  # Within 45 minutes of a recorded run is the same slot: a run is
-  # recorded within the 15-minute late window and its first turn, and a
-  # change of zone moves a slot by an hour or more. The label alone is not
-  # the slot (sunna#27). A record from before instants were kept has
-  # none, and counts.
-  @same_slot_seconds 45 * 60
-  defp ran_near?(nil, _at), do: false
-  defp ran_near?(%DateTime{} = ran, at), do: abs(DateTime.diff(at, ran)) < @same_slot_seconds
-  defp ran_near?(_recorded, _at), do: true
 end
