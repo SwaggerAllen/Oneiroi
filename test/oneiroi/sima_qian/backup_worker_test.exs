@@ -53,6 +53,9 @@ defmodule Oneiroi.SimaQian.BackupWorkerTest do
     assert error.details[:sites] == [:sima_qian_git_run_failed]
 
     assert log =~ "the nightly backup failed for resident #{ctx.bad.id}"
+    # What git refused, in its words (2026-11-04: two nights of a bare site).
+    assert log =~ "git said"
+    assert log =~ "oneiroi-remote.git"
     refute log =~ "resident #{ctx.good.id}"
 
     good = Scope.platform(fn -> Store.get(ctx.good.id) end)

@@ -35,8 +35,18 @@ defmodule Oneiroi.SimaQian.BackupWorker do
   @doc false
   # One resident's result: nothing when it landed; logged with the error's
   # kind, site and cause, and named with its site, when it did not.
+  #
+  # Git's own words ride along, as git wrote them less any token
+  # (`Git.run/4` redacts at the source), cut to a few lines: on 2026-11-04
+  # the log had said `sima_qian_git_run_failed` for two nights running,
+  # every retry, with nothing of what git refused or why, and the reason
+  # was only in the job's row.
   def failed(what, resident_id, {:error, error}) do
-    Logger.warning("the nightly #{what} failed for resident #{resident_id}", metadata(error))
+    Logger.warning(
+      "the nightly #{what} failed for resident #{resident_id}#{said(error)}",
+      metadata(error)
+    )
+
     [{resident_id, site(error)}]
   end
 
@@ -56,6 +66,20 @@ defmodule Oneiroi.SimaQian.BackupWorker do
   end
 
   defp site(error), do: if(Oneiroi.Error.sited?(error), do: error.site, else: nil)
+
+  @said_chars 600
+
+  defp said(%{details: details}) when is_list(details) or is_map(details) do
+    case details[:output] do
+      out when is_binary(out) and out != "" ->
+        ": git said " <> (out |> String.trim() |> String.slice(0, @said_chars) |> inspect())
+
+      _none ->
+        ""
+    end
+  end
+
+  defp said(_error), do: ""
 end
 
 defmodule Oneiroi.SimaQian.AttestationWorker do

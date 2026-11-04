@@ -259,3 +259,16 @@ count says nothing about bytes, and fidelity should not depend on the
 old repository still being there to compare against. Blobs because git
 already names a file's exact bytes; no filters because a filter
 (line endings, a smudge) is exactly the change being looked for.
+
+## #46
+Lily's backups failed every night from 2026-11-03, each retry logging
+`sima_qian_git_run_failed` and nothing more, while the cause sat in the
+job's row where the operator's one view of production could not reach
+it. The cause was a hand commit on the remote the afternoon before,
+which nothing in the log could have suggested. Git's output is already
+redacted at its source because git echoes the remote on failure, so
+logging it adds what was refused without adding a secret. The backup
+does not reconcile a remote someone else wrote: the repository says
+what the platform holds, and a merge would make it say what the remote
+held too.
+
