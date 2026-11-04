@@ -185,4 +185,39 @@ describe('App', () => {
     expect(sent[0].client_ref).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
     expect(sent[1]).toEqual(sent[0]);
   });
+
+  it('saves the reader\'s allowlists on Connections, keeps a refused draft with the server\'s words, and asks research', async () => {
+    const lily = { id: 'r1', slug: 'lily', name: 'Lily', state: 'awake', first_contact_at: null, formation_until: null, chat_model: null };
+    const fetch = fakeFetch({
+      '/v1/me': { status: 200, body: { email: 'a@b', residents: ['r1'] } },
+      '/v1/residents': { status: 200, body: [lily] },
+      '/v1/residents/r1/adapters': { status: 200, body: [] },
+      'GET /v1/residents/r1/reader': { status: 200, body: { scrape: ['https://substack.com'], research: [], set_at: null } },
+      'PUT /v1/residents/r1/reader': {
+        status: 422,
+        body: { error: { kind: 'xenia_sites_invalid', meaning: 'example.org/a is not an origin.', remedy: 'Give a scheme and host, or *.' } },
+      },
+      'GET /v1/residents/r1/research': { status: 200, body: [] },
+      'POST /v1/residents/r1/research': { status: 201, body: { number: 1 } },
+    });
+    vi.stubGlobal('fetch', fetch);
+    location.hash = 'connections';
+    try {
+      render(<App />);
+      const research = (await screen.findByLabelText(/^Research/)) as HTMLTextAreaElement;
+      fireEvent.change(research, { target: { value: 'example.org/a' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('is not an origin'));
+      expect((screen.getByLabelText(/^Research/) as HTMLTextAreaElement).value).toBe('example.org/a');
+      const put = fetch.mock.calls.find(([, init]) => init?.method === 'PUT');
+      expect(JSON.parse(put?.[1]?.body as string)).toEqual({ scrape: ['https://substack.com'], research: ['example.org/a'] });
+      fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'When do herons fish?' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+      await waitFor(() => expect(fetch.mock.calls.some(([, init]) => init?.method === 'POST' && String(init.body).includes('herons'))).toBe(true));
+      const post = fetch.mock.calls.find(([, init]) => init?.method === 'POST' && String(init.body).includes('herons'));
+      expect(JSON.parse(post?.[1]?.body as string)).toEqual({ question: 'When do herons fish?' });
+    } finally {
+      location.hash = '';
+    }
+  });
 });

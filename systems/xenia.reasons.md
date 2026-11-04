@@ -62,3 +62,12 @@ minutes and not at the next scrape, by the same contract the Claude
 Code plugin's letter watch uses (kumbukumbu #48). Substack's pages are
 read rather than its endpoints called, because no endpoint has been
 verified and a page is what a signed-in reader is sure to have.
+
+## #16
+The allowlist bounds what a page can make the reader do, so it is the
+witness's decision, and a decision belongs on the record with its actor,
+not in a file on one machine. Two lists because reading correspondence
+needs one signed-in site and research needs many sites and no sign-in:
+one list would either widen where the signed-in profile may go or
+narrow research to Substack. On Oneiroi, the resident can be told
+exactly what the reader can reach before she asks it anything.

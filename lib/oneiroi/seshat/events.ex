@@ -69,4 +69,21 @@ defmodule Oneiroi.Seshat.Events do
   defmodule OracleFailed do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
   end
+
+  defmodule ResearchAsked do
+    # A question for the reader's research pass (seshat #38): named,
+    # with the pages to start from, by whoever the actor is, and the
+    # conversation told when it lands.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :question, :urls, :session_key]
+  end
+
+  defmodule ResearchAnswered do
+    # The notes written under `path` (research/<number>-<slug>/), and the
+    # pages they came from.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :path, :sources]
+  end
+
+  defmodule ResearchFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
 end

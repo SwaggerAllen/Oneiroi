@@ -41,4 +41,19 @@ defmodule Oneiroi.Seshat.Commands do
   defmodule FailOracle do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
+
+  # Research (seshat #38): a question for the reader's research pass,
+  # with the pages to start from; numbered from the library's research
+  # sequence; `session_key` is the conversation told when it lands.
+  defmodule AskResearch do
+    use Oneiroi.Command, fields: [:id, :question, :urls, :session_key]
+  end
+
+  defmodule AnswerResearch do
+    use Oneiroi.Command, fields: [:id, :number, :path, :sources]
+  end
+
+  defmodule FailResearch do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
 end

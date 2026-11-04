@@ -41,6 +41,7 @@ defmodule Oneiroi.Xenia do
       Commands.DraftReply,
       Commands.DecideReply,
       Commands.MarkReplySent,
+      Commands.SetReaderSites,
       Events.CorrespondenceReceived,
       Events.CorrespondenceMarked,
       Events.CorrespondentBlocked,
@@ -49,10 +50,12 @@ defmodule Oneiroi.Xenia do
       Events.ReplyApproved,
       Events.ReplyDeclined,
       Events.ReplyMarkedSent,
+      Events.ReaderSitesSet,
       Store,
       Store.Message,
       Store.Block,
-      Store.Reply
+      Store.Reply,
+      Store.ReaderSites
     ]
 
   alias Oneiroi.Xenia.Inbox
@@ -73,13 +76,17 @@ defmodule Oneiroi.Xenia do
       {Oneiroi.Xenia.Events.ReplyDrafted, 1},
       {Oneiroi.Xenia.Events.ReplyApproved, 1},
       {Oneiroi.Xenia.Events.ReplyDeclined, 1},
-      {Oneiroi.Xenia.Events.ReplyMarkedSent, 1}
+      {Oneiroi.Xenia.Events.ReplyMarkedSent, 1},
+      {Oneiroi.Xenia.Events.ReaderSitesSet, 1}
     ]
   end
 
   @impl Oneiroi.Component
   def errors do
     [
+      {:xenia_sites_invalid,
+       "an allowlist is at most 50 entries, each an origin (https://host, a port at most) or *",
+       remedy: "give origins without paths, or * for any site"},
       {:xenia_not_allowed,
        "the inbound adapter or the witness delivers; either party blocks; the resident marks and drafts; the witness approves replies",
        remedy: "do this as the party it belongs to"},
@@ -176,6 +183,21 @@ defmodule Oneiroi.Xenia do
   @doc "Replies, newest first; `state` narrows to drafted, approved, declined or sent."
   @spec replies(String.t(), String.t() | nil) :: [map()]
   defexport(replies(resident_id, state), do: Inbox.replies(resident_id, state))
+
+  @doc "The reader's two allowlists (xenia #16): the sites it may reach to read correspondence and to research, as the witness set them or the defaults."
+  @spec reader_sites(String.t()) :: %{
+          scrape: [String.t()],
+          research: [String.t()],
+          set_at: DateTime.t() | nil
+        }
+  defexport(reader_sites(resident_id), do: Inbox.reader_sites(resident_id))
+
+  @doc "Sets the reader's two allowlists (xenia #16); the witness's alone."
+  @spec set_reader_sites(String.t(), [String.t()], [String.t()], Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_reader_sites(resident_id, scrape, research, actor),
+    do: Inbox.set_reader_sites(resident_id, scrape, research, actor)
+  )
 
   @doc "What waits on the witness here: the replies to approve."
   @spec needs_you(String.t()) :: %{replies: non_neg_integer()}

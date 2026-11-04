@@ -30,6 +30,24 @@ defmodule Oneiroi.Xenia.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule ReaderSites do
+    @moduledoc "The reader's allowlists (xenia #16): the origins its browser may reach to read correspondence and to research."
+    use Ecto.Schema
+    @primary_key false
+    schema "xenia_reader_sites" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:scrape, {:array, :string}, default: [])
+      field(:research, {:array, :string}, default: [])
+      field(:set_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The reader's allowlists as set, or nil before the witness has set them."
+  @spec reader_sites() :: ReaderSites.t() | nil
+  def reader_sites, do: Repo.one(from(s in ReaderSites, limit: 1))
+
   defmodule Block do
     @moduledoc "A blocked identity on a platform: whose messages are counted and never kept, and which party set it."
     use Ecto.Schema

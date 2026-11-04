@@ -14,7 +14,7 @@ defmodule Oneiroi.Seshat.Library do
   alias Oneiroi.Seshat.Kinds
 
   # `oracles`: number => :open | :answered | :failed (seshat #34).
-  defstruct [:id, documents: %{}, discussions: MapSet.new(), oracles: %{}]
+  defstruct [:id, documents: %{}, discussions: MapSet.new(), oracles: %{}, researches: %{}]
 
   @url ~r/\Ahttps?:\/\/[^\s]+\z/
 
@@ -216,6 +216,78 @@ defmodule Oneiroi.Seshat.Library do
         []
     end
   end
+
+  # Research (seshat #38): a named question of at most 2,000 characters,
+  # at most ten pages to start from, each an http(s) URL.
+  def execute(%__MODULE__{researches: researches}, %Commands.AskResearch{} = c) do
+    question = String.trim(to_string(c.question || ""))
+    urls = List.wrap(c.urls)
+
+    if question != "" and String.length(question) <= 2000 and length(urls) <= 10 and
+         Enum.all?(urls, &(is_binary(&1) and Regex.match?(@url, &1))) do
+      %Events.ResearchAsked{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        number: (researches |> Map.keys() |> Enum.max(fn -> 0 end)) + 1,
+        question: question,
+        urls: urls,
+        session_key: c.session_key
+      }
+    else
+      {:error, Error.new(:seshat_research_invalid, :seshat_ask_research_invalid)}
+    end
+  end
+
+  def execute(%__MODULE__{researches: researches}, %Commands.AnswerResearch{} = c) do
+    case Map.get(researches, c.number) do
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_research, :seshat_answer_research_absent, number: c.number)}
+
+      :open ->
+        %Events.ResearchAnswered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          path: c.path,
+          sources: c.sources || []
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def execute(%__MODULE__{researches: researches}, %Commands.FailResearch{} = c) do
+    case Map.get(researches, c.number) do
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_research, :seshat_fail_research_absent, number: c.number)}
+
+      :open ->
+        %Events.ResearchFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          reason: c.reason
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def apply(%__MODULE__{} = l, %Events.ResearchAsked{} = e),
+    do: %{l | id: e.id, researches: Map.put(l.researches, e.number, :open)}
+
+  def apply(%__MODULE__{} = l, %Events.ResearchAnswered{} = e),
+    do: %{l | researches: Map.put(l.researches, e.number, :answered)}
+
+  def apply(%__MODULE__{} = l, %Events.ResearchFailed{} = e),
+    do: %{l | researches: Map.put(l.researches, e.number, :failed)}
 
   def apply(%__MODULE__{} = l, %Events.OracleDispatched{} = e),
     do: %{l | id: e.id, oracles: Map.put(l.oracles, e.number, :open)}

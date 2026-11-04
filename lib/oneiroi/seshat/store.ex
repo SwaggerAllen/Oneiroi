@@ -132,6 +132,47 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Research do
+    @moduledoc "One question for the reader's research pass (seshat #38): what, from which pages, by whom, and how it settled."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "seshat_research" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:question, :string)
+      field(:urls, {:array, :string}, default: [])
+      field(:sources, {:array, :string}, default: [])
+      field(:session_key, :string)
+      field(:asked_by, :string)
+      field(:status, :string)
+      field(:path, :string)
+      field(:reason, :string)
+      field(:asked_at, :utc_datetime_usec)
+      field(:settled_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The research questions, newest first; `status:` narrows to open, answered or failed."
+  @spec researches(keyword()) :: [Research.t()]
+  def researches(opts \\ []) do
+    query = from(r in Research, order_by: [desc: r.number], limit: ^Keyword.get(opts, :limit, 50))
+
+    query =
+      case Keyword.get(opts, :status) do
+        nil -> query
+        status -> from(r in query, where: r.status == ^status)
+      end
+
+    Repo.all(query)
+  end
+
+  @doc "One research question by number, or nil."
+  @spec research(pos_integer()) :: Research.t() | nil
+  def research(number), do: Repo.one(from(r in Research, where: r.number == ^number))
+
   @doc """
   The oracle's questions, newest first, narrowed deliberately: `source:`
   one it read (a ref, exactly), `status:` open, answered or failed,

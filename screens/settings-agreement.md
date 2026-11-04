@@ -6,7 +6,7 @@ paths:
 
 # settings-agreement
 
-Settings: agreement and custody (spec §10). Not built, but for its adapters part, Connections (below): this doc is the screen's file map and
+Settings: agreement and custody (spec §10). Not built, but for its adapters and reader part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.
@@ -20,7 +20,17 @@ with its role (brain, reader, worker, each said in words) and since
 when; a token issued by a lowercase name and a role and shown once
 with Copy and "I've saved it" (issuing a name again replaces its
 token); a revoke that confirms in place; the revoked listed apart with
-the day. Not built: an adapter's state, last capture and wakes today,
+the day. Below them, the reader (built 2026-11-03, from `GET/PUT
+/v1/residents/:id/reader` and `GET/POST /v1/residents/:id/research`):
+its two allowlists (xenia #16), "Reading correspondence" and
+"Research", one origin a line with a line under each saying what it is
+for, that `*` means any site and, for Research, that an empty list
+means the reader can't research at all, saved together, a refused save
+keeping the draft and showing the server's meaning and remedy in the
+card; and the research questions (seshat #38), newest first, each with
+its number, question and status, an answered one's notes as
+`<path>/task.md` to find in the Library, a failed one's reason, and a
+form to ask one with optional pages to start from. Not built: an adapter's state, last capture and wakes today,
 suspending rather than revoking, and the rest of this screen (the
 contract and its versions, custody, the export wall).
 

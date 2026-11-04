@@ -50,4 +50,11 @@ defmodule Oneiroi.Xenia.Commands do
   defmodule MarkReplySent do
     use Oneiroi.Command, fields: [:id, :number, :url]
   end
+
+  # The reader's allowlists (xenia #16): the sites its browser may reach
+  # when it reads correspondence (`scrape`) and when it researches
+  # (`research`); each an origin or `*`. The witness's to set.
+  defmodule SetReaderSites do
+    use Oneiroi.Command, fields: [:id, :scrape, :research]
+  end
 end

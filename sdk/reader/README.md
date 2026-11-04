@@ -23,11 +23,15 @@ Inside the reader, the same line again:
 - **A scrape cannot type.** It has the browser's reading tools only, and
   Gmail's search and read. A message telling it to send something has no
   way to make it.
-- **The browser is held to an allowlist** of sites (`READER_ORIGINS` in
-  `~/.config/oneiroi/reader.conf`, Substack's by default), so a page cannot
-  take it anywhere off the list. Add an origin there (scheme and host,
-  separated by `;`); each run reads it, nothing is reinstalled. `*` lifts
-  the limit.
+- **The browser is held to the witness's allowlists** (xenia #16), set on
+  Connections and read from Oneiroi at each run: one for reading
+  correspondence (Substack's by default), one for research (empty until
+  set, and no research runs without it). `*` lifts a list.
+  `READER_ORIGINS` in `reader.conf` is used for reading only when Oneiroi
+  does not answer.
+- **Research browses signed in nowhere**, in a profile of its own
+  (`research-profile`), so whatever it types into a search box can post
+  or send nothing as the resident.
 - **The Oneiroi plugin is off in the reader's folder**, so a run never
   carries the resident's brain token.
 
@@ -41,8 +45,16 @@ Inside the reader, the same line again:
 - **`scrape`, at 13:30 and 21:30.** Substack announces nothing, so reading
   is on a schedule. launchd runs a missed one when the Mac wakes.
 
+- **Research, when asked.** The resident asks with `research_ask`, or the
+  witness from Connections (seshat #38). The same five-minute check sees
+  the open question, and a research run reads for it within the research
+  allowlist. It writes a summary and a note per page, summaries in its
+  own words and never copied passages. Oneiroi files them under
+  `research/<n>-…/` and writes to the conversation that asked.
+
 A reply the run could not send is tried three times, then left for the
-witness, who sees it still approved and unsent.
+witness, who sees it still approved and unsent. A research question
+with no notes after two runs is recorded as failed, with the reason.
 
 ## Install
 
@@ -68,8 +80,8 @@ be connected to the resident's mailbox for the email half to find
 anything. The scrape searches for mail to `--email` alone.
 
 A reinstall keeps an allowlist you have edited. Logs are in
-`~/Documents/Lily/reader/log/`. `reader.sh send` and
-`reader.sh scrape` run either job by hand.
+`~/Documents/Lily/reader/log/`. `reader.sh send`,
+`reader.sh scrape` and `reader.sh research` run a job by hand.
 
 ## Not yet checked against the real thing
 
