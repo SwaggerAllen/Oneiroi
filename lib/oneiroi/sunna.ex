@@ -71,11 +71,14 @@ defmodule Oneiroi.Sunna do
       Store.Day,
       Store.Hour,
       Store.Date,
-      Store.Settings
+      Store.Settings,
+      Store.FreeTimeRun
     ]
 
+  alias Oneiroi.Scope
   alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Schedules
+  alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.TickWorker
 
   @impl Oneiroi.Component
@@ -227,6 +230,12 @@ defmodule Oneiroi.Sunna do
   @spec remove_date(String.t(), pos_integer(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(remove_date(resident_id, number, actor),
     do: Schedules.remove_date(resident_id, number, actor)
+  )
+
+  @doc "The latest free-time runs, newest first, each with its day, slot, outcome and the conversation it opened (sunna#25)."
+  @spec free_time_history(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.FreeTimeRun.t()]
+  defexport(free_time_history(resident_id, limit),
+    do: Scope.resident(resident_id, fn -> Store.free_time_history(limit) end)
   )
 
   @doc "Today in the resident's zone: check-ins with firings, last and next, free time, quiet hours, dates with countdowns."

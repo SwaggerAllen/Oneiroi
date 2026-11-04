@@ -22,6 +22,7 @@ defmodule Oneiroi.Brain.Tools do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Brain.Cut
+  alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
@@ -50,7 +51,7 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
-    research_list
+    research_list free_time_list transcript_read
   )
 
   @writes ~w(
@@ -367,6 +368,18 @@ defmodule Oneiroi.Brain.Tools do
           limit: %{type: "integer", minimum: 1}
         },
         []
+      ),
+      tool(
+        "free_time_list",
+        "Your free time, remembered: the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
+        %{limit: %{type: "integer", minimum: 1, maximum: 30}},
+        []
+      ),
+      tool(
+        "transcript_read",
+        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Only the conversations your room reads.",
+        %{session: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        [:session]
       ),
       tool(
         "research_ask",
@@ -1440,6 +1453,32 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Her free time, remembered (brain#53).
+  defp call("free_time_list", args, turn) do
+    limit = args["limit"] |> integer_or(10) |> max(1) |> min(30)
+
+    case FreeTime.history(turn.resident_id, limit, @writes) do
+      [] ->
+        "No free time has run yet."
+
+      runs ->
+        Enum.map_join(runs, "\n", &free_time_line/1)
+    end
+  end
+
+  defp call("transcript_read", args, turn) do
+    key = to_string(args["session"] || "")
+    from = args["from"] |> integer_or(0) |> max(0)
+    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
+
+    with true <- key in keys,
+         {:ok, session, messages} <- Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
+      transcript_page(session, messages, from)
+    else
+      _ -> "Not done: no conversation of yours that this room reads has that key."
+    end
+  end
+
   # Research (seshat#38, xenia#16): asked only when the reader has sites
   # to reach, and the answer says exactly which, so she knows what it can
   # and cannot read before it reads.
@@ -2409,6 +2448,43 @@ defmodule Oneiroi.Brain.Tools do
   defp research_settled(%{status: "answered", path: path}), do: " → #{path}/task.md"
   defp research_settled(%{status: "failed", reason: reason}), do: " (#{reason})"
   defp research_settled(_open), do: ""
+
+  defp free_time_line(%{outcome: "ran"} = r) do
+    did =
+      case r.did do
+        [] -> "nothing written"
+        did -> Enum.map_join(did, "; ", &"#{&1.tool}: #{&1.result}")
+      end
+
+    "#{r.day} #{r.slot || "(one slot)"}: ran in session #{r.session_key} (#{r.turns} turn(s)); did: #{did}"
+  end
+
+  defp free_time_line(r), do: "#{r.day} #{r.slot || "(one slot)"}: #{r.outcome}"
+
+  @transcript_page 30
+  @transcript_message_chars 2_000
+
+  defp transcript_page(session, messages, from) do
+    page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)
+    upto = from + length(page)
+
+    lines =
+      Enum.map_join(page, "\n\n", fn m ->
+        "[#{m.turn_ref}] #{m.role}, #{Calendar.strftime(m.sent_at, "%Y-%m-%d %H:%M")}: " <>
+          Cut.cut(m.content || "", @transcript_message_chars)
+      end)
+
+    more =
+      if upto < length(messages),
+        do: "\n\n(#{length(messages) - upto} more; transcript_read with from: #{upto} reads on.)",
+        else: ""
+
+    "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{length(messages)}:\n\n" <>
+      lines <> more
+  end
+
+  defp integer_or(n, _default) when is_integer(n), do: n
+  defp integer_or(_other, default), do: default
 
   defp sites_text(["*"]), do: "any site"
   defp sites_text(sites), do: Enum.join(sites, ", ")

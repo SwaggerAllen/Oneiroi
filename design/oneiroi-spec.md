@@ -328,7 +328,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu#45) | memory |
 | F7 | Bookmark index injected every turn under a token budget, ranked against the turn's words | built (kumbukumbu#46; 1,500 tokens, a guess) | brain, memory |
 | F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
-| F9 | Transcript search and browse by day and conversation | built over the API and `transcript_search`, by phrase and by meaning (kumbukumbu#17, #18, #27, #49); the client browses by conversation, its search not yet | memory, client |
+| F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the client browses by conversation, its search not yet | memory, client |
 | F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
 | F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu#46) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
@@ -351,7 +351,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
 | F30 | External doc citations with resolved-at commit and drift detection | planned (seshat's target) | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
-| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22) | brain, schedule, ledger |
+| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25); remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) | brain, schedule, ledger |
 | F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
 | F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri#6: not built) | hands, brain |

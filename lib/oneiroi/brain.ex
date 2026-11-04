@@ -39,8 +39,10 @@ defmodule Oneiroi.Brain do
 
   alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.Drafting
+  alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
 
   @impl Oneiroi.Component
@@ -192,6 +194,12 @@ defmodule Oneiroi.Brain do
       {Task.Supervisor, name: :brain_turns}
     ]
   end
+
+  @doc "Free time remembered (brain#53): the latest runs, newest first, with the conversation each ran in, its turns, and the receipts of what it made."
+  @spec free_time_history(String.t(), pos_integer()) :: [map()]
+  defexport(free_time_history(resident_id, limit),
+    do: FreeTime.history(resident_id, limit, Tools.writes())
+  )
 
   @doc """
   Takes the witness's message under the client's ref and answers at once

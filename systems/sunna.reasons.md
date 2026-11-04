@@ -108,3 +108,9 @@ stream, so a restart, a deploy's two instances, or two ticks on one
 minute wake once. The bound is per hour because a wake is a paid turn
 and two conversations answering each other would otherwise wake each
 other without end; the letters held back are not lost, only later.
+
+## #25
+The runs were recorded from the start and read back only for today, so
+a night's free time left nothing either party could find the next
+morning: the resident could not remember it and the witness could not
+see that it had happened. The record was there; the read was missing.

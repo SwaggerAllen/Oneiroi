@@ -151,6 +151,11 @@ defmodule Oneiroi.Sunna.Store do
   def free_time_runs(day),
     do: Repo.all(from(r in FreeTimeRun, where: r.day == ^day, order_by: r.at))
 
+  @doc "The latest free-time runs, any day, newest first (sunna#25)."
+  @spec free_time_history(pos_integer()) :: [FreeTimeRun.t()]
+  def free_time_history(limit),
+    do: Repo.all(from(r in FreeTimeRun, order_by: [desc: r.at], limit: ^limit))
+
   @spec settings() :: Settings.t() | nil
   def settings, do: Repo.one(from(s in Settings, limit: 1))
 
