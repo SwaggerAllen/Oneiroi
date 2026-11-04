@@ -39,10 +39,14 @@ defmodule Oneiroi.Kumbukumbu do
       Ecto.Multi,
       Ecto.Query,
       Ecto.Schema,
-      Jason
+      Jason,
+      # The passage worker (kumbukumbu #49).
+      Oban
     ],
     exports: [
       Error,
+      Passages,
+      PassageWorker,
       Conversation,
       Conversations,
       Router,
@@ -122,9 +126,15 @@ defmodule Oneiroi.Kumbukumbu do
   alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
+  alias Oneiroi.Kumbukumbu.Passages
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
+
+  @impl Oneiroi.Component
+  def oban_queues do
+    [{:kumbukumbu_passages, cron: [{"*/10 * * * *", Oneiroi.Kumbukumbu.PassageWorker}]}]
+  end
 
   @impl Oneiroi.Component
   def config do
@@ -212,6 +222,18 @@ defmodule Oneiroi.Kumbukumbu do
        default: "openai/text-embedding-3-small",
        usage:
          "the embedding model the madeleine's vectors come from (spec §6.3, P10), pinned platform-wide with the library's and one model with it in every build so far; a change re-embeds every row on the next refresh"},
+      {:passage_chars, "KUMBUKUMBU_PASSAGE_CHARS",
+       cast: :integer,
+       default: "1500",
+       tag: :bound,
+       usage:
+         "the longest passage a message is cut into for the transcripts by meaning (kumbukumbu #49): about a paragraph or two, near the library's chunk, so a hit is a place in a message and not the whole of a long one; a guess"},
+      {:passage_batch, "KUMBUKUMBU_PASSAGE_BATCH",
+       cast: :integer,
+       default: "2000",
+       tag: :bound,
+       usage:
+         "how many messages one passage run embeds for a resident (kumbukumbu #49), oldest first; a backlog takes several runs, ten minutes apart, rather than one long one"},
       {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
        cast: :integer,
        default: "1536",
@@ -797,6 +819,19 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line; nil, or a key no session has, is the common room."
   @spec index(String.t(), String.t() | nil) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
+
+  @doc "Embeds the next captured messages that have no passages yet (kumbukumbu #49); how many, and whether more wait."
+  @spec refresh_passages(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(refresh_passages(resident_id, actor),
+    do: Passages.refresh(resident_id, actor)
+  )
+
+  @doc "The transcript passages nearest `text` in meaning, within the room of `session_key` (kumbukumbu #49)."
+  @spec search_meaning(String.t(), String.t() | nil, String.t(), pos_integer(), Oneiroi.Actor.t()) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(search_meaning(resident_id, session_key, text, limit, actor),
+    do: Passages.search(resident_id, session_key, text, limit, actor)
+  )
 
   @doc "The turn's words embedded once (kumbukumbu #46): the vector the ranked index and the madeleine share, or nil; refreshes the bookmarks' vectors first."
   @spec memory_query(String.t(), String.t(), Oneiroi.Actor.t(), keyword()) :: [float()] | nil

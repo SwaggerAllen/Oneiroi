@@ -225,8 +225,8 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search every transcript for a phrase, newest first; reaches past the index. Each hit is the words around the phrase, not the whole message; tool calls are not searched.",
-        %{q: %{type: "string"}},
+        "Search every transcript, past the index: for the exact phrase (newest first, each hit the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        %{q: %{type: "string"}, by: %{type: "string", enum: ["both", "phrase", "meaning"]}},
         [:q]
       ),
       tool(
@@ -1239,22 +1239,32 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("transcript_search", args, turn) do
-    case Kumbukumbu.search(
-           {:resident, turn.resident_id},
-           to_string(args["q"] || ""),
-           20,
-           turn.resident_id,
-           turn.session_key
-         ) do
-      [] ->
-        "Nothing in the transcripts holds that."
+    q = to_string(args["q"] || "")
+    by = if args["by"] in ["phrase", "meaning"], do: args["by"], else: "both"
 
-      rows ->
-        Enum.map_join(
-          rows,
-          "\n",
-          &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{Cut.around(&1.content || "", to_string(args["q"]), 160)}"
-        )
+    phrase =
+      if by == "meaning",
+        do: [],
+        else:
+          Kumbukumbu.search(
+            {:resident, turn.resident_id},
+            q,
+            20,
+            turn.resident_id,
+            turn.session_key
+          )
+
+    phrase_text = phrase_text(phrase, q)
+
+    case by do
+      "phrase" ->
+        phrase_text
+
+      "meaning" ->
+        meaning_text(turn, q, [])
+
+      "both" ->
+        "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, phrase)
     end
   end
 
@@ -2320,6 +2330,48 @@ defmodule Oneiroi.Brain.Tools do
   # cites the seed it grew from, which has usually graduated into it);
   # checked here because the resident system cannot read the character
   # system's rows (ethos #13).
+  defp phrase_text([], _q), do: "No message holds that phrase."
+
+  defp phrase_text(rows, q),
+    do:
+      Enum.map_join(
+        rows,
+        "\n",
+        &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{Cut.around(&1.content || "", q, 160)}"
+      )
+
+  defp near_text([]), do: "Nothing embedded comes near that yet."
+
+  defp near_text(near) do
+    Enum.map_join(near, "\n", fn p ->
+      "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{Calendar.strftime(p.sent_at, "%Y-%m-%d")}: #{opening(p.text, 280)}"
+    end)
+  end
+
+  # A passage's opening on one line, an ellipsis where it goes on.
+  defp opening(text, limit) do
+    flat = text |> String.replace(~r/\s+/, " ") |> String.trim()
+    if String.length(flat) > limit, do: String.slice(flat, 0, limit) <> "…", else: flat
+  end
+
+  # The transcripts by meaning (kumbukumbu #49): the nearest passages not
+  # already a phrase hit, each opening on its own words.
+  defp meaning_text(turn, q, phrase) do
+    seen = MapSet.new(phrase, & &1.turn_ref)
+
+    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident) do
+      {:ok, rows} ->
+        rows
+        |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
+        |> Enum.uniq_by(&{&1.session_key, &1.turn_ref, &1.role})
+        |> Enum.take(8)
+        |> near_text()
+
+      {:error, _reason} ->
+        "Not searched by meaning: the embedding did not answer."
+    end
+  end
+
   defp seeds_cited(_resident_id, nil), do: {:ok, []}
 
   defp seeds_cited(resident_id, cites) when is_list(cites) do

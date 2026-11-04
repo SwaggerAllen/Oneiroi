@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
 
     {:ok,
      id: resident.id,
+     slug: resident.slug,
      dir: dir,
      witness: Actor.new(:witness, witness.id),
      lily: Actor.new(:resident, resident.id, "fake/model")}
@@ -81,5 +82,38 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
     write = Enum.find(Tools.definitions(), &(&1.function.name == "document_write"))
     assert write.function.description =~ "scratch"
     refute write.function.description =~ "human"
+  end
+
+  # Letter #26: the resident cites the witness's posts by sentence, and the
+  # citation has to resolve. human/, oracle/ and scratch/ were missing from
+  # the citation pattern's hand-written list of kinds; it reads the
+  # registry now.
+  test "a citation into human/ (and every registered kind) is a citation and resolves", ctx do
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "human/the-ai-essay.md",
+        "# The AI Essay\n\nEvidence is ceasing.",
+        ctx.witness
+      )
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "writing/answer.md",
+        "# Answer\n\nAs he wrote, evidence is ceasing #{ctx.slug}:human/the-ai-essay.",
+        ctx.lily
+      )
+
+    witness_id = ctx.witness.id
+    :ok = Oneiroi.Gaia.store_key(witness_id, "sk-or-test", ctx.witness)
+    {:ok, _} = Seshat.index(ctx.id, ctx.witness)
+
+    assert [%{target: target, resolved: true}] = Seshat.references(ctx.id, "writing/answer.md")
+    assert target == "#{ctx.slug}:human/the-ai-essay"
+    assert run("library_read", %{path: target}, ctx) =~ "Evidence is ceasing."
+
+    for kind <- Enum.map(Seshat.Kinds.all(), & &1.kind),
+        do: assert([%{kind: ^kind}] = Seshat.Citations.extract("see #{ctx.slug}:#{kind}/x1."))
   end
 end
