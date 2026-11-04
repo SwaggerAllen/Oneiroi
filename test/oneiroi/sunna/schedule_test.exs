@@ -114,7 +114,7 @@ defmodule Oneiroi.Sunna.ScheduleTest do
              Schedule.execute(s, cmd(Commands.DeleteCheckin, key: "b"))
   end
 
-  test "free time runs or fails once a day; quiet hours and dates are validated and deduplicated" do
+  test "free time records each run, the same record once; quiet hours and dates are validated and deduplicated" do
     s =
       evolve(Schedule.execute(%Schedule{}, cmd(Commands.SetFreeTime, times: ["22:30", "14:30"])))
 
@@ -131,7 +131,12 @@ defmodule Oneiroi.Sunna.ScheduleTest do
     ran = cmd(Commands.RecordFreeTime, day: "d1", slot: "14:30", session_key: "k", reason: nil)
     assert %Events.FreeTimeRan{session_key: "k", slot: "14:30"} = Schedule.execute(s, ran)
     s = evolve(s, Schedule.execute(s, ran))
+    # The same record again is the same run; the same label at another
+    # instant, after a change of zone, is another slot and is recorded
+    # (sunna#27): the tick decides whether a slot ran, by its instant.
     assert [] = Schedule.execute(s, ran)
+    later = %{ran | at: DateTime.add(ran.at, 3600)}
+    assert %Events.FreeTimeRan{slot: "14:30"} = Schedule.execute(s, later)
 
     # Another slot the same day runs; a day recorded before slots runs none.
     evening = cmd(Commands.RecordFreeTime, day: "d1", slot: "22:30", session_key: "k2")

@@ -127,3 +127,15 @@ turn can: words and nothing left to call. The twenty-turn bound guards
 against a pass that never says it, and a missing budget line keeps the
 old single turn, so no witness pays for continuations they never set
 a line for.
+
+## #27
+On 2026-11-03 the witness moved the resident from UTC to Pacific after
+the 22:30 UTC run. That night's 22:30 Pacific slot carried the same day
+and slot, and three places took the label for the slot: the tick saw it
+as run, the aggregate would have refused its record, and the projection
+would have dropped the row. So the first free time after the
+budget-and-turns change (#26) never happened, and nothing said so. A
+slot is a time; its label in the zone of the moment is only its name. A window that took two runs under one label within so many minutes for
+the same slot was tried and dropped: it is not what a witness expects
+when he moves the zone, and the tick's own question (has anything run
+since this slot's time?) is what keeps a slot from running twice.

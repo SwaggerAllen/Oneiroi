@@ -216,9 +216,13 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def execute(%__MODULE__{free_time_days: days}, %Commands.RecordFreeTime{} = c) do
     cond do
-      # A slot runs once a day; a day recorded before slots (a version 1
-      # event, `:all`) had its one free time, and runs no other.
-      Map.has_key?(days, {c.day, c.slot}) or Map.has_key?(days, {c.day, :all}) ->
+      # A day recorded before slots (a version 1 event, `:all`) had its
+      # one free time, and runs no other. Otherwise the tick decides
+      # whether a slot has run, by its instant (sunna#27); a run whose day
+      # and slot an earlier run carries, after a change of zone, is
+      # another slot and is recorded.
+      # The same record again, at the same instant, is the same run.
+      Map.has_key?(days, {c.day, :all}) or Map.get(days, {c.day, c.slot}) == c.at ->
         []
 
       is_binary(c.session_key) ->
@@ -356,10 +360,10 @@ defmodule Oneiroi.Sunna.Schedule do
     do: %{s | id: e.id, free_times: e.times || List.wrap(e.time)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeRan{} = e),
-    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, :ran)}
+    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeFailed{} = e),
-    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, :failed)}
+    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
 
   def apply(%__MODULE__{} = s, %Events.QuietHoursSet{} = e),
     do: %{s | id: e.id, quiet: quiet_of(e)}
