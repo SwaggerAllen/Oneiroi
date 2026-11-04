@@ -13,7 +13,10 @@
 set -euo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DIR="$HOME/Documents/Lily/reader"
+# Not under ~/Documents, ~/Desktop or ~/Downloads: macOS keeps those from
+# a launchd job, and the jobs' bash is refused with "Operation not
+# permitted" (2026-11-04, the first install, in ~/Documents/Lily/reader).
+DIR="$HOME/.oneiroi/reader"
 URL="" RESIDENT="" SUBSTACK="" EMAIL=""
 
 while [ $# -gt 0 ]; do
@@ -40,8 +43,12 @@ cp "$KIT"/prompts/*.md "$DIR/prompts/"
 chmod +x "$DIR/bin/reader.sh"
 
 # The reader's own settings: never the resident's plugin, never a shell.
+# Writing is not denied here: Claude Code matches every file-writing tool
+# by Edit rules, so a deny of Edit would refuse the one answer file each
+# run is granted (`Edit(/work/<file>)` in reader.sh); a headless run is
+# refused any path it was not granted anyway.
 jq -n '{enabledPlugins: {"oneiroi@oneiroi": false},
-        permissions: {deny: ["Bash", "WebFetch", "WebSearch", "Edit"]}}' > "$DIR/.claude/settings.json"
+        permissions: {deny: ["Bash", "WebFetch", "WebSearch"]}}' > "$DIR/.claude/settings.json"
 
 cat > "$DIR/CLAUDE.md" <<'EOF'
 # The reader
