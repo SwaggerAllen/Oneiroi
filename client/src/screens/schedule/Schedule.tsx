@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FreeTimeSlot, ScheduleCheckin, ScheduleToday } from '../../api/types';
+import type { FreeTimeRun, FreeTimeSlot, ScheduleCheckin, ScheduleToday } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
@@ -9,6 +9,8 @@ import { TopBar } from '../../components/TopBar';
 export interface ScheduleProps {
   residentName: string;
   today: ScheduleToday;
+  // Free time's latest runs, newest first (brain#53); absent until read.
+  remembered?: FreeTimeRun[];
   onSetFreeTime?: (times: string[]) => void;
   onAddCheckin?: (label: string, time: string) => void;
   onDeleteCheckin?: (key: string) => void;
@@ -24,16 +26,18 @@ const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' } as const;
 
 // Schedule (spec §10, screens/schedule.md): today in the resident's zone,
-// free time's slots with what each did today, the check-ins with their
+// free time's slots with what each did today, its runs remembered with
+// what each made, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetQuietHours, onSetTimezone }: ScheduleProps) {
+export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetQuietHours, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <Zone residentName={residentName} timezone={today.timezone} onSet={onSetTimezone} />
         <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
+        {remembered ? <Remembered residentName={residentName} runs={remembered} /> : null}
         <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} />
         <Quiet quiet={today.quiet} onSet={onSetQuietHours} />
         <Card title="Dates">
@@ -119,6 +123,45 @@ function FreeTime({ residentName, slots, onSet }: { residentName: string; slots:
           </div>
         </form>
       ) : null}
+    </Card>
+  );
+}
+
+// Free time, remembered (brain#53, sunna#25): each run with its day and
+// slot, whether it ran, its turns, and the receipts of what it made, in
+// the platform's words. Free time is private as to its words, so there is
+// no way from here into what she said in it.
+function Remembered({ residentName, runs }: { residentName: string; runs: FreeTimeRun[] }) {
+  return (
+    <Card title="Free time, remembered">
+      <p style={muted}>What each run made, in the platform's words. What {residentName} said in it stays hers.</p>
+      {runs.length === 0 ? (
+        <p style={muted}>No free time has run yet.</p>
+      ) : (
+        <ul aria-label="Free-time runs" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          {runs.map((run) => (
+            <li key={`${run.day}-${run.slot ?? ''}-${run.at}`} style={{ fontSize: 15, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', minWidth: 0 }}>
+              <span>
+                <strong style={{ fontWeight: 600 }}>
+                  {run.day}
+                  {run.slot ? ` ${run.slot}` : ''}
+                </strong>{' '}
+                <span style={{ color: run.outcome === 'ran' ? 'var(--ink-muted)' : 'var(--danger)' }}>· {run.outcome}</span>{' '}
+                <span style={{ color: 'var(--ink-muted)' }}>· {run.turns === 1 ? '1 turn' : `${run.turns} turns`}</span>
+              </span>
+              {run.did.length === 0 ? (
+                <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>nothing written</span>
+              ) : (
+                <ul aria-label="What it made" style={{ margin: 0, paddingLeft: 'var(--space-4)', fontSize: 13, lineHeight: '18px', color: 'var(--ink-muted)', overflowWrap: 'anywhere' }}>
+                  {run.did.map((d, i) => (
+                    <li key={i}>{d.result}</li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

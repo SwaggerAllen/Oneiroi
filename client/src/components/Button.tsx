@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 
 // The witness's hue is the only hue on controls (spec §6.15). A
 // destructive action confirms by changing to its consequence, which the
@@ -7,7 +7,7 @@ export function Button({
   variant = 'secondary',
   style,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'quiet' }) {
+}: ComponentProps<'button'> & { variant?: 'primary' | 'secondary' | 'quiet' }) {
   const primary = variant === 'primary';
   const quiet = variant === 'quiet';
   return (

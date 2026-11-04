@@ -87,7 +87,9 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText('Hello from the chat.')).toBeTruthy());
     expect(screen.getByLabelText('Message')).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole('navigation', { name: 'Conversations' })).toBeTruthy());
+    // The list is a button in the top bar with the count of the others.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Conversations · 1' })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Conversations · 1' }));
     fireEvent.click(screen.getByRole('button', { name: /1 turn/ }));
     await waitFor(() => expect(screen.getByText('The tests pass.')).toBeTruthy());
     expect(screen.queryByLabelText('Message')).toBeNull();
@@ -216,6 +218,45 @@ describe('App', () => {
       await waitFor(() => expect(fetch.mock.calls.some(([, init]) => init?.method === 'POST' && String(init.body).includes('herons'))).toBe(true));
       const post = fetch.mock.calls.find(([, init]) => init?.method === 'POST' && String(init.body).includes('herons'));
       expect(JSON.parse(post?.[1]?.body as string)).toEqual({ question: 'When do herons fish?' });
+    } finally {
+      location.hash = '';
+    }
+  });
+
+  // Free time, remembered (brain#53): read beside the schedule and again
+  // on coming back to the page (client#13).
+  it('reads free time remembered on the Schedule screen, and again when the page comes back', async () => {
+    const lily = { id: 'r1', slug: 'lily', name: 'Lily', state: 'awake', first_contact_at: null, formation_until: null, chat_model: null };
+    const today = {
+      day: '2026-11-03',
+      now: '2026-11-03T15:00:00-08:00',
+      timezone: 'America/Los_Angeles',
+      checkins: [],
+      firings: [],
+      last: null,
+      next: null,
+      free_times: [{ time: '14:30', today: 'ran' }],
+      free_time_last: { day: '2026-11-03', outcome: 'ran' },
+      quiet: null,
+      dates: [],
+    };
+    const run = { day: '2026-11-03', slot: '14:30', outcome: 'ran', session_key: 'f1', at: '2026-11-03T22:40:00Z', turns: 4, did: [{ tool: 'bookmark_add', result: 'Bookmarked as #96.' }] };
+    const fetch = fakeFetch({
+      '/v1/me': { status: 200, body: { email: 'a@b', residents: ['r1'] } },
+      '/v1/residents': { status: 200, body: [lily] },
+      '/v1/residents/r1/schedule': { status: 200, body: today },
+      'GET /v1/residents/r1/schedule/free-time': { status: 200, body: [run] },
+    });
+    vi.stubGlobal('fetch', fetch);
+    location.hash = 'schedule';
+    try {
+      render(<App />);
+      await waitFor(() => expect(screen.getByText('Bookmarked as #96.')).toBeTruthy());
+      expect(screen.getByRole('list', { name: 'Free-time runs' }).textContent).toMatch(/2026-11-03 14:30 · ran · 4 turns/);
+      const reads = () => fetch.mock.calls.filter(([url]) => String(url) === '/v1/residents/r1/schedule/free-time').length;
+      const before = reads();
+      window.dispatchEvent(new Event('focus'));
+      await waitFor(() => expect(reads()).toBeGreaterThan(before));
     } finally {
       location.hash = '';
     }

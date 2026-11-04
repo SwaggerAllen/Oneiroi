@@ -3,8 +3,9 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
+import { sessions } from './Conversations.stories';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered, WithConversations, ReadOnlyFromTheList } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -12,7 +13,7 @@ describe('Chat', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered]) {
+    for (const Story of [Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered, WithConversations, ReadOnlyFromTheList]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -159,6 +160,41 @@ describe('Chat', () => {
     expect(screen.getByRole('note').textContent).toMatch(/You reply to Lily there, not here/);
     expect(screen.getByText('drew on 4 things')).toBeTruthy();
     expect(screen.getByRole('list', { name: 'What this reply drew on' }).querySelectorAll('li')).toHaveLength(2);
+  });
+
+  // The witness could not find the list folded under the top bar: it is
+  // a button there now, with the count, opening and closing a panel.
+  it('opens and closes the conversations from a button in the top bar, and opening one closes the list', () => {
+    const onOpen = vi.fn();
+    render(<WithConversations conversations={{ sessions, chatKey: 'chat', current: 'chat', onOpen }} />);
+    const toggle = screen.getByRole('button', { name: 'Conversations · 3' });
+    expect(toggle.closest('header')).toBeTruthy();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('navigation', { name: 'Conversations' })).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const nav = screen.getByRole('navigation', { name: 'Conversations' });
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')?.contains(nav)).toBe(true);
+    expect(screen.getByRole('heading', { name: 'Conversations' })).toBeTruthy();
+    // The keyboard lands on the conversation open now.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Oneiroi chat' }));
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('navigation', { name: 'Conversations' })).toBeNull();
+    fireEvent.click(toggle);
+    fireEvent.keyDown(screen.getByRole('navigation', { name: 'Conversations' }), { key: 'Escape' });
+    expect(screen.queryByRole('navigation', { name: 'Conversations' })).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: /7 turns/ }));
+    expect(onOpen).toHaveBeenCalledWith('c2');
+    expect(screen.queryByRole('navigation', { name: 'Conversations' })).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('has no conversations button when the chat is the only conversation', () => {
+    render(<WithConversations conversations={{ sessions: [sessions[2]], chatKey: 'chat', current: 'chat', onOpen: vi.fn() }} />);
+    expect(screen.queryByRole('button', { name: /Conversations/ })).toBeNull();
+    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy();
   });
 
   it('sends on Enter, keeps Shift+Enter as a newline, and never sends while a character is being composed', () => {

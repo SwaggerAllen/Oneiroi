@@ -3,14 +3,14 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Schedule.stories';
 
-const { Today, Unconfigured, OneSlotFailed } = composeStories(stories);
+const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered } = composeStories(stories);
 
 describe('Schedule', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Today, Unconfigured, OneSlotFailed]) {
+    for (const Story of [Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -23,6 +23,26 @@ describe('Schedule', () => {
     cleanup();
     render(<Unconfigured />);
     expect(within(screen.getByRole('list', { name: 'Free-time slots' })).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('remembers each free-time run with its day, slot, outcome, turns and what it made, and nothing when it wrote nothing', () => {
+    render(<Remembered />);
+    const list = screen.getByRole('list', { name: 'Free-time runs' });
+    const rows = Array.from(list.children) as HTMLElement[];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toMatch(/^2026-11-03 14:30 · ran · 6 turns/);
+    expect(within(rows[0]).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Added note 1 to 2026-11-03.', 'Bookmarked as #96.']);
+    expect(rows[1].textContent).toBe('2026-11-02 22:30 · ran · 2 turnsnothing written');
+    expect(rows[2].textContent).toMatch(/· failed: brain_turn_failed · 0 turns/);
+    // Free time is private as to its words: nothing here opens its conversation.
+    expect(within(list).queryAllByRole('link')).toHaveLength(0);
+    expect(within(list).queryAllByRole('button')).toHaveLength(0);
+    cleanup();
+    render(<NothingRemembered />);
+    expect(screen.getByText('No free time has run yet.')).toBeTruthy();
+    cleanup();
+    render(<Today />);
+    expect(screen.queryByText('Free time, remembered')).toBeNull();
   });
 
   it('moves free time as the whole list, never to nothing, and never past four slots', () => {
