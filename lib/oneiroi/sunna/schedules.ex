@@ -15,6 +15,7 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
@@ -390,9 +391,16 @@ defmodule Oneiroi.Sunna.Schedules do
              # which is nothing to hide until hands exist (P26).
              private: true
            ),
-         {:ok, _} <-
-           wake(resident_id, key, Prompt.render!("free_time", %{name: row.name}), :free_time) do
-      record_free_time(resident_id, {day, slot}, key, nil, actor)
+         {:ok, result} <-
+           wake(
+             resident_id,
+             key,
+             Prompt.render!("free_time", %{name: row.name, budget: budget_words(resident_id)}),
+             :free_time
+           ) do
+      recorded = record_free_time(resident_id, {day, slot}, key, nil, actor)
+      carry_on(resident_id, key, result, 2)
+      recorded
     else
       {:error, %{site: _} = e} ->
         record_free_time(resident_id, {day, slot}, nil, e, actor)
@@ -402,6 +410,73 @@ defmodule Oneiroi.Sunna.Schedules do
         record_free_time(resident_id, {day, slot}, nil, failure, actor)
     end
   end
+
+  @doc """
+  Turn `n` of a free-time pass (sunna#26): woken again in its own
+  conversation while the free-time budget line has money left and the
+  slot's turns are not spent, the note saying how much is left.
+  """
+  def continue_free_time(resident_id, key, n) do
+    with %{left: left} <- free_time_budget(resident_id),
+         true <- n <= Config.fetch!(:sunna, :free_time_turns),
+         {:ok, result} <-
+           wake(
+             resident_id,
+             key,
+             Prompt.render!("free_time_continue", %{
+               turn: n,
+               turns: Config.fetch!(:sunna, :free_time_turns),
+               left: dollars(left)
+             }),
+             :free_time
+           ) do
+      carry_on(resident_id, key, result, n + 1)
+      :ok
+    else
+      {:error, _} = failed -> failed
+      _done -> :ok
+    end
+  end
+
+  # A turn that ran out of tool rounds is woken again, in a job of its
+  # own; one that ended in words with nothing to call is her being done.
+  defp carry_on(resident_id, key, %{rounds_spent: true}, n) do
+    if free_time_budget(resident_id) && n <= Config.fetch!(:sunna, :free_time_turns),
+      do: free_time_worker().enqueue(resident_id, key, n)
+
+    :ok
+  end
+
+  defp carry_on(_resident_id, _key, _result, _n), do: :ok
+
+  # Named at the call: the worker runs `continue_free_time/3`, so an
+  # alias here would be a cycle `mix xref graph --format cycles` counts.
+  defp free_time_worker, do: Module.concat([Oneiroi, Sunna, FreeTimeWorker])
+
+  # The free-time budget line this period, when the witness set one and
+  # it has money left; nil otherwise, and free time is then one turn.
+  defp free_time_budget(resident_id) do
+    case Enum.find(Nisaba.budgets(resident_id, :witness), &(&1.purpose == :free_time)) do
+      %{cap_nanos: cap, spent_nanos: spent, exceeded: false} = line
+      when is_integer(cap) and spent < cap ->
+        Map.put(line, :left, cap - spent)
+
+      _none ->
+        nil
+    end
+  end
+
+  defp budget_words(resident_id) do
+    case free_time_budget(resident_id) do
+      %{cap_nanos: cap, left: left, period: period} ->
+        "Your free-time budget is #{dollars(cap)} a #{period}, #{dollars(left)} left: your free time runs until you are done (a turn that ends in words with no tool calls) or that is spent, a turn at a time."
+
+      nil ->
+        "No free-time budget is set, so this free time is one turn."
+    end
+  end
+
+  defp dollars(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 2)
 
   # The recorded reason is the failure's kind, never the failure itself:
   # the event is kept for good, and a foreign reason's payload is where a

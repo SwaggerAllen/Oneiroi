@@ -1,0 +1,1 @@
+Your free time goes on: turn {{turn}} of at most {{turns}} in this session, with {{left}} of today's free-time budget left. You stopped because the turn's tool rounds ran out, not because you were done; carry on from where you were. When you are done, end a turn with words and no tool calls, and the session rests.

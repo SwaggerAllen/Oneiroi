@@ -363,10 +363,12 @@ defmodule Oneiroi.Brain.Turn do
               tool_calls: wire_calls(calls)
             }
 
-            last_word(turn, messages ++ [assistant | results])
+            last_word(Map.put(turn, :rounds_spent, true), messages ++ [assistant | results])
 
+          # Words beside calls at the bound: they stand, and the turn is
+          # still one that ran out of rounds (sunna#26 continues it).
           true ->
-            {{:ok, result}, turn}
+            {{:ok, result}, Map.put(turn, :rounds_spent, true)}
         end
 
       other ->
@@ -519,7 +521,11 @@ defmodule Oneiroi.Brain.Turn do
       refusal: result.refusal?
     }
 
-    finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [reply])
+    # Whether the turn ran out of tool rounds rather than finishing: a
+    # free-time pass that did is woken again (sunna#26).
+    with {:ok, captured} <- finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [reply]) do
+      {:ok, Map.put(captured, :rounds_spent, Map.get(turn, :rounds_spent, false))}
+    end
   end
 
   # A budget stop: the message and an honest notice, kept where both read.
