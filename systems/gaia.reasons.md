@@ -38,7 +38,7 @@ a request that created a resident can list it on the next read.
 Conventions §12: a cross-tenant read is a named call a reviewer can see,
 and these two are the whole list for this system.
 
-## #11
+## #14
 Spec §3.1 puts `KeyStored` on the account and §6.11 says one key per
 witness: the key is the witness's, not a resident's, and a resident
 changing hands keeps the new witness's spend on the new witness's key.

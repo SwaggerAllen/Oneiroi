@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.XeniaCorrespondence do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # Correspondence (spec §6.6, F23 as amended; xenia #9): third parties'
+  # Correspondence (spec §6.6, F23 as amended; xenia#9): third parties'
   # messages, the blocked identities, and the resident's replies through
   # the gate.
   def change do

@@ -1,13 +1,13 @@
 defmodule Oneiroi.SimaQian.WholeTest do
   @moduledoc """
-  A rebuild restores the whole resident (sima-qian #20): every stream
+  A rebuild restores the whole resident (sima-qian#20): every stream
   that is the resident's is exported, merged in the order it was
   written, and replayed into a new resident in that order, so the copy
   re-exports line for line and reads back the same transcripts,
   bookmarks, judgement, journal, figures and spend. Rebuilding beside
   the source in one store leaves the source's own export untouched,
   which is the guard on every projector writing only its own resident's
-  rows (sima-qian #21).
+  rows (sima-qian#21).
   """
   use Oneiroi.DataCase, async: false
 
@@ -91,9 +91,9 @@ defmodule Oneiroi.SimaQian.WholeTest do
     key = live!(ctx)
     id = ctx.r.id
 
-    # And a regression run whose card keeps a trace (eunomia #31): the
+    # And a regression run whose card keeps a trace (eunomia#31): the
     # trial calls a read and a write with words unique to it. The stream
-    # is sealed (eunomia #9), so none of it may come back.
+    # is sealed (eunomia#9), so none of it may come back.
     unique = "sandpiper-" <> Integer.to_string(System.unique_integer([:positive]))
     test_texts = %{prompt: "Say #{unique}.", passes_if: "says it", fails_if: "does not"}
     {:ok, 1} = Eunomia.write_test(id, test_texts, ctx.actor)
@@ -163,7 +163,7 @@ defmodule Oneiroi.SimaQian.WholeTest do
              "Oneiroi.AgathosDaimon.Events.CustodyTransferred"
            ]
 
-    # And renders the same reading copies (sima-qian #41): they come from
+    # And renders the same reading copies (sima-qian#41): they come from
     # the lines alone, and the copy's lines are the source's.
     copies = fn dir ->
       for path <-
@@ -197,7 +197,7 @@ defmodule Oneiroi.SimaQian.WholeTest do
     assert Enum.any?(Seshat.documents(copy), &(&1.path == "writing/rye.md"))
 
     # The run, its cards and their traces stayed behind, and so did its
-    # bill: regression spend is the witness's view alone (nisaba #4), so
+    # bill: regression spend is the witness's view alone (nisaba#4), so
     # a rebuild restores everything else of the spend and none of that.
     assert [] = Eunomia.runs(copy)
     assert [] = Eunomia.tests(copy)
@@ -246,7 +246,7 @@ defmodule Oneiroi.SimaQian.WholeTest do
     assert MapSet.union(exported, excluded) == prefixes
 
     # The sealed streams stay on the excluded side by name: the regression
-    # stream carries every card and its trace (eunomia #9, #31), and its
+    # stream carries every card and its trace (eunomia#9, #31), and its
     # events' own `export: false` must not be the only thing keeping them.
     assert "regression" in excluded
   end

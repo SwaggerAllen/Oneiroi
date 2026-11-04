@@ -111,7 +111,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   # this adapter joining a piece twice, is not measured. Each streamed
   # tool-call piece is logged as it came, with the upstream provider the
   # chunk names, and each call as assembled, so one fixture run with the
-  # trace on answers it (nisaba #21). Content, so off but in that run.
+  # trace on answers it (nisaba#21). Content, so off but in that run.
   @doc false
   @spec trace_lines(term()) :: [String.t()]
   def trace_lines(%{} = chunk) do
@@ -266,7 +266,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   def tool_calls(_other), do: []
 
   # The status and the provider's own message ride `reason:` in the
-  # details, which the brain shows on a failed turn (brain #39).
+  # details, which the brain shows on a failed turn (brain#39).
   defp classify(status, body) when status in @transport_statuses or status >= 500,
     do:
       {:error,
@@ -288,7 +288,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   arrives as raw text, which is decoded first: sliced as it came, its
   first 200 bytes would carry the error's `metadata`, where OpenRouter
   documents putting a moderation hit's flagged input, and the summary
-  rides a capture failure's reason (brain #39).
+  rides a capture failure's reason (brain#39).
   """
   @spec summarize(term()) :: String.t() | :unparseable
   def summarize(%{"error" => %{"message" => message}}) when is_binary(message), do: message

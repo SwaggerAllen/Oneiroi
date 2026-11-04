@@ -43,7 +43,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
-  # Removed (seshat #33): the row, its chunks and the edges it minted go;
+  # Removed (seshat#33): the row, its chunks and the edges it minted go;
   # the stream keeps that it was, by whom.
   fold(%Events.DocumentRemoved{} = e, _metadata, fn multi ->
     multi
@@ -113,7 +113,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
-  # ---- the oracle (seshat #34) ----
+  # ---- the oracle (seshat#34) ----
 
   fold(%Events.OracleDispatched{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -160,7 +160,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
-  # ---- research (seshat #38) ----
+  # ---- research (seshat#38) ----
 
   fold(%Events.ResearchAsked{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -202,7 +202,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   defp actor_kind(%{kind: kind}), do: Atom.to_string(kind)
   defp actor_kind(_other), do: nil
 
-  # An original's provenance (seshat #28): built with atom keys, read back
+  # An original's provenance (seshat#28): built with atom keys, read back
   # from the log with string keys; nil on every other adoption.
   defp provenance(%{provenance: %{} = p}, key),
     do: Map.get(p, key) || Map.get(p, String.to_existing_atom(key))

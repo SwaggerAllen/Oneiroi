@@ -4,7 +4,7 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
   core (spec §6.9). Every request is `Honcho.Wire`'s, in the names the
   deployed server declares: plastic-labs/honcho at commit `6f91136`,
   its routers and pydantic schemas read field by field into
-  `test/fixtures/proteus/honcho-server.json` (proteus #9). The in-memory
+  `test/fixtures/proteus/honcho-server.json` (proteus#9). The in-memory
   Honcho checks the same requests against that record, and the HTTP
   boundary's tests hold the bodies sent here and the answers parsed here
   to it.
@@ -121,7 +121,7 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
     end
   end
 
-  # ---- the reads the records export takes (proteus #18) ----
+  # ---- the reads the records export takes (proteus#18) ----
   #
   # A list is `POST .../list?page=N&size=M`, with no body when nothing is
   # filtered, answering a Page (`items`, `page`, `size`, `total`,
@@ -311,7 +311,7 @@ defmodule Oneiroi.Proteus.Honcho.HTTP do
   end
 
   # The admin key as set, or minted from Honcho's own signing secret
-  # (proteus #16): Honcho's admin JWT is HS256 over `{"t": "", "ad": true}`,
+  # (proteus#16): Honcho's admin JWT is HS256 over `{"t": "", "ad": true}`,
   # as its `create_admin_jwt` writes it (src/security.py, unchanged at the
   # pinned commit), so a core holding the secret holds the key without
   # anyone minting it by hand and typing it into a dashboard.

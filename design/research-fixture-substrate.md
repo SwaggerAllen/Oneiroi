@@ -17,7 +17,7 @@ literature gives two proxies. Awareness rises with model size, and it rises
 with post-training and reasoning. The best-supported pick is a small, older,
 non-reasoning model from a family included in a measured size trend. We
 also measure it ourselves on every run: the fixture run's judge scans the
-replies for statements of being tested (eunomia #28). This follows the
+replies for statements of being tested (eunomia#28). This follows the
 method UK AISI uses on transcripts.
 
 ## What the literature measured

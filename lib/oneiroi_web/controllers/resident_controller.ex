@@ -190,7 +190,7 @@ defmodule OneiroiWeb.ResidentController do
 
   operation(:originals,
     summary:
-      "Import the originals of the resident's memory from its source repository at a pinned commit (sima-qian #40): each file copied byte for byte under memory/, verified against the source tree's blob, registered with where it came from, and indexed once; what was skipped or refused is named with its reason",
+      "Import the originals of the resident's memory from its source repository at a pinned commit (sima-qian#40): each file copied byte for byte under memory/, verified against the source tree's blob, registered with where it came from, and indexed once; what was skipped or refused is named with its reason",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the source", "application/json",

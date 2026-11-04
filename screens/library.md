@@ -12,7 +12,7 @@ Library (spec §10), partly built 2026-11-02: `client/src/screens/library/`
 state list lives in the stories (DESIGN §4).
 
 Built: a tab per kind across the top, All first and each with its
-count, in the server's shelf order and under its names (seshat #35).
+count, in the server's shelf order and under its names (seshat#35).
 The client knows no kind: a kind with documents has a tab, so one the
 server adds, such as the oracle's answers under `oracle/`, appears
 with no change here once it holds a document, and a kind the shelf
@@ -26,7 +26,7 @@ words" runs the library's own index (`GET .../library/search?q=`, one
 embedding call, so it is a button rather than per keystroke) and shows
 the passages found for the tab, each opening its document. Keepsakes
 carry why each mattered in the resident's words, or that she has not
-said why yet (seshat #32); a document opens and reads whole, as plain
+said why yet (seshat#32); a document opens and reads whole, as plain
 text, above the list; scratch and human documents are removed with the
 button turned into its consequence; a document of yours is added, on the
 Yours tab, by pasting or from a .md or .txt file, under a name made safe

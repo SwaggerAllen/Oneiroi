@@ -164,7 +164,7 @@ defmodule Oneiroi.Ethos.Habits do
   words (`Oneiroi.Ethos.Lane`). `situation` carries `text` (the
   witness's words), `tags` (on the conversation), `at` (the instant, for
   the time of day) and `actor` (who the query is billed to; absent, the
-  match is deterministic alone). A regression trial's turn (eunomia #10)
+  match is deterministic alone). A regression trial's turn (eunomia#10)
   adds `purpose: :regression`, so the query bills where the resident's
   ledger view never looks, and `refresh: false`, so the lane is read as
   it stands and nothing is written. Each match comes with its scores, who

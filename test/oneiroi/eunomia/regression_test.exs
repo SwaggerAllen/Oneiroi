@@ -31,7 +31,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
   defp test_attrs(prompt),
     do: %{prompt: prompt, passes_if: "asks why, kindly", fails_if: "scolds"}
 
-  # A run answers in a job (eunomia #30); Oban is in manual mode under
+  # A run answers in a job (eunomia#30); Oban is in manual mode under
   # the suite, so the test drains the queue to answer it, in this process.
   defp run!(id, models, selection, actor) do
     with {:ok, ref} <- Eunomia.run(id, models, selection, actor) do
@@ -85,7 +85,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert {:error, %Eunomia.Error{kind: :eunomia_run_empty}} =
              Eunomia.run(id, [], :all, ctx.actor)
 
-    # A trial is the turn a fresh session gets (eunomia #10, brain #40):
+    # A trial is the turn a fresh session gets (eunomia#10, brain#40):
     # the prefix and the memory sections, every tool, the test's prompt
     # as the witness's words, and nothing naming the run.
     assert_received {:sealed, "m1", [%{role: :system, content: prompt} | _] = messages, tools}
@@ -351,7 +351,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
   end
 
   # The author, after the first run with memory: a card showed only the
-  # final answer, and grading wants how it was reached (eunomia #31).
+  # final answer, and grading wants how it was reached (eunomia#31).
   test "a card carries its trial's trace: each call in order, read or mocked, with what came back, a long result cut and marked",
        ctx do
     id = ctx.resident.id
@@ -371,7 +371,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
              ]}
 
           tools ->
-            # The round's count (brain #51) is the turn's, not the tool's.
+            # The round's count (brain#51) is the turn's, not the tool's.
             send(
               test,
               {:saw, model,
@@ -526,7 +526,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     {:ok, _} = Eunomia.write_test(id, test_attrs("Say the word #{unique}."), ctx.actor)
 
     # The trial calls every write tool with the run's text in every field
-    # it has (brain #40): each is answered and none records.
+    # it has (brain#40): each is answered and none records.
     Fake.calls(
       Enum.map(Tools.writes(), &%{name: &1, arguments: write_arguments(unique)}),
       "I say #{unique}.",
@@ -541,7 +541,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
 
     # The card's trace holds every call with the run's text in it, so
     # each surface below that returns nothing of the text returns
-    # nothing of the trace either (eunomia #31).
+    # nothing of the trace either (eunomia#31).
     assert Enum.map(trace, & &1["tool"]) == Tools.writes()
     assert Enum.all?(trace, &(&1["kind"] == "mocked"))
     assert Enum.all?(trace, &(&1["arguments"] =~ unique))
@@ -720,7 +720,7 @@ defmodule Oneiroi.Eunomia.TrialsTest do
     {:ok, id: resident.id, actor: actor}
   end
 
-  # A run answers in a job (eunomia #30); Oban is in manual mode under
+  # A run answers in a job (eunomia#30); Oban is in manual mode under
   # the suite, so the test drains the queue to answer it, in this process.
   defp run!(id, models, selection, actor) do
     with {:ok, ref} <- Eunomia.run(id, models, selection, actor) do

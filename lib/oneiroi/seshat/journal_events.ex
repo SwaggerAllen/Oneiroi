@@ -11,7 +11,7 @@ defmodule Oneiroi.Seshat.Events.JournalEntryAdded do
   # Version 2 adds `register` (`Oneiroi.Register`, spec §6.13, P8), the
   # register the resident wrote the entry in, or nil; the identity
   # upcaster is the shape the store's restart for v0.2 allows.
-  # Version 3 adds `summary` (seshat #30): the text is whole at any
+  # Version 3 adds `summary` (seshat#30): the text is whole at any
   # length, and a summary of at most 2,000 characters is what the turn's
   # journal section shows of a longer one; nil on every earlier entry,
   # which the identity upcaster leaves as the struct's default.

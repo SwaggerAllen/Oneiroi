@@ -105,7 +105,7 @@ defmodule Oneiroi.HuginnMuninn.Figures do
   def increments(resident_id, key, limit),
     do: Scope.resident(resident_id, fn -> Store.increments(key, limit) end)
 
-  @doc "The figures section the brain is shown: the counters by value; countdowns are the dates section's (sunna #15)."
+  @doc "The figures section the brain is shown: the counters by value; countdowns are the dates section's (sunna#15)."
   @spec text(String.t()) :: String.t()
   def text(resident_id) do
     case resident_id |> figures() |> Enum.filter(&(&1.kind == "counter")) do

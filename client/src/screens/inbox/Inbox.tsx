@@ -24,10 +24,10 @@ type Tab = 'open' | 'all';
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 
 // Inbox (spec §10, screens/inbox.md): Needs you (the replies waiting for
-// your yes, the approved ones to send; xenia #13), the correspondence
+// your yes, the approved ones to send; xenia#13), the correspondence
 // that reached the resident with a way to block a sender, the blocks
-// (xenia #12), and the house letters between the resident's
-// conversations (kumbukumbu #44).
+// (xenia#12), and the house letters between the resident's
+// conversations (kumbukumbu#44).
 export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
@@ -92,7 +92,7 @@ function Letter({ letter, all }: { letter: HouseLetter; all: HouseLetter[] }) {
   );
 }
 
-// A letter from you (kumbukumbu #44): to one of the resident's
+// A letter from you (kumbukumbu#44): to one of the resident's
 // conversations by name, to Free time (a brief her next free time reads
 // first), or to the house.
 function WriteLetter({ residentName, addresses, onSend }: { residentName: string; addresses: string[]; onSend: (to: string, text: string) => void }) {

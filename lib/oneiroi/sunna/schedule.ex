@@ -28,7 +28,7 @@ defmodule Oneiroi.Sunna.Schedule do
   @time ~r/\A([01]\d|2[0-3]):[0-5]\d\z/
   @date_kinds ~w(deadline anniversary window recurring)
   @label_limit 60
-  # A bound (sunna #22): free time is one to this many slots a day, so a
+  # A bound (sunna#22): free time is one to this many slots a day, so a
   # list cannot grow into a resident who is never not on her own time.
   @free_time_slots 4
 
@@ -158,7 +158,7 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
-  # A letter's wake (sunna #24): each letter wakes the chat once, and at
+  # A letter's wake (sunna#24): each letter wakes the chat once, and at
   # most `limit` wakes in the hour before the command's instant; a letter
   # held back by the bound is taken by a later tick.
   def execute(%__MODULE__{} = s, %Commands.WakeForLetters{} = c) do
@@ -192,7 +192,7 @@ defmodule Oneiroi.Sunna.Schedule do
     times = List.wrap(c.times)
 
     cond do
-      # Free time moves and is never removed (sunna #21): at least one slot.
+      # Free time moves and is never removed (sunna#21): at least one slot.
       times == [] ->
         {:error, Error.new(:sunna_free_time_required, :sunna_free_time_removed)}
 

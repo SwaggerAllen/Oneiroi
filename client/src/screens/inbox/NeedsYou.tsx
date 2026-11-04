@@ -28,7 +28,7 @@ function firstLine(text: string): string {
   return line.length > 140 ? `${line.slice(0, 140)}…` : line;
 }
 
-// Needs you (spec §10, xenia #13): the replies the resident drafted that
+// Needs you (spec §10, xenia#13): the replies the resident drafted that
 // wait for your yes, and the approved ones not yet sent. Every decision
 // carries a note, which the resident reads first.
 export function NeedsYou({
@@ -111,7 +111,7 @@ function ApprovedReply({ reply: r, onMarkSent }: { reply: Reply; onMarkSent?: Ga
   );
 }
 
-// Correspondence (xenia #12): every message that reached the resident,
+// Correspondence (xenia#12): every message that reached the resident,
 // newest first; a blocked sender's is a line with no words. Blocking a
 // sender asks why, in place.
 export function Correspondence({
@@ -185,7 +185,7 @@ function Message({ message: m, blocked, onBlock }: { message: CorrespondenceMess
   );
 }
 
-// The blocks (xenia #12): whose messages are counted and never kept, and
+// The blocks (xenia#12): whose messages are counted and never kept, and
 // who set each. A block is lifted only by whoever set it, so one the
 // resident set has no button here.
 export function Blocked({ residentName, blocks, onUnblock }: { residentName: string; blocks: Block[]; onUnblock?: GateActions['onUnblock'] }) {

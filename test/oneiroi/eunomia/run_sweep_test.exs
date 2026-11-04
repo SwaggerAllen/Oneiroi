@@ -1,5 +1,5 @@
 defmodule Oneiroi.Eunomia.RunSweepTest do
-  @moduledoc "A run whose node died mid-answer ends (eunomia #30): Lifeline discards its orphaned one-attempt job, and the sweep fails every running run whose job is no longer live, and no other."
+  @moduledoc "A run whose node died mid-answer ends (eunomia#30): Lifeline discards its orphaned one-attempt job, and the sweep fails every running run whose job is no longer live, and no other."
   use Oneiroi.DataCase, async: false
 
   import Ecto.Query, only: [from: 2]

@@ -1,8 +1,8 @@
 defmodule Oneiroi.Seshat.Researches do
   @moduledoc """
-  Research (seshat #38, spec F24): a named question for the reader's
+  Research (seshat#38, spec F24): a named question for the reader's
   research pass, the pages to start from, and its notes when they land.
-  The pass itself is the reader's, on the witness's machine (xenia #15,
+  The pass itself is the reader's, on the witness's machine (xenia#15,
   #16); this is the library's half: the stream, the documents, and the
   letter to the conversation that asked.
 

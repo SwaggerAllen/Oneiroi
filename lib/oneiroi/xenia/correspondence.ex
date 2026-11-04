@@ -131,7 +131,7 @@ defmodule Oneiroi.Xenia.Correspondence do
         {:error, Error.new(:xenia_no_such_block, :xenia_unblock_absent)}
 
       # A block is lifted by the party who set it: the resident's
-      # boundary is hers, the witness's his (xenia #12).
+      # boundary is hers, the witness's his (xenia#12).
       by != c.actor.kind ->
         {:error, Error.new(:xenia_not_yours, :xenia_unblock_other_party, blocked_by: by)}
 
@@ -169,7 +169,7 @@ defmodule Oneiroi.Xenia.Correspondence do
     end
   end
 
-  # The reader's allowlists (xenia #16): the witness's alone, each list
+  # The reader's allowlists (xenia#16): the witness's alone, each list
   # at most 50 origins or `*`.
   def execute(%__MODULE__{}, %Commands.SetReaderSites{} = c) do
     lists = [List.wrap(c.scrape), List.wrap(c.research)]
@@ -280,7 +280,7 @@ defmodule Oneiroi.Xenia.Correspondence do
 
   # A blocked sender's message keeps what dedupe and the count need and
   # never the words: nothing blocked reaches the resident by any door,
-  # the export included (xenia #12, #14).
+  # the export included (xenia#12, #14).
   defp received(s, c) do
     sender = identity(c.sender)
     blocked? = Map.has_key?(s.blocked, {c.platform, sender})

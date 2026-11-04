@@ -1,4 +1,4 @@
-// The outbox (brain #45): every message the witness sends is held here,
+// The outbox (brain#45): every message the witness sends is held here,
 // under the client's own ref, until its turn lands in the transcript. A
 // message the server never acknowledged can be sent again under the same
 // ref, and the server answers a ref it has already taken as a duplicate,

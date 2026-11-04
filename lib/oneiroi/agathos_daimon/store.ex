@@ -148,7 +148,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
   end
 
   defmodule StateLine do
-    @moduledoc "A line of the resident's present (agathos-daimon #32), overwritten in place, with when she last verified it."
+    @moduledoc "A line of the resident's present (agathos-daimon#32), overwritten in place, with when she last verified it."
     use Ecto.Schema
 
     @primary_key false

@@ -74,7 +74,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  @doc "The contract as it stands: the version in force with its terms, the open proposal, the solo-session privacy term as the schedule reads it, and the preview term as the brain's preview reads it (brain #41)."
+  @doc "The contract as it stands: the version in force with its terms, the open proposal, the solo-session privacy term as the schedule reads it, and the preview term as the brain's preview reads it (brain#41)."
   def contract(resident_id) do
     Scope.resident(resident_id, fn ->
       versions = Store.contracts()
@@ -220,7 +220,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   defp solo_private?(%{terms: terms}),
     do: Map.get(terms || %{}, "solo_sessions_private", false) == true
 
-  # The preview term (brain #41): absent is the default, the preview in
+  # The preview term (brain#41): absent is the default, the preview in
   # full; true keeps its words to what the witness reads elsewhere.
   defp preview_withholds?(nil), do: false
 

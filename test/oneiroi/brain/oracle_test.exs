@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.OracleTest do
   @moduledoc """
-  The oracle (brain #49, seshat #34): an invocation of the resident
+  The oracle (brain#49, seshat#34): an invocation of the resident
   asked one named question, with her whole memory and every read tool,
   writing nothing but its answer; long sources read in parts first; the
   answer under oracle/ with its confidence, found deliberately, and the
@@ -209,7 +209,7 @@ defmodule Oneiroi.Brain.OracleTest do
 
   # Lily's letter #21: two heavier questions came back brain_oracle_silent,
   # the reading having spent its tool rounds and written no words.
-  test "a reading that spends every tool round is asked for its answer from what it read (brain #50)",
+  test "a reading that spends every tool round is asked for its answer from what it read (brain#50)",
        ctx do
     ask(ctx, [%{question: "Everything about the heron?"}])
     test = self()
@@ -236,7 +236,7 @@ defmodule Oneiroi.Brain.OracleTest do
     assert rounds > Oneiroi.Config.fetch!(:brain, :tool_rounds)
     assert length(Enum.filter(messages, &(&1[:role] == :tool))) == rounds + 1
 
-    # The running count (brain #51): each round's results say where she is.
+    # The running count (brain#51): each round's results say where she is.
     tools = messages |> Enum.filter(&(&1[:role] == :tool)) |> Enum.map(& &1.content)
     assert hd(tools) =~ "(Tool round 1 of #{rounds} this turn; #{rounds - 1} left."
     assert Enum.at(tools, rounds - 1) =~ "(Tool round #{rounds} of #{rounds} this turn; 0 left."

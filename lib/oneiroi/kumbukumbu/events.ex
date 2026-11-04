@@ -17,7 +17,7 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # solo sessions are the witness's to read by default. Version 2 adds
     # `domain` (P23): the room, a slug or nil for the common room; the
     # store restarts for v0.2, so the upcaster is identity. Version 3
-    # adds `label` and `runtime` (kumbukumbu #40): what an adapter's
+    # adds `label` and `runtime` (kumbukumbu#40): what an adapter's
     # conversation is called, the base name of the folder the runtime
     # ran in and never its path, and which runtime it is (`claude-code`),
     # each nil when not given; an earlier version reads as nil for both,
@@ -49,7 +49,7 @@ defmodule Oneiroi.Kumbukumbu.Events do
   defmodule SessionMadePrivate do
     # Opened under a contract that keeps solo sessions private (spec
     # §6.3, §6.12): the witness sees the row as locked and reads the
-    # messages only once the resident shares the session (kumbukumbu #28).
+    # messages only once the resident shares the session (kumbukumbu#28).
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id, :session_key]
   end
 
@@ -79,7 +79,7 @@ defmodule Oneiroi.Kumbukumbu.Events do
 
   defmodule TurnClaimed do
     # A submitted message's ref, claimed on the conversation's stream
-    # before its turn runs (kumbukumbu #47): the claim is what makes a
+    # before its turn runs (kumbukumbu#47): the claim is what makes a
     # retry a duplicate across processes and instances, since the stream's
     # version check lets one claim win. Machinery, not her life: not
     # exported.
@@ -101,7 +101,7 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # contract records once per tool call. Measurement only: nothing is
     # reweighted from it until the resident has seen the numbers.
     #
-    # Version 2 adds `embedding_model` (kumbukumbu #46, the resident's
+    # Version 2 adds `embedding_model` (kumbukumbu#46, the resident's
     # letter #12): the model the ranked index's vectors came from, on a
     # recording whose index was ranked (it carries a `seed`), so "the
     # ranking is deterministic given its embeddings" holds across an

@@ -97,7 +97,7 @@ EOF
 }
 
 # What waits for the reader, every five minutes: one request, and a run
-# only when an approved reply does (kumbukumbu #48).
+# only when an approved reply does (kumbukumbu#48).
 plist io.oneiroi.reader.wait wait "<key>StartInterval</key><integer>300</integer>"
 # The reading, twice a day; launchd runs a missed one when the Mac wakes.
 plist io.oneiroi.reader.scrape scrape "<key>StartCalendarInterval</key>

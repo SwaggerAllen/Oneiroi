@@ -87,7 +87,7 @@ defmodule Oneiroi.Ethos.CommitmentsTest do
 
     assert %{text: "", numbers: []} = Ethos.promised(id)
 
-    # Cited by number, with its state and the person (seshat #14).
+    # Cited by number, with its state and the person (seshat#14).
     assert {:ok, "I will write to you on Sundays. (to Rose, released)"} =
              Citations.resolve(%{id: id, slug: ctx.resident.slug}, %{
                slug: ctx.resident.slug,

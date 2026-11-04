@@ -41,7 +41,7 @@ defmodule Oneiroi.Brain.Uses do
       refs = inj |> field(:refs) |> List.wrap()
 
       case label do
-        # The ranked index (kumbukumbu #46): the ranked are considered and
+        # The ranked index (kumbukumbu#46): the ranked are considered and
         # returned; the explored were drawn, not ranked, so returned
         # through `explored` alone; the seed is recorded as `seed`, what
         # the learned edges are read from and written from.

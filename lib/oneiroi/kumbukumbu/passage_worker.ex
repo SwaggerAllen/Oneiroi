@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.PassageWorker do
   @moduledoc """
-  The transcripts by meaning, kept current (kumbukumbu #49): every ten
+  The transcripts by meaning, kept current (kumbukumbu#49): every ten
   minutes, every active resident's newest captured messages are cut and
   embedded, a batch at a time, so a backlog is worked through over
   several runs and a turn is findable by meaning within minutes. A

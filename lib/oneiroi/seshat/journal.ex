@@ -13,7 +13,7 @@ defmodule Oneiroi.Seshat.Journal do
   defstruct [:id, days: %{}]
 
   @kinds ~w(plan note todo wrap)
-  # The summary's bound, never the entry's (seshat #30): free text stays
+  # The summary's bound, never the entry's (seshat#30): free text stays
   # whole, and the cap belongs to the view.
   @summary_limit 2_000
 

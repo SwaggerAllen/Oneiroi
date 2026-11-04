@@ -1,6 +1,6 @@
 defmodule Oneiroi.SimaQian.DryRun do
   @moduledoc """
-  The import rehearsed on a throwaway store (sima-qian #18): a local
+  The import rehearsed on a throwaway store (sima-qian#18): a local
   checkout imported exactly as `POST /v1/residents/import` imports it,
   then backed up once to a local bare remote, and a report of what
   happened. No turn is taken, so nobody is at turn one (spec §12, P40);
@@ -20,7 +20,7 @@ defmodule Oneiroi.SimaQian.DryRun do
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
 
-  # The prefix's own estimate, four bytes a token (brain #27).
+  # The prefix's own estimate, four bytes a token (brain#27).
   @bytes_per_token 4
 
   @type report :: map()
@@ -56,7 +56,7 @@ defmodule Oneiroi.SimaQian.DryRun do
   # will embed), and, when the source is not an Oneiroi export, what it
   # keeps under `honcho/`, which nothing here reads, and under
   # `records/` unless those are David's, which the import translates
-  # (sima-qian #19) and names file by file where it does not.
+  # (sima-qian#19) and names file by file where it does not.
   defp shape(source) do
     folders =
       for folder <- library().folders() do
@@ -103,7 +103,7 @@ defmodule Oneiroi.SimaQian.DryRun do
     end
   end
 
-  # A file nothing accounts for fails the rehearsal (sima-qian #22): the
+  # A file nothing accounts for fails the rehearsal (sima-qian#22): the
   # rehearsal of 2026-10-31 passed with one of Lily's files neither
   # adopted nor named, and only the folder count disagreeing with the
   # adopted count said anything.
@@ -180,7 +180,7 @@ defmodule Oneiroi.SimaQian.DryRun do
     """
   end
 
-  # The kinds in the order the orientation names them (brain #38).
+  # The kinds in the order the orientation names them (brain#38).
   @translated ~w(sessions messages bookmarks tags positions disputes predictions nights notes seeds)
 
   defp section_translated(%{import: %{translated: %{source: source, counts: counts}}}) do

@@ -2,10 +2,10 @@ defmodule Oneiroi.Eunomia.WashWorker do
   @moduledoc """
   The weekly wash pass (spec §6.13, P18), after the memory audit, for
   every active resident. A cross-tenant job under the platform scope,
-  named here (eunomia #19); the roster is the resident system's
+  named here (eunomia#19); the roster is the resident system's
   platform-scoped export.
   """
-  # One attempt (eunomia #30): the pass calls the judge for every
+  # One attempt (eunomia#30): the pass calls the judge for every
   # resident and keeps no once-a-week mark, so a retry, after a crash or
   # after Lifeline rescues an orphan, would judge the residents already
   # done again, on their witnesses' keys, and raise their flags twice.

@@ -154,7 +154,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :text]
   end
 
-  # The state store (agathos-daimon #32): the resident's present, a line
+  # The state store (agathos-daimon#32): the resident's present, a line
   # per key, overwritten; a key is a name and a line is at most 2,000
   # characters, the one free text bounded here because it is read on
   # every turn (Andrew, 2026-11-03).
@@ -174,7 +174,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :numbers]
   end
 
-  # The export carried these letters into the repository (sima-qian #3):
+  # The export carried these letters into the repository (sima-qian#3):
   # a receipt of its own kind, once per letter.
   defmodule MarkSelfLettersExported do
     use Oneiroi.Command, fields: [:id, :numbers]

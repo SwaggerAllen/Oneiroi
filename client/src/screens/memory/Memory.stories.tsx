@@ -39,7 +39,7 @@ const bookmarks: Bookmark[] = [
   },
 ];
 
-// The server's words, as it sends them (kumbukumbu #38); the client
+// The server's words, as it sends them (kumbukumbu#38); the client
 // renders them and restates nothing.
 const index: IndexNow = {
   listed: [2],

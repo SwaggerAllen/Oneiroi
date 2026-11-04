@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.RegressionChannelTest do
-  @moduledoc "A regression run as it answers (eunomia #30): a witness joins the run's channel and its cards arrive blind, then the end; a stranger and an adapter cannot join."
+  @moduledoc "A regression run as it answers (eunomia#30): a witness joins the run's channel and its cards arrive blind, then the end; a stranger and an adapter cannot join."
   use OneiroiWeb.ChannelCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -57,7 +57,7 @@ defmodule OneiroiWeb.RegressionChannelTest do
     assert %{discard: 0, failure: 0, success: 1} =
              Oban.drain_queue(queue: :eunomia_regression, with_safety: false)
 
-    # With its trace (eunomia #31): this trial called no tool.
+    # With its trace (eunomia#31): this trial called no tool.
     assert_push "card", %{
       model: nil,
       test_number: 1,

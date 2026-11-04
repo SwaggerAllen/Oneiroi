@@ -147,7 +147,7 @@ schema, `projection_versions`) and the application role.
   attempt left. Time alone decides, so the bound sits above the longest
   legitimate job, a full regression run at the request timeout, and a
   test holds it above that product. A worker that must not run twice
-  declares `max_attempts: 1` on `Oneiroi.Worker` (eunomia #30).
+  declares `max_attempts: 1` on `Oneiroi.Worker` (eunomia#30).
 - **#21 A projector parks an event it cannot fold; it never stops the
   app.** `use Oneiroi.Projection` routes every handler error to
   `Oneiroi.Projection.failed/4`: a transient Postgres refusal or a lost

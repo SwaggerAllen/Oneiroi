@@ -16,12 +16,12 @@ action. The state list lives in the stories
 Built: **Needs you** (`NeedsYou.tsx`): each reply the resident drafted,
 with Approve to send / Decline and a note (nothing decided without
 one); each approved reply waiting to be sent, with I sent it and where
-it now is (the receipt, xenia #13). **Correspondence**: every message
+it now is (the receipt, xenia#13). **Correspondence**: every message
 that reached the resident, newest first (no reading gate: F23 as
-amended, xenia #12); a blocked sender's message as a line with no words;
+amended, xenia#12); a blocked sender's message as a line with no words;
 Block sender asks why, in place. **Blocked**: each block with who set it
 and why; Lift only on the ones you set. **The house letters** between
-the resident's conversations (kumbukumbu #44), Open and All, newest
+the resident's conversations (kumbukumbu#44), Open and All, newest
 first, each with where it stands read off the letters (`letters.ts`),
 and **Write a letter**: from you to a conversation by name, to Free time
 (the default, the queue's front door) or to the house

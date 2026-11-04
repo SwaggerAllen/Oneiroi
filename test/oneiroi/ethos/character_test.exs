@@ -90,7 +90,7 @@ defmodule Oneiroi.Ethos.CharacterTest do
     assert {:error, %Ethos.Error{kind: :ethos_no_such_habit}} =
              Ethos.affirm_habit(id, 9, "I like it", ctx.witness)
 
-    # A habit is citeable by its number (seshat #14), resolved to its words.
+    # A habit is citeable by its number (seshat#14), resolved to its words.
     assert {:ok, "renamed (keep)"} =
              Citations.resolve(%{id: id, slug: ctx.resident.slug}, %{
                slug: ctx.resident.slug,
@@ -310,7 +310,7 @@ defmodule Oneiroi.Ethos.CharacterTest do
     assert [_, _, %{number: 3, state: "wilted", closed_at: %DateTime{}}] = Ethos.seeds(id)
     assert {:error, %Ethos.Error{kind: :ethos_no_such_seed}} = Ethos.wilt_seed(id, 9, ctx.brain)
 
-    # Toward a soul line that is live, by its number (agathos-daimon #27).
+    # Toward a soul line that is live, by its number (agathos-daimon#27).
     assert {:ok, 4} = Ethos.plant_seed(id, "I might be someone who waits.", ctx.brain)
     :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nI wait.", %{cites: [4]}, ctx.brain)
     assert :ok = Ethos.graduate_seed(id, 4, "soul", 1, "it is a line of me now", ctx.brain)
@@ -325,7 +325,7 @@ defmodule Oneiroi.Ethos.CharacterTest do
 
     assert [%{number: 1, text: "I wait.", cites: [4]}] = AgathosDaimon.soul_lines(id)
 
-    # Citeable by number, with its state (seshat #14).
+    # Citeable by number, with its state (seshat#14).
     assert {:ok, "maybe mornings (wilted)"} =
              Citations.resolve(%{id: id, slug: ctx.resident.slug}, %{
                slug: ctx.resident.slug,
@@ -334,7 +334,7 @@ defmodule Oneiroi.Ethos.CharacterTest do
              })
   end
 
-  # Lily's seedbed crosses as her seeds (sima-qian #19): each on the day
+  # Lily's seedbed crosses as her seeds (sima-qian#19): each on the day
   # it was planted there, numbered here, and only by her own hand.
   test "an import plants seeds on the days they were planted, the resident's alone", ctx do
     id = ctx.resident.id

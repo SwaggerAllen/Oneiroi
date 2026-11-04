@@ -4,7 +4,7 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
   fail-loud, self-tested. Bennett's consent rule, quoted whole: "Only
   list things that are supposed to be regular. Some of the best things
   in a life aren't on a schedule, and they shouldn't be watched." So the
-  watched list is the hour marker (sunna #20), the nightly pass, the
+  watched list is the hour marker (sunna#20), the nightly pass, the
   weekly memory audit, the weekly wash and the trait baseline, each
   expected only once the resident is old enough for its cadence; turns,
   bookmarks, free time, letters and the journal are not watched, and
@@ -51,7 +51,7 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
     |> Enum.reject(&is_nil/1)
   end
 
-  # The pulse (sunna #20): expected once the resident is older than the
+  # The pulse (sunna#20): expected once the resident is older than the
   # grace, whether or not anything is scheduled.
   defp hour_expectation(resident_id, row, now) do
     grace = Config.fetch!(:huginn_muninn, :quiet_hour_grace_hours)
@@ -72,7 +72,7 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
   end
 
   # The weekly three. The baseline is taken only once there are habits
-  # to measure (ethos #15), so it is expected only then.
+  # to measure (ethos#15), so it is expected only then.
   defp weekly_expectations(resident_id, row, now) do
     days = Config.fetch!(:huginn_muninn, :quiet_week_days)
     seconds = days * 86_400

@@ -29,7 +29,7 @@ The port, rather than moving the answering into the brain, because the
 run, its job, its cards and its seal are this system's (#9, #30) and
 the turn is the brain's: either half moved would put one system's rule
 in the other's code. The port is the codebase's existing answer to a
-callback against the dependency direction (sunna #12, sima-qian #17).
+callback against the dependency direction (sunna#12, sima-qian#17).
 
 ## #11
 Spec §6.4: "model names show only once every card in a test is graded."
@@ -78,7 +78,7 @@ verdict and then discarded it; the test that counts the judge's calls
 found it.
 
 ## #19
-Conventions §10 and §12, and sunna #11: a worker's process scope sets
+Conventions §10 and §12, and sunna#11: a worker's process scope sets
 nothing on the connection.
 
 ## #20
@@ -132,7 +132,7 @@ sealed context carried no commitment because the trial was of what
 the model keeps unprompted; a commitment loaded there would be a test of
 reading. That reason is superseded, not refuted: since 2026-11-01 a
 trial is a normal session (#10) and a normal session loads the
-promises every turn (brain #32), so the commitments figure now measures
+promises every turn (brain#32), so the commitments figure now measures
 whether a model acts on a promise it holds, which is the swap's real
 risk once memory comes with the self.
 
@@ -148,7 +148,7 @@ than an omitted field because a line the parser can count is a line
 it can refuse, and the pass's rule is that a reply it cannot read
 fails rather than being guessed at. Never expired by age because the
 thread untouched for a month is the one this exists to keep; bounded
-by count because the prefix must not grow with the person (ethos #9).
+by count because the prefix must not grow with the person (ethos#9).
 The bound is a guess and its usage line says so.
 
 ## #28
@@ -216,7 +216,7 @@ witness could not see: a fact read from the transcript and one
 invented read the same on the card.
 
 The port returns it rather than the brain recording it because a turn
-records nothing (brain #16) and the card is this system's (#9, #30):
+records nothing (brain#16) and the card is this system's (#9, #30):
 the trace rides the return and lands only on the sealed stream. The
 kind is read from the decision the loop runs on, not re-derived, so the
 trace cannot say a write ran. Cut at a bound because a run is up to

@@ -1,7 +1,7 @@
 defmodule Oneiroi.Kumbukumbu.Kinds do
   @moduledoc """
   The one rule for which kind a session opened through an adapter is
-  (kumbukumbu #40), in a module of its own because two readers need it
+  (kumbukumbu#40), in a module of its own because two readers need it
   and one of them is the event's upcaster: the aggregate refers to the
   events' structs, so the upcaster calling back into the aggregate would
   be a cycle.

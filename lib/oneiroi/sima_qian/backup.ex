@@ -10,7 +10,7 @@ defmodule Oneiroi.SimaQian.Backup do
   one, `records/`; the table is here so the others arrive as rows.
 
   Before the commit, Honcho's memory of the resident is written under
-  `honcho/` (sima-qian #42), in the soul class; a Honcho that cannot
+  `honcho/` (sima-qian#42), in the soul class; a Honcho that cannot
   answer leaves the last of it in place and is the run's error after
   the rest has landed, as a stray file is.
   """
@@ -36,7 +36,7 @@ defmodule Oneiroi.SimaQian.Backup do
     # The soul alone (David's rule), and the identity files with it: they
     # are one self, given and proposed together (spec §6.2).
     {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
-    # The state store (agathos-daimon #32): the resident's present, which
+    # The state store (agathos-daimon#32): the resident's present, which
     # can change every turn. A class of its own, so a changed line never
     # makes a soul commit and the Honcho card it sets.
     {"state", ["STATE.md"]},
@@ -85,12 +85,12 @@ defmodule Oneiroi.SimaQian.Backup do
          :ok <- Git.ensure_repo(dir),
          {:ok, export} <- Export.write(resident_id, dir),
          # Honcho's memory of her, before the commit that carries it
-         # (sima-qian #42); a failure is returned after the rest lands.
+         # (sima-qian#42); a failure is returned after the rest lands.
          honcho = HonchoMemory.write(resident_id, dir, export.private),
          export = %{export | files: export.files ++ honcho_files(honcho)},
          {:ok, _} <- record_export(resident_id, export, actor),
          # The letters the export carried for the first time get their
-         # receipt (agathos-daimon #28): the words left the house.
+         # receipt (agathos-daimon#28): the words left the house.
          :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
          root = Merkle.root(Path.join(dir, "records")),
          {:ok, commits} <- commit_classes(dir, export.through, root),
@@ -241,7 +241,7 @@ defmodule Oneiroi.SimaQian.Backup do
   end
 
   # The classes as they stand in `dir`: the table's, with the keepsakes
-  # at the root (seshat #29) as a class of their own after the soul,
+  # at the root (seshat#29) as a class of their own after the soul,
   # since they are named file by file rather than by a folder. Kept
   # apart from the soul, which is the identity files alone (#7), and
   # from writing, which is what the dyad writes through the flow.

@@ -99,7 +99,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  # ---- the state store (agathos-daimon #32) ----
+  # ---- the state store (agathos-daimon#32) ----
 
   @doc "The resident writes, or verifies, a line of her present."
   def set_state_line(id, key, text, %Actor{} = actor) do
@@ -192,8 +192,8 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon #30)."
-  # `left_behind` is names, or `{name, reason}` pairs (sima-qian #22).
+  @doc "Completes an import (spec §6.2): the seeded files, the adopted count and the not-transferred list, on the stream after `Imported`, and what was translated from the source platform's records when anything was (agathos-daimon#30)."
+  # `left_behind` is names, or `{name, reason}` pairs (sima-qian#22).
   def complete_import(id, seeded, adopted, left_behind, translated, %Actor{} = actor)
       when is_list(seeded) and is_integer(adopted) and is_list(left_behind) do
     pairs =
@@ -288,7 +288,7 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  @doc "The adapter a bearer token names, or `:error`. A platform-scope read by name (gaia #8)."
+  @doc "The adapter a bearer token names, or `:error`. A platform-scope read by name (gaia#8)."
   def authenticate_adapter(raw) when is_binary(raw) do
     Scope.platform(fn ->
       case Store.live_adapter(hash(raw)) do

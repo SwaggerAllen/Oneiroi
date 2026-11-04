@@ -1,6 +1,6 @@
 defmodule Oneiroi.SimaQian.Readable do
   @moduledoc """
-  The export's reading copies (sima-qian #41): the transcripts as
+  The export's reading copies (sima-qian#41): the transcripts as
   `records/conversations/<day>.md` and the bookmarks as
   `records/bookmarks.md`, rendered from the export's own lines on every
   run and rewritten whole, as the day files are. They are a projection
@@ -14,7 +14,7 @@ defmodule Oneiroi.SimaQian.Readable do
   redacted field is absent, and a rebuilt resident renders the same
   bytes. A private, unshared session (spec §6.3) is rendered as its
   existence and its counts only: the words are in the event lines, as
-  the encryption scheme's open question says (sima-qian #20), and not
+  the encryption scheme's open question says (sima-qian#20), and not
   made readable here.
   """
 
@@ -103,7 +103,7 @@ defmodule Oneiroi.SimaQian.Readable do
     if String.starts_with?(at, day) do
       room = if data["domain"], do: " in the room `#{data["domain"]}`", else: ""
       # An adapter's conversation by the folder it ran in, the base name
-      # the server kept (kumbukumbu #40).
+      # the server kept (kumbukumbu#40).
       folder = if data["label"], do: " in the folder `#{data["label"]}`", else: ""
       parties = Enum.map_join(data["participants"] || [], ", ", &"`#{&1}`")
 

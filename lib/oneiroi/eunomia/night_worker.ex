@@ -2,7 +2,7 @@ defmodule Oneiroi.Eunomia.NightWorker do
   @moduledoc """
   The nightly pass (spec §6.4): for every active resident, yesterday in
   the resident's zone, judged once. A cross-tenant job under the platform
-  scope, named here (eunomia #19); the roster is read through the
+  scope, named here (eunomia#19); the roster is read through the
   resident system's own platform-scoped export, never this system's
   process scope.
   """

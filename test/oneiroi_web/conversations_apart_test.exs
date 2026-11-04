@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.ConversationsApartTest do
   @moduledoc """
   The Oneiroi chat and the Claude Code conversations, apart (kumbukumbu
-  #40 to #42, brain #44): an adapter's token opens a conversation of its
+  #40 to #42, brain#44): an adapter's token opens a conversation of its
   own, kind `adapter`, called by its folder's base name; the witness's
   list names each and says which takes a message; each knows where it
   is and which others are open, and none carries another's words; and a

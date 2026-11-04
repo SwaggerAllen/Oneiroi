@@ -458,7 +458,7 @@ defmodule Oneiroi.Eunomia.Judgement do
   defp statement_ok?(text),
     do: is_binary(text) and String.trim(text) != "" and String.length(text) <= @statement_limit
 
-  # An imported record keeps its words whatever their length (eunomia #29).
+  # An imported record keeps its words whatever their length (eunomia#29).
   defp statement_ok?(text, true), do: is_binary(text) and String.trim(text) != ""
   defp statement_ok?(text, _live), do: statement_ok?(text)
 

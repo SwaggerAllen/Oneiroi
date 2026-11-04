@@ -1,5 +1,5 @@
 defmodule Oneiroi.Proteus.HonchoSchemaTest do
-  @moduledoc "Honcho on Oneiroi's database (proteus #17): its own schema under its own role, which reaches nothing of Oneiroi's."
+  @moduledoc "Honcho on Oneiroi's database (proteus#17): its own schema under its own role, which reaches nothing of Oneiroi's."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Repo

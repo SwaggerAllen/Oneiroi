@@ -11,7 +11,7 @@ defmodule Oneiroi.Brain.Tools do
   misnames or misuses answers with the error in words rather than
   failing the turn, because a turn that dies on a typo loses the reply.
 
-  In a regression trial (eunomia #10, brain #40) the same tools are
+  In a regression trial (eunomia#10, brain#40) the same tools are
   offered and the reads run against the resident's real data, while every
   tool that would change anything answers exactly as it does on success
   and runs nothing (`trial/3`), so the resident perceives a normal
@@ -34,7 +34,7 @@ defmodule Oneiroi.Brain.Tools do
 
   @not_done "Not done: "
 
-  # Every tool, read or write, in one place (eunomia #10, brain #40). A
+  # Every tool, read or write, in one place (eunomia#10, brain#40). A
   # read runs for real in a trial; a write is answered as on success and
   # never run. Only a read runs: a tool in neither list is mocked as a
   # write is, so a write added without a line here cannot record a
@@ -836,7 +836,7 @@ defmodule Oneiroi.Brain.Tools do
   def writes, do: @writes
 
   @doc """
-  Runs one tool call for a regression trial's turn (eunomia #10, brain
+  Runs one tool call for a regression trial's turn (eunomia#10, brain
   #40): a read as `run/3` runs it, against the resident's real data; any
   other tool answered exactly as it answers on success, numbered from
   the resident's own rows and the numbers this trial's answers have
@@ -860,7 +860,7 @@ defmodule Oneiroi.Brain.Tools do
   resident's records, or `:mocked`, answered and never run, which is
   every other name, a tool nobody classified and a name no tool has
   included. One decision for the run and for the witness's trace of it
-  (eunomia #31), so the trace cannot say a call ran that did not.
+  (eunomia#31), so the trace cannot say a call ran that did not.
   """
   @spec trial_kind(String.t()) :: :read | :mocked
   def trial_kind(name) when is_binary(name), do: if(name in @reads, do: :read, else: :mocked)
@@ -960,10 +960,10 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Paging back past the index (kumbukumbu #39): within the turn's room,
+  # Paging back past the index (kumbukumbu#39): within the turn's room,
   # as the index is, and the closing line says how many lie further back
   # and how to ask for them, as the index's footer does.
-  # House letters (kumbukumbu #44): the sender is the conversation this
+  # House letters (kumbukumbu#44): the sender is the conversation this
   # turn is in, named by the server; a keepsake given must be one.
   defp call("letter_send", args, turn) do
     keepsake = blank(args["keepsake"])
@@ -1019,7 +1019,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Correspondence (xenia #12): everything that reached the resident;
+  # Correspondence (xenia#12): everything that reached the resident;
   # a blocked sender's messages are a count, and the blocks are named
   # with who set each.
   defp call("correspondence_list", _args, turn) do
@@ -1127,7 +1127,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # The keepsakes with their whys (seshat #32).
+  # The keepsakes with their whys (seshat#32).
   defp call("keepsake_list", _args, turn) do
     case Seshat.keepsakes(turn.resident_id) do
       [] ->
@@ -1150,7 +1150,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # The counts the retrieval ledger holds (kumbukumbu #43), for the
+  # The counts the retrieval ledger holds (kumbukumbu#43), for the
   # resident to read before anything is tuned from them.
   defp call("memory_use", args, turn) do
     opts = [kind: blank(args["kind"]), target: blank(args["target"])]
@@ -1425,7 +1425,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
-  # The oracle (brain #49): named questions, dispatched together, each
+  # The oracle (brain#49): named questions, dispatched together, each
   # read in the background; the numbers come back now and the answers
   # by letter.
   defp call("oracle_ask", args, turn) do
@@ -1440,7 +1440,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Research (seshat #38, xenia #16): asked only when the reader has sites
+  # Research (seshat#38, xenia#16): asked only when the reader has sites
   # to reach, and the answer says exactly which, so she knows what it can
   # and cannot read before it reads.
   defp call("research_ask", args, turn) do
@@ -1501,7 +1501,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # The use the ranked index learns from (kumbukumbu #46): recorded as
+  # The use the ranked index learns from (kumbukumbu#46): recorded as
   # `used` through `feedback`, which is what teaches the use rules.
   defp call("memory_feedback", args, turn) do
     numbers = args["used"] |> List.wrap() |> Enum.flat_map(&feedback_number/1) |> Enum.uniq()
@@ -1783,7 +1783,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # The one read of a document's text, the witness's included
   # (`Seshat.read/2` is `document/2`'s read by the name a hit or a
-  # citation gives), paged under BRAIN_LIBRARY_READ_CHARS (brain #43).
+  # citation gives), paged under BRAIN_LIBRARY_READ_CHARS (brain#43).
   defp call("library_read", args, turn) do
     name = to_string(args["path"] || "")
 
@@ -1840,7 +1840,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident
       )
 
-  # Introspection (brain #46): the house's source and the resident's own
+  # Introspection (brain#46): the house's source and the resident's own
   # repository, read only, the seals by explicit list.
   defp call("source_list", args, _turn), do: listing(:source, args["path"])
   defp call("repo_list", args, turn), do: listing({:repo, turn.resident_id}, args["path"])
@@ -2056,16 +2056,16 @@ defmodule Oneiroi.Brain.Tools do
 
   # A trial's query embeddings bill as the trial's calls do, under
   # regression to the run's actor, which the resident's ledger view
-  # omits (eunomia #12); a turn's bill to the dyad as embeddings.
+  # omits (eunomia#12); a turn's bill to the dyad as embeddings.
   defp embedding(%{trial?: true, payer: payer}), do: {payer, :regression}
   defp embedding(turn), do: {turn.resident, :embeddings}
 
   # Resolution is the read's and marks each reference it resolved
-  # (seshat #14); a trial's read resolves the same and marks nothing.
+  # (seshat#14); a trial's read resolves the same and marks nothing.
   defp marks(%{trial?: true}), do: [mark: false]
   defp marks(_turn), do: []
 
-  # ---- a trial's writes (eunomia #10) ----
+  # ---- a trial's writes (eunomia#10) ----
   #
   # Each answers in the words its `call/3` clause answers on success, so
   # the resident perceives a normal session; a number is what the
@@ -2085,7 +2085,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # The judge is not asked, so no advice is invented: the answer is the
   # one a check past its bound gets, which the resident already knows how
-  # to read (eunomia #16).
+  # to read (eunomia#16).
   defp answered("dispute_check", _args, turn) do
     ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
     {"The judge did not answer in time; answer alone, then settle dispute #{ref}.", turn}
@@ -2129,7 +2129,7 @@ defmodule Oneiroi.Brain.Tools do
 
   defp answered("revision_add", _args, turn) do
     {n, turn} = mint(turn, "revision", highest(Kumbukumbu.revisions(turn.resident_id)))
-    # The resident's own correction holds at once (kumbukumbu #30).
+    # The resident's own correction holds at once (kumbukumbu#30).
     {"Revision #{n} applied.", turn}
   end
 
@@ -2268,7 +2268,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Where an original came from (seshat #28), on its search hits and its
+  # Where an original came from (seshat#28), on its search hits and its
   # read: the source, the pinned commit short, and the path there.
   defp imported(%{source_repo: repo, source_commit: commit, source_path: path}, open, close)
        when is_binary(repo) and is_binary(commit),
@@ -2384,7 +2384,7 @@ defmodule Oneiroi.Brain.Tools do
   # A soul line's cites name seeds that exist, open or closed (a line
   # cites the seed it grew from, which has usually graduated into it);
   # checked here because the resident system cannot read the character
-  # system's rows (ethos #13).
+  # system's rows (ethos#13).
   defp phrase_text([], _q), do: "No message holds that phrase."
 
   defp phrase_text(rows, q),
@@ -2431,7 +2431,7 @@ defmodule Oneiroi.Brain.Tools do
     if String.length(flat) > limit, do: String.slice(flat, 0, limit) <> "…", else: flat
   end
 
-  # The transcripts by meaning (kumbukumbu #49): the nearest passages not
+  # The transcripts by meaning (kumbukumbu#49): the nearest passages not
   # already a phrase hit, each opening on its own words.
   defp meaning_text(turn, q, phrase) do
     seen = MapSet.new(phrase, & &1.turn_ref)
@@ -2545,7 +2545,7 @@ defmodule Oneiroi.Brain.Tools do
     "Revision #{r.number} (#{r.kind}, #{r.state}, by the #{r.by_kind}) on #{r.target_kind}/#{r.target_id}: #{r.text} (#{r.note})"
   end
 
-  # An imported prediction may have had no date (eunomia #29).
+  # An imported prediction may have had no date (eunomia#29).
   defp due_text(nil), do: "no due date"
   defp due_text(%DateTime{} = due), do: "due " <> DateTime.to_iso8601(due)
 

@@ -1,6 +1,6 @@
 defmodule Oneiroi.AgathosDaimon.StateTest do
   @moduledoc """
-  The state store (agathos-daimon #32, brain #47): the resident's present,
+  The state store (agathos-daimon#32, brain#47): the resident's present,
   a line per key, hers to write, overwritten in place with when she last
   verified it; read fresh at the top of every turn, rendered as STATE.md.
   """

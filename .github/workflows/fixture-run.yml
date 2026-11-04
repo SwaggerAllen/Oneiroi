@@ -1,4 +1,4 @@
-# A full run on a fixture resident (spec §12, P40; brain #37): the prod
+# A full run on a fixture resident (spec §12, P40; brain#37): the prod
 # build on a throwaway Postgres, a thin-seed fixture created, the fixture
 # script's turns against OpenRouter on the chosen models, then the
 # nightly pass, the wash, the audits and the judge's test-awareness scan,

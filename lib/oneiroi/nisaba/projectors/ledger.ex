@@ -34,7 +34,7 @@ defmodule Oneiroi.Nisaba.Projectors.Ledger do
 
   # `ref` is the call's own id, so a replayed record is one row, and the
   # key is the resident's and the ref together, so a rebuilt copy's
-  # replay of the same calls is its own rows (sima-qian #21).
+  # replay of the same calls is its own rows (sima-qian#21).
   fold(%Events.ModelCallRecorded{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

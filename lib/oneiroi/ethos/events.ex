@@ -90,7 +90,7 @@ defmodule Oneiroi.Ethos.Events do
     # tags are citations): the moment's tag is the line it evidences,
     # and a pin naming a line writes this beside the pin. By either
     # party, as a tagging is (spec §6.3); the line itself stays the
-    # resident's words (agathos-daimon #27). The line's existence is the
+    # resident's words (agathos-daimon#27). The line's existence is the
     # edge's to check, since the lines are the resident system's rows.
     # Version 2 adds `movement` (spec §6.17, P34 under P38): what the
     # cited moment changed, `stance`, `intention` and `resume` as a

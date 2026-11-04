@@ -75,7 +75,7 @@ and no usage, each read as an ordinary reply and recorded at zero cost,
 `estimated`. Whether those streams carried an error event or nothing at
 all was not recorded, and the adapter ignored any event without
 `choices`, so it could not have said. Both now fail the call, and a
-turn that fails keeps the provider's words in its reason (brain #39),
+turn that fails keeps the provider's words in its reason (brain#39),
 so the next run will.
 
 ## #21

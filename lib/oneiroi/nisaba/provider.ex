@@ -34,7 +34,7 @@ defmodule Oneiroi.Nisaba.Provider do
     literal (the `prompts` check). `tools` are OpenAI-shaped tool
     definitions, passed through for the brain; `tool_choice` `"none"`
     keeps them defined (a history with tool calls needs them) while the
-    model may call none, for a turn's last word (brain #50).
+    model may call none, for a turn's last word (brain#50).
     """
     @enforce_keys [:model]
     defstruct [

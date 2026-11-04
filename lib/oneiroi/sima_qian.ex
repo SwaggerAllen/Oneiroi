@@ -23,7 +23,7 @@ defmodule Oneiroi.SimaQian do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
-      # Seeds an import carries from another platform's seedbed (sima-qian #19).
+      # Seeds an import carries from another platform's seedbed (sima-qian#19).
       Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
@@ -91,7 +91,7 @@ defmodule Oneiroi.SimaQian do
   end
 
   # The module as an atom rather than an alias, as the schedule names
-  # its wake (sunna #12): the library reads this system for the
+  # its wake (sunna#12): the library reads this system for the
   # repository's path, so an alias here is the cycle the port avoids.
   @doc false
   def cast_library("seshat"), do: {:ok, :"Elixir.Oneiroi.Seshat"}
@@ -213,7 +213,7 @@ defmodule Oneiroi.SimaQian do
     do: Import.run(url, attrs, witness_account_id, actor)
   )
 
-  @doc "Imports the originals of the resident's memory from its source repository at a pinned commit, byte for byte, each registered with its provenance (sima-qian #40); the witness's."
+  @doc "Imports the originals of the resident's memory from its source repository at a pinned commit, byte for byte, each registered with its provenance (sima-qian#40); the witness's."
   @spec import_originals(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(import_originals(resident_id, request, actor),
     do: Originals.run(resident_id, request, actor)
@@ -223,7 +223,7 @@ defmodule Oneiroi.SimaQian do
   @spec repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
   defexport(repository_dir(resident_id), do: Backup.repository_dir(resident_id))
 
-  @doc "The history of the resident's repository, or of one path in it, newest first (brain #46)."
+  @doc "The history of the resident's repository, or of one path in it, newest first (brain#46)."
   @spec repository_log(String.t(), String.t() | nil, pos_integer()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(repository_log(resident_id, path, limit),

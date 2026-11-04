@@ -48,7 +48,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     # alone; counts, because a pulse that stopped is a failure of the
     # platform the witness must hear about.
     %{key: "quietcheck", label: "What is supposed to be regular happened", counts: true},
-    # The measurement layer (spec §6.17, P42, P43; ethos #15): the
+    # The measurement layer (spec §6.17, P42, P43; ethos#15): the
     # character layer answers these, flag or silence; none counts toward
     # the light, because the clinical material is a design warning for
     # the layer and never a description of the resident.
@@ -212,7 +212,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
       resident_id
       |> Eunomia.predictions()
       |> Map.fetch!(:open)
-      # One with no date (an import's, eunomia #29) is never overdue.
+      # One with no date (an import's, eunomia#29) is never overdue.
       |> Enum.count(&(&1.due != nil and DateTime.compare(&1.due, now) == :lt))
 
     if overdue == 0,
@@ -227,7 +227,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   end
 
   # The first two built-in coherence audits (spec §6.13, #5), reading
-  # the library's rows (seshat #14, #21): a citation that resolved once
+  # the library's rows (seshat#14, #21): a citation that resolved once
   # and does not now, and a day planned and never wrapped.
   defp builtin_result(%{key: "citation_drift"} = a, resident_id, _row) do
     drifted = Seshat.drift(resident_id)
@@ -347,7 +347,7 @@ defmodule Oneiroi.HuginnMuninn.Checks do
     end
   end
 
-  # The wash pass's open flags (spec §6.13, P18; eunomia #25): proposals
+  # The wash pass's open flags (spec §6.13, P18; eunomia#25): proposals
   # on the identity files the resident has not yet decided, told to
   # both parties and never cleared by anyone else.
   defp builtin_result(%{key: "quietcheck"} = a, resident_id, _row) do

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Oneiroi's reader (xenia #11, kumbukumbu #48): the inbound hands on the
+# Oneiroi's reader (xenia#11, kumbukumbu#48): the inbound hands on the
 # witness's machine. It reads what reaches the resident (Substack DMs in
 # a browser profile signed in as her, her Gmail through the witness's
 # claude.ai connector), delivers it to Oneiroi, and sends the replies the
@@ -9,7 +9,7 @@
 #                     for the reader and sends only when a reply does
 #   reader.sh scrape  twice a day (launchd): reads and delivers
 #   reader.sh send    sends the approved replies now
-#   reader.sh research  researches the open questions now (seshat #38)
+#   reader.sh research  researches the open questions now (seshat#38)
 #   reader.sh login   opens the reader's browser profile, visible, to sign
 #                     in to Substack as the resident once
 #
@@ -17,7 +17,7 @@
 # to Oneiroi, and headless Claude Code only reads and writes JSON files
 # in `work/`. The browser reaches only the sites on the witness's
 # allowlists, set on Connections and read from Oneiroi at each run
-# (xenia #16): one for reading correspondence, one for research. A scrape
+# (xenia#16): one for reading correspondence, one for research. A scrape
 # run cannot type, so a stranger's message cannot make it send anything;
 # a send run is given the approved replies and nothing else to do; a
 # research run browses in a profile signed in nowhere, so whatever it
@@ -109,7 +109,7 @@ wait_for_work() {
   fi
 }
 
-# Research (seshat #38): each open question in turn, in its own profile
+# Research (seshat#38): each open question in turn, in its own profile
 # signed in nowhere, held to the research allowlist. An answer is the
 # notes it wrote; a question it could not answer is tried twice, then
 # said failed with the reason.

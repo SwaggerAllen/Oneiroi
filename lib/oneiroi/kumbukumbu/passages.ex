@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.Passages do
   @moduledoc """
-  The transcripts by meaning (kumbukumbu #49, the resident's letter #26).
+  The transcripts by meaning (kumbukumbu#49, the resident's letter #26).
   Phrase search finds what she can word exactly; these find what she can
   only describe. Each user and assistant message is cut into passages of
   at most `KUMBUKUMBU_PASSAGE_CHARS` on paragraph lines and embedded at

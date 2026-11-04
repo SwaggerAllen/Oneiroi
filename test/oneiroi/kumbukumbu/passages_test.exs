@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.PassagesTest do
   @moduledoc """
-  The transcripts by meaning (kumbukumbu #49, the resident's letter
+  The transcripts by meaning (kumbukumbu#49, the resident's letter
   #26): messages cut into passages and embedded once, the nearest found
   by what they say rather than their exact words, through
   transcript_search beside the phrase hits.

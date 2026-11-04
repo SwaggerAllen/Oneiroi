@@ -1,6 +1,6 @@
 defmodule OneiroiWeb.ReaderKitTest do
   @moduledoc """
-  The reader kit (`sdk/reader/`, xenia #11, kumbukumbu #48) as the
+  The reader kit (`sdk/reader/`, xenia#11, kumbukumbu#48) as the
   witness's Mac runs it: `bin/reader.sh` against the real endpoint on a
   loopback port, with a stand-in for `claude` that does what the prompt
   asks with files, as the headless run would, and records how it was
@@ -156,7 +156,7 @@ defmodule OneiroiWeb.ReaderKitTest do
     assert ["--allowed-origins", "https://substack.com;https://www.substack.com"] =
              Enum.take(args, -2)
 
-    # The witness's list on Oneiroi is the list (xenia #16); `*` lifts it.
+    # The witness's list on Oneiroi is the list (xenia#16); `*` lifts it.
     :ok =
       Xenia.set_reader_sites(
         ctx.id,
@@ -218,7 +218,7 @@ defmodule OneiroiWeb.ReaderKitTest do
     assert [%{number: 2}] = Xenia.replies(ctx.id, "approved")
   end
 
-  # seshat #38, xenia #16: the resident asks; the reader researches within
+  # seshat#38, xenia#16: the resident asks; the reader researches within
   # the research allowlist, in a profile signed in nowhere, and its notes
   # land under research/ with a letter to the conversation that asked.
   test "research is asked by the resident, said within its allowlist, done by the reader and answered under research/",

@@ -4,7 +4,7 @@ defmodule Oneiroi.Kumbukumbu.Commands do
   defmodule OpenSession do
     # `domain` (spec §6.3, P23): the room the session is in, a slug or
     # nil for the common room; retrieval respects it. `label` and
-    # `runtime` name an adapter's conversation (kumbukumbu #40).
+    # `runtime` name an adapter's conversation (kumbukumbu#40).
     use Oneiroi.Command,
       fields: [
         :id,

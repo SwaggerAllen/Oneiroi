@@ -117,7 +117,7 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
 
     assert [%{turn_ref: "t-main"}] = Kumbukumbu.search({:resident, id}, "garden", 20, id, ctx.key)
 
-    # By meaning too (kumbukumbu #49): the intimate turn is nearest the
+    # By meaning too (kumbukumbu#49): the intimate turn is nearest the
     # words and is never a passage the common room is answered.
     :ok = Oneiroi.Gaia.store_key(ctx.witness.id, "sk-or-test", ctx.actor)
     assert {:ok, %{messages: embedded}} = Kumbukumbu.refresh_passages(id, ctx.actor)

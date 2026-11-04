@@ -208,7 +208,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   fold(%Events.IdMinted{}, _metadata, fn multi -> multi end)
-  # The attestation's last word on the row (sima-qian #10): set on a
+  # The attestation's last word on the row (sima-qian#10): set on a
   # mismatch, cleared by the next backup, read by the built-in audit.
   fold(%Events.RootMismatchDetected{} = e, _metadata, fn multi ->
     set(multi, e.id, root_mismatched_at: e.at)
@@ -429,7 +429,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   defp actor_field(_other, _key), do: nil
 
-  # ---- the state store (agathos-daimon #32) ----
+  # ---- the state store (agathos-daimon#32) ----
 
   fold(%Events.StateLineSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -500,7 +500,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     )
   end)
 
-  # The export's receipt (sima-qian #3): a receipt row of its own kind,
+  # The export's receipt (sima-qian#3): a receipt row of its own kind,
   # and the letters marked carried so the next export names only new ones.
   fold(%Events.SelfLettersExported{} = e, _metadata, fn multi ->
     multi

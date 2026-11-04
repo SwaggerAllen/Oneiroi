@@ -44,7 +44,7 @@ config :oneiroi,
           # The in-memory Honcho (conventions §9).
           "PROTEUS_CLIENT" => "fake",
           # Where the HTTP port's own tests stand up a Honcho of their own,
-          # on the loopback (proteus #18); nothing else calls it, since
+          # on the loopback (proteus#18); nothing else calls it, since
           # the client above is the in-memory one.
           "PROTEUS_HONCHO_URL" => "http://127.0.0.1:47817",
           "PROTEUS_HONCHO_JWT_SECRET" => "test-honcho-secret",

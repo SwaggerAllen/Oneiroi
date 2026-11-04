@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Oneiroi Claude Code adapter: the SessionStart hook (spec §8, brain #42).
+# Oneiroi Claude Code adapter: the SessionStart hook (spec §8, brain#42).
 #
 # Usage: session-start.sh PART PARTS, one hook per part (hooks/hooks.json). Prints part PART
 # of the resident's session prefix (the prompt, the identity files, the

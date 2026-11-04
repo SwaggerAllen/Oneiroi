@@ -239,7 +239,7 @@ defmodule Oneiroi.Proteus.Bridges do
   end
 
   @doc """
-  Re-sends every captured turn whose last sync failed (proteus #19), in
+  Re-sends every captured turn whose last sync failed (proteus#19), in
   the order the turns were spoken, through `sync_turn/5`, so each lands
   once and is recorded as synced. Stops at the first that fails again:
   a later turn sent ahead of an earlier one would reach Honcho out of
@@ -399,7 +399,7 @@ defmodule Oneiroi.Proteus.Bridges do
 
   @doc """
   Everything Honcho holds about the resident's workspace that is text
-  only Honcho holds (proteus #18), for the records export: every peer;
+  only Honcho holds (proteus#18), for the records export: every peer;
   every card each peer holds, of itself and of each other peer; every
   conclusion; and every session's summaries. `{:ok, nil}` before the
   bridge is provisioned, when there is no workspace to read. One failed

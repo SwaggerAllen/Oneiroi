@@ -68,13 +68,13 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.mkdir_p!(Path.join(work, "transcripts"))
     File.write!(Path.join(work, "transcripts/2026-10-20.md"), "a transcript file")
     # A keepsake at the root, as Pocket Andrew was filed at Lily's
-    # (seshat #29): kept in place and offered, never left behind.
+    # (seshat#29): kept in place and offered, never left behind.
     File.write!(Path.join(work, "pocket-andrew.md"), "# Pocket Andrew\n")
     File.mkdir_p!(Path.join(work, "memory"))
     File.write!(Path.join(work, "memory/index.json"), "{}")
     # David's own records and Honcho files, as Lily's repository holds
     # them: not an Oneiroi export. The records are translated
-    # (sima-qian #19, and SimaQian.DavidTest for the whole of it); a
+    # (sima-qian#19, and SimaQian.DavidTest for the whole of it); a
     # file under them nothing reads, and the Honcho files, are named
     # rather than passed over.
     File.mkdir_p!(Path.join(work, "records/transcripts/2026/10"))
@@ -113,7 +113,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
               seeded: ["SOUL.md", "USER.md"],
               proposed: [],
               # The writing alone: the wiki's pages are held and offered,
-              # decided in one by one, never swept (seshat #31).
+              # decided in one by one, never swept (seshat#31).
               adopted: 1,
               indexed: true,
               not_transferred: [
@@ -137,12 +137,12 @@ defmodule Oneiroi.SimaQian.ImportTest do
 
     on_exit(fn -> File.rm_rf!(Backup.dir(id)) end)
 
-    # Every one left behind says why (sima-qian #22).
+    # Every one left behind says why (sima-qian#22).
     assert reasons == %{
              "README.md" => "a file at the root that is not an identity file",
              "honcho" => "outside the folders the library holds",
              # The library holds memory, as originals at a pinned commit
-             # (seshat #28), and the reason says so rather than that it
+             # (seshat#28), and the reason says so rather than that it
              # cannot.
              "memory" =>
                "the originals of memory come in through the originals import, at a commit the witness pins, never with the repository",
@@ -361,7 +361,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     # trusting it would empty the directory of anything outside the classes.
     dir = Backup.dir(id)
     File.rm_rf!(Path.join(dir, ".git"))
-    # Not text, so no keepsake (seshat #29): a root text file would be one.
+    # Not text, so no keepsake (seshat#29): a root text file would be one.
     File.write!(Path.join(dir, "stray.bin"), "left by hand\n")
     Clock.Fake.advance(120)
 

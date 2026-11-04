@@ -1,5 +1,5 @@
 defmodule Oneiroi.SimaQian.DryRunTest do
-  @moduledoc "The import rehearsed (sima-qian #18): the import and a first backup on a Lily-shaped repository, reported by name and count and never by content."
+  @moduledoc "The import rehearsed (sima-qian#18): the import and a first backup on a Lily-shaped repository, reported by name and count and never by content."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -43,7 +43,7 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     write!(s, "DREAMS.md", @private)
     write!(s, "writing/essay.md", "# The essay\n\n#{@private}")
     write!(s, "research/2026-10-22-1/notes.md", "# Notes\n\nTwelve bytes.")
-    # David's records, translated by the import (sima-qian #19): her
+    # David's records, translated by the import (sima-qian#19): her
     # words go into her records here and never into the report.
     write!(
       s,
@@ -126,7 +126,7 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     dir = Path.join(System.tmp_dir!(), "oneiroi-account-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(dir) end)
     # Under writing/, which adoption takes whole; the wiki's files are
-    # held on disk and offered now (seshat #31), so a miss there is none.
+    # held on disk and offered now (seshat#31), so a miss there is none.
     write!(dir, "writing/seen.md", "x")
     write!(dir, "writing/missed.md", "x")
     write!(dir, "writing/.hidden/log.jsonl", "x")

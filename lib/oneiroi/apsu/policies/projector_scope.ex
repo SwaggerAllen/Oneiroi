@@ -1,7 +1,7 @@
 defmodule Oneiroi.Apsu.Policies.ProjectorScope do
   @moduledoc """
   A projector's query names the tenant whose row it means (conventions
-  §12, sima-qian #21). Projectors run under the platform scope
+  §12, sima-qian#21). Projectors run under the platform scope
   (`Oneiroi.Projection`), so row-level security filters nothing they
   read or write: a `where:` that keys on a number, a ref, a slug or a
   session key alone reaches every resident holding the same one.

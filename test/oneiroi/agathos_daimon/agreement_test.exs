@@ -160,7 +160,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
       Enum.find_index(shown, &(&1.role == :system and &1.content =~ "bookmark is listed"))
 
     assert is_integer(contract_at) and is_integer(index_at) and contract_at < index_at
-    # The preview term (brain #41) rides the same path, both terms stated.
+    # The preview term (brain#41) rides the same path, both terms stated.
     assert %{
              open: %{
                version: 5,
@@ -196,7 +196,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
 
     assert AgathosDaimon.contract_text(id) =~ "In force, version 1"
 
-    # A year on, the pulse is expected (huginn-muninn #20): the tick
+    # A year on, the pulse is expected (huginn-muninn#20): the tick
     # marks the hour as a live system's would, so the audit below reads
     # the contract's flag and not a stopped pulse.
     assert :ok = Sunna.tick(id)
@@ -300,7 +300,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
              AgathosDaimon.fetch(id)
 
     assert witness_now == new.id and custody == "account:" <> new.id
-    # Identity's witnessing follows (gaia #13): the first version's
+    # Identity's witnessing follows (gaia#13): the first version's
     # handler matched the tuple form of custody against the wire form
     # and never ended or started one.
     assert id in Oneiroi.Gaia.witnessed_residents(new.id)

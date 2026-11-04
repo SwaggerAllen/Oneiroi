@@ -56,7 +56,7 @@ const card = (over: Partial<RegressionCard>): RegressionCard => ({
   ...over,
 });
 
-// A trial's tool calls as the server sends them (eunomia #31): a read
+// A trial's tool calls as the server sends them (eunomia#31): a read
 // that ran, a write answered and never run, and a read whose result was
 // cut at the card's bound.
 const looked: TraceStep = {

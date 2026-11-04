@@ -5,7 +5,7 @@ defmodule Oneiroi.Proteus.Honcho.Fake do
   the no-bleed test can seed two and read each; a failure scripted for
   the calling process; a dream simulated by moving a card.
 
-  It refuses what the deployed server refuses (proteus #9): every call
+  It refuses what the deployed server refuses (proteus#9): every call
   builds the request `Honcho.HTTP` would send (`Honcho.Wire`) and asks
   the server's record (`Honcho.Recorded`) before it answers, and a
   request the server would not take is the 422 the bridge records as

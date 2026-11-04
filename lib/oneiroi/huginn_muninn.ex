@@ -76,7 +76,7 @@ defmodule Oneiroi.HuginnMuninn do
        default: "2",
        tag: :bound,
        usage:
-         "how long after the last marked hour quietcheck reads the pulse as stopped (spec §6.13, P21; the marker is sunna #20): two hours, a guess that leaves one missed tick before the flag"},
+         "how long after the last marked hour quietcheck reads the pulse as stopped (spec §6.13, P21; the marker is sunna#20): two hours, a guess that leaves one missed tick before the flag"},
       {:quiet_night_days, "HUGINN_MUNINN_QUIET_NIGHT_DAYS",
        cast: :integer,
        default: "2",
@@ -121,7 +121,7 @@ defmodule Oneiroi.HuginnMuninn do
     [
       {:huginn_muninn_nightly, cron: [{"0 5 * * *", Oneiroi.HuginnMuninn.NightlyWorker}]},
       # quietcheck hourly, a quarter past so the tick has marked the
-      # hour (sunna #20) before the pulse is read (huginn-muninn #20).
+      # hour (sunna#20) before the pulse is read (huginn-muninn#20).
       {:huginn_muninn_quiet, cron: [{"15 * * * *", Oneiroi.HuginnMuninn.QuietcheckWorker}]}
     ]
   end
@@ -195,7 +195,7 @@ defmodule Oneiroi.HuginnMuninn do
   @spec figures(String.t()) :: [map()]
   defexport(figures(resident_id), do: Figures.figures(resident_id))
 
-  @doc "One figure by key, or nil; the library's figures port, so `<slug>:figure/<key>` resolves here (seshat #14)."
+  @doc "One figure by key, or nil; the library's figures port, so `<slug>:figure/<key>` resolves here (seshat#14)."
   @spec figure(String.t(), String.t()) :: map() | nil
   @impl Oneiroi.Seshat.Figures
   defexport(figure(resident_id, key), do: Figures.figure(resident_id, key))

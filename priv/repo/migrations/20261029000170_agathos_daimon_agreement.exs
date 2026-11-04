@@ -25,7 +25,7 @@ defmodule Oneiroi.Repo.Migrations.AgathosDaimonAgreement do
       add(:custody_proposed_at, :utc_datetime_usec)
     end
 
-    # The sessions a resident keeps private under its contract (kumbukumbu #28).
+    # The sessions a resident keeps private under its contract (kumbukumbu#28).
     alter table(:kumbukumbu_session) do
       add(:private, :boolean, null: false, default: false)
     end

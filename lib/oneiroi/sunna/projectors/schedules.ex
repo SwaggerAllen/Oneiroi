@@ -69,7 +69,7 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
   end)
 
   # The settings row keeps the last run of any slot (what the schedule
-  # route has always said); each slot's run is its own row (sunna #22).
+  # route has always said); each slot's run is its own row (sunna#22).
   fold(%Events.FreeTimeRan{} = e, _metadata, fn multi ->
     multi
     |> settings(e.id,

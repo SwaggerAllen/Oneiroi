@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.Oracle do
   @moduledoc """
-  The oracle (brain #49; the resident's Positions #46 and #49, the
+  The oracle (brain#49; the resident's Positions #46 and #49, the
   witness's calls of 2026-11-03): an invocation of the resident asked
   one named question, for the long reads a turn cannot hold.
 
@@ -16,7 +16,7 @@ defmodule Oneiroi.Brain.Oracle do
   A run: the sources named at dispatch are read; what is too long for
   one turn is read in chunks first, each chunk by her prefix with the
   question, its notes kept; then her turn answers from the notes and
-  her memory. The answer is written under oracle/ (seshat #34) with
+  her memory. The answer is written under oracle/ (seshat#34) with
   the question, the sources, the confidence and who asked, and the
   asking conversation gets a house letter. "I could not determine
   this; here is what I would need" is an answer.
@@ -204,7 +204,7 @@ defmodule Oneiroi.Brain.Oracle do
     do:
       "(#{ref} could not be read: the oracle reads bookmark/<n>, transcript/<conversation>, a library path, repo:<path> and source:<path>)"
 
-  # What it read (brain #49): the sources named, and every memory its
+  # What it read (brain#49): the sources named, and every memory its
   # read tools touched, in the citation form retrieval counts them in.
   defp read(sources, steps, slug) do
     touched = Enum.flat_map(steps, &touched(&1, slug))

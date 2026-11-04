@@ -11,13 +11,13 @@ in the shell, under More, from `.../regression/tests` and
 starting a run on models named by their OpenRouter slugs, over every
 test or the ones chosen; the runs, newest first; a run's cards, grouped by trial (a test, or a
 habit or promise the run drew in) and arriving
-over its channel while it answers (eunomia #30), blind until every
+over its channel while it answers (eunomia#30), blind until every
 answer to a test is graded, graded pass or fail with buttons, favourited, a refusal
 in its words and a failure as no answer, and under each answer a
 collapsed "How Lily got there" (the resident's name) listing the
 trial's tool calls in order, each marked read or mocked, with its
 arguments and, behind a further fold, what came back, a cut result
-said to be cut (eunomia #31); the results by pass rate once
+said to be cut (eunomia#31); the results by pass rate once
 revealed, and the pin, which confirms in place as a question with both answers on it ("Chat on this model from the next message?", Yes, pin it / Cancel): the first version renamed the button to its confirmation, which read as done, and a witness took the pin for set twice with no request sent. A refused request shows
 the server's meaning, with its site and request id as a reference. Not
 built: the swipe (buttons grade), the by-test matrix and the by-model

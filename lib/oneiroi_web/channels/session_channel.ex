@@ -28,7 +28,7 @@ defmodule OneiroiWeb.SessionChannel do
   def handle_in("send", %{"text" => text} = params, socket) when is_binary(text) do
     %{resident_id: resident_id, session_key: key, principal: principal} = socket.assigns
     actor = Principal.actor(principal)
-    # Taken by the session's queue (brain #45), which runs the turn off
+    # Taken by the session's queue (brain#45), which runs the turn off
     # this process, so deltas push while it runs; the outcome arrives on
     # the topic like every other event of the turn.
     ref = params["client_ref"] || Oneiroi.Kumbukumbu.turn_ref()

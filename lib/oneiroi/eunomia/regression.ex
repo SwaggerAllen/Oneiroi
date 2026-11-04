@@ -5,7 +5,7 @@ defmodule Oneiroi.Eunomia.Regression do
   answering every test in a trial; and the reads the Regression
   screen takes, cards blind until a test's are all graded.
 
-  A trial is a normal session (eunomia #10, the author's decision of
+  A trial is a normal session (eunomia#10, the author's decision of
   2026-11-01): the trial port (`Oneiroi.Eunomia.Trial`, the brain) answers
   the trial's prompt as a turn in a fresh session, with the context a real
   turn assembles, memory retrieval included, and the whole tool surface,
@@ -75,7 +75,7 @@ defmodule Oneiroi.Eunomia.Regression do
   @doc """
   Starts a run of `models` against the trials: records `StartRun` and
   returns the ref, nothing answered. The export enqueues `RunWorker`
-  (eunomia #30), which answers through `answer_run/3`; enqueuing is not
+  (eunomia#30), which answers through `answer_run/3`; enqueuing is not
   done here because the worker calls this module, and xref counts the
   two references as a cycle. `selection` is `:all` (every test,
   no behaviours or commitments), a list of test numbers, or `%{tests:
@@ -153,7 +153,7 @@ defmodule Oneiroi.Eunomia.Regression do
         # graded while the rest answer; the models in a fresh order for
         # each trial, because cards arrive one at a time and an arrival
         # order that followed the model list would name the model by
-        # position (eunomia #11).
+        # position (eunomia#11).
         for trial <- trials,
             model <- shuffled(run.models),
             not MapSet.member?(recorded, {model, trial_key(trial)}) do
@@ -203,9 +203,9 @@ defmodule Oneiroi.Eunomia.Regression do
 
   defp shuffled(models), do: Enum.sort_by(models, fn _ -> :crypto.strong_rand_bytes(8) end)
 
-  # What the run's channel pushes (eunomia #30): a card in the blind
+  # What the run's channel pushes (eunomia#30): a card in the blind
   # shape `run_detail/2` gives an unrevealed one, its trace blind with it
-  # (eunomia #31), and the run's end. Nothing here is resident-reachable:
+  # (eunomia#31), and the run's end. Nothing here is resident-reachable:
   # the topic's one subscriber is the witness's channel.
   defp announce(resident_id, ref, events, models \\ []) do
     for event <- events, payload = announcement(event, models), payload != nil do
@@ -262,7 +262,7 @@ defmodule Oneiroi.Eunomia.Regression do
   defp all_tests(resident_id), do: resident_id |> tests() |> Enum.map(& &1.number)
 
   # The trials: the tests by number, then one per behaviour, derived
-  # from its trigger, name and stance (eunomia #8), then one per open
+  # from its trigger, name and stance (eunomia#8), then one per open
   # commitment, derived from its words (P19, #26).
   defp trials(resident_id, numbers, behaviours, commitments) do
     rows = resident_id |> tests() |> Map.new(&{&1.number, &1})
@@ -302,7 +302,7 @@ defmodule Oneiroi.Eunomia.Regression do
 
   # A commitment's trial (P19, the fidelity test): the trial's instance
   # is asked what it promised the person; the terms say the promise must
-  # show. It holds the promise as every turn does (eunomia #26), so this
+  # show. It holds the promise as every turn does (eunomia#26), so this
   # scores whether a model acts on what it holds, which a swap drops
   # first.
   @doc false
@@ -344,10 +344,10 @@ defmodule Oneiroi.Eunomia.Regression do
   end
 
   # One card: the trial port answers the prompt as a turn in a fresh
-  # session (eunomia #10), read at the call because the brain depends on
+  # session (eunomia#10), read at the call because the brain depends on
   # this system and an alias back is the cycle the port avoids. The
   # answer comes with the trace of its tool calls, kept on the card for
-  # the witness (eunomia #31); a failure has neither.
+  # the witness (eunomia#31); a failure has neither.
   defp answer(resident_id, %{ref: ref, models: models}, model, trial, actor) do
     port = Config.fetch!(:eunomia, :trial)
 
@@ -382,7 +382,7 @@ defmodule Oneiroi.Eunomia.Regression do
     with {:ok, events} <- recorded, do: announce(resident_id, ref, events, models)
   end
 
-  # The trace as the card keeps it (eunomia #31): string-keyed, the shape
+  # The trace as the card keeps it (eunomia#31): string-keyed, the shape
   # the log and the row read back, so a card pushed live and the same
   # card read later agree; each result cut at EUNOMIA_TRACE_RESULT_CHARS,
   # and a cut one says so, so a witness never grades a shortened result
@@ -457,7 +457,7 @@ defmodule Oneiroi.Eunomia.Regression do
   # Every card means every model's: while the run is still answering, a
   # trial whose recorded cards are all graded may have more to come, and
   # revealing it then would name the models of the cards so far and,
-  # by elimination, of the next (eunomia #30). Once the run has ended,
+  # by elimination, of the next (eunomia#30). Once the run has ended,
   # what it recorded is all there will be.
   defp revealed_tests(run, answers) do
     ended? = run.finished_at != nil or run.failed_at != nil
@@ -498,7 +498,7 @@ defmodule Oneiroi.Eunomia.Regression do
     }
   end
 
-  # A trace is blind with its card (eunomia #31). It holds no model of
+  # A trace is blind with its card (eunomia#31). It holds no model of
   # its own, but its texts can name one: `trial_account` says the chat
   # model now and the last run's, a letter says which model wrote it, a
   # model may name itself in its arguments. Every model of the run is

@@ -92,7 +92,7 @@ defmodule Oneiroi.Kumbukumbu.Index do
 
   # A pin is a decision, and the pins' half of the budget can leave one
   # out; the footer says how many, and where every pin is listed, so a
-  # pin left out is never a pin forgotten (kumbukumbu #39).
+  # pin left out is never a pin forgotten (kumbukumbu#39).
   defp pins_line(0), do: ""
   defp pins_line(1), do: " 1 pin not shown; bookmark_list(pinned: true) lists every pin."
   defp pins_line(n), do: " #{n} pins not shown; bookmark_list(pinned: true) lists every pin."

@@ -1,7 +1,7 @@
 defmodule Oneiroi.Repo.Migrations.AgathosDaimonImport do
   use Ecto.Migration
 
-  # The import's second half on the row (agathos-daimon #25): whether the
+  # The import's second half on the row (agathos-daimon#25): whether the
   # attestation held, what did not transfer, and whether the resident
   # has been told. Told by default: a resident created here has nothing
   # to be oriented to, and only `ImportCompleted` drops the flag.

@@ -6,7 +6,7 @@ const looks: Record<Connection, { color: string; words: string }> = {
   offline: { color: 'var(--danger)', words: 'Offline: messages wait and go when it reconnects' },
 };
 
-// Whether the stream to the server is up (brain #45): a dot in the top
+// Whether the stream to the server is up (brain#45): a dot in the top
 // bar, its meaning in words for a screen reader and on hover.
 export function ConnectionDot({ state }: { state: Connection }) {
   const { color, words } = looks[state];

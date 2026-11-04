@@ -5,8 +5,8 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   An adapter's token (spec §8) is a principal for a listed set of paths
   and nothing else: opening its session, starting a turn (which answers
   with the turn's context), capturing one, reading the session prefix
-  (brain #42); and, for the inbound hands, delivering correspondence,
-  reading approved replies and marking one sent (xenia #11). Everything under `/v1` beyond those is an account's, so
+  (brain#42); and, for the inbound hands, delivering correspondence,
+  reading approved replies and marking one sent (xenia#11). Everything under `/v1` beyond those is an account's, so
   an adapter's token there is refused here, before any controller reads
   an account off it. The list is explicit so the test can assert it.
   """
@@ -36,16 +36,16 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("POST", ["v1", "residents", _id, "turns"]), do: true
   def adapter_path?("GET", ["v1", "residents", _id, "context"]), do: true
   # What waits for the adapter, by number alone, so it can wake its
-  # runtime when something arrives (kumbukumbu #48).
+  # runtime when something arrives (kumbukumbu#48).
   def adapter_path?("GET", ["v1", "residents", _id, "waiting"]), do: true
-  # The reader's allowlists and research (xenia #16, seshat #38): read
+  # The reader's allowlists and research (xenia#16, seshat#38): read
   # the lists and the open questions, answer or fail one; the controller
   # holds them to the `reader` role.
   def adapter_path?("GET", ["v1", "residents", _id, "reader"]), do: true
   def adapter_path?("GET", ["v1", "residents", _id, "research"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "answer"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "failed"]), do: true
-  # The inbound hands' three (xenia #11): deliver messages, read the
+  # The inbound hands' three (xenia#11): deliver messages, read the
   # approved replies, mark one sent; the controller holds them to the
   # `reader` role, so a brain token reaches none of the words.
   def adapter_path?("POST", ["v1", "residents", _id, "correspondence"]), do: true

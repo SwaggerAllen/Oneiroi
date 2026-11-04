@@ -54,11 +54,11 @@ things today. They are the discussion's agenda more than the rest.
    a resident-authored kind must carry actor = resident" is true of
    bookmarks today and false of two kinds by design: seed files are the
    steward's before first contact (spec §6.2, origin on the event), and
-   journal entries are either party's (seshat #21). P1 needs the
+   journal entries are either party's (seshat#21). P1 needs the
    carve-out written: a seed is given with its origin, not spoken; a
    steward's journal entry is a steward's.
 4. **P2 against §13's settled solo-session default** (above). The
-   contract section itself is built (brain #24): injected on every turn,
+   contract section itself is built (brain#24): injected on every turn,
    never scored or budgeted, read fresh so a renegotiation lands on the
    next turn. It sits *after* the index in the assembly order; P2 moves
    it before, into the prefix, which is a reorder. "Limits" as a kind
@@ -168,7 +168,7 @@ made, P41.
   resident's own sequence (`<slug>:soul/<n>`), so it survives rebuild
   and a line's rewording keeps its id. Consequence to confirm during
   integration: the soul file becomes rows rendered to `SOUL.md`, the
-  journal's pattern (seshat #21, #22), because inline ids in a
+  journal's pattern (seshat#21, #22), because inline ids in a
   whole-content file do not survive a hand edit. A seed file written
   whole still works: the write path splits it into lines and mints ids,
   and the rendered file carries them.

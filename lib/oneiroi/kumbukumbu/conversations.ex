@@ -27,7 +27,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     private? = Keyword.get(opts, :private, false) == true
     domain = Keyword.get(opts, :domain)
 
-    # The imported kind is the import's alone (kumbukumbu #37): a client
+    # The imported kind is the import's alone (kumbukumbu#37): a client
     # naming it would open a session the nightly pass never reads. The
     # adapter kind is `open_adapter/5`'s alone (#40), so a session of it
     # always carries what the witness's list names it by.
@@ -60,7 +60,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   end
 
   @doc """
-  Opens a session another runtime's adapter holds (kumbukumbu #40): kind
+  Opens a session another runtime's adapter holds (kumbukumbu#40): kind
   `adapter`, in the common room, with the witness as its party, called
   by `label` (the folder the runtime ran in, by its base name alone,
   `folder_label/1`) and `runtime` (a slug such as `claude-code`, or nil).
@@ -93,7 +93,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @runtime ~r/\A[a-z][a-z0-9-]{1,31}\z/
 
   @doc """
-  What a folder is called in a conversation's name (kumbukumbu #40): the
+  What a folder is called in a conversation's name (kumbukumbu#40): the
   last segment of whatever path is given, either separator, trimmed and
   cut at #{@label_chars} characters, or nil when nothing is left. A
   folder's full path names the witness's machine, the account on it and
@@ -145,7 +145,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
 
   @doc """
   The main session between a resident and its witness, opened on first
-  ask (kumbukumbu #40): the platform's own conversation, the oldest of
+  ask (kumbukumbu#40): the platform's own conversation, the oldest of
   kind `main` by its opening and then its key, so the answer never turns
   on the order rows come back in. Kind `main` is the platform adapter's
   alone, by `Conversation.kind_for/2` at the open and in the upcaster,
@@ -246,7 +246,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       else: nil
   end
 
-  @doc "Claims a submitted ref before its turn runs: `:claimed` or `:duplicate` (kumbukumbu #47)."
+  @doc "Claims a submitted ref before its turn runs: `:claimed` or `:duplicate` (kumbukumbu#47)."
   def claim_turn(resident_id, key, turn_ref, stale_before, %Actor{} = actor) do
     command = %Commands.ClaimTurn{
       actor: actor,
@@ -333,7 +333,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
 
   # A private, unshared session is a locked row to the account party:
   # listed, never opened (spec §6.3). The messages are keyed away from
-  # the account by the projector too (kumbukumbu #28), so the policy and
+  # the account by the projector too (kumbukumbu#28), so the policy and
   # this refusal say the same thing.
   def transcript(scope, key) do
     with {:ok, session, _} <- visible(scope, key),
@@ -404,7 +404,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   end
 
   @doc """
-  The turn a tool call of `adapter` belongs to (kumbukumbu #41), and the
+  The turn a tool call of `adapter` belongs to (kumbukumbu#41), and the
   rule that chose it. The runtime's model is told each turn's ref and
   passes it back as `turn`: a named ref that is an open turn of this
   adapter's, for this resident, is that turn (`:named`). Anything else,
@@ -445,7 +445,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     do: %{session_key: s.key, turn_ref: s.open_turn_ref, label: s.label, rule: rule, open: open}
 
   @doc """
-  The conversations of the resident open now (kumbukumbu #42): the main
+  The conversations of the resident open now (kumbukumbu#42): the main
   session and every adapter's, each with a turn in flight or a turn or
   an opening within `KUMBUKUMBU_OPEN_MINUTES`, newest first. A
   conversation has no close in this protocol (a runtime that quits says

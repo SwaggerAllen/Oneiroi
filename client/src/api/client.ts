@@ -31,7 +31,7 @@ import type {
 
 // The one door to the server (spec §6.15): every screen's data comes
 // through here, with the session cookie and the browser's own Origin,
-// which is what the Origin check reads (gaia #5).
+// which is what the Origin check reads (gaia#5).
 export class RequestFailed extends Error {
   readonly status: number;
   readonly error: ApiError | null;
@@ -54,7 +54,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   const text = await response.text();
   // A proxy's error page (Render's 502 is HTML) is not JSON: it must still
   // arrive as a failed request with its status, never as a parse error
-  // that reads like a bug and loses the status (brain #45).
+  // that reads like a bug and loses the status (brain#45).
   let json: unknown = null;
   try {
     json = text ? (JSON.parse(text) as unknown) : null;
@@ -78,7 +78,7 @@ export const api = {
 
   mainSession: (residentId: string) =>
     call<{ key: string }>('POST', `/v1/residents/${residentId}/sessions`, { kind: 'main' }),
-  // Last spoken in first, each named by the server (kumbukumbu #40).
+  // Last spoken in first, each named by the server (kumbukumbu#40).
   sessions: (residentId: string) => call<Session[]>('GET', `/v1/residents/${residentId}/sessions`),
   transcript: (residentId: string, key: string) =>
     call<Transcript>('GET', `/v1/residents/${residentId}/sessions/${key}`),
@@ -92,7 +92,7 @@ export const api = {
     ),
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
-  // Taken at once under the client's ref (brain #45); the turn arrives on the channel.
+  // Taken at once under the client's ref (brain#45); the turn arrives on the channel.
   submit: (residentId: string, key: string, text: string, clientRef: string) =>
     call<{ turn_ref: string; state: 'running' | 'queued' | 'duplicate'; ahead?: number }>(
       'POST',

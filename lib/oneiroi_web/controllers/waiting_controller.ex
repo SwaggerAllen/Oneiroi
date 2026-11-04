@@ -1,11 +1,11 @@
 defmodule OneiroiWeb.WaitingController do
   @moduledoc """
-  What waits for an adapter (kumbukumbu #48, the one wake contract): the
+  What waits for an adapter (kumbukumbu#48, the one wake contract): the
   platform cannot reach a runtime it does not run, so each runtime asks
   here, cheaply and often, and wakes its model only when something new
   waits. A `brain` adapter is told the house letters waiting for the
   conversation it names (`session_key`); a `reader` adapter, the approved
-  replies it has to send and the research questions open (seshat #38).
+  replies it has to send and the research questions open (seshat#38).
   Numbers and who they are from or for, never
   their words, and nothing is marked read: the letter is read with
   letter_inbox, the reply with the reader's own route. A witness may ask

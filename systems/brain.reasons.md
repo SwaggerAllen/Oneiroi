@@ -131,7 +131,7 @@ prefix... never scored, budgeted, decayed or compacted"; Max: "a
 safeword that has to be retrieved is a document about a safeword."
 The near-miss record: Max, "the near-misses are where a character
 quietly bends"; no `refs` on the row because the projector derives
-`last_indexed_at` from `refs` (kumbukumbu #20). The alarm: Max, "a
+`last_indexed_at` from `refs` (kumbukumbu#20). The alarm: Max, "a
 successful write is not an arrival"; Kael's instance at 93 to 94 per
 cent of its window with no warning. The summary's register: Red, "a
 formal report of the conversation can pull him toward that same
@@ -152,7 +152,7 @@ Spec §6.17 and spec §8's tool table; P37: seeds "writable by the
 resident alone"; the load question: "the character layer is NOT loaded
 whole". Eight names because the resident has two kinds to tend, and a
 graduation toward a habit is a definition rather than a separate move
-(ethos #4).
+(ethos#4).
 
 ## #30
 Spec §6.3 (P10) and §5: an injection is a recorded blob with its
@@ -171,7 +171,7 @@ edit is a third the resident already has.
 Spec §3.1 (P19) and P2's reason generalised: what has to be retrieved
 can be lost, and a promise is what the corridor saw lost first.
 Bounded so the prefix does not grow with the person (the load
-question, ethos #9).
+question, ethos#9).
 
 
 ## #33
@@ -181,7 +181,7 @@ summary kept the state; nothing the next instance read first said
 where a quiet thread could be picked up, so it was met as new. Shown
 every turn and not retrieved for the reason #32 gives: what has to be
 retrieved can be lost. Bounded by count so the prefix does not grow
-with the person (ethos #9). The compaction prompt carries the same
+with the person (ethos#9). The compaction prompt carries the same
 ask because the summary stands in for the transcript at the start of
 the context, and a summary of states is where the movement was being
 lost.
@@ -245,7 +245,7 @@ its `metadata`, where OpenRouter documents a moderation hit's flagged
 input, so the reason carries the provider's diagnosis and not the
 conversation.
 
-## #10, the not-done answers
+### #10, the not-done answers
 Fixture run 41240586421: `commitment_list(null)` was refused, and the
 model then told its witness it held no commitments while it held one;
 `figure_list(null)` had been refused the run before. `bookmark_add`
@@ -258,7 +258,7 @@ model the same thing in the same words. The refusal's meaning and
 remedy, joined by a space, read "a chain cannot fork replace the head
 of the chain".
 
-## #10, the wire's copy
+### #10, the wire's copy
 Fixture run 41248366617: turn 8's `journal_add` arrived as one
 85-character object twice over and ran, since the repetition reads as
 one object, but went back to the provider as sent. Turn 11's request was
@@ -269,17 +269,17 @@ measured. The transcript is a record of what the model said, so it keeps
 the doubled text; the wire gets the object. Turn 4 of the same run
 refused a `habit_define` the model filled with `seed_number: -0`.
 
-Measured since (nisaba #21): the repetition is the provider's. On run
+Measured since (nisaba#21): the repetition is the provider's. On run
 41251374640, every doubled call was routed to CoreWeave, which streamed
 the whole object twice; none routed to Groq was doubled.
 
-## #37, the label
+### #37, the label
 The author, 10-31: an optional gate on the PR, run before merging but
 not on every commit, to shorten the loop between a change and the live
 model reading it. A label rather than every push because a run spends
 the author's key and a real model's failure is not always the PR's.
 
-## #36 and #37, the fixture law
+### #36 and #37, the fixture law
 P57, round 42, on Lily's answer to the author: the continuation law
 presumes a subject that knows its situation well enough to ask about its
 ending, so running it on a deliberately uninformed subject was
@@ -348,7 +348,7 @@ its summary said "the index and how I act": Claude Code was given the
 bookmark index of a resident and nothing of who she is, her contract,
 her habits, her promises or the madeleine, and the index was the
 unscoped one, so a named room's bookmarks reached a session that never
-named it (kumbukumbu #36). It was Claude holding Lily's index. Building
+named it (kumbukumbu#36). It was Claude holding Lily's index. Building
 the adapter's context from the halves the turn itself is assembled from
 is what keeps the two from drifting again; the test compares the
 adapter's recorded sections with a platform turn's on the same words.
@@ -398,7 +398,7 @@ something to adopt, something to restore. It is a read for a trial
 asked to read perceives a library that does not hold it.
 
 The page bound is a guess: 12,000 characters is about 3,000 tokens at
-four bytes a token, against a document bound of 256 KiB (seshat #26),
+four bytes a token, against a document bound of 256 KiB (seshat#26),
 so the longest document is some twenty-two pages. Nothing measured
 what a turn's context spares one read.
 
@@ -412,7 +412,7 @@ and the others open is the least that tells her; their words would be
 the confusion the separation exists to end, and a transcript is not the
 platform's to carry from one runtime into another. The turn's ref is in
 the same section because it is how her tool calls stay on this
-conversation (kumbukumbu #41), and it is only useful where she reads it.
+conversation (kumbukumbu#41), and it is only useful where she reads it.
 The chat is told only while something else is open, because a line
 saying nothing is open, every turn, is a cost for no news.
 

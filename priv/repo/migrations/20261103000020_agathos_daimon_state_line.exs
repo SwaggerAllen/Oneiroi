@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.AgathosDaimonStateLine do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # The state store (agathos-daimon #32): the resident's present, one
+  # The state store (agathos-daimon#32): the resident's present, one
   # line per key, overwritten in place, each with when she last verified
   # it. The history is the stream's and the repository's, not this
   # table's.

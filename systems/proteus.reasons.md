@@ -29,7 +29,7 @@ DDL the test has not read is a guess about the schema, which CLAUDE.md
 in the orchestration repository records failing once already.
 
 ## #11
-Conventions §10 and §12; sunna #11 for the roster read.
+Conventions §10 and §12; sunna#11 for the roster read.
 
 ## #12
 Spec §6.9: "one workspace per resident; peers witness-<id> and
@@ -39,7 +39,7 @@ rendered per resident."
 ## #13
 Spec §5: "capture at the end of the turn"; conventions §8: an external
 failure is retryable and never the turn's. The once-a-turn read before
-the send is the night's lesson (eunomia #18) arriving at a second port.
+the send is the night's lesson (eunomia#18) arriving at a second port.
 
 ## #14
 Spec §6.9: "the card comes from git, always: set after a soul commit,

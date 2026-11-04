@@ -160,7 +160,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
              Suite.execute(s, %{fail | run_ref: "nope"})
   end
 
-  # A card recorded before the trace (eunomia #31) is a version 2 line
+  # A card recorded before the trace (eunomia#31) is a version 2 line
   # with no `trace` key; read through the store's own serializer, it
   # comes back with none and the upcaster gives it the empty trace.
   test "an AnswerRecorded of version 2, read from the log, upcasts to an empty trace" do
@@ -210,7 +210,7 @@ defmodule Oneiroi.Eunomia.SuiteTest do
              Suite.execute(fold(%Suite{}, [write(), start()]), record("c1"))
   end
 
-  # The seal is held twice (eunomia #9): the export never reads the
+  # The seal is held twice (eunomia#9): the export never reads the
   # regression stream, and every event on it declares itself out as
   # well. Each alone held the other's probe, so each has its own test:
   # this one, and the export's own in `Oneiroi.SimaQian.WholeTest`.

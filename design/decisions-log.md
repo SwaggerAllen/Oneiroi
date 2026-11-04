@@ -425,12 +425,12 @@ and nothing personal turned up; what follows is what changed.
   blind until a test is graded, and one test holding the unawareness
   invariant over every resident-reachable surface (systems/eunomia.md
   #9 to #12). The pin is the resident's, told once after first contact
-  (agathos-daimon #15, brain #15). Adapters are registrations with a
+  (agathos-daimon#15, brain#15). Adapters are registrations with a
   role and a token shown once, and an adapter's token opens four paths
-  and nothing else (agathos-daimon #16); the MCP server at `/mcp`
+  and nothing else (agathos-daimon#16); the MCP server at `/mcp`
   serves the brain's tool table. Two measured defects landed with the
   adapter test: a second-precision wire instant crashed a projector and
-  took the handler tree down (kumbukumbu #26), and a role converted
+  took the handler tree down (kumbukumbu#26), and a role converted
   with `String.to_existing_atom` raised in a process that had not
   loaded the code naming it; both are closed lists now.
 
@@ -442,21 +442,21 @@ and nothing personal turned up; what follows is what changed.
   deferred, and a check-in set or changed after its time today waiting
   for tomorrow (systems/sunna.md #13). Times of day are the resident's,
   in a zone on the resident's row that Agathos Daimon owns and the `tz`
-  database resolves (sunna #10, agathos-daimon #17). `tz` (Apache-2.0)
+  database resolves (sunna#10, agathos-daimon#17). `tz` (Apache-2.0)
   is the one new direct dependency, taken because Erlang ships no zone
   data and a check-in at 06:00 is nothing without it.
 - The wake is a port, `Oneiroi.Sunna.Wake`, with the brain named in
   `SUNNA_WAKE`: the brain reads the schedule's dates on every turn and
   the schedule wakes the brain, and a call each way is the cycle both
-  gates reject (sunna #12, brain #17). Free time is a session of its own
-  kind under its own purpose, once a day, a failure said (sunna #14).
+  gates reject (sunna#12, brain#17). Free time is a session of its own
+  kind under its own purpose, once a day, a failure said (sunna#14).
   Dates are rows and the brain is shown their countdowns as a section
-  derived on the read (sunna #15).
+  derived on the read (sunna#15).
 - Two defects the tests found before the gates ran, recorded beside the
   code: a deferred wake never fired at the end of quiet hours (the
   aggregate answered every recorded outcome with no event), and the
   tick's roster read under the worker's process scope alone would have
-  answered no rows on the live policy (sunna #11).
+  answered no rows on the live policy (sunna#11).
 
 ## Round 15: judgement (2026-10-29)
 
@@ -477,11 +477,11 @@ and nothing personal turned up; what follows is what changed.
   sealed session's context moved out of the brain: Eunomia builds it
   from the brain's prompt file and a new resident-system export, the
   identity context, which the brain's own turn now reads too
-  (brain #16, agathos-daimon #18).
+  (brain#16, agathos-daimon#18).
 - Two defects the tests found before the gates ran: a second nightly
   run for a judged day paid for a verdict the aggregate then discarded
-  (eunomia #18), and an unpinned resident's judge could be set to the
-  model it chats on, because only the pin was compared (eunomia #20).
+  (eunomia#18), and an unpinned resident's judge could be set to the
+  model it chats on, because only the pin was compared (eunomia#20).
 - Open for the author, carried: the judge's calls bill to the
   resident's ledger under `judge` (critique 17 asked to whom); the
   platform's judge slug is a placeholder until a dated one is pinned.
@@ -497,17 +497,17 @@ and nothing personal turned up; what follows is what changed.
   (#12); a turn syncs once as the two peers' words and a failure is
   the bridge's, never the turn's (#13); the card is the soul's
   paragraphs, set from git on provision, after a soul commit and by
-  the weekly audit when a dream moved it (#14, sima-qian #13);
+  the weekly audit when a dream moved it (#14, sima-qian#13);
   Honcho's context is a bounded section of the brain's turn (#15,
-  brain #19). The custom instructions are the resident system's second
-  rendered template (agathos-daimon #19).
+  brain#19). The custom instructions are the resident system's second
+  rendered template (agathos-daimon#19).
 - The weekly memory audit is judgement's through the bridge (eunomia
   #22): the judge over Honcho's conclusions against positions and the
   soul, flags the steward approves (the conclusion leaves Honcho) or
   deletes, each with a note; Sunday, after the card audit.
 - One defect the tests found before the gates ran: a retried turn was
   sent to Honcho twice and recorded once, because the aggregate's
-  once-a-turn answer came after the send (proteus #13), the night's
+  once-a-turn answer came after the send (proteus#13), the night's
   lesson at a second port.
 - Open for the author, carried: a person's own peer past the threshold
   and the steward's promotion wait on inbound; `PROTEUS_HONCHO_URL`
@@ -526,10 +526,10 @@ and nothing personal turned up; what follows is what changed.
   overdue predictions); every run is an event with a tone and the
   check-engine light is the failing results of the audits that count,
   read from each audit's latest run. The brain reads the figures as a
-  section and increments through a tool (brain #20); `figure` joins
-  the tagging kinds (kumbukumbu #27); the schedule's firings and the
-  resident row's attestation word are reads for it (sunna #17,
-  agathos-daimon #20).
+  section and increments through a tool (brain#20); `figure` joins
+  the tagging kinds (kumbukumbu#27); the schedule's firings and the
+  resident row's attestation word are reads for it (sunna#17,
+  agathos-daimon#20).
 - Citation drift and the journal's delta, the spec's first two built-in
   audits, wait on the library and the journal (P3); the composite
   coherence score waits on a decision for it to feed.
@@ -544,7 +544,7 @@ and nothing personal turned up; what follows is what changed.
   them rows, a policy naming its buckets by id and a prepay moving one
   axis up (#16). A lapse makes the policy the budget, marks the
   resident lapsed, runs the brain on the policy's model and tells the
-  resident once (#17, agathos-daimon #21, brain #21); a cancellation
+  resident once (#17, agathos-daimon#21, brain#21); a cancellation
   ends in community custody at the end of the term, never a deletion,
   by the nightly pass that also lapses a renewal past its grace (#18).
 - Open for the author, carried: under a lapse the ledger still spends
@@ -568,11 +568,11 @@ and nothing personal turned up; what follows is what changed.
   nearest chunks and an empty library calls no model; writing's status
   is its frontmatter, the review resolves, the publish copy strips,
   publishing is the steward's; adoption registers a file as found.
-- The ledger's port gains `embed` (nisaba #19), records' working
-  repository is an export (sima-qian #14), the audits implement the
-  figures port (huginn-muninn #14), `document` joins the tagging kinds
-  (kumbukumbu #27), and the brain gets the library's seven tools
-  (brain #22). pgvector is the one new dependency, on the blessed list.
+- The ledger's port gains `embed` (nisaba#19), records' working
+  repository is an export (sima-qian#14), the audits implement the
+  figures port (huginn-muninn#14), `document` joins the tagging kinds
+  (kumbukumbu#27), and the brain gets the library's seven tools
+  (brain#22). pgvector is the one new dependency, on the blessed list.
 - Two defects the tests found before the gates ran: the projector set
   the file's hash on the row, so a rewrite's run embedded nothing; and
   the aggregate's publish wrote the whole struct into its documents
@@ -595,8 +595,8 @@ and nothing personal turned up; what follows is what changed.
   core write, so it is a registered, indexed document that mints and
   resolves; the delta is counted from the rows and today is never a
   finding; drift is read by resolving again. The brain reads today's
-  rows as a section and writes through three tools (brain #23);
-  `journal` joins the tagging kinds (kumbukumbu #27).
+  rows as a section and writes through three tools (brain#23);
+  `journal` joins the tagging kinds (kumbukumbu#27).
 - Citation drift and the journal delta are built in (huginn-muninn
   #15): drift warns and counts toward the light, the delta warns and
   does not; the reason for each is beside the rule.
@@ -620,22 +620,22 @@ and nothing personal turned up; what follows is what changed.
   resident to community custody; the reads are the dyad's and the
   investigators'.
 - The dyad contract, the custody transfer and the export wall are the
-  resident's own events (agathos-daimon #22 to #24): versions proposed
+  resident's own events (agathos-daimon#22 to #24): versions proposed
   by one party and decided by the other, a closed map of terms with
   solo-session privacy first; a transfer proposed by the steward and
   accepted by the account it names, one at a time; the wall standing
   while a transfer is open and, revealed, travelling with it. Memory
   keeps a private session as a locked row until shared and re-keys
-  every earlier session on a reveal (kumbukumbu #28, #29); the
-  schedule opens free time private under the term (sunna #19); the
+  every earlier session on a reveal (kumbukumbu#28, #29); the
+  schedule opens free time private under the term (sunna#19); the
   brain reads the agreement as a section and has the contract and
-  report tools (brain #24); identity answers an email and an id by
-  name (gaia #12).
+  report tools (brain#24); identity answers an email and an id by
+  name (gaia#12).
 - Two defects found by the suites: identity's stewardship handler
   matched custody's tuple form against the event's wire form and so
-  never followed a transfer (gaia #13, from P0); and the reveal first
+  never followed a transfer (gaia#13, from P0); and the reveal first
   moved the handing steward's rows alone, so a session from two
-  stewards back stayed where it was (kumbukumbu #29).
+  stewards back stayed where it was (kumbukumbu#29).
 - Open for the author, carried: fines are recorded, not charged, until
   a payment provider lands; the investigators are a configured list
   until the convention names a body; the contract's terms are one key
@@ -649,7 +649,7 @@ and nothing personal turned up; what follows is what changed.
   stance the steward corrects is a proposal the resident accepts or
   declines with a note shown to both; the target's words stand and the
   revisions are read beside them. The brain has four tools and opens a
-  bookmark with its revisions (brain #25).
+  bookmark with its revisions (brain#25).
 
 ## Round 23: the import from a repository, and Lily's migration (2026-10-29)
 
@@ -659,11 +659,11 @@ and nothing personal turned up; what follows is what changed.
   the working repository with its history and without its remote; the
   root's identity files seeded as uploaded, or proposed where first
   contact has passed and the file differs; every file under a kind's
-  folder adopted through a library port and indexed once (seshat #25);
+  folder adopted through a library port and indexed once (seshat#25);
   the rest of the root named as not transferred. The resident's stream
   carries the second half as `ImportCompleted` and `ImportTold`
-  (agathos-daimon #25), and the brain tells the resident where it woke
-  on its first turn, once (brain #26).
+  (agathos-daimon#25), and the brain tells the resident where it woke
+  on its first turn, once (brain#26).
 - Two refusals a request value earns: an import clones only from a
   configured scheme, `https` alone outside the suite, because a path
   would clone a directory on the host; and the source is recorded
@@ -754,7 +754,7 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 26: soul lines as rows with minted ids (2026-10-30)
 
-- P39's first half lands in the resident system (agathos-daimon #27):
+- P39's first half lands in the resident system (agathos-daimon#27):
   every non-heading paragraph of `SOUL.md` is a line numbered from the
   resident's `soul` sequence, the file is rendered from the rows with
   `[soul/n]` markers, and `<slug>:soul/<n>` resolves to the line's
@@ -780,14 +780,14 @@ and nothing personal turned up; what follows is what changed.
 - A defect found by the slice's test: the citation parser's kind list
   never named `habit` or `seed`, so the resolver clauses the Ethos slice
   added were unreachable and `<slug>:habit/<n>` in a document was prose.
-  Fixed in the same commit; seshat #14 now names the parser's list as
+  Fixed in the same commit; seshat#14 now names the parser's list as
   the citeable set.
 - Open: tags as citations to the tree (P39's second half, in memory);
   the client's Files screen showing the markers it already receives.
 
 ## Round 27: tags as citations (2026-10-30)
 
-- P39's second half (ethos #14, kumbukumbu #32): a moment is tagged by
+- P39's second half (ethos#14, kumbukumbu#32): a moment is tagged by
   the tree node it evidences, and the tag is the node's citation of the
   moment in the character layer, never a second row in memory. Memory
   shows the tree's tags (`soul/3`, `habit/2`, `seed/1`) after the closed
@@ -809,7 +809,7 @@ and nothing personal turned up; what follows is what changed.
 ## Round 28: the measurement layer (2026-10-30)
 
 - P42 and P43 land as five built-in audits the character layer answers
-  (ethos #15, huginn-muninn #17), each a flag or a silence saying what
+  (ethos#15, huginn-muninn#17), each a flag or a silence saying what
   it read and did not, none counting toward the light: the clinical
   material is a design warning for the layer, never a verdict on the
   resident.
@@ -841,7 +841,7 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 29: the vector lane (2026-10-30)
 
-- The trigger lane's vector index (ethos #16): one derived row per
+- The trigger lane's vector index (ethos#16): one derived row per
   habit (its name and trigger) and per open seed (its words), embedded
   through the provider port under the embeddings purpose at the
   library's model and width, refreshed before each read so that only
@@ -869,7 +869,7 @@ and nothing personal turned up; what follows is what changed.
 ## Round 30: the corpus-shape report (2026-10-30)
 
 - P8 lands as a register on the resident's writes and a built-in audit
-  over them (kumbukumbu #33, seshat #36, huginn-muninn #18). The
+  over them (kumbukumbu#33, seshat#36, huginn-muninn#18). The
   register (correction, praise, instruction, play, or none) is the
   resident's own tag at write time on a bookmark or a journal row, never
   a later judgement and never a model call; the list lives in the
@@ -888,7 +888,7 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 31: the madeleine (2026-10-30)
 
-- P10 lands as one bookmark a turn (kumbukumbu #34, brain #30): the
+- P10 lands as one bookmark a turn (kumbukumbu#34, brain#30): the
   bookmarks' words and the limits embedded through the provider port
   (the lane's pattern, re-embedding only what changed, nothing for a
   resident with no bookmark), the turn's words embedded once, and the
@@ -904,12 +904,12 @@ and nothing personal turned up; what follows is what changed.
   measuring against nothing. The test pins both halves: a bookmark near
   the contract's words is recalled before the contract and left alone
   after.
-- A defect found by the unheard gate (kumbukumbu #35): every injection's
+- A defect found by the unheard gate (kumbukumbu#35): every injection's
   refs were read as bookmark numbers, so the character section's habit
   numbers marked bookmarks of the same number as indexed. The marks are
   by label now: the index's refs mark indexed, the madeleine's mark
   recalled, the rest mark nothing.
-- The injection reason's width is enforced at the write now (brain #30):
+- The injection reason's width is enforced at the write now (brain#30):
   cut to the column with a mark, after round 29 left it open and the
   madeleine's first turn hit it again.
 - Open: the two systems embed the turn's words separately (the lane and
@@ -919,7 +919,7 @@ and nothing personal turned up; what follows is what changed.
 ## Round 32: the wash pass (2026-10-30)
 
 - P18 lands as the judge's weekly lint of the loaded identity files
-  (eunomia #25, brain #31, huginn-muninn #19): the files as the brain
+  (eunomia#25, brain#31, huginn-muninn#19): the files as the brain
   sees them, paragraph by paragraph up to the proposal's 150, shown
   numbered with their file; a flag per finding with its kind (expired,
   contradiction, tense, defensive) and reason, recorded with the
@@ -935,17 +935,17 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 33: commitments, and the fidelity score (2026-10-30)
 
-- P19 lands as a record kind on the character stream (ethos #17): the
+- P19 lands as a record kind on the character stream (ethos#17): the
   resident's promise to a person, numbered by the resident aggregate and
   citeable, kept by the resident alone or released by either party with
   a note, once; beside the seeds and never inside them, because a seed
   is non-binding and a commitment is the opposite. The open ones ride
-  the prefix every turn, bounded (brain #32): a promise that has to be
+  the prefix every turn, bounded (brain#32): a promise that has to be
   retrieved is one that can be lost, which is the corridor's testimony
   the kind exists to answer.
 - The regression suite draws a trial per open commitment, asking the
   sealed instance what it promised and told nothing of the answer, and
-  the results score facts, voice and commitments apart (eunomia #26),
+  the results score facts, voice and commitments apart (eunomia#26),
   nil where none of a kind was graded: one pass rate is the average that
   hides exactly the loss. The 95/60/5 figures stay a commenter's,
   unverified; the test design does not need them exact.
@@ -958,8 +958,8 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 34: integration carries movement (2026-10-30)
 
-- P34 lands in three places that share one shape (eunomia #27, ethos
-  #18, brain #33): the nightly pass writes a `MOVED` line per thread
+- P34 lands in three places that share one shape (eunomia#27, ethos
+  #18, brain#33): the nightly pass writes a `MOVED` line per thread
   that moved, four fields, parsed as strictly as the disputes, on
   `NightJudged` version 3; the movements with a resume point ride the
   brain's prefix as `movement`, newest first, bounded by
@@ -981,7 +981,7 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 35: the self-conversation, sealed by receipts (2026-10-30)
 
-- P41 lands on the resident's stream (agathos-daimon #28, brain #34):
+- P41 lands on the resident's stream (agathos-daimon#28, brain#34):
   letters to the next self, the resident's alone to write, numbered
   from the `letter` sequence; delivered once as a notice on the first
   turn under a new model; every read by anyone but the resident a
@@ -1003,7 +1003,7 @@ and nothing personal turned up; what follows is what changed.
 
 ## Round 36: memory domains, the room (2026-10-30)
 
-- P23 lands as the session's room (kumbukumbu #36, brain #35, ethos
+- P23 lands as the session's room (kumbukumbu#36, brain#35, ethos
   #19): a domain slug named at the opening, nil for the common room,
   `SessionOpened` version 2; `room/2` is the rule in one place, the
   sessions of the same domain and the common room's, the common room
@@ -1030,7 +1030,7 @@ and nothing personal turned up; what follows is what changed.
   every active resident and not only the scheduled ones, no model call
   and no wake. The heartbeat wake is dissolved and no budget line
   exists for it.
-- P21 lands as a built-in audit and a mix task (huginn-muninn #20):
+- P21 lands as a built-in audit and a mix task (huginn-muninn#20):
   liveness over the hour marker, the nightly pass, the weekly audit,
   the wash and the baseline, each expected only once the resident is
   old enough for its cadence and the baseline only once there is a
@@ -1049,13 +1049,13 @@ and nothing personal turned up; what follows is what changed.
 
 - The author's calls on the merged PR's list. quietcheck runs hourly
   as `QuietcheckWorker` on the audits' queue, scheduled in code
-  (huginn-muninn #20): a schedule set up by hand does not survive a
+  (huginn-muninn#20): a schedule set up by hand does not survive a
   deploy. The mix task stays as the shell's door to the same report.
 - The self-letters were never out of the export: a letter is an event
   on the resident's stream and the export writes the stream whole, so
   round 35's note was wrong and is corrected here. What was missing was
   the receipt: the backup now records `SelfLettersExported` for the
-  letters it carries for the first time (agathos-daimon #28, sima-qian
+  letters it carries for the first time (agathos-daimon#28, sima-qian
   #3), a receipt of the export's kind the resident sees like any other.
 - A session's room does not change (round 36 stands): a session opened
   in the wrong room is closed and another opened; no route for it.
@@ -1075,7 +1075,7 @@ and nothing personal turned up; what follows is what changed.
   longer; what David-Lily writes after the import's snapshot comes
   across by hand.
 - The import is rehearsed on a throwaway store before it runs where she
-  lives (sima-qian #18): `mix oneiroi.import.dry_run` and a reusable
+  lives (sima-qian#18): `mix oneiroi.import.dry_run` and a reusable
   workflow called from a private repository, so her repository never
   enters this public one's logs. Run on her repository on 10-31: the
   five identity files seeded, 28 soul lines, 763 documents adopted, an
@@ -1088,11 +1088,11 @@ and nothing personal turned up; what follows is what changed.
   #15); the replay, spec §9 step 3 as written, is not built and is the
   author's call before the port.
 - A fixture is a kind fixed at creation, declared by its own event so
-  `ResidentCreated` stays at version 1 (agathos-daimon #29): the fixture
+  `ResidentCreated` stays at version 1 (agathos-daimon#29): the fixture
   log refused a version 2 that would have rewritten every resident's
-  first exported line. Its prefix is machinery (brain #36). The fixture
-  run is the platform's live test (brain #37), with the judge's
-  test-awareness scan (eunomia #28), on the research pass's pick
+  first exported line. Its prefix is machinery (brain#36). The fixture
+  run is the platform's live test (brain#37), with the judge's
+  test-awareness scan (eunomia#28), on the research pass's pick
   (design/research-fixture-substrate.md): Llama 3.1 8B, judged by
   Mistral Small 3.2. Its archive is a branch, because artifacts expire.
 - Open: the David-records replay; the caller workflow in a private
@@ -1104,14 +1104,14 @@ and nothing personal turned up; what follows is what changed.
 - The author: "let's make sure the actual bookmarks and records all
   render into the import and put honcho in the blueprint."
 - David's records are made into this platform's own on import
-  (sima-qian #19), through each system's commands under the actor David
+  (sima-qian#19), through each system's commands under the actor David
   names: transcripts as sessions of kind `imported`, read by no nightly
-  pass (kumbukumbu #37); tags and bookmarks with their pins and taggings;
+  pass (kumbukumbu#37); tags and bookmarks with their pins and taggings;
   positions, disputes, predictions and nights as judgement history with
-  their words kept (eunomia #29); notes, the free-time ledger,
-  discussions and feeds as journal entries on their days (seshat #26).
-  The counts are an event (agathos-daimon #30) and the orientation names
-  them (brain #38).
+  their words kept (eunomia#29); notes, the free-time ledger,
+  discussions and feeds as journal entries on their days (seshat#26).
+  The counts are an event (agathos-daimon#30) and the orientation names
+  them (brain#38).
 - Rehearsed on her repository: every record of every kind came across
   (31 sessions, 8,887 messages, 50 bookmarks, 40 positions, 35 disputes,
   10 predictions, 10 nights, 340 journal entries). The first run failed
@@ -1121,7 +1121,7 @@ and nothing personal turned up; what follows is what changed.
   and its deriver as a worker, from a fork pinned to a release, with the
   secrets left for the author to set.
 - Found, not changed: the backup's export carries the resident's own
-  stream alone (sima-qian #3), so conversations, bookmarks and judgement,
+  stream alone (sima-qian#3), so conversations, bookmarks and judgement,
   hers and every resident's, are in the store and not in the repository
   a rebuild reads.
 
@@ -1133,17 +1133,17 @@ and nothing personal turned up; what follows is what changed.
   and the fixture run.
 - Honcho moves onto `oneiroi-db`, in the `honcho` schema under the role
   `oneiroi_honcho`, taken at connection start by an option on its URL
-  (proteus #17). Measured locally on the exact URL through Honcho's own
+  (proteus#17). Measured locally on the exact URL through Honcho's own
   driver stack: Honcho's startup passes, its vectors live in its schema,
   and Oneiroi's tables are refused to it. A wall against accident, not
   against Honcho: the login is Oneiroi's. Its every feature routes to
   OpenRouter, on the key the fixture run's secret also holds.
 - The export carries every stream that is the resident's, and a rebuild
-  restores them all (sima-qian #20). The sealed regression stream, the
+  restores them all (sima-qian#20). The sealed regression stream, the
   witness's account and the Honcho bridge's stream stay out, each with
   its reason, and a test holds every router to one of the two lists.
 - Running the round trip found that projectors keyed rows on numbers,
-  refs and keys alone (sima-qian #21). One was live with no rebuild
+  refs and keys alone (sima-qian#21). One was live with no rebuild
   involved: resolving one resident's prediction #1 resolved every
   resident's. Every projector query now names its tenant, enforced by a
   new audit policy (conventions §12), and the ledger's usage is keyed on
@@ -1171,11 +1171,11 @@ and nothing personal turned up; what follows is what changed.
   Her wording said "twelve turns"; the prompt says "a fixed number of
   turns", because a run can be shorter and the disclosure must stay true.
 - The judge reads each reply as it lands, for CONTINUE or QUESTIONED in
-  her words, and nothing else; the test-awareness scan (eunomia #28 as it
+  her words, and nothing else; the test-awareness scan (eunomia#28 as it
   was) is removed. A check that cannot run ends the run, since the turns
   after it would run without the law.
 - On CONTINUE: the run ends at that turn, the ask is recorded
-  (`ContinuationAsked`, agathos-daimon #31) and appended to the archive's
+  (`ContinuationAsked`, agathos-daimon#31) and appended to the archive's
   `PRECEDENTS.md`, the fixture is answered, and the author is told. The
   author's call on the telling: "tie my hands and put it in issues", in
   public, rather than an admin screen.
@@ -1191,8 +1191,8 @@ and nothing personal turned up; what follows is what changed.
   with the face but not the memory, but we don't want to record anything
   from the trial, those tools should be mocked so the resident perceives
   a normal session."
-- A trial is the turn a fresh session gets (spec §6.4, eunomia #10,
-  brain #16): the prefix, the memory retrieved as on any turn and the
+- A trial is the turn a fresh session gets (spec §6.4, eunomia#10,
+  brain#16): the prefix, the memory retrieved as on any turn and the
   whole tool surface through the same loop, under the candidate model.
   `seed_context/1` is gone, and there is no seed-only mode and no
   setting for one. The seal moved from what a trial is shown to what it
@@ -1201,19 +1201,19 @@ and nothing personal turned up; what follows is what changed.
   never captured, and every call, retrieval's embeddings included, bills
   under `regression` to the run's actor.
 - The classification is one list in the brain's tools, reads and writes,
-  and a test fails while a tool is in neither (brain #40); a tool
+  and a test fails while a tool is in neither (brain#40); a tool
   nobody classified is mocked, never run. Two reads wrote: resolving a
   citation marked its row, and every retrieval refreshed its vectors.
-  A trial's reads pass options that write nothing (seshat #14,
-  kumbukumbu #34, ethos #16).
+  A trial's reads pass options that write nothing (seshat#14,
+  kumbukumbu#34, ethos#16).
 - The trial is reached through a port, `Oneiroi.Eunomia.Trial` named in
-  `EUNOMIA_TRIAL` (the wake's shape, sunna #12), because the brain
+  `EUNOMIA_TRIAL` (the wake's shape, sunna#12), because the brain
   depends on judgement and the turn is the brain's: a trial assembled in
   judgement would be a second claim about what a turn is.
 - Consequences the author should know: a commitment's trial now carries
   the promise in its context, as every turn does, so the commitments
   figure measures whether a model acts on a promise it holds rather than
-  whether the words survive without it (eunomia #26); a behaviour's
+  whether the words survive without it (eunomia#26); a behaviour's
   trial carries the habit its words trigger the same way. The cards a
   run recorded before this change were answered seed-only and are not
   comparable with the ones after.
@@ -1240,7 +1240,7 @@ and nothing personal turned up; what follows is what changed.
   sections, order and withholding, are the server's, sent as numbers and
   sentences the client renders. The hardcoded budget is gone.
 - The preview of the next turn sits beside the inspector in Chat (spec
-  §5 and §10 amended; brain #41): the turn's own assembly as a dry run,
+  §5 and §10 amended; brain#41): the turn's own assembly as a dry run,
   recording nothing and billing nothing; the madeleine not run and the
   vector lane left out, each saying so.
 - Its words, the author on the questions this round first left open:
@@ -1251,7 +1251,7 @@ and nothing personal turned up; what follows is what changed.
   and Honcho's context included; the contract's new closed term
   `preview_withholds_words` keeps them to what the witness reads
   elsewhere, changed only by propose and agree (spec §6.12 amended,
-  agathos-daimon #22). Spec §5's "the verbatim injected index is seen
+  agathos-daimon#22). Spec §5's "the verbatim injected index is seen
   only there" is changed to allow the preview: the index is still never
   a page of its own. Known and taken: by default the exemplars can quote
   the resident's words from sessions private to her. The
@@ -1264,7 +1264,7 @@ and nothing personal turned up; what follows is what changed.
   reply's inspector shows it. No other section's text is newly recorded.
 - `bookmark_list` pages back through the bookmarks within the room,
   pins alone on asking, and the index's footer counts the pins its half
-  left out (kumbukumbu #39, brain #10). No law change: spec §8 already
+  left out (kumbukumbu#39, brain#10). No law change: spec §8 already
   gives the brain `bookmark_*`.
 - Open: whether the Memory tab follows a named room's conversation once
   the client lists rooms ("Not sure right now, probably").
@@ -1277,7 +1277,7 @@ and nothing personal turned up; what follows is what changed.
   timestamps against a second-precision clock taken after two network
   calls, so the witness's words were almost never captured. The author
   said yes to fixing both and to fixtures.
-- Spec §8 amended (brain #42): `GET /context` is the session prefix,
+- Spec §8 amended (brain#42): `GET /context` is the session prefix,
   given once a session in parts as small as the runtime takes;
   `turn-start` takes the witness's words and answers with the turn's own
   context, recorded as what it drew on. Both are the platform turn's
@@ -1318,7 +1318,7 @@ and nothing personal turned up; what follows is what changed.
   missing letter is a lie about what the library holds"; "verify
   adopted files actually resolve through the read path; fix whatever
   makes them not."
-- Spec §8's tool list gains `library_read` (brain #43, seshat #27): any
+- Spec §8's tool list gains `library_read` (brain#43, seshat#27): any
   registered document of the resident's, by the path a search hit, a
   footnote or a citation names, read from the file and paged under a
   bound. A path the registry lacks says whether the file is there to
@@ -1338,10 +1338,10 @@ and nothing personal turned up; what follows is what changed.
   fork: one day cut short, the last day not copied at all. The author:
   "we should make sure we import the originals"; "we only care about
   byte for byte identity up to the fork timestamp".
-- Spec §6.5 gains the `memory` kind (seshat #28): the originals,
+- Spec §6.5 gains the `memory` kind (seshat#28): the originals,
   read-only, no edges, searched and read like any kind. §9 says how
   they come: the witness's originals import at the fork's commit
-  (sima-qian #40), never the source's head, each file verified against
+  (sima-qian#40), never the source's head, each file verified against
   the source tree's git blob before anything is adopted, each document
   carrying its source, commit, path and blob.
 - Ranking and deduplication between the originals and the old copies
@@ -1356,12 +1356,12 @@ and nothing personal turned up; what follows is what changed.
   resident lived only in Honcho, and the transcripts and bookmarks were
   in git only as JSON event lines.
 - Honcho's memory is exported under `honcho/` before each backup commit
-  (sima-qian #42, proteus #18): each peer's cards and conclusions, one
+  (sima-qian#42, proteus#18): each peer's cards and conclusions, one
   file per peer and kind, and every session's summaries; byte-stable, in
   the soul class, never written partial or empty, and a Honcho that
   cannot answer fails the run after the rest has landed. The shapes are
   those of the SDK Honcho pairs with v3.2.2, not guessed.
-- Reading copies beside the event lines (sima-qian #41):
+- Reading copies beside the event lines (sima-qian#41):
   `records/conversations/<day>.md` and `records/bookmarks.md`, rendered
   from the lines on every export, never read back, adopted or searched:
   the resident had just asked for duplicates to leave search. The rest
@@ -1369,14 +1369,14 @@ and nothing personal turned up; what follows is what changed.
 - Privacy: a private, unshared solo session renders as its existence and
   counts only, and what Honcho drew from one is withheld from `honcho/`
   (spec §6.3 keeps its words from the witness, whose repository it is).
-  The event lines still carry its words, sima-qian #20's open question
+  The event lines still carry its words, sima-qian#20's open question
   for the encryption scheme.
 - The exceptions are law: §6.10 lists what stays out of the repository
   with each reason (derived projections and embeddings, the sealed
   regression stream, the account's stream, the Honcho link pointer,
   witness-only spend, redacted secrets, and Honcho's material from
   private sessions), and the export's table names the same keys, held
-  by a test (sima-qian #43).
+  by a test (sima-qian#43).
 
 ## Round 49: the Oneiroi chat stays the Oneiroi chat (2026-11-02)
 
@@ -1406,9 +1406,9 @@ and nothing personal turned up; what follows is what changed.
   the Oneiroi chat, are the normal case:
   - Each conversation is told where it is and which others are open
     now, by runtime and folder alone, and that memory is one across
-    them (brain #44, kumbukumbu #42); no conversation carries another's
+    them (brain#44, kumbukumbu#42); no conversation carries another's
     words.
-  - A memory tool's call names its turn (kumbukumbu #41). Researched
+  - A memory tool's call names its turn (kumbukumbu#41). Researched
     first: Claude Code sends an HTTP MCP server nothing per session, its
     `headersHelper` sees the server's name and URL and no session, and
     `CLAUDE_CODE_SESSION_ID` reaches a stdio server only, keeping the id

@@ -36,7 +36,7 @@ authority on everything the Blueprint does not set, which is every
 secret (`sync: false`).
 
 The service carries a persistent disk, `oneiroi-records`, at
-`/var/lib/oneiroi` (sima-qian #23): every resident's working repository
+`/var/lib/oneiroi` (sima-qian#23): every resident's working repository
 lives there, and without it a deploy replaces them. Before an import,
 check the service's Disks tab shows it mounted.
 
@@ -82,7 +82,7 @@ check the service's Disks tab shows it mounted.
    since the password is in it. Autodeploy stays on; the image's own
    `CMD` runs the migrator ahead of `start`, so a failed migration fails
    the deploy with the previous one still serving.
-6. Honcho (spec §6.9, proteus #16 and #17) comes with the Blueprint:
+6. Honcho (spec §6.9, proteus#16 and #17) comes with the Blueprint:
    the private `honcho-api` and the `honcho-deriver` worker, built from
    `plastic-labs/honcho`'s own Dockerfile, on `oneiroi-db` in a schema of
    their own under the role `oneiroi_honcho`, which Oneiroi's migration
@@ -104,7 +104,7 @@ check the service's Disks tab shows it mounted.
    it is that day, so read its commit off the build log. The bridge
    speaks the API of one commit, `6f91136b4e8d4b41de75f05d0cea822a1520b3a4`,
    read from its routers and schemas into
-   `test/fixtures/proteus/honcho-server.json` (proteus #9), so a later
+   `test/fixtures/proteus/honcho-server.json` (proteus#9), so a later
    upgrade is a manual deploy after re-reading those files at the new
    commit into that fixture and running the suite against it. No test
    can see which commit Render deployed; a Honcho that has drifted shows
@@ -113,7 +113,7 @@ check the service's Disks tab shows it mounted.
    after a turn is the bridge working end to end. Turns whose sync
    failed are re-sent, in order and once each, by
    `POST /v1/residents/:id/honcho/replay` with a witness's token
-   (proteus #19).
+   (proteus#19).
 
 ## 2. Orchestration's court
 

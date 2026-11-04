@@ -2,10 +2,10 @@ defmodule Oneiroi.Eunomia.AuditWorker do
   @moduledoc """
   The weekly memory audit (spec §6.4, F15), after the card audit, for
   every active resident with a workspace. A cross-tenant job under the
-  platform scope, named here (eunomia #19); the roster is the resident
+  platform scope, named here (eunomia#19); the roster is the resident
   system's platform-scoped export.
   """
-  # One attempt (eunomia #30): the pass calls the judge for every
+  # One attempt (eunomia#30): the pass calls the judge for every
   # resident and keeps no once-a-week mark, so a retry, after a crash or
   # after Lifeline rescues an orphan, would judge the residents already
   # done again, on their witnesses' keys, and raise their flags twice.

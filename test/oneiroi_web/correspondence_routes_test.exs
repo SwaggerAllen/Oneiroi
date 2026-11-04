@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.CorrespondenceRoutesTest do
-  @moduledoc "Correspondence over HTTP (xenia #11): the reader's token delivers, reads approved replies and marks one sent, and nothing more; a brain token reaches none of it; the witness reads, blocks and decides replies; a stranger nothing."
+  @moduledoc "Correspondence over HTTP (xenia#11): the reader's token delivers, reads approved replies and marks one sent, and nothing more; a brain token reaches none of it; the witness reads, blocks and decides replies; a stranger nothing."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -119,7 +119,7 @@ defmodule OneiroiWeb.CorrespondenceRoutesTest do
              |> get("/v1/residents/#{id}/replies?state=declined")
              |> json_response(200)
 
-    # What waits for the reader (kumbukumbu #48): the approved reply to
+    # What waits for the reader (kumbukumbu#48): the approved reply to
     # send, by number and platform, and no letters, which are a brain's.
     assert %{"replies" => [%{"number" => 1, "platform" => platform}], "letters" => []} =
              ctx.reader

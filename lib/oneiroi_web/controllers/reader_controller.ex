@@ -1,6 +1,6 @@
 defmodule OneiroiWeb.ReaderController do
   @moduledoc """
-  The reader's allowlists (xenia #16) and research (seshat #38). The
+  The reader's allowlists (xenia#16) and research (seshat#38). The
   witness reads and sets the two allowlists, asks research and reads it;
   the `reader` adapter reads the allowlists, the open questions, and
   answers or fails one. A `brain` token is refused: the resident asks

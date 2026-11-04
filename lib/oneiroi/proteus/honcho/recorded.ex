@@ -1,7 +1,7 @@
 defmodule Oneiroi.Proteus.Honcho.Recorded do
   @moduledoc """
   The deployed Honcho as recorded from its source at the pinned commit
-  (`test/fixtures/proteus/honcho-server.json`, proteus #9): which routes
+  (`test/fixtures/proteus/honcho-server.json`, proteus#9): which routes
   it has, which query each takes, which body fields each model declares
   under which name, which are required, and the keys each answer
   carries. The fakes ask it before they answer: `refusal/1` for a

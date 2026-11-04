@@ -32,7 +32,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Sunna,
       Oneiroi.Xenia,
       Jason,
-      # The oracle's worker (brain #49), as every system with a worker has.
+      # The oracle's worker (brain#49), as every system with a worker has.
       Oban
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
@@ -70,13 +70,13 @@ defmodule Oneiroi.Brain do
        default: "24",
        tag: :bound,
        usage:
-         "how many rounds of tool calls the oracle may make before it is asked for its answer from what it has read (brain #50); three times a turn's, since the oracle exists for the long reads, and a guess"},
+         "how many rounds of tool calls the oracle may make before it is asked for its answer from what it has read (brain#50); three times a turn's, since the oracle exists for the long reads, and a guess"},
       {:tool_rounds, "BRAIN_TOOL_ROUNDS",
        cast: :integer,
        default: "8",
        tag: :bound,
        usage:
-         "how many rounds of tool calls one turn may make before the model's last words stand as the reply, or, when it wrote none, it is asked once more with no tool callable (brain #50); a bound against a model that loops"},
+         "how many rounds of tool calls one turn may make before the model's last words stand as the reply, or, when it wrote none, it is asked once more with no tool callable (brain#50); a bound against a model that loops"},
       {:context_tokens, "BRAIN_CONTEXT_TOKENS",
        cast: :integer,
        default: "128000",
@@ -94,7 +94,7 @@ defmodule Oneiroi.Brain do
        default: "12000",
        tag: :bound,
        usage:
-         "how many characters of a document one library_read answers before it says where the next page starts (brain #43): about 3,000 tokens at four bytes a token, a guess at what one read may take of a turn's context, not measured"},
+         "how many characters of a document one library_read answers before it says where the next page starts (brain#43): about 3,000 tokens at four bytes a token, a guess at what one read may take of a turn's context, not measured"},
       {:tool_result_chars, "BRAIN_TOOL_RESULT_CHARS",
        cast: :integer,
        default: "16000",
@@ -112,7 +112,7 @@ defmodule Oneiroi.Brain do
        default: "5",
        tag: :bound,
        usage:
-         "how many questions one oracle dispatch may carry (brain #49), each its own parallel read; a guess at a batch worth its spend"},
+         "how many questions one oracle dispatch may carry (brain#49), each its own parallel read; a guess at a batch worth its spend"},
       {:oracle_chunk_chars, "BRAIN_ORACLE_CHUNK_CHARS",
        cast: :integer,
        default: "40000",
@@ -128,7 +128,7 @@ defmodule Oneiroi.Brain do
       {:source_dir, "BRAIN_SOURCE_DIR",
        default: ".",
        usage:
-         "where the platform's own source is, for the resident to read the code running her (brain #46): the image copies it to /app/source and sets this; a checkout's root otherwise"},
+         "where the platform's own source is, for the resident to read the code running her (brain#46): the image copies it to /app/source and sets this; a checkout's root otherwise"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",
@@ -142,7 +142,7 @@ defmodule Oneiroi.Brain do
   def errors do
     [
       {:brain_turn_failed,
-       "the turn did not complete: the witness's words were kept and no reply was captured (brain #45)",
+       "the turn did not complete: the witness's words were kept and no reply was captured (brain#45)",
        remedy:
          "the provider failure is recorded as a capture failure on the session; send the message again"},
       {:brain_turn_crashed, "the turn's process stopped before it answered",
@@ -164,7 +164,7 @@ defmodule Oneiroi.Brain do
        remedy: "name the file from the root, as the listing shows it"},
       {:brain_path_absent, "nothing is at that path", remedy: "list the folder first"},
       {:brain_path_sealed,
-       "the file is sealed: the judge's prompts are witness-only, by an explicit list (brain #46)",
+       "the file is sealed: the judge's prompts are witness-only, by an explicit list (brain#46)",
        remedy: "ask the witness; the list itself is in the spec and open to argument"},
       {:brain_path_binary, "the file is not text", remedy: "read a text file"},
       {:brain_session_unavailable, "the session's process could not be started",
@@ -176,7 +176,7 @@ defmodule Oneiroi.Brain do
   def processes,
     do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
 
-  # The oracle's reads (brain #49): on demand, no cron.
+  # The oracle's reads (brain#49): on demand, no cron.
   @impl Oneiroi.Component
   def oban_queues, do: [{:brain_oracle, []}]
 
@@ -188,14 +188,14 @@ defmodule Oneiroi.Brain do
     [
       {Registry, keys: :unique, name: :brain_registry},
       {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
-      # The turns a session runs off its own process (brain #45).
+      # The turns a session runs off its own process (brain#45).
       {Task.Supervisor, name: :brain_turns}
     ]
   end
 
   @doc """
   Takes the witness's message under the client's ref and answers at once
-  (brain #45): `running`, `queued` with how many wait ahead, or
+  (brain#45): `running`, `queued` with how many wait ahead, or
   `duplicate` when that ref was taken before. The turn's outcome arrives
   on the session topic.
   """
@@ -219,7 +219,7 @@ defmodule Oneiroi.Brain do
     do: Session.wake(resident_id, session_key, note, purpose)
   )
 
-  @doc "Answers a regression trial (spec §6.4, eunomia #10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression. The reply comes back with the trace of the loop's tool calls, for the witness's card alone (eunomia #31)."
+  @doc "Answers a regression trial (spec §6.4, eunomia#10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression. The reply comes back with the trace of the loop's tool calls, for the witness's card alone (eunomia#31)."
   @spec trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, Oneiroi.Nisaba.Provider.Result.t(), [Oneiroi.Eunomia.Trial.step()]}
           | {:error, term()}
@@ -228,19 +228,19 @@ defmodule Oneiroi.Brain do
     do: Turn.trial(resident_id, model, prompt, actor)
   )
 
-  @doc "The witness's preview of the next turn of a session (brain #41): the turn's own assembly as a dry run, every section in order with its tokens and reason and its words only where the witness already reads them elsewhere; nothing recorded, nothing billed, no model called."
+  @doc "The witness's preview of the next turn of a session (brain#41): the turn's own assembly as a dry run, every section in order with its tokens and reason and its words only where the witness already reads them elsewhere; nothing recorded, nothing billed, no model called."
   @spec preview(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(preview(resident_id, session_key, text, actor),
     do: Preview.preview(resident_id, session_key, text, actor)
   )
 
-  @doc "An adapter's session prefix (spec §8, brain #42): the prompt, the identity files and the contract, by the function the turn's assembly opens with, in parts the runtime can take; records nothing."
+  @doc "An adapter's session prefix (spec §8, brain#42): the prompt, the identity files and the contract, by the function the turn's assembly opens with, in parts the runtime can take; records nothing."
   @spec adapter_prefix(String.t(), Oneiroi.Brain.Adapter.opts()) ::
           {:ok, map()} | {:error, term()}
   defexport(adapter_prefix(resident_id, opts), do: Adapter.prefix(resident_id, opts))
 
-  @doc "Starts an adapter's turn with the witness's words and returns its per-turn context (spec §8, brain #42), recording `ContextAssembled` with what it hands over."
+  @doc "Starts an adapter's turn with the witness's words and returns its per-turn context (spec §8, brain#42), recording `ContextAssembled` with what it hands over."
   @spec adapter_turn(
           String.t(),
           String.t(),

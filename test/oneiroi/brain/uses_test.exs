@@ -1,5 +1,5 @@
 defmodule Oneiroi.Brain.UsesTest do
-  @moduledoc "What retrieval did with each target in a turn (kumbukumbu #43): considered, returned and used, read off the sections, the tools and the replies, recorded once a turn, and read back by both parties."
+  @moduledoc "What retrieval did with each target in a turn (kumbukumbu#43): considered, returned and used, read off the sections, the tools and the replies, recorded once a turn, and read back by both parties."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
@@ -163,7 +163,7 @@ defmodule Oneiroi.Brain.UsesTest do
       assert [
                %{
                  target: "bookmark/1",
-                 # The ranked index returned it (kumbukumbu #46), and the
+                 # The ranked index returned it (kumbukumbu#46), and the
                  # madeleine reaches past what the index returned.
                  considered: 1,
                  returned: 1,

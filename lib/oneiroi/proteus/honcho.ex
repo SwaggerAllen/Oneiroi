@@ -64,7 +64,7 @@ defmodule Oneiroi.Proteus.Honcho do
               {:ok, String.t()} | {:error, failure()}
 
   # The reads the records export takes Honcho's memory of the resident
-  # with (proteus #18): every peer, every card one peer holds of itself
+  # with (proteus#18): every peer, every card one peer holds of itself
   # or of another, every conclusion, every session's summaries. Each
   # list is whole, every page walked.
   @callback peers(workspace()) :: {:ok, [peer()]} | {:error, failure()}

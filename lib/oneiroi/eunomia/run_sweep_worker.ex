@@ -1,6 +1,6 @@
 defmodule Oneiroi.Eunomia.RunSweepWorker do
   @moduledoc """
-  The sweep for regression runs whose job is gone (eunomia #30). A
+  The sweep for regression runs whose job is gone (eunomia#30). A
   cross-tenant job under the platform scope, named here: it reads every
   running run and each one's job state, and fails the abandoned ones
   through `Regression.fail_run/4`, which broadcasts the end so an open

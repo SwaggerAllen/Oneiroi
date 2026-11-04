@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.HouseRoutesTest do
-  @moduledoc "The witness's reads of the house: the letters between conversations (kumbukumbu #44) and how retrieval has been used (kumbukumbu #43), the same numbers and words the resident reads; another account reads neither."
+  @moduledoc "The witness's reads of the house: the letters between conversations (kumbukumbu#44) and how retrieval has been used (kumbukumbu#43), the same numbers and words the resident reads; another account reads neither."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox

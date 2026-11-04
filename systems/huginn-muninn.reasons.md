@@ -31,8 +31,8 @@ Spec §8: `figure_*` in the brain's tool table; §6.13: counters are
 witness-defined keys.
 
 ## #14
-seshat #14: the audits read the library for the drift audit, so the
-library cannot read the audits back; a port is sunna #12's answer.
+seshat#14: the audits read the library for the drift audit, so the
+library cannot read the audits back; a port is sunna#12's answer.
 
 ## #15
 Spec §6.13: "citation drift (§6.5) and the journal's plan-vs-actuals

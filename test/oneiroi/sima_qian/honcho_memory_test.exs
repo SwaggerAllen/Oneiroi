@@ -1,7 +1,7 @@
 defmodule Oneiroi.SimaQian.HonchoMemoryTest do
   @moduledoc """
   Honcho's memory of the resident, exported under `honcho/` (sima-qian
-  #42, proteus #18): read at the HTTP boundary from a Honcho that
+  #42, proteus#18): read at the HTTP boundary from a Honcho that
   answers in the deployed server's recorded shapes, written as
   identical bytes from an unchanged Honcho, withheld where a session is
   private, and left as it was when Honcho cannot answer or answers that
@@ -25,7 +25,7 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
     @moduledoc """
     A Honcho on the loopback answering the reads the export makes, held
     to the deployed server's record (`Honcho.Recorded`, read from
-    plastic-labs/honcho at the pinned commit, proteus #9): a request the
+    plastic-labs/honcho at the pinned commit, proteus#9): a request the
     server would refuse is its 422, and every answer this Honcho gives
     is checked against the response shapes recorded there, so it cannot
     answer in a shape the server never sends. No bearer is a 401, a
@@ -240,7 +240,7 @@ defmodule Oneiroi.SimaQian.HonchoMemoryTest do
 
     preamble = """
     What Honcho holds, exported by Oneiroi before each backup commit
-    (sima-qian #42): a reading copy, rewritten whole each run, never read
+    (sima-qian#42): a reading copy, rewritten whole each run, never read
     back and never searched.
     """
 

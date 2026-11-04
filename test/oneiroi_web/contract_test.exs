@@ -167,7 +167,7 @@ defmodule OneiroiWeb.ContractTest do
            |> json_response(404)
   end
 
-  # The adapter contract's routes (spec §8, brain #42, xenia #11), the only ones an
+  # The adapter contract's routes (spec §8, brain#42, xenia#11), the only ones an
   # adapter's token opens. Read off the router, so a route added under
   # one of these shapes, or a clause added to the list, fails here.
   @adapter_routes [
@@ -180,7 +180,7 @@ defmodule OneiroiWeb.ContractTest do
     {"GET", "/v1/residents/:id/research"},
     {"POST", "/v1/residents/:id/research/:number/answer"},
     {"POST", "/v1/residents/:id/research/:number/failed"},
-    # The inbound hands' three (xenia #11), held to the reader role by
+    # The inbound hands' three (xenia#11), held to the reader role by
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},
     {"GET", "/v1/residents/:id/replies"},
@@ -698,7 +698,7 @@ defmodule OneiroiWeb.ContractTest do
              |> json_response(201)
 
     # Answered before any model was asked: the run is running, and the
-    # cards come from its job (eunomia #30), drained here.
+    # cards come from its job (eunomia#30), drained here.
     assert %{"run" => %{"state" => "running", "cards" => 0}, "cards" => []} =
              conn |> get("/v1/residents/#{id}/regression/runs/#{ref}") |> json_response(200)
 

@@ -32,7 +32,7 @@ defmodule Oneiroi.Brain.Compaction do
     end
   end
 
-  @doc "Whether the turn's session has outgrown its window, so its next turn compacts first; reads, compacts nothing (brain #41)."
+  @doc "Whether the turn's session has outgrown its window, so its next turn compacts first; reads, compacts nothing (brain#41)."
   @spec due?(map()) :: boolean()
   def due?(turn), do: over_the_line(turn) != :no
 

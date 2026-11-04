@@ -104,7 +104,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert {:error, %{kind: :seshat_path_invalid, site: :seshat_kinds_path_too_long}} =
              Kinds.normalize(long_path)
 
-    # Why, in the words an import tells the resident (sima-qian #22).
+    # Why, in the words an import tells the resident (sima-qian#22).
     assert Kinds.refusal("wiki/ok.md") == nil
     assert Kinds.refusal("wiki/.openclaw-wiki/log.jsonl") =~ "hidden"
     assert Kinds.refusal("wiki/" <> String.duplicate("a", 256)) =~ "longer than 255 characters"
@@ -112,7 +112,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.refusal("wiki/a b.md") =~ "characters other than"
     assert Kinds.refusal("notes/a.md") =~ "outside the folders"
 
-    # A keepsake is a root name alone (seshat #29); the root's reserved
+    # A keepsake is a root name alone (seshat#29); the root's reserved
     # names and anything not text still have no kind.
     assert {:ok, "pocket-andrew.md"} = Kinds.normalize("pocket-andrew.md")
     assert %{kind: "keepsake"} = Kinds.kind_of("pocket-andrew.md")
@@ -127,7 +127,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
 
     assert Kinds.writable() == ~w(writing research design wiki system scratch posts keepsake)
 
-    # Decided one by one (seshat #29, #31): a keepsake, a wiki page, a
+    # Decided one by one (seshat#29, #31): a keepsake, a wiki page, a
     # system note; never the writing, and nothing the registry refuses.
     assert Kinds.decided?("pocket-andrew.md")
     assert Kinds.decided?("wiki/bread.md") and Kinds.decided?("system/tools.md")
@@ -145,7 +145,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
            ]
   end
 
-  test "the shelf: every kind once, in the server's order with its name, the gifts first (seshat #35)" do
+  test "the shelf: every kind once, in the server's order with its name, the gifts first (seshat#35)" do
     shelf = Kinds.shelf()
     assert Enum.sort(Enum.map(shelf, & &1.kind)) == Enum.sort(Enum.map(Kinds.all(), & &1.kind))
 

@@ -1,5 +1,5 @@
 defmodule Oneiroi.SimaQian.OriginalsTest do
-  @moduledoc "The originals import (sima-qian #40, seshat #28): the memory files of a real local git repository, taken byte for byte at a pinned commit, verified against the tree's blobs, registered with their provenance, read-only after."
+  @moduledoc "The originals import (sima-qian#40, seshat#28): the memory files of a real local git repository, taken byte for byte at a pinned commit, verified against the tree's blobs, registered with their provenance, read-only after."
   use Oneiroi.DataCase, async: false
 
   alias Commanded.Event.Upcaster
@@ -270,7 +270,7 @@ defmodule Oneiroi.SimaQian.OriginalsTest do
     assert File.exists?(Path.join(ctx.dir, "memory/2026-01-03.md"))
   end
 
-  # Version 2 added the provenance (seshat #28); a version 1 adoption
+  # Version 2 added the provenance (seshat#28); a version 1 adoption
   # reads as carrying none, which is true of it.
   test "a DocumentAdopted of version 1 upcasts to no provenance" do
     v1 =

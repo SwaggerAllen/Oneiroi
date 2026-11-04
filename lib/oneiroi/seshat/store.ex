@@ -107,7 +107,7 @@ defmodule Oneiroi.Seshat.Store do
   end
 
   defmodule Oracle do
-    @moduledoc "One question put to the oracle (seshat #34): what, of which sources, by whom, and how it settled."
+    @moduledoc "One question put to the oracle (seshat#34): what, of which sources, by whom, and how it settled."
     use Ecto.Schema
 
     @primary_key false
@@ -133,7 +133,7 @@ defmodule Oneiroi.Seshat.Store do
   end
 
   defmodule Research do
-    @moduledoc "One question for the reader's research pass (seshat #38): what, from which pages, by whom, and how it settled."
+    @moduledoc "One question for the reader's research pass (seshat#38): what, from which pages, by whom, and how it settled."
     use Ecto.Schema
 
     @primary_key false

@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.KumbukumbuHouseLetter do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # House letters (kumbukumbu #44): between conversations of one resident,
+  # House letters (kumbukumbu#44): between conversations of one resident,
   # the resident's rows, read by the witness as the resident's witness.
   # `read_by` names the conversations that have read each.
   def change do

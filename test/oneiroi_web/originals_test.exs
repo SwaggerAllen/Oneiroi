@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.OriginalsTest do
-  @moduledoc "The originals import over HTTP (sima-qian #40): the witness's route, and the source's token in no response and no log line."
+  @moduledoc "The originals import over HTTP (sima-qian#40): the witness's route, and the source's token in no response and no log line."
   use OneiroiWeb.ConnCase, async: false
 
   import ExUnit.CaptureLog

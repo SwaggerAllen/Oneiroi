@@ -4,7 +4,7 @@ defmodule Oneiroi.Repo.Migrations.AgathosDaimonAdapters do
 
   # Adapters are the resident's rows (spec §3.1); the lookup by token
   # hash on a request takes the platform scope by name, as identity's
-  # token lookup does (gaia #8), because the resident is not known until
+  # token lookup does (gaia#8), because the resident is not known until
   # the row answers.
   def change do
     projection :agathos_daimon_adapter, scope: :resident do

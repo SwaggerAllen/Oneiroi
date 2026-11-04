@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.MainSessionTest do
   @moduledoc """
-  The Oneiroi chat stays the Oneiroi chat (kumbukumbu #40): the main
+  The Oneiroi chat stays the Oneiroi chat (kumbukumbu#40): the main
   session is the platform's own conversation with the witness, the
   oldest the brain opened, and a session an adapter opens, Claude Code's
   included, can never become it, however new it is.
@@ -19,7 +19,7 @@ defmodule Oneiroi.Kumbukumbu.MainSessionTest do
     {:ok, witness: witness, resident: resident, actor: Actor.new(:witness, witness.id)}
   end
 
-  # The regression: before kumbukumbu #40 the newest session of kind
+  # The regression: before kumbukumbu#40 the newest session of kind
   # `main` was the chat, and an adapter's session opened as `main` was
   # the newest the moment it opened, so the witness's next message landed
   # in the Claude Code conversation and the platform's brain answered

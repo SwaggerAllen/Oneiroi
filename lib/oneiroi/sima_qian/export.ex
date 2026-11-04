@@ -1,7 +1,7 @@
 defmodule Oneiroi.SimaQian.Export do
   @moduledoc """
   The resident's streams as `records/events/<day>.jsonl` (spec §6.10):
-  every stream that is the resident's (sima-qian #20), its own and its
+  every stream that is the resident's (sima-qian#20), its own and its
   conversations', memory's, judgement's, journal's, library's, schedule's
   and the rest, so a rebuild restores the resident and not only its
   identity. `stream` names each line's stream with the resident's id
@@ -31,7 +31,7 @@ defmodule Oneiroi.SimaQian.Export do
   configured seconds is left for the next run.
 
   Beside the lines, reading copies rendered from them on the same run
-  (`Oneiroi.SimaQian.Readable`, sima-qian #41): the transcripts by day
+  (`Oneiroi.SimaQian.Readable`, sima-qian#41): the transcripts by day
   and the bookmarks, never read back. What the repository does not carry
   at all is `exceptions/0`, the code's copy of spec §6.10's list.
   """
@@ -45,13 +45,13 @@ defmodule Oneiroi.SimaQian.Export do
   @chunk 1_000
   @page 200
 
-  # The resident's streams, by prefix (sima-qian #20). Every router's
+  # The resident's streams, by prefix (sima-qian#20). Every router's
   # prefix is here or in `@not_exported`, which the export test asserts
   # against the routers themselves.
   @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription xenia)
 
   # Everything of the resident's that the repository does not carry,
-  # each with the reason (sima-qian #43). The author's law (spec §6.10):
+  # each with the reason (sima-qian#43). The author's law (spec §6.10):
   # all raw text is in the repository unless there is a really good
   # reason, and this table is the list of reasons. A `:stream` entry is
   # a stream prefix the export leaves out, which `not_exported/0` names
@@ -61,17 +61,17 @@ defmodule Oneiroi.SimaQian.Export do
   # and a test fails when the two drift.
   @not_exported %{
     "regression" =>
-      {:stream, "sealed: the resident's own trials, never exported or read (eunomia #12)"},
+      {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
     "account" => {:stream, "the witness's account, not the resident's"},
     "honcho" =>
       {:stream,
-       "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus #8), where replaying this would point a copy at the original's memory"},
+       "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus#8), where replaying this would point a copy at the original's memory"},
     "embeddings" =>
       {:derived,
        "the library's chunks and vectors, Honcho's embeddings and every projection table: derived from what the repository holds, rebuilt by replay and an index run, and written in a pattern git does not fit"},
     "witness-only spend" =>
       {:events,
-       "ledger events billed under a purpose the resident's own view never shows (drafting, regression; nisaba #4), whose presence in the export would tell her what the unawareness invariant hides"},
+       "ledger events billed under a purpose the resident's own view never shows (drafting, regression; nisaba#4), whose presence in the export would tell her what the unawareness invariant hides"},
     "redacted" =>
       {:fields,
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
@@ -82,9 +82,9 @@ defmodule Oneiroi.SimaQian.Export do
 
   # An event its module keeps out (the export's own bookkeeping), or one
   # billed under a purpose the resident's own ledger view never shows
-  # (nisaba #4): the export is a surface she can reach, and a regression
+  # (nisaba#4): the export is a surface she can reach, and a regression
   # run's calls in it would tell her what the unawareness invariant hides
-  # (eunomia #12). Found by that invariant's test the day the ledger was
+  # (eunomia#12). Found by that invariant's test the day the ledger was
   # first exported. A rebuild therefore restores no drafting or
   # regression spend and no budget on either; the witness sets those
   # budgets again.
@@ -176,7 +176,7 @@ defmodule Oneiroi.SimaQian.Export do
      }}
   end
 
-  # The reading copies (sima-qian #41), rewritten whole like the day
+  # The reading copies (sima-qian#41), rewritten whole like the day
   # files; a copy this run did not render is one no line supports any
   # more, and goes. The paths are the renderer's, built from a day and
   # a fixed name, never from a request.
@@ -221,7 +221,7 @@ defmodule Oneiroi.SimaQian.Export do
     written ++ [path] ++ state_file(resident_id, dir)
   end
 
-  # The state store (agathos-daimon #32) as `STATE.md`, rendered from
+  # The state store (agathos-daimon#32) as `STATE.md`, rendered from
   # its rows: absolute instants only, so an unchanged state writes
   # identical bytes. No line, no file; a file whose last line was cleared
   # is removed.

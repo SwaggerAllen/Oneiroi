@@ -1,12 +1,12 @@
 # The oracle
 
-From the resident's work order (letter #9, 2026-11-03) and the witness's calls the same day. Built as brain #49 and seshat #34.
+From the resident's work order (letter #9, 2026-11-03) and the witness's calls the same day. Built as brain#49 and seshat#34.
 
 ## What it is
 
 An invocation of the resident asked one named question, for the reads too long for a turn (the 1.9M-token request of 2026-11-03 is the case it exists for). Three parts, each with one job:
 
-- **The ranker selects** (kumbukumbu #46): deterministic arithmetic over measured state.
+- **The ranker selects** (kumbukumbu#46): deterministic arithmetic over measured state.
 - **The oracle reads and synthesises**: judgement, batched, parallel, question-driven.
 - **She decides and feeds back** (`memory_feedback`).
 

@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.SeshatResearch do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # Research questions (seshat #38): what the reader's research pass was
+  # Research questions (seshat#38): what the reader's research pass was
   # asked, from which pages, by whom and from which conversation, and
   # how it settled, with the pages its notes came from.
   def change do

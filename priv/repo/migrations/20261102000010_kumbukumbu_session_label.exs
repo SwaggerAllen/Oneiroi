@@ -1,7 +1,7 @@
 defmodule Oneiroi.Repo.Migrations.KumbukumbuSessionLabel do
   use Ecto.Migration
 
-  # What an adapter's conversation is called (kumbukumbu #40): the base
+  # What an adapter's conversation is called (kumbukumbu#40): the base
   # name of the folder its runtime ran in, never the path, and which
   # runtime it is; nil for the platform's own sessions. And when the open
   # turn started (#41), which orders the open turns newest first: a

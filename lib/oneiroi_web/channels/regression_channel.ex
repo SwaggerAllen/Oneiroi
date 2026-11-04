@@ -1,6 +1,6 @@
 defmodule OneiroiWeb.RegressionChannel do
   @moduledoc """
-  A regression run as it answers (eunomia #30):
+  A regression run as it answers (eunomia#30):
   `regression:<resident_id>:<run_ref>`. Joined by an account that
   witnesses the resident, the same check as `SessionChannel`; an
   adapter's token is never a witness, and the socket does not take one

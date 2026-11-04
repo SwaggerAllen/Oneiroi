@@ -149,7 +149,7 @@ defmodule Oneiroi.Seshat.Index do
 
   defp embed(_resident_id, _model, [], _actor), do: {:ok, []}
 
-  # In batches (seshat #15): one request per batch, each metered on the
+  # In batches (seshat#15): one request per batch, each metered on the
   # ledger as it is made, and the run's vectors in the chunks' order. A
   # batch that fails fails the run, which then writes nothing, as one
   # failing request always did.

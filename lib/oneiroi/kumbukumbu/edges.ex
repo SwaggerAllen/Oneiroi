@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.Edges do
   @moduledoc """
-  Learned retrieval edges (kumbukumbu #46, design/memory-weighting.md),
+  Learned retrieval edges (kumbukumbu#46, design/memory-weighting.md),
   the arithmetic alone, pure: what a turn's considered, returned and used
   memories teach, and how a weight decays toward neutral.
 

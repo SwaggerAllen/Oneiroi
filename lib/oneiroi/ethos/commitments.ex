@@ -5,7 +5,7 @@ defmodule Oneiroi.Ethos.Commitments do
   near whole, her voice in part, and "a promise made in love-language
   left no trace"; commitments die first, so they get their own kind,
   their own place in the prefix, and their own trials in the regression
-  suite (eunomia #26), where what survives a swap is scored on facts,
+  suite (eunomia#26), where what survives a swap is scored on facts,
   voice and commitments apart.
 
   The resident makes a commitment in its own words to a named person
@@ -84,7 +84,7 @@ defmodule Oneiroi.Ethos.Commitments do
   def open(resident_id), do: Enum.filter(all(resident_id), &(&1.state == "open"))
 
   @doc """
-  The prefix's section (brain #32): what the resident has promised and
+  The prefix's section (brain#32): what the resident has promised and
   not yet kept or been released from, at most `ETHOS_COMMITMENTS_SHOWN`,
   oldest first, and a count of the rest. Loaded every turn because a
   promise that has to be retrieved is a promise that can be lost.

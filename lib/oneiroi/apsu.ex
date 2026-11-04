@@ -279,7 +279,7 @@ defmodule Oneiroi.Apsu do
     Keyword.merge(base, Application.get_env(:oneiroi, Oban, []))
   end
 
-  # Lifeline is always on (eunomia #30): without it a job orphaned by a
+  # Lifeline is always on (eunomia#30): without it a job orphaned by a
   # deploy stays `executing` forever, and so does whatever it was doing.
   # It rescues every queue's orphans, not only the one that asked for
   # it; a rescued job with attempts left runs again, which every worker

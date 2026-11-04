@@ -2,7 +2,7 @@ defmodule Oneiroi.Seshat.IndexWorker do
   @moduledoc """
   The nightly index run (spec §6.7's nightly list: after the export):
   every active resident's library, a cross-tenant job under the
-  platform scope, named here (seshat #17); the roster is the resident
+  platform scope, named here (seshat#17); the roster is the resident
   system's platform-scoped export. A resident whose run fails is
   recorded on its own run row and the pass goes on.
   """

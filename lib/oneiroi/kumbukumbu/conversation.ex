@@ -24,14 +24,14 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     started: MapSet.new(),
     failures: %{},
     compacted_through: 0,
-    # Submitted refs (kumbukumbu #47): claimed, ref => instant, until
+    # Submitted refs (kumbukumbu#47): claimed, ref => instant, until
     # captured; captured refs are held so a late retry stays a duplicate.
     claims: %{},
     captured: MapSet.new()
   ]
 
   @kinds ~w(main free_time hands adapter)
-  # The kind of an adapter's session (kumbukumbu #40), by the rule in
+  # The kind of an adapter's session (kumbukumbu#40), by the rule in
   # `Kinds`, which the upcaster reads too.
   @adapter "adapter"
   # A session carried from another platform by an import (kumbukumbu
@@ -51,7 +51,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   @spec imported() :: String.t()
   def imported, do: @imported
 
-  @doc "The kind of a session another runtime's adapter opened (kumbukumbu #40)."
+  @doc "The kind of a session another runtime's adapter opened (kumbukumbu#40)."
   @spec adapter() :: String.t()
   def adapter, do: @adapter
 
@@ -69,7 +69,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
 
   @doc """
   What a conversation is called where a person, or another conversation,
-  reads it (kumbukumbu #40): `Oneiroi chat` for the main session, an
+  reads it (kumbukumbu#40): `Oneiroi chat` for the main session, an
   adapter's by its runtime and folder (`Claude Code · Oneiroi`). One rule
   for the conversation list and for addressing a house letter (#44).
   """
@@ -95,7 +95,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   @spec writable?(String.t()) :: boolean()
   def writable?(kind), do: kind not in [@adapter, @imported]
 
-  @doc "The kind a session opened as `kind` through `adapter` is (kumbukumbu #40): `Kinds.kind_for/2`."
+  @doc "The kind a session opened as `kind` through `adapter` is (kumbukumbu#40): `Kinds.kind_for/2`."
   @spec kind_for(String.t() | nil, String.t() | nil) :: String.t() | nil
   defdelegate kind_for(kind, adapter), to: Kinds
 
@@ -184,7 +184,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   end
 
   # A turn that retrieved nothing records nothing.
-  # A ref is claimed once (kumbukumbu #47): a captured one, or one claimed
+  # A ref is claimed once (kumbukumbu#47): a captured one, or one claimed
   # since `stale_before`, is a duplicate and produces nothing; a claim
   # older than that and never captured died with its turn and is taken
   # again. Two instances claiming at once write against one stream

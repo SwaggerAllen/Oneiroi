@@ -1,9 +1,9 @@
 defmodule Oneiroi.Proteus.Honcho.HTTPTest do
   @moduledoc """
   Honcho at the HTTP boundary: every request `Honcho.HTTP` sends, held
-  exactly to the deployed server's record (proteus #9); the in-memory
+  exactly to the deployed server's record (proteus#9); the in-memory
   Honcho refusing the names the client used to send; an unconfigured
-  Honcho as an error; and the blueprint's wiring (proteus #16).
+  Honcho as an error; and the blueprint's wiring (proteus#16).
   """
   use ExUnit.Case, async: true
 

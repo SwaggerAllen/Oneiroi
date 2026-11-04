@@ -24,13 +24,13 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule SetFreeTime do
-    # `times`: the day's free-time slots as HH:MMs (sunna #22).
+    # `times`: the day's free-time slots as HH:MMs (sunna#22).
     use Oneiroi.Command, fields: [:id, :times]
   end
 
   defmodule OpenDay do
     # The journal's day row, opened by the journal when it writes a day
-    # the schedule has not yet (seshat #21); idempotent.
+    # the schedule has not yet (seshat#21); idempotent.
     use Oneiroi.Command, fields: [:id, :day]
   end
 
@@ -52,7 +52,7 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :hour]
   end
 
-  # A letter's wake (sunna #24): the letters waiting for the Oneiroi
+  # A letter's wake (sunna#24): the letters waiting for the Oneiroi
   # chat that a conversation sent it; `limit` is how many such wakes an
   # hour allows.
   defmodule WakeForLetters do

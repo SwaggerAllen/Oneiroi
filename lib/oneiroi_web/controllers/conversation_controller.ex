@@ -42,7 +42,7 @@ defmodule OneiroiWeb.ConversationController do
     summary:
       "Open a session, or return the main one between this account and the resident; an adapter's token always opens a new conversation of its own",
     description:
-      "For a witness, `main` is the Oneiroi chat, opened once and found again. For an adapter's token the kind sent is not read: every session it opens is a new one of kind `adapter` (kumbukumbu #40), called by `label`, of which only the folder's base name is kept, and `runtime`. A plugin built before the kind existed sends `main` and still lands as an adapter's conversation.",
+      "For a witness, `main` is the Oneiroi chat, opened once and found again. For an adapter's token the kind sent is not read: every session it opens is a new one of kind `adapter` (kumbukumbu#40), called by `label`, of which only the folder's base name is kept, and `runtime`. A plugin built before the kind existed sends `main` and still lands as an adapter's conversation.",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the kind", "application/json",
@@ -76,7 +76,7 @@ defmodule OneiroiWeb.ConversationController do
       case {Map.get(params, "kind", "main"), adapter(conn)} do
         # The principal decides, never the body: the Oneiroi chat is the
         # canonical conversation and an adapter's is secondary to it
-        # (kumbukumbu #40), and the plugin keeps sending `main` so it
+        # (kumbukumbu#40), and the plugin keeps sending `main` so it
         # still works against a server from before the kind.
         {_kind, %{}} ->
           Kumbukumbu.open_adapter(id, adapter_name, [party], actor(conn),
@@ -159,7 +159,7 @@ defmodule OneiroiWeb.ConversationController do
 
   operation(:turn,
     summary:
-      "Send a message. With `client_ref` (brain #45) it is taken at once and answered 202 with `running`, `queued` or `duplicate`, the turn arriving on the channel; a retry under the same ref never runs twice. Without it, the call waits for the turn",
+      "Send a message. With `client_ref` (brain#45) it is taken at once and answered 202 with `running`, `queued` or `duplicate`, the turn arriving on the channel; a retry under the same ref never runs twice. Without it, the call waits for the turn",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
     request_body:
       {"the message", "application/json",
@@ -194,7 +194,7 @@ defmodule OneiroiWeb.ConversationController do
     do:
       problem(conn, 422, :text_required, :web_conversation_turn_text_required, "text is required")
 
-  # A conversation the witness replies in elsewhere (kumbukumbu #40): the
+  # A conversation the witness replies in elsewhere (kumbukumbu#40): the
   # platform's brain answering in it would put the Oneiroi chat's turn in
   # a Claude Code conversation, the confusion the kind exists to end.
   defp read_only(%{account_id: account_id}, key) do
@@ -366,7 +366,7 @@ defmodule OneiroiWeb.ConversationController do
 
   operation(:preview,
     summary:
-      "What the resident will see next in this session (brain #41): the next turn's assembly as a dry run, every section in order with its tokens and reason, its words only where you read them elsewhere; nothing recorded",
+      "What the resident will see next in this session (brain#41): the next turn's assembly as a dry run, every section in order with its tokens and reason, its words only where you read them elsewhere; nothing recorded",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
     request_body:
       {"the draft so far", "application/json",
@@ -488,7 +488,7 @@ defmodule OneiroiWeb.ConversationController do
     summary:
       "A turn begins (spec §8): the ref to capture it under and, for the resident's brain adapter, the turn's context assembled against the witness's words",
     description:
-      "For an adapter's token the turn is assembled as a platform turn is (brain #42), against `text` in the session's room: the index and every section after the prefix, the once-only notices the runtime can be told, and any part of the prefix whose hash moved since `prefix_digest`; what is handed over is recorded as the turn's ContextAssembled. `limit` is how many characters the runtime takes at once: sections past it are left out whole and named. For a witness's token the turn is started and nothing is assembled.",
+      "For an adapter's token the turn is assembled as a platform turn is (brain#42), against `text` in the session's room: the index and every section after the prefix, the once-only notices the runtime can be told, and any part of the prefix whose hash moved since `prefix_digest`; what is handed over is recorded as the turn's ContextAssembled. `limit` is how many characters the runtime takes at once: sections past it are left out whole and named. For a witness's token the turn is started and nothing is assembled.",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the session and the witness's words", "application/json",
@@ -562,7 +562,7 @@ defmodule OneiroiWeb.ConversationController do
 
   operation(:context,
     summary:
-      "The session prefix for the resident's brain adapter (spec §8, brain #42): the prompt, the identity files and the contract, as text in parts the runtime can print; records nothing",
+      "The session prefix for the resident's brain adapter (spec §8, brain#42): the prompt, the identity files and the contract, as text in parts the runtime can print; records nothing",
     description:
       "What is the same for every turn of a session, by the function the platform's own turn assembles its prefix with. `limit` cuts it into parts at paragraph boundaries, `of` is how many the runtime prints and `part` which one this is; past `of` parts the rest is left out and the last part says how much. `digest` is what the runtime sends back with each turn so a changed section rides that turn. The per-turn part (the index and after) is the turn-start's answer. An adapter's token only: a witness reads the next turn's context through the preview.",
     parameters: [
@@ -576,7 +576,7 @@ defmodule OneiroiWeb.ConversationController do
   )
 
   # The prefix carries the platform's prompt, which a witness under the
-  # preview term reads nowhere (brain #41); the witness's route to what a
+  # preview term reads nowhere (brain#41); the witness's route to what a
   # turn is given is the preview, so this one is the runtime's alone.
   def context(conn, %{"id" => id} = params) do
     opts = [

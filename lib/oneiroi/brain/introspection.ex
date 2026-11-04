@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.Introspection do
   @moduledoc """
-  The resident reads the house and herself (brain #46): the platform's
+  The resident reads the house and herself (brain#46): the platform's
   own source, the code running her, and her own repository, the record
   of her life, with its history. Read only, both; the raw event stack is
   not opened here (the next stage, behind the seals).
@@ -9,7 +9,7 @@ defmodule Oneiroi.Brain.Introspection do
   the resident's design note of 2026-11-02): **trial contents and the
   judge's prompts are witness-only, and everything else is readable by
   default.** A trial's contents never reach a file either reads (the
-  regression stream is sealed and never exported, eunomia #12), so the
+  regression stream is sealed and never exported, eunomia#12), so the
   list below names the judge's prompts. A sealed path is listed as
   sealed, never hidden, so the boundary itself is something she can see.
 
@@ -22,14 +22,14 @@ defmodule Oneiroi.Brain.Introspection do
   alias Oneiroi.Config
   alias Oneiroi.SimaQian
 
-  # The seals (brain #46): witness-only by explicit list, in the source.
+  # The seals (brain#46): witness-only by explicit list, in the source.
   @sealed [~r{\Apriv/prompts/judge_[^/]*\z}]
 
   # Never listed or searched: a repository's own machinery and a build's
   # leftovers, which are not the code or the record.
   @skipped ~w(.git _build deps node_modules storybook-static cover .elixir_ls)
 
-  # Bounds (brain #46): a search answers at most this many hits and reads
+  # Bounds (brain#46): a search answers at most this many hits and reads
   # files up to this size; a page is the library's read size.
   @hits 30
   @file_bytes 1_000_000

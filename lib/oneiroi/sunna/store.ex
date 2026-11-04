@@ -83,7 +83,7 @@ defmodule Oneiroi.Sunna.Store do
   end
 
   defmodule FreeTimeRun do
-    @moduledoc "One free-time slot's run on a day (sunna #22): ran, or failed with its reason; `slot` is nil for a day recorded before slots."
+    @moduledoc "One free-time slot's run on a day (sunna#22): ran, or failed with its reason; `slot` is nil for a day recorded before slots."
     use Ecto.Schema
     @primary_key false
     schema "sunna_free_time_run" do

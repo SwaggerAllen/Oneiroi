@@ -103,7 +103,7 @@ describe('Library', () => {
     expect(screen.getByText(/Feeds belong to communities/)).toBeTruthy();
   });
 
-  // The shelf is the server's (seshat #35): reverse it and the tabs follow;
+  // The shelf is the server's (seshat#35): reverse it and the tabs follow;
   // a kind it does not name comes last under its own name.
   it('orders and names its tabs by the shelf it is given, knowing no kind itself', () => {
     const shelf = [

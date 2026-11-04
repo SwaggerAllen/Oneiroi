@@ -41,7 +41,7 @@ type Story = StoryObj<typeof meta>;
 export const Today: Story = {};
 
 // Nobody has configured anything: free time is still there, at the
-// default slots (sunna #21, #22).
+// default slots (sunna#21, #22).
 export const Unconfigured: Story = {
   args: {
     today: { ...today, checkins: [], firings: [], last: null, next: null, quiet: null, dates: [], free_time_last: null, free_times: [{ time: '14:30', today: null }, { time: '22:30', today: null }] },
