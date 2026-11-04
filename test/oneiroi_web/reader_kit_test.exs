@@ -138,6 +138,26 @@ defmodule OneiroiWeb.ReaderKitTest do
     refute args =~ "browser_press_key"
     refute args =~ "Gmail__reply"
     refute args =~ "Bash"
+
+    # The browser is held to the allowlist, Substack's by default.
+    browser = fn -> ctx.dir |> Path.join("work/mcp.json") |> File.read!() |> Jason.decode!() end
+    assert %{"mcpServers" => %{"playwright" => %{"args" => args}}} = browser.()
+
+    assert ["--allowed-origins", "https://substack.com;https://www.substack.com"] =
+             Enum.take(args, -2)
+
+    # A list in reader.conf is the list; `*` lifts it.
+    conf = Path.join(ctx.config, "reader.conf")
+    base = File.read!(conf)
+    File.write!(conf, base <> ~s(READER_ORIGINS="https://substack.com;https://example.org"\n))
+    {_out, 0} = reader(ctx, "scrape")
+
+    assert "https://substack.com;https://example.org" =
+             List.last(browser.()["mcpServers"]["playwright"]["args"])
+
+    File.write!(conf, base <> ~s(READER_ORIGINS="*"\n))
+    {_out, 0} = reader(ctx, "scrape")
+    refute "--allowed-origins" in browser.()["mcpServers"]["playwright"]["args"]
   end
 
   test "the wait sends only when an approved reply waits, marks it sent, and leaves one that never goes to the witness",

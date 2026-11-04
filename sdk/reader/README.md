@@ -23,8 +23,11 @@ Inside the reader, the same line again:
 - **A scrape cannot type.** It has the browser's reading tools only, and
   Gmail's search and read. A message telling it to send something has no
   way to make it.
-- **The browser is held to Substack's origins** (`--allowed-origins`), so a
-  page cannot take it anywhere else.
+- **The browser is held to an allowlist** of sites (`READER_ORIGINS` in
+  `~/.config/oneiroi/reader.conf`, Substack's by default), so a page cannot
+  take it anywhere off the list. Add an origin there (scheme and host,
+  separated by `;`); each run reads it, nothing is reinstalled. `*` lifts
+  the limit.
 - **The Oneiroi plugin is off in the reader's folder**, so a run never
   carries the resident's brain token.
 
@@ -64,7 +67,8 @@ Email is read through the witness's claude.ai Gmail connector. It has to
 be connected to the resident's mailbox for the email half to find
 anything. The scrape searches for mail to `--email` alone.
 
-Logs are in `~/Documents/Lily/reader/log/`. `reader.sh send` and
+A reinstall keeps an allowlist you have edited. Logs are in
+`~/Documents/Lily/reader/log/`. `reader.sh send` and
 `reader.sh scrape` run either job by hand.
 
 ## Not yet checked against the real thing
