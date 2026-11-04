@@ -63,7 +63,11 @@ lock() {
 }
 
 # Headless Claude Code in this folder, on the witness's plan, with the
-# reader's prompt and only the tools named. Anything else is refused,
+# reader's prompt and only the tools named. A run's output file is
+# granted as Edit(path): Claude Code matches file permissions by Edit
+# rules alone, and a Write(path) rule is refused with a warning, so the
+# run could read but never write its answer (2026-11-04, Claude Code
+# 2.1.316: four research questions lost a try each). Anything else is refused,
 # since a headless run asks nobody.
 model() {
   local prompt="$1" tools="$2" origins="${3:-$SCRAPE_ORIGINS}" profile="${4:-browser-profile}" turns="${5:-${ONEIROI_READER_TURNS:-80}}"
@@ -131,7 +135,7 @@ digest() {
     '{since: $since, email_account: $email, substack_account: $substack}' > "$WORK/digest.json"
   rm -f "$WORK/digested.json"
 
-  model digest "Read(/work/digest.json),Write(/work/digested.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" \
+  model digest "Read(/work/digest.json),Edit(/work/digested.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" \
     "$SCRAPE_ORIGINS" browser-profile "${ONEIROI_READER_DIGEST_TURNS:-150}" ||
     say "the digest run ended badly"
 
@@ -172,7 +176,7 @@ research() {
       "$WORK/open-research.json" > "$WORK/research.json"
     rm -f "$WORK/found.json"
 
-    model research "Read(/work/research.json),Write(/work/found.json),$(browser write)" \
+    model research "Read(/work/research.json),Edit(/work/found.json),$(browser write)" \
       "$RESEARCH_ORIGINS" research-profile "${ONEIROI_READER_RESEARCH_TURNS:-200}" ||
       say "the research run ended badly"
 
@@ -210,7 +214,7 @@ send() {
   [ "$(jq length "$WORK/outbox.json")" -gt 0 ] || return 0
   rm -f "$WORK/sent.json"
 
-  model send "Read(/work/outbox.json),Write(/work/sent.json),$(browser write),mcp__claude_ai_Gmail__reply" ||
+  model send "Read(/work/outbox.json),Edit(/work/sent.json),$(browser write),mcp__claude_ai_Gmail__reply" ||
     say "the send run ended badly"
 
   # Each reply the run says it sent is marked sent with where it is now;
@@ -240,7 +244,7 @@ scrape() {
   rm -f "$WORK/inbound.json"
   started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-  model scrape "Read(/work/scrape.json),Write(/work/inbound.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" ||
+  model scrape "Read(/work/scrape.json),Edit(/work/inbound.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" ||
     say "the scrape run ended badly"
 
   [ -s "$WORK/inbound.json" ] || { say "the scrape wrote nothing; nothing delivered"; return 0; }
