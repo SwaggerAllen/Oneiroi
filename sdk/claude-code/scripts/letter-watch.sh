@@ -63,7 +63,13 @@ main() {
     status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting?session_key=$key" "" "$out")"
     case "$status" in
       200) ;;
-      401 | 403 | 404) return 0 ;;
+      401 | 403 | 404)
+        # Said, never silent (2026-11-04): an installed plugin a version
+        # behind the platform polled a route #50 removed, got 404 on
+        # every watch for a day, and nothing anywhere said so.
+        printf '%s the watch ended: Oneiroi answered %s to what waits\n' "$(oneiroi_now)" "$status" >> "$state/watch.log"
+        return 0
+        ;;
       *) continue ;;
     esac
 
