@@ -498,3 +498,13 @@ A tool that reaches the web on her behalf has to say where it can go
 before it goes, or she asks for what it cannot read and learns it only
 from an empty answer. The allowlist is read at the call, so what she is
 told is what the reader will be held to.
+
+## #53
+A free-time pass did its work in a conversation of its own, and nothing
+pointed back to it: no tool listed the runs, and no tool opened a
+conversation by its key, so the record of what she did with her own
+time was there and unreachable. The receipts come from the transcript
+itself rather than from each system's records because a pass can make
+anything a tool can make, and the tool calls are the one place every
+kind of making is already written down, in order, with the line the
+platform answered.

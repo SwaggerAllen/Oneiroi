@@ -39,6 +39,23 @@ defmodule OneiroiWeb.ScheduleController do
 
   def today(conn, %{"id" => id}), do: json(conn, id |> Sunna.today() |> today_json())
 
+  operation(:free_time_history,
+    summary:
+      "Free time remembered (brain#53): the latest runs, newest first, each with its day, slot, outcome, the conversation it ran in, its turns, and the receipts of what it made, never its words",
+    parameters: [id: [in: :path, type: :string], limit: [in: :query, type: :integer]],
+    responses: [ok: {"runs", "application/json", %Schema{type: :array}}]
+  )
+
+  def free_time_history(conn, %{"id" => id} = params) do
+    limit =
+      case Integer.parse(to_string(params["limit"] || "")) do
+        {n, ""} when n in 1..60 -> n
+        _ -> 30
+      end
+
+    json(conn, Oneiroi.Brain.free_time_history(id, limit))
+  end
+
   operation(:days,
     summary: "The journal's day rows, newest first",
     parameters: [id: [in: :path, type: :string]],
