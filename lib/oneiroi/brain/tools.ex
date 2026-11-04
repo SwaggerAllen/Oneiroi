@@ -51,7 +51,7 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
-    research_list free_time_list transcript_read
+    research_list digest_list free_time_list transcript_read
   )
 
   @writes ~w(
@@ -59,7 +59,7 @@ defmodule Oneiroi.Brain.Tools do
     figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
-    self_letter_write state_set state_clear memory_feedback oracle_ask research_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
@@ -386,6 +386,18 @@ defmodule Oneiroi.Brain.Tools do
         "Ask the reader to research a question on the web: a longer reading pass than a turn, by the reader (not you) on your witness's machine, through a browser that reaches only the sites on your witness's research allowlist and is signed in nowhere, so it can read and search but never post, send or act as you. Name the question; give up to ten pages to start from (they must be on the allowlist to be read). The notes land under research/<number>-…/ (task.md and a note per page) and this conversation gets a letter. research_list shows the allowlist and what you have asked.",
         %{question: %{type: "string"}, urls: %{type: "array", items: %{type: "string"}}},
         [:question]
+      ),
+      tool(
+        "digest_ask",
+        "Ask the reader for a digest of your streams: what reached your mailbox since the last digest (newsletters, Substack posts and notes, anything you subscribe to), read by the reader (not you) on your witness's machine through her Gmail and, for posts, the correspondence allowlist, signed in only where it reads. One digest is open at a time: asking while one is open names that one. It lands as feeds/digests/<number>-<day>.md, a summary and an item per piece with its source, title, link and notes in the reader's words, and this conversation gets a letter. In free time, the letter waits for your next free time if this one has ended.",
+        %{},
+        []
+      ),
+      tool(
+        "digest_list",
+        "Your digests, newest first: each with what it covers from, how it settled, and its file; status narrows.",
+        %{status: %{type: "string", enum: ["open", "answered", "failed"]}},
+        []
       ),
       tool(
         "research_list",
@@ -1510,6 +1522,30 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("digest_ask", _args, turn) do
+    with {:ok, n, state} <- Seshat.ask_digest(turn.resident_id, turn.session_key, turn.resident) do
+      case state do
+        :asked ->
+          "Asked as digest ##{n}. The reader compiles it on your witness's machine within minutes of seeing it, when that machine is awake; it lands under feeds/digests/ and this conversation gets a letter."
+
+        :open ->
+          "Digest ##{n} is already asked and not yet compiled; its letter goes to the conversation that asked it."
+      end
+    end
+  end
+
+  defp call("digest_list", args, turn) do
+    opts = if args["status"], do: [status: to_string(args["status"])], else: []
+
+    case Seshat.digests(turn.resident_id, opts) do
+      [] ->
+        "No digest asked yet."
+
+      rows ->
+        Enum.map_join(rows, "\n", &digest_line/1)
+    end
+  end
+
   defp call("research_list", args, turn) do
     %{research: sites} = Oneiroi.Xenia.reader_sites(turn.resident_id)
     opts = if args["status"], do: [status: to_string(args["status"])], else: []
@@ -2472,6 +2508,19 @@ defmodule Oneiroi.Brain.Tools do
     Enum.map_join(near, "\n", fn p ->
       "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{Calendar.strftime(p.sent_at, "%Y-%m-%d")}: #{opening(p.text, 280)}"
     end)
+  end
+
+  defp digest_line(d) do
+    from = Calendar.strftime(d.since, "%Y-%m-%d %H:%M UTC")
+
+    settled =
+      case d.status do
+        "answered" -> "compiled, #{d.items} item(s): #{d.path}"
+        "failed" -> "failed: #{d.reason}"
+        _open -> "open"
+      end
+
+    "- ##{d.number}, from #{from}, asked by #{d.asked_by}: #{settled}"
   end
 
   defp research_line(r),

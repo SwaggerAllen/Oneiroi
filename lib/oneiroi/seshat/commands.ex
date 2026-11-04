@@ -62,4 +62,17 @@ defmodule Oneiroi.Seshat.Commands do
   defmodule FailResearch do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
+
+  defmodule AskDigest do
+    # Seshat #40: a digest of the reader's streams since `since`.
+    use Oneiroi.Command, fields: [:id, :session_key, :since]
+  end
+
+  defmodule AnswerDigest do
+    use Oneiroi.Command, fields: [:id, :number, :path, :items]
+  end
+
+  defmodule FailDigest do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
 end

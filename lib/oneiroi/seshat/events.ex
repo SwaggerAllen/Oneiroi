@@ -93,4 +93,24 @@ defmodule Oneiroi.Seshat.Events do
   defmodule ResearchFailed do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
   end
+
+  defmodule DigestAsked do
+    # A digest asked of the reader (seshat#40): what reached the
+    # resident's streams (her mail's newsletters and posts) since `since`,
+    # by whoever the actor is, and the conversation told when it lands.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :session_key, :since],
+      instants: [:since]
+  end
+
+  defmodule DigestAnswered do
+    # The digest written at `path` (feeds/digests/<number>-<day>.md), and
+    # how many items it covered.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :path, :items]
+  end
+
+  defmodule DigestFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
 end

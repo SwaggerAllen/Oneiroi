@@ -14,7 +14,14 @@ defmodule Oneiroi.Seshat.Library do
   alias Oneiroi.Seshat.Kinds
 
   # `oracles`: number => :open | :answered | :failed (seshat#34).
-  defstruct [:id, documents: %{}, discussions: MapSet.new(), oracles: %{}, researches: %{}]
+  defstruct [
+    :id,
+    documents: %{},
+    discussions: MapSet.new(),
+    oracles: %{},
+    researches: %{},
+    digests: %{}
+  ]
 
   @url ~r/\Ahttps?:\/\/[^\s]+\z/
 
@@ -311,6 +318,77 @@ defmodule Oneiroi.Seshat.Library do
         []
     end
   end
+
+  # Seshat #40: one digest open at a time; asking while one is open is
+  # no event, and the service answers with the open one's number.
+  def execute(%__MODULE__{digests: digests}, %Commands.AskDigest{} = c) do
+    cond do
+      not match?(%DateTime{}, c.since) ->
+        {:error, Error.new(:seshat_digest_invalid, :seshat_ask_digest_since)}
+
+      Enum.any?(digests, fn {_n, state} -> state == :open end) ->
+        []
+
+      true ->
+        %Events.DigestAsked{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: (digests |> Map.keys() |> Enum.max(fn -> 0 end)) + 1,
+          session_key: c.session_key,
+          since: c.since
+        }
+    end
+  end
+
+  def execute(%__MODULE__{digests: digests}, %Commands.AnswerDigest{} = c) do
+    case Map.get(digests, c.number) do
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_digest, :seshat_answer_digest_absent, number: c.number)}
+
+      :open ->
+        %Events.DigestAnswered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          path: c.path,
+          items: c.items || 0
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def execute(%__MODULE__{digests: digests}, %Commands.FailDigest{} = c) do
+    case Map.get(digests, c.number) do
+      nil ->
+        {:error, Error.new(:seshat_no_such_digest, :seshat_fail_digest_absent, number: c.number)}
+
+      :open ->
+        %Events.DigestFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          reason: c.reason
+        }
+
+      _settled ->
+        []
+    end
+  end
+
+  def apply(%__MODULE__{} = l, %Events.DigestAsked{} = e),
+    do: %{l | id: e.id, digests: Map.put(l.digests, e.number, :open)}
+
+  def apply(%__MODULE__{} = l, %Events.DigestAnswered{} = e),
+    do: %{l | digests: Map.put(l.digests, e.number, :answered)}
+
+  def apply(%__MODULE__{} = l, %Events.DigestFailed{} = e),
+    do: %{l | digests: Map.put(l.digests, e.number, :failed)}
 
   def apply(%__MODULE__{} = l, %Events.ResearchAsked{} = e),
     do: %{l | id: e.id, researches: Map.put(l.researches, e.number, :open)}

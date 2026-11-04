@@ -46,6 +46,27 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Digest do
+    @moduledoc "A digest asked of the reader (seshat#40): since when, by whom, and how it settled."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_digest" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:session_key, :string)
+      field(:since, :utc_datetime_usec)
+      field(:asked_by, :string)
+      field(:status, :string)
+      field(:path, :string)
+      field(:items, :integer)
+      field(:reason, :string)
+      field(:asked_at, :utc_datetime_usec)
+      field(:settled_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule DocumentMove do
     @moduledoc "Where a document moved from and to (seshat#39): a citation of the old path follows it."
     use Ecto.Schema
@@ -299,6 +320,22 @@ defmodule Oneiroi.Seshat.Store do
 
   @spec document(String.t()) :: Document.t() | nil
   def document(path), do: Repo.one(from(d in Document, where: d.path == ^path))
+
+  @doc "The digests, newest first; `status:` narrows."
+  def digests(opts \\ []) do
+    query = from(d in Digest, order_by: [desc: d.number])
+
+    query =
+      case Keyword.get(opts, :status) do
+        nil -> query
+        status -> from(d in query, where: d.status == ^status)
+      end
+
+    Repo.all(query)
+  end
+
+  @doc "One digest by number, or nil."
+  def digest(number), do: Repo.one(from(d in Digest, where: d.number == ^number))
 
   @doc "Where a path moved to, following moves to the last (seshat#39); nil if it never moved. A chain is at most as long as the moves, and a cycle stops at the path it began from."
   def moved_to(path, seen \\ MapSet.new()) do

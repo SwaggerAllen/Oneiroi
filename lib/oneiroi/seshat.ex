@@ -62,6 +62,9 @@ defmodule Oneiroi.Seshat do
       Commands.NoteKeepsake,
       Commands.RemoveDocument,
       Commands.MoveDocument,
+      Commands.AskDigest,
+      Commands.AnswerDigest,
+      Commands.FailDigest,
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
@@ -69,6 +72,9 @@ defmodule Oneiroi.Seshat do
       Events.KeepsakeNoted,
       Events.DocumentRemoved,
       Events.DocumentMoved,
+      Events.DigestAsked,
+      Events.DigestAnswered,
+      Events.DigestFailed,
       Events.OracleDispatched,
       Events.OracleAnswered,
       Events.OracleFailed,
@@ -94,6 +100,7 @@ defmodule Oneiroi.Seshat do
     ]
 
   alias Oneiroi.Seshat.Citations
+  alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
@@ -183,6 +190,9 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
       {Oneiroi.Seshat.Events.DocumentMoved, 1},
+      {Oneiroi.Seshat.Events.DigestAsked, 1},
+      {Oneiroi.Seshat.Events.DigestAnswered, 1},
+      {Oneiroi.Seshat.Events.DigestFailed, 1},
       {Oneiroi.Seshat.Events.OracleDispatched, 1},
       {Oneiroi.Seshat.Events.OracleAnswered, 1},
       {Oneiroi.Seshat.Events.OracleFailed, 1},
@@ -242,6 +252,11 @@ defmodule Oneiroi.Seshat do
        remedy: "list the research questions"},
       {:seshat_research_settled, "that research question is already answered or failed",
        remedy: "ask it again as a new question"},
+      {:seshat_digest_invalid, "a digest is asked from an instant",
+       remedy: "the service sets it; a hand-made one is a bug"},
+      {:seshat_no_such_digest, "no digest has that number", remedy: "list the digests"},
+      {:seshat_digest_settled, "that digest is already compiled or failed",
+       remedy: "ask for a new digest"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -337,6 +352,31 @@ defmodule Oneiroi.Seshat do
   @doc "One oracle question by number, or nil."
   @spec oracle(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Oracle.t() | nil
   defexport(oracle(resident_id, number), do: Oracles.oracle(resident_id, number))
+
+  @doc "Asks the reader for a digest of the resident's streams since the last one (seshat#40), from the conversation `session_key`; `{:ok, number, :asked}`, or `:open` naming the one already open."
+  @spec ask_digest(String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer(), :asked | :open} | {:error, term()}
+  defexport(ask_digest(resident_id, session_key, actor),
+    do: Digests.ask(resident_id, session_key, actor)
+  )
+
+  @doc "Writes the reader's digest `number` under feeds/digests/, records it compiled and tells the asking conversation; the path."
+  @spec answer_digest(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(answer_digest(resident_id, number, found, actor),
+    do: Digests.answer(resident_id, number, found, actor)
+  )
+
+  @doc "Records digest `number` as failed, with the reason, and tells the asking conversation."
+  @spec fail_digest(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(fail_digest(resident_id, number, reason, actor),
+    do: Digests.fail(resident_id, number, reason, actor)
+  )
+
+  @doc "The digests, newest first; `status:` narrows to open, answered or failed."
+  @spec digests(String.t(), keyword()) :: [Oneiroi.Seshat.Store.Digest.t()]
+  defexport(digests(resident_id, opts), do: Digests.digests(resident_id, opts))
 
   @doc "Asks the reader's research pass a named question from the conversation `session_key`, with the pages to start from (seshat#38); its number."
   @spec ask_research(String.t(), String.t() | nil, String.t(), [String.t()], Oneiroi.Actor.t()) ::
