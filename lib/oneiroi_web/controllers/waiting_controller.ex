@@ -5,16 +5,18 @@ defmodule OneiroiWeb.WaitingController do
   here, cheaply and often, and wakes its model only when something new
   waits. A `brain` adapter is told the house letters waiting for the
   conversation it names (`session_key`); a `reader` adapter, the approved
-  replies it has to send. Numbers and who they are from or for, never
+  replies it has to send and the research questions open (seshat #38).
+  Numbers and who they are from or for, never
   their words, and nothing is marked read: the letter is read with
   letter_inbox, the reply with the reader's own route. A witness may ask
-  too, and is told both.
+  too, and is told all of it.
   """
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.AdapterPrincipal
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
   alias Oneiroi.Xenia
   alias OpenApiSpex.Schema
 
@@ -45,7 +47,12 @@ defmodule OneiroiWeb.WaitingController do
         do: Enum.map(Xenia.replies(id, "approved"), &%{number: &1.number, platform: &1.platform}),
         else: []
 
-    json(conn, %{letters: letters, replies: replies})
+    research =
+      if role in ["reader", :witness],
+        do: Enum.map(Seshat.researches(id, status: "open"), &%{number: &1.number}),
+        else: []
+
+    json(conn, %{letters: letters, replies: replies, research: research})
   end
 
   defp letter(l), do: %{number: l.number, from: l.from_name, in_reply_to: l.in_reply_to}

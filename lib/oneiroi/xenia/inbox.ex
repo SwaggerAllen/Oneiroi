@@ -144,6 +144,31 @@ defmodule Oneiroi.Xenia.Inbox do
 
   def blocks(resident_id), do: Scope.resident(resident_id, fn -> Store.blocks() end)
 
+  # Before the witness sets them: Substack to read correspondence, and
+  # nothing to research, which waits for the witness to name the sites.
+  @default_scrape ["https://substack.com", "https://www.substack.com"]
+
+  @doc "The reader's allowlists: as the witness set them, or the defaults (xenia #16)."
+  def reader_sites(resident_id) do
+    case Scope.resident(resident_id, fn -> Store.reader_sites() end) do
+      nil -> %{scrape: @default_scrape, research: [], set_at: nil}
+      s -> %{scrape: s.scrape, research: s.research, set_at: s.set_at}
+    end
+  end
+
+  @doc "Sets the reader's allowlists; the witness's alone."
+  def set_reader_sites(resident_id, scrape, research, %Actor{} = actor) do
+    %Commands.SetReaderSites{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      scrape: scrape,
+      research: research
+    }
+    |> dispatch()
+    |> ok()
+  end
+
   def replies(resident_id, state \\ nil),
     do: Scope.resident(resident_id, fn -> Store.replies(state) end)
 

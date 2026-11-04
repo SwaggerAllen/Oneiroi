@@ -6,7 +6,7 @@ defmodule Oneiroi.Xenia.Projectors.Correspondence do
 
   alias Ecto.Multi
   alias Oneiroi.Xenia.Events
-  alias Oneiroi.Xenia.Store.{Block, Message, Reply}
+  alias Oneiroi.Xenia.Store.{Block, Message, ReaderSites, Reply}
 
   fold(%Events.CorrespondenceReceived{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -42,6 +42,21 @@ defmodule Oneiroi.Xenia.Projectors.Correspondence do
         where: m.resident_id == ^e.id and m.number in ^e.numbers and is_nil(m.read_at)
       ),
       set: [read_at: e.at]
+    )
+  end)
+
+  fold(%Events.ReaderSitesSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :reader_sites,
+      %ReaderSites{
+        resident_id: e.id,
+        scrape: e.scrape || [],
+        research: e.research || [],
+        set_at: e.at
+      },
+      on_conflict: {:replace, [:scrape, :research, :set_at]},
+      conflict_target: [:resident_id]
     )
   end)
 

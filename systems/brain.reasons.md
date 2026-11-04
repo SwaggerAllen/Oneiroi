@@ -492,3 +492,9 @@ the tool results rather than the prefix, because the prefix is shared
 with runtimes whose loop is not this one (a Claude Code session has
 its own), and because the count changes every round, which the cached
 prefix must not.
+
+## #52
+A tool that reaches the web on her behalf has to say where it can go
+before it goes, or she asks for what it cannot read and learns it only
+from an empty answer. The allowlist is read at the call, so what she is
+told is what the reader will be held to.

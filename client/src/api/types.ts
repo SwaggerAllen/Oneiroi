@@ -410,6 +410,33 @@ export interface Adapter {
   revoked_at: string | null;
 }
 
+// The reader's two allowlists (xenia #16): the origins its browser may
+// reach when reading correspondence (`scrape`) and when researching
+// (`research`), each an origin (scheme, host, optional port) or `*` for
+// any site. `set_at` is null until the witness first sets them.
+export interface ReaderSites {
+  scrape: string[];
+  research: string[];
+  set_at: string | null;
+}
+
+export type ResearchStatus = 'open' | 'answered' | 'failed';
+
+// A research question put to the reader (seshat #38): its notes land in
+// the library at `<path>/task.md`; a failed one says why in `reason`.
+export interface ResearchQuestion {
+  number: number;
+  question: string;
+  urls: string[];
+  sources: string[];
+  asked_by: 'resident' | 'witness' | string;
+  status: ResearchStatus | string;
+  path: string | null;
+  reason: string | null;
+  asked_at: string;
+  settled_at: string | null;
+}
+
 // A passage the library's search found nearest a query (seshat): the
 // document it is in and the words.
 export interface LibraryHit {

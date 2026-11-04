@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import type { Adapter } from '../../api/types';
+import type { Adapter, ApiError, ReaderSites, ResearchQuestion } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { ErrorNotice } from '../../components/ErrorNotice';
 import { Field } from '../../components/Field';
 import { TopBar } from '../../components/TopBar';
 
@@ -13,9 +14,18 @@ export interface ConnectionsProps {
   onRegister?: (adapter: string, role: string) => void;
   onRevoke?: (adapter: string) => void;
   onDismissToken?: () => void;
+  // The reader's two allowlists (xenia #16), and what the server said
+  // when a save was refused (an entry not an origin, a list too long).
+  reader?: ReaderSites | null;
+  readerError?: ApiError | null;
+  onSaveReader?: (scrape: string[], research: string[]) => void;
+  // The questions put to the reader's research pass (seshat #38), newest first.
+  research?: ResearchQuestion[] | null;
+  onAsk?: (question: string, urls: string[]) => void;
 }
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
+const area = { padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', background: 'var(--surface-raised)', color: 'var(--ink)', fontFamily: 'var(--font-mono)', fontSize: 14 } as const;
 const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' } as const;
 
 // The roles an adapter's token holds (spec §8, xenia #11), in words.
@@ -29,7 +39,19 @@ const roles: Array<{ id: string; words: (name: string) => string }> = [
 // the runtimes and hands that hold a token for the resident. A token is
 // shown once, when it is issued; registering a name again replaces its
 // token; revoking stops it at once.
-export function Connections({ residentName, adapters, issued = null, onRegister, onRevoke, onDismissToken }: ConnectionsProps) {
+export function Connections({
+  residentName,
+  adapters,
+  issued = null,
+  onRegister,
+  onRevoke,
+  onDismissToken,
+  reader = null,
+  readerError = null,
+  onSaveReader,
+  research = null,
+  onAsk,
+}: ConnectionsProps) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('reader');
   const live = adapters.filter((a) => !a.revoked_at);
@@ -102,6 +124,8 @@ export function Connections({ residentName, adapters, issued = null, onRegister,
             </form>
           </Card>
         ) : null}
+        {reader ? <ReaderCard key={reader.set_at ?? 'unset'} reader={reader} error={readerError} onSave={onSaveReader} /> : null}
+        {research ? <ResearchCard residentName={residentName} research={research} onAsk={onAsk} /> : null}
         {gone.length > 0 ? (
           <Card title="Revoked">
             <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 14, color: 'var(--ink-muted)' }}>
@@ -132,5 +156,119 @@ function AdapterRow({ residentName, adapter: a, onRevoke }: { residentName: stri
         </Button>
       ) : null}
     </li>
+  );
+}
+
+// One entry a line, blanks and surrounding space dropped.
+const lines = (text: string) =>
+  text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+
+// The reader's two allowlists (xenia #16), edited one origin a line and
+// saved together. A fresh card per save (keyed by `set_at`), so it
+// starts again from what the server kept; a refused save keeps the draft.
+function ReaderCard({ reader, error, onSave }: { reader: ReaderSites; error: ApiError | null; onSave?: (scrape: string[], research: string[]) => void }) {
+  const [scrape, setScrape] = useState(reader.scrape.join('\n'));
+  const [research, setResearch] = useState(reader.research.join('\n'));
+  return (
+    <Card title="Reader">
+      <p style={muted}>
+        Where the reader's browser may go, one origin a line, like https://example.org (no path). {reader.set_at ? `Set ${reader.set_at.slice(0, 10)}.` : 'Never set.'}
+      </p>
+      <form
+        aria-label="Reader"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave?.(lines(scrape), lines(research));
+        }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}
+      >
+        <SiteList label="Reading correspondence" value={scrape} onChange={setScrape} disabled={!onSave}>
+          The sites it may open while reading correspondence. * means any site.
+        </SiteList>
+        <SiteList label="Research" value={research} onChange={setResearch} disabled={!onSave}>
+          The sites it may open while researching a question. * means any site; an empty list means the reader can't research at all.
+        </SiteList>
+        {error ? <ErrorNotice error={error} /> : null}
+        {onSave ? (
+          <div>
+            <Button variant="primary" type="submit">
+              Save
+            </Button>
+          </div>
+        ) : null}
+      </form>
+    </Card>
+  );
+}
+
+function SiteList({ label, value, onChange, disabled, children }: { label: string; value: string; onChange: (v: string) => void; disabled: boolean; children: string }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 13 }}>
+      <span style={{ fontWeight: 500, color: 'var(--ink-muted)' }}>{label}</span>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={4} disabled={disabled} spellCheck={false} style={area} />
+      <span style={{ color: 'var(--ink-muted)' }}>{children}</span>
+    </label>
+  );
+}
+
+// The research questions (seshat #38): what was asked and how it
+// settled; an answered one's notes are in the Library at the path shown.
+function ResearchCard({ residentName, research, onAsk }: { residentName: string; research: ResearchQuestion[]; onAsk?: (question: string, urls: string[]) => void }) {
+  const [question, setQuestion] = useState('');
+  const [urls, setUrls] = useState('');
+  return (
+    <Card title="Research">
+      {research.length === 0 ? (
+        <p style={muted}>No question asked yet.</p>
+      ) : (
+        <ul aria-label="Research questions" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          {research.map((r) => (
+            <li key={r.number} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 15 }}>
+              <span>
+                <span style={{ color: 'var(--ink-muted)' }}>#{r.number}</span> {r.question}
+              </span>
+              <span style={{ fontSize: 13, color: r.status === 'failed' ? 'var(--danger)' : 'var(--ink-muted)' }}>
+                {r.status}
+                {r.asked_by === 'resident' ? ` · asked by ${residentName}` : ''} · {r.asked_at.slice(0, 10)}
+                {r.status === 'answered' && r.path ? (
+                  <>
+                    {' · in the Library at '}
+                    <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.path}/task.md</code>
+                  </>
+                ) : null}
+                {r.status === 'failed' && r.reason ? ` · ${r.reason}` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {onAsk ? (
+        <form
+          aria-label="Ask a question"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (question.trim() === '') return;
+            onAsk(question.trim(), lines(urls));
+            setQuestion('');
+            setUrls('');
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}
+        >
+          <Field label="Question" value={question} onChange={(e) => setQuestion(e.target.value)} />
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 13 }}>
+            <span style={{ fontWeight: 500, color: 'var(--ink-muted)' }}>Pages to start from (optional, one a line)</span>
+            <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={2} spellCheck={false} style={area} />
+          </label>
+          <div>
+            <Button variant="primary" type="submit" disabled={question.trim() === ''}>
+              Ask
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </Card>
   );
 }

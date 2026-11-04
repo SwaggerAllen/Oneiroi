@@ -50,6 +50,7 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
+    research_list
   )
 
   @writes ~w(
@@ -57,7 +58,7 @@ defmodule Oneiroi.Brain.Tools do
     figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
-    self_letter_write state_set state_clear memory_feedback oracle_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
+    self_letter_write state_set state_clear memory_feedback oracle_ask research_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove
     journal_add journal_done
@@ -365,6 +366,18 @@ defmodule Oneiroi.Brain.Tools do
           q: %{type: "string"},
           limit: %{type: "integer", minimum: 1}
         },
+        []
+      ),
+      tool(
+        "research_ask",
+        "Ask the reader to research a question on the web: a longer reading pass than a turn, by the reader (not you) on your witness's machine, through a browser that reaches only the sites on your witness's research allowlist and is signed in nowhere, so it can read and search but never post, send or act as you. Name the question; give up to ten pages to start from (they must be on the allowlist to be read). The notes land under research/<number>-…/ (task.md and a note per page) and this conversation gets a letter. research_list shows the allowlist and what you have asked.",
+        %{question: %{type: "string"}, urls: %{type: "array", items: %{type: "string"}}},
+        [:question]
+      ),
+      tool(
+        "research_list",
+        "The reader's research allowlist (the sites it may reach, set by your witness) and your research questions, newest first, with how each settled; status narrows.",
+        %{status: %{type: "string", enum: ["open", "answered", "failed"]}},
         []
       ),
       tool(
@@ -1427,6 +1440,48 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Research (seshat #38, xenia #16): asked only when the reader has sites
+  # to reach, and the answer says exactly which, so she knows what it can
+  # and cannot read before it reads.
+  defp call("research_ask", args, turn) do
+    %{research: sites} = Oneiroi.Xenia.reader_sites(turn.resident_id)
+    urls = args["urls"] |> List.wrap() |> Enum.map(&to_string/1)
+
+    if sites == [] do
+      "Not done: the reader has no sites it may research yet. Your witness sets its research allowlist on Connections."
+    else
+      with {:ok, n} <-
+             Seshat.ask_research(
+               turn.resident_id,
+               turn.session_key,
+               to_string(args["question"] || ""),
+               urls,
+               turn.resident
+             ) do
+        "Asked as research ##{n}. The reader will look only at #{sites_text(sites)}, signed in nowhere, and can read and search but not post or send. " <>
+          off_list(urls, sites) <>
+          "Its notes land under research/#{n}-…/ and this conversation gets a letter; it runs on your witness's machine, so it starts when that is awake."
+      end
+    end
+  end
+
+  defp call("research_list", args, turn) do
+    %{research: sites} = Oneiroi.Xenia.reader_sites(turn.resident_id)
+    opts = if args["status"], do: [status: to_string(args["status"])], else: []
+
+    listed =
+      case Seshat.researches(turn.resident_id, opts) do
+        [] ->
+          "No research asked yet."
+
+        rows ->
+          Enum.map_join(rows, "\n", &research_line/1)
+      end
+
+    "The reader may research #{if sites == [], do: "no sites yet (your witness sets them on Connections)", else: sites_text(sites)}.\n\n" <>
+      listed
+  end
+
   defp call("oracle_list", args, turn) do
     opts =
       [
@@ -2346,6 +2401,28 @@ defmodule Oneiroi.Brain.Tools do
     Enum.map_join(near, "\n", fn p ->
       "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{Calendar.strftime(p.sent_at, "%Y-%m-%d")}: #{opening(p.text, 280)}"
     end)
+  end
+
+  defp research_line(r),
+    do: "##{r.number} #{r.status}: #{r.question}" <> research_settled(r)
+
+  defp research_settled(%{status: "answered", path: path}), do: " → #{path}/task.md"
+  defp research_settled(%{status: "failed", reason: reason}), do: " (#{reason})"
+  defp research_settled(_open), do: ""
+
+  defp sites_text(["*"]), do: "any site"
+  defp sites_text(sites), do: Enum.join(sites, ", ")
+
+  # Pages to start from that the allowlist will not let the reader open.
+  defp off_list(_urls, ["*"]), do: ""
+
+  defp off_list(urls, sites) do
+    case Enum.reject(urls, fn u ->
+           "*" in sites or Enum.any?(sites, &String.starts_with?(u, &1 <> "/")) or u in sites
+         end) do
+      [] -> ""
+      off -> "Not on the allowlist, so it cannot open them: #{Enum.join(off, ", ")}. "
+    end
   end
 
   # A passage's opening on one line, an ellipsis where it goes on.

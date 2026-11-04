@@ -65,4 +65,9 @@ defmodule Oneiroi.Xenia.Events do
     # platform gives it an address.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :url]
   end
+
+  defmodule ReaderSitesSet do
+    # The reader's two allowlists as the witness set them (xenia #16).
+    use Oneiroi.Event, version: 1, fields: [:id, :scrape, :research]
+  end
 end

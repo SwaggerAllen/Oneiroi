@@ -15,11 +15,13 @@ import type {
   Injection,
   Ledger as LedgerData,
   Message,
+  ReaderSites,
   RegressionCard,
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
   Reply,
+  ResearchQuestion,
   Resident,
   ScheduleToday,
   RetrievalCount,
@@ -549,10 +551,21 @@ function ConnectionsContainer({ resident }: { resident: Resident }) {
   const [adapters, setAdapters] = useState<Adapter[] | null>(null);
   const [issued, setIssued] = useState<{ adapter: string; token: string } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [reader, setReader] = useState<ReaderSites | null>(null);
+  const [readerError, setReaderError] = useState<ApiError | null>(null);
+  const [research, setResearch] = useState<ResearchQuestion[] | null>(null);
   const load = useCallback(() => {
     api
       .adapters(id)
       .then(setAdapters)
+      .catch((e: unknown) => setError(asApiError(e)));
+    api
+      .reader(id)
+      .then(setReader)
+      .catch((e: unknown) => setError(asApiError(e)));
+    api
+      .research(id)
+      .then(setResearch)
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -580,6 +593,24 @@ function ConnectionsContainer({ resident }: { resident: Resident }) {
             .catch((e: unknown) => setError(asApiError(e)))
         }
         onDismissToken={() => setIssued(null)}
+        reader={reader}
+        readerError={readerError}
+        onSaveReader={(scrape, sites) =>
+          api
+            .setReader(id, scrape, sites)
+            .then((r) => {
+              setReader(r);
+              setReaderError(null);
+            })
+            .catch((e: unknown) => setReaderError(asApiError(e)))
+        }
+        research={research}
+        onAsk={(question, urls) =>
+          api
+            .askResearch(id, question, urls)
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
       />
     </>
   );

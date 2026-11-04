@@ -246,3 +246,13 @@ from it, silently: nothing failed when a kind was added, a citation into
 it just did not parse. Read from the registry, a kind is citable the day
 it lands, and the test that cites every registered kind fails if one is
 not.
+
+## #38
+A research pass reads for longer than a turn and on someone else's
+machine, so the question has to outlive the turn that asked it: a
+record, numbered, with who asked and from where, answered or failed in
+words, as the oracle's questions are (#34). The notes are the library's
+research kind because that is where a source and what was read from it
+already had a layout (`task.md` and a note per source). Summaries and
+not excerpts because the pages are other people's: the link carries
+their words, the note carries what bears on her question.

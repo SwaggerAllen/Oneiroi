@@ -40,6 +40,15 @@ defmodule Oneiroi.Xenia.Correspondence do
   @identity_limit 320
   @line_limit 300
 
+  # An origin: a scheme and a host, a port at most; or `*` for any.
+  @origin ~r/\Ahttps?:\/\/[a-z0-9.-]+(:\d{1,5})?\z/
+  @sites_limit 50
+
+  @doc "Whether an allowlist entry is an origin (`https://host`) or `*`."
+  @spec origin_ok?(term()) :: boolean()
+  def origin_ok?("*"), do: true
+  def origin_ok?(o), do: is_binary(o) and Regex.match?(@origin, o)
+
   @doc "Whether a platform's name is well formed: a lowercase slug of at most 32."
   @spec platform_ok?(term()) :: boolean()
   def platform_ok?(p), do: is_binary(p) and Regex.match?(@platform, p)
@@ -160,6 +169,33 @@ defmodule Oneiroi.Xenia.Correspondence do
     end
   end
 
+  # The reader's allowlists (xenia #16): the witness's alone, each list
+  # at most 50 origins or `*`.
+  def execute(%__MODULE__{}, %Commands.SetReaderSites{} = c) do
+    lists = [List.wrap(c.scrape), List.wrap(c.research)]
+
+    cond do
+      c.actor.kind != :witness ->
+        {:error, Error.new(:xenia_not_allowed, :xenia_reader_sites_actor, actor: c.actor.kind)}
+
+      not Enum.all?(
+        lists,
+        &(length(&1) <= @sites_limit and Enum.all?(&1, fn o -> origin_ok?(o) end))
+      ) ->
+        {:error,
+         Error.new(:xenia_sites_invalid, :xenia_reader_sites_invalid, limit: @sites_limit)}
+
+      true ->
+        %Events.ReaderSitesSet{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          scrape: Enum.uniq(List.wrap(c.scrape)),
+          research: Enum.uniq(List.wrap(c.research))
+        }
+    end
+  end
+
   def execute(%__MODULE__{} = s, %Commands.DecideReply{} = c) do
     cond do
       c.actor.kind != :witness ->
@@ -199,6 +235,8 @@ defmodule Oneiroi.Xenia.Correspondence do
   end
 
   # ---- apply ----
+
+  def apply(%__MODULE__{} = s, %Events.ReaderSitesSet{} = e), do: %{s | id: e.id}
 
   def apply(%__MODULE__{} = s, %Events.CorrespondenceReceived{} = e) do
     %{

@@ -70,6 +70,9 @@ defmodule Oneiroi.Seshat do
       Events.OracleDispatched,
       Events.OracleAnswered,
       Events.OracleFailed,
+      Events.ResearchAsked,
+      Events.ResearchAnswered,
+      Events.ResearchFailed,
       Store,
       Store.Document,
       Store.Chunk,
@@ -77,6 +80,7 @@ defmodule Oneiroi.Seshat do
       Store.IndexRun,
       Store.Discussion,
       Store.Oracle,
+      Store.Research,
       Store.JournalEntry,
       Journal,
       Journals,
@@ -93,6 +97,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Oracles
+  alias Oneiroi.Seshat.Researches
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -178,6 +183,9 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.OracleDispatched, 1},
       {Oneiroi.Seshat.Events.OracleAnswered, 1},
       {Oneiroi.Seshat.Events.OracleFailed, 1},
+      {Oneiroi.Seshat.Events.ResearchAsked, 1},
+      {Oneiroi.Seshat.Events.ResearchAnswered, 1},
+      {Oneiroi.Seshat.Events.ResearchFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
@@ -217,6 +225,13 @@ defmodule Oneiroi.Seshat do
        remedy: "name the question; give the sources it should read, or none"},
       {:seshat_no_such_oracle, "no oracle question has that number",
        remedy: "list the oracle's questions"},
+      {:seshat_research_invalid,
+       "research is asked a named question of at most 2,000 characters, with at most ten pages to start from, each an http(s) URL",
+       remedy: "name the question; give the pages to start from, or none"},
+      {:seshat_no_such_research, "no research question has that number",
+       remedy: "list the research questions"},
+      {:seshat_research_settled, "that research question is already answered or failed",
+       remedy: "ask it again as a new question"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -312,6 +327,35 @@ defmodule Oneiroi.Seshat do
   @doc "One oracle question by number, or nil."
   @spec oracle(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Oracle.t() | nil
   defexport(oracle(resident_id, number), do: Oracles.oracle(resident_id, number))
+
+  @doc "Asks the reader's research pass a named question from the conversation `session_key`, with the pages to start from (seshat #38); its number."
+  @spec ask_research(String.t(), String.t() | nil, String.t(), [String.t()], Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(ask_research(resident_id, session_key, question, urls, actor),
+    do: Researches.ask(resident_id, session_key, question, urls, actor)
+  )
+
+  @doc "Writes the reader's notes for research `number` under research/, records it answered and tells the asking conversation; the folder."
+  @spec answer_research(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(answer_research(resident_id, number, found, actor),
+    do: Researches.answer(resident_id, number, found, actor)
+  )
+
+  @doc "Records research `number` as failed, with the reason in words, and tells the asking conversation."
+  @spec fail_research(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(fail_research(resident_id, number, reason, actor),
+    do: Researches.fail(resident_id, number, reason, actor)
+  )
+
+  @doc "The research questions, newest first; `status:` narrows to open, answered or failed."
+  @spec researches(String.t(), keyword()) :: [Oneiroi.Seshat.Store.Research.t()]
+  defexport(researches(resident_id, opts), do: Researches.researches(resident_id, opts))
+
+  @doc "One research question by number, or nil."
+  @spec research(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Research.t() | nil
+  defexport(research(resident_id, number), do: Researches.research(resident_id, number))
 
   @doc "Removes a scratch or human document (seshat #33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
   @spec remove(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

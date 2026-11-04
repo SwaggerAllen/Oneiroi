@@ -9,15 +9,19 @@
 #                     for the reader and sends only when a reply does
 #   reader.sh scrape  twice a day (launchd): reads and delivers
 #   reader.sh send    sends the approved replies now
+#   reader.sh research  researches the open questions now (seshat #38)
 #   reader.sh login   opens the reader's browser profile, visible, to sign
 #                     in to Substack as the resident once
 #
 # The model never holds the Oneiroi token: this script makes every call
 # to Oneiroi, and headless Claude Code only reads and writes JSON files
-# in `work/`. The browser reaches only the sites on the allowlist
-# (READER_ORIGINS in reader.conf, Substack's by default). A scrape run
-# cannot type, so a stranger's message cannot make it send anything; a
-# send run is given the approved replies and nothing else to do.
+# in `work/`. The browser reaches only the sites on the witness's
+# allowlists, set on Connections and read from Oneiroi at each run
+# (xenia #16): one for reading correspondence, one for research. A scrape
+# run cannot type, so a stranger's message cannot make it send anything;
+# a send run is given the approved replies and nothing else to do; a
+# research run browses in a profile signed in nowhere, so whatever it
+# types can post or send nothing as the resident.
 #
 # Reads ~/.config/oneiroi/reader.conf (ONEIROI_URL, ONEIROI_RESIDENT,
 # SUBSTACK_ACCOUNT, EMAIL_ACCOUNT, READER_ORIGINS) and the token from
@@ -62,26 +66,90 @@ lock() {
 # reader's prompt and only the tools named. Anything else is refused,
 # since a headless run asks nobody.
 model() {
-  local prompt="$1" tools="$2"
-  browser_config
+  local prompt="$1" tools="$2" origins="${3:-$SCRAPE_ORIGINS}" profile="${4:-browser-profile}" turns="${5:-${ONEIROI_READER_TURNS:-80}}"
+  browser_config "$origins" "$profile"
   (cd "$READER" && "${ONEIROI_CLAUDE:-claude}" -p "$(cat "$KIT/prompts/$prompt.md")" \
     --mcp-config "$WORK/mcp.json" \
     --allowedTools "$tools" \
-    --max-turns "${ONEIROI_READER_TURNS:-80}" \
+    --max-turns "$turns" \
     --output-format text)
 }
 
+# The witness's allowlists from Oneiroi; reader.conf's for reading
+# correspondence when Oneiroi does not answer, and no research then.
+sites() {
+  local status
+  SCRAPE_ORIGINS="${READER_ORIGINS:-$DEFAULT_ORIGINS}"
+  RESEARCH_ORIGINS=""
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/reader" "" "$OUT")"
+  [ "$status" = 200 ] || return 0
+  SCRAPE_ORIGINS="$(jq -r '.scrape | join(";")' "$OUT")"
+  RESEARCH_ORIGINS="$(jq -r '.research | join(";")' "$OUT")"
+}
+
 wait_for_work() {
-  local status fresh
+  local status fresh asked
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
   [ "$status" = 200 ] || { say "Oneiroi answered $status to what waits"; return 0; }
-  touch "$STATE/given-up"
+  touch "$STATE/given-up" "$STATE/research-given-up"
   fresh="$(jq -r --rawfile gone "$STATE/given-up" \
     '($gone | split("\n")) as $g | [.replies[] | select((.number | tostring) as $n | ($g | index([$n])) == null)] | length' \
     "$OUT" 2>/dev/null)"
-  [ "${fresh:-0}" -gt 0 ] || return 0
-  say "$fresh approved repl$([ "$fresh" = 1 ] && echo y || echo ies) to send"
-  send
+  asked="$(jq -r --rawfile gone "$STATE/research-given-up" \
+    '($gone | split("\n")) as $g | [(.research // [])[] | select((.number | tostring) as $n | ($g | index([$n])) == null)] | length' \
+    "$OUT" 2>/dev/null)"
+  if [ "${fresh:-0}" -gt 0 ]; then
+    say "$fresh approved repl$([ "$fresh" = 1 ] && echo y || echo ies) to send"
+    send
+    rmdir "$STATE/lock" 2>/dev/null
+  fi
+  if [ "${asked:-0}" -gt 0 ]; then
+    say "$asked research question(s) open"
+    research
+  fi
+}
+
+# Research (seshat #38): each open question in turn, in its own profile
+# signed in nowhere, held to the research allowlist. An answer is the
+# notes it wrote; a question it could not answer is tried twice, then
+# said failed with the reason.
+research() {
+  local number status tries
+  lock
+  [ -n "$RESEARCH_ORIGINS" ] || { say "no research allowlist; the witness sets it on Connections"; return 0; }
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/research" "" "$OUT")"
+  [ "$status" = 200 ] || { say "Oneiroi answered $status to the research"; return 0; }
+  touch "$STATE/research-given-up"
+  cp "$OUT" "$WORK/open-research.json"
+  for number in $(jq -r '.[].number' "$WORK/open-research.json"); do
+    grep -qx "$number" "$STATE/research-given-up" && continue
+    jq --argjson n "$number" --arg sites "$RESEARCH_ORIGINS" \
+      '[.[] | select(.number == $n)][0] | {number, question, urls, sites: ($sites | split(";"))}' \
+      "$WORK/open-research.json" > "$WORK/research.json"
+    rm -f "$WORK/found.json"
+
+    model research "Read(/work/research.json),Write(/work/found.json),$(browser write)" \
+      "$RESEARCH_ORIGINS" research-profile "${ONEIROI_READER_RESEARCH_TURNS:-200}" ||
+      say "the research run ended badly"
+
+    if jq -e '(.summary | type == "string") and (.sources | type == "array")' "$WORK/found.json" > /dev/null 2>&1; then
+      jq '{summary, sources: [.sources[] | {url, title, notes}]}' "$WORK/found.json" > "$OUT.body"
+      status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/research/$number/answer" "$OUT.body" "$OUT")"
+      say "research #$number answered; Oneiroi answered $status"
+      rm -f "$OUT.body"
+    else
+      tries="$(( $(grep -c "^$number\$" "$STATE/research-tries" 2>/dev/null || echo 0) + 1 ))"
+      echo "$number" >> "$STATE/research-tries"
+      say "research #$number not answered (try $tries of 2)"
+      if [ "$tries" -ge 2 ]; then
+        echo "$number" >> "$STATE/research-given-up"
+        jq -n '{reason: "the reader ran twice and wrote no notes"}' > "$OUT.body"
+        status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/research/$number/failed" "$OUT.body" "$OUT")"
+        rm -f "$OUT.body"
+        say "research #$number said failed; Oneiroi answered $status"
+      fi
+    fi
+  done
 }
 
 send() {
@@ -165,8 +233,8 @@ scrape() {
 DEFAULT_ORIGINS="https://substack.com;https://www.substack.com"
 
 browser_config() {
-  local origins="${READER_ORIGINS:-$DEFAULT_ORIGINS}"
-  jq -n --arg profile "$READER/browser-profile" --arg origins "$origins" '{mcpServers: {playwright: {
+  local origins="$1" profile="$READER/$2"
+  jq -n --arg profile "$profile" --arg origins "$origins" '{mcpServers: {playwright: {
     command: "npx",
     args: (["-y", "@playwright/mcp@0.0.84", "--browser", "chrome", "--headless", "--user-data-dir", $profile]
            + (if $origins == "*" then [] else ["--allowed-origins", $origins] end))}}}' > "$WORK/mcp.json"
@@ -191,8 +259,9 @@ login() {
 
 case "${1:-}" in
   login) login ;;
-  wait) setup && wait_for_work ;;
-  send) setup && send ;;
-  scrape) setup && scrape ;;
-  *) echo "usage: reader.sh wait|send|scrape|login" >&2; exit 2 ;;
+  wait) setup && sites && wait_for_work ;;
+  send) setup && sites && send ;;
+  scrape) setup && sites && scrape ;;
+  research) setup && sites && research ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|login" >&2; exit 2 ;;
 esac

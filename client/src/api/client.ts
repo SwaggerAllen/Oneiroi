@@ -12,10 +12,13 @@ import type {
   LibraryIndex,
   Injection,
   Ledger,
+  ReaderSites,
   RegressionRun,
   RegressionRunDetail,
   RegressionTest,
   Reply,
+  ResearchQuestion,
+  ResearchStatus,
   Resident,
   RetrievalCount,
   ScheduleToday,
@@ -157,6 +160,13 @@ export const api = {
     call<{ adapter: string; role: string; token: string }>('POST', `/v1/residents/${residentId}/adapters`, { adapter, role }),
   revokeAdapter: (residentId: string, adapter: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/adapters/${adapter}`),
+  reader: (residentId: string) => call<ReaderSites>('GET', `/v1/residents/${residentId}/reader`),
+  setReader: (residentId: string, scrape: string[], research: string[]) =>
+    call<ReaderSites>('PUT', `/v1/residents/${residentId}/reader`, { scrape, research }),
+  research: (residentId: string, status?: ResearchStatus) =>
+    call<ResearchQuestion[]>('GET', `/v1/residents/${residentId}/research${status ? `?status=${status}` : ''}`),
+  askResearch: (residentId: string, question: string, urls: string[]) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/research`, urls.length > 0 ? { question, urls } : { question }),
   letterAddresses: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/addresses`),
   sendLetter: (residentId: string, to: string, text: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),

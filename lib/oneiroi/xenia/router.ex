@@ -5,5 +5,5 @@ defmodule Oneiroi.Xenia.Router do
     prefix: "xenia-",
     commands: "Oneiroi.Xenia.Commands",
     dispatching:
-      ~w(ReceiveMessage BlockCorrespondent UnblockCorrespondent MarkMessages DraftReply DecideReply MarkReplySent)
+      ~w(ReceiveMessage BlockCorrespondent UnblockCorrespondent MarkMessages DraftReply DecideReply MarkReplySent SetReaderSites)
 end

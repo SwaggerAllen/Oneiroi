@@ -38,6 +38,13 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   # What waits for the adapter, by number alone, so it can wake its
   # runtime when something arrives (kumbukumbu #48).
   def adapter_path?("GET", ["v1", "residents", _id, "waiting"]), do: true
+  # The reader's allowlists and research (xenia #16, seshat #38): read
+  # the lists and the open questions, answer or fail one; the controller
+  # holds them to the `reader` role.
+  def adapter_path?("GET", ["v1", "residents", _id, "reader"]), do: true
+  def adapter_path?("GET", ["v1", "residents", _id, "research"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "answer"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "failed"]), do: true
   # The inbound hands' three (xenia #11): deliver messages, read the
   # approved replies, mark one sent; the controller holds them to the
   # `reader` role, so a brain token reaches none of the words.

@@ -18,6 +18,28 @@ identity, Sima Qian is records), each opening with the name's story and
 carrying a file map; the reason behind each numbered rule is in the
 `.reasons.md` sibling.
 
+## Docs move with the code
+
+A change is not done until the documents that describe it say what it
+does, in the same PR:
+
+- **The spec** (`design/oneiroi-spec.md`): a feature row's status and
+  references, and any section rule the change makes true or false. The
+  spec may run ahead of the code (planned work); it must never say
+  something the code contradicts. Built work goes straight into the
+  spec. Proposals are the resident's, written in her design folder and
+  applied from there; an agent never files a proposal for work it built.
+- **The system docs** (`systems/<name>.md` and `.reasons.md`): a
+  numbered decision for each rule the change adds or changes, with its
+  reason in the sibling file; the Owns list, the `paths:` front matter
+  and the settings named where they changed. Numbers are never reused;
+  a superseded decision says so and points to what replaced it.
+- **The screen docs** (`screens/<name>.md`): what is built and what is
+  not, as the client now has it.
+
+Before calling work done, read the diff against these three and fix
+what drifted, including drift the change only exposed.
+
 ## Toolchain
 
 Pinned in `.tool-versions` (Erlang 28.5.0.5, Elixir 1.19.5-otp-28, Node

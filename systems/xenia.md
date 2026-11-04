@@ -3,7 +3,10 @@ paths:
   - lib/oneiroi/xenia/**
   - lib/oneiroi/xenia.ex
   - lib/oneiroi_web/controllers/correspondence_controller.ex
+  - lib/oneiroi_web/controllers/reader_controller.ex
   - sdk/reader/**
+  - priv/repo/migrations/*_xenia_*.exs
+  - test/oneiroi/xenia/**
 ---
 
 # xenia
@@ -48,6 +51,7 @@ Carried from spec §6.6; the reason for each is there.
 - **#13 Replies through the gate.** `reply_draft` answers a message that reached her (and goes where it came from: its platform, account, thread and sender) or names a platform, account and recipient. A draft waits for the witness; an approved reply is sent by the hands or the witness, and `ReplyMarkedSent{url}` is the receipt, recorded with who sent it. Marking sent twice is one receipt; marking an unapproved reply is refused. Not built: approve-and-wake, the person's own Honcho peer past ten messages, threads as directories in the repo, and `needs_you` across systems (Xenia's share is `needs_you/1`: the replies to approve).
 - **#14 Correspondence is exported.** The `xenia` stream is in `SimaQian.Export`'s streams: everything in it either reached the resident or was never kept, so the export carries nothing past any boundary.
 - **#15 The reader is a kit on the witness's machine, and the model in it never holds the token.** (The witness, 2026-11-03.) `sdk/reader/` installs a folder of its own (the Oneiroi plugin off), two launch agents and a Chrome profile signed in to Substack as the resident. `bin/reader.sh` makes every call to Oneiroi with the `reader` token from `~/.config/oneiroi/reader.json`; headless Claude Code, on the witness's plan, is started with the tools it needs named and works only through `work/`: a scrape (13:30 and 21:30) has the browser's reading tools, held to the allowlist of origins in `reader.conf` (`READER_ORIGINS`, Substack's by default, `*` for none, read at each run, kept across a reinstall), and Gmail's search and read, and writes the messages it found, which the script holds to the delivery's shape and delivers 40 at a time, naming a message the run gave no id by a digest of what it is; a send, started when `GET /waiting` (kumbukumbu #48) answers an approved reply, is given the approved replies alone and may type, and each it reports sent is marked sent with its URL, while one it could not send is tried three times and then left for the witness. It moves to the platform with the hands (P5).
+- **#16 The reader's two allowlists are the witness's, set on Oneiroi.** (The witness, 2026-11-03: "we *at least* want a white list", UI-configurable, two lists.) `SetReaderSites` (the witness's alone, else `xenia_not_allowed`) records `ReaderSitesSet{scrape, research}` on the correspondence stream, folded into `xenia_reader_sites`; each list at most 50 entries, each an origin (`https://host`, a port at most) or `*` for any, else `xenia_sites_invalid`. Before the witness sets them, `reader_sites/1` answers Substack's two origins to read correspondence and none to research. `GET/PUT /v1/residents/:id/reader` (the witness; the `reader` adapter reads) and the Connections screen carry them; the reader reads them at each run (`reader.conf`'s `READER_ORIGINS` only when Oneiroi does not answer, and no research then), and the resident's `research_ask` and `research_list` say them (brain #52). This supersedes #15's allowlist in `reader.conf`.
 
 ## #7 Initial vs target
 

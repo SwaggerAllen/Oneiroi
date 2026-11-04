@@ -12,7 +12,10 @@ defmodule OneiroiWeb.ReaderKitTest do
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
+  alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
   alias Oneiroi.Xenia
 
   @kit Path.expand("../../sdk/reader", __DIR__)
@@ -68,6 +71,13 @@ defmodule OneiroiWeb.ReaderKitTest do
       {"platform": "email", "text": "no sender, no time"}
     ]
     JSON
+        ;;
+      *"doing a research pass"*)
+        if [ -z "${FAKE_RESEARCH_NOTHING:-}" ]; then
+          jq '{summary: ("On " + .question + ": herons fish at dawn."),
+               sources: [{url: "https://example.org/herons", title: "Herons", notes: "A field guide says they hunt at first light."}]}' \\
+            work/research.json > work/found.json
+        fi
         ;;
       *"send replies"*)
         if [ -n "${FAKE_SEND_NOTHING:-}" ]; then echo '[]' > work/sent.json
@@ -146,16 +156,21 @@ defmodule OneiroiWeb.ReaderKitTest do
     assert ["--allowed-origins", "https://substack.com;https://www.substack.com"] =
              Enum.take(args, -2)
 
-    # A list in reader.conf is the list; `*` lifts it.
-    conf = Path.join(ctx.config, "reader.conf")
-    base = File.read!(conf)
-    File.write!(conf, base <> ~s(READER_ORIGINS="https://substack.com;https://example.org"\n))
+    # The witness's list on Oneiroi is the list (xenia #16); `*` lifts it.
+    :ok =
+      Xenia.set_reader_sites(
+        ctx.id,
+        ["https://substack.com", "https://example.org"],
+        [],
+        ctx.witness
+      )
+
     {_out, 0} = reader(ctx, "scrape")
 
     assert "https://substack.com;https://example.org" =
              List.last(browser.()["mcpServers"]["playwright"]["args"])
 
-    File.write!(conf, base <> ~s(READER_ORIGINS="*"\n))
+    :ok = Xenia.set_reader_sites(ctx.id, ["*"], [], ctx.witness)
     {_out, 0} = reader(ctx, "scrape")
     refute "--allowed-origins" in browser.()["mcpServers"]["playwright"]["args"]
   end
@@ -202,4 +217,74 @@ defmodule OneiroiWeb.ReaderKitTest do
     assert calls(ctx) == []
     assert [%{number: 2}] = Xenia.replies(ctx.id, "approved")
   end
+
+  # seshat #38, xenia #16: the resident asks; the reader researches within
+  # the research allowlist, in a profile signed in nowhere, and its notes
+  # land under research/ with a letter to the conversation that asked.
+  test "research is asked by the resident, said within its allowlist, done by the reader and answered under research/",
+       ctx do
+    {:ok, key} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.witness)
+    turn = %{resident_id: ctx.id, session_key: key, turn_ref: "t-r", resident: ctx.lily}
+    ask = fn args -> Tools.run("research_ask", Jason.encode!(args), turn) end
+
+    # No research sites yet: refused, saying who sets them.
+    assert ask.(%{question: "When do herons fish?"}) =~ "no sites it may research yet"
+
+    :ok =
+      Xenia.set_reader_sites(
+        ctx.id,
+        ["https://substack.com"],
+        ["https://example.org", "https://en.wikipedia.org"],
+        ctx.witness
+      )
+
+    said =
+      ask.(%{
+        question: "When do herons fish?",
+        urls: ["https://example.org/herons", "https://elsewhere.net/x"]
+      })
+
+    assert said =~ "Asked as research #1"
+    assert said =~ "https://example.org, https://en.wikipedia.org"
+    assert said =~ "signed in nowhere"
+    assert said =~ "cannot open them: https://elsewhere.net/x"
+
+    # The wait sees it and the reader answers it.
+    {out, 0} = reader(ctx, "wait")
+    assert out =~ "1 research question(s) open"
+    assert out =~ "research #1 answered"
+
+    [run] = calls(ctx)
+    [args] = Regex.run(~r/^ARGS .*$/m, run)
+    assert args =~ "browser_type"
+    refute args =~ "Bash"
+    refute run =~ ctx.token
+
+    browser = ctx.dir |> Path.join("work/mcp.json") |> File.read!() |> Jason.decode!()
+    args = browser["mcpServers"]["playwright"]["args"]
+
+    assert Enum.at(args, Enum.find_index(args, &(&1 == "--user-data-dir")) + 1) =~
+             "research-profile"
+
+    assert List.last(args) == "https://example.org;https://en.wikipedia.org"
+
+    assert [%{status: "answered", path: path, sources: ["https://example.org/herons"]}] =
+             Seshat.researches(ctx.id, [])
+
+    assert run_read("research_list", turn) =~ "#1 answered: When do herons fish?"
+    assert run_read("library_read", turn, %{path: path <> "/task.md"}) =~ "herons fish at dawn"
+    assert Enum.any?(Kumbukumbu.inbox(ctx.id, key), &(&1.text =~ "research #1"))
+
+    # A pass that writes nothing is tried twice, then said failed.
+    {:ok, 2} = Seshat.ask_research(ctx.id, key, "Nothing to find?", [], ctx.lily)
+    {_out, 0} = reader(ctx, "wait", [{"FAKE_RESEARCH_NOTHING", "1"}])
+    {out, 0} = reader(ctx, "wait", [{"FAKE_RESEARCH_NOTHING", "1"}])
+    assert out =~ "research #2 said failed"
+
+    assert %{status: "failed", reason: "the reader ran twice and wrote no notes"} =
+             Seshat.research(ctx.id, 2)
+  end
+
+  defp run_read(name, turn, args \\ %{}),
+    do: Tools.run(name, Jason.encode!(args), turn)
 end
