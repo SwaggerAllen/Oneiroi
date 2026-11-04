@@ -263,6 +263,15 @@ auto-update on for the marketplace on `/plugin`'s **Marketplaces** tab.
 A marketplace added from a local checkout loads the plugin in place, so
 a pull is the update.
 
+Claude Code updates a plugin only when its version in
+`.claude-plugin/plugin.json` changes, so **every change under
+`sdk/claude-code/` bumps that version**. #50 changed the letter watch's
+route and left the version at 0.2.0; the installed copy kept polling the
+route #50 removed, every watch ended on a 404, and for a day no letter
+woke a session. A watch that ends because the platform refused it now
+says so in `watch.log` in the session's state folder (Where things are
+kept).
+
 ## Not yet checked against a real session
 
 - The payload shapes, until a recording replaces the fixtures.
