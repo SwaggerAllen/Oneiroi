@@ -82,7 +82,7 @@ with no notes after two runs is recorded as failed, with the reason.
      --substack <her Substack handle> --email <her address>
    ```
 3. **Sign in to Substack as the resident, once.** Run
-   `~/Documents/Lily/reader/bin/reader.sh login`, sign in in the Chrome
+   `~/.oneiroi/reader/bin/reader.sh login`, sign in in the Chrome
    window it opens, then quit that Chrome (Cmd-Q).
 4. **Load the two jobs.** Run the `launchctl load -w …` lines `install.sh`
    printed.
@@ -92,7 +92,7 @@ be connected to the resident's mailbox for the email half to find
 anything. The scrape searches for mail to `--email` alone.
 
 A reinstall keeps an allowlist you have edited. Logs are in
-`~/Documents/Lily/reader/log/`. `reader.sh send`,
+`~/.oneiroi/reader/log/`. `reader.sh send`,
 `reader.sh scrape` and `reader.sh research` run a job by hand.
 
 ## Not yet checked against the real thing
