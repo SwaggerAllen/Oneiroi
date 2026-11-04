@@ -10,7 +10,7 @@ defmodule Oneiroi.Nisaba.Error do
   keeps only the error's `message`, never its `metadata`, which is where
   OpenRouter documents putting a moderation hit's flagged input: the
   provider's diagnosis, never the transcript (spec §6.3). One rule for
-  every reader. The brain had it (brain #39) after the fixture's refused
+  every reader. The brain had it (brain#39) after the fixture's refused
   turns showed only `nisaba_request_refused`. A regression card did not,
   and on 2026-11-01 Lily's first run showed that same bare kind on every
   card, for a model id the provider had refused in its own words.

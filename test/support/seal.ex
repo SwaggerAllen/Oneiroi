@@ -1,6 +1,6 @@
 defmodule Oneiroi.Seal do
   @moduledoc """
-  What a regression trial must leave as it found it (eunomia #12, brain
+  What a regression trial must leave as it found it (eunomia#12, brain
   #40), read before and compared after: every event on the resident's
   streams, every row of every table, every file in the resident's
   repository and everything the Honcho fake holds for its workspace.
@@ -26,7 +26,7 @@ defmodule Oneiroi.Seal do
 
   # What billing records for every model call, trial or not.
   @billed ~w(nisaba_usage projection_versions)
-  # What a run records of itself, on its own stream (eunomia #9).
+  # What a run records of itself, on its own stream (eunomia#9).
   @run ~w(eunomia_regression_answer eunomia_regression_run eunomia_regression_test oban_jobs oban_peers)
   @never ~w(schema_migrations)
 

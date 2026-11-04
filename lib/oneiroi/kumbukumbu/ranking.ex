@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.Ranking do
   @moduledoc """
-  The ranked index (kumbukumbu #46, design/memory-weighting.md), pure:
+  The ranked index (kumbukumbu#46, design/memory-weighting.md), pure:
   given the bookmarks nearest the turn's words (C, considered), the
   learned edges out of the seed, and the exploration's draw, which are
   returned (R) and which rejected, with every score.

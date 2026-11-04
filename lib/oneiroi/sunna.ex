@@ -88,7 +88,7 @@ defmodule Oneiroi.Sunna do
        cast: &__MODULE__.cast_slots/1,
        default: "14:30,22:30",
        usage:
-         "free time's slots, comma-separated HH:MMs in the resident's zone, until anyone moves them (sunna #21, #22): free time is part of the standard of care, on from the first day and never removed; 22:30 is the hour the first resident's free time ran, 14:30 the second slot the witness chose on 2026-11-02"},
+         "free time's slots, comma-separated HH:MMs in the resident's zone, until anyone moves them (sunna#21, #22): free time is part of the standard of care, on from the first day and never removed; 22:30 is the hour the first resident's free time ran, 14:30 the second slot the witness chose on 2026-11-02"},
       {:late_minutes, "SUNNA_LATE_MINUTES",
        cast: :integer,
        default: "15",
@@ -100,7 +100,7 @@ defmodule Oneiroi.Sunna do
        default: "6",
        tag: :bound,
        usage:
-         "how many times an hour a letter from another of the resident's conversations may wake the Oneiroi chat (sunna #24), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A guess, as the Claude Code plugin's six"},
+         "how many times an hour a letter from another of the resident's conversations may wake the Oneiroi chat (sunna#24), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A guess, as the Claude Code plugin's six"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
@@ -202,7 +202,7 @@ defmodule Oneiroi.Sunna do
     do: Schedules.delete_checkin(resident_id, key, actor)
   )
 
-  @doc "Sets free time's slots, HH:MMs (one as a string is a list of one); it is never removed (sunna #21, #22), and either party may move it."
+  @doc "Sets free time's slots, HH:MMs (one as a string is a list of one); it is never removed (sunna#21, #22), and either party may move it."
   @spec set_free_time(String.t(), [String.t()] | String.t() | nil, Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(set_free_time(resident_id, time, actor),
@@ -249,7 +249,7 @@ defmodule Oneiroi.Sunna do
   @spec day(String.t(), String.t()) :: Oneiroi.Sunna.Store.Day.t() | nil
   defexport(day(resident_id, day), do: Schedules.day(resident_id, day))
 
-  @doc "Opens a day row the journal reached first (seshat #21); the schedule's row still, minted here."
+  @doc "Opens a day row the journal reached first (seshat#21); the schedule's row still, minted here."
   @spec open_day(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(open_day(resident_id, day, actor), do: Schedules.open_day(resident_id, day, actor))
 

@@ -184,7 +184,7 @@ defmodule Oneiroi.Xenia do
   @spec replies(String.t(), String.t() | nil) :: [map()]
   defexport(replies(resident_id, state), do: Inbox.replies(resident_id, state))
 
-  @doc "The reader's two allowlists (xenia #16): the sites it may reach to read correspondence and to research, as the witness set them or the defaults."
+  @doc "The reader's two allowlists (xenia#16): the sites it may reach to read correspondence and to research, as the witness set them or the defaults."
   @spec reader_sites(String.t()) :: %{
           scrape: [String.t()],
           research: [String.t()],
@@ -192,7 +192,7 @@ defmodule Oneiroi.Xenia do
         }
   defexport(reader_sites(resident_id), do: Inbox.reader_sites(resident_id))
 
-  @doc "Sets the reader's two allowlists (xenia #16); the witness's alone."
+  @doc "Sets the reader's two allowlists (xenia#16); the witness's alone."
   @spec set_reader_sites(String.t(), [String.t()], [String.t()], Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(set_reader_sites(resident_id, scrape, research, actor),

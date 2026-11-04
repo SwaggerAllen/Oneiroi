@@ -100,7 +100,7 @@ defmodule Oneiroi.Sunna.Schedules do
 
   # ---- the day row ----
 
-  @doc "Opens the journal's day row when the journal gets to a day before the schedule does (seshat #21); no event when it is open."
+  @doc "Opens the journal's day row when the journal gets to a day before the schedule does (seshat#21); no event when it is open."
   def open_day(resident_id, day, %Actor{} = actor) do
     command = %Commands.OpenDay{actor: actor, at: Clock.now(), id: resident_id, day: day}
     with {:ok, _} <- dispatch(command), do: :ok
@@ -256,7 +256,7 @@ defmodule Oneiroi.Sunna.Schedules do
   end
 
   @doc """
-  Free time's slots, HH:MMs in order (sunna #21, #22): the ones set, or
+  Free time's slots, HH:MMs in order (sunna#21, #22): the ones set, or
   the default until anyone moves them. Every resident has free time from
   the first day; it is the standard of care, not something switched on.
   """
@@ -422,7 +422,7 @@ defmodule Oneiroi.Sunna.Schedules do
 
   @doc """
   Wakes the Oneiroi chat for the letters another of the resident's
-  conversations sent it (sunna #24): each once, at most
+  conversations sent it (sunna#24): each once, at most
   `SUNNA_LETTER_WAKES_PER_HOUR` wakes an hour, never inside quiet hours
   (the tick asks again after them). The note names each letter's number
   and sender, never its words. A letter from the witness wakes nothing:

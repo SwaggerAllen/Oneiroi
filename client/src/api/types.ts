@@ -23,7 +23,7 @@ export interface Resident {
   chat_model: string | null;
 }
 
-// A conversation as the server names it (kumbukumbu #40): `title` is
+// A conversation as the server names it (kumbukumbu#40): `title` is
 // what it is called, `place` the folder an adapter's ran in, and
 // `writable` whether it takes a message here. The client groups and
 // labels by these and decides none of them.
@@ -41,7 +41,7 @@ export interface Session {
   summary: string | null;
 }
 
-// What retrieval did with one target (kumbukumbu #43): the target in
+// What retrieval did with one target (kumbukumbu#43): the target in
 // citation form, how often it was considered, returned and used, and
 // when last returned and used. The resident reads the same numbers.
 export interface RetrievalCount {
@@ -81,7 +81,7 @@ export interface Injection {
   text: string | null;
 }
 
-// What the index holds now (kumbukumbu #38): the numbers listed, in the
+// What the index holds now (kumbukumbu#38): the numbers listed, in the
 // index's order, and the server's own words for the rule. The client
 // renders these and restates nothing of how the index is built.
 export interface IndexNow {
@@ -91,7 +91,7 @@ export interface IndexNow {
   description: string;
 }
 
-// One section of the next turn's preview (brain #41), decided and worded
+// One section of the next turn's preview (brain#41), decided and worded
 // by the server: `text` is null where the words are withheld or there
 // are none, and `note` says where else they are read, or why not.
 export interface PreviewSection {
@@ -182,7 +182,7 @@ export interface ApiError {
 }
 
 // Regression (spec §6.4, F42): tests are three texts; a run is models x
-// trials answered in the background (eunomia #30); a card is blind, its
+// trials answered in the background (eunomia#30); a card is blind, its
 // model null until every card of its trial is graded.
 export interface RegressionTest {
   number: number;
@@ -213,7 +213,7 @@ export interface RegressionRun {
 
 export type Grade = 'pass' | 'fail';
 
-// One tool call of a trial's turn, in order (eunomia #31): a read ran
+// One tool call of a trial's turn, in order (eunomia#31): a read ran
 // against the resident's records, a mocked call was answered as on
 // success and never run. `result` is what the model was given back, cut
 // at the server's bound when `truncated`. Blind with its card: while
@@ -291,7 +291,7 @@ export interface ScheduleDate {
 }
 
 // One free-time slot and what it did today: "ran", "failed: <kind>", or
-// null when it has not come yet (sunna #22).
+// null when it has not come yet (sunna#22).
 export interface FreeTimeSlot {
   time: string;
   today: string | null;
@@ -311,7 +311,7 @@ export interface ScheduleToday {
   dates: ScheduleDate[];
 }
 
-// A house letter (kumbukumbu #44): the work log between Lily's
+// A house letter (kumbukumbu#44): the work log between Lily's
 // conversations, addressed by name; `read_by` names the conversations
 // that read it.
 export interface HouseLetter {
@@ -383,11 +383,11 @@ export interface LibraryDocument {
   written_at: string | null;
   written_by: string | null;
   missing_at: string | null;
-  // Why a keepsake mattered, in the resident's words (seshat #32).
+  // Why a keepsake mattered, in the resident's words (seshat#32).
   note: string | null;
 }
 
-// A document kind as the shelf shows it (seshat #35): its name and its
+// A document kind as the shelf shows it (seshat#35): its name and its
 // place, the server's.
 export interface ShelfKind {
   kind: string;
@@ -410,7 +410,7 @@ export interface Adapter {
   revoked_at: string | null;
 }
 
-// The reader's two allowlists (xenia #16): the origins its browser may
+// The reader's two allowlists (xenia#16): the origins its browser may
 // reach when reading correspondence (`scrape`) and when researching
 // (`research`), each an origin (scheme, host, optional port) or `*` for
 // any site. `set_at` is null until the witness first sets them.
@@ -422,7 +422,7 @@ export interface ReaderSites {
 
 export type ResearchStatus = 'open' | 'answered' | 'failed';
 
-// A research question put to the reader (seshat #38): its notes land in
+// A research question put to the reader (seshat#38): its notes land in
 // the library at `<path>/task.md`; a failed one says why in `reason`.
 export interface ResearchQuestion {
   number: number;

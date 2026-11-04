@@ -294,7 +294,7 @@ to a human, so a flaky suite defeats the automation.
   each request against the chat format's rules on tool messages and
   answers a break with the 400 the provider sends. While it answered any
   shape, a transcript replaying bare `tool` rows passed a suite that ran
-  the very turn the provider refused (brain #39).
+  the very turn the provider refused (brain#39).
 - **Cost is asserted.** A write path whose statement count can grow with
   the table (capture, index fetch, re-index, needs-you) records every
   statement and budgets it per row. Correctness tests are blind to
@@ -315,7 +315,7 @@ to a human, so a flaky suite defeats the automation.
   transcript text, no third-party words, no soul files in logs.
 - **One exception, scoped to fixtures:** `NISABA_TRACE_TOOL_DELTAS`
   logs a streamed reply's tool-call pieces, which are content, and is set
-  in the fixture run alone (nisaba #21). The author, 10-31: the logging is
+  in the fixture run alone (nisaba#21). The author, 10-31: the logging is
   audited before real people are on the platform, this setting first.
 - **Logs are write-only:** nothing parses, alerts on or derives state from
   a log. Alerting rides telemetry; replayable facts are events.

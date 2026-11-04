@@ -3,7 +3,7 @@ defmodule Oneiroi.Nisaba.SubscriptionWorker do
   The nightly subscription pass (spec §6.2): lapse what is past its
   grace, move to community custody what was cancelled and has run its
   term. A cross-tenant job under the platform scope, named here
-  (nisaba #18); the roster is the resident system's platform-scoped
+  (nisaba#18); the roster is the resident system's platform-scoped
   export, every resident and not only the active, because a lapsed one
   is this job's to carry.
   """

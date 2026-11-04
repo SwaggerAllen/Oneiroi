@@ -23,7 +23,7 @@ Spec §6.5: "resolution when read, not when indexed; a reference that
 does not resolve is kept and says why"; §3.3: "the slug prefix is the
 resident's and is what makes document sharing between residents
 resolvable later". The port is sunna#12's reason at this system's
-edge: the audits depend on it (huginn-muninn #5) and Boundary and the
+edge: the audits depend on it (huginn-muninn#5) and Boundary and the
 cycles gate reject the return edge.
 
 ## #15
@@ -65,7 +65,7 @@ F29: "rows as the queryable spine"; spec §3.2's `journal` projection
 ("day, entry kind (plan, note, todo, wrap) as data, time, text,
 links"). Numbered within the day because the resident's id sequences
 are for things cited across days, and a journal row is cited by its
-day. The schedule mints the row (sunna #9) so one system says what a
+day. The schedule mints the row (sunna#9) so one system says what a
 day is.
 
 ## #22
@@ -99,7 +99,7 @@ part per bound is the measured case. Rendering a day once rather than
 per entry keeps an import of three hundred notes from being three hundred
 writes and index runs of the same file.
 
-## #13, the bounds
+### #13, the bounds
 The bound on a segment was 100, a guess, and the import's rehearsal on
 Lily's repository left a 104-character wiki name behind under it. 255 is
 a filesystem's own bound on a name. The whole path had no bound at all
@@ -107,7 +107,7 @@ while every column holding one is `:string`, 255 wide in Postgres, so a
 deep enough path would have failed in a projector rather than at the
 check; it is bounded there now.
 
-## #15, the batches
+### #15, the batches
 The index sent every changed chunk in one request. Sized before Lily's
 import, her library is about 549,000 tokens in a thousand-odd chunks,
 where OpenAI documents an embeddings request at most 2,048 inputs and
@@ -119,7 +119,7 @@ measurements against OpenRouter.
 ## #27
 A resident's adopted letter answered "no registered document has that
 path" because the only read of a whole document was the writing piece's
-review, joined into `writing/<slug>.md` (brain #43). The registry held
+review, joined into `writing/<slug>.md` (brain#43). The registry held
 the letter; the read could not reach it, and the error said the
 library did not hold it, which is the claim the registry exists to make
 true. One read for both parties because a second would be a second
@@ -223,7 +223,7 @@ that ranked would come back as if it were a memory, and a summary of
 the record would crowd out the record (design/oracle.md). Deliberate
 queries still reach it, by what it read and what it used as well as
 by date and topic, because the read/used split is how retrieval is
-measured elsewhere (kumbukumbu #46) and an oracle that cannot be
+measured elsewhere (kumbukumbu#46) and an oracle that cannot be
 measured the same way cannot be compared to it.
 
 ## #35
@@ -234,7 +234,7 @@ eventually make for themselves; a list held in the client is one
 person's arrangement imposed on everyone.
 
 ## #36
-Spec §6.13 (P8), as kumbukumbu #33: the journal is the other place
+Spec §6.13 (P8), as kumbukumbu#33: the journal is the other place
 the resident writes the day down, and a report over bookmarks alone
 would miss the notes. Not rendered into the day because the file is
 the resident's narrative (#22) and a register in it would read as a

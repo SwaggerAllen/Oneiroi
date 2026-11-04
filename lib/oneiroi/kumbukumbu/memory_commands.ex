@@ -82,7 +82,7 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
     use Oneiroi.Command, decision: true, fields: [:id, :number]
   end
 
-  # House letters (kumbukumbu #44): from one conversation of the resident
+  # House letters (kumbukumbu#44): from one conversation of the resident
   # to another, or to the house; `from` and `from_session` are the
   # sender's conversation as the server names it, never the caller's word.
   defmodule SendHouseLetter do

@@ -131,8 +131,8 @@ witness controls; the resident's own tree is the vocabulary. A pin is
 leaf-evidence of a soul line, and which line it evidences is the pin's
 tag. The closed tag set stays for work and project labels." The tag is
 the citation and not a second row because two records of one relation
-drift (ethos #3's "a kind that cites cannot vote" is the same worry
-from the other side); the port because ethos #13 fixes the direction
+drift (ethos#3's "a kind that cites cannot vote" is the same worry
+from the other side); the port because ethos#13 fixes the direction
 and the cycles gate holds it. Shape alone on `evidences` because this
 system cannot see the lines (#27's rule for the other systems' rows).
 

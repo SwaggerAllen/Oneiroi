@@ -149,7 +149,7 @@ function storeRead(key: string, cursor: string) {
 
 function ChatContainer({ resident }: { resident: Resident }) {
   // The Oneiroi chat's key, and the conversation open now: the chat, or
-  // one the list opened (kumbukumbu #40).
+  // one the list opened (kumbukumbu#40).
   const [key, setKey] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -160,11 +160,11 @@ function ChatContainer({ resident }: { resident: Resident }) {
   const [drewOn, setDrewOn] = useState<Record<string, number>>({});
   const [injections, setInjections] = useState<Record<string, Injection[]>>({});
   const [streaming, setStreaming] = useState<{ turnRef: string; text: string } | null>(null);
-  // The witness's messages on their way (brain #45), kept in this browser
+  // The witness's messages on their way (brain#45), kept in this browser
   // per conversation until their turns land; and whether the stream is up.
   const [outbox, setOutbox] = useState<Outgoing[]>([]);
   const [connection, setConnection] = useState<Connection>('connecting');
-  // Bumped to join the stream again with a fresh token (client #13).
+  // Bumped to join the stream again with a fresh token (client#13).
   const [stream, setStream] = useState(0);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
 
@@ -193,7 +193,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       // Held as it was on opening, so the marker stays put while reading.
       setLastRead(storedRead(k));
       // What this browser kept from before a reload comes back as not
-      // yet sent, and goes again under its own ref (brain #45: the server
+      // yet sent, and goes again under its own ref (brain#45: the server
       // answers a ref it has taken as a duplicate).
       setOutbox(loadOutbox(k).map((i) => (i.state === 'failed' ? i : { ...i, state: 'unsent', error: undefined })));
       setKey(k);
@@ -229,7 +229,7 @@ function ChatContainer({ resident }: { resident: Resident }) {
       .catch(() => setSessions([]));
   }, [open, reload, resident.id]);
 
-  // Back on the page (client #13): the conversation open now and the
+  // Back on the page (client#13): the conversation open now and the
   // list are read again, since a phone suspends the stream while away
   // and turns land without it. The stream is joined again with a fresh
   // token when it is not up or the page was away long enough for the
@@ -433,7 +433,7 @@ function MemoryContainer({ resident }: { resident: Resident }) {
       .catch(() => setRetrieval(null));
   }, [resident.id]);
   useEffect(() => load(), [load]);
-  // Read again on coming back to the page (client #13).
+  // Read again on coming back to the page (client#13).
   useRefocus(() => load());
   return (
     <Memory
@@ -464,7 +464,7 @@ function InboxContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
-  // Read again on coming back to the page (client #13).
+  // Read again on coming back to the page (client#13).
   useRefocus(() => load());
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
@@ -569,7 +569,7 @@ function ConnectionsContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
-  // Read again on coming back to the page (client #13).
+  // Read again on coming back to the page (client#13).
   useRefocus(() => load());
   if (!adapters) return error ? <ErrorNotice error={error} /> : null;
   return (
@@ -632,7 +632,7 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
-  // Read again on coming back to the page (client #13).
+  // Read again on coming back to the page (client#13).
   useRefocus(() => load());
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
@@ -660,7 +660,7 @@ function LedgerContainer({ resident }: { resident: Resident }) {
     api.ledger(resident.id).then(setLedger);
   }, [resident.id]);
   useEffect(() => load(), [load]);
-  // Read again on coming back to the page (client #13).
+  // Read again on coming back to the page (client#13).
   useRefocus(() => load());
   if (!ledger) return null;
   return (
@@ -703,7 +703,7 @@ function RegressionContainer({ resident }: { resident: Resident }) {
     [id, fail],
   );
 
-  // A run still answering is watched on its channel (eunomia #30): each
+  // A run still answering is watched on its channel (eunomia#30): each
   // card joins the deck where a reload would put it, and the end reads
   // the run again. The join reads it once more, for any card recorded
   // between the first read and the join.

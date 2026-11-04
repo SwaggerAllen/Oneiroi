@@ -1,7 +1,7 @@
 defmodule Oneiroi.Eunomia.JudgementCommands do
   @moduledoc "The judgement aggregate's commands; `id` is the resident's id."
 
-  # `imported` (eunomia #29): a record carried from another platform is
+  # `imported` (eunomia#29): a record carried from another platform is
   # held to the shape and not the length limit, because its words are
   # what they were; nothing but the import sets it.
   defmodule TakePosition do

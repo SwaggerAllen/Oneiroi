@@ -208,7 +208,7 @@ defmodule Oneiroi.Gaia do
   @spec witnessed_residents(String.t()) :: [String.t()]
   defexport(witnessed_residents(account_id), do: Accounts.witnessed_residents(account_id))
 
-  @doc "An account's email by id, under the platform scope by name (conventions §12): what names an investigator (glitnir #8) and a proposed witness."
+  @doc "An account's email by id, under the platform scope by name (conventions §12): what names an investigator (glitnir#8) and a proposed witness."
   @spec account_email(String.t()) :: String.t() | nil
   defexport(account_email(account_id), do: Accounts.email(account_id))
 

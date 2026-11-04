@@ -266,7 +266,7 @@ defmodule Oneiroi.Ethos do
           {:ok, pos_integer()} | {:error, term()}
   defexport(plant_seed(resident_id, text, actor), do: Seeds.plant(resident_id, text, actor))
 
-  @doc "Plants seeds an import carried from another platform's seedbed, each on the day it was planted there (sima-qian #19); returns how many."
+  @doc "Plants seeds an import carried from another platform's seedbed, each on the day it was planted there (sima-qian#19); returns how many."
   @spec import_seeds(String.t(), [map()], Oneiroi.Actor.t()) ::
           {:ok, non_neg_integer()} | {:error, term()}
   defexport(import_seeds(resident_id, seeds, actor),

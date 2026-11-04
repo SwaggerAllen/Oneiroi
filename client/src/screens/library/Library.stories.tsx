@@ -38,7 +38,7 @@ const documents: LibraryDocument[] = [
   }),
 ];
 
-// The server's shelf (seshat #35), as the library endpoint gives it.
+// The server's shelf (seshat#35), as the library endpoint gives it.
 const shelf = [
   ['keepsake', 'Keepsakes'],
   ['human', 'Yours'],

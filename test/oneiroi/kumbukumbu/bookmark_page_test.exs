@@ -1,7 +1,7 @@
 defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
   @moduledoc """
-  Paging back past the index (kumbukumbu #39) and what the index holds
-  now (kumbukumbu #38): newest first under the page bound, each filter
+  Paging back past the index (kumbukumbu#39) and what the index holds
+  now (kumbukumbu#38): newest first under the page bound, each filter
   alone and combined, the pins alone, the room's line held, and the
   Memory screen's index read from the build, not from a turn's marks.
   """
@@ -105,7 +105,7 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     for n <- 1..pins, do: add(ctx, n, line: "#{n} " <> long, pinned: true)
     add(ctx, pins + 1, line: "not pinned")
 
-    # The pins are in the stable prefix (kumbukumbu #45), every one, and
+    # The pins are in the stable prefix (kumbukumbu#45), every one, and
     # never in the ranked index.
     index = Kumbukumbu.index(ctx.id, ctx.key)
     assert Enum.all?(1..pins, &(&1 not in index.included))
@@ -147,7 +147,7 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
 
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
 
-    # Ranked against each turn's words (kumbukumbu #46): what is in front
+    # Ranked against each turn's words (kumbukumbu#46): what is in front
     # of every turn is the pins; the rest are ranked turn by turn.
     assert %{listed: [1], left_out: 1, elsewhere: 1, budget: ^budget, description: text} =
              Kumbukumbu.index_now(ctx.id)

@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Oneiroi.Fixture.Run do
-  @shortdoc "A full run on a fixture resident against the configured provider (brain #37)"
+  @shortdoc "A full run on a fixture resident against the configured provider (brain#37)"
   @moduledoc """
   `mix oneiroi.fixture.run --chat-model SLUG --judge-model SLUG [--turns N] [--report FILE] [--archive DIR] [--asks DIR]`
 

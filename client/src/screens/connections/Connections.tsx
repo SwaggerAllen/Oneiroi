@@ -14,12 +14,12 @@ export interface ConnectionsProps {
   onRegister?: (adapter: string, role: string) => void;
   onRevoke?: (adapter: string) => void;
   onDismissToken?: () => void;
-  // The reader's two allowlists (xenia #16), and what the server said
+  // The reader's two allowlists (xenia#16), and what the server said
   // when a save was refused (an entry not an origin, a list too long).
   reader?: ReaderSites | null;
   readerError?: ApiError | null;
   onSaveReader?: (scrape: string[], research: string[]) => void;
-  // The questions put to the reader's research pass (seshat #38), newest first.
+  // The questions put to the reader's research pass (seshat#38), newest first.
   research?: ResearchQuestion[] | null;
   onAsk?: (question: string, urls: string[]) => void;
 }
@@ -28,7 +28,7 @@ const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 const area = { padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', background: 'var(--surface-raised)', color: 'var(--ink)', fontFamily: 'var(--font-mono)', fontSize: 14 } as const;
 const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' } as const;
 
-// The roles an adapter's token holds (spec §8, xenia #11), in words.
+// The roles an adapter's token holds (spec §8, xenia#11), in words.
 const roles: Array<{ id: string; words: (name: string) => string }> = [
   { id: 'brain', words: (n) => `speaks as ${n}, with ${n}'s memory (Claude Code)` },
   { id: 'reader', words: (n) => `reads inboxes and sends approved replies, never as ${n}` },
@@ -166,7 +166,7 @@ const lines = (text: string) =>
     .map((l) => l.trim())
     .filter((l) => l !== '');
 
-// The reader's two allowlists (xenia #16), edited one origin a line and
+// The reader's two allowlists (xenia#16), edited one origin a line and
 // saved together. A fresh card per save (keyed by `set_at`), so it
 // starts again from what the server kept; a refused save keeps the draft.
 function ReaderCard({ reader, error, onSave }: { reader: ReaderSites; error: ApiError | null; onSave?: (scrape: string[], research: string[]) => void }) {
@@ -214,7 +214,7 @@ function SiteList({ label, value, onChange, disabled, children }: { label: strin
   );
 }
 
-// The research questions (seshat #38): what was asked and how it
+// The research questions (seshat#38): what was asked and how it
 // settled; an answered one's notes are in the Library at the path shown.
 function ResearchCard({ residentName, research, onAsk }: { residentName: string; research: ResearchQuestion[]; onAsk?: (question: string, urls: string[]) => void }) {
   const [question, setQuestion] = useState('');

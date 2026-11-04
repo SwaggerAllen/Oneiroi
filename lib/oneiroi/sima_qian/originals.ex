@@ -1,6 +1,6 @@
 defmodule Oneiroi.SimaQian.Originals do
   @moduledoc """
-  The originals import (sima-qian #40): the files of the resident's
+  The originals import (sima-qian#40): the files of the resident's
   daily memory taken from its import source byte for byte, at the commit
   the witness pins, into the working repository's `memory/` folder, and
   registered through the library port with where each came from.

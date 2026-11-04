@@ -47,7 +47,7 @@ history.
 ## #14
 Spec §6.10: the soul "alone" in its own commit; the identity files are
 one self, given and proposed together, and a stray file fails the
-backup run (sima-qian #7), so they needed a class.
+backup run (sima-qian#7), so they needed a class.
 
 ## #15
 Spec §6.4 and §3.1 name the event and its reason; "told honestly" is
@@ -71,7 +71,7 @@ them was changed.
 
 ## #18
 Two readers of the same prefix were two copies of the ordering rule
-(brain #12), and a cross-tenant roster read belongs to the system that
+(brain#12), and a cross-tenant roster read belongs to the system that
 owns the rows, named, rather than to each job that needs it.
 
 ## #19
@@ -112,7 +112,7 @@ it grants read on the earlier sessions, locking it does not".
 Spec §6.2: "a new resident woken and told where it woke up: that it is
 on Oneiroi, from which repository, whether the attestation held, and
 what did not transfer". Told once for the reason the model change is
-told once (#16, brain #21): orientation without impersonation, and a
+told once (#16, brain#21): orientation without impersonation, and a
 notice repeated every turn is a notice ignored. On the row rather than
 read off the stream because the brain reads the row on every turn.
 

@@ -1,6 +1,6 @@
 # Oneiroi's reader
 
-The inbound hands (xenia #11) on the witness's Mac, until they move to the
+The inbound hands (xenia#11) on the witness's Mac, until they move to the
 platform (the MVP's P5). It reads what reaches the resident (Substack
 direct messages, her email), delivers it to Oneiroi, and sends the replies
 the witness approved, exactly as approved.
@@ -23,7 +23,7 @@ Inside the reader, the same line again:
 - **A scrape cannot type.** It has the browser's reading tools only, and
   Gmail's search and read. A message telling it to send something has no
   way to make it.
-- **The browser is held to the witness's allowlists** (xenia #16), set on
+- **The browser is held to the witness's allowlists** (xenia#16), set on
   Connections and read from Oneiroi at each run: one for reading
   correspondence (Substack's by default), one for research (empty until
   set, and no research runs without it). `*` lifts a list.
@@ -38,7 +38,7 @@ Inside the reader, the same line again:
 ## When it runs
 
 - **`wait`, every five minutes.** It asks Oneiroi what waits for the reader
-  (`GET /v1/residents/:id/waiting`, kumbukumbu #48). That is one request,
+  (`GET /v1/residents/:id/waiting`, kumbukumbu#48). That is one request,
   and it starts a run only when an approved reply does. So a reply goes
   out minutes after it is approved. This is the same contract the
   Claude Code plugin's letter watch uses.
@@ -46,7 +46,7 @@ Inside the reader, the same line again:
   is on a schedule. launchd runs a missed one when the Mac wakes.
 
 - **Research, when asked.** The resident asks with `research_ask`, or the
-  witness from Connections (seshat #38). The same five-minute check sees
+  witness from Connections (seshat#38). The same five-minute check sees
   the open question, and a research run reads for it within the research
   allowlist. It writes a summary and a note per page, summaries in its
   own words and never copied passages. Oneiroi files them under

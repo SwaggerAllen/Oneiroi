@@ -1,6 +1,6 @@
 defmodule Oneiroi.SimaQian.ReadableTest do
   @moduledoc """
-  The export's reading copies (sima-qian #41): each day's transcripts
+  The export's reading copies (sima-qian#41): each day's transcripts
   and the bookmarks, rendered exactly from the export's lines, the same
   bytes from an unchanged store, a private session as its existence and
   counts alone, committed in the machine class past the stray check, and
@@ -191,7 +191,7 @@ defmodule Oneiroi.SimaQian.ReadableTest do
     refute day =~ unique
     refute day =~ "Free time."
 
-    # The record itself still carries them, under sima-qian #20's open
+    # The record itself still carries them, under sima-qian#20's open
     # question; only the reading copy is held to the screen's rule.
     assert read(dir, "records/events/2026-10-26.jsonl") =~ unique
 

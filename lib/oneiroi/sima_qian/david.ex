@@ -1,13 +1,13 @@
 defmodule Oneiroi.SimaQian.David do
   @moduledoc """
   The records of David, the platform Lily lived on before this one, made
-  into this platform's own on import (sima-qian #19). David exported its
+  into this platform's own on import (sima-qian#19). David exported its
   structured store nightly into the repository as JSON Lines under
   `records/` (its own `records/README.md` says so), and a repository
   without `records/events/` that carries them is read here rather than
   listed as files nothing reads:
 
-  - `transcripts/` become sessions of kind `imported` (kumbukumbu #37),
+  - `transcripts/` become sessions of kind `imported` (kumbukumbu#37),
     one per David session, its turns captured with their original
     instants and the party who said each message;
   - `tags.jsonl` becomes the tag set, each tag through the hands it went
@@ -16,10 +16,10 @@ defmodule Oneiroi.SimaQian.David do
   - `bookmarks.jsonl` becomes bookmarks anchored on the translated
     turns, with the span's length in turns, the pins and the taggings;
   - `positions.jsonl`, `disputes.jsonl`, `predictions.jsonl` and
-    `judgement_nights.jsonl` become judgement history (eunomia #29);
+    `judgement_nights.jsonl` become judgement history (eunomia#29);
   - `memory_notes.jsonl`, `ledger.jsonl`, `discussions.jsonl` and
     `feeds.jsonl` become journal entries on the days they were written
-    (seshat #26), each saying where it came from.
+    (seshat#26), each saying where it came from.
 
   What is said and done goes through each system's own commands, so
   every rule a live record is held to holds here, under the actor the

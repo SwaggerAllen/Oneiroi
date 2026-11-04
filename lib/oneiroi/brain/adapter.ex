@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.Adapter do
   @moduledoc """
-  The context an adapter's runtime is given (spec §8, brain #42): the
+  The context an adapter's runtime is given (spec §8, brain#42): the
   platform's own turn assembly split in two where a runtime that keeps
   its own conversation needs it split, by the two functions the turn
   itself is assembled from (`Oneiroi.Brain.Turn.adapter_prefix/3`,
@@ -31,7 +31,7 @@ defmodule Oneiroi.Brain.Adapter do
   it was given and sends it with each turn; a section whose hash moved
   (a renegotiated contract, an accepted soul edit) rides the next turn,
   so a change lands on the next turn as it does on the platform's own
-  (brain #27). No digest means the session holds no prefix, and the
+  (brain#27). No digest means the session holds no prefix, and the
   whole of it rides the turn.
   """
 
@@ -61,7 +61,7 @@ defmodule Oneiroi.Brain.Adapter do
           digest: String.t() | nil
         ]
 
-  @doc "The session prefix, part `part` of the parts the runtime's `of` hooks print (spec §8, brain #42); records nothing."
+  @doc "The session prefix, part `part` of the parts the runtime's `of` hooks print (spec §8, brain#42); records nothing."
   @spec prefix(String.t(), opts()) ::
           {:ok,
            %{text: String.t(), digest: String.t(), part: pos_integer(), parts: pos_integer()}}
@@ -93,7 +93,7 @@ defmodule Oneiroi.Brain.Adapter do
 
   @doc """
   Starts an adapter's turn on `session_key` with the witness's `text`
-  and returns the context to hand the runtime (spec §8, brain #42): the
+  and returns the context to hand the runtime (spec §8, brain#42): the
   turn's ref and start instant (the capture's key), the text, the digest
   of the prefix the session now holds, and how many things the turn drew
   on. `ContextAssembled` records exactly what the text carries, with the
@@ -174,7 +174,7 @@ defmodule Oneiroi.Brain.Adapter do
     end
   end
 
-  # The import's notice is the only one an adapter is told (brain #42),
+  # The import's notice is the only one an adapter is told (brain#42),
   # and told is told: the platform's next turn does not repeat it.
   defp told(resident_id, true, actor), do: Oneiroi.AgathosDaimon.import_told(resident_id, actor)
   defp told(_resident_id, false, _actor), do: :ok

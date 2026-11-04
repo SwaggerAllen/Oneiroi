@@ -10,7 +10,7 @@ defmodule Oneiroi.Nisaba.Purpose do
   invariant hides (spec §6.4).
   """
 
-  # `oracle`: the resident's own long reads (brain #49), on her pinned
+  # `oracle`: the resident's own long reads (brain#49), on her pinned
   # model, hers to see and budget.
   @all ~w(chat free_time judge hands embeddings oracle drafting regression)a
   @witness_only ~w(drafting regression)a

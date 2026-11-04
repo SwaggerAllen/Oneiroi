@@ -2,9 +2,9 @@ defmodule Oneiroi.Seshat.Journals do
   @moduledoc """
   The journal (spec §6.5, F29): rows as the queryable spine, the day's
   file as the narrative rendered from them, the plan-versus-actuals
-  delta the audits read. The day row is the schedule's (sunna #9): the
+  delta the audits read. The day row is the schedule's (sunna#9): the
   journal asks the schedule to open a day it reaches first, so a day
-  written before any check-in is a row too (seshat #21). Every entry
+  written before any check-in is a row too (seshat#21). Every entry
   re-renders `journal/<day>.md` into the repository through the
   library's core write, so the day is a registered, indexed document
   whose citations are edges and which `<slug>:journal/<day>` resolves to.
@@ -31,7 +31,7 @@ defmodule Oneiroi.Seshat.Journals do
   @doc """
   Adds an entry with its register (correction, praise, instruction, play
   or nil; spec §6.13, P8) and, in `opts`, a `summary:` of at most 2,000
-  characters for an entry longer than the turn's view shows (seshat #30).
+  characters for an entry longer than the turn's view shows (seshat#30).
   """
   def add(resident_id, day, kind, text, register, %Actor{} = actor, opts \\ []) do
     day = day || today(resident_id)
@@ -141,7 +141,7 @@ defmodule Oneiroi.Seshat.Journals do
   @doc """
   The plan-versus-actuals delta of a day's entries: how many of each
   kind, how many todos are done, and whether the day was planned and
-  never wrapped, which is what the audit counts (huginn-muninn #15).
+  never wrapped, which is what the audit counts (huginn-muninn#15).
   """
   def delta(entries) do
     counts =
@@ -190,7 +190,7 @@ defmodule Oneiroi.Seshat.Journals do
     end
   end
 
-  # What the turn's journal section shows of an entry (seshat #30): the
+  # What the turn's journal section shows of an entry (seshat#30): the
   # whole of one under the view's bound; of a longer one, its summary, or
   # its opening cut at a line or a sentence when it has none, saying in
   # either case how long the whole is and where it reads. The row and the
@@ -269,7 +269,7 @@ defmodule Oneiroi.Seshat.Journals do
   defp line(e), do: "- (#{e.number}) #{indented(e.text)}"
 
   # An entry of several lines stays one item of the list: an imported
-  # note is often paragraphs (seshat #26), and an unindented second
+  # note is often paragraphs (seshat#26), and an unindented second
   # line would end the list in any Markdown reader.
   defp indented(text) do
     [first | rest] = String.split(text, "\n")
@@ -277,7 +277,7 @@ defmodule Oneiroi.Seshat.Journals do
   end
 
   # The file follows the rows: written through the library's core write
-  # (the journal kind is the platform's, seshat #13), registered and
+  # (the journal kind is the platform's, seshat#13), registered and
   # indexed like any document.
   defp render_day(resident_id, day, actor) do
     entries = Scope.resident(resident_id, fn -> Store.journal_entries(day) end)
@@ -294,7 +294,7 @@ defmodule Oneiroi.Seshat.Journals do
 
   # A day is one file while it fits the library's bound. One that does
   # not is split into parts, `journal/<day>.md` then `<day>-2.md` and
-  # on, each saying where the day goes on (seshat #26): Lily's import
+  # on, each saying where the day goes on (seshat#26): Lily's import
   # put 196 of David's notes on one day, 344 KB against a 256 KB bound,
   # and the whole import failed on that one write. A live day, at two
   # thousand characters an entry, has never come near it.

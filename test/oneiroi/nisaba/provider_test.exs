@@ -291,7 +291,7 @@ defmodule Oneiroi.Nisaba.ProviderTest do
     end
   end
 
-  describe "the tool-call trace (nisaba #21)" do
+  describe "the tool-call trace (nisaba#21)" do
     test "each streamed piece is a line with its provider and arguments as they came, and each call as assembled" do
       piece = fn args ->
         %{

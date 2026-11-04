@@ -31,7 +31,7 @@ defmodule Oneiroi.Xenia.Store do
   end
 
   defmodule ReaderSites do
-    @moduledoc "The reader's allowlists (xenia #16): the origins its browser may reach to read correspondence and to research."
+    @moduledoc "The reader's allowlists (xenia#16): the origins its browser may reach to read correspondence and to research."
     use Ecto.Schema
     @primary_key false
     schema "xenia_reader_sites" do

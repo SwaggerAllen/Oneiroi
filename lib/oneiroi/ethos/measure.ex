@@ -4,7 +4,7 @@ defmodule Oneiroi.Ethos.Measure do
   the clinical markers, read through the failure-modes lens
   (`design/research-self-and-character.md` §5, §6). Every answer is a
   flag or silence that says what it read and did not (P3), and the
-  audits run them nightly (huginn-muninn #17); nothing here is loaded
+  audits run them nightly (huginn-muninn#17); nothing here is loaded
   as identity.
 
   The baseline is the habits' profile as measured: each habit's two

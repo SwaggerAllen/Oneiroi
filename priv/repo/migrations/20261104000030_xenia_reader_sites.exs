@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.XeniaReaderSites do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # The reader's allowlists (xenia #16): the origins its browser may
+  # The reader's allowlists (xenia#16): the origins its browser may
   # reach to read correspondence and to research, set by the witness.
   def change do
     projection :xenia_reader_sites, scope: :resident do

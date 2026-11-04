@@ -79,7 +79,7 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   defp account(id), do: from(a in Account, where: a.id == ^id)
   # A session's and a token's hash is of a random secret, unique across
   # the store by construction, and the account stream is never replayed
-  # into a copy (sima-qian #20), so the hash alone names one row.
+  # into a copy (sima-qian#20), so the hash alone names one row.
   # oneiroi:allow projector_scope
   defp session(hash), do: from(s in Session, where: s.hash == ^hash)
   # oneiroi:allow projector_scope

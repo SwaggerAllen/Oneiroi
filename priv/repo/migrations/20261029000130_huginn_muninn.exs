@@ -54,7 +54,7 @@ defmodule Oneiroi.Repo.Migrations.HuginnMuninn do
 
     create(unique_index(:huginn_muninn_run, [:resident_id, :key, :sequence]))
 
-    # The attestation's last word on the resident row (sima-qian #10), so
+    # The attestation's last word on the resident row (sima-qian#10), so
     # the built-in attestation audit reads a row and never the stream.
     alter table(:agathos_daimon_resident) do
       add(:root_mismatched_at, :utc_datetime_usec)

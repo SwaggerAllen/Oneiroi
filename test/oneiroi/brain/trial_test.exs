@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.TrialTest do
   @moduledoc """
-  A regression trial is a normal session (spec §6.4, eunomia #10, brain
+  A regression trial is a normal session (spec §6.4, eunomia#10, brain
   #40): the turn a fresh session gets, memory retrieved, every tool
   offered through the same loop; the reads real, every write answered as
   on success and recorded nowhere; nothing captured; billed under
@@ -150,7 +150,7 @@ defmodule Oneiroi.Brain.TrialTest do
       {:asked, %{messages: messages}} ->
         case Enum.filter(messages, &(&1[:role] == :tool)) do
           [] -> answers()
-          # The round's count (brain #51) is the turn's, not the tool's.
+          # The round's count (brain#51) is the turn's, not the tool's.
           tools -> Enum.map(tools, &String.replace(&1.content, ~r/\n\n\(Tool round .*\z/s, ""))
         end
     after

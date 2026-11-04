@@ -22,12 +22,12 @@ with Copy and "I've saved it" (issuing a name again replaces its
 token); a revoke that confirms in place; the revoked listed apart with
 the day. Below them, the reader (built 2026-11-03, from `GET/PUT
 /v1/residents/:id/reader` and `GET/POST /v1/residents/:id/research`):
-its two allowlists (xenia #16), "Reading correspondence" and
+its two allowlists (xenia#16), "Reading correspondence" and
 "Research", one origin a line with a line under each saying what it is
 for, that `*` means any site and, for Research, that an empty list
 means the reader can't research at all, saved together, a refused save
 keeping the draft and showing the server's meaning and remedy in the
-card; and the research questions (seshat #38), newest first, each with
+card; and the research questions (seshat#38), newest first, each with
 its number, question and status, an answered one's notes as
 `<path>/task.md` to find in the Library, a failed one's reason, and a
 form to ask one with optional pages to start from. Not built: an adapter's state, last capture and wakes today,

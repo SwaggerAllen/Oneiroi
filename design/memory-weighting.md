@@ -171,7 +171,7 @@ is moved.
 
 Built, so written straight into the spec (F6, F7, F11 and §6.3's
 weighting rule), which retires F11's "deterministic, stable within a
-day" and kumbukumbu #20's pins-first.
+day" and kumbukumbu#20's pins-first.
 
 ## Open
 

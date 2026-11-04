@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.Projectors.Edges do
   @moduledoc """
-  Folds what retrieval did into learned edges (kumbukumbu #46): rule 1
+  Folds what retrieval did into learned edges (kumbukumbu#46): rule 1
   as a turn's index is recorded (its seed and what it returned), rules 3
   and 4 once the turn's `memory_feedback` says what helped. A turn with
   no feedback learns rule 1 alone, so a forgotten call never demotes

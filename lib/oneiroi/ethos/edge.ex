@@ -33,7 +33,7 @@ defmodule Oneiroi.Ethos.Edge do
   def target_exists(_resident_id, "turn", target_id) when is_binary(target_id), do: :ok
 
   # A graduation toward a soul line names a live line of the soul file
-  # (agathos-daimon #27); a position cannot be checked the same way, since
+  # (agathos-daimon#27); a position cannot be checked the same way, since
   # judgement reads this system and not the reverse.
   def target_exists(resident_id, "soul", target_id) do
     with {:ok, number} <- integer(target_id),

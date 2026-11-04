@@ -14,7 +14,7 @@ defmodule Oneiroi.Seshat do
   """
   use Oneiroi.System, slug: :seshat
 
-  # The records system's library port (sima-qian #15): an import adopts
+  # The records system's library port (sima-qian#15): an import adopts
   # the repository's files through it, because the library depends on
   # records for the repository's path and the import is records'.
   @behaviour Oneiroi.SimaQian.Library
@@ -158,7 +158,7 @@ defmodule Oneiroi.Seshat do
   end
 
   # The module as an atom rather than an alias, as the schedule names
-  # its wake (sunna #12): the audits read this system for the citation
+  # its wake (sunna#12): the audits read this system for the citation
   # drift audit, so an alias here is the cycle the port exists to avoid.
   @doc false
   def cast_figures("huginn_muninn"), do: {:ok, :"Elixir.Oneiroi.HuginnMuninn"}
@@ -297,7 +297,7 @@ defmodule Oneiroi.Seshat do
     do: Documents.write(resident_id, path, content, actor)
   )
 
-  # ---- the oracle (brain #49, seshat #34) ----
+  # ---- the oracle (brain#49, seshat#34) ----
 
   @doc "Dispatches named questions to the oracle, each `%{question, sources}`, from the conversation `session_key`; their numbers."
   @spec dispatch_oracle(String.t(), String.t() | nil, [map()], Oneiroi.Actor.t()) ::
@@ -328,7 +328,7 @@ defmodule Oneiroi.Seshat do
   @spec oracle(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Oracle.t() | nil
   defexport(oracle(resident_id, number), do: Oracles.oracle(resident_id, number))
 
-  @doc "Asks the reader's research pass a named question from the conversation `session_key`, with the pages to start from (seshat #38); its number."
+  @doc "Asks the reader's research pass a named question from the conversation `session_key`, with the pages to start from (seshat#38); its number."
   @spec ask_research(String.t(), String.t() | nil, String.t(), [String.t()], Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
   defexport(ask_research(resident_id, session_key, question, urls, actor),
@@ -357,7 +357,7 @@ defmodule Oneiroi.Seshat do
   @spec research(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.Research.t() | nil
   defexport(research(resident_id, number), do: Researches.research(resident_id, number))
 
-  @doc "Removes a scratch or human document (seshat #33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
+  @doc "Removes a scratch or human document (seshat#33): recorded with its actor, the file and its chunks gone; human/ only by the witness."
   @spec remove(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(remove(resident_id, path, actor), do: Documents.remove(resident_id, path, actor))
 
@@ -365,29 +365,29 @@ defmodule Oneiroi.Seshat do
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt(resident_id, path, actor), do: Documents.adopt(resident_id, path, actor))
 
-  @doc "Adopts every unadopted file under the kinds' folders and runs the index once; the records system's library port, so an import lands its files here (sima-qian #15)."
+  @doc "Adopts every unadopted file under the kinds' folders and runs the index once; the records system's library port, so an import lands its files here (sima-qian#15)."
   @impl Oneiroi.SimaQian.Library
   @spec adopt_all(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(adopt_all(resident_id, actor), do: Documents.adopt_all(resident_id, actor))
 
-  @doc "The kinds' folders an import holds: what it treats as transferred (sima-qian #15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat #28). A decided kind's folder is one, but its files are held on disk and offered rather than adopted (`decided?/1`); the keepsake has no folder (seshat #29, #31)."
+  @doc "The kinds' folders an import holds: what it treats as transferred (sima-qian#15). A kind that takes only originals (memory) is not one: an import leaves it, named, for the originals import (seshat#28). A decided kind's folder is one, but its files are held on disk and offered rather than adopted (`decided?/1`); the keepsake has no folder (seshat#29, #31)."
   @impl Oneiroi.SimaQian.Library
   @spec folders() :: [String.t()]
   defexport(folders(),
     do: for(k <- Kinds.all(), k.adoption != :originals and is_binary(k.folder), do: k.folder)
   )
 
-  @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian #22)."
+  @doc "Why the library cannot hold a path, or nil when it can; the reason an import gives for a file it leaves behind (sima-qian#22)."
   @impl Oneiroi.SimaQian.Library
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
 
-  @doc "Whether a path is decided into the library one by one (a keepsake at the root, the wiki, the system shelf); the records system's library port, for the import's accounting and the backup's keepsake class (seshat #29, #31)."
+  @doc "Whether a path is decided into the library one by one (a keepsake at the root, the wiki, the system shelf); the records system's library port, for the import's accounting and the backup's keepsake class (seshat#29, #31)."
   @impl Oneiroi.SimaQian.Library
   @spec decided?(String.t()) :: boolean()
   defexport(decided?(path), do: Kinds.decided?(path))
 
-  @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat #26)."
+  @doc "Adds journal entries an import carried from another platform's notes, rendering each day once; the records system's library port (seshat#26)."
   @impl Oneiroi.SimaQian.Library
   @spec import_journal(String.t(), [map()], Oneiroi.Actor.t()) ::
           {:ok, non_neg_integer()} | {:error, term()}
@@ -395,7 +395,7 @@ defmodule Oneiroi.Seshat do
     do: Journals.import_entries(resident_id, entries, actor)
   )
 
-  @doc "Registers the files the originals import copied, each `%{path, provenance}`, and runs the index once when any was new; the records system's library port (seshat #28)."
+  @doc "Registers the files the originals import copied, each `%{path, provenance}`, and runs the index once when any was new; the records system's library port (seshat#28)."
   @impl Oneiroi.SimaQian.Library
   @spec adopt_originals(String.t(), [map()], Oneiroi.Actor.t()) ::
           {:ok, %{adopted: [String.t()], indexed: boolean()}} | {:error, term()}
@@ -403,16 +403,16 @@ defmodule Oneiroi.Seshat do
     do: Documents.adopt_originals(resident_id, files, actor)
   )
 
-  @doc "Why the originals import cannot take a path as a document (a hidden name, not text, outside the kinds that take originals), or nil; the records system's library port (seshat #28)."
+  @doc "Why the originals import cannot take a path as a document (a hidden name, not text, outside the kinds that take originals), or nil; the records system's library port (seshat#28)."
   @impl Oneiroi.SimaQian.Library
   @spec original_refusal(String.t()) :: String.t() | nil
   defexport(original_refusal(path), do: Kinds.original_refusal(path))
 
-  @doc "The keepsakes, each with who put it there, when, and why it mattered in the resident's words when she has said (seshat #32)."
+  @doc "The keepsakes, each with who put it there, when, and why it mattered in the resident's words when she has said (seshat#32)."
   @spec keepsakes(String.t()) :: [map()]
   defexport(keepsakes(resident_id), do: Documents.keepsakes(resident_id))
 
-  @doc "The resident says why a keepsake mattered (seshat #32); the latest stands."
+  @doc "The resident says why a keepsake mattered (seshat#32); the latest stands."
   @spec note_keepsake(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(note_keepsake(resident_id, path, note, actor),
@@ -465,7 +465,7 @@ defmodule Oneiroi.Seshat do
   @spec search(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, [map()]} | {:error, term()}
   defexport(search(resident_id, query, actor), do: Index.search(resident_id, query, actor))
 
-  @doc "The same search with the query's embedding billed under `purpose`: a regression trial's turn bills it as `regression` (eunomia #10)."
+  @doc "The same search with the query's embedding billed under `purpose`: a regression trial's turn bills it as `regression` (eunomia#10)."
   @spec search(String.t(), String.t(), Oneiroi.Actor.t(), atom()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(search(resident_id, query, actor, purpose),
@@ -482,7 +482,7 @@ defmodule Oneiroi.Seshat do
   @spec cited_by(String.t(), String.t()) :: [map()]
   defexport(cited_by(resident_id, target), do: Citations.cited_by(resident_id, target))
 
-  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia #10), which writes nothing."
+  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia#10), which writes nothing."
   @spec cited_by(String.t(), String.t(), keyword()) :: [map()]
   defexport(cited_by(resident_id, target, opts),
     do: Citations.cited_by(resident_id, target, opts)
@@ -492,7 +492,7 @@ defmodule Oneiroi.Seshat do
   @spec review(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(review(resident_id, path), do: Citations.review(resident_id, path))
 
-  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia #10), which writes nothing."
+  @doc "The same, with `mark: false` resolving each reference and marking no row: a regression trial's read (eunomia#10), which writes nothing."
   @spec review(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   defexport(review(resident_id, path, opts), do: Citations.review(resident_id, path, opts))
 
@@ -527,7 +527,7 @@ defmodule Oneiroi.Seshat do
     do: Journals.add(resident_id, day, kind, text, register, actor)
   )
 
-  @doc "Adds a journal entry with its register and a summary of at most 2,000 characters, which the turn's journal section shows of a longer entry (seshat #30)."
+  @doc "Adds a journal entry with its register and a summary of at most 2,000 characters, which the turn's journal section shows of a longer entry (seshat#30)."
   @spec journal_add(
           String.t(),
           String.t() | nil,

@@ -1,5 +1,5 @@
 defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
-  @moduledoc "House letters (kumbukumbu #44): the work log between a resident's conversations, addressed by name, sent by the conversation it comes from, read once per conversation, carrying a keepsake as a gift."
+  @moduledoc "House letters (kumbukumbu#44): the work log between a resident's conversations, addressed by name, sent by the conversation it comes from, read once per conversation, carrying a keepsake as a gift."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor

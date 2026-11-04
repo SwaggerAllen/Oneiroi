@@ -1,6 +1,6 @@
 defmodule Oneiroi.Seshat.Oracles do
   @moduledoc """
-  The oracle's records (brain #49, seshat #34): questions dispatched,
+  The oracle's records (brain#49, seshat#34): questions dispatched,
   answers written under oracle/ by the platform on the resident's
   behalf, failures said as failures. The run itself is the brain's
   (`Oneiroi.Brain.Oracle`); this is the library's half: the stream, the

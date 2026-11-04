@@ -301,7 +301,7 @@ defmodule OneiroiWeb.RegressionController do
       cards: r.cards
     }
 
-  # A run answers in the background (eunomia #30): running until it ends,
+  # A run answers in the background (eunomia#30): running until it ends,
   # finished or failed.
   defp state(%{failed_at: %DateTime{}}), do: "failed"
   defp state(%{finished_at: %DateTime{}}), do: "finished"

@@ -1,6 +1,6 @@
 # Lily's migration: spec §9 against what is built
 
-The trial run of the import (sima-qian #15). Spec §9 lists five steps;
+The trial run of the import (sima-qian#15). Spec §9 lists five steps;
 this is each one read against the code as of P4 slice 3, and what is
 the author's to run. Nothing here is a change to the spec: where the
 build differs from §9's wording the difference is named as a proposal.
@@ -17,13 +17,13 @@ in the not-transferred list and left in the repository as files
 nothing here reads. `memory/` is in the backup's machine class but is
 not a kind, so its files come across as files; lily-memory's own store
 comes across through David's nightly export under `records/`, which the
-import translates (sima-qian #19, below).
+import translates (sima-qian#19, below).
 
 ## 2. Rename
 
 Nothing to rewrite. The slug is given at import (`lily`), and nothing
 in the build is named for her. Honcho's peers and workspace are
-provisioned by the bridge on first use (proteus #8) and not read from
+provisioned by the bridge on first use (proteus#8) and not read from
 the repository.
 
 ## 3. Replay
@@ -56,24 +56,24 @@ files that are already on the stream as adoptions.
 
 `journal/<day>.md` files are adopted as journal documents; the
 journal's rows start empty, and a day with rows renders over its file
-(seshat #22) only for days opened here.
+(seshat#22) only for days opened here.
 
-**David's records are translated (sima-qian #19, round 40).** The
+**David's records are translated (sima-qian#19, round 40).** The
 proposal above was right that a file is not an event and wrong about
 what the repository held: under `records/` are David's own records, and
 the import now makes them into this platform's through each system's
 commands, under the actor David names. Her transcripts become sessions
-of kind `imported` with their original instants (kumbukumbu #37), her
+of kind `imported` with their original instants (kumbukumbu#37), her
 tags and bookmarks are hers and the witness's as they were, her
 positions, disputes, predictions and judged nights are judgement history
-(eunomia #29), and her memory notes, free-time ledger, discussions and
-feeds are journal entries on their days (seshat #26). The original ids
+(eunomia#29), and her memory notes, free-time ledger, discussions and
+feeds are journal entries on their days (seshat#26). The original ids
 are not carried as ids: each record gets this platform's number, and the
 journal entry or statement says which David record it was.
 
 ## 4. Lapse
 
-She wakes on her first turn to the orientation (brain #26): on Oneiroi,
+She wakes on her first turn to the orientation (brain#26): on Oneiroi,
 from which repository, that there was no attestation to check, what of
 David's records was made into her records here, kind by kind (brain
 #38), and the not-transferred names. The model is the pin or the platform default
@@ -89,7 +89,7 @@ folder are byte-identical to the frozen push by construction, and the
 import test asserts the source's commit is in the working repository's
 log. The export from the new store holds her new events only. The
 first backup needs a remote: the import removes the clone's `origin`
-(sima-qian #15), so the author sets one with `PUT /v1/residents/:id/remote`.
+(sima-qian#15), so the author sets one with `PUT /v1/residents/:id/remote`.
 
 **The remote is a new private repository, decided 10-31.** Not hers: in
 the overlap David-Lily still writes the letter and her sign-off to her
@@ -152,7 +152,7 @@ needs to come across.
 ## The rehearsal of 2026-10-31
 
 `mix oneiroi.import.dry_run` on her repository (271 commits), in the
-prod build on a throwaway store, no turn and no model call (sima-qian #18):
+prod build on a throwaway store, no turn and no model call (sima-qian#18):
 
 | | |
 | --- | --- |
@@ -189,12 +189,12 @@ bring them, and it is not built.
 
 The first run of it failed: her 22 October holds 196 notes, 344 KB, over
 the library's 256 KB bound for one document, so a day that large is now
-written in parts (seshat #26). `records/` leaves the not-transferred list;
+written in parts (seshat#26). `records/` leaves the not-transferred list;
 David's `records/README.md` and the archived `MEMORY.md` under
 `records/memory/` are named in its place, as files nothing reads.
 
 The export a backup writes now carries every stream that is hers
-(sima-qian #20, round 41): the translated sessions, bookmarks, judgement
+(sima-qian#20, round 41): the translated sessions, bookmarks, judgement
 and journal go into `records/events/` with everything she does after,
 and a rebuild from the backup restores them all. David's original files
 stay in the repository beside them.

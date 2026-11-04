@@ -4,7 +4,7 @@ defmodule Oneiroi.Repo.Migrations.Sunna do
 
   # The schedule's rows are the resident's (spec §6.7); the witness reads
   # them as the witness under the resident's scope, and the tick reads
-  # every resident's under the platform scope by name (sunna #11).
+  # every resident's under the platform scope by name (sunna#11).
   def change do
     projection :sunna_checkin, scope: :resident do
       add(:key, :string, null: false)

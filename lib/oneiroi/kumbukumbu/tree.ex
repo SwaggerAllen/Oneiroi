@@ -6,8 +6,8 @@ defmodule Oneiroi.Kumbukumbu.Tree do
   resident's own tree is the vocabulary.
 
   A port rather than a call because the character layer reads this
-  system's moments (ethos #3) and a direct call back is the cycle
-  Boundary and `mix xref graph --format cycles` both reject (sunna #12's
+  system's moments (ethos#3) and a direct call back is the cycle
+  Boundary and `mix xref graph --format cycles` both reject (sunna#12's
   shape). The implementation is named in `KUMBUKUMBU_TREE` and read at
   the call, so neither compiler sees an edge; the tags it returns are
   `kind/number`, never a slug of the closed set.

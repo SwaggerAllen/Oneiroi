@@ -24,7 +24,7 @@ defmodule Oneiroi.Brain.Turn do
   same place. A provider failure captures nothing and records a capture
   failure the witness can mark lost.
 
-  A regression trial (`trial/4`, eunomia #10) is the same turn in a fresh
+  A regression trial (`trial/4`, eunomia#10) is the same turn in a fresh
   session that nobody opened: the same assembly, memory retrieval
   included, and the same tool loop, with the reads real and every tool
   that would change anything answered as on success and recorded nowhere
@@ -78,7 +78,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   @doc """
-  Answers one regression trial (spec §6.4, eunomia #10): `prompt` as
+  Answers one regression trial (spec §6.4, eunomia#10): `prompt` as
   `model`, in a fresh session, with what a real turn there would have
   (the prefix with the formation line, the contract, the index, the
   character lane, the madeleine and every other section) and the whole
@@ -97,7 +97,7 @@ defmodule Oneiroi.Brain.Turn do
   The reply comes back with the trace of the loop's tool calls in order
   (`Oneiroi.Eunomia.Trial.step/0`): each tool, its arguments, whether it
   read or was mocked, and the text the model was given back. It is the
-  witness's, for the card (eunomia #31): it rides the return and nothing
+  witness's, for the card (eunomia#31): it rides the return and nothing
   else, never the session topic, a capture or a log.
   """
   @spec trial(String.t(), String.t(), String.t(), Actor.t()) ::
@@ -117,7 +117,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   @doc """
-  An oracle's turn (brain #49): the resident's whole assembly against
+  An oracle's turn (brain#49): the resident's whole assembly against
   `text`, the question and its materials (the prefix, her state, the
   ranked index, the madeleine, how she acts, her promises), on `model`,
   every read tool and no write, billed to her under `oracle`. Nothing
@@ -200,7 +200,7 @@ defmodule Oneiroi.Brain.Turn do
     {messages, injections} = assemble(row, turn, text)
     # The once-only notices are recorded with their words on the turn
     # that tells them, so the reply's inspector shows what it was told
-    # (brain #41); every other section keeps the text it kept before.
+    # (brain#41); every other section keeps the text it kept before.
     turn = %{turn | injections: injections ++ notice_injections(turn)}
     broadcast(resident_id, session_key, {:turn_started, turn.turn_ref})
 
@@ -211,12 +211,12 @@ defmodule Oneiroi.Brain.Turn do
 
   # The turn as it would open now: the model (a lapse's over the pin and
   # the setting), the resident's actor, the opening and the once-only
-  # notices owed to it. A real turn and the witness's preview (brain #41)
+  # notices owed to it. A real turn and the witness's preview (brain#41)
   # both start here, so the preview cannot open a turn the turn would not.
   defp prepare(row, resident_id, session_key, text, actor, opts) do
     started_at = Clock.now()
     # Under a lapse the policy's model stands in for the pin (spec §6.11),
-    # and the resident is told so, once, ahead of the turn (brain #21).
+    # and the resident is told so, once, ahead of the turn (brain#21).
     lapse = Oneiroi.Nisaba.lapse(resident_id)
     model = (lapse && lapse.model) || row.chat_model || Config.fetch!(:brain, :chat_model)
     as = Keyword.get(opts, :as, :user)
@@ -233,7 +233,7 @@ defmodule Oneiroi.Brain.Turn do
     %{
       resident_id: resident_id,
       session_key: session_key,
-      # The client's ref when the message came by `submit` (brain #45),
+      # The client's ref when the message came by `submit` (brain#45),
       # so its retry is known for the same turn.
       turn_ref: Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref(),
       started_at: started_at,
@@ -258,7 +258,7 @@ defmodule Oneiroi.Brain.Turn do
 
   @doc """
   The next turn of `session_key` as a dry run, for the witness's
-  preview (brain #41): the same `prepare/6` and the same assembly the
+  preview (brain#41): the same `prepare/6` and the same assembly the
   turn runs, in the same order, with nothing after it. Nothing is
   compacted, captured, recorded, marked, broadcast or synced, and no
   model is called: the madeleine, whose query is an embedding billed to
@@ -330,7 +330,7 @@ defmodule Oneiroi.Brain.Turn do
     case ask(turn, request) do
       {:ok, %Result{tool_calls: [_ | _] = calls} = result} ->
         cond do
-          # The reply with its memory_feedback (kumbukumbu #46): the call
+          # The reply with its memory_feedback (kumbukumbu#46): the call
           # is recorded and the reply stands, with no further round, so
           # the feedback costs no extra call.
           feedback_only?(calls, result) ->
@@ -349,7 +349,7 @@ defmodule Oneiroi.Brain.Turn do
 
             converse(turn, messages ++ [assistant | results], round + 1)
 
-          # The rounds are spent (brain #50): words the model wrote with
+          # The rounds are spent (brain#50): words the model wrote with
           # its last calls stand; with none, the calls are run and it is
           # asked once more, able to call nothing, for its answer from
           # what it has, so a turn that read until the bound still says
@@ -389,7 +389,7 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  # The running count (brain #51): the last result of each round says
+  # The running count (brain#51): the last result of each round says
   # which round it was, of how many, and what happens when they are
   # spent, so the bound is something she can plan around rather than
   # meet. Only the model reads it; the captured calls are as they ran.
@@ -407,7 +407,7 @@ defmodule Oneiroi.Brain.Turn do
 
   defp blank?(content), do: not is_binary(content) or String.trim(content) == ""
 
-  # A cut answer names the oracle (brain #49), the size trigger: the
+  # A cut answer names the oracle (brain#49), the size trigger: the
   # question is still hers to name, so nothing is dispatched for her.
   defp oracle_hint(output) do
     if output =~ "\n[cut: ",
@@ -421,8 +421,8 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # A trial streams to nobody: the session topic is the resident's and
-  # the witness's, and a trial is neither's conversation (eunomia #12).
-  # The oracle (brain #49) bills her ledger under `oracle` and streams to
+  # the witness's, and a trial is neither's conversation (eunomia#12).
+  # The oracle (brain#49) bills her ledger under `oracle` and streams to
   # nobody: it has no conversation of its own.
   defp ask(%{oracle?: true} = turn, request),
     do: Nisaba.call(turn.resident_id, :oracle, request, turn.resident)
@@ -457,7 +457,7 @@ defmodule Oneiroi.Brain.Turn do
     end)
   end
 
-  # A trial keeps each call for the witness's card (eunomia #31), the
+  # A trial keeps each call for the witness's card (eunomia#31), the
   # kind read from the decision `Tools.trial/3` acts on, so the trace
   # says a call ran only when it did. A real turn keeps none: its calls
   # are captured as `tool` messages already.
@@ -479,11 +479,11 @@ defmodule Oneiroi.Brain.Turn do
   defp use_tool(%{trial?: true} = turn, call), do: Tools.trial(call.name, call.arguments, turn)
 
   # The oracle reads everything she can read and writes nothing but its
-  # answer (brain #49): a write is refused in words, never pretended.
+  # answer (brain#49): a write is refused in words, never pretended.
   defp use_tool(%{oracle?: true} = turn, call) do
     if Tools.trial_kind(call.name) == :read do
       output = Tools.run(call.name, call.arguments, turn)
-      # What it read, for the oracle's read set (brain #49).
+      # What it read, for the oracle's read set (brain#49).
       step = %{tool: call.name, arguments: call.arguments, result: output}
       {output, %{turn | trace: turn.trace ++ [step]}}
     else
@@ -548,7 +548,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # A provider failure: the witness's words are captured alone, so a
-  # message is never lost with the reply (brain #45), and the failure is
+  # message is never lost with the reply (brain#45), and the failure is
   # recorded for the witness to resolve. A wake's note is the core's,
   # and is not kept as if someone had said it.
   defp conclude({{:error, failure}, turn}, _original) do
@@ -612,7 +612,7 @@ defmodule Oneiroi.Brain.Turn do
 
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
-      # The bridge records its own failure (proteus #13); the turn is
+      # The bridge records its own failure (proteus#13); the turn is
       # captured already and goes on.
       Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
@@ -721,7 +721,7 @@ defmodule Oneiroi.Brain.Turn do
 
   # Where it woke (spec §6.2): on Oneiroi, from which repository,
   # whether the attestation held, and what did not transfer, as a system
-  # message on the first turn after the import, once (brain #26).
+  # message on the first turn after the import, once (brain#26).
   defp import_notice(%{import_told: false} = row) do
     [
       %{
@@ -753,7 +753,7 @@ defmodule Oneiroi.Brain.Turn do
     do: "there was no attestation to check: the repository was not backed up by Oneiroi before"
 
   # What the import made into this platform's records from the source
-  # platform's (agathos-daimon #30), in the order a reader looks for
+  # platform's (agathos-daimon#30), in the order a reader looks for
   # them; a kind with none is not named.
   @translated [
     {"sessions", "conversations, as sessions of kind imported, searchable as any transcript"},
@@ -782,7 +782,7 @@ defmodule Oneiroi.Brain.Turn do
 
   defp not_transferred_text([], _reasons), do: ""
 
-  # Each with its reason where the import gave one (sima-qian #22).
+  # Each with its reason where the import gave one (sima-qian#22).
   defp not_transferred_text(names, reasons),
     do:
       ". What did not transfer, and sits in the repository as files nothing here reads: " <>
@@ -815,7 +815,7 @@ defmodule Oneiroi.Brain.Turn do
   defp lapse_notice(_lapse), do: []
 
   @doc """
-  An adapter's session prefix (spec §8, brain #42): the prompt, the
+  An adapter's session prefix (spec §8, brain#42): the prompt, the
   identity files and the contract, by the same function the turn's
   assembly opens with, then the runtime's note when the runtime has one
   (`runtime` names a prompt file under `priv/prompts/`, or nil). Each
@@ -829,7 +829,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   @doc """
-  An adapter's turn (spec §8, brain #42): `prepare/6` and the assembly's
+  An adapter's turn (spec §8, brain#42): `prepare/6` and the assembly's
   two halves as a platform turn runs them, against the witness's words
   in the session's room, with the resident's actor (no model: the
   runtime's model is the runtime's), so the madeleine and the vector lane
@@ -880,7 +880,7 @@ defmodule Oneiroi.Brain.Turn do
     }
   end
 
-  # The runtime's note (brain #42): how the platform's words read where
+  # The runtime's note (brain#42): how the platform's words read where
   # the runtime is not the platform's own loop, from its prompt file.
   defp runtime_section(_row, nil), do: []
 
@@ -901,7 +901,7 @@ defmodule Oneiroi.Brain.Turn do
 
   # The one assembly (spec §5): the sections in order, the injections the
   # turn records, the messages the model is sent. A real turn, a trial
-  # and the witness's preview all come through here (brain #41).
+  # and the witness's preview all come through here (brain#41).
   defp build(row, turn, text) do
     count = Config.fetch!(:brain, :transcript_messages)
     {rest, index} = turn_sections(row, turn, text)
@@ -939,7 +939,7 @@ defmodule Oneiroi.Brain.Turn do
     %{sections: sections, injections: injections, messages: messages}
   end
 
-  # The always-loaded prefix (brain #12, #27): the prompt, the identity
+  # The always-loaded prefix (brain#12, #27): the prompt, the identity
   # files and the contract, the same for every turn of a session until a
   # file or the contract changes. An adapter's session gives it once, at
   # its start (`adapter_prefix/3`), so the turn's assembly is this and
@@ -966,7 +966,7 @@ defmodule Oneiroi.Brain.Turn do
       ) ++ pins_section(turn)
   end
 
-  # The pins (kumbukumbu #45, brain #48): decisions, so in the stable
+  # The pins (kumbukumbu#45, brain#48): decisions, so in the stable
   # prefix with the identity files and cached with them, and never in the
   # ranked index. They change rarely; an adapter's session sees a new one
   # at its next prefix.
@@ -983,7 +983,7 @@ defmodule Oneiroi.Brain.Turn do
         section(
           "pins",
           text,
-          "the pins (kumbukumbu #45): #{length(pins)} decisions in the stable prefix, never ranked",
+          "the pins (kumbukumbu#45): #{length(pins)} decisions in the stable prefix, never ranked",
           %{refs: Enum.map(pins, & &1.number)}
         )
     end
@@ -994,7 +994,7 @@ defmodule Oneiroi.Brain.Turn do
   # prefix, with the index itself for its near-misses.
   defp turn_sections(_row, turn, text) do
     # The turn's words are embedded once, for the ranked index and the
-    # madeleine both (kumbukumbu #46).
+    # madeleine both (kumbukumbu#46).
     vector = memory_query(turn, text)
     index = Kumbukumbu.ranked_index(turn.resident_id, turn.session_key, vector)
     acting = how_i_act(turn, text)
@@ -1076,8 +1076,8 @@ defmodule Oneiroi.Brain.Turn do
     {sections, index}
   end
 
-  # Where this conversation is and which others are open now (brain #44,
-  # kumbukumbu #42): an adapter's turn is told its runtime, the folder by
+  # Where this conversation is and which others are open now (brain#44,
+  # kumbukumbu#42): an adapter's turn is told its runtime, the folder by
   # its base name, that the Oneiroi chat is a separate conversation that
   # may be going on at once, that memory is one across them, the other
   # conversations open now and this turn's ref for the memory tools; the
@@ -1085,7 +1085,7 @@ defmodule Oneiroi.Brain.Turn do
   # are, by name and folder alone. No other conversation's words ride
   # either: each session's history is its own (`Kumbukumbu.recent/3`
   # reads one key). A trial is a session nobody opened, told nothing.
-  # House letters waiting for this conversation (kumbukumbu #44): how
+  # House letters waiting for this conversation (kumbukumbu#44): how
   # many and from whom, never their words, which `letter_inbox` reads
   # and marks. Nothing when none wait; a trial is told nothing.
   defp letters_section(%{trial?: true}), do: []
@@ -1107,13 +1107,13 @@ defmodule Oneiroi.Brain.Turn do
         section(
           "letters",
           text,
-          "house letters waiting here (kumbukumbu #44): #{length(waiting)}, by sender alone, none of their words",
+          "house letters waiting here (kumbukumbu#44): #{length(waiting)}, by sender alone, none of their words",
           %{text: text}
         )
     end
   end
 
-  # The state store (agathos-daimon #32, brain #47): her present in her
+  # The state store (agathos-daimon#32, brain#47): her present in her
   # own words, first after the identity files and the contract, read
   # fresh on every turn and overwritten in place. Placed here rather
   # than in the stable prefix: the prefix is what an adapter's session is
@@ -1147,7 +1147,7 @@ defmodule Oneiroi.Brain.Turn do
     section(
       "state",
       text,
-      "the state store (agathos-daimon #32): #{length(lines)} line(s) of the resident's present, read fresh, overwritten in place"
+      "the state store (agathos-daimon#32): #{length(lines)} line(s) of the resident's present, read fresh, overwritten in place"
     )
   end
 
@@ -1176,7 +1176,7 @@ defmodule Oneiroi.Brain.Turn do
         open: open_line(others, session),
         turn: turn.turn_ref
       }),
-      "where this conversation is (kumbukumbu #42): #{runtime}, the folder by its base name, #{length(others)} other conversations open now by name alone, and this turn's ref for the memory tools"
+      "where this conversation is (kumbukumbu#42): #{runtime}, the folder by its base name, #{length(others)} other conversations open now by name alone, and this turn's ref for the memory tools"
     )
   end
 
@@ -1192,7 +1192,7 @@ defmodule Oneiroi.Brain.Turn do
         section(
           "where",
           Prompt.render!("where_chat", %{open: open_list(others, session)}),
-          "the other conversations open now (kumbukumbu #42): #{length(others)}, by runtime and folder base name alone, none of their words"
+          "the other conversations open now (kumbukumbu#42): #{length(others)}, by runtime and folder base name alone, none of their words"
         )
   end
 
@@ -1238,7 +1238,7 @@ defmodule Oneiroi.Brain.Turn do
   # The madeleine is chosen by nearness to the words the turn opens with,
   # and the choice is an embedding billed to the dyad; a preview records
   # nothing and bills nothing, so it shows the section's place and why it
-  # was not run, and sends nothing for it (brain #41).
+  # was not run, and sends nothing for it (brain#41).
   defp madeleine_section(%{preview?: true}, _recall) do
     [
       %{
@@ -1276,7 +1276,7 @@ defmodule Oneiroi.Brain.Turn do
 
   defp index_reason(index),
     do:
-      "the ranked index (kumbukumbu #46): #{index.considered} considered, #{length(index.included) - length(index.explored)} returned by rank and #{length(index.explored)} drawn at random, #{length(index.near_misses)} considered and not returned"
+      "the ranked index (kumbukumbu#46): #{index.considered} considered, #{length(index.included) - length(index.explored)} returned by rank and #{length(index.explored)} drawn at random, #{length(index.near_misses)} considered and not returned"
 
   defp near_misses(index) do
     Enum.map(index.near_misses, fn m ->
@@ -1358,11 +1358,11 @@ defmodule Oneiroi.Brain.Turn do
   defp opening_role(:note), do: :system
   defp opening_role(_as), do: :user
 
-  # Retrieval is memory's and choice is the brain's (kumbukumbu #11): the
+  # Retrieval is memory's and choice is the brain's (kumbukumbu#11): the
   # situation is the witness's words, the conversation's tags and the
   # time of day, matched with no model call; with the resident's actor
   # the vector lane adds what sits near the words, one embedding billed
-  # to the dyad under the embeddings purpose (ethos #16).
+  # to the dyad under the embeddings purpose (ethos#16).
   defp how_i_act(turn, text) do
     tags =
       turn.resident_id
@@ -1385,7 +1385,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # The vector lane runs only for a query somebody is billed for; a
-  # preview bills nobody, so its lane is the trigger lane alone (brain #41).
+  # preview bills nobody, so its lane is the trigger lane alone (brain#41).
   defp lane_actor(%{preview?: true}), do: nil
   defp lane_actor(turn), do: Map.get(turn, :resident)
 
@@ -1401,7 +1401,7 @@ defmodule Oneiroi.Brain.Turn do
   # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
   # the turn's words, with the resident's actor for the embedding; a
   # turn without one (the assembly read in a test) asks nothing.
-  # The turn's words as a vector (kumbukumbu #46): none in a preview,
+  # The turn's words as a vector (kumbukumbu#46): none in a preview,
   # which calls no model; a trial's bills as the trial's reads do.
   defp memory_query(%{preview?: true}, _text), do: nil
 
@@ -1439,7 +1439,7 @@ defmodule Oneiroi.Brain.Turn do
 
   defp formation(_row), do: ""
 
-  # A fixture (spec §12, P40; brain #36) is machinery: its own short
+  # A fixture (spec §12, P40; brain#36) is machinery: its own short
   # prompt with no person-first lines, no formation month and no
   # identity files, AGENTS.md included, because each of those addresses
   # a person and a fixture is not one.
@@ -1476,7 +1476,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   # The provider's own words, by the one rule `Nisaba.Error.text/1` keeps
-  # (brain #39).
+  # (brain#39).
   defp failure_reason(error), do: Nisaba.Error.text(error)
 
   @doc false
@@ -1486,7 +1486,7 @@ defmodule Oneiroi.Brain.Turn do
   def tokens(_other), do: 0
 
   @doc false
-  # What the turn is doing now (brain #45), for the client's status line:
+  # What the turn is doing now (brain#45), for the client's status line:
   # `thinking` before each model call, `tool` with its name before each
   # call to one. Streamed words say `writing` by themselves.
   defp status(turn, what, detail),

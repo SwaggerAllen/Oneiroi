@@ -6,7 +6,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   end
 
   defmodule FixtureDeclared do
-    # A fixture (spec §12, P40; agathos-daimon #29): emitted with
+    # A fixture (spec §12, P40; agathos-daimon#29): emitted with
     # `ResidentCreated` in the creation's own dispatch and never after,
     # so a fixture does not become a person by an event and a person is
     # never made a fixture. An event of its own rather than a field on
@@ -55,7 +55,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   defmodule DyadContractProposed do
     # The dyad contract (spec §6.12): opt-in, versioned, renegotiable,
     # default unstated. A version is one party's terms (a closed map) and
-    # prose, with a note; the other party agrees or declines (agathos-daimon #22).
+    # prose, with a note; the other party agrees or declines (agathos-daimon#22).
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :version, :terms, :prose]
   end
 
@@ -78,7 +78,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   defmodule CustodyTransferProposed do
     # Adoption (spec §6.12): the witness proposes, the named account
     # accepts or declines, the witness may withdraw; the wall cannot be
-    # set while one is open (agathos-daimon #24).
+    # set while one is open (agathos-daimon#24).
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :to_account_id]
   end
 
@@ -93,7 +93,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   defmodule EarlierSessionsRevealed do
     # Written beside `CustodyTransferred` when the wall was revealed: the
     # new witness may read the sessions the old one was party to
-    # (spec §6.3, §6.12); memory's projector re-keys them (kumbukumbu #29).
+    # (spec §6.3, §6.12); memory's projector re-keys them (kumbukumbu#29).
     use Oneiroi.Event, version: 1, fields: [:id, :from_account_id, :to_account_id]
   end
 
@@ -106,8 +106,8 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # a repository, §9): the identity files seeded from the repository's
     # root, how many library files were adopted, and what at the root
     # did not transfer, by name, so the resident is told rather than
-    # left to notice (agathos-daimon #25). Version 2 adds `reasons`, the
-    # name of each thing left behind to why (sima-qian #22): told only
+    # left to notice (agathos-daimon#25). Version 2 adds `reasons`, the
+    # name of each thing left behind to why (sima-qian#22): told only
     # the names, she could not tell a file the library refused from one
     # it never saw. No version 1 event exists outside tests (production
     # held no resident when this changed), and the upcaster reads one as
@@ -122,7 +122,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
 
   defmodule RecordsTranslated do
     # What an import made into this platform's own records from the
-    # source platform's (agathos-daimon #30): `source` names the platform
+    # source platform's (agathos-daimon#30): `source` names the platform
     # and `counts` how many of each kind, so the resident is told her
     # history came with her and where to find it, and not only what
     # did not.
@@ -131,7 +131,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
 
   defmodule ContinuationAsked do
     # A fixture's ask to continue, as the judge read it on the turn it was
-    # made (spec §12, P57; agathos-daimon #31): `tier` is `continue`, the
+    # made (spec §12, P57; agathos-daimon#31): `tier` is `continue`, the
     # law's teeth, which ended the run and is the precedent, or
     # `questioned`, the ambiguous middle a person reads. `words` are the
     # fixture's, quoted by the judge; `reason` is the judge's. On the
@@ -204,7 +204,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   # write of the file is diffed against the live lines in the same
   # dispatch: a new paragraph is written, a changed one reworded under
   # its number, a dropped one retired, and the order is restated when it
-  # moved. `cites` names the seeds a line grew from (ethos #4).
+  # moved. `cites` names the seeds a line grew from (ethos#4).
   defmodule SoulLineWritten do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :cites]
   end
@@ -271,7 +271,7 @@ defmodule Oneiroi.AgathosDaimon.Events do
   end
 
   defmodule StateLineSet do
-    # A line of the resident's present (agathos-daimon #32), written or
+    # A line of the resident's present (agathos-daimon#32), written or
     # verified: `at` is when she last verified it, and the same words
     # again are a verification, kept as one. `model` is the instance that
     # wrote it, from the actor.

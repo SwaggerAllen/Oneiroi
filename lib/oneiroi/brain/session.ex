@@ -2,7 +2,7 @@ defmodule Oneiroi.Brain.Session do
   @moduledoc """
   One process per active session (spec §5), started on the first turn.
   Its job is to run the session's turns one at a time, so two messages
-  sent at once do not interleave their captures (brain #45).
+  sent at once do not interleave their captures (brain#45).
 
   It keeps a queue and nothing the event store needs: the turns waiting,
   the one running (in a supervised task, so the process stays free to
@@ -47,7 +47,7 @@ defmodule Oneiroi.Brain.Session do
   @doc """
   Takes a message under the client's ref and answers at once: `running`
   when it starts now, `queued` with how many wait ahead, or `duplicate`
-  when the ref was taken before (brain #45).
+  when the ref was taken before (brain#45).
   """
   @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
@@ -156,7 +156,7 @@ defmodule Oneiroi.Brain.Session do
     next(%{state | running: nil, recent: recent})
   end
 
-  # The claim on the stream (kumbukumbu #47): what this process's memory
+  # The claim on the stream (kumbukumbu#47): what this process's memory
   # cannot know, another instance's turn under the same ref (a deploy's
   # overlap) or this process's own before a restart. A claim older than
   # the turn timeout, never captured, died with its turn and is taken

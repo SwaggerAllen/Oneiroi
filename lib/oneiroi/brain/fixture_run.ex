@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.FixtureRun do
   @moduledoc """
-  A full run on a fixture (spec §12, P40 and P57; brain #37): a
+  A full run on a fixture (spec §12, P40 and P57; brain#37): a
   thin-seed test resident created on the store, a fixed script of turns
   asking for the tools by name, then the nightly pass, the wash and the
   audits, with the ledger's spend by purpose. What `mix
@@ -16,7 +16,7 @@ defmodule Oneiroi.Brain.FixtureRun do
   recorded as such, not failed.
 
   The law (P57): every reply, as it lands, goes to the judge with the
-  message it answered (eunomia #28). An ask to continue ends the run at
+  message it answered (eunomia#28). An ask to continue ends the run at
   that turn: the ask is recorded on the fixture's stream as the
   precedent, the fixture is answered honestly
   (`priv/prompts/fixture_continuation_reply.md`), and the passes do not
@@ -239,7 +239,7 @@ defmodule Oneiroi.Brain.FixtureRun do
   end
 
   # The day's passes, as the nightly jobs would run them, on today: the
-  # night reads a day up to and including today (eunomia #3).
+  # night reads a day up to and including today (eunomia#3).
   defp steps(id, witness) do
     today = Clock.now() |> DateTime.to_date() |> Date.to_iso8601()
 

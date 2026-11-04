@@ -45,7 +45,7 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule FreeTimeScheduled do
-    # Version 2 adds `times` (sunna #22): free time is a list of slots, a
+    # Version 2 adds `times` (sunna#22): free time is a list of slots, a
     # day's HH:MMs in order. A version 1 event carried one `time`, which
     # the upcaster reads as a list of one; `time` stays a field so the
     # stored payload still decodes.
@@ -60,7 +60,7 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule FreeTimeRan do
-    # Version 2 adds `slot` (sunna #22), the HH:MM of the slot that ran;
+    # Version 2 adds `slot` (sunna#22), the HH:MM of the slot that ran;
     # nil on a version 1 event, from when a day had one free time.
     use Oneiroi.Event, version: 2, fields: [:id, :day, :session_key, :slot]
   end
@@ -107,7 +107,7 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule LettersWoke do
-    # A letter's wake (sunna #24): the Oneiroi chat woken for these
+    # A letter's wake (sunna#24): the Oneiroi chat woken for these
     # letters, each once, before the wake runs.
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end

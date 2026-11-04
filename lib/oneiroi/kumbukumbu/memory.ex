@@ -28,7 +28,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     letter_reads: MapSet.new()
   ]
 
-  # A house letter's bounds (kumbukumbu #44): a name is a conversation's
+  # A house letter's bounds (kumbukumbu#44): a name is a conversation's
   # title or `house`, and a letter is a working note, whole up to here.
   @name_limit 120
   @letter_limit 20_000

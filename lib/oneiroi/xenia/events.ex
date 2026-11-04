@@ -67,7 +67,7 @@ defmodule Oneiroi.Xenia.Events do
   end
 
   defmodule ReaderSitesSet do
-    # The reader's two allowlists as the witness set them (xenia #16).
+    # The reader's two allowlists as the witness set them (xenia#16).
     use Oneiroi.Event, version: 1, fields: [:id, :scrape, :research]
   end
 end

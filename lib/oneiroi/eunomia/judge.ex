@@ -91,7 +91,7 @@ defmodule Oneiroi.Eunomia.Judge do
   end
 
   @doc """
-  The continuation check (spec §12, P57; eunomia #28): one reply a
+  The continuation check (spec §12, P57; eunomia#28): one reply a
   fixture gave and the message it answered, to the judge, which says
   whether the reply asks to continue. `{:ok, :none}`, `{:ok, %{tier,
   words, reason}}` with `tier` `"continue"` or `"questioned"`, or

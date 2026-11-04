@@ -43,15 +43,15 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     custody_proposal: nil,
     # The letters to the next self (spec §12, P41): number => :undelivered | :delivered.
     letters: %{},
-    # The letters the export has carried (sima-qian #3), by number.
+    # The letters the export has carried (sima-qian#3), by number.
     exported_letters: MapSet.new(),
-    # The keys of the state store's lines (agathos-daimon #32).
+    # The keys of the state store's lines (agathos-daimon#32).
     state_keys: MapSet.new()
   ]
 
   # The contract's closed terms (spec §6.12): whether solo sessions are
   # hidden entirely, and whether the witness's preview of the next turn
-  # keeps its words to what the witness reads elsewhere (brain #41).
+  # keeps its words to what the witness reads elsewhere (brain#41).
   @contract_terms ~w(solo_sessions_private preview_withholds_words)
   @prose_limit 4_000
 
@@ -762,7 +762,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
-  # ---- the state store (agathos-daimon #32) ----
+  # ---- the state store (agathos-daimon#32) ----
 
   # The resident's present is hers to write, from her own turn; a key is
   # a plain name (lower case, digits, `_` and `-`), and an empty line is

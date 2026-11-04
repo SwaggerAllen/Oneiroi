@@ -27,7 +27,7 @@ type TabId = 'index' | 'all' | 'pinned' | 'use' | `tag:${string}`;
 // server's own description as a caption), All, Pinned, and one per tag;
 // search. The first tab lists what the server says is in front of every
 // turn: the pins, now that the rest are ranked against each turn's words
-// (kumbukumbu #45, #46); the client knows nothing of how that is chosen.
+// (kumbukumbu#45, #46); the client knows nothing of how that is chosen.
 export function Memory({ residentName, bookmarks, tags, index, retrieval = null, onPin, onUnpin, onOpen }: MemoryProps) {
   const [tab, setTab] = useState<TabId>('index');
   const [query, setQuery] = useState('');

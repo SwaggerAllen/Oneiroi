@@ -21,7 +21,7 @@ defmodule OneiroiWeb.MemoryController do
 
   operation(:index_now,
     summary:
-      "What the index holds now in the common room (kumbukumbu #38): the bookmark numbers listed, in order, the left-out count, the count kept to named rooms, and a sentence saying it",
+      "What the index holds now in the common room (kumbukumbu#38): the bookmark numbers listed, in order, the left-out count, the count kept to named rooms, and a sentence saying it",
     parameters: [id: [in: :path, type: :string]],
     responses: [ok: {"the index", "application/json", %Schema{type: :object}}]
   )
@@ -39,7 +39,7 @@ defmodule OneiroiWeb.MemoryController do
 
   operation(:send_letter,
     summary:
-      "The witness writes a house letter (kumbukumbu #44): to a conversation by its name, to Free time (a brief for the next free time), or to house; sent as `witness`",
+      "The witness writes a house letter (kumbukumbu#44): to a conversation by its name, to Free time (a brief for the next free time), or to house; sent as `witness`",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the letter", "application/json",
@@ -78,7 +78,7 @@ defmodule OneiroiWeb.MemoryController do
 
   operation(:letters,
     summary:
-      "The house letters (kumbukumbu #44): the work log between the resident's conversations, every letter both ways, oldest first, with who sent it, to whom, in reply to what, the keepsake it gives and the conversations that have read it",
+      "The house letters (kumbukumbu#44): the work log between the resident's conversations, every letter both ways, oldest first, with who sent it, to whom, in reply to what, the keepsake it gives and the conversations that have read it",
     parameters: [id: [in: :path, type: :string]],
     responses: [ok: {"the letters", "application/json", %Schema{type: :array}}]
   )
@@ -104,7 +104,7 @@ defmodule OneiroiWeb.MemoryController do
 
   operation(:retrieval,
     summary:
-      "How retrieval has been used, target by target (kumbukumbu #43): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",
+      "How retrieval has been used, target by target (kumbukumbu#43): each target in citation form with how often it was considered, returned and used, and when last returned and used; `kind` narrows to one kind. The same numbers the resident reads with memory_use: the audit is two-party",
     parameters: [id: [in: :path, type: :string], kind: [in: :query, type: :string]],
     responses: [ok: {"the counts", "application/json", %Schema{type: :array}}]
   )

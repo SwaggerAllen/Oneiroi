@@ -5,7 +5,7 @@ defmodule Oneiroi.Seshat.Library do
   published URL, and the discussions opened. A write whose hash is the
   current one is no event; an adoption of a registered path is no event;
   only a kind with a status is published; a keepsake, once registered,
-  is never written again (seshat #29).
+  is never written again (seshat#29).
   """
 
   alias Oneiroi.Seshat.Commands
@@ -13,7 +13,7 @@ defmodule Oneiroi.Seshat.Library do
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.Kinds
 
-  # `oracles`: number => :open | :answered | :failed (seshat #34).
+  # `oracles`: number => :open | :answered | :failed (seshat#34).
   defstruct [:id, documents: %{}, discussions: MapSet.new(), oracles: %{}, researches: %{}]
 
   @url ~r/\Ahttps?:\/\/[^\s]+\z/
@@ -23,7 +23,7 @@ defmodule Oneiroi.Seshat.Library do
       %{hash: hash} when hash == c.hash ->
         []
 
-      # A keepsake is written once (seshat #29).
+      # A keepsake is written once (seshat#29).
       %{kind: "keepsake"} ->
         {:error,
          Error.new(:seshat_keepsake_kept, :seshat_write_document_keepsake_kept, path: c.path)}
@@ -96,7 +96,7 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
-  # Why a keepsake mattered is the resident's to say (seshat #32), of a
+  # Why a keepsake mattered is the resident's to say (seshat#32), of a
   # registered keepsake, in a line of up to 1,000 characters; the same
   # words again are no event.
   def execute(%__MODULE__{documents: documents}, %Commands.NoteKeepsake{} = c) do
@@ -146,7 +146,7 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
-  # ---- the oracle (brain #49, seshat #34) ----
+  # ---- the oracle (brain#49, seshat#34) ----
 
   # Each question named and its sources a list of refs; numbered in the
   # same dispatch from the oracle sequence, so a replay reproduces them.
@@ -217,7 +217,7 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
-  # Research (seshat #38): a named question of at most 2,000 characters,
+  # Research (seshat#38): a named question of at most 2,000 characters,
   # at most ten pages to start from, each an http(s) URL.
   def execute(%__MODULE__{researches: researches}, %Commands.AskResearch{} = c) do
     question = String.trim(to_string(c.question || ""))

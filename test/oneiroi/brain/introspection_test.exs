@@ -1,5 +1,5 @@
 defmodule Oneiroi.Brain.IntrospectionTest do
-  @moduledoc "Introspection (brain #46): the resident reads the platform's own source and her own repository with its history, read only; the judge's prompts are sealed by an explicit list, listed as sealed and never read or searched; no path escapes its root."
+  @moduledoc "Introspection (brain#46): the resident reads the platform's own source and her own repository with its history, read only; the judge's prompts are sealed by an explicit list, listed as sealed and never read or searched; no path escapes its root."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor

@@ -37,6 +37,12 @@ does, in the same PR:
 - **The screen docs** (`screens/<name>.md`): what is built and what is
   not, as the client now has it.
 
+A decision is cited as `name#17`, no space (`kumbukumbu#48`, and
+`system:` or `screen:` in front when a name is both); a spec section as
+`spec §6.3`. Those are the two forms the pipeline's citation audit
+resolves (orchestration DESIGN §4); `kumbukumbu #48`, with the space, is
+read as prose and checked by nothing.
+
 Before calling work done, read the diff against these three and fix
 what drifted, including drift the change only exposed.
 

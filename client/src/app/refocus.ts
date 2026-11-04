@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-// Coming back to the page (client #13): a tab shown again, a window
+// Coming back to the page (client#13): a tab shown again, a window
 // focused again, the network back, or a page restored from the
 // browser's back-forward cache. A phone suspends a backgrounded tab's
 // socket and timers, so what the page shows can be minutes old when it

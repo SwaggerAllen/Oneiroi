@@ -11,7 +11,7 @@ import { firstUnread, newestCursor, toolSummary } from './page';
 
 export interface ChatProps {
   residentName: string;
-  // The conversation shown, as the server named it (kumbukumbu #40);
+  // The conversation shown, as the server named it (kumbukumbu#40);
   // absent, the Oneiroi chat. One that is not writable is read here and
   // answered where it happens, so it has no composer and no preview.
   conversation?: { title: string; writable: boolean };
@@ -23,7 +23,7 @@ export interface ChatProps {
   // What each reply drew on, by turn ref, once opened.
   injections?: Record<string, Injection[]>;
   drewOn?: Record<string, number>;
-  // The witness's messages on their way (brain #45), each shown at once
+  // The witness's messages on their way (brain#45), each shown at once
   // with where it is until its turn lands in the transcript.
   outbox?: Outgoing[];
   // Whether the stream is up: the dot in the top bar.
@@ -33,7 +33,7 @@ export interface ChatProps {
   onRetry?: (ref: string) => void;
   onDismiss?: (ref: string) => void;
   // What the next turn would be given, as the server assembled and
-  // worded it (brain #41); null while closed.
+  // worded it (brain#41); null while closed.
   preview?: ContextPreview | null;
   // Earlier messages remain on the server, and how to ask for them: the
   // transcript opens on its newest page and pages back as the reader
@@ -71,7 +71,7 @@ const NEAR = 160;
 //
 // The same screen reads another conversation (a Claude Code one) when
 // the server says it is not writable: the transcript and the inspector,
-// with no composer and no preview (kumbukumbu #40).
+// with no composer and no preview (kumbukumbu#40).
 export function Chat({
   residentName,
   conversation,

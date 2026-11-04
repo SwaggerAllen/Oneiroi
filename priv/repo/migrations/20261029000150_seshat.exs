@@ -32,7 +32,7 @@ defmodule Oneiroi.Repo.Migrations.Seshat do
 
     # The width is SESHAT_EMBEDDING_WIDTH's default, spec §6.5's 1,536;
     # a run whose model answers another width fails before it reaches
-    # this column (seshat #16).
+    # this column (seshat#16).
     projection :seshat_chunk, scope: :resident do
       add(:path, :string, null: false)
       add(:ordinal, :integer, null: false)
@@ -62,7 +62,7 @@ defmodule Oneiroi.Repo.Migrations.Seshat do
 
     projection :seshat_index_run, scope: :resident do
       add(:id, :binary_id, null: false)
-      # The order of runs, since two can share an instant (seshat #17).
+      # The order of runs, since two can share an instant (seshat#17).
       add(:sequence, :bigserial, null: false)
       add(:at, :utc_datetime_usec, null: false)
       add(:outcome, :string, null: false)

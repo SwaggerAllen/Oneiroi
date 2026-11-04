@@ -1,7 +1,7 @@
 defmodule Oneiroi.Repo.Migrations.HonchoRoleAndSchema do
   use Ecto.Migration
 
-  # Honcho shares this database (proteus #17): its tables live in their
+  # Honcho shares this database (proteus#17): its tables live in their
   # own schema, `honcho`, and it acts as `oneiroi_honcho`, a role that
   # owns that schema and nothing else, taken at connection start through
   # the startup option render.yaml puts on Honcho's URL. Measured on a

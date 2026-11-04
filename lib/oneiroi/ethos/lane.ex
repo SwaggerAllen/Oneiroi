@@ -8,7 +8,7 @@ defmodule Oneiroi.Ethos.Lane do
   and name sit near the situation's words and the open seeds nearest
   them, bounded, so the prefix still does not grow with the person.
 
-  Derived rows (`ethos_vector`), the library's pattern (seshat #10): a
+  Derived rows (`ethos_vector`), the library's pattern (seshat#10): a
   habit's text is its name and its trigger's words, tags and times, a
   seed's its words; each row carries a hash and the model, and a refresh
   re-embeds only what changed and drops what is gone, one call to the
@@ -64,7 +64,7 @@ defmodule Oneiroi.Ethos.Lane do
   An empty lane answers empty with no model call; a failing provider answers
   empty too, so the deterministic match stands alone rather than the turn waiting.
   The query's embedding bills under `purpose`: `embeddings`, or `regression`
-  for a trial's turn (eunomia #10).
+  for a trial's turn (eunomia#10).
   """
   @spec nearest(String.t(), String.t(), Actor.t(), atom()) ::
           %{habits: [pos_integer()], seeds: [{pos_integer(), String.t()}]}

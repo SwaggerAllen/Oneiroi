@@ -36,7 +36,7 @@ services:
     healthCheckPath: /health
     autoDeployTrigger: commit
     # Every resident's working repository lives under SIMA_QIAN_ROOT,
-    # /var/lib/oneiroi/sima_qian by default (sima-qian #23): the clone an
+    # /var/lib/oneiroi/sima_qian by default (sima-qian#23): the clone an
     # import makes, history and all, and the files every library document
     # reads from. Without a disk that was the container's own filesystem,
     # replaced on every deploy, and every merge deploys; the database rows
@@ -74,7 +74,7 @@ services:
         generateValue: true
       - key: APSU_VAULT_KEY
         generateValue: true
-      # Honcho beside this instance (proteus #16): its private address,
+      # Honcho beside this instance (proteus#16): its private address,
       # which Render hands over as host:port and the setting reads as
       # http, and its signing secret, from which the core mints the admin
       # JWT, so no key is typed. Both resolve to the preview's own Honcho
@@ -91,12 +91,12 @@ services:
           envVarKey: AUTH_JWT_SECRET
 
   # Honcho (spec §6.9), from its upstream repository, built from its own
-  # Dockerfile, on Oneiroi's database (proteus #17). The deploy is never
+  # Dockerfile, on Oneiroi's database (proteus#17). The deploy is never
   # automatic: Oneiroi speaks Honcho's v3 API (Oneiroi.Proteus.Honcho.HTTP),
   # so a new Honcho is a deliberate deploy after reading its release
   # notes, never a push upstream. The first deploy takes `main` as it is
   # that day. The bridge is held to the API of the commit production
-  # runs, 6f91136 (test/fixtures/proteus/honcho-server.json, proteus #9):
+  # runs, 6f91136 (test/fixtures/proteus/honcho-server.json, proteus#9):
   # deploying any other commit is re-reading that fixture first.
   # Private: only this workspace's services in the same region reach it,
   # and with auth on, only with a key the core minted.

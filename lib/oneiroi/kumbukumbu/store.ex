@@ -159,7 +159,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   defmodule HouseLetter do
-    @moduledoc "A letter between conversations of the resident (kumbukumbu #44), and which conversations have read it."
+    @moduledoc "A letter between conversations of the resident (kumbukumbu#44), and which conversations have read it."
     use Ecto.Schema
     @primary_key false
     schema "kumbukumbu_house_letter" do
@@ -277,7 +277,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
         )
       )
 
-  @doc "Every session of `adapter` with a turn started and not yet captured, newest first (kumbukumbu #41)."
+  @doc "Every session of `adapter` with a turn started and not yet captured, newest first (kumbukumbu#41)."
   @spec open_turns(String.t()) :: [Session.t()]
   def open_turns(adapter),
     do:
@@ -290,7 +290,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
   @doc """
   The sessions of `kinds` with a turn open or spoken in since `since`,
-  in any order (kumbukumbu #42). Filtered here rather than over every
+  in any order (kumbukumbu#42). Filtered here rather than over every
   session the resident ever had, because every turn reads it and the
   sessions only accumulate.
   """
@@ -370,7 +370,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
     Repo.all(query)
   end
 
-  @doc "Every house letter, oldest first (kumbukumbu #44)."
+  @doc "Every house letter, oldest first (kumbukumbu#44)."
   @spec house_letters() :: [HouseLetter.t()]
   def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))
 
@@ -425,7 +425,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
   @doc "Every message sent in [from, to) across the resident's sessions but the imported ones, in order: the nightly pass's read."
   @spec messages_between(DateTime.t(), DateTime.t()) :: [Message.t()]
-  # An imported session's messages are left out (kumbukumbu #37): they
+  # An imported session's messages are left out (kumbukumbu#37): they
   # carry their original instants, so a day the other platform already
   # judged would otherwise be judged again here, on its whole history.
   def messages_between(from, to) do
@@ -505,7 +505,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   # ---- memory ----
 
   defmodule Edge do
-    @moduledoc "A learned retrieval edge (kumbukumbu #46): when `from` is in play, how worth bringing `to` is, as a deviation from neutral last touched at `touched_at`."
+    @moduledoc "A learned retrieval edge (kumbukumbu#46): when `from` is in play, how worth bringing `to` is, as a deviation from neutral last touched at `touched_at`."
     use Ecto.Schema
 
     @primary_key false
@@ -521,7 +521,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   defmodule EdgeTurn do
-    @moduledoc "What a turn returned and what was seen used, until its feedback teaches the use rules once (kumbukumbu #46)."
+    @moduledoc "What a turn returned and what was seen used, until its feedback teaches the use rules once (kumbukumbu#46)."
     use Ecto.Schema
 
     @primary_key false
@@ -562,7 +562,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   defmodule Passage do
-    @moduledoc "One passage of a captured message, embedded (kumbukumbu #49): the transcripts by meaning; derived, rebuilt from the messages."
+    @moduledoc "One passage of a captured message, embedded (kumbukumbu#49): the transcripts by meaning; derived, rebuilt from the messages."
     use Ecto.Schema
     @primary_key false
     schema "kumbukumbu_passage" do

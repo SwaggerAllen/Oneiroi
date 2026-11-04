@@ -27,7 +27,7 @@ defmodule Oneiroi.Seshat.Events do
 
   defmodule DocumentRemoved do
     # A document of a removable kind (scratch, human) taken out of the
-    # library (seshat #33), by whom: the file leaves the repository and
+    # library (seshat#33), by whom: the file leaves the repository and
     # the event is what stays of it, never its content.
     use Oneiroi.Event, version: 1, fields: [:id, :path, :kind]
   end
@@ -37,7 +37,7 @@ defmodule Oneiroi.Seshat.Events do
   end
 
   defmodule KeepsakeNoted do
-    # Why a keepsake mattered, in the resident's words (seshat #32): what
+    # Why a keepsake mattered, in the resident's words (seshat#32): what
     # a pin carries for a bookmark, beside a gift that is never edited.
     # The latest stands; the earlier ones stay on the stream.
     use Oneiroi.Event, version: 1, fields: [:id, :path, :note]
@@ -49,7 +49,7 @@ defmodule Oneiroi.Seshat.Events do
   end
 
   defmodule OracleDispatched do
-    # One question put to the oracle (brain #49, seshat #34): named at
+    # One question put to the oracle (brain#49, seshat#34): named at
     # dispatch, never "find something interesting", with the sources it
     # is to read beside her whole memory, and the conversation that
     # asked, which is told when it lands. The actor says who asked.
@@ -71,7 +71,7 @@ defmodule Oneiroi.Seshat.Events do
   end
 
   defmodule ResearchAsked do
-    # A question for the reader's research pass (seshat #38): named,
+    # A question for the reader's research pass (seshat#38): named,
     # with the pages to start from, by whoever the actor is, and the
     # conversation told when it lands.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :question, :urls, :session_key]

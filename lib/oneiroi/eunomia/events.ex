@@ -47,7 +47,7 @@ defmodule Oneiroi.Eunomia.Events do
     # every card of its test is graded. A failure records its reason and
     # no content, so a model that would not answer is graded as such.
     # Version 2 adds `commitment_number` (P19), the commitment a derived
-    # trial answers for. Version 3 adds `trace` (eunomia #31): the trial's
+    # trial answers for. Version 3 adds `trace` (eunomia#31): the trial's
     # tool calls in order, each string-keyed with `tool`, `arguments`,
     # `kind` (`read` or `mocked`), `result` (cut at
     # EUNOMIA_TRACE_RESULT_CHARS) and `truncated`, whether it was cut.
@@ -84,7 +84,7 @@ defmodule Oneiroi.Eunomia.Events do
 
   defmodule RunFailed do
     # A run that stopped on a fault before every card was answered (the
-    # run answers in the background, eunomia #30): ended, with the cards
+    # run answers in the background, eunomia#30): ended, with the cards
     # it recorded kept and the fault's site and class as `reason`, never
     # its message. Without it a crashed run reads "running" forever.
     use Oneiroi.Event, version: 1, fields: [:id, :run_ref, :cards, :reason], export: false

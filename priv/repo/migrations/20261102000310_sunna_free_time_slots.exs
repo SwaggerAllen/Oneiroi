@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.SunnaFreeTimeSlots do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # Free time is a list of slots (sunna #22): the settings row gains the
+  # Free time is a list of slots (sunna#22): the settings row gains the
   # list, and each slot's run on a day is a row of its own. Nothing is
   # copied here: the rows are under forced row security, and the reads
   # take the one-slot columns as they stand (`Schedules.free_times_of/1`

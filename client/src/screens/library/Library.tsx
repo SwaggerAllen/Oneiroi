@@ -11,13 +11,13 @@ export interface LibraryProps {
   residentName: string;
   documents: LibraryDocument[];
   // The kinds in the order they are shown, with their names, as the
-  // server's registry gives them (seshat #35).
+  // server's registry gives them (seshat#35).
   shelf?: ShelfKind[];
   // The document open now, with its words, or null.
   open?: { path: string; content: string } | null;
   onOpen?: (path: string) => void;
   onClose?: () => void;
-  // Adds a document of yours under human/ (seshat #33).
+  // Adds a document of yours under human/ (seshat#33).
   onAdd?: (name: string, content: string) => void;
   // Removes a scratch or human document; only those are removable.
   onRemove?: (path: string) => void;
@@ -44,7 +44,7 @@ const list = {
   gap: 'var(--space-2)',
 } as const;
 
-// The shelf's order and names are the server's (seshat #35): a kind the
+// The shelf's order and names are the server's (seshat#35): a kind the
 // shelf does not name comes last, under its own name. The client knows
 // no kind, so a new one, or a resident's own arrangement later, needs no
 // change here.
@@ -274,7 +274,7 @@ function Doc({
   );
 }
 
-// Your own documents (seshat #33): pasted, or read from a text file.
+// Your own documents (seshat#33): pasted, or read from a text file.
 function AddYours({ residentName, onAdd }: { residentName: string; onAdd: (name: string, content: string) => void }) {
   const [name, setName] = useState('');
   const [content, setContent] = useState('');

@@ -148,7 +148,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
              Sunna.set_checkin(ctx.id, nil, "x", "8am", ctx.actor)
   end
 
-  # sunna #24: a letter another conversation sends the Oneiroi chat wakes it.
+  # sunna#24: a letter another conversation sends the Oneiroi chat wakes it.
   defp letters_setup(ctx) do
     lily = Actor.new(:resident, ctx.id)
     {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
@@ -302,7 +302,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert %{free_time_last: {"2026-10-27", "failed: brain_turn_failed"}} = Sunna.today(ctx.id)
     assert [_, _] = Kumbukumbu.sessions({:resident, ctx.id})
 
-    # Moved, never removed (sunna #21); the resident moves it too.
+    # Moved, never removed (sunna#21); the resident moves it too.
     assert {:error, %Sunna.Error{kind: :sunna_free_time_required}} =
              Sunna.set_free_time(ctx.id, nil, ctx.actor)
 

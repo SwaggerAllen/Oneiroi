@@ -2,7 +2,7 @@ defmodule Oneiroi.HuginnMuninn.NightlyWorker do
   @moduledoc """
   The nightly audit run (spec §6.13): every audit for every active
   resident, after the judgement pass. A cross-tenant job under the
-  platform scope, named here (huginn-muninn #12); the roster is the
+  platform scope, named here (huginn-muninn#12); the roster is the
   resident system's platform-scoped export.
   """
   use Oneiroi.Worker, queue: :huginn_muninn_nightly

@@ -93,7 +93,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     working: working
   } do
     :ok = Git.ensure_repo(working)
-    # Not text, so no keepsake (seshat #29): a root text file would be one.
+    # Not text, so no keepsake (seshat#29): a root text file would be one.
     File.write!(Path.join(working, "notes.bin"), "by hand\n")
 
     assert {:error,

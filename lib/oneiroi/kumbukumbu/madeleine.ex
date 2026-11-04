@@ -16,7 +16,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   it is not pinned (the pins are in the index already); and it is not
   within the same distance of the limits, the dyad contract's text, which
   the prefix holds and serendipity leaves alone (P2). The rows are a
-  cache of model output, the character layer's lane pattern (ethos #16):
+  cache of model output, the character layer's lane pattern (ethos#16):
   refreshed before each read, embedding only what changed.
   """
 
@@ -95,7 +95,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
   @doc """
   The turn's words as a vector, embedded once for the madeleine and the
-  ranked index both (kumbukumbu #46), or nil: blank words, no bookmark
+  ranked index both (kumbukumbu#46), or nil: blank words, no bookmark
   embedded yet, or the provider's failure. Bills under `purpose`.
   """
   @spec query(String.t(), String.t(), Actor.t(), atom()) :: [float()] | nil
@@ -122,7 +122,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   @doc """
   The madeleine for a vector already embedded (`query/4`), within the
   room `keys`, never one of `exclude`: the ranked index is itself ranked
-  by nearness now (kumbukumbu #46), so what it returned this turn is not
+  by nearness now (kumbukumbu#46), so what it returned this turn is not
   unheard, and the madeleine reaches past it.
   """
   @spec recall_near(String.t(), [float()] | nil, [String.t()] | nil, [pos_integer()]) ::

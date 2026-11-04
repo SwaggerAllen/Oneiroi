@@ -30,7 +30,7 @@ defmodule Oneiroi.AgathosDaimon.ResidentTest do
     {Resident.apply(state, event), event.number}
   end
 
-  # Version 2 added the reasons (sima-qian #22); a version 1 event reads
+  # Version 2 added the reasons (sima-qian#22); a version 1 event reads
   # as carrying none, which the projector writes as it stands.
   test "an ImportCompleted of version 1 upcasts to no reasons" do
     v1 = %Events.ImportCompleted{

@@ -143,7 +143,7 @@ defmodule Oneiroi.Nisaba do
        tag: :bound,
        usage:
          "how long past its renewal a subscription stays active before the nightly pass lapses it; a guess at a card's retry window, not measured"},
-      # Off everywhere but the fixture run (nisaba #21): it puts a model's
+      # Off everywhere but the fixture run (nisaba#21): it puts a model's
       # tool arguments, which are content, into the log channel that
       # conventions §10 keeps content out of.
       {:trace_tool_deltas, "NISABA_TRACE_TOOL_DELTAS",

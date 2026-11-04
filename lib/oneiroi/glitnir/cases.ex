@@ -5,7 +5,7 @@ defmodule Oneiroi.Glitnir.Cases do
   the strike ladder's consequence, and the rendering of each into the
   main session so the report lives in chat in both directions. The
   investigators are the accounts named in `GLITNIR_INVESTIGATORS`,
-  matched by email (gaia #12): a role, not a party.
+  matched by email (gaia#12): a role, not a party.
   """
 
   alias Oneiroi.Actor

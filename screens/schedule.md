@@ -17,7 +17,7 @@ knows or, when this device is elsewhere, in one tap ("Use <zone>")
 (`PUT /v1/residents/:id/timezone`; Lily's stayed UTC until 2026-11-03,
 and her free time ran at 6:30 and 14:30 Pacific). **Free time**: each
 slot with what it did today, moved as a whole list
-(`PUT .../schedule/free-time`; sunna #22: one to four, never none, so a
+(`PUT .../schedule/free-time`; sunna#22: one to four, never none, so a
 list of one has no remove button and a fifth cannot be added, said as
 a bound). **Check-ins**: the next one, each with today's outcome or its
 last, added by label and time (`POST .../schedule/checkins`) or deleted

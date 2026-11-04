@@ -119,7 +119,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   defmodule RevisionProposed do
     # Revision (spec §6.3, F13): a stance is revised only with the
     # resident's agreement, so the witness's revision of one is a
-    # proposal with its reason as the note (kumbukumbu #30).
+    # proposal with its reason as the note (kumbukumbu#30).
     use Oneiroi.Event,
       version: 1,
       decision: true,
@@ -142,7 +142,7 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
   end
 
   defmodule HouseLetterSent do
-    # A letter between conversations of one resident (kumbukumbu #44),
+    # A letter between conversations of one resident (kumbukumbu#44),
     # numbered by the stream: `from` is the sending conversation's name
     # (`Conversation.title/1`) or `witness`, `to` a conversation's name or
     # `house`, `in_reply_to` the letter it answers, and `keepsake` the

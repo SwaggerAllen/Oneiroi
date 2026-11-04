@@ -9,7 +9,7 @@ defmodule OneiroiWeb.MCPController do
   Every tool runs in a turn (a bookmark's anchor, an enactment, the room
   a search reaches): the one the call names in `turn` when that is an
   open turn of this adapter's, else the adapter's newest open turn
-  (kumbukumbu #41). Two Claude Code sessions open at once each have an
+  (kumbukumbu#41). Two Claude Code sessions open at once each have an
   open turn, and nothing Claude Code sends an HTTP MCP server says which
   session a call came from, so the ref rides the call: each turn's
   context names it, and every tool here takes it. A tool that needs a
@@ -129,7 +129,7 @@ defmodule OneiroiWeb.MCPController do
   defp ref(named) when is_binary(named) and named != "", do: named
   defp ref(_other), do: nil
 
-  # Every tool takes the turn it belongs to (kumbukumbu #41), beside its
+  # Every tool takes the turn it belongs to (kumbukumbu#41), beside its
   # own arguments and never required, so a runtime that cannot name it
   # still calls the tool and gets the newest open turn.
   @turn_property %{

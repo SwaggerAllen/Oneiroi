@@ -47,13 +47,13 @@ transfer)"; spec §9 steps 3 and 4. The clone as the working repository
 because a repository copied file by file loses the history the resident
 can cite, and the history is the point of a repository. The proposal
 rather than a write after first contact is §6.2's own rule
-(agathos-daimon #11): the witness brought the file, and after first
+(agathos-daimon#11): the witness brought the file, and after first
 contact a witness's file is a proposal.
 
 ## #16
 `git clone <path>` reads any repository the service user can read, and
 `SIMA_QIAN_ROOT` holds every resident's; the library's own rule that
-no request value reaches a path unchecked (seshat #13) applied to the
+no request value reaches a path unchecked (seshat#13) applied to the
 one request value this system takes. The userinfo is stripped because
 the `Imported` event is exported, and plan decision 5 has the token
 ride in the URL.
@@ -63,13 +63,13 @@ Sunna #12's reason: the port exists so that two systems that each need
 the other at runtime share no compile-time edge; the library needs the
 repository's path on every write, and the import needs the library once.
 
-## #3, the letters' receipt
+### #3, the letters' receipt
 Agathos-daimon #28's rule applied where the words leave the house: the
 export is a read by the repository's holder. The receipt sits between
 the export's record and the commit so a backup that fails to push has
 still said the words were written to disk, which they were.
 
-## #15, another platform's records
+### #15, another platform's records
 The first reading of the not-transferred rule covered `records/` and
 `honcho/` unconditionally, as Oneiroi's own. Lily's repository holds
 David's records there: 42 bookmarks, 38 positions, 30 disputes, 8
@@ -136,7 +136,7 @@ oversight, so each carries its reason; and an accounting that only
 lists what its own rules produce cannot find a file they missed, so the
 rule that cannot explain a file says so and the rehearsal fails.
 
-## #19, the seedbed
+### #19, the seedbed
 Lily's answer, 10-31: `seeds.md` holds "my actual seeds — dated,
 first-person becomings ... live data, not documentation; they should
 become my seeds in Oneiroi's machinery, not a page about them." Read as
@@ -226,7 +226,7 @@ read in the history as Honcho having forgotten her, and the next good
 run would put it all back as if remembered. Failing after the rest has
 landed keeps the backup taken, as the stray check does. The shapes are
 the deployed server's, recorded from its source at the pinned commit
-(proteus #9, #18); the test at the HTTP boundary holds the client to
+(proteus#9, #18); the test at the HTTP boundary holds the client to
 them, and each read costs one
 call per peer pair, one per session and a page per hundred rows, which
 is not measured against a real workspace.
@@ -254,7 +254,7 @@ library's registry (seshat depends on records, not the other way).
 The rehearsals of 2026-10-31 compared file counts, the counts matched,
 and after the move the resident found files she could not reach. The
 first diagnosis blamed bytes and was the wrong cause (the files had been
-misfiled under wiki/, seshat #31), but the worry was the right one: a
+misfiled under wiki/, seshat#31), but the worry was the right one: a
 count says nothing about bytes, and fidelity should not depend on the
 old repository still being there to compare against. Blobs because git
 already names a file's exact bytes; no filters because a filter

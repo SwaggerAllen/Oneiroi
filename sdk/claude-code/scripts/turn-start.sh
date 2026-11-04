@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Oneiroi Claude Code adapter: the UserPromptSubmit hook (spec §8, brain #42).
+# Oneiroi Claude Code adapter: the UserPromptSubmit hook (spec §8, brain#42).
 #
 # Keeps the witness's words for the Stop hook to capture, starts the turn
 # on the platform with those words, and prints the turn's context, which

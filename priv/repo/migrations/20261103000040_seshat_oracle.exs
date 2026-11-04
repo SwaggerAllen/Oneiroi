@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.SeshatOracle do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # The oracle's questions (brain #49, seshat #34): what was asked, of
+  # The oracle's questions (brain#49, seshat#34): what was asked, of
   # which sources, by whom and from which conversation, and how it
   # settled. Found deliberately, by question, source, asker or state,
   # never by the ranked index.

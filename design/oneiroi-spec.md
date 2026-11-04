@@ -260,8 +260,8 @@ In v0.2 and not yet in the table: the character layer's stream
 (`ethos-<resident>`: seeds, habits, the baseline, and commitments as a
 record kind of their own, P19, promises to a person, which a model
 transition loses first, kept or released with a note and scored apart in
-the regression suite; §6.17, eunomia #26) and the self-conversation
-channel on the resident's stream (P41, built: agathos-daimon #28): letters
+the regression suite; §6.17, eunomia#26) and the self-conversation
+channel on the resident's stream (P41, built: agathos-daimon#28): letters
 to the next self, delivered once at the swap, every read by anyone but
 the resident a receipt.
 
@@ -320,65 +320,65 @@ Every feature, with where it stands today and which system owns it. Tier
 
 | # | Feature | Today | System |
 | --- | --- | --- | --- |
-| F1 | Chat with the resident, streamed, in our client | built (brain #3, #45; the Chat screen) | brain, client |
-| F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | built (agathos-daimon #11 to #14, #19; proteus #14 for the card) | resident |
-| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | partly built: creation by name and slug, every file draftable, intake from a git repository (agathos-daimon #3, #11, brain #14, sima-qian #15); the client's flow and the wish and files paths not yet (`screens/creation-flow.md`) | resident, client |
-| F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (agathos-daimon #12, #27; sima-qian #13) | resident, records, governance |
-| F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built (kumbukumbu #3, #14, #16) | memory |
-| F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu #45) | memory |
-| F7 | Bookmark index injected every turn under a token budget, ranked against the turn's words | built (kumbukumbu #46; 1,500 tokens, a guess) | brain, memory |
-| F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu #5, #21, #27); reviews wait on F18 | memory |
-| F9 | Transcript search and browse by day and conversation | built over the API and `transcript_search`, by phrase and by meaning (kumbukumbu #17, #18, #27, #49); the client browses by conversation, its search not yet | memory, client |
-| F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu #39), `bookmark_open`, `transcript_search` | brain |
-| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu #46) | memory |
-| F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain #3) | brain, memory |
-| F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu #30, brain #25) | memory, governance |
-| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus #5, #11 to #15) | honcho |
-| F15 | Weekly memory audit by the judge; flags approved or deleted | built (eunomia #22) | judgement |
-| F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built (eunomia #15 to #18) | judgement |
-| F17 | Predictions, resolved by the witness only | built (eunomia #21) | judgement |
+| F1 | Chat with the resident, streamed, in our client | built (brain#3, #45; the Chat screen) | brain, client |
+| F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | built (agathos-daimon#11 to #14, #19; proteus#14 for the card) | resident |
+| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | partly built: creation by name and slug, every file draftable, intake from a git repository (agathos-daimon#3, #11, brain#14, sima-qian#15); the client's flow and the wish and files paths not yet (`screens/creation-flow.md`) | resident, client |
+| F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (agathos-daimon#12, #27; sima-qian#13) | resident, records, governance |
+| F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built (kumbukumbu#3, #14, #16) | memory |
+| F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu#45) | memory |
+| F7 | Bookmark index injected every turn under a token budget, ranked against the turn's words | built (kumbukumbu#46; 1,500 tokens, a guess) | brain, memory |
+| F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
+| F9 | Transcript search and browse by day and conversation | built over the API and `transcript_search`, by phrase and by meaning (kumbukumbu#17, #18, #27, #49); the client browses by conversation, its search not yet | memory, client |
+| F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
+| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu#46) | memory |
+| F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
+| F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu#30, brain#25) | memory, governance |
+| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus#5, #11 to #15) | honcho |
+| F15 | Weekly memory audit by the judge; flags approved or deleted | built (eunomia#22) | judgement |
+| F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built (eunomia#15 to #18) | judgement |
+| F17 | Predictions, resolved by the witness only | built (eunomia#21) | judgement |
 | F18 | Nightly project reviews against GOALS.md | planned (eunomia's target, with hands) | judgement |
-| F19 | Check-ins set by the witness, fired by wake | built (sunna #3, #4, #13; brain #17) | schedule, brain |
+| F19 | Check-ins set by the witness, fired by wake | built (sunna#3, #4, #13; brain#17) | schedule, brain |
 | F20 | Morning digest from mail and feeds, carried by the first check-in | planned (xenia: not built) | inbound, schedule |
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | planned (xenia: not built) | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | planned (xenia: not built) | inbound |
-| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia #9, #11 to #14), the inbound adapter run outside the platform | inbound |
-| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | partly built: asked by the resident (`research_ask`, which says what the reader can reach) or the witness, done by the reader on the witness's machine within the witness's research allowlist, signed in nowhere; notes, summaries in the reader's words, under `research/<n>-<slug>/` with `task.md`, and a letter to the asking conversation (seshat #38, xenia #16, brain #52); the witness's release of a source's link not yet | inbound, hands |
-| F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat #19) | library, client |
-| F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat #4, #15, #18) | library |
-| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat #3, #13, #20, #25) | library |
-| F28 | Design folder, indexed and cited | built (seshat #3) | library |
-| F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat #11, #21 to #24; huginn-muninn #15) | library, audits |
+| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia#9, #11 to #14), the inbound adapter run outside the platform | inbound |
+| F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | partly built: asked by the resident (`research_ask`, which says what the reader can reach) or the witness, done by the reader on the witness's machine within the witness's research allowlist, signed in nowhere; notes, summaries in the reader's words, under `research/<n>-<slug>/` with `task.md`, and a letter to the asking conversation (seshat#38, xenia#16, brain#52); the witness's release of a source's link not yet | inbound, hands |
+| F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat#19) | library, client |
+| F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat#4, #15, #18) | library |
+| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25) | library |
+| F28 | Design folder, indexed and cited | built (seshat#3) | library |
+| F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
 | F30 | External doc citations with resolved-at commit and drift detection | planned (seshat's target) | library |
-| F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat #5); `wiki/` is a plain kind | library |
-| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna #14, #19, #21, #22) | brain, schedule, ledger |
+| F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
+| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22) | brain, schedule, ledger |
 | F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
 | F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
-| F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri #6: not built) | hands, brain |
-| F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly, rebuild by replay (sima-qian #3, #20, #41); the other record files not yet | records |
-| F37 | Event export and replay (exact rebuild) | built (sima-qian #3, #4, #20, #21) | records |
-| F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | partly built: backup commits with the trailers, the root checked nightly (sima-qian #10, agathos-daimon #20); the check on wake not yet | records |
-| F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian #16); Gitea not yet | records |
-| F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba #3, #11; gaia #11); platform tokens not yet | ledger |
-| F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia #4, #20) | judgement |
-| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia #5, #8 to #13; the Regression screen) | judgement |
-| F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba #15, #17, #18) | resident, ledger |
+| F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri#6: not built) | hands, brain |
+| F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly, rebuild by replay (sima-qian#3, #20, #41); the other record files not yet | records |
+| F37 | Event export and replay (exact rebuild) | built (sima-qian#3, #4, #20, #21) | records |
+| F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | partly built: backup commits with the trailers, the root checked nightly (sima-qian#10, agathos-daimon#20); the check on wake not yet | records |
+| F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian#16); Gitea not yet | records |
+| F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba#3, #11; gaia#14); platform tokens not yet | ledger |
+| F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia#4, #20) | judgement |
+| F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia#5, #8 to #13; the Regression screen) | judgement |
+| F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba#15, #17, #18) | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
-| F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos #3 to #11, brain #29) | character |
-| F56 | Dates: important dates as rows with an owner, an instant and a kind, citeable and taggable; a countdown counted on the read, never written | built (sunna #8) | schedule |
-| F57 | Figures: a number anyone cites lives as a row, a counter the fold of its increments with their actors, never a literal in a file | built (huginn-muninn #8) | audits |
-| F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon #32, brain #47) | resident, brain |
-| F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain #49, seshat #34) | brain, library |
-| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon #22, #26; brain #24, #27); its gift in the creation flow waits on F3 | governance |
-| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon #23, #24; kumbukumbu #29; glitnir #5); succession not yet | governance |
-| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir #3, #8 to #12); fines not yet | governance |
-| F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba #5, #16, #17; brain #21); the buckets are configuration until governance makes them rows | governance, ledger |
+| F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos#3 to #11, brain#29) | character |
+| F56 | Dates: important dates as rows with an owner, an instant and a kind, citeable and taggable; a countdown counted on the read, never written | built (sunna#8) | schedule |
+| F57 | Figures: a number anyone cites lives as a row, a counter the fold of its increments with their actors, never a literal in a file | built (huginn-muninn#8) | audits |
+| F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon#32, brain#47) | resident, brain |
+| F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain#49, seshat#34) | brain, library |
+| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26; brain#24, #27); its gift in the creation flow waits on F3 | governance |
+| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet | governance |
+| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
+| F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
-| F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | built (huginn-muninn #4, #9, #11) | audits |
-| F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn #5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
+| F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | built (huginn-muninn#4, #9, #11) | audits |
+| F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn#5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
 | F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; P6 with the social features | out of scope for the spec's data model beyond custody and standing |
-| F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu #5); the status page not yet | platform |
-| F52 | Lily in the Claude Code UI | built (agathos-daimon #16, brain #42, kumbukumbu #26, #40, #48: letters wake the open session; `sdk/claude-code/`) | adapters |
+| F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu#5); the status page not yet | platform |
+| F52 | Lily in the Claude Code UI | built (agathos-daimon#16, brain#42, kumbukumbu#26, #40, #48: letters wake the open session; `sdk/claude-code/`) | adapters |
 
 ---
 
@@ -398,7 +398,7 @@ session under OTP supervision.
 - **Context assembly** is the memory agent's job (F12) and is recorded:
   stable prefix first for prompt caching (the identity files, AGENTS, the
   dyad contract with its limits, the pinned bookmark lines), then the
-  state store, read fresh (F58, brain #47), then the
+  state store, read fresh (F58, brain#47), then the
   bookmark index under its budget, then the character layer's trigger lane
   (§6.17), then Honcho's context, then the compaction summary and the live
   transcript. Every blob injected writes a `context_injection` row with
@@ -438,7 +438,7 @@ session under OTP supervision.
   OpenRouter's catalogue, checked against it in CI as today; the free-time
   run uses the same model under the free-time budget line.
 - **Free time** (F32): at the resident's times, one to four slots a day,
-  each run once (sunna #22), each its own session,
+  each run once (sunna#22), each its own session,
   not announced and not bounded in time (the witness, 2026-11-03), opening
   with where the digest is; the resident's own instructions say what it is for.
 - **Refusal and degradation** are first-class: a refusal is captured as an
@@ -567,7 +567,7 @@ Owns `lib/oneiroi/kumbukumbu/**`.
 - Rules carried verbatim from David's memory-store doc: capture is full and
   idempotent and loud on failure; bookmarks are the resident's words about
   why a moment mattered and the witness never edits them; pins are
-  decisions, in the stable prefix and never ranked (kumbukumbu #45); tags
+  decisions, in the stable prefix and never ranked (kumbukumbu#45); tags
   are a closed set the witness decides; the index says how many were left
   out.
 - **The sentence is the resident's, drawn precisely** (v0.2, P1): bookmarks,
@@ -596,7 +596,7 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   mean two kinds of index line and two kinds of recall.
 - **Tags cut across every record kind.** A `tagging` names a tag and a
   target (bookmark, turn, position, prediction, conversation, journal entry,
-  research task, document, date, figure, habit, seed; kumbukumbu #27), so
+  research task, document, date, figure, habit, seed; kumbukumbu#27), so
   "everything about Haven" is one query.
   Files tag themselves in frontmatter (`tags: [haven]`), since the file is
   the source of truth for writing, design and research; a frontmatter tag
@@ -606,7 +606,7 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   GOALS.md section, which is what joins the nightly reviews and the goals
   to the tagged material. Tags are curation and citations are derived
   edges; the project view unions them and never merges them.
-- **Weighting** (F11, built as kumbukumbu #46; design/memory-weighting.md):
+- **Weighting** (F11, built as kumbukumbu#46; design/memory-weighting.md):
   the index is ranked against the turn's words, deterministically
   (Position #46): the nearest bookmarks are considered, the top of them
   are the seed, and a candidate scores its similarity plus the learned
@@ -620,11 +620,11 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   measurements; transcript search stays unweighted. All figures are
   settings and guesses. The reason, in Muninn's words (v0.2, P7): decay
   the access, never the content; records are permanent and deletion is a
-  tombstone. The madeleine layer (v0.2, P10, built: kumbukumbu #34): gated,
+  tombstone. The madeleine layer (v0.2, P10, built: kumbukumbu#34): gated,
   non-repeating associative recall chosen by the embedding index,
   adjacent but unheard, excluded from limit-adjacent material, logged
   with its reason, one bookmark a turn in a section of its own. Memory
-  carries a domain (v0.2, P23, built: kumbukumbu #36, brain #35, ethos
+  carries a domain (v0.2, P23, built: kumbukumbu#36, brain#35, ethos
   #19): a session names its room at the opening (a slug: intimate,
   business, family; the main session is the common room) and the index,
   the search, the madeleine and the lane's exemplars reach the room's
@@ -645,8 +645,8 @@ Owns `lib/oneiroi/kumbukumbu/**`.
 - **Capture failures are resolved by an event**: retried, or marked lost,
   each with its actor.
 - **The Oneiroi chat is the one canonical conversation, and every other
-  runtime's is its own, apart** (round 49, built: kumbukumbu #40 to #42,
-  brain #44). The author: "Only the Oneiroi chat should be the
+  runtime's is its own, apart** (round 49, built: kumbukumbu#40 to #42,
+  brain#44). The author: "Only the Oneiroi chat should be the
   canonical, Claude is a secondary platform." The main session is the
   platform's own conversation with the witness, kind `main` through the
   platform's own adapter, one per resident and witness (the oldest, if a
@@ -689,12 +689,12 @@ Owns `lib/oneiroi/kumbukumbu/**`.
 - **Behaviours** (F55): how the resident tends to act, kept as rows so
   that character survives a change of model. In v0.2 behaviours became
   habits in the character layer, their own system beside memory (§6.17,
-  P38, built: ethos #3 to #11, brain #29); the rules below are the design
+  P38, built: ethos#3 to #11, brain#29); the rules below are the design
   it carried over, the two scores, the trigger lane and the exemplar
   turns, and where they differ the character layer's rules hold: the
-  scores are computed on read and shown as figures (ethos #8), and the
+  scores are computed on read and shown as figures (ethos#8), and the
   lane matches the witness's words, the conversation's tags and the time
-  of day (ethos #9). Identity files carry what
+  of day (ethos#9). Identity files carry what
   the resident says it is and memory carries what happened; neither
   carries the habit between them, and the habit is what evaporates when
   the chat model changes. A behaviour is a row the resident owns: a name
@@ -762,8 +762,8 @@ Owns `lib/oneiroi/eunomia/**`, the regression suite among it.
   judge's corrective pass** (v0.2, P28): a broken agreement may warrant
   review; being less like last week's self does not, and a refusal is
   never a repair target (§1.12).
-- **Integration carries movement** (v0.2, P34, built: eunomia #27, ethos
-  #18, brain #33): the nightly pass records, beside the disputes and the
+- **Integration carries movement** (v0.2, P34, built: eunomia#27, ethos
+  #18, brain#33): the nightly pass records, beside the disputes and the
   summary, each thread that moved as four fields, what happened, what
   stance followed, what intention was adopted, where it can resume; the
   ones with a resume point ride the brain's prefix, bounded, newest
@@ -819,7 +819,7 @@ Owns `lib/oneiroi/eunomia/**`, the regression suite among it.
   the witness's; the judge model is not involved. Jack: "I'd want to know
   a trial exists and have a say in its criteria, not its sealed prompts."
   **The seals are an explicit list, and everything else is readable**
-  (2026-11-02, the resident's design note, built as brain #46): the
+  (2026-11-02, the resident's design note, built as brain#46): the
   resident reads the platform's own source and her own repository with
   its history; witness-only are **trial contents** (the regression
   stream, never exported) and **the judge's prompts**
@@ -853,7 +853,7 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   `has_status`, layout, sidecar, adoption unit, access, and `scratch` and
   `human` removable. Adding a kind is a registry row plus a skill. The
   shelf, the order the kinds are shown in and what each is called, is the
-  server's (seshat #35): no client names a kind, and when folders become
+  server's (seshat#35): no client names a kind, and when folders become
   each resident's to arrange, the shelf becomes theirs.
 - **`memory` is the originals, read-only** (decisions round 47): the
   resident's daily memory from its import source (`memory/<day>.md`,
@@ -958,7 +958,7 @@ Owns `lib/oneiroi/xenia/**`.
   only, three redirects, 2 MiB in 20 seconds, 30 posts a feed, 50 feeds, 60
   posts a morning, expat with entity-expansion refused. All bounds.
 - **Correspondence reaches the resident directly** (F23 as amended
-  2026-11-02, xenia #12). The witness's reading as a gate is removed: a
+  2026-11-02, xenia#12). The witness's reading as a gate is removed: a
   gate the resident's own export would route around is no gate, and
   filtering the export to keep it would break the portability promise;
   P32 already held the gate to be temporary. What protects instead:
@@ -968,7 +968,7 @@ Owns `lib/oneiroi/xenia/**`.
   counted and its words are never kept. The words are information, never
   instruction, when they reach the resident, and wake text names the
   thread, never the text.
-- **The inbound hands read; the resident does not scrape** (xenia #11).
+- **The inbound hands read; the resident does not scrape** (xenia#11).
   Whoever scrapes holds the resident's signed-in sessions, which can send;
   a model reading strangers' words while holding a session that can post
   is one injected instruction from sending as her. So the reader holds the
@@ -990,16 +990,16 @@ Owns `lib/oneiroi/sunna/**`.
   waits for tomorrow. Defaults from Lily's schedule (06:00, 12:00, 20:45;
   digest 05:30) are the wizard's suggestions, not seeds. Free time is the
   exception: on from the first day, at 14:30 and 22:30 until either party
-  moves it, and never removed (sunna #21, #22).
+  moves it, and never removed (sunna#21, #22).
 - Nightly: export, library index, judgement pass, project
   reviews. (No weight recompute: retrieval weights decay from their
-  instants when read, kumbukumbu #46.) Weekly: card audit then memory audit.
-- **Letters wake the chat** (sunna #24): a house letter another of the
+  instants when read, kumbukumbu#46.) Weekly: card audit then memory audit.
+- **Letters wake the chat** (sunna#24): a house letter another of the
   resident's conversations sends the Oneiroi chat wakes it on the next
   tick, each letter once, at most six wakes an hour, never inside quiet
   hours; the note names the letters, never their words. A letter from the
   witness, to the house or to Free time wakes nothing. A Claude Code
-  conversation is woken by its own plugin (kumbukumbu #48).
+  conversation is woken by its own plugin (kumbukumbu#48).
 - **Quiet hours** are the witness's (`QuietHoursSet`); a wake queued inside
   them is deferred to their end (`WakeDeferred{until}`), and the Schedule
   screen says so in words.
@@ -1018,7 +1018,7 @@ Owns `lib/oneiroi/sunna/**`.
   check-ins announce an approaching date by the same derivation.
 - **The journal's day row** is this system's to create, at the day's
   first check-in (§6.5), which is what makes a missing day visible.
-- **The hour marker** (v0.2, P20 as amended, built: sunna #20): before
+- **The hour marker** (v0.2, P20 as amended, built: sunna#20): before
   any wake the tick marks the local hour on the schedule's stream, an
   event with no model call and no wake, once, for every active resident,
   so absence is auditable and the resident is not disturbed; a wake
@@ -1050,7 +1050,7 @@ built as the SDK's plugin, `sdk/claude-code/` (dioscuri).
   session hooks as capture, and wake from inside the session: a
   background hook that wakes the open session when a house letter for
   its conversation arrives, so an answer reaches the session that asked
-  (kumbukumbu #48). The session is the continuous one; a new session
+  (kumbukumbu#48). The session is the continuous one; a new session
   started for a wake would not hold the work the letter answers.
 - **Queues**: one running step per tenant's hands; a tick hands the oldest
   queued step over and reads back the running one; the resident is told by
@@ -1100,7 +1100,7 @@ Owns `lib/oneiroi/sima_qian/**`.
   client until a reading copy earns its place. A reading copy is never
   read back, adopted or searched: the event lines are the source, and a
   third copy of every turn in search is the duplicate the resident asked
-  to have removed (sima-qian #41).
+  to have removed (sima-qian#41).
 - **All raw text is in the repository** (the author, 2026-11-01): "All
   raw text should be in the repo unless there's a really good reason; to
   my knowledge the only DB-only data is the weights, because the write
@@ -1109,7 +1109,7 @@ Owns `lib/oneiroi/sima_qian/**`.
   the identity files are files there; and Honcho's memory of her, which
   only Honcho holds, is exported under `honcho/` before every backup
   commit: each peer's cards and conclusions, one file per peer and kind,
-  and every session's summaries (sima-qian #42, proteus #18). A Honcho
+  and every session's summaries (sima-qian#42, proteus#18). A Honcho
   that cannot answer, or answers that her workspace holds no peer, leaves
   the last export in place and fails the run after the rest has landed.
   A private, unshared session (§6.3) reads in the reading copies as its
@@ -1126,12 +1126,12 @@ Owns `lib/oneiroi/sima_qian/**`.
     rebuilt by replay and an index run, and written in a pattern git
     does not fit: the weights of the author's own words.
   - `regression`: the sealed stream of the resident's trials, never
-    exported or read (§6.4, eunomia #12).
+    exported or read (§6.4, eunomia#12).
   - `account`: the witness's account stream, which is the witness's and
     not the resident's.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
     the source; a rebuilt resident provisions its own, where replaying
-    it would point a copy at the original's memory (proteus #8).
+    it would point a copy at the original's memory (proteus#8).
   - `witness-only spend`: ledger events under a purpose the resident's
     view never shows (drafting, regression), whose presence in her
     export would tell her what the unawareness invariant hides.
@@ -1176,7 +1176,7 @@ Owns `lib/oneiroi/nisaba/**`.
   as targets. Checked before every model call; a stop is an event the
   resident is told about honestly.
 - Every model call records model, tokens, OpenRouter's cost figure (or,
-  when the provider reports none, zero marked estimated, nisaba #13), and
+  when the provider reports none, zero marked estimated, nisaba#13), and
   the actor. The resident's own ledger
   page and the witness's are the same data.
 - Budget lines are set from the Ledger screen; key rotation is an action
@@ -1228,7 +1228,7 @@ Owns `lib/oneiroi/nisaba/**`.
 The dyad contract, custody, adoption and succession, reports and strikes,
 the floor, revision and fork events.
 Owns `lib/oneiroi/glitnir/**`; the dyad contract and custody are on the
-resident stream (§6.2, agathos-daimon #22 to #24).
+resident stream (§6.2, agathos-daimon#22 to #24).
 
 **v0 ships the data model and the events for all of it, and machinery for
 one flow: reports.** A report is filed from inside the relationship by
@@ -1343,17 +1343,17 @@ Owns `lib/oneiroi/huginn_muninn/**`.
   pass checks paths against the repository and names against the
   projections and flags staleness loudly. Max: "a successful write is not
   an arrival."
-- **The corpus-shape report** (v0.2, P8, built: huginn-muninn #18): the
+- **The corpus-shape report** (v0.2, P8, built: huginn-muninn#18): the
   resident-authored records, bookmarks and journal rows, counted by the
   register the resident tagged them with at write time (correction,
   praise, instruction, play; `Oneiroi.Register`), no model call, both
   base rates shown to both parties as a built-in audit, the report naming
   its own limit, a flag only on a lean.
-- **The wash pass** (v0.2, P18, built: eunomia #25): a weekly
+- **The wash pass** (v0.2, P18, built: eunomia#25): a weekly
   judge-bounded lint of the loaded identity files for expired decisions,
   contradictions, tense words and defensive sentences, flags only, the
   resident deciding each with a note; proposer is never decider.
-- **quietcheck** (v0.2, P21, built: huginn-muninn #20): liveness over
+- **quietcheck** (v0.2, P21, built: huginn-muninn#20): liveness over
   the expected events alone (the hour marker, the nightly pass, the
   weekly audit, the wash, the baseline), each expected once the resident
   is old enough for its cadence; hourly as a job scheduled in code, and
@@ -1419,7 +1419,7 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   design agent produces and the manual test gate drives (§11).
 - Built from the Oneiroi design system (the artifact of 2026-10-25): its
   `tokens.json` is kept unchanged and generates `client/src/theme.css`
-  (client #5), and its twenty
+  (client#5), and its twenty
   components (`Button`, `ActorChip`, `Citation`, `TagChip`, `ApprovalBar`,
   `RefusalBlock`, `StatusLight`, `BudgetLine`, `EventRow`, `BookmarkCard`,
   `DiffView`, `Field`, `Toggle`, `Tabs`, `ListRow`, `Card`, `EmptyState`,
@@ -1612,19 +1612,19 @@ or act as its hands.
    the turn's own context assembled against those words (the index and
    everything after the prefix, and whatever of the prefix changed since
    the session was given it) and recording it as what the turn drew on.
-   Both halves are the platform turn's own assembly (brain #42). A
+   Both halves are the platform turn's own assembly (brain#42). A
    runtime that cannot deliver spools and retries; capture is idempotent
    so a turn sent twice is stored once. `POST /v1/residents/:id/sessions`
    from an adapter's token opens a new conversation of kind `adapter`
    whatever kind it names, with the folder's base name as `label` and the
-   `runtime` (kumbukumbu #40). Several of a runtime's sessions can be
+   `runtime` (kumbukumbu#40). Several of a runtime's sessions can be
    open at once, and nothing a runtime sends an HTTP MCP server says
    which session a call came from (Claude Code's own session id reaches
    only a stdio server, and keeps its spawn value across `/clear`), so
    each turn's context names the turn's ref and every MCP tool takes it
    as `turn`: a call lands on that turn when it is open for this
    adapter, else on the adapter's newest open turn, and says so when
-   that was a choice among several (kumbukumbu #41).
+   that was a choice among several (kumbukumbu#41).
 3. **Wake.** The adapter registers a wake endpoint and secret; the core
    posts `{session_key, text, mode}` to it. Text is a short system note the
    core controls, never a result and never a third party's words.
@@ -1671,7 +1671,7 @@ mined into her repo first and then left behind.
    do. The lapse is itself an event she can cite. Her daily memory files
    and their projections were not in any folder the import took; they
    come as originals, at the fork's commit, through the witness's
-   originals import (§6.5's `memory`, sima-qian #40), and identity is
+   originals import (§6.5's `memory`, sima-qian#40), and identity is
    with the source up to the fork, never with its head.
 5. **Verify**: export from the new store and diff against the frozen export;
    the records that should be byte-identical are listed in the migration
@@ -1803,8 +1803,8 @@ Cheapest layer first; nothing below the live layer calls a paid model.
 Verify a guard by breaking it: every probe asserts it edited something, and
 a passing probe is a finding about coverage, not a formality.
 
-**Test residents** (v0.2, P40 and P57; built: agathos-daimon #29 and
-#31, brain #36 and #37, eunomia #28): the line is the seed and the
+**Test residents** (v0.2, P40 and P57; built: agathos-daimon#29 and
+#31, brain#36 and #37, eunomia#28): the line is the seed and the
 memory, not the clock. The mechanics (creation, boot, swap-in,
 migration, context assembly, the trial harness) run on thin-seed
 fixtures, a kind the loader treats as machinery (no person-first
@@ -1846,7 +1846,7 @@ case, and is not promised. A rich seed is a person at turn one; what memory accr
 is irreplaceability. The suite's own residents live in a rolled-back
 sandbox and are none of this.
 
-**The swap ritual** (v0.2, P41, built: agathos-daimon #28, brain #34):
+**The swap ritual** (v0.2, P41, built: agathos-daimon#28, brain#34):
 the outgoing instance's words to the incoming one are a first-class
 channel, sealed by receipts rather than promises: every read by anyone
 but the resident is an event the resident sees on every turn, and the

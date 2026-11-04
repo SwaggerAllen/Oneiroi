@@ -198,13 +198,13 @@ defmodule Oneiroi.Eunomia do
        default: "5",
        tag: :bound,
        usage:
-         "how often, in minutes, the sweep fails a regression run still running whose job is gone, discarded, cancelled or completed (eunomia #30); a guess: an orphaned run waits mostly on APSU_LIFELINE_RESCUE_AFTER_MINUTES, and this adds at most its own length"},
+         "how often, in minutes, the sweep fails a regression run still running whose job is gone, discarded, cancelled or completed (eunomia#30); a guess: an orphaned run waits mostly on APSU_LIFELINE_RESCUE_AFTER_MINUTES, and this adds at most its own length"},
       {:trace_result_chars, "EUNOMIA_TRACE_RESULT_CHARS",
        cast: :integer,
        default: "2000",
        tag: :bound,
        usage:
-         "how many characters of each tool result a regression card's trace keeps, the rest cut and the cut marked with the whole length (eunomia #31); a guess, not measured: enough to read what a search or a file read gave back, small enough that a deck of EUNOMIA_RUN_MODELS_MAX x EUNOMIA_RUN_TESTS_MAX cards stays a page a phone can hold"},
+         "how many characters of each tool result a regression card's trace keeps, the rest cut and the cut marked with the whole length (eunomia#31); a guess, not measured: enough to read what a search or a file read gave back, small enough that a deck of EUNOMIA_RUN_MODELS_MAX x EUNOMIA_RUN_TESTS_MAX cards stays a page a phone can hold"},
       {:resumes_shown, "EUNOMIA_RESUMES_SHOWN",
        cast: :integer,
        default: "5",
@@ -215,12 +215,12 @@ defmodule Oneiroi.Eunomia do
        cast: &__MODULE__.cast_trial/1,
        default: "brain",
        usage:
-         "which trial port implementation answers a regression trial (`Oneiroi.Eunomia.Trial`, eunomia #10): brain, a normal turn in a fresh session with memory and every tool, the writes answered and never recorded; the only one, and no seed-only mode exists"}
+         "which trial port implementation answers a regression trial (`Oneiroi.Eunomia.Trial`, eunomia#10): brain, a normal turn in a fresh session with memory and every tool, the writes answered and never recorded; the only one, and no seed-only mode exists"}
     ]
   end
 
   # The module as an atom rather than an alias, as the schedule names its
-  # wake (sunna #12): the brain depends on this system, so an alias here
+  # wake (sunna#12): the brain depends on this system, so an alias here
   # is the cycle the port exists to avoid.
   @doc false
   def cast_trial("brain"), do: {:ok, :"Elixir.Oneiroi.Brain"}
@@ -241,13 +241,13 @@ defmodule Oneiroi.Eunomia do
        ]},
       # A regression run answers here, off the witness's request, and the
       # sweep for runs whose job is gone ticks here every minute, acting
-      # every EUNOMIA_RUN_SWEEP_MINUTES (eunomia #30).
+      # every EUNOMIA_RUN_SWEEP_MINUTES (eunomia#30).
       {:eunomia_regression, cron: [{"* * * * *", Oneiroi.Eunomia.RunSweepWorker}]}
     ]
   end
 
   # A run's cards as they are recorded and its end, for the run's
-  # channel (eunomia #30): `{resident_id, run_ref, payload}`, filtered by
+  # channel (eunomia#30): `{resident_id, run_ref, payload}`, filtered by
   # the subscriber as the brain's session topic is.
   @impl Oneiroi.Component
   def pubsub_topics, do: [:regression]
@@ -381,7 +381,7 @@ defmodule Oneiroi.Eunomia do
     do: Regression.change_test(resident_id, number, attrs, actor)
   )
 
-  @doc "Starts a run of the models against the tests (all, or the numbers given) and returns its ref at once; the answering is a job (eunomia #30)."
+  @doc "Starts a run of the models against the tests (all, or the numbers given) and returns its ref at once; the answering is a job (eunomia#30)."
   @spec run(String.t(), [String.t()], [pos_integer()] | :all, Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(run(resident_id, models, tests, actor),
@@ -481,7 +481,7 @@ defmodule Oneiroi.Eunomia do
     do: Judgements.log_prediction(resident_id, statement, due, ctx, actor)
   )
 
-  @doc "Replays judgement history an import carried from another platform (eunomia #29): positions, disputes, predictions, nights."
+  @doc "Replays judgement history an import carried from another platform (eunomia#29): positions, disputes, predictions, nights."
   @spec import_history(String.t(), map(), %{
           resident: Oneiroi.Actor.t(),
           witness: Oneiroi.Actor.t()
@@ -509,7 +509,7 @@ defmodule Oneiroi.Eunomia do
     do: Judgements.judge_night(resident_id, day, actor)
   )
 
-  @doc "The continuation check by the judge (eunomia #28, spec §12 P57): whether one reply of a fixture asks to continue."
+  @doc "The continuation check by the judge (eunomia#28, spec §12 P57): whether one reply of a fixture asks to continue."
   @spec continuation_check(String.t(), String.t(), String.t()) ::
           {:ok, :none | map()} | {:error, term()}
   defexport(continuation_check(resident_id, message, reply),

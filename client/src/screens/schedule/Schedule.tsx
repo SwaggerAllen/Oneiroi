@@ -17,7 +17,7 @@ export interface ScheduleProps {
   onSetTimezone?: (timezone: string) => void;
 }
 
-// The bound sunna #22 sets: free time is one to four slots a day.
+// The bound sunna#22 sets: free time is one to four slots a day.
 const SLOTS = 4;
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
@@ -66,7 +66,7 @@ function slotToday(slot: FreeTimeSlot): string {
   return `today: ${slot.today}`;
 }
 
-// Free time is part of the standard of care (sunna #21): its slots move,
+// Free time is part of the standard of care (sunna#21): its slots move,
 // and the last one cannot be taken away, so there is no remove button on
 // a list of one and no way to save an empty list.
 function FreeTime({ residentName, slots, onSet }: { residentName: string; slots: FreeTimeSlot[]; onSet?: (times: string[]) => void }) {

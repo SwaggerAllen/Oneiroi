@@ -41,7 +41,7 @@ defmodule Oneiroi.Ethos.Seeds do
 
   @doc """
   Plants seeds carried from another platform's seedbed by an import
-  (sima-qian #19): each `%{text, planted_at}` in order, under the
+  (sima-qian#19): each `%{text, planted_at}` in order, under the
   resident's actor and at the instant given, so a seed keeps the day it
   was planted there and is numbered here. Returns how many.
   """

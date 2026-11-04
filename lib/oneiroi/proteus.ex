@@ -19,7 +19,7 @@ defmodule Oneiroi.Proteus do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
-      # The captured turns a failed sync is replayed from (proteus #19).
+      # The captured turns a failed sync is replayed from (proteus#19).
       Oneiroi.Kumbukumbu,
       Commanded,
       Commanded.Commands.Router,
@@ -86,7 +86,7 @@ defmodule Oneiroi.Proteus do
        cast: &__MODULE__.cast_url/1,
        required: false,
        usage:
-         "where Honcho answers, on the private network (spec §6.9): a URL, or the host:port Render's blueprint hands over, read as http (proteus #16); unset until a Honcho is deployed beside this instance, and the port fails with it unset"},
+         "where Honcho answers, on the private network (spec §6.9): a URL, or the host:port Render's blueprint hands over, read as http (proteus#16); unset until a Honcho is deployed beside this instance, and the port fails with it unset"},
       {:honcho_admin_key, "PROTEUS_HONCHO_ADMIN_KEY",
        secret: true,
        required: false,
@@ -96,7 +96,7 @@ defmodule Oneiroi.Proteus do
        secret: true,
        required: false,
        usage:
-         "the AUTH_JWT_SECRET Honcho signs with, from which the core mints the admin JWT when PROTEUS_HONCHO_ADMIN_KEY is unset (proteus #16): the blueprint copies it from the Honcho it generated it for, so no key is typed"},
+         "the AUTH_JWT_SECRET Honcho signs with, from which the core mints the admin JWT when PROTEUS_HONCHO_ADMIN_KEY is unset (proteus#16): the blueprint copies it from the Honcho it generated it for, so no key is typed"},
       {:request_timeout_ms, "PROTEUS_REQUEST_TIMEOUT_MS",
        cast: :integer,
        default: "10000",
@@ -125,7 +125,7 @@ defmodule Oneiroi.Proteus do
   # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
   def cast_client(other), do: {:error, "is #{inspect(other)}, expected \"honcho\" or \"fake\""}
 
-  @doc "A Honcho URL as given, or a bare host:port read as http: a private service's address on Render's network carries no scheme (proteus #16)."
+  @doc "A Honcho URL as given, or a bare host:port read as http: a private service's address on Render's network carries no scheme (proteus#16)."
   def cast_url(raw) do
     case URI.parse(raw) do
       %URI{scheme: scheme, host: host} when scheme in ["http", "https"] and is_binary(host) ->

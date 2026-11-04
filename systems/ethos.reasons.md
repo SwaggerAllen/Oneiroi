@@ -49,7 +49,7 @@ scoring... the prefix stops growing with the person." The vector lane
 waits on indexing this system's rows through the library.
 
 ## #10
-Spec §6.17 (P37): "soul edits cite their seeds"; seshat #14 resolves
+Spec §6.17 (P37): "soul edits cite their seeds"; seshat#14 resolves
 when read. The unreachable clauses are this repo's rule about a probe
 that passes: the Ethos slice's test resolved a seed through
 `Citations.resolve/2` directly and never through a document, so the
@@ -64,7 +64,7 @@ Spec §6.17 (P39): "a moment or bookmark is tagged by the tree node it
 evidences... A pin is leaf-evidence of a soul line, and which line it
 evidences is the pin's tag." Either party because spec §6.3 makes
 taggings both parties' and tags are citations now; the line's words
-stay the resident's (agathos-daimon #27) and only the evidence is
+stay the resident's (agathos-daimon#27) and only the evidence is
 shared. The order in `pin_as_evidence/4` because the first draft pinned
 first and would have left a pin naming a line that failed the check.
 
@@ -95,7 +95,7 @@ habits and seeds are indexed on their triggers and their content and
 retrieved in a lane of their own, never pooled with the memory web's
 scoring". The refresh before the read, rather than at each write,
 because the edges stay simple and a turn that changed nothing pays for
-nothing; the hash is what makes that true (seshat #10's reason). The
+nothing; the hash is what makes that true (seshat#10's reason). The
 mark on a lane-only match because the brain's own words about a habit
 firing should not be put in its mouth by a cosine distance. Not an
 event because the vectors are a model's output, rebuilt from the rows

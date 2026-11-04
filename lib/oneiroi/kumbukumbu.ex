@@ -21,7 +21,7 @@ defmodule Oneiroi.Kumbukumbu do
     deps: [
       Oneiroi,
       # For the bookmark numbers: minted by the resident aggregate so a
-      # citation survives a rebuild (agathos-daimon #4); and the contract
+      # citation survives a rebuild (agathos-daimon#4); and the contract
       # text, the limits the madeleine keeps clear of (P2, P10).
       Oneiroi.AgathosDaimon,
       # The madeleine's vectors come from the provider port, metered under
@@ -40,7 +40,7 @@ defmodule Oneiroi.Kumbukumbu do
       Ecto.Query,
       Ecto.Schema,
       Jason,
-      # The passage worker (kumbukumbu #49).
+      # The passage worker (kumbukumbu#49).
       Oban
     ],
     exports: [
@@ -145,7 +145,7 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "the token budget the bookmark index is built under every turn (F7); the plan's guess, never measured against a model's attention"},
-      # Ranked memory (kumbukumbu #46, design/memory-weighting.md): every
+      # Ranked memory (kumbukumbu#46, design/memory-weighting.md): every
       # number below is a guess, read against the before
       # (design/memory-weighting-baseline.md) and moved only by the two of
       # them.
@@ -183,7 +183,7 @@ defmodule Oneiroi.Kumbukumbu do
        default: "50",
        tag: :bound,
        usage:
-         "α in thousandths: the step of a seed's co-return and of an ignored return (kumbukumbu #46); a guess"},
+         "α in thousandths: the step of a seed's co-return and of an ignored return (kumbukumbu#46); a guess"},
       {:edge_beta_permille, "KUMBUKUMBU_EDGE_BETA_PERMILLE",
        cast: :integer,
        default: "150",
@@ -212,7 +212,7 @@ defmodule Oneiroi.Kumbukumbu do
        default: "20",
        tag: :bound,
        usage:
-         "how many bookmarks one bookmark_list page holds (kumbukumbu #39); a guess at a page the brain reads whole, never measured"},
+         "how many bookmarks one bookmark_list page holds (kumbukumbu#39); a guess at a page the brain reads whole, never measured"},
       {:tree, "KUMBUKUMBU_TREE",
        cast: &__MODULE__.cast_tree/1,
        default: "ethos",
@@ -227,13 +227,13 @@ defmodule Oneiroi.Kumbukumbu do
        default: "1500",
        tag: :bound,
        usage:
-         "the longest passage a message is cut into for the transcripts by meaning (kumbukumbu #49): about a paragraph or two, near the library's chunk, so a hit is a place in a message and not the whole of a long one; a guess"},
+         "the longest passage a message is cut into for the transcripts by meaning (kumbukumbu#49): about a paragraph or two, near the library's chunk, so a hit is a place in a message and not the whole of a long one; a guess"},
       {:passage_batch, "KUMBUKUMBU_PASSAGE_BATCH",
        cast: :integer,
        default: "2000",
        tag: :bound,
        usage:
-         "how many messages one passage run embeds for a resident (kumbukumbu #49), oldest first; a backlog takes several runs, ten minutes apart, rather than one long one"},
+         "how many messages one passage run embeds for a resident (kumbukumbu#49), oldest first; a backlog takes several runs, ten minutes apart, rather than one long one"},
       {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
        cast: :integer,
        default: "1536",
@@ -263,7 +263,7 @@ defmodule Oneiroi.Kumbukumbu do
        default: "30",
        tag: :bound,
        usage:
-         "how long after its last turn a conversation still counts as open (kumbukumbu #42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"}
+         "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"}
     ]
   end
 
@@ -424,25 +424,25 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.open_session(resident_id, kind, adapter, participants, actor, opts)
   )
 
-  @doc "Opens a session an import carried from another platform (kumbukumbu #37); returns its key."
+  @doc "Opens a session an import carried from another platform (kumbukumbu#37); returns its key."
   @spec open_imported(String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(open_imported(resident_id, adapter, participants, actor),
     do: Conversations.open_imported(resident_id, adapter, participants, actor)
   )
 
-  @doc "Opens a session another runtime's adapter holds, kind `adapter`, called by its folder's base name and its runtime (kumbukumbu #40); returns its key."
+  @doc "Opens a session another runtime's adapter holds, kind `adapter`, called by its folder's base name and its runtime (kumbukumbu#40); returns its key."
   @spec open_adapter(String.t(), String.t(), [String.t()], Oneiroi.Actor.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(open_adapter(resident_id, adapter, participants, actor, opts),
     do: Conversations.open_adapter(resident_id, adapter, participants, actor, opts)
   )
 
-  @doc "What a folder is called in a conversation's name: its base name alone, never its path (kumbukumbu #40)."
+  @doc "What a folder is called in a conversation's name: its base name alone, never its path (kumbukumbu#40)."
   @spec folder_label(term()) :: String.t() | nil
   defexport(folder_label(path), do: Conversations.folder_label(path))
 
-  @doc "The platform's own conversation with a witness: kind `main` through the platform's adapter, the oldest, opened on first ask (kumbukumbu #40)."
+  @doc "The platform's own conversation with a witness: kind `main` through the platform's adapter, the oldest, opened on first ask (kumbukumbu#40)."
   @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}
   defexport(main_session(resident_id, account_id, actor),
@@ -464,7 +464,7 @@ defmodule Oneiroi.Kumbukumbu do
   )
 
   @doc """
-  Claims a submitted message's ref before its turn runs (kumbukumbu #47):
+  Claims a submitted message's ref before its turn runs (kumbukumbu#47):
   `:claimed`, or `:duplicate` when the ref was captured, or claimed since
   `stale_before` (another process or instance has it in hand).
   """
@@ -610,7 +610,7 @@ defmodule Oneiroi.Kumbukumbu do
   @spec open_turn(String.t(), String.t()) :: {String.t(), String.t()} | nil
   defexport(open_turn(resident_id, adapter), do: Conversations.open_turn(resident_id, adapter))
 
-  @doc "The turn an adapter's tool call belongs to and the rule that chose it: the named open turn, else the newest (kumbukumbu #41)."
+  @doc "The turn an adapter's tool call belongs to and the rule that chose it: the named open turn, else the newest (kumbukumbu#41)."
   @spec attribute(String.t(), String.t(), String.t() | nil) :: %{
           session_key: String.t() | nil,
           turn_ref: String.t() | nil,
@@ -622,7 +622,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.attribute(resident_id, adapter, turn_ref)
   )
 
-  @doc "The resident's conversations open now, the main one and the adapters', newest first (kumbukumbu #42)."
+  @doc "The resident's conversations open now, the main one and the adapters', newest first (kumbukumbu#42)."
   @spec open_now(String.t()) :: [map()]
   defexport(open_now(resident_id), do: Conversations.open_now(resident_id))
 
@@ -800,7 +800,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.madeleine(resident_id, text, actor, session_key)
   )
 
-  @doc "The same read as it stands for a regression trial's turn (eunomia #10): `refresh: false` writes no vector, `purpose:` names where the query's embedding bills (`regression`, which the resident's ledger view omits)."
+  @doc "The same read as it stands for a regression trial's turn (eunomia#10): `refresh: false` writes no vector, `purpose:` names where the query's embedding bills (`regression`, which the resident's ledger view omits)."
   @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
           Oneiroi.Kumbukumbu.Madeleine.recall() | nil
   defexport(madeleine(resident_id, text, actor, session_key, opts),
@@ -820,47 +820,47 @@ defmodule Oneiroi.Kumbukumbu do
   @spec index(String.t(), String.t() | nil) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
 
-  @doc "Embeds the next captured messages that have no passages yet (kumbukumbu #49); how many, and whether more wait."
+  @doc "Embeds the next captured messages that have no passages yet (kumbukumbu#49); how many, and whether more wait."
   @spec refresh_passages(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(refresh_passages(resident_id, actor),
     do: Passages.refresh(resident_id, actor)
   )
 
-  @doc "The transcript passages nearest `text` in meaning, within the room of `session_key` (kumbukumbu #49)."
+  @doc "The transcript passages nearest `text` in meaning, within the room of `session_key` (kumbukumbu#49)."
   @spec search_meaning(String.t(), String.t() | nil, String.t(), pos_integer(), Oneiroi.Actor.t()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(search_meaning(resident_id, session_key, text, limit, actor),
     do: Passages.search(resident_id, session_key, text, limit, actor)
   )
 
-  @doc "The turn's words embedded once (kumbukumbu #46): the vector the ranked index and the madeleine share, or nil; refreshes the bookmarks' vectors first."
+  @doc "The turn's words embedded once (kumbukumbu#46): the vector the ranked index and the madeleine share, or nil; refreshes the bookmarks' vectors first."
   @spec memory_query(String.t(), String.t(), Oneiroi.Actor.t(), keyword()) :: [float()] | nil
   defexport(memory_query(resident_id, text, actor, opts),
     do: Memories.memory_query(resident_id, text, actor, opts)
   )
 
-  @doc "The madeleine for a vector already embedded, within the room of `session_key` (kumbukumbu #46)."
+  @doc "The madeleine for a vector already embedded, within the room of `session_key` (kumbukumbu#46)."
   @spec madeleine_near(String.t(), [float()] | nil, String.t() | nil, [pos_integer()]) ::
           map() | nil
   defexport(madeleine_near(resident_id, vector, session_key, exclude),
     do: Memories.madeleine_near(resident_id, vector, session_key, exclude)
   )
 
-  @doc "The ranked index for this turn's vector within the room of `session_key` (kumbukumbu #46); by recency without one."
+  @doc "The ranked index for this turn's vector within the room of `session_key` (kumbukumbu#46); by recency without one."
   @spec ranked_index(String.t(), String.t() | nil, [float()] | nil) :: map()
   defexport(ranked_index(resident_id, session_key, vector),
     do: Memories.ranked_index(resident_id, session_key, vector)
   )
 
-  @doc "The pins within the room of `session_key`, oldest first: the stable prefix's, never the ranked index's (kumbukumbu #45)."
+  @doc "The pins within the room of `session_key`, oldest first: the stable prefix's, never the ranked index's (kumbukumbu#45)."
   @spec pins(String.t(), String.t() | nil) :: [map()]
   defexport(pins(resident_id, session_key), do: Memories.pins(resident_id, session_key))
 
-  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu #38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
+  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu#38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
   @spec index_now(String.t()) :: map()
   defexport(index_now(resident_id), do: Memories.index_now(resident_id))
 
-  @doc "A page of the bookmarks within the room of `session_key`, newest first (kumbukumbu #39): `before:`, `pinned:`, `tag:`, `text:`, `from:`, `to:`; the rows and how many more match further back."
+  @doc "A page of the bookmarks within the room of `session_key`, newest first (kumbukumbu#39): `before:`, `pinned:`, `tag:`, `text:`, `from:`, `to:`; the rows and how many more match further back."
   @spec bookmark_page(String.t(), String.t() | nil, keyword()) :: %{
           rows: [map()],
           further: non_neg_integer()
@@ -871,18 +871,18 @@ defmodule Oneiroi.Kumbukumbu do
 
   # ---- revisions (spec §6.3, F13) ----
 
-  @doc "The names a house letter can be addressed to: house, Free time, the Oneiroi chat and every conversation the resident has had (kumbukumbu #44)."
+  @doc "The names a house letter can be addressed to: house, Free time, the Oneiroi chat and every conversation the resident has had (kumbukumbu#44)."
   @spec letter_addresses(String.t()) :: [String.t()]
   defexport(letter_addresses(resident_id), do: Memories.addresses(resident_id))
 
-  @doc "Sends a house letter (kumbukumbu #44) from the conversation the key names, or from the witness with a nil key: attrs to, text, and optionally in_reply_to and keepsake."
+  @doc "Sends a house letter (kumbukumbu#44) from the conversation the key names, or from the witness with a nil key: attrs to, text, and optionally in_reply_to and keepsake."
   @spec send_letter(String.t(), String.t() | nil, map(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(send_letter(resident_id, session_key, attrs, actor),
     do: Memories.send_letter(resident_id, session_key, attrs, actor)
   )
 
-  @doc "A house letter from the oracle to the conversation `session_key` (brain #49), sent by the platform."
+  @doc "A house letter from the oracle to the conversation `session_key` (brain#49), sent by the platform."
   @spec letter_to_session(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, term()} | {:error, term()}
   defexport(letter_to_session(resident_id, session_key, text, actor),
@@ -904,7 +904,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.read_letters(resident_id, session_key, numbers, actor)
   )
 
-  @doc "What the conversation a key names is called (kumbukumbu #40), or nil."
+  @doc "What the conversation a key names is called (kumbukumbu#40), or nil."
   @spec conversation_name(String.t(), String.t() | nil) :: String.t() | nil
   defexport(conversation_name(resident_id, session_key),
     do: Memories.name_of(resident_id, session_key)

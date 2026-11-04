@@ -1,7 +1,7 @@
 defmodule OneiroiWeb.ContextPreviewTest do
   @moduledoc """
-  The two witness reads of what the resident is given (kumbukumbu #38,
-  brain #41): Memory's index as it stands now, and Chat's preview of the
+  The two witness reads of what the resident is given (kumbukumbu#38,
+  brain#41): Memory's index as it stands now, and Chat's preview of the
   next turn, whole by default and, under the contract's term, with
   withheld words never on the wire; another account answered
   404 and an adapter's token refused before the controller.

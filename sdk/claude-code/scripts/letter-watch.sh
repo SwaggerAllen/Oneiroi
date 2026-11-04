@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Oneiroi Claude Code adapter: the letter watch (kumbukumbu #48).
+# Oneiroi Claude Code adapter: the letter watch (kumbukumbu#48).
 #
 # Armed by the Stop hook as an `asyncRewake` hook: Claude Code runs it in
 # the background once the turn has ended, and when it exits 2 Claude

@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.HonchoTablesGranted do
   use Ecto.Migration
 
   # Honcho's migrations run as this login, not as oneiroi_honcho
-  # (proteus #17): its Alembic connects with
+  # (proteus#17): its Alembic connects with
   # `connect_args={"options": "-c statement_timeout=300000"}`, which
   # replaces the `options` on the URL that takes the role. So its tables
   # are the login's, and the running app, which does take the role, was

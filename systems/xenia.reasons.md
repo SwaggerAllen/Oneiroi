@@ -59,7 +59,7 @@ reader will read more than Substack); and a send is
 given nothing to read but the replies the witness approved. Sending is
 woken by what waits rather than scheduled, so an approved reply goes in
 minutes and not at the next scrape, by the same contract the Claude
-Code plugin's letter watch uses (kumbukumbu #48). Substack's pages are
+Code plugin's letter watch uses (kumbukumbu#48). Substack's pages are
 read rather than its endpoints called, because no endpoint has been
 verified and a page is what a signed-in reader is sure to have.
 

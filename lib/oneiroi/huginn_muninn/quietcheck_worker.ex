@@ -1,10 +1,10 @@
 defmodule Oneiroi.HuginnMuninn.QuietcheckWorker do
   @moduledoc """
-  quietcheck's hourly run (spec §6.13, P21; huginn-muninn #20): the
+  quietcheck's hourly run (spec §6.13, P21; huginn-muninn#20): the
   report over every active resident, logged with its verdict first and
   last. Scheduled in code, on this system's queue, so it survives a
   deploy and nobody sets it up by hand. A cross-tenant job under the
-  platform scope, named here (huginn-muninn #12).
+  platform scope, named here (huginn-muninn#12).
 
   Fail-loud: a miss or the checker's own crash logs at error and ends
   the job as cancelled with the verdict as its reason, which is a row in

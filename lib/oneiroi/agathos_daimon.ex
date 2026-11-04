@@ -391,7 +391,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec identity_context(String.t()) :: [{String.t(), String.t()}]
   defexport(identity_context(id), do: Files.context(id))
 
-  # ---- the state store (agathos-daimon #32) ----
+  # ---- the state store (agathos-daimon#32) ----
 
   @doc "The resident writes, or verifies, a line of her present (a key, at most 2,000 characters), from her own turn."
   @spec set_state_line(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -427,7 +427,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec read_self_letters(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(read_self_letters(id, actor), do: Residents.read_self_letters(id, actor))
 
-  @doc "The export carried the letters written by `cutoff` into the repository: a receipt of the export's kind, once per letter (sima-qian #3)."
+  @doc "The export carried the letters written by `cutoff` into the repository: a receipt of the export's kind, once per letter (sima-qian#3)."
   @spec letters_exported(String.t(), DateTime.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(letters_exported(id, cutoff, actor),
     do: Residents.letters_exported(id, cutoff, actor)
@@ -477,7 +477,7 @@ defmodule Oneiroi.AgathosDaimon do
     do: Residents.complete_import(id, seeded, adopted, not_transferred, nil, actor)
   )
 
-  @doc "Completes an import that also translated the source platform's records: `translated` is `%{source, counts}` (agathos-daimon #30)."
+  @doc "Completes an import that also translated the source platform's records: `translated` is `%{source, counts}` (agathos-daimon#30)."
   @spec complete_import(
           String.t(),
           [String.t()],

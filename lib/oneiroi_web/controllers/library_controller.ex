@@ -71,7 +71,7 @@ defmodule OneiroiWeb.LibraryController do
 
   operation(:remove,
     summary:
-      "Remove a scratch or human document (seshat #33): recorded with you as its actor; every other kind is kept",
+      "Remove a scratch or human document (seshat#33): recorded with you as its actor; every other kind is kept",
     parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],
     responses: [no_content: "removed"]
   )
@@ -224,7 +224,7 @@ defmodule OneiroiWeb.LibraryController do
       written_by: d.written_by_kind,
       published_url: d.published_url,
       published_at: d.published_at,
-      # Why a keepsake mattered, in the resident's words (seshat #32).
+      # Why a keepsake mattered, in the resident's words (seshat#32).
       note: d.note
     }
   end

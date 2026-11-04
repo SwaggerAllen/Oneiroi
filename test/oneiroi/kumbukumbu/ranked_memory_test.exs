@@ -1,6 +1,6 @@
 defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
   @moduledoc """
-  Ranked memory (kumbukumbu #45, #47; design/memory-weighting.md): the
+  Ranked memory (kumbukumbu#45, #47; design/memory-weighting.md): the
   pins in the stable prefix, the index ranked against the turn's words
   with the learned edges out of its seed and a fifth drawn at random,
   and the edges learned from what was returned and what helped, with

@@ -302,7 +302,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   changed), then one adjacent, unheard bookmark or nil; within the room of
   `session_key` when given (spec §6.3, P23). `refresh: false` reads the
   vectors as they stand and `purpose:` bills the query elsewhere than
-  `embeddings`: a regression trial's turn passes both (eunomia #10).
+  `embeddings`: a regression trial's turn passes both (eunomia#10).
   """
   def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil, opts \\ []) do
     if Keyword.get(opts, :refresh, true), do: _ = Madeleine.refresh(resident_id, actor)
@@ -310,7 +310,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     Madeleine.recall(resident_id, text, actor, keys, Keyword.get(opts, :purpose, :embeddings))
   end
 
-  @doc "The turn's words embedded once, after refreshing the bookmarks' vectors (kumbukumbu #46)."
+  @doc "The turn's words embedded once, after refreshing the bookmarks' vectors (kumbukumbu#46)."
   def memory_query(resident_id, text, %Actor{} = actor, opts \\ []) do
     if Keyword.get(opts, :refresh, true), do: _ = Madeleine.refresh(resident_id, actor)
     Madeleine.query(resident_id, text, actor, Keyword.get(opts, :purpose, :embeddings))
@@ -341,7 +341,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def index(resident_id, session_key) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     %{keys: keys} = Conversations.room(resident_id, session_key)
-    # The pins are in the stable prefix (`pins/2`, kumbukumbu #45): they
+    # The pins are in the stable prefix (`pins/2`, kumbukumbu#45): they
     # are decisions, not measurements, and are never ranked here.
     all = resident_id |> bookmarks() |> Enum.reject(& &1.pinned_at)
     {in_room, held} = Enum.split_with(all, &(&1.session_key in keys))
@@ -365,7 +365,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   @doc """
-  The ranked index (kumbukumbu #46): the bookmarks nearest `vector` in
+  The ranked index (kumbukumbu#46): the bookmarks nearest `vector` in
   the room, ranked with the learned edges out of the seed, a fifth of
   the lines drawn at random from outside the ranked set, fresh each
   call; or, with no vector (blank words, nothing embedded, the provider
@@ -511,7 +511,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   @doc """
   What the index holds now in the common room, for the witness's Memory
-  screen (kumbukumbu #38): the same `index/2` the next turn of the main
+  screen (kumbukumbu#38): the same `index/2` the next turn of the main
   session is built from (the main session is the common room), never
   inferred from `last_indexed_at`, which only says when a turn last
   listed a bookmark. The numbers listed in the index's order, how many
@@ -535,7 +535,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     elsewhere = length(all) - length(pins) - ranked
     lines = Config.fetch!(:kumbukumbu, :index_lines)
 
-    # Ranked against each turn's words (kumbukumbu #46), the index has no
+    # Ranked against each turn's words (kumbukumbu#46), the index has no
     # "now" to show: what is in front of her every turn is the pins.
     %{
       listed: Enum.map(pins, & &1.number),
@@ -558,7 +558,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   @doc """
   One page of the bookmarks within the room of `session_key`, newest
-  first, for the brain's `bookmark_list` (kumbukumbu #39): the index
+  first, for the brain's `bookmark_list` (kumbukumbu#39): the index
   lists what fits its budget, and this pages back through the rest.
   `before:` a number to page back from, `pinned: true` the pins alone
   (every one, the ones the index's half could not fit included), `tag:`
@@ -688,7 +688,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
-  # ---- house letters (kumbukumbu #44) ----
+  # ---- house letters (kumbukumbu#44) ----
 
   @doc """
   Sends a house letter from the conversation `session_key` names (its
@@ -718,7 +718,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
-  @doc "A house letter from the oracle to the conversation `session_key` (brain #49); nothing when that conversation has no name."
+  @doc "A house letter from the oracle to the conversation `session_key` (brain#49); nothing when that conversation has no name."
   def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
     case name_of(resident_id, session_key) do
       nil -> {:ok, :no_conversation}
@@ -727,7 +727,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   @doc """
-  The names a house letter can be addressed to (kumbukumbu #44): `house`,
+  The names a house letter can be addressed to (kumbukumbu#44): `house`,
   `Free time` and the Oneiroi chat, which are always there to be written
   to, and the name of every conversation this resident has had. A letter
   to any other name would wait for a reader that never comes.
@@ -806,7 +806,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp addressed(_resident_id, _to), do: :ok
 
   defp sender(_resident_id, nil, %Actor{kind: :witness}), do: {:ok, "witness"}
-  # The oracle's landing notice (brain #49): the platform, writing for no
+  # The oracle's landing notice (brain#49): the platform, writing for no
   # conversation of its own.
   defp sender(_resident_id, nil, %Actor{kind: :platform}), do: {:ok, "the oracle"}
 

@@ -73,15 +73,15 @@ task that creates the one account.
   at login and the session or token by hash on a request: the principal
   is not known until they answer. Everything after runs under the
   account's scope. The resident system's adapter lookup by token hash is
-  the third such read (agathos-daimon #16), on the same reasoning.
+  the third such read (agathos-daimon#16), on the same reasoning.
 - **#9 The contract test is the route table.** `OneiroiWeb.ContractTest`
   asserts, per route and per principal kind (anonymous, session, token),
   exactly which answers 200, 401, 403 or 422, and that a mutation from a
   browser without the endpoint's Origin is refused.
 
-- **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir #8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a witness names. Both take the platform scope by name (conventions §12), as #8's two reads do.
+- **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir#8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a witness names. Both take the platform scope by name (conventions §12), as #8's two reads do.
 - **#13 Witnessing follows custody in the event's wire form.** The witnessing handler reads `CustodyTransferred`'s `from` and `to` through `Oneiroi.AgathosDaimon.Custody.from_wire/1`: the first version matched the tuple form against the wire strings and matched nothing, so no transfer ever ended the old witnessing or started the new one, and the old witness's routes kept working on a resident it no longer held. Found by the custody suite in P4, once a transferred resident was read from the new witness's own session; the subscription's community move had the same hole from P2.
-- **#11 The witness's OpenRouter key lives on the account, encrypted
+- **#14 The witness's OpenRouter key lives on the account, encrypted (numbered #11 until 2026-11-03, when the audit found #11 was also "Depends on").
   under the vault.** `KeyStored` carries the vault's ciphertext and is
   redacted from every export like the second factor; storing again is
   the rotation and `KeyRevoked` removes it. The ledger reads it through

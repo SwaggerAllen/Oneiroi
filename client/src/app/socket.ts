@@ -3,13 +3,13 @@ import type { RegressionCard, RunEnd } from '../api/types';
 
 // The streamed conversation (spec §5): the session channel delivers
 // deltas and the turn as it lands. The socket takes a five-minute token
-// from /v1/me/socket-token (brain #6), never the cookie.
+// from /v1/me/socket-token (brain#6), never the cookie.
 export interface ChannelEvents {
   onStarted: (turnRef: string) => void;
   onDelta: (turnRef: string, text: string) => void;
   onTurn: (turnRef: string) => void;
   onFailed: (turnRef: string, reason: string) => void;
-  // What a turn is doing (brain #45): queued, thinking, or tool with its name.
+  // What a turn is doing (brain#45): queued, thinking, or tool with its name.
   onStatus?: (turnRef: string, state: string, detail: { name?: string; ahead?: number } | null) => void;
   // Whether the stream is up: joined, trying, or down. The socket retries
   // by itself; this only says where it stands.
@@ -51,7 +51,7 @@ export function joinSession(token: string, residentId: string, key: string, even
   };
 }
 
-// A regression run as it answers (eunomia #30): the run's channel pushes
+// A regression run as it answers (eunomia#30): the run's channel pushes
 // each card, blind, as the background job records it, then the run's
 // end. Same socket and token flow as the session; grading stays on the
 // HTTP routes. `onJoined` fires once the join is accepted, so the caller

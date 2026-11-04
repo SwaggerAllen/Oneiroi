@@ -29,7 +29,7 @@ defmodule Oneiroi.Seshat.Citations do
   # were in this list, so `<slug>:habit/<n>` never parsed as a citation
   # and their resolver clauses were unreachable; found when the soul
   # lines landed, by the test that cites all three.
-  # `memory` is a target and never a source (seshat #28): the resident
+  # `memory` is a target and never a source (seshat#28): the resident
   # may cite a day of the memory originals, and the originals mint no
   # edge of their own.
   # The record kinds, which are rows and not documents; every document
@@ -173,7 +173,7 @@ defmodule Oneiroi.Seshat.Citations do
   @doc """
   A document's references, each resolved now and the row marked;
   `mark: false` resolves the same and marks nothing, for a read that must
-  write nothing (a regression trial's, eunomia #10).
+  write nothing (a regression trial's, eunomia#10).
   """
   def references(resident_id, path, opts \\ []) do
     rows = Scope.resident(resident_id, fn -> Store.references(path) end)
@@ -190,7 +190,7 @@ defmodule Oneiroi.Seshat.Citations do
   References that resolved once and do not now: every reference with a
   `resolved_at` is resolved again on this read, since resolution is the
   read's and nobody reads a piece whose target quietly went. One resolve
-  per such reference, nightly from the audit (huginn-muninn #15).
+  per such reference, nightly from the audit (huginn-muninn#15).
   """
   def drift(resident_id) do
     rows = Scope.resident(resident_id, fn -> Store.once_resolved() end)
@@ -362,7 +362,7 @@ defmodule Oneiroi.Seshat.Citations do
     ref = ref |> String.split("#") |> hd()
     name = if Path.extname(ref) == "", do: "#{ref}.md", else: ref
     # A keepsake has no folder: `<slug>:keepsake/pocket-andrew` is the
-    # root's `pocket-andrew.md` (seshat #29).
+    # root's `pocket-andrew.md` (seshat#29).
     if kind == "keepsake", do: name, else: "#{kind}/#{name}"
   end
 

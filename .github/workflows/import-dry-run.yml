@@ -1,4 +1,4 @@
-# The import rehearsed (sima-qian #18): a repository imported exactly as
+# The import rehearsed (sima-qian#18): a repository imported exactly as
 # production imports it, backed up once to a local bare remote, on a
 # throwaway Postgres, with no turn and no model call, and the report in
 # the job summary.

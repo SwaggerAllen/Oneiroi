@@ -1,12 +1,12 @@
 defmodule Oneiroi.Brain.Preview do
   @moduledoc """
-  What the resident will see next (brain #41): the witness's preview of
+  What the resident will see next (brain#41): the witness's preview of
   the next turn of a conversation, from `Oneiroi.Brain.Turn.dry_run/5`,
   the turn's own preparation and assembly with nothing after it.
 
   This module decides one thing, what of each section's words the
   witness may read here, and the dyad contract decides which rule it
-  applies (`preview_withholds_words`, agathos-daimon #22). By default,
+  applies (`preview_withholds_words`, agathos-daimon#22). By default,
   the author's decision of 2026-11-01 ("early days, it'll pay to have
   the full text in there"), every section's words ride the answer. Under
   the term, a section's words ride only where the same content is
@@ -188,7 +188,7 @@ defmodule Oneiroi.Brain.Preview do
 
   defp in_full("index", _name),
     do:
-      "The index by recency. The next turn ranks it against your words instead (kumbukumbu #46), which costs an embedding, so a preview cannot show that turn's; once a turn has run, its \"drew on\" list shows what it was given."
+      "The index by recency. The next turn ranks it against your words instead (kumbukumbu#46), which costs an embedding, so a preview cannot show that turn's; once a turn has run, its \"drew on\" list shows what it was given."
 
   defp in_full("character", name),
     do:

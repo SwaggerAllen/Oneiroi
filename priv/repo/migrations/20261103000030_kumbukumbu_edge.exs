@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.KumbukumbuEdge do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # Learned retrieval edges (kumbukumbu #46, design/memory-weighting.md):
+  # Learned retrieval edges (kumbukumbu#46, design/memory-weighting.md):
   # `from → to` reads "when `from` is in play, `to` is worth bringing".
   # A deviation from neutral, decayed lazily from `touched_at`; only an
   # edge ever touched exists. Kept apart from the library's citations,

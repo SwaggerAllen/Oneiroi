@@ -11,7 +11,7 @@ defmodule Oneiroi.Seshat.Commands do
   end
 
   defmodule AdoptDocument do
-    # `provenance` is the originals import's (seshat #28), nil otherwise.
+    # `provenance` is the originals import's (seshat#28), nil otherwise.
     use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :provenance]
   end
 
@@ -27,7 +27,7 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :path, :session_key]
   end
 
-  # The oracle (brain #49, seshat #34): questions dispatched together,
+  # The oracle (brain#49, seshat#34): questions dispatched together,
   # each numbered from the library's oracle sequence; `questions` are
   # `%{question, sources}`, `session_key` the conversation that asked.
   defmodule DispatchOracle do
@@ -42,7 +42,7 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
 
-  # Research (seshat #38): a question for the reader's research pass,
+  # Research (seshat#38): a question for the reader's research pass,
   # with the pages to start from; numbered from the library's research
   # sequence; `session_key` is the conversation told when it lands.
   defmodule AskResearch do

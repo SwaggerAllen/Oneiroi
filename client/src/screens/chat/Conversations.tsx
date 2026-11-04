@@ -11,7 +11,7 @@ export interface ConversationsProps {
   onOpen: (key: string) => void;
 }
 
-// The witness's conversations, apart (kumbukumbu #40): the Oneiroi chat
+// The witness's conversations, apart (kumbukumbu#40): the Oneiroi chat
 // first, then every other conversation grouped under the name the server
 // gave it (a Claude Code conversation's names its folder), groups in the
 // server's order, newest first, each conversation a row of its own with

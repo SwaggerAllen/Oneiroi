@@ -160,7 +160,7 @@ defmodule Oneiroi.SimaQian.Git do
   Fetches exactly `commit` of `remote` into a bare repository made at
   `dir`, one commit deep, and checks the commit is there under its full
   name: the originals import's source, read at the commit the witness
-  pins and never at a branch's head (sima-qian #40). A remote that
+  pins and never at a branch's head (sima-qian#40). A remote that
   carries a token goes through `credentialed/2`, as a clone does.
   """
   @spec fetch_commit(String.t() | Secret.t(), String.t(), Path.t()) :: :ok | {:error, Error.t()}
@@ -199,7 +199,7 @@ defmodule Oneiroi.SimaQian.Git do
 
   @doc """
   The history of `dir`, or of `path` in it, newest first, at most
-  `limit` commits: `%{sha, at, author, subject}` (brain #46, the
+  `limit` commits: `%{sha, at, author, subject}` (brain#46, the
   resident's own repository read by her). A repository with no commit
   yet has no history.
   """

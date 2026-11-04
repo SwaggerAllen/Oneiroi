@@ -15,7 +15,7 @@ defmodule Oneiroi.Xenia.Inbox do
   alias Oneiroi.Xenia.Router
   alias Oneiroi.Xenia.Store
 
-  # A delivery's bound (xenia #10): an adapter sends at most this many
+  # A delivery's bound (xenia#10): an adapter sends at most this many
   # messages in one request, as the spec's mail bound is 40 a morning.
   @batch 40
 
@@ -148,7 +148,7 @@ defmodule Oneiroi.Xenia.Inbox do
   # nothing to research, which waits for the witness to name the sites.
   @default_scrape ["https://substack.com", "https://www.substack.com"]
 
-  @doc "The reader's allowlists: as the witness set them, or the defaults (xenia #16)."
+  @doc "The reader's allowlists: as the witness set them, or the defaults (xenia#16)."
   def reader_sites(resident_id) do
     case Scope.resident(resident_id, fn -> Store.reader_sites() end) do
       nil -> %{scrape: @default_scrape, research: [], set_at: nil}

@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Oneiroi.Import.DryRun do
-  @shortdoc "Rehearses an import on a throwaway store: no turn, no model call (sima-qian #18)"
+  @shortdoc "Rehearses an import on a throwaway store: no turn, no model call (sima-qian#18)"
   @moduledoc """
   `mix oneiroi.import.dry_run --source DIR --name NAME --slug SLUG [--report FILE]`
 

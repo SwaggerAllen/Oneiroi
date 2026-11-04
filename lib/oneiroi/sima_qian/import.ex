@@ -12,7 +12,7 @@ defmodule Oneiroi.SimaQian.Import do
   root is none of those is listed by name as not transferred. The
   import's second half is `ImportCompleted` on the resident's stream,
   and the brain tells the resident where it woke on its first turn
-  (brain #26).
+  (brain#26).
 
   Two things a request value never does here: name a path (the URL
   must carry one of the configured schemes, so a witness cannot clone
@@ -102,7 +102,7 @@ defmodule Oneiroi.SimaQian.Import do
   @spec record_url(String.t()) :: String.t()
   def record_url(url), do: Git.public_url(url)
 
-  @doc "Whether a URL carries one of the configured schemes (sima-qian #16): the import's check, and the originals import's."
+  @doc "Whether a URL carries one of the configured schemes (sima-qian#16): the import's check, and the originals import's."
   @spec scheme_ok(String.t()) :: :ok | {:error, Error.t()}
   def scheme_ok(url) do
     schemes = Config.fetch!(:sima_qian, :import_schemes)
@@ -157,7 +157,7 @@ defmodule Oneiroi.SimaQian.Import do
   # The clone is copied whole so the seeds, the translation and the
   # library read it in place; once the accounting knows what was left
   # behind, `Backup.start_fresh/2` takes the source's `.git` and every
-  # left-behind file out (sima-qian #39).
+  # left-behind file out (sima-qian#39).
   # sobelow_skip ["Traversal.FileModule"]
   defp place(clone, id) do
     dest = Backup.dir(id)
@@ -215,7 +215,7 @@ defmodule Oneiroi.SimaQian.Import do
     end
   end
 
-  # Another platform's records, made into this one's (sima-qian #19):
+  # Another platform's records, made into this one's (sima-qian#19):
   # David's, the one platform whose export this reads, in a repository
   # created here rather than replayed. Read from the working repository
   # the clone became, before the library adopts, so the journal days the
@@ -230,7 +230,7 @@ defmodule Oneiroi.SimaQian.Import do
 
   defp translate(:replayed, _id, _witness_account_id, _actor), do: {:ok, nil}
 
-  # Every file in the clone lands in one place (sima-qian #22): held
+  # Every file in the clone lands in one place (sima-qian#22): held
   # (seeded, proposed, adopted, translated, or an Oneiroi export's own
   # records), or left behind with its reason, a root entry outside the
   # library's folders named once for everything in it. Told only names,
@@ -286,12 +286,12 @@ defmodule Oneiroi.SimaQian.Import do
   end
 
   # A file the library holds or offers: one it adopted, or one of a kind
-  # decided in one by one (seshat #29, #31). What `verify/3` reads.
+  # decided in one by one (seshat#29, #31). What `verify/3` reads.
   defp library?(path, c), do: MapSet.member?(c.adopted, path) or c.decided?.(path)
 
   @doc """
   Holds every file the library took or offers to the source's bytes
-  (sima-qian #45): each one in the placed repository against its blob in
+  (sima-qian#45): each one in the placed repository against its blob in
   the clone's commit, hashed as git hashes a blob with no filter. One
   that differs fails the import, naming it, before the history is made
   the platform's. The lesson of 2026-11-01: the rehearsals compared
@@ -339,7 +339,7 @@ defmodule Oneiroi.SimaQian.Import do
       name in c.identity ->
         :held
 
-      # The state store (agathos-daimon #32) is rendered from the
+      # The state store (agathos-daimon#32) is rendered from the
       # export's own events; the rebuild writes it again.
       name == "STATE.md" and c.export? ->
         :held
@@ -348,7 +348,7 @@ defmodule Oneiroi.SimaQian.Import do
       name in c.read ->
         :held
 
-      # A keepsake (seshat #29) stays where it was placed, beside the
+      # A keepsake (seshat#29) stays where it was placed, beside the
       # soul file, and is offered among the unadopted rather than adopted:
       # each one is decided into the library, never swept in. Pocket
       # Andrew was filed at Lily's root and could only cross under wiki/
@@ -366,7 +366,7 @@ defmodule Oneiroi.SimaQian.Import do
   # `records/` and `honcho/`, named like any root entry. Lily's held
   # David's bookmarks, positions and transcripts under `records/`, and
   # the first reading of this rule left them out without a word; they
-  # are translated now (sima-qian #19), and what in them nothing reads
+  # are translated now (sima-qian#19), and what in them nothing reads
   # is named file by file.
   defp nested("records", path, c) do
     cond do
@@ -391,7 +391,7 @@ defmodule Oneiroi.SimaQian.Import do
       # The library's own words for the folder: "outside the folders the
       # library holds" for a folder it has no kind for, and for a kind
       # it takes only as originals (memory), that the originals import
-      # brings it (seshat #28), so the resident is not told the library
+      # brings it (seshat#28), so the resident is not told the library
       # cannot hold what it can.
       root not in c.folders ->
         {:left, root, library().refusal(path)}
@@ -399,7 +399,7 @@ defmodule Oneiroi.SimaQian.Import do
       MapSet.member?(c.adopted, path) ->
         :held
 
-      # A decided kind's file (the wiki, the system shelf; seshat #31)
+      # A decided kind's file (the wiki, the system shelf; seshat#31)
       # stays where it was and is offered, never swept in.
       c.decided?.(path) ->
         :held

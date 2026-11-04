@@ -1,6 +1,6 @@
 defmodule Oneiroi.Eunomia.RunWorker do
   @moduledoc """
-  A regression run's answering, off the witness's request (eunomia #30):
+  A regression run's answering, off the witness's request (eunomia#30):
   every model x trial of the run, each card broadcast as it is recorded,
   then the run's end. Enqueued by the `run/4` export once `StartRun` is
   recorded. A per-resident job taking the platform scope by
@@ -22,7 +22,7 @@ defmodule Oneiroi.Eunomia.RunWorker do
   @doc """
   Enqueues the answering of a started run.
 
-  An Oban job rather than a task (eunomia #30): the row outlives the
+  An Oban job rather than a task (eunomia#30): the row outlives the
   request and the node, the queue bounds how many runs spend at once,
   and the trace rides the args (`Apsu.Jobs`). One attempt, because a
   second would answer again on the witness's key; a run that stops is

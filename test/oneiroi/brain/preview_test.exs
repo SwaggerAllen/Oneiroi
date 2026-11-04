@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.PreviewTest do
   @moduledoc """
-  What the resident will see next (brain #41): the preview is the turn's
+  What the resident will see next (brain#41): the preview is the turn's
   own assembly as a dry run, section for section and in the same order,
   and it writes nothing, marks nothing, compacts nothing, broadcasts
   nothing and calls no model; its words ride only where the witness

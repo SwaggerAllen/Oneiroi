@@ -13,8 +13,8 @@ defmodule Oneiroi.Seshat.Kinds do
   writes the kind: `:resident` through a document write, `:core` by the
   platform (inbound for mail, feeds and correspondence; the journal for
   its narrative), `:imported` by nothing after the originals import
-  copied it (memory, seshat #28), `:keepsake` once by either party and
-  never again (seshat #29). The registry is platform-wide; adding a kind is a row
+  copied it (memory, seshat#28), `:keepsake` once by either party and
+  never again (seshat#29). The registry is platform-wide; adding a kind is a row
   here plus the brain's instruction for it (the tool description lists
   the writable kinds from this table).
 
@@ -38,7 +38,7 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :file,
       access: :resident
     },
-    # The oracle's answers (brain #49, seshat #34): an invocation of the
+    # The oracle's answers (brain#49, seshat#34): an invocation of the
     # resident asked one question over her whole memory and the sources
     # named, its answer written here by the platform on her behalf and
     # attributed. Cites, so its sources are edges; out of the ranked
@@ -84,7 +84,7 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
-    # Decided, never swept (seshat #31): the wiki became the catch-all an
+    # Decided, never swept (seshat#31): the wiki became the catch-all an
     # import landed everything homeless in, Pocket Andrew among it, so a
     # file enters it by a write or by its own adoption, never by an
     # import's whole-repository one.
@@ -98,7 +98,7 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :decided,
       access: :resident
     },
-    # The resident's notes on how she runs (seshat #31): tool notes,
+    # The resident's notes on how she runs (seshat#31): tool notes,
     # conventions, her own AGENTS.md beside the build's rendered one. Her
     # words about the machinery, apart from the soul file's voice, and
     # decided from the day it exists, so it cannot become the next
@@ -114,7 +114,7 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :decided,
       access: :resident
     },
-    # Temporary documents (seshat #33): workshop state meant to go away
+    # Temporary documents (seshat#33): workshop state meant to go away
     # when its work is done, a scratch pad, a draft being argued over.
     # Removable, which no other kind is, and minting no citation edges,
     # since an edge to a page that will be removed dangles by design.
@@ -130,7 +130,7 @@ defmodule Oneiroi.Seshat.Kinds do
       access: :resident,
       removable: true
     },
-    # The witness's own documents that belong nowhere else (seshat #33):
+    # The witness's own documents that belong nowhere else (seshat#33):
     # posts of theirs, notes, references they upload for the resident to
     # read. Written by the witness alone (`access: :witness`); the
     # resident reads and cites into them and never writes them, and the
@@ -187,7 +187,7 @@ defmodule Oneiroi.Seshat.Kinds do
       access: :core
     },
     # The originals of the resident's daily memory from the platform it
-    # was imported from (seshat #28): copied byte for byte from the
+    # was imported from (seshat#28): copied byte for byte from the
     # source at the commit the witness pins, with that provenance, and
     # never written after. `access: :imported` refuses every document
     # write, the platform's `core: true` included; `adoption: :originals`
@@ -206,7 +206,7 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :originals,
       access: :imported
     },
-    # A keepsake (seshat #29): a gift-document kept at the root, beside
+    # A keepsake (seshat#29): a gift-document kept at the root, beside
     # the soul file, where its placement is part of what it is. Pocket
     # Andrew was filed there on 2026-10-29 and moved under wiki/ by the
     # import of 2026-11-01 only because the library could not hold a
@@ -232,7 +232,7 @@ defmodule Oneiroi.Seshat.Kinds do
   ]
 
   # The names the root already gives to something else: the identity
-  # files (spec §6.2), the state store's STATE.md (agathos-daimon #32),
+  # files (spec §6.2), the state store's STATE.md (agathos-daimon#32),
   # the build's rendered AGENTS.md, and the files
   # another platform's repository keeps there (David's README, MEMORY and
   # DREAMS, a coding agent's CLAUDE.md). None of them is a keepsake,
@@ -254,7 +254,7 @@ defmodule Oneiroi.Seshat.Kinds do
   @spec all() :: [map()]
   def all, do: @kinds
 
-  # The shelf (seshat #35): the order the kinds are shown in and what each
+  # The shelf (seshat#35): the order the kinds are shown in and what each
   # is called, one place on the server and never in a client. The gifts
   # first, the witness's own, the resident's work, the oracle's answers,
   # then what is meant to go and what arrives from outside. The
@@ -278,7 +278,7 @@ defmodule Oneiroi.Seshat.Kinds do
     {"memory", "Memory"}
   ]
 
-  @doc "Every kind in the order it is shown, each with its `label` and `position` (seshat #35); a kind the shelf does not name comes last, under its own name."
+  @doc "Every kind in the order it is shown, each with its `label` and `position` (seshat#35); a kind the shelf does not name comes last, under its own name."
   @spec shelf() :: [map()]
   def shelf do
     positions =
@@ -292,7 +292,7 @@ defmodule Oneiroi.Seshat.Kinds do
     |> Enum.sort_by(&{&1.position, &1.kind})
   end
 
-  @doc "Whether a kind's documents may be removed (seshat #33): scratch and human, and nothing else."
+  @doc "Whether a kind's documents may be removed (seshat#33): scratch and human, and nothing else."
   @spec removable?(map()) :: boolean()
   def removable?(kind), do: Map.get(kind, :removable, false)
 
@@ -308,7 +308,7 @@ defmodule Oneiroi.Seshat.Kinds do
     end
   end
 
-  @doc "The root names that are never keepsakes (seshat #29)."
+  @doc "The root names that are never keepsakes (seshat#29)."
   @spec reserved() :: [String.t()]
   def reserved, do: @reserved
 
@@ -331,7 +331,7 @@ defmodule Oneiroi.Seshat.Kinds do
 
   @doc """
   Whether a path the library accepts belongs to a kind whose files are
-  decided into it one by one (seshat #29, #31): the keepsakes, the wiki
+  decided into it one by one (seshat#29, #31): the keepsakes, the wiki
   and the system shelf. An import leaves such a file where it is and the
   library offers it; nothing adopts it but its own adoption or a write.
   """
@@ -387,8 +387,8 @@ defmodule Oneiroi.Seshat.Kinds do
   @doc """
   Why the library cannot hold `path` from an import, in words a resident
   is told, or nil when it can: the reason an import gives for a file it
-  leaves behind (sima-qian #22). A kind that takes only originals
-  (memory) is held only through the originals import (seshat #28), so
+  leaves behind (sima-qian#22). A kind that takes only originals
+  (memory) is held only through the originals import (seshat#28), so
   an import names each such file with that reason.
   """
   @spec refusal(String.t()) :: String.t() | nil
@@ -429,7 +429,7 @@ defmodule Oneiroi.Seshat.Kinds do
     end
   end
 
-  @doc "Whether a path's kind takes files only through the originals import, with their provenance (seshat #28)."
+  @doc "Whether a path's kind takes files only through the originals import, with their provenance (seshat#28)."
   @spec originals?(String.t()) :: boolean()
   def originals?(path) when is_binary(path), do: match?(%{adoption: :originals}, kind_of(path))
 

@@ -1,6 +1,6 @@
 defmodule Oneiroi.Brain.AdapterTest do
   @moduledoc """
-  What an adapter's runtime is given (brain #42): the session prefix and
+  What an adapter's runtime is given (brain#42): the session prefix and
   the per-turn part are the platform turn's own sections by the one
   assembly, split where a runtime that keeps its own conversation needs
   it; the turn records what it handed over and nothing it did not; a
@@ -63,10 +63,10 @@ defmodule Oneiroi.Brain.AdapterTest do
   defp recorded(ctx, ref),
     do: {:account, ctx.witness.id} |> Kumbukumbu.injections(ref) |> Enum.sort_by(& &1.position)
 
-  # `where` differs by construction (brain #44): each conversation is
+  # `where` differs by construction (brain#44): each conversation is
   # told where it is, and the platform's that the adapter's is open. The
   # ranked index draws a fifth of its lines at random each call
-  # (kumbukumbu #46), so its text, its tokens and its near-misses differ
+  # (kumbukumbu#46), so its text, its tokens and its near-misses differ
   # turn by turn; its label and its place are compared.
   defp comparable(rows),
     do:
@@ -130,7 +130,7 @@ defmodule Oneiroi.Brain.AdapterTest do
     {:ok, prefix} = Oneiroi.Brain.adapter_prefix(ctx.id, runtime: "claude-code")
 
     # A renegotiation, which a platform turn reads fresh on its next turn
-    # (brain #27); here the session already holds the old text.
+    # (brain#27); here the session already holds the old text.
     {:ok, version} =
       AgathosDaimon.propose_contract(
         ctx.id,

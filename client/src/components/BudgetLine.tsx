@@ -1,6 +1,6 @@
 import type { BudgetLine as Line } from '../api/types';
 
-// A line with its spend; "no limit" is a line that has none (nisaba #11).
+// A line with its spend; "no limit" is a line that has none (nisaba#11).
 export function BudgetLine({ line }: { line: Line }) {
   const cap = line.cap === null ? 'no limit' : `$${line.cap} a ${line.period}`;
   const over = line.exceeded;

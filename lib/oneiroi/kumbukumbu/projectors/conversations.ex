@@ -57,7 +57,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     # The rows take the session's account party, read once in the same
     # transaction rather than carried on every message. A private,
     # unshared session's messages are keyed to the resident instead, so
-    # the account scope's policy answers none of them (kumbukumbu #28).
+    # the account scope's policy answers none of them (kumbukumbu#28).
     multi =
       Multi.run(multi, :party, fn repo, _changes ->
         {:ok, party_of(repo, e.session_key, e.resident_id)}
@@ -273,7 +273,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     end)
   end)
 
-  # A revealed wall at a transfer of custody (agathos-daimon #24): every
+  # A revealed wall at a transfer of custody (agathos-daimon#24): every
   # account-keyed row of the resident becomes the new witness's, which is
   # what "revealing it grants read on the earlier sessions" is (spec
   # §6.3): the earlier sessions are whoever's witnessed before, not only

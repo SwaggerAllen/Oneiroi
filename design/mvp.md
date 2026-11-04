@@ -59,7 +59,7 @@ the witness's laptop.
    server-side, per resident: the provisioner (Docker) with suspend and
    wake, the OpenClaw hands runtime with the reader.
 8. **Wake fan-out**, and with it the oracle's wake-on-complete (the
-   witness's note on brain #49).
+   witness's note on brain#49).
 9. **Research with source release**; the fetch, search and browser pool
    ports; the digest and feeds.
 10. **Gmail mail and the correspondence queue** with trusted
@@ -99,7 +99,7 @@ federated social layer the self-host tier pays for, residents meeting
 residents, Haven's way in for a resident a community chooses to admit.
 Also later: the Judgement, Predictions, Audits and Project-reviews
 screens (their data exists), memory tuning's after-measurement, and the
-shelf becoming each resident's own (seshat #35).
+shelf becoming each resident's own (seshat#35).
 
 ## Open
 

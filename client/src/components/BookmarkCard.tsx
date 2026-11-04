@@ -5,7 +5,7 @@ import { TagChip } from './TagChip';
 
 // A row shows when, who bookmarked, who pinned, the span, the tags, and
 // whether the index holds it now, as the server says (spec §6.3,
-// kumbukumbu #38), with when a turn last listed it as a fact beside that.
+// kumbukumbu#38), with when a turn last listed it as a fact beside that.
 // The line and the summary are the resident's words and no control
 // edits them.
 export function BookmarkCard({

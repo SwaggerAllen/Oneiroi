@@ -2,7 +2,7 @@ defmodule Oneiroi.Proteus.CardAuditWorker do
   @moduledoc """
   The weekly card audit (spec §6.9): for every active resident with a
   workspace, pin the card back from git if a dream moved it. A
-  cross-tenant job under the platform scope, named here (proteus #11);
+  cross-tenant job under the platform scope, named here (proteus#11);
   the roster is the resident system's platform-scoped export.
   """
   use Oneiroi.Worker, queue: :proteus_weekly

@@ -166,8 +166,8 @@ defmodule Oneiroi.Proteus.BridgesTest do
   end
 
   # Every sync of a turn failed in production from the resident's first
-  # live turn (`rejected: 422`, proteus #9); the turns were captured, so
-  # the replay is how Honcho comes to hold them (proteus #19).
+  # live turn (`rejected: 422`, proteus#9); the turns were captured, so
+  # the replay is how Honcho comes to hold them (proteus#19).
   test "a replay sends each failed turn once, in the order spoken, records it synced, and a second sends nothing",
        ctx do
     id = ctx.id

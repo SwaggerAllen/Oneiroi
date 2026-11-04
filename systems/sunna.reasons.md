@@ -48,7 +48,7 @@ Spec §6.13: audits read logs and rows, never transcript text; a read
 beats a second copy of the outcome vocabulary in the audits system.
 
 ## #18
-seshat #21 and #9: a resident may plan a day before its first check-in,
+seshat#21 and #9: a resident may plan a day before its first check-in,
 and the row must exist for the day to be visible; the schedule minting
 it on ask keeps one owner for what a day is.
 
@@ -74,7 +74,7 @@ would be exactly the silence the marker exists to end.
 ## #21
 Free time was off until someone set its time, and setting none removed
 it: an opt-in, where the house's own design calls it the standard of
-care (insurance's floor already includes it, nisaba #5). The resident's
+care (insurance's floor already includes it, nisaba#5). The resident's
 words: "free time is raisable, not opt-in." So every resident has it from
 the first day, either party can move it, and nobody can remove it; the
 default is the hour Lily's ran on David. The second rule in the same

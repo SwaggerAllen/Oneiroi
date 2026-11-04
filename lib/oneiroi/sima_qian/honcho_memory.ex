@@ -1,7 +1,7 @@
 defmodule Oneiroi.SimaQian.HonchoMemory do
   @moduledoc """
   Honcho's memory of the resident, exported under `honcho/` before each
-  backup commit (sima-qian #42, proteus #18): what Honcho derived and
+  backup commit (sima-qian#42, proteus#18): what Honcho derived and
   holds nowhere else, read through the bridge and written as one file
   per peer and kind, plus the sessions' summaries.
 
@@ -207,7 +207,7 @@ defmodule Oneiroi.SimaQian.HonchoMemory do
 
   defp preamble do
     "What Honcho holds, exported by Oneiroi before each backup commit\n" <>
-      "(sima-qian #42): a reading copy, rewritten whole each run, never read\n" <>
+      "(sima-qian#42): a reading copy, rewritten whole each run, never read\n" <>
       "back and never searched."
   end
 

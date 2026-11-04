@@ -71,7 +71,7 @@ export const DrewOnOpen: Story = {
   },
 };
 
-// Under the contract's term (brain #41): words where the witness reads
+// Under the contract's term (brain#41): words where the witness reads
 // them elsewhere, a note in their place otherwise.
 const preview: ContextPreview = {
   description:
@@ -129,7 +129,7 @@ const paged: Message[] = Array.from({ length: 12 }, (_, i) => ({
 }));
 export const Unread: Story = { args: { messages: paged, more: true, onOlder: () => undefined, lastRead: '6:0', onRead: () => undefined } };
 
-// A Claude Code conversation (kumbukumbu #40): read here, answered
+// A Claude Code conversation (kumbukumbu#40): read here, answered
 // there, with its replies' inspector and no composer or preview.
 export const ReadOnly: Story = {
   args: {
@@ -137,7 +137,7 @@ export const ReadOnly: Story = {
     onPreview: () => undefined,
     injections: {
       t1: [
-        { label: 'where', tokens: 60, reason: 'where this conversation is (kumbukumbu #42)', position: 0, text: 'This conversation is in Claude Code, in the folder Oneiroi.' },
+        { label: 'where', tokens: 60, reason: 'where this conversation is (kumbukumbu#42)', position: 0, text: 'This conversation is in Claude Code, in the folder Oneiroi.' },
         { label: 'index', tokens: 40, reason: 'the bookmark index under 1500 tokens: 1 listed, 0 left out', position: 1, text: '#1 2026-10-26 the garden' },
       ],
     },
@@ -154,7 +154,7 @@ export const Sending: Story = {
   },
 };
 
-// The stream is down (brain #45): the dot says so, and a message that
+// The stream is down (brain#45): the dot says so, and a message that
 // never reached the server waits under its own ref with Retry.
 export const Offline: Story = {
   args: {

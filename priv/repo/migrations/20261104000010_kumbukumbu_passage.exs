@@ -2,7 +2,7 @@ defmodule Oneiroi.Repo.Migrations.KumbukumbuPassage do
   use Ecto.Migration
   import Oneiroi.Migration
 
-  # The transcripts by meaning (kumbukumbu #49, the resident's letter
+  # The transcripts by meaning (kumbukumbu#49, the resident's letter
   # #26): each user and assistant message cut into passages and embedded
   # at the library's width, keyed by the message's own key and the
   # passage's place in it. Derived rows, rebuilt from the messages.

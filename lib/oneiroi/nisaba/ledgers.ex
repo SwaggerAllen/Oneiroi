@@ -211,7 +211,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   # The adapters answer sited errors; they pass. A reply a test scripts
   # in the port's older tagged shape (`Fake.script/2`) is wrapped here,
   # once, as the adapter would have answered it: the status and the
-  # provider's words kept, since the brain shows them (brain #39), and
+  # provider's words kept, since the brain shows them (brain#39), and
   # anything else of the reason only by its class.
   defp taxonomy({:error, %Error{}} = failed), do: failed
 

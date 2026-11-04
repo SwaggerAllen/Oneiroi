@@ -601,7 +601,7 @@ function Answer({ card }: { card: RegressionCard }) {
   );
 }
 
-// How the answer was reached (eunomia #31): the trial's tool calls in
+// How the answer was reached (eunomia#31): the trial's tool calls in
 // the order she made them, collapsed under the answer so the deck stays
 // a deck. Nothing shows for an empty trace, because an empty one is
 // also every card recorded before traces were kept, and "no tools were

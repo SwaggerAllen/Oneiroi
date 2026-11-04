@@ -121,7 +121,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
   end
 
   # The events as recorded, re-keyed to the new resident, each into the
-  # stream its line names (sima-qian #20); the serializer upcasts an
+  # stream its line names (sima-qian#20); the serializer upcasts an
   # older version on read, so the data is written as the file holds it
   # and never reshaped here. A name outside the exported streams is
   # refused before anything is written: a repository is a request value,

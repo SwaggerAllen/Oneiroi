@@ -131,10 +131,10 @@ defmodule Oneiroi.Brain.TurnTest do
     rows = Kumbukumbu.injections({:account, ctx.witness.id}, ref)
     [index] = Enum.filter(rows, &(&1.label == "index"))
 
-    # Ranked by nearness (kumbukumbu #46): the greenhouse comes first, and
+    # Ranked by nearness (kumbukumbu#46): the greenhouse comes first, and
     # it was the seed the edges are read from.
     assert index.text =~ ~r/\A#1 2026-10-26 the greenhouse thermometer broke/
-    assert index.reason =~ "the ranked index (kumbukumbu #46)"
+    assert index.reason =~ "the ranked index (kumbukumbu#46)"
 
     # The madeleine reaches past what the index returned: never #1 now.
     for recall <- Enum.filter(rows, &(&1.label == "madeleine")) do
@@ -144,7 +144,7 @@ defmodule Oneiroi.Brain.TurnTest do
     assert {:ok, %{last_indexed_at: %DateTime{}}, _span} = Kumbukumbu.bookmark(id, 1)
   end
 
-  # The duplicate of 2026-11-03 (kumbukumbu #47): a deploy's overlap, or a
+  # The duplicate of 2026-11-03 (kumbukumbu#47): a deploy's overlap, or a
   # session process restarted mid-turn, left the new process's memory
   # empty while the first turn still ran, and the client's retry under
   # the same ref ran a second turn. The claim is on the stream.

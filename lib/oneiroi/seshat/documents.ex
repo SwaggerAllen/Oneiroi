@@ -9,7 +9,7 @@ defmodule Oneiroi.Seshat.Documents do
   sees the file at once rather than tomorrow.
 
   Who writes: either party, through a document write, into a kind the
-  registry marks `:resident`, and a keepsake once (seshat #29); the
+  registry marks `:resident`, and a keepsake once (seshat#29); the
   platform's kinds (mail, feeds, correspondence, the journal) are
   refused here and written by their systems. Publishing is the
   witness's (spec §10's Library screen).
@@ -95,13 +95,13 @@ defmodule Oneiroi.Seshat.Documents do
 
   @doc """
   Adopts every unadopted file under the kinds' folders and runs the index
-  once: the library half of an import (sima-qian #15). A path the
+  once: the library half of an import (sima-qian#15). A path the
   library cannot name (a segment the registry refuses) is skipped and
   returned, so the import can say it did not transfer; the index runs
   once over everything adopted rather than once per file, because an
   import of a repository with hundreds of files is the case this exists
   for and each run reads every document row. A file of a decided kind
-  (a keepsake, the wiki, the system shelf; seshat #29, #31) is never
+  (a keepsake, the wiki, the system shelf; seshat#29, #31) is never
   adopted here: it stays on offer in `unadopted/1`, to be decided into
   the library one by one.
   """
@@ -118,7 +118,7 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   @doc """
-  Registers the files the originals import copied (seshat #28), each
+  Registers the files the originals import copied (seshat#28), each
   `%{path, provenance}` with the provenance `%{source, commit, path,
   blob}`, as found on disk, and runs the index once when any was new. A
   path registered already is no event, so a run at the same commit
@@ -206,7 +206,7 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  # The keepsakes' files at the root, registered or not (seshat #29).
+  # The keepsakes' files at the root, registered or not (seshat#29).
   # sobelow_skip ["Traversal.FileModule"]
   defp keepsakes_at(dir) do
     case File.ls(dir) do
@@ -315,11 +315,11 @@ defmodule Oneiroi.Seshat.Documents do
   def publish(_resident_id, _path, _url, %Actor{}),
     do: {:error, Error.new(:seshat_not_the_witness, :seshat_documents_publish_witness_only)}
 
-  @doc "The keepsakes, by name: each row with its note, the resident's why, when she has given one (seshat #32)."
+  @doc "The keepsakes, by name: each row with its note, the resident's why, when she has given one (seshat#32)."
   def keepsakes(resident_id),
     do: resident_id |> list() |> Enum.filter(&(&1.kind == "keepsake")) |> Enum.sort_by(& &1.path)
 
-  @doc "Records why a keepsake mattered, in the resident's words (seshat #32)."
+  @doc "Records why a keepsake mattered, in the resident's words (seshat#32)."
   def note_keepsake(resident_id, path, note, %Actor{} = actor) do
     with {:ok, path} <- normalize(path),
          {:ok, _} <-
@@ -353,7 +353,7 @@ defmodule Oneiroi.Seshat.Documents do
     do: Scope.resident(resident_id, fn -> Store.discussions(path) end)
 
   @doc """
-  Removes a document of a removable kind (seshat #33): the act is an
+  Removes a document of a removable kind (seshat#33): the act is an
   event with its actor, the file leaves the repository, and the index
   forgets its chunks. A scratch document is either party's to remove; a
   human one only the witness's, as only the witness writes it.
@@ -413,7 +413,7 @@ defmodule Oneiroi.Seshat.Documents do
     with :ok <- witness_only(kind, by, core?), do: kind_writable(kind, path, core?)
   end
 
-  # The witness's own (seshat #33): the resident reads them, never writes them.
+  # The witness's own (seshat#33): the resident reads them, never writes them.
   defp witness_only(%{access: :witness} = kind, by, false) when by != :witness,
     do:
       {:error,
@@ -444,7 +444,7 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  # A keepsake is written once (seshat #29): a file already at its name,
+  # A keepsake is written once (seshat#29): a file already at its name,
   # registered or found there, is kept as it is unless the write is the
   # same bytes, which changes nothing. The aggregate refuses a changed
   # hash for a registered one too; this also covers a gift put at the

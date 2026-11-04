@@ -86,7 +86,7 @@ oneiroi_api() {
 
 # The folder this Claude Code session works in, by its base name alone:
 # what the witness's list and her context call the conversation
-# (kumbukumbu #40). Taken from the payload's `cwd`, else the project
+# (kumbukumbu#40). Taken from the payload's `cwd`, else the project
 # directory Claude Code exports to hooks, and kept once, so the name a
 # conversation opens with is the one it keeps. The full path never
 # leaves this machine: it names the account and everything above the
@@ -107,7 +107,7 @@ oneiroi_label() {
 # one conversation on Oneiroi, never the Oneiroi chat. The body says
 # `main` because a server from before the adapter kind refuses any other
 # word from an adapter; a server since opens an adapter's token's
-# session as its own kind whatever the body says (kumbukumbu #40), and
+# session as its own kind whatever the body says (kumbukumbu#40), and
 # reads the folder's name and the runtime from it.
 oneiroi_session_key() {
   local state="$1" out status

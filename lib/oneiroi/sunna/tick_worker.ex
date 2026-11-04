@@ -5,7 +5,7 @@ defmodule Oneiroi.Sunna.TickWorker do
   model call, once an hour), then fire what is due within the late
   window, miss what is later, defer what falls in quiet hours, and run
   free time at its time. A cross-tenant job under the platform scope,
-  named here (sunna #11). Replay-safe: every outcome is an event the
+  named here (sunna#11). Replay-safe: every outcome is an event the
   aggregate takes once, so two ticks on one minute fire once.
   """
   use Oneiroi.Worker, queue: :sunna_tick, unique: [period: 30]
@@ -70,7 +70,7 @@ defmodule Oneiroi.Sunna.TickWorker do
   end
 
   # Every resident has free time, at the slots set or the default
-  # (sunna #21, #22), so a resident nobody configured still gets it. A
+  # (sunna#21, #22), so a resident nobody configured still gets it. A
   # slot runs once a day; a day recorded before slots (slot nil) had its
   # one free time and runs no other.
   defp free_time(resident_id, settings, local, day) do

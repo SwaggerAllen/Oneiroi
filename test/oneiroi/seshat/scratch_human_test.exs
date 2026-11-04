@@ -1,5 +1,5 @@
 defmodule Oneiroi.Seshat.ScratchHumanTest do
-  @moduledoc "Two kinds (seshat #33): scratch/ holds temporary workshop state the resident writes and removes; human/ holds the witness's own documents, which the resident reads and never writes. Only these two are removable, and the removal is recorded with its actor."
+  @moduledoc "Two kinds (seshat#33): scratch/ holds temporary workshop state the resident writes and removes; human/ holds the witness's own documents, which the resident reads and never writes. Only these two are removable, and the removal is recorded with its actor."
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
