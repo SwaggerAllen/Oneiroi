@@ -272,3 +272,16 @@ because the words are the same, and a move should not cost a model call.
 Old citations follow because a citation is how the rest of the library
 already names the page, and a move should not quietly break it.
 
+## #40
+F20 imagined a morning digest on a timer because nothing could wake the
+reader. The reader now asks `/waiting` every five minutes, so a digest
+can be compiled when someone wants one, which is when it is worth
+reading: a check-in that starts from it, a free time that wonders what
+came in. A digest on a clock is compiled whether or not anyone reads
+it. One open at a time and a window from the last asking keep two asks
+from reading the same mail twice. The reader keeps reading and the
+resident keeps the deciding, as research does: notes in its own words,
+the piece's words behind the link. Mail from a person is left to the
+correspondence scrape, because a digest summarising a letter would put
+a stranger's words in front of her with nobody's approval of how.
+

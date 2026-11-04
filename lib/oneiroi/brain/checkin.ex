@@ -23,6 +23,7 @@ defmodule Oneiroi.Brain.Checkin do
   def part(resident_id, "research"), do: research(resident_id)
   def part(resident_id, "letters"), do: letters(resident_id)
   def part(resident_id, "needs_you"), do: needs_you(resident_id)
+  def part(resident_id, "digest"), do: digest(resident_id)
   def part(_resident_id, _key), do: nil
 
   defp plan(resident_id) do
@@ -114,6 +115,24 @@ defmodule Oneiroi.Brain.Checkin do
 
       %{replies: n} ->
         "# Waiting on the person who looks after you\n\n#{n} reply draft(s) to approve."
+    end
+  end
+
+  # The one part that does something: it asks the reader for a digest
+  # from the chat (seshat#40), whose letter wakes the chat when it lands.
+  defp digest(resident_id) do
+    with {:ok, row} <- Oneiroi.AgathosDaimon.fetch(resident_id),
+         {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, Actor.platform()),
+         {:ok, n, state} <-
+           Seshat.ask_digest(resident_id, key, Actor.new(:job, "sunna_checkin")) do
+      said =
+        if state == :asked,
+          do: "Asked of the reader as digest ##{n}",
+          else: "Digest ##{n} was already asked and is not compiled yet"
+
+      "# Digest\n\n#{said}; it lands under feeds/digests/ and a letter tells this chat when it is compiled."
+    else
+      _failed -> "# Digest\n\nCould not be asked of the reader just now; digest_ask asks again."
     end
   end
 

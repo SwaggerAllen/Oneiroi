@@ -106,6 +106,50 @@ wait_for_work() {
   if [ "${asked:-0}" -gt 0 ]; then
     say "$asked research question(s) open"
     research
+    rmdir "$STATE/lock" 2>/dev/null
+  fi
+  if [ "$(jq -r '(.digests // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
+    say "a digest is asked"
+    digest
+  fi
+}
+
+# The digest (seshat#40): asked, never on a clock. What reached her
+# mailbox since the instant Oneiroi gives (newsletters, Substack's posts
+# and notes, what she subscribes to), read through the Gmail connector
+# and, for a post's page, the correspondence allowlist; a summary and an
+# item per piece, in the reader's words. Tried twice, then said failed.
+digest() {
+  local number since status tries
+  lock
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/digests" "" "$OUT")"
+  [ "$status" = 200 ] || { say "Oneiroi answered $status to the digests"; return 0; }
+  number="$(jq -r '.[0].number // empty' "$OUT")"
+  [ -n "$number" ] || return 0
+  since="$(jq -r '.[0].since' "$OUT")"
+  jq -n --arg since "$since" --arg email "${EMAIL_ACCOUNT:-}" --arg substack "${SUBSTACK_ACCOUNT:-}" \
+    '{since: $since, email_account: $email, substack_account: $substack}' > "$WORK/digest.json"
+  rm -f "$WORK/digested.json"
+
+  model digest "Read(/work/digest.json),Write(/work/digested.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" \
+    "$SCRAPE_ORIGINS" browser-profile "${ONEIROI_READER_DIGEST_TURNS:-150}" ||
+    say "the digest run ended badly"
+
+  if jq -e '(.summary | type == "string") and (.items | type == "array")' "$WORK/digested.json" > /dev/null 2>&1; then
+    jq '{summary, items: [.items[] | {source, title, link, notes}]}' "$WORK/digested.json" > "$OUT.body"
+    status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/digests/$number/answer" "$OUT.body" "$OUT")"
+    rm -f "$OUT.body"
+    say "digest #$number compiled; Oneiroi answered $status"
+  else
+    tries="$(( $(grep -c "^$number\$" "$STATE/digest-tries" 2>/dev/null || echo 0) + 1 ))"
+    echo "$number" >> "$STATE/digest-tries"
+    say "digest #$number not compiled (try $tries of 2)"
+    if [ "$tries" -ge 2 ]; then
+      jq -n '{reason: "the reader ran twice and wrote no digest"}' > "$OUT.body"
+      status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/digests/$number/failed" "$OUT.body" "$OUT")"
+      rm -f "$OUT.body"
+      say "digest #$number said failed; Oneiroi answered $status"
+    fi
   fi
 }
 
@@ -263,5 +307,6 @@ case "${1:-}" in
   send) setup && sites && send ;;
   scrape) setup && sites && scrape ;;
   research) setup && sites && research ;;
-  *) echo "usage: reader.sh wait|send|scrape|research|login" >&2; exit 2 ;;
+  digest) setup && sites && digest ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|digest|login" >&2; exit 2 ;;
 esac

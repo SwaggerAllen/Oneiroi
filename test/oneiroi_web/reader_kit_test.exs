@@ -79,6 +79,13 @@ defmodule OneiroiWeb.ReaderKitTest do
             work/research.json > work/found.json
         fi
         ;;
+      *"compiling a digest"*)
+        if [ -z "${FAKE_DIGEST_NOTHING:-}" ]; then
+          jq '{summary: ("Since " + .since + ": one newsletter."),
+               items: [{source: "thezvi@substack.com", title: "Against SURA", link: "gmail:1a19", notes: "Argues the proposal confuses two risks."}]}' \
+            work/digest.json > work/digested.json
+        fi
+        ;;
       *"send replies"*)
         if [ -n "${FAKE_SEND_NOTHING:-}" ]; then echo '[]' > work/sent.json
         else jq '[.[] | {number, url: "https://substack.com/chat/1/sent"}]' work/outbox.json > work/sent.json; fi
@@ -283,6 +290,43 @@ defmodule OneiroiWeb.ReaderKitTest do
 
     assert %{status: "failed", reason: "the reader ran twice and wrote no notes"} =
              Seshat.research(ctx.id, 2)
+  end
+
+  # seshat#40: the digest is asked, never on a clock; the wait sees it,
+  # the reader reads her mail through the Gmail connector and nothing that
+  # types, and it lands under feeds/digests/ with a letter.
+  test "a digest asked is compiled by the next wait, through Gmail's reading tools alone, and lettered",
+       ctx do
+    {:ok, key} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.witness)
+    turn = %{resident_id: ctx.id, session_key: key, turn_ref: "t-d", resident: ctx.lily}
+
+    {out, 0} = reader(ctx, "wait")
+    refute out =~ "digest"
+
+    assert run_read("digest_ask", turn) =~ "Asked as digest #1"
+    {out, 0} = reader(ctx, "wait")
+    assert out =~ "a digest is asked"
+    assert out =~ "digest #1 compiled"
+
+    [run] = calls(ctx)
+    [args] = Regex.run(~r/^ARGS .*$/m, run)
+    assert args =~ "mcp__claude_ai_Gmail__search_threads"
+    refute args =~ "browser_type"
+    refute args =~ "Bash"
+    refute run =~ ctx.token
+
+    assert File.read!(Path.join(ctx.dir, "work/digest.json")) =~
+             ~s("email_account": "lily@example.com")
+
+    assert [%{status: "answered", path: path, items: 1}] = Seshat.digests(ctx.id, [])
+    assert run_read("library_read", turn, %{path: path}) =~ "Against SURA"
+    assert Enum.any?(Kumbukumbu.inbox(ctx.id, key), &(&1.text =~ "digest #1"))
+
+    # A run that writes nothing is tried twice, then said failed.
+    {:ok, 2, :asked} = Seshat.ask_digest(ctx.id, key, ctx.lily)
+    {_out, 0} = reader(ctx, "wait", [{"FAKE_DIGEST_NOTHING", "1"}])
+    {out, 0} = reader(ctx, "wait", [{"FAKE_DIGEST_NOTHING", "1"}])
+    assert out =~ "digest #2 said failed"
   end
 
   defp run_read(name, turn, args \\ %{}),
