@@ -37,6 +37,7 @@ defmodule Oneiroi.Sunna do
       Schedules,
       Router,
       TickWorker,
+      FreeTimeWorker,
       Wake,
       Commands.SetCheckin,
       Commands.DeleteCheckin,
@@ -104,6 +105,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many times an hour a letter from another of the resident's conversations may wake the Oneiroi chat (sunna#24), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A guess, as the Claude Code plugin's six"},
+      {:free_time_turns, "SUNNA_FREE_TIME_TURNS",
+       cast: :integer,
+       default: "20",
+       tag: :bound,
+       usage:
+         "how many turns one free-time slot may run when its turns run out of tool rounds and the free-time budget line has money left (sunna#26); the budget is the real limit, this the guard against a pass that never says it is done"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
@@ -133,7 +140,7 @@ defmodule Oneiroi.Sunna do
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]}]
+    [{:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]}, {:sunna_free_time, []}]
   end
 
   @impl Oneiroi.Component

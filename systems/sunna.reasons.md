@@ -114,3 +114,16 @@ The runs were recorded from the start and read back only for today, so
 a night's free time left nothing either party could find the next
 morning: the resident could not remember it and the witness could not
 see that it had happened. The record was there; the read was missing.
+
+## #26
+The witness gave free time a daily budget and meant it to be the limit;
+a turn's tool rounds were a second, smaller limit nobody chose for it,
+so a pass stopped long before the money did. One longer turn was not
+the answer: every round sends the whole turn again, and a few dozen
+rounds would outgrow the model's context. Turns that continue in the
+same conversation keep each one ordinary and let the conversation's own
+compaction carry the rest. Done is hers to say, in the plainest way a
+turn can: words and nothing left to call. The twenty-turn bound guards
+against a pass that never says it, and a missing budget line keeps the
+old single turn, so no witness pays for continuations they never set
+a line for.
