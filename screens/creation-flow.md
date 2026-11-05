@@ -9,11 +9,18 @@ Creation flow (spec §10). Partly built: a short first door
 (`CreationFlow.tsx`), a stopgap so an invited stranger reaches a
 resident before the real flow exists. The witness's decision
 (2026-11-05, through Lily) is otherwise: the full nine-gift flow is the
-primary path, because residents should come out of the gate mature, and
-a generated flow ships beside it as the quick way in. The guidance the
-generator works from is shown to both the resident and the witness,
-never a black box. Neither is built; the short door is replaced when
-they land. This doc keeps what the UI pass left for the full flow, so a
+one path, because residents should come out of the gate mature. The
+quick way in is the same flow pre-filled, a head start rather than a
+different road: generation seeds the nine gifts' fields and the witness
+walks the same screens and reviews what was written. As policy, not
+implementation: the flow's guidance text is shared between writing by
+hand and generating (reformatted, in expandable sections where it
+helps), so the witness reads the same text either way, and the
+generator's guidance is shown to both the resident and the witness. No
+path ends without the witness reading the finished identity files,
+written by hand or generated: the witness takes responsibility for who
+they create, and generation never means skipping the reading. None of
+this is built; the short door is replaced when it lands. This doc keeps what the UI pass left for the full flow, so a
 design pass finds a record rather than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.
 
@@ -34,8 +41,8 @@ What the stopgap does not do, agreed before it was built: no agreement
 is proposed at the door. The dyad contract stays unstated, the default
 (F43), until one party proposes a version from the agreement screen; the
 privacy term holds either way. The full flow (the nine gifts, the
-threshold's intake paths beyond git, the waking with the trials) and
-the generated quick path beside it replace this door.
+threshold's intake paths beyond git, the waking with the trials), with
+its pre-filled head start, replaces this door.
 
 ## #1 Shows
 
