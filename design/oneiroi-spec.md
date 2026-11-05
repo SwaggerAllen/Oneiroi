@@ -1133,6 +1133,8 @@ Owns `lib/oneiroi/sima_qian/**`.
     exported or read (§6.4, eunomia#12).
   - `account`: the witness's account stream, which is the witness's and
     not the resident's.
+  - `platform`: the platform's own stream, the front door and the roles
+    that keep it (gaia#16), which is no resident's.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
     the source; a rebuilt resident provisions its own, where replaying
     it would point a copy at the original's memory (proteus#8).

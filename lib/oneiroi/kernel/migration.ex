@@ -48,12 +48,18 @@ defmodule Oneiroi.Migration do
         :both ->
           Ecto.Migration.add(:resident_id, :binary_id, null: false)
           Ecto.Migration.add(:account_id, :binary_id, null: false)
+
+        # The platform's own records (gaia#16): the front door and who may
+        # open it belong to no account and no resident, so the table has
+        # no tenant column and only the platform scope reads it.
+        :platform ->
+          :ok
       end
     end
   end
 
   @doc "The row-level security statements for a table under `scope`, in order."
-  @spec policy_statements(atom(), :resident | :account | :both) :: [String.t()]
+  @spec policy_statements(atom(), :resident | :account | :both | :platform) :: [String.t()]
   def policy_statements(table, scope) do
     [
       ~s|ALTER TABLE "#{table}" ENABLE ROW LEVEL SECURITY|,
@@ -66,6 +72,7 @@ defmodule Oneiroi.Migration do
   defp predicate(:resident), do: "#{platform()} OR #{resident()}"
   defp predicate(:account), do: "#{platform()} OR #{account()}"
   defp predicate(:both), do: "#{platform()} OR #{resident()} OR #{account()}"
+  defp predicate(:platform), do: platform()
 
   defp platform, do: "current_setting('oneiroi.scope', true) = 'platform'"
 

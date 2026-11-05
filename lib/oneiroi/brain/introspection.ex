@@ -27,7 +27,7 @@ defmodule Oneiroi.Brain.Introspection do
 
   # Never listed or searched: a repository's own machinery and a build's
   # leftovers, which are not the code or the record.
-  @skipped ~w(.git _build deps node_modules storybook-static cover .elixir_ls)
+  @skipped ~w(.git _build _build.nosync deps node_modules storybook-static cover .elixir_ls)
 
   # Bounds (brain#46): a search answers at most this many hits and reads
   # files up to this size; a page is the library's read size.

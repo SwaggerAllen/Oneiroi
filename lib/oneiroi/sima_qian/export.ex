@@ -63,6 +63,7 @@ defmodule Oneiroi.SimaQian.Export do
     "regression" =>
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
     "account" => {:stream, "the witness's account, not the resident's"},
+    "platform" => {:stream, "the platform's front door and roles, no resident's (gaia#16)"},
     "honcho" =>
       {:stream,
        "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus#8), where replaying this would point a copy at the original's memory"},

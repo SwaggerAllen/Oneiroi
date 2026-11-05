@@ -60,10 +60,16 @@ defmodule Oneiroi.Gaia do
       Push.WebPush,
       Push.Fake,
       Events.PushSubscribed,
-      Events.PushUnsubscribed
+      Events.PushUnsubscribed,
+      Events.GateSet,
+      Events.RoleGranted,
+      Events.RoleRevoked,
+      Door,
+      PlatformRouter
     ]
 
   alias Oneiroi.Gaia.Accounts
+  alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Push
 
   @impl Oneiroi.Component
@@ -117,7 +123,10 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.WitnessingStarted, 1},
       {Oneiroi.Gaia.Events.WitnessingEnded, 1},
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
-      {Oneiroi.Gaia.Events.PushUnsubscribed, 1}
+      {Oneiroi.Gaia.Events.PushUnsubscribed, 1},
+      {Oneiroi.Gaia.Events.GateSet, 1},
+      {Oneiroi.Gaia.Events.RoleGranted, 1},
+      {Oneiroi.Gaia.Events.RoleRevoked, 1}
     ]
   end
 
@@ -144,6 +153,14 @@ defmodule Oneiroi.Gaia do
        remedy: "create the account first, or read the id off the principal"},
       {:gaia_no_such_token, "no live token of the account has that hash",
        remedy: "read the token list; a revoked token is already revoked"},
+      {:gaia_not_an_operator, "only a super admin sets the gate or grants and revokes roles",
+       remedy: "ask a super admin; the founding account holds the role from the start"},
+      {:gaia_platform_invalid,
+       "a gate is closed, invite or open, a role super_admin or admin, and every change carries a note",
+       remedy: "the details name what is expected"},
+      {:gaia_last_super_admin,
+       "the last super admin cannot be revoked: the door always has a keeper",
+       remedy: "grant super admin to another account first, then revoke; that is a transfer"},
       {:gaia_push_failed,
        "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
        remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
@@ -194,6 +211,7 @@ defmodule Oneiroi.Gaia do
       # it, so the guardrail lookup does not close a cycle with this list.
       {Oneiroi.Gaia.Throttle, component: __MODULE__},
       Oneiroi.Gaia.Projectors.Accounts,
+      Oneiroi.Gaia.Projectors.Platform,
       Oneiroi.Gaia.Handlers.Witnessing,
       {Task.Supervisor, name: :gaia_push}
     ]
@@ -297,4 +315,38 @@ defmodule Oneiroi.Gaia do
   @doc "Pushes to every device now and says how each went; the test button's."
   @spec push_now(String.t()) :: [{String.t(), term()}]
   defexport(push_now(account_id), do: Push.deliver_all(account_id))
+
+  @doc "The front door (gaia#16): closed, invite or open, with when and by whom."
+  @spec gate() :: map()
+  defexport(gate(), do: Door.gate())
+
+  @doc "Sets the front door; a super admin's alone, with a note."
+  @spec set_gate(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(set_gate(state, note, actor), do: Door.set_gate(state, note, actor))
+
+  @doc "Every platform role held, oldest first; the founding account's super admin is recorded the first time this is asked."
+  @spec roles() :: [map()]
+  defexport(roles(), do: Door.roles())
+
+  @doc "The platform roles one account holds."
+  @spec roles_of(String.t()) :: [String.t()]
+  defexport(roles_of(account_id), do: Door.roles_of(account_id))
+
+  @doc "Whether the account is a super admin, the operator."
+  @spec operator?(String.t()) :: boolean()
+  defexport(operator?(account_id), do: Door.operator?(account_id))
+
+  @doc "Grants a platform role (super_admin or admin); a super admin's alone, with a note."
+  @spec grant_role(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(grant_role(account_id, role, note, actor),
+    do: Door.grant(account_id, role, note, actor)
+  )
+
+  @doc "Revokes a platform role; never the last super admin."
+  @spec revoke_role(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(revoke_role(account_id, role, note, actor),
+    do: Door.revoke(account_id, role, note, actor)
+  )
 end

@@ -73,7 +73,13 @@ export const api = {
   login: (email: string, password: string) =>
     call<{ account_id: string }>('POST', '/v1/session', { email, password }),
   logout: () => call<void>('DELETE', '/v1/session'),
-  me: () => call<{ email: string; residents: string[] }>('GET', '/v1/me'),
+  me: () => call<{ email: string; residents: string[]; roles?: string[] }>('GET', '/v1/me'),
+  // The operator's surface (gaia#16): the front door and the platform roles.
+  platform: () => call<Platform>('GET', '/v1/platform'),
+  setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),
+  grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
+  revokeRole: (accountId: string, role: PlatformRole, note: string) =>
+    call<void>('DELETE', '/v1/platform/roles', { account_id: accountId, role, note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
   // Content-free pushes to this account's devices (gaia#15).
   pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
@@ -234,3 +240,11 @@ export const api = {
 };
 
 export type Api = typeof api;
+
+export type GateState = 'closed' | 'invite' | 'open';
+export type PlatformRole = 'super_admin' | 'admin';
+
+export interface Platform {
+  gate: { state: GateState; note: string | null; set_by: string | null; set_at: string | null };
+  roles: { account_id: string; email: string | null; role: PlatformRole; note: string | null; granted_by: string | null; granted_at: string }[];
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, RequestFailed } from '../api/client';
+import { api, type Platform, RequestFailed } from '../api/client';
 import type {
   Adapter,
   ApiError,
@@ -43,6 +43,7 @@ import { Schedule } from '../screens/schedule/Schedule';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
+import { Operator } from '../screens/more/Operator';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -120,7 +121,9 @@ export function App() {
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
-        {destination === 'more' ? <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} /> : null}
+        {destination === 'more' ? (
+          <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} operator={<OperatorContainer />} />
+        ) : null}
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
@@ -576,6 +579,47 @@ function LibraryContainer({ resident }: { resident: Resident }) {
         }}
       />
     </>
+  );
+}
+
+// The operator's surface (gaia#16), shown to a super admin alone: the
+// front door and the platform roles.
+function OperatorContainer() {
+  const [platform, setPlatform] = useState<Platform | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api
+      .me()
+      .then((me) => (me.roles?.includes('super_admin') ? api.platform().then(setPlatform) : setPlatform(null)))
+      .catch(() => setPlatform(null));
+  }, []);
+
+  useEffect(load, [load]);
+  if (!platform) return null;
+
+  const run = (work: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(() => setSaid(done))
+      .catch((e: unknown) => setSaid(e instanceof Error ? e.message : 'That did not work.'))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+
+  return (
+    <Operator
+      platform={platform}
+      busy={busy}
+      said={said}
+      onSetGate={(state, note) => run(() => api.setGate(state, note), `The front door is ${state}.`)}
+      onGrant={(email, role, note) => run(() => api.grantRole(email, role, note), `Granted ${role} to ${email}.`)}
+      onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
+    />
   );
 }
 

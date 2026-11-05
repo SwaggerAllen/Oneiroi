@@ -24,6 +24,15 @@ notification says only that she wrote, never what. The manifest is
 canonical description lands (the witness's logo workshop, 2026-11-05),
 so the Home Screen shows a snapshot of the page.
 
+For a super admin, an Operator card follows (`Operator.tsx`, gaia#16):
+the front door's state and note, three buttons to set it (closed, invite,
+open), the platform roles held with a Revoke each, and a form to grant a
+role by account email. Every change needs the note typed first; the
+server checks the authority again on each one. It says how a transfer
+goes (grant super admin, then revoke your own) and that the last super
+admin cannot be revoked. Shown only when `/v1/me` names the caller's
+super admin role.
+
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
 opens it: Library, Connections, Ledger, Regression, in that order. Each
