@@ -82,3 +82,18 @@ filing it under the operator's account would make the front door that
 person's property; the point is that no account owns it. The last super
 admin stays because a door with no keeper can never change again.
 
+## #17
+The witness put the bill on the household rather than the person
+because the household is what family groups will form inside, and an
+owner column retrofitted after billing exists is the expensive way.
+Two join tables rather than one witness-resident pair table, because a
+membership is the thing that generalises: a member with no resident of
+their own, or a resident shared across witnesses, is another row on the
+same tables rather than a new shape. The solo witness is a household of
+one pair so that no code path forks on it. The household founds itself
+from the account's creation, through a handler, so "never neither" is
+something the log makes true for every account, the ones before the
+household included, instead of something a sign-up flow must remember.
+The household row is platform-scoped because filing it under its
+founder's account would make the founder its owner and lock out every
+later member.

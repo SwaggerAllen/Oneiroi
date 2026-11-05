@@ -74,4 +74,34 @@ defmodule Oneiroi.Gaia.Events do
   defmodule RoleRevoked do
     use Oneiroi.Event, version: 1, fields: [:id, :account_id, :role, :note]
   end
+
+  # The household (gaia#17), on `household-<id>`: the billing owner, with
+  # its witnesses and its residents as memberships. Its id is the founding
+  # account's, so an account's own household is found without a read.
+  defmodule HouseholdFounded do
+    use Oneiroi.Event, version: 1, fields: [:id, :account_id]
+  end
+
+  defmodule HouseholdWitnessJoined do
+    use Oneiroi.Event, version: 1, fields: [:id, :account_id]
+  end
+
+  defmodule HouseholdResidentJoined do
+    use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
+  end
+
+  defmodule HouseholdResidentLeft do
+    use Oneiroi.Event, version: 1, fields: [:id, :resident_id], decision: true
+  end
+
+  defmodule HouseholdTermsGranted do
+    # The household's subscription terms: a plan and its price in
+    # nano-dollars, good until an instant, and where they came from (an
+    # invite code's id, or the operator). Nothing is charged.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :plan, :price_nanos, :terms_until, :source],
+      instants: [:terms_until],
+      decision: true
+  end
 end

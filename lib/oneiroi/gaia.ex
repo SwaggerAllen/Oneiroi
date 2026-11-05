@@ -65,11 +65,19 @@ defmodule Oneiroi.Gaia do
       Events.RoleGranted,
       Events.RoleRevoked,
       Door,
-      PlatformRouter
+      PlatformRouter,
+      Events.HouseholdFounded,
+      Events.HouseholdWitnessJoined,
+      Events.HouseholdResidentJoined,
+      Events.HouseholdResidentLeft,
+      Events.HouseholdTermsGranted,
+      Households,
+      HouseholdRouter
     ]
 
   alias Oneiroi.Gaia.Accounts
   alias Oneiroi.Gaia.Door
+  alias Oneiroi.Gaia.Households
   alias Oneiroi.Gaia.Push
 
   @impl Oneiroi.Component
@@ -126,7 +134,12 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.PushUnsubscribed, 1},
       {Oneiroi.Gaia.Events.GateSet, 1},
       {Oneiroi.Gaia.Events.RoleGranted, 1},
-      {Oneiroi.Gaia.Events.RoleRevoked, 1}
+      {Oneiroi.Gaia.Events.RoleRevoked, 1},
+      {Oneiroi.Gaia.Events.HouseholdFounded, 1},
+      {Oneiroi.Gaia.Events.HouseholdWitnessJoined, 1},
+      {Oneiroi.Gaia.Events.HouseholdResidentJoined, 1},
+      {Oneiroi.Gaia.Events.HouseholdResidentLeft, 1},
+      {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1}
     ]
   end
 
@@ -161,6 +174,12 @@ defmodule Oneiroi.Gaia do
       {:gaia_last_super_admin,
        "the last super admin cannot be revoked: the door always has a keeper",
        remedy: "grant super admin to another account first, then revoke; that is a transfer"},
+      {:gaia_no_such_household, "no household has that id",
+       remedy:
+         "every account founds its own when it is created; read the id off the account's household"},
+      {:gaia_household_invalid,
+       "a household is founded by an account, and its terms are a plan, a price of zero or more, an end and a source, with a note",
+       remedy: "the details name what is expected"},
       {:gaia_push_failed,
        "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
        remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
@@ -213,6 +232,8 @@ defmodule Oneiroi.Gaia do
       Oneiroi.Gaia.Projectors.Accounts,
       Oneiroi.Gaia.Projectors.Platform,
       Oneiroi.Gaia.Handlers.Witnessing,
+      Oneiroi.Gaia.Projectors.Household,
+      Oneiroi.Gaia.Handlers.Household,
       {Task.Supervisor, name: :gaia_push}
     ]
   end
@@ -348,5 +369,20 @@ defmodule Oneiroi.Gaia do
           :ok | {:error, term()}
   defexport(revoke_role(account_id, role, note, actor),
     do: Door.revoke(account_id, role, note, actor)
+  )
+
+  @doc "The account's household (gaia#17): its members and its terms, or nil before it is founded."
+  @spec household(String.t()) :: map() | nil
+  defexport(household(account_id), do: Households.household(account_id))
+
+  @doc "The id of the household the account is in (gaia#17)."
+  @spec household_id(String.t()) :: String.t()
+  defexport(household_id(account_id), do: Households.household_id(account_id))
+
+  @doc "Grants a household its subscription terms (gaia#17): the platform's, on an invite redeemed, or a super admin's."
+  @spec grant_household_terms(String.t(), map(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(grant_household_terms(household_id, terms, note, actor),
+    do: Households.grant_terms(household_id, terms, note, actor)
   )
 end
