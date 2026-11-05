@@ -26,8 +26,10 @@ defmodule Oneiroi.Brain.Introspection do
   @sealed [~r{\Apriv/prompts/judge_[^/]*\z}]
 
   # Never listed or searched: a repository's own machinery and a build's
-  # leftovers, which are not the code or the record.
-  @skipped ~w(.git _build _build.nosync deps node_modules storybook-static cover .elixir_ls)
+  # leftovers, which are not the code or the record. A build directory
+  # goes by its prefix: a checkout in a synced folder keeps it as
+  # `_build.nosync`, and the sync service leaves copies (`_build 2`).
+  @skipped ~w(.git deps node_modules storybook-static cover .elixir_ls)
 
   # Bounds (brain#46): a search answers at most this many hits and reads
   # files up to this size; a page is the library's read size.
@@ -58,7 +60,7 @@ defmodule Oneiroi.Brain.Introspection do
          {:ok, names} <- File.ls(full) do
       entries =
         names
-        |> Enum.reject(&(&1 in @skipped))
+        |> Enum.reject(&skipped?/1)
         |> Enum.map(fn name ->
           sub = join(rel, name)
 
@@ -138,7 +140,7 @@ defmodule Oneiroi.Brain.Introspection do
       String.starts_with?(String.trim(path), "/") ->
         {:error, Error.new(:brain_path_invalid, :brain_introspection_path_absolute)}
 
-      Enum.any?(segments, &(&1 in ["", ".", ".."] or &1 in @skipped)) ->
+      Enum.any?(segments, &(&1 in ["", ".", ".."] or skipped?(&1))) ->
         {:error, Error.new(:brain_path_invalid, :brain_introspection_path_segment)}
 
       true ->
@@ -173,7 +175,7 @@ defmodule Oneiroi.Brain.Introspection do
       {:ok, names} ->
         names
         |> Enum.sort()
-        |> Enum.reject(&(&1 in @skipped))
+        |> Enum.reject(&skipped?/1)
         |> Stream.flat_map(&files(root, join(rel, &1), scope))
 
       {:error, _} ->
@@ -209,4 +211,6 @@ defmodule Oneiroi.Brain.Introspection do
       _ -> []
     end
   end
+
+  defp skipped?(name), do: name in @skipped or String.starts_with?(name, "_build")
 end

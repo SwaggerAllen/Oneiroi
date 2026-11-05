@@ -18,7 +18,8 @@ defmodule OneiroiWeb.MeController do
       via: Atom.to_string(p.via),
       residents: Oneiroi.Gaia.witnessed_residents(p.account_id),
       key: Oneiroi.Gaia.key_status(p.account_id),
-      roles: Oneiroi.Gaia.roles_of(p.account_id)
+      roles: Oneiroi.Gaia.roles_of(p.account_id),
+      household: Oneiroi.Gaia.household(p.account_id)
     })
   end
 

@@ -84,6 +84,47 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Household do
+    @moduledoc """
+    A household (gaia#17), the billing owner: its founding account and its
+    subscription terms. Platform-scoped, because it belongs to every member
+    and to no one alone; a member reaches it through a membership row.
+    """
+    use Ecto.Schema
+    @primary_key {:id, :binary_id, autogenerate: false}
+    schema "gaia_household" do
+      field(:founded_by, :binary_id)
+      field(:founded_at, :utc_datetime_usec)
+      field(:plan, :string)
+      field(:price_nanos, :integer)
+      field(:terms_until, :utc_datetime_usec)
+      field(:terms_source, :string)
+      field(:terms_note, :string)
+    end
+  end
+
+  defmodule HouseholdWitness do
+    @moduledoc "A witness's membership in a household (gaia#17): the account's own row."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_witness" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:account_id, :binary_id, primary_key: true)
+      field(:joined_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdResident do
+    @moduledoc "A resident's membership in a household (gaia#17): the resident's own row."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_resident" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:joined_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema

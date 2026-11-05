@@ -363,6 +363,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba#3, #11; gaia#14); platform tokens not yet | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia#4, #20) | judgement |
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia#5, #8 to #13; the Regression screen) | judgement |
+| F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes, sign-up and billing reading the terms not yet | identity |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba#15, #17, #18) | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
 | F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos#3 to #11, brain#29) | character |
@@ -491,6 +492,19 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   nothing else. Failed logins slow down rather than lock out.
 - Witnessing is a relation from account to resident with a start and an
   end; the community is a principal of its own for custody.
+- **The household** (gaia#17) is the billing owner from day one: a
+  first-class record with two kinds of membership, its witnesses and its
+  residents, one join table each. Every account founds one when it is
+  created and every resident joins its witness's (never neither); a solo
+  witness with one resident is a household of one pair, the same shape.
+  Custody to another account moves the resident to that account's
+  household. Subscription terms (a plan, a price, an end, where they came
+  from) are granted to the household by the platform, on an invite
+  redeemed, or by a super admin; nothing is charged. Dyads now; members
+  beyond pairs land on the same tables later, and minors with residents
+  are a policy pass of their own. The per-resident subscription (F53)
+  stays the resident's insurance policy and its plan until billing
+  reads the household's terms.
 - **Self-hosted**: one account, created at setup; the same code.
 
 ### 6.2 resident
@@ -1135,6 +1149,8 @@ Owns `lib/oneiroi/sima_qian/**`.
     not the resident's.
   - `platform`: the platform's own stream, the front door and the roles
     that keep it (gaia#16), which is no resident's.
+  - `household`: the household stream, the billing owner and its
+    memberships (gaia#17), which is every member's and no one resident's.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
     the source; a rebuilt resident provisions its own, where replaying
     it would point a copy at the original's memory (proteus#8).

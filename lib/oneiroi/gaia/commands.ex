@@ -65,4 +65,25 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule RevokeRole do
     use Oneiroi.Command, fields: [:id, :account_id, :role, :note]
   end
+
+  # The household stream (gaia#17). `id` is the household's.
+  defmodule FoundHousehold do
+    use Oneiroi.Command, fields: [:id, :account_id]
+  end
+
+  defmodule JoinHouseholdWitness do
+    use Oneiroi.Command, fields: [:id, :account_id]
+  end
+
+  defmodule JoinHouseholdResident do
+    use Oneiroi.Command, fields: [:id, :resident_id]
+  end
+
+  defmodule LeaveHouseholdResident do
+    use Oneiroi.Command, fields: [:id, :resident_id, :note]
+  end
+
+  defmodule GrantHouseholdTerms do
+    use Oneiroi.Command, fields: [:id, :plan, :price_nanos, :terms_until, :source, :note]
+  end
 end
