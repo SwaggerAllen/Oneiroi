@@ -32,9 +32,10 @@ export function slugOf(name: string): string {
   return s.length >= 2 ? s : '';
 }
 
-// The short first door (F3, design/mvp.md item 3; the witness's call
-// through Lily, 2026-11-05): begin someone new or bring someone, a key if
-// the account has none, and in. The nine gifts arrive as they settle.
+// A stopgap short door (F3, design/mvp.md item 3): new or brought, a key
+// if none, and in. The witness's decision is the full nine-gift flow as
+// the primary path with a generated quick path beside it; both replace
+// this (screens/creation-flow.md).
 export function CreationFlow({ hasKey, busy = false, said = null, onBegin }: CreationFlowProps) {
   const [mode, setMode] = useState<'new' | 'bring' | null>(null);
   const [name, setName] = useState('');
