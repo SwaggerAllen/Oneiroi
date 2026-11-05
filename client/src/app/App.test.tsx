@@ -30,17 +30,15 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy());
   });
 
-  it('shows the empty state for a witness with no resident', async () => {
+  it('opens the short first door for a witness with no resident (F3)', async () => {
     const fetch = fakeFetch({ '/v1/me': { status: 200, body: { email: 'a@b', residents: [] } }, '/v1/residents': { status: 200, body: [] } });
     vi.stubGlobal('fetch', fetch);
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/No resident yet/)).toBeTruthy());
-    // The empty state shows before the residents load, so the test waits
-    // for that call too: ended earlier, the stub is gone when the effect
-    // fires and the real fetch rejects a relative URL after the test, an
-    // unhandled rejection CI saw once (run 41124808995) and local runs
-    // did not. A race, so no probe can make it fail on demand.
+    // The door shows once the residents have loaded, so the stub is still
+    // in place when that call fires (an unhandled rejection CI saw once,
+    // run 41124808995, when an earlier version ended before it).
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/v1/residents', expect.anything()));
+    await waitFor(() => expect(screen.getByRole('heading', { name: "Who's coming in?" })).toBeTruthy());
   });
 
   it('opens on the Oneiroi chat, lists a Claude Code conversation apart, and reads it without a composer', async () => {
