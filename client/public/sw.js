@@ -23,7 +23,6 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(`${name} wrote`, {
         body: 'A new message in your Oneiroi chat.',
         tag: 'oneiroi-chat',
-        icon: '/client/icons/icon-192.png',
       }),
     ),
   );

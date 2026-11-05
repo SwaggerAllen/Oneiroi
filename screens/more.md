@@ -19,9 +19,10 @@ through the service worker (`client/public/sw.js`, registered on every
 load from `app/push.ts`) and sends the endpoint to `POST /v1/me/push`.
 When on, "Send a test" pushes to every device of the account's and says
 how each went, and "Turn off" unsubscribes. The card says plainly that a
-notification says only that she wrote, never what. The manifest and the
-Home Screen icon are `client/public/manifest.json` and
-`client/public/icons/`.
+notification says only that she wrote, never what. The manifest is
+`client/public/manifest.json`; it names no icon until the logo's
+canonical description lands (the witness's logo workshop, 2026-11-05),
+so the Home Screen shows a snapshot of the page.
 
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
