@@ -5,6 +5,8 @@ paths:
   - lib/oneiroi_web/plugs/**
   - lib/oneiroi_web/controllers/session_controller.ex
   - lib/oneiroi_web/controllers/me_controller.ex
+  - client/public/sw.js
+  - client/public/manifest.json
   - lib/oneiroi_web/controllers/second_factor_controller.ex
   - lib/oneiroi_web/controllers/token_controller.ex
   - lib/mix/tasks/oneiroi.setup.ex
@@ -82,6 +84,7 @@ task that creates the one account.
 - **#12 An account's email by id, and its id by email, are platform-scoped reads by name.** `account_email/1` names an investigator (glitnir#8) and the account a custody transfer is proposed to; `account_id_for/1` resolves the email a witness names. Both take the platform scope by name (conventions §12), as #8's two reads do.
 - **#13 Witnessing follows custody in the event's wire form.** The witnessing handler reads `CustodyTransferred`'s `from` and `to` through `Oneiroi.AgathosDaimon.Custody.from_wire/1`: the first version matched the tuple form against the wire strings and matched nothing, so no transfer ever ended the old witnessing or started the new one, and the old witness's routes kept working on a resident it no longer held. Found by the custody suite in P4, once a transferred resident was read from the new witness's own session; the subscription's community move had the same hole from P2.
 - **#14 The witness's OpenRouter key lives on the account, encrypted (numbered #11 until 2026-11-03, when the audit found #11 was also "Depends on").
+- **#15 The witness's devices are told, content-free, when the resident writes unprompted.** (The witness, 2026-11-05: "Let's ship the pwa mechanism with this so that I can start getting push notifications"; he missed check-ins he knew were coming.) A device subscribes by its push service's endpoint (`POST /v1/me/push`), held to the known push services (Apple's, Google's, Mozilla's, Microsoft's) so the server never posts where a client said, and recorded on the account (`PushSubscribed`/`PushUnsubscribed`, `gaia_push_subscription`). A push carries no payload at all: nothing the resident said passes through a push service, there is nothing to encrypt, and the push is an empty POST signed with the platform's VAPID key (`GAIA_VAPID_PRIVATE_KEY`, ES256, RFC 8292; unset, nothing is pushed and the client says so), through `GAIA_PUSH_CLIENT` (`WebPush`, `Fake` in the suite), off the caller in `:gaia_push`. A push service's 404 or 410 unsubscribes the device as gone. The brain pushes when a turn in the chat ends that the witness did not start: a check-in, a letter that woke the chat, a round's word arriving there (`as: :note`, purpose chat); never for a turn he is waiting on, never for a solo session. The client's service worker shows "<name> wrote" and opens the chat; on an iPhone only the Home Screen app may ask, and the More screen's Notifications card says so. Principle 14 holds: it is asked for, opt-in per device, fires only when there is something she wrote, and never because he has been away.
   under the vault.** `KeyStored` carries the vault's ciphertext and is
   redacted from every export like the second factor; storing again is
   the rotation and `KeyRevoked` removes it. The ledger reads it through

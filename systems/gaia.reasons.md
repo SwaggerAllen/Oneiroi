@@ -56,3 +56,16 @@ email is identity's fact, so identity answers it.
 Conventions §9: a test that asserts the state at the end sees nothing
 of a handler that never matched; the witnessing list is what the
 routes read, so the custody suite asserts it.
+
+## #15
+He knew the check-ins were coming and still missed them, because the
+page only tells you what happened when you are looking at it. A push is
+the one thing that reaches a phone in a pocket. It carries nothing
+because what she said is hers and his, and a push service is a third
+party: the only fact that leaves is that she wrote, which is all he
+needs to go and look. Only unprompted turns push, because a reply he
+asked for he is already waiting on, and Safari punishes pushes that
+arrive while the app is open. The endpoint allowlist exists because a
+subscription is a URL a client hands the server to POST to, and the
+server should only ever POST to push services.
+

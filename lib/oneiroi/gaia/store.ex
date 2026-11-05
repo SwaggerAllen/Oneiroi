@@ -48,6 +48,17 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule PushSubscription do
+    @moduledoc "A device of the account's that asked to be told when the resident writes unprompted (gaia#15)."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_push_subscription" do
+      field(:account_id, :binary_id, primary_key: true)
+      field(:endpoint, :string, primary_key: true)
+      field(:subscribed_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema

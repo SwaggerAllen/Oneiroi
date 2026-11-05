@@ -4,7 +4,7 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Account, Session, Token, Witnessing}
+  alias Oneiroi.Gaia.Store.{Account, PushSubscription, Session, Token, Witnessing}
 
   fold(%Events.AccountCreated{} = e, _metadata, fn multi ->
     Multi.insert(multi, :account, %Account{
@@ -19,6 +19,24 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   fold(%Events.SecondFactorEnrolled{} = e, _metadata, fn multi ->
     Multi.update_all(multi, :second_factor, account(e.id),
       set: [second_factor: Base.decode64!(e.secret_ciphertext)]
+    )
+  end)
+
+  fold(%Events.PushSubscribed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :push,
+      %PushSubscription{account_id: e.id, endpoint: e.endpoint, subscribed_at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:account_id, :endpoint]
+    )
+  end)
+
+  fold(%Events.PushUnsubscribed{} = e, _metadata, fn multi ->
+    Multi.delete_all(
+      multi,
+      :push,
+      push(e.id, e.endpoint)
     )
   end)
 
@@ -77,6 +95,10 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   import Ecto.Query, only: [from: 2]
 
   defp account(id), do: from(a in Account, where: a.id == ^id)
+
+  defp push(id, endpoint),
+    do: from(p in PushSubscription, where: p.account_id == ^id and p.endpoint == ^endpoint)
+
   # A session's and a token's hash is of a random secret, unique across
   # the store by construction, and the account stream is never replayed
   # into a copy (sima-qian#20), so the hash alone names one row.

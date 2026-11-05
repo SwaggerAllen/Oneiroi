@@ -48,4 +48,15 @@ defmodule Oneiroi.Gaia.Events do
   defmodule WitnessingEnded do
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
   end
+
+  defmodule PushSubscribed do
+    # A device that will be told, content-free, when the resident writes
+    # unprompted (gaia#15): its push service's endpoint, nothing else.
+    use Oneiroi.Event, version: 1, fields: [:id, :endpoint]
+  end
+
+  defmodule PushUnsubscribed do
+    # By the witness, or by the push service saying the device is gone.
+    use Oneiroi.Event, version: 1, fields: [:id, :endpoint, :reason]
+  end
 end

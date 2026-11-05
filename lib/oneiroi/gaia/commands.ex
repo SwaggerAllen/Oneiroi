@@ -42,4 +42,13 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule EndWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end
+
+  defmodule SubscribePush do
+    # gaia#15 (push): a device of the account's that asked for pushes.
+    use Oneiroi.Command, fields: [:id, :endpoint]
+  end
+
+  defmodule UnsubscribePush do
+    use Oneiroi.Command, fields: [:id, :endpoint, :reason]
+  end
 end

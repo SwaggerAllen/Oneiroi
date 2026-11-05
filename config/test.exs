@@ -47,6 +47,10 @@ config :oneiroi,
           "EUNOMIA_JUDGE_MODEL" => "fake/judge",
           # The in-memory Honcho (conventions §9).
           "PROTEUS_CLIENT" => "fake",
+          # The in-memory push service, and a VAPID key minted for the
+          # suite alone (gaia#15); production's is GAIA_VAPID_PRIVATE_KEY.
+          "GAIA_PUSH_CLIENT" => "fake",
+          "GAIA_VAPID_PRIVATE_KEY" => "PqvkdKHPz6XqjjvJw34EwXC230cSVIj4OGJPDEWp9x8",
           # Where the HTTP port's own tests stand up a Honcho of their own,
           # on the loopback (proteus#18); nothing else calls it, since
           # the client above is the in-memory one.

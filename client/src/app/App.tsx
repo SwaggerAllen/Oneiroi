@@ -42,9 +42,11 @@ import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
+import { Notifications } from '../screens/more/Notifications';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
+import { type PushState, pushState, turnOff, turnOn } from './push';
 import { useRefocus } from './refocus';
 import { joinRun, joinSession } from './socket';
 
@@ -118,7 +120,7 @@ export function App() {
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
-        {destination === 'more' ? <More onOpen={go} /> : null}
+        {destination === 'more' ? <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} /> : null}
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
@@ -574,6 +576,67 @@ function LibraryContainer({ resident }: { resident: Resident }) {
         }}
       />
     </>
+  );
+}
+
+// Notifications on this device (gaia#15): what the device can do, what the
+// server has set up, and turning them on, off or testing them.
+function NotificationsContainer({ resident }: { resident: Resident }) {
+  const [state, setState] = useState<PushState | 'loading'>('loading');
+  const [config, setConfig] = useState<{ enabled: boolean; public_key: string | null }>({ enabled: false, public_key: null });
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    void pushState().then(setState);
+    api
+      .pushConfig()
+      .then(setConfig)
+      .catch(() => setConfig({ enabled: false, public_key: null }));
+  }, []);
+
+  useEffect(load, [load]);
+
+  const run = (work: () => Promise<string>) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(setSaid)
+      .catch((e: unknown) => setSaid(e instanceof Error ? e.message : 'That did not work.'))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+
+  return (
+    <Notifications
+      residentName={resident.name}
+      state={state}
+      enabled={config.enabled}
+      busy={busy}
+      said={said}
+      onTurnOn={() =>
+        run(async () => {
+          if (!config.public_key) throw new Error("Notifications aren't set up on the server yet.");
+          await api.subscribePush(await turnOn(config.public_key, resident.name));
+          return 'Notifications are on for this device.';
+        })
+      }
+      onTurnOff={() =>
+        run(async () => {
+          const endpoint = await turnOff();
+          if (endpoint) await api.unsubscribePush(endpoint);
+          return 'Notifications are off for this device.';
+        })
+      }
+      onTest={() =>
+        run(async () => {
+          const { sent } = await api.testPush();
+          return sent.length === 0 ? 'No device of yours is subscribed.' : sent.map((s) => `${s.device}: ${s.result}`).join('; ');
+        })
+      }
+    />
   );
 }
 
