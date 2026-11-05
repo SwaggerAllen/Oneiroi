@@ -3,7 +3,7 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Schedule.stories';
 
-const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered } = composeStories(stories);
+const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsOn } = composeStories(stories);
 
 describe('Schedule', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
@@ -140,6 +140,17 @@ describe('Schedule', () => {
       fireEvent.click(zone.getByRole('button', { name: `Use ${device}` }));
       expect(onSetTimezone).toHaveBeenLastCalledWith(device);
     }
+  });
+
+  // sunna#30: rounds visible and set here; what happens in one is not shown.
+  it('says rounds are on, how often and when, and sets them', () => {
+    const onSetRounds = vi.fn();
+    render(<RoundsOn onSetRounds={onSetRounds} />);
+    expect(screen.getByText(/On: Lily has a round every 3 hours \(the default\)/)).toBeTruthy();
+    expect(screen.getByText(/between 08:00 and 22:00: 5 today/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Every (hours, 0 is off)'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set rounds' }));
+    expect(onSetRounds).toHaveBeenCalledWith(0, '08:00-22:00');
   });
 });
 

@@ -344,6 +344,35 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     refute Schedules.round_times("res-b", "2026-11-05", quiet, 3) == times
   end
 
+  # sunna#30: the witness sees that rounds are on and sets them per
+  # resident; the server settings are the defaults.
+  test "her own rounds: a cadence and a window of her own, shown with when the last one started, never what it did",
+       ctx do
+    # The suite's default is off (config/test.exs).
+    assert %{every_hours: 0, every_default: true, today: 0, last_at: nil} =
+             Sunna.today(ctx.id).rounds
+
+    assert {:error, %{kind: :sunna_rounds_invalid}} = Sunna.set_rounds(ctx.id, 30, nil, ctx.actor)
+
+    assert {:error, %{kind: :sunna_rounds_invalid}} =
+             Sunna.set_rounds(ctx.id, 3, "8am-10pm", ctx.actor)
+
+    assert :ok = Sunna.set_rounds(ctx.id, 4, "08:00-20:00", ctx.actor)
+
+    assert %{every_hours: 4, every_default: false, waking: "08:00-20:00", today: 3} =
+             Sunna.today(ctx.id).rounds
+
+    assert length(Schedules.round_times(ctx.id, "2026-11-05", nil, 4, "08:00-20:00")) == 3
+
+    actor = Actor.new(:job, "sunna_tick")
+    assert :ok = Schedules.run_round(ctx.id, "2026-10-26", "08:00", actor)
+    assert %{last_at: %DateTime{}} = Sunna.today(ctx.id).rounds
+
+    # Back to the defaults.
+    assert :ok = Sunna.set_rounds(ctx.id, nil, nil, ctx.actor)
+    assert %{every_default: true, waking_default: true} = Sunna.today(ctx.id).rounds
+  end
+
   test "a round runs once, in a private conversation of its own, billed to free time; off at 0",
        ctx do
     # The suite runs with rounds off (config/test.exs): the tick draws none.

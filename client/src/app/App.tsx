@@ -898,6 +898,7 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         onDeleteCheckin={(key) => act(api.deleteCheckin(id, key))}
         onSetCheckinNote={(c, parts, prompt) => act(api.changeCheckin(id, c.key, c.label, c.time, { parts, prompt }))}
         onSetQuietHours={(from, to) => act(api.setQuietHours(id, from, to))}
+        onSetRounds={(every, waking) => act(api.setRounds(id, every, waking))}
         onSetTimezone={(tz) => act(api.setTimezone(id, tz))}
       />
     </>

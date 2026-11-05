@@ -231,6 +231,8 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time, ...note }),
   deleteCheckin: (residentId: string, key: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
+  setRounds: (residentId: string, everyHours: number | null, waking: string | null) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/rounds`, { every_hours: everyHours, waking }),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/quiet-hours`, { from, to }),
   setTimezone: (residentId: string, timezone: string) => call<void>('PUT', `/v1/residents/${residentId}/timezone`, { timezone }),

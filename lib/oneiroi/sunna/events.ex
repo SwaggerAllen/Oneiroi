@@ -135,4 +135,10 @@ defmodule Oneiroi.Sunna.Events do
   defmodule DateRemoved do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end
+
+  defmodule RoundsSet do
+    # The resident's rounds (sunna#30): every_hours (0 off) and the waking
+    # window, each nil for the platform's default.
+    use Oneiroi.Event, version: 1, fields: [:id, :every_hours, :waking]
+  end
 end

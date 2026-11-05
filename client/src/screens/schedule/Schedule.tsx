@@ -17,6 +17,7 @@ export interface ScheduleProps {
   // What a check-in's note carries: the parts checked and the witness's words (sunna#28).
   onSetCheckinNote?: (checkin: ScheduleCheckin, parts: string[], prompt: string) => void;
   onSetQuietHours?: (from: string | null, to: string | null) => void;
+  onSetRounds?: (everyHours: number | null, waking: string | null) => void;
   // Sets the resident's zone, the one every time here is read in.
   onSetTimezone?: (timezone: string) => void;
 }
@@ -32,13 +33,14 @@ const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', fl
 // what each made, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetTimezone }: ScheduleProps) {
+export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetRounds, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <Zone residentName={residentName} timezone={today.timezone} onSet={onSetTimezone} />
         <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
+        {today.rounds ? <Rounds residentName={residentName} rounds={today.rounds} onSet={onSetRounds} /> : null}
         {remembered ? <Remembered residentName={residentName} runs={remembered} /> : null}
         <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} onSetNote={onSetCheckinNote} />
         <Quiet quiet={today.quiet} onSet={onSetQuietHours} />
@@ -405,6 +407,49 @@ function allZones(current: string, device: string | null): string[] {
     known = [];
   }
   return [...new Set([current, ...(device ? [device] : []), ...known])].sort();
+}
+
+// Her thinking rounds (sunna#29, #30): that they are on, how often and
+// when, and when the last one started; what she thought and where she
+// went stay hers.
+function Rounds({ residentName, rounds, onSet }: { residentName: string; rounds: NonNullable<ScheduleToday['rounds']>; onSet?: (everyHours: number | null, waking: string | null) => void }) {
+  const [every, setEvery] = useState(String(rounds.every_hours));
+  const [window, setWindow] = useState(rounds.waking ?? '');
+  const on = rounds.every_hours > 0;
+  const last = rounds.last_at ? new Date(rounds.last_at).toLocaleString() : null;
+  return (
+    <Card title="Rounds">
+      <p style={muted}>
+        {on
+          ? `On: ${residentName} has a round every ${rounds.every_hours} hours${rounds.every_default ? ' (the default)' : ''}, at a time drawn at random, ${
+              rounds.waking_from_quiet ? 'outside quiet hours' : `between ${rounds.waking?.replace('-', ' and ')}`
+            }: ${rounds.today} today.`
+          : `Off: ${residentName} has no rounds.`}{' '}
+        {last ? `The last started ${last}.` : 'None has started yet.'} What happens in a round isn't shown here.
+      </p>
+      {onSet ? (
+        <form
+          aria-label="Set rounds"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSet(Number(every), rounds.waking_from_quiet ? null : window.trim() || null);
+          }}
+          style={row}
+        >
+          <Field label="Every (hours, 0 is off)" inputMode="numeric" value={every} onChange={(e) => setEvery(e.target.value)} />
+          {rounds.waking_from_quiet ? null : <Field label="Between (HH:MM-HH:MM)" value={window} onChange={(e) => setWindow(e.target.value)} />}
+          <Button variant="primary" type="submit" disabled={!/^\d{1,2}$/.test(every)}>
+            Set rounds
+          </Button>
+          {rounds.every_default && rounds.waking_default ? null : (
+            <Button type="button" variant="quiet" onClick={() => onSet(null, null)}>
+              Back to the default
+            </Button>
+          )}
+        </form>
+      ) : null}
+    </Card>
+  );
 }
 
 function Quiet({ quiet, onSet }: { quiet: ScheduleToday['quiet']; onSet?: (from: string | null, to: string | null) => void }) {

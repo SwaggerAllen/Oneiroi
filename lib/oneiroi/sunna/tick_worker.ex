@@ -65,7 +65,7 @@ defmodule Oneiroi.Sunna.TickWorker do
     end
 
     free_time(resident_id, settings, local, day)
-    rounds(resident_id, quiet, local, day)
+    rounds(resident_id, settings, quiet, local, day)
     _ = Schedules.wake_for_letters(resident_id, local, quiet, @actor)
     :ok
   end
@@ -98,10 +98,13 @@ defmodule Oneiroi.Sunna.TickWorker do
   # The day's thinking rounds (sunna#29), each run once when its drawn
   # time has come and the late window has not passed; a missed one is
   # simply not had, as a missed chance is.
-  defp rounds(resident_id, quiet, local, day) do
+  defp rounds(resident_id, settings, quiet, local, day) do
+    every = settings && settings.rounds_every_hours
+    own_waking = settings && settings.rounds_waking
+
     late = Oneiroi.Config.fetch!(:sunna, :late_minutes) * 60
 
-    for time <- Schedules.round_times(resident_id, day, quiet),
+    for time <- Schedules.round_times(resident_id, day, quiet, every, own_waking),
         since = DateTime.diff(local, Schedules.at_time(local, time), :second),
         since >= 0 and since <= late,
         not Schedules.quiet?(local, quiet) do

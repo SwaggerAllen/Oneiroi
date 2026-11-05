@@ -168,3 +168,10 @@ The claim comes before the run because a round takes minutes and the
 tick runs every minute. The free-time line pays because a round is her
 own time.
 
+## #30
+A feature the witness cannot see is one he cannot tell is working, and
+a cadence only Render can change is the operator's, not the dyad's. So
+the rounds became the resident's own setting, shown where the check-ins
+are. The card says that rounds happen and when the last one started,
+and stops there: the times are drawn so they are not guessable within
+the day, and what a round did is hers to send out or not.

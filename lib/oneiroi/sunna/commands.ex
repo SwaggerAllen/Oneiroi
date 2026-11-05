@@ -68,4 +68,10 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule RemoveDate do
     use Oneiroi.Command, fields: [:id, :number]
   end
+
+  # The resident's rounds (sunna#30): how often, in hours (0 off), and the
+  # waking window they are drawn in, HH:MM-HH:MM; nil keeps the default.
+  defmodule SetRounds do
+    use Oneiroi.Command, fields: [:id, :every_hours, :waking]
+  end
 end

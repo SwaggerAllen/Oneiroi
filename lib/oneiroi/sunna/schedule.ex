@@ -22,7 +22,8 @@ defmodule Oneiroi.Sunna.Schedule do
     hours: MapSet.new(),
     letters_woken: MapSet.new(),
     letter_wakes: [],
-    rounds: MapSet.new()
+    rounds: MapSet.new(),
+    round_settings: {nil, nil}
   ]
 
   @hour ~r/\A\d{4}-\d{2}-\d{2}T([01]\d|2[0-3])\z/
@@ -268,6 +269,30 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
+  # ---- rounds (sunna#30) ----
+
+  def execute(%__MODULE__{round_settings: now}, %Commands.SetRounds{} = c) do
+    cond do
+      not (is_nil(c.every_hours) or (is_integer(c.every_hours) and c.every_hours in 0..24)) ->
+        {:error, Error.new(:sunna_rounds_invalid, :sunna_rounds_every_invalid)}
+
+      not (is_nil(c.waking) or window_ok?(c.waking)) ->
+        {:error, Error.new(:sunna_rounds_invalid, :sunna_rounds_waking_invalid)}
+
+      now == {c.every_hours, c.waking} ->
+        []
+
+      true ->
+        %Events.RoundsSet{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          every_hours: c.every_hours,
+          waking: c.waking
+        }
+    end
+  end
+
   # ---- quiet hours, dates ----
 
   def execute(%__MODULE__{quiet: quiet}, %Commands.SetQuietHours{} = c) do
@@ -400,6 +425,9 @@ defmodule Oneiroi.Sunna.Schedule do
   def apply(%__MODULE__{} = s, %Events.FreeTimeFailed{} = e),
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
 
+  def apply(%__MODULE__{} = s, %Events.RoundsSet{} = e),
+    do: %{s | id: e.id, round_settings: {e.every_hours, e.waking}}
+
   def apply(%__MODULE__{} = s, %Events.QuietHoursSet{} = e),
     do: %{s | id: e.id, quiet: quiet_of(e)}
 
@@ -452,6 +480,15 @@ defmodule Oneiroi.Sunna.Schedule do
 
   defp label_ok?(label),
     do: is_binary(label) and String.trim(label) != "" and String.length(label) <= @label_limit
+
+  defp window_ok?(window) when is_binary(window) do
+    case String.split(window, "-") do
+      [from, to] -> time_ok?(from) and time_ok?(to) and from != to
+      _other -> false
+    end
+  end
+
+  defp window_ok?(_window), do: false
 
   defp quiet_of(%{from: nil, to: nil}), do: nil
   defp quiet_of(%{from: from, to: to}), do: %{from: from, to: to}
