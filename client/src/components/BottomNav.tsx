@@ -27,6 +27,8 @@ export function BottomNav({
         background: 'var(--surface-raised)',
         position: 'sticky',
         bottom: 0,
+        // Above the home indicator or gesture bar.
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {items.map((item) => (

@@ -8,7 +8,8 @@ export function TopBar({ title, line, right }: { title: string; line?: string; r
         alignItems: 'center',
         justifyContent: 'space-between',
         minHeight: 'var(--control-h)',
-        padding: '0 var(--space-4)',
+        // Below a notch or status bar when the page reaches the screen's top.
+        padding: 'env(safe-area-inset-top) var(--space-4) 0',
         borderBottom: '1px solid var(--hairline)',
         background: 'var(--surface-raised)',
         position: 'sticky',

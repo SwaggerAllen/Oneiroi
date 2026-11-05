@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The keyboard resizes the layout rather than panning the page under
+         the browser's bars (interactive-widget), and the page reaches the
+         screen's edges with the safe areas padded inside (viewport-fit). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Oneiroi</title>
     <!-- Installable from the Home Screen, which is where an iPhone allows push (gaia#1). -->
     <link rel="manifest" href="/client/manifest.json" />
