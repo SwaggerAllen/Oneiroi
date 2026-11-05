@@ -77,7 +77,8 @@ defmodule Oneiroi.Gaia do
       Events.InviteRedeemed,
       Events.InviteRevoked,
       Invites,
-      InviteRouter
+      InviteRouter,
+      Signup
     ]
 
   alias Oneiroi.Gaia.Accounts
@@ -85,6 +86,7 @@ defmodule Oneiroi.Gaia do
   alias Oneiroi.Gaia.Households
   alias Oneiroi.Gaia.Invites
   alias Oneiroi.Gaia.Push
+  alias Oneiroi.Gaia.Signup
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -201,6 +203,15 @@ defmodule Oneiroi.Gaia do
        remedy: "ask whoever gave it for another"},
       {:gaia_invite_already_redeemed, "this household has redeemed the invite already",
        remedy: "nothing to do: its terms are the household's"},
+      {:gaia_door_closed, "the front door is closed: nobody signs up just now",
+       remedy: "ask the operator; the door opens to invites first"},
+      {:gaia_invite_required, "the front door takes an invite code to sign up",
+       remedy: "enter the code you were given"},
+      {:gaia_signup_invalid,
+       "an email looks like name@place.domain and a password is at least ten characters",
+       remedy: "the details name which and how long"},
+      {:gaia_email_taken, "an account already has that email",
+       remedy: "log in instead, or sign up with another email"},
       {:gaia_push_failed,
        "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
        remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
@@ -435,4 +446,9 @@ defmodule Oneiroi.Gaia do
   @doc "Every invite issued, newest first, with its standing; never the code."
   @spec invites() :: [map()]
   defexport(invites(), do: Invites.list())
+
+  @doc "Signs up behind the front door (gaia#19): closed refuses, invite takes a code, open takes anyone."
+  @spec sign_up(String.t(), Oneiroi.Config.Secret.t(), String.t() | nil) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(sign_up(email, password, code), do: Signup.sign_up(email, password, code))
 end

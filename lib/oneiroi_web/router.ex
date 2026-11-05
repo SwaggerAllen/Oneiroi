@@ -43,6 +43,9 @@ defmodule OneiroiWeb.Router do
 
     post("/session", SessionController, :create)
     delete("/session", SessionController, :delete)
+    get("/door", DoorController, :show)
+    post("/door/check", DoorController, :check)
+    post("/door/sign-up", DoorController, :sign_up)
 
     scope "/" do
       pipe_through(:witness)

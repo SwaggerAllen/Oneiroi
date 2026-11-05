@@ -363,7 +363,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba#3, #11; gaia#14); platform tokens not yet | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia#4, #20) | judgement |
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia#5, #8 to #13; the Regression screen) | judgement |
-| F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes as SKUs granting those terms (gaia#18); sign-up and billing reading the terms not yet | identity |
+| F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes as SKUs granting those terms (gaia#18); sign-up behind the gate (gaia#19); billing reading the terms not yet | identity |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba#15, #17, #18) | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
 | F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos#3 to #11, brain#29) | character |
@@ -511,6 +511,10 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   household, it grants the household those terms; revoked, expired, spent
   or already redeemed, it says which. The default is the alpha's free
   code: $20 a month at a full discount, ninety days, one use.
+- **Sign-up** (gaia#19) is behind the front door: closed refuses, invite
+  takes a code (checked before the email, redeemed onto the new
+  household), open takes anyone. It logs the new account in. Email
+  verification comes before the door opens.
 - **Self-hosted**: one account, created at setup; the same code.
 
 ### 6.2 resident
