@@ -21,7 +21,8 @@ defmodule Oneiroi.Sunna.Schedule do
     days: MapSet.new(),
     hours: MapSet.new(),
     letters_woken: MapSet.new(),
-    letter_wakes: []
+    letter_wakes: [],
+    rounds: MapSet.new()
   ]
 
   @hour ~r/\A\d{4}-\d{2}-\d{2}T([01]\d|2[0-3])\z/
@@ -227,6 +228,13 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
+  # A round runs once: claiming it again is no event (sunna#29).
+  def execute(%__MODULE__{rounds: rounds}, %Commands.StartRound{} = c) do
+    if MapSet.member?(rounds, {c.day, c.slot}),
+      do: [],
+      else: %Events.RoundStarted{actor: c.actor, at: c.at, id: c.id, day: c.day, slot: c.slot}
+  end
+
   def execute(%__MODULE__{free_time_days: days}, %Commands.RecordFreeTime{} = c) do
     cond do
       # A day recorded before slots (a version 1 event, `:all`) had its
@@ -382,6 +390,9 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeScheduled{} = e),
     do: %{s | id: e.id, free_times: e.times || List.wrap(e.time)}
+
+  def apply(%__MODULE__{} = s, %Events.RoundStarted{} = e),
+    do: %{s | id: e.id, rounds: MapSet.put(s.rounds, {e.day, e.slot})}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeRan{} = e),
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}

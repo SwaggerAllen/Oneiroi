@@ -30,7 +30,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     captured: MapSet.new()
   ]
 
-  @kinds ~w(main free_time hands adapter)
+  @kinds ~w(main free_time round hands adapter)
   # The kind of an adapter's session (kumbukumbu#40), by the rule in
   # `Kinds`, which the upcaster reads too.
   @adapter "adapter"
@@ -76,6 +76,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   @spec title(map()) :: String.t()
   def title(%{kind: "main"}), do: "Oneiroi chat"
   def title(%{kind: "free_time"}), do: "Free time"
+  def title(%{kind: "round"}), do: "A round"
   def title(%{kind: "hands"}), do: "Hands"
   def title(%{kind: "imported", adapter: adapter}), do: "Imported from #{adapter}"
 

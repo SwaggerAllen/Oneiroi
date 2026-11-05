@@ -28,6 +28,10 @@ config :oneiroi,
           "APSU_POOL_SIZE" => "10",
           "APSU_EVENT_STORE_POOL_SIZE" => "10",
           "APSU_CLOCK" => "fake",
+          # Rounds are drawn from the resident's id, which every test mints
+          # anew, so a tick in any test could land on one: off for the
+          # suite, and the rounds' own tests pass their window (sunna#29).
+          "SUNNA_ROUNDS_EVERY_HOURS" => "0",
           # The in-memory provider: no test crosses the network (conventions §9).
           "NISABA_PROVIDER" => "fake",
           "BRAIN_CHAT_MODEL" => "fake/model",

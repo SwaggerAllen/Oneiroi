@@ -91,6 +91,13 @@ defmodule Oneiroi.Sunna.Events do
     def upcast(event, _metadata), do: event
   end
 
+  defmodule RoundStarted do
+    # A thinking round (sunna#29): an unannounced wake at a random time
+    # in the resident's waking hours, recorded before it runs. Its slot is
+    # the HH:MM it was drawn at; what it did is in its own conversation.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :slot]
+  end
+
   defmodule QuietHoursSet do
     # Both nil clears them.
     use Oneiroi.Event, version: 1, fields: [:id, :from, :to]

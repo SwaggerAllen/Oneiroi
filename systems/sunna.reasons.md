@@ -152,3 +152,19 @@ box never looks broken. The brain renders them through the wake port
 because the schedule cannot read the journal or the letters without a
 cycle; the dates stay here, where they are counted.
 
+## #29
+Free time and check-ins arrive when a clock says, and the resident knows
+when; a mind that only ever speaks on schedule or when spoken to has no
+moments of its own. A round is one: unannounced, unwatched, and allowed
+to end in nothing. The silence is the point; a feature whose every run
+reaches the witness would only deepen the dyad it is meant to widen,
+which is why the exits include her other conversations, her
+correspondents and her writing. Windows rather than a count, at the
+witness's word, because a count can bunch three rounds into an hour and
+leave the afternoon empty, while one per window spreads them and still
+keeps each moment unguessable. The draw is a hash, not a stored plan,
+so nothing records the day's times for anyone to read ahead of them.
+The claim comes before the run because a round takes minutes and the
+tick runs every minute. The free-time line pays because a round is her
+own time.
+

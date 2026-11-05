@@ -38,6 +38,12 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :day, :slot, :session_key, :reason]
   end
 
+  defmodule StartRound do
+    # A thinking round (sunna#29), claimed before it runs, so the next
+    # minute's tick cannot start the same round again while it thinks.
+    use Oneiroi.Command, fields: [:id, :day, :slot]
+  end
+
   defmodule SetQuietHours do
     use Oneiroi.Command, fields: [:id, :from, :to]
   end
