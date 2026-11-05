@@ -1,5 +1,9 @@
 # The directory Mix will write compiled artifacts to.
 /_build/
+# iCloud syncs ~/Documents; a .nosync suffix keeps the build out of it,
+# and _build is a symlink to it (its duplicates once stalled the compiler).
+/_build
+/_build.nosync/
 
 # If you run "mix test --cover", coverage assets end up here.
 /cover/

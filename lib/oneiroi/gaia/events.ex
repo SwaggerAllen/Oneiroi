@@ -59,4 +59,19 @@ defmodule Oneiroi.Gaia.Events do
     # By the witness, or by the push service saying the device is gone.
     use Oneiroi.Event, version: 1, fields: [:id, :endpoint, :reason]
   end
+
+  defmodule GateSet do
+    # The front door (gaia#16): closed, invite or open, by whom and why.
+    use Oneiroi.Event, version: 1, fields: [:id, :state, :note]
+  end
+
+  defmodule RoleGranted do
+    # A platform role (super_admin or admin) granted to an account, by
+    # whom and why; the founding account's is granted by the platform.
+    use Oneiroi.Event, version: 1, fields: [:id, :account_id, :role, :note]
+  end
+
+  defmodule RoleRevoked do
+    use Oneiroi.Event, version: 1, fields: [:id, :account_id, :role, :note]
+  end
 end

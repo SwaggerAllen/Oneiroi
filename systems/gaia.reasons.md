@@ -69,3 +69,16 @@ arrive while the app is open. The endpoint allowlist exists because a
 subscription is a URL a client hands the server to POST to, and the
 server should only ever POST to push services.
 
+## #16
+A front door needs a keeper before it can open, and until now the
+platform had nobody it recognised as one: every power was an account's
+over its own residents. Taking account age as authority would make the
+operator a fact nobody granted and nobody could revoke, so the founding
+account's role is granted as an event like any other, and transfer and
+revocation are the same events. The authority check lives in the
+aggregate rather than the controller because a check in the controller
+is one a new caller can forget. The gate gets a platform scope because
+filing it under the operator's account would make the front door that
+person's property; the point is that no account owns it. The last super
+admin stays because a door with no keeper can never change again.
+

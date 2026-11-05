@@ -129,7 +129,9 @@ way before trusting a local green.
 - The gate block above is the gate block; editing one copy is an audit
   failure until all three agree.
 - Every projection table is declared with `Oneiroi.Migration.projection/3`
-  and carries `resident_id` or `account_id` and a row-level policy; the
+  and carries `resident_id` or `account_id` and a row-level policy, or is
+  the platform's own (`scope: :platform`, no tenant column, read only under
+  the platform scope: the front door, gaia#16); the
   application role cannot bypass RLS; a query with no `Oneiroi.Scope`
   raises. A cross-tenant read is `Scope.platform/1` by name.
 - Events are immutable contracts: `use Oneiroi.Event, version:` listed in

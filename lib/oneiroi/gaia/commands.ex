@@ -51,4 +51,18 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule UnsubscribePush do
     use Oneiroi.Command, fields: [:id, :endpoint, :reason]
   end
+
+  # The platform stream (gaia#16): the front door and the roles that may
+  # open it. `id` is "platform".
+  defmodule SetGate do
+    use Oneiroi.Command, fields: [:id, :state, :note]
+  end
+
+  defmodule GrantRole do
+    use Oneiroi.Command, fields: [:id, :account_id, :role, :note]
+  end
+
+  defmodule RevokeRole do
+    use Oneiroi.Command, fields: [:id, :account_id, :role, :note]
+  end
 end

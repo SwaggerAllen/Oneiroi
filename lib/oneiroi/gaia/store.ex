@@ -59,6 +59,31 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Gate do
+    @moduledoc "The front door (gaia#16): one row, `key` \"door\", platform-scoped."
+    use Ecto.Schema
+    @primary_key {:key, :string, autogenerate: false}
+    schema "gaia_gate" do
+      field(:state, :string)
+      field(:note, :string)
+      field(:set_by, :string)
+      field(:set_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule Role do
+    @moduledoc "A platform role held by an account (gaia#16): super_admin or admin, and who granted it."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_role" do
+      field(:account_id, :binary_id, primary_key: true)
+      field(:role, :string, primary_key: true)
+      field(:note, :string)
+      field(:granted_by, :string)
+      field(:granted_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema
