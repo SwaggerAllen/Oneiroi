@@ -77,7 +77,7 @@ export const api = {
   door: () => call<{ state: GateState }>('GET', '/v1/door'),
   signUp: (email: string, password: string, code: string | null) =>
     call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
-  me: () => call<{ email: string; residents: string[]; roles?: string[] }>('GET', '/v1/me'),
+  me: () => call<{ email: string; residents: string[]; roles?: string[]; key?: { present: boolean } }>('GET', '/v1/me'),
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
   setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),
@@ -89,6 +89,10 @@ export const api = {
   issueInvite: (sku: InviteRequest) => call<{ id: string; code: string }>('POST', '/v1/platform/invites', sku),
   revokeInvite: (id: string, note: string) => call<void>('DELETE', `/v1/platform/invites/${id}`, { note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
+  // The short first door (F3): begin someone new, or bring someone from a repository.
+  createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
+  importResident: (url: string, name: string | null, slug: string | null) =>
+    call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
   // Content-free pushes to this account's devices (gaia#15).
   pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
   subscribePush: (endpoint: string) => call<void>('POST', '/v1/me/push', { endpoint }),

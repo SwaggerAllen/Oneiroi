@@ -30,7 +30,6 @@ import type {
   Tag,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
-import { EmptyState } from '../components/EmptyState';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
@@ -45,6 +44,7 @@ import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
+import { type Begin, CreationFlow } from '../screens/creation-flow/CreationFlow';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -60,7 +60,10 @@ const TURN_BOUND_MS = 180_000;
 // built in this phase; the first resident the account witnesses is the
 // one shown, a picker arriving with the subscriptions screen.
 export function App() {
-  const [me, setMe] = useState<{ email: string } | null | undefined>(undefined);
+  const [me, setMe] = useState<{ email: string; key?: { present: boolean } } | null | undefined>(undefined);
+  const [residentsLoaded, setResidentsLoaded] = useState(false);
+  const [beginning, setBeginning] = useState(false);
+  const [beginSaid, setBeginSaid] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [door, setDoor] = useState<GateState | null>(null);
   const [resident, setResident] = useState<Resident | null>(null);
@@ -84,7 +87,10 @@ export function App() {
 
   useEffect(() => {
     if (!me) return;
-    api.residents().then((rows) => setResident(rows[0] ?? null));
+    api.residents().then((rows) => {
+      setResident(rows[0] ?? null);
+      setResidentsLoaded(true);
+    });
   }, [me]);
 
   const go = (d: Destination) => {
@@ -121,7 +127,24 @@ export function App() {
       />
     );
   }
-  if (!resident) return <EmptyState text="No resident yet: the creation flow arrives with the next screens." />;
+  if (!resident && !residentsLoaded) return null;
+  if (!resident) {
+    // The short first door (F3): a key first when the account has none,
+    // then the resident, then the chat, where the first words are said.
+    const begin = (b: Begin) => {
+      setBeginning(true);
+      setBeginSaid(null);
+      (b.key ? api.storeKey(b.key) : Promise.resolve())
+        .then(() => (b.mode === 'new' ? api.createResident(b.name, b.slug) : api.importResident(b.url, b.name, b.slug)))
+        .then((row) => {
+          setResident(row);
+          go('chat');
+        })
+        .catch((e: unknown) => setBeginSaid(e instanceof RequestFailed ? e.message : 'That did not work; try again.'))
+        .finally(() => setBeginning(false));
+    };
+    return <CreationFlow hasKey={me.key?.present ?? false} busy={beginning} said={beginSaid} onBegin={begin} />;
+  }
 
   return (
     // The shell is the screen's height and never scrolls itself: the nav
