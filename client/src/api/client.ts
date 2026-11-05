@@ -80,6 +80,10 @@ export const api = {
   grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
   revokeRole: (accountId: string, role: PlatformRole, note: string) =>
     call<void>('DELETE', '/v1/platform/roles', { account_id: accountId, role, note }),
+  // Invite codes (gaia#18): SKUs a super admin issues; the code is shown once.
+  invites: () => call<{ invites: Invite[]; defaults: InviteDefaults }>('GET', '/v1/platform/invites'),
+  issueInvite: (sku: InviteRequest) => call<{ id: string; code: string }>('POST', '/v1/platform/invites', sku),
+  revokeInvite: (id: string, note: string) => call<void>('DELETE', `/v1/platform/invites/${id}`, { note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
   // Content-free pushes to this account's devices (gaia#15).
   pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
@@ -243,6 +247,41 @@ export type Api = typeof api;
 
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
+
+export interface InviteDefaults {
+  plan: string;
+  price_nanos: number;
+  discount_pct: number;
+  term_days: number;
+  uses: number;
+  expires_at: string | null;
+}
+
+export interface Invite {
+  id: string;
+  plan: string;
+  list_price_nanos: number;
+  discount_pct: number;
+  price_nanos: number;
+  term_days: number;
+  uses: number;
+  redeemed: number;
+  expires_at: string | null;
+  note: string | null;
+  issued_at: string;
+  revoked_at: string | null;
+  revoke_note: string | null;
+}
+
+export interface InviteRequest {
+  note: string;
+  plan?: string;
+  price_cents?: number;
+  discount_pct?: number;
+  term_days?: number;
+  uses?: number;
+  expires_at?: string;
+}
 
 export interface Platform {
   gate: { state: GateState; note: string | null; set_by: string | null; set_at: string | null };

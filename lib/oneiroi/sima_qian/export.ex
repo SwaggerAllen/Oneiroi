@@ -67,6 +67,8 @@ defmodule Oneiroi.SimaQian.Export do
     "household" =>
       {:stream,
        "the household, the billing owner, every member's and no one resident's (gaia#17)"},
+    "invite" =>
+      {:stream, "the platform's invite codes, the front door's keys, no resident's (gaia#18)"},
     "honcho" =>
       {:stream,
        "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus#8), where replaying this would point a copy at the original's memory"},

@@ -33,6 +33,15 @@ goes (grant super admin, then revoke your own) and that the last super
 admin cannot be revoked. Shown only when `/v1/me` names the caller's
 super admin role.
 
+Under it, for the same super admin, an Invites card (`Invites.tsx`,
+gaia#18): a form to issue a code (who it is for, required; plan, list
+price, discount, days of terms, uses, an optional expiry date, each
+starting at the alpha's free code), the new code shown once in large
+type with a line saying it is not shown again, and every code issued
+with its terms and its standing (uses taken, spent, expired or revoked)
+and a Revoke that takes the note above. Redeeming a code from the
+client arrives with sign-up; the route exists (`POST /v1/me/invite`).
+
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
 opens it: Library, Connections, Ledger, Regression, in that order. Each
