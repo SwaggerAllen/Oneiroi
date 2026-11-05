@@ -33,9 +33,9 @@ export function slugOf(name: string): string {
 }
 
 // A stopgap short door (F3, design/mvp.md item 3): new or brought, a key
-// if none, and in. The witness's decision is the full nine-gift flow as
-// the primary path with a generated quick path beside it; both replace
-// this (screens/creation-flow.md).
+// if none, and in. The witness's decision is the full nine-gift flow, with
+// a pre-filled head start on the same screens; it replaces this
+// (screens/creation-flow.md).
 export function CreationFlow({ hasKey, busy = false, said = null, onBegin }: CreationFlowProps) {
   const [mode, setMode] = useState<'new' | 'bring' | null>(null);
   const [name, setName] = useState('');
