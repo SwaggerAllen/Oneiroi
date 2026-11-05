@@ -151,12 +151,14 @@ export function App() {
     // The shell is the screen's height and never scrolls itself: the nav
     // stays at the bottom and each screen scrolls inside the space left
     // (Chat its transcript alone, so its bar and composer stay put).
-    // `dvh`, not `vh`, so a phone's browser bar does not push the nav off.
+    // Fixed to the visible viewport, which a phone's browser resizes as
+    // its bars come and go, rather than to a height read once.
     <div
       style={{
+        position: 'fixed',
+        inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100dvh',
         overflow: 'hidden',
         maxWidth: 'var(--content-max)',
         margin: '0 auto',

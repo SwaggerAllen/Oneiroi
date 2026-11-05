@@ -105,3 +105,8 @@
   }
 }
 body { margin: 0; background: var(--surface); color: var(--ink); font-family: var(--font-sans); }
+/* The document never scrolls; each screen scrolls inside the shell. A
+   scrollable page let mobile Chrome scroll it as its URL bar moved or the
+   keyboard opened, sliding the header under the URL bar and the nav under
+   the bottom controls. */
+html, body, #root { height: 100%; overflow: hidden; overscroll-behavior: none; }
