@@ -11,6 +11,8 @@ defmodule Oneiroi.Kumbukumbu.Index do
   estimated at four bytes a token, as every estimate in the brain is.
   """
 
+  alias Oneiroi.AgathosDaimon.Local
+
   @bytes_per_token 4
 
   @type built :: %{
@@ -22,14 +24,15 @@ defmodule Oneiroi.Kumbukumbu.Index do
         }
 
   @doc "The index over `bookmarks` (each with `tags` loaded) within `budget` tokens."
-  @spec build([map()], pos_integer()) :: built()
-  def build(bookmarks, budget) when is_list(bookmarks) and is_integer(budget) and budget > 0 do
+  @spec build([map()], pos_integer(), String.t()) :: built()
+  def build(bookmarks, budget, zone \\ "Etc/UTC")
+      when is_list(bookmarks) and is_integer(budget) and budget > 0 do
     {pinned, rest} = Enum.split_with(bookmarks, &pinned?/1)
     pinned = Enum.sort_by(pinned, & &1.number, :desc)
     rest = Enum.sort_by(rest, &{-&1.weight, -&1.number})
 
-    {pinned_lines, pinned_tokens, pinned_out} = take(pinned, div(budget, 2))
-    {rest_lines, _rest_tokens, rest_out} = take(rest, budget - pinned_tokens)
+    {pinned_lines, pinned_tokens, pinned_out} = take(pinned, div(budget, 2), zone)
+    {rest_lines, _rest_tokens, rest_out} = take(rest, budget - pinned_tokens, zone)
 
     included = Enum.map(pinned_lines ++ rest_lines, &elem(&1, 0))
     left_out = length(bookmarks) - length(included)
@@ -76,12 +79,12 @@ defmodule Oneiroi.Kumbukumbu.Index do
     }
   end
 
-  @doc "One bookmark's index line: number, day, pin, tags and the resident's line."
-  @spec line(map()) :: String.t()
-  def line(b) do
+  @doc "One bookmark's index line: number, day (in `zone`, her schedule's, agathos-daimon#33), pin, tags and the resident's line."
+  @spec line(map(), String.t()) :: String.t()
+  def line(b, zone \\ "Etc/UTC") do
     tags = if b.tags == [], do: "", else: " [" <> Enum.join(b.tags, ", ") <> "]"
     pin = if pinned?(b), do: " (pinned)", else: ""
-    "##{b.number} #{Date.to_iso8601(DateTime.to_date(b.anchor_at))}#{pin}#{tags} #{b.line}"
+    "##{b.number} #{Local.day(zone, b.anchor_at)}#{pin}#{tags} #{b.line}"
   end
 
   @doc "Tokens a text is estimated at: four bytes a token."
@@ -100,9 +103,9 @@ defmodule Oneiroi.Kumbukumbu.Index do
   # Lines in order until the next would not fit; a line that does not fit
   # does not stop a shorter one after it from being tried, since the
   # order is a ranking and not a queue.
-  defp take(bookmarks, budget) do
+  defp take(bookmarks, budget, zone) do
     Enum.reduce(bookmarks, {[], 0, []}, fn b, {lines, used, out} ->
-      text = line(b)
+      text = line(b, zone)
       cost = tokens(text)
 
       if used + cost <= budget,

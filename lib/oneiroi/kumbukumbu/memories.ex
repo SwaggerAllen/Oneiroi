@@ -17,6 +17,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Conversation
@@ -326,7 +327,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @spec index(String.t()) :: Index.built()
   def index(resident_id) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
-    resident_id |> bookmarks() |> Index.build(budget)
+    resident_id |> bookmarks() |> Index.build(budget, Local.zone(resident_id))
   end
 
   @doc """
@@ -345,8 +346,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     # are decisions, not measurements, and are never ranked here.
     all = resident_id |> bookmarks() |> Enum.reject(& &1.pinned_at)
     {in_room, held} = Enum.split_with(all, &(&1.session_key in keys))
-    built = Index.build(in_room, budget)
-    would = all |> Index.build(budget) |> Map.fetch!(:included)
+    zone = Local.zone(resident_id)
+    built = Index.build(in_room, budget, zone)
+    would = all |> Index.build(budget, zone) |> Map.fetch!(:included)
     sessions = Scope.resident(resident_id, fn -> Map.new(Store.sessions(), &{&1.key, &1}) end)
 
     approached =
@@ -445,13 +447,13 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         }
       end)
 
-    built = ranked_index_built(ranking, length(in_room))
+    built = ranked_index_built(ranking, length(in_room), Local.zone(resident_id))
     %{built | near_misses: built.near_misses ++ held_misses}
   end
 
-  defp ranked_index_built(ranking, in_room) do
-    ranked_lines = Enum.map(ranking.ranked, &Index.line(&1.bookmark))
-    explored_lines = Enum.map(ranking.explored, &Index.line(&1.bookmark))
+  defp ranked_index_built(ranking, in_room, zone) do
+    ranked_lines = Enum.map(ranking.ranked, &Index.line(&1.bookmark, zone))
+    explored_lines = Enum.map(ranking.explored, &Index.line(&1.bookmark, zone))
     shown = length(ranked_lines) + length(explored_lines)
 
     explored_text =
@@ -469,7 +471,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       Enum.map(ranking.rejected, fn r ->
         %{
           number: r.bookmark.number,
-          line: Index.line(r.bookmark),
+          line: Index.line(r.bookmark, zone),
           reason:
             "ranked #{round3(r.score)} (similarity #{round3(r.similarity)}, edges #{round3(r.edge)}), #{r.why}"
         }

@@ -30,6 +30,7 @@ defmodule Oneiroi.AgathosDaimon do
     exports: [
       Error,
       Residents,
+      Local,
       Agreements,
       Custody,
       Router,

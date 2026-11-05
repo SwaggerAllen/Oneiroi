@@ -185,3 +185,14 @@ record cannot be lost by forgetting to copy it. A fixture's alone because
 the law is about test subjects, and a resident is never tested by this
 path.
 
+## #33
+Her schedule ran in Pacific time while every instant she was shown said
+UTC, so she did the conversion herself, in her head, and got it wrong
+in the way a person would: 02:00 UTC read as two in the morning, and
+she told the witness goodnight at his dinner hour; a run at 22:30 UTC
+became "the night slot". The fix is to show her one kind of time, the
+one her days are made of, with the zone's name beside it so the clock
+is never ambiguous. The records stay in UTC because they outlive any
+one zone: a repository read years later, or after she moves, should
+not shift under the reader.
+

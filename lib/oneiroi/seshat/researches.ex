@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.Researches do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -128,7 +129,7 @@ defmodule Oneiroi.Seshat.Researches do
     """
     # #{row.question}
 
-    Research ##{row.number}, asked by #{row.asked_by} on #{Calendar.strftime(row.asked_at, "%Y-%m-%d")}; started from #{started}. Read by the reader on the witness's machine, within the research allowlist.
+    Research ##{row.number}, asked by #{row.asked_by} on #{Local.day(Local.zone(row.resident_id), row.asked_at)}; started from #{started}. Read by the reader on the witness's machine, within the research allowlist.
 
     #{found |> field(:summary) |> to_string() |> String.trim()}
 
