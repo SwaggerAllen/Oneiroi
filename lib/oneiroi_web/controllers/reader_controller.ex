@@ -21,6 +21,9 @@ defmodule OneiroiWeb.ReaderController do
   @reader_actions ~w(sites research answer failed digests answer_digest fail_digest)a
 
   plug(:allowed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "research"] when action in [:ask])
+  plug(OneiroiWeb.Plugs.Switch, [key: "digests"] when action in [:ask_digest])
 
   @list %Schema{type: :array, items: %Schema{type: :string}}
 

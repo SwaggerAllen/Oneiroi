@@ -14,6 +14,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   alias Oneiroi.AgathosDaimon.Error
   alias Oneiroi.AgathosDaimon.Events
   alias Oneiroi.AgathosDaimon.SoulLines
+  alias Oneiroi.AgathosDaimon.Switches
 
   defstruct [
     :id,
@@ -49,10 +50,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     state_keys: MapSet.new()
   ]
 
-  # The contract's closed terms (spec §6.12): whether solo sessions are
-  # hidden entirely, and whether the witness's preview of the next turn
-  # keeps its words to what the witness reads elsewhere (brain#41).
-  @contract_terms ~w(solo_sessions_private preview_withholds_words)
+  # The contract's closed terms are the switch registry's keys
+  # (`Oneiroi.AgathosDaimon.Switches`, agathos-daimon#34), read at run
+  # time so the aggregate takes no compile-time edge on the catalogue.
   @prose_limit 4_000
 
   @roles ~w(brain reader worker)
@@ -1211,7 +1211,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   defp proposed?(_actor, _to), do: false
 
   defp terms_ok?(terms) when is_map(terms) do
-    Enum.all?(terms, fn {k, v} -> is_binary(k) and k in @contract_terms and is_boolean(v) end)
+    keys = Switches.keys()
+    Enum.all?(terms, fn {k, v} -> is_binary(k) and k in keys and is_boolean(v) end)
   end
 
   defp terms_ok?(_terms), do: false

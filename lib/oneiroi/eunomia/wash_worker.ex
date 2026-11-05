@@ -19,7 +19,12 @@ defmodule Oneiroi.Eunomia.WashWorker do
   @actor Actor.new(:job, "eunomia_wash")
 
   def run(_args) do
-    for row <- AgathosDaimon.active_residents(), do: Wash.run(row.id, @actor)
+    # A resident whose agreement switches the wash off is passed over
+    # (agathos-daimon#34).
+    for row <- AgathosDaimon.active_residents(),
+        AgathosDaimon.switch_on?(row.id, "wash"),
+        do: Wash.run(row.id, @actor)
+
     :ok
   end
 end

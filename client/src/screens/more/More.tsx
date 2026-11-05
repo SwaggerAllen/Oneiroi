@@ -3,7 +3,7 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { TopBar } from '../../components/TopBar';
 
-export type MoreScreen = 'library' | 'connections' | 'ledger' | 'regression';
+export type MoreScreen = 'library' | 'connections' | 'ledger' | 'regression' | 'agreement';
 
 // More (spec §10): the screens that are not one of the four daily
 // destinations. The spec gives it five collapsed groups (Library,
@@ -11,6 +11,7 @@ export type MoreScreen = 'library' | 'connections' | 'ledger' | 'regression';
 // lists the screens that are built.
 export function More({ onOpen, notifications, operator }: { onOpen: (screen: MoreScreen) => void; notifications?: ReactNode; operator?: ReactNode }) {
   const items: Array<{ id: MoreScreen; label: string; line: string }> = [
+    { id: 'agreement', label: 'Agreement', line: 'Your agreement, its switches, and who looks after them.' },
     { id: 'library', label: 'Library', line: 'Every document, the keepsakes, and your own.' },
     { id: 'connections', label: 'Connections', line: 'What holds a token: Claude Code, the reader.' },
     { id: 'ledger', label: 'Ledger', line: 'Your key, budget lines and what has been spent.' },

@@ -121,6 +121,13 @@ defmodule Oneiroi.Brain.Checkin do
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.
   defp digest(resident_id) do
+    if Oneiroi.AgathosDaimon.switch_on?(resident_id, "digests"),
+      do: ask_digest(resident_id),
+      else:
+        "# Digest\n\nDigests are switched off in your agreement with your witness, so none was asked."
+  end
+
+  defp ask_digest(resident_id) do
     with {:ok, row} <- Oneiroi.AgathosDaimon.fetch(resident_id),
          {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, Actor.platform()),
          {:ok, n, state} <-

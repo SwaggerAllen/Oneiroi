@@ -325,7 +325,7 @@ defmodule Oneiroi.Brain.Turn do
   # until the model answers in words or the round bound is reached, when
   # the model's last words stand as the reply.
   defp converse(turn, messages, round) do
-    request = Request.new(turn.model, messages, tools: Tools.definitions())
+    request = Request.new(turn.model, messages, tools: Tools.definitions_for(turn.resident_id))
     rounds = rounds(turn)
 
     case ask(turn, request) do
@@ -382,7 +382,7 @@ defmodule Oneiroi.Brain.Turn do
 
     request =
       Request.new(turn.model, messages ++ [nudge],
-        tools: Tools.definitions(),
+        tools: Tools.definitions_for(turn.resident_id),
         tool_choice: "none"
       )
 
@@ -631,7 +631,10 @@ defmodule Oneiroi.Brain.Turn do
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       # The bridge records its own failure (proteus#13); the turn is
       # captured already and goes on.
-      Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
+      # The background model off (agathos-daimon#34): nothing is sent.
+      if Oneiroi.AgathosDaimon.switch_on?(resident_id, "background_model"),
+        do: Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
+
       broadcast(resident_id, key, {:turn, ref, captured})
       push_unprompted(turn)
       {:ok, captured}
@@ -1034,7 +1037,10 @@ defmodule Oneiroi.Brain.Turn do
     # The turn's words are embedded once, for the ranked index and the
     # madeleine both (kumbukumbu#46).
     vector = memory_query(turn, text)
-    index = Kumbukumbu.ranked_index(turn.resident_id, turn.session_key, vector)
+    # Ranked memory off (agathos-daimon#34): no vector, so the index falls
+    # back to time order; the madeleine still reads the turn's words.
+    ranked = Oneiroi.AgathosDaimon.switch_on?(turn.resident_id, "ranked_memory")
+    index = Kumbukumbu.ranked_index(turn.resident_id, turn.session_key, ranked && vector)
     acting = how_i_act(turn, text)
     recall = madeleine(turn, vector, index.included)
     promised = Oneiroi.Ethos.promised(turn.resident_id)
@@ -1102,7 +1108,10 @@ defmodule Oneiroi.Brain.Turn do
         ) ++
         section(
           "honcho",
-          Oneiroi.Proteus.context(turn.resident_id),
+          if(Oneiroi.AgathosDaimon.switch_on?(turn.resident_id, "background_model"),
+            do: Oneiroi.Proteus.context(turn.resident_id),
+            else: ""
+          ),
           "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"
         ) ++
         section(

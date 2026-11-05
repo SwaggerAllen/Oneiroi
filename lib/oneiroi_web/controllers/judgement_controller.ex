@@ -8,6 +8,8 @@ defmodule OneiroiWeb.JudgementController do
   tags(["judgement"])
 
   plug(:witnessed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "wash"] when action in [:run_wash])
 
   operation(:show,
     summary:

@@ -65,9 +65,9 @@ defmodule OneiroiWeb.MCPController do
 
   defp handle("ping", _params, _adapter), do: {:ok, %{}}
 
-  defp handle("tools/list", _params, _adapter) do
+  defp handle("tools/list", _params, adapter) do
     tools =
-      Enum.map(Tools.definitions(), fn %{function: f} ->
+      Enum.map(Tools.definitions_for(adapter.resident_id), fn %{function: f} ->
         %{name: f.name, description: f.description, inputSchema: with_turn(f.parameters)}
       end)
 

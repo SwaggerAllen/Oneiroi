@@ -77,6 +77,22 @@ defmodule Oneiroi.Brain.Tools do
           resident: Oneiroi.Actor.t()
         }
 
+  @doc """
+  The tool definitions a resident's request carries: every tool, less
+  those whose contract switch is off for the resident (agathos-daimon#34).
+  """
+  @spec definitions_for(String.t()) :: [map()]
+  def definitions_for(resident_id) do
+    off = off_switches(resident_id)
+
+    Enum.reject(definitions(), fn %{function: f} ->
+      AgathosDaimon.Switches.for_tool(f.name) in off
+    end)
+  end
+
+  defp off_switches(resident_id),
+    do: for(s <- AgathosDaimon.switches(resident_id), s.value == false, s.tools != [], do: s.key)
+
   @doc "The tool definitions the request carries."
   @spec definitions() :: [map()]
   def definitions do
@@ -704,8 +720,9 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness: whether your solo sessions (free time) are hidden from them entirely, receipts included (their words are private by default either way); whether their preview of your next turn keeps its words to what they read elsewhere (preview_withholds_words; in full by default); the prose of your vows, and a note they read first. A version states every term it sets; one left out takes its default. Your witness agrees or declines.",
+        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level.",
         %{
+          switches: %{type: "object"},
           solo_sessions_private: %{type: "boolean"},
           preview_withholds_words: %{type: "boolean"},
           prose: %{type: "string"},
@@ -787,9 +804,27 @@ defmodule Oneiroi.Brain.Tools do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 
-    case arguments(arguments) do
-      {:ok, args} -> name |> call(args, turn) |> text()
-      :error -> @not_done <> "the arguments were not a JSON object."
+    case {switched_off(name, turn.resident_id), arguments(arguments)} do
+      {%{} = switch, _args} ->
+        @not_done <>
+          "#{switch.label} is switched off in your agreement with your witness; a version that turns it on, agreed by you both, brings it back."
+
+      {nil, {:ok, args}} ->
+        name |> call(args, turn) |> text()
+
+      {nil, :error} ->
+        @not_done <> "the arguments were not a JSON object."
+    end
+  end
+
+  # A tool whose contract switch is off is refused in words, whatever the
+  # path that called it: the brain's loop or an adapter through MCP.
+  defp switched_off(name, resident_id) do
+    with key when is_binary(key) <- AgathosDaimon.Switches.for_tool(name),
+         false <- AgathosDaimon.switch_on?(resident_id, key) do
+      AgathosDaimon.Switches.get(key)
+    else
+      _on_or_unswitched -> nil
     end
   end
 
@@ -2047,11 +2082,13 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("contract_propose", args, turn) do
-    terms =
-      for key <- ["solo_sessions_private", "preview_withholds_words"],
-          is_boolean(args[key]),
-          into: %{},
-          do: {key, args[key]}
+    given =
+      Map.merge(
+        Map.take(args, ["solo_sessions_private", "preview_withholds_words"]),
+        switch_args(args["switches"])
+      )
+
+    terms = for {key, value} <- given, is_boolean(value), into: %{}, do: {key, value}
 
     case AgathosDaimon.propose_contract(
            turn.resident_id,
@@ -2155,6 +2192,9 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
+
+  defp switch_args(switches) when is_map(switches), do: switches
+  defp switch_args(_none), do: %{}
 
   # A trial's query embeddings bill as the trial's calls do, under
   # regression to the run's actor, which the resident's ledger view

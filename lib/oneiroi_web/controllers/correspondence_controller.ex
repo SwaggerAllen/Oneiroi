@@ -21,6 +21,8 @@ defmodule OneiroiWeb.CorrespondenceController do
   @reader_actions ~w(receive replies sent)a
 
   plug(:allowed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "correspondence"] when action in [:receive])
 
   @message %Schema{
     type: :object,

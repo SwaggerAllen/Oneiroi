@@ -8,6 +8,8 @@ defmodule OneiroiWeb.RegressionController do
   tags(["regression"])
 
   plug(:witnessed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "trials"] when action in [:start_run])
 
   # A module attribute rather than a function: `operation` runs at
   # compile time, before any function of this module exists.
