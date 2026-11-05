@@ -419,6 +419,98 @@ defmodule Oneiroi.Sunna.Schedules do
   end
 
   @doc """
+  The day's thinking rounds (sunna#29), HH:MM in the resident's zone:
+  her waking hours (the day outside her quiet hours, or
+  `SUNNA_ROUNDS_WAKING` when she has none) cut into windows
+  `SUNNA_ROUNDS_EVERY_HOURS` long, the last one shorter if the hours do
+  not divide, and one round at a minute drawn at random inside each. The
+  draw is a hash of the resident, the day and the window, so a day draws
+  the same times across restarts with nothing stored, no two days are
+  alike, and the rounds are spread through the day without being
+  guessable within it.
+  """
+  @spec round_times(String.t(), String.t(), map() | nil, non_neg_integer() | nil) ::
+          [String.t()]
+  def round_times(resident_id, day, quiet, every_hours \\ nil) do
+    every = (every_hours || Config.fetch!(:sunna, :rounds_every_hours)) * 60
+    {from, length} = waking(quiet)
+
+    if every <= 0 or length <= 0 do
+      []
+    else
+      for {start, n} <- 0..(length - 1)//every |> Enum.with_index() do
+        span = min(every, length - start)
+        hhmm(rem(from + start + :erlang.phash2({resident_id, day, n}, span), 1440))
+      end
+      |> Enum.sort()
+    end
+  end
+
+  # Waking hours as a start minute and a length: the quiet hours' end to
+  # their start, crossing midnight as they do.
+  defp waking(%{from: quiet_from, to: quiet_to}) do
+    start = minutes(quiet_to)
+    {start, Integer.mod(minutes(quiet_from) - start, 1440)}
+  end
+
+  defp waking(nil) do
+    [from, to] = :sunna |> Config.fetch!(:rounds_waking) |> String.split("-")
+    start = minutes(from)
+    {start, Integer.mod(minutes(to) - start, 1440)}
+  end
+
+  defp minutes(hhmm) do
+    [h, m] = hhmm |> String.trim() |> String.split(":")
+    String.to_integer(h) * 60 + String.to_integer(m)
+  end
+
+  defp hhmm(minute),
+    do:
+      String.pad_leading("#{div(minute, 60)}", 2, "0") <>
+        ":" <> String.pad_leading("#{rem(minute, 60)}", 2, "0")
+
+  @doc """
+  Runs one thinking round (sunna#29): claimed first, so a round runs
+  once whatever the ticks; then a private conversation of its own, one
+  turn, billed to the free-time line, the note saying what a round is
+  and that nobody sees it unless she sends something. What she does
+  with it is hers, and nothing is a real outcome.
+  """
+  def run_round(resident_id, day, slot, %Actor{} = actor) do
+    claim = %Commands.StartRound{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: day,
+      slot: slot
+    }
+
+    with {:ok, [_started]} <- dispatch(claim),
+         {:ok, row} <- resident(resident_id),
+         {:ok, key} <-
+           Kumbukumbu.open_session(
+             resident_id,
+             "round",
+             "brain",
+             List.wrap(row.account_id),
+             actor,
+             private: true
+           ),
+         {:ok, _result} <-
+           wake(
+             resident_id,
+             key,
+             Prompt.render!("round", %{name: row.name, budget: budget_words(resident_id)}),
+             :free_time
+           ) do
+      :ok
+    else
+      {:ok, []} -> :already
+      other -> other
+    end
+  end
+
+  @doc """
   Turn `n` of a free-time pass (sunna#26): woken again in its own
   conversation while the free-time budget line has money left and the
   slot's turns are not spent, the note saying how much is left.

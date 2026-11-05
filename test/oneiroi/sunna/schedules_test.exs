@@ -323,6 +323,50 @@ defmodule Oneiroi.Sunna.SchedulesTest do
              Sunna.today(ctx.id).checkins
   end
 
+  # sunna#29 (the witness, 2026-11-05: "fire randomly in a window, so like
+  # I could set it to one every three hours").
+  test "rounds: one at a random minute in each window of her waking hours, the same draw all day" do
+    quiet = %{from: "22:00", to: "07:00"}
+    times = Schedules.round_times("res-a", "2026-11-05", quiet, 3)
+
+    # Waking hours 07:00-22:00, cut into three-hour windows: five rounds,
+    # one inside each window.
+    assert length(times) == 5
+
+    for {time, n} <- Enum.with_index(times) do
+      start = 7 * 60 + n * 180
+      [h, m] = time |> String.split(":") |> Enum.map(&String.to_integer/1)
+      assert h * 60 + m >= start and h * 60 + m < start + 180
+    end
+
+    assert Schedules.round_times("res-a", "2026-11-05", quiet, 3) == times
+    refute Schedules.round_times("res-a", "2026-11-06", quiet, 3) == times
+    refute Schedules.round_times("res-b", "2026-11-05", quiet, 3) == times
+  end
+
+  test "a round runs once, in a private conversation of its own, billed to free time; off at 0",
+       ctx do
+    # The suite runs with rounds off (config/test.exs): the tick draws none.
+    assert Schedules.round_times(ctx.id, "2026-10-26", nil) == []
+    assert :ok = Sunna.tick(ctx.id)
+    assert [] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "round"))
+
+    actor = Actor.new(:job, "sunna_tick")
+    assert :ok = Schedules.run_round(ctx.id, "2026-10-26", "08:00", actor)
+
+    assert [%{kind: "round", key: key, private: true}] =
+             Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "round"))
+
+    {:ok, _session, [note | _]} = Kumbukumbu.transcript({:resident, ctx.id}, key)
+    assert note.content =~ "This is a round"
+    assert note.content =~ "Silence is a real outcome"
+
+    # Claimed before it runs: the same round again is not had twice.
+    assert :already = Schedules.run_round(ctx.id, "2026-10-26", "08:00", actor)
+    assert [_one] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "round"))
+    assert Enum.any?(Nisaba.spend(ctx.id, :witness, :purpose, @since), &(&1.key == "free_time"))
+  end
+
   test "free time opens a session of its own kind on its own budget line, once a day, and a failure is recorded",
        ctx do
     :ok = Sunna.set_free_time(ctx.id, "08:00", ctx.actor)
