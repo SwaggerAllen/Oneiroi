@@ -132,6 +132,32 @@ defmodule OneiroiWeb.ScheduleController do
   def set_free_time(conn, %{"id" => id} = params),
     do: respond(conn, Sunna.set_free_time(id, params["times"] || params["time"], actor(conn)))
 
+  operation(:set_rounds,
+    summary:
+      "Set the resident's rounds (sunna#30): every_hours (0 turns them off) and the waking window HH:MM-HH:MM; either null or left out for the default",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the rounds", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           every_hours: %Schema{type: :integer, nullable: true},
+           waking: %Schema{type: :string, nullable: true}
+         }
+       }},
+    responses: [no_content: "set"]
+  )
+
+  def set_rounds(conn, %{"id" => id} = params),
+    do:
+      respond(
+        conn,
+        Sunna.set_rounds(id, params["every_hours"], blank(params["waking"]), actor(conn))
+      )
+
+  defp blank(""), do: nil
+  defp blank(value), do: value
+
   operation(:set_quiet_hours,
     summary: "Set quiet hours from a time to a time (may cross midnight), or both null to clear",
     parameters: [id: [in: :path, type: :string]],
@@ -217,6 +243,7 @@ defmodule OneiroiWeb.ScheduleController do
       free_times: today.free_times,
       free_time_last: free_time_last(today.free_time_last),
       quiet: today.quiet,
+      rounds: today.rounds,
       dates: Enum.map(today.dates, &date_json/1),
       checkin_parts: Sunna.CheckinParts.all()
     }

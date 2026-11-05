@@ -327,6 +327,18 @@ export interface ScheduleToday {
   free_times: FreeTimeSlot[];
   free_time_last: { day: string; outcome: string } | null;
   quiet: { from: string; to: string } | null;
+  // Her thinking rounds (sunna#29, #30): the cadence and window in effect,
+  // whether each is her own or the default, how many today, and when the
+  // last one started. Never their times or what they did.
+  rounds?: {
+    every_hours: number;
+    every_default: boolean;
+    waking: string | null;
+    waking_default: boolean;
+    waking_from_quiet: boolean;
+    today: number;
+    last_at: string | null;
+  };
   dates: ScheduleDate[];
   // What a check-in's note can carry, in the note's order (sunna#28).
   checkin_parts: CheckinPart[];

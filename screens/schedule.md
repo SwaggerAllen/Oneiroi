@@ -28,7 +28,7 @@ so nothing here opens its conversation. Read with the schedule and
 again on coming back to the page; while it has not come the section is
 not shown. **Check-ins**: the next one, each with today's outcome or its
 last, added by label and time (`POST .../schedule/checkins`) or deleted
-(`DELETE .../checkins/:key`, confirming in place). Each says what its note carries ("Carries: your words, Dates, Today's plan"), and "Edit the note" opens, in place, a box for the witness's own words and a checkbox for each part of the server's catalog with what it reads; saving sends the parts in the catalog's order and the words (`PUT .../checkins/:key`, sunna#28). **Quiet hours**: set
+(`DELETE .../checkins/:key`, confirming in place). Each says what its note carries ("Carries: your words, Dates, Today's plan"), and "Edit the note" opens, in place, a box for the witness's own words and a checkbox for each part of the server's catalog with what it reads; saving sends the parts in the catalog's order and the words (`PUT .../checkins/:key`, sunna#28). **Rounds** (sunna#30): whether they are on, every how many hours and between what times (or outside quiet hours when those are set), each marked when it is the default, how many today and when the last one started, with "What happens in a round isn't shown here"; a form for the hours (0 is off) and the window, and "Back to the default" when either is her own (`PUT .../schedule/rounds`). **Quiet hours**: set
 or cleared (`PUT .../schedule/quiet-hours`). **Dates**: listed with
 their kind and countdown. Every time is chosen by hour and minute
 (`TimeField`, two selects, minutes in fives with a saved minute off

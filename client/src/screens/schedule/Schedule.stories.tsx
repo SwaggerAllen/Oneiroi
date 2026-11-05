@@ -86,4 +86,13 @@ export const runs: FreeTimeRun[] = [
   { day: '2026-11-02', slot: '14:30', outcome: 'failed: brain_turn_failed', session_key: null, at: '2026-11-02T22:30:05Z', turns: 0, did: [] },
 ];
 export const Remembered: Story = { args: { remembered: runs } };
+export const RoundsOn: Story = {
+  args: {
+    today: {
+      ...today,
+      quiet: null,
+      rounds: { every_hours: 3, every_default: true, waking: '08:00-22:00', waking_default: true, waking_from_quiet: false, today: 5, last_at: '2026-11-05T19:12:00Z' },
+    },
+  },
+};
 export const NothingRemembered: Story = { args: { remembered: [] } };

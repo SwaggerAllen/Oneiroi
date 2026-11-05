@@ -66,6 +66,7 @@ defmodule Oneiroi.Sunna do
       Events.RoundStarted,
       Events.FreeTimeFailed,
       Events.QuietHoursSet,
+      Events.RoundsSet,
       Events.DateSet,
       Events.DateChanged,
       Events.DateRemoved,
@@ -171,6 +172,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.RoundStarted, 1},
       {Oneiroi.Sunna.Events.FreeTimeFailed, 2},
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
+      {Oneiroi.Sunna.Events.RoundsSet, 1},
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
       {Oneiroi.Sunna.Events.DateRemoved, 1},
@@ -190,6 +192,9 @@ defmodule Oneiroi.Sunna do
       {:sunna_time_invalid,
        "a time of day is HH:MM in the resident's zone, and a date is an instant",
        remedy: "give it as HH:MM"},
+      {:sunna_rounds_invalid,
+       "rounds come every 0 to 24 hours (0 turns them off), in a waking window HH:MM-HH:MM",
+       remedy: "give whole hours and a window like 08:00-22:00; leave either out for the default"},
       {:sunna_label_invalid, "a label or a title is one line of at most 60 characters",
        remedy: "shorten it"},
       {:sunna_parts_invalid,
@@ -248,6 +253,13 @@ defmodule Oneiroi.Sunna do
           :ok | {:error, term()}
   defexport(set_free_time(resident_id, time, actor),
     do: Schedules.set_free_time(resident_id, time, actor)
+  )
+
+  @doc "Sets the resident's rounds (sunna#30): every_hours (0 off) and the waking window, nil for the default."
+  @spec set_rounds(String.t(), non_neg_integer() | nil, String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_rounds(resident_id, every_hours, waking, actor),
+    do: Schedules.set_rounds(resident_id, every_hours, waking, actor)
   )
 
   @doc "Sets quiet hours from HH:MM to HH:MM (may cross midnight), or both nil to clear."

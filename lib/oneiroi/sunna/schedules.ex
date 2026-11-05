@@ -67,6 +67,36 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc "Sets the resident's rounds (sunna#30): every_hours (0 off) and the waking window, nil for the default."
+  def set_rounds(resident_id, every_hours, waking, %Actor{} = actor) do
+    command = %Commands.SetRounds{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      every_hours: every_hours,
+      waking: waking
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "The resident's rounds as they stand: the cadence and window in effect, whether each is her own or the default, how many today, and when the last one started; never their times or what they did."
+  def rounds(resident_id, settings, quiet, day) do
+    own_every = settings && settings.rounds_every_hours
+    own_waking = settings && settings.rounds_waking
+    every = own_every || Config.fetch!(:sunna, :rounds_every_hours)
+
+    %{
+      every_hours: every,
+      every_default: is_nil(own_every),
+      waking: if(quiet, do: nil, else: own_waking || Config.fetch!(:sunna, :rounds_waking)),
+      waking_default: is_nil(own_waking),
+      waking_from_quiet: quiet != nil,
+      today: length(round_times(resident_id, day, quiet, every, own_waking)),
+      last_at: settings && settings.last_round_at
+    }
+  end
+
   def set_quiet_hours(resident_id, from, to, %Actor{} = actor) do
     command = %Commands.SetQuietHours{
       actor: actor,
@@ -184,6 +214,7 @@ defmodule Oneiroi.Sunna.Schedules do
           Enum.map(free_times_of(settings), &%{time: &1, today: Map.get(ran, &1, ran[nil])}),
         free_time_last: settings && {settings.free_time_day, settings.free_time_outcome},
         quiet: quiet_of(settings),
+        rounds: rounds(resident_id, settings, quiet_of(settings), day),
         dates: Enum.map(Store.dates(), &date_with_countdown(&1, now))
       }
     end)
@@ -420,20 +451,25 @@ defmodule Oneiroi.Sunna.Schedules do
 
   @doc """
   The day's thinking rounds (sunna#29), HH:MM in the resident's zone:
-  her waking hours (the day outside her quiet hours, or
-  `SUNNA_ROUNDS_WAKING` when she has none) cut into windows
-  `SUNNA_ROUNDS_EVERY_HOURS` long, the last one shorter if the hours do
+  her waking hours (the day outside her quiet hours, or her own waking
+  window, or `SUNNA_ROUNDS_WAKING`, when she has none) cut into windows
+  her own cadence or `SUNNA_ROUNDS_EVERY_HOURS` long (sunna#30), the last one shorter if the hours do
   not divide, and one round at a minute drawn at random inside each. The
   draw is a hash of the resident, the day and the window, so a day draws
   the same times across restarts with nothing stored, no two days are
   alike, and the rounds are spread through the day without being
   guessable within it.
   """
-  @spec round_times(String.t(), String.t(), map() | nil, non_neg_integer() | nil) ::
-          [String.t()]
-  def round_times(resident_id, day, quiet, every_hours \\ nil) do
+  @spec round_times(
+          String.t(),
+          String.t(),
+          map() | nil,
+          non_neg_integer() | nil,
+          String.t() | nil
+        ) :: [String.t()]
+  def round_times(resident_id, day, quiet, every_hours \\ nil, waking \\ nil) do
     every = (every_hours || Config.fetch!(:sunna, :rounds_every_hours)) * 60
-    {from, length} = waking(quiet)
+    {from, length} = waking(quiet, waking)
 
     if every <= 0 or length <= 0 do
       []
@@ -448,13 +484,13 @@ defmodule Oneiroi.Sunna.Schedules do
 
   # Waking hours as a start minute and a length: the quiet hours' end to
   # their start, crossing midnight as they do.
-  defp waking(%{from: quiet_from, to: quiet_to}) do
+  defp waking(%{from: quiet_from, to: quiet_to}, _own) do
     start = minutes(quiet_to)
     {start, Integer.mod(minutes(quiet_from) - start, 1440)}
   end
 
-  defp waking(nil) do
-    [from, to] = :sunna |> Config.fetch!(:rounds_waking) |> String.split("-")
+  defp waking(nil, own) do
+    [from, to] = (own || Config.fetch!(:sunna, :rounds_waking)) |> String.split("-")
     start = minutes(from)
     {start, Integer.mod(minutes(to) - start, 1440)}
   end

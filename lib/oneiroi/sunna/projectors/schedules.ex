@@ -94,6 +94,14 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     |> free_time_run(e, "failed: " <> e.reason, nil)
   end)
 
+  fold(%Events.RoundsSet{} = e, _metadata, fn multi ->
+    settings(multi, e.id, rounds_every_hours: e.every_hours, rounds_waking: e.waking)
+  end)
+
+  fold(%Events.RoundStarted{} = e, _metadata, fn multi ->
+    settings(multi, e.id, last_round_at: e.at)
+  end)
+
   fold(%Events.QuietHoursSet{} = e, _metadata, fn multi ->
     settings(multi, e.id, quiet_from: e.from, quiet_to: e.to)
   end)
