@@ -125,6 +125,38 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Invite do
+    @moduledoc "An invite code's SKU and its standing (gaia#18), platform-scoped; the code only as its hash."
+    use Ecto.Schema
+    @primary_key {:id, :binary_id, autogenerate: false}
+    schema "gaia_invite" do
+      field(:code_hash, :string)
+      field(:plan, :string)
+      field(:price_nanos, :integer)
+      field(:discount_pct, :integer)
+      field(:term_days, :integer)
+      field(:uses, :integer)
+      field(:redeemed, :integer, default: 0)
+      field(:expires_at, :utc_datetime_usec)
+      field(:note, :string)
+      field(:issued_by, :string)
+      field(:issued_at, :utc_datetime_usec)
+      field(:revoked_at, :utc_datetime_usec)
+      field(:revoke_note, :string)
+    end
+  end
+
+  defmodule InviteRedemption do
+    @moduledoc "One redemption of an invite (gaia#18): the household it granted terms to."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_invite_redemption" do
+      field(:invite_id, :binary_id, primary_key: true)
+      field(:household_id, :binary_id, primary_key: true)
+      field(:redeemed_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema

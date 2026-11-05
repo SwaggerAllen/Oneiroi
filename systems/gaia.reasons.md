@@ -97,3 +97,16 @@ household included, instead of something a sign-up flow must remember.
 The household row is platform-scoped because filing it under its
 founder's account would make the founder its owner and lock out every
 later member.
+
+## #18
+The door's MVP item 2 asks for codes that carry what they grant, so
+the code is a SKU rather than a password: the same records serve open
+sign-up's offers later. A code is a bearer secret, and a log that held
+it would hand out every unredeemed one to anyone who reads an export or
+a backup; the hash is enough to find it. The alphabet drops the
+characters people misread because the code is read aloud and typed off
+a screen. The refusals are separate kinds because "ask for another" and
+"you already have this" are different things to tell a stranger at the
+door. Terms are granted by the platform rather than the redeeming
+witness because a witness may not grant itself terms; the code is the
+operator's grant, and redeeming it carries out what the operator chose.

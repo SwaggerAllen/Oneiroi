@@ -86,4 +86,28 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule GrantHouseholdTerms do
     use Oneiroi.Command, fields: [:id, :plan, :price_nanos, :terms_until, :source, :note]
   end
+
+  # The invite stream (gaia#18). `id` is the invite's.
+  defmodule IssueInvite do
+    use Oneiroi.Command,
+      fields: [
+        :id,
+        :code_hash,
+        :plan,
+        :price_nanos,
+        :discount_pct,
+        :term_days,
+        :uses,
+        :expires_at,
+        :note
+      ]
+  end
+
+  defmodule RedeemInvite do
+    use Oneiroi.Command, fields: [:id, :household_id]
+  end
+
+  defmodule RevokeInvite do
+    use Oneiroi.Command, fields: [:id, :note]
+  end
 end

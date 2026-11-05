@@ -363,7 +363,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba#3, #11; gaia#14); platform tokens not yet | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia#4, #20) | judgement |
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia#5, #8 to #13; the Regression screen) | judgement |
-| F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes, sign-up and billing reading the terms not yet | identity |
+| F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes as SKUs granting those terms (gaia#18); sign-up and billing reading the terms not yet | identity |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba#15, #17, #18) | resident, ledger |
 | F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
 | F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos#3 to #11, brain#29) | character |
@@ -505,6 +505,12 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   are a policy pass of their own. The per-resident subscription (F53)
   stays the resident's insurance policy and its plan until billing
   reads the household's terms.
+- **Invite codes** (gaia#18) are SKUs a super admin issues: a plan, a
+  list price, a discount, days of terms, uses and an optional expiry, with
+  a note. A code is shown once and held only as its hash. Redeemed onto a
+  household, it grants the household those terms; revoked, expired, spent
+  or already redeemed, it says which. The default is the alpha's free
+  code: $20 a month at a full discount, ninety days, one use.
 - **Self-hosted**: one account, created at setup; the same code.
 
 ### 6.2 resident
@@ -1151,6 +1157,8 @@ Owns `lib/oneiroi/sima_qian/**`.
     that keep it (gaia#16), which is no resident's.
   - `household`: the household stream, the billing owner and its
     memberships (gaia#17), which is every member's and no one resident's.
+  - `invite`: the invite streams, the front door's codes and their
+    redemptions (gaia#18), which are the platform's and no resident's.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
     the source; a rebuilt resident provisions its own, where replaying
     it would point a copy at the original's memory (proteus#8).

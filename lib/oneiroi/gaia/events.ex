@@ -104,4 +104,33 @@ defmodule Oneiroi.Gaia.Events do
       instants: [:terms_until],
       decision: true
   end
+
+  # An invite code (gaia#18), on `invite-<id>`: a SKU (plan, list price,
+  # discount, how long the terms run, how many uses, until when), the
+  # code itself never in the log, only its hash. Redeemed onto a
+  # household; revoked with a note.
+  defmodule InviteIssued do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [
+        :id,
+        :code_hash,
+        :plan,
+        :price_nanos,
+        :discount_pct,
+        :term_days,
+        :uses,
+        :expires_at
+      ],
+      instants: [:expires_at],
+      decision: true
+  end
+
+  defmodule InviteRedeemed do
+    use Oneiroi.Event, version: 1, fields: [:id, :household_id]
+  end
+
+  defmodule InviteRevoked do
+    use Oneiroi.Event, version: 1, fields: [:id], decision: true
+  end
 end

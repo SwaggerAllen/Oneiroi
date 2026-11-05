@@ -72,12 +72,18 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdResidentLeft,
       Events.HouseholdTermsGranted,
       Households,
-      HouseholdRouter
+      HouseholdRouter,
+      Events.InviteIssued,
+      Events.InviteRedeemed,
+      Events.InviteRevoked,
+      Invites,
+      InviteRouter
     ]
 
   alias Oneiroi.Gaia.Accounts
   alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Households
+  alias Oneiroi.Gaia.Invites
   alias Oneiroi.Gaia.Push
 
   @impl Oneiroi.Component
@@ -139,7 +145,10 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdWitnessJoined, 1},
       {Oneiroi.Gaia.Events.HouseholdResidentJoined, 1},
       {Oneiroi.Gaia.Events.HouseholdResidentLeft, 1},
-      {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1}
+      {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1},
+      {Oneiroi.Gaia.Events.InviteIssued, 1},
+      {Oneiroi.Gaia.Events.InviteRedeemed, 1},
+      {Oneiroi.Gaia.Events.InviteRevoked, 1}
     ]
   end
 
@@ -180,6 +189,18 @@ defmodule Oneiroi.Gaia do
       {:gaia_household_invalid,
        "a household is founded by an account, and its terms are a plan, a price of zero or more, an end and a source, with a note",
        remedy: "the details name what is expected"},
+      {:gaia_invite_invalid,
+       "an invite is a plan, a price of zero or more, a discount from 0 to 100, at least a day of terms and one use, an optional expiry, and a note",
+       remedy: "the details name what is expected; a revocation carries a note too"},
+      {:gaia_invite_unknown, "no invite has that code",
+       remedy: "check the code as it was given; case, spaces and dashes do not matter"},
+      {:gaia_invite_revoked, "the invite was revoked", remedy: "ask whoever gave it for another"},
+      {:gaia_invite_expired, "the invite is past its expiry",
+       remedy: "ask whoever gave it for another"},
+      {:gaia_invite_spent, "the invite's uses are all taken",
+       remedy: "ask whoever gave it for another"},
+      {:gaia_invite_already_redeemed, "this household has redeemed the invite already",
+       remedy: "nothing to do: its terms are the household's"},
       {:gaia_push_failed,
        "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
        remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
@@ -234,6 +255,7 @@ defmodule Oneiroi.Gaia do
       Oneiroi.Gaia.Handlers.Witnessing,
       Oneiroi.Gaia.Projectors.Household,
       Oneiroi.Gaia.Handlers.Household,
+      Oneiroi.Gaia.Projectors.Invite,
       {Task.Supervisor, name: :gaia_push}
     ]
   end
@@ -385,4 +407,32 @@ defmodule Oneiroi.Gaia do
   defexport(grant_household_terms(household_id, terms, note, actor),
     do: Households.grant_terms(household_id, terms, note, actor)
   )
+
+  @doc "The SKU an invite is issued with when the operator names nothing else (gaia#18)."
+  @spec invite_defaults() :: map()
+  defexport(invite_defaults(), do: Invites.defaults())
+
+  @doc "Issues an invite code; a super admin's alone, with a note. The code is answered once and never stored."
+  @spec issue_invite(map(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{id: String.t(), code: String.t()}} | {:error, term()}
+  defexport(issue_invite(sku, note, actor), do: Invites.issue(sku, note, actor))
+
+  @doc "Revokes an invite; a super admin's alone, with a note."
+  @spec revoke_invite(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(revoke_invite(id, note, actor), do: Invites.revoke(id, note, actor))
+
+  @doc "What a code would grant, or why not (unknown, revoked, expired, spent), without spending it."
+  @spec check_invite(String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(check_invite(code), do: Invites.check(code))
+
+  @doc "Redeems a code onto a household, granting it the code's terms."
+  @spec redeem_invite(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(redeem_invite(code, household_id, actor),
+    do: Invites.redeem(code, household_id, actor)
+  )
+
+  @doc "Every invite issued, newest first, with its standing; never the code."
+  @spec invites() :: [map()]
+  defexport(invites(), do: Invites.list())
 end

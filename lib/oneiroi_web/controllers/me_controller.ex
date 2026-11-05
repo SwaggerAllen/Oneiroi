@@ -120,6 +120,30 @@ defmodule OneiroiWeb.MeController do
         "endpoint is required"
       )
 
+  operation(:redeem_invite,
+    summary:
+      "Redeem an invite code onto the caller's household (gaia#18): its terms become the household's",
+    request_body:
+      {"the code", "application/json",
+       %Schema{type: :object, required: [:code], properties: %{code: %Schema{type: :string}}}},
+    responses: [ok: {"what the code granted", "application/json", %Schema{type: :object}}]
+  )
+
+  def redeem_invite(%{assigns: %{principal: p}} = conn, %{"code" => code}) when is_binary(code) do
+    household = Oneiroi.Gaia.household_id(p.account_id)
+
+    case Oneiroi.Gaia.redeem_invite(code, household, actor(conn)) do
+      {:ok, granted} ->
+        json(conn, %{granted: granted, household: Oneiroi.Gaia.household(p.account_id)})
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
+  def redeem_invite(conn, _params),
+    do: problem(conn, 422, :code_required, :web_me_invite_code_required, "code is required")
+
   operation(:unsubscribe_push,
     summary: "Unsubscribe a device",
     request_body: @endpoint_body,

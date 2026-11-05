@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type Platform, RequestFailed } from '../api/client';
+import { api, type Invite, type InviteDefaults, type Platform, RequestFailed } from '../api/client';
 import type {
   Adapter,
   ApiError,
@@ -44,6 +44,7 @@ import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
+import { Invites } from '../screens/more/Invites';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -612,13 +613,69 @@ function OperatorContainer() {
   };
 
   return (
-    <Operator
-      platform={platform}
+    <>
+      <Operator
+        platform={platform}
+        busy={busy}
+        said={said}
+        onSetGate={(state, note) => run(() => api.setGate(state, note), `The front door is ${state}.`)}
+        onGrant={(email, role, note) => run(() => api.grantRole(email, role, note), `Granted ${role} to ${email}.`)}
+        onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
+      />
+      <InvitesContainer />
+    </>
+  );
+}
+
+// Invite codes (gaia#18), shown under the operator's card: the code just
+// issued is held here, in memory, and shown once.
+function InvitesContainer() {
+  const [data, setData] = useState<{ invites: Invite[]; defaults: InviteDefaults } | null>(null);
+  const [issued, setIssued] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api
+      .invites()
+      .then(setData)
+      .catch(() => setData(null));
+  }, []);
+
+  useEffect(load, [load]);
+  if (!data) return null;
+
+  const fail = (e: unknown) => setSaid(e instanceof Error ? e.message : 'That did not work.');
+  const settle = () => {
+    setBusy(false);
+    load();
+  };
+
+  return (
+    <Invites
+      invites={data.invites}
+      defaults={data.defaults}
       busy={busy}
       said={said}
-      onSetGate={(state, note) => run(() => api.setGate(state, note), `The front door is ${state}.`)}
-      onGrant={(email, role, note) => run(() => api.grantRole(email, role, note), `Granted ${role} to ${email}.`)}
-      onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
+      issued={issued}
+      onIssue={(sku) => {
+        setBusy(true);
+        setSaid(null);
+        api
+          .issueInvite(sku)
+          .then((r) => setIssued(r.code))
+          .catch(fail)
+          .finally(settle);
+      }}
+      onRevoke={(id, note) => {
+        setBusy(true);
+        setSaid(null);
+        api
+          .revokeInvite(id, note)
+          .then(() => setSaid('Revoked.'))
+          .catch(fail)
+          .finally(settle);
+      }}
     />
   );
 }
