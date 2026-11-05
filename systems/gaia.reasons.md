@@ -110,3 +110,14 @@ a screen. The refusals are separate kinds because "ask for another" and
 door. Terms are granted by the platform rather than the redeeming
 witness because a witness may not grant itself terms; the code is the
 operator's grant, and redeeming it carries out what the operator chose.
+
+## #19
+A sign-up route is the first thing a stranger touches, so the door's
+state decides it in one place rather than the client hiding a button.
+The code is checked before the email because the alternative tells a
+codeless visitor which addresses already have accounts. No email
+verification yet: behind an invite door, the code is already proof that
+someone trusted let this person in, and verification's real job,
+slowing a flood of throwaway accounts, only exists once the door is
+open. The platform creates the account because there is no principal
+to act as yet; everything after is the new witness's own.

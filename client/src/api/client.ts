@@ -73,6 +73,10 @@ export const api = {
   login: (email: string, password: string) =>
     call<{ account_id: string }>('POST', '/v1/session', { email, password }),
   logout: () => call<void>('DELETE', '/v1/session'),
+  // The front door from outside (gaia#19): its state, and sign-up behind it.
+  door: () => call<{ state: GateState }>('GET', '/v1/door'),
+  signUp: (email: string, password: string, code: string | null) =>
+    call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
   me: () => call<{ email: string; residents: string[]; roles?: string[] }>('GET', '/v1/me'),
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type Invite, type InviteDefaults, type Platform, RequestFailed } from '../api/client';
+import { api, type GateState, type Invite, type InviteDefaults, type Platform, RequestFailed } from '../api/client';
 import type {
   Adapter,
   ApiError,
@@ -62,6 +62,7 @@ const TURN_BOUND_MS = 180_000;
 export function App() {
   const [me, setMe] = useState<{ email: string } | null | undefined>(undefined);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [door, setDoor] = useState<GateState | null>(null);
   const [resident, setResident] = useState<Resident | null>(null);
   const [destination, setDestination] = useState<Destination>(() => (location.hash.slice(1) as Destination) || 'chat');
 
@@ -71,6 +72,15 @@ export function App() {
       .then((m) => setMe(m))
       .catch(() => setMe(null));
   }, []);
+
+  // Signed out, the front door says whether there is a way in (gaia#19).
+  useEffect(() => {
+    if (me !== null) return;
+    api
+      .door()
+      .then((d) => setDoor(d.state))
+      .catch(() => setDoor(null));
+  }, [me]);
 
   useEffect(() => {
     if (!me) return;
@@ -87,6 +97,17 @@ export function App() {
     return (
       <Login
         error={loginError}
+        door={door}
+        onSignUp={(email, password, code) =>
+          api
+            .signUp(email, password, code)
+            .then(() => api.me())
+            .then((m) => {
+              setLoginError(null);
+              setMe(m);
+            })
+            .catch((e: unknown) => setLoginError(e instanceof RequestFailed ? e.message : 'could not create the account'))
+        }
         onLogin={(email, password) =>
           api
             .login(email, password)
