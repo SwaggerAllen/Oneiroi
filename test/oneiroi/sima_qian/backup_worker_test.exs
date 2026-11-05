@@ -76,4 +76,14 @@ defmodule Oneiroi.SimaQian.BackupWorkerTest do
   test "the attestation reads its results the same way" do
     assert :ok == AttestationWorker.run(%{})
   end
+
+  # sima-qian#46: a stray file is named in the warning, as git's words are.
+  test "a backup that lands with a stray file names it in the log", ctx do
+    {:ok, dir} = Oneiroi.SimaQian.repository_dir(ctx.good.id)
+    File.write!(Path.join(dir, "notes.bin"), "left by hand")
+
+    log = capture_log(fn -> send(self(), {:result, BackupWorker.run(%{})}) end)
+    assert_received {:result, {:error, _}}
+    assert log =~ "the nightly backup failed for resident #{ctx.good.id}: stray notes.bin"
+  end
 end

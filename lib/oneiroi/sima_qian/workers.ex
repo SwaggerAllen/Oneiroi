@@ -69,10 +69,15 @@ defmodule Oneiroi.SimaQian.BackupWorker do
 
   @said_chars 600
 
+  # A stray file is named too (2026-11-04: the first landed backup after
+  # the reset warned of strays and named none): paths, never contents.
   defp said(%{details: details}) when is_list(details) or is_map(details) do
-    case details[:output] do
-      out when is_binary(out) and out != "" ->
+    case {details[:output], details[:paths]} do
+      {out, _paths} when is_binary(out) and out != "" ->
         ": git said " <> (out |> String.trim() |> String.slice(0, @said_chars) |> inspect())
+
+      {_out, [_ | _] = paths} ->
+        ": stray " <> (paths |> Enum.join(", ") |> String.slice(0, @said_chars))
 
       _none ->
         ""
