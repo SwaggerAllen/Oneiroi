@@ -1,0 +1,40 @@
+// Oneiroi's service worker (gaia#15): content-free pushes. A push carries
+// nothing, so nothing the resident said ever passes through a push
+// service; the notification says only who wrote, by the name the page
+// left here when it subscribed, and opens the chat when tapped.
+const NAME_KEY = '/client/push-name';
+
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+async function residentName() {
+  try {
+    const cache = await caches.open('oneiroi');
+    const hit = await cache.match(NAME_KEY);
+    return hit ? (await hit.text()) || 'Your resident' : 'Your resident';
+  } catch {
+    return 'Your resident';
+  }
+}
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(
+    residentName().then((name) =>
+      self.registration.showNotification(`${name} wrote`, {
+        body: 'A new message in your Oneiroi chat.',
+        tag: 'oneiroi-chat',
+        icon: '/client/icons/icon-192.png',
+      }),
+    ),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const w of windows) if ('focus' in w) return w.focus();
+      return self.clients.openWindow('/client/index.html');
+    }),
+  );
+});

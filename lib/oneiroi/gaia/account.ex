@@ -17,7 +17,8 @@ defmodule Oneiroi.Gaia.Account do
     key?: false,
     sessions: MapSet.new(),
     tokens: MapSet.new(),
-    witnessings: MapSet.new()
+    witnessings: MapSet.new(),
+    push: MapSet.new()
   ]
 
   @type t :: %__MODULE__{}
@@ -94,6 +95,26 @@ defmodule Oneiroi.Gaia.Account do
   def execute(%__MODULE__{}, %Commands.RevokeKey{}),
     do: {:error, Error.new(:gaia_no_key, :gaia_account_revoke_key_absent)}
 
+  # A device subscribes once and unsubscribes once (gaia#15): the same
+  # endpoint again is no event either way.
+  def execute(%__MODULE__{push: push}, %Commands.SubscribePush{} = c) do
+    if MapSet.member?(push, c.endpoint),
+      do: [],
+      else: %Events.PushSubscribed{actor: c.actor, at: c.at, id: c.id, endpoint: c.endpoint}
+  end
+
+  def execute(%__MODULE__{push: push}, %Commands.UnsubscribePush{} = c) do
+    if MapSet.member?(push, c.endpoint),
+      do: %Events.PushUnsubscribed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        endpoint: c.endpoint,
+        reason: c.reason
+      },
+      else: []
+  end
+
   # Idempotent on purpose: the witnessing handler replays (conventions §7).
   def execute(%__MODULE__{witnessings: s}, %Commands.StartWitnessing{} = c) do
     if MapSet.member?(s, c.resident_id),
@@ -135,6 +156,12 @@ defmodule Oneiroi.Gaia.Account do
 
   def apply(%__MODULE__{} = a, %Events.KeyStored{}), do: %{a | key?: true}
   def apply(%__MODULE__{} = a, %Events.KeyRevoked{}), do: %{a | key?: false}
+
+  def apply(%__MODULE__{} = a, %Events.PushSubscribed{} = e),
+    do: %{a | push: MapSet.put(a.push, e.endpoint)}
+
+  def apply(%__MODULE__{} = a, %Events.PushUnsubscribed{} = e),
+    do: %{a | push: MapSet.delete(a.push, e.endpoint)}
 
   def apply(%__MODULE__{} = a, %Events.WitnessingStarted{} = e),
     do: %{a | witnessings: MapSet.put(a.witnessings, e.resident_id)}

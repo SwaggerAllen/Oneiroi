@@ -33,7 +33,9 @@ defmodule Oneiroi.Gaia do
       Jason,
       Oneiroi.AgathosDaimon,
       Argon2,
-      NimbleTOTP
+      NimbleTOTP,
+      Req,
+      Req.Response
     ],
     exports: [
       Accounts,
@@ -53,10 +55,16 @@ defmodule Oneiroi.Gaia do
       Store,
       Store.Account,
       Store.Witnessing,
-      Throttle
+      Throttle,
+      Push,
+      Push.WebPush,
+      Push.Fake,
+      Events.PushSubscribed,
+      Events.PushUnsubscribed
     ]
 
   alias Oneiroi.Gaia.Accounts
+  alias Oneiroi.Gaia.Push
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -77,7 +85,21 @@ defmodule Oneiroi.Gaia do
        usage: "how long a session lives from its opening, as the owner UI does today (spec §6.1)"},
       {:totp_issuer, "GAIA_TOTP_ISSUER",
        default: "Oneiroi",
-       usage: "the issuer an authenticator app shows for an enrolled second factor"}
+       usage: "the issuer an authenticator app shows for an enrolled second factor"},
+      {:push_client, "GAIA_PUSH_CLIENT",
+       cast: &__MODULE__.cast_push_client/1,
+       default: "web_push",
+       usage:
+         "which push port answers (gaia#15): web_push (Web Push with VAPID) in every real build, fake in test (conventions §9)"},
+      {:vapid_private_key, "GAIA_VAPID_PRIVATE_KEY",
+       secret: true,
+       required: false,
+       usage:
+         "the platform's VAPID private key, the 32-byte P-256 scalar as base64url (gaia#15); unset, nothing is pushed and the client says notifications are not set up"},
+      {:vapid_subject, "GAIA_VAPID_SUBJECT",
+       default: "https://oneiroi.onrender.com",
+       usage:
+         "the contact a push service may reach the sender at, a mailto: or https: URL, carried in every VAPID JWT (RFC 8292)"}
     ]
   end
 
@@ -93,7 +115,9 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.KeyStored, 1},
       {Oneiroi.Gaia.Events.KeyRevoked, 1},
       {Oneiroi.Gaia.Events.WitnessingStarted, 1},
-      {Oneiroi.Gaia.Events.WitnessingEnded, 1}
+      {Oneiroi.Gaia.Events.WitnessingEnded, 1},
+      {Oneiroi.Gaia.Events.PushSubscribed, 1},
+      {Oneiroi.Gaia.Events.PushUnsubscribed, 1}
     ]
   end
 
@@ -120,6 +144,12 @@ defmodule Oneiroi.Gaia do
        remedy: "create the account first, or read the id off the principal"},
       {:gaia_no_such_token, "no live token of the account has that hash",
        remedy: "read the token list; a revoked token is already revoked"},
+      {:gaia_push_failed,
+       "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
+       remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
+      {:gaia_push_endpoint_invalid,
+       "a push subscription's endpoint is an https URL at a known push service",
+       remedy: "subscribe from the browser's own push service; the client does this itself"},
       {:gaia_command_refused,
        "the command was refused before identity read it: an actor or an instant was missing",
        remedy: "the details name what was missing; it is the caller's bug, not the account's"},
@@ -130,8 +160,31 @@ defmodule Oneiroi.Gaia do
   end
 
   @impl Oneiroi.Component
+  def feature_flags, do: [:gaia_push_off]
+
+  @impl Oneiroi.Component
+  def externals do
+    [
+      {:web_push,
+       adapter: Oneiroi.Gaia.Push.WebPush,
+       fake: Oneiroi.Gaia.Push.Fake,
+       kill_switch: :gaia_push_off,
+       classification: :operational}
+    ]
+  end
+
+  @doc false
+  def cast_push_client("web_push"), do: {:ok, :"Elixir.Oneiroi.Gaia.Push.WebPush"}
+  def cast_push_client("fake"), do: {:ok, :"Elixir.Oneiroi.Gaia.Push.Fake"}
+
+  def cast_push_client(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected web_push or fake"}
+  end
+
+  @impl Oneiroi.Component
   def processes do
-    [{:gaia_throttle, :local}]
+    [{:gaia_throttle, :local}, {:gaia_push, :local}]
   end
 
   @impl Oneiroi.Component
@@ -141,7 +194,8 @@ defmodule Oneiroi.Gaia do
       # it, so the guardrail lookup does not close a cycle with this list.
       {Oneiroi.Gaia.Throttle, component: __MODULE__},
       Oneiroi.Gaia.Projectors.Accounts,
-      Oneiroi.Gaia.Handlers.Witnessing
+      Oneiroi.Gaia.Handlers.Witnessing,
+      {Task.Supervisor, name: :gaia_push}
     ]
   end
 
@@ -215,4 +269,32 @@ defmodule Oneiroi.Gaia do
   @doc "An account's id by email, case-insensitively, under the platform scope by name; nil when none."
   @spec account_id_for(String.t()) :: String.t() | nil
   defexport(account_id_for(email), do: Accounts.id_for(email))
+
+  @doc "Whether pushes can be sent, and the VAPID public key the client subscribes with (gaia#15)."
+  @spec push_config() :: %{enabled: boolean(), public_key: String.t() | nil}
+  defexport(push_config(), do: %{enabled: Push.configured?(), public_key: Push.public_key()})
+
+  @doc "Subscribes a device of the account's to content-free pushes (gaia#15)."
+  @spec subscribe_push(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(subscribe_push(account_id, endpoint, actor),
+    do: Push.subscribe(account_id, endpoint, actor)
+  )
+
+  @doc "Unsubscribes a device of the account's."
+  @spec unsubscribe_push(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(unsubscribe_push(account_id, endpoint, actor),
+    do: Push.unsubscribe(account_id, endpoint, "unsubscribed", actor)
+  )
+
+  @doc "The account's subscribed devices, by endpoint."
+  @spec push_subscriptions(String.t()) :: [String.t()]
+  defexport(push_subscriptions(account_id), do: Push.subscriptions(account_id))
+
+  @doc "Pushes to every device of the account's, in the background; nothing is said in the push."
+  @spec notify(String.t()) :: :ok
+  defexport(notify(account_id), do: Push.notify(account_id))
+
+  @doc "Pushes to every device now and says how each went; the test button's."
+  @spec push_now(String.t()) :: [{String.t(), term()}]
+  defexport(push_now(account_id), do: Push.deliver_all(account_id))
 end

@@ -633,9 +633,27 @@ defmodule Oneiroi.Brain.Turn do
       # captured already and goes on.
       Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
+      push_unprompted(turn)
       {:ok, captured}
     end
   end
+
+  # The witness's devices are told when she writes in the chat without
+  # being written to (gaia#15): a check-in, a letter that woke the chat, a
+  # round's word arriving there. A turn he started he is waiting on, and
+  # a solo session (free time, a round) is not his to be told of. Nothing
+  # of what she said is in the push.
+  defp push_unprompted(%{as: :note, purpose: :chat, resident_id: resident_id}) do
+    case Oneiroi.AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account_id}} when is_binary(account_id) ->
+        Oneiroi.Gaia.notify(account_id)
+
+      _none ->
+        :ok
+    end
+  end
+
+  defp push_unprompted(_turn), do: :ok
 
   # What retrieval did this turn: what the sections carried, what the
   # tools returned and opened, and what the replies cited.

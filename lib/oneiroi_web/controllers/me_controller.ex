@@ -68,4 +68,91 @@ defmodule OneiroiWeb.MeController do
         error(conn, 422, e)
     end
   end
+
+  # ---- pushes (gaia#15) ----
+
+  @endpoint_body {"the device", "application/json",
+                  %Schema{
+                    type: :object,
+                    required: [:endpoint],
+                    properties: %{endpoint: %Schema{type: :string}}
+                  }}
+
+  operation(:push,
+    summary:
+      "Whether pushes are set up, the VAPID key a device subscribes with, and how many of this account's devices are subscribed",
+    responses: [ok: {"push", "application/json", %Schema{type: :object}}]
+  )
+
+  def push(%{assigns: %{principal: p}} = conn, _params) do
+    config = Oneiroi.Gaia.push_config()
+
+    json(conn, %{
+      enabled: config.enabled,
+      public_key: config.public_key,
+      devices: length(Oneiroi.Gaia.push_subscriptions(p.account_id))
+    })
+  end
+
+  operation(:subscribe_push,
+    summary:
+      "Subscribe a device to content-free pushes: told when the resident writes unprompted, never what she said",
+    request_body: @endpoint_body,
+    responses: [no_content: "subscribed"]
+  )
+
+  def subscribe_push(%{assigns: %{principal: p}} = conn, %{"endpoint" => endpoint}) do
+    case Oneiroi.Gaia.subscribe_push(p.account_id, endpoint, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  def subscribe_push(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :endpoint_required,
+        :web_me_push_endpoint_required,
+        "endpoint is required"
+      )
+
+  operation(:unsubscribe_push,
+    summary: "Unsubscribe a device",
+    request_body: @endpoint_body,
+    responses: [no_content: "unsubscribed"]
+  )
+
+  def unsubscribe_push(%{assigns: %{principal: p}} = conn, %{"endpoint" => endpoint}) do
+    case Oneiroi.Gaia.unsubscribe_push(p.account_id, endpoint, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  def unsubscribe_push(conn, params), do: subscribe_push(conn, params)
+
+  operation(:test_push,
+    summary: "Push to every device of this account's now, and say how each went",
+    responses: [ok: {"how each went", "application/json", %Schema{type: :object}}]
+  )
+
+  def test_push(%{assigns: %{principal: p}} = conn, _params) do
+    results =
+      for {endpoint, result} <- Oneiroi.Gaia.push_now(p.account_id) do
+        %{device: URI.parse(endpoint).host, result: push_result(result)}
+      end
+
+    json(conn, %{sent: results})
+  end
+
+  defp push_result(:ok), do: "delivered"
+  defp push_result(:gone), do: "gone, unsubscribed"
+
+  defp push_result({:error, %{site: :gaia_push_refused, details: details}}),
+    do: "refused: #{details[:status]}"
+
+  defp push_result({:error, %{meaning: meaning}}), do: "failed: #{meaning}"
+  defp push_result({:error, _other}), do: "failed"
 end

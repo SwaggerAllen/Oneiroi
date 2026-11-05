@@ -10,6 +10,19 @@ its stories and tests), the fifth bottom-nav destination, rendered by
 `App` in `client/src/app/App.tsx` with no data of its own. The state
 list lives in the stories (DESIGN §4); nothing here names a state.
 
+A Notifications card heads the list (`Notifications.tsx`, gaia#15): on
+this device, whether notifications can be had and how. An iPhone or iPad
+not running from the Home Screen is told to add Oneiroi there first (only
+the Home Screen app may ask); a blocked device and a server with no VAPID
+key say so; otherwise "Allow notifications" asks the device, subscribes
+through the service worker (`client/public/sw.js`, registered on every
+load from `app/push.ts`) and sends the endpoint to `POST /v1/me/push`.
+When on, "Send a test" pushes to every device of the account's and says
+how each went, and "Turn off" unsubscribes. The card says plainly that a
+notification says only that she wrote, never what. The manifest and the
+Home Screen icon are `client/public/manifest.json` and
+`client/public/icons/`.
+
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
 opens it: Library, Connections, Ledger, Regression, in that order. Each

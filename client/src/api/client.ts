@@ -75,6 +75,11 @@ export const api = {
   logout: () => call<void>('DELETE', '/v1/session'),
   me: () => call<{ email: string; residents: string[] }>('GET', '/v1/me'),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
+  // Content-free pushes to this account's devices (gaia#15).
+  pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
+  subscribePush: (endpoint: string) => call<void>('POST', '/v1/me/push', { endpoint }),
+  unsubscribePush: (endpoint: string) => call<void>('DELETE', '/v1/me/push', { endpoint }),
+  testPush: () => call<{ sent: { device: string; result: string }[] }>('POST', '/v1/me/push/test'),
   socketToken: () => call<{ token: string }>('POST', '/v1/me/socket-token'),
 
   mainSession: (residentId: string) =>
