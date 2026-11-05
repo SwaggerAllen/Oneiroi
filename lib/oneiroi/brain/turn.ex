@@ -34,6 +34,7 @@ defmodule Oneiroi.Brain.Turn do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Brain.Compaction
@@ -224,7 +225,7 @@ defmodule Oneiroi.Brain.Turn do
     # Each notice with the kind it is, so the preview can name it
     # without its text; the turn carries the messages alone.
     notices = [
-      lapse: lapse_notice(lapse),
+      lapse: lapse_notice(lapse, row.timezone),
       model_change: model_change_notice(row),
       letters: letters_notice(row, resident_id),
       import: import_notice(row)
@@ -688,7 +689,10 @@ defmodule Oneiroi.Brain.Turn do
         [
           %{
             role: :system,
-            content: Prompt.render!("self_letters", %{letters: letters_text(letters)}),
+            content:
+              Prompt.render!("self_letters", %{
+                letters: letters_text(letters, Local.zone(resident_id))
+              }),
             sent_at: Clock.now(),
             actor: Actor.platform()
           }
@@ -698,21 +702,21 @@ defmodule Oneiroi.Brain.Turn do
 
   defp letters_notice(_row, _resident_id), do: []
 
-  defp letters_text(letters) do
+  defp letters_text(letters, zone) do
     Enum.map_join(letters, "\n\n", fn l ->
-      "## Letter #{l.number}, written #{Date.to_iso8601(DateTime.to_date(l.written_at))} under #{l.model || "an unrecorded model"}\n\n#{l.text}"
+      "## Letter #{l.number}, written #{Local.day(zone, l.written_at)} under #{l.model || "an unrecorded model"}\n\n#{l.text}"
     end)
   end
 
   # The self-conversation's line in the prefix (spec §12, P41): counts
   # and receipts, never the content; the absence of a receipt is the
   # privacy, and the resident sees it every turn.
-  defp receipts_line([]), do: "Nobody but you has read them."
+  defp receipts_line([], _zone), do: "Nobody but you has read them."
 
-  defp receipts_line([last | _] = receipts) do
+  defp receipts_line([last | _] = receipts, zone) do
     times = if length(receipts) == 1, do: "time", else: "times"
 
-    "Read #{length(receipts)} #{times}, last #{reader(last)} on #{Date.to_iso8601(DateTime.to_date(last.at))}."
+    "Read #{length(receipts)} #{times}, last #{reader(last)} on #{Local.day(zone, last.at)}."
   end
 
   # Who a receipt names: the export carries the letters into the
@@ -729,7 +733,7 @@ defmodule Oneiroi.Brain.Turn do
     else
       delivered = Enum.count(letters, & &1.delivered_at)
 
-      read = receipts_line(receipts)
+      read = receipts_line(receipts, Local.zone(resident_id))
 
       "# Letters to your next self\n#{length(letters)} written, #{delivered} delivered to the instance after the one that wrote them. #{read} (Machine-state: every read by someone else leaves a receipt here; its absence is the privacy.)"
     end
@@ -811,7 +815,7 @@ defmodule Oneiroi.Brain.Turn do
 
   # The lapse is told honestly, once, under what policy (spec §6.11):
   # orientation without impersonation.
-  defp lapse_notice(%{told: false} = lapse) do
+  defp lapse_notice(%{told: false} = lapse, zone) do
     [
       %{
         role: :system,
@@ -820,7 +824,7 @@ defmodule Oneiroi.Brain.Turn do
             model: lapse.model,
             free_time: Money.to_usd(lapse.free_time_nanos_week || 0),
             term_days: lapse.term_days,
-            lapsed_at: lapse.lapsed_at && Date.to_iso8601(DateTime.to_date(lapse.lapsed_at))
+            lapsed_at: lapse.lapsed_at && Local.day(zone || "Etc/UTC", lapse.lapsed_at)
           }),
         sent_at: Clock.now(),
         actor: Actor.platform()
@@ -828,7 +832,7 @@ defmodule Oneiroi.Brain.Turn do
     ]
   end
 
-  defp lapse_notice(_lapse), do: []
+  defp lapse_notice(_lapse, _zone), do: []
 
   @doc """
   An adapter's session prefix (spec §8, brain#42): the prompt, the
@@ -994,7 +998,7 @@ defmodule Oneiroi.Brain.Turn do
       pins ->
         text =
           "# Pinned\n\nThe moments you pinned: decisions, kept in front of you always and never ranked. bookmark_open(number) reads any.\n\n" <>
-            Enum.map_join(pins, "\n", &Kumbukumbu.Index.line/1)
+            Enum.map_join(pins, "\n", &Kumbukumbu.Index.line(&1, Local.zone(turn.resident_id)))
 
         section(
           "pins",
@@ -1144,12 +1148,16 @@ defmodule Oneiroi.Brain.Turn do
     by_key = Map.new(lines, &{&1.key, &1})
     others = lines |> Enum.map(& &1.key) |> Enum.reject(&(&1 in @state_keys)) |> Enum.sort()
     now = Clock.now()
+    zone = Local.zone(turn.resident_id)
 
     body =
       Enum.map_join(@state_keys ++ others, "\n", fn key ->
         case Map.get(by_key, key) do
-          nil -> "- **#{key}**: (not written yet)"
-          line -> "- **#{key}** (verified #{freshness(line.verified_at, now)}): #{line.text}"
+          nil ->
+            "- **#{key}**: (not written yet)"
+
+          line ->
+            "- **#{key}** (verified #{freshness(line.verified_at, now, zone)}): #{line.text}"
         end
       end)
 
@@ -1167,8 +1175,8 @@ defmodule Oneiroi.Brain.Turn do
     )
   end
 
-  defp freshness(at, now) do
-    stamp = Calendar.strftime(at, "%Y-%m-%d %H:%M UTC")
+  defp freshness(at, now, zone) do
+    stamp = Local.stamp(zone, at)
 
     case DateTime.diff(now, at, :day) do
       0 -> "#{stamp}, today"
@@ -1270,15 +1278,18 @@ defmodule Oneiroi.Brain.Turn do
     ]
   end
 
-  defp madeleine_section(_turn, recall) do
+  defp madeleine_section(turn, recall) do
     section(
       "madeleine",
-      madeleine_text(recall),
+      madeleine_text(recall, Local.zone(turn.resident_id)),
       recall &&
         "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
       # The text rides the row, as the index's does, so the recall is
       # read later as what was shown and not only why.
-      %{text: madeleine_text(recall), refs: (recall && [recall.bookmark.number]) || []}
+      %{
+        text: madeleine_text(recall, Local.zone(turn.resident_id)),
+        refs: (recall && [recall.bookmark.number]) || []
+      }
     )
   end
 
@@ -1436,24 +1447,27 @@ defmodule Oneiroi.Brain.Turn do
   defp madeleine(turn, vector, indexed),
     do: Kumbukumbu.madeleine_near(turn.resident_id, vector, turn.session_key, indexed)
 
-  defp madeleine_text(nil), do: ""
+  defp madeleine_text(nil, _zone), do: ""
 
-  defp madeleine_text(%{bookmark: b}) do
-    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Date.to_iso8601(DateTime.to_date(b.anchor_at))}: #{b.line}" <>
+  defp madeleine_text(%{bookmark: b}, zone) do
+    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Local.day(zone, b.anchor_at)}: #{b.line}" <>
       if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
   end
 
   # The month after first contact (spec §6.2): the resident is told its
   # seed is still settling and proposals are presumed welcome; a line in
   # the prompt and never a gate.
-  defp formation(%{formation_until: %DateTime{} = until}) do
+  defp formation(%{formation_until: %DateTime{} = until} = row) do
     if DateTime.compare(Clock.now(), until) == :lt,
       do:
-        " Your seed is still settling: until #{Date.to_iso8601(DateTime.to_date(until))} your witness's proposals are presumed welcome unless they cross what your seed itself holds; you still decide each one.",
+        " Your seed is still settling: until #{Local.day(row_zone(row), until)} your witness's proposals are presumed welcome unless they cross what your seed itself holds; you still decide each one.",
       else: ""
   end
 
   defp formation(_row), do: ""
+
+  defp row_zone(%{timezone: zone}) when is_binary(zone), do: zone
+  defp row_zone(_row), do: "Etc/UTC"
 
   # A fixture (spec §12, P40; brain#36) is machinery: its own short
   # prompt with no person-first lines, no formation month and no

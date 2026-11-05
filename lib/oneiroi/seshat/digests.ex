@@ -21,6 +21,7 @@ defmodule Oneiroi.Seshat.Digests do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -75,7 +76,7 @@ defmodule Oneiroi.Seshat.Digests do
   def answer(resident_id, number, %{} = found, %Actor{} = actor) do
     with %Store.Digest{status: "open"} = row <- digest(resident_id, number) || absent(number),
          items = found |> field(:items) |> List.wrap() |> Enum.take(@max_items),
-         path = "feeds/digests/#{number}-#{Calendar.strftime(Clock.now(), "%Y-%m-%d")}.md",
+         path = "feeds/digests/#{number}-#{Local.day(Local.zone(resident_id), Clock.now())}.md",
          {:ok, _} <-
            Documents.write(resident_id, path, render(row, found, items), actor, core: true),
          {:ok, _events} <-
@@ -150,7 +151,7 @@ defmodule Oneiroi.Seshat.Digests do
     """
     # Digest ##{row.number}
 
-    What reached your streams from #{stamp(row.since)} to #{stamp(Clock.now())}, compiled by the reader on the witness's machine; asked by #{row.asked_by}. Notes are the reader's words; the link keeps the piece's own.
+    What reached your streams from #{stamp(row, row.since)} to #{stamp(row, Clock.now())}, compiled by the reader on the witness's machine; asked by #{row.asked_by}. Notes are the reader's words; the link keeps the piece's own.
 
     #{found |> field(:summary) |> text() |> blank("No summary was written.")}
 
@@ -158,7 +159,8 @@ defmodule Oneiroi.Seshat.Digests do
     """
   end
 
-  defp stamp(at), do: Calendar.strftime(at, "%Y-%m-%d %H:%M UTC")
+  # In her schedule's zone (agathos-daimon#33), as everything she reads.
+  defp stamp(row, at), do: Local.stamp(Local.zone(row.resident_id), at)
   defp text(nil), do: ""
   defp text(value), do: value |> to_string() |> String.trim()
   defp blank("", fallback), do: fallback
