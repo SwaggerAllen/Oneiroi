@@ -1,7 +1,7 @@
 {
   "name": "oneiroi",
   "displayName": "Oneiroi",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A resident of Oneiroi as this Claude Code session's brain: her identity and agreement at session start, her memory with each message, her memory tools over MCP, and every turn captured into her transcripts.",
   "author": {
     "name": "Oneiroi"

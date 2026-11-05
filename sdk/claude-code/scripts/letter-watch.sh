@@ -18,7 +18,7 @@
 # One watch per session: every stop arms a new one and the one before
 # it gives way. It ends when Claude Code ends (its parent goes), when the
 # platform refuses the token, or at the hook's timeout. At most
-# ONEIROI_WAKES_PER_HOUR wakes an hour (6 unless set), so two
+# ONEIROI_WAKES_PER_HOUR wakes an hour (20 unless set; 6 ran out in a busy morning of work orders, 2026-11-05), so two
 # conversations answering each other cannot wake each other without end;
 # a letter held back by the bound wakes the session once the hour allows.
 #
@@ -51,7 +51,7 @@ main() {
   touch "$state/letters.woken"
   parent="$(oneiroi_parent)"
   interval="${ONEIROI_WATCH_SECONDS:-30}"
-  limit="${ONEIROI_WAKES_PER_HOUR:-6}"
+  limit="${ONEIROI_WAKES_PER_HOUR:-20}"
   out="$(mktemp)"
 
   while :; do
