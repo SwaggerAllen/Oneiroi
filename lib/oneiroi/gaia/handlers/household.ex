@@ -87,6 +87,12 @@ defmodule Oneiroi.Gaia.Handlers.Household do
       # had where it came from, an account this platform may not hold;
       # the rebuild's custody transfer then places it with the importer.
       {:error, %{kind: :gaia_no_such_household}} -> :ok
+      # The event is written; only the wait for the projection ran out.
+      # On first boot the projection replays the log from its origin
+      # beside this handler, and every backfilled household waited the
+      # full timeout and was logged as a failure that was not one
+      # (2026-11-05). The projection folds it when it catches up.
+      {:error, :consistency_timeout} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
