@@ -22,6 +22,7 @@ defmodule OneiroiWeb.AgreementController do
       json(conn, %{
         contract: contract,
         versions: AgathosDaimon.contracts(id),
+        switches: AgathosDaimon.switches(id),
         custody: r.custody,
         export_wall: r.export_wall,
         custody_proposed_to: r.custody_proposed_to && Gaia.account_email(r.custody_proposed_to),
@@ -44,7 +45,8 @@ defmodule OneiroiWeb.AgreementController do
   end
 
   operation(:propose,
-    summary: "Propose a contract version: the terms, the prose, a note",
+    summary:
+      "Propose a contract version, whole: the terms (the switch registry's keys to true or false; one left out takes its default), the prose, a note",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the proposal", "application/json",

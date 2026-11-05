@@ -84,6 +84,20 @@ export const api = {
   grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
   revokeRole: (accountId: string, role: PlatformRole, note: string) =>
     call<void>('DELETE', '/v1/platform/roles', { account_id: accountId, role, note }),
+  // Your agreement and who looks after the resident (agathos-daimon#34, spec §6.12).
+  agreement: (residentId: string) => call<Agreement>('GET', `/v1/residents/${residentId}/agreement`),
+  proposeContract: (residentId: string, terms: Record<string, boolean>, prose: string, note: string) =>
+    call<{ version: number }>('POST', `/v1/residents/${residentId}/agreement/proposals`, { terms, prose, note }),
+  decideContract: (residentId: string, version: number, decision: 'agree' | 'decline', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/agreement/proposals/${version}/decision`, { decision, note }),
+  renewContract: (residentId: string, version: number, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/agreement/renewal`, { version, note }),
+  setWall: (residentId: string, wall: 'locked' | 'revealed', note: string) =>
+    call<void>('PUT', `/v1/residents/${residentId}/export-wall`, { wall, note }),
+  proposeCustody: (residentId: string, email: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/custody/proposals`, { email, note }),
+  decideCustody: (residentId: string, decision: 'accept' | 'decline' | 'withdraw', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/custody/decision`, { decision, note }),
   // Invite codes (gaia#18): SKUs a super admin issues; the code is shown once.
   invites: () => call<{ invites: Invite[]; defaults: InviteDefaults }>('GET', '/v1/platform/invites'),
   issueInvite: (sku: InviteRequest) => call<{ id: string; code: string }>('POST', '/v1/platform/invites', sku),
@@ -255,6 +269,40 @@ export type Api = typeof api;
 
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
+
+export interface ContractVersion {
+  version: number;
+  proposed_by: 'witness' | 'resident';
+  terms: Record<string, boolean>;
+  prose: string;
+  note: string | null;
+  proposed_at: string;
+  state: 'proposed' | 'agreed' | 'declined' | 'superseded' | string;
+  decided_at: string | null;
+  decision_note: string | null;
+  renewed_at: string | null;
+}
+
+export interface Switch {
+  key: string;
+  group: 'privacy' | 'audits' | 'memory' | 'services' | string;
+  label: string;
+  on: string;
+  off: string;
+  default: boolean;
+  value: boolean;
+  proposed: boolean | null;
+}
+
+export interface Agreement {
+  contract: { in_force: ContractVersion | null; open: ContractVersion | null; since: string | null; due: boolean };
+  versions: ContractVersion[];
+  switches: Switch[];
+  custody: string;
+  export_wall: 'locked' | 'revealed' | string;
+  custody_proposed_to: string | null;
+  custody_proposed_at: string | null;
+}
 
 export interface InviteDefaults {
   plan: string;

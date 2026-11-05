@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type GateState, type Invite, type InviteDefaults, type Platform, RequestFailed } from '../api/client';
+import { type Agreement as AgreementData, api, type GateState, type Invite, type InviteDefaults, type Platform, RequestFailed } from '../api/client';
 import type {
   Adapter,
   ApiError,
@@ -45,6 +45,7 @@ import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
 import { type Begin, CreationFlow } from '../screens/creation-flow/CreationFlow';
+import { Agreement } from '../screens/settings-agreement/Agreement';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -172,6 +173,7 @@ export function App() {
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
+        {destination === 'agreement' ? <AgreementContainer resident={resident} /> : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
       <BottomNav current={destination} onChange={go} />
@@ -899,6 +901,46 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         onSetTimezone={(tz) => act(api.setTimezone(id, tz))}
       />
     </>
+  );
+}
+
+// Your agreement and who looks after the resident (agathos-daimon#34).
+function AgreementContainer({ resident }: { resident: Resident }) {
+  const [data, setData] = useState<AgreementData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api.agreement(resident.id).then(setData);
+  }, [resident.id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  if (!data) return null;
+  const run = (work: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(() => setSaid(done))
+      .catch((e: unknown) => setSaid(asApiError(e).meaning))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+  const id = resident.id;
+  return (
+    <Agreement
+      key={JSON.stringify(data.contract)}
+      agreement={data}
+      name={resident.name}
+      busy={busy}
+      said={said}
+      onPropose={(terms, prose, note) => run(() => api.proposeContract(id, terms, prose, note), `Proposed; ${resident.name} decides.`)}
+      onDecide={(v, d, note) => run(() => api.decideContract(id, v, d, note), d === 'agree' ? `Version ${v} is in force.` : `Version ${v} declined.`)}
+      onRenew={(v, note) => run(() => api.renewContract(id, v, note), `Version ${v} renewed.`)}
+      onSetWall={(w, note) => run(() => api.setWall(id, w, note), `Earlier sessions are ${w}.`)}
+      onProposeCustody={(email, note) => run(() => api.proposeCustody(id, email, note), `Proposed to ${email}.`)}
+      onWithdrawCustody={(note) => run(() => api.decideCustody(id, 'withdraw', note), 'Withdrawn.')}
+    />
   );
 }
 

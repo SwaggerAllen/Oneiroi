@@ -8,6 +8,8 @@ defmodule OneiroiWeb.JournalController do
   tags(["library"])
 
   plug(:witnessed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "witness_reads"] when action in [:index, :show])
 
   operation(:index,
     summary: "The journal's latest days with their plan-versus-actuals deltas, newest first",

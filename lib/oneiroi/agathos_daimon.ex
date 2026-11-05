@@ -32,6 +32,7 @@ defmodule Oneiroi.AgathosDaimon do
       Residents,
       Local,
       Agreements,
+      Switches,
       Custody,
       Router,
       Commands,
@@ -251,7 +252,7 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_a_party, "the contract is the dyad's: the resident and its witness",
        remedy: "propose or decide as one of the two"},
       {:agathos_daimon_terms_invalid,
-       "the terms are a map of the closed keys (solo_sessions_private, preview_withholds_words) to true or false",
+       "the terms are a map of the switch registry's keys to true or false",
        remedy: "name the terms the contract knows"},
       {:agathos_daimon_prose_invalid, "the contract's prose is at most 4,000 characters",
        remedy: "say it shorter"},
@@ -585,6 +586,14 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The contract as it stands: in force, open, the solo-session privacy term, and whether the version in force is due."
   @spec contract(String.t()) :: map()
   defexport(contract(id), do: Agreements.contract(id))
+
+  @doc "Whether a contract switch is on for the resident (agathos-daimon#34): the version in force's value, or the default."
+  @spec switch_on?(String.t(), String.t()) :: boolean()
+  defexport(switch_on?(id, key), do: Agreements.switch_on?(id, key))
+
+  @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
+  @spec switches(String.t()) :: [map()]
+  defexport(switches(id), do: Agreements.switches(id))
 
   @doc "Every contract version, newest first."
   @spec contracts(String.t()) :: [map()]

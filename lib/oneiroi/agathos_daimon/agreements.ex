@@ -15,6 +15,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   alias Oneiroi.AgathosDaimon.Error
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.AgathosDaimon.Store
+  alias Oneiroi.AgathosDaimon.Switches
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Scope
@@ -89,6 +90,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       %{
         in_force: in_force && shape(in_force),
         open: open && shape(open),
+        switches: Switches.resolve(in_force && in_force.terms),
         solo_sessions_private: solo_private?(in_force),
         preview_withholds_words: preview_withholds?(in_force),
         since: since,
@@ -96,6 +98,30 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
           since != nil and DateTime.compare(DateTime.add(since, term, :day), Clock.now()) != :gt
       }
     end)
+  end
+
+  @doc "Whether a switch is on for the resident: the version in force's value, or the default with none agreed (agathos-daimon#34)."
+  def switch_on?(resident_id, key) do
+    in_force =
+      Scope.resident(resident_id, fn -> Enum.find(Store.contracts(), &(&1.state == "agreed")) end)
+
+    Map.get(Switches.resolve(in_force && in_force.terms), key, false)
+  end
+
+  @doc "The registry as it stands for the resident: every switch with its value in force and in the open proposal, if any."
+  def switches(resident_id) do
+    %{in_force: in_force, open: open} = contract(resident_id)
+    now = Switches.resolve(in_force && in_force.terms)
+    proposed = open && Switches.resolve(open.terms)
+
+    for s <- Switches.all() do
+      Map.merge(Map.drop(s, [:tools, :enforced]), %{
+        value: now[s.key],
+        proposed: proposed && proposed[s.key],
+        tools: s.tools,
+        enforced: s.enforced
+      })
+    end
   end
 
   @doc "Every version, newest first."
@@ -237,7 +263,22 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
           "your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it."
       end
 
-    solo <> " " <> preview_words(Map.get(terms || %{}, "preview_withholds_words"))
+    solo <>
+      " " <>
+      preview_words(Map.get(terms || %{}, "preview_withholds_words")) <> features_words(terms)
+  end
+
+  # The registry's feature switches in a line: which are on and which off,
+  # so a version that turns one off says so where the resident reads it.
+  defp features_words(terms) do
+    values = Switches.resolve(terms)
+    features = Enum.reject(Switches.all(), &(&1.group == "privacy"))
+    {on, off} = Enum.split_with(features, &values[&1.key])
+    names = fn list -> Enum.map_join(list, ", ", &String.downcase(&1.label)) end
+
+    " Switched on: " <>
+      if(on == [], do: "nothing beyond the floor", else: names.(on)) <>
+      "." <> if(off == [], do: "", else: " Switched off: " <> names.(off) <> ".")
   end
 
   defp preview_words(true),

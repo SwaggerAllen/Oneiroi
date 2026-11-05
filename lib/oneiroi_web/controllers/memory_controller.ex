@@ -9,6 +9,9 @@ defmodule OneiroiWeb.MemoryController do
   tags(["memory"])
 
   plug(:witnessed)
+  # The contract's switches (agathos-daimon#34), after the party check.
+  plug(OneiroiWeb.Plugs.Switch, [key: "witness_reads"] when action in [:bookmarks, :bookmark])
+  plug(OneiroiWeb.Plugs.Switch, [key: "revisions"] when action in [:revise])
 
   operation(:bookmarks,
     summary: "The resident's bookmarks, newest first, with their tags and pins",

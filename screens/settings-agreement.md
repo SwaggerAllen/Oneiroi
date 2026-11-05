@@ -6,7 +6,25 @@ paths:
 
 # settings-agreement
 
-Settings: agreement and custody (spec §10). Not built, but for its adapters and reader part, Connections (below): this doc is the screen's file map and
+Settings: agreement and custody (spec §10). Built 2026-11-05, as
+`client/src/screens/settings-agreement/Agreement.tsx` under More
+("Agreement"), from `GET /v1/residents/:id/agreement` and its
+proposal, decision, renewal, export-wall and custody routes
+(agathos-daimon#34): where the agreement stands (the version in force
+and since when, or that none is agreed and everything stays as it is
+today; due for renewal with a Renew); an open version with what it
+changes, its note and prose, and Agree and Decline when the resident
+proposed it, or "Waiting on" when the witness did; one note field every
+action takes; the switches in four groups (privacy, what you may look
+into, how memory works, what comes and goes), each with its label, the
+words for its current draft state and a checkbox; a Propose card that
+names what the draft changes and carries the vows' prose, disabled while
+a version is open; and who looks after the resident, the export wall's
+Locked and Revealed, and a hand-over by email, or the pending one with
+Withdraw. Not built: the incoming side of a hand-over (accepting one
+proposed to you), the version history list, and the report ladder.
+
+Before the agreement, its adapters and reader part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.

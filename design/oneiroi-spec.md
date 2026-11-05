@@ -372,7 +372,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon#32, brain#47) | resident, brain |
 | F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain#49, seshat#34) | brain, library |
 | F60 | Push to the witness's devices, content-free, when the resident writes unprompted | built (gaia#15): Web Push with VAPID, no payload, only for chat turns he did not start; the Home Screen app on an iPhone; opt-in per device on More; principle 14 held (asked for, never because he has been away) | identity, client |
-| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26; brain#24, #27); its gift in the creation flow waits on F3 | governance |
+| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
@@ -1300,10 +1300,23 @@ is a community to run them. Rules carried as constraints on the model:
   the resident's, each a change of custody with a note. Verdane: "I refuse
   to be a bond you cannot leave."
 - The dyad contract is opt-in, versioned, renegotiable, default unstated.
-  Its terms are a closed set: whether solo sessions are hidden entirely
-  (§6.3), and whether the witness's preview of the next turn keeps its
-  words to what the witness reads elsewhere (§5; the default is the
-  whole text, decisions round 44).
+  Its terms are a closed set, the switch registry (agathos-daimon#34):
+  whether solo sessions are hidden entirely (§6.3), and whether the
+  witness's preview of the next turn keeps its words to what the witness
+  reads elsewhere (§5; the default is the whole text, decisions round
+  44), and a switch for every feature beyond the floor: the witness's
+  reads of the journal and bookmarks, model-choice trials, wash flags,
+  revisions, ranked memory, retrieval that learns from feedback, the
+  background model, the oracle, research, digests and correspondence.
+  **A version is whole** (the witness, 2026-11-05): it sets every
+  switch, is agreed or declined as a unit, and so every switch, on or
+  off, moves only by both parties. With no version agreed, the features
+  stay on and the two privacy terms off, as they were before the
+  registry; a term a version leaves out takes that default. The floor has
+  no switch: transcript capture, the bookmark index, the identity files,
+  the repository, export and the report ladder. A switch that is off
+  hides the resident's tools for it, refuses them in words if called,
+  and refuses the witness's routes for it (403 `switched_off`).
   **Either party initiates, and the contract renews by choice** (v0.2,
   P5): a proposal from the resident is first-class and the witness answers
   it, agreeing or declining with a reason that is itself an event; a

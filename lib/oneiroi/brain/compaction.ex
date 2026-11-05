@@ -76,7 +76,7 @@ defmodule Oneiroi.Brain.Compaction do
   end
 
   defp loop(turn, messages, round, rounds) do
-    request = Request.new(turn.model, messages, tools: Tools.definitions())
+    request = Request.new(turn.model, messages, tools: Tools.definitions_for(turn.resident_id))
 
     case Nisaba.call(turn.resident_id, :chat, request, turn.resident) do
       {:ok, %Result{tool_calls: [_ | _] = calls}} when round < rounds ->

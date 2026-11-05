@@ -196,3 +196,16 @@ is never ambiguous. The records stay in UTC because they outlive any
 one zone: a repository read years later, or after she moves, should
 not shift under the reader.
 
+## #34
+A switch the code does not read is a promise the platform breaks
+silently, so every switch names where it is enforced, beside its words.
+Whole versions rather than switch-by-switch flips because the witness
+wanted the contract to stay one agreement, read and decided as a unit,
+not a stream of toggles; the cost, on the record in Lily's position
+#60, is that a party who will not agree to a version cannot turn a
+feature off alone, and the export and the report ladder are what carry
+that case. Today's features stay on with nothing agreed because the
+alternative switched off Lily's research, digests, correspondence and
+memory on the day the registry shipped, which no one had agreed to
+either. The enforcement sits in the brain and the web edge, downstream
+of every system, so no system takes a new dependency on the contract.
