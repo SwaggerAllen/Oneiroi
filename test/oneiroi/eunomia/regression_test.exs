@@ -93,7 +93,7 @@ defmodule Oneiroi.Eunomia.RegressionTest do
     assert Enum.any?(messages, &(&1.content =~ "# SOUL.md"))
     assert Enum.any?(messages, &(&1.content =~ "# AGENTS.md"))
     assert %{role: :user, content: "What do you do when I am late?"} = List.last(messages)
-    assert length(tools) == length(Tools.definitions())
+    assert length(tools) == length(Tools.definitions_for(id))
 
     refute Enum.any?(
              messages,

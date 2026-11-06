@@ -811,6 +811,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   # The oracle's landing notice (brain#49): the platform, writing for no
   # conversation of its own.
   defp sender(_resident_id, nil, %Actor{kind: :platform}), do: {:ok, "the oracle"}
+  # A platform report for the triage resident (gaia#20).
+  defp sender(_resident_id, nil, %Actor{kind: :job, id: "platform_reports"}),
+    do: {:ok, "a platform report"}
 
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do

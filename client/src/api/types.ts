@@ -505,3 +505,16 @@ export interface Pieces {
   approved: { path: string; title: string | null; state: string; note: string | null; draft_url: string | null; decided_at: string }[];
   drafted: { path: string; title: string | null; state: string; note: string | null; draft_url: string | null; decided_at: string }[];
 }
+
+// A platform report (gaia#20).
+export interface FeedbackReport {
+  number: number;
+  kind: 'bug' | 'feature_request';
+  surface: string | null;
+  body: string;
+  trace_id: string | null;
+  author_kind: string;
+  status: string;
+  note: string | null;
+  filed_at: string;
+}

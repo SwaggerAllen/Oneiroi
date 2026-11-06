@@ -1,7 +1,9 @@
 import type { Gift } from '../screens/creation-flow/CreationFlow';
+import type { ReportDetail } from '../screens/more/Reports';
 import type {
   Adapter,
   Ask,
+  FeedbackReport,
   Pieces,
   ApiError,
   Bookmark,
@@ -244,6 +246,12 @@ export const api = {
   pieces: (residentId: string) => call<Pieces>('GET', `/v1/residents/${residentId}/pieces`),
   reviewPiece: (residentId: string, path: string, decision: 'approve' | 'decline', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/pieces/review`, { path, decision, note }),
+  fileFeedback: (r: { kind: string; surface: string; body: string; trace_id: string | null }) =>
+    call<{ number: number }>('POST', '/v1/feedback', r),
+  myFeedback: () => call<FeedbackReport[]>('GET', '/v1/me/feedback'),
+  allFeedback: () => call<FeedbackReport[]>('GET', '/v1/platform/feedback'),
+  feedbackReport: (n: number) => call<ReportDetail>('GET', `/v1/platform/feedback/${n}`),
+  moveFeedback: (n: number, status: string, note: string) => call<void>('POST', `/v1/platform/feedback/${n}/status`, { status, note }),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),

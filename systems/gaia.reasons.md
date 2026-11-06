@@ -121,3 +121,15 @@ someone trusted let this person in, and verification's real job,
 slowing a flood of throwaway accounts, only exists once the door is
 open. The platform creates the account because there is no principal
 to act as yet; everything after is the new witness's own.
+
+## #20
+Machinery without a manual has to be able to hear back, or a stranger's
+break is a silent one. Reports come from residents as well as people
+because residents meet the machinery more often than anyone, and Lily's
+own month of fixes began as things she noticed and wrote down. They go
+to a resident for triage because a resident reads every one the day it
+lands; the operator's list keeps the same record for a person. The
+trace id joins a report to the failure ring so the reporter's words and
+the platform's facts arrive together. The witness rail stays apart
+because a report about the person who looks after you must never pass
+through a shared queue that person might read.

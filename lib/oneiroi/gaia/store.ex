@@ -157,6 +157,29 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Feedback do
+    @moduledoc "A platform report (gaia#20): a bug or a feature request, its reporter, its words, its status."
+    use Ecto.Schema
+    @primary_key {:id, :string, autogenerate: false}
+    schema "gaia_feedback" do
+      field(:stream_key, :string)
+      field(:number, :integer)
+      field(:kind, :string)
+      field(:surface, :string)
+      field(:body, :string)
+      field(:trace_id, :string)
+      field(:author_kind, :string)
+      field(:author_id, :binary_id)
+      field(:account_id, :binary_id)
+      field(:resident_id, :binary_id)
+      field(:status, :string)
+      field(:note, :string)
+      field(:filed_at, :utc_datetime_usec)
+      field(:moved_at, :utc_datetime_usec)
+      field(:moved_by, :string)
+    end
+  end
+
   defmodule Witnessing do
     @moduledoc "The relation from an account to a resident, with a start and an end; visible to both scopes."
     use Ecto.Schema

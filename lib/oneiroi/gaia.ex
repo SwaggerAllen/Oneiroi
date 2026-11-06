@@ -78,11 +78,17 @@ defmodule Oneiroi.Gaia do
       Events.InviteRevoked,
       Invites,
       InviteRouter,
-      Signup
+      Signup,
+      Events.FeedbackFiled,
+      Events.FeedbackMoved,
+      Feedbacks,
+      FeedbackRouter,
+      Store.Feedback
     ]
 
   alias Oneiroi.Gaia.Accounts
   alias Oneiroi.Gaia.Door
+  alias Oneiroi.Gaia.Feedbacks
   alias Oneiroi.Gaia.Households
   alias Oneiroi.Gaia.Invites
   alias Oneiroi.Gaia.Push
@@ -118,6 +124,10 @@ defmodule Oneiroi.Gaia do
        required: false,
        usage:
          "the platform's VAPID private key, the 32-byte P-256 scalar as base64url (gaia#15); unset, nothing is pushed and the client says notifications are not set up"},
+      {:triage_resident, "GAIA_TRIAGE_RESIDENT",
+       required: false,
+       usage:
+         "the slug of the resident who triages platform reports (gaia#20): each report is a letter to their chat, and they may move a report's status; unset, reports wait for the operator alone"},
       {:vapid_subject, "GAIA_VAPID_SUBJECT",
        default: "https://oneiroi.onrender.com",
        usage:
@@ -150,7 +160,9 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1},
       {Oneiroi.Gaia.Events.InviteIssued, 1},
       {Oneiroi.Gaia.Events.InviteRedeemed, 1},
-      {Oneiroi.Gaia.Events.InviteRevoked, 1}
+      {Oneiroi.Gaia.Events.InviteRevoked, 1},
+      {Oneiroi.Gaia.Events.FeedbackFiled, 1},
+      {Oneiroi.Gaia.Events.FeedbackMoved, 1}
     ]
   end
 
@@ -212,6 +224,10 @@ defmodule Oneiroi.Gaia do
        remedy: "the details name which and how long"},
       {:gaia_email_taken, "an account already has that email",
        remedy: "log in instead, or sign up with another email"},
+      {:gaia_feedback_invalid,
+       "a report is a bug or a feature request, in words (at most 8,000 characters), from a person or a resident with a witness; a move is new, in_work, resolved or closed, with a note",
+       remedy: "the details name what is expected"},
+      {:gaia_no_such_feedback, "no report has that number", remedy: "read the list"},
       {:gaia_push_failed,
        "a push did not reach the device's push service: refused, unreachable, or no VAPID key set",
        remedy: "the details name the status or the cause; a key is GAIA_VAPID_PRIVATE_KEY"},
@@ -267,6 +283,7 @@ defmodule Oneiroi.Gaia do
       Oneiroi.Gaia.Projectors.Household,
       Oneiroi.Gaia.Handlers.Household,
       Oneiroi.Gaia.Projectors.Invite,
+      Oneiroi.Gaia.Projectors.Feedback,
       {Task.Supervisor, name: :gaia_push}
     ]
   end
@@ -451,4 +468,39 @@ defmodule Oneiroi.Gaia do
   @spec sign_up(String.t(), Oneiroi.Config.Secret.t(), String.t() | nil) ::
           {:ok, String.t()} | {:error, term()}
   defexport(sign_up(email, password, code), do: Signup.sign_up(email, password, code))
+
+  @doc "Files a platform report (gaia#20): a bug or a feature request, from a person or a resident."
+  @spec file_feedback(map(), Oneiroi.Actor.t()) :: {:ok, pos_integer()} | {:error, term()}
+  defexport(file_feedback(attrs, actor), do: Feedbacks.file(attrs, actor))
+
+  @doc "Moves a platform report's status, with a note; the operator's or the triage resident's."
+  @spec move_feedback(pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(move_feedback(number, status, note, actor),
+    do: Feedbacks.move(number, status, note, actor)
+  )
+
+  @doc "Every platform report, newest first, narrowed by kind and status."
+  @spec feedback(map()) :: [map()]
+  defexport(feedback(filters), do: Feedbacks.list(filters))
+
+  @doc "One platform report, or nil."
+  @spec feedback_report(pos_integer()) :: map() | nil
+  defexport(feedback_report(number), do: Feedbacks.get(number))
+
+  @doc "The reports an account filed or its residents did."
+  @spec feedback_for_account(String.t()) :: [map()]
+  defexport(feedback_for_account(account_id), do: Feedbacks.for_account(account_id))
+
+  @doc "The reports a resident filed."
+  @spec feedback_for_resident(String.t()) :: [map()]
+  defexport(feedback_for_resident(resident_id), do: Feedbacks.for_resident(resident_id))
+
+  @doc "Whether the resident triages platform reports."
+  @spec triage?(String.t()) :: boolean()
+  defexport(triage?(resident_id), do: Feedbacks.triage?(resident_id))
+
+  @doc "The triage resident's id, or nil."
+  @spec triage_resident() :: String.t() | nil
+  defexport(triage_resident(), do: Feedbacks.triage_resident())
 end

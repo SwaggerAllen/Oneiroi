@@ -133,4 +133,29 @@ defmodule Oneiroi.Gaia.Events do
   defmodule InviteRevoked do
     use Oneiroi.Event, version: 1, fields: [:id], decision: true
   end
+
+  # Platform reports (gaia#20), on the `feedback` stream: a bug or a
+  # feature request from a person or a resident, in their words, for the
+  # operator's triage and the triage resident. Never the witness rail
+  # (report_file, Glitnir), which this does not touch.
+  defmodule FeedbackFiled do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [
+        :id,
+        :number,
+        :kind,
+        :surface,
+        :body,
+        :trace_id,
+        :author_kind,
+        :author_id,
+        :account_id,
+        :resident_id
+      ]
+  end
+
+  defmodule FeedbackMoved do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :status], decision: true
+  end
 end

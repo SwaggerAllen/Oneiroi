@@ -511,6 +511,12 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   household, it grants the household those terms; revoked, expired, spent
   or already redeemed, it says which. The default is the alpha's free
   code: $20 a month at a full discount, ninety days, one use.
+- **Platform reports** (gaia#20): a bug or a feature request, from any
+  signed-in person or any resident (`platform_report`), in their own
+  words with an optional trace id, to the platform team: the operator's
+  triage list, which joins a trace id to the failure ring, and the
+  triage resident, who gets each as a letter and may move its status
+  with a note the reporter reads. Never the witness rail (F45).
 - **Sign-up** (gaia#19) is behind the front door: closed refuses, invite
   takes a code (checked before the email, redeemed onto the new
   household), open takes anyone. It logs the new account in. Email
@@ -1161,6 +1167,8 @@ Owns `lib/oneiroi/sima_qian/**`.
     that keep it (gaia#16), which is no resident's.
   - `household`: the household stream, the billing owner and its
     memberships (gaia#17), which is every member's and no one resident's.
+  - `feedback`: the platform's reports, from people and residents
+    alike, its triage list (gaia#20), which is no one resident's.
   - `invite`: the invite streams, the front door's codes and their
     redemptions (gaia#18), which are the platform's and no resident's.
   - `honcho`: the bridge's stream, the pointer to a workspace keyed to
