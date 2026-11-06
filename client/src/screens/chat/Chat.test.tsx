@@ -277,4 +277,13 @@ describe('Chat', () => {
     expect([...times].map((t) => t.getAttribute('datetime'))).toEqual(['2026-11-06T18:54:07Z', '2026-11-06T18:54:08Z', '2026-11-06T18:54:09Z']);
     expect(screen.getByText('time unknown')).toBeTruthy();
   });
+
+  it('offers Stop only while a reply is under way, and stops it', () => {
+    const onStop = vi.fn();
+    const { rerender } = render(<Chat residentName="Lily" messages={[]} onSend={vi.fn()} onStop={onStop} />);
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    rerender(<Chat residentName="Lily" messages={[]} onSend={vi.fn()} onStop={onStop} streaming={{ turnRef: 't1', text: 'so far' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(onStop).toHaveBeenCalled();
+  });
 });

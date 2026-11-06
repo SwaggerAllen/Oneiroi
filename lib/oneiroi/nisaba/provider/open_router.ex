@@ -21,6 +21,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
 
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Error
+  alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
 
@@ -94,7 +95,9 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
         |> Req.Response.put_private(:sse_state, state)
         |> Req.Response.put_private(:raw, (resp.private[:raw] || "") <> data)
 
-      {:cont, {req, resp}}
+      # A stop asked by the sink (nisaba#22): the call ends here, what
+      # came so far is the result.
+      if Halt.halted?(), do: {:halt, {req, resp}}, else: {:cont, {req, resp}}
     end
   end
 

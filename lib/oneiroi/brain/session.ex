@@ -59,6 +59,15 @@ defmodule Oneiroi.Brain.Session do
     end
   end
 
+  @doc "Asks the running turn to stop (brain#61); an error when none runs here."
+  @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}
+  def stop(resident_id, session_key, by) do
+    case Registry.lookup(@registry, {resident_id, session_key}) do
+      [{pid, _}] -> GenServer.call(pid, {:stop, by})
+      [] -> {:error, Error.new(:brain_nothing_running, :brain_session_stop_no_process)}
+    end
+  end
+
   @doc "Runs a wake on the session's process: the core's note, answered under its purpose."
   @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
   def wake(resident_id, session_key, note, purpose) do
@@ -91,6 +100,14 @@ defmodule Oneiroi.Brain.Session do
     item = %{item | ref: item.ref || Kumbukumbu.turn_ref()}
     {:noreply, enqueue(state, Map.put(item, :from, from))}
   end
+
+  def handle_call({:stop, by}, _from, %{running: %{task: %Task{pid: pid}}} = state) do
+    send(pid, {:brain_stop, by})
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:stop, _by}, _from, state),
+    do: {:reply, {:error, Error.new(:brain_nothing_running, :brain_session_stop_idle)}, state}
 
   def handle_call({:submit, item}, _from, state) do
     if seen?(state, item.ref) or claimed_elsewhere?(state, item) do

@@ -38,7 +38,12 @@ defmodule Oneiroi.Brain.Compaction do
 
   # One line for the turn and the preview, so the preview cannot say a
   # compaction is coming that the turn would not run.
+  # Off (brain#60), nothing is ever over the line: the window truncates.
   defp over_the_line(turn) do
+    if Config.fetch!(:brain, :compaction), do: over(turn), else: :no
+  end
+
+  defp over(turn) do
     threshold = Config.fetch!(:brain, :compact_after_messages)
 
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do

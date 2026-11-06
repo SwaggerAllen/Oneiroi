@@ -33,6 +33,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
+  alias Oneiroi.Sunna.Work
   alias Oneiroi.Sunna.WorkRouter
 
   @actor Actor.new(:job, "sunna_work")
@@ -153,6 +154,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
     cond do
       state && state.running -> :running
+      state && state.rested_reason == Work.stopped_rest() -> :stopped
       care_first?(resident_id, settings) -> :care
       true -> next(resident_id, items, state)
     end
@@ -237,6 +239,21 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  # Stopped (brain#61): the run ends unwrapped and the loop rests until
+  # either party touches the queue; no wrap, no next check.
+  defp carry_on(resident_id, _key, number, _n, %{stopped: _by}) do
+    ended =
+      dispatch(%Commands.EndWork{
+        actor: @actor,
+        at: Clock.now(),
+        id: resident_id,
+        number: number,
+        stopped: true
+      })
+
+    with {:ok, _} <- ended, do: :ok
+  end
+
   defp carry_on(resident_id, key, number, n, %{rounds_spent: true}) do
     if n < Config.fetch!(:sunna, :work_turns),
       do: worker().enqueue(resident_id, key, number, n + 1),
@@ -286,7 +303,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
 
-      (is_nil(state) or is_nil(state.running)) and
+      (is_nil(state) or (is_nil(state.running) and state.rested_reason != Work.stopped_rest())) and
         Enum.any?(Store.work_items(), &(&1.status == "open"))
     end)
   end

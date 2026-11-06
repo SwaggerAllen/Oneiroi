@@ -515,6 +515,9 @@ function ChatContainer({ resident }: { resident: Resident }) {
           .then(setPreview)
           .catch(() => setPreview(null));
       }}
+      onStop={() => {
+        api.stopTurn(resident.id, open).catch(() => undefined);
+      }}
       onSend={(text) => {
         setPreview(null);
         const item: Outgoing = { ref: newRef(), text, state: 'sending', attempts: 0 };

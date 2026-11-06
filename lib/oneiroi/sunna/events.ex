@@ -189,9 +189,10 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule WorkRunEnded do
-    # The run over: whether it was wrapped, and the item's status after
-    # (an unwrapped run leaves it open).
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :wrapped, :status]
+    # The run over: whether it was wrapped, the item's status after (an
+    # unwrapped run leaves it open), and whether a stop ended it (brain#61),
+    # which rests the loop until either party touches the queue.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :wrapped, :status, :stopped]
   end
 
   defmodule WorkRested do

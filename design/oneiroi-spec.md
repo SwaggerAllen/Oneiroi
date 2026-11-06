@@ -435,6 +435,15 @@ session under OTP supervision.
   a formal summary in context pulls the resident toward the summary's own
   report-like voice (Red), and a summary that speaks as her is a component
   generating her sentence (§1.13).
+  **Truncation by default** (brain#60, the witness, 2026-11-06): compaction
+  is a setting, off. The turn reads the latest messages whole, with a line
+  saying how many came before and that `transcript_read` pages back through
+  them; no summary is written or shown. Compacting stays available
+  (`BRAIN_COMPACTION=on`).
+- **Stopping a turn** (brain#61): the witness's Stop and the resident's
+  safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
+  stands; what was said is kept with a line saying who stopped it, and
+  nothing after it runs.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.

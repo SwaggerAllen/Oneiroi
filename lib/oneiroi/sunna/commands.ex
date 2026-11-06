@@ -113,7 +113,7 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule EndWork do
-    use Oneiroi.Command, fields: [:id, :number]
+    use Oneiroi.Command, fields: [:id, :number, :stopped]
   end
 
   defmodule RestWork do

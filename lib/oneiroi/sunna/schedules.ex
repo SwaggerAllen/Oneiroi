@@ -633,6 +633,10 @@ defmodule Oneiroi.Sunna.Schedules do
   # own; one that ended in words with nothing to call is her being done.
   # When the slot ends, by her word or by the budget or the turn bound,
   # the planning turn comes next (sunna#31).
+  # A turn stopped by her safe word or the witness's Stop (brain#61)
+  # ends the slot there: nothing carries it on, not even the plan.
+  defp carry_on(_resident_id, _key, %{stopped: _by}, _n), do: :ok
+
   defp carry_on(resident_id, key, %{rounds_spent: true}, n) do
     if free_time_budget(resident_id) && n <= Config.fetch!(:sunna, :free_time_turns),
       do: free_time_worker().enqueue(resident_id, key, n),

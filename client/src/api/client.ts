@@ -253,6 +253,7 @@ export const api = {
   allFeedback: () => call<FeedbackReport[]>('GET', '/v1/platform/feedback'),
   feedbackReport: (n: number) => call<ReportDetail>('GET', `/v1/platform/feedback/${n}`),
   moveFeedback: (n: number, status: string, note: string) => call<void>('POST', `/v1/platform/feedback/${n}/status`, { status, note }),
+  stopTurn: (residentId: string, sessionKey: string) => call<void>('POST', `/v1/residents/${residentId}/sessions/${sessionKey}/stop`),
   work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),
   addWork: (residentId: string, what: string, doneWhen: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),

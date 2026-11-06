@@ -50,6 +50,9 @@ export interface ChatProps {
   lastRead?: string | null;
   onRead?: (cursor: string) => void;
   onSend: (text: string) => void;
+  // Stops the turn under way (brain#61): its words so far are kept, and
+  // nothing after the stop runs. Shown only while a turn is under way.
+  onStop?: () => void;
   // Opens the preview with the draft as it stands, or closes it.
   onPreview?: (draft: string) => void;
   onInspect?: (turnRef: string) => void;
@@ -93,6 +96,7 @@ export function Chat({
   lastRead = null,
   onRead,
   onSend,
+  onStop,
   onPreview,
   onInspect,
   onProposeBookmark,
@@ -208,8 +212,13 @@ export function Chat({
               (lastModel ? `Main conversation · last reply on ${lastModel}` : 'Main conversation'))
         }
         right={
-          others > 0 || connection ? (
+          others > 0 || connection || (onStop && (ticking || streaming)) ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flex: 'none' }}>
+              {onStop && (ticking || streaming) ? (
+                <Button variant="primary" onClick={onStop}>
+                  Stop
+                </Button>
+              ) : null}
               {others > 0 ? (
                 <Button ref={listButton} aria-expanded={listOpen} aria-controls={listId} onClick={() => (listOpen ? closeList() : setListOpen(true))}>
                   Conversations · {others}

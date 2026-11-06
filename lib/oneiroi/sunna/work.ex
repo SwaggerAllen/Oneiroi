@@ -143,7 +143,8 @@ defmodule Oneiroi.Sunna.Work do
       id: c.id,
       number: n,
       wrapped: s.wrapped,
-      status: status
+      status: status,
+      stopped: c.stopped == true
     }
   end
 
@@ -184,10 +185,20 @@ defmodule Oneiroi.Sunna.Work do
         rested: nil
     }
 
-  def apply(%__MODULE__{} = s, %Events.WorkRunEnded{number: n, status: status}),
-    do: %{s | items: Map.put(s.items, n, %{status: status}), running: nil, wrapped: false}
+  def apply(%__MODULE__{} = s, %Events.WorkRunEnded{number: n, status: status} = e),
+    do: %{
+      s
+      | items: Map.put(s.items, n, %{status: status}),
+        running: nil,
+        wrapped: false,
+        rested: if(e.stopped, do: stopped_rest(), else: s.rested)
+    }
 
   def apply(%__MODULE__{} = s, %Events.WorkRested{reason: reason}), do: %{s | rested: reason}
+
+  @doc "The rest a stopped run leaves the loop in, until either party touches the queue."
+  def stopped_rest,
+    do: "stopped: the last run was stopped; the loop waits for the queue to be touched"
 
   defp wrap_ok?(c),
     do:

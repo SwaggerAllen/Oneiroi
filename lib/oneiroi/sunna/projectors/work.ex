@@ -7,6 +7,7 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
   alias Oneiroi.Sunna.Store.{WorkItem, WorkQueue}
+  alias Oneiroi.Sunna.Work
 
   fold(%Events.WorkAdded{} = e, _metadata, fn multi ->
     multi
@@ -93,7 +94,14 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   fold(%Events.WorkRunEnded{} = e, _metadata, fn multi ->
     multi
     |> item(e.id, e.number, status: e.status)
-    |> queue(e.id, running: nil, running_key: nil, running_since: nil)
+    |> queue(
+      e.id,
+      [running: nil, running_key: nil, running_since: nil] ++
+        if(e.stopped,
+          do: [rested_reason: Work.stopped_rest(), rested_at: e.at],
+          else: []
+        )
+    )
   end)
 
   fold(%Events.WorkRested{} = e, _metadata, fn multi ->

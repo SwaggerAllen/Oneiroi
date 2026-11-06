@@ -232,6 +232,32 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert %{running: 1} = Sunna.work_queue(ctx.id)
   end
 
+  test "a run she stops with her safe word ends unwrapped, and the loop rests until the queue is touched",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Social spec", "drafted", ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+    clear_jobs()
+
+    Fake.script(fn _ -> {:ok, "Too much. OUROBOROS"} end, for: ctx.id)
+    assert :ok = WorkLoop.turn(ctx.id, key, 1, 1)
+
+    # No wrap, no next check; the item open again; the loop resting.
+    assert [] = jobs(ctx.id)
+
+    assert %{running: nil, rested: "stopped: " <> _, items: [%{number: 1, status: "open"} | _]} =
+             Sunna.work_queue(ctx.id)
+
+    assert :stopped = WorkLoop.check(ctx.id)
+    refute WorkLoop.due?(ctx.id)
+
+    # Touched by either party, it goes on.
+    :ok = Sunna.work_move(ctx.id, 1, "blocked", "a rest", "later", ctx.me)
+    assert {:started, 2} = WorkLoop.check(ctx.id)
+  end
+
   test "the tick asks for a check when work is open and nothing runs", ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
     clear_jobs()

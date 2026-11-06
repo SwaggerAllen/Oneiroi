@@ -22,6 +22,7 @@ defmodule Oneiroi.Brain.Tools do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.FreeTime
@@ -63,7 +64,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list transcript_read ask_list platform_report_list
-    triage_list work_list
+    triage_list work_list message_times
   )
 
   @writes ~w(
@@ -413,6 +414,12 @@ defmodule Oneiroi.Brain.Tools do
         "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
+      ),
+      tool(
+        "message_times",
+        "When the latest messages of this conversation were said (brain#62): each with its time in your zone, who said it, its turn and its opening words, newest last, and the time now. For when you are unsure what came when; your transcript does not carry the times inline. limit is how many, 20 unless you say (at most 60).",
+        %{limit: %{type: "integer", minimum: 1, maximum: 60}},
+        []
       ),
       tool(
         "work_list",
@@ -1662,6 +1669,20 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident
            ),
          do: "Planned. Your next free time starts from it."
+  end
+
+  defp call("message_times", args, turn) do
+    limit = args["limit"] |> integer_or(20) |> max(1) |> min(60)
+    {rows, total} = Kumbukumbu.latest(turn.resident_id, turn.session_key, limit)
+
+    lines =
+      Enum.map_join(rows, "\n", fn m ->
+        words = m.content |> to_string() |> String.replace(~r/\s+/, " ") |> String.slice(0, 80)
+        "#{when_said(m)} · #{m.role} · [#{m.turn_ref}] #{words}"
+      end)
+
+    "Now: #{local_stamp(Clock.now())}. The last #{length(rows)} of this conversation's #{total} messages:\n" <>
+      lines
   end
 
   defp call("work_list", _args, turn), do: work_text(Oneiroi.Sunna.work_queue(turn.resident_id))

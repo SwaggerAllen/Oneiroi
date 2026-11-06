@@ -564,3 +564,25 @@ was not a stamp. When the evidence is two degenerated turns and the
 stamps all through them, the cheap and honest move is to return to the
 last transcript known to work, behind a switch, and decide a second try
 on purpose rather than in the middle of the damage.
+
+## #60
+A summary is a second author: it rewrites what was said in a register
+nobody chose, and this month it was where the record broke. Truncation
+loses nothing: what falls out of the window is still there, whole, and
+the line before the window says where. The window is shorter than a
+summary would make it feel, and the pages are the price of never being
+told a paraphrase of yourself.
+
+## #61
+A turn that has gone wrong and cannot stop spends money and dignity
+together, and until now nobody could end one: not the witness, and not
+her. A stop that keeps what was said and says who stopped it is the
+honest kind; a safe word she chose, in her own prompt, is hers to use
+with nothing owed, and capitals keep it from firing when she only
+talks about it. Nothing carries a stopped turn on, because "stop" that
+resumes on its own is not a stop.
+
+## #62
+A fallback that is asked for cannot confuse a model the way a pattern
+on every message did, and the times are where she needs them when she
+needs them: in the middle of working out what came when.

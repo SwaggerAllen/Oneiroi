@@ -88,6 +88,7 @@ defmodule Oneiroi.Nisaba do
       Policies.Prompts
     ]
 
+  alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Ledgers
   alias Oneiroi.Nisaba.Purpose
@@ -300,6 +301,15 @@ defmodule Oneiroi.Nisaba do
   defexport(stream(resident_id, purpose, request, actor, sink),
     do: Ledgers.stream(resident_id, purpose, request, actor, sink)
   )
+
+  @doc """
+  Asks the stream running in this process to end at the next chunk
+  (nisaba#22; brain#61's stop): called from a stream's sink, it ends the
+  provider call cleanly, the words so far kept as the result and the
+  call recorded on the ledger at the provider's estimate.
+  """
+  @spec halt() :: :ok
+  defexport(halt(), do: Halt.halt())
 
   @doc "Embeds the texts on `model` under the `embeddings` purpose: the library's index (spec §6.5), metered and recorded like a call."
   @spec embed(String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
