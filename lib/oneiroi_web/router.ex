@@ -59,6 +59,8 @@ defmodule OneiroiWeb.Router do
       delete("/me/push", MeController, :unsubscribe_push)
       post("/me/push/test", MeController, :test_push)
       post("/me/invite", MeController, :redeem_invite)
+      get("/ops/failures", OpsController, :failures)
+      get("/residents/:id/ops/heartbeats", OpsController, :heartbeats)
       get("/platform", OperatorController, :show)
       put("/platform/gate", OperatorController, :set_gate)
       post("/platform/roles", OperatorController, :grant)

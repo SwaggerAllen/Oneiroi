@@ -106,3 +106,14 @@ The same outage: the column was `:string` because Ecto's default is
 `varchar(255)`, a limit nobody chose. A limit at the projection is a
 crash at the projection, because a stored event has to project; so the
 limit, where one is wanted, sits on the command, which can still refuse.
+
+## #23
+Every near-miss this month was caught by someone reading the record,
+never by a bell: the record works, and what was missing was a way to
+ask it a question without a production database read. The failure ring
+lives in the process because a failure log in the same place as the
+failure goes down with it. Heartbeats are absences, the cheapest alert
+there is: the letter watch's silent 404s had no symptom, and a list of
+"when did this last happen" would have named it the first time anyone
+asked. They are read from where the facts already are rather than kept
+twice, except the adapters' asks, which nothing recorded.
