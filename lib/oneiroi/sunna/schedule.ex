@@ -269,6 +269,16 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
+  # ---- the plan for the next slot (sunna#31) ----
+
+  def execute(%__MODULE__{}, %Commands.PlanFreeTime{} = c) do
+    text = if is_binary(c.text), do: String.trim(c.text), else: ""
+
+    if text != "" and String.length(text) <= 4_000,
+      do: %Events.FreeTimePlanned{actor: c.actor, at: c.at, id: c.id, text: text},
+      else: {:error, Error.new(:sunna_plan_invalid, :sunna_plan_text_invalid)}
+  end
+
   # ---- rounds (sunna#30) ----
 
   def execute(%__MODULE__{round_settings: now}, %Commands.SetRounds{} = c) do
@@ -424,6 +434,8 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeFailed{} = e),
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
+
+  def apply(%__MODULE__{} = s, %Events.FreeTimePlanned{} = e), do: %{s | id: e.id}
 
   def apply(%__MODULE__{} = s, %Events.RoundsSet{} = e),
     do: %{s | id: e.id, round_settings: {e.every_hours, e.waking}}

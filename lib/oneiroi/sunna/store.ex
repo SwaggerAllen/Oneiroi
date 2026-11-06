@@ -116,6 +116,8 @@ defmodule Oneiroi.Sunna.Store do
       field(:rounds_every_hours, :integer)
       field(:rounds_waking, :string)
       field(:last_round_at, :utc_datetime_usec)
+      field(:free_time_plan, :string)
+      field(:free_time_planned_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

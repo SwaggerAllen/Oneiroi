@@ -13,8 +13,14 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
   alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Sunna.Schedules
 
+  def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => "plan"}),
+    do: Schedules.plan_free_time(resident_id, key)
+
   def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => n}),
     do: Schedules.continue_free_time(resident_id, key, n)
+
+  @doc "Enqueues the slot's planning turn (sunna#31), once per conversation."
+  def enqueue_plan(resident_id, key), do: enqueue(resident_id, key, "plan")
 
   @doc "Enqueues turn `n` of the free-time pass in `key`."
   def enqueue(resident_id, key, n) do

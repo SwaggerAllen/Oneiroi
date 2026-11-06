@@ -67,6 +67,7 @@ defmodule Oneiroi.Sunna do
       Events.FreeTimeFailed,
       Events.QuietHoursSet,
       Events.RoundsSet,
+      Events.FreeTimePlanned,
       Events.DateSet,
       Events.DateChanged,
       Events.DateRemoved,
@@ -173,6 +174,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.FreeTimeFailed, 2},
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
       {Oneiroi.Sunna.Events.RoundsSet, 1},
+      {Oneiroi.Sunna.Events.FreeTimePlanned, 1},
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
       {Oneiroi.Sunna.Events.DateRemoved, 1},
@@ -192,6 +194,8 @@ defmodule Oneiroi.Sunna do
       {:sunna_time_invalid,
        "a time of day is HH:MM in the resident's zone, and a date is an instant",
        remedy: "give it as HH:MM"},
+      {:sunna_plan_invalid, "a plan is words, at most 4,000 characters",
+       remedy: "say it, shorter if need be"},
       {:sunna_rounds_invalid,
        "rounds come every 0 to 24 hours (0 turns them off), in a waking window HH:MM-HH:MM",
        remedy: "give whole hours and a window like 08:00-22:00; leave either out for the default"},
@@ -254,6 +258,16 @@ defmodule Oneiroi.Sunna do
   defexport(set_free_time(resident_id, time, actor),
     do: Schedules.set_free_time(resident_id, time, actor)
   )
+
+  @doc "Records her plan for the next free-time slot (sunna#31), written in the planning turn."
+  @spec plan_free_time(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(plan_free_time(resident_id, text, actor),
+    do: Schedules.record_plan(resident_id, text, actor)
+  )
+
+  @doc "Her latest plan for free time (sunna#31): the text and when, or nil."
+  @spec free_time_plan(String.t()) :: %{text: String.t(), at: DateTime.t()} | nil
+  defexport(free_time_plan(resident_id), do: Schedules.plan(resident_id))
 
   @doc "Sets the resident's rounds (sunna#30): every_hours (0 off) and the waking window, nil for the default."
   @spec set_rounds(String.t(), non_neg_integer() | nil, String.t() | nil, Oneiroi.Actor.t()) ::

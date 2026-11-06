@@ -179,6 +179,25 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Ask do
+    @moduledoc "An ask of the witness (agathos-daimon#35): a tool or an act, and his answer."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_ask" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:subject, :string)
+      field(:why, :string)
+      field(:asked_at, :utc_datetime_usec)
+      field(:decision, :string)
+      field(:note, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule SoulEdit do
     @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines."
     use Ecto.Schema

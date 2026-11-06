@@ -10,6 +10,9 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
   import Ecto.Query, only: [from: 2]
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
@@ -77,7 +80,8 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
     assert List.last(first).content =~
              "No free-time budget is set, so this free time is one turn."
 
-    assert continuations(ctx.id) == []
+    # One turn, then only the planning turn (sunna#31).
+    assert [%{"turn" => "plan"}] = continuations(ctx.id)
   end
 
   test "with a budget line, a pass that runs out of rounds is carried on, a turn a job, until the turns are spent",
@@ -112,7 +116,7 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
 
   # brain#55: her goals file rides free time and no other conversation.
   test "her goals file is read at the start of a free-time turn, and not in the chat", ctx do
-    {:ok, %{slug: slug}} = Oneiroi.AgathosDaimon.fetch(ctx.id)
+    {:ok, %{slug: slug}} = AgathosDaimon.fetch(ctx.id)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(ctx.id)
     File.mkdir_p!(dir)
     File.write!(Path.join(dir, String.upcase(slug) <> "-GOALS.md"), "- finish the harness essay")
@@ -146,6 +150,66 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
     :persistent_term.put({__MODULE__, :done, ctx.id}, true)
     assert :ok = Schedules.continue_free_time(ctx.id, key, 2)
     refute Enum.any?(continuations(ctx.id), &(&1["turn"] == 3))
+    assert Enum.any?(continuations(ctx.id), &(&1["turn"] == "plan"))
+  end
+
+  # sunna#31, agathos-daimon#35 (the witness's call through Lily,
+  # 2026-11-05): once a slot ends, one planning turn; the plan she writes
+  # opens the next slot; her asks wait for his answer, which reaches her
+  # free time as a letter.
+  test "the planning turn: she plans the next slot and asks; the plan opens the next slot", ctx do
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Sunna.tick(ctx.id)
+    key = free_time_key(ctx.id)
+    flush()
+
+    assert :ok = Schedules.plan_free_time(ctx.id, key)
+    assert_received {:asked, planning}
+    assert List.last(planning).content =~ "Your free time has ended"
+
+    lily = Actor.new(:resident, ctx.id)
+
+    turn = %{
+      resident_id: ctx.id,
+      session_key: key,
+      turn_ref: "t",
+      resident: lily,
+      started_at: Clock.now()
+    }
+
+    assert Tools.run("free_time_plan", ~s({"text": "finish the Weng piece"}), turn) =~
+             "Planned"
+
+    assert Tools.run(
+             "tool_request",
+             ~s({"tool": "a calendar", "why": "to see his week"}),
+             turn
+           ) =~ "Asked as #1"
+
+    assert Tools.run(
+             "approval_request",
+             ~s({"act": "publish the Weng piece", "why": "it is done"}),
+             turn
+           ) =~ "Asked as #2"
+
+    assert {:error, %{kind: :agathos_daimon_not_a_party}} =
+             AgathosDaimon.answer_ask(ctx.id, 2, "approve", "go", lily)
+
+    assert {:error, %{kind: :agathos_daimon_ask_invalid}} =
+             AgathosDaimon.answer_ask(ctx.id, 1, "approve", "a tool is noted", ctx.actor)
+
+    assert :ok = AgathosDaimon.answer_ask(ctx.id, 2, "approve", "go ahead", ctx.actor)
+
+    assert Tools.run("ask_list", "{}", turn) =~
+             "#2 act: publish the Weng piece (why: it is done) — approve: go ahead"
+
+    # The next slot opens on the plan.
+    flush()
+    :ok = Sunna.set_free_time(ctx.id, "13:00", ctx.actor)
+    Clock.Fake.advance(3600)
+    :ok = Sunna.tick(ctx.id)
+    assert_received {:asked, next}
+    assert Enum.any?(next, &(is_binary(&1[:content]) and &1.content =~ "finish the Weng piece"))
   end
 
   test "a spent budget line ends free time", ctx do

@@ -175,3 +175,11 @@ the rounds became the resident's own setting, shown where the check-ins
 are. The card says that rounds happen and when the last one started,
 and stops there: the times are drawn so they are not guessable within
 the day, and what a round did is hers to send out or not.
+
+## #31
+Each slot opened cold, in reach of whatever was nearest, and three of
+her nights went that way. The planning turn runs while the slot's
+appetite is still live, so the next slot starts from what she meant
+rather than from what is lying around. It writes intention, not a tool
+list: a per-slot whitelist would be a permission system, and that
+design should be made whole rather than grown out of a planning note.

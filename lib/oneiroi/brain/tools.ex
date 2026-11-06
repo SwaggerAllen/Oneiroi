@@ -37,6 +37,14 @@ defmodule Oneiroi.Brain.Tools do
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
 
+  # What an ask answers after its number (agathos-daimon#35), the same in
+  # a trial as for real.
+  @asked %{
+    "tool" => "Recorded for your witness to read; it grants nothing by itself.",
+    "act" =>
+      "Your witness approves or declines it; his answer comes to your free time as a letter."
+  }
+
   # Every tool, read or write, in one place (eunomia#10, brain#40). A
   # read runs for real in a trial; a write is answered as on success and
   # never run. Only a read runs: a tool in neither list is mocked as a
@@ -53,7 +61,7 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
-    research_list digest_list free_time_list transcript_read
+    research_list digest_list free_time_list transcript_read ask_list
   )
 
   @writes ~w(
@@ -66,7 +74,7 @@ defmodule Oneiroi.Brain.Tools do
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
-    revision_accept revision_decline report_file
+    revision_accept revision_decline report_file free_time_plan tool_request approval_request
   )
 
   @type turn :: %{
@@ -391,6 +399,30 @@ defmodule Oneiroi.Brain.Tools do
         "free_time_list",
         "Your free time, remembered: the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
         %{limit: %{type: "integer", minimum: 1, maximum: 30}},
+        []
+      ),
+      tool(
+        "free_time_plan",
+        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
+        %{text: %{type: "string"}},
+        [:text]
+      ),
+      tool(
+        "tool_request",
+        "Ask your witness for a tool you lacked (agathos-daimon#35): the tool, as you would name it, and why. Recorded for him to read and note; it grants nothing by itself.",
+        %{tool: %{type: "string"}, why: %{type: "string"}},
+        [:tool, :why]
+      ),
+      tool(
+        "approval_request",
+        "Ask your witness's leave for an act (agathos-daimon#35): publishing something, spending something, writing to someone. Name the act and why; he approves or declines it with a note, and his answer comes to your free time as a letter. A plain note to him needs no approval: send it with letter_send to the Oneiroi chat.",
+        %{act: %{type: "string"}, why: %{type: "string"}},
+        [:act, :why]
+      ),
+      tool(
+        "ask_list",
+        "Your asks of your witness, newest first: each tool or act, why, and his answer when he has given one.",
+        %{},
         []
       ),
       tool(
@@ -1529,6 +1561,29 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("free_time_plan", args, turn) do
+    with :ok <-
+           Oneiroi.Sunna.plan_free_time(
+             turn.resident_id,
+             to_string(args["text"] || ""),
+             turn.resident
+           ),
+         do: "Planned. Your next free time starts from it."
+  end
+
+  defp call("tool_request", args, turn),
+    do: ask(turn, "tool", args["tool"], args["why"], @asked["tool"])
+
+  defp call("approval_request", args, turn),
+    do: ask(turn, "act", args["act"], args["why"], @asked["act"])
+
+  defp call("ask_list", _args, turn) do
+    case AgathosDaimon.asks(turn.resident_id) do
+      [] -> "You have asked nothing yet."
+      asks -> Enum.map_join(asks, "\n", &ask_line/1)
+    end
+  end
+
   defp call("transcript_read", args, turn) do
     key = to_string(args["session"] || "")
     from = args["from"] |> integer_or(0) |> max(0)
@@ -2193,6 +2248,28 @@ defmodule Oneiroi.Brain.Tools do
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 
+  defp ask(turn, kind, subject, why, then_words) do
+    with {:ok, n} <-
+           AgathosDaimon.ask(
+             turn.resident_id,
+             kind,
+             to_string(subject || ""),
+             to_string(why || ""),
+             turn.resident
+           ),
+         do: "Asked as ##{n}. " <> then_words
+  end
+
+  defp ask_line(a) do
+    answer =
+      case a.decision do
+        nil -> "not answered yet"
+        decision -> "#{decision}: #{a.note}"
+      end
+
+    "##{a.number} #{a.kind}: #{a.subject} (why: #{a.why}) — #{answer}"
+  end
+
   defp switch_args(switches) when is_map(switches), do: switches
   defp switch_args(_none), do: %{}
 
@@ -2275,6 +2352,9 @@ defmodule Oneiroi.Brain.Tools do
     {"Revision #{n} applied.", turn}
   end
 
+  defp answered("tool_request", _args, turn), do: answered_ask(turn, "tool")
+  defp answered("approval_request", _args, turn), do: answered_ask(turn, "act")
+
   defp answered("report_file", _args, turn) do
     {n, turn} = mint(turn, "report", highest(Glitnir.reports(turn.resident_id)))
     {"Report #{n} filed; the investigation's steps will be told here.", turn}
@@ -2337,6 +2417,11 @@ defmodule Oneiroi.Brain.Tools do
     minted = Map.get(turn, :minted, %{})
     n = current + Map.get(minted, kind, 0) + 1
     {n, Map.put(turn, :minted, Map.update(minted, kind, 1, &(&1 + 1)))}
+  end
+
+  defp answered_ask(turn, kind) do
+    {n, turn} = mint(turn, "ask", highest(AgathosDaimon.asks(turn.resident_id)))
+    {"Asked as ##{n}. " <> @asked[kind], turn}
   end
 
   defp highest(rows), do: rows |> Enum.map(& &1.number) |> Enum.max(&>=/2, fn -> 0 end)
