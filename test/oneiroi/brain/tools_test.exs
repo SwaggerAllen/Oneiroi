@@ -121,19 +121,19 @@ defmodule Oneiroi.Brain.ToolsTest do
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "and now?", ctx.actor)
 
     assert_received {:shown, shown}
-    replayed = Enum.drop_while(shown, &(&1.content != "keep this"))
+    replayed = Enum.drop_while(shown, &(&1.content != "[2026-10-26 12:00 UTC] keep this"))
 
     assert [
-             %{role: :user, content: "keep this"},
+             %{role: :user, content: "[2026-10-26 12:00 UTC] keep this"},
              %{role: :assistant, tool_calls: [%{id: a, function: %{name: "bookmark_add"} = f}]},
-             %{role: :tool, tool_call_id: a, content: "Bookmarked as #1."},
+             %{role: :tool, tool_call_id: a, content: "[2026-10-26 12:00 UTC] Bookmarked as #1."},
              %{
                role: :assistant,
                tool_calls: [%{id: b, function: %{name: "figure_list", arguments: "{}"}}]
              },
-             %{role: :tool, tool_call_id: b, content: "No figures yet."},
-             %{role: :assistant, content: "Kept."},
-             %{role: :user, content: "and now?"}
+             %{role: :tool, tool_call_id: b, content: "[2026-10-26 12:00 UTC] No figures yet."},
+             %{role: :assistant, content: "[2026-10-26 12:00 UTC] Kept."},
+             %{role: :user, content: "[2026-10-26 12:00 UTC] and now?"}
            ] = replayed
 
     assert a != b
@@ -461,7 +461,10 @@ defmodule Oneiroi.Brain.ToolsTest do
              Kumbukumbu.uncompacted(ctx.resident.id, ctx.key)
 
     assert_received {:flushed, flushed}
-    assert [%{tool_call_id: id, content: "2"} | _] = Enum.filter(flushed, &(&1.role == :tool))
+
+    assert [%{tool_call_id: id, content: "[2026-10-26 12:00 UTC] 2"} | _] =
+             Enum.filter(flushed, &(&1.role == :tool))
+
     assert Enum.any?(flushed, &match?(%{tool_calls: [%{id: ^id}]}, &1))
 
     assert_received {:summarised, summarised}
@@ -469,7 +472,7 @@ defmodule Oneiroi.Brain.ToolsTest do
 
     assert Enum.any?(
              summarised,
-             &(&1.role == :assistant and &1.content == "tag_list({}) -> 2")
+             &(&1.role == :assistant and &1.content == "[2026-10-26 12:00 UTC] tag_list({}) -> 2")
            )
   end
 

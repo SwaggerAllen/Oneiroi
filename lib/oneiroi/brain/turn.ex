@@ -517,7 +517,7 @@ defmodule Oneiroi.Brain.Turn do
   defp conclude({{:ok, %Result{} = result}, turn}, _original) do
     reply = %{
       role: :assistant,
-      content: result.content,
+      content: History.unstamp(result.content),
       sent_at: Clock.now(),
       actor: Actor.new(:resident, turn.resident_id, result.model || turn.model),
       refusal: result.refusal?
@@ -949,10 +949,12 @@ defmodule Oneiroi.Brain.Turn do
     {rest, index} = turn_sections(row, turn, text)
     sections = prefix_sections(row, turn) ++ rest
 
+    zone = Local.zone(turn.resident_id)
+
     history =
       turn.resident_id
       |> Kumbukumbu.recent(turn.session_key, count)
-      |> History.messages()
+      |> History.messages(zone)
 
     transcript = %{
       label: "transcript",
@@ -965,7 +967,19 @@ defmodule Oneiroi.Brain.Turn do
       Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++
         near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
 
-    opening = %{role: opening_role(Map.get(turn, :as, :user)), content: text}
+    # The opening carries its own time, as the history does (brain#58):
+    # the turn's start, which is when it is captured as said. A trial's
+    # prompt is no message said at a time, and goes bare, the same for
+    # every model it is put to.
+    said =
+      if Map.get(turn, :trial?),
+        do: %{},
+        else: %{sent_at: Map.get(turn, :started_at) || Clock.now()}
+
+    opening = %{
+      role: opening_role(Map.get(turn, :as, :user)),
+      content: History.stamp(said, zone) <> text
+    }
 
     # The turn's notices (a lapse, a model change, the letters from the
     # instance before, an import) are captured ahead of the opening and

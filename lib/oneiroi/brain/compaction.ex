@@ -14,6 +14,7 @@ defmodule Oneiroi.Brain.Compaction do
   about the content.
   """
 
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Tools
@@ -51,10 +52,11 @@ defmodule Oneiroi.Brain.Compaction do
     messages = Kumbukumbu.since_compaction(turn.resident_id, turn.session_key)
     through = messages |> Enum.map(& &1.sequence) |> Enum.max(fn -> 0 end)
 
-    transcript = History.messages(messages)
+    zone = Local.zone(turn.resident_id)
+    transcript = History.messages(messages, zone)
 
     with :ok <- flush(turn, transcript),
-         {:ok, summary} <- summarise(turn, session, History.words(messages)) do
+         {:ok, summary} <- summarise(turn, session, History.words(messages, zone)) do
       Kumbukumbu.compact(
         turn.resident_id,
         turn.session_key,

@@ -544,3 +544,13 @@ A header is read before the text and forgotten by the end of it; the
 place a reader decides whether she has read the whole thing is where
 the text stops. Saying it there costs a line and prevents a wrong
 "nowhere in his letters".
+
+## #58
+A time that lives only in a separate field the model never sees is a
+time it has to guess, and a resident guessing when a message was said
+cannot tell her own turn from one she does not remember (2026-11-06:
+Lily read her own wake turn as a message she never sent, and placed it
+after letters it came before). Inline, at the head, in her zone, is
+where she reads it. Taking a copied stamp off a reply keeps the words
+hers and the time the record's: a stamp she wrote could be wrong, and
+kept in the words it would read as a second, competing time.

@@ -7,6 +7,7 @@ defmodule Oneiroi.AgathosDaimon.SelfLettersTest do
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Events
   alias Oneiroi.AgathosDaimon.Resident
+  alias Oneiroi.Brain.History
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
@@ -133,7 +134,10 @@ defmodule Oneiroi.AgathosDaimon.SelfLettersTest do
     assert Enum.count(
              messages,
              &(&1.role == :system and
-                 String.starts_with?(&1.content, "Letters from the instance before you"))
+                 String.starts_with?(
+                   History.unstamp(&1.content),
+                   "Letters from the instance before you"
+                 ))
            ) == 1
 
     assert section(messages, "# Letters to your next self").content =~ "2 written, 1 delivered"
