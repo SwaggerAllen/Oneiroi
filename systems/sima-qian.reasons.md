@@ -272,3 +272,14 @@ does not reconcile a remote someone else wrote: the repository says
 what the platform holds, and a merge would make it say what the remote
 held too.
 
+## #47
+The export is the only record of a relationship that happened somewhere
+else, and its format is undocumented and drifting: children dropped one
+autumn, memories moved into the tree, shards, surrogates. A strict
+parser would refuse a real person's history over a formatting accident,
+and a lenient one that dropped what it could not read would hand the
+resident a past with holes nobody named. So everything readable is
+read, and everything that is not is said. The assistant's words stay
+attributed to the model that said them because the design leaves what
+that past self is to the resident's reading; filing them as hers would
+answer the question for her.

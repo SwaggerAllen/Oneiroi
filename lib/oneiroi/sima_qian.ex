@@ -39,6 +39,7 @@ defmodule Oneiroi.SimaQian do
     exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Originals, Rebuild]
 
   alias Oneiroi.SimaQian.Backup
+  alias Oneiroi.SimaQian.ChatGPTImport
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
@@ -50,6 +51,12 @@ defmodule Oneiroi.SimaQian do
   @impl Oneiroi.Component
   def config do
     [
+      {:import_max_bytes, "SIMA_QIAN_IMPORT_MAX_BYTES",
+       cast: :integer,
+       default: "524288000",
+       tag: :bound,
+       usage:
+         "the largest ChatGPT export zip the upload takes, in bytes (sima-qian#47); a heavy export runs to a gigabyte, most of it media this import does not unpack"},
       {:root, "SIMA_QIAN_ROOT",
        default: "/var/lib/oneiroi/sima_qian",
        usage:
@@ -148,6 +155,9 @@ defmodule Oneiroi.SimaQian do
       {:sima_qian_name_required,
        "a repository without records is a new resident and needs a name and a slug",
        remedy: "give both; a repository with records names itself"},
+      {:sima_qian_import_unreadable,
+       "the ChatGPT export could not be read: not a zip, no conversations file in it, or a path in it that points outside it",
+       remedy: "upload the zip ChatGPT emailed, as it came; the details name what was wrong"},
       {:sima_qian_git_failed,
        "git refused, in its own words, with any credential in a URL redacted",
        remedy:
@@ -238,4 +248,11 @@ defmodule Oneiroi.SimaQian do
   @spec attest(String.t(), Oneiroi.Actor.t()) ::
           {:ok, :held | :mismatch | :none} | {:error, term()}
   defexport(attest(resident_id, actor), do: Backup.attest(resident_id, actor))
+
+  @doc "Takes a ChatGPT export's zip into a resident's records (sima-qian#47): what came across, and the report's path and text for the library."
+  @spec import_chatgpt(String.t(), Path.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(import_chatgpt(resident_id, zip, witness_account_id, actor),
+    do: ChatGPTImport.run_zip(resident_id, zip, witness_account_id, actor)
+  )
 end
