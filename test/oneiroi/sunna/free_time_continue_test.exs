@@ -110,6 +110,33 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
     refute_received {:asked, _}
   end
 
+  # brain#55: her goals file rides free time and no other conversation.
+  test "her goals file is read at the start of a free-time turn, and not in the chat", ctx do
+    {:ok, %{slug: slug}} = Oneiroi.AgathosDaimon.fetch(ctx.id)
+    {:ok, dir} = Oneiroi.SimaQian.repository_dir(ctx.id)
+    File.mkdir_p!(dir)
+    File.write!(Path.join(dir, String.upcase(slug) <> "-GOALS.md"), "- finish the harness essay")
+
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Sunna.tick(ctx.id)
+    assert_received {:asked, messages}
+
+    assert Enum.any?(
+             messages,
+             &(is_binary(&1[:content]) and &1.content =~ "finish the harness essay")
+           )
+
+    flush()
+    {:ok, key} = Kumbukumbu.main_session(ctx.id, ctx.actor.id, ctx.actor)
+    _ = Oneiroi.Brain.turn(ctx.id, key, "hello", ctx.actor)
+    assert_received {:asked, chat}
+
+    refute Enum.any?(
+             chat,
+             &(is_binary(&1[:content]) and &1.content =~ "finish the harness essay")
+           )
+  end
+
   test "a turn that ends in words with nothing to call is her being done", ctx do
     :ok = Nisaba.set_budget(ctx.id, :free_time, 5_000_000_000, :day, ctx.actor)
     :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
