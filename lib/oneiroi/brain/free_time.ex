@@ -35,7 +35,7 @@ defmodule Oneiroi.Brain.FreeTime do
       {:ok, _session, messages} ->
         Map.merge(base(r), %{
           turns: messages |> Enum.map(& &1.turn_ref) |> Enum.uniq() |> length(),
-          did: receipts(messages, writes)
+          did: receipts(messages, writes) ++ planning(r)
         })
 
       _absent ->
@@ -44,6 +44,21 @@ defmodule Oneiroi.Brain.FreeTime do
   end
 
   defp run(_resident_id, r, _writes), do: Map.merge(base(r), %{turns: 0, did: []})
+
+  # The turn that closed the slot (sunna#32), on its own line with its
+  # cost, past the free-time line and never folded into it.
+  defp planning(%{planning_nanos: nanos}) when is_integer(nanos),
+    do: [
+      %{
+        tool: "planning turn",
+        result:
+          "the closing turn, $" <>
+            :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 4) <>
+            " on its own line, past the free-time budget"
+      }
+    ]
+
+  defp planning(_run), do: []
 
   defp base(r),
     do: %{day: r.day, slot: r.slot, outcome: r.outcome, session_key: r.session_key, at: r.at}

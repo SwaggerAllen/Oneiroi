@@ -183,3 +183,12 @@ appetite is still live, so the next slot starts from what she meant
 rather than from what is lying around. It writes intention, not a tool
 list: a per-slot whitelist would be a permission system, and that
 design should be made whole rather than grown out of a planning note.
+
+## #32
+A plan written when a slot was cut off mid-thing ("ran out mid-X; next
+slot, finish X") is the most useful one there is, and billing the
+closing turn from the line refused exactly that one. A habit that runs
+only after the gentle slots is not a habit. The turn is the machinery's
+own closing turn with four affordances, not more free time, so it gets
+a line of its own; and because the free-time line is a care guarantee,
+the extension is shown, its cost named, rather than hidden inside it.

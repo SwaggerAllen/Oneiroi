@@ -95,6 +95,7 @@ defmodule Oneiroi.Sunna.Store do
       field(:outcome, :string)
       field(:session_key, :string)
       field(:at, :utc_datetime_usec)
+      field(:planning_nanos, :integer)
     end
 
     @type t :: %__MODULE__{}

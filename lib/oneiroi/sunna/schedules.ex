@@ -90,15 +90,32 @@ defmodule Oneiroi.Sunna.Schedules do
   ask for a tool it lacked, or write to the witness. It carries nothing on.
   """
   def plan_free_time(resident_id, key) do
+    since = Clock.now()
+
     with {:ok, row} <- resident(resident_id),
          {:ok, _result} <-
            wake(
              resident_id,
              key,
              Prompt.render!("free_time_plan", %{goals: String.upcase(row.slug) <> "-GOALS.md"}),
-             :free_time
+             :planning
            ) do
-      :ok
+      # Its own receipt (sunna#32): what the closing turn cost, beside the
+      # slot it closed, never folded into the free-time line.
+      cost =
+        Nisaba.spend(resident_id, :witness, :purpose, since)
+        |> Enum.find(%{}, &(&1.key == "planning"))
+        |> Map.get(:cost_nanos, 0)
+
+      command = %Commands.RecordPlanningTurn{
+        actor: Actor.new(:job, "sunna_free_time"),
+        at: Clock.now(),
+        id: resident_id,
+        session_key: key,
+        cost_nanos: cost
+      }
+
+      with {:ok, _} <- dispatch(command), do: :ok
     end
   end
 
