@@ -60,10 +60,7 @@ defmodule OneiroiWeb.SessionChannelTest do
     assert_push "turn",
                 %{
                   turn_ref: ^turn_ref,
-                  messages: [
-                    _,
-                    %{content: "The fake provider heard: [2026-10-26 12:00 UTC] hello channel"}
-                  ]
+                  messages: [_, %{content: "The fake provider heard: hello channel"}]
                 },
                 10_000
 

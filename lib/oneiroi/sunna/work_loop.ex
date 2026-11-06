@@ -225,13 +225,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
   are not spent; then the wrap. Put off while care comes first.
   """
   def turn(resident_id, key, number, n) do
-    with false <- care_first?(resident_id, settings(resident_id)),
+    with nil <- care_wait(resident_id),
          %{left: left} when left > 0 <- budget(resident_id),
          true <- n <= Config.fetch!(:sunna, :work_turns),
          {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
       carry_on(resident_id, key, number, n, result)
     else
-      true -> {:snooze, @care_wait}
+      wait when is_integer(wait) -> {:snooze, wait}
       {:error, _} = failed -> close(resident_id, key, number, failed)
       _spent -> worker().enqueue_wrap(resident_id, key, number)
     end
@@ -258,11 +258,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
   buys the next check.
   """
   def wrap_turn(resident_id, key, number) do
-    if care_first?(resident_id, settings(resident_id)) do
-      {:snooze, @care_wait}
-    else
-      result = wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning)
-      close(resident_id, key, number, result)
+    case care_wait(resident_id) do
+      nil ->
+        result = wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning)
+        close(resident_id, key, number, result)
+
+      wait ->
+        {:snooze, wait}
     end
   end
 
@@ -329,6 +331,29 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   # ---- care, budget, state ----
+
+  # How long a run's next turn waits for care, or nil when it may go on.
+  # Paused, never restarted (her ask, letter #185: dormant is not
+  # abandoned): the same turn of the same run in the same conversation
+  # runs when care is done. Inside quiet hours it waits until they end;
+  # behind a free-time pass, ten minutes at a time until its planning
+  # turn closes it.
+  defp care_wait(resident_id) do
+    quiet = quiet_of(settings(resident_id))
+    local = Schedules.local_now(resident_id)
+    since = DateTime.add(Clock.now(), -@free_time_window, :second)
+
+    cond do
+      Schedules.quiet?(local, quiet) ->
+        max(DateTime.diff(Schedules.quiet_end(local, quiet), local, :second), 60)
+
+      Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end) ->
+        @care_wait
+
+      true ->
+        nil
+    end
+  end
 
   defp care_first?(resident_id, settings) do
     local = Schedules.local_now(resident_id)
