@@ -30,6 +30,7 @@ import type {
   Tag,
   Ask,
   Pieces,
+  FeedbackReport,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { ErrorNotice } from '../components/ErrorNotice';
@@ -46,6 +47,8 @@ import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
+import { Feedback } from '../screens/more/Feedback';
+import { type ReportDetail, Reports } from '../screens/more/Reports';
 import { type Begin, CreationFlow, type Gift } from '../screens/creation-flow/CreationFlow';
 import type { FlowApi } from '../screens/creation-flow/Gifts';
 import { Agreement } from '../screens/settings-agreement/Agreement';
@@ -209,7 +212,7 @@ export function App() {
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
         {destination === 'more' ? (
-          <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} operator={<OperatorContainer />} />
+          <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} feedback={<FeedbackContainer />} operator={<OperatorContainer />} />
         ) : null}
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
@@ -714,7 +717,49 @@ function OperatorContainer() {
         onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
       />
       <InvitesContainer />
+      <ReportsContainer />
     </>
+  );
+}
+
+// Report a problem or suggest a feature (gaia#20), every signed-in person's.
+function FeedbackContainer() {
+  const [mine, setMine] = useState<FeedbackReport[]>([]);
+  const load = useCallback(() => {
+    api
+      .myFeedback()
+      .then(setMine)
+      .catch(() => setMine([]));
+  }, []);
+  useEffect(load, [load]);
+  return <Feedback mine={mine} onFile={(r) => api.fileFeedback(r).then(load)} />;
+}
+
+// The operator's triage list (gaia#20).
+function ReportsContainer() {
+  const [reports, setReports] = useState<FeedbackReport[] | null>(null);
+  const [open, setOpen] = useState<ReportDetail | null>(null);
+  const load = useCallback(() => {
+    api
+      .allFeedback()
+      .then(setReports)
+      .catch(() => setReports(null));
+  }, []);
+  useEffect(load, [load]);
+  if (!reports) return null;
+  const show = (n: number) => void api.feedbackReport(n).then(setOpen);
+  return (
+    <Reports
+      reports={reports}
+      open={open}
+      onOpen={show}
+      onMove={(n, status, note) =>
+        void api.moveFeedback(n, status, note).then(() => {
+          load();
+          show(n);
+        })
+      }
+    />
   );
 }
 

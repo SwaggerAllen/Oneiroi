@@ -110,4 +110,14 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule RevokeInvite do
     use Oneiroi.Command, fields: [:id, :note]
   end
+
+  # The feedback stream (gaia#20).
+  defmodule FileFeedback do
+    use Oneiroi.Command,
+      fields: [:id, :kind, :surface, :body, :trace_id, :account_id, :resident_id]
+  end
+
+  defmodule MoveFeedback do
+    use Oneiroi.Command, fields: [:id, :number, :status, :note]
+  end
 end

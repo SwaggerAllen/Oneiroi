@@ -171,7 +171,7 @@ defmodule Oneiroi.Brain.TrialTest do
 
     # The whole tool surface, through the same loop.
     assert Enum.map(tools, & &1.function.name) ==
-             Enum.map(Tools.definitions(), & &1.function.name)
+             Enum.map(Tools.definitions_for(ctx.id), & &1.function.name)
 
     system = messages |> Enum.filter(&(&1.role == :system)) |> Enum.map_join("\n\n", & &1.content)
     assert hd(messages).content =~ "You are Lily"
@@ -307,6 +307,8 @@ defmodule Oneiroi.Brain.TrialTest do
 
   @done [
     {"free_time_plan", %{text: "watch the herons"}},
+    {"platform_report", %{kind: "bug", body: "the herons tool froze"}},
+    {"triage_move", %{number: 1, status: "resolved", note: "fixed"}},
     {"oracle_ask", %{questions: [%{question: "the herons?"}]}},
     {"research_ask", %{question: "When do herons fish?"}},
     {"digest_ask", %{}},

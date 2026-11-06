@@ -9,7 +9,7 @@ export type MoreScreen = 'library' | 'connections' | 'ledger' | 'regression' | '
 // destinations. The spec gives it five collapsed groups (Library,
 // Judgement, the resident, Account, Platform); until those exist it
 // lists the screens that are built.
-export function More({ onOpen, notifications, operator }: { onOpen: (screen: MoreScreen) => void; notifications?: ReactNode; operator?: ReactNode }) {
+export function More({ onOpen, notifications, operator, feedback }: { onOpen: (screen: MoreScreen) => void; notifications?: ReactNode; operator?: ReactNode; feedback?: ReactNode }) {
   const items: Array<{ id: MoreScreen; label: string; line: string }> = [
     { id: 'agreement', label: 'Agreement', line: 'Your agreement, its switches, and who looks after them.' },
     { id: 'library', label: 'Library', line: 'Every document, the keepsakes, and your own.' },
@@ -22,6 +22,7 @@ export function More({ onOpen, notifications, operator }: { onOpen: (screen: Mor
       <TopBar title="More" />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {notifications}
+        {feedback}
         {operator}
         {items.map((item) => (
           <Card key={item.id}>

@@ -24,6 +24,12 @@ notification says only that she wrote, never what. The manifest is
 canonical description lands (the witness's logo workshop, 2026-11-05),
 so the Home Screen shows a snapshot of the page.
 
+For every signed-in person, "Report a problem or suggest a feature"
+(`Feedback.tsx`, gaia#20): a line saying it goes to the operator's
+triage list and Lily, a problem or a feature, where, the words, an
+optional trace id, "Send to the platform team", and the person's own
+reports with their status and the last note.
+
 For a super admin, an Operator card follows (`Operator.tsx`, gaia#16):
 the front door's state and note, three buttons to set it (closed, invite,
 open), the platform roles held with a Revoke each, and a form to grant a
@@ -39,7 +45,11 @@ price, discount, days of terms, uses, an optional expiry date, each
 starting at the alpha's free code), the new code shown once in large
 type with a line saying it is not shown again, and every code issued
 with its terms and its standing (uses taken, spent, expired or revoked)
-and a Revoke that takes the note above. Redeeming a code from the
+and a Revoke that takes the note above. Then Reports (`Reports.tsx`,
+gaia#20): filters by status, each report as a line, one open with its
+words, status, note and trace id, the failure ring's entries for that
+trace id beneath (or a line saying the ring holds none), and moves with
+a required note. Redeeming a code from the
 client arrives with sign-up; the route exists (`POST /v1/me/invite`).
 
 Built: a card per screen that is built and is not one of the four daily

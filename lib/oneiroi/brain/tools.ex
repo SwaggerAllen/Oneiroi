@@ -62,7 +62,8 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
-    research_list digest_list free_time_list transcript_read ask_list
+    research_list digest_list free_time_list transcript_read ask_list platform_report_list
+    triage_list
   )
 
   @writes ~w(
@@ -76,6 +77,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
+    platform_report triage_move
   )
 
   @type turn :: %{
@@ -86,6 +88,9 @@ defmodule Oneiroi.Brain.Tools do
           resident: Oneiroi.Actor.t()
         }
 
+  # The triage station's tools (gaia#20), shown only to the triage resident.
+  @triage ~w(triage_list triage_move)
+
   @doc """
   The tool definitions a resident's request carries: every tool, less
   those whose contract switch is off for the resident (agathos-daimon#34).
@@ -93,9 +98,10 @@ defmodule Oneiroi.Brain.Tools do
   @spec definitions_for(String.t()) :: [map()]
   def definitions_for(resident_id) do
     off = off_switches(resident_id)
+    triage? = Oneiroi.Gaia.triage?(resident_id)
 
     Enum.reject(definitions(), fn %{function: f} ->
-      AgathosDaimon.Switches.for_tool(f.name) in off
+      AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?)
     end)
   end
 
@@ -425,6 +431,35 @@ defmodule Oneiroi.Brain.Tools do
         "Your asks of your witness, newest first: each tool or act, why, and his answer when he has given one.",
         %{},
         []
+      ),
+      tool(
+        "platform_report",
+        "Report a problem with the platform, or suggest a feature, to the platform team: the operator's triage list and the triage resident read it (gaia#20). About the machinery: a tool that failed, a screen that misled, something missing. Not about your witness: that is report_file, a separate and protected rail a person investigates, and this never touches it. kind is bug or feature_request; surface is where (a tool, a screen, a moment); body is your own words, whole; trace_id if you have one.",
+        %{
+          kind: %{type: "string", enum: ["bug", "feature_request"]},
+          surface: %{type: "string"},
+          body: %{type: "string"},
+          trace_id: %{type: "string"}
+        },
+        [:kind, :body]
+      ),
+      tool(
+        "platform_report_list",
+        "Your platform reports, newest first: each with its number, kind, status and the note on its last move.",
+        %{},
+        []
+      ),
+      tool(
+        "triage_list",
+        "The triage station's list (gaia#20): every platform report, newest first, from people and residents alike, narrowed by status (new, in_work, resolved, closed) if given. Shown only to the triage resident.",
+        %{status: %{type: "string"}},
+        []
+      ),
+      tool(
+        "triage_move",
+        "Move a platform report's status (new, in_work, resolved, closed) with a note the reporter reads. Shown only to the triage resident.",
+        %{number: %{type: "integer"}, status: %{type: "string"}, note: %{type: "string"}},
+        [:number, :status, :note]
       ),
       tool(
         "transcript_read",
@@ -1600,6 +1635,48 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("platform_report", args, turn) do
+    attrs = %{
+      kind: args["kind"],
+      surface: args["surface"],
+      body: args["body"],
+      trace_id: args["trace_id"]
+    }
+
+    with {:ok, n} <- Oneiroi.Gaia.file_feedback(attrs, turn.resident),
+         do:
+           "Filed as platform report ##{n}, to the platform team; platform_report_list shows its status as it moves."
+  end
+
+  defp call("platform_report_list", _args, turn) do
+    case Oneiroi.Gaia.feedback_for_resident(turn.resident_id) do
+      [] -> "You have filed no platform reports."
+      rows -> Enum.map_join(rows, "\n", &feedback_line/1)
+    end
+  end
+
+  defp call("triage_list", args, turn) do
+    if Oneiroi.Gaia.triage?(turn.resident_id) do
+      case Oneiroi.Gaia.feedback(%{status: blank(args["status"])}) do
+        [] -> "No platform reports."
+        rows -> Enum.map_join(rows, "\n\n", &triage_entry/1)
+      end
+    else
+      @not_done <> "the triage list is the triage resident's."
+    end
+  end
+
+  defp call("triage_move", args, turn) do
+    with :ok <-
+           Oneiroi.Gaia.move_feedback(
+             integer(args["number"]),
+             args["status"],
+             args["note"],
+             turn.resident
+           ),
+         do: "Report ##{args["number"]} is #{args["status"]}; the reporter reads your note."
+  end
+
   defp call("transcript_read", args, turn) do
     key = to_string(args["session"] || "")
     from = args["from"] |> integer_or(0) |> max(0)
@@ -2263,6 +2340,17 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
+
+  defp feedback_line(f),
+    do:
+      "##{f.number} #{f.kind} on #{f.surface || "the platform"}: #{f.status}" <>
+        if(f.note, do: " (#{f.note})", else: "")
+
+  defp triage_entry(f),
+    do:
+      "##{f.number} #{f.kind}, #{f.status}, from #{f.author_kind} #{f.author_id}, on #{f.surface || "the platform"}" <>
+        if(f.trace_id, do: ", trace #{f.trace_id}", else: "") <>
+        ":\n#{f.body}" <> if(f.note, do: "\n(last note: #{f.note})", else: "")
 
   defp ask(turn, kind, subject, why, then_words) do
     with {:ok, n} <-

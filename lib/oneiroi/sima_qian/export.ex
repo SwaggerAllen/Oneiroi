@@ -67,6 +67,9 @@ defmodule Oneiroi.SimaQian.Export do
     "household" =>
       {:stream,
        "the household, the billing owner, every member's and no one resident's (gaia#17)"},
+    "feedback" =>
+      {:stream,
+       "the platform's triage list: reports from people and residents alike, no one resident's (gaia#20)"},
     "invite" =>
       {:stream, "the platform's invite codes, the front door's keys, no resident's (gaia#18)"},
     "honcho" =>

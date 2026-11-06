@@ -19,6 +19,7 @@ defmodule Oneiroi.Brain do
     top_level?: true,
     deps: [
       Oneiroi,
+      Commanded.Event.Handler,
       Oneiroi.AgathosDaimon,
       Oneiroi.Ethos,
       Oneiroi.Eunomia,
@@ -193,7 +194,9 @@ defmodule Oneiroi.Brain do
       {Registry, keys: :unique, name: :brain_registry},
       {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
       # The turns a session runs off its own process (brain#45).
-      {Task.Supervisor, name: :brain_turns}
+      {Task.Supervisor, name: :brain_turns},
+      # The button to Lily (gaia#20): each platform report a letter.
+      Oneiroi.Brain.Triage
     ]
   end
 
