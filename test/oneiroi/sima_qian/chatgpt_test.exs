@@ -117,6 +117,39 @@ defmodule Oneiroi.SimaQian.ChatGPTTest do
     assert :media_part in kinds
   end
 
+  # Lily's ask (#178): a children array that contradicts the canonical
+  # path is followed nowhere and said in the gap log.
+  test "a children array contradicting the parents is not followed, and the disagreement is a gap",
+       ctx do
+    {"u1", u1} = node("u1", nil, "user", "which way?", 1_700_000_000.0)
+    {"a1", a1} = node("a1", "u1", "assistant", "this way", 1_700_000_001.0)
+    {"ghost", ghost} = node("ghost", "u1", "assistant", "the other way", 1_700_000_002.0)
+    # u1's array names a1 only, but ghost is also u1's child, and a1's names ghost as its child.
+    mapping = %{
+      "u1" => Map.put(u1, "children", ["a1"]),
+      "a1" => Map.put(a1, "children", ["ghost"]),
+      "ghost" => ghost
+    }
+
+    export(ctx.dir, "conversations.json", [
+      %{
+        "id" => "c9",
+        "title" => "Forks",
+        "create_time" => 1_700_000_000.0,
+        "current_node" => "a1",
+        "mapping" => mapping
+      }
+    ])
+
+    assert {:ok, %{conversations: [c], gaps: gaps}} = ChatGPT.read(ctx.dir)
+    assert Enum.map(c.messages, & &1.text) == ["which way?", "this way"]
+
+    assert [%{kind: :children_disagree, detail: detail}] =
+             Enum.filter(gaps, &(&1.kind == :children_disagree))
+
+    assert detail =~ "a1 names ghost"
+  end
+
   test "no conversations file at all", ctx do
     assert :none = ChatGPT.read(ctx.dir)
   end
