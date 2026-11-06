@@ -62,6 +62,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:model, :string)
       field(:content, :string)
       field(:refusal, :boolean, default: false)
+      field(:instant_inferred, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}

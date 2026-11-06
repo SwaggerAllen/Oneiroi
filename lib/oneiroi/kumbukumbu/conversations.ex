@@ -574,7 +574,11 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       sent_at: DateTime.to_iso8601(sent_at),
       hash: hash(content),
       actor: %{kind: Atom.to_string(actor.kind), id: actor.id, model: actor.model},
-      refusal: Map.get(m, :refusal, false) == true
+      refusal: Map.get(m, :refusal, false) == true,
+      # An instant the source did not carry, placed after the one before
+      # it so the order holds (kumbukumbu#50): shown as unknown, never as
+      # a clock reading.
+      instant_inferred: Map.get(m, :instant_inferred, false) == true
     }
   end
 end

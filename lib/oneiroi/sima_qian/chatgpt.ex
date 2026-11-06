@@ -241,7 +241,8 @@ defmodule Oneiroi.SimaQian.ChatGPT do
   defp read_node(_node_id, nil, acc, _id, _where), do: acc
 
   defp read_node(node_id, %{} = m, {ms, ctx, gs, last}, id, where) do
-    at = instant(m["create_time"]) || last
+    own = instant(m["create_time"])
+    at = own || last
 
     gs =
       gs ++
@@ -259,18 +260,19 @@ defmodule Oneiroi.SimaQian.ChatGPT do
 
         if text == "",
           do: {ms, ctx, gs, at},
-          else: {ms ++ [message(node_id, m, text, at)], ctx, gs, at}
+          else: {ms ++ [message(node_id, m, text, at, is_nil(own))], ctx, gs, at}
     end
   end
 
   defp read_node(_node_id, _other, acc, _id, _where), do: acc
 
-  defp message(node_id, m, text, at),
+  defp message(node_id, m, text, at, inferred?),
     do: %{
       node: node_id,
       role: Map.get(@roles, get_in(m, ["author", "role"]), :system),
       text: text,
       at: at,
+      inferred: inferred?,
       model: get_in(m, ["metadata", "model_slug"])
     }
 

@@ -2809,13 +2809,18 @@ defmodule Oneiroi.Brain.Tools do
   @transcript_page 30
   @transcript_message_chars 2_000
 
+  # A time the source never carried is said to be unknown (kumbukumbu#50),
+  # never shown as the stand-in that only keeps the order.
+  defp when_said(%{instant_inferred: true}), do: "time unknown"
+  defp when_said(m), do: local_stamp(m.sent_at)
+
   defp transcript_page(session, messages, from) do
     page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)
     upto = from + length(page)
 
     lines =
       Enum.map_join(page, "\n\n", fn m ->
-        "[#{m.turn_ref}] #{m.role}, #{local_stamp(m.sent_at)}: " <>
+        "[#{m.turn_ref}] #{m.role}, #{when_said(m)}: " <>
           Cut.cut(m.content || "", @transcript_message_chars)
       end)
 

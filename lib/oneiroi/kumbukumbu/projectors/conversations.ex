@@ -84,7 +84,8 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
             actor_id: actor_field(m, :id),
             model: actor_field(m, :model),
             content: field(m, :content),
-            refusal: field(m, :refusal) == true
+            refusal: field(m, :refusal) == true,
+            instant_inferred: field(m, :instant_inferred) == true
           }
         end,
         on_conflict: :nothing,

@@ -10,6 +10,8 @@ defmodule OneiroiWeb.ChatGPTImportTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -69,7 +71,7 @@ defmodule OneiroiWeb.ChatGPTImportTest do
         "id" => "c1",
         "title" => "Herons",
         "create_time" => 1_700_000_000.0,
-        "current_node" => "a1",
+        "current_node" => "u2",
         "mapping" =>
           Map.new([
             msg.("u1", nil, "user", "do herons sleep?", 1_700_000_000.0, %{}),
@@ -79,7 +81,8 @@ defmodule OneiroiWeb.ChatGPTImportTest do
                 "model_set_context" => "Likes herons."
               }
             }),
-            msg.("a1", "m", "assistant", "Standing, mostly.", 1_700_000_001.0, %{})
+            msg.("a1", "m", "assistant", "Standing, mostly.", 1_700_000_001.0, %{}),
+            msg.("u2", "a1", "user", "on one leg?", nil, %{})
           ])
       }
     ])
@@ -89,17 +92,31 @@ defmodule OneiroiWeb.ChatGPTImportTest do
        ctx do
     bytes = zip([{"conversations.json", export()}, {"chat.html", "<html></html>"}])
 
-    assert %{"conversations" => 1, "messages" => 2, "context" => 1, "report_path" => path} =
+    assert %{"conversations" => 1, "messages" => 3, "context" => 1, "report_path" => path} =
              upload(ctx, bytes) |> json_response(200)
 
     [session] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "imported"))
     {:ok, _s, messages} = Kumbukumbu.transcript({:resident, ctx.id}, session.key)
 
     assert [
-             %{role: "user", content: "do herons sleep?"},
-             %{role: "assistant", content: "Standing, mostly."}
-           ] =
-             Enum.map(messages, &Map.take(&1, [:role, :content]))
+             %{role: "user", content: "do herons sleep?", instant_inferred: false},
+             %{role: "assistant", content: "Standing, mostly.", instant_inferred: false},
+             %{role: "user", content: "on one leg?", instant_inferred: true}
+           ] = Enum.map(messages, &Map.take(&1, [:role, :content, :instant_inferred]))
+
+    # A time the export never carried reads as unknown, never as a clock (kumbukumbu#50).
+    turn = %{
+      resident_id: ctx.id,
+      session_key: "k",
+      turn_ref: "t",
+      resident: Actor.new(:resident, ctx.id),
+      started_at: Clock.now()
+    }
+
+    read =
+      Tools.run("transcript_read", Jason.encode!(%{session: session.key}), turn)
+
+    assert read =~ "user, time unknown: on one leg?"
 
     assert {:ok, %{content: report}} = Seshat.document(ctx.id, path)
     assert report =~ "Conversations: 1"
