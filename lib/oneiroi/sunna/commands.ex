@@ -80,4 +80,8 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule PlanFreeTime do
     use Oneiroi.Command, fields: [:id, :text]
   end
+
+  defmodule RecordPlanningTurn do
+    use Oneiroi.Command, fields: [:id, :session_key, :cost_nanos]
+  end
 end
