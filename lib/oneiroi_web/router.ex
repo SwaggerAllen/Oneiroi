@@ -59,6 +59,7 @@ defmodule OneiroiWeb.Router do
       delete("/me/push", MeController, :unsubscribe_push)
       post("/me/push/test", MeController, :test_push)
       post("/me/invite", MeController, :redeem_invite)
+      get("/creation/gifts", CreationController, :gifts)
       get("/ops/failures", OpsController, :failures)
       get("/residents/:id/ops/heartbeats", OpsController, :heartbeats)
       get("/platform", OperatorController, :show)

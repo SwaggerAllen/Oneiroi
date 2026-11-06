@@ -16,6 +16,10 @@ defmodule Oneiroi.Gaia.InviteTest do
   setup do
     Process.put(Oneiroi.Gaia.Door, "platform-test-#{System.unique_integer([:positive])}")
     founder = Fixtures.account!()
+    # The founding grant recorded before any other account exists: the
+    # suite's clock is frozen, so accounts made in one test share an instant
+    # and "the earliest" would be anyone's.
+    assert Gaia.operator?(founder.id)
     {:ok, op: Actor.new(:witness, founder.id), founder: founder}
   end
 

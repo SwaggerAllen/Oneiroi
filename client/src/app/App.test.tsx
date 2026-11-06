@@ -38,7 +38,7 @@ describe('App', () => {
     // in place when that call fires (an unhandled rejection CI saw once,
     // run 41124808995, when an earlier version ended before it).
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/v1/residents', expect.anything()));
-    await waitFor(() => expect(screen.getByRole('heading', { name: "Who's coming in?" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Before someone comes in' })).toBeTruthy());
   });
 
   it('opens on the Oneiroi chat, lists a Claude Code conversation apart, and reads it without a composer', async () => {

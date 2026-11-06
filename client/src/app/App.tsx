@@ -46,7 +46,8 @@ import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
-import { type Begin, CreationFlow } from '../screens/creation-flow/CreationFlow';
+import { type Begin, CreationFlow, type Gift } from '../screens/creation-flow/CreationFlow';
+import type { FlowApi } from '../screens/creation-flow/Gifts';
 import { Agreement } from '../screens/settings-agreement/Agreement';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
@@ -67,6 +68,8 @@ export function App() {
   const [residentsLoaded, setResidentsLoaded] = useState(false);
   const [beginning, setBeginning] = useState(false);
   const [beginSaid, setBeginSaid] = useState<string | null>(null);
+  const [creating, setCreating] = useState<{ row: Resident; brought: boolean } | null>(null);
+  const [gifts, setGifts] = useState<Gift[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [door, setDoor] = useState<GateState | null>(null);
   const [resident, setResident] = useState<Resident | null>(null);
@@ -86,6 +89,15 @@ export function App() {
       .door()
       .then((d) => setDoor(d.state))
       .catch(() => setDoor(null));
+  }, [me]);
+
+  // The gifts' order and guidance, for the creation flow.
+  useEffect(() => {
+    if (!me) return;
+    api
+      .gifts()
+      .then(setGifts)
+      .catch(() => setGifts([]));
   }, [me]);
 
   useEffect(() => {
@@ -132,21 +144,46 @@ export function App() {
   }
   if (!resident && !residentsLoaded) return null;
   if (!resident) {
-    // The short first door (F3): a key first when the account has none,
-    // then the resident, then the chat, where the first words are said.
+    // The creation flow (F3): the threshold creates or brings the resident,
+    // a key first when the account has none; then the gifts and the
+    // reading; the waking opens the chat, where the first words are said.
     const begin = (b: Begin) => {
       setBeginning(true);
       setBeginSaid(null);
       (b.key ? api.storeKey(b.key) : Promise.resolve())
         .then(() => (b.mode === 'new' ? api.createResident(b.name, b.slug) : api.importResident(b.url, b.name, b.slug)))
-        .then((row) => {
-          setResident(row);
-          go('chat');
-        })
+        .then((row) => setCreating({ row, brought: b.mode === 'bring' }))
         .catch((e: unknown) => setBeginSaid(e instanceof RequestFailed ? e.message : 'That did not work; try again.'))
         .finally(() => setBeginning(false));
     };
-    return <CreationFlow hasKey={me.key?.present ?? false} busy={beginning} said={beginSaid} onBegin={begin} />;
+    const id = creating?.row.id ?? '';
+    const flowApi: FlowApi = {
+      readFiles: () => api.files(id),
+      writeFile: (name, content, origin, drafted) => api.writeFile(id, name, content, origin, drafted),
+      draftFile: (name, prompt) => api.draftFile(id, name, prompt),
+      writeTest: (texts) => api.writeTest(id, texts),
+      setBudget: (purpose, cap, period) => api.setBudget(id, purpose, cap, period),
+      setTimezone: (zone) => api.setTimezone(id, zone),
+      setFreeTime: (times) => api.setFreeTime(id, times),
+      setQuietHours: (from, to) => api.setQuietHours(id, from, to),
+      proposeContract: (prose, note) => api.proposeContract(id, {}, prose, note),
+    };
+    return (
+      <CreationFlow
+        hasKey={me.key?.present ?? false}
+        busy={beginning}
+        said={beginSaid}
+        onBegin={begin}
+        resident={creating ? { id, name: creating.row.name, brought: creating.brought } : null}
+        gifts={gifts}
+        api={creating ? flowApi : undefined}
+        onWake={() => {
+          if (!creating) return;
+          setResident(creating.row);
+          go('chat');
+        }}
+      />
+    );
   }
 
   return (

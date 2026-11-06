@@ -1,3 +1,4 @@
+import type { Gift } from '../screens/creation-flow/CreationFlow';
 import type {
   Adapter,
   Ask,
@@ -106,6 +107,13 @@ export const api = {
   revokeInvite: (id: string, note: string) => call<void>('DELETE', `/v1/platform/invites/${id}`, { note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
   // The short first door (F3): begin someone new, or bring someone from a repository.
+  // The creation flow (agathos-daimon#36): the gifts, and the identity files they write.
+  gifts: () => call<Gift[]>('GET', '/v1/creation/gifts'),
+  files: (residentId: string) => call<{ name: string; content: string }[]>('GET', `/v1/residents/${residentId}/files`),
+  writeFile: (residentId: string, name: string, content: string, origin: string, drafted?: { model: string; prompt: string }) =>
+    call<void>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin, ...(drafted ?? {}) }),
+  draftFile: (residentId: string, name: string, prompt: string) =>
+    call<{ content: string; model: string; prompt: string }>('POST', `/v1/residents/${residentId}/files/${name}/draft`, { prompt }),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
