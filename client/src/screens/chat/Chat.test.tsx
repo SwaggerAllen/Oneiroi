@@ -258,4 +258,23 @@ describe('Chat', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(onSend).toHaveBeenCalledWith('one more');
   });
+
+  it('shows when every message was said, tool calls included, and an inferred instant as unknown', () => {
+    const base = { session_key: 's1', actor: { kind: 'resident', id: 'r1', model: null }, refusal: false };
+    render(
+      <Chat
+        residentName="Lily"
+        onSend={vi.fn()}
+        messages={[
+          { ...base, turn_ref: 't1', role: 'user', content: 'hello', sent_at: '2026-11-06T18:54:07Z', actor: { kind: 'witness', id: 'a1', model: null } },
+          { ...base, turn_ref: 't1', role: 'tool', content: 'journal_add({}) -> Added note 3.', sent_at: '2026-11-06T18:54:08Z' },
+          { ...base, turn_ref: 't1', role: 'assistant', content: 'hi', sent_at: '2026-11-06T18:54:09Z' },
+          { ...base, turn_ref: 't2', role: 'user', content: 'old', sent_at: '2026-11-06T18:54:09Z', instant_inferred: true },
+        ]}
+      />,
+    );
+    const times = document.querySelectorAll('time');
+    expect([...times].map((t) => t.getAttribute('datetime'))).toEqual(['2026-11-06T18:54:07Z', '2026-11-06T18:54:08Z', '2026-11-06T18:54:09Z']);
+    expect(screen.getByText('time unknown')).toBeTruthy();
+  });
 });

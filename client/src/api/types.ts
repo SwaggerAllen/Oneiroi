@@ -69,6 +69,10 @@ export interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool' | string;
   content: string;
   sent_at: string;
+  // True when the record holds no instant of its own for this message
+  // (an import's untimed node, kumbukumbu#50): `sent_at` is then the one
+  // before it, a stand-in, and is never shown as a time.
+  instant_inferred?: boolean;
   actor: Actor;
   refusal: boolean;
 }
