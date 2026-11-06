@@ -55,6 +55,11 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("POST", ["v1", "residents", _id, "correspondence"]), do: true
   def adapter_path?("GET", ["v1", "residents", _id, "replies"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "replies", _n, "sent"]), do: true
+  # The writing gate (seshat#42): the reader's pieces, the draft it
+  # made, the URL once published; held to the `reader` role.
+  def adapter_path?("GET", ["v1", "residents", _id, "reader", "pieces"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "pieces", "drafted"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "pieces", "published"]), do: true
   def adapter_path?(_method, _path), do: false
 
   defp refuse(conn) do

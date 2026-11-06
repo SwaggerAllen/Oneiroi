@@ -18,7 +18,7 @@ defmodule OneiroiWeb.ReaderController do
 
   tags(["reader"])
 
-  @reader_actions ~w(sites research answer failed digests answer_digest fail_digest)a
+  @reader_actions ~w(sites research answer failed digests answer_digest fail_digest pieces piece_drafted piece_published)a
 
   plug(:allowed)
   # The contract's switches (agathos-daimon#34), after the party check.
@@ -146,6 +146,60 @@ defmodule OneiroiWeb.ReaderController do
   end
 
   # ---- digests (seshat#40) ----
+
+  operation(:pieces,
+    summary:
+      "The writing gate's work for the reader (seshat#42): approved pieces to make a Substack draft of, with title and copy, and drafted ones to watch for the witness's Publish",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"pieces", "application/json", %Schema{type: :object}}]
+  )
+
+  def pieces(conn, %{"id" => id}), do: json(conn, Seshat.pieces_for_reader(id))
+
+  operation(:piece_drafted,
+    summary: "The reader made a Substack draft of an approved piece, at this URL",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the draft", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path, :url],
+         properties: %{path: %Schema{type: :string}, url: %Schema{type: :string}}
+       }},
+    responses: [no_content: "recorded"]
+  )
+
+  def piece_drafted(conn, %{"id" => id} = params) do
+    case Seshat.piece_drafted(id, to_string(params["path"] || ""), params["url"], actor_of(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:piece_published,
+    summary: "The reader found a drafted piece published at this URL; the piece records it",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the post", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path, :url],
+         properties: %{path: %Schema{type: :string}, url: %Schema{type: :string}}
+       }},
+    responses: [no_content: "recorded"]
+  )
+
+  def piece_published(conn, %{"id" => id} = params) do
+    case Seshat.piece_published(
+           id,
+           to_string(params["path"] || ""),
+           params["url"],
+           actor_of(conn)
+         ) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
 
   operation(:digests,
     summary:
