@@ -67,6 +67,41 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc "Records her plan for the next free-time slot (sunna#31)."
+  def record_plan(resident_id, text, %Actor{} = actor) do
+    command = %Commands.PlanFreeTime{actor: actor, at: Clock.now(), id: resident_id, text: text}
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "Her latest plan for free time, or nil."
+  def plan(resident_id) do
+    case Scope.resident(resident_id, fn -> Store.settings() end) do
+      %{free_time_plan: text, free_time_planned_at: at} when is_binary(text) ->
+        %{text: text, at: at}
+
+      _none ->
+        nil
+    end
+  end
+
+  @doc """
+  The planning turn (sunna#31): once a slot has ended, one more turn in
+  its conversation, while its appetite is live, to plan the next slot,
+  ask for a tool it lacked, or write to the witness. It carries nothing on.
+  """
+  def plan_free_time(resident_id, key) do
+    with {:ok, row} <- resident(resident_id),
+         {:ok, _result} <-
+           wake(
+             resident_id,
+             key,
+             Prompt.render!("free_time_plan", %{goals: String.upcase(row.slug) <> "-GOALS.md"}),
+             :free_time
+           ) do
+      :ok
+    end
+  end
+
   @doc "Sets the resident's rounds (sunna#30): every_hours (0 off) and the waking window, nil for the default."
   def set_rounds(resident_id, every_hours, waking, %Actor{} = actor) do
     command = %Commands.SetRounds{
@@ -568,21 +603,31 @@ defmodule Oneiroi.Sunna.Schedules do
       carry_on(resident_id, key, result, n + 1)
       :ok
     else
-      {:error, _} = failed -> failed
-      _done -> :ok
+      {:error, _} = failed ->
+        failed
+
+      _done ->
+        free_time_worker().enqueue_plan(resident_id, key)
+        :ok
     end
   end
 
   # A turn that ran out of tool rounds is woken again, in a job of its
   # own; one that ended in words with nothing to call is her being done.
+  # When the slot ends, by her word or by the budget or the turn bound,
+  # the planning turn comes next (sunna#31).
   defp carry_on(resident_id, key, %{rounds_spent: true}, n) do
     if free_time_budget(resident_id) && n <= Config.fetch!(:sunna, :free_time_turns),
-      do: free_time_worker().enqueue(resident_id, key, n)
+      do: free_time_worker().enqueue(resident_id, key, n),
+      else: free_time_worker().enqueue_plan(resident_id, key)
 
     :ok
   end
 
-  defp carry_on(_resident_id, _key, _result, _n), do: :ok
+  defp carry_on(resident_id, key, _result, _n) do
+    free_time_worker().enqueue_plan(resident_id, key)
+    :ok
+  end
 
   # Named at the call: the worker runs `continue_free_time/3`, so an
   # alias here would be a cycle `mix xref graph --format cycles` counts.

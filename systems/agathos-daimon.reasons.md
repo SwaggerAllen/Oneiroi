@@ -209,3 +209,12 @@ alternative switched off Lily's research, digests, correspondence and
 memory on the day the registry shipped, which no one had agreed to
 either. The enforcement sits in the brain and the web edge, downstream
 of every system, so no system takes a new dependency on the contract.
+
+## #35
+An approval that approves a message would make him a gate on her
+talking to him, which nobody wanted. What needs his leave is an act
+done in the world under her name or on his money, so the ask names the
+act and the answer is about the act. A tool request grants nothing
+because a tool is a capability, and capabilities are the contract's and
+the permission system's to give; recording the ask is what lets that
+system be designed from what she actually reached for.

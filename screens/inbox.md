@@ -5,6 +5,8 @@ paths:
 
 # inbox
 
+Asks (agathos-daimon#35), first on the screen when there are any: each open ask as a card, an act as "May I: …" with Approve and Decline, a tool as "A tool: …" with Noted and a line saying noting grants nothing; each with why and a required note; the last five answered below, each with its answer and note. (`Asks.tsx`)
+
 Inbox (spec §10), partly built 2026-11-02: `client/src/screens/inbox/`
 (`Inbox.tsx`, `letters.ts`, stories and tests), a bottom-nav
 destination loaded by `InboxContainer` in `client/src/app/App.tsx` from
