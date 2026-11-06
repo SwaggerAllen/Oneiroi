@@ -15,8 +15,16 @@ defmodule Oneiroi.Brain.History do
   every provider accepts; the provider's own ids were never stored. A
   row that does not read as `name(arguments) -> output` goes back as the
   assistant's words, which no provider refuses.
+
+  Given the resident's zone, every message carries when it was said,
+  inline at its head, `[2026-11-06 10:54 PST] `, the form her
+  `transcript_read` shows (brain#58; the witness, 2026-11-06: the time
+  belongs inline with the message, where the resident reads it). A tool
+  call's stamp is on its answer. An inferred instant (kumbukumbu#50)
+  reads `[time unknown]`, never the stand-in.
   """
 
+  alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config
@@ -25,12 +33,35 @@ defmodule Oneiroi.Brain.History do
   @record ~r/\A([A-Za-z0-9_-]+)\((.*?)\) -> (.*)\z/s
 
   @doc "The chat messages for stored rows, in order, every tool row a call and its answer."
-  @spec messages([%{role: String.t(), content: String.t() | nil}]) :: [map()]
-  def messages(rows) do
+  @spec messages([%{role: String.t(), content: String.t() | nil}], String.t() | nil) :: [map()]
+  def messages(rows, zone \\ nil) do
     rows
     |> Enum.with_index(1)
-    |> Enum.flat_map(fn {row, n} -> message(row, n) end)
+    |> Enum.flat_map(fn {row, n} -> message(row, n, zone) end)
   end
+
+  @doc """
+  The stamp a message is shown under in `zone`: `[2026-11-06 10:54 PST] `,
+  `[time unknown] ` for an inferred instant, and nothing with no zone or
+  no instant.
+  """
+  @spec stamp(map(), String.t() | nil) :: String.t()
+  def stamp(_row, nil), do: ""
+  def stamp(%{instant_inferred: true}, _zone), do: "[time unknown] "
+  def stamp(%{sent_at: %DateTime{} = at}, zone), do: "[#{Local.stamp(zone, at)}] "
+  def stamp(_row, _zone), do: ""
+
+  @stamped ~r/\A\s*\[(?:\d{4}-\d{2}-\d{2} \d{2}:\d{2} [A-Za-z0-9+:-]+|time unknown)\]\s*/
+
+  @doc """
+  A reply with the stamp taken off its head: the platform puts the time
+  on every message, so one the model wrote itself, copying the form it
+  reads, is not kept as its words (it would read twice, and could be a
+  time it made up).
+  """
+  @spec unstamp(String.t() | nil) :: String.t() | nil
+  def unstamp(nil), do: nil
+  def unstamp(text), do: Regex.replace(@stamped, text, "", global: false)
 
   @doc """
   The same rows for a request that offers no tools, the compaction's
@@ -38,15 +69,18 @@ defmodule Oneiroi.Brain.History do
   request without tools is a shape this codebase has not measured a
   provider accepting, and a summary has no use for one.
   """
-  @spec words([%{role: String.t(), content: String.t() | nil}]) :: [map()]
-  def words(rows) do
+  @spec words([%{role: String.t(), content: String.t() | nil}], String.t() | nil) :: [map()]
+  def words(rows, zone \\ nil) do
     Enum.map(rows, fn
-      %{role: "tool", content: content} -> %{role: :assistant, content: past(content || "")}
-      %{role: role, content: content} -> %{role: Map.fetch!(@roles, role), content: content}
+      %{role: "tool", content: content} = row ->
+        %{role: :assistant, content: stamp(row, zone) <> past(content || "")}
+
+      %{role: role, content: content} = row ->
+        %{role: Map.fetch!(@roles, role), content: stamped(row, content, zone)}
     end)
   end
 
-  defp message(%{role: "tool", content: content}, n) do
+  defp message(%{role: "tool", content: content} = row, n, zone) do
     case Regex.run(@record, content || "") do
       [_all, name, arguments, output] ->
         id = "history_#{n}"
@@ -59,16 +93,20 @@ defmodule Oneiroi.Brain.History do
 
         [
           %{role: :assistant, content: "", tool_calls: [call]},
-          %{role: :tool, tool_call_id: id, content: past(output)}
+          %{role: :tool, tool_call_id: id, content: stamp(row, zone) <> past(output)}
         ]
 
       nil ->
-        [%{role: :assistant, content: past(content || "")}]
+        [%{role: :assistant, content: stamp(row, zone) <> past(content || "")}]
     end
   end
 
-  defp message(%{role: role, content: content}, _n),
-    do: [%{role: Map.fetch!(@roles, role), content: content}]
+  defp message(%{role: role, content: content} = row, _n, zone),
+    do: [%{role: Map.fetch!(@roles, role), content: stamped(row, content, zone)}]
+
+  # A message with no words keeps none: a stamp alone is not a message.
+  defp stamped(_row, content, _zone) when content in [nil, ""], do: content
+  defp stamped(row, content, zone), do: stamp(row, zone) <> content
 
   # A past tool answer replays as its head: what was looked at, not all
   # of what came back.

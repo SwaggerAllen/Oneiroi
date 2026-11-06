@@ -7,6 +7,7 @@ defmodule Oneiroi.Brain.TurnTest do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.PubSub
+  alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -163,7 +164,7 @@ defmodule Oneiroi.Brain.TurnTest do
           5_000 -> :ok
         end
 
-        {:ok, "Answered " <> List.last(request.messages)[:content] <> "."}
+        {:ok, "Answered " <> History.unstamp(List.last(request.messages)[:content]) <> "."}
       end,
       for: id
     )
@@ -236,7 +237,10 @@ defmodule Oneiroi.Brain.TurnTest do
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello there", ctx.actor)
 
     assert user.role == :user and user.actor.kind == :witness
-    assert reply.role == :assistant and reply.content == "The fake provider heard: hello there"
+
+    assert reply.role == :assistant and
+             reply.content == "The fake provider heard: [2026-10-26 12:00 UTC] hello there"
+
     assert reply.actor.kind == :resident and reply.actor.model == "fake/model"
 
     {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
@@ -385,8 +389,9 @@ defmodule Oneiroi.Brain.TurnTest do
     # message is taken while the first still runs.
     Fake.script(
       fn request ->
-        if Enum.any?(request.messages, &(&1[:content] == "first")) and
-             not Enum.any?(request.messages, &(&1[:content] == "second")) do
+        # The opening reads with its stamp (brain#58), so it is matched by its words.
+        if Enum.any?(request.messages, &said?(&1, "first")) and
+             not Enum.any?(request.messages, &said?(&1, "second")) do
           send(test_pid, :first_running)
 
           receive do
@@ -398,7 +403,7 @@ defmodule Oneiroi.Brain.TurnTest do
 
         # Each reply its own words: under the suite's frozen clock two
         # identical replies at one instant would read as one message.
-        {:ok, "Answered " <> List.last(request.messages)[:content] <> "."}
+        {:ok, "Answered " <> History.unstamp(List.last(request.messages)[:content]) <> "."}
       end,
       for: id
     )
@@ -474,4 +479,6 @@ defmodule Oneiroi.Brain.TurnTest do
       eventually(read, count, tries - 1)
     end
   end
+
+  defp said?(message, words), do: History.unstamp(message[:content] || "") == words
 end
