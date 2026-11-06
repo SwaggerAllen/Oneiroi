@@ -153,7 +153,10 @@ defmodule Oneiroi.SimaQian.ChatGPT do
           read_nodes(nodes, mapping, id, where, instant(c["create_time"]))
 
         conv = %{id: id, title: title, created_at: instant(c["create_time"]), messages: messages}
-        gaps = gaps ++ current_gap(mapping, c["current_node"], where)
+
+        gaps =
+          gaps ++ current_gap(mapping, c["current_node"], where) ++ children_gap(mapping, where)
+
         {conv, context, gaps}
     end
   end
@@ -183,6 +186,32 @@ defmodule Oneiroi.SimaQian.ChatGPT do
             :dangling_current_node,
             where,
             "current_node points nowhere; the most recent leaf was taken as its end"
+          )
+        ]
+    end
+  end
+
+  # A `children` array is a hint at most: the tree is the parent pointers.
+  # Where an array names a child whose parent is another node, or a node
+  # missing from the mapping, the two disagree; the path keeps to the
+  # parents, and the disagreement is said, never silently resolved.
+  defp children_gap(mapping, where) do
+    disagreeing =
+      for {id, node} <- mapping,
+          child <- List.wrap(node["children"]),
+          get_in(mapping, [child, "parent"]) != id,
+          do: {id, child}
+
+    case disagreeing do
+      [] ->
+        []
+
+      pairs ->
+        [
+          gap(
+            :children_disagree,
+            where,
+            "#{length(pairs)} children entries contradict the parent pointers (#{pairs |> Enum.take(3) |> Enum.map_join(", ", fn {p, c} -> "#{p} names #{c}" end)}); the parents were followed"
           )
         ]
     end
