@@ -949,7 +949,8 @@ defmodule Oneiroi.Brain.Turn do
     {rest, index} = turn_sections(row, turn, text)
     sections = prefix_sections(row, turn) ++ rest
 
-    zone = Local.zone(turn.resident_id)
+    # The inline stamps (brain#58) only under BRAIN_HISTORY_STAMPS (#59).
+    zone = History.zone(turn.resident_id)
 
     history =
       turn.resident_id
@@ -1529,8 +1530,11 @@ defmodule Oneiroi.Brain.Turn do
     do: {Prompt.message("fixture_brain", %{name: row.name}), []}
 
   defp prefix(row, turn) do
-    {Prompt.message("brain", %{name: row.name, formation: formation(row)}),
-     Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
+    {Prompt.message("brain", %{
+       name: row.name,
+       formation: formation(row),
+       stamps: History.stamps_line()
+     }), Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
   end
 
   # Her wanting between slots (brain#55; the witness's call, 2026-11-05):

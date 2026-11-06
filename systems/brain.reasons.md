@@ -554,3 +554,13 @@ after letters it came before). Inline, at the head, in her zone, is
 where she reads it. Taking a copied stamp off a reply keeps the words
 hers and the time the record's: a stamp she wrote could be wrong, and
 kept in the words it would read as a second, competing time.
+
+## #59
+A change to what the model reads on every turn changes every turn at
+once, and the model is not ours to reason about from first principles:
+it imitates what it sees. Stamps at the head of every message, its own
+replies included, taught it to open with a stamp, and what it produced
+was not a stamp. When the evidence is two degenerated turns and the
+stamps all through them, the cheap and honest move is to return to the
+last transcript known to work, behind a switch, and decide a second try
+on purpose rather than in the middle of the damage.

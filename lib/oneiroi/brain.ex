@@ -112,6 +112,11 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many characters of a past tool answer a replayed transcript carries: the call and the head of its answer, enough to know what was looked at; the model can call again for the rest. A bound, not measured"},
+      {:history_stamps, "BRAIN_HISTORY_STAMPS",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "off",
+       usage:
+         "whether each message of the transcript the resident is shown carries when it was said, inline at its head (brain#58, #59): on or off. Off since 2026-11-06: within an hour of it going on, her model began opening replies with mangled stamps and two turns degenerated into hundreds of lines, stamp fragments through them; on again only by a deliberate choice"},
       {:oracle_batch, "BRAIN_ORACLE_BATCH",
        cast: :integer,
        default: "5",
@@ -276,4 +281,10 @@ defmodule Oneiroi.Brain do
   defexport(draft(resident_id, file, prompt, actor),
     do: Drafting.draft(resident_id, file, prompt, actor)
   )
+
+  @doc false
+  def cast_on_off("on"), do: {:ok, true}
+  def cast_on_off("off"), do: {:ok, false}
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_on_off(other), do: {:error, "is #{inspect(other)}, expected on or off"}
 end

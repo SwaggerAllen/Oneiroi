@@ -1,5 +1,5 @@
 defmodule Oneiroi.Brain.HistoryStampTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Oneiroi.Brain.History
 
@@ -38,5 +38,33 @@ defmodule Oneiroi.Brain.HistoryStampTest do
     assert History.unstamp("[time unknown]  hi") == "hi"
     assert History.unstamp("hi [2026-11-06 10:54 PST] there") == "hi [2026-11-06 10:54 PST] there"
     assert History.unstamp(nil) == nil
+  end
+
+  describe "BRAIN_HISTORY_STAMPS (brain#59)" do
+    setup do
+      values = :persistent_term.get({Oneiroi.Config, :values})
+      on_exit(fn -> :persistent_term.put({Oneiroi.Config, :values}, values) end)
+      {:ok, values: values}
+    end
+
+    test "off by default: no zone, no stamps, and the prompt says nothing of them" do
+      assert History.zone("any") == nil
+      assert History.stamps_line() == ""
+
+      assert [%{content: "hello"}] =
+               History.messages(
+                 [%{role: "user", content: "hello", sent_at: @at}],
+                 History.zone("any")
+               )
+    end
+
+    test "on: the prompt names the stamps", %{values: values} do
+      :persistent_term.put(
+        {Oneiroi.Config, :values},
+        Map.put(values, {:brain, :history_stamps}, true)
+      )
+
+      assert History.stamps_line() =~ "[2026-11-06 10:54 PST]"
+    end
   end
 end
