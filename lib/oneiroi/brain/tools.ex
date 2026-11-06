@@ -2525,9 +2525,16 @@ defmodule Oneiroi.Brain.Tools do
         size = if from + size >= total, do: size, else: line_end(chunk, size)
 
         page_header(row, content, from, from + size, total) <>
-          "\n" <> String.slice(chunk, 0, size)
+          "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
     end
   end
+
+  # Said again where the reading stops (brain#57): a page that ends
+  # mid-file was once read as the whole, its cut announced only at the top.
+  defp read_on(upto, total) when upto < total,
+    do: "\n\n(Not the end: #{total - upto} characters remain; read on with from: #{upto}.)"
+
+  defp read_on(_upto, _total), do: ""
 
   defp page_header(row, content, from, upto, total) do
     head = "#{row.path} (#{row.kind}, #{byte_size(content)} bytes#{imported(row, ", ", "")})"
@@ -2937,7 +2944,7 @@ defmodule Oneiroi.Brain.Tools do
 
       {:ok, text, next, total} ->
         "#{path} (#{total} characters), this page to #{next}; read from #{next} for the next:\n" <>
-          text
+          text <> read_on(next, total)
 
       {:error, %{kind: :brain_path_sealed}} ->
         @not_done <>

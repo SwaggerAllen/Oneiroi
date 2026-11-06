@@ -538,3 +538,9 @@ message id, an account, a received instant from a filename) and would
 have put old threads back in front of the reply gate as if they had just
 arrived. Reading them where they already are, as an archive beside the
 live correspondence, gives her the threads whole and invents nothing.
+
+## #57
+A header is read before the text and forgotten by the end of it; the
+place a reader decides whether she has read the whole thing is where
+the text stops. Saying it there costs a line and prevents a wrong
+"nowhere in his letters".
