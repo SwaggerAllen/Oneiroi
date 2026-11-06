@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../../api/types';
-import { compareCursor, firstUnread, mergeNewest, newestCursor, toolSummary } from './page';
+import { compareCursor, firstUnread, mergeNewest, messageTime, newestCursor, toolSummary } from './page';
 
 const m = (cursor: string | undefined, role = 'assistant'): Message => ({
   cursor,
@@ -40,5 +40,15 @@ describe('the transcript pages', () => {
     expect(toolSummary('journal_add({}) -> Added note 3.')).toEqual({ line: 'journal_add({}) -> Added note 3.', more: null });
     expect(toolSummary('a\nb\nc')).toEqual({ line: 'a', more: '3 lines · 5 characters' });
     expect(toolSummary('x'.repeat(2000))).toEqual({ line: `${'x'.repeat(200)}…`, more: '2,000 characters' });
+  });
+});
+
+describe('messageTime', () => {
+  it('shows the date and the time to the second, with the zone', () => {
+    expect(messageTime({ sent_at: '2026-11-06T18:54:07Z' }, 'America/Los_Angeles')).toBe('Nov 6, 2026, 10:54:07 AM PST');
+  });
+
+  it('never shows a stand-in instant as a time', () => {
+    expect(messageTime({ sent_at: '2026-11-06T18:54:07Z', instant_inferred: true }, 'UTC')).toBe('time unknown');
   });
 });

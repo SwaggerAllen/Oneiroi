@@ -48,3 +48,23 @@ export function toolSummary(content: string): { line: string; more: string | nul
   const chars = content.length.toLocaleString('en-US');
   return { line, more: lines.length > 1 ? `${lines.length} lines · ${chars} characters` : `${chars} characters` };
 }
+
+// When a message was said, shown on every message: the date and the time
+// to the second in the reader's own zone, and the zone's name, so two
+// readers in different zones can match a line. A message whose instant
+// was inferred (kumbukumbu#50) shows "time unknown", never the stand-in.
+export function messageTime(m: Pick<Message, 'sent_at' | 'instant_inferred'>, zone?: string): string {
+  if (m.instant_inferred) return 'time unknown';
+  const at = new Date(m.sent_at);
+  if (Number.isNaN(at.getTime())) return 'time unknown';
+  return at.toLocaleString('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short',
+  });
+}

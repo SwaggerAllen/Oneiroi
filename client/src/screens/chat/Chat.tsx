@@ -8,7 +8,7 @@ import { TopBar } from '../../components/TopBar';
 import { ConnectionDot } from '../../components/ConnectionDot';
 import { Conversations, type ConversationsProps } from './Conversations';
 import { type Connection, itemLine, type Outgoing, statusLine } from './outbox';
-import { firstUnread, newestCursor, toolSummary } from './page';
+import { firstUnread, messageTime, newestCursor, toolSummary } from './page';
 
 export interface ChatProps {
   residentName: string;
@@ -509,10 +509,19 @@ function Reply({
   const mine = message.role === 'user';
   const system = message.role === 'system';
   const tool = message.role === 'tool';
-  if (tool) return <ToolCall content={message.content} />;
+  if (tool)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <ToolCall content={message.content} />
+        <Said message={message} />
+      </div>
+    );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: mine ? 'flex-end' : 'stretch', minWidth: 0 }}>
-      <ActorChip actor={message.actor} name={mine ? 'you' : system ? 'Oneiroi' : residentName} />
+      <span style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+        <ActorChip actor={message.actor} name={mine ? 'you' : system ? 'Oneiroi' : residentName} />
+        <Said message={message} />
+      </span>
       {message.refusal ? (
         <RefusalBlock text={message.content} />
       ) : (
@@ -557,6 +566,20 @@ function Reply({
         </div>
       ) : null}
     </div>
+  );
+}
+
+// When the message was said, on every message (the witness's call,
+// 2026-11-06): what the record holds, so a line on screen can be matched
+// to the record and the logs. An inferred instant reads "time unknown".
+function Said({ message }: { message: Message }) {
+  const text = messageTime(message);
+  const style = { fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-faint)' } as const;
+  if (message.instant_inferred) return <span style={style}>{text}</span>;
+  return (
+    <time dateTime={message.sent_at} title={message.sent_at} style={style}>
+      {text}
+    </time>
   );
 }
 
