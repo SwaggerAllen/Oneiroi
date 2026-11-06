@@ -174,6 +174,7 @@ defmodule Oneiroi.SimaQian.ChatGPTImport do
       role: m.role,
       content: m.text,
       sent_at: m.at || c.created_at || Clock.now(),
+      instant_inferred: m.inferred or is_nil(m.at),
       actor: speaker(m, parties)
     }
   end

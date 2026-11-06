@@ -351,3 +351,10 @@ embed months of messages while she waited; and every ten minutes,
 because a turn should be findable the same evening. Within the room
 alone, as the phrase search is, because a domain is a line the
 resident's memory keeps whichever way it is searched.
+
+## #50
+The order of a conversation is needed to read it and an instant is
+needed to store it, so a message without one gets the one before it.
+That stand-in is honest at the storage layer and a lie anywhere a
+person or a resident reads a time, so the record says which instants
+were placed and every view that shows a time says so.

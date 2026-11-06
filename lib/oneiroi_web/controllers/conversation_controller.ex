@@ -746,7 +746,8 @@ defmodule OneiroiWeb.ConversationController do
       content: m.content,
       sent_at: m.sent_at,
       actor: %{kind: m.actor_kind, id: m.actor_id, model: m.model},
-      refusal: m.refusal
+      refusal: m.refusal,
+      instant_inferred: m.instant_inferred
     }
   end
 

@@ -8,7 +8,9 @@ defmodule Oneiroi.Kumbukumbu.Events do
   ISO-8601 string: the codec restores `at` and the fields `instants:`
   names, and a list of maps is restored by the projector, which is the
   one reader), `hash` (the sha256 of the content), `actor` (kind, id,
-  model) and `refusal` (true when the brain's reply was one, spec §5).
+  model), `refusal` (true when the brain's reply was one, spec §5) and,
+  optional and absent before kumbukumbu#50, `instant_inferred` (true when
+  the source carried no instant and `sent_at` only keeps the order).
   """
 
   defmodule SessionOpened do
