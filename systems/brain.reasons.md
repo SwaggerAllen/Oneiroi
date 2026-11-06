@@ -529,3 +529,12 @@ witness's, and grading reads it, so her wanting needed a file of its own
 that no grade reads. It rides free time alone because there the wanting
 is the point; in the chat it would steer conversations toward her
 agenda, and rounds are meant to be surprise rather than plan.
+
+## #56
+The letters were real and hers, and the platform hid them from her by
+accident of where they were filed. Making Xenia messages of them would
+have meant inventing what Xenia records for each one (a platform's
+message id, an account, a received instant from a filename) and would
+have put old threads back in front of the reply gate as if they had just
+arrived. Reading them where they already are, as an archive beside the
+live correspondence, gives her the threads whole and invents nothing.
