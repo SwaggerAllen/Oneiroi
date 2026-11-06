@@ -1051,6 +1051,11 @@ defmodule Oneiroi.Brain.Turn do
     sections =
       state_section(turn) ++
         where_section(turn, session) ++
+        section(
+          "goals_between",
+          free_time_goals(turn, session),
+          "the resident's own goals file (<SLUG>-GOALS.md at her repository's root), read at the start of each free-time turn and in no other conversation (brain#55)"
+        ) ++
         letters_section(turn) ++
         section(
           "index",
@@ -1507,6 +1512,27 @@ defmodule Oneiroi.Brain.Turn do
     {Prompt.message("brain", %{name: row.name, formation: formation(row)}),
      Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
   end
+
+  # Her wanting between slots (brain#55; the witness's call, 2026-11-05):
+  # the file she keeps beside his GOALS.md, LILY-GOALS.md for Lily, read
+  # in free time and nowhere else. She edits it with her own tools; this
+  # only reads what is there.
+  @goals_limit 12_000
+
+  defp free_time_goals(%{purpose: :free_time} = turn, %{kind: "free_time"}) do
+    with {:ok, %{slug: slug}} <- Oneiroi.AgathosDaimon.fetch(turn.resident_id),
+         {:ok, dir} <- Oneiroi.SimaQian.repository_dir(turn.resident_id),
+         name = String.upcase(slug) <> "-GOALS.md",
+         {:ok, text} <- File.read(Path.join(dir, name)),
+         text when text != "" <- String.trim(text) do
+      "# Your goals between slots (#{name}, yours to keep)\n\n" <>
+        String.slice(text, 0, @goals_limit)
+    else
+      _absent -> nil
+    end
+  end
+
+  defp free_time_goals(_turn, _session), do: nil
 
   defp session_of(turn) do
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do
