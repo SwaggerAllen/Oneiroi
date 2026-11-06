@@ -522,3 +522,36 @@ export interface FeedbackReport {
   note: string | null;
   filed_at: string;
 }
+
+// The work queue (sunna#33): long items in priority order, either
+// party's, and the loop that runs them one at a time.
+export interface WorkItem {
+  number: number;
+  what: string;
+  done_when: string;
+  status: 'open' | 'in_work' | 'blocked' | 'done' | 'dropped' | string;
+  blocked_on: string | null;
+  position: number;
+  added_by: string;
+  added_at: string;
+  note: string | null;
+  moved_by: string | null;
+  moved_at: string | null;
+  shipped: string | null;
+  slipped: string | null;
+  why: string | null;
+  wrapped_at: string | null;
+  runs: number;
+  session_key: string | null;
+}
+
+export interface WorkQueue {
+  items: WorkItem[];
+  running: number | null;
+  running_since: string | null;
+  rested: string | null;
+  rested_at: string | null;
+  runs_today: number;
+  runs_a_day: number;
+  budget: { cap: number; spent: number; left: number; period: string } | null;
+}

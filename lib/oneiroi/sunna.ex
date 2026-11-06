@@ -38,6 +38,10 @@ defmodule Oneiroi.Sunna do
       Router,
       TickWorker,
       FreeTimeWorker,
+      WorkWorker,
+      WorkLoop,
+      WorkRouter,
+      Work,
       Wake,
       CheckinParts,
       Commands.SetCheckin,
@@ -53,6 +57,20 @@ defmodule Oneiroi.Sunna do
       Commands.RemoveDate,
       Commands.MarkHour,
       Commands.WakeForLetters,
+      Commands.AddWork,
+      Commands.MoveWork,
+      Commands.OrderWork,
+      Commands.WrapWork,
+      Commands.StartWork,
+      Commands.EndWork,
+      Commands.RestWork,
+      Events.WorkAdded,
+      Events.WorkMoved,
+      Events.WorkOrdered,
+      Events.WorkWrapped,
+      Events.WorkStarted,
+      Events.WorkRunEnded,
+      Events.WorkRested,
       Events.LettersWoke,
       Events.CheckinSet,
       Events.CheckinChanged,
@@ -79,7 +97,9 @@ defmodule Oneiroi.Sunna do
       Store.Hour,
       Store.Date,
       Store.Settings,
-      Store.FreeTimeRun
+      Store.FreeTimeRun,
+      Store.WorkItem,
+      Store.WorkQueue
     ]
 
   alias Oneiroi.Scope
@@ -87,6 +107,7 @@ defmodule Oneiroi.Sunna do
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.TickWorker
+  alias Oneiroi.Sunna.WorkLoop
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -127,6 +148,18 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns one free-time slot may run when its turns run out of tool rounds and the free-time budget line has money left (sunna#26); the budget is the real limit, this the guard against a pass that never says it is done"},
+      {:work_turns, "SUNNA_WORK_TURNS",
+       cast: :integer,
+       default: "20",
+       tag: :bound,
+       usage:
+         "how many turns one run of a work-queue item may take before its wrap (sunna#33), a turn carried on when it runs out of tool rounds; the work budget line is the real limit, this the guard against a run that never says it is done. Free time's number (sunna#26)"},
+      {:work_runs_a_day, "SUNNA_WORK_RUNS_A_DAY",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many runs of work-queue items may start in one of the resident's days (sunna#33): each finished run fires the next, so this is the guard on a loop that never empties; the budget line is the real limit. A guess"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
@@ -156,7 +189,11 @@ defmodule Oneiroi.Sunna do
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]}, {:sunna_free_time, []}]
+    [
+      {:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]},
+      {:sunna_free_time, []},
+      {:sunna_work, []}
+    ]
   end
 
   @impl Oneiroi.Component
@@ -181,7 +218,14 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.DateChanged, 1},
       {Oneiroi.Sunna.Events.DateRemoved, 1},
       {Oneiroi.Sunna.Events.HourMarked, 1},
-      {Oneiroi.Sunna.Events.LettersWoke, 1}
+      {Oneiroi.Sunna.Events.LettersWoke, 1},
+      {Oneiroi.Sunna.Events.WorkAdded, 1},
+      {Oneiroi.Sunna.Events.WorkMoved, 1},
+      {Oneiroi.Sunna.Events.WorkOrdered, 1},
+      {Oneiroi.Sunna.Events.WorkWrapped, 1},
+      {Oneiroi.Sunna.Events.WorkStarted, 1},
+      {Oneiroi.Sunna.Events.WorkRunEnded, 1},
+      {Oneiroi.Sunna.Events.WorkRested, 1}
     ]
   end
 
@@ -219,13 +263,22 @@ defmodule Oneiroi.Sunna do
        remedy: "the next due wake tries again; a repeat is the brain's to look at"},
       {:sunna_free_time_failed, "free time could not be opened and was recorded as failed",
        remedy: "read the day's reason; tomorrow's free time runs again"},
+      {:sunna_work_invalid,
+       "a work item is what (at most 300 characters) and what done looks like; a status is open, blocked (with what blocks it), done or dropped, with a note; a wrap says what shipped and why",
+       remedy: "say each in words; name what blocks a blocked item"},
+      {:sunna_work_not_a_party,
+       "only the resident and her witness keep the work queue, and only she wraps a run",
+       remedy: "ask the resident or the witness"},
+      {:sunna_no_such_work, "no work item has that number", remedy: "read the queue"},
+      {:sunna_work_not_running, "only the item running now can be wrapped",
+       remedy: "read the queue: the running item is marked in_work"},
       {:sunna_dispatch_failed, "the schedule's command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
     ]
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Sunna.Projectors.Schedules]
+  def children, do: [Oneiroi.Sunna.Projectors.Schedules, Oneiroi.Sunna.Projectors.Work]
 
   @doc "Sets a check-in (a fresh key when nil): label and HH:MM in the resident's zone; returns the key."
   @spec set_checkin(String.t(), String.t() | nil, String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -277,6 +330,42 @@ defmodule Oneiroi.Sunna do
   defexport(set_rounds(resident_id, every_hours, waking, actor),
     do: Schedules.set_rounds(resident_id, every_hours, waking, actor)
   )
+
+  @doc "Adds an item to the work queue (sunna#33): what, and what done looks like; returns its number. The resident's and the witness's alike."
+  @spec work_add(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(work_add(resident_id, what, done_when, actor),
+    do: WorkLoop.add(resident_id, what, done_when, actor)
+  )
+
+  @doc "Moves a work item's status (open, blocked with what blocks it, done, dropped), with a note."
+  @spec work_move(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(work_move(resident_id, number, status, blocked_on, note, actor),
+    do: WorkLoop.move(resident_id, number, status, blocked_on, note, actor)
+  )
+
+  @doc "Reorders the work queue: the numbers given first, in that order."
+  @spec work_order(String.t(), [pos_integer()], Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_order(resident_id, numbers, actor),
+    do: WorkLoop.order(resident_id, numbers, actor)
+  )
+
+  @doc "Her wrap of the running item: shipped, slipped, why, status, blocked_on."
+  @spec work_wrap(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_wrap(resident_id, number, attrs, actor),
+    do: WorkLoop.wrap(resident_id, number, attrs, actor)
+  )
+
+  @doc "The work queue: its items in order and the loop's state, both parties' read."
+  @spec work_queue(String.t()) :: map()
+  defexport(work_queue(resident_id), do: WorkLoop.queue(resident_id))
 
   @doc "Sets quiet hours from HH:MM to HH:MM (may cross midnight), or both nil to clear."
   @spec set_quiet_hours(String.t(), String.t() | nil, String.t() | nil, Oneiroi.Actor.t()) ::

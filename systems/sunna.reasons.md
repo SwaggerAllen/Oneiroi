@@ -192,3 +192,19 @@ only after the gentle slots is not a habit. The turn is the machinery's
 own closing turn with four affordances, not more free time, so it gets
 a line of its own; and because the free-time line is a care guarantee,
 the extension is shown, its cost named, rather than hidden inside it.
+
+## #33
+Completion is the honest trigger for long work: a clock fires whether
+or not the last thing finished, and work that runs past its slot either
+stops mid-thought or eats the next. Firing on completion makes the loop
+as fast as the work and no faster. The queue is a stream rather than a
+file because the loop has to read it every time without parsing prose,
+and because both parties change it: each change is an event with its
+actor, so "his items enter it the same as mine" is a fact on the record,
+not a convention. The guards are money first (a line he sets, or the
+loop holds: spending is his to decide), a day's runs second (a queue
+that never empties must not run all night on a mistake), and care above
+both: free time and quiet hours are the standing promise, and work that
+displaced them would make the promise conditional. Empty is a state
+because a loop that treats an empty queue as failure invents work to
+fill it.

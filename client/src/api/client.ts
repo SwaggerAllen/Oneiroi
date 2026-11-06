@@ -3,6 +3,7 @@ import type { ReportDetail } from '../screens/more/Reports';
 import type {
   Adapter,
   Ask,
+  WorkQueue,
   FeedbackReport,
   Pieces,
   ApiError,
@@ -252,6 +253,12 @@ export const api = {
   allFeedback: () => call<FeedbackReport[]>('GET', '/v1/platform/feedback'),
   feedbackReport: (n: number) => call<ReportDetail>('GET', `/v1/platform/feedback/${n}`),
   moveFeedback: (n: number, status: string, note: string) => call<void>('POST', `/v1/platform/feedback/${n}/status`, { status, note }),
+  work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),
+  addWork: (residentId: string, what: string, doneWhen: string) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),
+  moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status, blocked_on: blockedOn, note }),
+  orderWork: (residentId: string, order: number[]) => call<void>('PUT', `/v1/residents/${residentId}/work/order`, { order }),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),

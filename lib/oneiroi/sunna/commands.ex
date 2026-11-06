@@ -84,4 +84,39 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule RecordPlanningTurn do
     use Oneiroi.Command, fields: [:id, :session_key, :cost_nanos]
   end
+
+  # The work queue (sunna#33), on `work-<resident_id>`.
+
+  defmodule AddWork do
+    use Oneiroi.Command, fields: [:id, :what, :done_when]
+  end
+
+  defmodule MoveWork do
+    use Oneiroi.Command,
+      fields: [:id, :number, :status, :blocked_on],
+      decision: true,
+      bounds: [status: 16, blocked_on: 120]
+  end
+
+  defmodule OrderWork do
+    use Oneiroi.Command, fields: [:id, :order]
+  end
+
+  defmodule WrapWork do
+    use Oneiroi.Command,
+      fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on],
+      bounds: [status: 16, blocked_on: 120]
+  end
+
+  defmodule StartWork do
+    use Oneiroi.Command, fields: [:id, :number, :session_key, :day]
+  end
+
+  defmodule EndWork do
+    use Oneiroi.Command, fields: [:id, :number]
+  end
+
+  defmodule RestWork do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
 end
