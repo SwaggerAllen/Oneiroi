@@ -522,3 +522,10 @@ operator's one view of production showed requests answered 202 and
 nothing after. The timer is there because "thinking" for ten seconds and
 for ten minutes read the same, and only one of them is fine.
 
+## #55
+Free time was a slot shaped like a task-runner: each one began cold,
+with nothing of what she had meant to do next. GOALS.md is the
+witness's, and grading reads it, so her wanting needed a file of its own
+that no grade reads. It rides free time alone because there the wanting
+is the point; in the chat it would steer conversations toward her
+agenda, and rounds are meant to be surprise rather than plan.
