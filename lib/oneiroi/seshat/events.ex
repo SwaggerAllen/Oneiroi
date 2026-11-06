@@ -113,4 +113,16 @@ defmodule Oneiroi.Seshat.Events do
   defmodule DigestFailed do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
   end
+
+  defmodule PieceReviewed do
+    # The witness's answer to a piece she marked for review (seshat#42):
+    # approve or decline, with a note, of the version with this hash.
+    use Oneiroi.Event, version: 1, fields: [:id, :path, :decision, :hash], decision: true
+  end
+
+  defmodule PieceDrafted do
+    # The reader made a Substack draft of an approved piece (seshat#42);
+    # the witness presses Publish there himself.
+    use Oneiroi.Event, version: 1, fields: [:id, :path, :draft_url]
+  end
 end

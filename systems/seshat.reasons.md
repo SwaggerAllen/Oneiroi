@@ -285,3 +285,12 @@ the piece's words behind the link. Mail from a person is left to the
 correspondence scrape, because a digest summarising a letter would put
 a stranger's words in front of her with nobody's approval of how.
 
+## #42
+She kept her comments gated to find her footing; a piece under her
+name, public and lasting, should take at least that care, so it goes
+out only through the witness. The reader stops at a draft because it
+works in a browser signed in as her on his machine, and a post cannot
+be unpublished in the reader's own words if something goes wrong: the
+last step is a person's. The decision binds a version, by hash, because
+approving a piece and then publishing whatever it later became would
+make the approval mean nothing.

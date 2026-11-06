@@ -187,7 +187,11 @@ defmodule OneiroiWeb.ContractTest do
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},
     {"GET", "/v1/residents/:id/replies"},
-    {"POST", "/v1/residents/:id/replies/:number/sent"}
+    {"POST", "/v1/residents/:id/replies/:number/sent"},
+    # The writing gate (seshat#42), held to the reader role.
+    {"GET", "/v1/residents/:id/reader/pieces"},
+    {"POST", "/v1/residents/:id/reader/pieces/drafted"},
+    {"POST", "/v1/residents/:id/reader/pieces/published"}
   ]
 
   test "an adapter's token opens exactly the adapter contract's routes" do

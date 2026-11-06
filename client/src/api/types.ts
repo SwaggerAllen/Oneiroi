@@ -498,3 +498,10 @@ export interface Ask {
   note: string | null;
   answered_at: string | null;
 }
+
+// The writing gate (seshat#42).
+export interface Pieces {
+  for_review: { path: string; title: string | null; written_at: string | null; last: { state: string; note: string | null; decided_at: string } | null }[];
+  approved: { path: string; title: string | null; state: string; note: string | null; draft_url: string | null; decided_at: string }[];
+  drafted: { path: string; title: string | null; state: string; note: string | null; draft_url: string | null; decided_at: string }[];
+}

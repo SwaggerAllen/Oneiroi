@@ -75,4 +75,13 @@ defmodule Oneiroi.Seshat.Commands do
   defmodule FailDigest do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
+
+  # A writing piece's review (seshat#42), on `pieces-<resident_id>`.
+  defmodule ReviewPiece do
+    use Oneiroi.Command, fields: [:id, :path, :decision, :note, :hash]
+  end
+
+  defmodule DraftPiece do
+    use Oneiroi.Command, fields: [:id, :path, :draft_url]
+  end
 end
