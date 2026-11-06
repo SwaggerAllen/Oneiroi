@@ -12,6 +12,7 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -163,9 +164,15 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
     key = free_time_key(ctx.id)
     flush()
 
+    # A spent free-time line does not refuse it (sunna#32): the closing
+    # turn bills its own line, and its receipt says so.
+    :ok = Nisaba.set_budget(ctx.id, :free_time, 1, :day, ctx.actor)
     assert :ok = Schedules.plan_free_time(ctx.id, key)
     assert_received {:asked, planning}
     assert List.last(planning).content =~ "Your free time has ended"
+
+    assert [%{did: did}] = FreeTime.history(ctx.id, 5, [])
+    assert Enum.any?(did, &(&1.tool == "planning turn"))
 
     lily = Actor.new(:resident, ctx.id)
 
@@ -204,6 +211,7 @@ defmodule Oneiroi.Sunna.FreeTimeContinueTest do
              "#2 act: publish the Weng piece (why: it is done) — approve: go ahead"
 
     # The next slot opens on the plan.
+    :ok = Nisaba.set_budget(ctx.id, :free_time, 5_000_000_000, :day, ctx.actor)
     flush()
     :ok = Sunna.set_free_time(ctx.id, "13:00", ctx.actor)
     Clock.Fake.advance(3600)

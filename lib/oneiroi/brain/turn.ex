@@ -1525,7 +1525,8 @@ defmodule Oneiroi.Brain.Turn do
   # only reads what is there.
   @goals_limit 12_000
 
-  defp free_time_goals(%{purpose: :free_time} = turn, %{kind: "free_time"}) do
+  defp free_time_goals(%{purpose: purpose} = turn, %{kind: "free_time"})
+       when purpose in [:free_time, :planning] do
     # Through introspection's repository reader, which holds a path to
     # the repository's root, rather than a file opened here.
     with {:ok, %{slug: slug}} <- Oneiroi.AgathosDaimon.fetch(turn.resident_id),
@@ -1541,7 +1542,8 @@ defmodule Oneiroi.Brain.Turn do
 
   defp free_time_goals(_turn, _session), do: nil
 
-  defp free_time_plan(%{purpose: :free_time} = turn, %{kind: "free_time"}) do
+  defp free_time_plan(%{purpose: purpose} = turn, %{kind: "free_time"})
+       when purpose in [:free_time, :planning] do
     case Oneiroi.Sunna.free_time_plan(turn.resident_id) do
       %{text: text, at: at} ->
         "# Your plan for this free time (written #{Local.stamp(Local.zone(turn.resident_id), at)})\n\n" <>

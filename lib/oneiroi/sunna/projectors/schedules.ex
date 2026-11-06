@@ -94,6 +94,15 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     |> free_time_run(e, "failed: " <> e.reason, nil)
   end)
 
+  fold(%Events.PlanningTurnRan{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :planning,
+      from(r in FreeTimeRun, where: r.resident_id == ^e.id and r.session_key == ^e.session_key),
+      set: [planning_nanos: e.cost_nanos]
+    )
+  end)
+
   fold(%Events.FreeTimePlanned{} = e, _metadata, fn multi ->
     settings(multi, e.id, free_time_plan: e.text, free_time_planned_at: e.at)
   end)

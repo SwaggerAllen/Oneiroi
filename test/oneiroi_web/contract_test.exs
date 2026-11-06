@@ -155,7 +155,7 @@ defmodule OneiroiWeb.ContractTest do
            } =
              Enum.find(budgets, &(&1["purpose"] == "chat"))
 
-    assert length(budgets) == 8
+    assert length(budgets) == 9
 
     other = Fixtures.account!()
     assert ctx.conn |> login(other) |> get("/v1/residents/#{id}/ledger") |> json_response(404)

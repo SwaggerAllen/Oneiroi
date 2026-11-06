@@ -271,6 +271,15 @@ defmodule Oneiroi.Sunna.Schedule do
 
   # ---- the plan for the next slot (sunna#31) ----
 
+  def execute(%__MODULE__{}, %Commands.RecordPlanningTurn{} = c),
+    do: %Events.PlanningTurnRan{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      session_key: c.session_key,
+      cost_nanos: c.cost_nanos
+    }
+
   def execute(%__MODULE__{}, %Commands.PlanFreeTime{} = c) do
     text = if is_binary(c.text), do: String.trim(c.text), else: ""
 
@@ -436,6 +445,7 @@ defmodule Oneiroi.Sunna.Schedule do
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimePlanned{} = e), do: %{s | id: e.id}
+  def apply(%__MODULE__{} = s, %Events.PlanningTurnRan{} = e), do: %{s | id: e.id}
 
   def apply(%__MODULE__{} = s, %Events.RoundsSet{} = e),
     do: %{s | id: e.id, round_settings: {e.every_hours, e.waking}}

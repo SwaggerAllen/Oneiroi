@@ -146,4 +146,10 @@ defmodule Oneiroi.Sunna.Events do
     # Her plan for the next free-time slot (sunna#31), in her words.
     use Oneiroi.Event, version: 1, fields: [:id, :text]
   end
+
+  defmodule PlanningTurnRan do
+    # The planning turn that closed a free-time slot (sunna#32), billed on
+    # its own line: its conversation and what it cost, in nano-dollars.
+    use Oneiroi.Event, version: 1, fields: [:id, :session_key, :cost_nanos]
+  end
 end
