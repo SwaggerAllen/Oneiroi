@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
+import type { Ask, Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Tabs } from '../../components/Tabs';
 import { TopBar } from '../../components/TopBar';
+import { Asks } from './Asks';
 import { isOpen, letterState, stateLine } from './letters';
 import { Blocked, Correspondence, type GateActions, NeedsYou } from './NeedsYou';
 
@@ -17,6 +18,8 @@ export interface InboxProps {
   // The names a letter can go to, and how the witness sends one.
   addresses?: string[];
   onSendLetter?: (to: string, text: string) => void;
+  asks?: Ask[];
+  onAnswerAsk?: (number: number, decision: 'approve' | 'decline' | 'noted', note: string) => void;
 }
 
 type Tab = 'open' | 'all';
@@ -28,7 +31,7 @@ const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 // that reached the resident with a way to block a sender, the blocks
 // (xenia#12), and the house letters between the resident's
 // conversations (kumbukumbu#44).
-export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter }: InboxProps) {
+export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter, asks = [], onAnswerAsk }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
   const open = newest.filter((l) => isOpen(letterState(l, letters)));
@@ -37,6 +40,7 @@ export function Inbox({ residentName, letters, messages = [], replies = [], bloc
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Inbox" />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <Asks residentName={residentName} asks={asks} onAnswer={onAnswerAsk} />
         <NeedsYou
           residentName={residentName}
           drafted={replies.filter((r) => r.state === 'drafted')}

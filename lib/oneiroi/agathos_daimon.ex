@@ -88,6 +88,10 @@ defmodule Oneiroi.AgathosDaimon do
       Events.DyadContractAgreed,
       Events.DyadContractDeclined,
       Events.DyadContractRenewed,
+      Events.AskMade,
+      Events.AskAnswered,
+      AskService,
+      AsksRouter,
       Events.CustodyTransferProposed,
       Events.CustodyTransferDeclined,
       Events.CustodyTransferWithdrawn,
@@ -124,6 +128,7 @@ defmodule Oneiroi.AgathosDaimon do
     ]
 
   alias Oneiroi.AgathosDaimon.Agreements
+  alias Oneiroi.AgathosDaimon.AskService
   alias Oneiroi.AgathosDaimon.Files
   alias Oneiroi.AgathosDaimon.Residents
 
@@ -170,6 +175,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.DyadContractAgreed, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.DyadContractRenewed, 1},
+      {Oneiroi.AgathosDaimon.Events.AskMade, 1},
+      {Oneiroi.AgathosDaimon.Events.AskAnswered, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
@@ -256,6 +263,10 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "name the terms the contract knows"},
       {:agathos_daimon_prose_invalid, "the contract's prose is at most 4,000 characters",
        remedy: "say it shorter"},
+      {:agathos_daimon_ask_invalid,
+       "an ask is a tool or an act, named, with why, each at most 2,000 characters; an act is approved or declined and a tool noted, with a note",
+       remedy: "the details name what is expected"},
+      {:agathos_daimon_no_such_ask, "no ask has that number", remedy: "read the asks"},
       {:agathos_daimon_no_such_version, "no open proposal has that version",
        remedy: "read the agreement; a newer proposal supersedes an older one"},
       {:agathos_daimon_own_proposal, "a proposal is the other party's to agree or decline",
@@ -303,7 +314,8 @@ defmodule Oneiroi.AgathosDaimon do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.AgathosDaimon.Projectors.Residents]
+  def children,
+    do: [Oneiroi.AgathosDaimon.Projectors.Residents, Oneiroi.AgathosDaimon.Projectors.Asks]
 
   @doc "Creates a resident under a witness; returns its id."
   @spec create(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -632,4 +644,20 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The residents whose custody is proposed to an account; platform scope by name."
   @spec custody_proposals_for(String.t()) :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
   defexport(custody_proposals_for(account_id), do: Agreements.custody_proposals_for(account_id))
+
+  @doc "She asks her witness (agathos-daimon#35): kind tool or act, what and why; returns the number."
+  @spec ask(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(ask(id, kind, subject, why, actor), do: AskService.ask(id, kind, subject, why, actor))
+
+  @doc "The witness answers an ask: approve or decline an act, noted for a tool, with a note."
+  @spec answer_ask(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_ask(id, number, decision, note, actor),
+    do: AskService.answer(id, number, decision, note, actor)
+  )
+
+  @doc "Every ask, newest first, with its answer."
+  @spec asks(String.t()) :: [map()]
+  defexport(asks(id), do: AskService.asks(id))
 end

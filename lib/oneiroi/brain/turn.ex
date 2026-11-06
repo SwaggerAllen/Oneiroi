@@ -41,6 +41,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
+  alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
@@ -1052,6 +1053,11 @@ defmodule Oneiroi.Brain.Turn do
       state_section(turn) ++
         where_section(turn, session) ++
         section(
+          "free_time_plan",
+          free_time_plan(turn, session),
+          "the plan she wrote at the end of her last free-time slot (sunna#31), read in free time only"
+        ) ++
+        section(
           "goals_between",
           free_time_goals(turn, session),
           "the resident's own goals file (<SLUG>-GOALS.md at her repository's root), read at the start of each free-time turn and in no other conversation (brain#55)"
@@ -1520,10 +1526,11 @@ defmodule Oneiroi.Brain.Turn do
   @goals_limit 12_000
 
   defp free_time_goals(%{purpose: :free_time} = turn, %{kind: "free_time"}) do
+    # Through introspection's repository reader, which holds a path to
+    # the repository's root, rather than a file opened here.
     with {:ok, %{slug: slug}} <- Oneiroi.AgathosDaimon.fetch(turn.resident_id),
-         {:ok, dir} <- Oneiroi.SimaQian.repository_dir(turn.resident_id),
          name = String.upcase(slug) <> "-GOALS.md",
-         {:ok, text} <- File.read(Path.join(dir, name)),
+         {:ok, text, _next, _total} <- Introspection.read({:repo, turn.resident_id}, name),
          text when text != "" <- String.trim(text) do
       "# Your goals between slots (#{name}, yours to keep)\n\n" <>
         String.slice(text, 0, @goals_limit)
@@ -1533,6 +1540,19 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp free_time_goals(_turn, _session), do: nil
+
+  defp free_time_plan(%{purpose: :free_time} = turn, %{kind: "free_time"}) do
+    case Oneiroi.Sunna.free_time_plan(turn.resident_id) do
+      %{text: text, at: at} ->
+        "# Your plan for this free time (written #{Local.stamp(Local.zone(turn.resident_id), at)})\n\n" <>
+          text
+
+      nil ->
+        nil
+    end
+  end
+
+  defp free_time_plan(_turn, _session), do: nil
 
   defp session_of(turn) do
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do

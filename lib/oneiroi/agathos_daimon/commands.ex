@@ -179,4 +179,14 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule MarkSelfLettersExported do
     use Oneiroi.Command, fields: [:id, :numbers]
   end
+
+  # The resident's asks of the witness (agathos-daimon#35), on
+  # `asks-<resident_id>`: a tool she lacked, or leave for an act.
+  defmodule MakeAsk do
+    use Oneiroi.Command, fields: [:id, :kind, :subject, :why]
+  end
+
+  defmodule AnswerAsk do
+    use Oneiroi.Command, fields: [:id, :number, :decision, :note]
+  end
 end

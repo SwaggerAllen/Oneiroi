@@ -485,3 +485,16 @@ export interface LibraryHit {
   text: string;
   distance: number;
 }
+
+// An ask of the witness (agathos-daimon#35): a tool she lacked, or leave
+// for an act, and the answer.
+export interface Ask {
+  number: number;
+  kind: 'tool' | 'act';
+  subject: string;
+  why: string;
+  asked_at: string;
+  decision: 'approve' | 'decline' | 'noted' | null;
+  note: string | null;
+  answered_at: string | null;
+}

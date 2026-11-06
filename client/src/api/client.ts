@@ -1,5 +1,6 @@
 import type {
   Adapter,
+  Ask,
   ApiError,
   Bookmark,
   ContextPreview,
@@ -231,6 +232,9 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time, ...note }),
   deleteCheckin: (residentId: string, key: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
+  asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
+  answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),
   setRounds: (residentId: string, everyHours: number | null, waking: string | null) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/rounds`, { every_hours: everyHours, waking }),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>

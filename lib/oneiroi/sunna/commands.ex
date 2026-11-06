@@ -74,4 +74,10 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule SetRounds do
     use Oneiroi.Command, fields: [:id, :every_hours, :waking]
   end
+
+  # Her plan for the next free-time slot (sunna#31), written in the
+  # planning turn at the end of one.
+  defmodule PlanFreeTime do
+    use Oneiroi.Command, fields: [:id, :text]
+  end
 end

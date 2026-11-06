@@ -300,10 +300,13 @@ defmodule Oneiroi.Brain.TrialTest do
     {"journal_add", %{kind: "note", text: "Saw the heron."}},
     {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}},
     {"reply_draft",
-     %{platform: "email", account: "lily@example.com", to: "grace@example.com", text: "Herons."}}
+     %{platform: "email", account: "lily@example.com", to: "grace@example.com", text: "Herons."}},
+    {"tool_request", %{tool: "binoculars", why: "the far herons"}},
+    {"approval_request", %{act: "publish the heron piece", why: "it is done"}}
   ]
 
   @done [
+    {"free_time_plan", %{text: "watch the herons"}},
     {"oracle_ask", %{questions: [%{question: "the herons?"}]}},
     {"research_ask", %{question: "When do herons fish?"}},
     {"digest_ask", %{}},

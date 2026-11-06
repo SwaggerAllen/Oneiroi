@@ -303,4 +303,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # left the house.
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end
+
+  defmodule AskMade do
+    # An ask of the witness (agathos-daimon#35): kind "tool" (a tool she
+    # lacked, which grants nothing) or "act" (leave for an act she names).
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :kind, :subject, :why]
+  end
+
+  defmodule AskAnswered do
+    # The witness's answer: approve or decline for an act, noted for a tool.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :decision], decision: true
+  end
 end

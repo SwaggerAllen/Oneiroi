@@ -225,6 +225,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/journal/:day/entries", JournalController, :add)
       post("/residents/:id/journal/:day/entries/:number/done", JournalController, :done)
       get("/me/custody-proposals", AgreementController, :proposals)
+      get("/residents/:id/asks", AskController, :index)
+      post("/residents/:id/asks/:number/answer", AskController, :answer)
       get("/residents/:id/agreement", AgreementController, :show)
       post("/residents/:id/agreement/proposals", AgreementController, :propose)
       post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)

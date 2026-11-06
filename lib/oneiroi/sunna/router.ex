@@ -5,5 +5,5 @@ defmodule Oneiroi.Sunna.Router do
     prefix: "schedule-",
     commands: "Oneiroi.Sunna.Commands",
     dispatching:
-      ~w(SetCheckin DeleteCheckin FireCheckin MissCheckin DeferWake OpenDay SetFreeTime RecordFreeTime StartRound SetRounds SetQuietHours SetDate RemoveDate MarkHour WakeForLetters)
+      ~w(SetCheckin DeleteCheckin FireCheckin MissCheckin DeferWake OpenDay SetFreeTime RecordFreeTime StartRound SetRounds PlanFreeTime SetQuietHours SetDate RemoveDate MarkHour WakeForLetters)
 end
