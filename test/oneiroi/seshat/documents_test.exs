@@ -507,13 +507,17 @@ defmodule Oneiroi.Seshat.DocumentsTest do
           assert header =~
                    "#{path} (correspondence, #{byte_size(letter)} bytes), characters #{from} to "
 
-          assert String.length(text) <= bound
-
           next =
             case Regex.run(~r/from: (\d+) reads the next page\.$/, header) do
               [_, n] -> String.to_integer(n)
               nil -> nil
             end
+
+          # A page that is not the last says so again where it ends (brain#57).
+          footer = ~r/\n\n\(Not the end: \d+ characters remain; read on with from: (\d+)\.\)\z/
+          if next, do: assert([_, said] = Regex.run(footer, text)) && assert(said == "#{next}")
+          text = Regex.replace(footer, text, "")
+          assert String.length(text) <= bound
 
           {{header, text}, next}
       end)
