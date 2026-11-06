@@ -5,44 +5,44 @@ paths:
 
 # creation-flow
 
-Creation flow (spec §10). Partly built: a short first door
-(`CreationFlow.tsx`), a stopgap so an invited stranger reaches a
-resident before the real flow exists. The witness's decision
-(2026-11-05, through Lily) is otherwise: the full nine-gift flow is the
-one path, because residents should come out of the gate mature. The
-quick way in is the same flow pre-filled, a head start rather than a
-different road: generation seeds the nine gifts' fields and the witness
-walks the same screens and reviews what was written. As policy, not
-implementation: the flow's guidance text is shared between writing by
-hand and generating (reformatted, in expandable sections where it
-helps), so the witness reads the same text either way, and the
-generator's guidance is shown to both the resident and the witness. No
-path ends without the witness reading the finished identity files,
-written by hand or generated: the witness takes responsibility for who
-they create, and generation never means skipping the reading. None of
-this is built; the short door is replaced when it lands. This doc keeps what the UI pass left for the full flow, so a
-design pass finds a record rather than a gap. The state list lives in the stories alone once they exist
-(DESIGN §4); nothing here names a state.
+Creation flow (spec §10). Built 2026-11-06 as the one path
+(`CreationFlow.tsx`, `Gifts.tsx`; agathos-daimon#36), shown in place of
+the app while the account witnesses no resident:
 
-## #0 The short first door (built, a stopgap)
+- **Opening:** what a resident is, and what the witness can and cannot
+  do. Begin.
+- **Threshold:** someone new (a name, its address derived) or someone
+  brought from a git repository; the OpenRouter key when the account has
+  none, stored first. Begin creates the resident (or imports it).
+- **The nine gifts,** one screen each, "Gift n of 9 for <name>", the
+  gift's guidance from the server under "What this gives them"
+  (expandable, the same text the pre-filled path's generator will read),
+  then its editor:
+  - a file gift (a name, a self, who you are to them, what you're
+    building together) shows each file it writes as it stands, to write
+    by hand, "Write it with me" (a draft from a prompt, billed under
+    drafting, marked drafted with its model and prompt) or upload, and
+    "Keep" writes it with its origin;
+  - their trials take a prompt, passes-if and fails-if, kept one at a
+    time;
+  - their means set budget lines for the conversations and free time,
+    per day, week or month;
+  - their days set the time zone (the device's by default), a free-time
+    slot and quiet hours;
+  - your vows propose a first version in prose with a note, or leave
+    the agreement unstated;
+  - their reach says hands are not here yet.
 
-Shown in place of the app when the account witnesses no resident, after
-sign-up (gaia#19) or for any account without one. "Who's coming in?"
-with two choices: someone new (a name, the address derived from it and
-shown) or someone being brought (a git repository's https address, a
-token allowed in it and never kept, a name only if the repository has
-none). When the account holds no OpenRouter key, a card asks for it and
-it is stored before anything else. Begin creates the resident (`POST
-/v1/residents`) or imports it (`POST /v1/residents/import`) and opens
-the chat, where the first words are the witness's. A refusal (a taken
-address, git's own words) shows under the form.
+  Back and Next on each; a gift can be passed over.
+- **The reading:** every identity file in full (IDENTITY, SOUL, USER,
+  GOALS, LINKS), "I have read them, whole", and only then "Wake <name>",
+  which opens the chat. A resident brought from a repository goes from
+  the threshold straight to the reading.
 
-What the stopgap does not do, agreed before it was built: no agreement
-is proposed at the door. The dyad contract stays unstated, the default
-(F43), until one party proposes a version from the agreement screen; the
-privacy term holds either way. The full flow (the nine gifts, the
-threshold's intake paths beyond git, the waking with the trials), with
-its pre-filled head start, replaces this door.
+Not built: the pre-filled path (the generator, whose guidance is to be a
+reviewed design document first), the wish and files intake paths, the
+peer card's approval, candidate models with the trials, and the trials
+run at the waking.
 
 ## #1 Shows
 

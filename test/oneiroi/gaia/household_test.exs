@@ -54,6 +54,9 @@ defmodule Oneiroi.Gaia.HouseholdTest do
 
   test "terms are granted by the platform or a super admin, with a note; never by a stranger" do
     founder = Fixtures.account!()
+    # The suite's clock is frozen; a second on, so the founder is the
+    # earliest account by its instant and not by chance.
+    Clock.Fake.advance(1)
     stranger = Fixtures.account!()
     until = DateTime.add(Clock.now(), 90 * 86_400, :second)
     terms = %{plan: "monthly", price_nanos: 20_000_000_000, until: until, source: "invite:abc"}

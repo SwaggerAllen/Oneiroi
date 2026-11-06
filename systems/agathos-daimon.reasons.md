@@ -218,3 +218,10 @@ act and the answer is about the act. A tool request grants nothing
 because a tool is a capability, and capabilities are the contract's and
 the permission system's to give; recording the ask is what lets that
 system be designed from what she actually reached for.
+
+## #36
+The witness takes responsibility for who they create, so the text they
+read before each gift must be the same whether they write it or a
+generator drafts it: one copy, served to both, cannot drift into two.
+Compiled in rather than read at run time because guidance that changes
+who wakes up deserves a review, like code.

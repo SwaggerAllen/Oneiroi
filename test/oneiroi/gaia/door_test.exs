@@ -10,6 +10,7 @@ defmodule Oneiroi.Gaia.DoorTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
 
@@ -21,6 +22,9 @@ defmodule Oneiroi.Gaia.DoorTest do
 
   test "the founding account is the operator by a recorded grant, and the door starts closed" do
     founder = Fixtures.account!()
+    # The suite's clock is frozen; a second on, so the founder is the
+    # earliest account by its instant and not by chance.
+    Clock.Fake.advance(1)
     other = Fixtures.account!()
 
     assert %{state: "closed"} = Gaia.gate()
@@ -33,6 +37,9 @@ defmodule Oneiroi.Gaia.DoorTest do
 
   test "only a super admin sets the door and grants roles, each with a note; the door always has a keeper" do
     founder = Fixtures.account!()
+    # The suite's clock is frozen; a second on, so the founder is the
+    # earliest account by its instant and not by chance.
+    Clock.Fake.advance(1)
     other = Fixtures.account!()
     op = Actor.new(:witness, founder.id)
     stranger = Actor.new(:witness, other.id)

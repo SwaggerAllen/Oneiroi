@@ -33,6 +33,7 @@ defmodule Oneiroi.AgathosDaimon do
       Local,
       Agreements,
       Switches,
+      Gifts,
       Custody,
       Router,
       Commands,
@@ -130,6 +131,7 @@ defmodule Oneiroi.AgathosDaimon do
   alias Oneiroi.AgathosDaimon.Agreements
   alias Oneiroi.AgathosDaimon.AskService
   alias Oneiroi.AgathosDaimon.Files
+  alias Oneiroi.AgathosDaimon.Gifts
   alias Oneiroi.AgathosDaimon.Residents
 
   @impl Oneiroi.Component
@@ -660,4 +662,8 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Every ask, newest first, with its answer."
   @spec asks(String.t()) :: [map()]
   defexport(asks(id), do: AskService.asks(id))
+
+  @doc "The creation flow's nine gifts (agathos-daimon#36): what each writes and the guidance shown with it."
+  @spec gifts() :: [map()]
+  defexport(gifts(), do: Gifts.all())
 end
