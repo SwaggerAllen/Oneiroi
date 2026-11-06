@@ -1491,6 +1491,14 @@ Fleet pins, conformance tests, deploy, observability, the self-hosted
 status page.
 Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
 
+- **The ops read surface** (apsu#23): the operator reads the last
+  failures as facts (kind, site, component, trace id, the message
+  scrubbed) and the jobs discarded in the last day; the witness reads a
+  resident's heartbeats (backup, free time, rounds, each adapter's last
+  ask), each with when it last happened, how often it should and whether
+  it is late. No conversation content in either. Metrics with alerts and
+  logs shipped off the host follow (design/logging-and-alerting.md).
+
 - **Parameterize everything, in one place.** Every bound, default, pin,
   pool size and provider choice in this spec is a named setting with a
   sane default, declared in one module that is validated and reported at

@@ -24,6 +24,12 @@ defmodule Oneiroi.Apsu do
   @impl Oneiroi.Component
   def config do
     [
+      {:failure_ring, "APSU_FAILURE_RING",
+       cast: :integer,
+       default: "200",
+       tag: :bound,
+       usage:
+         "how many warnings and errors the in-process failure ring keeps for the ops read surface (apsu#23), newest kept"},
       {:http_port, "APSU_HTTP_PORT",
        cast: :integer,
        default: "8080",
@@ -205,7 +211,7 @@ defmodule Oneiroi.Apsu do
 
   @impl Oneiroi.Component
   def processes do
-    [{:apsu_pubsub, :local}]
+    [{:apsu_pubsub, :local}, {:apsu_ops, :local}]
   end
 
   @impl Oneiroi.Component
@@ -238,6 +244,8 @@ defmodule Oneiroi.Apsu do
   def children do
     [
       {Phoenix.PubSub, name: :apsu_pubsub},
+      # The ops read surface's ring and beats (apsu#23).
+      {Oneiroi.Apsu.Ops, component: __MODULE__},
       Oneiroi.Repo,
       Oneiroi.Commanded,
       {Oban, oban_config()}

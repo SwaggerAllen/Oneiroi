@@ -16,6 +16,7 @@ defmodule OneiroiWeb.WaitingController do
 
   alias Oneiroi.AgathosDaimon.AdapterPrincipal
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Apsu.Ops
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
   alias Oneiroi.Xenia
@@ -37,6 +38,15 @@ defmodule OneiroiWeb.WaitingController do
 
   def show(conn, %{"id" => id} = params) do
     role = role(conn)
+
+    # The adapter's heartbeat (apsu#23): it asked, now.
+    case conn.assigns[:principal] do
+      %AdapterPrincipal{adapter: name} ->
+        Ops.beat("#{id}:#{name}")
+
+      _witness ->
+        :ok
+    end
 
     letters =
       if role in ["brain", :witness] and is_binary(params["session_key"]),
