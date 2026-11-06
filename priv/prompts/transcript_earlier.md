@@ -1,0 +1,1 @@
+This conversation holds {{before}} earlier messages before the ones below, not shown here: the window keeps the latest whole rather than a summary of the rest. transcript_read with session {{session}} pages back through them (from: {{from}} reads the 30 just before these), with their times.

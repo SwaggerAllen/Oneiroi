@@ -38,6 +38,9 @@ config :oneiroi,
           # Low enough for one captured turn to cross it, high enough that
           # no other brain test (at most two turns, four messages) does.
           "BRAIN_COMPACT_AFTER_MESSAGES" => "8",
+          # Compaction is off in production (brain#60); the suite keeps it on
+          # so the compaction tests hold, and the truncation tests turn it off.
+          "BRAIN_COMPACTION" => "on",
           # Small enough that one identity file near its 64,000-byte bound
           # trips the capacity alarm, large enough that no other test does.
           "BRAIN_CONTEXT_TOKENS" => "16000",

@@ -353,6 +353,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started, never what one did; a private conversation of kind `round`, billed to the free-time line; exits are her tools (a letter to the chat, a house letter, a reply draft, a note draft, a journal row) or silence | brain, schedule |
+| F32b | The work queue: long, multi-turn items in priority order, either party's, run one at a time on completion, wrapped, care first | built (sunna#33): `work-<resident_id>`, items with what and done-when, statuses moved with a note, reordered by either party; a check starts the first open item as a `work` conversation or rests and says why ("empty, holding"); turns on the `work` budget line (the loop holds without one) up to `SUNNA_WORK_TURNS`, wrapped by her on the `planning` line, the run's end firing the next check; no turn inside quiet hours or a free-time pass; `SUNNA_WORK_RUNS_A_DAY` the day's guard; the Schedule screen's Work queue card | schedule, brain |
 | F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
 | F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri#6: not built) | hands, brain |
@@ -434,6 +435,15 @@ session under OTP supervision.
   a formal summary in context pulls the resident toward the summary's own
   report-like voice (Red), and a summary that speaks as her is a component
   generating her sentence (§1.13).
+  **Truncation by default** (brain#60, the witness, 2026-11-06): compaction
+  is a setting, off. The turn reads the latest messages whole, with a line
+  saying how many came before and that `transcript_read` pages back through
+  them; no summary is written or shown. Compacting stays available
+  (`BRAIN_COMPACTION=on`).
+- **Stopping a turn** (brain#61): the witness's Stop and the resident's
+  safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
+  stands; what was said is kept with a line saying who stopped it, and
+  nothing after it runs.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.

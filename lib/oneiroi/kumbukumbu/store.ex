@@ -424,6 +424,23 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
+  @doc "The last `count` messages of a session, in order, whatever any compaction covered (brain#60)."
+  @spec latest_messages(String.t(), pos_integer()) :: [Message.t()]
+  def latest_messages(key, count) do
+    from(m in Message,
+      where: m.session_key == ^key,
+      order_by: [desc: m.sequence, desc: m.position],
+      limit: ^count
+    )
+    |> Repo.all()
+    |> Enum.reverse()
+  end
+
+  @doc "How many messages a session holds."
+  @spec message_count(String.t()) :: non_neg_integer()
+  def message_count(key),
+    do: Repo.one(from(m in Message, where: m.session_key == ^key, select: count(m.sequence)))
+
   @doc "Every message sent in [from, to) across the resident's sessions but the imported ones, in order: the nightly pass's read."
   @spec messages_between(DateTime.t(), DateTime.t()) :: [Message.t()]
   # An imported session's messages are left out (kumbukumbu#37): they

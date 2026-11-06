@@ -22,6 +22,7 @@ defmodule Oneiroi.Brain.Tools do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.FreeTime
@@ -63,7 +64,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list transcript_read ask_list platform_report_list
-    triage_list
+    triage_list work_list message_times
   )
 
   @writes ~w(
@@ -77,7 +78,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
-    platform_report triage_move
+    platform_report triage_move work_add work_move work_order work_wrap
   )
 
   @type turn :: %{
@@ -413,6 +414,54 @@ defmodule Oneiroi.Brain.Tools do
         "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
+      ),
+      tool(
+        "message_times",
+        "When the latest messages of this conversation were said (brain#62): each with its time in your zone, who said it, its turn and its opening words, newest last, and the time now. For when you are unsure what came when; your transcript does not carry the times inline. limit is how many, 20 unless you say (at most 60).",
+        %{limit: %{type: "integer", minimum: 1, maximum: 60}},
+        []
+      ),
+      tool(
+        "work_list",
+        "Your work queue (sunna#33), in priority order: each long item with its number, status (open, in_work, blocked and on what, done, dropped), who added it, its runs and its last wrap; and the loop's state, the item running or why it rests. Your witness reads the same list.",
+        %{},
+        []
+      ),
+      tool(
+        "work_add",
+        "Add a long, multi-turn item to your work queue (sunna#33): what (one line, at most 300 characters) and done_when (what done looks like). It goes to the end; work_order moves it. Anything a conversation turn can finish stays in conversation. Your witness adds his the same way.",
+        %{what: %{type: "string"}, done_when: %{type: "string"}},
+        [:what, :done_when]
+      ),
+      tool(
+        "work_move",
+        "Set a work item's status with a note: open, blocked (say what blocks it in blocked_on), done or dropped. The loop runs the first open item in order; in_work is the loop's own.",
+        %{
+          number: %{type: "integer"},
+          status: %{type: "string", enum: ["open", "blocked", "done", "dropped"]},
+          blocked_on: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:number, :status, :note]
+      ),
+      tool(
+        "work_order",
+        "Reorder your work queue: the numbers you give go first, in that order; the rest keep their order after them.",
+        %{order: %{type: "array", items: %{type: "integer"}}},
+        [:order]
+      ),
+      tool(
+        "work_wrap",
+        "Wrap the run of the item in work now (sunna#33): what shipped, what slipped (if anything), why, and where it stands: done, open (another run picks it up) or blocked (say on what). Recorded on the queue for you both to read.",
+        %{
+          number: %{type: "integer"},
+          shipped: %{type: "string"},
+          slipped: %{type: "string"},
+          why: %{type: "string"},
+          status: %{type: "string", enum: ["done", "open", "blocked"]},
+          blocked_on: %{type: "string"}
+        },
+        [:number, :shipped, :why, :status]
       ),
       tool(
         "tool_request",
@@ -1622,6 +1671,72 @@ defmodule Oneiroi.Brain.Tools do
          do: "Planned. Your next free time starts from it."
   end
 
+  defp call("message_times", args, turn) do
+    limit = args["limit"] |> integer_or(20) |> max(1) |> min(60)
+    {rows, total} = Kumbukumbu.latest(turn.resident_id, turn.session_key, limit)
+
+    lines =
+      Enum.map_join(rows, "\n", fn m ->
+        words = m.content |> to_string() |> String.replace(~r/\s+/, " ") |> String.slice(0, 80)
+        "#{when_said(m)} · #{m.role} · [#{m.turn_ref}] #{words}"
+      end)
+
+    "Now: #{local_stamp(Clock.now())}. The last #{length(rows)} of this conversation's #{total} messages:\n" <>
+      lines
+  end
+
+  defp call("work_list", _args, turn), do: work_text(Oneiroi.Sunna.work_queue(turn.resident_id))
+
+  defp call("work_add", args, turn) do
+    with {:ok, n} <-
+           Oneiroi.Sunna.work_add(
+             turn.resident_id,
+             to_string(args["what"] || ""),
+             to_string(args["done_when"] || ""),
+             turn.resident
+           ),
+         do: "Added as work item ##{n}, at the end of the queue."
+  end
+
+  defp call("work_move", args, turn) do
+    with :ok <-
+           Oneiroi.Sunna.work_move(
+             turn.resident_id,
+             integer_or(args["number"], 0),
+             to_string(args["status"] || ""),
+             args["blocked_on"],
+             to_string(args["note"] || ""),
+             turn.resident
+           ),
+         do: "Work item ##{args["number"]} is #{args["status"]}."
+  end
+
+  defp call("work_order", args, turn) do
+    numbers = args["order"] |> List.wrap() |> Enum.map(&integer_or(&1, 0))
+
+    with :ok <- Oneiroi.Sunna.work_order(turn.resident_id, numbers, turn.resident),
+         do: "Reordered: #{Enum.map_join(numbers, ", ", &"##{&1}")} first."
+  end
+
+  defp call("work_wrap", args, turn) do
+    attrs = %{
+      shipped: args["shipped"],
+      slipped: args["slipped"],
+      why: args["why"],
+      status: args["status"],
+      blocked_on: args["blocked_on"]
+    }
+
+    with :ok <-
+           Oneiroi.Sunna.work_wrap(
+             turn.resident_id,
+             integer_or(args["number"], 0),
+             attrs,
+             turn.resident
+           ),
+         do: "Wrapped: work item ##{args["number"]} is #{args["status"]}."
+  end
+
   defp call("tool_request", args, turn),
     do: ask(turn, "tool", args["tool"], args["why"], @asked["tool"])
 
@@ -2362,6 +2477,30 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident
            ),
          do: "Asked as ##{n}. " <> then_words
+  end
+
+  # The work queue as she reads it (sunna#33): the loop's state, then
+  # each item in order with its last wrap.
+  defp work_text(%{items: []} = q), do: "Your work queue is empty. " <> work_state(q)
+
+  defp work_text(q),
+    do: work_state(q) <> "\n\n" <> Enum.map_join(q.items, "\n", &work_line/1)
+
+  defp work_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
+
+  defp work_state(%{rested: reason, rested_at: at}) when is_binary(reason),
+    do: "The loop rests: #{reason} (since #{local_stamp(at)})."
+
+  defp work_state(_q), do: "The loop has not run yet."
+
+  defp work_line(item) do
+    blocked = if item.blocked_on, do: " on #{item.blocked_on}", else: ""
+
+    wrap =
+      if item.wrapped_at, do: " Last wrap: shipped #{item.shipped}; why: #{item.why}.", else: ""
+
+    "##{item.number} [#{item.status}#{blocked}] #{item.what}. Done when: #{item.done_when} " <>
+      "(added by #{item.added_by}, #{item.runs} runs).#{wrap}"
   end
 
   defp ask_line(a) do

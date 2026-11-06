@@ -13,14 +13,16 @@ defmodule Oneiroi.Nisaba.Purpose do
   # `oracle`: the resident's own long reads (brain#49), on her pinned
   # model, hers to see and budget. `planning`: the turn that closes a
   # free-time slot (sunna#31, #32), its own line so a spent free-time line
-  # never refuses it and its cost is never folded in.
-  @all ~w(chat free_time planning judge hands embeddings oracle drafting regression)a
+  # never refuses it and its cost is never folded in. `work`: the work
+  # queue's runs (sunna#33), a line the witness sets, or the loop holds.
+  @all ~w(chat free_time planning work judge hands embeddings oracle drafting regression)a
   @witness_only ~w(drafting regression)a
 
   @type t ::
           :chat
           | :free_time
           | :planning
+          | :work
           | :judge
           | :hands
           | :embeddings

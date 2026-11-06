@@ -1,0 +1,68 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { WorkItem, WorkQueue as Queue } from '../../api/types';
+import { WorkQueue } from './WorkQueue';
+
+const item = (n: number, over: Partial<WorkItem> = {}): WorkItem => ({
+  number: n,
+  what: `Item ${n}`,
+  done_when: 'drafted',
+  status: 'open',
+  blocked_on: null,
+  position: n,
+  added_by: 'resident',
+  added_at: '2026-11-06T22:00:00Z',
+  note: null,
+  moved_by: null,
+  moved_at: null,
+  shipped: null,
+  slipped: null,
+  why: null,
+  wrapped_at: null,
+  runs: 0,
+  session_key: null,
+  ...over,
+});
+
+const queue = (over: Partial<Queue> = {}): Queue => ({
+  items: [item(1, { status: 'in_work', runs: 1 }), item(2, { added_by: 'witness' }), item(3, { status: 'done', shipped: 'the brief' })],
+  running: 1,
+  running_since: '2026-11-06T22:00:00Z',
+  rested: null,
+  rested_at: null,
+  runs_today: 1,
+  runs_a_day: 8,
+  budget: { cap: 5e9, spent: 1e9, left: 4e9, period: 'day' },
+  ...over,
+});
+
+describe('WorkQueue', () => {
+  it('shows the loop, the live items in order, and the finished apart', () => {
+    render(<WorkQueue residentName="Lily" queue={queue()} />);
+    expect(screen.getByText(/Running item #1 now\. 1 of 8 runs today\. Work budget: \$4\.00 left of \$5\.00 a day\./)).toBeTruthy();
+    expect(screen.getByText('running now · added by her · 1 runs')).toBeTruthy();
+    expect(screen.getByText('open · added by you · 0 runs')).toBeTruthy();
+    expect(screen.getByText('#3 Item 3: done. Shipped: the brief')).toBeTruthy();
+  });
+
+  it('says why the loop rests, and that no budget holds it', () => {
+    render(<WorkQueue residentName="Lily" queue={queue({ running: null, rested: 'empty, holding', budget: null })} />);
+    expect(screen.getByText(/Resting: empty, holding\..*No work budget is set, so the loop holds/)).toBeTruthy();
+  });
+
+  it('adds an item, moves one with a note, and moves one up', () => {
+    const onAdd = vi.fn();
+    const onMove = vi.fn();
+    const onOrder = vi.fn();
+    render(<WorkQueue residentName="Lily" queue={queue()} onAdd={onAdd} onMove={onMove} onOrder={onOrder} />);
+    fireEvent.change(screen.getByLabelText('What (one line)'), { target: { value: 'E2E test' } });
+    fireEvent.change(screen.getByLabelText('Done when'), { target: { value: 'green' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to the queue' }));
+    expect(onAdd).toHaveBeenCalledWith('E2E test', 'green');
+    fireEvent.change(screen.getByLabelText('A note on #2'), { target: { value: 'not yet' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Done' })[1]);
+    expect(onMove).toHaveBeenCalledWith(2, 'done', null, 'not yet');
+    fireEvent.click(screen.getByRole('button', { name: 'Move up' }));
+    expect(onOrder).toHaveBeenCalledWith([2, 1]);
+  });
+});

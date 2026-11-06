@@ -112,6 +112,16 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many characters of a past tool answer a replayed transcript carries: the call and the head of its answer, enough to know what was looked at; the model can call again for the rest. A bound, not measured"},
+      {:compaction, "BRAIN_COMPACTION",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "off",
+       usage:
+         "whether a conversation that outgrows its window is compacted into a summary (on) or truncated (off, brain#60): off, the turn reads the last BRAIN_TRANSCRIPT_MESSAGES messages whole with a line saying how many came before and that transcript_read pages back through them, and no summary is written or shown. Off since 2026-11-06, the witness's call: compaction's summaries were part of the month's corruption"},
+      {:history_stamps, "BRAIN_HISTORY_STAMPS",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "off",
+       usage:
+         "whether each message of the transcript the resident is shown carries when it was said, inline at its head (brain#58, #59): on or off. Off since 2026-11-06: within an hour of it going on, her model began opening replies with mangled stamps and two turns degenerated into hundreds of lines, stamp fragments through them; on again only by a deliberate choice"},
       {:oracle_batch, "BRAIN_ORACLE_BATCH",
        cast: :integer,
        default: "5",
@@ -150,6 +160,8 @@ defmodule Oneiroi.Brain do
        "the turn did not complete: the witness's words were kept and no reply was captured (brain#45)",
        remedy:
          "the provider failure is recorded as a capture failure on the session; send the message again"},
+      {:brain_nothing_running, "no turn is running in that conversation to stop",
+       remedy: "nothing to do: the turn had already ended"},
       {:brain_turn_crashed, "the turn's process stopped before it answered",
        remedy: "send the message again; the session's next message still runs"},
       {:brain_budget_stopped,
@@ -218,6 +230,10 @@ defmodule Oneiroi.Brain do
     do: Session.submit(resident_id, session_key, text, actor, ref)
   )
 
+  @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
+  @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}
+  defexport(stop(resident_id, session_key, by), do: Session.stop(resident_id, session_key, by))
+
   @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
@@ -276,4 +292,10 @@ defmodule Oneiroi.Brain do
   defexport(draft(resident_id, file, prompt, actor),
     do: Drafting.draft(resident_id, file, prompt, actor)
   )
+
+  @doc false
+  def cast_on_off("on"), do: {:ok, true}
+  def cast_on_off("off"), do: {:ok, false}
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_on_off(other), do: {:error, "is #{inspect(other)}, expected on or off"}
 end

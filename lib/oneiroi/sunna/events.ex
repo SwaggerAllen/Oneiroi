@@ -152,4 +152,51 @@ defmodule Oneiroi.Sunna.Events do
     # its own line: its conversation and what it cost, in nano-dollars.
     use Oneiroi.Event, version: 1, fields: [:id, :session_key, :cost_nanos]
   end
+
+  # The work queue (sunna#33), on `work-<resident_id>`: long items in
+  # priority order, either party's, run one at a time on completion.
+
+  defmodule WorkAdded do
+    # An item, numbered from 1, appended to the end of the order.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :what, :done_when]
+  end
+
+  defmodule WorkMoved do
+    # A status set by hand (open, blocked, done, dropped), with its note;
+    # `blocked_on` names what holds a blocked item.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :number, :status, :blocked_on]
+  end
+
+  defmodule WorkOrdered do
+    # The whole order after the change, numbers first to last.
+    use Oneiroi.Event, version: 1, fields: [:id, :order]
+  end
+
+  defmodule WorkWrapped do
+    # The wrap a run closes with: what shipped, what slipped and why, and
+    # where the item stands after it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on]
+  end
+
+  defmodule WorkStarted do
+    # A run of an item claimed, in its conversation, on the resident's day.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :session_key, :day]
+  end
+
+  defmodule WorkRunEnded do
+    # The run over: whether it was wrapped, the item's status after (an
+    # unwrapped run leaves it open), and whether a stop ended it (brain#61),
+    # which rests the loop until either party touches the queue.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :wrapped, :status, :stopped]
+  end
+
+  defmodule WorkRested do
+    # The loop resting, and why: "empty, holding" is a state, not a failure.
+    use Oneiroi.Event, version: 1, fields: [:id, :reason]
+  end
 end

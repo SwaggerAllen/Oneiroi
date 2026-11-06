@@ -41,6 +41,23 @@ defmodule Oneiroi.Brain.History do
   end
 
   @doc """
+  The zone the transcript is stamped in, or nil when the inline stamps
+  are off (`BRAIN_HISTORY_STAMPS`, brain#59): off, nothing is stamped.
+  """
+  @spec zone(String.t()) :: String.t() | nil
+  def zone(resident_id),
+    do: if(Config.fetch!(:brain, :history_stamps), do: Local.zone(resident_id), else: nil)
+
+  @doc "The prompt's line about the stamps, when they are on; empty when off."
+  @spec stamps_line() :: String.t()
+  def stamps_line do
+    if Config.fetch!(:brain, :history_stamps),
+      do:
+        "\n\nWhere a message in the conversation begins with a time in brackets, like [2026-11-06 10:54 PST], the platform put it there: it is when that message was said, in your zone, and [time unknown] means the record has no time for it. Don't write one on your own replies; yours is added when it is kept.",
+      else: ""
+  end
+
+  @doc """
   The stamp a message is shown under in `zone`: `[2026-11-06 10:54 PST] `,
   `[time unknown] ` for an inferred instant, and nothing with no zone or
   no instant.

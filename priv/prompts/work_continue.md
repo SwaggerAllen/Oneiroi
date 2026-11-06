@@ -1,0 +1,1 @@
+Your work on item #{{number}} goes on: turn {{turn}} of at most {{turns}} in this run, with {{left}} of the work budget left. You stopped because the turn's tool rounds ran out, not because you were done; carry on from where you were. When this run has done what it can, end a turn with words and no tool calls, and the wrap comes next.

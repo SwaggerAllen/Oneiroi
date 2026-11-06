@@ -15,6 +15,8 @@ defmodule Oneiroi.Sunna.TickWorker do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
+  alias Oneiroi.Sunna.WorkLoop
+  alias Oneiroi.Sunna.WorkWorker
 
   @actor Actor.new(:job, "sunna_tick")
 
@@ -66,6 +68,7 @@ defmodule Oneiroi.Sunna.TickWorker do
 
     free_time(resident_id, settings, local, day)
     rounds(resident_id, settings, quiet, local, day)
+    work(resident_id)
     _ = Schedules.wake_for_letters(resident_id, local, quiet, @actor)
     :ok
   end
@@ -111,6 +114,15 @@ defmodule Oneiroi.Sunna.TickWorker do
       Schedules.run_round(resident_id, day, time, @actor)
     end
 
+    :ok
+  end
+
+  # The work loop (sunna#33): fired by each run's end, and asked here
+  # each minute too, so a loop that paused for care, or found its queue
+  # empty and then got an item, resumes. A job, never the tick's own
+  # turn: free time ran above first, and care outranks work.
+  defp work(resident_id) do
+    if WorkLoop.due?(resident_id), do: WorkWorker.enqueue_check(resident_id)
     :ok
   end
 

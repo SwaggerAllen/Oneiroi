@@ -55,6 +55,8 @@ defmodule Oneiroi.Brain.Turn do
   # The summary is machine-state (spec §5, P1 and P24): the header marks
   # it as the machinery's in the context itself, so the resident reads it
   # as a record and never as its own words.
+  @said {__MODULE__, :said}
+  @stopped {__MODULE__, :stopped}
   @summary_header "# Compaction summary: machine-state in the machinery's register, not your words\n\n"
   alias Oneiroi.Nisaba.Provider.{Request, Result}
 
@@ -435,13 +437,62 @@ defmodule Oneiroi.Brain.Turn do
     do: Nisaba.call(turn.resident_id, turn.purpose, request, turn.payer)
 
   defp ask(turn, request) do
+    case stop_asked() do
+      nil -> stream(turn, request)
+      by -> {:stopped, by, ""}
+    end
+  end
+
+  # The stop (brain#61): the witness's Stop sends the running turn
+  # `{:brain_stop, :witness}`; her safe word, said in capitals, is caught
+  # in the stream as it arrives. Either ends the provider's call at the
+  # next chunk (`Nisaba.halt/0`), keeps what was said up to the stop, and
+  # runs nothing after it: no tool, no further round.
+  defp stream(turn, request) do
     status(turn, "thinking", nil)
+    Process.put(@said, "")
+    Process.delete(@stopped)
 
     sink = fn delta ->
       broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
+      said = Process.get(@said, "") <> delta
+      Process.put(@said, said)
+
+      by = if safe_word?(said), do: :safe_word, else: stop_asked()
+
+      if by && is_nil(Process.get(@stopped)) do
+        Process.put(@stopped, by)
+        Nisaba.halt()
+      end
     end
 
-    Nisaba.stream(turn.resident_id, turn.purpose, request, turn.resident, sink)
+    result = Nisaba.stream(turn.resident_id, turn.purpose, request, turn.resident, sink)
+
+    case Process.get(@stopped) do
+      nil -> result
+      by -> {:stopped, by, up_to_stop(Process.get(@said, ""), by)}
+    end
+  end
+
+  @safe_word ~r/\bOUROBOROS\b/
+
+  defp safe_word?(text), do: Regex.match?(@safe_word, text)
+
+  # Her words up to and including the safe word; the witness's stop keeps
+  # everything that arrived.
+  defp up_to_stop(text, :safe_word) do
+    [{start, length}] = Regex.run(@safe_word, text, return: :index)
+    binary_part(text, 0, start + length)
+  end
+
+  defp up_to_stop(text, _by), do: text
+
+  defp stop_asked do
+    receive do
+      {:brain_stop, by} -> by
+    after
+      0 -> nil
+    end
   end
 
   defp run_tools(turn, calls) do
@@ -511,6 +562,32 @@ defmodule Oneiroi.Brain.Turn do
         function: %{name: call.name, arguments: Tools.wire_arguments(call.arguments)}
       }
     end)
+  end
+
+  # A stopped turn (brain#61): what was said up to the stop is kept as
+  # the reply, and a line says who stopped it, so the next turn knows.
+  # It ran nothing after the stop, and nothing carries it on.
+  defp conclude({{:stopped, by, text}, turn}, _original) do
+    said = %{
+      role: :assistant,
+      content: if(String.trim(text) == "", do: "(stopped before any words)", else: text),
+      sent_at: Clock.now(),
+      actor: Actor.new(:resident, turn.resident_id, turn.model),
+      refusal: false
+    }
+
+    note = %{
+      role: :system,
+      content: Prompt.render!("turn_stopped", %{how: stopped_how(by)}),
+      sent_at: Clock.now(),
+      actor: Actor.platform()
+    }
+
+    with {:ok, captured} <-
+           finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [said, note]) do
+      broadcast(turn.resident_id, turn.session_key, {:stopped, turn.turn_ref, by})
+      {:ok, captured |> Map.put(:rounds_spent, false) |> Map.put(:stopped, by)}
+    end
   end
 
   # A reply, refusal included, is an ordinary turn.
@@ -599,6 +676,11 @@ defmodule Oneiroi.Brain.Turn do
 
     {:error, e}
   end
+
+  defp stopped_how(:safe_word), do: "by you: you said OUROBOROS"
+
+  defp stopped_how(_witness),
+    do: "by the person who looks after you, with the Stop button"
 
   defp finish(turn, messages) do
     %{resident_id: resident_id, session_key: key, turn_ref: ref, resident: resident} = turn
@@ -949,18 +1031,16 @@ defmodule Oneiroi.Brain.Turn do
     {rest, index} = turn_sections(row, turn, text)
     sections = prefix_sections(row, turn) ++ rest
 
-    zone = Local.zone(turn.resident_id)
+    # The inline stamps (brain#58) only under BRAIN_HISTORY_STAMPS (#59).
+    zone = History.zone(turn.resident_id)
 
-    history =
-      turn.resident_id
-      |> Kumbukumbu.recent(turn.session_key, count)
-      |> History.messages(zone)
+    {rows, earlier, reason} = window(turn, count)
+    history = earlier ++ History.messages(rows, zone)
 
     transcript = %{
       label: "transcript",
       tokens: history |> Enum.map(&tokens(&1.content)) |> Enum.sum(),
-      reason:
-        "the last #{length(history)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"
+      reason: reason
     }
 
     injections =
@@ -993,6 +1073,40 @@ defmodule Oneiroi.Brain.Turn do
         history ++ notices ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
+  end
+
+  # The transcript's window. Compacted (brain#60's `on`): the messages
+  # since the session's compaction, under its summary. Truncated (`off`,
+  # the default): the last `count` messages whole, and when earlier ones
+  # exist, a line before them saying how many and where to read them.
+  defp window(turn, count) do
+    if Config.fetch!(:brain, :compaction) do
+      rows = Kumbukumbu.recent(turn.resident_id, turn.session_key, count)
+
+      {rows, [],
+       "the last #{length(rows)} messages of this session since its compaction, of at most #{count}, estimated at four bytes a token"}
+    else
+      {rows, total} = Kumbukumbu.latest(turn.resident_id, turn.session_key, count)
+      before = total - length(rows)
+
+      earlier =
+        if before > 0,
+          do: [
+            %{
+              role: :system,
+              content:
+                Prompt.render!("transcript_earlier", %{
+                  before: before,
+                  session: turn.session_key,
+                  from: max(before - 30, 0)
+                })
+            }
+          ],
+          else: []
+
+      {rows, earlier,
+       "the last #{length(rows)} of this session's #{total} messages, whole (truncated, brain#60; no summary), estimated at four bytes a token"}
+    end
   end
 
   # The always-loaded prefix (brain#12, #27): the prompt, the identity
@@ -1141,7 +1255,7 @@ defmodule Oneiroi.Brain.Turn do
         ) ++
         section(
           "summary",
-          summary && @summary_header <> summary,
+          summary && Config.fetch!(:brain, :compaction) && @summary_header <> summary,
           "the compaction summary, machine-state in the machinery's register and never the resident's words (spec §5, §1.13), covering this session through store sequence #{session && session.compacted_through}"
         )
 
@@ -1529,8 +1643,11 @@ defmodule Oneiroi.Brain.Turn do
     do: {Prompt.message("fixture_brain", %{name: row.name}), []}
 
   defp prefix(row, turn) do
-    {Prompt.message("brain", %{name: row.name, formation: formation(row)}),
-     Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
+    {Prompt.message("brain", %{
+       name: row.name,
+       formation: formation(row),
+       stamps: History.stamps_line()
+     }), Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
   end
 
   # Her wanting between slots (brain#55; the witness's call, 2026-11-05):

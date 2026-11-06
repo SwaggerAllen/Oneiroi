@@ -92,3 +92,7 @@ the whole arguments object twice, as two pieces after the one naming the
 call; all 51 routed to Groq sent them once. The join here is right, the
 pieces concatenated as the format says; the repetition is CoreWeave's.
 
+## #22
+Ending a call by killing the process that runs it loses the words and
+the ledger row together; asking the collector to halt keeps both, at
+the cost of an estimated price for the words that were sent.

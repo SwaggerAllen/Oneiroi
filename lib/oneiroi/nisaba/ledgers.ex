@@ -18,6 +18,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   alias Oneiroi.Config.Secret
   alias Oneiroi.Nisaba.Commands
   alias Oneiroi.Nisaba.Error
+  alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Period
   alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
@@ -99,6 +100,7 @@ defmodule Oneiroi.Nisaba.Ledgers do
   def stream(resident_id, purpose, %Request{} = request, %Actor{} = actor, sink)
       when is_function(sink, 1) do
     request = tag(request, resident_id)
+    Halt.clear()
 
     metered(resident_id, purpose, actor, fn provider, key ->
       provider.stream(request, key, sink)

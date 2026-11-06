@@ -49,7 +49,7 @@ defmodule OneiroiWeb.ConversationController do
        %Schema{
          type: :object,
          properties: %{
-           kind: %Schema{type: :string, enum: ["main", "free_time", "round", "hands"]},
+           kind: %Schema{type: :string, enum: ["main", "free_time", "round", "work", "hands"]},
            domain: %Schema{
              type: :string,
              description:
@@ -401,6 +401,37 @@ defmodule OneiroiWeb.ConversationController do
 
       {:error, e} ->
         error(conn, 422, e)
+    end
+  end
+
+  operation(:stop,
+    summary:
+      "Stop the turn running now in this session (brain#61): its call ends at the next chunk, what was said so far is kept, and nothing after it runs",
+    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    responses: [no_content: "stopped", conflict: "nothing was running"]
+  )
+
+  # Witness-only, on a session this account reads, as the preview is.
+  def stop(%{assigns: %{principal: p}} = conn, %{"id" => id, "key" => key}) do
+    with {:ok, %{resident_id: ^id}, _messages} <-
+           Kumbukumbu.transcript({:account, p.account_id}, key),
+         :ok <- Oneiroi.Brain.stop(id, key, :witness) do
+      send_resp(conn, 204, "")
+    else
+      {:ok, _elsewhere, _messages} ->
+        problem(
+          conn,
+          404,
+          :no_such_session,
+          :web_conversation_stop_session_elsewhere,
+          "no session with that key is this resident's"
+        )
+
+      {:error, %Kumbukumbu.Error{} = e} ->
+        error(conn, 404, e)
+
+      {:error, e} ->
+        error(conn, 409, e)
     end
   end
 

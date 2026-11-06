@@ -559,6 +559,11 @@ defmodule Oneiroi.Kumbukumbu do
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(recent(resident_id, key, count), do: Conversations.recent(resident_id, key, count))
 
+  @doc "The last `count` messages of a session whatever any compaction covered, and how many it holds in all (brain#60)."
+  @spec latest(String.t(), String.t(), pos_integer()) ::
+          {[Oneiroi.Kumbukumbu.Store.Message.t()], non_neg_integer()}
+  defexport(latest(resident_id, key, count), do: Conversations.latest(resident_id, key, count))
+
   @doc "Messages holding `text`, newest first, unweighted."
   @spec search(Oneiroi.Scope.t(), String.t(), pos_integer()) :: [
           Oneiroi.Kumbukumbu.Store.Message.t()

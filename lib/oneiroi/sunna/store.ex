@@ -101,6 +101,52 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule WorkItem do
+    @moduledoc "An item of the work queue (sunna#33): what, done when, its place and status, and its last wrap."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_work_item" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:what, :string)
+      field(:done_when, :string)
+      field(:status, :string)
+      field(:blocked_on, :string)
+      field(:position, :integer)
+      field(:added_by, :string)
+      field(:added_at, :utc_datetime_usec)
+      field(:note, :string)
+      field(:moved_by, :string)
+      field(:moved_at, :utc_datetime_usec)
+      field(:shipped, :string)
+      field(:slipped, :string)
+      field(:why, :string)
+      field(:wrapped_at, :utc_datetime_usec)
+      field(:runs, :integer, default: 0)
+      field(:session_key, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule WorkQueue do
+    @moduledoc "The work loop's state (sunna#33): the item running and since when, the rest and its reason, and the day's runs."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_work_queue" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:running, :integer)
+      field(:running_key, :string)
+      field(:running_since, :utc_datetime_usec)
+      field(:rested_reason, :string)
+      field(:rested_at, :utc_datetime_usec)
+      field(:run_day, :string)
+      field(:runs_on_day, :integer, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Settings do
     @moduledoc "The resident's one schedule row: free time, quiet hours, the last free-time run."
     use Ecto.Schema
@@ -163,6 +209,36 @@ defmodule Oneiroi.Sunna.Store do
   @spec free_time_history(pos_integer()) :: [FreeTimeRun.t()]
   def free_time_history(limit),
     do: Repo.all(from(r in FreeTimeRun, order_by: [desc: r.at], limit: ^limit))
+
+  @doc "The work queue's items in priority order (sunna#33)."
+  @spec work_items() :: [WorkItem.t()]
+  def work_items, do: Repo.all(from(w in WorkItem, order_by: [w.position, w.number]))
+
+  @doc "The work loop's state, or nil before anything was queued."
+  @spec work_queue() :: WorkQueue.t() | nil
+  def work_queue, do: Repo.one(from(q in WorkQueue, limit: 1))
+
+  @doc "Whether a free-time pass is underway: a slot ran since `since` and its planning turn has not closed it (sunna#33's care rule)."
+  @spec free_time_underway?(DateTime.t()) :: boolean()
+  def free_time_underway?(since),
+    do:
+      Repo.exists?(
+        from(r in FreeTimeRun,
+          where: r.outcome == "ran" and r.at >= ^since and is_nil(r.planning_nanos)
+        )
+      )
+
+  @doc "Every resident with work open or running, for the tick: a cross-tenant read under the platform scope."
+  @spec working_residents() :: [String.t()]
+  def working_residents,
+    do:
+      Repo.all(
+        from(w in WorkItem,
+          where: w.status in ["open", "in_work"],
+          distinct: true,
+          select: w.resident_id
+        )
+      )
 
   @spec settings() :: Settings.t() | nil
   def settings, do: Repo.one(from(s in Settings, limit: 1))

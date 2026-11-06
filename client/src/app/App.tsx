@@ -12,6 +12,7 @@ import type {
   Bookmark,
   ContextPreview,
   FreeTimeRun,
+  WorkQueue as WorkQueueData,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -42,6 +43,7 @@ import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
 import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
+import { WorkQueue } from '../screens/schedule/WorkQueue';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
@@ -513,6 +515,9 @@ function ChatContainer({ resident }: { resident: Resident }) {
           .then(setPreview)
           .catch(() => setPreview(null));
       }}
+      onStop={() => {
+        api.stopTurn(resident.id, open).catch(() => undefined);
+      }}
       onSend={(text) => {
         setPreview(null);
         const item: Outgoing = { ref: newRef(), text, state: 'sending', attempts: 0 };
@@ -953,6 +958,8 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
   // Free time, remembered (brain#53): read beside the schedule; while it
   // has not come, or did not, the screen goes without it.
   const [remembered, setRemembered] = useState<FreeTimeRun[] | undefined>(undefined);
+  // The work queue (sunna#33), read beside the schedule the same way.
+  const [work, setWork] = useState<WorkQueueData | undefined>(undefined);
   const [error, setError] = useState<ApiError | null>(null);
   // A fresh screen per load, so each form starts from what the server says.
   const [version, setVersion] = useState(0);
@@ -967,6 +974,10 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
     api
       .freeTimeRuns(id)
       .then(setRemembered)
+      .catch(() => undefined);
+    api
+      .work(id)
+      .then(setWork)
       .catch(() => undefined);
   }, [id]);
   useEffect(() => load(), [load]);
@@ -991,6 +1002,16 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         onSetRounds={(every, waking) => act(api.setRounds(id, every, waking))}
         onSetTimezone={(tz) => act(api.setTimezone(id, tz))}
       />
+      {work ? (
+        <WorkQueue
+          key={`work-${version}`}
+          residentName={resident.name}
+          queue={work}
+          onAdd={(what, doneWhen) => act(api.addWork(id, what, doneWhen))}
+          onMove={(n, status, blockedOn, note) => act(api.moveWork(id, n, status, blockedOn, note))}
+          onOrder={(order) => act(api.orderWork(id, order))}
+        />
+      ) : null}
     </>
   );
 }

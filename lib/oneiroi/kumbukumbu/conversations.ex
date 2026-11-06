@@ -376,6 +376,13 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   def recent(resident_id, key, count),
     do: Scope.resident(resident_id, fn -> Store.recent_messages(key, count) end)
 
+  @doc "The last `count` messages of a session whatever any compaction covered, and how many it holds in all (brain#60, truncation)."
+  def latest(resident_id, key, count),
+    do:
+      Scope.resident(resident_id, fn ->
+        {Store.latest_messages(key, count), Store.message_count(key)}
+      end)
+
   @doc "The session and what compaction has not covered: the count of messages after it, and those messages."
   def uncompacted(resident_id, key) do
     Scope.resident(resident_id, fn ->
