@@ -64,6 +64,14 @@ Inside the reader, the same line again:
   writes to the conversation that asked. Mail from a person writing to
   her is correspondence and stays the scrape's.
 
+- **Writing, when approved.** A piece the witness approved (seshat#42)
+  shows in the same five-minute check. A publish run types its title and
+  copy into a new post on the resident's publication
+  (`SUBSTACK_PUBLICATION` in reader.conf, which must also be on the
+  correspondence allowlist) and leaves it a draft: it never presses
+  Publish. The witness publishes it on Substack; the next run sees it
+  live and gives Oneiroi the URL, which goes into the piece.
+
 A reply the run could not send is tried three times, then left for the
 witness, who sees it still approved and unsent. A research question
 with no notes after two runs is recorded as failed, with the reason.

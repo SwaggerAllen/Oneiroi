@@ -58,7 +58,25 @@ defmodule OneiroiWeb.WaitingController do
         do: Enum.map(Seshat.digests(id, status: "open"), &%{number: &1.number}),
         else: []
 
-    json(conn, %{letters: letters, replies: replies, research: research, digests: digests})
+    # The writing gate (seshat#42): approved pieces to draft and drafted
+    # ones to watch, by path alone.
+    pieces =
+      if role in ["reader", :witness] do
+        %{to_draft: draft, to_watch: watch} = Seshat.pieces_for_reader(id)
+
+        Enum.map(draft, &%{path: &1.path, step: "draft"}) ++
+          Enum.map(watch, &%{path: &1.path, step: "watch"})
+      else
+        []
+      end
+
+    json(conn, %{
+      letters: letters,
+      replies: replies,
+      research: research,
+      digests: digests,
+      pieces: pieces
+    })
   end
 
   defp letter(l), do: %{number: l.number, from: l.from_name, in_reply_to: l.in_reply_to}

@@ -290,7 +290,18 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   @doc "A witness publishes a piece at a URL: the event first, then the file's status set to published with it, which the index reads."
-  def publish(resident_id, path, url, %Actor{kind: :witness} = actor) do
+  def publish(resident_id, path, url, %Actor{kind: :witness} = actor),
+    do: record_published(resident_id, path, url, actor)
+
+  def publish(_resident_id, _path, _url, %Actor{}),
+    do: {:error, Error.new(:seshat_not_the_witness, :seshat_documents_publish_witness_only)}
+
+  @doc """
+  Records a piece published at a URL by whoever brings the URL back: the
+  witness by hand, or the reader for a piece the witness approved and
+  published from its Substack draft (seshat#42, `PieceReviews`).
+  """
+  def record_published(resident_id, path, url, %Actor{} = actor) do
     with {:ok, path} <- normalize(path),
          {:ok, _} <-
            dispatch(%Commands.PublishPiece{
@@ -311,9 +322,6 @@ defmodule Oneiroi.Seshat.Documents do
       :ok
     end
   end
-
-  def publish(_resident_id, _path, _url, %Actor{}),
-    do: {:error, Error.new(:seshat_not_the_witness, :seshat_documents_publish_witness_only)}
 
   @doc "The keepsakes, by name: each row with its note, the resident's why, when she has given one (seshat#32)."
   def keepsakes(resident_id),

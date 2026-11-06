@@ -46,6 +46,24 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule PieceReview do
+    @moduledoc "A writing piece's review (seshat#42): approved, declined or drafted, the note, the version, the Substack draft."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_piece_review" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:path, :string, primary_key: true)
+      field(:state, :string)
+      field(:note, :string)
+      field(:hash, :string)
+      field(:decided_at, :utc_datetime_usec)
+      field(:draft_url, :string)
+      field(:drafted_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Digest do
     @moduledoc "A digest asked of the reader (seshat#40): since when, by whom, and how it settled."
     use Ecto.Schema

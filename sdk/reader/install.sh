@@ -73,6 +73,9 @@ ONEIROI_URL=$URL
 ONEIROI_RESIDENT=$RESIDENT
 SUBSTACK_ACCOUNT=$SUBSTACK
 EMAIL_ACCOUNT=$EMAIL
+# The resident's publication, like https://name.substack.com: where the
+# approved writing is drafted (seshat#42). Unset, it waits.
+SUBSTACK_PUBLICATION=${SUBSTACK_PUBLICATION:-}
 # The sites the reader's browser may reach, semicolon-separated origins
 # (scheme and host, no wildcards), or * for any. Edited here; each run
 # reads it.

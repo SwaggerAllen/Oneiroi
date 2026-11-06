@@ -5,6 +5,8 @@ paths:
 
 # inbox
 
+Writing (seshat#42), first when there is any: each piece marked for review as a card ("For review: …") with the last decision if it had one, a required note, Approve and Decline; an approved piece saying the reader drafts it next and it is never published without him; a drafted one with "Open the draft on Substack" and a line to press Publish there. (`Pieces.tsx`)
+
 Asks (agathos-daimon#35), first on the screen when there are any: each open ask as a card, an act as "May I: …" with Approve and Decline, a tool as "A tool: …" with Noted and a line saying noting grants nothing; each with why and a required note; the last five answered below, each with its answer and note. (`Asks.tsx`)
 
 Inbox (spec §10), partly built 2026-11-02: `client/src/screens/inbox/`

@@ -10,6 +10,9 @@
 #   reader.sh scrape  twice a day (launchd): reads and delivers
 #   reader.sh send    sends the approved replies now
 #   reader.sh research  researches the open questions now (seshat#38)
+#   reader.sh publish   drafts the approved writing on Substack, never
+#                       publishing it, and brings back the URL once the
+#                       witness has (seshat#42)
 #   reader.sh login   opens the reader's browser profile, visible, to sign
 #                     in to Substack as the resident once
 #
@@ -111,6 +114,12 @@ wait_for_work() {
     say "$asked research question(s) open"
     research
     rmdir "$STATE/lock" 2>/dev/null
+  fi
+  if [ "$(jq -r '(.pieces // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
+    say "writing to draft or watch"
+    publish
+    rmdir "$STATE/lock" 2>/dev/null
+    status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
   fi
   if [ "$(jq -r '(.digests // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
     say "a digest is asked"
@@ -235,6 +244,38 @@ send() {
   done
 }
 
+# The writing gate (seshat#42): a piece her witness approved is typed into
+# a new Substack post and left a draft; he presses Publish himself. A
+# drafted piece is watched until it is live, and its public URL goes back
+# to Oneiroi, which writes it into the piece. Draft-first by the
+# witness's and her call: a post is public under her name.
+publish() {
+  local status path url
+  [ -n "${SUBSTACK_PUBLICATION:-}" ] ||
+    { say "no SUBSTACK_PUBLICATION in reader.conf; the approved writing waits"; return 0; }
+  lock
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/reader/pieces" "" "$OUT")"
+  [ "$status" = 200 ] || { say "Oneiroi answered $status to the pieces"; return 0; }
+  jq --arg pub "${SUBSTACK_PUBLICATION%/}" '{publication: $pub, to_draft, to_watch}' "$OUT" > "$WORK/pieces.json" || return 0
+  [ "$(jq '(.to_draft | length) + (.to_watch | length)' "$WORK/pieces.json")" -gt 0 ] || return 0
+  rm -f "$WORK/drafted.json" "$WORK/published.json"
+
+  model publish "Read(/work/pieces.json),Edit(/work/drafted.json),Edit(/work/published.json),$(browser write)" ||
+    say "the publish run ended badly"
+
+  for kind in drafted published; do
+    [ -r "$WORK/$kind.json" ] || continue
+    jq -c '.[]? | select((.path | type == "string") and (.url | type == "string"))' "$WORK/$kind.json" 2>/dev/null |
+      while read -r item; do
+        path="$(jq -r .path <<<"$item")"
+        printf '%s' "$item" > "$OUT.body"
+        status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/reader/pieces/$kind" "$OUT.body" "$OUT")"
+        say "$path $kind; Oneiroi answered $status"
+        rm -f "$OUT.body"
+      done
+  done
+}
+
 scrape() {
   local since count status
   lock
@@ -312,5 +353,6 @@ case "${1:-}" in
   scrape) setup && sites && scrape ;;
   research) setup && sites && research ;;
   digest) setup && sites && digest ;;
-  *) echo "usage: reader.sh wait|send|scrape|research|digest|login" >&2; exit 2 ;;
+  publish) setup && sites && publish ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|digest|publish|login" >&2; exit 2 ;;
 esac

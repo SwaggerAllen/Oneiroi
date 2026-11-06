@@ -68,6 +68,10 @@ defmodule Oneiroi.Seshat do
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
+      Events.PieceReviewed,
+      Events.PieceDrafted,
+      PieceReviews,
+      PiecesRouter,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.DocumentRemoved,
@@ -106,6 +110,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Oracles
+  alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.Researches
 
   @impl Oneiroi.Component
@@ -186,6 +191,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentWritten, 1},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
+      {Oneiroi.Seshat.Events.PieceReviewed, 1},
+      {Oneiroi.Seshat.Events.PieceDrafted, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
@@ -272,6 +279,11 @@ defmodule Oneiroi.Seshat do
       {:seshat_other_resident,
        "that citation names another resident's library, which sharing between residents does not reach yet",
        remedy: "read a document of your own library by its path or your own slug's citation"},
+      {:seshat_review_invalid, "a review approves or declines a piece, with a note",
+       remedy: "choose approve or decline and say why"},
+      {:seshat_not_approved,
+       "the reader drafts only a piece the witness approved, and reports published only one it drafted",
+       remedy: "approve the piece first; the reader takes it from there"},
       {:seshat_not_publishable, "only a kind with a status (writing) is published",
        remedy: "publish a writing piece"},
       {:seshat_url_invalid, "a published URL is http or https", remedy: "give the URL"},
@@ -305,7 +317,12 @@ defmodule Oneiroi.Seshat do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Seshat.Projectors.Library, Oneiroi.Seshat.Projectors.Journal]
+  def children,
+    do: [
+      Oneiroi.Seshat.Projectors.Library,
+      Oneiroi.Seshat.Projectors.Journal,
+      Oneiroi.Seshat.Projectors.Pieces
+    ]
 
   # ---- the registry ----
 
@@ -625,4 +642,33 @@ defmodule Oneiroi.Seshat do
   @doc "Days before today, among the last `days` opened, planned and never wrapped: what the journal delta audit reads."
   @spec unwrapped_days(String.t(), pos_integer()) :: [String.t()]
   defexport(unwrapped_days(resident_id, days), do: Journals.unwrapped_days(resident_id, days))
+
+  @doc "The writing gate (seshat#42): pieces for review, approved and drafted."
+  @spec pieces(String.t()) :: map()
+  defexport(pieces(resident_id), do: PieceReviews.pieces(resident_id))
+
+  @doc "The witness approves or declines a piece marked for review, with a note."
+  @spec review_piece(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(review_piece(resident_id, path, decision, note, actor),
+    do: PieceReviews.review(resident_id, path, decision, note, actor)
+  )
+
+  @doc "What waits for the reader: approved pieces to draft and drafted ones to watch."
+  @spec pieces_for_reader(String.t()) :: map()
+  defexport(pieces_for_reader(resident_id), do: PieceReviews.for_reader(resident_id))
+
+  @doc "The reader made a Substack draft of an approved piece."
+  @spec piece_drafted(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(piece_drafted(resident_id, path, url, actor),
+    do: PieceReviews.drafted(resident_id, path, url, actor)
+  )
+
+  @doc "The reader found a drafted piece published at a URL."
+  @spec piece_published(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(piece_published(resident_id, path, url, actor),
+    do: PieceReviews.published(resident_id, path, url, actor)
+  )
 end

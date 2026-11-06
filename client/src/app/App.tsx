@@ -29,6 +29,7 @@ import type {
   Session,
   Tag,
   Ask,
+  Pieces,
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { ErrorNotice } from '../components/ErrorNotice';
@@ -539,11 +540,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     blocks: Block[];
     addresses: string[];
     asks: Ask[];
+    pieces: Pieces;
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id)])
-      .then(([letters, messages, replies, blocks, addresses, asks]) => setData({ letters, messages, replies, blocks, addresses, asks }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id), api.pieces(id)])
+      .then(([letters, messages, replies, blocks, addresses, asks, pieces]) => setData({ letters, messages, replies, blocks, addresses, asks, pieces }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -560,6 +562,7 @@ function InboxContainer({ resident }: { resident: Resident }) {
         {...data}
         onSendLetter={(to, text) => act(api.sendLetter(id, to, text))}
         onAnswerAsk={(number, decision, note) => act(api.answerAsk(id, number, decision, note))}
+        onReviewPiece={(path, decision, note) => act(api.reviewPiece(id, path, decision, note))}
         actions={{
           onDecideReply: (number, approve, note) => act(api.decideReply(id, number, approve, note)),
           onMarkSent: (number, url) => act(api.markSent(id, number, url)),

@@ -1,6 +1,7 @@
 import type {
   Adapter,
   Ask,
+  Pieces,
   ApiError,
   Bookmark,
   ContextPreview,
@@ -232,6 +233,9 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/checkins/${key}`, { label, time, ...note }),
   deleteCheckin: (residentId: string, key: string) =>
     call<void>('DELETE', `/v1/residents/${residentId}/schedule/checkins/${key}`),
+  pieces: (residentId: string) => call<Pieces>('GET', `/v1/residents/${residentId}/pieces`),
+  reviewPiece: (residentId: string, path: string, decision: 'approve' | 'decline', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/pieces/review`, { path, decision, note }),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),
