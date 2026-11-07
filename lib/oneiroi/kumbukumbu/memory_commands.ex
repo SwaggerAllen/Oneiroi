@@ -26,6 +26,13 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
     use Oneiroi.Command, fields: [:id, :number, :evidences]
   end
 
+  defmodule WeighBookmark do
+    # The timeline's weight on a bookmark (kumbukumbu#51): `importance`
+    # 0 to 3 (0 clears it), `status` a line of where the moment stands
+    # now ("" clears it); either nil leaves it as it is.
+    use Oneiroi.Command, fields: [:id, :number, :importance, :status]
+  end
+
   defmodule UnpinBookmark do
     use Oneiroi.Command, fields: [:id, :number]
   end

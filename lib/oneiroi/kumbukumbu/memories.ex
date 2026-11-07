@@ -91,6 +91,22 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  def weigh_bookmark(resident_id, number, importance, status, %Actor{} = actor) do
+    command = %Commands.WeighBookmark{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      number: number,
+      importance: importance,
+      status: status
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  def timeline_bookmarks(resident_id),
+    do: Scope.resident(resident_id, fn -> Store.timeline_bookmarks() end)
+
   def unpin_bookmark(resident_id, number, %Actor{} = actor) do
     command = %Commands.UnpinBookmark{
       actor: actor,

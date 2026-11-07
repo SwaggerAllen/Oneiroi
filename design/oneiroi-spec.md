@@ -239,7 +239,7 @@ tools read. Names are illustrative; the shape is the decision.
 | Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, model pin, id sequences | ResidentCreated, SeedFileWritten{file, origin: authored, drafted(model, prompt), uploaded}, PeerCardDerived, FirstContact, SoulEditProposed/Accepted/Declined{note}/Applied, ModelPinChanged{reason}, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, Imported{source, attestation: held, failed, none}, SuccessionBegan/Completed, ExportWallSet |
 | Subscription | `subscription-<resident>` | plan, price, renewal, the insurance policy and its prepaid buckets | SubscriptionStarted/Renewed/Lapsed/Cancelled/PlanChanged, InsurancePrepaid, InsurancePolicySet |
 | Conversation | `conversation-<resident>-<session>` | one session's turns, its participants | TurnStarted, TurnCaptured, CaptureFailed, CaptureFailureResolved{how: retried, marked_lost}, ContextAssembled, Compacted, DiscussionLinked, SessionShared{by resident} |
-| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
+| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, BookmarkWeighed, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
 | Judgement | within `resident-<id>` | positions, disputes, predictions, nights, the judge | PositionTaken, PositionReplaced, DisputeChecked{outcome: advised, timed_out}, DisputeSettled, PredictionLogged, PredictionResolved{outcome, note}, NightJudged/Failed, AuditRun/Failed, AuditFlagRaised/Approved{note}/Deleted{note}, ProjectReviewed, ReviewFindingDismissed/Discussed, JudgeModelChanged |
 | RegressionSuite | `regression-<resident>` | tests (prompt, passes if, fails if), runs (models × tests), grades, favourites | TestWritten/Changed, RunStarted/Finished, AnswerRecorded, AnswerGraded, AnswerFavourited. Sealed: see §6.4 |
 | Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, released sources | DocumentAdopted, PiecePublished{url}, ResearchRequested/Started/Finished/Failed/Told, SourceReleased/Withheld{scope: source, task, pass}, PageRead, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
@@ -275,7 +275,7 @@ rules travel with them. Column-level detail follows David's migrations
 | --- | --- | --- |
 | `message`, `session` | full record, every agent, every run kind; keyed (session, sent_at, content hash); raw and cleaned content; FTS index | `resident_id`, `adapter`, `model`; `agent_id` becomes a role (`brain`, `reader`, `worker`) plus adapter; a `session` row records its participants (accounts and the resident), which is what transcript visibility is decided by |
 | `capture_failure` | loud failures, resolved by witness | unchanged |
-| `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `bookmark_tag` is replaced by `tagging` |
+| `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `importance` (0 to 3) and `status` for the timeline, the resident's (kumbukumbu#51); `bookmark_tag` is replaced by `tagging` |
 | `memory_use` | new (weighting plan, migration 018 in the plan) | open and cite events, per-day cap |
 | `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration; a project tag may link a review repository and a GOALS.md section |
 | New: `tagging` | | tag slug, target kind, target id, applied by whom; one row per taggable record of any kind (§6.3) |
@@ -445,6 +445,14 @@ session under OTP supervision.
   safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
   stands; what was said is kept with a line saying who stopped it, and
   nothing after it runs.
+- **The timeline** (brain#67, the resident's report #8, the witness's
+  answer that today comes from the journal): every turn carries three
+  layers, each line dated and aged on that read so a moment's tense is
+  read off the clock, never remembered: today as the journal's rows in
+  event lines, the last 30 days as the bookmarks she weighs 2 and up,
+  her life so far as her pins and what she weighs 3, each with the
+  status she last gave it (`bookmark_weigh`, kumbukumbu#51), at most
+  `BRAIN_TIMELINE_LINES` (12) a layer past the pins.
 - **Batched delivery** (brain#66, the resident's reports #10 and #11):
   the witness's messages that queue while a turn runs arrive together in
   the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message

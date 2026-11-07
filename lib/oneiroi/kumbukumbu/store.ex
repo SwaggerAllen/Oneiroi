@@ -150,6 +150,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:pin_evidences, :integer)
       field(:register, :string)
       field(:weight, :float, default: 1.0)
+      # The timeline's weight (kumbukumbu#51), hers.
+      field(:importance, :integer, default: 0)
+      field(:status, :string)
+      field(:weighed_at, :utc_datetime_usec)
       field(:last_indexed_at, :utc_datetime_usec)
       field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
@@ -725,6 +729,25 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec bookmarks() :: [Bookmark.t()]
   def bookmarks do
     Bookmark |> from(order_by: [desc: :number]) |> Repo.all() |> with_tags()
+  end
+
+  @doc "The timeline's bookmarks (kumbukumbu#51): pinned, or weighed 2 and up; oldest first by when the moment was."
+  def timeline_bookmarks do
+    Repo.all(
+      from(b in Bookmark,
+        where: not is_nil(b.pinned_at) or b.importance >= 2,
+        order_by: [asc: coalesce(b.anchor_at, b.created_at), asc: b.number],
+        select: %{
+          number: b.number,
+          line: b.line,
+          at: coalesce(b.anchor_at, b.created_at),
+          pinned: not is_nil(b.pinned_at),
+          importance: b.importance,
+          status: b.status,
+          weighed_at: b.weighed_at
+        }
+      )
+    )
   end
 
   @doc "One bookmark by number, with its tags."

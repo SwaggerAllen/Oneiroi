@@ -5,5 +5,5 @@ defmodule Oneiroi.Kumbukumbu.MemoryRouter do
     prefix: "memory-",
     commands: "Oneiroi.Kumbukumbu.MemoryCommands",
     dispatching:
-      ~w(AddBookmark ExtendBookmark PinBookmark UnpinBookmark ProposeBookmark DeclineBookmarkProposal ProposeTag ApproveTag RejectTag CreateTag RetireTag ApplyTag RemoveTagging Revise AcceptRevision DeclineRevision SendHouseLetter ReadHouseLetters)
+      ~w(AddBookmark ExtendBookmark PinBookmark WeighBookmark UnpinBookmark ProposeBookmark DeclineBookmarkProposal ProposeTag ApproveTag RejectTag CreateTag RetireTag ApplyTag RemoveTagging Revise AcceptRevision DeclineRevision SendHouseLetter ReadHouseLetters)
 end

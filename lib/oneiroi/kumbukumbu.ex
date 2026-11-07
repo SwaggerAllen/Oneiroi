@@ -59,6 +59,7 @@ defmodule Oneiroi.Kumbukumbu do
       MemoryCommands.AddBookmark,
       MemoryCommands.ExtendBookmark,
       MemoryCommands.PinBookmark,
+      MemoryCommands.WeighBookmark,
       MemoryCommands.UnpinBookmark,
       MemoryCommands.ProposeBookmark,
       MemoryCommands.DeclineBookmarkProposal,
@@ -72,6 +73,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.BookmarkAdded,
       Events.Memory.BookmarkExtended,
       Events.Memory.BookmarkPinned,
+      Events.Memory.BookmarkWeighed,
       Events.Memory.BookmarkUnpinned,
       Events.Memory.BookmarkProposed,
       Events.Memory.BookmarkProposalDeclined,
@@ -293,6 +295,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkWeighed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
@@ -342,6 +345,9 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_line_invalid, "a bookmark's line is at most 120 characters and not blank",
        remedy: "say it in a line; the summary holds the rest"},
       {:kumbukumbu_no_such_bookmark, "no bookmark has that number", remedy: "read the index"},
+      {:kumbukumbu_weight_invalid,
+       "a bookmark's importance is 0 to 3 and its status one line of at most 160 characters",
+       remedy: "give 0 (none), 1, 2 or 3 (a milestone), and a short line of where it stands"},
       {:kumbukumbu_span_not_grown, "a span is at least one turn and only ever grows",
        remedy: "extend with more turns back than the bookmark has"},
       {:kumbukumbu_revision_kind_invalid, "a revision corrects a fact or a stance",
@@ -666,6 +672,23 @@ defmodule Oneiroi.Kumbukumbu do
   defexport(extend_bookmark(resident_id, number, turns_back, actor),
     do: Memories.extend_bookmark(resident_id, number, turns_back, actor)
   )
+
+  @doc "Weighs a bookmark for the timeline (kumbukumbu#51): importance 0 to 3 and a status line, the resident's; nil leaves either as it stands."
+  @spec weigh_bookmark(
+          String.t(),
+          pos_integer(),
+          integer() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(weigh_bookmark(resident_id, number, importance, status, actor),
+    do: Memories.weigh_bookmark(resident_id, number, importance, status, actor)
+  )
+
+  @doc "The bookmarks on the timeline (kumbukumbu#51): pinned or weighed 2 and up, oldest first."
+  @spec timeline_bookmarks(String.t()) :: [map()]
+  defexport(timeline_bookmarks(resident_id), do: Memories.timeline_bookmarks(resident_id))
 
   @doc "Pins a bookmark: a decision, by either party."
   @spec pin_bookmark(String.t(), pos_integer(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

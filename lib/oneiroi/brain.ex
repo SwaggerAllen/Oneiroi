@@ -77,6 +77,12 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many of the witness's messages that queued while a turn ran the next turn takes together (brain#66), each with a turn's tool rounds; the rest wait for the turn after, so a batch never has fewer rounds a message than separate turns, and a guess"},
+      {:timeline_lines, "BRAIN_TIMELINE_LINES",
+       cast: :integer,
+       default: "12",
+       tag: :bound,
+       usage:
+         "how many lines each layer of the timeline shows (brain#67): today's journal rows, the last 30 days' weighed moments, and her life so far past her pins, which always show; the newest kept, a guess"},
       {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
        cast: :integer,
        default: "24",

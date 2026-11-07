@@ -147,6 +147,33 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     end
   end
 
+  # The weight is the resident's (kumbukumbu#51): her bookmarks, her
+  # timeline. A nil field keeps what stands; nothing changed is no event.
+  def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.WeighBookmark{} = c) do
+    bookmark = Map.get(bookmarks, c.number)
+
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(:kumbukumbu_not_the_resident, :kumbukumbu_memory_weigh_actor,
+           actor: c.actor.kind
+         )}
+
+      is_nil(bookmark) ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memory_weigh_bookmark_absent,
+           number: c.number
+         )}
+
+      not weight_ok?(c) ->
+        {:error,
+         Error.new(:kumbukumbu_weight_invalid, :kumbukumbu_memory_weigh_invalid, number: c.number)}
+
+      true ->
+        weighed(bookmark, c)
+    end
+  end
+
   def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.UnpinBookmark{} = c) do
     case Map.fetch(bookmarks, c.number) do
       :error ->
@@ -494,6 +521,13 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   def apply(%__MODULE__{} = m, %Events.BookmarkPinned{} = e),
     do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: true, evidences: e.evidences}))
 
+  def apply(%__MODULE__{} = m, %Events.BookmarkWeighed{} = e),
+    do:
+      update_in(
+        m.bookmarks[e.number],
+        &Map.merge(&1, %{importance: e.importance, status: e.status})
+      )
+
   def apply(%__MODULE__{} = m, %Events.BookmarkUnpinned{} = e),
     do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: false, evidences: nil}))
 
@@ -656,4 +690,37 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   defp name_ok?(name),
     do: is_binary(name) and String.trim(name) != "" and String.length(name) <= @name_limit
+
+  # ---- the timeline's weight (kumbukumbu#51) ----
+
+  @status_limit 160
+
+  defp weight_ok?(c) do
+    (is_nil(c.importance) or c.importance in 0..3) and
+      (is_nil(c.status) or
+         (is_binary(c.status) and String.length(c.status) <= @status_limit and
+            not String.contains?(c.status, "\n")))
+  end
+
+  defp weighed(bookmark, c) do
+    importance =
+      if is_nil(c.importance), do: Map.get(bookmark, :importance, 0), else: c.importance
+
+    status =
+      case c.status do
+        nil -> Map.get(bookmark, :status)
+        s -> if String.trim(s) == "", do: nil, else: String.trim(s)
+      end
+
+    if importance == Map.get(bookmark, :importance, 0) and status == Map.get(bookmark, :status),
+      do: [],
+      else: %Events.BookmarkWeighed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        number: c.number,
+        importance: importance,
+        status: status
+      }
+  end
 end

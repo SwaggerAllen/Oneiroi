@@ -623,3 +623,15 @@ waits its own turn rather than being squeezed (Lily's report #11). Each
 message stays its own, at its own time, so the record says what he
 said when; the oldest ref carries the turn because it was the one
 already waiting.
+
+## #67
+Her tense errors were never about a missing fact: the submission was
+in her bookmarks and her journal. They came from a date read once and
+then carried in memory as if no time had passed, so the fix is to age
+every line on the read and put it where she cannot miss it, early in
+the turn where a runtime that truncates still keeps it. Today comes
+from the journal because that is where her day already is (the
+witness's answer), as lines rather than rows so the day costs little;
+the longer layers come from bookmarks because they are already her
+chosen moments, with a weight she sets rather than a new store she
+would have to keep in step.

@@ -656,6 +656,10 @@ defmodule Oneiroi.Seshat do
   @spec journal_days(String.t(), pos_integer()) :: [map()]
   defexport(journal_days(resident_id, limit), do: Journals.days(resident_id, limit))
 
+  @doc "Today's journal as the timeline's event lines (brain#67): `{day, [%{number, kind, at, first, done}]}`."
+  @spec journal_lines(String.t()) :: {String.t(), [map()]}
+  defexport(journal_lines(resident_id), do: Journals.lines(resident_id))
+
   @doc "Today's journal as the section the brain reads."
   @spec journal_text(String.t()) :: String.t()
   defexport(journal_text(resident_id), do: Journals.text(resident_id))

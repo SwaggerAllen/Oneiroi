@@ -179,6 +179,33 @@ defmodule Oneiroi.Seshat.Journals do
     |> Enum.map(& &1.day)
   end
 
+  @doc """
+  Today's journal as the timeline reads it (brain#67): the day and each
+  row as an event line, its number, kind, instant, opening line and
+  whether a todo is done; never the whole row.
+  """
+  def lines(resident_id) do
+    day = today(resident_id)
+
+    entries =
+      for e <- Scope.resident(resident_id, fn -> Store.journal_entries(day) end) do
+        %{
+          number: e.number,
+          kind: e.kind,
+          at: e.at,
+          first: first_line(Map.get(e, :summary) || e.text),
+          done: not is_nil(e.done_at)
+        }
+      end
+
+    {day, entries}
+  end
+
+  defp first_line(text) do
+    line = text |> String.split("\n") |> Enum.find("", &(String.trim(&1) != "")) |> String.trim()
+    if String.length(line) > 140, do: String.slice(line, 0, 139) <> "…", else: line
+  end
+
   @doc "Today's journal as the section the brain reads; empty when the day has no entry."
   @spec text(String.t()) :: String.t()
   def text(resident_id) do

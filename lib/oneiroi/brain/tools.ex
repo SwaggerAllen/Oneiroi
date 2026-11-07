@@ -70,7 +70,7 @@ defmodule Oneiroi.Brain.Tools do
 
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
-    figure_increment bookmark_add bookmark_extend bookmark_accept bookmark_decline
+    figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
@@ -186,6 +186,16 @@ defmodule Oneiroi.Brain.Tools do
           turns_back: %{type: "integer", minimum: 1}
         },
         [:number, :turns_back]
+      ),
+      tool(
+        "bookmark_weigh",
+        "Weigh a bookmark for your timeline: importance 0 to 3 (2 shows it in the last 30 days, 3 in your life so far; pins show always; 0 clears), and status, one line of where the moment stands now (\"submitted\", \"waiting on his reply\"; empty clears). Give either or both; what you leave out stands. Update a status when the thing changes, so the timeline says it as it is.",
+        %{
+          number: %{type: "integer"},
+          importance: %{type: "integer", minimum: 0, maximum: 3},
+          status: %{type: "string"}
+        },
+        [:number]
       ),
       tool(
         "bookmark_open",
@@ -1149,6 +1159,20 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, number} -> "Bookmarked as ##{number}."
       other -> other
     end
+  end
+
+  defp call("bookmark_weigh", args, turn) do
+    n = integer(args["number"])
+
+    with :ok <-
+           Kumbukumbu.weigh_bookmark(
+             turn.resident_id,
+             n,
+             integer(args["importance"]),
+             args["status"] && to_string(args["status"]),
+             turn.resident
+           ),
+         do: "Weighed bookmark ##{n}; your timeline reads it from the next turn."
   end
 
   defp call("bookmark_extend", args, turn) do

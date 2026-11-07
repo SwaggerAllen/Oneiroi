@@ -63,6 +63,13 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     def upcast(event, _metadata), do: event
   end
 
+  defmodule BookmarkWeighed do
+    # Where the moment sits on the resident's timeline (kumbukumbu#51):
+    # its importance, 0 to 3, and its status, a line or nil, as they now
+    # stand after the change.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :importance, :status]
+  end
+
   defmodule BookmarkUnpinned do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end

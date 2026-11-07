@@ -358,3 +358,12 @@ needed to store it, so a message without one gets the one before it.
 That stand-in is honest at the storage layer and a lie anywhere a
 person or a resident reads a time, so the record says which instants
 were placed and every view that shows a time says so.
+
+## #51
+The weight is a judgement of what mattered, which only the one who
+lived it can make, so it is hers as the bookmark's line is. The status
+is separate from the line because the line is what the moment was and
+never changes, while where it stands does: an application is sent,
+then submitted, then answered. Keeping the status on the bookmark and
+dated means the timeline shows the newest word she gave it, with its
+date, rather than a state copied by hand that goes stale silently.
