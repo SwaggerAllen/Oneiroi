@@ -176,6 +176,22 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
+    # The copies of external sources (seshat#46): a web page or a
+    # repository's document, fetched by the reader when either party
+    # asks and written here by the platform with where it came from, when
+    # and its digest. Searchable, and never cites: the words are other
+    # people's, so nothing in them mints an edge.
+    %{
+      kind: "external",
+      folder: "external",
+      cites: false,
+      has_status: false,
+      layout:
+        "external/web/<key>.md, external/doc/<provider>/<owner>/<repo>/<path>: a source's latest copy, frontmatter with its URL, fetch instant and digest",
+      sidecar: nil,
+      adoption: :none,
+      access: :core
+    },
     %{
       kind: "correspondence",
       folder: "correspondence",

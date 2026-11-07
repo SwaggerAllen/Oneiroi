@@ -13,6 +13,7 @@ import type {
   ContextPreview,
   FreeTimeRun,
   WorkQueue as WorkQueueData,
+  NeedsYouEntry,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -37,7 +38,7 @@ import { BottomNav, type Destination } from '../components/BottomNav';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
-import { type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
+import { batched, type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -361,7 +362,8 @@ function ChatContainer({ resident }: { resident: Resident }) {
             setOutbox((o) => update(o, turnRef, { state: 'writing' }));
           },
           onStatus: (turnRef, state, detail) => {
-            if (state === 'queued' || state === 'thinking' || state === 'tool')
+            if (state === 'batched' && detail?.into) setOutbox((o) => batched(o, turnRef, detail.into as string));
+            else if (state === 'queued' || state === 'thinking' || state === 'tool')
               setOutbox((o) => update(o, turnRef, { state, detail: detail?.name }));
           },
           onTurn: () => void reload(key),
@@ -586,11 +588,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     addresses: string[];
     asks: Ask[];
     pieces: Pieces;
+    needsYou: NeedsYouEntry[];
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id), api.pieces(id)])
-      .then(([letters, messages, replies, blocks, addresses, asks, pieces]) => setData({ letters, messages, replies, blocks, addresses, asks, pieces }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id), api.pieces(id), api.needsYou(id)])
+      .then(([letters, messages, replies, blocks, addresses, asks, pieces, needsYou]) => setData({ letters, messages, replies, blocks, addresses, asks, pieces, needsYou }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);

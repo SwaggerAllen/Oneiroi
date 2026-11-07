@@ -19,16 +19,19 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
   @type candidate :: %{bookmark: map(), distance: float()}
 
   @doc """
-  The ranking. `opts`: `:lines`, `:explore` (lines drawn, of `:lines`),
-  `:seeds`, `:lambda`, `:min_score`, `:half_life` (days), `:budget`
-  (tokens), `:now`, and `:draw`, the bookmarks the exploration may
-  return, already shuffled at the command edge.
+  The ranking. `edges` are the learned edges out of the seeds, each with
+  its source's seed count (`seeded`) and its own at the last touch;
+  `opts`: `:lines`, `:explore` (lines drawn, of `:lines`), `:seeds`,
+  `:lambda`, `:min_score`, `:half_life` (seedings, kumbukumbu#53),
+  `:citations` (the citations' summed contributions out of the seeds,
+  never decayed), `:budget` (tokens), and `:draw`, the bookmarks the
+  exploration may return, already shuffled at the command edge.
   """
   @spec rank([candidate()], [map()], keyword()) :: map()
   def rank(candidates, edges, opts) do
-    now = Keyword.fetch!(opts, :now)
     lambda = Keyword.fetch!(opts, :lambda)
     half_life = Keyword.fetch!(opts, :half_life)
+    cited = Keyword.get(opts, :citations, [])
     lines = Keyword.fetch!(opts, :lines)
     explore = min(Keyword.fetch!(opts, :explore), lines)
     budget = Keyword.fetch!(opts, :budget)
@@ -38,11 +41,18 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
 
     seed_set = MapSet.new(seeds)
 
+    # Each seed's edge to a candidate, the learned weight decayed plus the
+    # citations', bounded; summed over the seeds.
+    learned = Map.new(edges, &{{&1.from_number, &1.to_number}, w(&1, half_life)})
+    citations = Map.new(cited, &{{&1.from_number, &1.to_number}, &1.w})
+
     pull =
-      Enum.reduce(edges, %{}, fn e, acc ->
-        if MapSet.member?(seed_set, e.from_number) and e.from_number != e.to_number,
-          do: Map.update(acc, e.to_number, w(e, now, half_life), &(&1 + w(e, now, half_life))),
-          else: acc
+      (Map.keys(learned) ++ Map.keys(citations))
+      |> Enum.uniq()
+      |> Enum.filter(fn {from, to} -> MapSet.member?(seed_set, from) and from != to end)
+      |> Enum.reduce(%{}, fn {_from, to} = key, acc ->
+        w = Edges.combined(Map.get(learned, key, 0.0), Map.get(citations, key, 0.0))
+        Map.update(acc, to, w, &(&1 + w))
       end)
 
     scored =
@@ -77,7 +87,14 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
     %{seeds: seeds, ranked: ranked, explored: explored, rejected: rejected}
   end
 
-  defp w(edge, now, half_life), do: Edges.decayed(edge.w, edge.touched_at, now, half_life)
+  defp w(edge, half_life),
+    do:
+      Edges.decayed(
+        edge.w,
+        Map.get(edge, :touched_count, 0),
+        Map.get(edge, :seeded, 0),
+        half_life
+      )
 
   # In order until the count or the budget is spent; what did not fit
   # is returned as `over`.

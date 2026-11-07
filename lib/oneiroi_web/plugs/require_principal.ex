@@ -49,6 +49,11 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("GET", ["v1", "residents", _id, "digests"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "digests", _n, "answer"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "digests", _n, "failed"]), do: true
+  # External sources (seshat#46): those waiting for a copy, and the
+  # copy or the failure; held to the `reader` role.
+  def adapter_path?("GET", ["v1", "residents", _id, "externals"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "externals", _n, "fetched"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "externals", _n, "failed"]), do: true
   # The inbound hands' three (xenia#11): deliver messages, read the
   # approved replies, mark one sent; the controller holds them to the
   # `reader` role, so a brain token reaches none of the words.

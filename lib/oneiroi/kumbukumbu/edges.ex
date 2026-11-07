@@ -6,9 +6,19 @@ defmodule Oneiroi.Kumbukumbu.Edges do
 
   An edge `from → to` reads "when `from` is in play, `to` is worth
   bringing". Its weight is a deviation from neutral (0), soft-bounded in
-  [-1, 1] so no clique or hub runs away, and decayed lazily: an edge
-  stores its weight and when it was last touched, and its weight at `t`
-  is `w · 2^(-(t - touched_at) / half_life)`. Nothing sweeps every edge.
+  [-1, 1] so no clique or hub runs away, and decayed lazily by tests,
+  not days (kumbukumbu#53, Lily's position #65): an edge stores its
+  weight and its source's seed count when last touched, and its weight
+  now is `w · 2^(-(seeded - touched_count) / K)`. It ages only on turns
+  where its source was the seed, where it could have fired; an edge
+  whose source is never seeded freezes. Nothing sweeps every edge.
+
+  Citations add apart from all this (kumbukumbu#53, position #64): a
+  bookmark citing another gives `B` both ways; a document citing `N`
+  bookmarks gives `B/(N-1)` to each ordered pair, so a survey is not N
+  strong statements. A citation's contribution never decays and is
+  removed exactly when the citation goes; the edge read at ranking is
+  the learned weight, decayed, plus the citations', bounded in [-1, 1].
 
   The rules, from the resident's review (Position #45) as amended:
 
@@ -24,12 +34,30 @@ defmodule Oneiroi.Kumbukumbu.Edges do
 
   @type change :: {pos_integer(), pos_integer(), float()}
 
-  @doc "The weight `w` last touched at `touched_at`, decayed to `at`."
-  @spec decayed(float(), DateTime.t(), DateTime.t(), number()) :: float()
-  def decayed(w, %DateTime{} = touched_at, %DateTime{} = at, half_life_days) do
-    days = max(DateTime.diff(at, touched_at, :second), 0) / 86_400
-    w * :math.pow(2, -days / half_life_days)
+  @doc "The weight `w` last touched at seed count `touched`, decayed to seed count `now` with half-life `k` seedings."
+  @spec decayed(float(), non_neg_integer(), non_neg_integer(), number()) :: float()
+  def decayed(w, touched, now, k), do: w * :math.pow(2, -max(now - touched, 0) / k)
+
+  @doc "The learned weight and the citations' together, bounded in [-1, 1]."
+  @spec combined(float(), float()) :: float()
+  def combined(learned, cited), do: (learned + cited) |> max(-1.0) |> min(1.0)
+
+  @doc "A document's co-citation: each ordered pair of the `numbers` it cites, `b/(n-1)` each."
+  @spec co_cited([pos_integer()], float()) :: [change()]
+  def co_cited(numbers, b) do
+    numbers = Enum.uniq(numbers)
+
+    case length(numbers) do
+      n when n < 2 -> []
+      n -> for x <- numbers, y <- numbers, x != y, do: {x, y, b / (n - 1)}
+    end
   end
+
+  @doc "A bookmark citing others: `b` each way."
+  @spec cited_by_bookmark(pos_integer(), [pos_integer()], float()) :: [change()]
+  def cited_by_bookmark(number, cited, b),
+    do:
+      for(c <- Enum.uniq(cited), c != number, edge <- [{number, c, b}, {c, number, b}], do: edge)
 
   @doc "`w` moved by `delta`, softly bounded in [-1, 1]: diminishing returns at either end."
   @spec bump(float(), float()) :: float()

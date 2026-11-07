@@ -276,16 +276,34 @@ defmodule Oneiroi.Seshat.Documents do
       [%{target: ^name, slug: slug, kind: kind, ref: ref}] ->
         {:ok, %{slug: own}} = AgathosDaimon.fetch(resident_id)
 
-        if slug == own,
-          do: {:ok, Citations.document_path(kind, ref)},
-          else:
+        cond do
+          slug != own -> :other
+          kind in ["web", "doc"] -> external_path(resident_id, kind, ref)
+          true -> {:ok, Citations.document_path(kind, ref)}
+        end
+        |> case do
+          :other ->
             {:error,
              Error.new(:seshat_other_resident, :seshat_documents_read_other_resident,
                target: name
              )}
 
+          found ->
+            found
+        end
+
       _not_a_citation ->
         {:ok, name |> String.split("#", parts: 2) |> hd()}
+    end
+  end
+
+  # An external source's citation reads its latest copy (seshat#46).
+  defp external_path(resident_id, kind, ref) do
+    key = ref |> String.split("#") |> hd()
+
+    case Scope.resident(resident_id, fn -> Store.external_by_key(key) end) do
+      %{kind: ^kind, path: path} when is_binary(path) -> {:ok, path}
+      _none -> {:error, Error.new(:seshat_external_not_fetched, :seshat_documents_read_external)}
     end
   end
 
@@ -454,6 +472,9 @@ defmodule Oneiroi.Seshat.Documents do
       full = Path.join(dir, to)
       File.mkdir_p!(Path.dirname(full))
       File.rename!(Path.join(dir, from), full)
+      # The citations moved with the file: memory hears them under the
+      # new path and drops the old (kumbukumbu#53).
+      Index.cite(resident_id, actor)
       {:ok, %{from: from, to: to, kind: to_kind.kind}}
     end
   end
@@ -519,6 +540,8 @@ defmodule Oneiroi.Seshat.Documents do
            }) do
       _ = File.rm(Path.join(dir, path))
       Index.run(resident_id, actor)
+      # A removed document's citations are taken back (kumbukumbu#53).
+      Index.cite(resident_id, actor)
       :ok
     else
       nil ->

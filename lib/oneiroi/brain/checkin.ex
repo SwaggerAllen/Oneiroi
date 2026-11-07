@@ -9,10 +9,10 @@ defmodule Oneiroi.Brain.Checkin do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
   alias Oneiroi.Sunna
-  alias Oneiroi.Xenia
 
   @row_chars 300
 
@@ -108,15 +108,31 @@ defmodule Oneiroi.Brain.Checkin do
     end
   end
 
+  # The same list the Inbox reads (brain#65), counted by kind.
   defp needs_you(resident_id) do
-    case Xenia.needs_you(resident_id) do
-      %{replies: 0} ->
-        "# Waiting on the person who looks after you\n\nNothing."
+    head = "# Waiting on the person who looks after you\n\n"
 
-      %{replies: n} ->
-        "# Waiting on the person who looks after you\n\n#{n} reply draft(s) to approve."
+    case NeedsYou.list(resident_id) do
+      [] ->
+        head <> "Nothing."
+
+      entries ->
+        lines =
+          entries
+          |> Enum.frequencies_by(& &1.kind)
+          |> Enum.sort()
+          |> Enum.map_join("\n", fn {kind, n} -> "- #{n} #{waiting_label(kind)}" end)
+
+        head <> lines
     end
   end
+
+  defp waiting_label("reply_to_approve"), do: "reply draft(s) to approve"
+  defp waiting_label("reply_to_send"), do: "approved reply(s) to send"
+  defp waiting_label("ask"), do: "ask(s) to answer"
+  defp waiting_label("piece_to_review"), do: "piece(s) to review"
+  defp waiting_label("piece_to_publish"), do: "drafted piece(s) to publish"
+  defp waiting_label("work_blocked"), do: "work item(s) blocked"
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.

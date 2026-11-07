@@ -89,6 +89,10 @@ defmodule Oneiroi.Seshat do
       Events.ResearchAsked,
       Events.ResearchAnswered,
       Events.ResearchFailed,
+      Events.ExternalCommissioned,
+      Events.ExternalFetchAsked,
+      Events.ExternalFetched,
+      Events.ExternalFetchFailed,
       Store,
       Store.Document,
       Store.Chunk,
@@ -97,6 +101,7 @@ defmodule Oneiroi.Seshat do
       Store.Discussion,
       Store.Oracle,
       Store.Research,
+      Store.External,
       Store.JournalEntry,
       Journal,
       Journals,
@@ -110,6 +115,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
+  alias Oneiroi.Seshat.Externals
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
@@ -212,6 +218,10 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.ResearchAsked, 1},
       {Oneiroi.Seshat.Events.ResearchAnswered, 1},
       {Oneiroi.Seshat.Events.ResearchFailed, 1},
+      {Oneiroi.Seshat.Events.ExternalCommissioned, 1},
+      {Oneiroi.Seshat.Events.ExternalFetchAsked, 1},
+      {Oneiroi.Seshat.Events.ExternalFetched, 1},
+      {Oneiroi.Seshat.Events.ExternalFetchFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1}
     ]
@@ -263,6 +273,19 @@ defmodule Oneiroi.Seshat do
       {:seshat_research_invalid,
        "research is asked a named question of at most 2,000 characters, with at most ten pages to start from, each an http(s) URL",
        remedy: "name the question; give the pages to start from, or none"},
+      {:seshat_external_not_allowed,
+       "either party commissions an external source and asks for its copy; the reader or the witness brings the copy",
+       remedy: "do this as the party it belongs to"},
+      {:seshat_external_invalid,
+       "an external source is an http(s) URL: a web page, or a GitHub file (github.com/<owner>/<repo>/blob/<ref>/<path>)",
+       remedy: "give the page's URL, or the file's GitHub URL"},
+      {:seshat_no_such_external, "no external source has that number or citation",
+       remedy: "list the external sources; commission it first with its URL"},
+      {:seshat_external_not_fetched, "that external source has no copy yet",
+       remedy: "wait for the reader's fetch, or ask for one"},
+      {:seshat_external_copy_invalid,
+       "a fetched copy is words of at most the library's bound, with the source's title",
+       remedy: "fetch it again; a page past the bound is not kept"},
       {:seshat_no_such_research, "no research question has that number",
        remedy: "list the research questions"},
       {:seshat_research_settled, "that research question is already answered or failed",
@@ -423,6 +446,50 @@ defmodule Oneiroi.Seshat do
   defexport(fail_research(resident_id, number, reason, actor),
     do: Researches.fail(resident_id, number, reason, actor)
   )
+
+  @doc "Commissions the external source a URL names (a web page, or a GitHub file) and asks the reader for its first copy (seshat#46): `{:ok, number, :new | :known}`."
+  @spec commission_external(String.t(), String.t() | nil, String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer(), :new | :known} | {:error, term()}
+  defexport(commission_external(resident_id, session_key, url, actor),
+    do: Externals.commission(resident_id, session_key, url, actor)
+  )
+
+  @doc "Asks the reader for a fresh copy of external source `number` (seshat#46): `{:ok, :asked | :waiting}`."
+  @spec fetch_external(String.t(), String.t() | nil, pos_integer(), Oneiroi.Actor.t()) ::
+          {:ok, :asked | :waiting} | {:error, term()}
+  defexport(fetch_external(resident_id, session_key, number, actor),
+    do: Externals.ask_fetch(resident_id, session_key, number, actor)
+  )
+
+  @doc "Keeps the copy the reader brought of external source `number` (`%{text, title, commit}`) and tells the conversation that asked; the path."
+  @spec external_fetched(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t() | :not_asked} | {:error, term()}
+  defexport(external_fetched(resident_id, number, copy, actor),
+    do: Externals.fetched(resident_id, number, copy, actor)
+  )
+
+  @doc "Records that the reader could not fetch external source `number`, with the reason."
+  @spec external_failed(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(external_failed(resident_id, number, reason, actor),
+    do: Externals.fail(resident_id, number, reason, actor)
+  )
+
+  @doc "The external sources, newest first; `status:` narrows to asked, fetched or failed."
+  @spec externals(String.t(), keyword()) :: [Oneiroi.Seshat.Store.External.t()]
+  defexport(externals(resident_id, opts), do: Externals.externals(resident_id, opts))
+
+  @doc "One external source by number, or nil."
+  @spec external(String.t(), pos_integer()) :: Oneiroi.Seshat.Store.External.t() | nil
+  defexport(external(resident_id, number), do: Externals.external(resident_id, number))
+
+  @doc "A cited source's copy, whole or the section its anchor names: `{:ok, %{external, text, found}}`."
+  @spec read_external(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(read_external(resident_id, kind, ref), do: Externals.read(resident_id, kind, ref))
+
+  @doc "A source's citation for a resident's slug."
+  @spec external_citation(String.t(), map()) :: String.t()
+  defexport(external_citation(slug, external), do: Externals.citation(slug, external))
 
   @doc "The research questions, newest first; `status:` narrows to open, answered or failed."
   @spec researches(String.t(), keyword()) :: [Oneiroi.Seshat.Store.Research.t()]
@@ -655,6 +722,10 @@ defmodule Oneiroi.Seshat do
   @doc "The latest days with their deltas, newest first."
   @spec journal_days(String.t(), pos_integer()) :: [map()]
   defexport(journal_days(resident_id, limit), do: Journals.days(resident_id, limit))
+
+  @doc "Today's journal as the timeline's event lines (brain#67): `{day, [%{number, kind, at, first, done}]}`."
+  @spec journal_lines(String.t()) :: {String.t(), [map()]}
+  defexport(journal_lines(resident_id), do: Journals.lines(resident_id))
 
   @doc "Today's journal as the section the brain reads."
   @spec journal_text(String.t()) :: String.t()

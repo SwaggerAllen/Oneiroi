@@ -231,3 +231,10 @@ A refusal that names nothing turns a forty-character mistake into three
 failed attempts, a fault report and a record that disagrees with the
 truth for hours. The person retrying cannot change the right thing
 unless the refusal says which thing it is.
+
+## #37
+A queue the house has to trust cannot hold a state no event will ever
+change. A hand move is the clearest word there is that the run is over,
+so it says so; and a run whose job died has no one left to say it, so a
+bound says it for them, and the work it was doing is picked up rather
+than lost.

@@ -316,3 +316,19 @@ Clutter and loss are the two failures a library has, and deleting
 trades one for the other. The archive moves what is done with out of
 search and out of the way while keeping every word, and the tombstone
 keeps the promise every citation made about where to find it.
+
+## #46
+A citation of an outside page is only as good as the words it pointed
+at, and pages move and die, so the house keeps the words: whole, because
+an anchor can only be checked against a section that was kept. The
+fetch is plain code on the witness's machine because the core reaching
+arbitrary URLs is a door into its own network, and because no model
+should read a stranger's page while doing something on the resident's
+behalf; with no model in the fetch, nothing on the page can instruct
+anything. Refetching is asked, never scheduled, because the list only
+grows and most sources never change; the digest and the instant say
+what the kept copy is and how old, and a refetch says whether it moved,
+which is drift detection the resident chooses when to run. Only the
+reader or the witness brings a copy, so a cited source is never words
+the resident wrote herself. The copies mint no edges because the words
+are other people's.

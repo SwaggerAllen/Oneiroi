@@ -183,6 +183,9 @@ defmodule OneiroiWeb.ContractTest do
     {"GET", "/v1/residents/:id/digests"},
     {"POST", "/v1/residents/:id/digests/:number/answer"},
     {"POST", "/v1/residents/:id/digests/:number/failed"},
+    {"GET", "/v1/residents/:id/externals"},
+    {"POST", "/v1/residents/:id/externals/:number/fetched"},
+    {"POST", "/v1/residents/:id/externals/:number/failed"},
     # The inbound hands' three (xenia#11), held to the reader role by
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},
@@ -304,7 +307,7 @@ defmodule OneiroiWeb.ContractTest do
              |> post("/v1/residents/#{id}/sessions", %{})
              |> json_response(201)
 
-    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 6} =
+    assert %{"turn_ref" => ref, "messages" => [_, %{"role" => "assistant"}], "drew_on" => 7} =
              conn
              |> put_req_header("origin", origin())
              |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{text: "hi"})
@@ -360,6 +363,7 @@ defmodule OneiroiWeb.ContractTest do
              %{"label" => "AGENTS.md"},
              %{"label" => "state"},
              %{"label" => "budget"},
+             %{"label" => "timeline"},
              %{"label" => "index", "text" => _},
              %{"label" => "transcript"}
            ] =

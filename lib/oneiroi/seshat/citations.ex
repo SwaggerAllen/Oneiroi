@@ -20,6 +20,7 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
   alias Oneiroi.Seshat.Error
+  alias Oneiroi.Seshat.ExternalCopy
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Store
   alias Oneiroi.SimaQian
@@ -37,7 +38,7 @@ defmodule Oneiroi.Seshat.Citations do
   # added there is citable the day it lands. `human`, `oracle` and
   # `scratch` were not, because this list was written out by hand: found
   # when the resident cited the witness's posts by sentence (letter #26).
-  @record_kinds ~w(bookmark position prediction date figure transcript habit seed soul commitment)
+  @record_kinds ~w(bookmark position prediction date figure transcript habit seed soul commitment web doc)
   # A ref opens and closes on a letter, a digit, `-` or `_`, so the full
   # stop closing a sentence stays with the sentence; `-` and `_` because a
   # session key is base64url and opens or closes on them about one time
@@ -336,6 +337,23 @@ defmodule Oneiroi.Seshat.Citations do
     end
   end
 
+  # External sources (seshat#46): the commissioned source, its latest
+  # copy and the section an anchor names, said with when the copy was
+  # fetched and its digest, so a citation says what it resolved to.
+  defp resolve_kind(resident_id, kind, ref) when kind in ["web", "doc"] do
+    case ExternalCopy.read(resident_id, kind, ref) do
+      {:ok, %{external: x, found: found, text: text}} ->
+        {:ok,
+         "#{x.title || x.url}#{section_label(found, text)} (copy of #{Date.to_iso8601(DateTime.to_date(x.fetched_at))}, #{short(x.content_hash)}#{commit_label(x.commit)})"}
+
+      {:error, %{kind: :seshat_external_not_fetched}} ->
+        {:unresolved, "#{kind}/#{ref} is commissioned and has no copy yet"}
+
+      _other ->
+        {:unresolved, "no external source #{kind}/#{ref}; external_add commissions it by its URL"}
+    end
+  end
+
   defp resolve_kind(resident_id, kind, ref) do
     path = document_path(kind, ref)
 
@@ -350,6 +368,26 @@ defmodule Oneiroi.Seshat.Citations do
         {:ok, row.title || path}
     end
   end
+
+  defp section_label(:heading, text), do: " § " <> heading_of(text)
+  defp section_label(:near, text), do: " § " <> heading_of(text) <> " (the nearest heading)"
+  defp section_label(:passage, _text), do: " (a passage holding the anchor's words)"
+  defp section_label(:missing, _text), do: " (the anchor is not in this copy)"
+  defp section_label(_whole, _text), do: ""
+
+  defp heading_of(text),
+    do:
+      text
+      |> String.split("\n")
+      |> hd()
+      |> String.replace(~r/\A#+\s*/, "")
+      |> String.slice(0, 120)
+
+  defp short("sha256:" <> hex), do: "sha256:" <> String.slice(hex, 0, 12)
+  defp short(other), do: to_string(other)
+
+  defp commit_label(nil), do: ""
+  defp commit_label(c), do: ", commit " <> String.slice(c, 0, 12)
 
   # A citation of a path a document moved from follows it (seshat#39).
   defp moved(resident_id, path) do

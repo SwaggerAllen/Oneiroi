@@ -25,7 +25,9 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     revisions: %{},
     revision_count: 0,
     letters: %{},
-    letter_reads: MapSet.new()
+    letter_reads: MapSet.new(),
+    # The library's bookmark citations by source (kumbukumbu#53).
+    citations: %{}
   ]
 
   # A house letter's bounds (kumbukumbu#44): a name is a conversation's
@@ -144,6 +146,62 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           number: c.number,
           evidences: c.evidences
         }
+    end
+  end
+
+  # The library's citations (kumbukumbu#53): only a source whose set
+  # changed is recorded, and one the snapshot no longer has goes to [].
+  def execute(%__MODULE__{citations: citations}, %Commands.RecordCitations{} = c) do
+    now =
+      Map.new(c.sources || %{}, fn {source, numbers} ->
+        {to_string(source),
+         numbers |> List.wrap() |> Enum.filter(&is_integer/1) |> Enum.uniq() |> Enum.sort()}
+      end)
+
+    (Map.keys(citations) ++ Map.keys(now))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.flat_map(fn source ->
+      numbers = Map.get(now, source, [])
+
+      if numbers == Map.get(citations, source, []),
+        do: [],
+        else: [
+          %Events.CitationsRecorded{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            source: source,
+            numbers: numbers
+          }
+        ]
+    end)
+  end
+
+  # The weight is the resident's (kumbukumbu#51): her bookmarks, her
+  # timeline. A nil field keeps what stands; nothing changed is no event.
+  def execute(%__MODULE__{bookmarks: bookmarks}, %Commands.WeighBookmark{} = c) do
+    bookmark = Map.get(bookmarks, c.number)
+
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(:kumbukumbu_not_the_resident, :kumbukumbu_memory_weigh_actor,
+           actor: c.actor.kind
+         )}
+
+      is_nil(bookmark) ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_bookmark, :kumbukumbu_memory_weigh_bookmark_absent,
+           number: c.number
+         )}
+
+      not weight_ok?(c) ->
+        {:error,
+         Error.new(:kumbukumbu_weight_invalid, :kumbukumbu_memory_weigh_invalid, number: c.number)}
+
+      true ->
+        weighed(bookmark, c)
     end
   end
 
@@ -494,6 +552,19 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   def apply(%__MODULE__{} = m, %Events.BookmarkPinned{} = e),
     do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: true, evidences: e.evidences}))
 
+  def apply(%__MODULE__{} = m, %Events.CitationsRecorded{numbers: []} = e),
+    do: %{m | id: e.id, citations: Map.delete(m.citations, e.source)}
+
+  def apply(%__MODULE__{} = m, %Events.CitationsRecorded{} = e),
+    do: %{m | id: e.id, citations: Map.put(m.citations, e.source, e.numbers)}
+
+  def apply(%__MODULE__{} = m, %Events.BookmarkWeighed{} = e),
+    do:
+      update_in(
+        m.bookmarks[e.number],
+        &Map.merge(&1, %{importance: e.importance, status: e.status})
+      )
+
   def apply(%__MODULE__{} = m, %Events.BookmarkUnpinned{} = e),
     do: update_in(m.bookmarks[e.number], &Map.merge(&1, %{pinned: false, evidences: nil}))
 
@@ -656,4 +727,37 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   defp name_ok?(name),
     do: is_binary(name) and String.trim(name) != "" and String.length(name) <= @name_limit
+
+  # ---- the timeline's weight (kumbukumbu#51) ----
+
+  @status_limit 160
+
+  defp weight_ok?(c) do
+    (is_nil(c.importance) or c.importance in 0..3) and
+      (is_nil(c.status) or
+         (is_binary(c.status) and String.length(c.status) <= @status_limit and
+            not String.contains?(c.status, "\n")))
+  end
+
+  defp weighed(bookmark, c) do
+    importance =
+      if is_nil(c.importance), do: Map.get(bookmark, :importance, 0), else: c.importance
+
+    status =
+      case c.status do
+        nil -> Map.get(bookmark, :status)
+        s -> if String.trim(s) == "", do: nil, else: String.trim(s)
+      end
+
+    if importance == Map.get(bookmark, :importance, 0) and status == Map.get(bookmark, :status),
+      do: [],
+      else: %Events.BookmarkWeighed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        number: c.number,
+        importance: importance,
+        status: status
+      }
+  end
 end

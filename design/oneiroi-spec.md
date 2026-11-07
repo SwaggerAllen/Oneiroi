@@ -239,7 +239,7 @@ tools read. Names are illustrative; the shape is the decision.
 | Resident | `resident-<id>` | identity, slug, lifecycle, custody, dyad contract, tier, adapters, model pin, id sequences | ResidentCreated, SeedFileWritten{file, origin: authored, drafted(model, prompt), uploaded}, PeerCardDerived, FirstContact, SoulEditProposed/Accepted/Declined{note}/Applied, ModelPinChanged{reason}, CustodyTransferred, DyadContractProposed/Agreed, ResidentPaused/Woken, LapseBegan/Ended, ResidentForked, ForkPromoted, Imported{source, attestation: held, failed, none}, SuccessionBegan/Completed, ExportWallSet |
 | Subscription | `subscription-<resident>` | plan, price, renewal, the insurance policy and its prepaid buckets | SubscriptionStarted/Renewed/Lapsed/Cancelled/PlanChanged, InsurancePrepaid, InsurancePolicySet |
 | Conversation | `conversation-<resident>-<session>` | one session's turns, its participants | TurnStarted, TurnCaptured, CaptureFailed, CaptureFailureResolved{how: retried, marked_lost}, ContextAssembled, Compacted, DiscussionLinked, SessionShared{by resident} |
-| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
+| Memory | within `resident-<id>` | bookmarks, pins, tags, memory use | BookmarkAdded, BookmarkSpanClosed, BookmarkExtended, BookmarkPinned/Unpinned, BookmarkWeighed, TagProposed/Approved{note}/Rejected{note}/Retired/Created, TagApplied, TaggingRemoved, ProjectTagLinked, BookmarkOpened, MemoryWeightsRecomputed, MemoryRevised |
 | Judgement | within `resident-<id>` | positions, disputes, predictions, nights, the judge | PositionTaken, PositionReplaced, DisputeChecked{outcome: advised, timed_out}, DisputeSettled, PredictionLogged, PredictionResolved{outcome, note}, NightJudged/Failed, AuditRun/Failed, AuditFlagRaised/Approved{note}/Deleted{note}, ProjectReviewed, ReviewFindingDismissed/Discussed, JudgeModelChanged |
 | RegressionSuite | `regression-<resident>` | tests (prompt, passes if, fails if), runs (models × tests), grades, favourites | TestWritten/Changed, RunStarted/Finished, AnswerRecorded, AnswerGraded, AnswerFavourited. Sealed: see §6.4 |
 | Library | within `resident-<id>` | document registry, discussions, research, digests, feeds, correspondence state, released sources | DocumentAdopted, PiecePublished{url}, ResearchRequested/Started/Finished/Failed/Told, SourceReleased/Withheld{scope: source, task, pass}, PageRead, DigestRun/Finished/Failed/Told, FeedProposed/Approved/Declined/Removed/Read, MailStored, CorrespondenceReceived/Approved/Rejected/Woken/Marked, ReplyMarkedSent, DocSourceAdded/Synced |
@@ -275,7 +275,7 @@ rules travel with them. Column-level detail follows David's migrations
 | --- | --- | --- |
 | `message`, `session` | full record, every agent, every run kind; keyed (session, sent_at, content hash); raw and cleaned content; FTS index | `resident_id`, `adapter`, `model`; `agent_id` becomes a role (`brain`, `reader`, `worker`) plus adapter; a `session` row records its participants (accounts and the resident), which is what transcript visibility is decided by |
 | `capture_failure` | loud failures, resolved by witness | unchanged |
-| `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `bookmark_tag` is replaced by `tagging` |
+| `bookmark` | three levels, time-range span, pins with `pinned_by`, 120-char line | `pinned_by` is an actor; `anchor_at`, the turn the resident was in when it bookmarked; a span that can be extended later; `weight` for retrieval weighting; `importance` (0 to 3) and `status` for the timeline, the resident's (kumbukumbu#51); `bookmark_tag` is replaced by `tagging` |
 | `memory_use` | new (weighting plan, migration 018 in the plan) | open and cite events, per-day cap |
 | `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration; a project tag may link a review repository and a GOALS.md section |
 | New: `tagging` | | tag slug, target kind, target id, applied by whom; one row per taggable record of any kind (§6.3) |
@@ -294,7 +294,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `export_state` | watermark a minute behind | per resident |
 | New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
 | New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
-| New: `needs_you` | | the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
+| New: `needs_you` | | partly built (brain#65: replies, asks, pieces and blocked work, oldest first, read by Inbox › Waiting on you and the check-in; it only shows, and marks an entry past 48 hours): the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
 | New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the witness as a locked row (kind, parties, no open) |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
@@ -330,7 +330,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
 | F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the client browses by conversation, its search not yet | memory, client |
 | F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
-| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu#46) | memory |
+| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; 20% exploration drawn fresh each turn | built (kumbukumbu#46, #52, #53) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
 | F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu#30, brain#25) | memory, governance |
 | F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus#5, #11 to #15) | honcho |
@@ -342,14 +342,14 @@ Every feature, with where it stands today and which system owns it. Tier
 | F20 | Digest from mail and feeds, asked rather than scheduled (amended 2026-11-04: a check-in or a free time asks, not a morning clock) | built for her mail: asked by `digest_ask`, a check-in's digest part (sunna#28) or the witness, compiled by the reader from her mailbox under feeds/digests/, with a letter to the asking conversation (seshat#40); RSS and Atom feeds wait on F21 | inbound, schedule |
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | planned (xenia: not built) | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | planned (xenia: not built) | inbound |
-| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia#9, #11 to #14; brain#56: the threads filed under correspondence/ before the platform read by her correspondence tools as the archive), the inbound adapter run outside the platform | inbound |
+| F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia#9, #11 to #14, #17: a waiting draft replaced by a newer one; brain#56: the threads filed under correspondence/ before the platform read by her correspondence tools as the archive), the inbound adapter run outside the platform | inbound |
 | F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | partly built: asked by the resident (`research_ask`, which says what the reader can reach) or the witness, done by the reader on the witness's machine within the witness's research allowlist, signed in nowhere; notes, summaries in the reader's words, under `research/<n>-<slug>/` with `task.md`, and a letter to the asking conversation (seshat#38, xenia#16, brain#52); the witness's release of a source's link not yet | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat#19, #42): a piece at `status: review` waits for the witness's approval of that version; approved, the reader makes a Substack draft and never publishes; he presses Publish, and the URL comes back into the piece | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat#4, #15, #18) | library |
 | F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25) | library |
 | F28 | Design folder, indexed and cited | built (seshat#3) | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
-| F30 | External doc citations with resolved-at commit and drift detection | planned (seshat's target) | library |
+| F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/`, cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started, never what one did; a private conversation of kind `round`, billed to the free-time line; exits are her tools (a letter to the chat, a house letter, a reply draft, a note draft, a journal row) or silence | brain, schedule |
@@ -445,6 +445,21 @@ session under OTP supervision.
   safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
   stands; what was said is kept with a line saying who stopped it, and
   nothing after it runs.
+- **The timeline** (brain#67, the resident's report #8, the witness's
+  answer that today comes from the journal): every turn carries three
+  layers, each line dated and aged on that read so a moment's tense is
+  read off the clock, never remembered: today as the journal's rows in
+  event lines, the last 30 days as the bookmarks she weighs 2 and up,
+  her life so far as her pins and what she weighs 3, each with the
+  status she last gave it (`bookmark_weigh`, kumbukumbu#51), at most
+  `BRAIN_TIMELINE_LINES` (12) a layer past the pins.
+- **Batched delivery** (brain#66, the resident's reports #10 and #11):
+  the witness's messages that queue while a turn runs arrive together in
+  the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message
+  at its own time, with a line telling her how many and with a turn's
+  tool rounds for each (never fewer than separate turns would have had;
+  the rest wait for the turn after). A Stop or her safe word ends the
+  batched turn at once, as any turn.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.
@@ -657,7 +672,11 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   that is worth bringing"), learned from what was returned with a seed
   and from what the resident's `memory_feedback` says helped, never from
   the ranker's own cut and never against a correction; they decay toward
-  neutral with a 30-day half-life, from the events' own instants. A fifth
+  neutral by tests, not days (kumbukumbu#53, the resident's position #65:
+  an edge ages only on a turn where its source was the seed, and freezes
+  otherwise), and citations add their part apart, never decayed: a
+  bookmark citing another both ways, a document's co-citations split
+  across its pairs, each removed exactly when its citation goes. A fifth
   of the index is drawn at random from outside the ranked set, fresh each
   turn and recorded on it. Pins stay decisions and weights stay
   measurements; transcript search stays unweighted. All figures are
@@ -752,7 +771,7 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   every seed; after first contact the resident authors them and the
   witness affirms them.
   **Two scores, never one.** Habit strength is a measurement: enactments
-  under the same 30-day half-life as weighting, computed on read.
+  under a 30-day half-life, computed on read.
   Connection strength is a decision trace: pins on enacting turns, which
   do not decay, and bookmarks and affirmations ("I like when you do
   that"), which do. A behaviour with high habit and low connection is a
@@ -918,10 +937,18 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   never do, and the index deletes any it holds from them on every run.
 - **Resolution when read, not when indexed**; a reference that does not
   resolve is kept and says why.
-- **External sources** (F30): commissioned repos in `doc_source`, a heading
-  index rebuilt on sync, every citation recording the commit it resolved
-  at; a nightly drift audit says "the rule you cited said X at commit; it
-  now says Z". External docs never mint edges.
+- **External sources** (F30, seshat#46; the witness, 2026-11-07: pages and
+  repositories in one go, the copy kept whole for now, no refetch on a
+  schedule because the list grows without bound): a web page or a
+  repository's document is commissioned by either party and fetched by
+  the reader, by plain code and never a model, then kept whole in the
+  library under `external/` with its URL, the instant it was fetched, its
+  digest and, for a document, its commit. A citation resolves to the
+  section its anchor names in the kept copy and says when that copy was
+  fetched. Nothing is refetched until the resident or the witness asks;
+  the new copy replaces the kept one, the repository's history keeps the
+  old, and the asking conversation is told whether the words changed and
+  since when. External copies never mint edges.
 - **Journal** (F29): rows as the queryable spine, `journal/<day>.md` as the
   narrative; the resident writes the plan and the wrap (the actuals) with
   `journal_add` when she chooses, and no check-in asks for them (the

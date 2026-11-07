@@ -209,6 +209,52 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule External do
+    @moduledoc "A source outside the house, commissioned for citing (seshat#46): what it is, where it is fetched from, and its latest copy."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "seshat_external" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:key, :string)
+      field(:url, :string)
+      field(:ref, :string)
+      field(:title, :string)
+      field(:status, :string)
+      field(:path, :string)
+      field(:content_hash, :string)
+      field(:previous_hash, :string)
+      field(:commit, :string)
+      field(:bytes, :integer)
+      field(:fetches, :integer, default: 0)
+      field(:reason, :string)
+      field(:session_key, :string)
+      field(:commissioned_by, :string)
+      field(:commissioned_at, :utc_datetime_usec)
+      field(:asked_at, :utc_datetime_usec)
+      field(:fetched_at, :utc_datetime_usec)
+      field(:previous_fetched_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The external sources, newest first; `status:` narrows to asked, fetched or failed."
+  def externals(opts \\ []) do
+    query =
+      from(x in External, order_by: [desc: x.number], limit: ^Keyword.get(opts, :limit, 200))
+
+    case Keyword.get(opts, :status) do
+      nil -> Repo.all(query)
+      status -> Repo.all(from(x in query, where: x.status == ^status))
+    end
+  end
+
+  def external(number), do: Repo.one(from(x in External, where: x.number == ^number))
+  def external_by_key(key), do: Repo.one(from(x in External, where: x.key == ^key))
+
   @doc "The research questions, newest first; `status:` narrows to open, answered or failed."
   @spec researches(keyword()) :: [Research.t()]
   def researches(opts \\ []) do
@@ -431,6 +477,22 @@ defmodule Oneiroi.Seshat.Store do
     Repo.delete_all(from(r in Reference, where: r.from_path == ^path))
     if rows != [], do: Repo.insert_all(Reference, rows)
     :ok
+  end
+
+  @doc "Each document's citations of the resident's own bookmarks, path => numbers (kumbukumbu#53)."
+  def bookmark_citations(slug) do
+    from(r in Reference,
+      where: r.kind == "bookmark" and r.slug == ^slug,
+      select: {r.from_path, r.ref}
+    )
+    |> Repo.all()
+    |> Enum.flat_map(fn {path, ref} ->
+      case Integer.parse(ref) do
+        {n, ""} when n > 0 -> [{path, n}]
+        _other -> []
+      end
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
 
   @doc "Deletes every edge minted from the kinds that never mint (spec §6.5), on every run."

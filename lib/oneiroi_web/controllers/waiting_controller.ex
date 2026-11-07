@@ -6,7 +6,8 @@ defmodule OneiroiWeb.WaitingController do
   waits. A `brain` adapter is told the house letters waiting for the
   conversation it names (`session_key`); a `reader` adapter, the approved
   replies it has to send, the research questions open (seshat#38) and
-  the digest asked (seshat#40).
+  the digest asked (seshat#40) and the external sources waiting for a
+  copy (seshat#46).
   Numbers and who they are from or for, never
   their words, and nothing is marked read: the letter is read with
   letter_inbox, the reply with the reader's own route. A witness may ask
@@ -58,15 +59,11 @@ defmodule OneiroiWeb.WaitingController do
         do: Enum.map(Xenia.replies(id, "approved"), &%{number: &1.number, platform: &1.platform}),
         else: []
 
-    research =
-      if role in ["reader", :witness],
-        do: Enum.map(Seshat.researches(id, status: "open"), &%{number: &1.number}),
-        else: []
-
-    digests =
-      if role in ["reader", :witness],
-        do: Enum.map(Seshat.digests(id, status: "open"), &%{number: &1.number}),
-        else: []
+    reader? = role in ["reader", :witness]
+    research = numbers(reader?, fn -> Seshat.researches(id, status: "open") end)
+    # External sources waiting for a copy (seshat#46).
+    externals = numbers(reader?, fn -> Seshat.externals(id, status: "asked") end)
+    digests = numbers(reader?, fn -> Seshat.digests(id, status: "open") end)
 
     # The writing gate (seshat#42): approved pieces to draft and drafted
     # ones to watch, by path alone.
@@ -85,9 +82,14 @@ defmodule OneiroiWeb.WaitingController do
       replies: replies,
       research: research,
       digests: digests,
+      externals: externals,
       pieces: pieces
     })
   end
+
+  # The reader's queues by number alone, read only for a reader or the witness.
+  defp numbers(false, _read), do: []
+  defp numbers(true, read), do: Enum.map(read.(), &%{number: &1.number})
 
   defp letter(l), do: %{number: l.number, from: l.from_name, in_reply_to: l.in_reply_to}
 

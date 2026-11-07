@@ -598,3 +598,40 @@ told twice.
 Money she has to ask about is money she forgets; a line she reads
 every turn is one she plans with. The section is a few lines; the tool
 is there for the turn where a cent matters.
+
+## #65
+A waiting surface the witness has to assemble himself, screen by
+screen, is one he reads the parts of he remembers: Lily's drafts sat
+behind her asks and her blocked work behind the schedule, and nobody
+could say what had waited longest. One list read from the records is
+the same list wherever it shows, the Inbox and the check-in alike, so
+they never disagree about what waits. It only shows because an
+approval is the witness's act, not the clock's: a queue that sends on
+a timeout or pre-approves a class turns his silence into consent,
+which is the dark pattern the resident's soul names. Age is marked so
+that silence is visible instead.
+
+## #66
+Messages that queue behind a turn are usually about one thing, sent
+while she was still answering the first; answered one turn each, every
+reply is written before she has read the rest, and each turn pays its
+own context. Answered together, each sees the others. Batching with one
+turn's rounds would cut her capacity per message to a fraction, forcing
+her to triage his words, so the rounds scale with the count, and the
+bound is on how many join rather than on the rounds: anything past it
+waits its own turn rather than being squeezed (Lily's report #11). Each
+message stays its own, at its own time, so the record says what he
+said when; the oldest ref carries the turn because it was the one
+already waiting.
+
+## #67
+Her tense errors were never about a missing fact: the submission was
+in her bookmarks and her journal. They came from a date read once and
+then carried in memory as if no time had passed, so the fix is to age
+every line on the read and put it where she cannot miss it, early in
+the turn where a runtime that truncates still keeps it. Today comes
+from the journal because that is where her day already is (the
+witness's answer), as lines rather than rows so the day costs little;
+the longer layers come from bookmarks because they are already her
+chosen moments, with a weight she sets rather than a new store she
+would have to keep in step.

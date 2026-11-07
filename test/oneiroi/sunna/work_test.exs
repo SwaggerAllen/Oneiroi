@@ -292,6 +292,46 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert {:started, 2} = WorkLoop.check(ctx.id)
   end
 
+  test "moving the running item by hand ends its run, and its leftover turn does nothing (sunna#37)",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+
+    :ok = Sunna.work_move(ctx.id, 1, "done", nil, "finished in the chat", ctx.me)
+    assert %{running: nil, items: [%{number: 1, status: "done"} | _]} = Sunna.work_queue(ctx.id)
+
+    flush()
+    assert :ok = WorkLoop.turn(ctx.id, key, 1, 2)
+    assert :ok = WorkLoop.wrap_turn(ctx.id, key, 1)
+    refute_received {:asked, _}
+
+    assert {:started, 2} = WorkLoop.check(ctx.id)
+  end
+
+  test "a run whose end was never recorded is ended by the check past its bound, and its item runs again (sunna#37)",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+
+    # Its job died: nothing ends it. Inside the bound, it still runs.
+    assert :running = WorkLoop.check(ctx.id)
+
+    # Past it, the stalled run is ended and its item, unfinished, reopens:
+    # the loop starts it again in a new run rather than skipping it.
+    Clock.Fake.advance(181 * 60)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    assert %{running: 1, items: [%{number: 1, status: "in_work", runs: 2} | _]} =
+             Sunna.work_queue(ctx.id)
+  end
+
   test "the tick asks for a check when work is open and nothing runs", ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
     :ok = Sunna.work_arm(ctx.id, ctx.me)

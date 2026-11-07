@@ -37,7 +37,8 @@ defmodule Oneiroi.Sunna.CheckinParts do
     %{
       key: "needs_you",
       label: "Waiting on you",
-      about: "What waits on the person who looks after her: replies to approve."
+      about:
+        "What waits on the person who looks after her, by kind: replies, asks, pieces, blocked work."
     },
     %{
       key: "digest",

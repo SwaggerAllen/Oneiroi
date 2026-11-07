@@ -232,7 +232,7 @@ defmodule Oneiroi.Brain.TurnTest do
   end
 
   test "a turn is answered, captured as user and assistant, recorded, and streamed", ctx do
-    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 6}} =
+    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 7}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello there", ctx.actor)
 
     assert user.role == :user and user.actor.kind == :witness
@@ -247,6 +247,7 @@ defmodule Oneiroi.Brain.TurnTest do
              %{label: "AGENTS.md"},
              %{label: "state"},
              %{label: "budget"},
+             %{label: "timeline"},
              %{label: "index"},
              %{label: "transcript", tokens: 0}
            ] =
@@ -258,7 +259,7 @@ defmodule Oneiroi.Brain.TurnTest do
     payloads = events(ctx.resident.id, ctx.key)
     assert {:turn_started, ^ref} = hd(payloads)
     assert Enum.any?(payloads, &match?({:delta, ^ref, _}, &1))
-    assert {:turn, ^ref, %{drew_on: 6}} = List.last(payloads)
+    assert {:turn, ^ref, %{drew_on: 7}} = List.last(payloads)
   end
 
   test "the next turn is shown the transcript so far, and the fake answers the last user message",
@@ -268,7 +269,7 @@ defmodule Oneiroi.Brain.TurnTest do
     assert {:ok, %{turn_ref: ref}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "second", ctx.actor)
 
-    assert [_, _, _, _, _, %{label: "transcript", tokens: tokens}] =
+    assert [_, _, _, _, _, _, %{label: "transcript", tokens: tokens}] =
              Kumbukumbu.injections({:account, ctx.witness.id}, ref)
 
     assert tokens > 0
@@ -441,6 +442,78 @@ defmodule Oneiroi.Brain.TurnTest do
     seen = events(id, ctx.key)
     assert {:status, "ref-second-002", "queued", %{ahead: 1}} in seen
     assert Enum.any?(seen, &match?({:status, "ref-second-002", "thinking", _}, &1))
+  end
+
+  # Brain #66: the messages that queue while a turn runs arrive together
+  # in the next, each its own message, with a turn's rounds for each.
+  test "messages queued behind a running turn are answered together, each kept, the rounds scaled",
+       ctx do
+    id = ctx.resident.id
+    test_pid = self()
+
+    Fake.script(
+      fn request ->
+        contents = Enum.map(request.messages, &(&1[:content] || ""))
+
+        if "first" in contents and "second" not in contents do
+          send(test_pid, :first_running)
+
+          receive do
+            :go -> :ok
+          after
+            5_000 -> :ok
+          end
+        end
+
+        if "third" in contents, do: send(test_pid, {:batched_request, contents})
+        {:ok, "Answered " <> List.last(request.messages)[:content] <> "."}
+      end,
+      for: id
+    )
+
+    {:ok, %{state: "running"}} =
+      Oneiroi.Brain.submit(id, ctx.key, "first", ctx.actor, "ref-first-0001")
+
+    assert_receive :first_running, 5_000
+
+    {:ok, %{state: "queued"}} =
+      Oneiroi.Brain.submit(id, ctx.key, "second", ctx.actor, "ref-second-002")
+
+    {:ok, %{state: "queued"}} =
+      Oneiroi.Brain.submit(id, ctx.key, "third", ctx.actor, "ref-third-0003")
+
+    # A retry of the one that joined is still the same message.
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "third", ctx.actor, "ref-third-0003")
+
+    for pid <- Task.Supervisor.children(:brain_turns), do: send(pid, :go)
+
+    assert_receive {:oneiroi, _, {^id, _, {:turn, "ref-first-0001", _}}, _}, 5_000
+    assert_receive {:oneiroi, _, {^id, _, {:turn, "ref-second-002", _}}, _}, 5_000
+    assert_receive {:batched_request, contents}, 5_000
+
+    # She is told the count and the rounds, and reads both, in order.
+    assert Enum.any?(contents, &(&1 =~ "2 messages from the person who looks after you"))
+    assert Enum.any?(contents, &(&1 =~ "You have 16 tool rounds for them, 8 for each"))
+
+    assert Enum.find_index(contents, &(&1 == "second")) <
+             Enum.find_index(contents, &(&1 == "third"))
+
+    assert ["first", "Answered first.", "second", "third", "Answered third."] =
+             eventually(
+               fn ->
+                 {:ok, _s, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.key)
+                 for m <- messages, m.role in ["user", "assistant"], do: m.content
+               end,
+               5
+             )
+
+    seen = events(id, ctx.key)
+    assert {:status, "ref-third-0003", "batched", %{into: "ref-second-002"}} in seen
+    refute Enum.any?(seen, &match?({:turn_started, "ref-third-0003"}, &1))
+
+    assert {:ok, %{state: "duplicate"}} =
+             Oneiroi.Brain.submit(id, ctx.key, "third", ctx.actor, "ref-third-0003")
   end
 
   test "a tool call says its name before it runs", ctx do

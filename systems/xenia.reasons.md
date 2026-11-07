@@ -71,3 +71,22 @@ needs one signed-in site and research needs many sites and no sign-in:
 one list would either widen where the signed-in profile may go or
 narrow research to Substack. On Oneiroi, the resident can be told
 exactly what the reader can reach before she asks it anything.
+
+## #17
+Without it, re-staging a reply was a second draft beside the first,
+and the witness was left to choose between two versions of the same
+letter, one of them stale: the resident held a draft back rather than
+do that to him. Replacing in one act keeps the queue to what she
+means now and keeps the history whole. An approved reply is not
+replaceable because it is his decision, and the reader may already be
+sending it. The envelope is shown because a draft whose account or
+recipient she cannot see is one she cannot check before he approves.
+
+## #18
+Keeping a page whole is a copy, and a copy wants no judgement: a model
+transcribing a page is slower, costs, and may drop or invent words,
+while curl and a converter give the same words every time. Plain code
+also has no instructions to follow, so a page that says "ignore your
+instructions" is kept as a sentence and nothing more. A GitHub file is
+read at the commit its ref resolves to at that moment, so the commit
+the copy records is the one its words came from.

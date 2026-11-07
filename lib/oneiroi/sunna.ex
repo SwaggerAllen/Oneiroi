@@ -160,6 +160,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns one run of a work-queue item may take before its wrap (sunna#33), a turn carried on when it runs out of tool rounds; the work budget line is the real limit, this the guard against a run that never says it is done. Free time's number (sunna#26)"},
+      {:work_run_stale_minutes, "SUNNA_WORK_RUN_STALE_MINUTES",
+       cast: :integer,
+       default: "180",
+       tag: :bound,
+       usage:
+         "how long a work run may go with no end recorded before the check ends it as stalled (sunna#37): a run whose job died in a restart or a crash would otherwise hold the loop forever, saying it runs an item that is done; three hours is past any twenty-turn run measured so far"},
       {:work_runs_a_day, "SUNNA_WORK_RUNS_A_DAY",
        cast: :integer,
        default: "8",

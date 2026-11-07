@@ -118,6 +118,31 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
   end
 
+  defmodule ExternalCommissioned do
+    # A source outside the house, commissioned for citing (seshat#46):
+    # `kind` web or doc, `key` what a citation names it by (a web page's
+    # URL digest; a document's provider/owner/repo/path), `url` where it
+    # is fetched from, `ref` a document's branch or HEAD.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :kind, :key, :url, :ref, :session_key]
+  end
+
+  defmodule ExternalFetchAsked do
+    # A fresh copy asked of the reader, and the conversation told when it lands.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :session_key]
+  end
+
+  defmodule ExternalFetched do
+    # The copy the reader brought, written at `path`: its title, the
+    # digest of its words, a document's commit, its size.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :path, :title, :content_hash, :commit, :bytes]
+  end
+
+  defmodule ExternalFetchFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
+
   defmodule DigestAsked do
     # A digest asked of the reader (seshat#40): what reached the
     # resident's streams (her mail's newsletters and posts) since `since`,

@@ -22,15 +22,28 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
   alias Oneiroi.SimaQian.Export
 
   describe "the arithmetic" do
-    test "a weight decays to half in a half-life and is softly bounded either way" do
-      t0 = ~U[2026-11-01 00:00:00Z]
-      assert_in_delta Edges.decayed(0.8, t0, DateTime.add(t0, 30, :day), 30), 0.4, 1.0e-9
-      assert Edges.decayed(0.8, t0, t0, 30) == 0.8
+    # kumbukumbu#53: decay counts the source's seedings, never days.
+    test "a weight decays to half in K seedings of its source, freezes without them, and is softly bounded either way" do
+      assert_in_delta Edges.decayed(0.8, 10, 40, 30), 0.4, 1.0e-9
+      assert Edges.decayed(0.8, 10, 10, 30) == 0.8
+      assert Edges.decayed(0.8, 10, 5, 30) == 0.8
 
       up = Enum.reduce(1..200, 0.0, fn _, w -> Edges.bump(w, 0.15) end)
       down = Enum.reduce(1..200, 0.0, fn _, w -> Edges.bump(w, -0.05) end)
       assert up < 1.0 and up > 0.99
       assert down > -1.0 and down < -0.99
+    end
+
+    test "citations: a bookmark citing another is B both ways; a document's N citations are B/(N-1) a pair; the sum is bounded" do
+      assert Edges.cited_by_bookmark(4, [7, 4, 7], 0.1) == [{4, 7, 0.1}, {7, 4, 0.1}]
+      assert Edges.co_cited([1, 2], 0.1) == [{1, 2, 0.1}, {2, 1, 0.1}]
+      assert Edges.co_cited([1], 0.1) == []
+      survey = Edges.co_cited(Enum.to_list(1..11), 0.1)
+      assert length(survey) == 110
+      assert Enum.all?(survey, fn {_f, _t, w} -> abs(w - 0.01) < 1.0e-12 end)
+      assert Edges.combined(0.95, 0.2) == 1.0
+      assert Edges.combined(-0.95, -0.2) == -1.0
+      assert_in_delta Edges.combined(0.3, 0.1), 0.4, 1.0e-12
     end
 
     test "co-return runs from the seed alone, and never to itself" do
@@ -63,7 +76,6 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
         edges,
         Keyword.merge(
           [
-            now: ~U[2026-11-03 00:00:00Z],
             lambda: 0.3,
             half_life: 30,
             lines: 3,
@@ -89,10 +101,22 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
       assert plain.seeds == [1]
       assert Enum.map(plain.ranked, & &1.bookmark.number) == [1, 2]
 
-      edge = %{from_number: 1, to_number: 3, w: 0.5, touched_at: ~U[2026-11-03 00:00:00Z]}
+      edge = %{from_number: 1, to_number: 3, w: 0.5, touched_count: 4, seeded: 4}
       lifted = rank(candidates, [edge], [])
       assert Enum.map(lifted.ranked, & &1.bookmark.number) == [1, 3]
       assert [%{bookmark: %{number: 2}, why: "past the index's ranked lines"}] = lifted.rejected
+
+      # The same edge after many seedings with no touch has faded; a
+      # citation's part does not fade, and lifts it alone.
+      faded = %{edge | seeded: 4 + 300}
+      assert Enum.map(rank(candidates, [faded], []).ranked, & &1.bookmark.number) == [1, 2]
+      cited = [%{from_number: 1, to_number: 3, w: 0.5}]
+
+      assert Enum.map(
+               rank(candidates, [faded], [], citations: cited).ranked,
+               & &1.bookmark.number
+             ) ==
+               [1, 3]
     end
 
     test "the draw comes from outside the ranked set, and a near-miss it draws is explored, not rejected" do
@@ -229,6 +253,88 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
       ws = Enum.map(edges(ctx.id), & &1.w)
       assert ws != []
       assert Enum.all?(ws, &(&1 > 0))
+    end
+
+    test "a turn counts each seed once, an edge decays only by its source's seedings, and stores its count",
+         ctx do
+      Fake.reply("Yes.", for: ctx.id)
+      {:ok, _} = Oneiroi.Brain.turn(ctx.id, ctx.key, "the heron at the weir", ctx.actor)
+
+      seeded =
+        Scope.resident(ctx.id, fn ->
+          Oneiroi.Repo.all(Store.EdgeSource) |> Map.new(&{&1.number, &1.seeded})
+        end)
+
+      assert seeded != %{} and Enum.all?(seeded, fn {_n, c} -> c == 1 end)
+      # The edges written this turn were touched at their source's count now.
+      assert Enum.all?(edges(ctx.id), &(&1.touched_count == &1.seeded))
+
+      # Days pass with no turn: nothing decays.
+      before = Map.new(edges(ctx.id), &{{&1.from_number, &1.to_number}, &1.w})
+      Clock.Fake.advance(90 * 86_400)
+      assert Map.new(edges(ctx.id), &{{&1.from_number, &1.to_number}, &1.w}) == before
+    end
+
+    test "a document's citations make co-citation edges, and removing a citation removes exactly its part",
+         ctx do
+      slug = Oneiroi.AgathosDaimon.fetch(ctx.id) |> elem(1) |> Map.get(:slug)
+
+      cites = fn ->
+        Scope.resident(ctx.id, fn -> Store.citation_edges_from([1, 2, 3, 4]) end)
+        |> Map.new(&{{&1.from_number, &1.to_number}, &1.w})
+      end
+
+      {:ok, _} =
+        Oneiroi.Seshat.write(
+          ctx.id,
+          "writing/herons.md",
+          "# Herons\n\nAt dawn (#{slug}:bookmark/1) and again (#{slug}:bookmark/2).",
+          ctx.brain
+        )
+
+      assert cites.() == %{{1, 2} => 0.1, {2, 1} => 0.1}
+
+      {:ok, _} =
+        Oneiroi.Seshat.write(
+          ctx.id,
+          "design/three.md",
+          "# Three\n\n#{slug}:bookmark/1, #{slug}:bookmark/2 and #{slug}:bookmark/4.",
+          ctx.brain
+        )
+
+      by_pair = cites.()
+      assert_in_delta by_pair[{1, 2}], 0.1 + 0.05, 1.0e-9
+      assert_in_delta by_pair[{1, 4}], 0.05, 1.0e-9
+
+      # The first piece drops its citations: exactly its part goes.
+      {:ok, _} =
+        Oneiroi.Seshat.write(ctx.id, "writing/herons.md", "# Herons\n\nNo cites now.", ctx.brain)
+
+      by_pair = cites.()
+      assert_in_delta by_pair[{1, 2}], 0.05, 1.0e-9
+
+      # An archived document's citations are taken back with it (#53):
+      # the record stays readable, the connection stops shaping.
+      {:ok, _} = Oneiroi.Seshat.archive(ctx.id, "design/three.md", "superseded", ctx.brain)
+      refute Map.has_key?(cites.(), {1, 4})
+      assert cites.() == %{}
+
+      # A bookmark that cites another in its own words: B both ways.
+      {:ok, 6} =
+        Kumbukumbu.add_bookmark(
+          ctx.id,
+          %{
+            session_key: ctx.key,
+            anchor_ref: "anchor",
+            line: "after #{slug}:bookmark/3",
+            summary: "s"
+          },
+          ctx.brain
+        )
+
+      assert %{{6, 3} => 0.1, {3, 6} => 0.1} =
+               Scope.resident(ctx.id, fn -> Store.citation_edges_from([3, 6]) end)
+               |> Map.new(&{{&1.from_number, &1.to_number}, &1.w})
     end
 
     test "a ranked turn's recording carries the embedding model, and the export takes it along",

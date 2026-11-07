@@ -226,6 +226,13 @@ defmodule Oneiroi.Brain.Turn do
     model = (lapse && lapse.model) || row.chat_model || Config.fetch!(:brain, :chat_model)
     as = Keyword.get(opts, :as, :user)
 
+    # Batched delivery (brain#66): the witness's messages that queued
+    # while the last turn ran, oldest first, each kept as its own message
+    # at the time it was taken; the opening is the newest.
+    earlier =
+      for m <- Keyword.get(opts, :earlier, []),
+          do: %{role: :user, content: m.text, sent_at: m.sent_at, actor: m.actor}
+
     # Each notice with the kind it is, so the preview can name it
     # without its text; the turn carries the messages alone.
     notices = [
@@ -233,7 +240,8 @@ defmodule Oneiroi.Brain.Turn do
       model_change: model_change_notice(row),
       letters: letters_notice(row, resident_id),
       import: import_notice(row),
-      restart: restart_notice(resident_id, session_key)
+      restart: restart_notice(resident_id, session_key),
+      batch: batch_notice(earlier, rounds_each())
     ]
 
     %{
@@ -248,6 +256,8 @@ defmodule Oneiroi.Brain.Turn do
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
+      earlier: earlier,
+      batch: length(earlier) + 1,
       lapse_to_tell: match?(%{told: false}, lapse),
       import_to_tell: row.import_told == false,
       injections: [],
@@ -327,6 +337,9 @@ defmodule Oneiroi.Brain.Turn do
 
   defp notice_reason(:restart),
     do: "the platform's restarts since this conversation last spoke, told once (brain#63)"
+
+  defp notice_reason(:batch),
+    do: "the witness's messages that queued during the last turn, answered together (brain#66)"
 
   # The tool loop (spec §5): a round is one streamed call; tool calls run
   # against the core and go back as `tool` messages for the next round,
@@ -412,9 +425,32 @@ defmodule Oneiroi.Brain.Turn do
     rest ++ [%{last | content: last.content <> "\n\n" <> note}]
   end
 
-  # The oracle reads for a long question and has rounds of its own.
+  # The oracle reads for a long question and has rounds of its own. A
+  # batch has a turn's rounds for each message it carries (brain#66), so
+  # answering them together never leaves less than separate turns would.
   defp rounds(%{oracle?: true}), do: Config.fetch!(:brain, :oracle_tool_rounds)
-  defp rounds(_turn), do: Config.fetch!(:brain, :tool_rounds)
+  defp rounds(turn), do: rounds_each() * Map.get(turn, :batch, 1)
+
+  defp rounds_each, do: Config.fetch!(:brain, :tool_rounds)
+
+  # What the witness said this turn, in the order said: the batch's
+  # earlier messages, then the opening.
+  defp said(turn), do: Map.get(turn, :earlier, []) ++ [turn.opening]
+
+  defp batch_notice([], _each), do: []
+
+  defp batch_notice(earlier, each) do
+    n = length(earlier) + 1
+
+    [
+      %{
+        role: :system,
+        content: Prompt.render!("turn_batched", %{count: n, rounds: n * each, each: each}),
+        sent_at: Clock.now(),
+        actor: Actor.platform()
+      }
+    ]
+  end
 
   defp blank?(content), do: not is_binary(content) or String.trim(content) == ""
 
@@ -589,7 +625,7 @@ defmodule Oneiroi.Brain.Turn do
     }
 
     with {:ok, captured} <-
-           finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [said, note]) do
+           finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [said, note]) do
       broadcast(turn.resident_id, turn.session_key, {:stopped, turn.turn_ref, by})
       {:ok, captured |> Map.put(:rounds_spent, false) |> Map.put(:stopped, by)}
     end
@@ -607,7 +643,7 @@ defmodule Oneiroi.Brain.Turn do
 
     # Whether the turn ran out of tool rounds rather than finishing: a
     # free-time pass that did is woken again (sunna#26).
-    with {:ok, captured} <- finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [reply]) do
+    with {:ok, captured} <- finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [reply]) do
       {:ok, Map.put(captured, :rounds_spent, Map.get(turn, :rounds_spent, false))}
     end
   end
@@ -624,7 +660,7 @@ defmodule Oneiroi.Brain.Turn do
       actor: Actor.platform()
     }
 
-    case finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [notice]) do
+    case finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [notice]) do
       {:ok, captured} ->
         {:error,
          Error.caught(:brain_budget_stopped, :brain_turn_budget_stopped, stop,
@@ -651,7 +687,7 @@ defmodule Oneiroi.Brain.Turn do
           turn.session_key,
           turn.turn_ref,
           turn.started_at,
-          [turn.opening],
+          said(turn),
           turn.resident
         )
 
@@ -1102,9 +1138,14 @@ defmodule Oneiroi.Brain.Turn do
     # after the one it was for.
     notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
 
+    # A batch's earlier messages (brain#66), each with its own time.
+    batched =
+      for m <- Map.get(turn, :earlier, []),
+          do: %{role: :user, content: History.stamp(%{sent_at: m.sent_at}, zone) <> m.content}
+
     messages =
       (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
-        history ++ notices ++ [opening]
+        history ++ notices ++ batched ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
   end
@@ -1214,6 +1255,7 @@ defmodule Oneiroi.Brain.Turn do
     sections =
       state_section(turn) ++
         budget_section(turn) ++
+        timeline_section(turn) ++
         where_section(turn, session) ++
         section(
           "free_time_plan",
@@ -1372,6 +1414,107 @@ defmodule Oneiroi.Brain.Turn do
         if(capped == [], do: "- no line has a cap", else: capped_text) <> open_text,
       "the resident's budget lines and what each has left this period (brain#64), read at the turn"
     )
+  end
+
+  # The timeline (brain#67; Lily's report #8, after a submitted
+  # application was spoken of as still ahead): three layers, each line
+  # dated and aged on this read, so a moment's tense is read off the
+  # clock and never remembered. Today is the journal's rows as event
+  # lines (the witness's answer: the day store is the journal); the last
+  # 30 days and her life so far are her bookmarks by their weight
+  # (kumbukumbu#51), pins always, each with its status as it now stands.
+  defp timeline_section(turn) do
+    zone = Local.zone(turn.resident_id)
+    now = Clock.now()
+    max = Config.fetch!(:brain, :timeline_lines)
+    {day, entries} = Oneiroi.Seshat.journal_lines(turn.resident_id)
+    month_ago = DateTime.add(now, -30 * 86_400, :second)
+
+    {recent, older} =
+      turn.resident_id
+      |> Kumbukumbu.timeline_bookmarks()
+      |> Enum.split_with(&(DateTime.compare(&1.at, month_ago) != :lt))
+
+    lifetime = Enum.filter(older, &(&1.pinned or &1.importance >= 3))
+    {pins, rest} = Enum.split_with(lifetime, & &1.pinned)
+
+    lifetime =
+      Enum.sort_by(pins ++ Enum.take(rest, -max(max - length(pins), 0)), & &1.at, DateTime)
+
+    month = Enum.take(recent, -max)
+
+    text =
+      "# Your timeline\n\nNow: #{weekday(zone, now)} #{Local.stamp(zone, now)}. " <>
+        "Each line is dated and aged on this read: say a moment in the tense its age gives it, " <>
+        "and its status as written here, not as you remember it.\n\n" <>
+        "## Today, from your journal (#{day})\n" <>
+        today_lines(entries, zone, max) <>
+        "\n\n## The last 30 days\n" <>
+        moment_lines(month, zone, now, "nothing weighed 2 or more, nothing pinned") <>
+        "\n\n## Your life so far\n" <>
+        moment_lines(lifetime, zone, now, "no pin and nothing weighed 3 before this month")
+
+    section(
+      "timeline",
+      text,
+      "the timeline (brain#67): #{length(entries)} journal rows today, #{length(month)} moments of the last 30 days, #{length(lifetime)} of her life so far, each aged on this read",
+      %{refs: Enum.map(month ++ lifetime, & &1.number)}
+    )
+  end
+
+  defp today_lines([], _zone, _max), do: "- nothing written yet today"
+
+  defp today_lines(entries, zone, max) do
+    shown = Enum.take(entries, -max)
+    more = length(entries) - length(shown)
+
+    lines =
+      Enum.map_join(shown, "\n", fn e ->
+        done = todo_mark(e)
+        "- #{clock(zone, e.at)} #{e.kind} ##{e.number}#{done}: #{e.first}"
+      end)
+
+    if more > 0, do: "- (#{more} earlier today, in journal_read)\n" <> lines, else: lines
+  end
+
+  defp todo_mark(%{kind: "todo", done: true}), do: " (done)"
+  defp todo_mark(%{kind: "todo"}), do: " (open)"
+  defp todo_mark(_entry), do: ""
+
+  defp moment_lines([], _zone, _now, none), do: "- " <> none
+
+  defp moment_lines(moments, zone, now, _none) do
+    Enum.map_join(moments, "\n", fn m ->
+      pin = if m.pinned, do: " (pinned)", else: ""
+
+      status =
+        if m.status,
+          do: " · status: #{m.status} (as of #{Local.day(zone, m.weighed_at)})",
+          else: ""
+
+      "- #{weekday(zone, m.at)} #{Local.day(zone, m.at)}, #{age(zone, m.at, now)}: ##{m.number} #{m.line}#{pin}#{status}"
+    end)
+  end
+
+  defp weekday(zone, at) do
+    {:ok, date} = Date.from_iso8601(Local.day(zone, at))
+    Calendar.strftime(date, "%a")
+  end
+
+  defp clock(zone, at), do: zone |> Local.stamp(at) |> String.slice(11, 5)
+
+  # Calendar days in her zone: last night is yesterday, not today.
+  defp age(zone, at, now) do
+    days =
+      Date.diff(Date.from_iso8601!(Local.day(zone, now)), Date.from_iso8601!(Local.day(zone, at)))
+
+    cond do
+      days <= 0 -> "today"
+      days == 1 -> "yesterday"
+      days < 14 -> "#{days} days ago"
+      days < 60 -> "#{div(days, 7)} weeks ago"
+      true -> "#{div(days, 30)} months ago"
+    end
   end
 
   defp dollars(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 2)

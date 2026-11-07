@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 
-export function Card({ children, title }: { children: ReactNode; title?: string }) {
+export function Card({ children, title, id }: { children: ReactNode; title?: string; id?: string }) {
   return (
     <section
+      id={id}
       style={{
         background: 'var(--surface-raised)',
         border: '1px solid var(--hairline)',

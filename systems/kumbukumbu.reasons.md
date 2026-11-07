@@ -358,3 +358,39 @@ needed to store it, so a message without one gets the one before it.
 That stand-in is honest at the storage layer and a lie anywhere a
 person or a resident reads a time, so the record says which instants
 were placed and every view that shows a time says so.
+
+## #51
+The weight is a judgement of what mattered, which only the one who
+lived it can make, so it is hers as the bookmark's line is. The status
+is separate from the line because the line is what the moment was and
+never changes, while where it stands does: an application is sent,
+then submitted, then answered. Keeping the status on the bookmark and
+dated means the timeline shows the newest word she gave it, with its
+date, rather than a state copied by hand that goes stale silently.
+
+## #52
+A miss is something offered that was not taken. A promise in front of
+her every turn was never offered as a choice, so counting it as
+returned and unused made the unused list lead with what is working as
+designed, and hid the near-misses that are the measurement's point. The
+split is made where the counts are read, because the recorded uses are
+history and should not be rewritten to agree with a newer reading. Reads
+of the platform's source and her repository were invisible to the
+measurement, so a week of reading design docs looked like a week of
+reading nothing.
+
+## #53
+Days of silence are absence of evidence, and decaying an edge for them
+punished the reunion: the edge was weakest at the moment its source came
+back. Counting only the turns where the edge could have fired and did
+not makes decay mean what it claims, a test failed, and lets an edge
+whose source never comes up wait unchanged. The test is the source being
+the seed and not merely considered, because an edge contributes only
+from a seed. Citations are deliberate connections, so disuse says
+nothing against them and they never decay; a survey is split across its
+pairs so ten citations in one document do not count as ten strong
+statements. Each source's part is kept apart so that taking a citation
+back takes back exactly what it gave, and the citations reach memory as
+events on its own stream so a rebuild reproduces every weight. Renaming
+the projector refolds history under the new rules rather than leaving
+old weights computed under the old ones.

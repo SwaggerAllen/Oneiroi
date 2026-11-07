@@ -93,16 +93,34 @@ the witness agreed, to be revisited if the tuning does not help):
 `w += Δ(1 − w)`, a decrease `w −= Δ(1 + w)`, keeping every weight in
 [−1, 1] with diminishing returns at the ends.
 
-**Decay toward neutral.** Lazy exponential decay, the decayed-counter
-technique of streaming systems: an edge stores its deviation and when it
-was last touched; its weight at time t is
-`w · 2^(−(t − touched_at)/h)`. An update decays to now, applies the
-change, and stores the new instant; a read decays at read time. Nothing
-sweeps every edge; a periodic vacuum drops edges whose decayed |w| is
-under ε. The half-life h is the spec's 30 days.
+**Decay toward neutral, by tests rather than days** (kumbukumbu#53,
+Lily's position #65, 2026-11-07, superseding the 30-day half-life). Lazy
+exponential decay, the decayed-counter technique of streaming systems,
+on a different axis: each bookmark counts the turns it was the seed of,
+and an edge stores its deviation and its source's count when last
+touched; its weight now is `w · 2^(−(seeded − touched_count)/K)`. An
+edge ages only on a turn where its source was the seed, where it could
+have fired and did not; calendar silence is not evidence against it, so
+an edge whose source is never seeded freezes. An update decays to the
+count now, applies the change and stores the count; a read decays at
+read time. Nothing sweeps every edge; an edge whose decayed |w| is
+under ε is removed when next touched. K is 30 seedings until the
+measurement week sets it.
 
-**Event-sourced.** Each turn's C, R and U are an event; the edges are a
-projection of them, decay computed from the events' own instants, so a
+**Citations, apart and undecayed** (kumbukumbu#53, position #64). A
+bookmark whose own words cite another adds B to the edge both ways; a
+document that cites N bookmarks adds B/(N−1) to each ordered pair, so a
+survey is not N strong statements. Each contribution is kept by the
+source that made it, never decays, and is removed exactly when its
+citation goes (an edit, an archive, a removal); the ranking reads the
+learned weight, decayed, plus the citations', bounded in [−1, 1].
+Documents are not nodes: making them ranked would change what the index
+is, and is its own design.
+
+**Event-sourced.** Each turn's C, R and U are an event, and so is each
+change in a document's bookmark citations (`CitationsRecorded`); the
+edges are a projection of them, decay computed from the seed counts the
+events themselves carry, so a
 rebuild reproduces them exactly and the export carries them as data.
 
 ### Ranking at query time
@@ -155,7 +173,8 @@ tagged as a guess:
 | β | 0.15 | the used step |
 | λ | 0.3 | how much the edges move a score |
 | threshold | to measure | the reject line, set from the first week's distribution |
-| half-life | 30 days | decay toward neutral |
+| half-life | 30 seedings | decay toward neutral, by the source's turns as seed (kumbukumbu#53) |
+| B | 0.1 | a citation's contribution, never decayed (kumbukumbu#53) |
 | ε | 0.01 | the vacuum's floor |
 | exploration | 20% | of the index budget |
 

@@ -59,6 +59,8 @@ defmodule Oneiroi.Kumbukumbu do
       MemoryCommands.AddBookmark,
       MemoryCommands.ExtendBookmark,
       MemoryCommands.PinBookmark,
+      MemoryCommands.WeighBookmark,
+      MemoryCommands.RecordCitations,
       MemoryCommands.UnpinBookmark,
       MemoryCommands.ProposeBookmark,
       MemoryCommands.DeclineBookmarkProposal,
@@ -72,6 +74,8 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.BookmarkAdded,
       Events.Memory.BookmarkExtended,
       Events.Memory.BookmarkPinned,
+      Events.Memory.BookmarkWeighed,
+      Events.Memory.CitationsRecorded,
       Events.Memory.BookmarkUnpinned,
       Events.Memory.BookmarkProposed,
       Events.Memory.BookmarkProposalDeclined,
@@ -195,12 +199,18 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "λ in hundredths: how far the learned edges from the seed move a candidate's score beside its similarity; a guess"},
-      {:edge_half_life_days, "KUMBUKUMBU_EDGE_HALF_LIFE_DAYS",
+      {:edge_half_life_opportunities, "KUMBUKUMBU_EDGE_HALF_LIFE_OPPORTUNITIES",
        cast: :integer,
        default: "30",
        tag: :bound,
        usage:
-         "the half-life of a learned edge's decay toward neutral (F11's 30 days): decay the access, never the content"},
+         "K: how many turns with an edge's source as the seed halve a learned edge toward neutral (kumbukumbu#53, Lily's position #65: decay counts tests, not days); a guess until the measurement week sets it"},
+      {:edge_citation_permille, "KUMBUKUMBU_EDGE_CITATION_PERMILLE",
+       cast: :integer,
+       default: "100",
+       tag: :bound,
+       usage:
+         "B in thousandths: a citation's contribution to an edge (kumbukumbu#53): a bookmark citing another, B both ways; a document citing N bookmarks, B/(N-1) to each pair; never decayed; a guess"},
       {:edge_floor_permille, "KUMBUKUMBU_EDGE_FLOOR_PERMILLE",
        cast: :integer,
        default: "10",
@@ -293,6 +303,8 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
+      {Oneiroi.Kumbukumbu.Events.Memory.BookmarkWeighed, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.CitationsRecorded, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
@@ -342,6 +354,9 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_line_invalid, "a bookmark's line is at most 120 characters and not blank",
        remedy: "say it in a line; the summary holds the rest"},
       {:kumbukumbu_no_such_bookmark, "no bookmark has that number", remedy: "read the index"},
+      {:kumbukumbu_weight_invalid,
+       "a bookmark's importance is 0 to 3 and its status one line of at most 160 characters",
+       remedy: "give 0 (none), 1, 2 or 3 (a milestone), and a short line of where it stands"},
       {:kumbukumbu_span_not_grown, "a span is at least one turn and only ever grows",
        remedy: "extend with more turns back than the bookmark has"},
       {:kumbukumbu_revision_kind_invalid, "a revision corrects a fact or a stance",
@@ -666,6 +681,30 @@ defmodule Oneiroi.Kumbukumbu do
   defexport(extend_bookmark(resident_id, number, turns_back, actor),
     do: Memories.extend_bookmark(resident_id, number, turns_back, actor)
   )
+
+  @doc "Weighs a bookmark for the timeline (kumbukumbu#51): importance 0 to 3 and a status line, the resident's; nil leaves either as it stands."
+  @spec weigh_bookmark(
+          String.t(),
+          pos_integer(),
+          integer() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(weigh_bookmark(resident_id, number, importance, status, actor),
+    do: Memories.weigh_bookmark(resident_id, number, importance, status, actor)
+  )
+
+  @doc "Records the library's bookmark citations as a snapshot, path => numbers (kumbukumbu#53); only what changed becomes an event."
+  @spec record_citations(String.t(), %{String.t() => [pos_integer()]}, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(record_citations(resident_id, sources, actor),
+    do: Memories.record_citations(resident_id, sources, actor)
+  )
+
+  @doc "The bookmarks on the timeline (kumbukumbu#51): pinned or weighed 2 and up, oldest first."
+  @spec timeline_bookmarks(String.t()) :: [map()]
+  defexport(timeline_bookmarks(resident_id), do: Memories.timeline_bookmarks(resident_id))
 
   @doc "Pins a bookmark: a decision, by either party."
   @spec pin_bookmark(String.t(), pos_integer(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

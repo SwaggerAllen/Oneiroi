@@ -100,11 +100,12 @@ defmodule Oneiroi.Xenia.Inbox do
       account: attrs[:account],
       thread: attrs[:thread],
       to: attrs[:to],
-      text: attrs[:text]
+      text: attrs[:text],
+      supersedes: attrs[:supersedes]
     }
 
     case dispatch(command) do
-      {:ok, [%Events.ReplyDrafted{number: n}]} -> {:ok, n}
+      {:ok, [%Events.ReplyDrafted{number: n} | _superseded]} -> {:ok, n}
       other -> other
     end
   end

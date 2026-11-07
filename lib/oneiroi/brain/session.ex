@@ -55,7 +55,10 @@ defmodule Oneiroi.Brain.Session do
           {:ok, map()} | {:error, term()}
   def submit(resident_id, session_key, text, actor, ref) when is_binary(ref) do
     with {:ok, pid} <- ensure(resident_id, session_key) do
-      GenServer.call(pid, {:submit, %{ref: ref, text: text, actor: actor, opts: []}})
+      GenServer.call(
+        pid,
+        {:submit, %{ref: ref, text: text, actor: actor, opts: [], taken_at: Clock.now()}}
+      )
     end
   end
 
@@ -156,19 +159,59 @@ defmodule Oneiroi.Brain.Session do
     case :queue.out(state.queue) do
       {{:value, item}, queue} ->
         %{resident_id: id, session_key: key} = state
-        opts = Keyword.put(item.opts, :turn_ref, item.ref)
+        {followers, queue} = followers(item, queue, Config.fetch!(:brain, :batch_messages) - 1)
+        batch = [item | followers]
+        last = List.last(batch)
+
+        # Batched delivery (brain#66): the turn runs under the oldest
+        # message's ref; the newest opens it, the rest come before it,
+        # and each one joined says which turn it went into.
+        opts =
+          item.opts
+          |> Keyword.put(:turn_ref, item.ref)
+          |> Keyword.put(:earlier, Enum.map(Enum.drop(batch, -1), &said/1))
+
+        for f <- followers, do: status(state, f.ref, "batched", %{into: item.ref})
 
         task =
           Task.Supervisor.async_nolink(@tasks, fn ->
-            Turn.run(id, key, item.text, item.actor, opts)
+            Turn.run(id, key, last.text, last.actor, opts)
           end)
 
-        %{state | queue: queue, running: Map.put(item, :task, task)}
+        running = item |> Map.put(:task, task) |> Map.put(:batch, batch)
+        %{state | queue: queue, running: running}
 
       {:empty, _queue} ->
         %{state | running: nil}
     end
   end
+
+  # The witness's messages waiting behind a batchable one, up to `room`
+  # more: only his own messages by `submit` join (a synchronous caller
+  # and a wake each keep their own turn), and only while they come in a
+  # row.
+  defp followers(item, queue, room) do
+    if batchable?(item), do: take_followers(queue, room, []), else: {[], queue}
+  end
+
+  defp take_followers(queue, 0, acc), do: {Enum.reverse(acc), queue}
+
+  defp take_followers(queue, room, acc) do
+    case :queue.peek(queue) do
+      {:value, next} ->
+        if batchable?(next),
+          do: take_followers(:queue.drop(queue), room - 1, [next | acc]),
+          else: {Enum.reverse(acc), queue}
+
+      :empty ->
+        {Enum.reverse(acc), queue}
+    end
+  end
+
+  defp batchable?(item), do: is_nil(item.from) and item.opts == []
+
+  defp said(item),
+    do: %{text: item.text, actor: item.actor, sent_at: Map.get(item, :taken_at) || Clock.now()}
 
   # A turn that died said nothing on its way out (brain#54): the witness's
   # words are kept, the failure recorded where a client reads it back and
@@ -186,7 +229,15 @@ defmodule Oneiroi.Brain.Session do
           key,
           item.ref,
           Clock.now(),
-          [%{role: :user, content: item.text, sent_at: Clock.now(), actor: item.actor}],
+          for(
+            m <- Map.get(item, :batch, [item]),
+            do: %{
+              role: :user,
+              content: m.text,
+              sent_at: Map.get(m, :taken_at) || Clock.now(),
+              actor: m.actor
+            }
+          ),
           resident
         )
 
@@ -201,7 +252,7 @@ defmodule Oneiroi.Brain.Session do
 
   defp done(%{running: item} = state, result) do
     if item.from, do: GenServer.reply(item.from, result)
-    recent = Enum.take([item.ref | state.recent], @recent)
+    recent = Enum.take(Enum.map(Map.get(item, :batch, [item]), & &1.ref) ++ state.recent, @recent)
     next(%{state | running: nil, recent: recent})
   end
 
@@ -234,6 +285,7 @@ defmodule Oneiroi.Brain.Session do
   defp seen?(state, ref) do
     ref in state.recent or
       match?(%{ref: ^ref}, state.running) or
+      (state.running != nil and Enum.any?(Map.get(state.running, :batch, []), &(&1.ref == ref))) or
       Enum.any?(:queue.to_list(state.queue), &(&1.ref == ref)) or
       Kumbukumbu.turn_messages(state.resident_id, ref) != []
   end

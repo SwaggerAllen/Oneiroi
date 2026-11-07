@@ -23,6 +23,9 @@ export interface Outgoing {
   // Why it failed or went unsent, in the server's words when it gave any.
   error?: string;
   attempts: number;
+  // The turn it was answered in, when it joined another message's turn
+  // (brain#66: what queued while a turn ran arrives together in the next).
+  into?: string;
   // When it was first sent, and when its present state began (ms since
   // the epoch), for the timers the witness reads (brain#54).
   sentAt?: number;
@@ -43,9 +46,10 @@ export function newRef(): string {
 
 // A change of state restarts the state's timer; the same state again
 // (a retry answered as a duplicate, another round's `thinking`) keeps it.
+// A turn's news is news for every message that went into it.
 export function update(items: Outgoing[], ref: string, change: Partial<Outgoing>, now = Date.now()): Outgoing[] {
   return items.map((i) => {
-    if (i.ref !== ref) return i;
+    if (i.ref !== ref && i.into !== ref) return i;
     const moved = change.state !== undefined && change.state !== i.state;
     return { ...i, ...change, sentAt: i.sentAt ?? now, since: moved || i.since === undefined ? now : i.since };
   });
@@ -57,7 +61,7 @@ export function update(items: Outgoing[], ref: string, change: Partial<Outgoing>
 export function failedFrom(items: Outgoing[], failures: { turn_ref: string; reason: string }[], now = Date.now()): Outgoing[] {
   const by = new Map(failures.map((f) => [f.turn_ref, f.reason]));
   return items.reduce<Outgoing[]>((out, i) => {
-    const reason = by.get(i.ref);
+    const reason = by.get(i.ref) ?? (i.into !== undefined ? by.get(i.into) : undefined);
     return reason !== undefined && i.state !== 'failed' ? update(out, i.ref, { state: 'failed', error: reason }, now) : out;
   }, items);
 }
@@ -73,7 +77,12 @@ export function elapsed(ms: number): string {
 
 // A message is done when its turn is in the transcript with a reply.
 export function settle(items: Outgoing[], answered: Set<string>): Outgoing[] {
-  return items.filter((i) => !answered.has(i.ref));
+  return items.filter((i) => !answered.has(i.ref) && !(i.into !== undefined && answered.has(i.into)));
+}
+
+// A message that joined another's turn (brain#66): it runs with it from here.
+export function batched(items: Outgoing[], ref: string, into: string, now = Date.now()): Outgoing[] {
+  return items.map((i) => (i.ref === ref ? { ...i, into, state: 'running', since: now, sentAt: i.sentAt ?? now } : i));
 }
 
 // What the resident is doing now, for the header: the newest message

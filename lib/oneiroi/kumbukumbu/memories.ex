@@ -91,6 +91,33 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  def weigh_bookmark(resident_id, number, importance, status, %Actor{} = actor) do
+    command = %Commands.WeighBookmark{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      number: number,
+      importance: importance,
+      status: status
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  def record_citations(resident_id, sources, %Actor{} = actor) when is_map(sources) do
+    command = %Commands.RecordCitations{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      sources: sources
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  def timeline_bookmarks(resident_id),
+    do: Scope.resident(resident_id, fn -> Store.timeline_bookmarks() end)
+
   def unpin_bookmark(resident_id, number, %Actor{} = actor) do
     command = %Commands.UnpinBookmark{
       actor: actor,
@@ -391,7 +418,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     lines = Config.fetch!(:kumbukumbu, :index_lines)
     explore = round(lines * Config.fetch!(:kumbukumbu, :index_explore_percent) / 100)
 
-    {candidates, approached, edges} =
+    {candidates, approached, {edges, citations}} =
       Scope.resident(resident_id, fn ->
         nearest = Store.nearest_vectors(vector, "bookmark", considered * 3)
 
@@ -415,7 +442,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
           |> Enum.take(Config.fetch!(:kumbukumbu, :index_seeds))
           |> Enum.map(& &1.bookmark.number)
 
-        {near, approached, Store.edges_from(seeds)}
+        {near, approached, {Store.edges_from(seeds), Store.citation_edges_from(seeds)}}
       end)
 
     # The exploration's draw, at the command edge and fresh each call;
@@ -424,9 +451,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
     ranking =
       Ranking.rank(candidates, edges,
-        now: Clock.now(),
+        citations: citations,
         lambda: Config.fetch!(:kumbukumbu, :edge_lambda_percent) / 100,
-        half_life: Config.fetch!(:kumbukumbu, :edge_half_life_days),
+        half_life: Config.fetch!(:kumbukumbu, :edge_half_life_opportunities),
         lines: lines,
         explore: explore,
         seeds: Config.fetch!(:kumbukumbu, :index_seeds),

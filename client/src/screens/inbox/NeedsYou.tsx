@@ -3,6 +3,7 @@ import type { Block, CorrespondenceMessage, Reply } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
+import { type Entry, threads } from './threads';
 
 export interface GateActions {
   onDecideReply?: (number: number, approve: boolean, note: string) => void;
@@ -45,7 +46,7 @@ export function NeedsYou({
   return (
     <Card title="Needs you">
       {drafted.length + approved.length === 0 ? (
-        <p style={muted}>Nothing waits on you.</p>
+        <p style={muted}>No replies wait on you.</p>
       ) : (
         <ol aria-label="Needs you" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {drafted.map((r) => (
@@ -63,10 +64,11 @@ export function NeedsYou({
 function DraftedReply({ residentName, reply: r, onDecide }: { residentName: string; reply: Reply; onDecide?: GateActions['onDecideReply'] }) {
   const [note, setNote] = useState('');
   return (
-    <li style={item}>
+    <li id={`reply-${r.number}`} style={item}>
       <p style={meta}>
-        {residentName}’s reply #{r.number} · to {r.to} on {r.platform}
-        {r.in_reply_to ? ` · answering message #${r.in_reply_to}` : ''}
+        {residentName}’s reply #{r.number} · on {r.platform} from {r.account} to {r.to}
+        {r.thread ? ` · thread ${r.thread}` : ''}
+        {r.in_reply_to ? ` · answering message #${r.in_reply_to}` : ''} · drafted {when(r.drafted_at)}
       </p>
       <p style={{ margin: 0, fontSize: 15, whiteSpace: 'pre-wrap' }}>{r.text}</p>
       {onDecide ? (
@@ -89,9 +91,9 @@ function DraftedReply({ residentName, reply: r, onDecide }: { residentName: stri
 function ApprovedReply({ reply: r, onMarkSent }: { reply: Reply; onMarkSent?: GateActions['onMarkSent'] }) {
   const [url, setUrl] = useState('');
   return (
-    <li style={item}>
+    <li id={`reply-${r.number}`} style={item}>
       <p style={meta}>
-        Reply #{r.number} · to {r.to} on {r.platform} · approved, waiting to be sent
+        Reply #{r.number} · on {r.platform} from {r.account} to {r.to} · approved, waiting to be sent
       </p>
       <p style={{ margin: 0, fontSize: 15, whiteSpace: 'pre-wrap' }}>{r.text}</p>
       {onMarkSent ? (
@@ -111,34 +113,90 @@ function ApprovedReply({ reply: r, onMarkSent }: { reply: Reply; onMarkSent?: Ga
   );
 }
 
-// Correspondence (xenia#12): every message that reached the resident,
-// newest first; a blocked sender's is a line with no words. Blocking a
-// sender asks why, in place.
+// Correspondence (xenia#12), by thread (screens/inbox.md): each thread
+// with whom it is, how many messages and how many of them the
+// resident's, the newest open and the earlier one click away; threads
+// newest first. A message's thread is its platform's; one without a
+// thread is threaded by its sender. The resident's replies join the
+// thread they went to, marked from her. A blocked sender's message is a
+// line with no words. Blocking a sender asks why, in place.
 export function Correspondence({
   residentName,
   messages,
+  replies = [],
   blocks,
   onBlock,
 }: {
   residentName: string;
   messages: CorrespondenceMessage[];
+  replies?: Reply[];
   blocks: Block[];
   onBlock?: GateActions['onBlock'];
 }) {
   const blocked = new Set(blocks.map((b) => `${b.platform}:${b.identity}`));
+  const all = threads(messages, replies);
+  const one = (e: Entry) =>
+    e.kind === 'message' ? (
+      <Message key={`m${e.message.number}`} message={e.message} blocked={blocked.has(`${e.message.platform}:${e.message.sender}`)} onBlock={onBlock} />
+    ) : (
+      <OwnReply key={`r${e.reply.number}`} residentName={residentName} reply={e.reply} />
+    );
   return (
     <Card title="Correspondence">
-      <p style={muted}>Messages to {residentName} from outside the house, which reach {residentName} as they arrive.</p>
-      {messages.length === 0 ? (
+      <p style={muted}>Messages to {residentName} from outside the house, which reach {residentName} as they arrive, by thread, with {residentName}’s replies in them.</p>
+      {all.length === 0 ? (
         <p style={muted}>None yet.</p>
       ) : (
-        <ol aria-label="Correspondence" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {messages.map((m) => (
-            <Message key={m.number} message={m} blocked={blocked.has(`${m.platform}:${m.sender}`)} onBlock={onBlock} />
-          ))}
+        <ol aria-label="Correspondence" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {all.map((t) => {
+            const theirs = t.entries.filter((e) => e.kind === 'message').length;
+            const hers = t.entries.length - theirs;
+            const newest = t.entries[t.entries.length - 1];
+            const earlier = t.entries.slice(0, -1);
+            return (
+              <li key={t.key} aria-label={`Thread with ${t.with}`} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+                  With {t.with} <span style={{ fontWeight: 400, color: 'var(--ink-muted)' }}>· {theirs} from them{hers ? `, ${hers} from ${residentName}` : ''}</span>
+                </p>
+                <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {one(newest)}
+                </ol>
+                {earlier.length > 0 ? (
+                  <details>
+                    <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--ink-muted)' }}>Earlier in this thread ({earlier.length})</summary>
+                    <ol style={{ margin: 'var(--space-2) 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      {[...earlier].reverse().map(one)}
+                    </ol>
+                  </details>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       )}
     </Card>
+  );
+}
+
+const replyState: Record<Reply['state'], string> = {
+  drafted: 'waiting for you',
+  approved: 'approved, waiting to be sent',
+  declined: 'declined',
+  sent: 'sent',
+  superseded: 'replaced by a newer draft',
+};
+
+function OwnReply({ residentName, reply: r }: { residentName: string; reply: Reply }) {
+  return (
+    <li style={item}>
+      <p style={meta}>
+        Reply #{r.number} · from {residentName} ({r.account}) to {r.to} · {when(r.sent_at ?? r.drafted_at)} · {replyState[r.state]}
+      </p>
+      <details>
+        <summary style={{ cursor: 'pointer', fontSize: 15 }}>{firstLine(r.text)}</summary>
+        <p style={{ margin: 'var(--space-2) 0 0', fontSize: 15, whiteSpace: 'pre-wrap' }}>{r.text}</p>
+      </details>
+    </li>
   );
 }
 

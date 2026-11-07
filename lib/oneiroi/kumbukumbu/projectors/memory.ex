@@ -48,6 +48,14 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
     )
   end)
 
+  fold(%Events.BookmarkWeighed{} = e, _metadata, fn multi ->
+    set_bookmark(multi, e.id, e.number,
+      importance: e.importance,
+      status: e.status,
+      weighed_at: e.at
+    )
+  end)
+
   fold(%Events.BookmarkUnpinned{} = e, _metadata, fn multi ->
     set_bookmark(multi, e.id, e.number,
       pinned_by_kind: nil,

@@ -150,6 +150,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:pin_evidences, :integer)
       field(:register, :string)
       field(:weight, :float, default: 1.0)
+      # The timeline's weight (kumbukumbu#51), hers.
+      field(:importance, :integer, default: 0)
+      field(:status, :string)
+      field(:weighed_at, :utc_datetime_usec)
       field(:last_indexed_at, :utc_datetime_usec)
       field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
@@ -341,6 +345,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
   one. Counted across sessions under the scope, so the resident's read is
   everything and a witness's is the sessions they are party to.
   """
+  @carried ~w(promised)
+
   @spec retrieval_counts(keyword()) :: [map()]
   def retrieval_counts(opts \\ []) do
     query =
@@ -348,8 +354,14 @@ defmodule Oneiroi.Kumbukumbu.Store do
         group_by: u.target,
         select: %{
           target: u.target,
-          considered: filter(count(u.position), u.stage == "considered"),
-          returned: filter(count(u.position), u.stage == "returned"),
+          # A section loaded whole on every turn (`promised`, every open
+          # commitment) was never chosen, so it is carried, not considered
+          # or returned (kumbukumbu#52): counted apart, at the read, so
+          # the turns recorded before the split read the same way.
+          considered:
+            filter(count(u.position), u.stage == "considered" and u.via not in @carried),
+          returned: filter(count(u.position), u.stage == "returned" and u.via not in @carried),
+          carried: filter(count(u.position), u.stage == "returned" and u.via in @carried),
           used: filter(count(u.position), u.stage == "used"),
           last_returned_at: filter(max(u.at), u.stage == "returned"),
           last_used_at: filter(max(u.at), u.stage == "used")
@@ -557,6 +569,38 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:to_number, :integer, primary_key: true)
       field(:w, :float)
       field(:touched_at, :utc_datetime_usec)
+      # The source's seed count at the last touch (kumbukumbu#53).
+      field(:touched_count, :integer, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule EdgeSource do
+    @moduledoc "How many turns a bookmark has been the seed of (kumbukumbu#53): the clock its outgoing edges decay by."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_edge_source" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:seeded, :integer, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule CitationEdge do
+    @moduledoc "One citation's contribution to an edge (kumbukumbu#53), by the source that made it, so removing the citation removes exactly it."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_citation_edge" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:source, :string, primary_key: true)
+      field(:from_number, :integer, primary_key: true)
+      field(:to_number, :integer, primary_key: true)
+      field(:w, :float)
     end
 
     @type t :: %__MODULE__{}
@@ -583,7 +627,36 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "The learned edges out of `froms`, as stored (undecayed)."
   @spec edges_from([pos_integer()]) :: [Edge.t()]
   def edges_from([]), do: []
-  def edges_from(froms), do: Repo.all(from(e in Edge, where: e.from_number in ^froms))
+
+  def edges_from(froms) do
+    Repo.all(
+      from(e in Edge,
+        left_join: s in EdgeSource,
+        on: s.resident_id == e.resident_id and s.number == e.from_number,
+        where: e.from_number in ^froms,
+        select: %{
+          from_number: e.from_number,
+          to_number: e.to_number,
+          w: e.w,
+          touched_count: e.touched_count,
+          seeded: coalesce(s.seeded, 0)
+        }
+      )
+    )
+  end
+
+  @doc "The citations' contributions out of these bookmarks, summed by edge (kumbukumbu#53)."
+  def citation_edges_from([]), do: []
+
+  def citation_edges_from(froms) do
+    Repo.all(
+      from(c in CitationEdge,
+        where: c.from_number in ^froms,
+        group_by: [c.from_number, c.to_number],
+        select: %{from_number: c.from_number, to_number: c.to_number, w: sum(c.w)}
+      )
+    )
+  end
 
   defmodule Vector do
     @moduledoc "One row of the madeleine's index (spec §6.3, P10): a bookmark's words, or the limits, embedded; derived, rebuilt from the rows."
@@ -725,6 +798,25 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec bookmarks() :: [Bookmark.t()]
   def bookmarks do
     Bookmark |> from(order_by: [desc: :number]) |> Repo.all() |> with_tags()
+  end
+
+  @doc "The timeline's bookmarks (kumbukumbu#51): pinned, or weighed 2 and up; oldest first by when the moment was."
+  def timeline_bookmarks do
+    Repo.all(
+      from(b in Bookmark,
+        where: not is_nil(b.pinned_at) or b.importance >= 2,
+        order_by: [asc: coalesce(b.anchor_at, b.created_at), asc: b.number],
+        select: %{
+          number: b.number,
+          line: b.line,
+          at: coalesce(b.anchor_at, b.created_at),
+          pinned: not is_nil(b.pinned_at),
+          importance: b.importance,
+          status: b.status,
+          weighed_at: b.weighed_at
+        }
+      )
+    )
   end
 
   @doc "One bookmark by number, with its tags."

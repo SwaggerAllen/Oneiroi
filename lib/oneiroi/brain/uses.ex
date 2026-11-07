@@ -135,7 +135,20 @@ defmodule Oneiroi.Brain.Uses do
   def from_call("document_write", args, _output, slug),
     do: cited(to_string(args["content"] || ""), slug, "document_write")
 
+  # The platform's own files and her repository's, read whole: used, as
+  # library_read's are (kumbukumbu#52). Neither is a ranked node; this is
+  # measurement, so a design doc read through source_read is seen read.
+  def from_call("source_read", args, _output, _slug), do: read_use("source", args["path"])
+  def from_call("repo_read", args, _output, _slug), do: read_use("repo", args["path"])
+
   def from_call(_name, _args, _output, _slug), do: []
+
+  defp read_use(kind, path) do
+    case path |> to_string() |> String.trim() |> String.trim_leading("/") do
+      "" -> []
+      path -> [use("#{kind}/#{path}", "used", "#{kind}_read")]
+    end
+  end
 
   @doc "What a reply cites of the resident's own records: each one used, through the reply."
   @spec from_reply(String.t(), String.t() | nil) :: [use()]

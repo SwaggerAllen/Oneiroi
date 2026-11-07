@@ -49,6 +49,8 @@ export interface RetrievalCount {
   considered: number;
   returned: number;
   used: number;
+  // Loaded every turn and never chosen (kumbukumbu#52): not a miss.
+  carried?: number;
   last_returned_at: string | null;
   last_used_at: string | null;
 }
@@ -406,13 +408,15 @@ export interface Reply {
   thread: string | null;
   to: string;
   text: string;
-  state: 'drafted' | 'approved' | 'declined' | 'sent';
+  state: 'drafted' | 'approved' | 'declined' | 'sent' | 'superseded';
   note: string | null;
   drafted_at: string;
   decided_at: string | null;
   sent_at: string | null;
   sent_by: string | null;
   url: string | null;
+  // The newer draft that replaced this one (xenia#17).
+  superseded_by?: number | null;
 }
 
 // A document the library holds (seshat): its path says its kind.
@@ -492,6 +496,18 @@ export interface LibraryHit {
 
 // An ask of the witness (agathos-daimon#35): a tool she lacked, or leave
 // for an act, and the answer.
+// One entry of what waits on the witness (spec §5 `needs_you`, brain#65):
+// oldest first from the server, each naming the screen it is decided on.
+// It only shows; `long` is a mark past two days, and nothing more.
+export interface NeedsYouEntry {
+  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked';
+  ref: number | string;
+  since: string;
+  screen: 'inbox' | 'schedule';
+  long: boolean;
+  about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null };
+}
+
 export interface Ask {
   number: number;
   kind: 'tool' | 'act';

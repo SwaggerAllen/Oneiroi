@@ -10,7 +10,7 @@ export interface ChannelEvents {
   onTurn: (turnRef: string) => void;
   onFailed: (turnRef: string, reason: string) => void;
   // What a turn is doing (brain#45): queued, thinking, or tool with its name.
-  onStatus?: (turnRef: string, state: string, detail: { name?: string; ahead?: number } | null) => void;
+  onStatus?: (turnRef: string, state: string, detail: { name?: string; ahead?: number; into?: string } | null) => void;
   // Whether the stream is up: joined, trying, or down. The socket retries
   // by itself; this only says where it stands.
   onConnection?: (state: 'connected' | 'connecting' | 'offline') => void;
@@ -28,7 +28,7 @@ export function joinSession(token: string, residentId: string, key: string, even
   channel.on('delta', (p: { turn_ref: string; text: string }) => events.onDelta(p.turn_ref, p.text));
   channel.on('turn', (p: { turn_ref: string }) => events.onTurn(p.turn_ref));
   channel.on('failed', (p: { turn_ref: string; reason: string }) => events.onFailed(p.turn_ref, p.reason));
-  channel.on('status', (p: { turn_ref: string; state: string; detail: { name?: string; ahead?: number } | null }) =>
+  channel.on('status', (p: { turn_ref: string; state: string; detail: { name?: string; ahead?: number; into?: string } | null }) =>
     events.onStatus?.(p.turn_ref, p.state, p.detail),
   );
   // A rejoin after the socket comes back says connected again.

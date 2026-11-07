@@ -43,6 +43,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Checkin
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
+  alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
@@ -70,6 +71,18 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many messages a session gathers since its last compaction before a turn opens by compacting it (spec §5); twice the live window, a guess until a model's context is measured against real sessions"},
+      {:batch_messages, "BRAIN_BATCH_MESSAGES",
+       cast: :integer,
+       default: "4",
+       tag: :bound,
+       usage:
+         "how many of the witness's messages that queued while a turn ran the next turn takes together (brain#66), each with a turn's tool rounds; the rest wait for the turn after, so a batch never has fewer rounds a message than separate turns, and a guess"},
+      {:timeline_lines, "BRAIN_TIMELINE_LINES",
+       cast: :integer,
+       default: "12",
+       tag: :bound,
+       usage:
+         "how many lines each layer of the timeline shows (brain#67): today's journal rows, the last 30 days' weighed moments, and her life so far past her pins, which always show; the newest kept, a guess"},
       {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
        cast: :integer,
        default: "24",
@@ -229,6 +242,10 @@ defmodule Oneiroi.Brain do
   defexport(submit(resident_id, session_key, text, actor, ref),
     do: Session.submit(resident_id, session_key, text, actor, ref)
   )
+
+  @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."
+  @spec needs_you(String.t()) :: [map()]
+  defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
 
   @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}

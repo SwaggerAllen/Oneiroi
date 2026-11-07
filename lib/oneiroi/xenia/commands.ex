@@ -39,8 +39,10 @@ defmodule Oneiroi.Xenia.Commands do
   end
 
   defmodule DraftReply do
+    # `supersedes` names a draft still waiting for the witness that this
+    # one replaces (xenia#17).
     use Oneiroi.Command,
-      fields: [:id, :in_reply_to, :platform, :account, :thread, :to, :text]
+      fields: [:id, :in_reply_to, :platform, :account, :thread, :to, :text, :supersedes]
   end
 
   defmodule DecideReply do
