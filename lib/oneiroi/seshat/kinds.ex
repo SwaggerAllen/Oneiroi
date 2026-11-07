@@ -223,6 +223,40 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :decided,
       access: :resident
     },
+    # The archive (seshat#45, platform report #5): where a document goes
+    # when it is done with but must not be lost. Nothing is deleted: an
+    # archived document keeps its words under `archive/<its old path>`,
+    # with frontmatter saying who archived it, when and why; it leaves the
+    # index (no search, no ranked recall) and is read at its path. Written
+    # only by the archive act, never by a document write.
+    %{
+      kind: "archive",
+      folder: "archive",
+      cites: false,
+      has_status: false,
+      layout:
+        "archive/<the old path>: an archived document, its words whole under frontmatter saying who, when and why; out of the index, read at its path",
+      sidecar: nil,
+      adoption: :decided,
+      access: :core
+    },
+    # A root file (seshat#44, the witness's call 2026-11-07, platform
+    # report #5): any text file at the root the reserved names and the
+    # goals ledger do not claim, free to write. Placement alone no longer
+    # makes a keepsake; a keepsake is a root file registered as one, a
+    # deliberate act (`register_keepsake/4`), and the library's record of
+    # each document's kind holds the list.
+    %{
+      kind: "root",
+      folder: nil,
+      cites: false,
+      has_status: false,
+      layout:
+        "<name>.md at the repository root, beside the soul file; any name but the root's reserved ones; free to write until registered as a keepsake",
+      sidecar: nil,
+      adoption: :decided,
+      access: :resident
+    },
     # A keepsake (seshat#29): a gift-document kept at the root, beside
     # the soul file, where its placement is part of what it is. Pocket
     # Andrew was filed there on 2026-10-29 and moved under wiki/ by the
@@ -283,6 +317,8 @@ defmodule Oneiroi.Seshat.Kinds do
     {"keepsake", "Keepsakes"},
     {"human", "Yours"},
     {"goals", "Goals"},
+    {"root", "At the root"},
+    {"archive", "Archive"},
     {"writing", "Writing"},
     {"design", "Design"},
     {"research", "Research"},
@@ -323,7 +359,8 @@ defmodule Oneiroi.Seshat.Kinds do
       [name] ->
         cond do
           goals_name?(name) -> Enum.find(@kinds, &(&1.kind == "goals"))
-          keepsake_name?(name) -> Enum.find(@kinds, &(&1.kind == "keepsake"))
+          # A root file by its path; a keepsake only by registration (#44).
+          keepsake_name?(name) -> Enum.find(@kinds, &(&1.kind == "root"))
           true -> nil
         end
 

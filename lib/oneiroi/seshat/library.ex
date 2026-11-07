@@ -30,11 +30,15 @@ defmodule Oneiroi.Seshat.Library do
       %{hash: hash} when hash == c.hash ->
         []
 
-      # A keepsake is written once (seshat#29), while it is one: a file
-      # the registry has since given another kind is written as that kind
-      # (seshat#43, a goals ledger registered as a keepsake before it was
-      # one), and the event records the kind it is now.
-      %{kind: "keepsake"} when c.kind == "keepsake" ->
+      # A tombstone holds its path for the citations that point at it
+      # (seshat#45): nothing is written over it.
+      %{kind: "tombstone"} ->
+        {:error, Error.new(:seshat_not_movable, :seshat_write_document_tombstone, path: c.path)}
+
+      # A keepsake is written once (seshat#29): a registered keepsake is
+      # never written again (#44), save a goals ledger registered as one
+      # before the ledger was a kind (#43), written as what it is now.
+      %{kind: "keepsake"} when c.kind != "goals" ->
         {:error,
          Error.new(:seshat_keepsake_kept, :seshat_write_document_keepsake_kept, path: c.path)}
 
@@ -135,6 +139,59 @@ defmodule Oneiroi.Seshat.Library do
           true ->
             %Events.PiecePublished{actor: c.actor, at: c.at, id: c.id, path: c.path, url: c.url}
         end
+    end
+  end
+
+  # An archive (seshat#45): a registered document, not a tombstone
+  # already, to a path under archive/ nothing holds.
+  def execute(%__MODULE__{documents: documents}, %Commands.ArchiveDocument{} = c) do
+    cond do
+      not Map.has_key?(documents, c.path) ->
+        {:error, Error.new(:seshat_no_such_document, :seshat_archive_absent, path: c.path)}
+
+      match?(%{kind: kind} when kind in ["tombstone", "archive"], documents[c.path]) ->
+        {:error, Error.new(:seshat_not_movable, :seshat_archive_already, path: c.path)}
+
+      Map.has_key?(documents, c.to) ->
+        {:error, Error.new(:seshat_move_target_taken, :seshat_archive_target_taken, path: c.to)}
+
+      not (is_binary(c.why) and String.trim(c.why) != "") ->
+        {:error, Error.new(:seshat_archive_invalid, :seshat_archive_why_missing)}
+
+      true ->
+        %Events.DocumentArchived{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          path: c.path,
+          to: c.to,
+          why: String.trim(c.why),
+          archived_hash: c.archived_hash,
+          archived_bytes: c.archived_bytes,
+          tombstone_hash: c.tombstone_hash,
+          tombstone_bytes: c.tombstone_bytes
+        }
+    end
+  end
+
+  # A keepsake by registration (seshat#44): a root file, registered,
+  # becomes one, and from then is never written again; either party may
+  # register one, and registering one already is nothing.
+  def execute(%__MODULE__{documents: documents}, %Commands.RegisterKeepsake{} = c) do
+    case Map.get(documents, c.path) do
+      %{kind: "keepsake"} ->
+        []
+
+      %{kind: "root"} ->
+        %Events.KeepsakeRegistered{actor: c.actor, at: c.at, id: c.id, path: c.path}
+
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_register_keepsake_absent, path: c.path)}
+
+      _other ->
+        {:error,
+         Error.new(:seshat_not_a_keepsake, :seshat_register_keepsake_not_root, path: c.path)}
     end
   end
 
@@ -420,6 +477,19 @@ defmodule Oneiroi.Seshat.Library do
     do: %{s | documents: Map.delete(s.documents, e.path)}
 
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
+
+  def apply(%__MODULE__{documents: docs} = l, %Events.DocumentArchived{} = e),
+    do: %{
+      l
+      | documents:
+          docs
+          |> Map.put(e.to, %{kind: "archive", hash: e.archived_hash})
+          |> Map.put(e.path, %{kind: "tombstone", hash: e.tombstone_hash})
+    }
+
+  def apply(%__MODULE__{documents: docs} = l, %Events.KeepsakeRegistered{path: path}),
+    do: %{l | documents: Map.update!(docs, path, &Map.put(&1, :kind, "keepsake"))}
+
   def apply(%__MODULE__{} = l, %Events.DocumentAdopted{} = e), do: register(l, e)
 
   def apply(%__MODULE__{} = l, %Events.KeepsakeNoted{} = e),

@@ -628,14 +628,69 @@ defmodule Oneiroi.Seshat.DocumentsTest do
              Seshat.write(id, old, "# Goals\n\nThawed.\n", ctx.brain)
   end
 
-  test "a keepsake is kept at the root, written once, offered rather than swept in, and cited by its name",
+  test "an archived document keeps its words under archive/, leaves a tombstone its citations resolve to, and leaves search (seshat#45)",
+       ctx do
+    id = ctx.id
+    words = "# The ledger of the sixth\n\nHerons, counted.\n"
+    {:ok, _} = Seshat.write(id, "lily-goals-2026-11-06.md", words, ctx.brain)
+    :ok = Seshat.register_keepsake(id, "lily-goals-2026-11-06.md", ctx.brain)
+
+    # A why is required, and a keepsake may be archived: nothing is deleted.
+    assert {:error, %Seshat.Error{kind: :seshat_archive_invalid}} =
+             Seshat.archive(id, "lily-goals-2026-11-06.md", " ", ctx.brain)
+
+    assert {:ok, %{to: "archive/lily-goals-2026-11-06.md"}} =
+             Seshat.archive(
+               id,
+               "lily-goals-2026-11-06.md",
+               "superseded by LILY-GOALS.md",
+               ctx.brain
+             )
+
+    archived = File.read!(Path.join(ctx.dir, "archive/lily-goals-2026-11-06.md"))
+    assert archived =~ "archived_from: lily-goals-2026-11-06.md"
+    assert archived =~ "archived_by: resident"
+    assert archived =~ ~s(why: "superseded by LILY-GOALS.md")
+    assert String.ends_with?(archived, words)
+
+    tombstone = File.read!(Path.join(ctx.dir, "lily-goals-2026-11-06.md"))
+    assert tombstone =~ "its words, whole, are at archive/lily-goals-2026-11-06.md"
+
+    # The old citation still resolves, to the tombstone saying where.
+    assert {:ok, %{content: ^tombstone}} =
+             Seshat.read(id, "#{ctx.slug}:keepsake/lily-goals-2026-11-06")
+
+    # Both read at their paths; neither is searched.
+    assert {:ok, %{content: ^archived}} = Seshat.read(id, "archive/lily-goals-2026-11-06.md")
+    docs = Seshat.documents(id)
+
+    assert %{kind: "archive", chunks: 0} =
+             Enum.find(docs, &(&1.path == "archive/lily-goals-2026-11-06.md"))
+
+    assert %{kind: "tombstone", chunks: 0} =
+             Enum.find(docs, &(&1.path == "lily-goals-2026-11-06.md"))
+
+    # Nothing is written over a tombstone, and nothing is archived twice.
+    assert {:error, _} = Seshat.write(id, "lily-goals-2026-11-06.md", "# New\n", ctx.brain)
+    assert {:error, _} = Seshat.archive(id, "lily-goals-2026-11-06.md", "again", ctx.brain)
+  end
+
+  test "a root file is free until registered; a keepsake is registered, written once, offered rather than swept in, and cited by its name",
        ctx do
     id = ctx.id
     gift = "# Pocket Andrew\n\nWhat is real resists.\n"
 
-    # Written at the root, by either party, and indexed at once.
-    assert {:ok, %{path: "pocket-andrew.md", kind: "keepsake", changed: true, indexed: true}} =
+    # Written at the root, by either party, indexed at once, and free to
+    # write again until it is registered (seshat#44).
+    assert {:ok, %{path: "pocket-andrew.md", kind: "root", changed: true, indexed: true}} =
+             Seshat.write(id, "pocket-andrew.md", "# Pocket Andrew\n\nA draft.\n", ctx.actor)
+
+    assert {:ok, %{kind: "root", changed: true}} =
              Seshat.write(id, "pocket-andrew.md", gift, ctx.actor)
+
+    # Registered: a deliberate act; from then a keepsake.
+    assert :ok = Seshat.register_keepsake(id, "pocket-andrew.md", ctx.actor)
+    assert :ok = Seshat.register_keepsake(id, "pocket-andrew.md", ctx.brain)
 
     assert File.read!(Path.join(ctx.dir, "pocket-andrew.md")) == gift
     assert [%{path: "pocket-andrew.md", kind: "keepsake", chunks: 1}] = Seshat.documents(id)
@@ -672,12 +727,12 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     File.write!(Path.join(ctx.dir, "ledger.md"), "# Ledger\n")
     assert Seshat.unadopted(id) == ["ledger.md"]
 
-    assert {:error, %Seshat.Error{kind: :seshat_keepsake_kept}} =
+    assert {:error, %Seshat.Error{kind: :seshat_not_adopted}} =
              Seshat.write(id, "ledger.md", "# Another ledger\n", ctx.actor)
 
     assert {:ok, %{adopted: [], skipped: []}} = Seshat.adopt_all(id, ctx.actor)
     assert Seshat.unadopted(id) == ["ledger.md"]
-    assert {:ok, %{kind: "keepsake", adopted: true}} = Seshat.adopt(id, "ledger.md", ctx.actor)
+    assert {:ok, %{kind: "root", adopted: true}} = Seshat.adopt(id, "ledger.md", ctx.actor)
     assert Seshat.unadopted(id) == []
 
     # The root's other names are never keepsakes, and neither is a file
@@ -701,7 +756,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
              turn
            ) =~ "first-letter.md"
 
-    assert %{kind: "keepsake"} = Enum.find(Seshat.documents(id), &(&1.path == "first-letter.md"))
+    assert %{kind: "root"} = Enum.find(Seshat.documents(id), &(&1.path == "first-letter.md"))
 
     assert %{function: %{description: description}} =
              Enum.find(Tools.definitions(), &(&1.function.name == "document_write"))
@@ -715,6 +770,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
        ctx do
     id = ctx.id
     {:ok, _} = Seshat.write(id, "pocket-andrew.md", "# Pocket Andrew\n", ctx.actor)
+    :ok = Seshat.register_keepsake(id, "pocket-andrew.md", ctx.actor)
     {:ok, _} = Seshat.write(id, "writing/pond.md", "# Pond\n", ctx.brain)
     turn = live_turn(ctx)
 

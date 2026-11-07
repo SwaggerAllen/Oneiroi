@@ -54,6 +54,37 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
+  # Archived (seshat#45): a row for the archived copy, the old row made
+  # the tombstone, the old chunks gone; the index reads neither again.
+  fold(%Events.DocumentArchived{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.insert(
+      :archived,
+      %Document{
+        resident_id: e.id,
+        path: e.to,
+        kind: "archive",
+        origin: "archived",
+        bytes: e.archived_bytes,
+        versions: 1,
+        registered_at: e.at,
+        written_at: e.at,
+        written_by_kind: actor_kind(e.actor)
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :path]
+    )
+    |> Multi.update_all(
+      :tombstone,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [kind: "tombstone", bytes: e.tombstone_bytes, written_at: e.at]
+    )
+    |> Multi.delete_all(
+      :chunks,
+      from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.path)
+    )
+  end)
+
   # Moved (seshat#39): the row, its chunks and its edges are re-keyed to
   # the new path, so the move costs no embedding (the bytes are the
   # same); the edges stay only if the new kind mints them. The move
@@ -140,6 +171,15 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       :published,
       from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
       set: [published_url: e.url, published_at: e.at]
+    )
+  end)
+
+  fold(%Events.KeepsakeRegistered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :registered,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [kind: "keepsake"]
     )
   end)
 

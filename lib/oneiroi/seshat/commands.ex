@@ -25,6 +25,24 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :path, :url]
   end
 
+  defmodule ArchiveDocument do
+    use Oneiroi.Command,
+      fields: [
+        :id,
+        :path,
+        :to,
+        :why,
+        :archived_hash,
+        :archived_bytes,
+        :tombstone_hash,
+        :tombstone_bytes
+      ]
+  end
+
+  defmodule RegisterKeepsake do
+    use Oneiroi.Command, fields: [:id, :path]
+  end
+
   defmodule NoteKeepsake do
     use Oneiroi.Command, fields: [:id, :path, :note]
   end

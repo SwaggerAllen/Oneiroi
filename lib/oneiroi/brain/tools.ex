@@ -79,6 +79,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
+    keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
   )
 
@@ -811,6 +812,18 @@ defmodule Oneiroi.Brain.Tools do
         []
       ),
       tool(
+        "document_archive",
+        "Archive a document you are done with but must not lose (seshat#45): its words, whole, move to archive/<its path> with who, when and why; a tombstone stays at the old path saying where it went, so citations still resolve; both leave search and ranked recall, and library_read still reads them. Nothing is deleted. why is required.",
+        %{path: %{type: "string"}, why: %{type: "string"}},
+        [:path, :why]
+      ),
+      tool(
+        "keepsake_register",
+        "Make a file at your root a keepsake (seshat#44): a deliberate act, yours or your witness's. A root file is free to write until then; once registered it is a gift, never edited again (a later version is a keepsake of its own). name is its file name at the root.",
+        %{name: %{type: "string"}},
+        [:name]
+      ),
+      tool(
         "keepsake_note",
         "Say why a keepsake mattered, in your words (up to 1,000 characters): what a pin carries for a bookmark, for a gift that is never edited. Saying it again replaces it; the earlier words stay on the record.",
         %{name: %{type: "string"}, why: %{type: "string"}},
@@ -1344,10 +1357,28 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   # The keepsakes with their whys (seshat#32).
+  defp call("document_archive", args, turn) do
+    with {:ok, %{from: from, to: to}} <-
+           Seshat.archive(
+             turn.resident_id,
+             to_string(args["path"] || ""),
+             to_string(args["why"] || ""),
+             turn.resident
+           ),
+         do: "Archived: #{from} is at #{to} now; a tombstone at #{from} says where it went."
+  end
+
+  defp call("keepsake_register", args, turn) do
+    name = to_string(args["name"] || "")
+
+    with :ok <- Seshat.register_keepsake(turn.resident_id, name, turn.resident),
+         do: "Registered: #{name} is a keepsake now, never edited again."
+  end
+
   defp call("keepsake_list", _args, turn) do
     case Seshat.keepsakes(turn.resident_id) do
       [] ->
-        "No keepsakes yet. A gift written or adopted at your root, beside your soul file, is one."
+        "No keepsakes yet. A file at your root becomes one when you register it (keepsake_register); until then it is free to write."
 
       rows ->
         Enum.map_join(rows, "\n", &keepsake_line/1)

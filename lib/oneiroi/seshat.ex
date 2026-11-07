@@ -60,6 +60,8 @@ defmodule Oneiroi.Seshat do
       Commands.PublishPiece,
       Commands.OpenDiscussion,
       Commands.NoteKeepsake,
+      Commands.RegisterKeepsake,
+      Commands.ArchiveDocument,
       Commands.RemoveDocument,
       Commands.MoveDocument,
       Commands.AskDigest,
@@ -74,6 +76,8 @@ defmodule Oneiroi.Seshat do
       PiecesRouter,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
+      Events.KeepsakeRegistered,
+      Events.DocumentArchived,
       Events.DocumentRemoved,
       Events.DocumentMoved,
       Events.DigestAsked,
@@ -195,6 +199,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.PieceDrafted, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
+      {Oneiroi.Seshat.Events.KeepsakeRegistered, 1},
+      {Oneiroi.Seshat.Events.DocumentArchived, 1},
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
       {Oneiroi.Seshat.Events.DocumentMoved, 1},
       {Oneiroi.Seshat.Events.DigestAsked, 1},
@@ -226,6 +232,8 @@ defmodule Oneiroi.Seshat do
        "a document moves only between kinds the mover may write, its bytes unchanged; a system's own kinds and the originals stay where they are (seshat#39)",
        remedy:
          "write the document where it belongs instead, or ask the party who may write both kinds"},
+      {:seshat_archive_invalid, "an archive says why, in words (seshat#45)",
+       remedy: "say why the document is done with"},
       {:seshat_move_target_taken,
        "a move never overwrites: a document or a file is already at the new path",
        remedy: "choose another path, or remove what is there if its kind allows"},
@@ -483,6 +491,19 @@ defmodule Oneiroi.Seshat do
   @doc "The keepsakes, each with who put it there, when, and why it mattered in the resident's words when she has said (seshat#32)."
   @spec keepsakes(String.t()) :: [map()]
   defexport(keepsakes(resident_id), do: Documents.keepsakes(resident_id))
+
+  @doc "Archives a document (seshat#45): its words whole under archive/ with who, when and why; a tombstone at the old path; both out of the index."
+  @spec archive(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, %{from: String.t(), to: String.t()}} | {:error, term()}
+  defexport(archive(resident_id, path, why, actor),
+    do: Documents.archive(resident_id, path, why, actor)
+  )
+
+  @doc "Makes a root file a keepsake (seshat#44): a deliberate act by either party; from then it is never written again."
+  @spec register_keepsake(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(register_keepsake(resident_id, path, actor),
+    do: Documents.register_keepsake(resident_id, path, actor)
+  )
 
   @doc "The resident says why a keepsake mattered (seshat#32); the latest stands."
   @spec note_keepsake(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
