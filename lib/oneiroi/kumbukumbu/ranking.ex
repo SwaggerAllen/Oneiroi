@@ -21,7 +21,8 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
   @doc """
   The ranking. `edges` are the learned edges out of the seeds, each with
   its source's seed count (`seeded`) and its own at the last touch;
-  `opts`: `:lines`, `:explore` (lines drawn, of `:lines`), `:seeds`,
+  `opts`: `:lines` (ranked), `:explore` (lines drawn, apart, brain#68)
+  and `:explore_budget` (their tokens, apart from `:budget`), `:seeds`,
   `:lambda`, `:min_score`, `:half_life` (seedings, kumbukumbu#53),
   `:citations` (the citations' summed contributions out of the seeds,
   never decayed), `:budget` (tokens), and `:draw`, the bookmarks the
@@ -33,8 +34,9 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
     half_life = Keyword.fetch!(opts, :half_life)
     cited = Keyword.get(opts, :citations, [])
     lines = Keyword.fetch!(opts, :lines)
-    explore = min(Keyword.fetch!(opts, :explore), lines)
+    explore = Keyword.fetch!(opts, :explore)
     budget = Keyword.fetch!(opts, :budget)
+    explore_budget = Keyword.get(opts, :explore_budget, budget)
 
     seeds =
       candidates |> Enum.take(Keyword.fetch!(opts, :seeds)) |> Enum.map(& &1.bookmark.number)
@@ -65,7 +67,7 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
       |> Enum.sort_by(&{-&1.score, -&1.bookmark.number})
 
     {above, below} = Enum.split_with(scored, &(&1.score >= Keyword.fetch!(opts, :min_score)))
-    {ranked, over, used} = take(above, lines - explore, budget, 0)
+    {ranked, over, _used} = take(above, lines, budget, 0)
     ranked_numbers = MapSet.new(ranked, & &1.bookmark.number)
 
     draw =
@@ -74,7 +76,7 @@ defmodule Oneiroi.Kumbukumbu.Ranking do
       |> Enum.reject(&MapSet.member?(ranked_numbers, &1.number))
       |> Enum.map(&%{bookmark: &1, similarity: nil, edge: nil, score: nil})
 
-    {explored, _over, _used} = take(draw, explore, budget, used)
+    {explored, _over, _used} = take(draw, explore, explore_budget, 0)
     explored_numbers = MapSet.new(explored, & &1.bookmark.number)
 
     # A near-miss the draw then returned is explored, not rejected: whether

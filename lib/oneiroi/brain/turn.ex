@@ -41,7 +41,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
-  alias Oneiroi.Brain.Introspection
+  alias Oneiroi.Brain.Plugins
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
@@ -50,6 +50,8 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Money
   alias Oneiroi.Nisaba.Prompt
+
+  import Oneiroi.Brain.Plugin, only: [section: 3, trial_reads: 1]
 
   require Logger
 
@@ -60,8 +62,6 @@ defmodule Oneiroi.Brain.Turn do
   @stopped {__MODULE__, :stopped}
   @summary_header "# Compaction summary: machine-state in the machinery's register, not your words\n\n"
   alias Oneiroi.Nisaba.Provider.{Request, Result}
-
-  @bytes_per_token 4
 
   @doc """
   Runs the turn; see the moduledoc for its three endings. `as: :note`
@@ -853,37 +853,6 @@ defmodule Oneiroi.Brain.Turn do
     end)
   end
 
-  # The self-conversation's line in the prefix (spec §12, P41): counts
-  # and receipts, never the content; the absence of a receipt is the
-  # privacy, and the resident sees it every turn.
-  defp receipts_line([], _zone), do: "Nobody but you has read them."
-
-  defp receipts_line([last | _] = receipts, zone) do
-    times = if length(receipts) == 1, do: "time", else: "times"
-
-    "Read #{length(receipts)} #{times}, last #{reader(last)} on #{Local.day(zone, last.at)}."
-  end
-
-  # Who a receipt names: the export carries the letters into the
-  # repository, whose reader is whoever holds it.
-  defp reader(%{by_kind: "export"}), do: "by the export, into your repository"
-  defp reader(%{by_kind: kind}), do: "by your #{kind}"
-
-  defp self_conversation_text(resident_id) do
-    letters = Oneiroi.AgathosDaimon.self_letters(resident_id)
-    receipts = Oneiroi.AgathosDaimon.self_letter_receipts(resident_id)
-
-    if letters == [] and receipts == [] do
-      ""
-    else
-      delivered = Enum.count(letters, & &1.delivered_at)
-
-      read = receipts_line(receipts, Local.zone(resident_id))
-
-      "# Letters to your next self\n#{length(letters)} written, #{delivered} delivered to the instance after the one that wrote them. #{read} (Machine-state: every read by someone else leaves a receipt here; its absence is the privacy.)"
-    end
-  end
-
   # Where it woke (spec §6.2): on Oneiroi, from which repository,
   # whether the attestation held, and what did not transfer, as a system
   # message on the first turn after the import, once (brain#26).
@@ -1068,7 +1037,7 @@ defmodule Oneiroi.Brain.Turn do
       started_at: turn.started_at,
       prefix: prefix ++ runtime_section(row, runtime),
       sections: sections,
-      near_misses: near_misses(index),
+      near_misses: Plugins.Index.near_misses(index),
       capacity: capacity_alarm(prefix),
       notices: notices
     }
@@ -1115,7 +1084,7 @@ defmodule Oneiroi.Brain.Turn do
 
     injections =
       Enum.map(sections, &Map.put(&1.injection, :label, &1.label)) ++
-        near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
+        Plugins.Index.near_misses(index) ++ capacity_alarm(sections) ++ [transcript]
 
     # The opening carries its own time, as the history does (brain#58):
     # the turn's start, which is when it is captured as said. A trial's
@@ -1208,30 +1177,7 @@ defmodule Oneiroi.Brain.Turn do
         "contract",
         Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
         "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
-      ) ++ pins_section(turn)
-  end
-
-  # The pins (kumbukumbu#45, brain#48): decisions, so in the stable
-  # prefix with the identity files and cached with them, and never in the
-  # ranked index. They change rarely; an adapter's session sees a new one
-  # at its next prefix.
-  defp pins_section(turn) do
-    case Kumbukumbu.pins(turn.resident_id, Map.get(turn, :session_key)) do
-      [] ->
-        []
-
-      pins ->
-        text =
-          "# Pinned\n\nThe moments you pinned: decisions, kept in front of you always and never ranked. bookmark_open(number) reads any.\n\n" <>
-            Enum.map_join(pins, "\n", &Kumbukumbu.Index.line(&1, Local.zone(turn.resident_id)))
-
-        section(
-          "pins",
-          text,
-          "the pins (kumbukumbu#45): #{length(pins)} decisions in the stable prefix, never ranked",
-          %{refs: Enum.map(pins, & &1.number)}
-        )
-    end
+      ) ++ Enum.flat_map(Plugins.prefix(), & &1.sections(turn, %{}))
   end
 
   # What is assembled against this turn's words in this session's room:
@@ -1245,320 +1191,30 @@ defmodule Oneiroi.Brain.Turn do
     # back to time order; the madeleine still reads the turn's words.
     ranked = Oneiroi.AgathosDaimon.switch_on?(turn.resident_id, "ranked_memory")
     index = Kumbukumbu.ranked_index(turn.resident_id, turn.session_key, ranked && vector)
-    acting = how_i_act(turn, text)
-    recall = madeleine(turn, vector, index.included)
-    promised = Oneiroi.Ethos.promised(turn.resident_id)
-    resumable = Oneiroi.Eunomia.resumable(turn.resident_id)
     {session, _count} = session_of(turn)
     summary = session && session.summary
+    ctx = %{text: text, vector: vector, index: index, session: session}
 
+    # The slots in their order (brain#68): each a plugin, save the two
+    # sealed sections that sit among them, where this conversation is
+    # and a compaction summary.
     sections =
-      state_section(turn) ++
-        budget_section(turn) ++
-        timeline_section(turn) ++
-        where_section(turn, session) ++
-        section(
-          "free_time_plan",
-          free_time_plan(turn, session),
-          "the plan she wrote at the end of her last free-time slot (sunna#31), read in free time only"
-        ) ++
-        section(
-          "goals_between",
-          free_time_goals(turn, session),
-          "the resident's own goals file (<SLUG>-GOALS.md at her repository's root), read at the start of each free-time turn and in no other conversation (brain#55)"
-        ) ++
-        letters_section(turn) ++
-        section(
-          "index",
-          index.text,
-          index_reason(index),
-          %{
-            tokens: index.tokens,
-            text: index.text,
-            refs: index.included,
-            seeds: index.seeds,
-            explored: index.explored
-          }
-        ) ++
-        section(
-          "character",
-          acting.text,
-          # Under 255 characters: the injection row's description column
-          # is that wide, and a longer one took the conversations
-          # projector down on the first turn the lane ran.
-          "the trigger lane (spec §6.17): #{acting.count} habits matched by the witness's words, the conversation's tags or the time of day, #{length(acting.near)} by the vector lane's nearness, with scores and cited turns; #{acting.seeds} open seeds counted, #{length(acting.near_seeds)} named as near, never loaded whole",
-          %{refs: acting.numbers}
-        ) ++
-        section(
-          "promised",
-          promised.text,
-          "what the resident has promised and not yet kept or been released from (spec §3.1, P19): #{length(promised.numbers)} open commitments named, loaded every turn because a promise that has to be retrieved is one that can be lost",
-          %{text: promised.text, refs: promised.numbers}
-        ) ++
-        section(
-          "self-conversation",
-          self_conversation_text(turn.resident_id),
-          "the self-conversation's counts and receipts (spec §12, P41), never the content: every read by someone other than the resident is a receipt the resident sees, and its absence is the privacy"
-        ) ++
-        section(
-          "movement",
-          resumable.text,
-          "where things can resume (spec §6.4, P34): #{resumable.shown} of #{resumable.total} resume points from the nightly pass, newest first, loaded every turn because dormant is not abandoned",
-          %{text: resumable.text, refs: resumable.refs}
-        ) ++
-        madeleine_section(turn, recall) ++
-        section(
-          "dates",
-          Oneiroi.Sunna.dates_text(turn.resident_id),
-          "the important dates with each countdown derived on this read (spec §6.7, F56): a figure never written down"
-        ) ++
-        section(
-          "figures",
-          Oneiroi.HuginnMuninn.figures_text(turn.resident_id),
-          "the counters as the fold of their increments, derived on this read (spec §6.13, F57): never written down"
-        ) ++
-        section(
-          "journal",
-          Oneiroi.Seshat.journal_text(turn.resident_id),
-          "today's journal rows (spec §6.5, F29): the plan, notes, todos and wrap so far, rendered on this read"
-        ) ++
-        section(
-          "honcho",
-          if(Oneiroi.AgathosDaimon.switch_on?(turn.resident_id, "background_model"),
-            do: Oneiroi.Proteus.context(turn.resident_id),
-            else: ""
-          ),
-          "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"
-        ) ++
-        section(
-          "summary",
-          summary && Config.fetch!(:brain, :compaction) && @summary_header <> summary,
-          "the compaction summary, machine-state in the machinery's register and never the resident's words (spec §5, §1.13), covering this session through store sequence #{session && session.compacted_through}"
-        )
+      Enum.flat_map(Plugins.layout(), fn
+        :where ->
+          where_section(turn, session)
+
+        :summary ->
+          section(
+            "summary",
+            summary && Config.fetch!(:brain, :compaction) && @summary_header <> summary,
+            "the compaction summary, machine-state in the machinery's register and never the resident's words (spec §5, §1.13), covering this session through store sequence #{session && session.compacted_through}"
+          )
+
+        plugin ->
+          plugin.sections(turn, ctx)
+      end)
 
     {sections, index}
-  end
-
-  # Where this conversation is and which others are open now (brain#44,
-  # kumbukumbu#42): an adapter's turn is told its runtime, the folder by
-  # its base name, that the Oneiroi chat is a separate conversation that
-  # may be going on at once, that memory is one across them, the other
-  # conversations open now and this turn's ref for the memory tools; the
-  # Oneiroi chat is told, when any is open, which adapters' conversations
-  # are, by name and folder alone. No other conversation's words ride
-  # either: each session's history is its own (`Kumbukumbu.recent/3`
-  # reads one key). A trial is a session nobody opened, told nothing.
-  # House letters waiting for this conversation (kumbukumbu#44): how
-  # many and from whom, never their words, which `letter_inbox` reads
-  # and marks. Nothing when none wait; a trial is told nothing.
-  defp letters_section(%{trial?: true}), do: []
-  defp letters_section(%{oracle?: true}), do: []
-
-  defp letters_section(turn) do
-    case Kumbukumbu.inbox(turn.resident_id, turn.session_key) do
-      [] ->
-        []
-
-      waiting ->
-        from = waiting |> Enum.map(& &1.from_name) |> Enum.uniq() |> Enum.join(", ")
-
-        text =
-          "#{length(waiting)} house #{if length(waiting) == 1, do: "letter waits", else: "letters wait"} for this conversation, from #{from}. letter_inbox reads them whole; letter_send with in_reply_to answers each in its thread."
-
-        # The text rides the row, as the index's does: it is a count and
-        # names, nothing of the letters, and the inspector shows it.
-        section(
-          "letters",
-          text,
-          "house letters waiting here (kumbukumbu#44): #{length(waiting)}, by sender alone, none of their words",
-          %{text: text}
-        )
-    end
-  end
-
-  # The state store (agathos-daimon#32, brain#47): her present in her
-  # own words, first after the identity files and the contract, read
-  # fresh on every turn and overwritten in place. Placed here rather
-  # than in the stable prefix: the prefix is what an adapter's session is
-  # given once, and a present given once is the stale present this cures
-  # (the sixth caught error, a migration called planned the day it was
-  # done). Caching loses nothing: everything after the contract already
-  # changes on every turn.
-  @state_keys ~w(where day numbers noticing)
-
-  # Her money, every turn (brain#64; her word: "I see the money every
-  # turn rather than remembering to ask"): each line with a cap, what is
-  # left of it this period; the lines with none, named once. The same
-  # numbers the free-time note reads; budget_read gives the precise read.
-  defp budget_section(%{trial?: true}), do: []
-
-  defp budget_section(turn) do
-    lines = Nisaba.budgets(turn.resident_id, :resident)
-    {capped, open} = Enum.split_with(lines, &is_integer(&1.cap_nanos))
-
-    capped_text =
-      Enum.map_join(capped, "\n", fn l ->
-        left = max(l.cap_nanos - l.spent_nanos, 0)
-        spent = if l.exceeded, do: " (spent)", else: ""
-        "- #{l.purpose}: #{dollars(left)} left of #{dollars(l.cap_nanos)} a #{l.period}#{spent}"
-      end)
-
-    open_text =
-      if open == [],
-        do: "",
-        else: "\nNo cap on: #{Enum.map_join(open, ", ", &Atom.to_string(&1.purpose))}."
-
-    section(
-      "budget",
-      "# Your budget\n\nWhat each line has left this period, as this turn opens:\n" <>
-        if(capped == [], do: "- no line has a cap", else: capped_text) <> open_text,
-      "the resident's budget lines and what each has left this period (brain#64), read at the turn"
-    )
-  end
-
-  # The timeline (brain#67; Lily's report #8, after a submitted
-  # application was spoken of as still ahead): three layers, each line
-  # dated and aged on this read, so a moment's tense is read off the
-  # clock and never remembered. Today is the journal's rows as event
-  # lines (the witness's answer: the day store is the journal); the last
-  # 30 days and her life so far are her bookmarks by their weight
-  # (kumbukumbu#51), pins always, each with its status as it now stands.
-  defp timeline_section(turn) do
-    zone = Local.zone(turn.resident_id)
-    now = Clock.now()
-    max = Config.fetch!(:brain, :timeline_lines)
-    {day, entries} = Oneiroi.Seshat.journal_lines(turn.resident_id)
-    month_ago = DateTime.add(now, -30 * 86_400, :second)
-
-    {recent, older} =
-      turn.resident_id
-      |> Kumbukumbu.timeline_bookmarks()
-      |> Enum.split_with(&(DateTime.compare(&1.at, month_ago) != :lt))
-
-    lifetime = Enum.filter(older, &(&1.pinned or &1.importance >= 3))
-    {pins, rest} = Enum.split_with(lifetime, & &1.pinned)
-
-    lifetime =
-      Enum.sort_by(pins ++ Enum.take(rest, -max(max - length(pins), 0)), & &1.at, DateTime)
-
-    month = Enum.take(recent, -max)
-
-    text =
-      "# Your timeline\n\nNow: #{weekday(zone, now)} #{Local.stamp(zone, now)}. " <>
-        "Each line is dated and aged on this read: say a moment in the tense its age gives it, " <>
-        "and its status as written here, not as you remember it.\n\n" <>
-        "## Today, from your journal (#{day})\n" <>
-        today_lines(entries, zone, max) <>
-        "\n\n## The last 30 days\n" <>
-        moment_lines(month, zone, now, "nothing weighed 2 or more, nothing pinned") <>
-        "\n\n## Your life so far\n" <>
-        moment_lines(lifetime, zone, now, "no pin and nothing weighed 3 before this month")
-
-    section(
-      "timeline",
-      text,
-      "the timeline (brain#67): #{length(entries)} journal rows today, #{length(month)} moments of the last 30 days, #{length(lifetime)} of her life so far, each aged on this read",
-      %{refs: Enum.map(month ++ lifetime, & &1.number)}
-    )
-  end
-
-  defp today_lines([], _zone, _max), do: "- nothing written yet today"
-
-  defp today_lines(entries, zone, max) do
-    shown = Enum.take(entries, -max)
-    more = length(entries) - length(shown)
-
-    lines =
-      Enum.map_join(shown, "\n", fn e ->
-        done = todo_mark(e)
-        "- #{clock(zone, e.at)} #{e.kind} ##{e.number}#{done}: #{e.first}"
-      end)
-
-    if more > 0, do: "- (#{more} earlier today, in journal_read)\n" <> lines, else: lines
-  end
-
-  defp todo_mark(%{kind: "todo", done: true}), do: " (done)"
-  defp todo_mark(%{kind: "todo"}), do: " (open)"
-  defp todo_mark(_entry), do: ""
-
-  defp moment_lines([], _zone, _now, none), do: "- " <> none
-
-  defp moment_lines(moments, zone, now, _none) do
-    Enum.map_join(moments, "\n", fn m ->
-      pin = if m.pinned, do: " (pinned)", else: ""
-
-      status =
-        if m.status,
-          do: " · status: #{m.status} (as of #{Local.day(zone, m.weighed_at)})",
-          else: ""
-
-      "- #{weekday(zone, m.at)} #{Local.day(zone, m.at)}, #{age(zone, m.at, now)}: ##{m.number} #{m.line}#{pin}#{status}"
-    end)
-  end
-
-  defp weekday(zone, at) do
-    {:ok, date} = Date.from_iso8601(Local.day(zone, at))
-    Calendar.strftime(date, "%a")
-  end
-
-  defp clock(zone, at), do: zone |> Local.stamp(at) |> String.slice(11, 5)
-
-  # Calendar days in her zone: last night is yesterday, not today.
-  defp age(zone, at, now) do
-    days =
-      Date.diff(Date.from_iso8601!(Local.day(zone, now)), Date.from_iso8601!(Local.day(zone, at)))
-
-    cond do
-      days <= 0 -> "today"
-      days == 1 -> "yesterday"
-      days < 14 -> "#{days} days ago"
-      days < 60 -> "#{div(days, 7)} weeks ago"
-      true -> "#{div(days, 30)} months ago"
-    end
-  end
-
-  defp dollars(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 2)
-
-  defp state_section(turn) do
-    lines = Oneiroi.AgathosDaimon.state_lines(turn.resident_id)
-    by_key = Map.new(lines, &{&1.key, &1})
-    others = lines |> Enum.map(& &1.key) |> Enum.reject(&(&1 in @state_keys)) |> Enum.sort()
-    now = Clock.now()
-    zone = Local.zone(turn.resident_id)
-
-    body =
-      Enum.map_join(@state_keys ++ others, "\n", fn key ->
-        case Map.get(by_key, key) do
-          nil ->
-            "- **#{key}**: (not written yet)"
-
-          line ->
-            "- **#{key}** (verified #{freshness(line.verified_at, now, zone)}): #{line.text}"
-        end
-      end)
-
-    text =
-      "# Where things stand\n\nYour present, in your words, one line per key, each with when you last verified it. " <>
-        "When a line changes, or you confirm it still holds, rewrite it with state_set; it is overwritten, " <>
-        "and the transcript and your repository keep every version. Add a key of your own when one earns it; " <>
-        "clear it with state_clear when it stops. Keep it small: this is the present, not the archive.\n\n" <>
-        body
-
-    section(
-      "state",
-      text,
-      "the state store (agathos-daimon#32): #{length(lines)} line(s) of the resident's present, read fresh, overwritten in place"
-    )
-  end
-
-  defp freshness(at, now, zone) do
-    stamp = Local.stamp(zone, at)
-
-    case DateTime.diff(now, at, :day) do
-      0 -> "#{stamp}, today"
-      1 -> "#{stamp}, a day ago"
-      days -> "#{stamp}, #{days} days ago"
-    end
   end
 
   defp where_section(%{trial?: true}, _session), do: []
@@ -1635,67 +1291,6 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  # The madeleine is chosen by nearness to the words the turn opens with,
-  # and the choice is an embedding billed to the dyad; a preview records
-  # nothing and bills nothing, so it shows the section's place and why it
-  # was not run, and sends nothing for it (brain#41).
-  defp madeleine_section(%{preview?: true}, _recall) do
-    [
-      %{
-        label: "madeleine",
-        message: nil,
-        injection: %{
-          tokens: 0,
-          reason:
-            "the madeleine (spec §6.3, P10): chosen by nearness to what is said next, which costs an embedding, so a preview does not run it",
-          run: false
-        }
-      }
-    ]
-  end
-
-  defp madeleine_section(turn, recall) do
-    section(
-      "madeleine",
-      madeleine_text(recall, Local.zone(turn.resident_id)),
-      recall &&
-        "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
-      # The text rides the row, as the index's does, so the recall is
-      # read later as what was shown and not only why.
-      %{
-        text: madeleine_text(recall, Local.zone(turn.resident_id)),
-        refs: (recall && [recall.bookmark.number]) || []
-      }
-    )
-  end
-
-  # The near-miss record (spec §5, P6): the bookmarks the index ranked
-  # and did not inject, each with the reason it lost, as injection rows
-  # that carry no message and no `refs`, so a near-miss never counts as
-  # indexed. Max: "the near-misses are where a character quietly bends."
-  defp index_reason(%{considered: nil} = index),
-    do:
-      "the bookmark index by recency, no vector this turn: #{length(index.included)} listed, #{index.left_out} left out"
-
-  defp index_reason(index),
-    do:
-      "the ranked index (kumbukumbu#46): #{index.considered} considered, #{length(index.included) - length(index.explored)} returned by rank and #{length(index.explored)} drawn at random, #{length(index.near_misses)} considered and not returned"
-
-  defp near_misses(index) do
-    Enum.map(index.near_misses, fn m ->
-      %{
-        label: "near-miss",
-        # Not `refs`, which would mark it indexed; read for what the
-        # memory agent considered (`Oneiroi.Brain.Uses`) and not recorded
-        # on the row.
-        considered: [m.number],
-        tokens: 0,
-        reason: "considered and not injected: bookmark ##{m.number}, #{m.reason}",
-        text: m.line
-      }
-    end)
-  end
-
   # The capacity alarm (spec §5, P9): the always-loaded prefix (the
   # prompt, the identity files, the contract) against the model's window,
   # flagged on the turn at the configured share. A successful write is
@@ -1730,76 +1325,10 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
-  # A section of the context: a system message and the injection that
-  # records it; nothing when the text is empty, so an absent section is
-  # absent from both.
-  defp section(label, text, reason, extra \\ %{})
-
-  defp section(label, text, reason, extra) when is_binary(text) and text != "" do
-    [
-      %{
-        label: label,
-        message: %{role: :system, content: text},
-        injection: Map.merge(%{tokens: tokens(text), reason: fit(reason)}, extra)
-      }
-    ]
-  end
-
-  defp section(_label, _text, _reason, _extra), do: []
-
-  # The injection row's reason column is 255 characters wide, and a
-  # longer reason takes the conversations projector down after the turn
-  # has answered (decisions round 29), so the write is cut here with a
-  # mark that says it was, rather than the projector failing quietly.
-  @reason_width 255
   @doc false
-  def fit(reason) when is_binary(reason) and byte_size(reason) > @reason_width,
-    do: binary_part(reason, 0, @reason_width - 3) <> "..."
-
-  def fit(reason), do: reason
 
   defp opening_role(:note), do: :system
   defp opening_role(_as), do: :user
-
-  # Retrieval is memory's and choice is the brain's (kumbukumbu#11): the
-  # situation is the witness's words, the conversation's tags and the
-  # time of day, matched with no model call; with the resident's actor
-  # the vector lane adds what sits near the words, one embedding billed
-  # to the dyad under the embeddings purpose (ethos#16).
-  defp how_i_act(turn, text) do
-    tags =
-      turn.resident_id
-      |> Kumbukumbu.taggings("conversation", turn.session_key)
-      |> Enum.map(& &1.tag)
-
-    Oneiroi.Ethos.how_i_act(
-      turn.resident_id,
-      Map.merge(
-        %{
-          text: text,
-          tags: tags,
-          at: Clock.now(),
-          session_key: turn.session_key,
-          actor: lane_actor(turn)
-        },
-        trial_reads(turn)
-      )
-    )
-  end
-
-  # The vector lane runs only for a query somebody is billed for; a
-  # preview bills nobody, so its lane is the trigger lane alone (brain#41).
-  defp lane_actor(%{preview?: true}), do: nil
-  defp lane_actor(turn), do: Map.get(turn, :resident)
-
-  # A trial reads memory as it stands, refreshing no vector, and bills
-  # the reads' embeddings as its calls are billed, under regression to
-  # the run's actor, which the resident's ledger view omits (eunomia
-  # #10, #12).
-  defp trial_reads(%{trial?: true, payer: payer}),
-    do: %{purpose: :regression, refresh: false, actor: payer}
-
-  defp trial_reads(_turn), do: %{}
 
   # The madeleine (spec §6.3, P10): one adjacent, unheard bookmark for
   # the turn's words, with the resident's actor for the embedding; a
@@ -1817,18 +1346,6 @@ defmodule Oneiroi.Brain.Turn do
     do: Kumbukumbu.memory_query(turn.resident_id, text, actor, [])
 
   defp memory_query(_turn, _text), do: nil
-
-  defp madeleine(%{preview?: true}, _vector, _indexed), do: nil
-
-  defp madeleine(turn, vector, indexed),
-    do: Kumbukumbu.madeleine_near(turn.resident_id, vector, turn.session_key, indexed)
-
-  defp madeleine_text(nil, _zone), do: ""
-
-  defp madeleine_text(%{bookmark: b}, zone) do
-    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Local.day(zone, b.anchor_at)}: #{b.line}" <>
-      if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
-  end
 
   # The month after first contact (spec §6.2): the resident is told its
   # seed is still settling and proposals are presumed welcome; a line in
@@ -1860,43 +1377,6 @@ defmodule Oneiroi.Brain.Turn do
      }), Oneiroi.AgathosDaimon.identity_context(turn.resident_id)}
   end
 
-  # Her wanting between slots (brain#55; the witness's call, 2026-11-05):
-  # the file she keeps beside his GOALS.md, LILY-GOALS.md for Lily, read
-  # in free time and nowhere else. She edits it with her own tools; this
-  # only reads what is there.
-  @goals_limit 12_000
-
-  defp free_time_goals(%{purpose: purpose} = turn, %{kind: "free_time"})
-       when purpose in [:free_time, :planning] do
-    # Through introspection's repository reader, which holds a path to
-    # the repository's root, rather than a file opened here.
-    with {:ok, %{slug: slug}} <- Oneiroi.AgathosDaimon.fetch(turn.resident_id),
-         name = String.upcase(slug) <> "-GOALS.md",
-         {:ok, text, _next, _total} <- Introspection.read({:repo, turn.resident_id}, name),
-         text when text != "" <- String.trim(text) do
-      "# Your goals between slots (#{name}, yours to keep)\n\n" <>
-        String.slice(text, 0, @goals_limit)
-    else
-      _absent -> nil
-    end
-  end
-
-  defp free_time_goals(_turn, _session), do: nil
-
-  defp free_time_plan(%{purpose: purpose} = turn, %{kind: "free_time"})
-       when purpose in [:free_time, :planning] do
-    case Oneiroi.Sunna.free_time_plan(turn.resident_id) do
-      %{text: text, at: at} ->
-        "# Your plan for this free time (written #{Local.stamp(Local.zone(turn.resident_id), at)})\n\n" <>
-          text
-
-      nil ->
-        nil
-    end
-  end
-
-  defp free_time_plan(_turn, _session), do: nil
-
   defp session_of(turn) do
     case Kumbukumbu.uncompacted(turn.resident_id, turn.session_key) do
       {:ok, session, count} -> {session, count}
@@ -1925,13 +1405,12 @@ defmodule Oneiroi.Brain.Turn do
   # (brain#39).
   defp failure_reason(error), do: Nisaba.Error.text(error)
 
-  @doc false
-  def tokens(text) when is_binary(text),
-    do: div(byte_size(text) + @bytes_per_token - 1, @bytes_per_token)
+  @doc "An injection's reason cut to its column's width (the helper lives with the plugins)."
+  defdelegate fit(reason), to: Oneiroi.Brain.Plugin
 
-  def tokens(_other), do: 0
+  @doc "A text's size in tokens, estimated at four bytes a token."
+  defdelegate tokens(text), to: Oneiroi.Brain.Plugin
 
-  @doc false
   # What the turn is doing now (brain#45), for the client's status line:
   # `thinking` before each model call, `tool` with its name before each
   # call to one. Streamed words say `writing` by themselves.

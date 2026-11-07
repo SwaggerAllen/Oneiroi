@@ -15,6 +15,7 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Kumbukumbu.Edges
+  alias Oneiroi.Kumbukumbu.Index
   alias Oneiroi.Kumbukumbu.Ranking
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Nisaba.Provider.Fake
@@ -78,7 +79,8 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
           [
             lambda: 0.3,
             half_life: 30,
-            lines: 3,
+            # Ranked lines, and the draws apart (brain#68).
+            lines: 2,
             explore: 1,
             seeds: 1,
             min_score: 0.0,
@@ -130,6 +132,20 @@ defmodule Oneiroi.Kumbukumbu.RankedMemoryTest do
       assert Enum.map(ranked.ranked, & &1.bookmark.number) == [1, 2]
       assert Enum.map(ranked.explored, & &1.bookmark.number) == [3]
       assert ranked.rejected == []
+    end
+
+    # brain#68: the exploration is its own slot, with its own lines and
+    # tokens; the ranked lines spending the index's budget take none of it.
+    test "the draws have their own budget, apart from the ranked lines'" do
+      candidates = [%{bookmark: b(1), distance: 0.1}, %{bookmark: b(2), distance: 0.2}]
+      tight = Index.tokens(Index.line(b(1), "Etc/UTC")) * 2
+
+      ranked = rank(candidates, [], [b(7), b(8)], budget: tight, explore: 2, explore_budget: 1500)
+      assert Enum.map(ranked.ranked, & &1.bookmark.number) == [1, 2]
+      assert Enum.map(ranked.explored, & &1.bookmark.number) == [7, 8]
+
+      none = rank(candidates, [], [b(7)], explore: 1, explore_budget: 0)
+      assert none.explored == []
     end
 
     test "the line rejects what scores under it" do

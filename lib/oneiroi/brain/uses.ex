@@ -53,6 +53,11 @@ defmodule Oneiroi.Brain.Uses do
             Enum.map(explored, &use("bookmark/#{&1}", "returned", "explored")) ++
             Enum.map(seeds, &use("bookmark/#{&1}", "seed", "index"))
 
+        # The exploration's draws (brain#68): returned through `explored`
+        # alone, never considered, as before they had a slot of their own.
+        "exploration" ->
+          Enum.map(refs, &use("bookmark/#{&1}", "returned", "explored"))
+
         "near-miss" ->
           inj
           |> field(:considered)

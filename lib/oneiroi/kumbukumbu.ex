@@ -155,16 +155,22 @@ defmodule Oneiroi.Kumbukumbu do
       # them.
       {:index_lines, "KUMBUKUMBU_INDEX_LINES",
        cast: :integer,
-       default: "10",
+       default: "8",
        tag: :bound,
        usage:
-         "how many bookmarks the ranked index returns a turn, ranked and explored together, within the token budget: 'top five over topical twenty' (the work order); a guess"},
-      {:index_explore_percent, "KUMBUKUMBU_INDEX_EXPLORE_PERCENT",
+         "how many bookmarks the ranked index returns a turn by rank, within its token budget; the exploration's draws are its own (brain#68); a guess"},
+      {:explore_lines, "KUMBUKUMBU_EXPLORE_LINES",
        cast: :integer,
-       default: "20",
+       default: "2",
        tag: :bound,
        usage:
-         "the share of the index's lines drawn at random from outside the ranked set, fresh each turn (F11's 20%, against character metastasising and for spontaneity); a guess"},
+         "how many bookmarks the exploration plugin draws at random from outside the ranked set, fresh each turn (F11's share, against character metastasising and for spontaneity; its own slot since brain#68); a guess"},
+      {:explore_tokens, "KUMBUKUMBU_EXPLORE_TOKENS",
+       cast: :integer,
+       default: "300",
+       tag: :bound,
+       usage:
+         "the token budget the exploration's draws are listed under, apart from the index's (brain#68); a guess"},
       {:index_considered, "KUMBUKUMBU_INDEX_CONSIDERED",
        cast: :integer,
        default: "40",
