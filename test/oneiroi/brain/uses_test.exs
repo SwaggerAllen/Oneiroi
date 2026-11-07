@@ -194,6 +194,35 @@ defmodule Oneiroi.Brain.UsesTest do
                Kumbukumbu.retrieval({:account, ctx.witness.id}, [])
     end
 
+    # kumbukumbu#52: a section loaded whole every turn was never chosen,
+    # so it is carried, never considered or returned, and never a miss;
+    # a file read whole with source_read or repo_read is used.
+    test "promises are carried, not missed, and a source or repository read is used", ctx do
+      id = ctx.resident.id
+      brain = Actor.new(:resident, id, "fake/model")
+      {:ok, 1} = Oneiroi.Ethos.make_commitment(id, "witness", "I will look for the heron.", brain)
+      Fake.reply("Noted.", for: id)
+      {:ok, _} = Oneiroi.Brain.turn(id, ctx.key, "hello", ctx.actor)
+      {:ok, _} = Oneiroi.Brain.turn(id, ctx.key, "again", ctx.actor)
+
+      assert [%{target: "commitment/1", considered: 0, returned: 0, used: 0, carried: 2}] =
+               Kumbukumbu.retrieval({:resident, id}, kind: "commitment")
+
+      turn = %{resident_id: id, session_key: ctx.key, turn_ref: "t", resident: brain}
+      refute Tools.run("memory_use", ~s({"order":"unused"}), turn) =~ "commitment/1"
+
+      assert Tools.run("memory_use", ~s({"kind":"commitment"}), turn) =~
+               "carried 2 (loaded every turn, never chosen)"
+
+      assert Uses.from_call("source_read", %{"path" => "design/oneiroi-spec.md"}, "x", "lily") ==
+               [%{target: "source/design/oneiroi-spec.md", stage: "used", via: "source_read"}]
+
+      assert Uses.from_call("repo_read", %{"path" => "/SOUL.md"}, "x", "lily") ==
+               [%{target: "repo/SOUL.md", stage: "used", via: "repo_read"}]
+
+      assert Uses.from_call("source_read", %{"path" => ""}, "x", "lily") == []
+    end
+
     test "a runtime's call inside its open turn records its own uses; outside a turn it records none",
          ctx do
       id = ctx.resident.id

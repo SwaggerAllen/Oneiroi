@@ -345,6 +345,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
   one. Counted across sessions under the scope, so the resident's read is
   everything and a witness's is the sessions they are party to.
   """
+  @carried ~w(promised)
+
   @spec retrieval_counts(keyword()) :: [map()]
   def retrieval_counts(opts \\ []) do
     query =
@@ -352,8 +354,14 @@ defmodule Oneiroi.Kumbukumbu.Store do
         group_by: u.target,
         select: %{
           target: u.target,
-          considered: filter(count(u.position), u.stage == "considered"),
-          returned: filter(count(u.position), u.stage == "returned"),
+          # A section loaded whole on every turn (`promised`, every open
+          # commitment) was never chosen, so it is carried, not considered
+          # or returned (kumbukumbu#52): counted apart, at the read, so
+          # the turns recorded before the split read the same way.
+          considered:
+            filter(count(u.position), u.stage == "considered" and u.via not in @carried),
+          returned: filter(count(u.position), u.stage == "returned" and u.via not in @carried),
+          carried: filter(count(u.position), u.stage == "returned" and u.via in @carried),
           used: filter(count(u.position), u.stage == "used"),
           last_returned_at: filter(max(u.at), u.stage == "returned"),
           last_used_at: filter(max(u.at), u.stage == "used")

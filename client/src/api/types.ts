@@ -49,6 +49,8 @@ export interface RetrievalCount {
   considered: number;
   returned: number;
   used: number;
+  // Loaded every turn and never chosen (kumbukumbu#52): not a miss.
+  carried?: number;
   last_returned_at: string | null;
   last_used_at: string | null;
 }

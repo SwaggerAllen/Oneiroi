@@ -207,7 +207,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "memory_use",
-        "How your retrieval has been used, target by target: how often each bookmark, document, transcript, habit or commitment was considered (ranked by the memory agent), returned (put in front of you, or handed back by a search or list) and used (opened, read or cited by you), and when last returned and used. kind narrows to one kind (bookmark, writing, keepsake, transcript, habit...), target to one (bookmark/42); order is used (the default), returned, or unused (returned and never used: what costs you room and earns none). These are measurements for the two of you to read before anything is reweighted.",
+        "How your retrieval has been used, target by target: how often each bookmark, document, transcript, habit or commitment was considered (ranked by the memory agent), returned (put in front of you, or handed back by a search or list) and used (opened, read or cited by you, or read whole with source_read or repo_read), and when last returned and used; a section loaded whole every turn (your promises) is counted as carried instead, never as a miss. kind narrows to one kind (bookmark, writing, keepsake, transcript, habit...), target to one (bookmark/42); order is used (the default), returned, or unused (returned and never used: what costs you room and earns none). These are measurements for the two of you to read before anything is reweighted.",
         %{
           kind: %{type: "string"},
           target: %{type: "string"},
@@ -1470,6 +1470,7 @@ defmodule Oneiroi.Brain.Tools do
 
         "unused" ->
           rows
+          # A carried section is not a miss: it was never offered as a choice.
           |> Enum.filter(&(&1.used == 0 and &1.returned > 0))
           |> Enum.sort_by(&{-&1.returned, &1.target})
 
@@ -3328,7 +3329,12 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp use_line(r) do
-    "#{r.target}: considered #{r.considered}, returned #{r.returned}, used #{r.used}" <>
+    carried = Map.get(r, :carried, 0)
+
+    carried =
+      if carried > 0, do: ", carried #{carried} (loaded every turn, never chosen)", else: ""
+
+    "#{r.target}: considered #{r.considered}, returned #{r.returned}, used #{r.used}#{carried}" <>
       if(r.last_used_at,
         do: "; last used #{local_day(r.last_used_at)}",
         else: ""

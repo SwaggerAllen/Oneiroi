@@ -367,3 +367,14 @@ never changes, while where it stands does: an application is sent,
 then submitted, then answered. Keeping the status on the bookmark and
 dated means the timeline shows the newest word she gave it, with its
 date, rather than a state copied by hand that goes stale silently.
+
+## #52
+A miss is something offered that was not taken. A promise in front of
+her every turn was never offered as a choice, so counting it as
+returned and unused made the unused list lead with what is working as
+designed, and hid the near-misses that are the measurement's point. The
+split is made where the counts are read, because the recorded uses are
+history and should not be rewritten to agree with a newer reading. Reads
+of the platform's source and her repository were invisible to the
+measurement, so a week of reading design docs looked like a week of
+reading nothing.
