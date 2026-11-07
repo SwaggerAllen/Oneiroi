@@ -33,7 +33,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       %Document{
         resident_id: e.id,
         path: e.path,
-        kind: e.kind,
+        kind: Kinds.released(e.kind),
         origin: "written",
         bytes: e.bytes,
         versions: 1,
@@ -97,7 +97,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     |> Multi.update_all(
       :document,
       from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.from),
-      set: [path: e.to, kind: e.to_kind]
+      set: [path: e.to, kind: Kinds.released(e.to_kind)]
     )
     |> Multi.update_all(
       :chunks,
@@ -148,7 +148,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       %Document{
         resident_id: e.id,
         path: e.path,
-        kind: e.kind,
+        kind: Kinds.released(e.kind),
         origin: "adopted",
         bytes: e.bytes,
         versions: 1,

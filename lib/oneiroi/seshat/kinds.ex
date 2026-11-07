@@ -387,6 +387,17 @@ defmodule Oneiroi.Seshat.Kinds do
 
   def keepsake_name?(_other), do: false
 
+  @doc """
+  The kind an event recorded, as it reads now (seshat#44, the witness's
+  call of 2026-11-07: nothing grandfathered): a document recorded as a
+  keepsake by its place at the root, before registration existed, is a
+  root file; only `KeepsakeRegistered` makes a keepsake. The events are
+  unchanged.
+  """
+  @spec released(String.t()) :: String.t()
+  def released("keepsake"), do: "root"
+  def released(kind), do: kind
+
   @doc "Whether a root name is a resident's goals ledger, `<SLUG>-GOALS.md` (seshat#43)."
   @spec goals_name?(String.t()) :: boolean()
   def goals_name?(name) when is_binary(name), do: Regex.match?(@goals, name)

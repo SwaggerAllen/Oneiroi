@@ -628,6 +628,37 @@ defmodule Oneiroi.Seshat.DocumentsTest do
              Seshat.write(id, old, "# Goals\n\nThawed.\n", ctx.brain)
   end
 
+  test "nothing is grandfathered: a file frozen by its place at the root is released, and a keepsake only by registration (seshat#44)",
+       ctx do
+    id = ctx.id
+    gift = "# Pocket Andrew\n\nWhat is real resists.\n"
+    File.write!(Path.join(ctx.dir, "pocket-andrew.md"), gift)
+
+    # Recorded as a keepsake by placement, as the old rule did.
+    {:ok, _} =
+      Router.dispatch(%Commands.WriteDocument{
+        actor: ctx.actor,
+        at: Clock.now(),
+        id: id,
+        path: "pocket-andrew.md",
+        kind: "keepsake",
+        hash: Documents.hash(gift),
+        bytes: byte_size(gift)
+      })
+
+    # Released: a root file, listed nowhere as a keepsake.
+    assert %{kind: "root"} = Enum.find(Seshat.documents(id), &(&1.path == "pocket-andrew.md"))
+    assert Seshat.keepsakes(id) == []
+
+    # Registered, deliberately: the list's first entry, the file unchanged.
+    assert :ok = Seshat.register_keepsake(id, "pocket-andrew.md", ctx.brain)
+    assert [%{path: "pocket-andrew.md"}] = Seshat.keepsakes(id)
+    assert File.read!(Path.join(ctx.dir, "pocket-andrew.md")) == gift
+
+    assert {:error, %Seshat.Error{kind: :seshat_keepsake_kept}} =
+             Seshat.write(id, "pocket-andrew.md", "# Edited\n", ctx.brain)
+  end
+
   test "an archived document keeps its words under archive/, leaves a tombstone its citations resolve to, and leaves search (seshat#45)",
        ctx do
     id = ctx.id
