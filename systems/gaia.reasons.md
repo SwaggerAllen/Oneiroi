@@ -142,3 +142,14 @@ platform's own acts are events like any other; told once, with the
 commits, they can be checked rather than guessed. Same-commit restarts
 are told too: a restart still cuts off a turn, and the witness's word
 was no exception.
+
+## #22
+The founding rule picks the earliest account, and the earliest account
+on a real deployment can be a test sign-up or an address the operator no
+longer uses; with no operator able to act, nothing on the screen could
+fix it. Whoever has a shell on the running server already holds the
+database and the keys, so letting the console name the operator gives
+nobody power they did not have, and does it through the aggregate, so
+the change is an event with its note rather than an edit to a table.
+The console is named apart from the platform's own jobs so the record
+says a person did it.

@@ -10,8 +10,10 @@ defmodule Oneiroi.Gaia.Platform do
     permissions) or `admin` (the scoped tier). Only a super admin grants
     or revokes one, with a note, except the first grant: while no super
     admin exists, the platform itself may grant the founding account
-    super admin, once. The last super admin cannot be revoked, so the
-    door always has a keeper; a transfer is a grant, then a revoke.
+    super admin, once; and the server's console may grant and revoke
+    any role (gaia#22), for when the operator is the wrong account or
+    locked out. The last super admin cannot be revoked, so the door
+    always has a keeper; a transfer is a grant, then a revoke.
   """
 
   alias Oneiroi.Gaia.Commands
@@ -63,7 +65,7 @@ defmodule Oneiroi.Gaia.Platform do
 
   def execute(%__MODULE__{} = p, %Commands.RevokeRole{} = c) do
     cond do
-      not super_admin?(p, c.actor) ->
+      not (super_admin?(p, c.actor) or console?(c.actor)) ->
         {:error, Error.new(:gaia_not_an_operator, :gaia_platform_revoke_not_operator)}
 
       not MapSet.member?(p.roles, {c.account_id, c.role}) ->
@@ -120,9 +122,18 @@ defmodule Oneiroi.Gaia.Platform do
       )
 
   # A super admin grants; so does the platform, once, for the founding
-  # account, while no super admin exists.
+  # account, while no super admin exists; and so does the server's
+  # console (gaia#22), whose holder already holds the machine.
   defp may_grant?(p, c),
-    do: super_admin?(p, c.actor) or (founding?(c) and holders(p, "super_admin") == [])
+    do:
+      super_admin?(p, c.actor) or console?(c.actor) or
+        (founding?(c) and holders(p, "super_admin") == [])
+
+  # The server's console (gaia#22): a shell on the running release. It
+  # is the platform acting at a person's hand, named apart from the
+  # platform's own jobs so the record says which.
+  defp console?(%{kind: :platform, id: "console"}), do: true
+  defp console?(_actor), do: false
 
   defp founding?(c), do: c.actor.kind == :platform and c.role == "super_admin"
 
