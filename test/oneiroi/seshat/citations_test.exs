@@ -115,7 +115,8 @@ defmodule Oneiroi.Seshat.CitationsTest do
     # A keepsake is a root name alone (seshat#29); the root's reserved
     # names and anything not text still have no kind.
     assert {:ok, "pocket-andrew.md"} = Kinds.normalize("pocket-andrew.md")
-    assert %{kind: "keepsake"} = Kinds.kind_of("pocket-andrew.md")
+    # A root file by its path; a keepsake only by registration (seshat#44).
+    assert %{kind: "root"} = Kinds.kind_of("pocket-andrew.md")
     assert is_nil(Kinds.kind_of("SOUL.md")) and is_nil(Kinds.kind_of("photo.png"))
     assert {:error, _} = Kinds.normalize("README.md")
     assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
@@ -123,10 +124,10 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.minting() == ~w(writing oracle research design journal system)
 
     assert Kinds.non_minting() ==
-             ~w(wiki scratch human posts mail feeds correspondence memory goals keepsake)
+             ~w(wiki scratch human posts mail feeds correspondence memory goals archive root keepsake)
 
     assert Kinds.writable() ==
-             ~w(writing research design wiki system scratch posts goals keepsake)
+             ~w(writing research design wiki system scratch posts goals root keepsake)
 
     # Decided one by one (seshat#29, #31): a keepsake, a wiki page, a
     # system note; never the writing, and nothing the registry refuses.

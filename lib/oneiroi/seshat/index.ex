@@ -134,6 +134,10 @@ defmodule Oneiroi.Seshat.Index do
     end
   end
 
+  # An archived document and the tombstone at its old path stay out of
+  # the index (seshat#45): read at their paths, never searched or ranked.
+  defp chunks_of(%{kind: kind}, _content) when kind in ["archive", "tombstone"], do: []
+
   defp chunks_of(doc, content) do
     if Kinds.text?(doc.path) do
       {_front, body} = Citations.frontmatter(content)

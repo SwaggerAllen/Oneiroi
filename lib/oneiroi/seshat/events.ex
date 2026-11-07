@@ -43,6 +43,30 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end
 
+  defmodule DocumentArchived do
+    # A document archived (seshat#45): its words moved whole to `to`
+    # under frontmatter (who, when, why), and a tombstone left at the old
+    # path naming where it went and why, so a citation still resolves.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [
+        :id,
+        :path,
+        :to,
+        :why,
+        :archived_hash,
+        :archived_bytes,
+        :tombstone_hash,
+        :tombstone_bytes
+      ]
+  end
+
+  defmodule KeepsakeRegistered do
+    # A root file made a keepsake (seshat#44): a deliberate act, by
+    # either party; from then it is never written again.
+    use Oneiroi.Event, version: 1, fields: [:id, :path]
+  end
+
   defmodule KeepsakeNoted do
     # Why a keepsake mattered, in the resident's words (seshat#32): what
     # a pin carries for a bookmark, beside a gift that is never edited.

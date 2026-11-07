@@ -46,10 +46,12 @@ defmodule Oneiroi.Seshat.MoveTest do
              %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"},
              ctx
            ) ==
-             "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (keepsake)."
+             "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (root)."
 
     refute File.exists?(Path.join(ctx.dir, "wiki/lily/pocket-andrew.md"))
     assert File.read!(Path.join(ctx.dir, "pocket-andrew.md")) == words
+    # A root file now; a keepsake when registered (seshat#44).
+    assert run("keepsake_register", %{name: "pocket-andrew.md"}, ctx) =~ "is a keepsake now"
     assert run("keepsake_list", %{}, ctx) =~ "pocket-andrew.md"
 
     # The old citation resolves through the move; the new one directly.

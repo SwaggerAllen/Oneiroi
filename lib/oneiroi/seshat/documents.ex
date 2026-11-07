@@ -42,7 +42,7 @@ defmodule Oneiroi.Seshat.Documents do
          {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false), actor),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         :ok <- not_kept(kind, path, Path.join(dir, path), content),
+         :ok <- not_kept(kind, path, Path.join(dir, path), content, resident_id),
          {:ok, events} <-
            dispatch(%Commands.WriteDocument{
              actor: actor,
@@ -327,6 +327,66 @@ defmodule Oneiroi.Seshat.Documents do
   def keepsakes(resident_id),
     do: resident_id |> list() |> Enum.filter(&(&1.kind == "keepsake")) |> Enum.sort_by(& &1.path)
 
+  @doc """
+  Archives a document (seshat#45): its words, whole, to `archive/<path>`
+  under frontmatter saying who archived it, when and why; a tombstone at
+  the old path naming where it went and why, so a citation of it still
+  resolves; both out of the index. Nothing is deleted. Either party.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  def archive(resident_id, path, why, %Actor{} = actor) do
+    to = "archive/" <> to_string(path)
+    when_ = Clock.now() |> DateTime.to_date() |> Date.to_iso8601()
+    who = Atom.to_string(actor.kind)
+
+    with {:ok, path} <- normalize(path),
+         {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         {:ok, content} <- read_file(Path.join(dir, path)) do
+      archived =
+        "---\narchived_from: #{path}\narchived_by: #{who}\narchived_at: #{when_}\nwhy: #{inspect(to_string(why))}\n---\n" <>
+          content
+
+      tombstone =
+        "# Archived\n\nThis document was archived on #{when_} by the #{who}: its words, whole, are at #{to}. Why: #{why}\n"
+
+      command = %Commands.ArchiveDocument{
+        actor: actor,
+        at: Clock.now(),
+        id: resident_id,
+        path: path,
+        to: to,
+        why: why,
+        archived_hash: hash(archived),
+        archived_bytes: byte_size(archived),
+        tombstone_hash: hash(tombstone),
+        tombstone_bytes: byte_size(tombstone)
+      }
+
+      with {:ok, _} <- dispatch(command) do
+        full = Path.join(dir, to)
+        File.mkdir_p!(Path.dirname(full))
+        File.write!(full, archived)
+        File.write!(Path.join(dir, path), tombstone)
+        _ = Index.run(resident_id, actor)
+        {:ok, %{from: path, to: to}}
+      end
+    end
+  end
+
+  @doc "Makes a root file a keepsake (seshat#44): a deliberate act, by either party; from then it is never written again."
+  def register_keepsake(resident_id, path, %Actor{} = actor) do
+    with {:ok, path} <- normalize(path),
+         {:ok, _} <-
+           dispatch(%Commands.RegisterKeepsake{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             path: path
+           }) do
+      :ok
+    end
+  end
+
   @doc "Records why a keepsake mattered, in the resident's words (seshat#32)."
   def note_keepsake(resident_id, path, note, %Actor{} = actor) do
     with {:ok, path} <- normalize(path),
@@ -536,7 +596,7 @@ defmodule Oneiroi.Seshat.Documents do
   # root by hand and not yet adopted, which a write would otherwise
   # replace with nothing recorded of what it was.
   # sobelow_skip ["Traversal.FileModule"]
-  defp not_kept(%{access: :keepsake}, path, full, content) do
+  defp not_kept(%{access: :keepsake}, path, full, content, _resident_id) do
     case File.read(full) do
       {:ok, ^content} ->
         :ok
@@ -549,7 +609,27 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  defp not_kept(_kind, _path, _full, _content), do: :ok
+  # A root file put there by hand and not yet adopted (seshat#44) is not
+  # written over: it is adopted first, so nothing it was is lost
+  # unrecorded. Once registered, it is free to write until registered as
+  # a keepsake.
+  defp not_kept(%{kind: "root"}, path, full, content, resident_id) do
+    case File.read(full) do
+      {:ok, ^content} ->
+        :ok
+
+      {:ok, _other} ->
+        if Enum.any?(list(resident_id), &(&1.path == path)),
+          do: :ok,
+          else:
+            {:error, Error.new(:seshat_not_adopted, :seshat_documents_root_unadopted, path: path)}
+
+      {:error, _absent} ->
+        :ok
+    end
+  end
+
+  defp not_kept(_kind, _path, _full, _content, _resident_id), do: :ok
 
   defp size_ok(content) do
     bound = Config.fetch!(:seshat, :document_bytes)

@@ -338,6 +338,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"seed_wilt", %{number: 1}},
     {"seed_graduate", %{number: 1, to_kind: "position", to_id: "1", note: "grew"}},
     {"writing_discuss", %{slug: "weir"}},
+    {"keepsake_register", %{name: "pocket-andrew.md"}},
+    {"document_archive", %{path: "scratch/pad.md", why: "done with"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
     {"letter_send", %{to: "house", text: "a note"}},
     {"document_remove", %{path: "scratch/pad.md"}},
@@ -400,7 +402,7 @@ defmodule Oneiroi.Brain.TrialTest do
     assert {_, "Accepted as #4."} = List.keyfind(answered, "bookmark_accept", 0)
     assert {_, "Adopted writing/stray.md."} = List.keyfind(answered, "document_adopt", 0)
 
-    assert {_, "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (keepsake)."} =
+    assert {_, "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (root)."} =
              List.keyfind(answered, "document_move", 0)
 
     assert {"journal_add", "Added note 1 to #{day}."} == List.keyfind(answered, "journal_add", 0)

@@ -51,7 +51,7 @@ defmodule Oneiroi.Brain.UsesTest do
                used.("research/task/source", "library_read")
 
       assert Uses.from_call("library_read", %{"path" => "pocket-andrew.md"}, "x", "lily") ==
-               used.("keepsake/pocket-andrew", "library_read")
+               used.("root/pocket-andrew", "library_read")
 
       assert Uses.from_call(
                "library_read",

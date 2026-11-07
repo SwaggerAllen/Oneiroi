@@ -172,8 +172,8 @@ defmodule Oneiroi.Brain.Uses do
 
   defp path_target(path) do
     case Seshat.Kinds.kind_of(path) do
-      %{kind: "keepsake"} ->
-        "keepsake/" <> Path.rootname(path)
+      %{kind: kind} when kind in ["keepsake", "root", "goals"] ->
+        "#{kind}/" <> Path.rootname(path)
 
       %{kind: kind, folder: folder} ->
         "#{kind}/" <> (path |> String.replace_prefix(folder <> "/", "") |> strip_text())

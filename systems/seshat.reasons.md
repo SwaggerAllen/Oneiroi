@@ -303,3 +303,16 @@ edited. Naming the ledger as a kind keeps both promises (the keepsake
 stays a gift, the ledger stays a ledger) without moving the file the
 reader looks for. Letting the write record its new kind, rather than
 rewriting the past registration, keeps what happened on the record.
+
+## #44
+A rule that froze every root file made the root unusable for anything
+but gifts, and it froze things nobody meant to give (the goals ledger,
+report #4). A keepsake is a gift because someone chose to make it one;
+making the choice an act, recorded with its actor, keeps the gift's
+promise without taxing every other file at the root.
+
+## #45
+Clutter and loss are the two failures a library has, and deleting
+trades one for the other. The archive moves what is done with out of
+search and out of the way while keeping every word, and the tombstone
+keeps the promise every citation made about where to find it.

@@ -157,6 +157,8 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
 
   test "a letter gives a keepsake only one that is a keepsake at the root", ctx do
     {:ok, _} = Seshat.write(ctx.id, "a-small-gift.md", "# A small gift\n", ctx.lily)
+    # A keepsake by registration (seshat#44).
+    :ok = Seshat.register_keepsake(ctx.id, "a-small-gift.md", ctx.lily)
     chat = turn(ctx, ctx.chat)
 
     assert run(

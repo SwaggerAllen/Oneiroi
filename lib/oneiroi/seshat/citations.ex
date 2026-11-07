@@ -373,7 +373,8 @@ defmodule Oneiroi.Seshat.Citations do
     name = if Path.extname(ref) == "", do: "#{ref}.md", else: ref
     # A keepsake has no folder: `<slug>:keepsake/pocket-andrew` is the
     # root's `pocket-andrew.md` (seshat#29).
-    if kind == "keepsake", do: name, else: "#{kind}/#{name}"
+    # A root file and a goals ledger are their names at the root too (#43, #44).
+    if kind in ["keepsake", "root", "goals"], do: name, else: "#{kind}/#{name}"
   end
 
   defp resolve_rows(_resident_id, [], _mark?), do: []

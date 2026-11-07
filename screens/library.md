@@ -26,7 +26,7 @@ words" runs the library's own index (`GET .../library/search?q=`, one
 embedding call, so it is a button rather than per keystroke) and shows
 the passages found for the tab, each opening its document. Keepsakes
 carry why each mattered in the resident's words, or that she has not
-said why yet (seshat#32); a document opens and reads whole, as plain
+said why yet (seshat#32); the shelf's server-given tabs now include Goals, At the root and Archive (seshat#43–#45), where an archived document reads whole with its frontmatter and its old path holds a tombstone saying where it went; a document opens and reads whole, as plain
 text, above the list; scratch and human documents are removed with the
 button turned into its consequence; every document but the kinds their
 systems write (mail, feeds, correspondence, journal, the originals)
