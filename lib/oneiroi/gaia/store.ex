@@ -59,6 +59,22 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Boot do
+    @moduledoc "A platform boot (gaia#21): its number, the commit it ran, the one before, whether it changed; platform-scoped."
+    use Ecto.Schema
+    @primary_key {:id, :string, autogenerate: false}
+    schema "gaia_boot" do
+      field(:stream_key, :string)
+      field(:number, :integer)
+      field(:commit, :string)
+      field(:previous, :string)
+      field(:changed, :boolean)
+      field(:booted_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Gate do
     @moduledoc "The front door (gaia#16): one row, `key` \"door\", platform-scoped."
     use Ecto.Schema

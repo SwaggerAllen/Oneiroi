@@ -49,7 +49,10 @@ defmodule OneiroiWeb.ConversationController do
        %Schema{
          type: :object,
          properties: %{
-           kind: %Schema{type: :string, enum: ["main", "free_time", "round", "work", "hands"]},
+           kind: %Schema{
+             type: :string,
+             enum: ["main", "free_time", "round", "work", "housekeeping", "hands"]
+           },
            domain: %Schema{
              type: :string,
              description:

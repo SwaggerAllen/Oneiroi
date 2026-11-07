@@ -6,7 +6,7 @@ defmodule Oneiroi.Gaia.Projectors.Platform do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Gate, Role}
+  alias Oneiroi.Gaia.Store.{Boot, Gate, Role}
 
   fold(%Events.GateSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -15,6 +15,24 @@ defmodule Oneiroi.Gaia.Projectors.Platform do
       %Gate{key: "door", state: e.state, note: e.note, set_by: by(e.actor), set_at: e.at},
       on_conflict: {:replace, [:state, :note, :set_by, :set_at]},
       conflict_target: [:key]
+    )
+  end)
+
+  fold(%Events.BootRecorded{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :boot,
+      %Boot{
+        id: "#{e.id}:#{e.number}",
+        stream_key: e.id,
+        number: e.number,
+        commit: e.commit,
+        previous: e.previous,
+        changed: e.changed,
+        booted_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:id]
     )
   end)
 

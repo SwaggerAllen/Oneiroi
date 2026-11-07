@@ -82,6 +82,13 @@ defmodule Oneiroi.Sunna.Events do
     def upcast(event, _metadata), do: event
   end
 
+  defmodule FreeTimeRested do
+    # A slot that did not run because the free-time line had too little
+    # left for a meaningful run (sunna#34's floor): a state, not a failure,
+    # with the reason in words.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :slot, :reason]
+  end
+
   defmodule FreeTimeFailed do
     # Version 2 adds `slot`, as FreeTimeRan's.
     use Oneiroi.Event, version: 2, fields: [:id, :day, :reason, :slot]

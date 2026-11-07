@@ -208,3 +208,13 @@ both: free time and quiet hours are the standing promise, and work that
 displaced them would make the promise conditional. Empty is a state
 because a loop that treats an empty queue as failure invents work to
 fill it.
+
+## #34
+Free time that waits on a clock after the day's housekeeping has
+already happened is an hour lost; free time that follows it begins
+while the day is still warm. The pass is hers to write, never a side
+model's, because a day summarised by another hand is the compaction
+failure again; and it lives in her library beside the transcript it
+cites, never in place of it. The floor exists because a run that can
+afford one turn is worse than none: it opens a thought it cannot
+finish, and says nothing about why.

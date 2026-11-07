@@ -37,7 +37,9 @@ role by account email. Every change needs the note typed first; the
 server checks the authority again on each one. It says how a transfer
 goes (grant super admin, then revoke your own) and that the last super
 admin cannot be revoked. Shown only when `/v1/me` names the caller's
-super admin role.
+super admin role. Under it, **Restarts** (gaia#21): the latest ten, each
+as its line (when, commit before → after, changed or same, the diff),
+with "Every conversation is told of each, once, on its next turn".
 
 Under it, for the same super admin, an Invites card (`Invites.tsx`,
 gaia#18): a form to issue a code (who it is for, required; plan, list

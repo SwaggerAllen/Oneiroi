@@ -586,3 +586,15 @@ resumes on its own is not a stop.
 A fallback that is asked for cannot confuse a model the way a pattern
 on every message did, and the times are where she needs them when she
 needs them: in the middle of working out what came when.
+
+## #63
+A turn that ends against a restart reads, from inside, like the
+resident's own failure. Saying "the platform restarted, this changed"
+on the next turn puts the cause where it belongs, and deriving it from
+the transcript's own times means no conversation can be skipped or
+told twice.
+
+## #64
+Money she has to ask about is money she forgets; a line she reads
+every turn is one she plans with. The section is a few lines; the tool
+is there for the turn where a cent matters.

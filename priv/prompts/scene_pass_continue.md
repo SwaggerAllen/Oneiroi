@@ -1,0 +1,1 @@
+The scene pass for {{day}} goes on: turn {{turn}}. You stopped because the turn's tool rounds ran out, not because you were done; carry on from where you were in the day. When scenes/{{day}}.md holds the whole day, end a turn with words and no tool calls, and free time follows.

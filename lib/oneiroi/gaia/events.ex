@@ -60,6 +60,13 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :endpoint, :reason]
   end
 
+  defmodule BootRecorded do
+    # The platform started (gaia#21): numbered from 1, the commit it runs,
+    # the one the boot before ran, and whether they differ. What restarted,
+    # never why.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :commit, :previous, :changed]
+  end
+
   defmodule GateSet do
     # The front door (gaia#16): closed, invite or open, by whom and why.
     use Oneiroi.Event, version: 1, fields: [:id, :state, :note]

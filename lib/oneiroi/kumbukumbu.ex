@@ -559,6 +559,16 @@ defmodule Oneiroi.Kumbukumbu do
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(recent(resident_id, key, count), do: Conversations.recent(resident_id, key, count))
 
+  @doc "How many turns the resident's conversations of `kind` captured since `at` (sunna#34's floor)."
+  @spec turns_since(String.t(), String.t(), DateTime.t()) :: non_neg_integer()
+  defexport(turns_since(resident_id, kind, at),
+    do: Conversations.turns_since(resident_id, kind, at)
+  )
+
+  @doc "How many of a session's messages came before `at`, and how many it holds in all (sunna#34's day range)."
+  @spec counts(String.t(), String.t(), DateTime.t()) :: {non_neg_integer(), non_neg_integer()}
+  defexport(counts(resident_id, key, at), do: Conversations.counts(resident_id, key, at))
+
   @doc "The last `count` messages of a session whatever any compaction covered, and how many it holds in all (brain#60)."
   @spec latest(String.t(), String.t(), pos_integer()) ::
           {[Oneiroi.Kumbukumbu.Store.Message.t()], non_neg_integer()}

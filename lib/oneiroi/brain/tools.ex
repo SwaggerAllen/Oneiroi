@@ -34,6 +34,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Glitnir
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba
   alias Oneiroi.Seshat
 
   @zone_key {__MODULE__, :zone}
@@ -64,7 +65,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list transcript_read ask_list platform_report_list
-    triage_list work_list message_times
+    triage_list work_list message_times budget_read
   )
 
   @writes ~w(
@@ -414,6 +415,12 @@ defmodule Oneiroi.Brain.Tools do
         "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
+      ),
+      tool(
+        "budget_read",
+        "Your budget lines, read precisely (brain#64): for each, its cap and period, what is spent and what is left this period to the hundredth of a cent, and whether it is spent; and the lines with no cap, with what they have spent. For planning, at midnight above all; every turn already shows what is left.",
+        %{},
+        []
       ),
       tool(
         "message_times",
@@ -1670,6 +1677,9 @@ defmodule Oneiroi.Brain.Tools do
            ),
          do: "Planned. Your next free time starts from it."
   end
+
+  defp call("budget_read", _args, turn),
+    do: Nisaba.budgets(turn.resident_id, :resident) |> Enum.map_join("\n", &budget_line/1)
 
   defp call("message_times", args, turn) do
     limit = args["limit"] |> integer_or(20) |> max(1) |> min(60)
@@ -2971,6 +2981,18 @@ defmodule Oneiroi.Brain.Tools do
     "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{length(messages)}:\n\n" <>
       lines <> more
   end
+
+  defp budget_line(%{cap_nanos: cap} = l) when is_integer(cap) do
+    exceeded = if l.exceeded, do: " (spent: this line refuses until the period turns)", else: ""
+
+    "#{l.purpose}: cap #{precise(cap)} a #{l.period}, spent #{precise(l.spent_nanos)}, left #{precise(max(cap - l.spent_nanos, 0))}" <>
+      exceeded
+  end
+
+  defp budget_line(l),
+    do: "#{l.purpose}: no cap; spent #{precise(l.spent_nanos)} this #{l.period}"
+
+  defp precise(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 4)
 
   defp integer_or(n, _default) when is_integer(n), do: n
   defp integer_or(_other, default), do: default

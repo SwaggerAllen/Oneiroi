@@ -5,5 +5,5 @@ defmodule Oneiroi.Gaia.PlatformRouter do
     aggregate: "Oneiroi.Gaia.Platform",
     prefix: "platform-",
     commands: "Oneiroi.Gaia.Commands",
-    dispatching: ~w(SetGate GrantRole RevokeRole)
+    dispatching: ~w(SetGate GrantRole RevokeRole RecordBoot)
 end

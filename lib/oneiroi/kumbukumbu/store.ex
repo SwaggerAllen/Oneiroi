@@ -436,6 +436,30 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
+  @doc "How many of a session's messages were said before `at`: where a day begins, as transcript_read's `from`."
+  @spec count_before(String.t(), DateTime.t()) :: non_neg_integer()
+  def count_before(key, at),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.sent_at < ^at,
+          select: count(m.sequence)
+        )
+      )
+
+  @doc "How many turns the resident's conversations of `kind` captured since `at` (sunna#34's floor)."
+  @spec turns_since(String.t(), DateTime.t()) :: non_neg_integer()
+  def turns_since(kind, at),
+    do:
+      Repo.one(
+        from(m in Message,
+          join: s in Session,
+          on: s.resident_id == m.resident_id and s.key == m.session_key,
+          where: s.kind == ^kind and m.sent_at >= ^at,
+          select: count(m.turn_ref, :distinct)
+        )
+      )
+
   @doc "How many messages a session holds."
   @spec message_count(String.t()) :: non_neg_integer()
   def message_count(key),

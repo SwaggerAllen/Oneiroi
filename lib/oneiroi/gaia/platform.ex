@@ -18,7 +18,7 @@ defmodule Oneiroi.Gaia.Platform do
   alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Events
 
-  defstruct gate: "closed", roles: MapSet.new()
+  defstruct gate: "closed", roles: MapSet.new(), boots: 0, commit: nil
 
   @gates ~w(closed invite open)
   @roles ~w(super_admin admin)
@@ -80,7 +80,27 @@ defmodule Oneiroi.Gaia.Platform do
     end
   end
 
+  # A boot (gaia#21): the platform's own act, recorded by the platform.
+  def execute(%__MODULE__{} = p, %Commands.RecordBoot{} = c) do
+    if c.actor.kind == :platform do
+      %Events.BootRecorded{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        number: p.boots + 1,
+        commit: c.commit,
+        previous: p.commit,
+        changed: p.boots > 0 and c.commit != p.commit
+      }
+    else
+      {:error, Error.new(:gaia_not_an_operator, :gaia_platform_boot_not_platform)}
+    end
+  end
+
   def apply(%__MODULE__{} = p, %Events.GateSet{} = e), do: %{p | gate: e.state}
+
+  def apply(%__MODULE__{} = p, %Events.BootRecorded{} = e),
+    do: %{p | boots: e.number, commit: e.commit}
 
   def apply(%__MODULE__{} = p, %Events.RoleGranted{} = e),
     do: %{p | roles: MapSet.put(p.roles, {e.account_id, e.role})}

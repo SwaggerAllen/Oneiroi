@@ -58,6 +58,10 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :state, :note]
   end
 
+  defmodule RecordBoot do
+    use Oneiroi.Command, fields: [:id, :commit], bounds: [commit: 64]
+  end
+
   defmodule GrantRole do
     use Oneiroi.Command, fields: [:id, :account_id, :role, :note]
   end

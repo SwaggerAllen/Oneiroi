@@ -32,6 +32,9 @@ config :oneiroi,
           # anew, so a tick in any test could land on one: off for the
           # suite, and the rounds' own tests pass their window (sunna#29).
           "SUNNA_ROUNDS_EVERY_HOURS" => "0",
+          # The bedtime scene pass (sunna#34) off for the suite, so the
+          # free-time tests run their slots inline; its own tests set it.
+          "SUNNA_SCENE_SLOT" => "",
           # The in-memory provider: no test crosses the network (conventions §9).
           "NISABA_PROVIDER" => "fake",
           "BRAIN_CHAT_MODEL" => "fake/model",
@@ -41,6 +44,8 @@ config :oneiroi,
           # Compaction is off in production (brain#60); the suite keeps it on
           # so the compaction tests hold, and the truncation tests turn it off.
           "BRAIN_COMPACTION" => "on",
+          # The suite's starts are not the platform's (gaia#21).
+          "GAIA_RECORD_BOOTS" => "off",
           # Small enough that one identity file near its 64,000-byte bound
           # trips the capacity alarm, large enough that no other test does.
           "BRAIN_CONTEXT_TOKENS" => "16000",

@@ -84,6 +84,16 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     |> free_time_run(e, "ran", e.session_key)
   end)
 
+  fold(%Events.FreeTimeRested{} = e, _metadata, fn multi ->
+    multi
+    |> settings(e.id,
+      free_time_day: e.day,
+      free_time_outcome: "rested: " <> e.reason,
+      free_time_session_key: nil
+    )
+    |> free_time_run(e, "rested: " <> e.reason, nil)
+  end)
+
   fold(%Events.FreeTimeFailed{} = e, _metadata, fn multi ->
     multi
     |> settings(e.id,
