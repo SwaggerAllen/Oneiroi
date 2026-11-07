@@ -569,6 +569,38 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:to_number, :integer, primary_key: true)
       field(:w, :float)
       field(:touched_at, :utc_datetime_usec)
+      # The source's seed count at the last touch (kumbukumbu#53).
+      field(:touched_count, :integer, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule EdgeSource do
+    @moduledoc "How many turns a bookmark has been the seed of (kumbukumbu#53): the clock its outgoing edges decay by."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_edge_source" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:seeded, :integer, default: 0)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule CitationEdge do
+    @moduledoc "One citation's contribution to an edge (kumbukumbu#53), by the source that made it, so removing the citation removes exactly it."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "kumbukumbu_citation_edge" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:source, :string, primary_key: true)
+      field(:from_number, :integer, primary_key: true)
+      field(:to_number, :integer, primary_key: true)
+      field(:w, :float)
     end
 
     @type t :: %__MODULE__{}
@@ -595,7 +627,36 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "The learned edges out of `froms`, as stored (undecayed)."
   @spec edges_from([pos_integer()]) :: [Edge.t()]
   def edges_from([]), do: []
-  def edges_from(froms), do: Repo.all(from(e in Edge, where: e.from_number in ^froms))
+
+  def edges_from(froms) do
+    Repo.all(
+      from(e in Edge,
+        left_join: s in EdgeSource,
+        on: s.resident_id == e.resident_id and s.number == e.from_number,
+        where: e.from_number in ^froms,
+        select: %{
+          from_number: e.from_number,
+          to_number: e.to_number,
+          w: e.w,
+          touched_count: e.touched_count,
+          seeded: coalesce(s.seeded, 0)
+        }
+      )
+    )
+  end
+
+  @doc "The citations' contributions out of these bookmarks, summed by edge (kumbukumbu#53)."
+  def citation_edges_from([]), do: []
+
+  def citation_edges_from(froms) do
+    Repo.all(
+      from(c in CitationEdge,
+        where: c.from_number in ^froms,
+        group_by: [c.from_number, c.to_number],
+        select: %{from_number: c.from_number, to_number: c.to_number, w: sum(c.w)}
+      )
+    )
+  end
 
   defmodule Vector do
     @moduledoc "One row of the madeleine's index (spec §6.3, P10): a bookmark's words, or the limits, embedded; derived, rebuilt from the rows."

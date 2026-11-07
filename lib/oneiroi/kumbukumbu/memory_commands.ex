@@ -26,6 +26,13 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
     use Oneiroi.Command, fields: [:id, :number, :evidences]
   end
 
+  defmodule RecordCitations do
+    # The library's citations of bookmarks, as a snapshot (kumbukumbu#53):
+    # `sources` maps each citing document's path to the bookmark numbers
+    # it cites; a source left out cites none.
+    use Oneiroi.Command, fields: [:id, :sources]
+  end
+
   defmodule WeighBookmark do
     # The timeline's weight on a bookmark (kumbukumbu#51): `importance`
     # 0 to 3 (0 clears it), `status` a line of where the moment stands

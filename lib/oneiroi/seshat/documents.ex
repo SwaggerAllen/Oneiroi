@@ -472,6 +472,9 @@ defmodule Oneiroi.Seshat.Documents do
       full = Path.join(dir, to)
       File.mkdir_p!(Path.dirname(full))
       File.rename!(Path.join(dir, from), full)
+      # The citations moved with the file: memory hears them under the
+      # new path and drops the old (kumbukumbu#53).
+      Index.cite(resident_id, actor)
       {:ok, %{from: from, to: to, kind: to_kind.kind}}
     end
   end
@@ -537,6 +540,8 @@ defmodule Oneiroi.Seshat.Documents do
            }) do
       _ = File.rm(Path.join(dir, path))
       Index.run(resident_id, actor)
+      # A removed document's citations are taken back (kumbukumbu#53).
+      Index.cite(resident_id, actor)
       :ok
     else
       nil ->

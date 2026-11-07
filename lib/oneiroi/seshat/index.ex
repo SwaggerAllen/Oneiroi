@@ -14,6 +14,8 @@ defmodule Oneiroi.Seshat.Index do
   resolved nowhere here: resolution is the read's (`Citations`).
   """
 
+  require Logger
+
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
@@ -244,7 +246,33 @@ defmodule Oneiroi.Seshat.Index do
         figures
       end)
 
+    # A run that changed nothing changed no citation, and stays three
+    # statements; a run that did gives memory the citations (#53).
+    if Enum.any?(plan, &(elem(&1, 0) != :same)), do: cite(resident_id, actor)
     {:ok, Map.merge(figures, %{scanned: length(plan), model: model})}
+  end
+
+  # The library's bookmark citations as they now stand, given to memory
+  # whole after every run (kumbukumbu#53): the learned edges fold the
+  # co-citation from it, and only a document whose set changed is
+  # recorded. A failure here leaves the edges a run behind and is
+  # logged, never the index's failure.
+  @doc "Gives memory the library's bookmark citations as they now stand (kumbukumbu#53); a move or a removal asks for it, a run that changed something does it itself."
+  def cite(resident_id, %Actor{} = actor) do
+    with {:ok, %{slug: slug}} <- Oneiroi.AgathosDaimon.fetch(resident_id),
+         sources = Scope.resident(resident_id, fn -> Store.bookmark_citations(slug) end),
+         :ok <- Oneiroi.Kumbukumbu.record_citations(resident_id, sources, actor) do
+      :ok
+    else
+      {:error, reason} ->
+        Logger.warning(
+          "seshat: the citations were not given to memory",
+          [component: "seshat"] ++ Oneiroi.Error.metadata(reason)
+        )
+
+      _other ->
+        :ok
+    end
   end
 
   defp fold_plan(resident_id, plan, by_path, model, now) do

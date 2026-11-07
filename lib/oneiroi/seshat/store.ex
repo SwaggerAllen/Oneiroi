@@ -479,6 +479,22 @@ defmodule Oneiroi.Seshat.Store do
     :ok
   end
 
+  @doc "Each document's citations of the resident's own bookmarks, path => numbers (kumbukumbu#53)."
+  def bookmark_citations(slug) do
+    from(r in Reference,
+      where: r.kind == "bookmark" and r.slug == ^slug,
+      select: {r.from_path, r.ref}
+    )
+    |> Repo.all()
+    |> Enum.flat_map(fn {path, ref} ->
+      case Integer.parse(ref) do
+        {n, ""} when n > 0 -> [{path, n}]
+        _other -> []
+      end
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+  end
+
   @doc "Deletes every edge minted from the kinds that never mint (spec §6.5), on every run."
   def delete_references_of_kinds(kinds) when is_list(kinds) do
     Repo.delete_all(from(r in Reference, where: r.from_kind in ^kinds))

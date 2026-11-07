@@ -60,6 +60,7 @@ defmodule Oneiroi.Kumbukumbu do
       MemoryCommands.ExtendBookmark,
       MemoryCommands.PinBookmark,
       MemoryCommands.WeighBookmark,
+      MemoryCommands.RecordCitations,
       MemoryCommands.UnpinBookmark,
       MemoryCommands.ProposeBookmark,
       MemoryCommands.DeclineBookmarkProposal,
@@ -74,6 +75,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.BookmarkExtended,
       Events.Memory.BookmarkPinned,
       Events.Memory.BookmarkWeighed,
+      Events.Memory.CitationsRecorded,
       Events.Memory.BookmarkUnpinned,
       Events.Memory.BookmarkProposed,
       Events.Memory.BookmarkProposalDeclined,
@@ -197,12 +199,18 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "λ in hundredths: how far the learned edges from the seed move a candidate's score beside its similarity; a guess"},
-      {:edge_half_life_days, "KUMBUKUMBU_EDGE_HALF_LIFE_DAYS",
+      {:edge_half_life_opportunities, "KUMBUKUMBU_EDGE_HALF_LIFE_OPPORTUNITIES",
        cast: :integer,
        default: "30",
        tag: :bound,
        usage:
-         "the half-life of a learned edge's decay toward neutral (F11's 30 days): decay the access, never the content"},
+         "K: how many turns with an edge's source as the seed halve a learned edge toward neutral (kumbukumbu#53, Lily's position #65: decay counts tests, not days); a guess until the measurement week sets it"},
+      {:edge_citation_permille, "KUMBUKUMBU_EDGE_CITATION_PERMILLE",
+       cast: :integer,
+       default: "100",
+       tag: :bound,
+       usage:
+         "B in thousandths: a citation's contribution to an edge (kumbukumbu#53): a bookmark citing another, B both ways; a document citing N bookmarks, B/(N-1) to each pair; never decayed; a guess"},
       {:edge_floor_permille, "KUMBUKUMBU_EDGE_FLOOR_PERMILLE",
        cast: :integer,
        default: "10",
@@ -296,6 +304,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkWeighed, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.CitationsRecorded, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkUnpinned, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkProposalDeclined, 1},
@@ -684,6 +693,13 @@ defmodule Oneiroi.Kumbukumbu do
           :ok | {:error, term()}
   defexport(weigh_bookmark(resident_id, number, importance, status, actor),
     do: Memories.weigh_bookmark(resident_id, number, importance, status, actor)
+  )
+
+  @doc "Records the library's bookmark citations as a snapshot, path => numbers (kumbukumbu#53); only what changed becomes an event."
+  @spec record_citations(String.t(), %{String.t() => [pos_integer()]}, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(record_citations(resident_id, sources, actor),
+    do: Memories.record_citations(resident_id, sources, actor)
   )
 
   @doc "The bookmarks on the timeline (kumbukumbu#51): pinned or weighed 2 and up, oldest first."

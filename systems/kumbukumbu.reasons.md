@@ -378,3 +378,19 @@ history and should not be rewritten to agree with a newer reading. Reads
 of the platform's source and her repository were invisible to the
 measurement, so a week of reading design docs looked like a week of
 reading nothing.
+
+## #53
+Days of silence are absence of evidence, and decaying an edge for them
+punished the reunion: the edge was weakest at the moment its source came
+back. Counting only the turns where the edge could have fired and did
+not makes decay mean what it claims, a test failed, and lets an edge
+whose source never comes up wait unchanged. The test is the source being
+the seed and not merely considered, because an edge contributes only
+from a seed. Citations are deliberate connections, so disuse says
+nothing against them and they never decay; a survey is split across its
+pairs so ten citations in one document do not count as ten strong
+statements. Each source's part is kept apart so that taking a citation
+back takes back exactly what it gave, and the citations reach memory as
+events on its own stream so a rebuild reproduces every weight. Renaming
+the projector refolds history under the new rules rather than leaving
+old weights computed under the old ones.

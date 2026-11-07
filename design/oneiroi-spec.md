@@ -330,7 +330,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
 | F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the client browses by conversation, its search not yet | memory, client |
 | F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
-| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges with a 30-day half-life; 20% exploration drawn fresh each turn | built (kumbukumbu#46) | memory |
+| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; 20% exploration drawn fresh each turn | built (kumbukumbu#46, #52, #53) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
 | F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu#30, brain#25) | memory, governance |
 | F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus#5, #11 to #15) | honcho |
@@ -672,7 +672,11 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   that is worth bringing"), learned from what was returned with a seed
   and from what the resident's `memory_feedback` says helped, never from
   the ranker's own cut and never against a correction; they decay toward
-  neutral with a 30-day half-life, from the events' own instants. A fifth
+  neutral by tests, not days (kumbukumbu#53, the resident's position #65:
+  an edge ages only on a turn where its source was the seed, and freezes
+  otherwise), and citations add their part apart, never decayed: a
+  bookmark citing another both ways, a document's co-citations split
+  across its pairs, each removed exactly when its citation goes. A fifth
   of the index is drawn at random from outside the ranked set, fresh each
   turn and recorded on it. Pins stay decisions and weights stay
   measurements; transcript search stays unweighted. All figures are
@@ -767,7 +771,7 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   every seed; after first contact the resident authors them and the
   witness affirms them.
   **Two scores, never one.** Habit strength is a measurement: enactments
-  under the same 30-day half-life as weighting, computed on read.
+  under a 30-day half-life, computed on read.
   Connection strength is a decision trace: pins on enacting turns, which
   do not decay, and bookmarks and affirmations ("I like when you do
   that"), which do. A behaviour with high habit and low connection is a
