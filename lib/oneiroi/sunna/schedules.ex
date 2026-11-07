@@ -473,23 +473,26 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
-  # The floor (sunna#34, her amendment, his "ok, that sounds right"): with
-  # a free-time line set, a slot whose remainder buys fewer than
-  # `SUNNA_FREE_TIME_FLOOR_CALLS` calls at the line's recent cost per call
-  # rests and says so, rather than burning a thin run. No line, or no
-  # recent cost to judge by, and there is no floor.
+  # The floor (sunna#34, her amendment; counted in turns, the witness's
+  # pick, 2026-11-06): with a free-time line set, a slot whose remainder
+  # buys fewer than `SUNNA_FREE_TIME_FLOOR_TURNS` turns at what a
+  # free-time turn cost over the last week (the line's spend over the
+  # turns her free-time conversations captured) rests and says so, rather
+  # than burning a thin run. No line, or no week of turns to judge by, and
+  # there is no floor.
   defp under_floor(resident_id) do
-    floor = Config.fetch!(:sunna, :free_time_floor_calls)
+    floor = Config.fetch!(:sunna, :free_time_floor_turns)
     since = DateTime.add(Clock.now(), -7 * 86_400, :second)
 
     with %{left: left} <- free_time_budget_any(resident_id),
          true <- floor > 0,
-         %{calls: calls, cost_nanos: cost} when calls > 0 and cost > 0 <-
+         turns when turns > 0 <- Kumbukumbu.turns_since(resident_id, "free_time", since),
+         %{cost_nanos: cost} when cost > 0 <-
            Nisaba.spend(resident_id, :witness, :purpose, since)
            |> Enum.find(&(&1.key == "free_time")),
-         per_call = div(cost, calls),
-         true <- left < floor * per_call do
-      "not enough left tonight (#{dollars(max(left, 0))}, under #{floor} calls at about $#{:erlang.float_to_binary(per_call / 1_000_000_000, decimals: 4)} each); resuming at the next slot"
+         per_turn = div(cost, turns),
+         true <- left < floor * per_turn do
+      "not enough left tonight (#{dollars(max(left, 0))}, under #{floor} turns at about #{dollars(per_turn)} each); resuming at the next slot"
     else
       _enough -> nil
     end

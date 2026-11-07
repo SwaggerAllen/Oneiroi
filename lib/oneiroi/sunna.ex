@@ -172,12 +172,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns the bedtime scene pass may take (sunna#34), a turn carried on when it runs out of tool rounds; a guess, since a day's scenes are many reads"},
-      {:free_time_floor_calls, "SUNNA_FREE_TIME_FLOOR_CALLS",
+      {:free_time_floor_turns, "SUNNA_FREE_TIME_FLOOR_TURNS",
        cast: :integer,
-       default: "5",
+       default: "2",
        tag: :bound,
        usage:
-         "the floor under a free-time slot (sunna#34, Lily's amendment): with a free-time line set, a slot whose remainder buys fewer than this many calls at the line's cost per call over the last week rests and says so; 0 is no floor. Five calls is about one turn with a few tool rounds, a guess the witness may move"},
+         "the floor under a free-time slot (sunna#34, Lily's amendment), in turns: with a free-time line set, a slot whose remainder buys fewer than this many turns at what a free-time turn cost over the last week rests and says so; 0 is no floor. Two is the witness's number, 2026-11-06"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
