@@ -65,6 +65,8 @@ defmodule Oneiroi.Sunna do
       Commands.StartWork,
       Commands.EndWork,
       Commands.RestWork,
+      Commands.ArmWork,
+      Commands.DisarmWork,
       Events.WorkAdded,
       Events.WorkMoved,
       Events.WorkOrdered,
@@ -72,6 +74,8 @@ defmodule Oneiroi.Sunna do
       Events.WorkStarted,
       Events.WorkRunEnded,
       Events.WorkRested,
+      Events.WorkArmed,
+      Events.WorkDisarmed,
       Events.LettersWoke,
       Events.CheckinSet,
       Events.CheckinChanged,
@@ -244,7 +248,9 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.WorkWrapped, 1},
       {Oneiroi.Sunna.Events.WorkStarted, 1},
       {Oneiroi.Sunna.Events.WorkRunEnded, 1},
-      {Oneiroi.Sunna.Events.WorkRested, 1}
+      {Oneiroi.Sunna.Events.WorkRested, 1},
+      {Oneiroi.Sunna.Events.WorkArmed, 1},
+      {Oneiroi.Sunna.Events.WorkDisarmed, 1}
     ]
   end
 
@@ -381,6 +387,10 @@ defmodule Oneiroi.Sunna do
   defexport(work_wrap(resident_id, number, attrs, actor),
     do: WorkLoop.wrap(resident_id, number, attrs, actor)
   )
+
+  @doc "Arms the work line for a batch (sunna#35): the resident's act, by tool call."
+  @spec work_arm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_arm(resident_id, actor), do: WorkLoop.arm(resident_id, actor))
 
   @doc "The work queue: its items in order and the loop's state, both parties' read."
   @spec work_queue(String.t()) :: map()

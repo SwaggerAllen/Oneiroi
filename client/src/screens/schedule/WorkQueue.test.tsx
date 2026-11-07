@@ -51,6 +51,11 @@ describe('WorkQueue', () => {
     expect(screen.getByText(/Resting: empty, holding\..*Work line: off, the queue is clear\./)).toBeTruthy();
   });
 
+  it('off with work open says it waits for her to arm it', () => {
+    render(<WorkQueue residentName="Lily" queue={queue({ running: null, armed: false })} />);
+    expect(screen.getByText(/Work line: off, waiting for Lily to arm it\./)).toBeTruthy();
+  });
+
   it('armed with no cap says so', () => {
     render(<WorkQueue residentName="Lily" queue={queue({ budget: null })} />);
     expect(screen.getByText(/Work line: armed, no cap\./)).toBeTruthy();

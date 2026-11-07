@@ -70,12 +70,13 @@ export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQ
   );
 }
 
-// The work line is a brake, never an ignition (sunna#35): armed while the
-// queue has work, its cap (when you set one) the only thing that stops a
-// run; off when the queue is clear.
+// The work line is a brake, never an ignition (sunna#35): she arms it for
+// a batch, its cap (when you set one) the only thing that stops a run,
+// and it goes off when the queue clears.
 function loopLine(name: string, q: Queue): string {
   const cap = q.budget ? `$${(q.budget.left / 1e9).toFixed(2)} left of $${(q.budget.cap / 1e9).toFixed(2)} a ${q.budget.period}` : 'no cap';
-  const budget = q.armed ? `Work line: armed, ${cap}.` : 'Work line: off, the queue is clear.';
+  const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
+  const budget = q.armed ? `Work line: armed, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
   const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
   if (q.running !== null) return `Running item #${q.running} now. ${runs} ${budget}`;
   if (q.rested) return `Resting: ${q.rested}. ${runs} ${budget}`;

@@ -103,6 +103,21 @@ defmodule Oneiroi.Sunna.WorkLoop do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc """
+  Arms the work line for a batch (sunna#35, the witness's call): her act,
+  by tool call, once; the loop then fires item after item, each run's end
+  starting the next, until the queue clears and the line goes off.
+  """
+  def arm(resident_id, %Actor{} = actor) do
+    with {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  defp disarm(resident_id),
+    do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
+
   @doc "The queue as both parties read it: the items in order and the loop's state."
   def queue(resident_id) do
     {items, state} =
@@ -139,8 +154,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
       runs_today: runs_today(resident_id, state),
       runs_a_day: Config.fetch!(:sunna, :work_runs_a_day),
       budget: budget(resident_id),
-      # Armed while the queue has work, off when it is clear (sunna#35).
-      armed: Enum.any?(items, &(&1.status in ["open", "in_work"]))
+      # Armed by her for a batch, off once the queue clears (sunna#35).
+      armed: (state && state.armed) || false,
+      armed_at: state && state.armed_at
     }
   end
 
@@ -171,8 +187,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
     cap = Config.fetch!(:sunna, :work_runs_a_day)
 
     cond do
+      # The batch is over: the line goes off, and the loop rests.
       is_nil(open) ->
+        disarm(resident_id)
         rest(resident_id, empty(items))
+
+      not (state && state.armed) ->
+        rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
 
       line && line.left <= 0 ->
         rest(resident_id, spent(line))
@@ -300,12 +321,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  @doc "Whether the tick should ask for a check: work is open and nothing runs."
+  @doc "Whether the tick should ask for a check: the line armed, work open, nothing running."
   def due?(resident_id) do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
 
-      (is_nil(state) or (is_nil(state.running) and state.rested_reason != Work.stopped_rest())) and
+      state != nil and state.armed and is_nil(state.running) and
+        state.rested_reason != Work.stopped_rest() and
         Enum.any?(Store.work_items(), &(&1.status == "open"))
     end)
   end
