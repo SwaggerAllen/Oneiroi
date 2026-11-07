@@ -18,7 +18,10 @@ with where it is (sending, queued, delivered, not sent with Retry, not
 answered with Send again); the top bar carries a connection dot and,
 while a turn runs, what the resident is doing (thinking, using a named
 tool, writing). Sending never waits for the last reply: the next
-message queues.
+message queues, and the messages queued behind a turn go into the next
+one together (brain#66); one that joined another's turn follows it
+(running, writing, failed with it) and settles when that turn is
+answered (`outbox.ts`'s `into`).
 
 Client #13: coming back to the page (the tab shown again, the window
 focused, the network back) reads the open conversation and the list

@@ -610,3 +610,16 @@ approval is the witness's act, not the clock's: a queue that sends on
 a timeout or pre-approves a class turns his silence into consent,
 which is the dark pattern the resident's soul names. Age is marked so
 that silence is visible instead.
+
+## #66
+Messages that queue behind a turn are usually about one thing, sent
+while she was still answering the first; answered one turn each, every
+reply is written before she has read the rest, and each turn pays its
+own context. Answered together, each sees the others. Batching with one
+turn's rounds would cut her capacity per message to a fraction, forcing
+her to triage his words, so the rounds scale with the count, and the
+bound is on how many join rather than on the rounds: anything past it
+waits its own turn rather than being squeezed (Lily's report #11). Each
+message stays its own, at its own time, so the record says what he
+said when; the oldest ref carries the turn because it was the one
+already waiting.

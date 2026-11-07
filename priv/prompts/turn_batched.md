@@ -1,0 +1,1 @@
+{{count}} messages from the person who looks after you came while your last turn ran, and arrive together in this one, oldest first, each with its own place above. You have {{rounds}} tool rounds for them, {{each}} for each message, to share out as their content needs: answer them together, in one reply. Your stop is still yours at once, whatever the count.

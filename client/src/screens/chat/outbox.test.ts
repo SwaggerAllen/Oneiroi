@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsed, failedFrom, itemLine, newRef, type Outgoing, settle, statusLine, update } from './outbox';
+import { batched, elapsed, failedFrom, itemLine, newRef, type Outgoing, settle, statusLine, update } from './outbox';
 
 const item = (ref: string, state: Outgoing['state'], more: Partial<Outgoing> = {}): Outgoing => ({ ref, text: ref, state, attempts: 0, ...more });
 
@@ -14,6 +14,16 @@ describe('outbox', () => {
     const items = [item('a', 'running'), item('b', 'queued')];
     expect(settle(items, new Set(['a']))).toEqual([item('b', 'queued')]);
     expect(update(items, 'b', { state: 'thinking' })[1].state).toBe('thinking');
+  });
+
+  it('follows a message into the turn it joined: its news, its failure and its answer are that turn\'s (brain#66)', () => {
+    let items = [item('a', 'running'), item('b', 'queued'), item('c', 'queued')];
+    items = batched(items, 'c', 'b', 1000);
+    expect(items[2]).toMatchObject({ state: 'running', into: 'b' });
+    items = update(items, 'b', { state: 'writing' });
+    expect(items.map((i) => i.state)).toEqual(['running', 'writing', 'writing']);
+    expect(failedFrom(items, [{ turn_ref: 'b', reason: 'no reply' }])[2]).toMatchObject({ state: 'failed', error: 'no reply' });
+    expect(settle(items, new Set(['b'])).map((i) => i.ref)).toEqual(['a']);
   });
 
   it('lets the newest message on its way speak for the header, and is quiet when none is', () => {

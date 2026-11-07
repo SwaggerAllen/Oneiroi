@@ -71,6 +71,12 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many messages a session gathers since its last compaction before a turn opens by compacting it (spec §5); twice the live window, a guess until a model's context is measured against real sessions"},
+      {:batch_messages, "BRAIN_BATCH_MESSAGES",
+       cast: :integer,
+       default: "4",
+       tag: :bound,
+       usage:
+         "how many of the witness's messages that queued while a turn ran the next turn takes together (brain#66), each with a turn's tool rounds; the rest wait for the turn after, so a batch never has fewer rounds a message than separate turns, and a guess"},
       {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
        cast: :integer,
        default: "24",

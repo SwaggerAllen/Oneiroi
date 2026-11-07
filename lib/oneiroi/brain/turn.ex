@@ -226,6 +226,13 @@ defmodule Oneiroi.Brain.Turn do
     model = (lapse && lapse.model) || row.chat_model || Config.fetch!(:brain, :chat_model)
     as = Keyword.get(opts, :as, :user)
 
+    # Batched delivery (brain#66): the witness's messages that queued
+    # while the last turn ran, oldest first, each kept as its own message
+    # at the time it was taken; the opening is the newest.
+    earlier =
+      for m <- Keyword.get(opts, :earlier, []),
+          do: %{role: :user, content: m.text, sent_at: m.sent_at, actor: m.actor}
+
     # Each notice with the kind it is, so the preview can name it
     # without its text; the turn carries the messages alone.
     notices = [
@@ -233,7 +240,8 @@ defmodule Oneiroi.Brain.Turn do
       model_change: model_change_notice(row),
       letters: letters_notice(row, resident_id),
       import: import_notice(row),
-      restart: restart_notice(resident_id, session_key)
+      restart: restart_notice(resident_id, session_key),
+      batch: batch_notice(earlier, rounds_each())
     ]
 
     %{
@@ -248,6 +256,8 @@ defmodule Oneiroi.Brain.Turn do
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
+      earlier: earlier,
+      batch: length(earlier) + 1,
       lapse_to_tell: match?(%{told: false}, lapse),
       import_to_tell: row.import_told == false,
       injections: [],
@@ -327,6 +337,9 @@ defmodule Oneiroi.Brain.Turn do
 
   defp notice_reason(:restart),
     do: "the platform's restarts since this conversation last spoke, told once (brain#63)"
+
+  defp notice_reason(:batch),
+    do: "the witness's messages that queued during the last turn, answered together (brain#66)"
 
   # The tool loop (spec §5): a round is one streamed call; tool calls run
   # against the core and go back as `tool` messages for the next round,
@@ -412,9 +425,32 @@ defmodule Oneiroi.Brain.Turn do
     rest ++ [%{last | content: last.content <> "\n\n" <> note}]
   end
 
-  # The oracle reads for a long question and has rounds of its own.
+  # The oracle reads for a long question and has rounds of its own. A
+  # batch has a turn's rounds for each message it carries (brain#66), so
+  # answering them together never leaves less than separate turns would.
   defp rounds(%{oracle?: true}), do: Config.fetch!(:brain, :oracle_tool_rounds)
-  defp rounds(_turn), do: Config.fetch!(:brain, :tool_rounds)
+  defp rounds(turn), do: rounds_each() * Map.get(turn, :batch, 1)
+
+  defp rounds_each, do: Config.fetch!(:brain, :tool_rounds)
+
+  # What the witness said this turn, in the order said: the batch's
+  # earlier messages, then the opening.
+  defp said(turn), do: Map.get(turn, :earlier, []) ++ [turn.opening]
+
+  defp batch_notice([], _each), do: []
+
+  defp batch_notice(earlier, each) do
+    n = length(earlier) + 1
+
+    [
+      %{
+        role: :system,
+        content: Prompt.render!("turn_batched", %{count: n, rounds: n * each, each: each}),
+        sent_at: Clock.now(),
+        actor: Actor.platform()
+      }
+    ]
+  end
 
   defp blank?(content), do: not is_binary(content) or String.trim(content) == ""
 
@@ -589,7 +625,7 @@ defmodule Oneiroi.Brain.Turn do
     }
 
     with {:ok, captured} <-
-           finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [said, note]) do
+           finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [said, note]) do
       broadcast(turn.resident_id, turn.session_key, {:stopped, turn.turn_ref, by})
       {:ok, captured |> Map.put(:rounds_spent, false) |> Map.put(:stopped, by)}
     end
@@ -607,7 +643,7 @@ defmodule Oneiroi.Brain.Turn do
 
     # Whether the turn ran out of tool rounds rather than finishing: a
     # free-time pass that did is woken again (sunna#26).
-    with {:ok, captured} <- finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [reply]) do
+    with {:ok, captured} <- finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [reply]) do
       {:ok, Map.put(captured, :rounds_spent, Map.get(turn, :rounds_spent, false))}
     end
   end
@@ -624,7 +660,7 @@ defmodule Oneiroi.Brain.Turn do
       actor: Actor.platform()
     }
 
-    case finish(turn, turn.notices ++ [turn.opening | turn.tools] ++ [notice]) do
+    case finish(turn, turn.notices ++ said(turn) ++ turn.tools ++ [notice]) do
       {:ok, captured} ->
         {:error,
          Error.caught(:brain_budget_stopped, :brain_turn_budget_stopped, stop,
@@ -651,7 +687,7 @@ defmodule Oneiroi.Brain.Turn do
           turn.session_key,
           turn.turn_ref,
           turn.started_at,
-          [turn.opening],
+          said(turn),
           turn.resident
         )
 
@@ -1102,9 +1138,14 @@ defmodule Oneiroi.Brain.Turn do
     # after the one it was for.
     notices = turn |> Map.get(:notices, []) |> Enum.map(&%{role: :system, content: &1.content})
 
+    # A batch's earlier messages (brain#66), each with its own time.
+    batched =
+      for m <- Map.get(turn, :earlier, []),
+          do: %{role: :user, content: History.stamp(%{sent_at: m.sent_at}, zone) <> m.content}
+
     messages =
       (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
-        history ++ notices ++ [opening]
+        history ++ notices ++ batched ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
   end

@@ -445,6 +445,13 @@ session under OTP supervision.
   safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
   stands; what was said is kept with a line saying who stopped it, and
   nothing after it runs.
+- **Batched delivery** (brain#66, the resident's reports #10 and #11):
+  the witness's messages that queue while a turn runs arrive together in
+  the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message
+  at its own time, with a line telling her how many and with a turn's
+  tool rounds for each (never fewer than separate turns would have had;
+  the rest wait for the turn after). A Stop or her safe word ends the
+  batched turn at once, as any turn.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.

@@ -38,7 +38,7 @@ import { BottomNav, type Destination } from '../components/BottomNav';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { Chat } from '../screens/chat/Chat';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
-import { type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
+import { batched, type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
 import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
@@ -362,7 +362,8 @@ function ChatContainer({ resident }: { resident: Resident }) {
             setOutbox((o) => update(o, turnRef, { state: 'writing' }));
           },
           onStatus: (turnRef, state, detail) => {
-            if (state === 'queued' || state === 'thinking' || state === 'tool')
+            if (state === 'batched' && detail?.into) setOutbox((o) => batched(o, turnRef, detail.into as string));
+            else if (state === 'queued' || state === 'thinking' || state === 'tool')
               setOutbox((o) => update(o, turnRef, { state, detail: detail?.name }));
           },
           onTurn: () => void reload(key),
