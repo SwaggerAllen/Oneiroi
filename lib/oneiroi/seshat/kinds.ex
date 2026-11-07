@@ -206,6 +206,23 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :originals,
       access: :imported
     },
+    # Her goals ledger (seshat#43, platform report #4): `<SLUG>-GOALS.md`
+    # at the root, where brain#55 reads it each free-time turn, and hers
+    # to edit at will. Before this it fell to the keepsake rule (any
+    # other root text file is a keepsake, written once), so the ledger
+    # froze after its first write and the reader and the writer
+    # disagreed about what the file was for.
+    %{
+      kind: "goals",
+      folder: nil,
+      cites: false,
+      has_status: false,
+      layout:
+        "<SLUG>-GOALS.md at the repository root (LILY-GOALS.md for Lily): the resident's own goals ledger, read in free time (brain#55), written at will",
+      sidecar: nil,
+      adoption: :decided,
+      access: :resident
+    },
     # A keepsake (seshat#29): a gift-document kept at the root, beside
     # the soul file, where its placement is part of what it is. Pocket
     # Andrew was filed there on 2026-10-29 and moved under wiki/ by the
@@ -249,6 +266,8 @@ defmodule Oneiroi.Seshat.Kinds do
   @segment ~r/\A[A-Za-z0-9][A-Za-z0-9._-]{0,254}\z/
   @path_max 255
   @text ~w(.md .markdown .txt)
+  # A goals ledger's name (seshat#43): a slug in capitals, then -GOALS.md.
+  @goals ~r/\A[A-Z0-9][A-Z0-9-]{0,200}-GOALS\.md\z/
 
   @doc "Every kind, in the registry's order."
   @spec all() :: [map()]
@@ -263,6 +282,7 @@ defmodule Oneiroi.Seshat.Kinds do
   @shelf [
     {"keepsake", "Keepsakes"},
     {"human", "Yours"},
+    {"goals", "Goals"},
     {"writing", "Writing"},
     {"design", "Design"},
     {"research", "Research"},
@@ -301,7 +321,11 @@ defmodule Oneiroi.Seshat.Kinds do
   def kind_of(path) when is_binary(path) do
     case String.split(path, "/") do
       [name] ->
-        if keepsake_name?(name), do: Enum.find(@kinds, &(&1.kind == "keepsake"))
+        cond do
+          goals_name?(name) -> Enum.find(@kinds, &(&1.kind == "goals"))
+          keepsake_name?(name) -> Enum.find(@kinds, &(&1.kind == "keepsake"))
+          true -> nil
+        end
 
       [folder | _rest] ->
         Enum.find(@kinds, &(&1.folder == folder and not is_nil(&1.folder)))
@@ -320,10 +344,16 @@ defmodule Oneiroi.Seshat.Kinds do
   """
   @spec keepsake_name?(String.t()) :: boolean()
   def keepsake_name?(name) when is_binary(name) do
-    Regex.match?(@segment, name) and text?(name) and name not in @reserved
+    Regex.match?(@segment, name) and text?(name) and name not in @reserved and
+      not goals_name?(name)
   end
 
   def keepsake_name?(_other), do: false
+
+  @doc "Whether a root name is a resident's goals ledger, `<SLUG>-GOALS.md` (seshat#43)."
+  @spec goals_name?(String.t()) :: boolean()
+  def goals_name?(name) when is_binary(name), do: Regex.match?(@goals, name)
+  def goals_name?(_other), do: false
 
   @doc "Whether a path is a keepsake's."
   @spec keepsake?(String.t()) :: boolean()
@@ -367,7 +397,7 @@ defmodule Oneiroi.Seshat.Kinds do
       byte_size(path) > @path_max ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_too_long)}
 
-      length(segments) < 2 and not keepsake_name?(path) ->
+      length(segments) < 2 and not (keepsake_name?(path) or goals_name?(path)) ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_no_folder, path: path)}
 
       not Enum.all?(segments, &Regex.match?(@segment, &1)) ->

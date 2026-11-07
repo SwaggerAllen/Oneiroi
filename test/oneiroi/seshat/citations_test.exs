@@ -123,9 +123,10 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.minting() == ~w(writing oracle research design journal system)
 
     assert Kinds.non_minting() ==
-             ~w(wiki scratch human posts mail feeds correspondence memory keepsake)
+             ~w(wiki scratch human posts mail feeds correspondence memory goals keepsake)
 
-    assert Kinds.writable() == ~w(writing research design wiki system scratch posts keepsake)
+    assert Kinds.writable() ==
+             ~w(writing research design wiki system scratch posts goals keepsake)
 
     # Decided one by one (seshat#29, #31): a keepsake, a wiki page, a
     # system note; never the writing, and nothing the registry refuses.
