@@ -33,7 +33,7 @@ defmodule Oneiroi.Nisaba.Prompt do
     unless Regex.match?(@name, name),
       do: raise(ArgumentError, "prompt names are slugs, got #{inspect(name)}")
 
-    text = File.read!(path(name))
+    text = name |> path() |> File.read!() |> without_header()
     # Keyed by string rather than atomising the placeholder: a prompt
     # file is not a place to mint atoms from.
     values = Map.new(assigns, fn {key, value} -> {Atom.to_string(key), value} end)
@@ -51,6 +51,12 @@ defmodule Oneiroi.Nisaba.Prompt do
       [_, key] -> raise ArgumentError, "prompt #{name} has no value for {{#{key}}}"
     end
   end
+
+  # A prompt file may open with an HTML comment for its reviewers (its
+  # stance, failure modes and blanks, the walk's prompts, nisaba#24):
+  # read in the diff, never sent to a model.
+  @header ~r/\A\s*<!--.*?-->\s*/s
+  defp without_header(text), do: Regex.replace(@header, text, "", global: false)
 
   @doc "The system message for a prompt file: what a request's `messages` opens with."
   @spec message(String.t(), map()) :: %{role: :system, content: String.t()}

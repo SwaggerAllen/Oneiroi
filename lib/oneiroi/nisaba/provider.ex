@@ -107,4 +107,15 @@ defmodule Oneiroi.Nisaba.Provider do
   @doc "Embeds the texts on the witness's key, one vector per text in order (spec §6.5: the library's index)."
   @callback embed(model :: String.t(), [String.t()], key :: String.t()) ::
               {:ok, Embedding.t()} | {:error, failure()}
+
+  @typedoc "A model the provider offers (nisaba#23): its id, its context length in tokens, and its prices in nano-dollars a token."
+  @type model_info :: %{
+          id: String.t(),
+          context_length: pos_integer(),
+          prompt_nanos: float(),
+          completion_nanos: float()
+        }
+
+  @doc "The models the provider offers, with context lengths and prices (nisaba#23); no key needed."
+  @callback models() :: {:ok, [model_info()]} | {:error, failure()}
 end

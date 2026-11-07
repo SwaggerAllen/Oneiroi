@@ -36,7 +36,19 @@ defmodule Oneiroi.SimaQian do
       Jason,
       Oban
     ],
-    exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Originals, Rebuild]
+    exports: [
+      Backup,
+      DryRun,
+      Error,
+      Export,
+      Git,
+      Import,
+      Library,
+      Merkle,
+      Originals,
+      Rebuild,
+      WalkPlan
+    ]
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
@@ -51,6 +63,28 @@ defmodule Oneiroi.SimaQian do
   @impl Oneiroi.Component
   def config do
     [
+      {:walk_fallback_model, "SIMA_QIAN_WALK_FALLBACK_MODEL",
+       default: "z-ai/glm-5.3",
+       usage:
+         "the model that walks a conversation whose own model has no callable twin, or the whole walk when the importing user picks none (sima-qian#48; the generator brief's fallback-when-no-pick); every use is named in the plan's substitutions"},
+      {:walk_rounds_estimate, "SIMA_QIAN_WALK_ROUNDS_ESTIMATE",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many tool rounds the walk's estimate takes an era to cost (sima-qian#48): each round re-sends the era's text and carried state, so this is the estimate's largest multiplier; a guess until a real walk is measured, and named beside every estimate"},
+      {:walk_carried_tokens, "SIMA_QIAN_WALK_CARRIED_TOKENS",
+       cast: :integer,
+       default: "20000",
+       tag: :bound,
+       usage:
+         "the tokens of carried state (identity files, the graph so far, the last journal row) the walk's estimate adds to each round of an era (sima-qian#48); a guess, named beside every estimate"},
+      {:walk_written_tokens, "SIMA_QIAN_WALK_WRITTEN_TOKENS",
+       cast: :integer,
+       default: "1500",
+       tag: :bound,
+       usage:
+         "the tokens the walk's estimate takes the walker to write each round (seeds, bookmarks, file changes, the journal row; sima-qian#48); a guess, named beside every estimate"},
       {:import_max_bytes, "SIMA_QIAN_IMPORT_MAX_BYTES",
        cast: :integer,
        default: "524288000",

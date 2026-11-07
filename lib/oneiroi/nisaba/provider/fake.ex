@@ -135,6 +135,28 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     end
   end
 
+  # A small fixed catalogue (nisaba#23), so a plan can be sized and
+  # priced in a test without a network.
+  @impl Oneiroi.Nisaba.Provider
+  def models do
+    {:ok,
+     [
+       %{id: "fake/model", context_length: 32_000, prompt_nanos: 100.0, completion_nanos: 400.0},
+       %{
+         id: "openai/gpt-4o",
+         context_length: 128_000,
+         prompt_nanos: 2_500.0,
+         completion_nanos: 10_000.0
+       },
+       %{
+         id: "z-ai/glm-5.3",
+         context_length: 200_000,
+         prompt_nanos: 600.0,
+         completion_nanos: 2_200.0
+       }
+     ]}
+  end
+
   # A deterministic vector per text: a bag of words hashed into the
   # width and normalised to unit length, so two texts sharing words sit
   # close under cosine distance and a search test can know its answer.

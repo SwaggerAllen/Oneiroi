@@ -318,6 +318,53 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   defp put_unless_empty(map, _key, []), do: map
   defp put_unless_empty(map, key, value), do: Map.put(map, key, value)
 
+  # The catalogue (nisaba#23): OpenRouter's public list of models, each
+  # with its context length and its prices, dollars a token as strings.
+  @impl Oneiroi.Nisaba.Provider
+  def models do
+    case Req.get(Config.fetch!(:nisaba, :openrouter_url) <> "/models",
+           receive_timeout: timeout()
+         ) do
+      {:ok, %Req.Response{status: 200, body: %{"data" => data}}} when is_list(data) ->
+        {:ok, Enum.flat_map(data, &model_info/1)}
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        classify(status, body)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:nisaba_provider_failed, :nisaba_open_router_models_transport, reason)}
+    end
+  end
+
+  @doc "One catalogue entry in the port's shape, or nothing when it is not one; public so the shape is testable without a network."
+  @spec model_info(term()) :: [Oneiroi.Nisaba.Provider.model_info()]
+  def model_info(%{"id" => id, "context_length" => length} = entry)
+      when is_binary(id) and is_integer(length) and length > 0 do
+    pricing = Map.get(entry, "pricing") || %{}
+
+    [
+      %{
+        id: id,
+        context_length: length,
+        prompt_nanos: price(pricing["prompt"]),
+        completion_nanos: price(pricing["completion"])
+      }
+    ]
+  end
+
+  def model_info(_other), do: []
+
+  defp price(dollars) when is_binary(dollars) do
+    case Float.parse(dollars) do
+      {value, _} -> value * 1_000_000_000
+      :error -> 0.0
+    end
+  end
+
+  defp price(dollars) when is_number(dollars), do: dollars * 1_000_000_000.0
+  defp price(_none), do: 0.0
+
   defp url, do: Config.fetch!(:nisaba, :openrouter_url) <> "/chat/completions"
   defp timeout, do: Config.fetch!(:nisaba, :request_timeout_ms)
 
