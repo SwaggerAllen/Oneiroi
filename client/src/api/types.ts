@@ -554,4 +554,6 @@ export interface WorkQueue {
   runs_today: number;
   runs_a_day: number;
   budget: { cap: number; spent: number; left: number; period: string } | null;
+  // Armed while the queue has work, off when it is clear (sunna#35).
+  armed: boolean;
 }

@@ -119,16 +119,27 @@ defmodule Oneiroi.Sunna.WorkTest do
 
   test "an empty queue rests, once, and says so: empty is a state", ctx do
     assert {:rested, "empty, holding"} = WorkLoop.check(ctx.id)
-    assert %{rested: "empty, holding", running: nil} = Sunna.work_queue(ctx.id)
+    assert %{rested: "empty, holding", running: nil, armed: false} = Sunna.work_queue(ctx.id)
 
     # The same reason again records nothing new.
     assert {:rested, "empty, holding"} = WorkLoop.check(ctx.id)
   end
 
-  test "with items and no work budget, the loop holds and names why; nothing runs", ctx do
+  test "the work line is a brake: with no cap the loop runs, and a spent cap holds it, saying so",
+       ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
-    assert {:rested, "holding: no work budget is set"} = WorkLoop.check(ctx.id)
-    refute_received {:asked, _}
+    assert %{armed: true, budget: nil} = Sunna.work_queue(ctx.id)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    # A cap already spent this period: the next check holds and names it.
+    {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Nisaba.set_budget(ctx.id, :work, 1, :day, ctx.actor)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+    # The turn meets the cap: the ledger stops it and the run ends.
+    assert {:error, %{kind: :brain_budget_stopped}} = WorkLoop.turn(ctx.id, key, 1, 1)
+    assert %{running: nil} = Sunna.work_queue(ctx.id)
+
+    assert {:rested, "holding: the work line is spent" <> _} = WorkLoop.check(ctx.id)
   end
 
   test "a run: started on the first open item, carried on, wrapped by her, and its end checks the queue",

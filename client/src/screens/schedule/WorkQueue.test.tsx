@@ -33,21 +33,27 @@ const queue = (over: Partial<Queue> = {}): Queue => ({
   runs_today: 1,
   runs_a_day: 8,
   budget: { cap: 5e9, spent: 1e9, left: 4e9, period: 'day' },
+  armed: true,
   ...over,
 });
 
 describe('WorkQueue', () => {
   it('shows the loop, the live items in order, and the finished apart', () => {
     render(<WorkQueue residentName="Lily" queue={queue()} />);
-    expect(screen.getByText(/Running item #1 now\. 1 of 8 runs today\. Work budget: \$4\.00 left of \$5\.00 a day\./)).toBeTruthy();
+    expect(screen.getByText(/Running item #1 now\. 1 of 8 runs today\. Work line: armed, \$4\.00 left of \$5\.00 a day\./)).toBeTruthy();
     expect(screen.getByText('running now · added by her · 1 runs')).toBeTruthy();
     expect(screen.getByText('open · added by you · 0 runs')).toBeTruthy();
     expect(screen.getByText('#3 Item 3: done. Shipped: the brief')).toBeTruthy();
   });
 
-  it('says why the loop rests, and that no budget holds it', () => {
-    render(<WorkQueue residentName="Lily" queue={queue({ running: null, rested: 'empty, holding', budget: null })} />);
-    expect(screen.getByText(/Resting: empty, holding\..*No work budget is set, so the loop holds/)).toBeTruthy();
+  it('says why the loop rests, and that the line is off when the queue is clear', () => {
+    render(<WorkQueue residentName="Lily" queue={queue({ items: [], running: null, rested: 'empty, holding', budget: null, armed: false })} />);
+    expect(screen.getByText(/Resting: empty, holding\..*Work line: off, the queue is clear\./)).toBeTruthy();
+  });
+
+  it('armed with no cap says so', () => {
+    render(<WorkQueue residentName="Lily" queue={queue({ budget: null })} />);
+    expect(screen.getByText(/Work line: armed, no cap\./)).toBeTruthy();
   });
 
   it('adds an item, moves one with a note, and moves one up', () => {

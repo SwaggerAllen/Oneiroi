@@ -51,9 +51,12 @@ is the schedule.
 
 ## The guards
 
-- **Money is his.** Runs bill the `work` budget line. With no line set,
-  the loop holds and says "no work budget is set"; with one spent, it
-  holds until the next period.
+- **Money is his, as a brake** (sunna#35, his call, 2026-11-06). Runs
+  bill the `work` line, armed while the queue has work and off when it
+  is clear. With no cap it is unlimited, like the chat line; a cap he
+  sets stops a run when spent, and the loop holds until the period turns
+  or he raises it. (First built as an ignition, where no line held the
+  loop; he found the panel's "no cap" read as held.)
 - **A day's runs.** At most `SUNNA_WORK_RUNS_A_DAY` (8) runs start in one
   of her days, so a queue that never empties cannot run all night.
 - **A run's turns.** At most `SUNNA_WORK_TURNS` (20) turns before the
