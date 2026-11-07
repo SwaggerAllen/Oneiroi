@@ -52,6 +52,17 @@ Inside the reader, the same line again:
   own words and never copied passages. Oneiroi files them under
   `research/<n>-…/` and writes to the conversation that asked.
 
+- **External sources, when asked.** The resident commissions a page or a
+  GitHub document with `external_add`, or asks a fresh copy with
+  `external_fetch`; the witness can do both (seshat#46). The same
+  five-minute check sees it, and `reader.sh fetch` gets it with plain
+  code and no model: curl as a visitor signed in nowhere, HTML turned to
+  markdown by `lib/html2md.py`, a GitHub file read raw at the commit its
+  ref names (xenia#18). Oneiroi keeps the copy whole under `external/`
+  with when it was fetched and its digest, and writes to the
+  conversation that asked. It needs `python3` and `git`, which the Mac's
+  command line tools provide.
+
 - **A digest, when asked.** Not on a clock (seshat#40): the resident asks
   with `digest_ask` (free time included), a check-in asks when its note
   carries the digest part (sunna#28), or the witness asks

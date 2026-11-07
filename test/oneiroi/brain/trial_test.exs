@@ -324,6 +324,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"figure_increment", %{key: "herons", note: "one more"}},
     {"bookmark_extend", %{number: 1, turns_back: 2}},
     {"bookmark_weigh", %{number: 1, importance: 3, status: "seen"}},
+    {"external_add", %{url: "https://example.org/herons"}},
+    {"external_fetch", %{number: 1}},
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},

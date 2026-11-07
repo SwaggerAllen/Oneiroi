@@ -209,6 +209,52 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule External do
+    @moduledoc "A source outside the house, commissioned for citing (seshat#46): what it is, where it is fetched from, and its latest copy."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "seshat_external" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:key, :string)
+      field(:url, :string)
+      field(:ref, :string)
+      field(:title, :string)
+      field(:status, :string)
+      field(:path, :string)
+      field(:content_hash, :string)
+      field(:previous_hash, :string)
+      field(:commit, :string)
+      field(:bytes, :integer)
+      field(:fetches, :integer, default: 0)
+      field(:reason, :string)
+      field(:session_key, :string)
+      field(:commissioned_by, :string)
+      field(:commissioned_at, :utc_datetime_usec)
+      field(:asked_at, :utc_datetime_usec)
+      field(:fetched_at, :utc_datetime_usec)
+      field(:previous_fetched_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @doc "The external sources, newest first; `status:` narrows to asked, fetched or failed."
+  def externals(opts \\ []) do
+    query =
+      from(x in External, order_by: [desc: x.number], limit: ^Keyword.get(opts, :limit, 200))
+
+    case Keyword.get(opts, :status) do
+      nil -> Repo.all(query)
+      status -> Repo.all(from(x in query, where: x.status == ^status))
+    end
+  end
+
+  def external(number), do: Repo.one(from(x in External, where: x.number == ^number))
+  def external_by_key(key), do: Repo.one(from(x in External, where: x.key == ^key))
+
   @doc "The research questions, newest first; `status:` narrows to open, answered or failed."
   @spec researches(keyword()) :: [Research.t()]
   def researches(opts \\ []) do

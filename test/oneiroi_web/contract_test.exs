@@ -183,6 +183,9 @@ defmodule OneiroiWeb.ContractTest do
     {"GET", "/v1/residents/:id/digests"},
     {"POST", "/v1/residents/:id/digests/:number/answer"},
     {"POST", "/v1/residents/:id/digests/:number/failed"},
+    {"GET", "/v1/residents/:id/externals"},
+    {"POST", "/v1/residents/:id/externals/:number/fetched"},
+    {"POST", "/v1/residents/:id/externals/:number/failed"},
     # The inbound hands' three (xenia#11), held to the reader role by
     # the controller.
     {"POST", "/v1/residents/:id/correspondence"},

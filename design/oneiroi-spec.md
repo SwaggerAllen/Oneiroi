@@ -349,7 +349,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25) | library |
 | F28 | Design folder, indexed and cited | built (seshat#3) | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
-| F30 | External doc citations with resolved-at commit and drift detection | planned (seshat's target) | library |
+| F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/`, cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started, never what one did; a private conversation of kind `round`, billed to the free-time line; exits are her tools (a letter to the chat, a house letter, a reply draft, a note draft, a journal row) or silence | brain, schedule |
@@ -933,10 +933,18 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   never do, and the index deletes any it holds from them on every run.
 - **Resolution when read, not when indexed**; a reference that does not
   resolve is kept and says why.
-- **External sources** (F30): commissioned repos in `doc_source`, a heading
-  index rebuilt on sync, every citation recording the commit it resolved
-  at; a nightly drift audit says "the rule you cited said X at commit; it
-  now says Z". External docs never mint edges.
+- **External sources** (F30, seshat#46; the witness, 2026-11-07: pages and
+  repositories in one go, the copy kept whole for now, no refetch on a
+  schedule because the list grows without bound): a web page or a
+  repository's document is commissioned by either party and fetched by
+  the reader, by plain code and never a model, then kept whole in the
+  library under `external/` with its URL, the instant it was fetched, its
+  digest and, for a document, its commit. A citation resolves to the
+  section its anchor names in the kept copy and says when that copy was
+  fetched. Nothing is refetched until the resident or the witness asks;
+  the new copy replaces the kept one, the repository's history keeps the
+  old, and the asking conversation is told whether the words changed and
+  since when. External copies never mint edges.
 - **Journal** (F29): rows as the queryable spine, `journal/<day>.md` as the
   narrative; the resident writes the plan and the wrap (the actuals) with
   `journal_add` when she chooses, and no check-in asks for them (the

@@ -20,6 +20,9 @@ defmodule Oneiroi.Seshat.Library do
     discussions: MapSet.new(),
     oracles: %{},
     researches: %{},
+    # External sources (seshat#46): number => %{key, state}; keys => number.
+    externals: %{},
+    external_keys: %{},
     digests: %{}
   ]
 
@@ -316,6 +319,106 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # External sources (seshat#46). A key already commissioned is no
+  # event: the service answers its number. A fetch is asked of a source
+  # that is not already waiting for one; a copy or a failure answers
+  # only an asked fetch, so a reader's retry records nothing twice.
+  def execute(%__MODULE__{} = l, %Commands.CommissionExternal{} = c) do
+    cond do
+      not party?(c.actor) ->
+        {:error, Error.new(:seshat_external_not_allowed, :seshat_commission_external_actor)}
+
+      Map.has_key?(l.external_keys, c.key) ->
+        []
+
+      true ->
+        %Events.ExternalCommissioned{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: map_size(l.externals) + 1,
+          kind: c.kind,
+          key: c.key,
+          url: c.url,
+          ref: c.ref,
+          session_key: c.session_key
+        }
+    end
+  end
+
+  def execute(%__MODULE__{externals: externals}, %Commands.AskExternalFetch{} = c) do
+    case Map.get(externals, c.number) do
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_external, :seshat_ask_external_absent, number: c.number)}
+
+      _external when c.actor.kind not in [:resident, :witness] ->
+        {:error, Error.new(:seshat_external_not_allowed, :seshat_ask_external_actor)}
+
+      %{state: :asked} ->
+        []
+
+      _settled ->
+        %Events.ExternalFetchAsked{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          session_key: c.session_key
+        }
+    end
+  end
+
+  def execute(%__MODULE__{externals: externals}, %Commands.RecordExternalFetch{} = c) do
+    case Map.get(externals, c.number) do
+      _any when c.actor.kind not in [:hands, :witness] ->
+        {:error, Error.new(:seshat_external_not_allowed, :seshat_record_external_actor)}
+
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_external, :seshat_record_external_absent, number: c.number)}
+
+      %{state: :asked} ->
+        %Events.ExternalFetched{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          path: c.path,
+          title: c.title,
+          content_hash: c.content_hash,
+          commit: c.commit,
+          bytes: c.bytes
+        }
+
+      _not_asked ->
+        []
+    end
+  end
+
+  def execute(%__MODULE__{externals: externals}, %Commands.FailExternalFetch{} = c) do
+    case Map.get(externals, c.number) do
+      _any when c.actor.kind not in [:hands, :witness] ->
+        {:error, Error.new(:seshat_external_not_allowed, :seshat_fail_external_actor)}
+
+      nil ->
+        {:error,
+         Error.new(:seshat_no_such_external, :seshat_fail_external_absent, number: c.number)}
+
+      %{state: :asked} ->
+        %Events.ExternalFetchFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          number: c.number,
+          reason: c.reason
+        }
+
+      _not_asked ->
+        []
+    end
+  end
+
   # Research (seshat#38): a named question of at most 2,000 characters,
   # at most ten pages to start from, each an http(s) URL.
   def execute(%__MODULE__{researches: researches}, %Commands.AskResearch{} = c) do
@@ -450,6 +553,24 @@ defmodule Oneiroi.Seshat.Library do
   def apply(%__MODULE__{} = l, %Events.DigestFailed{} = e),
     do: %{l | digests: Map.put(l.digests, e.number, :failed)}
 
+  def apply(%__MODULE__{} = l, %Events.ExternalCommissioned{} = e) do
+    %{
+      l
+      | id: e.id,
+        externals: Map.put(l.externals, e.number, %{key: e.key, state: :asked}),
+        external_keys: Map.put(l.external_keys, e.key, e.number)
+    }
+  end
+
+  def apply(%__MODULE__{} = l, %Events.ExternalFetchAsked{} = e),
+    do: put_in(l.externals[e.number].state, :asked)
+
+  def apply(%__MODULE__{} = l, %Events.ExternalFetched{} = e),
+    do: put_in(l.externals[e.number].state, :fetched)
+
+  def apply(%__MODULE__{} = l, %Events.ExternalFetchFailed{} = e),
+    do: put_in(l.externals[e.number].state, :failed)
+
   def apply(%__MODULE__{} = l, %Events.ResearchAsked{} = e),
     do: %{l | id: e.id, researches: Map.put(l.researches, e.number, :open)}
 
@@ -526,4 +647,7 @@ defmodule Oneiroi.Seshat.Library do
         Enum.all?(sources, &is_binary/1)
 
   defp oracle_question?(_other), do: false
+
+  # Commissioning a source is a dyad act (seshat#46): either party.
+  defp party?(%{kind: kind}), do: kind in [:resident, :witness]
 end

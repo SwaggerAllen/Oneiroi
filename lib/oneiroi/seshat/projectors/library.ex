@@ -14,6 +14,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     Discussion,
     Document,
     DocumentMove,
+    External,
     Oracle,
     Reference,
     Research
@@ -246,6 +247,76 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       {:oracle, e.number},
       from(o in Oracle, where: o.resident_id == ^e.id and o.number == ^e.number),
       set: [status: "failed", reason: e.reason, settled_at: e.at]
+    )
+  end)
+
+  # ---- external sources (seshat#46) ----
+
+  fold(%Events.ExternalCommissioned{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:external, e.number},
+      %External{
+        resident_id: e.id,
+        number: e.number,
+        kind: e.kind,
+        key: e.key,
+        url: e.url,
+        ref: e.ref,
+        status: "asked",
+        session_key: e.session_key,
+        commissioned_by: actor_kind(e.actor) || "platform",
+        commissioned_at: e.at,
+        asked_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  fold(%Events.ExternalFetchAsked{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:external, e.number},
+      from(x in External, where: x.resident_id == ^e.id and x.number == ^e.number),
+      set: [status: "asked", asked_at: e.at, session_key: e.session_key, reason: nil]
+    )
+  end)
+
+  # The copy before this one is kept by its digest and instant, so the
+  # resident is told whether the new copy differs and since when.
+  fold(%Events.ExternalFetched{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:external, e.number},
+      from(x in External,
+        where: x.resident_id == ^e.id and x.number == ^e.number,
+        update: [
+          set: [
+            previous_hash: x.content_hash,
+            previous_fetched_at: x.fetched_at,
+            status: "fetched",
+            path: ^e.path,
+            title: ^e.title,
+            content_hash: ^e.content_hash,
+            commit: ^e.commit,
+            bytes: ^e.bytes,
+            fetched_at: ^e.at,
+            reason: nil
+          ],
+          inc: [fetches: 1]
+        ]
+      ),
+      []
+    )
+  end)
+
+  fold(%Events.ExternalFetchFailed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:external, e.number},
+      from(x in External, where: x.resident_id == ^e.id and x.number == ^e.number),
+      set: [status: "failed", reason: e.reason]
     )
   end)
 

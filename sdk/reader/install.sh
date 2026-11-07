@@ -39,6 +39,7 @@ command -v jq > /dev/null || { echo "jq is not on PATH" >&2; exit 2; }
 mkdir -p "$DIR"/{bin,lib,prompts,.claude,log} "$HOME/Library/LaunchAgents"
 cp "$KIT/bin/reader.sh" "$DIR/bin/reader.sh"
 cp "$KIT/lib/common.sh" "$DIR/lib/common.sh"
+cp "$KIT/lib/html2md.py" "$DIR/lib/html2md.py"
 cp "$KIT"/prompts/*.md "$DIR/prompts/"
 chmod +x "$DIR/bin/reader.sh"
 

@@ -81,6 +81,24 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
 
+  # External sources (seshat#46): a web page or a repository's document,
+  # commissioned by either party, fetched by the reader on demand.
+  defmodule CommissionExternal do
+    use Oneiroi.Command, fields: [:id, :kind, :key, :url, :ref, :session_key]
+  end
+
+  defmodule AskExternalFetch do
+    use Oneiroi.Command, fields: [:id, :number, :session_key]
+  end
+
+  defmodule RecordExternalFetch do
+    use Oneiroi.Command, fields: [:id, :number, :path, :title, :content_hash, :commit, :bytes]
+  end
+
+  defmodule FailExternalFetch do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
+
   defmodule AskDigest do
     # Seshat #40: a digest of the reader's streams since `since`.
     use Oneiroi.Command, fields: [:id, :session_key, :since]

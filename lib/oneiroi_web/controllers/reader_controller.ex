@@ -18,7 +18,7 @@ defmodule OneiroiWeb.ReaderController do
 
   tags(["reader"])
 
-  @reader_actions ~w(sites research answer failed digests answer_digest fail_digest pieces piece_drafted piece_published)a
+  @reader_actions ~w(sites research answer failed digests answer_digest fail_digest pieces piece_drafted piece_published externals external_fetched external_failed)a
 
   plug(:allowed)
   # The contract's switches (agathos-daimon#34), after the party check.
@@ -144,6 +144,127 @@ defmodule OneiroiWeb.ReaderController do
       {:error, e} -> error(conn, 422, e)
     end
   end
+
+  # ---- external sources (seshat#46) ----
+
+  operation(:externals,
+    summary:
+      "External sources commissioned for citing, newest first. The reader is given those waiting for a copy alone, with what to fetch; `status` narrows for the witness",
+    parameters: [id: [in: :path, type: :string], status: [in: :query, type: :string]],
+    responses: [ok: {"sources", "application/json", %Schema{type: :array}}]
+  )
+
+  def externals(conn, %{"id" => id} = params) do
+    status = if adapter(conn), do: "asked", else: params["status"]
+    opts = if status, do: [status: status], else: []
+    json(conn, id |> Seshat.externals(opts) |> Enum.map(&external_json/1))
+  end
+
+  operation(:commission_external,
+    summary:
+      "The witness commissions a source for citing by its URL: a web page, or a GitHub file; the reader fetches its first copy",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the source", "application/json",
+       %Schema{type: :object, required: [:url], properties: %{url: %Schema{type: :string}}}},
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def commission_external(conn, %{"id" => id} = params) do
+    case Seshat.commission_external(id, nil, to_string(params["url"] || ""), actor(conn)) do
+      {:ok, n, state} -> conn |> put_status(201) |> json(%{number: n, state: state})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:fetch_external,
+    summary: "The witness asks the reader for a fresh copy of a source",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    responses: [ok: {"asked or already waiting", "application/json", %Schema{type: :object}}]
+  )
+
+  def fetch_external(conn, %{"id" => id, "number" => n}) do
+    case Seshat.fetch_external(id, nil, integer(n), actor(conn)) do
+      {:ok, state} -> json(conn, %{state: state})
+      {:error, %{kind: :seshat_no_such_external} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:external_fetched,
+    summary:
+      "The reader brings a source's copy: its words as markdown, its title, and a document's commit; kept whole under external/",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"the copy", "application/json",
+       %Schema{
+         type: :object,
+         required: [:text],
+         properties: %{
+           text: %Schema{type: :string},
+           title: %Schema{type: :string},
+           commit: %Schema{type: :string}
+         }
+       }},
+    responses: [ok: {"the path", "application/json", %Schema{type: :object}}]
+  )
+
+  def external_fetched(conn, %{"id" => id, "number" => n} = params) do
+    copy = %{text: params["text"], title: params["title"], commit: params["commit"]}
+
+    case Seshat.external_fetched(id, integer(n), copy, actor_of(conn)) do
+      {:ok, :not_asked} -> json(conn, %{path: nil, state: "not_asked"})
+      {:ok, path} -> json(conn, %{path: path})
+      {:error, %{kind: :seshat_no_such_external} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:external_failed,
+    summary: "The reader could not fetch a source, and says why",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, properties: %{reason: %Schema{type: :string}}}},
+    responses: [no_content: "recorded"]
+  )
+
+  def external_failed(conn, %{"id" => id, "number" => n} = params) do
+    case Seshat.external_failed(
+           id,
+           integer(n),
+           to_string(params["reason"] || "no reason given"),
+           actor_of(conn)
+         ) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, %{kind: :seshat_no_such_external} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  defp external_json(x),
+    do:
+      Map.take(x, [
+        :number,
+        :kind,
+        :key,
+        :url,
+        :ref,
+        :title,
+        :status,
+        :path,
+        :content_hash,
+        :previous_hash,
+        :commit,
+        :bytes,
+        :fetches,
+        :reason,
+        :commissioned_by,
+        :commissioned_at,
+        :asked_at,
+        :fetched_at,
+        :previous_fetched_at
+      ])
 
   # ---- digests (seshat#40) ----
 
@@ -336,7 +457,15 @@ defmodule OneiroiWeb.ReaderController do
           false
 
         nil ->
-          witnesses?(conn, id) and action not in [:answer, :failed, :answer_digest, :fail_digest]
+          witnesses?(conn, id) and
+            action not in [
+              :answer,
+              :failed,
+              :answer_digest,
+              :fail_digest,
+              :external_fetched,
+              :external_failed
+            ]
       end
 
     if ok?,

@@ -10,6 +10,9 @@
 #   reader.sh scrape  twice a day (launchd): reads and delivers
 #   reader.sh send    sends the approved replies now
 #   reader.sh research  researches the open questions now (seshat#38)
+#   reader.sh fetch     fetches the external sources asked for (seshat#46):
+#                       plain curl and a converter, no model
+
 #   reader.sh publish   drafts the approved writing on Substack, never
 #                       publishing it, and brings back the URL once the
 #                       witness has (seshat#42)
@@ -98,7 +101,7 @@ wait_for_work() {
   local status fresh asked
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
   [ "$status" = 200 ] || { say "Oneiroi answered $status to what waits"; return 0; }
-  touch "$STATE/given-up" "$STATE/research-given-up"
+  touch "$STATE/given-up" "$STATE/research-given-up" "$STATE/fetch-given-up"
   fresh="$(jq -r --rawfile gone "$STATE/given-up" \
     '($gone | split("\n")) as $g | [.replies[] | select((.number | tostring) as $n | ($g | index([$n])) == null)] | length' \
     "$OUT" 2>/dev/null)"
@@ -118,6 +121,14 @@ wait_for_work() {
   if [ "$(jq -r '(.pieces // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
     say "writing to draft or watch"
     publish
+    rmdir "$STATE/lock" 2>/dev/null
+    status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
+  fi
+  if [ "$(jq -r --rawfile gone "$STATE/fetch-given-up" \
+      '($gone | split("\n")) as $g | [(.externals // [])[] | select((.number | tostring) as $n | ($g | index([$n])) == null)] | length' \
+      "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
+    say "external sources to fetch"
+    fetch
     rmdir "$STATE/lock" 2>/dev/null
     status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
   fi
@@ -207,6 +218,99 @@ research() {
       fi
     fi
   done
+}
+
+# External sources (seshat#46): each source either party asked a copy of,
+# fetched by plain code with no model and no browser, so nothing on a
+# page can instruct anything. A web page is fetched signed in nowhere
+# (a paywall gives what a visitor sees) and converted to markdown by
+# lib/html2md.py; a GitHub document is read raw at the commit its ref
+# names now, which the copy records. Commissioning names the exact URL,
+# so the research allowlist is not consulted: no browser goes anywhere.
+# A source that cannot be fetched is tried twice, then said failed.
+FETCH_BYTES="${ONEIROI_READER_FETCH_BYTES:-5000000}"
+
+fetch() {
+  local status number kind url ref key tries reason
+  lock
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/externals" "" "$OUT")"
+  [ "$status" = 200 ] || { say "Oneiroi answered $status to the external sources"; return 0; }
+  touch "$STATE/fetch-given-up"
+  cp "$OUT" "$WORK/externals.json"
+  for number in $(jq -r '.[].number' "$WORK/externals.json"); do
+    grep -qx "$number" "$STATE/fetch-given-up" && continue
+    kind="$(jq -r --argjson n "$number" '.[] | select(.number == $n) | .kind' "$WORK/externals.json")"
+    url="$(jq -r --argjson n "$number" '.[] | select(.number == $n) | .url' "$WORK/externals.json")"
+    ref="$(jq -r --argjson n "$number" '.[] | select(.number == $n) | .ref // "HEAD"' "$WORK/externals.json")"
+    key="$(jq -r --argjson n "$number" '.[] | select(.number == $n) | .key' "$WORK/externals.json")"
+    rm -f "$WORK/copy.json"
+    reason=""
+    if [ "$kind" = doc ]; then
+      reason="$(fetch_doc "$key" "$ref")"
+    else
+      reason="$(fetch_web "$url")"
+    fi
+    if [ -z "$reason" ] && [ -s "$WORK/copy.json" ]; then
+      status="$(ONEIROI_TIMEOUT=60 oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/externals/$number/fetched" "$WORK/copy.json" "$OUT")"
+      say "external #$number fetched; Oneiroi answered $status"
+      [ "$status" = 200 ] && continue
+      reason="Oneiroi refused the copy ($status): $(jq -r '.error.message // .error // empty' "$OUT" 2>/dev/null | head -c 300)"
+    fi
+    tries="$(( $(grep -c "^$number\$" "$STATE/fetch-tries" 2>/dev/null || echo 0) + 1 ))"
+    echo "$number" >> "$STATE/fetch-tries"
+    say "external #$number not fetched (try $tries of 2): $reason"
+    if [ "$tries" -ge 2 ]; then
+      echo "$number" >> "$STATE/fetch-given-up"
+      jq -n --arg reason "$reason" '{reason: $reason}' > "$OUT.body"
+      status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/externals/$number/failed" "$OUT.body" "$OUT")"
+      rm -f "$OUT.body"
+      say "external #$number said failed; Oneiroi answered $status"
+    fi
+  done
+}
+
+# A page: fetched as a visitor, converted to markdown. Echoes a reason
+# when it could not, and writes work/copy.json when it could.
+fetch_web() {
+  local url="$1" code type
+  code="$(curl -sSL --max-time 60 --max-filesize "$FETCH_BYTES" -A "Mozilla/5.0 (Oneiroi reader)" \
+    -o "$WORK/page.raw" -w '%{http_code} %{content_type}' "$url" 2>/dev/null)" || { echo "the page did not answer, or is past $FETCH_BYTES bytes"; return 0; }
+  type="${code#* }"
+  code="${code%% *}"
+  [ "$code" = 200 ] || { echo "the page answered $code"; return 0; }
+  case "$type" in
+    text/html*|application/xhtml*)
+      python3 -I "$KIT/lib/html2md.py" "$WORK/page.raw" > "$WORK/page.json" 2>/dev/null ||
+        { echo "the page could not be read as HTML"; return 0; }
+      jq '{title, text}' "$WORK/page.json" > "$WORK/copy.json" ;;
+    text/*|application/json*|application/xml*)
+      jq -n --rawfile text "$WORK/page.raw" --arg title "$url" '{title: $title, text: $text}' > "$WORK/copy.json" ;;
+    *)
+      echo "the page is not text ($type)"; return 0 ;;
+  esac
+  [ "$(jq -r '.text | length' "$WORK/copy.json")" -gt 0 ] || { rm -f "$WORK/copy.json"; echo "the page had no words to keep"; }
+}
+
+# A GitHub document: the commit its ref names now, then the file raw at
+# that commit, so the copy and its commit agree.
+fetch_doc() {
+  local key="$1" ref="$2" owner repo path sha code
+  owner="$(echo "$key" | cut -d/ -f2)"
+  repo="$(echo "$key" | cut -d/ -f3)"
+  path="$(echo "$key" | cut -d/ -f4-)"
+  if echo "$ref" | grep -Eq '^[0-9a-f]{40}$'; then
+    sha="$ref"
+  else
+    sha="$(git ls-remote "https://github.com/$owner/$repo" "$ref" 2>/dev/null | head -n 1 | cut -f1)"
+    [ -n "$sha" ] || sha="$(git ls-remote "https://github.com/$owner/$repo" "refs/heads/$ref" "refs/tags/$ref" 2>/dev/null | head -n 1 | cut -f1)"
+  fi
+  [ -n "$sha" ] || { echo "github.com/$owner/$repo has no ref $ref the reader can see (a private repository is not reachable)"; return 0; }
+  code="$(curl -sSL --max-time 60 --max-filesize "$FETCH_BYTES" -o "$WORK/page.raw" -w '%{http_code}' \
+    "https://raw.githubusercontent.com/$owner/$repo/$sha/$path" 2>/dev/null)" || { echo "the file did not answer, or is past $FETCH_BYTES bytes"; return 0; }
+  [ "$code" = 200 ] || { echo "the file answered $code at $sha"; return 0; }
+  jq -n --rawfile text "$WORK/page.raw" --arg path "$path" --arg sha "$sha" \
+    '{title: ([$text | split("\n")[] | select(startswith("# ")) | ltrimstr("# ")][0] // $path), text: $text, commit: $sha}' > "$WORK/copy.json" 2>/dev/null ||
+    { echo "the file is not text"; return 0; }
 }
 
 send() {
@@ -352,7 +456,8 @@ case "${1:-}" in
   send) setup && sites && send ;;
   scrape) setup && sites && scrape ;;
   research) setup && sites && research ;;
+  fetch) setup && fetch ;;
   digest) setup && sites && digest ;;
   publish) setup && sites && publish ;;
-  *) echo "usage: reader.sh wait|send|scrape|research|digest|publish|login" >&2; exit 2 ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|fetch|digest|publish|login" >&2; exit 2 ;;
 esac
