@@ -232,7 +232,7 @@ defmodule Oneiroi.Brain.TurnTest do
   end
 
   test "a turn is answered, captured as user and assistant, recorded, and streamed", ctx do
-    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 5}} =
+    assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 6}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello there", ctx.actor)
 
     assert user.role == :user and user.actor.kind == :witness
@@ -246,6 +246,7 @@ defmodule Oneiroi.Brain.TurnTest do
              %{label: "prompt"},
              %{label: "AGENTS.md"},
              %{label: "state"},
+             %{label: "budget"},
              %{label: "index"},
              %{label: "transcript", tokens: 0}
            ] =
@@ -257,7 +258,7 @@ defmodule Oneiroi.Brain.TurnTest do
     payloads = events(ctx.resident.id, ctx.key)
     assert {:turn_started, ^ref} = hd(payloads)
     assert Enum.any?(payloads, &match?({:delta, ^ref, _}, &1))
-    assert {:turn, ^ref, %{drew_on: 5}} = List.last(payloads)
+    assert {:turn, ^ref, %{drew_on: 6}} = List.last(payloads)
   end
 
   test "the next turn is shown the transcript so far, and the fake answers the last user message",
@@ -267,7 +268,7 @@ defmodule Oneiroi.Brain.TurnTest do
     assert {:ok, %{turn_ref: ref}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "second", ctx.actor)
 
-    assert [_, _, _, _, %{label: "transcript", tokens: tokens}] =
+    assert [_, _, _, _, _, %{label: "transcript", tokens: tokens}] =
              Kumbukumbu.injections({:account, ctx.witness.id}, ref)
 
     assert tokens > 0

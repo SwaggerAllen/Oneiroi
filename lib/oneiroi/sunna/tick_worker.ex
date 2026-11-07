@@ -13,6 +13,7 @@ defmodule Oneiroi.Sunna.TickWorker do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Scope
+  alias Oneiroi.Sunna.FreeTimeWorker
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.WorkLoop
@@ -92,7 +93,11 @@ defmodule Oneiroi.Sunna.TickWorker do
         not Enum.any?(recent, &(DateTime.compare(&1.at, slot) != :lt)),
         since = DateTime.diff(local, slot, :second),
         since >= 0 and since <= late do
-      Schedules.run_free_time(resident_id, day, time, @actor)
+      # The bedtime slot (sunna#34): the scene pass first, as a job, and
+      # free time follows its end; every other slot runs here.
+      if time == Oneiroi.Config.fetch!(:sunna, :scene_slot),
+        do: FreeTimeWorker.enqueue_scene(resident_id, day, time, nil, 1),
+        else: Schedules.run_free_time(resident_id, day, time, @actor)
     end
 
     :ok

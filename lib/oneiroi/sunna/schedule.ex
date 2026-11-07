@@ -269,6 +269,20 @@ defmodule Oneiroi.Sunna.Schedule do
     end
   end
 
+  # A slot rested under the floor (sunna#34): recorded once, as a run is.
+  def execute(%__MODULE__{free_time_days: days}, %Commands.RestFreeTime{} = c) do
+    if Map.has_key?(days, {c.day, :all}) or Map.get(days, {c.day, c.slot}) == c.at,
+      do: [],
+      else: %Events.FreeTimeRested{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        day: c.day,
+        slot: c.slot,
+        reason: c.reason
+      }
+  end
+
   # ---- the plan for the next slot (sunna#31) ----
 
   def execute(%__MODULE__{}, %Commands.RecordPlanningTurn{} = c),
@@ -443,6 +457,9 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeFailed{} = e),
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}
+
+  def apply(%__MODULE__{} = s, %Events.FreeTimeRested{} = e),
+    do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot}, e.at)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimePlanned{} = e), do: %{s | id: e.id}
   def apply(%__MODULE__{} = s, %Events.PlanningTurnRan{} = e), do: %{s | id: e.id}

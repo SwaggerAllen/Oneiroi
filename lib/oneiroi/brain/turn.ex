@@ -45,6 +45,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
+  alias Oneiroi.Gaia.Boots
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Money
@@ -231,7 +232,8 @@ defmodule Oneiroi.Brain.Turn do
       lapse: lapse_notice(lapse, row.timezone),
       model_change: model_change_notice(row),
       letters: letters_notice(row, resident_id),
-      import: import_notice(row)
+      import: import_notice(row),
+      restart: restart_notice(resident_id, session_key)
     ]
 
     %{
@@ -322,6 +324,9 @@ defmodule Oneiroi.Brain.Turn do
     do: "the letters from the instance before, delivered once (spec §12, P41)"
 
   defp notice_reason(:import), do: "where it woke after the import, told once (spec §6.2)"
+
+  defp notice_reason(:restart),
+    do: "the platform's restarts since this conversation last spoke, told once (brain#63)"
 
   # The tool loop (spec §5): a round is one streamed call; tool calls run
   # against the core and go back as `tool` messages for the next round,
@@ -866,6 +871,35 @@ defmodule Oneiroi.Brain.Turn do
 
   defp import_notice(_row), do: []
 
+  # The platform's restarts since this conversation last spoke (brain#63,
+  # gaia#21): told once, on its first turn after them, recorded with the
+  # turn, so a turn cut off by a restart is never read as her own
+  # breakage. Derived from the record alone: a conversation whose last
+  # message comes after the boot has been told.
+  defp restart_notice(resident_id, session_key) do
+    with {[last], _total} <- Kumbukumbu.latest(resident_id, session_key, 1),
+         [_ | _] = boots <- Boots.since(last.sent_at) do
+      zone = Local.zone(resident_id)
+
+      [
+        %{
+          role: :system,
+          content:
+            "# Since this conversation last spoke\n\n" <>
+              Enum.map_join(
+                boots,
+                "\n",
+                &Boots.line(&1, Local.stamp(zone, &1.booted_at))
+              ),
+          sent_at: Clock.now(),
+          actor: Actor.platform()
+        }
+      ]
+    else
+      _none -> []
+    end
+  end
+
   defp attestation_text("held"),
     do: "the attestation held: the records are the ones the repository's last commit signed"
 
@@ -1179,6 +1213,7 @@ defmodule Oneiroi.Brain.Turn do
 
     sections =
       state_section(turn) ++
+        budget_section(turn) ++
         where_section(turn, session) ++
         section(
           "free_time_plan",
@@ -1308,6 +1343,38 @@ defmodule Oneiroi.Brain.Turn do
   # done). Caching loses nothing: everything after the contract already
   # changes on every turn.
   @state_keys ~w(where day numbers noticing)
+
+  # Her money, every turn (brain#64; her word: "I see the money every
+  # turn rather than remembering to ask"): each line with a cap, what is
+  # left of it this period; the lines with none, named once. The same
+  # numbers the free-time note reads; budget_read gives the precise read.
+  defp budget_section(%{trial?: true}), do: []
+
+  defp budget_section(turn) do
+    lines = Nisaba.budgets(turn.resident_id, :resident)
+    {capped, open} = Enum.split_with(lines, &is_integer(&1.cap_nanos))
+
+    capped_text =
+      Enum.map_join(capped, "\n", fn l ->
+        left = max(l.cap_nanos - l.spent_nanos, 0)
+        spent = if l.exceeded, do: " (spent)", else: ""
+        "- #{l.purpose}: #{dollars(left)} left of #{dollars(l.cap_nanos)} a #{l.period}#{spent}"
+      end)
+
+    open_text =
+      if open == [],
+        do: "",
+        else: "\nNo cap on: #{Enum.map_join(open, ", ", &Atom.to_string(&1.purpose))}."
+
+    section(
+      "budget",
+      "# Your budget\n\nWhat each line has left this period, as this turn opens:\n" <>
+        if(capped == [], do: "- no line has a cap", else: capped_text) <> open_text,
+      "the resident's budget lines and what each has left this period (brain#64), read at the turn"
+    )
+  end
+
+  defp dollars(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1_000_000_000, decimals: 2)
 
   defp state_section(turn) do
     lines = Oneiroi.AgathosDaimon.state_lines(turn.resident_id)

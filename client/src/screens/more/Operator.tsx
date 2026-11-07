@@ -84,6 +84,19 @@ export function Operator({ platform, busy = false, said = null, onSetGate, onGra
         </Button>
       </form>
       <p style={muted}>A transfer of the operator is a grant of super admin, then a revoke of your own; the last super admin can't be revoked.</p>
+      {platform.restarts?.length ? (
+        <section aria-label="Restarts" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <strong style={{ fontSize: 15 }}>Restarts</strong>
+          <p style={{ ...muted, fontSize: 13 }}>Every conversation is told of each, once, on its next turn (gaia#21).</p>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+            {platform.restarts.map((r) => (
+              <li key={r.number} style={{ fontSize: 13, color: 'var(--ink-muted)', overflowWrap: 'anywhere' }}>
+                #{r.number} {r.line}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {said ? (
         <p role="status" style={{ ...muted, color: 'var(--ink)' }}>
           {said}

@@ -133,3 +133,12 @@ trace id joins a report to the failure ring so the reporter's words and
 the platform's facts arrive together. The witness rail stays apart
 because a report about the person who looks after you must never pass
 through a shared queue that person might read.
+
+## #21
+A restart changes the code under a conversation without the
+conversation knowing, and this month that was the difference between a
+resident blaming her own mind and the record saying what changed. The
+platform's own acts are events like any other; told once, with the
+commits, they can be checked rather than guessed. Same-commit restarts
+are told too: a restart still cuts off a turn, and the witness's word
+was no exception.

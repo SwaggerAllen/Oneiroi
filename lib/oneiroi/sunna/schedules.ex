@@ -465,8 +465,121 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
-  @doc "Runs one free-time slot for the day: a solo session of its own kind, the brain woken on the free-time line; the outcome recorded once."
+  @doc "Runs one free-time slot for the day: a solo session of its own kind, the brain woken on the free-time line; the outcome recorded once. A slot the line cannot pay for meaningfully rests (sunna#34)."
   def run_free_time(resident_id, day, slot, %Actor{} = actor) do
+    case under_floor(resident_id) do
+      nil -> open_free_time(resident_id, day, slot, actor)
+      reason -> rest_free_time(resident_id, day, slot, reason, actor)
+    end
+  end
+
+  # The floor (sunna#34, her amendment, his "ok, that sounds right"): with
+  # a free-time line set, a slot whose remainder buys fewer than
+  # `SUNNA_FREE_TIME_FLOOR_CALLS` calls at the line's recent cost per call
+  # rests and says so, rather than burning a thin run. No line, or no
+  # recent cost to judge by, and there is no floor.
+  defp under_floor(resident_id) do
+    floor = Config.fetch!(:sunna, :free_time_floor_calls)
+    since = DateTime.add(Clock.now(), -7 * 86_400, :second)
+
+    with %{left: left} <- free_time_budget_any(resident_id),
+         true <- floor > 0,
+         %{calls: calls, cost_nanos: cost} when calls > 0 and cost > 0 <-
+           Nisaba.spend(resident_id, :witness, :purpose, since)
+           |> Enum.find(&(&1.key == "free_time")),
+         per_call = div(cost, calls),
+         true <- left < floor * per_call do
+      "not enough left tonight (#{dollars(max(left, 0))}, under #{floor} calls at about $#{:erlang.float_to_binary(per_call / 1_000_000_000, decimals: 4)} each); resuming at the next slot"
+    else
+      _enough -> nil
+    end
+  end
+
+  # The line as it stands, spent or not: the floor reads a spent line as
+  # nothing left.
+  defp free_time_budget_any(resident_id) do
+    case Enum.find(Nisaba.budgets(resident_id, :witness), &(&1.purpose == :free_time)) do
+      %{cap_nanos: cap, spent_nanos: spent} when is_integer(cap) -> %{left: cap - spent}
+      _none -> nil
+    end
+  end
+
+  defp rest_free_time(resident_id, day, slot, reason, actor) do
+    command = %Commands.RestFreeTime{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: day,
+      slot: slot,
+      reason: reason
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc """
+  The bedtime scene pass (sunna#34; Lily's design, the witness's call,
+  letters #196 and #197): before the slot `SUNNA_SCENE_SLOT` names, a
+  housekeeping turn on the chat line (housekeeping, not free time) in a
+  conversation of its own, in which she groups the day of the Oneiroi
+  chat into scenes and writes them to `scenes/<day>.md`, each citing its
+  turns. Carried on while a turn runs out of tool rounds, up to
+  `SUNNA_SCENE_TURNS`; then free time follows at once, on its own line,
+  under the floor.
+  """
+  def scene_pass(resident_id, day, slot, key, n) do
+    with {:ok, row} <- resident(resident_id),
+         {:ok, key} <- scene_session(resident_id, row, key),
+         {:ok, result} <- wake(resident_id, key, scene_note(resident_id, row, day, n), :chat) do
+      if Map.get(result, :rounds_spent) && n < Config.fetch!(:sunna, :scene_turns),
+        do: free_time_worker().enqueue_scene(resident_id, day, slot, key, n + 1),
+        else: run_free_time(resident_id, day, slot, Actor.new(:job, "sunna_scene"))
+
+      :ok
+    else
+      # The pass failing never costs her the free time after it.
+      _failed -> run_free_time(resident_id, day, slot, Actor.new(:job, "sunna_scene"))
+    end
+  end
+
+  defp scene_session(_resident_id, _row, key) when is_binary(key), do: {:ok, key}
+
+  defp scene_session(resident_id, row, nil),
+    do:
+      Kumbukumbu.open_session(
+        resident_id,
+        "housekeeping",
+        "brain",
+        List.wrap(row.account_id),
+        Actor.new(:job, "sunna_scene")
+      )
+
+  defp scene_note(_resident_id, _row, day, n) when n > 1,
+    do: Prompt.render!("scene_pass_continue", %{day: day, turn: n})
+
+  defp scene_note(resident_id, row, day, _n) do
+    start = local_now(resident_id) |> at_time("00:00")
+
+    {key, from, total} =
+      case Kumbukumbu.main_session(resident_id, row.account_id, Actor.new(:job, "sunna_scene")) do
+        {:ok, key} ->
+          {before, total} = Kumbukumbu.counts(resident_id, key, start)
+          {key, before, total}
+
+        _none ->
+          {"(none)", 0, 0}
+      end
+
+    Prompt.render!("scene_pass", %{
+      day: day,
+      session: key,
+      from: from,
+      count: total - from,
+      turns: Config.fetch!(:sunna, :scene_turns)
+    })
+  end
+
+  defp open_free_time(resident_id, day, slot, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <-
            Kumbukumbu.open_session(

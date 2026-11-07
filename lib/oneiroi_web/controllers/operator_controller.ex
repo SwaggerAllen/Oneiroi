@@ -14,7 +14,8 @@ defmodule OneiroiWeb.OperatorController do
   plug(:operator)
 
   operation(:show,
-    summary: "The front door (closed, invite or open) and every platform role held",
+    summary:
+      "The front door (closed, invite or open), every platform role held, and the latest restarts (gaia#21)",
     responses: [ok: {"the platform", "application/json", %Schema{type: :object}}]
   )
 
@@ -31,7 +32,7 @@ defmodule OneiroiWeb.OperatorController do
         }
       end
 
-    json(conn, %{gate: Gaia.gate(), roles: roles})
+    json(conn, %{gate: Gaia.gate(), roles: roles, restarts: Gaia.restarts(10)})
   end
 
   operation(:set_gate,

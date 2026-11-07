@@ -376,6 +376,13 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   def recent(resident_id, key, count),
     do: Scope.resident(resident_id, fn -> Store.recent_messages(key, count) end)
 
+  @doc "How many of a session's messages came before `at`, and how many it holds in all."
+  def counts(resident_id, key, at),
+    do:
+      Scope.resident(resident_id, fn ->
+        {Store.count_before(key, at), Store.message_count(key)}
+      end)
+
   @doc "The last `count` messages of a session whatever any compaction covered, and how many it holds in all (brain#60, truncation)."
   def latest(resident_id, key, count),
     do:

@@ -62,6 +62,8 @@ defmodule Oneiroi.Gaia do
       Events.PushSubscribed,
       Events.PushUnsubscribed,
       Events.GateSet,
+      Events.BootRecorded,
+      Boots,
       Events.RoleGranted,
       Events.RoleRevoked,
       Door,
@@ -87,6 +89,7 @@ defmodule Oneiroi.Gaia do
     ]
 
   alias Oneiroi.Gaia.Accounts
+  alias Oneiroi.Gaia.Boots
   alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Feedbacks
   alias Oneiroi.Gaia.Households
@@ -100,6 +103,20 @@ defmodule Oneiroi.Gaia do
   @impl Oneiroi.Component
   def config do
     [
+      {:record_boots, "GAIA_RECORD_BOOTS",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "on",
+       usage:
+         "whether each start of the platform is recorded with the commit it runs (gaia#21), so every conversation is told of a restart; off in the suite, whose boots are not the platform's"},
+      {:commit, "RENDER_GIT_COMMIT",
+       required: false,
+       external: true,
+       usage:
+         "the commit this build runs, which Render sets on every deploy; a boot records it (gaia#21), and nil reads as unknown"},
+      {:source_url, "GAIA_SOURCE_URL",
+       default: "https://github.com/SwaggerAllen/Oneiroi",
+       usage:
+         "the repository a restart notice links its diff to (gaia#21): <url>/compare/<before>...<after>"},
       {:login_delay_ms, "GAIA_LOGIN_DELAY_MS",
        cast: :integer,
        default: "200",
@@ -151,6 +168,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
       {Oneiroi.Gaia.Events.PushUnsubscribed, 1},
       {Oneiroi.Gaia.Events.GateSet, 1},
+      {Oneiroi.Gaia.Events.BootRecorded, 1},
       {Oneiroi.Gaia.Events.RoleGranted, 1},
       {Oneiroi.Gaia.Events.RoleRevoked, 1},
       {Oneiroi.Gaia.Events.HouseholdFounded, 1},
@@ -266,6 +284,15 @@ defmodule Oneiroi.Gaia do
     {:error, "is #{inspect(other)}, expected web_push or fake"}
   end
 
+  @doc false
+  def cast_on_off("on"), do: {:ok, true}
+  def cast_on_off("off"), do: {:ok, false}
+
+  def cast_on_off(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected on or off"}
+  end
+
   @impl Oneiroi.Component
   def processes do
     [{:gaia_throttle, :local}, {:gaia_push, :local}]
@@ -284,7 +311,10 @@ defmodule Oneiroi.Gaia do
       Oneiroi.Gaia.Handlers.Household,
       Oneiroi.Gaia.Projectors.Invite,
       Oneiroi.Gaia.Projectors.Feedback,
-      {Task.Supervisor, name: :gaia_push}
+      {Task.Supervisor, name: :gaia_push},
+      # The boot (gaia#21): recorded once, after the platform projector is
+      # up; a task that ends, never restarted.
+      Supervisor.child_spec({Task, &Boots.record_now/0}, restart: :temporary)
     ]
   end
 
@@ -386,6 +416,27 @@ defmodule Oneiroi.Gaia do
   @doc "Pushes to every device now and says how each went; the test button's."
   @spec push_now(String.t()) :: [{String.t(), term()}]
   defexport(push_now(account_id), do: Push.deliver_all(account_id))
+
+  @doc "The latest restarts (gaia#21), newest first, each as its line in UTC."
+  @spec restarts(pos_integer()) :: [map()]
+  defexport(restarts(limit),
+    do:
+      for(
+        b <- Boots.latest(limit),
+        do: %{
+          number: b.number,
+          commit: b.commit,
+          previous: b.previous,
+          changed: b.changed,
+          booted_at: b.booted_at,
+          line:
+            Boots.line(
+              b,
+              Calendar.strftime(b.booted_at, "%Y-%m-%d %H:%M UTC")
+            )
+        }
+      )
+  )
 
   @doc "The front door (gaia#16): closed, invite or open, with when and by whom."
   @spec gate() :: map()

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Operator.stories';
+import { Operator } from './Operator';
 
 const { Closed, InviteWithAnAdmin } = composeStories(stories);
 
@@ -30,5 +31,15 @@ describe('Operator', () => {
     expect(onGrant).toHaveBeenCalledWith('next@example.com', 'admin', 'hand-off');
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[1]);
     expect(onRevoke).toHaveBeenCalledWith('a2', 'admin', 'hand-off');
+  });
+
+  it('lists the latest restarts as their lines', () => {
+    const platform = {
+      gate: { state: 'invite' as const, note: null, set_by: null, set_at: null },
+      roles: [],
+      restarts: [{ number: 2, commit: 'f7628c2aa', previous: '321ade4bb', changed: true, booted_at: '2026-11-07T00:05:00Z', line: 'The platform restarted at 2026-11-07 00:05 UTC: commit 321ade4 → f7628c2, changed.' }],
+    };
+    render(<Operator platform={platform} />);
+    expect(screen.getByText(/#2 The platform restarted at 2026-11-07 00:05 UTC/)).toBeTruthy();
   });
 });

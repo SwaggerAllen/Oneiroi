@@ -436,6 +436,17 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
+  @doc "How many of a session's messages were said before `at`: where a day begins, as transcript_read's `from`."
+  @spec count_before(String.t(), DateTime.t()) :: non_neg_integer()
+  def count_before(key, at),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.sent_at < ^at,
+          select: count(m.sequence)
+        )
+      )
+
   @doc "How many messages a session holds."
   @spec message_count(String.t()) :: non_neg_integer()
   def message_count(key),

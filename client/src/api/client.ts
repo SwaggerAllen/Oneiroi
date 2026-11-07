@@ -376,4 +376,6 @@ export interface InviteRequest {
 export interface Platform {
   gate: { state: GateState; note: string | null; set_by: string | null; set_at: string | null };
   roles: { account_id: string; email: string | null; role: PlatformRole; note: string | null; granted_by: string | null; granted_at: string }[];
+  // The latest restarts (gaia#21), newest first, each as its line.
+  restarts?: { number: number; commit: string | null; previous: string | null; changed: boolean; booted_at: string; line: string }[];
 }
