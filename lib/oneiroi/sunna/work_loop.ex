@@ -174,6 +174,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       end)
 
     cond do
+      stalled?(state) -> end_stalled(resident_id, state)
       state && state.running -> :running
       state && state.rested_reason == Work.stopped_rest() -> :stopped
       care_first?(resident_id, settings) -> :care
@@ -250,12 +251,14 @@ defmodule Oneiroi.Sunna.WorkLoop do
   are not spent; then the wrap. Put off while care comes first.
   """
   def turn(resident_id, key, number, n) do
-    with nil <- care_wait(resident_id),
+    with true <- running?(resident_id, number),
+         nil <- care_wait(resident_id),
          {:ok, left} <- allowance(resident_id),
          true <- n <= Config.fetch!(:sunna, :work_turns),
          {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
       carry_on(resident_id, key, number, n, result)
     else
+      false -> :ok
       wait when is_integer(wait) -> {:snooze, wait}
       {:error, _} = failed -> close(resident_id, key, number, failed)
       _spent -> worker().enqueue_wrap(resident_id, key, number)
@@ -298,7 +301,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
   buys the next check.
   """
   def wrap_turn(resident_id, key, number) do
-    case care_wait(resident_id) do
+    case running?(resident_id, number) && care_wait(resident_id) do
+      false ->
+        :ok
+
       nil ->
         result = wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning)
         close(resident_id, key, number, result)
@@ -330,6 +336,35 @@ defmodule Oneiroi.Sunna.WorkLoop do
         state.rested_reason != Work.stopped_rest() and
         Enum.any?(Store.work_items(), &(&1.status == "open"))
     end)
+  end
+
+  # A run whose end was never recorded (sunna#37): its job died (a deploy
+  # restart, a crash past its one attempt), so nothing would ever end it
+  # and the loop would say it runs an item forever. Past
+  # `SUNNA_WORK_RUN_STALE_MINUTES` the check ends it, and goes on.
+  defp stalled?(%{running: n, running_since: %DateTime{} = since}) when is_integer(n) do
+    stale = Config.fetch!(:sunna, :work_run_stale_minutes) * 60
+    DateTime.diff(Clock.now(), since, :second) > stale
+  end
+
+  defp stalled?(_state), do: false
+
+  defp end_stalled(resident_id, state) do
+    _ =
+      dispatch(%Commands.EndWork{
+        actor: @actor,
+        at: Clock.now(),
+        id: resident_id,
+        number: state.running
+      })
+
+    check(resident_id)
+  end
+
+  # Whether item `number` is still the one running: a turn or wrap of a
+  # run that has ended (moved by hand, or stalled and ended) does nothing.
+  defp running?(resident_id, number) do
+    match?(%{running: ^number}, Scope.resident(resident_id, fn -> Store.work_queue() end))
   end
 
   # ---- the note ----

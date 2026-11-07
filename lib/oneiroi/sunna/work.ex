@@ -54,7 +54,7 @@ defmodule Oneiroi.Sunna.Work do
     end
   end
 
-  def execute(%__MODULE__{items: items}, %Commands.MoveWork{} = c) do
+  def execute(%__MODULE__{items: items} = s, %Commands.MoveWork{} = c) do
     cond do
       c.actor.kind not in @parties ->
         {:error, Error.new(:sunna_work_not_a_party, :sunna_work_move_not_a_party)}
@@ -69,7 +69,7 @@ defmodule Oneiroi.Sunna.Work do
         {:error, Error.new(:sunna_work_invalid, :sunna_work_move_invalid)}
 
       true ->
-        %Events.WorkMoved{
+        moved = %Events.WorkMoved{
           actor: c.actor,
           at: c.at,
           id: c.id,
@@ -78,6 +78,24 @@ defmodule Oneiroi.Sunna.Work do
           blocked_on: blocked_on(c.status, c.blocked_on),
           note: String.trim(c.note)
         }
+
+        # Moving the running item by hand ends its run (sunna#37): the
+        # loop's state never says it is running an item that is done,
+        # dropped or blocked.
+        if s.running == c.number,
+          do: [
+            moved,
+            %Events.WorkRunEnded{
+              actor: c.actor,
+              at: c.at,
+              id: c.id,
+              number: c.number,
+              wrapped: s.wrapped,
+              status: c.status,
+              stopped: false
+            }
+          ],
+          else: moved
     end
   end
 
