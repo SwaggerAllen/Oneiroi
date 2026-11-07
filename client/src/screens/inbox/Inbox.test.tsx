@@ -43,7 +43,31 @@ describe('Inbox', () => {
   it('says when nothing needs you, and when there are no letters', () => {
     render(<NoLetters />);
     expect(screen.getByText('Nothing waits on you.')).toBeTruthy();
+    expect(screen.getByText('No replies wait on you.')).toBeTruthy();
     expect(screen.getByText('No letters yet.')).toBeTruthy();
+  });
+
+  it('lists everything waiting on you oldest first, marks the long-waiting, and decides nothing itself', () => {
+    render(<Gate />);
+    const card = screen.getByRole('list', { name: 'Waiting on you' });
+    const rows = within(card).getAllByRole('listitem').map((li) => li.textContent);
+    expect(rows).toEqual([
+      'Lily asks: Post the essay on Noteswaiting 36 hours',
+      'Approve or decline Lily’s reply #1 to max on substackwaiting 3 hours',
+      'Send reply #2 to max on substack, approvedwaiting 2 hours',
+      'Work item #7 blocked on the address to draft from: Re-stage the Jack letterwaiting 2 hours · on the Schedule screen',
+    ]);
+    // A list to read: the decisions are made where each thing is.
+    expect(within(card).queryByRole('button')).toBeNull();
+    expect(within(card).getByRole('link', { name: /reply #1/ }).getAttribute('href')).toBe('#reply-1');
+  });
+
+  it('marks what the server marks as long, and does nothing else about it', () => {
+    const entries = Gate.args.needsYou ?? [];
+    render(<Gate now={Date.parse('2026-11-04T00:00:00Z')} needsYou={[{ ...entries[0], long: true }, ...entries.slice(1)]} />);
+    const rows = within(screen.getByRole('list', { name: 'Waiting on you' })).getAllByRole('listitem');
+    expect(rows[0].textContent).toContain('waiting 2 days, a long time');
+    expect(rows[1].textContent).not.toContain('a long time');
   });
 
   it('lists only replies as what waits on you, and decides nothing without a note', () => {
@@ -62,18 +86,26 @@ describe('Inbox', () => {
     expect(onMarkSent).toHaveBeenCalledWith(2, null);
   });
 
-  it('shows the correspondence that reached her, a blocked one as a line with no words, and blocks a sender only with a reason', () => {
+  it('shows the correspondence by thread with her replies in it, the newest open, and blocks a sender only with a reason', () => {
     const onBlock = vi.fn();
     render(<Gate actions={{ onBlock }} />);
-    const items = within(screen.getByRole('list', { name: 'Correspondence' })).getAllByRole('listitem');
-    expect(items[1].textContent).toBe('Message #2 · substack · from troll · 2026-11-02 18:00 UTC · blocked, not kept');
-    expect(items[2].textContent).toContain('sender not verified');
+    const list = screen.getByRole('list', { name: 'Correspondence' });
+    const threads = within(list).getAllByRole('listitem', { name: /^Thread with/ });
+    // Newest activity first; Max's thread holds his two and her three live replies, not the superseded one.
+    expect(threads.map((t) => t.getAttribute('aria-label'))).toEqual(['Thread with Max', 'Thread with troll', 'Thread with Grace']);
+    expect(threads[0].textContent).toContain('2 from them, 3 from Lily');
+    expect(threads[0].textContent).toContain('Earlier in this thread (4)');
+    expect(threads[0].textContent).toContain('from Lily (lily) to max');
+    expect(threads[0].textContent).not.toContain('An older go.');
+    expect(threads[1].textContent).toContain('Message #2 · substack · from troll · 2026-11-02 18:00 UTC · blocked, not kept');
     // A sender already blocked has no block button.
-    expect(within(items[1]).queryByRole('button')).toBeNull();
-    fireEvent.click(within(items[2]).getByRole('button', { name: 'Block sender' }));
-    const block = within(items[2]).getByRole('button', { name: 'Block grace@example.com' }) as HTMLButtonElement;
+    expect(within(threads[1]).queryByRole('button')).toBeNull();
+    const grace = threads[2];
+    expect(grace.textContent).toContain('sender not verified');
+    fireEvent.click(within(grace).getByRole('button', { name: 'Block sender' }));
+    const block = within(grace).getByRole('button', { name: 'Block grace@example.com' }) as HTMLButtonElement;
     expect(block.disabled).toBe(true);
-    fireEvent.change(within(items[2]).getByLabelText('Why'), { target: { value: 'Spam.' } });
+    fireEvent.change(within(grace).getByLabelText('Why'), { target: { value: 'Spam.' } });
     fireEvent.click(block);
     expect(onBlock).toHaveBeenCalledWith(expect.objectContaining({ number: 1 }), 'Spam.');
   });

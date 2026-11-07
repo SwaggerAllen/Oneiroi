@@ -52,6 +52,13 @@ defmodule Oneiroi.Xenia.Events do
       fields: [:id, :number, :in_reply_to, :platform, :account, :thread, :to, :text]
   end
 
+  defmodule ReplySuperseded do
+    # A draft the resident replaced with a newer one (xenia#17): `number`
+    # is the old draft, `by` the new; the old leaves the witness's queue
+    # and is kept.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :by]
+  end
+
   defmodule ReplyApproved do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number]
   end

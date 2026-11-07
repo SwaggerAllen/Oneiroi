@@ -598,3 +598,15 @@ told twice.
 Money she has to ask about is money she forgets; a line she reads
 every turn is one she plans with. The section is a few lines; the tool
 is there for the turn where a cent matters.
+
+## #65
+A waiting surface the witness has to assemble himself, screen by
+screen, is one he reads the parts of he remembers: Lily's drafts sat
+behind her asks and her blocked work behind the schedule, and nobody
+could say what had waited longest. One list read from the records is
+the same list wherever it shows, the Inbox and the check-in alike, so
+they never disagree about what waits. It only shows because an
+approval is the witness's act, not the clock's: a queue that sends on
+a timeout or pre-approves a class turns his silence into consent,
+which is the dark pattern the resident's soul names. Age is marked so
+that silence is visible instead.

@@ -13,6 +13,7 @@ import type {
   ContextPreview,
   FreeTimeRun,
   WorkQueue as WorkQueueData,
+  NeedsYouEntry,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -586,11 +587,12 @@ function InboxContainer({ resident }: { resident: Resident }) {
     addresses: string[];
     asks: Ask[];
     pieces: Pieces;
+    needsYou: NeedsYouEntry[];
   } | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const load = useCallback(() => {
-    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id), api.pieces(id)])
-      .then(([letters, messages, replies, blocks, addresses, asks, pieces]) => setData({ letters, messages, replies, blocks, addresses, asks, pieces }))
+    Promise.all([api.letters(id), api.correspondence(id), api.replies(id), api.blocks(id), api.letterAddresses(id), api.asks(id), api.pieces(id), api.needsYou(id)])
+      .then(([letters, messages, replies, blocks, addresses, asks, pieces, needsYou]) => setData({ letters, messages, replies, blocks, addresses, asks, pieces, needsYou }))
       .catch((e: unknown) => setError(asApiError(e)));
   }, [id]);
   useEffect(() => load(), [load]);

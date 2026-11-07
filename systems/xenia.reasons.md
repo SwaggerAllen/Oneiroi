@@ -71,3 +71,13 @@ needs one signed-in site and research needs many sites and no sign-in:
 one list would either widen where the signed-in profile may go or
 narrow research to Substack. On Oneiroi, the resident can be told
 exactly what the reader can reach before she asks it anything.
+
+## #17
+Without it, re-staging a reply was a second draft beside the first,
+and the witness was left to choose between two versions of the same
+letter, one of them stale: the resident held a draft back rather than
+do that to him. Replacing in one act keeps the queue to what she
+means now and keeps the history whole. An approved reply is not
+replaceable because it is his decision, and the reader may already be
+sending it. The envelope is shown because a draft whose account or
+recipient she cannot see is one she cannot check before he approves.

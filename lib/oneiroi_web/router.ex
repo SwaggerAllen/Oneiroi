@@ -240,6 +240,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/reader/pieces", ReaderController, :pieces)
       post("/residents/:id/reader/pieces/drafted", ReaderController, :piece_drafted)
       post("/residents/:id/reader/pieces/published", ReaderController, :piece_published)
+      get("/residents/:id/needs_you", NeedsYouController, :index)
       get("/residents/:id/asks", AskController, :index)
       post("/residents/:id/asks/:number/answer", AskController, :answer)
       get("/residents/:id/work", WorkController, :index)

@@ -85,6 +85,7 @@ defmodule Oneiroi.Xenia.Store do
       field(:sent_at, :utc_datetime_usec)
       field(:sent_by, :string)
       field(:url, :string)
+      field(:superseded_by, :integer)
     end
 
     @type t :: %__MODULE__{}

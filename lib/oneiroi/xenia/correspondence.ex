@@ -10,7 +10,8 @@ defmodule Oneiroi.Xenia.Correspondence do
     resident at once unless its sender is blocked;
   - either party blocks an identity, and only the party who set a block
     lifts it;
-  - only the resident marks a message read or drafts a reply;
+  - only the resident marks a message read or drafts a reply, and a
+    draft may replace one still waiting for the witness;
   - only the witness approves or declines a reply;
   - the witness or an adapter marks an approved reply sent.
 
@@ -160,12 +161,8 @@ defmodule Oneiroi.Xenia.Correspondence do
         {:error,
          Error.new(:xenia_no_such_message, :xenia_draft_reply_absent, number: c.in_reply_to)}
 
-      not (is_binary(c.text) and String.trim(c.text) != "" and
-               String.length(c.text) <= @reply_limit) ->
-        {:error, Error.new(:xenia_reply_invalid, :xenia_draft_text, limit: @reply_limit)}
-
       true ->
-        draft(s, c, origin)
+        draft_refusal(s, c) || draft(s, c, origin)
     end
   end
 
@@ -267,6 +264,9 @@ defmodule Oneiroi.Xenia.Correspondence do
   def apply(%__MODULE__{} = s, %Events.ReplyDrafted{} = e),
     do: %{s | id: e.id, replies: Map.put(s.replies, e.number, :drafted)}
 
+  def apply(%__MODULE__{} = s, %Events.ReplySuperseded{} = e),
+    do: %{s | replies: Map.put(s.replies, e.number, :superseded)}
+
   def apply(%__MODULE__{} = s, %Events.ReplyApproved{} = e),
     do: %{s | replies: Map.put(s.replies, e.number, :approved)}
 
@@ -277,6 +277,22 @@ defmodule Oneiroi.Xenia.Correspondence do
     do: %{s | replies: Map.put(s.replies, e.number, :sent)}
 
   # ---- helpers ----
+
+  # The words, and what a draft replaces: only one still waiting (xenia#17).
+  defp draft_refusal(s, c) do
+    cond do
+      not (is_binary(c.text) and String.trim(c.text) != "" and
+               String.length(c.text) <= @reply_limit) ->
+        {:error, Error.new(:xenia_reply_invalid, :xenia_draft_text, limit: @reply_limit)}
+
+      c.supersedes != nil and s.replies[c.supersedes] != :drafted ->
+        {:error,
+         Error.new(:xenia_not_supersedable, :xenia_draft_supersedes, number: c.supersedes)}
+
+      true ->
+        nil
+    end
+  end
 
   # A blocked sender's message keeps what dedupe and the count need and
   # never the words: nothing blocked reaches the resident by any door,
@@ -313,12 +329,14 @@ defmodule Oneiroi.Xenia.Correspondence do
         nil -> {c.platform, c.account, c.thread, c.to && identity(c.to)}
       end
 
+    number = map_size(s.replies) + 1
+
     if platform_ok?(platform) and line?(account, @identity_limit) and line?(to, @identity_limit) do
-      %Events.ReplyDrafted{
+      drafted = %Events.ReplyDrafted{
         actor: c.actor,
         at: c.at,
         id: c.id,
-        number: map_size(s.replies) + 1,
+        number: number,
         in_reply_to: c.in_reply_to,
         platform: platform,
         account: account,
@@ -326,6 +344,21 @@ defmodule Oneiroi.Xenia.Correspondence do
         to: to,
         text: c.text
       }
+
+      # Replacing a waiting draft (xenia#17) is one act: the new draft
+      # and the old one's leaving the queue are recorded together.
+      if c.supersedes,
+        do: [
+          drafted,
+          %Events.ReplySuperseded{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            number: c.supersedes,
+            by: number
+          }
+        ],
+        else: drafted
     else
       {:error, Error.new(:xenia_reply_invalid, :xenia_draft_address)}
     end

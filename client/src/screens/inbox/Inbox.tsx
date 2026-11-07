@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Ask, Pieces as PiecesData, Block, CorrespondenceMessage, HouseLetter, Reply } from '../../api/types';
+import type { Ask, Pieces as PiecesData, Block, CorrespondenceMessage, HouseLetter, NeedsYouEntry, Reply } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Tabs } from '../../components/Tabs';
@@ -8,6 +8,8 @@ import { Asks } from './Asks';
 import { Pieces } from './Pieces';
 import { isOpen, letterState, stateLine } from './letters';
 import { Blocked, Correspondence, type GateActions, NeedsYou } from './NeedsYou';
+import { Waiting } from './Waiting';
+import { waitingEntries } from './queue';
 
 export interface InboxProps {
   residentName: string;
@@ -23,18 +25,23 @@ export interface InboxProps {
   pieces?: PiecesData;
   onReviewPiece?: (path: string, decision: 'approve' | 'decline', note: string) => void;
   onAnswerAsk?: (number: number, decision: 'approve' | 'decline' | 'noted', note: string) => void;
+  // What waits on you, from every system (brain#65).
+  needsYou?: NeedsYouEntry[];
+  // The instant ages are read against; now unless a story fixes it.
+  now?: number;
 }
 
 type Tab = 'open' | 'all';
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 
-// Inbox (spec §10, screens/inbox.md): Needs you (the replies waiting for
+// Inbox (spec §10, screens/inbox.md): Waiting on you (everything that
+// waits for his click, oldest first, only shown), Needs you (the replies waiting for
 // your yes, the approved ones to send; xenia#13), the correspondence
 // that reached the resident with a way to block a sender, the blocks
 // (xenia#12), and the house letters between the resident's
 // conversations (kumbukumbu#44).
-export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter, asks = [], onAnswerAsk, pieces, onReviewPiece }: InboxProps) {
+export function Inbox({ residentName, letters, messages = [], replies = [], blocks = [], actions = {}, addresses = [], onSendLetter, asks = [], onAnswerAsk, pieces, onReviewPiece, needsYou = [], now }: InboxProps) {
   const [tab, setTab] = useState<Tab>('open');
   const newest = [...letters].sort((a, b) => b.number - a.number);
   const open = newest.filter((l) => isOpen(letterState(l, letters)));
@@ -43,15 +50,22 @@ export function Inbox({ residentName, letters, messages = [], replies = [], bloc
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Inbox" />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        {pieces ? <Pieces residentName={residentName} pieces={pieces} onReview={onReviewPiece} /> : null}
-        <Asks residentName={residentName} asks={asks} onAnswer={onAnswerAsk} />
+        <Waiting entries={waitingEntries(residentName, needsYou)} now={now} />
+        {pieces ? (
+          <div id="pieces" style={{ display: 'contents' }}>
+            <Pieces residentName={residentName} pieces={pieces} onReview={onReviewPiece} />
+          </div>
+        ) : null}
+        <div id="asks" style={{ display: 'contents' }}>
+          <Asks residentName={residentName} asks={asks} onAnswer={onAnswerAsk} />
+        </div>
         <NeedsYou
           residentName={residentName}
           drafted={replies.filter((r) => r.state === 'drafted')}
           approved={replies.filter((r) => r.state === 'approved')}
           actions={actions}
         />
-        <Correspondence residentName={residentName} messages={messages} blocks={blocks} onBlock={actions.onBlock} />
+        <Correspondence residentName={residentName} messages={messages} replies={replies} blocks={blocks} onBlock={actions.onBlock} />
         <Blocked residentName={residentName} blocks={blocks} onUnblock={actions.onUnblock} />
         <section aria-label="Letters" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <h2 style={{ margin: 0, fontSize: 16, lineHeight: '22px', fontWeight: 600 }}>Letters between {residentName}’s conversations</h2>

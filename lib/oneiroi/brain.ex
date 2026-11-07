@@ -43,6 +43,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Checkin
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
+  alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
@@ -229,6 +230,10 @@ defmodule Oneiroi.Brain do
   defexport(submit(resident_id, session_key, text, actor, ref),
     do: Session.submit(resident_id, session_key, text, actor, ref)
   )
+
+  @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."
+  @spec needs_you(String.t()) :: [map()]
+  defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
 
   @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}

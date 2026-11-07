@@ -759,9 +759,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "reply_draft",
-        "Draft a reply: to a message by in_reply_to (it goes back where the message came from), or a new one with platform, account (your address there), to and optionally thread. Nothing is sent until your witness approves it; the send leaves a receipt.",
+        "Draft a reply: to a message by in_reply_to (it goes back where the message came from), or a new one with platform, account (your address there, as correspondence_read shows it on a message that reached you), to and optionally thread. supersedes names a draft still waiting that this one replaces: it leaves your witness's queue, kept and marked superseded. Nothing is sent until your witness approves it; the send leaves a receipt.",
         %{
           in_reply_to: %{type: "integer", minimum: 1},
+          supersedes: %{type: "integer", minimum: 1},
           platform: %{type: "string"},
           account: %{type: "string"},
           to: %{type: "string"},
@@ -789,7 +790,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "reply_list",
-        "Your drafted replies, newest first: where each stands (drafted, approved, declined with your witness's note, sent with where it is now).",
+        "Your drafted replies, newest first: each one's envelope (platform, from your account, to, thread) and where it stands (drafted, approved, declined with your witness's note, superseded by which, sent with where it is now).",
         %{},
         []
       ),
@@ -1290,12 +1291,16 @@ defmodule Oneiroi.Brain.Tools do
       account: blank(args["account"]),
       to: blank(args["to"]),
       thread: blank(args["thread"]),
-      text: to_string(args["text"] || "")
+      text: to_string(args["text"] || ""),
+      supersedes: integer(args["supersedes"])
     }
+
+    replaced =
+      if attrs.supersedes, do: " It replaces ##{attrs.supersedes}, now superseded.", else: ""
 
     with {:ok, n} <- Oneiroi.Xenia.draft_reply(turn.resident_id, attrs, turn.resident),
          do:
-           "Drafted reply ##{n}. It goes out once your witness approves it, and the send leaves a receipt."
+           "Drafted reply ##{n}.#{replaced} It goes out once your witness approves it, and the send leaves a receipt."
   end
 
   defp call("correspondent_block", args, turn) do
@@ -3202,11 +3207,14 @@ defmodule Oneiroi.Brain.Tools do
         "sent" -> "sent" <> if(r.url, do: " (#{r.url})", else: "")
         "declined" -> "declined: #{r.note}"
         "approved" -> "approved, not sent yet"
-        _drafted -> "waiting for your witness"
+        "superseded" -> "superseded by ##{r.superseded_by}"
+        _drafted -> "waiting for your witness since #{local_stamp(r.drafted_at)}"
       end
 
     to = if r.in_reply_to, do: " in reply to ##{r.in_reply_to}", else: ""
-    "##{r.number} to #{r.to} on #{r.platform}#{to} · #{where}"
+    thread = if r.thread, do: " · thread #{r.thread}", else: ""
+
+    "##{r.number} on #{r.platform} from #{r.account} to #{r.to}#{to}#{thread} · #{where}"
   end
 
   defp listing(scope, path) do

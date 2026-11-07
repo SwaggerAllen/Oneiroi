@@ -109,6 +109,15 @@ defmodule Oneiroi.Xenia.Projectors.Correspondence do
     )
   end)
 
+  fold(%Events.ReplySuperseded{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :superseded,
+      from(r in Reply, where: r.resident_id == ^e.id and r.number == ^e.number),
+      set: [state: "superseded", superseded_by: e.by, decided_at: e.at]
+    )
+  end)
+
   fold(%Events.ReplyApproved{} = e, _metadata, fn multi ->
     decide(multi, Reply, e, "approved")
   end)

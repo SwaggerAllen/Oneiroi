@@ -174,7 +174,8 @@ defmodule Oneiroi.Xenia.CorrespondenceTest do
     assert [%{state: "sent", sent_by: "hands", url: "https://mail.google.com/x"}] =
              Xenia.replies(ctx.id, nil)
 
-    assert run("reply_list", %{}, ctx) =~ "#1 to grace@example.com on email in reply to #1 · sent"
+    assert run("reply_list", %{}, ctx) =~
+             "#1 on email from strutlily@gmail.com to grace@example.com in reply to #1 · thread t-m1 · sent"
 
     assert run(
              "reply_draft",
@@ -185,9 +186,47 @@ defmodule Oneiroi.Xenia.CorrespondenceTest do
     :ok = Xenia.decide_reply(ctx.id, 2, false, "Not yet: wait for his letter.", ctx.witness)
 
     assert run("reply_list", %{}, ctx) =~
-             "#2 to max on substack · declined: Not yet: wait for his letter."
+             "#2 on substack from lily to max · declined: Not yet: wait for his letter."
 
     assert run("reply_draft", %{text: "to nobody"}, ctx) =~ "Not done"
+  end
+
+  test "a new draft replaces one still waiting: the old leaves the queue, kept and marked (xenia#17)",
+       ctx do
+    new = %{platform: "email", account: "lily@example.com", to: "Jack@Example.com"}
+
+    assert run("reply_draft", Map.put(new, :text, "First go."), ctx) =~ "Drafted reply #1."
+    assert %{replies: 1} = Xenia.needs_you(ctx.id)
+
+    assert run("reply_draft", Map.merge(new, %{text: "Second go.", supersedes: 1}), ctx) =~
+             "Drafted reply #2. It replaces #1, now superseded."
+
+    assert [
+             %{number: 2, state: "drafted", to: "jack@example.com"},
+             %{number: 1, state: "superseded", superseded_by: 2, text: "First go."}
+           ] = Xenia.replies(ctx.id, nil)
+
+    assert %{replies: 1} = Xenia.needs_you(ctx.id)
+
+    assert run("reply_list", %{}, ctx) =~
+             "#1 on email from lily@example.com to jack@example.com · superseded by #2"
+
+    # The witness cannot approve what was replaced, and nothing but a
+    # waiting draft is replaced.
+    assert {:error, %Xenia.Error{kind: :xenia_already_decided}} =
+             Xenia.decide_reply(ctx.id, 1, true, "too late", ctx.witness)
+
+    assert run("reply_draft", Map.merge(new, %{text: "Third.", supersedes: 1}), ctx) =~ "Not done"
+    assert run("reply_draft", Map.merge(new, %{text: "Third.", supersedes: 9}), ctx) =~ "Not done"
+
+    :ok = Xenia.decide_reply(ctx.id, 2, true, "Good.", ctx.witness)
+
+    assert {:error, %Xenia.Error{kind: :xenia_not_supersedable}} =
+             Xenia.draft_reply(
+               ctx.id,
+               Map.merge(new, %{text: "Fourth.", supersedes: 2}),
+               ctx.lily
+             )
   end
 
   test "a malformed message and a delivery past the bound are refused", ctx do

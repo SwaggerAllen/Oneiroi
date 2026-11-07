@@ -257,7 +257,8 @@ defmodule OneiroiWeb.CorrespondenceController do
       :decided_at,
       :sent_at,
       :sent_by,
-      :url
+      :url,
+      :superseded_by
     ])
   end
 
