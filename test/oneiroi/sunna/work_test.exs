@@ -101,8 +101,16 @@ defmodule Oneiroi.Sunna.WorkTest do
              Sunna.work_queue(ctx.id).items
 
     # Blocked says on what; a move carries a note.
-    assert {:error, %{kind: :sunna_work_invalid}} =
+    # What blocks it is named, and the refusal says which field and its
+    # bound (sunna#36, platform report #7): 128 characters takes, 301 does not.
+    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
              Sunna.work_move(ctx.id, 2, "blocked", nil, "waiting", ctx.me)
+
+    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
+             Sunna.work_move(ctx.id, 2, "blocked", String.duplicate("x", 301), "waiting", ctx.me)
+
+    assert :ok =
+             Sunna.work_move(ctx.id, 2, "blocked", String.duplicate("y", 128), "waiting", ctx.me)
 
     assert :ok = Sunna.work_move(ctx.id, 2, "blocked", "his export", "waiting on it", ctx.me)
 
@@ -290,6 +298,33 @@ defmodule Oneiroi.Sunna.WorkTest do
     clear_jobs()
     :ok = Sunna.tick(ctx.id)
     assert Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))
+  end
+
+  test "a refused move tells her which field and its bound", ctx do
+    turn = %{
+      resident_id: ctx.id,
+      session_key: "s",
+      turn_ref: "t",
+      started_at: Clock.now(),
+      resident: ctx.me
+    }
+
+    {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+
+    text =
+      Tools.run(
+        "work_move",
+        Jason.encode!(%{
+          number: 1,
+          status: "blocked",
+          blocked_on: String.duplicate("z", 400),
+          note: "n"
+        }),
+        turn
+      )
+
+    assert text =~ "blocked_on"
+    assert text =~ "300 characters"
   end
 
   test "her tools read and keep the queue", ctx do
