@@ -72,4 +72,40 @@ defmodule Oneiroi.Gaia.DoorTest do
     # The founder's grant is not made again once a keeper exists.
     assert Enum.count(Gaia.roles(), &(&1.role == "super_admin")) == 1
   end
+
+  # gaia#22: the founding account was the wrong one, or locked out; a
+  # shell on the server names the operator, and the record says so.
+  test "the server's console makes an account the only operator, and says what it did" do
+    founder = Fixtures.account!()
+    Clock.Fake.advance(1)
+    other = Fixtures.account!()
+    Clock.Fake.advance(1)
+    me = Fixtures.account!("Andrew@Example.org")
+    assert Gaia.operator?(founder.id)
+
+    :ok =
+      Gaia.grant_role(other.id, "super_admin", "a second keeper", Actor.new(:witness, founder.id))
+
+    assert {:ok, said} = Gaia.console_operator(" andrew@example.org ")
+    assert said =~ "is the operator; super admin revoked from 2 other account(s)"
+    assert Gaia.operator?(me.id)
+    refute Gaia.operator?(founder.id) or Gaia.operator?(other.id)
+
+    assert [
+             %{
+               account_id: id,
+               granted_by: "platform:console",
+               note: "set from the server console"
+             }
+           ] =
+             Enum.filter(Gaia.roles(), &(&1.role == "super_admin"))
+
+    assert id == me.id
+
+    assert {:error, %{kind: :gaia_no_such_account}} = Gaia.console_operator("nobody@example.org")
+
+    # Only the console: the platform's own jobs grant nothing past the founding.
+    assert {:error, %{kind: :gaia_not_an_operator}} =
+             Gaia.grant_role(other.id, "super_admin", "a job", Actor.platform())
+  end
 end

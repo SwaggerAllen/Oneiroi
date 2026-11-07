@@ -79,6 +79,37 @@ defmodule Oneiroi.Gaia.Door do
         note: note
       })
 
+  @doc """
+  Makes the account with `email` the operator from the server's console
+  (gaia#22): grants it super admin, then revokes super admin from every
+  other account, so it is the only one. A line saying what it did, or
+  why it did nothing.
+  """
+  def console_operator(email) when is_binary(email) do
+    actor = Actor.new(:platform, "console")
+    note = "set from the server console"
+
+    case Scope.platform(fn -> Store.account_by_email(String.trim(email)) end) do
+      nil ->
+        {:error, Error.new(:gaia_no_such_account, :gaia_door_console_no_account)}
+
+      %{id: id} ->
+        with :ok <- grant(id, "super_admin", note, actor) do
+          others = revoke_others(id, note, actor)
+
+          {:ok,
+           "#{email} is the operator; super admin revoked from #{length(others)} other account(s)"}
+        end
+    end
+  end
+
+  # Every other super admin, revoked once the console's grant stands.
+  defp revoke_others(id, note, actor) do
+    for %{role: "super_admin", account_id: other} <- roles(),
+        other != id,
+        do: {other, revoke(other, "super_admin", note, actor)}
+  end
+
   # The founding account's grant, recorded once by the platform while no
   # super admin exists (the aggregate refuses it otherwise).
   defp ensure_founder do

@@ -458,6 +458,15 @@ defmodule Oneiroi.Gaia do
   @spec operator?(String.t()) :: boolean()
   defexport(operator?(account_id), do: Door.operator?(account_id))
 
+  @doc """
+  Makes the account with `email` the only operator, from a shell on the
+  running server (gaia#22):
+
+      bin/oneiroi rpc 'IO.inspect(Oneiroi.Gaia.console_operator("you@example.com"))'
+  """
+  @spec console_operator(String.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(console_operator(email), do: Door.console_operator(email))
+
   @doc "Grants a platform role (super_admin or admin); a super admin's alone, with a note."
   @spec grant_role(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
