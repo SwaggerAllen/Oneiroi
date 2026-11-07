@@ -470,7 +470,7 @@ defmodule Oneiroi.Seshat.Library do
 
   def apply(%__MODULE__{} = s, %Events.DocumentMoved{} = e) do
     {doc, documents} = Map.pop(s.documents, e.from)
-    %{s | documents: Map.put(documents, e.to, %{doc | kind: e.to_kind})}
+    %{s | documents: Map.put(documents, e.to, %{doc | kind: Kinds.released(e.to_kind)})}
   end
 
   def apply(%__MODULE__{} = s, %Events.DocumentRemoved{} = e),
@@ -508,8 +508,9 @@ defmodule Oneiroi.Seshat.Library do
     do: %{l | discussions: MapSet.put(l.discussions, {e.path, e.session_key})}
 
   defp register(l, e) do
-    doc = Map.get(l.documents, e.path, %{kind: e.kind, hash: nil, url: nil})
-    %{l | id: e.id, documents: Map.put(l.documents, e.path, %{doc | kind: e.kind, hash: e.hash})}
+    kind = Kinds.released(e.kind)
+    doc = Map.get(l.documents, e.path, %{kind: kind, hash: nil, url: nil})
+    %{l | id: e.id, documents: Map.put(l.documents, e.path, %{doc | kind: kind, hash: e.hash})}
   end
 
   defp has_status?(kind) do
