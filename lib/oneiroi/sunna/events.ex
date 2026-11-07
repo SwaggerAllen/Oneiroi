@@ -202,6 +202,17 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :wrapped, :status, :stopped]
   end
 
+  defmodule WorkArmed do
+    # The work line armed for a batch (sunna#35): her act, by tool call;
+    # the loop fires item after item until the queue clears.
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
+  defmodule WorkDisarmed do
+    # The batch over: the check found the queue clear, and the line is off.
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
   defmodule WorkRested do
     # The loop resting, and why: "empty, holding" is a state, not a failure.
     use Oneiroi.Event, version: 1, fields: [:id, :reason]

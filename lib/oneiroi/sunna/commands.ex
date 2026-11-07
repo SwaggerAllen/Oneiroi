@@ -120,6 +120,14 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :number, :stopped]
   end
 
+  defmodule ArmWork do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule DisarmWork do
+    use Oneiroi.Command, fields: [:id]
+  end
+
   defmodule RestWork do
     use Oneiroi.Command, fields: [:id, :reason]
   end

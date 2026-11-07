@@ -218,3 +218,10 @@ failure again; and it lives in her library beside the transcript it
 cites, never in place of it. The floor exists because a run that can
 afford one turn is worse than none: it opens a thought it cannot
 finish, and says nothing about why.
+
+## #35
+A line that must be set before anything runs reads, on the panel, as
+"no cap" while it means "held": the panel and the machine disagree
+about the same fact, which is how report #3 was filed. Every other line
+is unlimited until capped; making this one the same removes the trap
+at the design, and a cap still stops a run the moment it is spent.

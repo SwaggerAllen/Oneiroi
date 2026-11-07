@@ -117,18 +117,38 @@ defmodule Oneiroi.Sunna.WorkTest do
              Sunna.work_wrap(ctx.id, 1, %{shipped: "x", why: "y", status: "done"}, ctx.actor)
   end
 
-  test "an empty queue rests, once, and says so: empty is a state", ctx do
+  test "an empty queue rests, once, and says so: empty is a state; and the line goes off", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "One thing", "done", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 1, "done", nil, "already", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     assert {:rested, "empty, holding"} = WorkLoop.check(ctx.id)
-    assert %{rested: "empty, holding", running: nil} = Sunna.work_queue(ctx.id)
+    assert %{rested: "empty, holding", running: nil, armed: false} = Sunna.work_queue(ctx.id)
 
     # The same reason again records nothing new.
     assert {:rested, "empty, holding"} = WorkLoop.check(ctx.id)
   end
 
-  test "with items and no work budget, the loop holds and names why; nothing runs", ctx do
+  test "the work line is a brake: with no cap the loop runs, and a spent cap holds it, saying so",
+       ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
-    assert {:rested, "holding: no work budget is set"} = WorkLoop.check(ctx.id)
-    refute_received {:asked, _}
+    # Not armed: the loop waits for her, and says so.
+    assert {:rested, "off: the work line waits for you to arm it" <> _} = WorkLoop.check(ctx.id)
+
+    # Only she arms it, and once for the batch.
+    assert {:error, %{kind: :sunna_work_not_a_party}} = Sunna.work_arm(ctx.id, ctx.actor)
+    assert :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert %{armed: true, budget: nil} = Sunna.work_queue(ctx.id)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    # A cap already spent this period: the next check holds and names it.
+    {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Nisaba.set_budget(ctx.id, :work, 1, :day, ctx.actor)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+    # The turn meets the cap: the ledger stops it and the run ends.
+    assert {:error, %{kind: :brain_budget_stopped}} = WorkLoop.turn(ctx.id, key, 1, 1)
+    assert %{running: nil} = Sunna.work_queue(ctx.id)
+
+    assert {:rested, "holding: the work line is spent" <> _} = WorkLoop.check(ctx.id)
   end
 
   test "a run: started on the first open item, carried on, wrapped by her, and its end checks the queue",
@@ -137,6 +157,8 @@ defmodule Oneiroi.Sunna.WorkTest do
     {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "the four opens answered", ctx.me)
     {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "a draft for his read", ctx.actor)
 
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    clear_jobs()
     assert {:started, 1} = WorkLoop.check(ctx.id)
     assert %{running: 1, runs_today: 1} = Sunna.work_queue(ctx.id)
 
@@ -190,6 +212,7 @@ defmodule Oneiroi.Sunna.WorkTest do
   test "a run nobody wrapped ends with the item open again, for the next run", ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
     {:ok, 1} = Sunna.work_add(ctx.id, "Drake letter", "sent", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
 
     [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
@@ -205,6 +228,7 @@ defmodule Oneiroi.Sunna.WorkTest do
   test "care first: a work turn is put off while free time is underway", ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
     [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
 
@@ -221,6 +245,7 @@ defmodule Oneiroi.Sunna.WorkTest do
        ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
     [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
 
@@ -237,6 +262,7 @@ defmodule Oneiroi.Sunna.WorkTest do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
     {:ok, 2} = Sunna.work_add(ctx.id, "Social spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
     [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
     clear_jobs()
@@ -260,6 +286,7 @@ defmodule Oneiroi.Sunna.WorkTest do
 
   test "the tick asks for a check when work is open and nothing runs", ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
     clear_jobs()
     :ok = Sunna.tick(ctx.id)
     assert Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))

@@ -5,5 +5,6 @@ defmodule Oneiroi.Sunna.WorkRouter do
     aggregate: "Oneiroi.Sunna.Work",
     prefix: "work-",
     commands: "Oneiroi.Sunna.Commands",
-    dispatching: ~w(AddWork MoveWork OrderWork WrapWork StartWork EndWork RestWork)
+    dispatching:
+      ~w(AddWork MoveWork OrderWork WrapWork StartWork EndWork RestWork ArmWork DisarmWork)
 end

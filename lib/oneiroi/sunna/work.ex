@@ -17,7 +17,13 @@ defmodule Oneiroi.Sunna.Work do
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Events
 
-  defstruct next: 1, items: %{}, order: [], running: nil, wrapped: false, rested: nil
+  defstruct next: 1,
+            items: %{},
+            order: [],
+            running: nil,
+            wrapped: false,
+            rested: nil,
+            armed: false
 
   @parties [:resident, :witness]
   @moved ~w(open blocked done dropped)
@@ -150,6 +156,21 @@ defmodule Oneiroi.Sunna.Work do
 
   def execute(%__MODULE__{}, %Commands.EndWork{}), do: []
 
+  # The arm (sunna#35, the witness's call): hers alone, by tool call, once
+  # a batch; nothing when already armed.
+  def execute(%__MODULE__{armed: true}, %Commands.ArmWork{}), do: []
+
+  def execute(%__MODULE__{}, %Commands.ArmWork{} = c) do
+    if c.actor.kind == :resident,
+      do: %Events.WorkArmed{actor: c.actor, at: c.at, id: c.id},
+      else: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_arm_not_resident)}
+  end
+
+  def execute(%__MODULE__{armed: true, running: nil}, %Commands.DisarmWork{} = c),
+    do: %Events.WorkDisarmed{actor: c.actor, at: c.at, id: c.id}
+
+  def execute(%__MODULE__{}, %Commands.DisarmWork{}), do: []
+
   def execute(%__MODULE__{running: nil, rested: rested}, %Commands.RestWork{} = c) do
     if c.reason == rested or not words?(c.reason, 300),
       do: [],
@@ -195,6 +216,8 @@ defmodule Oneiroi.Sunna.Work do
     }
 
   def apply(%__MODULE__{} = s, %Events.WorkRested{reason: reason}), do: %{s | rested: reason}
+  def apply(%__MODULE__{} = s, %Events.WorkArmed{}), do: %{s | armed: true, rested: nil}
+  def apply(%__MODULE__{} = s, %Events.WorkDisarmed{}), do: %{s | armed: false}
 
   @doc "The rest a stopped run leaves the loop in, until either party touches the queue."
   def stopped_rest,

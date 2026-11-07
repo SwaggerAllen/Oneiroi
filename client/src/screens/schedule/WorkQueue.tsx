@@ -18,7 +18,7 @@ export interface WorkQueueProps {
 // The work queue (sunna#33): her long items and yours, in one list in
 // priority order, and the loop that runs the first open one, wraps it
 // and fires the next. Care comes first: it waits for free time and quiet
-// hours. With no work budget set, it holds and says so.
+// hours.
 export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQueueProps) {
   const [what, setWhat] = useState('');
   const [doneWhen, setDoneWhen] = useState('');
@@ -70,8 +70,13 @@ export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQ
   );
 }
 
+// The work line is a brake, never an ignition (sunna#35): she arms it for
+// a batch, its cap (when you set one) the only thing that stops a run,
+// and it goes off when the queue clears.
 function loopLine(name: string, q: Queue): string {
-  const budget = q.budget ? `Work budget: $${(q.budget.left / 1e9).toFixed(2)} left of $${(q.budget.cap / 1e9).toFixed(2)} a ${q.budget.period}.` : 'No work budget is set, so the loop holds; set one under Budgets.';
+  const cap = q.budget ? `$${(q.budget.left / 1e9).toFixed(2)} left of $${(q.budget.cap / 1e9).toFixed(2)} a ${q.budget.period}` : 'no cap';
+  const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
+  const budget = q.armed ? `Work line: armed, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
   const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
   if (q.running !== null) return `Running item #${q.running} now. ${runs} ${budget}`;
   if (q.rested) return `Resting: ${q.rested}. ${runs} ${budget}`;

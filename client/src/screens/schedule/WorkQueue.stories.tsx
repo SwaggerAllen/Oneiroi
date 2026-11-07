@@ -35,6 +35,7 @@ export const Running: Story = {
       runs_today: 1,
       runs_a_day: 8,
       budget: { cap: 5e9, spent: 1e9, left: 4e9, period: 'day' },
+      armed: true,
     },
   },
 };
@@ -42,6 +43,6 @@ export const Running: Story = {
 export const EmptyHolding: Story = {
   args: {
     residentName: 'Lily',
-    queue: { items: [], running: null, running_since: null, rested: 'empty, holding', rested_at: '2026-11-06T22:00:00Z', runs_today: 0, runs_a_day: 8, budget: null },
+    queue: { items: [], running: null, running_since: null, rested: 'empty, holding', rested_at: '2026-11-06T22:00:00Z', runs_today: 0, runs_a_day: 8, budget: null, armed: false },
   },
 };

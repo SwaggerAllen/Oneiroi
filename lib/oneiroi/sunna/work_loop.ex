@@ -8,7 +8,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
   queue and either starts the first open item, in priority order, or
   rests and says why ("empty, holding", a state like any other). A run
   is a conversation of kind `work`, a turn at a time on the `work`
-  budget line, carried on while a turn runs out of tool rounds (as free
+  budget line, a brake and never an ignition (sunna#35): the line is
+  armed while the queue has work and off when it is clear, its cap,
+  when the witness sets one, stops a run, and with none it is unlimited,
+  as the chat line is. Carried on while a turn runs out of tool rounds (as free
   time is, sunna#26), up to `SUNNA_WORK_TURNS`; then the wrap, one
   closing turn in which she records what shipped, what slipped and why.
   The run's end buys the next check at once, and the minute tick checks
@@ -100,6 +103,21 @@ defmodule Oneiroi.Sunna.WorkLoop do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc """
+  Arms the work line for a batch (sunna#35, the witness's call): her act,
+  by tool call, once; the loop then fires item after item, each run's end
+  starting the next, until the queue clears and the line goes off.
+  """
+  def arm(resident_id, %Actor{} = actor) do
+    with {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  defp disarm(resident_id),
+    do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
+
   @doc "The queue as both parties read it: the items in order and the loop's state."
   def queue(resident_id) do
     {items, state} =
@@ -135,7 +153,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
       rested_at: state && state.rested_at,
       runs_today: runs_today(resident_id, state),
       runs_a_day: Config.fetch!(:sunna, :work_runs_a_day),
-      budget: budget(resident_id)
+      budget: budget(resident_id),
+      # Armed by her for a batch, off once the queue clears (sunna#35).
+      armed: (state && state.armed) || false,
+      armed_at: state && state.armed_at
     }
   end
 
@@ -166,14 +187,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
     cap = Config.fetch!(:sunna, :work_runs_a_day)
 
     cond do
+      # The batch is over: the line goes off, and the loop rests.
       is_nil(open) ->
+        disarm(resident_id)
         rest(resident_id, empty(items))
 
-      is_nil(line) ->
-        rest(resident_id, "holding: no work budget is set")
+      not (state && state.armed) ->
+        rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
 
-      line.left <= 0 ->
-        rest(resident_id, "holding: the work budget is spent this #{line.period}")
+      line && line.left <= 0 ->
+        rest(resident_id, spent(line))
 
       runs_today(resident_id, state) >= cap ->
         rest(resident_id, "holding: today's #{cap} runs are spent")
@@ -228,7 +251,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   """
   def turn(resident_id, key, number, n) do
     with nil <- care_wait(resident_id),
-         %{left: left} when left > 0 <- budget(resident_id),
+         {:ok, left} <- allowance(resident_id),
          true <- n <= Config.fetch!(:sunna, :work_turns),
          {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
       carry_on(resident_id, key, number, n, result)
@@ -298,12 +321,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  @doc "Whether the tick should ask for a check: work is open and nothing runs."
+  @doc "Whether the tick should ask for a check: the line armed, work open, nothing running."
   def due?(resident_id) do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
 
-      (is_nil(state) or (is_nil(state.running) and state.rested_reason != Work.stopped_rest())) and
+      state != nil and state.armed and is_nil(state.running) and
+        state.rested_reason != Work.stopped_rest() and
         Enum.any?(Store.work_items(), &(&1.status == "open"))
     end)
   end
@@ -322,7 +346,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       last: last_wrap(item),
       queue: Enum.map_join(items, "\n", &line/1),
       turns: Config.fetch!(:sunna, :work_turns),
-      left: dollars(left)
+      left: left
     })
   end
 
@@ -332,7 +356,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
         number: number,
         turn: n,
         turns: Config.fetch!(:sunna, :work_turns),
-        left: dollars(left)
+        left: left
       })
 
   defp last_wrap(%{wrapped_at: nil}), do: "This is the item's first run."
@@ -387,8 +411,27 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   defp settings(resident_id), do: Scope.resident(resident_id, fn -> Store.settings() end)
 
-  # The work line this period: nil when the witness set none (the loop
-  # holds: money is his to decide), with what is left otherwise.
+  # What the armed line allows a turn (sunna#35): with no cap, unlimited;
+  # with one, what is left, or `:spent`, when the run goes to its wrap.
+  defp allowance(resident_id) do
+    case budget(resident_id) do
+      nil ->
+        {:ok, "no cap"}
+
+      %{left: left} = line when left > 0 ->
+        {:ok, "#{dollars(left)} left of #{dollars(line.cap)} a #{line.period}"}
+
+      _spent ->
+        :spent
+    end
+  end
+
+  defp spent(line),
+    do:
+      "holding: the work line is spent, #{dollars(line.spent)} of #{dollars(line.cap)} this #{line.period}; resuming when the period turns or the witness raises it"
+
+  # The work line this period: nil when the witness set no cap (unlimited
+  # while armed, sunna#35), with what is left otherwise.
   defp budget(resident_id) do
     case Enum.find(Nisaba.budgets(resident_id, :witness), &(&1.purpose == :work)) do
       %{cap_nanos: cap, spent_nanos: spent, period: period} when is_integer(cap) ->

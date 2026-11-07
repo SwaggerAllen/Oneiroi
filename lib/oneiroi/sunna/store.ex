@@ -142,6 +142,8 @@ defmodule Oneiroi.Sunna.Store do
       field(:rested_at, :utc_datetime_usec)
       field(:run_day, :string)
       field(:runs_on_day, :integer, default: 0)
+      field(:armed, :boolean, default: false)
+      field(:armed_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

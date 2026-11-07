@@ -79,7 +79,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
-    platform_report triage_move work_add work_move work_order work_wrap
+    platform_report triage_move work_add work_move work_order work_wrap work_arm
   )
 
   @type turn :: %{
@@ -456,6 +456,12 @@ defmodule Oneiroi.Brain.Tools do
         "Reorder your work queue: the numbers you give go first, in that order; the rest keep their order after them.",
         %{order: %{type: "array", items: %{type: "integer"}}},
         [:order]
+      ),
+      tool(
+        "work_arm",
+        "Arm the work line for a batch (sunna#35): the loop then runs your queue item after item, each run's end starting the next, until the queue clears and the line goes off by itself. Once a batch, not once an item. Runs bill the work line: unlimited unless your witness caps it, and a spent cap holds the loop.",
+        %{},
+        []
       ),
       tool(
         "work_wrap",
@@ -1728,6 +1734,11 @@ defmodule Oneiroi.Brain.Tools do
          do: "Reordered: #{Enum.map_join(numbers, ", ", &"##{&1}")} first."
   end
 
+  defp call("work_arm", _args, turn) do
+    with :ok <- Oneiroi.Sunna.work_arm(turn.resident_id, turn.resident),
+         do: "Armed: the loop runs your queue until it clears; the line goes off by itself then."
+  end
+
   defp call("work_wrap", args, turn) do
     attrs = %{
       shipped: args["shipped"],
@@ -2496,7 +2507,8 @@ defmodule Oneiroi.Brain.Tools do
   defp work_text(q),
     do: work_state(q) <> "\n\n" <> Enum.map_join(q.items, "\n", &work_line/1)
 
-  defp work_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
+  defp work_state(%{running: n}) when is_integer(n),
+    do: "The work line is armed; the loop is running item ##{n}."
 
   defp work_state(%{rested: reason, rested_at: at}) when is_binary(reason),
     do: "The loop rests: #{reason} (since #{local_stamp(at)})."

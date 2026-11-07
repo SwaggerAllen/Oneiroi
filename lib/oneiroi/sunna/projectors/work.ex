@@ -104,6 +104,14 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     )
   end)
 
+  fold(%Events.WorkArmed{} = e, _metadata, fn multi ->
+    queue(multi, e.id, armed: true, armed_at: e.at, rested_reason: nil, rested_at: nil)
+  end)
+
+  fold(%Events.WorkDisarmed{} = e, _metadata, fn multi ->
+    queue(multi, e.id, armed: false, armed_at: nil)
+  end)
+
   fold(%Events.WorkRested{} = e, _metadata, fn multi ->
     queue(multi, e.id, rested_reason: e.reason, rested_at: e.at)
   end)
