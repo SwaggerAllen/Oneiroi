@@ -30,6 +30,9 @@ defmodule Oneiroi.Sunna.Work do
   @wrapped ~w(open blocked done)
   @what 300
   @words 4_000
+  # What blocks an item, named (sunna#36, platform report #7): 300, after
+  # 120 refused a reasonable name and said nothing of why.
+  @blocked_on 300
 
   def execute(%__MODULE__{next: n}, %Commands.AddWork{} = c) do
     cond do
@@ -58,6 +61,9 @@ defmodule Oneiroi.Sunna.Work do
 
       not Map.has_key?(items, c.number) ->
         {:error, Error.new(:sunna_no_such_work, :sunna_work_move_unknown)}
+
+      c.status == "blocked" and not words?(c.blocked_on, @blocked_on) ->
+        {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_move_blocked_on)}
 
       not status_ok?(c.status, c.blocked_on, @moved) or not words?(c.note, @words) ->
         {:error, Error.new(:sunna_work_invalid, :sunna_work_move_invalid)}
@@ -99,6 +105,9 @@ defmodule Oneiroi.Sunna.Work do
 
       is_nil(running) or c.number != running ->
         {:error, Error.new(:sunna_work_not_running, :sunna_work_wrap_not_running)}
+
+      c.status == "blocked" and not words?(c.blocked_on, @blocked_on) ->
+        {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_wrap_blocked_on)}
 
       not wrap_ok?(c) ->
         {:error, Error.new(:sunna_work_invalid, :sunna_work_wrap_invalid)}
@@ -229,7 +238,7 @@ defmodule Oneiroi.Sunna.Work do
         words?(c.why, @words) and optional_words?(c.slipped)
 
   defp status_ok?("blocked", blocked_on, allowed),
-    do: "blocked" in allowed and words?(blocked_on, 120)
+    do: "blocked" in allowed and words?(blocked_on, @blocked_on)
 
   defp status_ok?(status, _blocked_on, allowed), do: status in allowed
 

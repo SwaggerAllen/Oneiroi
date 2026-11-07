@@ -225,3 +225,9 @@ A line that must be set before anything runs reads, on the panel, as
 about the same fact, which is how report #3 was filed. Every other line
 is unlimited until capped; making this one the same removes the trap
 at the design, and a cap still stops a run the moment it is spent.
+
+## #36
+A refusal that names nothing turns a forty-character mistake into three
+failed attempts, a fault report and a record that disagrees with the
+truth for hours. The person retrying cannot change the right thing
+unless the refusal says which thing it is.

@@ -502,6 +502,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
       {:error, %Error{}} = refused ->
         refused
 
+      # A bounded field over its bound (the command's own check), named,
+      # never read as a stream fault (sunna#36, platform report #7).
+      {:error, {:refused, problems}} when is_list(problems) ->
+        if :blocked_on_too_long in problems,
+          do: {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_blocked_on_bound)},
+          else: {:error, Error.new(:sunna_work_invalid, :sunna_work_field_bound)}
+
       {:error, reason} ->
         {:error, Error.caught(:sunna_dispatch_failed, :sunna_work_dispatch_failed, reason)}
     end

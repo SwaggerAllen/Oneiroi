@@ -99,7 +99,7 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command,
       fields: [:id, :number, :status, :blocked_on],
       decision: true,
-      bounds: [status: 16, blocked_on: 120]
+      bounds: [status: 16, blocked_on: 300]
   end
 
   defmodule OrderWork do
@@ -109,7 +109,7 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule WrapWork do
     use Oneiroi.Command,
       fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on],
-      bounds: [status: 16, blocked_on: 120]
+      bounds: [status: 16, blocked_on: 300]
   end
 
   defmodule StartWork do
