@@ -613,6 +613,7 @@ defmodule Oneiroi.Seshat.Documents do
   # written over: it is adopted first, so nothing it was is lost
   # unrecorded. Once registered, it is free to write until registered as
   # a keepsake.
+  # sobelow_skip ["Traversal.FileModule"]
   defp not_kept(%{kind: "root"}, path, full, content, resident_id) do
     case File.read(full) do
       {:ok, ^content} ->
