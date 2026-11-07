@@ -30,8 +30,11 @@ defmodule Oneiroi.Seshat.Library do
       %{hash: hash} when hash == c.hash ->
         []
 
-      # A keepsake is written once (seshat#29).
-      %{kind: "keepsake"} ->
+      # A keepsake is written once (seshat#29), while it is one: a file
+      # the registry has since given another kind is written as that kind
+      # (seshat#43, a goals ledger registered as a keepsake before it was
+      # one), and the event records the kind it is now.
+      %{kind: "keepsake"} when c.kind == "keepsake" ->
         {:error,
          Error.new(:seshat_keepsake_kept, :seshat_write_document_keepsake_kept, path: c.path)}
 

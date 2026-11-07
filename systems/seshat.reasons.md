@@ -294,3 +294,12 @@ be unpublished in the reader's own words if something goes wrong: the
 last step is a person's. The decision binds a version, by hash, because
 approving a piece and then publishing whatever it later became would
 make the approval mean nothing.
+
+## #43
+The reader and the writer have to agree about what a file is, or the
+file becomes a trap: brain#55 promised a ledger she edits at will, and
+the library, by its rule for root files, made it a gift that cannot be
+edited. Naming the ledger as a kind keeps both promises (the keepsake
+stays a gift, the ledger stays a ledger) without moving the file the
+reader looks for. Letting the write record its new kind, rather than
+rewriting the past registration, keeps what happened on the record.

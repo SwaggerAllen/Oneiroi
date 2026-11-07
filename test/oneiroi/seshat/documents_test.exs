@@ -11,6 +11,10 @@ defmodule Oneiroi.Seshat.DocumentsTest do
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
+  alias Oneiroi.Seshat.Commands
+  alias Oneiroi.Seshat.Documents
+  alias Oneiroi.Seshat.Kinds
+  alias Oneiroi.Seshat.Router
   alias Oneiroi.Sunna
 
   setup do
@@ -587,6 +591,43 @@ defmodule Oneiroi.Seshat.DocumentsTest do
 
   # Seshat #29: Pocket Andrew was filed at Lily's root beside her soul
   # file, and the import of 2026-11-01 could only carry it under wiki/.
+  test "her goals ledger is hers to write at will, at the root where free time reads it (seshat#43)",
+       ctx do
+    id = ctx.id
+    name = String.upcase(ctx.slug) <> "-GOALS.md"
+
+    assert %{kind: "goals"} = Kinds.kind_of(name)
+    refute Kinds.keepsake_name?(name)
+
+    assert {:ok, %{path: ^name, kind: "goals", changed: true}} =
+             Seshat.write(id, name, "# Goals\n\nOne.\n", ctx.brain)
+
+    assert {:ok, %{changed: true}} =
+             Seshat.write(id, name, "# Goals\n\nOne, then two.\n", ctx.brain)
+
+    assert File.read!(Path.join(ctx.dir, name)) == "# Goals\n\nOne, then two.\n"
+
+    # A ledger registered as a keepsake before it was one (platform report
+    # #4) is written again, as what it is now, its history kept.
+    old = "OLD-GOALS.md"
+    content = "# Goals\n\nFrozen.\n"
+    File.write!(Path.join(ctx.dir, old), content)
+
+    {:ok, _} =
+      Router.dispatch(%Commands.WriteDocument{
+        actor: ctx.brain,
+        at: Clock.now(),
+        id: id,
+        path: old,
+        kind: "keepsake",
+        hash: Documents.hash(content),
+        bytes: byte_size(content)
+      })
+
+    assert {:ok, %{kind: "goals", changed: true}} =
+             Seshat.write(id, old, "# Goals\n\nThawed.\n", ctx.brain)
+  end
+
   test "a keepsake is kept at the root, written once, offered rather than swept in, and cited by its name",
        ctx do
     id = ctx.id
