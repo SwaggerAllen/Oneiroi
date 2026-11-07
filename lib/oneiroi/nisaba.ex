@@ -303,15 +303,6 @@ defmodule Oneiroi.Nisaba do
   )
 
   @doc """
-  The models the provider offers (nisaba#23), each with its context
-  length and prices, read at most once an hour: what sizes a walk's eras
-  and prices its estimate. A failure answers the last good read when
-  there is one.
-  """
-  @spec catalog() :: {:ok, [Oneiroi.Nisaba.Provider.model_info()]} | {:error, term()}
-  defexport(catalog(), do: Ledgers.catalog())
-
-  @doc """
   Asks the stream running in this process to end at the next chunk
   (nisaba#22; brain#61's stop): called from a stream's sink, it ends the
   provider call cleanly, the words so far kept as the result and the

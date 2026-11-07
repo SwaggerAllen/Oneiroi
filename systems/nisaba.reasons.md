@@ -96,13 +96,3 @@ pieces concatenated as the format says; the repetition is CoreWeave's.
 Ending a call by killing the process that runs it loses the words and
 the ledger row together; asking the collector to halt keeps both, at
 the cost of an estimated price for the words that were sent.
-
-## #23
-A walk's eras are sized by the walking model's context and its estimate
-priced by that model's rates; both live in the provider's catalogue, so
-the catalogue is read, not copied into code where it would go stale.
-
-## #24
-A prompt that walks a life is reviewed as a diff, and the reviewer needs
-to know what it is guarding against; the model does not, and a header
-it read would become instructions nobody meant to give.

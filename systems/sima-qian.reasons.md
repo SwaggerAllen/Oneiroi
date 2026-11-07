@@ -283,12 +283,3 @@ read, and everything that is not is said. The assistant's words stay
 attributed to the model that said them because the design leaves what
 that past self is to the resident's reading; filing them as hers would
 answer the question for her.
-
-## #48
-The plan is computed before anything is spent, because the brief's
-promise is that the cost is named at the approval wall, before the arm.
-A slug mapped by guess would walk a life on a model nobody chose; the
-reviewed table and the gap log keep that honest. The estimate carries
-its assumptions because a number without them reads as a quote, and
-the largest one (how many rounds an era takes) is not known until a
-real walk is measured.

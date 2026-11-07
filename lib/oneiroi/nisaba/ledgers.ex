@@ -97,33 +97,6 @@ defmodule Oneiroi.Nisaba.Ledgers do
     metered(resident_id, purpose, actor, fn provider, key -> provider.complete(request, key) end)
   end
 
-  @catalog {Oneiroi.Nisaba.Ledgers, :catalog}
-  @catalog_ttl 3_600
-
-  @doc "The provider's models, cached an hour (nisaba#23); the last good read answers a failure."
-  def catalog do
-    now = System.monotonic_time(:second)
-
-    case :persistent_term.get(@catalog, nil) do
-      {at, models} when now - at < @catalog_ttl ->
-        {:ok, models}
-
-      cached ->
-        refresh(now, cached)
-    end
-  end
-
-  defp refresh(now, cached) do
-    case provider().models() do
-      {:ok, models} ->
-        :persistent_term.put(@catalog, {now, models})
-        {:ok, models}
-
-      {:error, _} = failed ->
-        if cached, do: {:ok, elem(cached, 1)}, else: failed
-    end
-  end
-
   def stream(resident_id, purpose, %Request{} = request, %Actor{} = actor, sink)
       when is_function(sink, 1) do
     request = tag(request, resident_id)

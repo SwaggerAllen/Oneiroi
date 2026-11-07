@@ -15,9 +15,7 @@ defmodule Oneiroi.Nisaba.Purpose do
   # free-time slot (sunna#31, #32), its own line so a spent free-time line
   # never refuses it and its cost is never folded in. `work`: the work
   # queue's runs (sunna#33), a line the witness sets, or the loop holds.
-  # `walk`: an import's walk (sima-qian#48), its own line, the witness's
-  # cap the brake on whatever the mirror costs.
-  @all ~w(chat free_time planning work walk judge hands embeddings oracle drafting regression)a
+  @all ~w(chat free_time planning work judge hands embeddings oracle drafting regression)a
   @witness_only ~w(drafting regression)a
 
   @type t ::
@@ -25,7 +23,6 @@ defmodule Oneiroi.Nisaba.Purpose do
           | :free_time
           | :planning
           | :work
-          | :walk
           | :judge
           | :hands
           | :embeddings
