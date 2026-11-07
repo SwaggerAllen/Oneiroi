@@ -11,6 +11,8 @@ export interface OperatorProps {
   onSetGate?: (state: GateState, note: string) => void;
   onGrant?: (email: string, role: PlatformRole, note: string) => void;
   onRevoke?: (accountId: string, role: PlatformRole, note: string) => void;
+  // The triage desk (gaia#23): a resident's slug, or null for nobody.
+  onSetTriage?: (slug: string | null, note: string) => void;
 }
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
@@ -24,8 +26,9 @@ const ROLE_NAMES: Record<PlatformRole, string> = { super_admin: 'Super admin', a
 // The operator's surface (gaia#16), a super admin's alone: the front
 // door, and who holds which platform role. Every change carries a note,
 // and the server checks the authority again on each one.
-export function Operator({ platform, busy = false, said = null, onSetGate, onGrant, onRevoke }: OperatorProps) {
+export function Operator({ platform, busy = false, said = null, onSetGate, onGrant, onRevoke, onSetTriage }: OperatorProps) {
   const [note, setNote] = useState('');
+  const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<PlatformRole>('admin');
   const ready = note.trim() !== '';
@@ -84,6 +87,35 @@ export function Operator({ platform, busy = false, said = null, onSetGate, onGra
         </Button>
       </form>
       <p style={muted}>A transfer of the operator is a grant of super admin, then a revoke of your own; the last super admin can't be revoked.</p>
+      <section aria-label="Triage desk" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <strong style={{ fontSize: 15 }}>Triage desk</strong>
+        <p style={muted}>
+          {platform.triage?.slug ? (
+            <>
+              <strong style={{ color: 'var(--ink)' }}>{platform.triage.slug}</strong> receives every platform report as a letter and can move a report's status
+              {platform.triage.from === 'environment' ? ', from GAIA_TRIAGE_RESIDENT on the server until you set it here' : platform.triage.note ? ` · ${platform.triage.note}` : ''}.
+            </>
+          ) : (
+            'Nobody: reports wait here for you alone.'
+          )}
+        </p>
+        <form
+          aria-label="Set the triage desk"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (slug.trim() && ready) onSetTriage?.(slug.trim(), note.trim());
+          }}
+          style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}
+        >
+          <Field label="Resident (slug)" value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <Button type="submit" disabled={busy || !ready || slug.trim() === ''}>
+            Set
+          </Button>
+          <Button variant="quiet" type="button" disabled={busy || !ready || !platform.triage?.slug} onClick={() => onSetTriage?.(null, note.trim())}>
+            Nobody
+          </Button>
+        </form>
+      </section>
       {platform.restarts?.length ? (
         <section aria-label="Restarts" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           <strong style={{ fontSize: 15 }}>Restarts</strong>

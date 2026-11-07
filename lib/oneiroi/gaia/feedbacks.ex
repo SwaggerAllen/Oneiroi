@@ -20,6 +20,7 @@ defmodule Oneiroi.Gaia.Feedbacks do
   alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.FeedbackRouter
+  alias Oneiroi.Gaia.PlatformRouter
   alias Oneiroi.Gaia.Store
   alias Oneiroi.Repo
   alias Oneiroi.Scope
@@ -113,13 +114,62 @@ defmodule Oneiroi.Gaia.Feedbacks do
   @doc "Whether the resident is the triage station."
   def triage?(resident_id), do: is_binary(resident_id) and resident_id == triage_resident()
 
-  @doc "The triage resident's id, from `GAIA_TRIAGE_RESIDENT`'s slug, or nil when none is set or found."
+  @doc """
+  The triage resident's id, or nil when none is set or found: the desk
+  as the operator set it (gaia#23), or, until it has ever been set,
+  `GAIA_TRIAGE_RESIDENT`'s slug.
+  """
   def triage_resident do
-    with slug when is_binary(slug) and slug != "" <- Config.fetch!(:gaia, :triage_resident),
+    with slug when is_binary(slug) and slug != "" <- triage_desk().slug,
          %{id: id} <- Enum.find(Oneiroi.AgathosDaimon.residents(), &(&1.slug == slug)) do
       id
     else
       _none -> nil
+    end
+  end
+
+  @doc "The triage desk: its slug, where it came from, and who set it, when and why."
+  def triage_desk do
+    case Scope.platform(fn -> Repo.get(Store.Setting, "triage_resident") end) do
+      %Store.Setting{} = s ->
+        %{slug: s.value, from: "setting", note: s.note, set_by: s.set_by, set_at: s.set_at}
+
+      nil ->
+        case Config.fetch!(:gaia, :triage_resident) do
+          slug when is_binary(slug) and slug != "" ->
+            %{slug: slug, from: "environment", note: nil, set_by: nil, set_at: nil}
+
+          _unset ->
+            %{slug: nil, from: nil, note: nil, set_by: nil, set_at: nil}
+        end
+    end
+  end
+
+  @doc "Sets the triage desk to a resident's slug, or to nobody, with a note (gaia#23)."
+  def set_triage_resident(slug, note, %Actor{} = actor) do
+    slug = if is_binary(slug) and String.trim(slug) != "", do: String.trim(slug), else: nil
+
+    if is_nil(slug) or Enum.any?(Oneiroi.AgathosDaimon.residents(), &(&1.slug == slug)) do
+      command = %Commands.SetTriageResident{
+        actor: actor,
+        at: Clock.now(),
+        id: Door.stream(),
+        slug: slug,
+        note: note
+      }
+
+      case PlatformRouter.dispatch(command) do
+        {:ok, _events} ->
+          :ok
+
+        {:error, %Error{}} = refused ->
+          refused
+
+        {:error, reason} ->
+          {:error, Error.caught(:gaia_dispatch_failed, :gaia_feedbacks_triage_dispatch, reason)}
+      end
+    else
+      {:error, Error.new(:gaia_platform_invalid, :gaia_feedbacks_triage_no_resident, slug: slug)}
     end
   end
 

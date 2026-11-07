@@ -58,6 +58,12 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :state, :note]
   end
 
+  # The triage desk (gaia#23): the resident who receives every platform
+  # report, by slug; nil clears it.
+  defmodule SetTriageResident do
+    use Oneiroi.Command, decision: true, fields: [:id, :slug]
+  end
+
   defmodule RecordBoot do
     use Oneiroi.Command, fields: [:id, :commit], bounds: [commit: 64]
   end

@@ -69,6 +69,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/ops/heartbeats", OpsController, :heartbeats)
       get("/platform", OperatorController, :show)
       put("/platform/gate", OperatorController, :set_gate)
+      put("/platform/triage", OperatorController, :set_triage)
       post("/platform/roles", OperatorController, :grant)
       delete("/platform/roles", OperatorController, :revoke)
       get("/platform/invites", OperatorController, :invites)

@@ -87,6 +87,18 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Setting do
+    @moduledoc "A platform setting set on the operator's screen (gaia#23): one row per key, platform-scoped; `value` nil is set to nothing."
+    use Ecto.Schema
+    @primary_key {:key, :string, autogenerate: false}
+    schema "gaia_setting" do
+      field(:value, :string)
+      field(:note, :string)
+      field(:set_by, :string)
+      field(:set_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Role do
     @moduledoc "A platform role held by an account (gaia#16): super_admin or admin, and who granted it."
     use Ecto.Schema

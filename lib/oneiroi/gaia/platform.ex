@@ -44,6 +44,22 @@ defmodule Oneiroi.Gaia.Platform do
     end
   end
 
+  # The triage desk (gaia#23): a super admin's, or the console's, with a
+  # note; a slug is a resident's, checked against the residents by the
+  # service before it gets here.
+  def execute(%__MODULE__{} = p, %Commands.SetTriageResident{} = c) do
+    cond do
+      not (super_admin?(p, c.actor) or console?(c.actor)) ->
+        {:error, Error.new(:gaia_not_an_operator, :gaia_platform_triage_not_operator)}
+
+      not noted?(c.note) or not (is_nil(c.slug) or is_binary(c.slug)) ->
+        {:error, Error.new(:gaia_platform_invalid, :gaia_platform_triage_invalid)}
+
+      true ->
+        %Events.TriageResidentSet{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: c.slug}
+    end
+  end
+
   def execute(%__MODULE__{} = p, %Commands.GrantRole{} = c) do
     cond do
       not may_grant?(p, c) ->
@@ -100,6 +116,7 @@ defmodule Oneiroi.Gaia.Platform do
   end
 
   def apply(%__MODULE__{} = p, %Events.GateSet{} = e), do: %{p | gate: e.state}
+  def apply(%__MODULE__{} = p, %Events.TriageResidentSet{}), do: p
 
   def apply(%__MODULE__{} = p, %Events.BootRecorded{} = e),
     do: %{p | boots: e.number, commit: e.commit}

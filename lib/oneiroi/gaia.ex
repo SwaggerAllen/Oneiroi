@@ -62,6 +62,7 @@ defmodule Oneiroi.Gaia do
       Events.PushSubscribed,
       Events.PushUnsubscribed,
       Events.GateSet,
+      Events.TriageResidentSet,
       Events.BootRecorded,
       Boots,
       Events.RoleGranted,
@@ -144,7 +145,7 @@ defmodule Oneiroi.Gaia do
       {:triage_resident, "GAIA_TRIAGE_RESIDENT",
        required: false,
        usage:
-         "the slug of the resident who triages platform reports (gaia#20): each report is a letter to their chat, and they may move a report's status; unset, reports wait for the operator alone"},
+         "the slug of the resident who triages platform reports (gaia#20), read only until the operator first sets the desk on the Operator screen (gaia#23), which then decides: each report is a letter to their chat, and they may move a report's status; unset, reports wait for the operator alone"},
       {:vapid_subject, "GAIA_VAPID_SUBJECT",
        default: "https://oneiroi.onrender.com",
        usage:
@@ -168,6 +169,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
       {Oneiroi.Gaia.Events.PushUnsubscribed, 1},
       {Oneiroi.Gaia.Events.GateSet, 1},
+      {Oneiroi.Gaia.Events.TriageResidentSet, 1},
       {Oneiroi.Gaia.Events.BootRecorded, 1},
       {Oneiroi.Gaia.Events.RoleGranted, 1},
       {Oneiroi.Gaia.Events.RoleRevoked, 1},
@@ -563,4 +565,15 @@ defmodule Oneiroi.Gaia do
   @doc "The triage resident's id, or nil."
   @spec triage_resident() :: String.t() | nil
   defexport(triage_resident(), do: Feedbacks.triage_resident())
+
+  @doc "The triage desk as the Operator screen shows it (gaia#23): the slug, where it came from (`setting`, `environment` or nil), and who set it, when and why."
+  @spec triage_desk() :: map()
+  defexport(triage_desk(), do: Feedbacks.triage_desk())
+
+  @doc "Sets the triage desk to a resident by slug, or to nobody (nil), with a note; the operator's or the console's (gaia#23)."
+  @spec set_triage_resident(String.t() | nil, String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_triage_resident(slug, note, actor),
+    do: Feedbacks.set_triage_resident(slug, note, actor)
+  )
 end

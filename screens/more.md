@@ -36,8 +36,13 @@ open), the platform roles held with a Revoke each, and a form to grant a
 role by account email. Every change needs the note typed first; the
 server checks the authority again on each one. It says how a transfer
 goes (grant super admin, then revoke your own) and that the last super
-admin cannot be revoked. Shown only when `/v1/me` names the caller's
-super admin role. Under it, **Restarts** (gaia#21): the latest ten, each
+admin cannot be revoked. **Triage desk** (gaia#23): who receives every
+platform report as a letter and can move a report's status, and whether
+that comes from `GAIA_TRIAGE_RESIDENT` on the server until it is set
+here; a resident's slug and Set, or Nobody, each with the note
+(`PUT /v1/platform/triage`). Shown only when `/v1/me` names the caller's
+super admin role; if it never shows for you, the operator is another
+account, and the server's console can name you (gaia#22). Under it, **Restarts** (gaia#21): the latest ten, each
 as its line (when, commit before → after, changed or same, the diff),
 with "Every conversation is told of each, once, on its next turn".
 

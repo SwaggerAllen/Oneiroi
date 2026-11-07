@@ -723,6 +723,7 @@ function OperatorContainer() {
         onSetGate={(state, note) => run(() => api.setGate(state, note), `The front door is ${state}.`)}
         onGrant={(email, role, note) => run(() => api.grantRole(email, role, note), `Granted ${role} to ${email}.`)}
         onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
+        onSetTriage={(slug, note) => run(() => api.setTriage(slug, note), slug ? `${slug} holds the triage desk.` : 'Nobody holds the triage desk.')}
       />
       <InvitesContainer />
       <ReportsContainer />

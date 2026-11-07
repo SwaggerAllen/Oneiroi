@@ -88,6 +88,7 @@ export const api = {
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
   setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),
+  setTriage: (slug: string | null, note: string) => call<NonNullable<Platform['triage']>>('PUT', '/v1/platform/triage', { slug, note }),
   grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
   revokeRole: (accountId: string, role: PlatformRole, note: string) =>
     call<void>('DELETE', '/v1/platform/roles', { account_id: accountId, role, note }),
@@ -378,6 +379,9 @@ export interface InviteRequest {
 export interface Platform {
   gate: { state: GateState; note: string | null; set_by: string | null; set_at: string | null };
   roles: { account_id: string; email: string | null; role: PlatformRole; note: string | null; granted_by: string | null; granted_at: string }[];
+  // The triage desk (gaia#23): who receives the platform reports, and
+  // whether the operator set it or it still comes from the environment.
+  triage?: { slug: string | null; from: 'setting' | 'environment' | null; note: string | null; set_by: string | null; set_at: string | null };
   // The latest restarts (gaia#21), newest first, each as its line.
   restarts?: { number: number; commit: string | null; previous: string | null; changed: boolean; booted_at: string; line: string }[];
 }
