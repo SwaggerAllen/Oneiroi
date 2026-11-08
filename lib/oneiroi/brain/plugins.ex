@@ -8,6 +8,7 @@ defmodule Oneiroi.Brain.Plugins do
   `:summary` and stay the turn's own.
   """
 
+  alias Oneiroi.Brain.PluginCatalog
   alias Oneiroi.Brain.Plugins
 
   @doc "The plugins of the stable prefix, after the identity files and the contract."
@@ -35,14 +36,27 @@ defmodule Oneiroi.Brain.Plugins do
       Plugins.Dates,
       Plugins.Figures,
       Plugins.Journal,
-      Plugins.Honcho,
-      :summary
-    ]
+      Plugins.Honcho
+    ] ++ installable() ++ [:summary]
   end
+
+  @doc "The installable plugins of the catalog, each as `{Plugins.Files, key}`, by key."
+  @spec installable() :: [{module(), String.t()}]
+  def installable, do: Enum.map(PluginCatalog.all(), &{Plugins.Files, &1.key})
+
+  @doc "A plugin's manifest: a first-party module's, or an installable's by its key."
+  @spec manifest(module() | {module(), String.t()}) :: map()
+  def manifest({module, key}), do: module.manifest(key)
+  def manifest(module), do: module.manifest()
+
+  @doc "A plugin's sections for the turn."
+  @spec sections(module() | {module(), String.t()}, map(), map()) :: [map()]
+  def sections({module, key}, turn, ctx), do: module.sections(turn, ctx, key)
+  def sections(module, turn, ctx), do: module.sections(turn, ctx)
 
   @doc "Every first-party plugin, prefix first."
   @spec first_party() :: [module()]
-  def first_party, do: prefix() ++ (layout() -- [:where, :summary])
+  def first_party, do: prefix() ++ (layout() -- ([:where, :summary] ++ installable()))
 
   @doc """
   The catalog (agathos-daimon#37): every plugin a resident may hold,
@@ -50,7 +64,10 @@ defmodule Oneiroi.Brain.Plugins do
   installable plugins join it with their sources.
   """
   @spec catalog() :: [map()]
-  def catalog, do: Enum.map(first_party(), &Map.put(&1.manifest(), :tier, "first_party"))
+  def catalog do
+    Enum.map(first_party(), &Map.put(&1.manifest(), :tier, "first_party")) ++
+      Enum.map(PluginCatalog.all(), &Map.drop(&1, [:files]))
+  end
 
   @doc "The catalog's entry for a key, or nil."
   @spec entry(String.t()) :: map() | nil
@@ -81,7 +98,7 @@ defmodule Oneiroi.Brain.Plugins do
 
     Enum.filter(plugins, fn
       sealed when sealed in [:where, :summary] -> true
-      plugin -> MapSet.member?(on, plugin.manifest().key)
+      plugin -> MapSet.member?(on, manifest(plugin).key)
     end)
   end
 end

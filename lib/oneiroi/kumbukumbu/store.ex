@@ -550,6 +550,16 @@ defmodule Oneiroi.Kumbukumbu.Store do
   def open_failures,
     do: Repo.all(from(f in CaptureFailure, where: is_nil(f.resolved_at), order_by: f.failed_at))
 
+  @doc "How many turns carried a section by this label, and the last time (brain#68's audit)."
+  def shown(label) do
+    Repo.one(
+      from(i in ContextInjection,
+        where: i.label == ^label,
+        select: {count(i.turn_ref, :distinct), max(i.at)}
+      )
+    )
+  end
+
   @doc "What a turn drew on, in the order it was injected."
   @spec injections(String.t()) :: [ContextInjection.t()]
   def injections(turn_ref),

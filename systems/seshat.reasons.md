@@ -332,3 +332,11 @@ which is drift detection the resident chooses when to run. Only the
 reader or the witness brings a copy, so a cited source is never words
 the resident wrote herself. The copies mint no edges because the words
 are other people's.
+
+## #47
+A plugin's words are not hers, so they live where nothing of hers lives:
+one folder, which a removal empties and an export carries whole. The
+lockfile is the consent made checkable: what both parties installed,
+byte for byte, in the record she takes with her. Verifying by content
+rather than by name is the article's own lesson (Drake, "never verify
+presence by ID"): a file can keep its path and change its words.

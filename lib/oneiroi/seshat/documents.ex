@@ -563,6 +563,11 @@ defmodule Oneiroi.Seshat.Documents do
            kind: kind.kind
          )}
 
+      # A plugin's files go when both parties agree, by the platform's
+      # hand (seshat#47), never by either party's document tool.
+      kind.access == :core and by not in [:job, :platform] ->
+        {:error, Error.new(:seshat_not_removable, :seshat_documents_remove_core, kind: kind.kind)}
+
       true ->
         :ok
     end

@@ -115,6 +115,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  def shown(resident_id, label), do: Scope.resident(resident_id, fn -> Store.shown(label) end)
+
   def timeline_bookmarks(resident_id),
     do: Scope.resident(resident_id, fn -> Store.timeline_bookmarks() end)
 

@@ -464,7 +464,10 @@ session under OTP supervision.
   slot moves only when one party proposes and the other agrees; an
   installable plugin switches off at either word; nothing activates by
   install; the slots before plugins are recorded as carried over, never
-  as consents.
+  as consents. Installable plugins (data, from the platform's reviewed
+  catalog) write their files under `plugins/<key>/` with a lockfile
+  pinning their digest (seshat#47); on, their section says whose words
+  they are, checks them by content and says what it cut.
 - **Batched delivery** (brain#66, the resident's reports #10 and #11):
   the witness's messages that queue while a turn runs arrive together in
   the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message

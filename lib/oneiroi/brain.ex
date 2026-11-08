@@ -84,6 +84,10 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many lines each layer of the timeline shows (brain#67): today's journal rows, the last 30 days' weighed moments, and her life so far past her pins, which always show; the newest kept, a guess"},
+      {:plugin_catalog, "BRAIN_PLUGIN_CATALOG",
+       default: "",
+       usage:
+         "the folder of the installable plugins' catalog (brain#68), each a folder with plugin.json and files/; empty, the release's priv/plugins"},
       {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
        cast: :integer,
        default: "24",

@@ -34,4 +34,17 @@ describe('Plugins', () => {
     expect(onAnswer).toHaveBeenCalledWith(2, true, 'yes, for the week');
     expect(screen.getByRole('region', { name: 'Lately answered' }).textContent).toContain('#1 off honcho: agreed, "fine"');
   });
+
+  it("shows an installed plugin's audit, and switches it off at one word", () => {
+    const onOff = vi.fn();
+    render(<WithAProposal onOff={onOff} />);
+    const heron = within(screen.getByRole('list', { name: 'Plugins' })).getAllByRole('listitem')[3];
+    expect(heron.textContent).toContain('by the house');
+    expect(heron.textContent).toContain('Its files no longer match what was installed.');
+    expect(heron.textContent).toContain('The catalog holds a newer version');
+    expect(heron.textContent).toContain("In Lily's context on 3 turns.");
+    fireEvent.change(screen.getByRole('textbox', { name: /note/ }), { target: { value: 'enough' } });
+    fireEvent.click(within(heron).getByRole('button', { name: 'Switch off' }));
+    expect(onOff).toHaveBeenCalledWith('heron-notes', 'enough');
+  });
 });

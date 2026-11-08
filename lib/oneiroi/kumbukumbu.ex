@@ -708,6 +708,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.record_citations(resident_id, sources, actor)
   )
 
+  @doc "How many of the resident's turns carried a section by `label`, and when last (brain#68's audit)."
+  @spec shown(String.t(), String.t()) :: {non_neg_integer(), DateTime.t() | nil}
+  defexport(shown(resident_id, label),
+    do: Memories.shown(resident_id, label)
+  )
+
   @doc "The bookmarks on the timeline (kumbukumbu#51): pinned or weighed 2 and up, oldest first."
   @spec timeline_bookmarks(String.t()) :: [map()]
   defexport(timeline_bookmarks(resident_id), do: Memories.timeline_bookmarks(resident_id))

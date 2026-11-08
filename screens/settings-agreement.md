@@ -33,9 +33,12 @@ field every change takes; per plugin the change that fits it (Propose
 install, Propose on, Propose off for a memory slot, Switch off for an
 installable one at once, Propose removal), nothing while a proposal on
 it is open; her open proposals with Agree and Decline, his with
-"Waiting for" her; the last five answered with their notes. Not built:
-the per-plugin audit of what each read and wrote, and installable
-plugins' sources.
+"Waiting for" her; the last five answered with their notes. An installable plugin
+also shows its author and its audit: whether its copies match what was
+installed, whether the catalog holds a newer version, and how many
+turns it was in her context; its off is Switch off, at either party's
+word. Not built: sources beyond the platform's catalog, and the public
+ledger of asks.
 
 Before the agreement, its adapters and reader part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather

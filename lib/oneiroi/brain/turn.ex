@@ -1216,7 +1216,7 @@ defmodule Oneiroi.Brain.Turn do
           )
 
         plugin ->
-          plugin.sections(turn, ctx)
+          Plugins.sections(plugin, turn, ctx)
       end)
 
     {sections, index}

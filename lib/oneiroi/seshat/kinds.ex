@@ -176,6 +176,23 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
+    # Installable plugins' files (seshat#47, brain#68): written by the
+    # platform when both parties install a plugin, under its own folder,
+    # with its lockfile (PLUGIN.md: source, version, digest); removed by
+    # the platform when both agree, never by a document tool. Searchable,
+    # never cites: the words are the plugin's, not hers.
+    %{
+      kind: "plugins",
+      folder: "plugins",
+      cites: false,
+      has_status: false,
+      layout:
+        "plugins/<key>/PLUGIN.md (the lockfile) and the plugin's files, as installed by both parties",
+      sidecar: nil,
+      adoption: :none,
+      access: :core,
+      removable: true
+    },
     # The copies of external sources (seshat#46): a web page or a
     # repository's document, fetched by the reader when either party
     # asks and written here by the platform with where it came from, when

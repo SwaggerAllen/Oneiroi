@@ -1822,7 +1822,7 @@ defmodule Oneiroi.Brain.Tools do
           end
 
         carried = if p.carried_over, do: ", carried over from before plugins", else: ""
-        "- #{p.key} (#{p.tier}): #{p.name}, #{p.about} · #{state}#{carried}"
+        "- #{p.key} (#{p.tier}): #{p.name}, #{p.about} · #{state}#{carried}#{plugin_audit(p)}"
       end)
 
     open = Enum.filter(proposals, &is_nil(&1.answered_at))
@@ -3213,6 +3213,26 @@ defmodule Oneiroi.Brain.Tools do
 
     "- ##{d.number}, from #{from}, asked by #{d.asked_by}: #{settled}"
   end
+
+  defp plugin_audit(%{audit: a} = p) do
+    check =
+      cond do
+        is_nil(a.pinned) -> "its lockfile is missing"
+        a.verified -> "its #{a.files} files match what was installed"
+        true -> "its files no longer match what was installed"
+      end
+
+    update = if a.update, do: "; the catalog holds a newer version (#{p.digest})", else: ""
+
+    seen =
+      if a.shown > 0,
+        do: "; in your context on #{a.shown} turns, last #{local_stamp(a.last_shown)}",
+        else: "; not yet in your context"
+
+    " · #{check}#{update}#{seen}"
+  end
+
+  defp plugin_audit(_p), do: ""
 
   defp plugin_proposal_line(p, _turn) do
     by = if p.proposed_by == "resident", do: "you", else: "your witness"

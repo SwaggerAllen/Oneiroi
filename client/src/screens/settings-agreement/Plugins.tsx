@@ -74,7 +74,17 @@ export function Plugins({ name, data, busy = false, said = null, onPropose, onAn
               <strong>{p.name}</strong> <span style={{ color: 'var(--ink-muted)' }}>({p.key})</span> · {state(p)}
               {p.carried_over ? <span style={{ color: 'var(--ink-muted)' }}> · carried over from before plugins</span> : null}
             </span>
-            <span style={muted}>{p.about}</span>
+            <span style={muted}>
+              {p.about}
+              {p.author ? ` · by ${p.author}` : ''}
+            </span>
+            {p.audit ? (
+              <span style={muted}>
+                {p.audit.pinned === null ? 'Its lockfile is missing.' : p.audit.verified ? `Its ${p.audit.files} files match what was installed.` : 'Its files no longer match what was installed.'}
+                {p.audit.update ? ' The catalog holds a newer version; taking it is a removal and an install, both of you.' : ''}
+                {p.audit.shown > 0 ? ` In ${name}'s context on ${p.audit.shown} turns.` : ` Not yet in ${name}'s context.`}
+              </span>
+            ) : null}
             {waiting.has(p.key) ? (
               <span style={muted}>A proposal is open.</span>
             ) : (

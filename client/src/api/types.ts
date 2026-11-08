@@ -589,6 +589,12 @@ export interface PluginEntry {
   carried_over: boolean;
   changed_by: string | null;
   changed_at: string | null;
+  // An installable plugin's (brain#68): who wrote it, and the catalog's digest now.
+  author?: string;
+  digest?: string;
+  // Its audit, once installed: the copies checked against the lockfile by
+  // content, a newer catalog version, and how often it was in her context.
+  audit?: { files: number; pinned: string | null; verified: boolean; update: boolean; shown: number; last_shown: string | null };
 }
 
 export interface PluginProposal {

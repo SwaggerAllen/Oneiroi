@@ -13,8 +13,10 @@ defmodule Oneiroi.Brain.PluginConsent do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Brain.Error
+  alias Oneiroi.Brain.PluginCatalog
   alias Oneiroi.Brain.Plugins
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
 
   @doc "The catalog with the resident's state and the open proposals, for both parties' reads."
   @spec list(String.t()) :: %{plugins: [map()], proposals: [map()]}
@@ -22,7 +24,9 @@ defmodule Oneiroi.Brain.PluginConsent do
     _ = AgathosDaimon.plugins_on(resident_id, Plugins.carried())
     states = Map.new(AgathosDaimon.plugin_states(resident_id), &{&1.key, &1})
 
-    plugins = for entry <- Plugins.catalog(), do: with_state(entry, Map.get(states, entry.key))
+    plugins =
+      for entry <- Plugins.catalog(),
+          do: audit(resident_id, with_state(entry, Map.get(states, entry.key)))
 
     %{plugins: plugins, proposals: AgathosDaimon.plugin_proposals(resident_id)}
   end
@@ -42,9 +46,10 @@ defmodule Oneiroi.Brain.PluginConsent do
     end
   end
 
-  @doc "The other party answers a proposal; the proposer is told."
+  @doc "The other party answers a proposal; the proposer is told. An agreed install or removal of an installable plugin writes or removes its files."
   def answer(resident_id, number, agree, note, %Actor{} = actor) do
-    with :ok <- AgathosDaimon.answer_plugin(resident_id, number, agree, note, actor) do
+    with :ok <- AgathosDaimon.answer_plugin(resident_id, number, agree, note, actor),
+         :ok <- if(agree, do: carry_out(resident_id, number), else: :ok) do
       word = if agree, do: "agreed to", else: "declined"
       tell(resident_id, actor, "#{word} plugin proposal ##{number}: #{note}")
       :ok
@@ -70,6 +75,52 @@ defmodule Oneiroi.Brain.PluginConsent do
         entry,
         Map.take(state, [:installed, :on, :carried_over, :changed_by, :changed_at])
       )
+
+  # What an agreed change does past the record (seshat#47): an
+  # installable plugin's files written into her library on install, its
+  # lockfile with them; removed on removal. A memory slot's change is the
+  # record alone.
+  defp carry_out(resident_id, number) do
+    with %{tier: "installable", change: change, key: key} when change in ["install", "remove"] <-
+           Enum.find(AgathosDaimon.plugin_proposals(resident_id), &(&1.number == number)),
+         %{} = entry <- PluginCatalog.get(key) do
+      job = Actor.new(:job, "plugins")
+
+      write_or_remove(change, resident_id, key, entry, job)
+    else
+      _nothing_to_do -> :ok
+    end
+  end
+
+  defp write_or_remove("install", resident_id, key, entry, job) do
+    case Seshat.install_plugin_files(resident_id, key, entry.files, entry, job) do
+      {:ok, _digest} -> :ok
+      {:error, _} = failed -> failed
+    end
+  end
+
+  defp write_or_remove("remove", resident_id, key, _entry, job),
+    do: Seshat.remove_plugin_files(resident_id, key, job)
+
+  # An installable plugin's audit (the spec's §4): its lockfile checked
+  # against the copies by content, whether the catalog moved since it was
+  # installed, and how often and when it was last in her context.
+  defp audit(resident_id, %{tier: "installable", installed: true} = row) do
+    %{pinned: pinned, found: found, files: files} = Seshat.plugin_files(resident_id, row.key)
+    {shown, last} = Kumbukumbu.shown(resident_id, "plugin:" <> row.key)
+
+    Map.put(row, :audit, %{
+      files: map_size(files),
+      pinned: pinned,
+      verified: not is_nil(pinned) and pinned == found,
+      found: found,
+      update: is_binary(row[:digest]) and is_binary(pinned) and row.digest != pinned,
+      shown: shown,
+      last_shown: last
+    })
+  end
+
+  defp audit(_resident_id, row), do: row
 
   defp entry(key) do
     case Plugins.entry(to_string(key || "")) do
