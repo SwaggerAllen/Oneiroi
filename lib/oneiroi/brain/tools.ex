@@ -2808,13 +2808,22 @@ defmodule Oneiroi.Brain.Tools do
   defp work_text(q),
     do: work_state(q) <> "\n\n" <> Enum.map_join(q.items, "\n", &work_line/1)
 
-  defp work_state(%{running: n}) when is_integer(n),
-    do: "The work line is armed; the loop is running item ##{n}."
+  # The run and the arm are two facts, said apart (sunna#41): a run
+  # never implies the line is armed, nor the other way round.
+  defp work_state(q), do: loop_state(q) <> " " <> arm_state(q)
 
-  defp work_state(%{rested: reason, rested_at: at}) when is_binary(reason),
+  defp loop_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
+
+  defp loop_state(%{rested: reason, rested_at: at}) when is_binary(reason),
     do: "The loop rests: #{reason} (since #{local_stamp(at)})."
 
-  defp work_state(_q), do: "The loop has not run yet."
+  defp loop_state(_q), do: "The loop has not run yet."
+
+  defp arm_state(%{armed: true, armed_at: %DateTime{} = at}),
+    do: "The work line is armed (since #{local_stamp(at)})."
+
+  defp arm_state(%{armed: true}), do: "The work line is armed."
+  defp arm_state(_q), do: "The work line is off; work_arm arms it for a batch."
 
   defp work_line(item) do
     blocked = if item.blocked_on, do: " on #{item.blocked_on}", else: ""

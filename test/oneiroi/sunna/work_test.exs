@@ -332,6 +332,53 @@ defmodule Oneiroi.Sunna.WorkTest do
              Sunna.work_queue(ctx.id)
   end
 
+  # sunna#41, Lily's report #14: the tick asked only when nothing ran, so
+  # the check that ends a stalled run was never asked for.
+  test "the tick asks for a check for a stalled run, and the check ends it", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+
+    clear_jobs()
+    :ok = Sunna.tick(ctx.id)
+    refute Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))
+
+    Clock.Fake.advance(181 * 60)
+    :ok = Sunna.tick(ctx.id)
+    assert Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))
+  end
+
+  test "a run whose item is no longer in work is never said to run, and asking about it ends",
+       ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+    :ok = Sunna.work_move(ctx.id, 1, "done", nil, "finished", ctx.me)
+
+    # The record as a move before sunna#37 left it: item done, run named.
+    Oneiroi.Scope.resident(ctx.id, fn ->
+      Oneiroi.Repo.update_all(Oneiroi.Sunna.Store.WorkQueue, set: [running: 1])
+    end)
+
+    assert %{running: nil, running_since: nil} = Sunna.work_queue(ctx.id)
+    assert WorkLoop.due?(ctx.id)
+    # Nothing to end on the aggregate: the check answers, once.
+    assert :running = WorkLoop.check(ctx.id)
+  end
+
+  test "work_list says the run and the arm apart", ctx do
+    turn = %{resident_id: ctx.id, session_key: "k", turn_ref: "t", resident: ctx.me}
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+
+    assert Tools.run("work_list", "{}", turn) =~
+             "The loop has not run yet. The work line is off; work_arm arms it for a batch."
+
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+    text = Tools.run("work_list", "{}", turn)
+    assert text =~ "The loop is running item #1. The work line is armed (since"
+  end
+
   test "the tick asks for a check when work is open and nothing runs", ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
     :ok = Sunna.work_arm(ctx.id, ctx.me)

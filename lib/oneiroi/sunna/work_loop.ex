@@ -147,8 +147,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
             :session_key
           ])
         ),
-      running: state && state.running,
-      running_since: state && state.running_since,
+      running: live(state, items),
+      running_since: live(state, items) && state.running_since,
       rested: state && state.rested_reason,
       rested_at: state && state.rested_at,
       runs_today: runs_today(resident_id, state),
@@ -174,7 +174,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       end)
 
     cond do
-      stalled?(state) -> end_stalled(resident_id, state)
+      stalled?(state) or orphaned?(state, items) -> end_stalled(resident_id, state)
       state && state.running -> :running
       state && state.rested_reason == Work.stopped_rest() -> :stopped
       care_first?(resident_id, settings) -> :care
@@ -331,11 +331,30 @@ defmodule Oneiroi.Sunna.WorkLoop do
   def due?(resident_id) do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
+      items = Store.work_items()
 
-      state != nil and state.armed and is_nil(state.running) and
-        state.rested_reason != Work.stopped_rest() and
-        Enum.any?(Store.work_items(), &(&1.status == "open"))
+      # A run left behind is asked about armed or not (sunna#41): the
+      # check is the only place that ends it.
+      (state != nil and (stalled?(state) or orphaned?(state, items))) or
+        (state != nil and state.armed and is_nil(state.running) and
+           state.rested_reason != Work.stopped_rest() and
+           Enum.any?(items, &(&1.status == "open")))
     end)
+  end
+
+  # A run whose item is no longer in work (sunna#41): moved by hand before
+  # sunna#37 ended such runs, so the record still names it; ended by the
+  # check like a stalled one, its item's status kept.
+  defp orphaned?(%{running: n}, items) when is_integer(n),
+    do: not Enum.any?(items, &(&1.number == n and &1.status == "in_work"))
+
+  defp orphaned?(_state, _items), do: false
+
+  # The item running, as the read says it: never one that is not in work.
+  defp live(state, items) do
+    if state != nil and is_integer(state.running) and not orphaned?(state, items),
+      do: state.running,
+      else: nil
   end
 
   # A run whose end was never recorded (sunna#37): its job died (a deploy
@@ -349,16 +368,18 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   defp stalled?(_state), do: false
 
+  # Checks again only when the end was recorded: a record that ends
+  # nothing must not be asked about forever.
   defp end_stalled(resident_id, state) do
-    _ =
-      dispatch(%Commands.EndWork{
-        actor: @actor,
-        at: Clock.now(),
-        id: resident_id,
-        number: state.running
-      })
-
-    check(resident_id)
+    case dispatch(%Commands.EndWork{
+           actor: @actor,
+           at: Clock.now(),
+           id: resident_id,
+           number: state.running
+         }) do
+      {:ok, [_ended]} -> check(resident_id)
+      _nothing -> :running
+    end
   end
 
   # Whether item `number` is still the one running: a turn or wrap of a
