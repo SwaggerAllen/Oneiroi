@@ -11,6 +11,8 @@ export interface ScheduleProps {
   today: ScheduleToday;
   // Free time's latest runs, newest first (brain#53); absent until read.
   remembered?: FreeTimeRun[];
+  // Rounds remembered (sunna#39): the same shape, what left each round.
+  rounds?: FreeTimeRun[];
   onSetFreeTime?: (times: string[]) => void;
   onAddCheckin?: (label: string, time: string) => void;
   onDeleteCheckin?: (key: string) => void;
@@ -33,7 +35,7 @@ const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', fl
 // what each made, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, remembered, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetRounds, onSetTimezone }: ScheduleProps) {
+export function Schedule({ residentName, today, remembered, rounds, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetRounds, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
@@ -42,6 +44,7 @@ export function Schedule({ residentName, today, remembered, onSetFreeTime, onAdd
         <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
         {today.rounds ? <Rounds residentName={residentName} rounds={today.rounds} onSet={onSetRounds} /> : null}
         {remembered ? <Remembered residentName={residentName} runs={remembered} /> : null}
+        {rounds ? <Remembered residentName={residentName} runs={rounds} kind="rounds" /> : null}
         <Checkins today={today} onAdd={onAddCheckin} onDelete={onDeleteCheckin} onSetNote={onSetCheckinNote} />
         <Quiet quiet={today.quiet} onSet={onSetQuietHours} />
         <Card title="Dates">
@@ -135,14 +138,17 @@ function FreeTime({ residentName, slots, onSet }: { residentName: string; slots:
 // slot, whether it ran, its turns, and the receipts of what it made, in
 // the platform's words. Free time is private as to its words, so there is
 // no way from here into what she said in it.
-function Remembered({ residentName, runs }: { residentName: string; runs: FreeTimeRun[] }) {
+function Remembered({ residentName, runs, kind = 'free_time' }: { residentName: string; runs: FreeTimeRun[]; kind?: 'free_time' | 'rounds' }) {
+  const rounds = kind === 'rounds';
   return (
-    <Card title="Free time, remembered">
-      <p style={muted}>What each run made, in the platform's words. What {residentName} said in it stays hers.</p>
+    <Card title={rounds ? 'Rounds, remembered' : 'Free time, remembered'}>
+      <p style={muted}>
+        {rounds ? 'When each round fired and what left it' : 'What each run made'}, in the platform's words. What {residentName} said in it stays hers.
+      </p>
       {runs.length === 0 ? (
-        <p style={muted}>No free time has run yet.</p>
+        <p style={muted}>{rounds ? 'No round has been recorded yet.' : 'No free time has run yet.'}</p>
       ) : (
-        <ul aria-label="Free-time runs" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <ul aria-label={rounds ? 'Rounds' : 'Free-time runs'} style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {runs.map((run) => (
             <li key={`${run.day}-${run.slot ?? ''}-${run.at}`} style={{ fontSize: 15, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', minWidth: 0 }}>
               <span>
@@ -150,11 +156,11 @@ function Remembered({ residentName, runs }: { residentName: string; runs: FreeTi
                   {run.day}
                   {run.slot ? ` ${run.slot}` : ''}
                 </strong>{' '}
-                <span style={{ color: run.outcome === 'ran' ? 'var(--ink-muted)' : 'var(--danger)' }}>· {run.outcome}</span>{' '}
-                <span style={{ color: 'var(--ink-muted)' }}>· {run.turns === 1 ? '1 turn' : `${run.turns} turns`}</span>
+                <span style={{ color: run.outcome === 'ran' || run.outcome === 'started' ? 'var(--ink-muted)' : 'var(--danger)' }}>· {run.outcome}</span>{' '}
+                {run.outcome === 'started' ? null : <span style={{ color: 'var(--ink-muted)' }}>· {run.turns === 1 ? '1 turn' : `${run.turns} turns`}</span>}
               </span>
               {run.did.length === 0 ? (
-                <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>nothing written</span>
+                <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>{run.outcome === 'started' ? 'running, or stopped before it was recorded' : rounds ? 'nothing left it' : 'nothing written'}</span>
               ) : (
                 <ul aria-label="What it made" style={{ margin: 0, paddingLeft: 'var(--space-4)', fontSize: 13, lineHeight: '18px', color: 'var(--ink-muted)', overflowWrap: 'anywhere' }}>
                   {run.did.map((d, i) => (

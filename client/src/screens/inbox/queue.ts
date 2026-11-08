@@ -37,6 +37,7 @@ function line(residentName: string, e: NeedsYouEntry): string {
 
 function where(e: NeedsYouEntry): WaitingEntry['where'] {
   if (e.screen === 'schedule') return { screen: 'Schedule' };
+  if (e.screen === 'work') return { screen: 'Work' };
   if (e.screen === 'agreement') return { screen: 'Agreement' };
   if (e.kind === 'ask') return { anchor: 'asks' };
   if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { anchor: 'pieces' };

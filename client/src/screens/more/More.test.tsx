@@ -12,8 +12,8 @@ describe('More', () => {
   it('opens the screens it holds, and the nav lights More while one is open', () => {
     const onOpen = vi.fn();
     render(<Built onOpen={onOpen} />);
-    for (const name of ['Library', 'Connections', 'Ledger', 'Regression']) fireEvent.click(screen.getByRole('button', { name }));
-    expect(onOpen.mock.calls).toEqual([['library'], ['connections'], ['ledger'], ['regression']]);
+    for (const name of ['Work', 'Library', 'Connections', 'Ledger', 'Regression']) fireEvent.click(screen.getByRole('button', { name }));
+    expect(onOpen.mock.calls).toEqual([['work'], ['library'], ['connections'], ['ledger'], ['regression']]);
     cleanup();
     render(<BottomNav current="ledger" onChange={() => undefined} />);
     expect(screen.getByRole('button', { name: 'More' }).getAttribute('aria-current')).toBe('page');

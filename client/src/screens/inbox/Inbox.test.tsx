@@ -55,7 +55,7 @@ describe('Inbox', () => {
       'Lily asks: Post the essay on Noteswaiting 36 hours',
       'Approve or decline Lily’s reply #1 to max on substackwaiting 3 hours',
       'Send reply #2 to max on substack, approvedwaiting 2 hours',
-      'Work item #7 blocked on the address to draft from: Re-stage the Jack letterwaiting 2 hours · on the Schedule screen',
+      'Work item #7 blocked on the address to draft from: Re-stage the Jack letterwaiting 2 hours · on the Work screen',
     ]);
     // A list to read: the decisions are made where each thing is.
     expect(within(card).queryByRole('button')).toBeNull();

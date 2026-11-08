@@ -87,6 +87,8 @@ defmodule Oneiroi.Sunna do
       Events.FreeTimeScheduled,
       Events.FreeTimeRan,
       Events.RoundStarted,
+      Events.RoundRan,
+      Events.RoundFailed,
       Events.FreeTimeFailed,
       Events.FreeTimeRested,
       Events.QuietHoursSet,
@@ -104,6 +106,7 @@ defmodule Oneiroi.Sunna do
       Store.Date,
       Store.Settings,
       Store.FreeTimeRun,
+      Store.Round,
       Store.WorkItem,
       Store.WorkQueue
     ]
@@ -237,6 +240,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.FreeTimeScheduled, 2},
       {Oneiroi.Sunna.Events.FreeTimeRan, 2},
       {Oneiroi.Sunna.Events.RoundStarted, 1},
+      {Oneiroi.Sunna.Events.RoundRan, 1},
+      {Oneiroi.Sunna.Events.RoundFailed, 1},
       {Oneiroi.Sunna.Events.FreeTimeFailed, 2},
       {Oneiroi.Sunna.Events.FreeTimeRested, 1},
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
@@ -429,6 +434,18 @@ defmodule Oneiroi.Sunna do
   @spec free_time_history(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.FreeTimeRun.t()]
   defexport(free_time_history(resident_id, limit),
     do: Scope.resident(resident_id, fn -> Store.free_time_history(limit) end)
+  )
+
+  @doc "The latest rounds, newest first, each with its day, slot, outcome and the conversation it ran in (sunna#39)."
+  @spec rounds(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Round.t()]
+  defexport(rounds(resident_id, limit),
+    do: Scope.resident(resident_id, fn -> Store.rounds(limit) end)
+  )
+
+  @doc "The rounds claimed since an instant, oldest first (sunna#39)."
+  @spec rounds_since(String.t(), DateTime.t()) :: [Oneiroi.Sunna.Store.Round.t()]
+  defexport(rounds_since(resident_id, since),
+    do: Scope.resident(resident_id, fn -> Store.rounds_since(since) end)
   )
 
   @doc "Today in the resident's zone: check-ins with firings, last and next, free time, quiet hours, dates with countdowns."

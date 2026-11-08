@@ -67,6 +67,23 @@ defmodule OneiroiWeb.ScheduleController do
     json(conn, Oneiroi.Brain.free_time_history(id, limit))
   end
 
+  operation(:round_history,
+    summary:
+      "Rounds remembered (sunna#39): the latest thinking rounds, newest first, each with its day, drawn time, outcome, the conversation it ran in, its turns, and the receipts of what left it, never its words",
+    parameters: [id: [in: :path, type: :string], limit: [in: :query, type: :integer]],
+    responses: [ok: {"rounds", "application/json", %Schema{type: :array}}]
+  )
+
+  def round_history(conn, %{"id" => id} = params) do
+    limit =
+      case Integer.parse(to_string(params["limit"] || "")) do
+        {n, ""} when n in 1..60 -> n
+        _ -> 30
+      end
+
+    json(conn, Oneiroi.Brain.round_history(id, limit))
+  end
+
   operation(:days,
     summary: "The journal's day rows, newest first",
     parameters: [id: [in: :path, type: :string]],

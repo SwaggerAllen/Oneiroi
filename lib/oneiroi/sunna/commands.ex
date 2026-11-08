@@ -48,6 +48,12 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :day, :slot]
   end
 
+  defmodule RecordRound do
+    # What became of a claimed round (sunna#39): the conversation it ran
+    # in, or the kind of its failure, once.
+    use Oneiroi.Command, fields: [:id, :day, :slot, :session_key, :reason]
+  end
+
   defmodule SetQuietHours do
     use Oneiroi.Command, fields: [:id, :from, :to]
   end

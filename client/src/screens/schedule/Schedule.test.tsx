@@ -3,14 +3,14 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Schedule.stories';
 
-const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsOn } = composeStories(stories);
+const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsOn, RoundsRemembered } = composeStories(stories);
 
 describe('Schedule', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered]) {
+    for (const Story of [Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsRemembered]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -143,6 +143,20 @@ describe('Schedule', () => {
   });
 
   // sunna#30: rounds visible and set here; what happens in one is not shown.
+  // sunna#39: each round remembered beside free time, what left it named.
+  it('remembers each round: when it fired, and what left it or that nothing did', () => {
+    render(<RoundsRemembered />);
+    const rows = within(screen.getByRole('list', { name: 'Rounds' }))
+      .getAllByRole('listitem')
+      .filter((li) => li.parentElement?.getAttribute('aria-label') === 'Rounds')
+      .map((li) => li.textContent);
+    expect(rows).toEqual([
+      '2026-11-08 10:17 · started running, or stopped before it was recorded',
+      '2026-11-08 07:42 · ran · 1 turnSent letter #318 from round to Oneiroi chat.',
+      '2026-11-07 19:05 · ran · 1 turnnothing left it',
+    ]);
+  });
+
   it('says rounds are on, how often and when, and sets them', () => {
     const onSetRounds = vi.fn();
     render(<RoundsOn onSetRounds={onSetRounds} />);

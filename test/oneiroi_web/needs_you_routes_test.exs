@@ -58,7 +58,7 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
              %{
                "kind" => "work_blocked",
                "ref" => 1,
-               "screen" => "schedule",
+               "screen" => "work",
                "about" => %{"blocked_on" => "the address"}
              }
            ] = read(ctx)

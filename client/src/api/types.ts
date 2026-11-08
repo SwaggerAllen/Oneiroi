@@ -503,7 +503,7 @@ export interface NeedsYouEntry {
   kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work';
   long: boolean;
   about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
 }

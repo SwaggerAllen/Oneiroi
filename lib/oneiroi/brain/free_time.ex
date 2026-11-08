@@ -30,6 +30,26 @@ defmodule Oneiroi.Brain.FreeTime do
     |> Enum.map(&run(resident_id, &1, writes))
   end
 
+  @doc """
+  Her rounds, remembered (sunna#39): the latest `limit`, newest first,
+  each with its day, slot, outcome, conversation and turns, and what left
+  it, read from its tool calls as free time's receipts are; a round that
+  ran and made nothing says so by an empty `did`.
+  """
+  @spec rounds(String.t(), pos_integer(), [String.t()]) :: [map()]
+  def rounds(resident_id, limit, writes),
+    do: resident_id |> Sunna.rounds(limit) |> remember(resident_id, writes)
+
+  @doc "The rounds claimed since an instant, oldest first, remembered the same way."
+  @spec rounds_since(String.t(), DateTime.t(), [String.t()]) :: [map()]
+  def rounds_since(resident_id, since, writes),
+    do: resident_id |> Sunna.rounds_since(since) |> remember(resident_id, writes)
+
+  defp remember(rows, resident_id, writes) do
+    writes = writes |> MapSet.new() |> MapSet.delete("memory_feedback")
+    Enum.map(rows, &run(resident_id, &1, writes))
+  end
+
   defp run(resident_id, %{session_key: key} = r, writes) when is_binary(key) do
     case Kumbukumbu.transcript({:resident, resident_id}, key) do
       {:ok, _session, messages} ->

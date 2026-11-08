@@ -110,7 +110,7 @@ defmodule Oneiroi.Brain.NeedsYou do
         kind: "work_blocked",
         ref: w.number,
         since: w.moved_at || w.added_at,
-        screen: "schedule",
+        screen: "work",
         about: %{what: w.what, blocked_on: w.blocked_on}
       }
     end
