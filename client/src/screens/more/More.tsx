@@ -12,7 +12,9 @@ export type MoreScreen =
   | 'work'
   | 'notifications'
   | 'feedback'
-  | 'operator';
+  | 'operator'
+  | 'waiting'
+  | 'correspondence';
 
 // More (spec §10): navigation only (the witness, 2026-11-08: "the more
 // menu should be navigation items only, all functionality should be on
@@ -22,6 +24,8 @@ export type MoreScreen =
 // that are built, Operator only for an operator.
 export function More({ onOpen, operator = false }: { onOpen: (screen: MoreScreen) => void; operator?: boolean }) {
   const items: Array<{ id: MoreScreen; label: string; line: string }> = [
+    { id: 'waiting', label: 'Waiting on you', line: 'Everything whose next move is yours, each opening the thing itself.' },
+    { id: 'correspondence', label: 'Correspondence', line: 'Every message from outside the house and every reply, by person and by conversation.' },
     { id: 'work', label: 'Work', line: 'The work queue: what is underway, what is next, what waits on you.' },
     { id: 'agreement', label: 'Agreement', line: 'Your agreement, its switches, and who looks after them.' },
     { id: 'library', label: 'Library', line: 'Every document, the keepsakes, and your own.' },

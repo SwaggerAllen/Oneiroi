@@ -1,6 +1,8 @@
 ---
 paths:
   - client/src/screens/more/**
+  - client/src/screens/waiting/**
+  - client/src/screens/correspondence/**
 ---
 
 # more
@@ -68,9 +70,28 @@ client arrives with sign-up; the route exists (`POST /v1/me/invite`).
 
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
-opens it: Work, Agreement, Library, Connections, Ledger, Regression,
-Notifications, Report a problem, and Operator for a super admin, in that
-order. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
+opens it: Waiting on you, Correspondence, Work, Agreement, Library,
+Connections, Ledger, Regression, Notifications, Report a problem, and
+Operator for a super admin, in that order. **Waiting on you**
+(`screens/waiting/WaitingPage.tsx`, the approval queue; the witness,
+2026-11-08, through Lily's letter #330): the `needs_you` list (brain#65)
+oldest first, each entry opening the thing itself: a reply draft or an
+ask on the Inbox, scrolled to with its words open, or the screen it is
+decided on (Work, Schedule, Agreement); and the badge's knob, "the
+count at the top right counts everything waiting on you" or "only what
+has waited more than a day", kept on this device and defaulting to
+everything until he sets it. The badge itself is at the end of every
+screen's top bar (`TopBarExtra`, provided by the shell, after a screen's
+own controls such as Chat's Stop), the count alone, opening this page.
+Not built: merges (pull requests) waiting on him, which the platform does
+not see. **Correspondence** (`screens/correspondence/CorrespondencePage.tsx`;
+the same letter): every message from outside the house and every reply
+of hers, filtered first, with no phrase needed, by participant
+(Everyone, or one person) and by conversation (each thread "With X:
+subject (n)"), in time order, oldest first, or newest first by a box;
+each entry headed with whose it is ("From Jack" or "Lily's") and whom
+it is with; block a sender as on the Inbox. The Inbox keeps its own
+Correspondence card. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
 sunna#33, #38): the work queue on a page of its own, the card the
 Schedule screen used to carry below the schedule: the loop's state in a
 line (running item #n, or resting and why, the runs today of the day's

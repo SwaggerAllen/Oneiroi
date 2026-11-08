@@ -186,7 +186,7 @@ const replyState: Record<Reply['state'], string> = {
   superseded: 'replaced by a newer draft',
 };
 
-function OwnReply({ residentName, reply: r }: { residentName: string; reply: Reply }) {
+export function OwnReply({ residentName, reply: r }: { residentName: string; reply: Reply }) {
   return (
     <li style={item}>
       <p style={meta}>
@@ -200,7 +200,7 @@ function OwnReply({ residentName, reply: r }: { residentName: string; reply: Rep
   );
 }
 
-function Message({ message: m, blocked, onBlock }: { message: CorrespondenceMessage; blocked: boolean; onBlock?: GateActions['onBlock'] }) {
+export function Message({ message: m, blocked, onBlock }: { message: CorrespondenceMessage; blocked: boolean; onBlock?: GateActions['onBlock'] }) {
   const [blocking, setBlocking] = useState(false);
   const [note, setNote] = useState('');
   const from = m.sender_name ? `${m.sender_name} <${m.sender}>` : m.sender;
