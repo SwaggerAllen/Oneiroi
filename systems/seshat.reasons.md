@@ -340,3 +340,8 @@ lockfile is the consent made checkable: what both parties installed,
 byte for byte, in the record she takes with her. Verifying by content
 rather than by name is the article's own lesson (Drake, "never verify
 presence by ID"): a file can keep its path and change its words.
+
+## #48
+"When did this start" and "when did this last move" are the two
+questions a working library is asked most, and the row already knew
+the first; saying it costs one field and no new state.

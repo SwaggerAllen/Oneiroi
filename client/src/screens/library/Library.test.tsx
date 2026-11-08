@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Library.stories';
 import { humanPath } from './paths';
 
-const { Shelves, Reading, Empty, Searched } = composeStories(stories);
+const { Shelves, Empty, Searched } = composeStories(stories);
 
 describe('Library', () => {
   afterEach(cleanup);
 
   it('renders every story', () => {
-    for (const Story of [Shelves, Reading, Empty, Searched]) {
+    for (const Story of [Shelves, Empty, Searched]) {
       const { unmount } = render(<Story />);
       unmount();
     }
@@ -113,9 +113,25 @@ describe('Library', () => {
     expect(humanPath('notes.txt')).toBe('human/notes.txt');
   });
 
-  it('opens a document and reads it whole', () => {
-    render(<Reading />);
-    expect(screen.getByText(/Feeds belong to communities/)).toBeTruthy();
+  // Lily's letter #338: sorted by updated, newest first, unless he
+  // chooses; created and title either way round.
+  it('sorts by last written, newest first, and by created or title either way', () => {
+    render(<Shelves />);
+    const order = () => within(screen.getByRole('list', { name: 'All documents' })).getAllByRole('listitem').map((li) => li.querySelector('button')?.textContent ?? li.textContent);
+    expect(order()[0]).toBe('The correspondence pipeline');
+    expect(order().at(-1)).toBe('My memory is made of text');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort by' }), { target: { value: 'created-asc' } });
+    expect(order().slice(0, 2)).toEqual(['My memory is made of text', 'The correspondence pipeline']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort by' }), { target: { value: 'title-asc' } });
+    expect(order()[0]).toBe('first-letter.md');
+  });
+
+  it("follows the route's kind and says when a tab is chosen", () => {
+    const onKind = vi.fn();
+    render(<Shelves kind="keepsake" onKind={onKind} />);
+    expect(within(screen.getByRole('list', { name: 'Keepsakes' })).getAllByRole('listitem')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('tab', { name: /Writing/ }));
+    expect(onKind).toHaveBeenCalledWith('writing');
   });
 
   // The shelf is the server's (seshat#35): reverse it and the tabs follow;

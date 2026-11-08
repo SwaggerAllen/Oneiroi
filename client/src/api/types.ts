@@ -428,6 +428,8 @@ export interface LibraryDocument {
   bytes: number | null;
   versions: number;
   written_at: string | null;
+  // When it first came into the library (seshat#48).
+  created_at?: string | null;
   written_by: string | null;
   missing_at: string | null;
   // Why a keepsake mattered, in the resident's words (seshat#32).
