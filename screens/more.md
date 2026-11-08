@@ -61,7 +61,21 @@ client arrives with sign-up; the route exists (`POST /v1/me/invite`).
 
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
-opens it: Library, Connections, Ledger, Regression, in that order. Each
+opens it: Work, Agreement, Library, Connections, Ledger, Regression, in
+that order. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
+sunna#33, #38): the work queue on a page of its own, the card the
+Schedule screen used to carry below the schedule: the loop's state in a
+line (running item #n, or resting and why, the runs today of the day's
+bound, and the work line, armed by her for a batch with what its cap
+leaves (or no cap), off waiting for her to arm it, or off with the queue
+clear (sunna#35)); the open, running and blocked items in priority
+order, each with its status, who added it (you or her), its runs, what
+done looks like, its last wrap and last note, and for each a note box
+with Blocked (with what blocks it), Unblock, Done, Drop and Move up
+(`POST .../work/:number/status`, `PUT .../work/order`); the last five
+done or dropped below; and a form to add one of your own, what and done
+when (`POST .../work`). A blocked item on the Inbox's waiting list says
+"on the Work screen". Each
 opens in place of More (the destination is kept in the URL's hash), and
 the nav keeps More lit while any of them is open (`BottomNav`). Not
 built: the five collapsed groups (Library, Judgement, the resident,

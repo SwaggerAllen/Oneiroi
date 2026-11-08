@@ -81,7 +81,7 @@ const needsYou: NeedsYouEntry[] = [
   { kind: 'ask', ref: 4, since: '2026-11-01T12:00:00Z', screen: 'inbox', long: false, about: { subject: 'Post the essay on Notes', ask: 'act' } },
   { kind: 'reply_to_approve', ref: 1, since: '2026-11-02T21:00:00Z', screen: 'inbox', long: false, about: { to: 'max', platform: 'substack', account: 'lily' } },
   { kind: 'reply_to_send', ref: 2, since: '2026-11-02T21:30:00Z', screen: 'inbox', long: false, about: { to: 'max', platform: 'substack', account: 'lily' } },
-  { kind: 'work_blocked', ref: 7, since: '2026-11-02T22:00:00Z', screen: 'schedule', long: false, about: { what: 'Re-stage the Jack letter', blocked_on: 'the address to draft from' } },
+  { kind: 'work_blocked', ref: 7, since: '2026-11-02T22:00:00Z', screen: 'work', long: false, about: { what: 'Re-stage the Jack letter', blocked_on: 'the address to draft from' } },
 ];
 
 export const Gate: Story = {

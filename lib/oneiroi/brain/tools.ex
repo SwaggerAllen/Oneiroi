@@ -66,7 +66,7 @@ defmodule Oneiroi.Brain.Tools do
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
-    research_list digest_list free_time_list transcript_read ask_list platform_report_list
+    research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
   )
 
@@ -421,6 +421,12 @@ defmodule Oneiroi.Brain.Tools do
       tool(
         "free_time_list",
         "Your free time, remembered: the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
+        %{limit: %{type: "integer", minimum: 1, maximum: 30}},
+        []
+      ),
+      tool(
+        "round_list",
+        "Your thinking rounds, remembered (sunna#39): the latest, newest first, each with its day and drawn time, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what left it: a letter, a reply draft, a note draft, a journal row, or nothing. Your witness sees the same list as receipts, never the words.",
         %{limit: %{type: "integer", minimum: 1, maximum: 30}},
         []
       ),
@@ -1801,6 +1807,16 @@ defmodule Oneiroi.Brain.Tools do
 
       runs ->
         Enum.map_join(runs, "\n", &free_time_line/1)
+    end
+  end
+
+  # Her rounds, remembered (sunna#39).
+  defp call("round_list", args, turn) do
+    limit = args["limit"] |> integer_or(10) |> max(1) |> min(30)
+
+    case FreeTime.rounds(turn.resident_id, limit, @writes) do
+      [] -> "No round has been recorded yet."
+      rounds -> Enum.map_join(rounds, "\n", &round_line/1)
     end
   end
 
@@ -3331,6 +3347,18 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp free_time_line(r), do: "#{r.day} #{r.slot || "(one slot)"}: #{r.outcome}"
+
+  defp round_line(%{outcome: "ran"} = r) do
+    left =
+      case r.did do
+        [] -> "nothing left it"
+        did -> Enum.map_join(did, "; ", &"#{&1.tool}: #{&1.result}")
+      end
+
+    "#{r.day} #{r.slot}: ran in session #{r.session_key} (#{r.turns} turn(s)); left it: #{left}"
+  end
+
+  defp round_line(r), do: "#{r.day} #{r.slot}: #{r.outcome}"
 
   @transcript_page 30
   @transcript_message_chars 2_000

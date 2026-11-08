@@ -45,7 +45,7 @@ import { Memory } from '../screens/memory/Memory';
 import { sortCards } from '../screens/regression/deck';
 import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
-import { WorkQueue } from '../screens/schedule/WorkQueue';
+import { WorkPage } from '../screens/schedule/WorkQueue';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
@@ -215,6 +215,7 @@ export function App() {
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
+        {destination === 'work' ? <WorkContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
         {destination === 'more' ? (
           <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} feedback={<FeedbackContainer />} operator={<OperatorContainer />} />
@@ -969,8 +970,8 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
   // Free time, remembered (brain#53): read beside the schedule; while it
   // has not come, or did not, the screen goes without it.
   const [remembered, setRemembered] = useState<FreeTimeRun[] | undefined>(undefined);
-  // The work queue (sunna#33), read beside the schedule the same way.
-  const [work, setWork] = useState<WorkQueueData | undefined>(undefined);
+  // Rounds, remembered (sunna#39), read the same way.
+  const [rounds, setRounds] = useState<FreeTimeRun[] | undefined>(undefined);
   const [error, setError] = useState<ApiError | null>(null);
   // A fresh screen per load, so each form starts from what the server says.
   const [version, setVersion] = useState(0);
@@ -987,8 +988,8 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
       .then(setRemembered)
       .catch(() => undefined);
     api
-      .work(id)
-      .then(setWork)
+      .rounds(id)
+      .then(setRounds)
       .catch(() => undefined);
   }, [id]);
   useEffect(() => load(), [load]);
@@ -1005,6 +1006,7 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         residentName={resident.name}
         today={today}
         remembered={remembered}
+        rounds={rounds}
         onSetFreeTime={(times) => act(api.setFreeTime(id, times))}
         onAddCheckin={(label, time) => act(api.addCheckin(id, label, time))}
         onDeleteCheckin={(key) => act(api.deleteCheckin(id, key))}
@@ -1013,16 +1015,42 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         onSetRounds={(every, waking) => act(api.setRounds(id, every, waking))}
         onSetTimezone={(tz) => act(api.setTimezone(id, tz))}
       />
-      {work ? (
-        <WorkQueue
-          key={`work-${version}`}
-          residentName={resident.name}
-          queue={work}
-          onAdd={(what, doneWhen) => act(api.addWork(id, what, doneWhen))}
-          onMove={(n, status, blockedOn, note) => act(api.moveWork(id, n, status, blockedOn, note))}
-          onOrder={(order) => act(api.orderWork(id, order))}
-        />
-      ) : null}
+    </>
+  );
+}
+
+// The work queue (sunna#33), on a page of its own (sunna#38): it outgrew
+// the schedule, where it covered the schedule's own cards.
+function WorkContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [work, setWork] = useState<WorkQueueData | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [version, setVersion] = useState(0);
+  const load = useCallback(() => {
+    api
+      .work(id)
+      .then((w) => {
+        setWork(w);
+        setVersion((v) => v + 1);
+      })
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  const act = (p: Promise<unknown>) =>
+    p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if (!work) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <WorkPage
+        key={version}
+        residentName={resident.name}
+        queue={work}
+        onAdd={(what, doneWhen) => act(api.addWork(id, what, doneWhen))}
+        onMove={(n, status, blockedOn, note) => act(api.moveWork(id, n, status, blockedOn, note))}
+        onOrder={(order) => act(api.orderWork(id, order))}
+      />
     </>
   );
 }

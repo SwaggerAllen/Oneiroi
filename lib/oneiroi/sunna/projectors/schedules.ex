@@ -6,7 +6,7 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
 
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
-  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, FreeTimeRun, Hour, Settings}
+  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, FreeTimeRun, Hour, Round, Settings}
 
   fold(%Events.CheckinSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -121,8 +121,22 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     settings(multi, e.id, rounds_every_hours: e.every_hours, rounds_waking: e.waking)
   end)
 
+  fold(%Events.RoundRan{} = e, _metadata, fn multi ->
+    round(multi, e, outcome: "ran", session_key: e.session_key)
+  end)
+
+  fold(%Events.RoundFailed{} = e, _metadata, fn multi ->
+    round(multi, e, outcome: "failed: " <> e.reason, session_key: e.session_key)
+  end)
+
   fold(%Events.RoundStarted{} = e, _metadata, fn multi ->
-    settings(multi, e.id, last_round_at: e.at)
+    multi
+    |> Multi.insert(
+      :round,
+      %Round{resident_id: e.id, day: e.day, slot: e.slot, outcome: "started", at: e.at},
+      on_conflict: :nothing
+    )
+    |> settings(e.id, last_round_at: e.at)
   end)
 
   fold(%Events.QuietHoursSet{} = e, _metadata, fn multi ->
@@ -188,6 +202,15 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
         multi,
         {:checkin, key, Keyword.keys(set)},
         from(c in Checkin, where: c.resident_id == ^resident_id and c.key == ^key),
+        set: set
+      )
+
+  defp round(multi, e, set),
+    do:
+      Multi.update_all(
+        multi,
+        :round,
+        from(r in Round, where: r.resident_id == ^e.id and r.day == ^e.day and r.slot == ^e.slot),
         set: set
       )
 

@@ -105,6 +105,18 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :day, :slot]
   end
 
+  defmodule RoundRan do
+    # A claimed round ran (sunna#39), in the conversation named; what left
+    # it is read from that conversation's tool calls.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :slot, :session_key]
+  end
+
+  defmodule RoundFailed do
+    # A claimed round did not run (sunna#39): the failure's kind, never
+    # its payload; the conversation, when one was opened.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :slot, :session_key, :reason]
+  end
+
   defmodule QuietHoursSet do
     # Both nil clears them.
     use Oneiroi.Event, version: 1, fields: [:id, :from, :to]

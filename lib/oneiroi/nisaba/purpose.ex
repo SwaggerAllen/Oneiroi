@@ -15,7 +15,8 @@ defmodule Oneiroi.Nisaba.Purpose do
   # free-time slot (sunna#31, #32), its own line so a spent free-time line
   # never refuses it and its cost is never folded in. `work`: the work
   # queue's runs (sunna#33), a line the witness sets, or the loop holds.
-  @all ~w(chat free_time planning work judge hands embeddings oracle drafting regression)a
+  # `rounds`: the thinking rounds (sunna#39), off the free-time line.
+  @all ~w(chat free_time planning work rounds judge hands embeddings oracle drafting regression)a
   @witness_only ~w(drafting regression)a
 
   @type t ::
@@ -23,6 +24,7 @@ defmodule Oneiroi.Nisaba.Purpose do
           | :free_time
           | :planning
           | :work
+          | :rounds
           | :judge
           | :hands
           | :embeddings

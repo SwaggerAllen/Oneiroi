@@ -699,18 +699,55 @@ defmodule Oneiroi.Sunna.Schedules do
              List.wrap(row.account_id),
              actor,
              private: true
-           ),
-         {:ok, _result} <-
-           wake(
-             resident_id,
-             key,
-             Prompt.render!("round", %{name: row.name, budget: budget_words(resident_id)}),
-             :free_time
            ) do
-      :ok
+      result =
+        wake(
+          resident_id,
+          key,
+          Prompt.render!("round", %{name: row.name, budget: rounds_words(resident_id)}),
+          :rounds
+        )
+
+      record_round(resident_id, {day, slot}, key, result, actor)
     else
       {:ok, []} -> :already
+      {:error, _} = failed -> record_round(resident_id, {day, slot}, nil, failed, actor)
       other -> other
+    end
+  end
+
+  # What became of the round (sunna#39), recorded once: the failure's
+  # kind, never the failure, as free time's (record_free_time/5).
+  defp record_round(resident_id, {day, slot}, key, result, actor) do
+    reason =
+      case result do
+        {:ok, _} -> nil
+        {:error, %{kind: kind}} -> Atom.to_string(kind)
+        {:error, _} -> "unknown"
+      end
+
+    command = %Commands.RecordRound{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: day,
+      slot: slot,
+      session_key: key,
+      reason: reason
+    }
+
+    with {:ok, _} <- dispatch(command),
+         do: if(reason, do: result, else: :ok)
+  end
+
+  # The rounds line (sunna#39), as the round's note says it.
+  defp rounds_words(resident_id) do
+    case Enum.find(Nisaba.budgets(resident_id, :witness), &(&1.purpose == :rounds)) do
+      %{cap_nanos: cap, spent_nanos: spent, period: period} when is_integer(cap) ->
+        "Rounds have their own budget line, #{dollars(cap)} a #{period}, #{dollars(max(cap - spent, 0))} left; this round is one turn."
+
+      _none ->
+        "This round is one turn."
     end
   end
 

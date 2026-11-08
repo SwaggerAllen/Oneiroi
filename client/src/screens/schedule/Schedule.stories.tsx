@@ -96,3 +96,21 @@ export const RoundsOn: Story = {
   },
 };
 export const NothingRemembered: Story = { args: { remembered: [] } };
+// Rounds, remembered (sunna#39): what left each round, or that nothing did.
+export const RoundsRemembered: Story = {
+  args: {
+    rounds: [
+      { day: '2026-11-08', slot: '10:17', outcome: 'started', session_key: null, at: '2026-11-08T18:17:00Z', turns: 0, did: [] },
+      {
+        day: '2026-11-08',
+        slot: '07:42',
+        outcome: 'ran',
+        session_key: 'round-1',
+        at: '2026-11-08T15:42:00Z',
+        turns: 1,
+        did: [{ tool: 'letter_send', result: 'Sent letter #318 from round to Oneiroi chat.' }],
+      },
+      { day: '2026-11-07', slot: '19:05', outcome: 'ran', session_key: 'round-0', at: '2026-11-08T03:05:00Z', turns: 1, did: [] },
+    ],
+  },
+};

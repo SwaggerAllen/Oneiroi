@@ -23,6 +23,7 @@ defmodule Oneiroi.Sunna.Schedule do
     letters_woken: MapSet.new(),
     letter_wakes: [],
     rounds: MapSet.new(),
+    rounds_recorded: MapSet.new(),
     round_settings: {nil, nil}
   ]
 
@@ -234,6 +235,35 @@ defmodule Oneiroi.Sunna.Schedule do
     if MapSet.member?(rounds, {c.day, c.slot}),
       do: [],
       else: %Events.RoundStarted{actor: c.actor, at: c.at, id: c.id, day: c.day, slot: c.slot}
+  end
+
+  # Once a round (sunna#39), and only a claimed one.
+  def execute(%__MODULE__{rounds: rounds, rounds_recorded: recorded}, %Commands.RecordRound{} = c) do
+    cond do
+      not MapSet.member?(rounds, {c.day, c.slot}) or MapSet.member?(recorded, {c.day, c.slot}) ->
+        []
+
+      is_nil(c.reason) ->
+        %Events.RoundRan{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          day: c.day,
+          slot: c.slot,
+          session_key: c.session_key
+        }
+
+      true ->
+        %Events.RoundFailed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          day: c.day,
+          slot: c.slot,
+          session_key: c.session_key,
+          reason: c.reason
+        }
+    end
   end
 
   def execute(%__MODULE__{free_time_days: days}, %Commands.RecordFreeTime{} = c) do
@@ -451,6 +481,12 @@ defmodule Oneiroi.Sunna.Schedule do
 
   def apply(%__MODULE__{} = s, %Events.RoundStarted{} = e),
     do: %{s | id: e.id, rounds: MapSet.put(s.rounds, {e.day, e.slot})}
+
+  def apply(%__MODULE__{} = s, %Events.RoundRan{} = e),
+    do: %{s | rounds_recorded: MapSet.put(s.rounds_recorded, {e.day, e.slot})}
+
+  def apply(%__MODULE__{} = s, %Events.RoundFailed{} = e),
+    do: %{s | rounds_recorded: MapSet.put(s.rounds_recorded, {e.day, e.slot})}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimeRan{} = e),
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot || :all}, e.at)}

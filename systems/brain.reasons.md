@@ -646,3 +646,9 @@ being a share of the index that the ranked lines could crowd out. The
 refactor moved code without changing it, and was held to the same
 bytes, so the first step changed nothing she sees but the one slot the
 witness asked to change.
+
+## #69
+One reading of a private conversation's receipts, used twice, cannot
+drift into two accounts of what a pass made. The check-in part is how
+he sees the rounds without asking; it names the tools, not the words,
+for the reason free time's receipts do.

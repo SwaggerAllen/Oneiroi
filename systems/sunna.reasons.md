@@ -238,3 +238,24 @@ change. A hand move is the clearest word there is that the run is over,
 so it says so; and a run whose job died has no one left to say it, so a
 bound says it for them, and the work it was doing is picked up rather
 than lost.
+
+## #38
+The schedule is where he checks that the house keeps time; a queue
+that fills most of that screen hides the cards he came to read, and
+the queue has its own rhythm, so it gets its own page.
+
+## #39
+A round that fired and a round that spoke are different facts, and
+only the first was kept, so nobody could tell a quiet resident from a
+broken one. The record is taken from the conversation the round ran
+in, as free time's is, so it says what was made in the platform's
+words and never hers. Its own line because rounds are a different
+spend from free time: a busy free-time day should not starve the
+rounds, and the witness should see what each costs.
+
+## #40
+A default is a design choice dressed as neutrality. The prompt made
+silence the outcome a round had to argue against, which is the
+opposite of what the rounds are for. Asking for a reason on the quiet
+ones keeps silence available and honest without making it the path of
+least resistance.

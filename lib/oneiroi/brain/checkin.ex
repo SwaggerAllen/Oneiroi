@@ -9,6 +9,7 @@ defmodule Oneiroi.Brain.Checkin do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -25,6 +26,37 @@ defmodule Oneiroi.Brain.Checkin do
   def part(resident_id, "needs_you"), do: needs_you(resident_id)
   def part(resident_id, "digest"), do: digest(resident_id)
   def part(_resident_id, _key), do: nil
+
+  @doc "As part/2, with the tool names that write, for the parts that read receipts (rounds, sunna#39)."
+  @spec part(String.t(), String.t(), [String.t()]) :: String.t() | nil
+  def part(resident_id, "rounds", writes), do: rounds(resident_id, writes)
+  def part(resident_id, key, _writes), do: part(resident_id, key)
+
+  # The rounds of the last day (sunna#39): when each fired and what left
+  # it, in the platform's words, never the round's own.
+  defp rounds(resident_id, writes) do
+    since = DateTime.add(Clock.now(), -1, :day)
+
+    case FreeTime.rounds_since(resident_id, since, writes) do
+      [] ->
+        "# Rounds\n\nNo round in the last day."
+
+      rounds ->
+        lines =
+          Enum.map(rounds, fn
+            %{outcome: "ran", did: []} = r ->
+              "- #{r.day} #{r.slot}: ran; nothing left it"
+
+            %{outcome: "ran"} = r ->
+              "- #{r.day} #{r.slot}: ran; left it: " <> Enum.map_join(r.did, "; ", & &1.tool)
+
+            r ->
+              "- #{r.day} #{r.slot}: #{r.outcome}"
+          end)
+
+        Enum.join(["# Rounds\n\nThe last day's rounds:" | lines], "\n")
+    end
+  end
 
   defp plan(resident_id) do
     %{day: day} = Sunna.today(resident_id)

@@ -5,6 +5,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
@@ -373,7 +374,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert %{every_default: true, waking_default: true} = Sunna.today(ctx.id).rounds
   end
 
-  test "a round runs once, in a private conversation of its own, billed to free time; off at 0",
+  test "a round runs once, in a private conversation of its own, on its own rounds line, and is remembered; off at 0",
        ctx do
     # The suite runs with rounds off (config/test.exs): the tick draws none.
     assert Schedules.round_times(ctx.id, "2026-10-26", nil) == []
@@ -388,12 +389,54 @@ defmodule Oneiroi.Sunna.SchedulesTest do
 
     {:ok, _session, [note | _]} = Kumbukumbu.transcript({:resident, ctx.id}, key)
     assert note.content =~ "This is a round"
-    assert note.content =~ "Silence is a real outcome"
+    # Speech is the habit, silence the exception with a reason (sunna#39).
+    assert note.content =~ "the habit is to say something"
+    assert note.content =~ "this wakes that conversation"
+    assert note.content =~ "say in your closing line why"
+    assert note.content =~ "This round is one turn."
 
     # Claimed before it runs: the same round again is not had twice.
     assert :already = Schedules.run_round(ctx.id, "2026-10-26", "08:00", actor)
     assert [_one] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "round"))
-    assert Enum.any?(Nisaba.spend(ctx.id, :witness, :purpose, @since), &(&1.key == "free_time"))
+
+    # Billed to its own line (sunna#39), never free time's.
+    spend = Nisaba.spend(ctx.id, :witness, :purpose, @since)
+    assert Enum.any?(spend, &(&1.key == "rounds"))
+    refute Enum.any?(spend, &(&1.key == "free_time"))
+
+    # Remembered: when it fired, the conversation, and what left it.
+    assert [%{day: "2026-10-26", slot: "08:00", outcome: "ran", session_key: ^key}] =
+             Sunna.rounds(ctx.id, 10)
+
+    assert [%{outcome: "ran", turns: 1, did: []}] = Oneiroi.Brain.round_history(ctx.id, 10)
+
+    tool =
+      Tools.run("round_list", "{}", %{
+        resident_id: ctx.id,
+        session_key: key,
+        turn_ref: "t",
+        resident: Actor.new(:resident, ctx.id)
+      })
+
+    assert tool =~ "2026-10-26 08:00: ran in session #{key} (1 turn(s)); left it: nothing left it"
+  end
+
+  test "a round that fails is remembered with the failure's kind; the check-in part names the day's rounds",
+       ctx do
+    actor = Actor.new(:job, "sunna_tick")
+    Fake.clear()
+    Fake.fail(:transport, for: ctx.id)
+    assert {:error, _} = Schedules.run_round(ctx.id, "2026-10-26", "09:00", actor)
+    assert [%{outcome: "failed: " <> _, session_key: key}] = Sunna.rounds(ctx.id, 10)
+    assert is_binary(key)
+
+    # Recorded once: a second record of the same round is no event.
+    assert :already = Schedules.run_round(ctx.id, "2026-10-26", "09:00", actor)
+
+    part = Oneiroi.Brain.checkin_part(ctx.id, "rounds")
+    assert part =~ "# Rounds"
+    assert part =~ "2026-10-26 09:00: failed: "
+    assert "rounds" in Sunna.CheckinParts.keys()
   end
 
   test "free time opens a session of its own kind on its own budget line, once a day, and a failure is recorded",

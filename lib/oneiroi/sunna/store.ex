@@ -101,6 +101,22 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Round do
+    @moduledoc "One thinking round (sunna#39): claimed at its drawn slot, then ran in a conversation or failed with its kind."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_round" do
+      field(:resident_id, :binary_id)
+      field(:day, :string)
+      field(:slot, :string)
+      field(:outcome, :string)
+      field(:session_key, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule WorkItem do
     @moduledoc "An item of the work queue (sunna#33): what, done when, its place and status, and its last wrap."
     use Ecto.Schema
@@ -211,6 +227,15 @@ defmodule Oneiroi.Sunna.Store do
   @spec free_time_history(pos_integer()) :: [FreeTimeRun.t()]
   def free_time_history(limit),
     do: Repo.all(from(r in FreeTimeRun, order_by: [desc: r.at], limit: ^limit))
+
+  @doc "The latest rounds, any day, newest first (sunna#39)."
+  @spec rounds(pos_integer()) :: [Round.t()]
+  def rounds(limit), do: Repo.all(from(r in Round, order_by: [desc: r.at], limit: ^limit))
+
+  @doc "The rounds claimed since `since`, oldest first (sunna#39)."
+  @spec rounds_since(DateTime.t()) :: [Round.t()]
+  def rounds_since(since),
+    do: Repo.all(from(r in Round, where: r.at >= ^since, order_by: r.at))
 
   @doc "The work queue's items in priority order (sunna#33)."
   @spec work_items() :: [WorkItem.t()]

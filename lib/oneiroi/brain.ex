@@ -238,6 +238,12 @@ defmodule Oneiroi.Brain do
     do: FreeTime.history(resident_id, limit, Tools.writes())
   )
 
+  @doc "Rounds remembered (sunna#39): the latest, newest first, with the conversation each ran in, its turns, and the receipts of what left it."
+  @spec round_history(String.t(), pos_integer()) :: [map()]
+  defexport(round_history(resident_id, limit),
+    do: FreeTime.rounds(resident_id, limit, Tools.writes())
+  )
+
   @doc """
   Takes the witness's message under the client's ref and answers at once
   (brain#45): `running`, `queued` with how many wait ahead, or
@@ -299,7 +305,7 @@ defmodule Oneiroi.Brain do
 
   @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."
-  defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key))
+  defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
 
   @doc "Answers a regression trial (spec §6.4, eunomia#10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression. The reply comes back with the trace of the loop's tool calls, for the witness's card alone (eunomia#31)."
   @spec trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

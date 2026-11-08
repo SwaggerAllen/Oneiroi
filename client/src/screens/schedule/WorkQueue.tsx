@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { WorkItem, WorkQueue as Queue } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { TopBar } from '../../components/TopBar';
 import { Field } from '../../components/Field';
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
@@ -19,6 +20,19 @@ export interface WorkQueueProps {
 // priority order, and the loop that runs the first open one, wraps it
 // and fires the next. Care comes first: it waits for free time and quiet
 // hours.
+// The queue's own page under More (sunna#38): it outgrew the schedule,
+// where it covered the schedule's own cards.
+export function WorkPage(props: WorkQueueProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <TopBar title="Work" line={`${props.residentName}'s queue: underway, next, and waiting on you`} />
+      <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <WorkQueue {...props} />
+      </main>
+    </div>
+  );
+}
+
 export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQueueProps) {
   const [what, setWhat] = useState('');
   const [doneWhen, setDoneWhen] = useState('');

@@ -25,6 +25,12 @@ defmodule Oneiroi.Sunna.CheckinParts do
       about: "Today's free-time slots, and how each that has come went."
     },
     %{
+      key: "rounds",
+      label: "Rounds",
+      about:
+        "The last day's thinking rounds: when each fired and what left it, or that nothing did."
+    },
+    %{
       key: "research",
       label: "Research",
       about: "Research questions settled since yesterday, and how many are still open."
