@@ -108,4 +108,50 @@ defmodule Oneiroi.Gaia.DoorTest do
     assert {:error, %{kind: :gaia_not_an_operator}} =
              Gaia.grant_role(other.id, "super_admin", "a job", Actor.platform())
   end
+
+  # gaia#23: the triage desk is set on the operator's screen, with a
+  # note; the environment's slug stands only until it first is.
+  test "the operator sets the triage desk to a resident or to nobody; until then the environment's stands" do
+    store = {Oneiroi.Config, :values}
+    values = :persistent_term.get(store)
+    on_exit(fn -> :persistent_term.put(store, values) end)
+
+    founder = Fixtures.account!()
+    Clock.Fake.advance(1)
+    other = Fixtures.account!()
+    lily = Fixtures.resident!(founder)
+    rose = Fixtures.resident!(founder)
+    op = Actor.new(:witness, founder.id)
+    assert Gaia.operator?(founder.id)
+
+    :persistent_term.put(store, Map.put(values, {:gaia, :triage_resident}, lily.slug))
+    assert %{slug: slug, from: "environment"} = Gaia.triage_desk()
+    assert slug == lily.slug
+    assert Gaia.triage_resident() == lily.id
+
+    assert {:error, %{kind: :gaia_not_an_operator}} =
+             Gaia.set_triage_resident(rose.slug, "mine now", Actor.new(:witness, other.id))
+
+    assert {:error, %{kind: :gaia_platform_invalid}} =
+             Gaia.set_triage_resident("nobody-here", "who", op)
+
+    assert {:error, _} = Gaia.set_triage_resident(rose.slug, " ", op)
+
+    assert :ok = Gaia.set_triage_resident(rose.slug, "rose said yes", op)
+    assert %{from: "setting", note: "rose said yes", set_by: "witness:" <> _} = Gaia.triage_desk()
+    assert Gaia.triage_resident() == rose.id
+    assert Gaia.triage?(rose.id)
+    refute Gaia.triage?(lily.id)
+
+    # Nobody is a setting too: the environment's slug no longer stands.
+    assert :ok = Gaia.set_triage_resident(nil, "a quiet week", op)
+    assert %{slug: nil, from: "setting"} = Gaia.triage_desk()
+    assert is_nil(Gaia.triage_resident())
+
+    # The console may set it as well.
+    assert :ok =
+             Gaia.set_triage_resident(lily.slug, "back to lily", Actor.new(:platform, "console"))
+
+    assert Gaia.triage_resident() == lily.id
+  end
 end

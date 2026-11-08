@@ -72,6 +72,12 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :state, :note]
   end
 
+  defmodule TriageResidentSet do
+    # The triage desk (gaia#23): the resident, by slug, who receives every
+    # platform report as a letter and holds the triage tools; nil, nobody.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
+  end
+
   defmodule RoleGranted do
     # A platform role (super_admin or admin) granted to an account, by
     # whom and why; the founding account's is granted by the platform.

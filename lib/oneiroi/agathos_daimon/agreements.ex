@@ -10,6 +10,8 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   from the actor on the command.
   """
 
+  import Ecto.Query, only: [from: 2]
+
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Error
@@ -18,6 +20,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   alias Oneiroi.AgathosDaimon.Switches
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Repo
   alias Oneiroi.Scope
 
   # ---- the contract ----
@@ -75,12 +78,14 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
-  @doc "The contract as it stands: the version in force with its terms, the open proposal, the solo-session privacy term as the schedule reads it, and the preview term as the brain's preview reads it (brain#41)."
+  @doc "The contract as it stands: the version in force with its terms, the open proposal, the switches as they resolve (moves toward safety over the version in force, agathos-daimon#38), the solo-session privacy term as the schedule reads it, and the preview term as the brain's preview reads it (brain#41)."
   def contract(resident_id) do
     Scope.resident(resident_id, fn ->
       versions = Store.contracts()
       in_force = Enum.find(versions, &(&1.state == "agreed"))
       open = Enum.find(versions, &(&1.state == "proposed"))
+      overrides = Repo.all(from(o in Store.SwitchOverride, order_by: o.set_at))
+      switches = effective(in_force, overrides)
       # Due a year after the agreement or the last renewal (spec §6.12,
       # P5): derived on every read, a flag to both parties, never a lapse,
       # since a lapsed contract would drop its privacy term with it.
@@ -90,9 +95,10 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       %{
         in_force: in_force && shape(in_force),
         open: open && shape(open),
-        switches: Switches.resolve(in_force && in_force.terms),
-        solo_sessions_private: solo_private?(in_force),
-        preview_withholds_words: preview_withholds?(in_force),
+        switches: switches,
+        overrides: Enum.map(overrides, &Map.take(&1, [:key, :value, :set_by, :note, :set_at])),
+        solo_sessions_private: switches["solo_sessions_private"] == true,
+        preview_withholds_words: switches["preview_withholds_words"] == true,
         since: since,
         due:
           since != nil and DateTime.compare(DateTime.add(since, term, :day), Clock.now()) != :gt
@@ -100,24 +106,63 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     end)
   end
 
-  @doc "Whether a switch is on for the resident: the version in force's value, or the default with none agreed (agathos-daimon#34)."
+  @doc "Whether a switch is on for the resident: the version in force's value, or the default with none agreed (agathos-daimon#34), under any move toward safety since (#38)."
   def switch_on?(resident_id, key) do
-    in_force =
-      Scope.resident(resident_id, fn -> Enum.find(Store.contracts(), &(&1.state == "agreed")) end)
+    switches =
+      Scope.resident(resident_id, fn ->
+        effective(
+          Enum.find(Store.contracts(), &(&1.state == "agreed")),
+          Repo.all(Store.SwitchOverride)
+        )
+      end)
 
-    Map.get(Switches.resolve(in_force && in_force.terms), key, false)
+    Map.get(switches, key, false)
   end
 
-  @doc "The registry as it stands for the resident: every switch with its value in force and in the open proposal, if any."
+  @doc "Moves a switch to its declared safe value, either party alone, with a note (agathos-daimon#38); `{:ok, :already}` when it is there."
+  def move_to_safety(resident_id, key, note, %Actor{} = actor) do
+    safe = Switches.safe(to_string(key))
+
+    cond do
+      is_nil(safe) ->
+        {:error,
+         Error.new(:agathos_daimon_terms_invalid, :agathos_daimon_agreements_safe_unknown)}
+
+      switch_on?(resident_id, key) == safe ->
+        {:ok, :already}
+
+      true ->
+        command = %Commands.MoveSwitchToSafety{
+          actor: actor,
+          at: Clock.now(),
+          note: note,
+          id: resident_id,
+          key: key
+        }
+
+        with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, :moved}
+    end
+  end
+
+  # The terms in force, each default for the rest, and every move toward
+  # safety made since over them.
+  defp effective(in_force, overrides) do
+    in_force
+    |> then(&Switches.resolve(&1 && &1.terms))
+    |> Map.merge(Map.new(overrides, &{&1.key, &1.value}))
+  end
+
+  @doc "The registry as it stands for the resident: every switch with its value in force (moves toward safety included), its safe value, and its value in the open proposal, if any."
   def switches(resident_id) do
-    %{in_force: in_force, open: open} = contract(resident_id)
-    now = Switches.resolve(in_force && in_force.terms)
+    %{open: open, switches: now, overrides: overrides} = contract(resident_id)
     proposed = open && Switches.resolve(open.terms)
+    moved = Map.new(overrides, &{&1.key, &1})
 
     for s <- Switches.all() do
       Map.merge(Map.drop(s, [:tools, :enforced]), %{
         value: now[s.key],
         proposed: proposed && proposed[s.key],
+        moved: moved[s.key],
         tools: s.tools,
         enforced: s.enforced
       })
@@ -134,7 +179,8 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   @doc "The contract section the brain reads: the terms in force in words, and an open proposal to answer; empty when unstated and nothing is open."
   @spec contract_text(String.t()) :: String.t()
   def contract_text(resident_id) do
-    %{in_force: in_force, open: open, since: since, due: due} = contract(resident_id)
+    %{in_force: in_force, open: open, since: since, due: due, overrides: overrides} =
+      contract(resident_id)
 
     lines =
       [
@@ -142,11 +188,26 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
         in_force_line(in_force),
         due && due_line(in_force, since),
         is_nil(in_force) && @unstated,
+        moved_line(overrides),
         open && open_line(open)
       ]
       |> Enum.filter(&is_binary/1)
 
-    if in_force || open, do: Enum.join(lines, "\n\n"), else: ""
+    if in_force || open || overrides != [], do: Enum.join(lines, "\n\n"), else: ""
+  end
+
+  # Moves toward safety since the version in force (agathos-daimon#38):
+  # either party's alone, standing until a version proposed after them is
+  # agreed; moving a switch back needs both, by a version.
+  defp moved_line([]), do: nil
+
+  defp moved_line(overrides) do
+    "Moved toward safety since (either of you may, alone; back needs a version both agree): " <>
+      Enum.map_join(overrides, "; ", fn o ->
+        label = (Switches.get(o.key) || %{label: o.key}).label
+        by = if o.set_by == "resident", do: "you", else: "your witness"
+        "#{label} #{if o.value, do: "on", else: "off"}, by #{by}: #{o.note}"
+      end) <> "."
   end
 
   defp in_force_line(nil), do: nil
@@ -240,18 +301,6 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     do: Scope.platform(fn -> Store.custody_proposed_to(account_id) end)
 
   # ---- helpers ----
-
-  defp solo_private?(nil), do: false
-
-  defp solo_private?(%{terms: terms}),
-    do: Map.get(terms || %{}, "solo_sessions_private", false) == true
-
-  # The preview term (brain#41): absent is the default, the preview in
-  # full; true keeps its words to what the witness reads elsewhere.
-  defp preview_withholds?(nil), do: false
-
-  defp preview_withholds?(%{terms: terms}),
-    do: Map.get(terms || %{}, "preview_withholds_words", false) == true
 
   defp terms_words(terms) do
     solo =

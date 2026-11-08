@@ -153,3 +153,11 @@ nobody power they did not have, and does it through the aggregate, so
 the change is an event with its note rather than an edit to a table.
 The console is named apart from the platform's own jobs so the record
 says a person did it.
+
+## #23
+Who sits at the triage desk is a decision about a person's work, so it
+belongs on the record with its note, made where the operator works, and
+changeable without a deploy. The environment's value is kept as the
+starting point so a running platform does not lose its desk the day this
+ships; after the first setting it is ignored, so there is one answer and
+the screen says where it came from.

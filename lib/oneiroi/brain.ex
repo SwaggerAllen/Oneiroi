@@ -44,6 +44,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
+  alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
@@ -83,6 +84,10 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many lines each layer of the timeline shows (brain#67): today's journal rows, the last 30 days' weighed moments, and her life so far past her pins, which always show; the newest kept, a guess"},
+      {:plugin_catalog, "BRAIN_PLUGIN_CATALOG",
+       default: "",
+       usage:
+         "the folder of the installable plugins' catalog (brain#68), each a folder with plugin.json and files/; empty, the release's priv/plugins"},
       {:oracle_tool_rounds, "BRAIN_ORACLE_TOOL_ROUNDS",
        cast: :integer,
        default: "24",
@@ -173,6 +178,8 @@ defmodule Oneiroi.Brain do
        "the turn did not complete: the witness's words were kept and no reply was captured (brain#45)",
        remedy:
          "the provider failure is recorded as a capture failure on the session; send the message again"},
+      {:brain_no_such_plugin, "no plugin in the catalog has that key",
+       remedy: "plugin_list names every plugin and its key"},
       {:brain_nothing_running, "no turn is running in that conversation to stop",
        remedy: "nothing to do: the turn had already ended"},
       {:brain_turn_crashed, "the turn's process stopped before it answered",
@@ -241,6 +248,31 @@ defmodule Oneiroi.Brain do
           {:ok, map()} | {:error, term()}
   defexport(submit(resident_id, session_key, text, actor, ref),
     do: Session.submit(resident_id, session_key, text, actor, ref)
+  )
+
+  @doc "The plugin catalog with the resident's state and every proposal (brain#68)."
+  @spec plugins(String.t()) :: map()
+  defexport(plugins(resident_id), do: PluginConsent.list(resident_id))
+
+  @doc "Proposes a change to a plugin: install, remove, on or off, with its why (brain#68)."
+  @spec propose_plugin(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(propose_plugin(resident_id, key, change, note, actor),
+    do: PluginConsent.propose(resident_id, key, change, note, actor)
+  )
+
+  @doc "Answers a plugin proposal, agreed or declined, with a note (brain#68)."
+  @spec answer_plugin(String.t(), pos_integer(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_plugin(resident_id, number, agree, note, actor),
+    do: PluginConsent.answer(resident_id, number, agree, note, actor)
+  )
+
+  @doc "Switches an installable plugin off at once, either party's alone (brain#68, position #68)."
+  @spec switch_plugin_off(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(switch_plugin_off(resident_id, key, note, actor),
+    do: PluginConsent.switch_off(resident_id, key, note, actor)
   )
 
   @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."

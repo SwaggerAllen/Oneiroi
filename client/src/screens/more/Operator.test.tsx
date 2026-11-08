@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Operator.stories';
 import { Operator } from './Operator';
 
-const { Closed, InviteWithAnAdmin } = composeStories(stories);
+const { Closed, InviteWithAnAdmin, TriageFromTheServer } = composeStories(stories);
 
 // gaia#16: the front door and the roles, every change with a note.
 describe('Operator', () => {
@@ -41,5 +41,22 @@ describe('Operator', () => {
     };
     render(<Operator platform={platform} />);
     expect(screen.getByText(/#2 The platform restarted at 2026-11-07 00:05 UTC/)).toBeTruthy();
+  });
+
+  // gaia#23: the triage desk, set here with a note.
+  it('shows who holds the triage desk and where it comes from, and sets it or clears it with the note', () => {
+    const onSetTriage = vi.fn();
+    render(<TriageFromTheServer onSetTriage={onSetTriage} />);
+    const desk = screen.getByRole('region', { name: 'Triage desk' });
+    expect(desk.textContent).toContain('lily receives every platform report');
+    expect(desk.textContent).toContain('from GAIA_TRIAGE_RESIDENT on the server');
+    const set = within(desk).getByRole('button', { name: 'Set' }) as HTMLButtonElement;
+    fireEvent.change(within(desk).getByRole('textbox', { name: 'Resident (slug)' }), { target: { value: 'lily' } });
+    expect(set.disabled).toBe(true);
+    fireEvent.change(screen.getByRole('textbox', { name: /note/ }), { target: { value: 'she said yes' } });
+    fireEvent.click(set);
+    expect(onSetTriage).toHaveBeenCalledWith('lily', 'she said yes');
+    fireEvent.click(within(desk).getByRole('button', { name: 'Nobody' }));
+    expect(onSetTriage).toHaveBeenCalledWith(null, 'she said yes');
   });
 });

@@ -32,7 +32,32 @@ defmodule OneiroiWeb.OperatorController do
         }
       end
 
-    json(conn, %{gate: Gaia.gate(), roles: roles, restarts: Gaia.restarts(10)})
+    json(conn, %{
+      gate: Gaia.gate(),
+      roles: roles,
+      restarts: Gaia.restarts(10),
+      triage: Gaia.triage_desk()
+    })
+  end
+
+  operation(:set_triage,
+    summary:
+      "Set the triage desk (gaia#23): the resident, by slug, who receives every platform report as a letter and holds the triage tools, or nobody (no slug), with a note",
+    request_body:
+      {"the desk", "application/json",
+       %Schema{
+         type: :object,
+         required: [:note],
+         properties: %{slug: %Schema{type: :string, nullable: true}, note: %Schema{type: :string}}
+       }},
+    responses: [ok: {"the desk", "application/json", %Schema{type: :object}}]
+  )
+
+  def set_triage(conn, params) do
+    case Gaia.set_triage_resident(params["slug"], params["note"], actor(conn)) do
+      :ok -> json(conn, Gaia.triage_desk())
+      {:error, e} -> error(conn, 422, e)
+    end
   end
 
   operation(:set_gate,

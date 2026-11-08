@@ -326,6 +326,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"bookmark_weigh", %{number: 1, importance: 3, status: "seen"}},
     {"external_add", %{url: "https://example.org/herons"}},
     {"external_fetch", %{number: 1}},
+    {"plugin_propose", %{key: "honcho", change: "off", note: "a test"}},
+    {"plugin_answer", %{number: 1, agree: true, note: "fine"}},
+    {"plugin_off", %{key: "files", note: "stop"}},
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},
@@ -353,6 +356,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"contract_agree", %{version: 1, note: "agreed"}},
     {"contract_decline", %{version: 1, note: "no"}},
     {"contract_renew", %{version: 1, note: "again"}},
+    {"contract_safe", %{key: "research", note: "not now"}},
     {"revision_accept", %{number: 1, note: "yes"}},
     {"revision_decline", %{number: 1, note: "no"}}
   ]

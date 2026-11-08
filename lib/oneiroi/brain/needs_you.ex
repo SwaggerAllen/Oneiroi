@@ -31,7 +31,11 @@ defmodule Oneiroi.Brain.NeedsYou do
   def list(resident_id) do
     now = Clock.now()
 
-    (replies(resident_id) ++ asks(resident_id) ++ pieces(resident_id) ++ work(resident_id))
+    (replies(resident_id) ++
+       asks(resident_id) ++
+       pieces(resident_id) ++
+       work(resident_id) ++
+       plugins(resident_id))
     |> Enum.sort_by(& &1.since, DateTime)
     |> Enum.map(&Map.put(&1, :long, DateTime.diff(now, &1.since, :hour) >= @long_hours))
   end
@@ -83,6 +87,21 @@ defmodule Oneiroi.Brain.NeedsYou do
           about: %{title: p.title}
         }
       end
+  end
+
+  # Her plugin proposals waiting for his answer (brain#68).
+  defp plugins(resident_id) do
+    for p <- Oneiroi.AgathosDaimon.plugin_proposals(resident_id),
+        is_nil(p.answered_at),
+        p.proposed_by == "resident" do
+      %{
+        kind: "plugin_proposal",
+        ref: p.number,
+        since: p.proposed_at,
+        screen: "agreement",
+        about: %{key: p.key, change: p.change, note: p.note}
+      }
+    end
   end
 
   defp work(resident_id) do

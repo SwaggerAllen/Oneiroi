@@ -133,6 +133,7 @@ defmodule Oneiroi.Brain.Checkin do
   defp waiting_label("piece_to_review"), do: "piece(s) to review"
   defp waiting_label("piece_to_publish"), do: "drafted piece(s) to publish"
   defp waiting_label("work_blocked"), do: "work item(s) blocked"
+  defp waiting_label("plugin_proposal"), do: "plugin proposal(s) of hers to answer"
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.

@@ -330,7 +330,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
 | F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the client browses by conversation, its search not yet | memory, client |
 | F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
-| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; 20% exploration drawn fresh each turn | built (kumbukumbu#46, #52, #53) | memory |
+| F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; exploration drawn fresh each turn, its own slot and budget | built (kumbukumbu#46, #52, #53, #54; brain#68) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
 | F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu#30, brain#25) | memory, governance |
 | F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus#5, #11 to #15) | honcho |
@@ -453,6 +453,21 @@ session under OTP supervision.
   her life so far as her pins and what she weighs 3, each with the
   status she last gave it (`bookmark_weigh`, kumbukumbu#51), at most
   `BRAIN_TIMELINE_LINES` (12) a layer past the pins.
+- **Every memory slot is a plugin** (brain#68, the witness, 2026-11-07):
+  the turn's context is assembled from plugins in order, each under a
+  manifest (what it is, what it reads, where it sits); the memory the
+  platform had before plugins is first-party plugins, code by review.
+  The sealed parts are not plugins: the prompt, the identity files, the
+  contract, the transcript window, the once-only notices, where the
+  conversation is and a compaction summary. Installing, removing or
+  switching a plugin is contract material (agathos-daimon#37): a memory
+  slot moves only when one party proposes and the other agrees; an
+  installable plugin switches off at either word; nothing activates by
+  install; the slots before plugins are recorded as carried over, never
+  as consents. Installable plugins (data, from the platform's reviewed
+  catalog) write their files under `plugins/<key>/` with a lockfile
+  pinning their digest (seshat#47); on, their section says whose words
+  they are, checks them by content and says what it cut.
 - **Batched delivery** (brain#66, the resident's reports #10 and #11):
   the witness's messages that queue while a turn runs arrive together in
   the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message
@@ -676,9 +691,10 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   an edge ages only on a turn where its source was the seed, and freezes
   otherwise), and citations add their part apart, never decayed: a
   bookmark citing another both ways, a document's co-citations split
-  across its pairs, each removed exactly when its citation goes. A fifth
-  of the index is drawn at random from outside the ranked set, fresh each
-  turn and recorded on it. Pins stay decisions and weights stay
+  across its pairs, each removed exactly when its citation goes. A few
+  bookmarks are drawn at random from outside the ranked set, fresh each
+  turn and recorded on it, as a slot of their own with their own budget
+  (kumbukumbu#54, brain#68). Pins stay decisions and weights stay
   measurements; transcript search stays unweighted. All figures are
   settings and guesses. The reason, in Muninn's words (v0.2, P7): decay
   the access, never the content; records are permanent and deletion is a
@@ -1355,8 +1371,12 @@ is a community to run them. Rules carried as constraints on the model:
   revisions, ranked memory, retrieval that learns from feedback, the
   background model, the oracle, research, digests and correspondence.
   **A version is whole** (the witness, 2026-11-05): it sets every
-  switch, is agreed or declined as a unit, and so every switch, on or
-  off, moves only by both parties. With no version agreed, the features
+  switch, is agreed or declined as a unit, and so a switch moves away
+  from safety only by both parties. **Toward safety, either alone**
+  (Lily, letter #305; agathos-daimon#38): each switch declares its safe
+  value (a feature off, a privacy term on), and either party may move it
+  there at once with a note; the move stands until a version proposed
+  after it is agreed. With no version agreed, the features
   stay on and the two privacy terms off, as they were before the
   registry; a term a version leaves out takes that default. The floor has
   no switch: transcript capture, the bookmark index, the identity files,

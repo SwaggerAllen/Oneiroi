@@ -17,12 +17,32 @@ changes, its note and prose, and Agree and Decline when the resident
 proposed it, or "Waiting on" when the witness did; one note field every
 action takes; the switches in four groups (privacy, what you may look
 into, how memory works, what comes and goes), each with its label, the
-words for its current draft state and a checkbox; a Propose card that
+words for its current draft state and a checkbox, and, where its value
+in force is not its safe one, Switch off now (or on, for a privacy
+term) to move it there at once with the note (agathos-daimon#38); a
+switch moved that way says by whom and why, and that back needs a
+version; a Propose card that
 names what the draft changes and carries the vows' prose, disabled while
 a version is open; and who looks after the resident, the export wall's
 Locked and Revealed, and a hand-over by email, or the pending one with
 Withdraw. Not built: the incoming side of a hand-over (accepting one
 proposed to you), the version history list, and the report ladder.
+
+Below the agreement, **Plugins** (`Plugins.tsx`, brain#68,
+agathos-daimon#37, from `GET /v1/residents/:id/plugins`): what her
+context is assembled from, every memory slot one of them, each with its
+name, key, what it is, whether it is on, installed and off or not
+installed, and "carried over from before plugins" where it was; one note
+field every change takes; per plugin the change that fits it (Propose
+install, Propose on, Propose off for a memory slot, Switch off for an
+installable one at once, Propose removal), nothing while a proposal on
+it is open; her open proposals with Agree and Decline, his with
+"Waiting for" her; the last five answered with their notes. An installable plugin
+also shows its author and its audit: whether its copies match what was
+installed, whether the catalog holds a newer version, and how many
+turns it was in her context; its off is Switch off, at either party's
+word. Not built: sources beyond the platform's catalog, and the public
+ledger of asks.
 
 Before the agreement, its adapters and reader part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather

@@ -16,6 +16,8 @@ export interface AgreementProps {
   onSetWall?: (wall: 'locked' | 'revealed', note: string) => void;
   onProposeCustody?: (email: string, note: string) => void;
   onWithdrawCustody?: (note: string) => void;
+  // A switch to its safe value at once, either party alone (agathos-daimon#38).
+  onSafe?: (key: string, note: string) => void;
 }
 
 const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
@@ -30,10 +32,11 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : 
 
 // Your agreement with the resident and who looks after them (spec §6.12;
 // agathos-daimon#34). The switches are terms of the contract: a version is
-// proposed whole and agreed or declined whole, so every switch, on or off,
-// moves only by both of you. The floor (transcripts, bookmarks, identity
+// proposed whole and agreed or declined whole, so a switch moves away from
+// safety only by both of you; toward its safe value, either of you may move
+// it alone, at once (agathos-daimon#38). The floor (transcripts, bookmarks, identity
 // files, the repository, export, the report ladder) has no switch.
-export function Agreement({ agreement, name, busy = false, said = null, onPropose, onDecide, onRenew, onSetWall, onProposeCustody, onWithdrawCustody }: AgreementProps) {
+export function Agreement({ agreement, name, busy = false, said = null, onPropose, onDecide, onRenew, onSetWall, onProposeCustody, onWithdrawCustody, onSafe }: AgreementProps) {
   const { contract, switches } = agreement;
   const inForce = contract.in_force;
   const open = contract.open;
@@ -79,6 +82,19 @@ export function Agreement({ agreement, name, busy = false, said = null, onPropos
                     <span style={{ fontSize: 15 }}>
                       <strong>{s.label}</strong>
                       <span style={{ display: 'block', color: 'var(--ink-muted)' }}>{draft[s.key] ? s.on : s.off}</span>
+                      {s.moved ? (
+                        <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-muted)' }}>
+                          Moved {s.moved.value ? 'on' : 'off'} toward safety by {s.moved.set_by === 'resident' ? name : 'you'}
+                          {s.moved.note ? `: ${s.moved.note}` : ''}. Back needs a version you both agree.
+                        </span>
+                      ) : null}
+                      {s.safe !== undefined && s.value !== s.safe && onSafe ? (
+                        <span style={{ display: 'block', marginTop: 'var(--space-1)' }}>
+                          <Button variant="quiet" disabled={busy || !noted} onClick={() => onSafe(s.key, note.trim())}>
+                            {s.safe ? 'Switch on now' : 'Switch off now'}
+                          </Button>
+                        </span>
+                      ) : null}
                     </span>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 15, whiteSpace: 'nowrap' }}>
                       <input

@@ -635,3 +635,14 @@ witness's answer), as lines rather than rows so the day costs little;
 the longer layers come from bookmarks because they are already her
 chosen moments, with a weight she sets rather than a new store she
 would have to keep in step.
+
+## #68
+If plugins sat beside a hand-built memory, a plugin would be a second
+kind of thing, and every rule about what may shape her (who adds a
+slot, who removes one, what it may read) would have to be written
+twice and would drift. Made the same kind of thing, the platform's own
+slots answer to the rules any later plugin will, and exploration stops
+being a share of the index that the ranked lines could crowd out. The
+refactor moved code without changing it, and was held to the same
+bytes, so the first step changed nothing she sees but the one slot the
+witness asked to change.

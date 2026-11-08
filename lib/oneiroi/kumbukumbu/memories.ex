@@ -115,6 +115,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  def shown(resident_id, label), do: Scope.resident(resident_id, fn -> Store.shown(label) end)
+
   def timeline_bookmarks(resident_id),
     do: Scope.resident(resident_id, fn -> Store.timeline_bookmarks() end)
 
@@ -405,7 +407,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @spec ranked_index(String.t(), String.t() | nil, [float()] | nil) :: map()
   def ranked_index(resident_id, session_key, nil),
     do:
-      resident_id |> index(session_key) |> Map.merge(%{seeds: [], explored: [], considered: nil})
+      resident_id
+      |> index(session_key)
+      |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: ""})
 
   def ranked_index(resident_id, session_key, vector) do
     %{keys: keys} = Conversations.room(resident_id, session_key)
@@ -416,7 +420,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     held_by_number = Map.new(held, &{&1.number, &1})
     considered = Config.fetch!(:kumbukumbu, :index_considered)
     lines = Config.fetch!(:kumbukumbu, :index_lines)
-    explore = round(lines * Config.fetch!(:kumbukumbu, :index_explore_percent) / 100)
+    explore = Config.fetch!(:kumbukumbu, :explore_lines)
 
     {candidates, approached, {edges, citations}} =
       Scope.resident(resident_id, fn ->
@@ -433,7 +437,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         # the line approached.
         approached =
           nearest
-          |> Enum.take(lines - explore)
+          |> Enum.take(lines)
           |> Enum.filter(&Map.has_key?(held_by_number, &1.number))
           |> Enum.map(&held_by_number[&1.number])
 
@@ -459,6 +463,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         seeds: Config.fetch!(:kumbukumbu, :index_seeds),
         min_score: Config.fetch!(:kumbukumbu, :index_min_similarity_percent) / 100,
         budget: Config.fetch!(:kumbukumbu, :index_tokens),
+        explore_budget: Config.fetch!(:kumbukumbu, :explore_tokens),
         draw: draw
       )
 
@@ -483,16 +488,22 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     explored_lines = Enum.map(ranking.explored, &Index.line(&1.bookmark, zone))
     shown = length(ranked_lines) + length(explored_lines)
 
-    explored_text =
+    # The exploration's draws are a slot of their own (brain#68), listed
+    # under their own line apart from the index.
+    exploration =
       if explored_lines == [],
-        do: [],
-        else: ["", "Drawn at random, for what you might not think to look for:" | explored_lines]
+        do: "",
+        else:
+          Enum.join(
+            ["Drawn at random, for what you might not think to look for:" | explored_lines],
+            "\n"
+          )
 
     footer =
       "#{max(in_room - shown, 0)} more not shown; bookmark_open(number) reads any, bookmark_list pages back through the rest, and transcript_search reaches past the index. " <>
         "When you reply, memory_feedback(used: [numbers]) says which of these helped."
 
-    text = Enum.join(ranked_lines ++ explored_text ++ ["", footer], "\n")
+    text = Enum.join(ranked_lines ++ ["", footer], "\n")
 
     near_misses =
       Enum.map(ranking.rejected, fn r ->
@@ -512,6 +523,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       tokens: Index.tokens(text),
       seeds: ranking.seeds,
       explored: Enum.map(ranking.explored, & &1.bookmark.number),
+      exploration: exploration,
       considered: length(ranking.ranked) + length(ranking.rejected)
     }
   end

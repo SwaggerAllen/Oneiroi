@@ -121,6 +121,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Oracles
   alias Oneiroi.Seshat.PieceReviews
+  alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
 
   @impl Oneiroi.Component
@@ -446,6 +447,27 @@ defmodule Oneiroi.Seshat do
   defexport(fail_research(resident_id, number, reason, actor),
     do: Researches.fail(resident_id, number, reason, actor)
   )
+
+  @doc "Writes an installable plugin's files and lockfile under plugins/<key>/ (seshat#47); the digest."
+  @spec install_plugin_files(String.t(), String.t(), map(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(install_plugin_files(resident_id, key, files, meta, actor),
+    do: PluginFiles.install(resident_id, key, files, meta, actor)
+  )
+
+  @doc "Removes an installable plugin's files and lockfile (seshat#47), when both parties agreed."
+  @spec remove_plugin_files(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(remove_plugin_files(resident_id, key, actor),
+    do: PluginFiles.remove(resident_id, key, actor)
+  )
+
+  @doc "An installable plugin's files as they stand, with the lockfile's digest and the digest found."
+  @spec plugin_files(String.t(), String.t()) :: map()
+  defexport(plugin_files(resident_id, key), do: PluginFiles.read(resident_id, key))
+
+  @doc "The digest of a plugin's files: SHA-256 over each path and its words, in path order."
+  @spec plugin_digest(map()) :: String.t()
+  defexport(plugin_digest(files), do: PluginFiles.digest(files))
 
   @doc "Commissions the external source a URL names (a web page, or a GitHub file) and asks the reader for its first copy (seshat#46): `{:ok, number, :new | :known}`."
   @spec commission_external(String.t(), String.t() | nil, String.t(), Oneiroi.Actor.t()) ::

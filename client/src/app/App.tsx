@@ -14,6 +14,7 @@ import type {
   FreeTimeRun,
   WorkQueue as WorkQueueData,
   NeedsYouEntry,
+  PluginsData,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -55,6 +56,7 @@ import { type ReportDetail, Reports } from '../screens/more/Reports';
 import { type Begin, CreationFlow, type Gift } from '../screens/creation-flow/CreationFlow';
 import type { FlowApi } from '../screens/creation-flow/Gifts';
 import { Agreement } from '../screens/settings-agreement/Agreement';
+import { Plugins } from '../screens/settings-agreement/Plugins';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -220,7 +222,12 @@ export function App() {
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
-        {destination === 'agreement' ? <AgreementContainer resident={resident} /> : null}
+        {destination === 'agreement' ? (
+          <>
+            <AgreementContainer resident={resident} />
+            <PluginsContainer resident={resident} />
+          </>
+        ) : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
       </div>
       <BottomNav current={destination} onChange={go} />
@@ -723,6 +730,7 @@ function OperatorContainer() {
         onSetGate={(state, note) => run(() => api.setGate(state, note), `The front door is ${state}.`)}
         onGrant={(email, role, note) => run(() => api.grantRole(email, role, note), `Granted ${role} to ${email}.`)}
         onRevoke={(id, role, note) => run(() => api.revokeRole(id, role, note), `Revoked ${role}.`)}
+        onSetTriage={(slug, note) => run(() => api.setTriage(slug, note), slug ? `${slug} holds the triage desk.` : 'Nobody holds the triage desk.')}
       />
       <InvitesContainer />
       <ReportsContainer />
@@ -1055,6 +1063,46 @@ function AgreementContainer({ resident }: { resident: Resident }) {
       onSetWall={(w, note) => run(() => api.setWall(id, w, note), `Earlier sessions are ${w}.`)}
       onProposeCustody={(email, note) => run(() => api.proposeCustody(id, email, note), `Proposed to ${email}.`)}
       onWithdrawCustody={(note) => run(() => api.decideCustody(id, 'withdraw', note), 'Withdrawn.')}
+      onSafe={(key, note) => run(() => api.moveToSafety(id, key, note), 'Moved to its safe value.')}
+    />
+  );
+}
+
+// Plugins beside the agreement (brain#68): contract material.
+function PluginsContainer({ resident }: { resident: Resident }) {
+  const [data, setData] = useState<PluginsData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api
+      .plugins(resident.id)
+      .then(setData)
+      .catch(() => setData(null));
+  }, [resident.id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  if (!data) return null;
+  const id = resident.id;
+  const run = (work: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(() => setSaid(done))
+      .catch((e: unknown) => setSaid(asApiError(e).meaning))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+  return (
+    <Plugins
+      name={resident.name}
+      data={data}
+      busy={busy}
+      said={said}
+      onPropose={(key, change, note) => run(() => api.proposePlugin(id, key, change, note), `Proposed; ${resident.name} answers.`)}
+      onAnswer={(n, agree, note) => run(() => api.answerPlugin(id, n, agree, note), agree ? 'Agreed: the change is made.' : 'Declined.')}
+      onOff={(key, note) => run(() => api.pluginOff(id, key, note), 'Switched off.')}
     />
   );
 }

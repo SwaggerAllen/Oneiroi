@@ -68,9 +68,10 @@ defmodule Oneiroi.Brain.PreviewTest do
   defp comparable(rows),
     do:
       rows
-      # The madeleine and the ranked index (with its near-misses) are
-      # chosen by nearness to the words, which a preview cannot embed.
-      |> Enum.reject(&(&1.label in ["madeleine", "index", "near-miss"]))
+      # The madeleine and the ranked index (with its near-misses and the
+      # exploration drawn beside it, brain#68) need the words' embedding,
+      # which a preview cannot make.
+      |> Enum.reject(&(&1.label in ["madeleine", "index", "exploration", "near-miss"]))
       |> Enum.map(&{&1.label, &1.tokens, &1.reason})
 
   test "the preview's sections are the turn's, in the turn's order, by the one assembly", ctx do
