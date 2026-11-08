@@ -314,4 +314,30 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # The witness's answer: approve or decline for an act, noted for a tool.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :decision], decision: true
   end
+
+  defmodule PluginProposed do
+    # A change to a plugin proposed by one party (agathos-daimon#37):
+    # install, remove, on or off, with its why; the other party answers.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :number, :key, :tier, :change]
+  end
+
+  defmodule PluginAnswered do
+    # The other party's answer, agreed or declined, with its note.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :agree]
+  end
+
+  defmodule PluginChanged do
+    # The change itself, made by an agreed proposal (`number`) or, for an
+    # installable plugin's off, by either party alone (`number` nil).
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :tier, :change, :number]
+  end
+
+  defmodule PluginsCarriedOver do
+    # The memory slots that existed before plugins, installed and on as
+    # they were: carried over, which the record says, never consented.
+    use Oneiroi.Event, version: 1, fields: [:id, :keys]
+  end
 end

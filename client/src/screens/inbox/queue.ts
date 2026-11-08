@@ -30,11 +30,14 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `Publish the drafted piece ${a.title ?? e.ref}`;
     case 'work_blocked':
       return `Work item #${e.ref} blocked${a.blocked_on ? ` on ${a.blocked_on}` : ''}: ${a.what}`;
+    case 'plugin_proposal':
+      return `${residentName} proposes to ${a.change} the plugin ${a.key}: ${a.note}`;
   }
 }
 
 function where(e: NeedsYouEntry): WaitingEntry['where'] {
   if (e.screen === 'schedule') return { screen: 'Schedule' };
+  if (e.screen === 'agreement') return { screen: 'Agreement' };
   if (e.kind === 'ask') return { anchor: 'asks' };
   if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { anchor: 'pieces' };
   return { anchor: `reply-${e.ref}` };

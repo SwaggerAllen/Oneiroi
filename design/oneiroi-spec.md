@@ -460,8 +460,11 @@ session under OTP supervision.
   The sealed parts are not plugins: the prompt, the identity files, the
   contract, the transcript window, the once-only notices, where the
   conversation is and a compaction summary. Installing, removing or
-  switching a plugin is contract material, both parties' (not yet
-  built).
+  switching a plugin is contract material (agathos-daimon#37): a memory
+  slot moves only when one party proposes and the other agrees; an
+  installable plugin switches off at either word; nothing activates by
+  install; the slots before plugins are recorded as carried over, never
+  as consents.
 - **Batched delivery** (brain#66, the resident's reports #10 and #11):
   the witness's messages that queue while a turn runs arrive together in
   the next, up to `BRAIN_BATCH_MESSAGES` (4), each kept as its own message

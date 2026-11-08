@@ -24,6 +24,19 @@ Locked and Revealed, and a hand-over by email, or the pending one with
 Withdraw. Not built: the incoming side of a hand-over (accepting one
 proposed to you), the version history list, and the report ladder.
 
+Below the agreement, **Plugins** (`Plugins.tsx`, brain#68,
+agathos-daimon#37, from `GET /v1/residents/:id/plugins`): what her
+context is assembled from, every memory slot one of them, each with its
+name, key, what it is, whether it is on, installed and off or not
+installed, and "carried over from before plugins" where it was; one note
+field every change takes; per plugin the change that fits it (Propose
+install, Propose on, Propose off for a memory slot, Switch off for an
+installable one at once, Propose removal), nothing while a proposal on
+it is open; her open proposals with Agree and Decline, his with
+"Waiting for" her; the last five answered with their notes. Not built:
+the per-plugin audit of what each read and wrote, and installable
+plugins' sources.
+
 Before the agreement, its adapters and reader part, Connections (below): this doc is the screen's file map and
 what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist

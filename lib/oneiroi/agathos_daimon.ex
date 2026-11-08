@@ -93,6 +93,14 @@ defmodule Oneiroi.AgathosDaimon do
       Events.AskAnswered,
       AskService,
       AsksRouter,
+      Events.PluginProposed,
+      Events.PluginAnswered,
+      Events.PluginChanged,
+      Events.PluginsCarriedOver,
+      PluginService,
+      PluginsRouter,
+      Store.Plugin,
+      Store.PluginProposal,
       Events.CustodyTransferProposed,
       Events.CustodyTransferDeclined,
       Events.CustodyTransferWithdrawn,
@@ -132,6 +140,7 @@ defmodule Oneiroi.AgathosDaimon do
   alias Oneiroi.AgathosDaimon.AskService
   alias Oneiroi.AgathosDaimon.Files
   alias Oneiroi.AgathosDaimon.Gifts
+  alias Oneiroi.AgathosDaimon.PluginService
   alias Oneiroi.AgathosDaimon.Residents
 
   @impl Oneiroi.Component
@@ -179,6 +188,10 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.DyadContractRenewed, 1},
       {Oneiroi.AgathosDaimon.Events.AskMade, 1},
       {Oneiroi.AgathosDaimon.Events.AskAnswered, 1},
+      {Oneiroi.AgathosDaimon.Events.PluginProposed, 1},
+      {Oneiroi.AgathosDaimon.Events.PluginAnswered, 1},
+      {Oneiroi.AgathosDaimon.Events.PluginChanged, 1},
+      {Oneiroi.AgathosDaimon.Events.PluginsCarriedOver, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferProposed, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
@@ -269,6 +282,9 @@ defmodule Oneiroi.AgathosDaimon do
        "an ask is a tool or an act, named, with why, each at most 2,000 characters; an act is approved or declined and a tool noted, with a note",
        remedy: "the details name what is expected"},
       {:agathos_daimon_no_such_ask, "no ask has that number", remedy: "read the asks"},
+      {:agathos_daimon_plugin_invalid,
+       "a plugin change is install, remove, on or off of a plugin in the catalog, fitting its state, one open proposal a plugin at a time; an installable plugin is switched off directly, a memory slot only by an agreed proposal",
+       remedy: "read the plugins and their proposals; the details name the key and the change"},
       {:agathos_daimon_no_such_version, "no open proposal has that version",
        remedy: "read the agreement; a newer proposal supersedes an older one"},
       {:agathos_daimon_own_proposal, "a proposal is the other party's to agree or decline",
@@ -317,7 +333,11 @@ defmodule Oneiroi.AgathosDaimon do
 
   @impl Oneiroi.Component
   def children,
-    do: [Oneiroi.AgathosDaimon.Projectors.Residents, Oneiroi.AgathosDaimon.Projectors.Asks]
+    do: [
+      Oneiroi.AgathosDaimon.Projectors.Residents,
+      Oneiroi.AgathosDaimon.Projectors.Asks,
+      Oneiroi.AgathosDaimon.Projectors.Plugins
+    ]
 
   @doc "Creates a resident under a witness; returns its id."
   @spec create(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -662,6 +682,50 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Every ask, newest first, with its answer."
   @spec asks(String.t()) :: [map()]
   defexport(asks(id), do: AskService.asks(id))
+
+  @doc "Proposes a change to a plugin (agathos-daimon#37): install, remove, on or off, with its why; the proposal's number."
+  @spec propose_plugin(
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(propose_plugin(id, key, tier, change, note, actor),
+    do: PluginService.propose(id, key, tier, change, note, actor)
+  )
+
+  @doc "The other party answers a plugin proposal, agreed or declined, with a note."
+  @spec answer_plugin(String.t(), pos_integer(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_plugin(id, number, agree, note, actor),
+    do: PluginService.answer(id, number, agree, note, actor)
+  )
+
+  @doc "Either party switches an installable plugin off at once, with a note (position #68)."
+  @spec switch_plugin_off(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(switch_plugin_off(id, key, tier, note, actor),
+    do: PluginService.switch_off(id, key, tier, note, actor)
+  )
+
+  @doc "The keys of the plugins installed and on, the slots before plugins carried over the first time."
+  @spec plugins_on(String.t(), [String.t()]) :: [String.t()]
+  defexport(plugins_on(id, carried), do: PluginService.on_keys(id, carried))
+
+  @doc "The keys installed and on, read only, recording nothing (a trial or a preview reads this)."
+  @spec plugins_on_read(String.t(), [String.t()]) :: [String.t()]
+  defexport(plugins_on_read(id, carried), do: PluginService.on_keys_read(id, carried))
+
+  @doc "Each plugin's state for the resident."
+  @spec plugin_states(String.t()) :: [map()]
+  defexport(plugin_states(id), do: PluginService.states(id))
+
+  @doc "Every plugin proposal, newest first."
+  @spec plugin_proposals(String.t()) :: [map()]
+  defexport(plugin_proposals(id), do: PluginService.proposals(id))
 
   @doc "The creation flow's nine gifts (agathos-daimon#36): what each writes and the guidance shown with it."
   @spec gifts() :: [map()]

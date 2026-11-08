@@ -189,4 +189,28 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   defmodule AnswerAsk do
     use Oneiroi.Command, fields: [:id, :number, :decision, :note]
   end
+
+  # Plugins (agathos-daimon#37, brain#68): contract material on
+  # `plugins-<resident_id>`. `tier` is the plugin's, from the brain's
+  # catalog: "first_party" (a memory slot, code by review) or
+  # "installable" (data by consent). `change` is install, remove, on or
+  # off.
+  defmodule ProposePlugin do
+    use Oneiroi.Command, decision: true, fields: [:id, :key, :tier, :change]
+  end
+
+  defmodule AnswerPlugin do
+    use Oneiroi.Command, decision: true, fields: [:id, :number, :agree]
+  end
+
+  # Off by either party, an installable plugin's alone (position #68).
+  defmodule SwitchPluginOff do
+    use Oneiroi.Command, decision: true, fields: [:id, :key, :tier]
+  end
+
+  # The memory slots the platform had before plugins, recorded once as
+  # carried over, never as a consent.
+  defmodule CarryOverPlugins do
+    use Oneiroi.Command, fields: [:id, :keys]
+  end
 end

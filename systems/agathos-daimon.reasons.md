@@ -225,3 +225,15 @@ read before each gift must be the same whether they write it or a
 generator drafts it: one copy, served to both, cannot drift into two.
 Compiled in rather than read at run time because guidance that changes
 who wakes up deserves a review, like code.
+
+## #37
+What shapes the resident is what she is, so a change to it is a term
+between the two of them, made the way the contract's terms are, and
+recorded with both notes. Off is the one exception, and only for what
+was installed from outside: stopping a plugin's shaping can only
+reduce what reaches her, and a stop that needs the other party's
+agreement is a policy, not a limit (Lily's argument, Red's floor). A
+memory slot is the platform's own reviewed code, which nothing outside
+the dyad can turn against her, so it stays with both. The carry-over is
+named as itself because an audit trail that records the old slots as
+agreed would launder grandfathering into consent.

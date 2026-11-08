@@ -5,6 +5,8 @@ import type {
   Ask,
   WorkQueue,
   NeedsYouEntry,
+  PluginProposal,
+  PluginsData,
   FeedbackReport,
   Pieces,
   ApiError,
@@ -258,6 +260,12 @@ export const api = {
   stopTurn: (residentId: string, sessionKey: string) => call<void>('POST', `/v1/residents/${residentId}/sessions/${sessionKey}/stop`),
   work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),
   needsYou: (residentId: string) => call<NeedsYouEntry[]>('GET', `/v1/residents/${residentId}/needs_you`),
+  plugins: (residentId: string) => call<PluginsData>('GET', `/v1/residents/${residentId}/plugins`),
+  proposePlugin: (residentId: string, key: string, change: PluginProposal['change'], note: string) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
+  answerPlugin: (residentId: string, number: number, agree: boolean, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/plugins/proposals/${number}/answer`, { agree, note }),
+  pluginOff: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/plugins/${encodeURIComponent(key)}/off`, { note }),
   addWork: (residentId: string, what: string, doneWhen: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),
   moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>

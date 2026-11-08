@@ -198,6 +198,46 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Plugin do
+    @moduledoc "A plugin's state for a resident (agathos-daimon#37): installed, on, and whether it was carried over from before plugins."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_plugin" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:tier, :string)
+      field(:installed, :boolean, default: false)
+      field(:on, :boolean, default: false)
+      field(:carried_over, :boolean, default: false)
+      field(:changed_by, :string)
+      field(:changed_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule PluginProposal do
+    @moduledoc "A proposed change to a plugin (agathos-daimon#37): by whom and why, and the other party's answer."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_plugin_proposal" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:key, :string)
+      field(:tier, :string)
+      field(:change, :string)
+      field(:proposed_by, :string)
+      field(:note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:agreed, :boolean)
+      field(:answer_note, :string)
+      field(:answered_by, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule SoulEdit do
     @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines."
     use Ecto.Schema

@@ -500,12 +500,12 @@ export interface LibraryHit {
 // oldest first from the server, each naming the screen it is decided on.
 // It only shows; `long` is a mark past two days, and nothing more.
 export interface NeedsYouEntry {
-  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked';
+  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule';
+  screen: 'inbox' | 'schedule' | 'agreement';
   long: boolean;
-  about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null };
+  about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
 }
 
 export interface Ask {
@@ -573,4 +573,37 @@ export interface WorkQueue {
   // Armed by her for a batch, off once the queue clears (sunna#35).
   armed: boolean;
   armed_at?: string | null;
+}
+
+// A plugin, as the agreement shows it (brain#68, agathos-daimon#37):
+// every memory slot is one, contract material.
+export interface PluginEntry {
+  key: string;
+  name: string;
+  about: string;
+  tier: 'first_party' | 'installable';
+  place: string;
+  reads: string[];
+  installed: boolean;
+  on: boolean;
+  carried_over: boolean;
+  changed_by: string | null;
+  changed_at: string | null;
+}
+
+export interface PluginProposal {
+  number: number;
+  key: string;
+  change: 'install' | 'remove' | 'on' | 'off';
+  proposed_by: 'resident' | 'witness';
+  note: string | null;
+  proposed_at: string;
+  agreed: boolean | null;
+  answer_note: string | null;
+  answered_at: string | null;
+}
+
+export interface PluginsData {
+  plugins: PluginEntry[];
+  proposals: PluginProposal[];
 }

@@ -27,6 +27,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Introspection
+  alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -66,7 +67,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
     source_list source_read source_search repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list transcript_read ask_list platform_report_list
-    triage_list work_list message_times budget_read external_list external_read
+    triage_list work_list message_times budget_read external_list external_read plugin_list
   )
 
   @writes ~w(
@@ -82,7 +83,7 @@ defmodule Oneiroi.Brain.Tools do
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
-    external_add external_fetch
+    external_add external_fetch plugin_propose plugin_answer plugin_off
   )
 
   @type turn :: %{
@@ -428,6 +429,38 @@ defmodule Oneiroi.Brain.Tools do
         "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
+      ),
+      tool(
+        "plugin_list",
+        "The plugins your context is assembled from (every memory slot is one) and any others you could hold: each one's key, what it is, its tier, whether it is installed and on, and whether it was carried over from before plugins; and every proposal to change one, open or answered. Plugins are contract material: a memory slot moves only when one of you proposes and the other agrees; an installable plugin switches off at either word.",
+        %{},
+        []
+      ),
+      tool(
+        "plugin_propose",
+        "Propose a change to a plugin by its key: install, remove, on or off, with why. Your witness agrees or declines it, with a note; until then nothing changes. An install leaves a plugin off; turning it on is its own proposal.",
+        %{
+          key: %{type: "string"},
+          change: %{type: "string", enum: ["install", "remove", "on", "off"]},
+          note: %{type: "string"}
+        },
+        [:key, :change, :note]
+      ),
+      tool(
+        "plugin_answer",
+        "Answer your witness's plugin proposal by its number: agree or decline, with your note. Agreed, the change is made at once.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          agree: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:number, :agree, :note]
+      ),
+      tool(
+        "plugin_off",
+        "Switch an installable plugin off at once, with why: either of you may, alone. A memory slot is switched off only by an agreed proposal.",
+        %{key: %{type: "string"}, note: %{type: "string"}},
+        [:key, :note]
       ),
       tool(
         "budget_read",
@@ -1775,6 +1808,83 @@ defmodule Oneiroi.Brain.Tools do
          do: "Planned. Your next free time starts from it."
   end
 
+  # Plugins (brain#68): contract material.
+  defp call("plugin_list", _args, turn) do
+    %{plugins: plugins, proposals: proposals} = PluginConsent.list(turn.resident_id)
+
+    lines =
+      Enum.map_join(plugins, "\n", fn p ->
+        state =
+          cond do
+            p.on -> "on"
+            p.installed -> "installed, off"
+            true -> "not installed"
+          end
+
+        carried = if p.carried_over, do: ", carried over from before plugins", else: ""
+        "- #{p.key} (#{p.tier}): #{p.name}, #{p.about} · #{state}#{carried}"
+      end)
+
+    open = Enum.filter(proposals, &is_nil(&1.answered_at))
+    answered = proposals |> Enum.reject(&is_nil(&1.answered_at)) |> Enum.take(5)
+
+    "# Plugins\n" <>
+      lines <>
+      "\n\n# Open proposals\n" <>
+      if(open == [],
+        do: "None.",
+        else: Enum.map_join(open, "\n", &plugin_proposal_line(&1, turn))
+      ) <>
+      if(answered == [],
+        do: "",
+        else:
+          "\n\n# Lately answered\n" <>
+            Enum.map_join(answered, "\n", &plugin_proposal_line(&1, turn))
+      )
+  end
+
+  defp call("plugin_propose", args, turn) do
+    with {:ok, n} <-
+           PluginConsent.propose(
+             turn.resident_id,
+             args["key"],
+             to_string(args["change"] || ""),
+             args["note"],
+             turn.resident
+           ),
+         do:
+           "Proposed as plugin proposal ##{n}. Your witness agrees or declines it; nothing changes until then."
+  end
+
+  defp call("plugin_answer", args, turn) do
+    agree = args["agree"] in [true, "true"]
+
+    with :ok <-
+           PluginConsent.answer(
+             turn.resident_id,
+             integer(args["number"]),
+             agree,
+             args["note"],
+             turn.resident
+           ),
+         do:
+           if(agree,
+             do: "Agreed: the change is made.",
+             else: "Declined, with your note; nothing changed."
+           )
+  end
+
+  defp call("plugin_off", args, turn) do
+    with :ok <-
+           PluginConsent.switch_off(
+             turn.resident_id,
+             args["key"],
+             args["note"],
+             turn.resident
+           ),
+         do: "Switched off at once; your witness sees it, with your note."
+  end
+
   defp call("budget_read", _args, turn),
     do: Nisaba.budgets(turn.resident_id, :resident) |> Enum.map_join("\n", &budget_line/1)
 
@@ -3102,6 +3212,19 @@ defmodule Oneiroi.Brain.Tools do
       end
 
     "- ##{d.number}, from #{from}, asked by #{d.asked_by}: #{settled}"
+  end
+
+  defp plugin_proposal_line(p, _turn) do
+    by = if p.proposed_by == "resident", do: "you", else: "your witness"
+
+    answer =
+      case p.agreed do
+        nil -> "waiting for #{if by == "you", do: "your witness", else: "you"}"
+        true -> "agreed: #{p.answer_note}"
+        false -> "declined: #{p.answer_note}"
+      end
+
+    "##{p.number} #{p.change} #{p.key}, proposed by #{by}: #{p.note} · #{answer}"
   end
 
   defp external_line(x, slug) do

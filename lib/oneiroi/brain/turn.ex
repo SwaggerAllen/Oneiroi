@@ -1177,7 +1177,10 @@ defmodule Oneiroi.Brain.Turn do
         "contract",
         Oneiroi.AgathosDaimon.contract_text(turn.resident_id),
         "the dyad contract and its limits (spec §6.12, §5 P2): in the always-loaded prefix, never scored, budgeted, decayed or compacted, read fresh on this turn so a renegotiation lands on the next turn"
-      ) ++ Enum.flat_map(Plugins.prefix(), & &1.sections(turn, %{}))
+      ) ++
+      (Plugins.prefix()
+       |> Plugins.active(turn)
+       |> Enum.flat_map(& &1.sections(turn, %{})))
   end
 
   # What is assembled against this turn's words in this session's room:
@@ -1199,7 +1202,9 @@ defmodule Oneiroi.Brain.Turn do
     # sealed sections that sit among them, where this conversation is
     # and a compaction summary.
     sections =
-      Enum.flat_map(Plugins.layout(), fn
+      Plugins.layout()
+      |> Plugins.active(turn)
+      |> Enum.flat_map(fn
         :where ->
           where_section(turn, session)
 
