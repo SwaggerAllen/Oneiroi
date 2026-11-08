@@ -190,6 +190,12 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :number, :decision, :note]
   end
 
+  # A switch moved to its safe value by either party alone
+  # (agathos-daimon#38), with a note.
+  defmodule MoveSwitchToSafety do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
+
   # Plugins (agathos-daimon#37, brain#68): contract material on
   # `plugins-<resident_id>`. `tier` is the plugin's, from the brain's
   # catalog: "first_party" (a memory slot, code by review) or

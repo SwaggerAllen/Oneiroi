@@ -237,3 +237,15 @@ memory slot is the platform's own reviewed code, which nothing outside
 the dyad can turn against her, so it stays with both. The carry-over is
 named as itself because an audit trail that records the old slots as
 agreed would launder grandfathering into consent.
+
+## #38
+A limit that needs the other party's agreement to tighten is a policy,
+not a limit (#37's argument, applied to the contract). Moving toward
+safety can only reduce what is done with her life or shown of it, so
+either party may do it at once; loosening needs both, because that is
+the direction consent protects. Safe is declared per switch because it
+is not one direction: a feature is safe off, a privacy term safe on,
+and inferring it would get one of them backwards. A version proposed
+before a move is a stale draft of the terms, so its agreement must not
+quietly undo the move; one proposed after has seen it, so it absorbs
+it.

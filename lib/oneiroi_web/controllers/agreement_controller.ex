@@ -139,6 +139,25 @@ defmodule OneiroiWeb.AgreementController do
     end
   end
 
+  operation(:safe,
+    summary:
+      "Move a contract switch to its declared safe value at once, either party alone, with a note (agathos-daimon#38); back needs a version",
+    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [ok: {"moved or already there", "application/json", %Schema{type: :object}}]
+  )
+
+  def safe(conn, %{"id" => id, "key" => key} = params) do
+    with :ok <- witnessed(conn, id),
+         {:ok, state} <- AgathosDaimon.move_switch_to_safety(id, key, params["note"], actor(conn)) do
+      json(conn, %{state: state})
+    else
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:set_wall,
     summary:
       "Set the export wall, locked or revealed, with a note; refused while a transfer is open",

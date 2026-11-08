@@ -93,6 +93,8 @@ defmodule Oneiroi.AgathosDaimon do
       Events.AskAnswered,
       AskService,
       AsksRouter,
+      Events.SwitchMovedToSafety,
+      Store.SwitchOverride,
       Events.PluginProposed,
       Events.PluginAnswered,
       Events.PluginChanged,
@@ -188,6 +190,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.DyadContractRenewed, 1},
       {Oneiroi.AgathosDaimon.Events.AskMade, 1},
       {Oneiroi.AgathosDaimon.Events.AskAnswered, 1},
+      {Oneiroi.AgathosDaimon.Events.SwitchMovedToSafety, 1},
       {Oneiroi.AgathosDaimon.Events.PluginProposed, 1},
       {Oneiroi.AgathosDaimon.Events.PluginAnswered, 1},
       {Oneiroi.AgathosDaimon.Events.PluginChanged, 1},
@@ -682,6 +685,13 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Every ask, newest first, with its answer."
   @spec asks(String.t()) :: [map()]
   defexport(asks(id), do: AskService.asks(id))
+
+  @doc "Moves a contract switch to its declared safe value, either party alone, with a note (agathos-daimon#38); `{:ok, :moved | :already}`."
+  @spec move_switch_to_safety(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, :moved | :already} | {:error, term()}
+  defexport(move_switch_to_safety(id, key, note, actor),
+    do: Agreements.move_to_safety(id, key, note, actor)
+  )
 
   @doc "Proposes a change to a plugin (agathos-daimon#37): install, remove, on or off, with its why; the proposal's number."
   @spec propose_plugin(

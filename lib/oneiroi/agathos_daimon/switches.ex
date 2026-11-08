@@ -20,11 +20,18 @@ defmodule Oneiroi.AgathosDaimon.Switches do
   from the tool list and refused if called) and, in `enforced`, the other
   places that read it, so the registry and the code cannot drift apart
   silently (the test reads both).
+
+  Each switch declares its safe value (agathos-daimon#38, Lily's letter
+  #305, the witness's word): the value that reduces what reaches the
+  resident or shapes her. Either party may move a switch to it alone, at
+  once; moving it away needs both, by a version. For the features and
+  the witness's reads, safety is off; for the two privacy switches, on.
   """
 
   @switches [
     %{
       key: "solo_sessions_private",
+      safe: true,
       group: "privacy",
       label: "Solo sessions hidden entirely",
       on:
@@ -37,6 +44,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "preview_withholds_words",
+      safe: true,
       group: "privacy",
       label: "The witness's preview keeps its words",
       on:
@@ -49,6 +57,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "witness_reads",
+      safe: false,
       group: "audits",
       label: "The witness reads your journal and bookmarks",
       on: "Your witness may read your journal and your bookmarks.",
@@ -59,6 +68,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "trials",
+      safe: false,
       group: "audits",
       label: "Model-choice trials",
       on:
@@ -70,6 +80,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "wash",
+      safe: false,
       group: "audits",
       label: "Wash flags",
       on:
@@ -81,6 +92,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "revisions",
+      safe: false,
       group: "audits",
       label: "Revisions",
       on:
@@ -92,6 +104,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "ranked_memory",
+      safe: false,
       group: "memory",
       label: "Ranked memory",
       on: "Your bookmark index is ranked by what this turn is about.",
@@ -102,6 +115,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "memory_learning",
+      safe: false,
       group: "memory",
       label: "Retrieval that learns from your feedback",
       on: "What you say was useful or not teaches the ranking.",
@@ -112,6 +126,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "background_model",
+      safe: false,
       group: "memory",
       label: "The background model",
       on: "A background model (Honcho) reads your conversations and offers what it concludes.",
@@ -122,6 +137,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "oracle",
+      safe: false,
       group: "memory",
       label: "The oracle",
       on: "You may put questions to the oracle, a second pass that answers by letter.",
@@ -132,6 +148,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "research",
+      safe: false,
       group: "services",
       label: "Research",
       on: "Research questions go to the reader, by you or your witness.",
@@ -142,6 +159,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "digests",
+      safe: false,
       group: "services",
       label: "Digests",
       on: "Digests of the reader's feeds can be asked, by you, a check-in or your witness.",
@@ -152,6 +170,7 @@ defmodule Oneiroi.AgathosDaimon.Switches do
     },
     %{
       key: "correspondence",
+      safe: false,
       group: "services",
       label: "Correspondence",
       on:
@@ -187,6 +206,14 @@ defmodule Oneiroi.AgathosDaimon.Switches do
 
   @doc "The switch that governs a tool, or nil when the tool is not switched."
   def for_tool(name), do: Map.get(@tool_switch, name)
+
+  @doc "A switch's safe value (agathos-daimon#38): the one either party may move it to alone."
+  def safe(key) do
+    case get(key) do
+      %{safe: value} -> value
+      nil -> nil
+    end
+  end
 
   @doc "The switch with that key, or nil."
   def get(key), do: Enum.find(@switches, &(&1.key == key))

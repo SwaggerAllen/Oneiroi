@@ -1063,6 +1063,7 @@ function AgreementContainer({ resident }: { resident: Resident }) {
       onSetWall={(w, note) => run(() => api.setWall(id, w, note), `Earlier sessions are ${w}.`)}
       onProposeCustody={(email, note) => run(() => api.proposeCustody(id, email, note), `Proposed to ${email}.`)}
       onWithdrawCustody={(note) => run(() => api.decideCustody(id, 'withdraw', note), 'Withdrawn.')}
+      onSafe={(key, note) => run(() => api.moveToSafety(id, key, note), 'Moved to its safe value.')}
     />
   );
 }

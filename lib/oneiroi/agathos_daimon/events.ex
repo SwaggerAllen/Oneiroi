@@ -315,6 +315,13 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :decision], decision: true
   end
 
+  defmodule SwitchMovedToSafety do
+    # A contract switch moved to its declared safe value by one party,
+    # with a note (agathos-daimon#38); it stands over the version in force
+    # until a version proposed after it is agreed.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key, :value]
+  end
+
   defmodule PluginProposed do
     # A change to a plugin proposed by one party (agathos-daimon#37):
     # install, remove, on or off, with its why; the other party answers.

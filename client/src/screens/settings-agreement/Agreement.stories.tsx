@@ -11,6 +11,7 @@ const sw = (key: string, group: string, label: string, value: boolean, proposed:
   default: value,
   value,
   proposed,
+  safe: key === 'solo_sessions_private',
 });
 
 const switches = (proposed = false): Switch[] => [
@@ -69,6 +70,22 @@ export const HerProposalOpen: Story = {
       export_wall: 'locked',
       custody_proposed_to: null,
       custody_proposed_at: null,
+    },
+  },
+};
+
+// agathos-daimon#38: she moved research off alone; the rest away from
+// safety show the move.
+export const MovedToSafety: Story = {
+  args: {
+    onSafe: () => undefined,
+    agreement: {
+      ...meta.args.agreement,
+      switches: switches().map((s) =>
+        s.key === 'research'
+          ? { ...s, value: false, moved: { key: 'research', value: false, set_by: 'resident', note: 'not now', set_at: '2026-11-07T18:00:00Z' } }
+          : s,
+      ),
     },
   },
 };

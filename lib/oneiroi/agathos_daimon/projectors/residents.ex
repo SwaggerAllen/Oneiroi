@@ -30,7 +30,8 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     SelfLetterReceipt,
     SoulEdit,
     SoulLine,
-    StateLine
+    StateLine,
+    SwitchOverride
   }
 
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
@@ -131,13 +132,66 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
         ) ||
           %{}
 
+      # A move toward safety made after this version was proposed stands
+      # over it (agathos-daimon#38); one made before, the version absorbs.
+      proposed_at =
+        repo.one(
+          from(c in Contract,
+            where: c.resident_id == ^e.id and c.version == ^e.version,
+            select: c.proposed_at
+          )
+        )
+
+      if proposed_at,
+        do:
+          repo.delete_all(
+            from(o in SwitchOverride, where: o.resident_id == ^e.id and o.set_at < ^proposed_at)
+          )
+
+      solo =
+        repo.one(
+          from(o in SwitchOverride,
+            where: o.resident_id == ^e.id and o.key == "solo_sessions_private",
+            select: o.value
+          )
+        )
+
       {:ok,
        repo.update_all(from(r in Resident, where: r.id == ^e.id),
          set: [
            contract_version: e.version,
-           solo_sessions_private: Map.get(terms, "solo_sessions_private", false) == true
+           solo_sessions_private:
+             if(is_nil(solo),
+               do: Map.get(terms, "solo_sessions_private", false) == true,
+               else: solo
+             )
          ]
        )}
+    end)
+  end)
+
+  fold(%Events.SwitchMovedToSafety{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.insert(
+      :override,
+      %SwitchOverride{
+        resident_id: e.id,
+        key: e.key,
+        value: e.value,
+        set_by: actor_field(e.actor, :kind),
+        note: e.note,
+        set_at: e.at
+      },
+      on_conflict: {:replace, [:value, :set_by, :note, :set_at]},
+      conflict_target: [:resident_id, :key]
+    )
+    |> then(fn m ->
+      if e.key == "solo_sessions_private",
+        do:
+          Multi.update_all(m, :solo, from(r in Resident, where: r.id == ^e.id),
+            set: [solo_sessions_private: e.value]
+          ),
+        else: m
     end)
   end)
 

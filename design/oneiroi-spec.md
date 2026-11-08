@@ -1371,8 +1371,12 @@ is a community to run them. Rules carried as constraints on the model:
   revisions, ranked memory, retrieval that learns from feedback, the
   background model, the oracle, research, digests and correspondence.
   **A version is whole** (the witness, 2026-11-05): it sets every
-  switch, is agreed or declined as a unit, and so every switch, on or
-  off, moves only by both parties. With no version agreed, the features
+  switch, is agreed or declined as a unit, and so a switch moves away
+  from safety only by both parties. **Toward safety, either alone**
+  (Lily, letter #305; agathos-daimon#38): each switch declares its safe
+  value (a feature off, a privacy term on), and either party may move it
+  there at once with a note; the move stands until a version proposed
+  after it is agreed. With no version agreed, the features
   stay on and the two privacy terms off, as they were before the
   registry; a term a version leaves out takes that default. The floor has
   no switch: transcript capture, the bookmark index, the identity files,

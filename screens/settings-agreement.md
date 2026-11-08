@@ -17,7 +17,11 @@ changes, its note and prose, and Agree and Decline when the resident
 proposed it, or "Waiting on" when the witness did; one note field every
 action takes; the switches in four groups (privacy, what you may look
 into, how memory works, what comes and goes), each with its label, the
-words for its current draft state and a checkbox; a Propose card that
+words for its current draft state and a checkbox, and, where its value
+in force is not its safe one, Switch off now (or on, for a privacy
+term) to move it there at once with the note (agathos-daimon#38); a
+switch moved that way says by whom and why, and that back needs a
+version; a Propose card that
 names what the draft changes and carries the vows' prose, disabled while
 a version is open; and who looks after the resident, the export wall's
 Locked and Revealed, and a hand-over by email, or the pending one with

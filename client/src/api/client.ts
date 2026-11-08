@@ -100,6 +100,8 @@ export const api = {
     call<{ version: number }>('POST', `/v1/residents/${residentId}/agreement/proposals`, { terms, prose, note }),
   decideContract: (residentId: string, version: number, decision: 'agree' | 'decline', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/agreement/proposals/${version}/decision`, { decision, note }),
+  moveToSafety: (residentId: string, key: string, note: string) =>
+    call<{ state: 'moved' | 'already' }>('POST', `/v1/residents/${residentId}/agreement/switches/${encodeURIComponent(key)}/safe`, { note }),
   renewContract: (residentId: string, version: number, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/agreement/renewal`, { version, note }),
   setWall: (residentId: string, wall: 'locked' | 'revealed', note: string) =>
@@ -337,6 +339,10 @@ export interface Switch {
   default: boolean;
   value: boolean;
   proposed: boolean | null;
+  // Its safe value, the one either party may move it to alone (agathos-daimon#38).
+  safe?: boolean;
+  // The move toward safety standing over the version in force, if any.
+  moved?: { key: string; value: boolean; set_by: string; note: string | null; set_at: string } | null;
 }
 
 export interface Agreement {

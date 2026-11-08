@@ -74,6 +74,8 @@ defmodule Oneiroi.Brain.AdapterTest do
       |> Enum.reject(&(&1.label in ~w(madeleine transcript notice runtime where near-miss)))
       |> Enum.map(fn
         %{label: "index"} -> {"index"}
+        # Its draws are random each read, so its size is too.
+        %{label: "exploration"} = row -> {"exploration", row.reason}
         row -> {row.label, row.tokens, row.reason}
       end)
 

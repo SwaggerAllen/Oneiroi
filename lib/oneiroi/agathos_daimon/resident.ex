@@ -311,6 +311,30 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # Toward safety, either party alone (agathos-daimon#38): the switch's
+  # declared safe value, never the other way.
+  def execute(%__MODULE__{} = r, %Commands.MoveSwitchToSafety{} = c) do
+    cond do
+      not party?(r, c.actor) ->
+        {:error,
+         Error.new(:agathos_daimon_not_a_party, :agathos_daimon_resident_switch_safe_not_a_party)}
+
+      is_nil(Switches.safe(c.key)) ->
+        {:error,
+         Error.new(:agathos_daimon_terms_invalid, :agathos_daimon_resident_switch_safe_unknown)}
+
+      true ->
+        %Events.SwitchMovedToSafety{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          key: c.key,
+          value: Switches.safe(c.key)
+        }
+    end
+  end
+
   def execute(%__MODULE__{} = r, %Commands.AgreeContract{} = c) do
     with :ok <- decidable(r, c) do
       %Events.DyadContractAgreed{
@@ -915,6 +939,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       do: %{r | contract: %{contract | open: nil}}
 
   def apply(%__MODULE__{} = r, %Events.DyadContractAgreed{}), do: r
+  def apply(%__MODULE__{} = r, %Events.SwitchMovedToSafety{}), do: r
   def apply(%__MODULE__{} = r, %Events.DyadContractDeclined{}), do: r
   # The renewal's date is the row's; the aggregate keeps no instants.
   def apply(%__MODULE__{} = r, %Events.DyadContractRenewed{}), do: r

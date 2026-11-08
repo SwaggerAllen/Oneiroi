@@ -198,6 +198,22 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule SwitchOverride do
+    @moduledoc "A contract switch moved to its safe value by one party (agathos-daimon#38), standing over the version in force."
+    use Ecto.Schema
+    @primary_key false
+    schema "agathos_daimon_switch_override" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:value, :boolean)
+      field(:set_by, :string)
+      field(:note, :string)
+      field(:set_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Plugin do
     @moduledoc "A plugin's state for a resident (agathos-daimon#37): installed, on, and whether it was carried over from before plugins."
     use Ecto.Schema

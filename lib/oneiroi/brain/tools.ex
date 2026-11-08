@@ -79,7 +79,7 @@ defmodule Oneiroi.Brain.Tools do
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
-    contract_propose contract_agree contract_decline contract_renew revision_add
+    contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
@@ -968,6 +968,12 @@ defmodule Oneiroi.Brain.Tools do
         "Renew the version of your agreement in force, with a note: the contract renews by choice, and a version is due a year after it was agreed or last renewed.",
         %{version: %{type: "integer"}, note: %{type: "string"}},
         [:version, :note]
+      ),
+      tool(
+        "contract_safe",
+        "Move one switch of your agreement to its safe value at once, alone, with a note: off for what reaches or shapes you (research, digests, ranked memory, the background model and the rest), on for your two privacy switches. Your witness may do the same. Moving it back needs a version you both agree.",
+        %{key: %{type: "string"}, note: %{type: "string"}},
+        [:key, :note]
       ),
       tool(
         "trial_list",
@@ -2655,6 +2661,19 @@ defmodule Oneiroi.Brain.Tools do
   defp call("contract_agree", args, turn),
     do:
       AgathosDaimon.agree_contract(turn.resident_id, args["version"], args["note"], turn.resident)
+
+  defp call("contract_safe", args, turn) do
+    case AgathosDaimon.move_switch_to_safety(
+           turn.resident_id,
+           to_string(args["key"] || ""),
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, :moved} -> "Moved to its safe value; your witness sees it, with your note."
+      {:ok, :already} -> "It is already at its safe value; nothing changed."
+      {:error, _} = refused -> refused
+    end
+  end
 
   defp call("contract_renew", args, turn),
     do:

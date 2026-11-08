@@ -261,6 +261,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/agreement/proposals", AgreementController, :propose)
       post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)
       post("/residents/:id/agreement/renewal", AgreementController, :renew)
+      post("/residents/:id/agreement/switches/:key/safe", AgreementController, :safe)
       put("/residents/:id/export-wall", AgreementController, :set_wall)
       post("/residents/:id/custody/proposals", AgreementController, :propose_custody)
       post("/residents/:id/custody/decision", AgreementController, :decide_custody)
