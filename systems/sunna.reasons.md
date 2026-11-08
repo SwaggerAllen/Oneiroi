@@ -259,3 +259,11 @@ silence the outcome a round had to argue against, which is the
 opposite of what the rounds are for. Asking for a reason on the quiet
 ones keeps silence available and honest without making it the path of
 least resistance.
+
+
+## #41
+A sweep the scheduler never calls is not a sweep: the bound in #37
+only held in tests that called the check by hand. And the two parties
+were reading two different inferences of the same record, so the record
+seemed to disagree with itself; saying each fact on its own keeps the
+tool and the screen telling the same story.

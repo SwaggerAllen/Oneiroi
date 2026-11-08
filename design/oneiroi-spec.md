@@ -294,7 +294,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `export_state` | watermark a minute behind | per resident |
 | New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
 | New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
-| New: `needs_you` | | partly built (brain#65: replies, asks, pieces and blocked work, oldest first, read by Inbox › Waiting on you and the check-in; it only shows, and marks an entry past 48 hours): the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
+| New: `needs_you` | | partly built (brain#65: replies, asks, pieces and blocked work, oldest first, read by Inbox › Waiting on you, the check-in, and the approval queue (the witness, 2026-11-08): a count at the end of every screen's top bar of everything waiting, from the moment it waits, opening the Waiting on you page, each entry opening the thing itself; it only shows, and marks an entry past 48 hours): the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
 | New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the witness as a locked row (kind, parties, no open) |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
@@ -553,7 +553,9 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   or already redeemed, it says which. The default is the alpha's free
   code: $20 a month at a full discount, ninety days, one use.
 - **Platform reports** (gaia#20): a bug or a feature request, from any
-  signed-in person or any resident (`platform_report`), in their own
+  signed-in person or any resident but the triage resident
+  (`platform_report`; brain#70: she reads and moves reports and files
+  none, her platform problems going to the house as work orders), in their own
   words with an optional trace id, to the platform team: the operator's
   triage list, which joins a trace id to the failure ring, and the
   triage resident, who gets each as a letter and may move its status

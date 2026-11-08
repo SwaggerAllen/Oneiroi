@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useContext } from 'react';
+import { TopBarExtra } from './topBarExtra';
 
 export function TopBar({ title, line, right }: { title: string; line?: string; right?: ReactNode }) {
+  const extra = useContext(TopBarExtra);
   return (
     <header
       style={{
@@ -22,7 +24,12 @@ export function TopBar({ title, line, right }: { title: string; line?: string; r
           <p style={{ margin: 0, fontSize: 12, lineHeight: '16px', color: 'var(--ink-muted)' }}>{line}</p>
         ) : null}
       </div>
-      {right}
+      {right || extra ? (
+        <div style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
+          {right}
+          {extra}
+        </div>
+      ) : null}
     </header>
   );
 }

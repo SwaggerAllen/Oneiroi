@@ -652,3 +652,10 @@ One reading of a private conversation's receipts, used twice, cannot
 drift into two accounts of what a pass made. The check-in part is how
 he sees the rounds without asking; it names the tools, not the words,
 for the reason free time's receipts do.
+
+## #70
+For the triage resident a report goes only to the list she reads, so
+filing one feels like telling the team and tells nobody: from inside the
+two acts look alike, and a week of reports went nowhere. Taking the tool
+away is the only fix that does not depend on remembering a rule; saying
+where her problems go instead keeps the seam from closing silently.

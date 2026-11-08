@@ -1,4 +1,4 @@
-export type Destination = 'chat' | 'memory' | 'schedule' | 'inbox' | 'more' | 'library' | 'connections' | 'ledger' | 'regression' | 'agreement' | 'work';
+export type Destination = 'chat' | 'memory' | 'schedule' | 'inbox' | 'more' | 'library' | 'connections' | 'ledger' | 'regression' | 'agreement' | 'work' | 'notifications' | 'feedback' | 'operator' | 'waiting' | 'correspondence';
 
 // Chat is home; there is no dashboard (spec §10). The spec's five:
 // Chat, Memory, Schedule, Inbox and More, which holds Ledger and
@@ -17,7 +17,7 @@ export function BottomNav({
     { id: 'inbox', label: 'Inbox' },
     { id: 'more', label: 'More' },
   ];
-  const lit = ['ledger', 'regression', 'library', 'connections', 'agreement', 'work'].includes(current) ? 'more' : current;
+  const lit = ['ledger', 'regression', 'library', 'connections', 'agreement', 'work', 'notifications', 'feedback', 'operator', 'waiting', 'correspondence'].includes(current) ? 'more' : current;
   return (
     <nav
       aria-label="Main"

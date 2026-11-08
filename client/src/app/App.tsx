@@ -47,7 +47,11 @@ import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
 import { WorkPage } from '../screens/schedule/WorkQueue';
 import { Inbox } from '../screens/inbox/Inbox';
-import { More } from '../screens/more/More';
+import { More, MorePage } from '../screens/more/More';
+import { WaitingBadge, WaitingPage } from '../screens/waiting/WaitingPage';
+import { TopBarExtra } from '../components/topBarExtra';
+import { CorrespondencePage } from '../screens/correspondence/CorrespondencePage';
+import type { WaitingEntry } from '../screens/inbox/queue';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
@@ -72,7 +76,7 @@ const TURN_BOUND_MS = 180_000;
 // built in this phase; the first resident the account witnesses is the
 // one shown, a picker arriving with the subscriptions screen.
 export function App() {
-  const [me, setMe] = useState<{ email: string; key?: { present: boolean } } | null | undefined>(undefined);
+  const [me, setMe] = useState<{ email: string; key?: { present: boolean }; roles?: string[] } | null | undefined>(undefined);
   const [residentsLoaded, setResidentsLoaded] = useState(false);
   const [beginning, setBeginning] = useState(false);
   const [beginSaid, setBeginSaid] = useState<string | null>(null);
@@ -119,6 +123,32 @@ export function App() {
   const go = (d: Destination) => {
     location.hash = d;
     setDestination(d);
+  };
+
+  // What waits on you (the approval queue): read for the badge on every
+  // screen, again on each move and on coming back to the page.
+  const [waiting, setWaiting] = useState<NeedsYouEntry[]>([]);
+  const residentId = resident?.id;
+  const loadWaiting = useCallback(() => {
+    if (!residentId) return;
+    api
+      .needsYou(residentId)
+      .then(setWaiting)
+      .catch(() => undefined);
+  }, [residentId]);
+  useEffect(() => loadWaiting(), [loadWaiting, destination]);
+  useRefocus(() => loadWaiting());
+  // Where a waiting entry opens: its screen, or the thing itself on the
+  // Inbox, scrolled to and opened.
+  const [focus, setFocus] = useState<string | null>(null);
+  const openWaiting = (where: WaitingEntry['where']) => {
+    if ('anchor' in where) {
+      setFocus(where.anchor);
+      go('inbox');
+      return;
+    }
+    const screens: Record<string, Destination> = { Schedule: 'schedule', Work: 'work', Agreement: 'agreement' };
+    go(screens[where.screen] ?? 'inbox');
   };
 
   if (me === undefined) return null;
@@ -211,14 +241,25 @@ export function App() {
         margin: '0 auto',
       }}
     >
+      <TopBarExtra.Provider value={<WaitingBadge count={waiting.length} onOpen={() => go('waiting')} />}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: destination === 'chat' ? 'hidden' : 'auto' }}>
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
         {destination === 'schedule' ? <ScheduleContainer resident={resident} /> : null}
         {destination === 'work' ? <WorkContainer resident={resident} /> : null}
-        {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
+        {destination === 'inbox' ? <InboxContainer resident={resident} focus={focus} onFocused={() => setFocus(null)} /> : null}
+        {destination === 'waiting' ? (
+          <MorePage title="Waiting on you">
+            <WaitingPage residentName={resident.name} entries={waiting} onOpen={openWaiting} />
+          </MorePage>
+        ) : null}
+        {destination === 'correspondence' ? (
+          <MorePage title="Correspondence">
+            <CorrespondenceContainer resident={resident} />
+          </MorePage>
+        ) : null}
         {destination === 'more' ? (
-          <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} feedback={<FeedbackContainer />} operator={<OperatorContainer />} />
+          <More onOpen={go} operator={me.roles?.includes('super_admin') ?? false} />
         ) : null}
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
@@ -230,7 +271,23 @@ export function App() {
           </>
         ) : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
+        {destination === 'notifications' ? (
+          <MorePage title="Notifications">
+            <NotificationsContainer resident={resident} />
+          </MorePage>
+        ) : null}
+        {destination === 'feedback' ? (
+          <MorePage title="Report a problem">
+            <FeedbackContainer />
+          </MorePage>
+        ) : null}
+        {destination === 'operator' ? (
+          <MorePage title="Operator">
+            <OperatorContainer />
+          </MorePage>
+        ) : null}
       </div>
+      </TopBarExtra.Provider>
       <BottomNav current={destination} onChange={go} />
     </div>
   );
@@ -586,7 +643,7 @@ function MemoryContainer({ resident }: { resident: Resident }) {
   );
 }
 
-function InboxContainer({ resident }: { resident: Resident }) {
+function InboxContainer({ resident, focus = null, onFocused }: { resident: Resident; focus?: string | null; onFocused?: () => void }) {
   const id = resident.id;
   const [data, setData] = useState<{
     letters: HouseLetter[];
@@ -609,6 +666,16 @@ function InboxContainer({ resident }: { resident: Resident }) {
   useRefocus(() => load());
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  // Opened from the waiting list: to the thing itself, its words open.
+  useEffect(() => {
+    if (!data || !focus) return;
+    const el = document.getElementById(focus);
+    if (el) {
+      el.querySelectorAll('details').forEach((d) => (d.open = true));
+      el.scrollIntoView({ block: 'start' });
+    }
+    onFocused?.();
+  }, [data, focus, onFocused]);
   if (!data) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -625,6 +692,36 @@ function InboxContainer({ resident }: { resident: Resident }) {
           onBlock: (m, note) => act(api.block(id, m.platform, m.sender, m.sender_name, note)),
           onUnblock: (b, note) => act(api.unblock(id, b.platform, b.identity, note)),
         }}
+      />
+    </>
+  );
+}
+
+// Correspondence, its own page: filtered by participant and conversation.
+function CorrespondenceContainer({ resident }: { resident: Resident }) {
+  const id = resident.id;
+  const [data, setData] = useState<{ messages: CorrespondenceMessage[]; replies: Reply[]; blocks: Block[] } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    Promise.all([api.correspondence(id), api.replies(id), api.blocks(id)])
+      .then(([messages, replies, blocks]) => setData({ messages, replies, blocks }))
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, [id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  if (!data) return error ? <ErrorNotice error={error} /> : null;
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <CorrespondencePage
+        residentName={resident.name}
+        {...data}
+        onBlock={(m, note) =>
+          void api
+            .block(id, m.platform, m.sender, m.sender_name, note)
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
       />
     </>
   );

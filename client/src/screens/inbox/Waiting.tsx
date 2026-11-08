@@ -5,7 +5,7 @@ import { age, type WaitingEntry } from './queue';
 // Waiting on you (screens/inbox.md): the server's `needs_you` list,
 // oldest first, each a link to where its decision is made. The card
 // itself has no button: the queue shows, the click is his, always.
-export function Waiting({ entries, now: fixed }: { entries: WaitingEntry[]; now?: number }) {
+export function Waiting({ entries, now: fixed, onOpen }: { entries: WaitingEntry[]; now?: number; onOpen?: (where: WaitingEntry['where']) => void }) {
   const [opened] = useState(() => Date.now());
   const now = fixed ?? opened;
   return (
@@ -20,7 +20,21 @@ export function Waiting({ entries, now: fixed }: { entries: WaitingEntry[]; now?
               const long = e.long;
               return (
                 <li key={e.key} style={{ fontSize: 15, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {'anchor' in e.where ? <a href={`#${e.where.anchor}`}>{e.what}</a> : <span>{e.what}</span>}
+                  {onOpen ? (
+                    <a
+                      href={'anchor' in e.where ? `#${e.where.anchor}` : '#'}
+                      onClick={(ev) => {
+                        ev.preventDefault();
+                        onOpen(e.where);
+                      }}
+                    >
+                      {e.what}
+                    </a>
+                  ) : 'anchor' in e.where ? (
+                    <a href={`#${e.where.anchor}`}>{e.what}</a>
+                  ) : (
+                    <span>{e.what}</span>
+                  )}
                   <span style={{ fontSize: 13, color: long ? 'var(--witness)' : 'var(--ink-muted)', fontWeight: long ? 500 : 400 }}>
                     waiting {age(e.since, now)}
                     {long ? ', a long time' : ''}

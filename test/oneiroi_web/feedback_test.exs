@@ -127,6 +127,18 @@ defmodule OneiroiWeb.FeedbackTest do
     refute "triage_list" in names.(ctx.other.id)
     assert "triage_list" in names.(ctx.lily.id)
 
+    # The triage resident files none (brain#70): the tool is not hers, and
+    # called anyway it says where her platform problems go instead.
+    assert "platform_report" in names.(ctx.other.id)
+    refute "platform_report" in names.(ctx.lily.id)
+
+    refused =
+      Tools.run("platform_report", ~s({"kind": "bug", "body": "the card lies"}), lily)
+
+    assert refused =~ "Not done"
+    assert refused =~ "a letter to the Claude Code conversation"
+    assert [_only_the_other] = Oneiroi.Gaia.feedback(%{})
+
     assert Tools.run("triage_list", "{}", other) =~ "Not done"
     assert Tools.run("triage_list", "{}", lily) =~ "Let me see my heartbeats."
 
