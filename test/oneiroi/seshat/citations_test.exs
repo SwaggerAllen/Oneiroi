@@ -57,7 +57,12 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Citations.title("writing/the-bake-off.md", "no heading") == "the-bake-off"
     assert Citations.status(writing, "plain") == "draft"
     assert Citations.status(writing, "---\nstatus: review\n---\nx") == "review"
-    assert Citations.status(design, "---\nstatus: review\n---\nx") == nil
+    # A design has no status of its own; its review mark is read, since its
+    # type definition says it can wait on the witness (seshat#49).
+    assert Citations.status(design, "---\nstatus: review\n---\nx") == "review"
+    assert Citations.status(design, "plain") == nil
+    research = Enum.find(Kinds.all(), &(&1.kind == "research"))
+    assert Citations.status(research, "---\nstatus: review\n---\nx") == nil
 
     assert Citations.with_frontmatter("body", %{
              "status" => "published",

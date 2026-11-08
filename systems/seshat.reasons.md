@@ -345,3 +345,14 @@ presence by ID"): a file can keep its path and change its words.
 "When did this start" and "when did this last move" are the two
 questions a working library is asked most, and the row already knew
 the first; saying it costs one field and no new state.
+
+## #49
+A list of which types wait on him, kept beside the types, is a second
+truth that drifts from the first the day a kind is added. Putting the
+answer in the type's own definition means a new kind says whether it
+waits when it is defined. The registry is code rather than a table
+because it is already the platform-wide definition every other reader
+uses; a database copy would be the very second list this avoids.
+Reusing the writing gate's review keeps one road for every decision
+of this shape, and the flow's own "then" keeps a signed-off design from
+ever being drafted for Substack.

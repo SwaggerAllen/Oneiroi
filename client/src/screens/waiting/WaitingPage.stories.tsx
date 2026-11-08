@@ -6,6 +6,7 @@ import { WaitingPage } from './WaitingPage';
 export const entries: NeedsYouEntry[] = [
   { kind: 'reply_to_approve', ref: 4, since: '2026-11-05T17:00:00Z', screen: 'inbox', long: true, about: { to: 'jack@example.com', platform: 'email', account: 'lily' } },
   { kind: 'ask', ref: 2, since: '2026-11-08T15:00:00Z', screen: 'inbox', long: false, about: { subject: 'Post the essay on Notes', ask: 'act' } },
+  { kind: 'piece_to_review', ref: 'design/federation.md', since: '2026-11-08T19:20:00Z', screen: 'inbox', long: false, about: { title: 'Federation', kind: 'design', ask: 'Read and sign off the design' } },
   { kind: 'work_blocked', ref: 7, since: '2026-11-08T16:00:00Z', screen: 'work', long: false, about: { what: 'Re-stage the Jack letter', blocked_on: 'the address' } },
 ];
 

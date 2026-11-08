@@ -20,6 +20,7 @@ defmodule Oneiroi.Seshat.PieceReviews do
   alias Oneiroi.Seshat.Commands
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Error
+  alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.PiecesRouter
   alias Oneiroi.Seshat.Store
 
@@ -28,12 +29,17 @@ defmodule Oneiroi.Seshat.PieceReviews do
     docs = Documents.list(resident_id)
     reviews = reviews(resident_id)
 
+    # Every kind whose definition says its documents wait on him
+    # (seshat#49), marked as its approval flow says.
     for_review =
       for d <- docs,
-          d.kind == "writing" and d.status == "review",
+          flow = Kinds.approval(Kinds.named(d.kind)),
+          flow != nil and flow["marked_by"] == "status" and d.status == flow["status"],
           not decided?(reviews[d.path], d.hash),
           do: %{
             path: d.path,
+            kind: d.kind,
+            ask: flow["ask"],
             title: d.title,
             written_at: d.written_at,
             last: last(reviews[d.path])
@@ -114,8 +120,24 @@ defmodule Oneiroi.Seshat.PieceReviews do
     end
   end
 
+  # Only a kind whose flow goes on to the reader's draft goes out
+  # (seshat#49): a signed-off design stops at his decision.
   defp out_in(reviews, docs, state),
-    do: for(r <- Map.values(reviews), r.state == state, unpublished?(docs, r), do: out(r, docs))
+    do:
+      for(
+        r <- Map.values(reviews),
+        r.state == state,
+        to_reader?(r.path),
+        unpublished?(docs, r),
+        do: out(r, docs)
+      )
+
+  defp to_reader?(path) do
+    case Kinds.kind_of(path) do
+      %{} = kind -> match?(%{"then" => "substack_draft"}, Kinds.approval(kind))
+      nil -> false
+    end
+  end
 
   defp out(r, docs) do
     doc = Enum.find(docs, &(&1.path == r.path))

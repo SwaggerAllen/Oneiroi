@@ -36,7 +36,18 @@ defmodule Oneiroi.Seshat.Kinds do
       layout: "writing/<slug>.md, frontmatter with status: draft | review | final | published",
       sidecar: nil,
       adoption: :file,
-      access: :resident
+      access: :resident,
+      # Waiting on the witness (seshat#49): a piece marked for review is
+      # his to approve or decline; an approved one goes on to the reader's
+      # Substack draft (#42).
+      awaiting: true,
+      approval: %{
+        "marked_by" => "status",
+        "status" => "review",
+        "ask" => "Review the piece",
+        "decisions" => ["approve", "decline"],
+        "then" => "substack_draft"
+      }
     },
     # The oracle's answers (brain#49, seshat#34): an invocation of the
     # resident asked one question over her whole memory and the sources
@@ -72,7 +83,17 @@ defmodule Oneiroi.Seshat.Kinds do
       layout: "design/<name>.md",
       sidecar: nil,
       adoption: :file,
-      access: :resident
+      access: :resident,
+      # A design held for the witness's read and sign-off (seshat#49):
+      # marked `status: review` in its frontmatter, his to sign off or
+      # send back, and nothing after.
+      awaiting: true,
+      approval: %{
+        "marked_by" => "status",
+        "status" => "review",
+        "ask" => "Read and sign off the design",
+        "decisions" => ["approve", "decline"]
+      }
     },
     %{
       kind: "journal",
@@ -380,6 +401,20 @@ defmodule Oneiroi.Seshat.Kinds do
     end)
     |> Enum.sort_by(&{&1.position, &1.kind})
   end
+
+  @doc "Whether a kind's documents can wait on the witness (seshat#49): the type definition's own column, never a list kept elsewhere."
+  @spec awaiting?(map() | nil) :: boolean()
+  def awaiting?(kind) when is_map(kind), do: Map.get(kind, :awaiting, false)
+  def awaiting?(_none), do: false
+
+  @doc "How a kind's documents wait on the witness and what follows his decision (seshat#49), or nil."
+  @spec approval(map() | nil) :: map() | nil
+  def approval(kind) when is_map(kind), do: if(awaiting?(kind), do: Map.get(kind, :approval))
+  def approval(_none), do: nil
+
+  @doc "A kind's definition by its name, or nil."
+  @spec named(String.t()) :: map() | nil
+  def named(kind), do: Enum.find(@kinds, &(&1.kind == kind))
 
   @doc "Whether a kind's documents may be removed (seshat#33): scratch and human, and nothing else."
   @spec removable?(map()) :: boolean()

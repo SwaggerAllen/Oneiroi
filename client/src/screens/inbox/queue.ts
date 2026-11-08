@@ -27,7 +27,8 @@ function line(residentName: string, e: NeedsYouEntry): string {
     case 'ask':
       return `${residentName} asks: ${a.subject}`;
     case 'piece_to_review':
-      return `Review the piece ${a.title ?? e.ref}`;
+      // The ask in the kind's own words (seshat#49): a piece, a design.
+      return `${a.ask ?? 'Review the piece'} ${a.title ?? e.ref}`;
     case 'piece_to_publish':
       return `Publish the drafted piece ${a.title ?? e.ref}`;
     case 'work_blocked':

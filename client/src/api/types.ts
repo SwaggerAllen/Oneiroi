@@ -507,7 +507,7 @@ export interface NeedsYouEntry {
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work';
   long: boolean;
-  about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
 }
 
 export interface Ask {

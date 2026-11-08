@@ -156,6 +156,14 @@ defmodule Oneiroi.Seshat.Citations do
     front["status"] || "draft"
   end
 
+  # A kind without a status of its own whose approval flow is marked by
+  # one (seshat#49): the mark alone, nil when there is none, so it never
+  # reads "draft".
+  def status(%{approval: %{"marked_by" => "status"}, awaiting: true}, text) do
+    {front, _body} = frontmatter(text)
+    front["status"]
+  end
+
   def status(_kind, _text), do: nil
 
   defp parse_block(block) do

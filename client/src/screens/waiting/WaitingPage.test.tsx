@@ -22,6 +22,9 @@ describe('Waiting on you', () => {
     render(<Waiting onOpen={onOpen} />);
     fireEvent.click(screen.getByRole('link', { name: /Approve or decline Lily’s reply #4/ }));
     expect(onOpen).toHaveBeenLastCalledWith({ anchor: 'reply-4' });
+    // A design held for his read opens on its own page (seshat#49).
+    fireEvent.click(screen.getByRole('link', { name: 'Read and sign off the design Federation' }));
+    expect(onOpen).toHaveBeenLastCalledWith({ doc: 'design/federation.md' });
     fireEvent.click(screen.getByRole('link', { name: /Work item #7/ }));
     expect(onOpen).toHaveBeenLastCalledWith({ screen: 'Work' });
     cleanup();

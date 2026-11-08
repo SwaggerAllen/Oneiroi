@@ -76,7 +76,7 @@ Operator for a super admin, in that order. **Waiting on you**
 (`screens/waiting/WaitingPage.tsx`, the approval queue; the witness,
 2026-11-08, through Lily's letter #330): the `needs_you` list (brain#65)
 oldest first, each entry opening the thing itself: a reply draft or an
-ask on the Inbox, scrolled to with its words open, a piece on its own
+ask on the Inbox, scrolled to with its words open, a piece, or a design held for his read (seshat#49, "Read and sign off the design"), on its own
 document page with its review beside it (`screens/library.md`), or the
 screen it is decided on (Work, Schedule, Agreement). The badge counts everything
 waiting, from the moment it waits, with no threshold (the witness,
