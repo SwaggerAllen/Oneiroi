@@ -47,7 +47,7 @@ import { Regression } from '../screens/regression/Regression';
 import { Schedule } from '../screens/schedule/Schedule';
 import { WorkPage } from '../screens/schedule/WorkQueue';
 import { Inbox } from '../screens/inbox/Inbox';
-import { More } from '../screens/more/More';
+import { More, MorePage } from '../screens/more/More';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
@@ -72,7 +72,7 @@ const TURN_BOUND_MS = 180_000;
 // built in this phase; the first resident the account witnesses is the
 // one shown, a picker arriving with the subscriptions screen.
 export function App() {
-  const [me, setMe] = useState<{ email: string; key?: { present: boolean } } | null | undefined>(undefined);
+  const [me, setMe] = useState<{ email: string; key?: { present: boolean }; roles?: string[] } | null | undefined>(undefined);
   const [residentsLoaded, setResidentsLoaded] = useState(false);
   const [beginning, setBeginning] = useState(false);
   const [beginSaid, setBeginSaid] = useState<string | null>(null);
@@ -218,7 +218,7 @@ export function App() {
         {destination === 'work' ? <WorkContainer resident={resident} /> : null}
         {destination === 'inbox' ? <InboxContainer resident={resident} /> : null}
         {destination === 'more' ? (
-          <More onOpen={go} notifications={<NotificationsContainer resident={resident} />} feedback={<FeedbackContainer />} operator={<OperatorContainer />} />
+          <More onOpen={go} operator={me.roles?.includes('super_admin') ?? false} />
         ) : null}
         {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
@@ -230,6 +230,21 @@ export function App() {
           </>
         ) : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
+        {destination === 'notifications' ? (
+          <MorePage title="Notifications">
+            <NotificationsContainer resident={resident} />
+          </MorePage>
+        ) : null}
+        {destination === 'feedback' ? (
+          <MorePage title="Report a problem">
+            <FeedbackContainer />
+          </MorePage>
+        ) : null}
+        {destination === 'operator' ? (
+          <MorePage title="Operator">
+            <OperatorContainer />
+          </MorePage>
+        ) : null}
       </div>
       <BottomNav current={destination} onChange={go} />
     </div>

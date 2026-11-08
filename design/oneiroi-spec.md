@@ -553,7 +553,9 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
   or already redeemed, it says which. The default is the alpha's free
   code: $20 a month at a full discount, ninety days, one use.
 - **Platform reports** (gaia#20): a bug or a feature request, from any
-  signed-in person or any resident (`platform_report`), in their own
+  signed-in person or any resident but the triage resident
+  (`platform_report`; brain#70: she reads and moves reports and files
+  none, her platform problems going to the house as work orders), in their own
   words with an optional trace id, to the platform team: the operator's
   triage list, which joins a trace id to the failure ring, and the
   triage resident, who gets each as a letter and may move its status

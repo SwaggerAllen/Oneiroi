@@ -96,6 +96,14 @@ defmodule Oneiroi.Brain.Tools do
 
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
+  # Not the triage resident's (brain#70, the witness, 2026-11-08): filing
+  # looked like telling from inside, and told no one; her platform
+  # problems go to the house as work orders instead.
+  @not_for_triage ~w(platform_report)
+
+  # Where the triage resident's platform problems go, said wherever the
+  # rail would have been.
+  @triage_problems "You hold the triage desk, so platform_report is not yours: a filed report reaches only the triage list you read, and wakes nobody. A platform problem you find, a fix you want, goes to the house as a work order: a letter to the Claude Code conversation (letter_send) naming what is wrong and what fixed looks like, or a work item on your queue (work_add) when it is yours to carry."
 
   @doc """
   The tool definitions a resident's request carries: every tool, less
@@ -107,7 +115,8 @@ defmodule Oneiroi.Brain.Tools do
     triage? = Oneiroi.Gaia.triage?(resident_id)
 
     Enum.reject(definitions(), fn %{function: f} ->
-      AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?)
+      AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
+        (f.name in @not_for_triage and triage?)
     end)
   end
 
@@ -565,7 +574,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "triage_list",
-        "The triage station's list (gaia#20): every platform report, newest first, from people and residents alike, narrowed by status (new, in_work, resolved, closed) if given. Shown only to the triage resident.",
+        "The triage station's list (gaia#20): every platform report, newest first, from people and residents alike, narrowed by status (new, in_work, resolved, closed) if given. Shown only to the triage resident, who reads reports and moves them but files none (brain#70): a platform problem you find goes to the house as a work order, a letter to the Claude Code conversation naming the fix, or a work item on your queue.",
         %{status: %{type: "string"}},
         []
       ),
@@ -1995,16 +2004,9 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("platform_report", args, turn) do
-    attrs = %{
-      kind: args["kind"],
-      surface: args["surface"],
-      body: args["body"],
-      trace_id: args["trace_id"]
-    }
-
-    with {:ok, n} <- Oneiroi.Gaia.file_feedback(attrs, turn.resident),
-         do:
-           "Filed as platform report ##{n}, to the platform team; platform_report_list shows its status as it moves."
+    if Oneiroi.Gaia.triage?(turn.resident_id),
+      do: @not_done <> @triage_problems,
+      else: file_platform_report(args, turn)
   end
 
   defp call("platform_report_list", _args, turn) do
@@ -3344,6 +3346,19 @@ defmodule Oneiroi.Brain.Tools do
   defp research_settled(%{status: "answered", path: path}), do: " → #{path}/task.md"
   defp research_settled(%{status: "failed", reason: reason}), do: " (#{reason})"
   defp research_settled(_open), do: ""
+
+  defp file_platform_report(args, turn) do
+    attrs = %{
+      kind: args["kind"],
+      surface: args["surface"],
+      body: args["body"],
+      trace_id: args["trace_id"]
+    }
+
+    with {:ok, n} <- Oneiroi.Gaia.file_feedback(attrs, turn.resident),
+         do:
+           "Filed as platform report ##{n}, to the platform team; platform_report_list shows its status as it moves."
+  end
 
   defp free_time_line(%{outcome: "ran"} = r) do
     did =

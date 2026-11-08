@@ -10,7 +10,14 @@ its stories and tests), the fifth bottom-nav destination, rendered by
 `App` in `client/src/app/App.tsx` with no data of its own. The state
 list lives in the stories (DESIGN §4); nothing here names a state.
 
-A Notifications card heads the list (`Notifications.tsx`, gaia#15): on
+More is navigation only (the witness, 2026-11-08: "the more menu should
+be navigation items only, all functionality should be on its own
+page"): a card per page, each a line saying what it holds and a button
+that opens it, and nothing on More acts. Each page below is its own
+destination, opened in place of More under a top bar with its title
+(`MorePage` in `More.tsx`).
+
+**Notifications** (`Notifications.tsx`, gaia#15), its own page: on
 this device, whether notifications can be had and how. An iPhone or iPad
 not running from the Home Screen is told to add Oneiroi there first (only
 the Home Screen app may ask); a blocked device and a server with no VAPID
@@ -24,13 +31,13 @@ notification says only that she wrote, never what. The manifest is
 canonical description lands (the witness's logo workshop, 2026-11-05),
 so the Home Screen shows a snapshot of the page.
 
-For every signed-in person, "Report a problem or suggest a feature"
+**Report a problem**, its own page for every signed-in person: "Report a problem or suggest a feature"
 (`Feedback.tsx`, gaia#20): a line saying it goes to the operator's
 triage list and Lily, a problem or a feature, where, the words, an
 optional trace id, "Send to the platform team", and the person's own
 reports with their status and the last note.
 
-For a super admin, an Operator card follows (`Operator.tsx`, gaia#16):
+**Operator**, its own page, listed on More for a super admin alone (`Operator.tsx`, gaia#16):
 the front door's state and note, three buttons to set it (closed, invite,
 open), the platform roles held with a Revoke each, and a form to grant a
 role by account email. Every change needs the note typed first; the
@@ -61,8 +68,9 @@ client arrives with sign-up; the route exists (`POST /v1/me/invite`).
 
 Built: a card per screen that is built and is not one of the four daily
 destinations, each with a line saying what it holds and a button that
-opens it: Work, Agreement, Library, Connections, Ledger, Regression, in
-that order. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
+opens it: Work, Agreement, Library, Connections, Ledger, Regression,
+Notifications, Report a problem, and Operator for a super admin, in that
+order. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
 sunna#33, #38): the work queue on a page of its own, the card the
 Schedule screen used to carry below the schedule: the loop's state in a
 line (running item #n, or resting and why, the runs today of the day's
