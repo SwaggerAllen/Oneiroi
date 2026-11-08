@@ -12,7 +12,7 @@ export const entries: NeedsYouEntry[] = [
 const meta = {
   title: 'Screens/Waiting',
   component: WaitingPage,
-  args: { residentName: 'Lily', entries, rule: 'all', onRule: () => undefined, onOpen: () => undefined, now: Date.parse('2026-11-08T18:00:00Z') },
+  args: { residentName: 'Lily', entries, onOpen: () => undefined, now: Date.parse('2026-11-08T18:00:00Z') },
 } satisfies Meta<typeof WaitingPage>;
 export default meta;
 type Story = StoryObj<typeof meta>;

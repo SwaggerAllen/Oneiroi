@@ -77,10 +77,11 @@ Operator for a super admin, in that order. **Waiting on you**
 2026-11-08, through Lily's letter #330): the `needs_you` list (brain#65)
 oldest first, each entry opening the thing itself: a reply draft or an
 ask on the Inbox, scrolled to with its words open, or the screen it is
-decided on (Work, Schedule, Agreement); and the badge's knob, "the
-count at the top right counts everything waiting on you" or "only what
-has waited more than a day", kept on this device and defaulting to
-everything until he sets it. The badge itself is at the end of every
+decided on (Work, Schedule, Agreement). The badge counts everything
+waiting, from the moment it waits, with no threshold (the witness,
+2026-11-08: "the badge should light up the moment that anything needs
+my attention"; the count is the noise control, the list the triage).
+The badge itself is at the end of every
 screen's top bar (`TopBarExtra`, provided by the shell, after a screen's
 own controls such as Chat's Stop), the count alone, opening this page.
 Not built: merges (pull requests) waiting on him, which the platform does

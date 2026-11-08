@@ -49,7 +49,6 @@ import { WorkPage } from '../screens/schedule/WorkQueue';
 import { Inbox } from '../screens/inbox/Inbox';
 import { More, MorePage } from '../screens/more/More';
 import { WaitingBadge, WaitingPage } from '../screens/waiting/WaitingPage';
-import { type BadgeRule, badgeCount } from '../screens/waiting/badge';
 import { TopBarExtra } from '../components/topBarExtra';
 import { CorrespondencePage } from '../screens/correspondence/CorrespondencePage';
 import type { WaitingEntry } from '../screens/inbox/queue';
@@ -128,28 +127,13 @@ export function App() {
 
   // What waits on you (the approval queue): read for the badge on every
   // screen, again on each move and on coming back to the page.
-  const [waiting, setWaiting] = useState<{ entries: NeedsYouEntry[]; at: number }>({ entries: [], at: 0 });
-  const [badgeRule, setBadgeRuleState] = useState<BadgeRule>(() => {
-    try {
-      return localStorage.getItem('oneiroi.badge') === 'day' ? 'day' : 'all';
-    } catch {
-      return 'all';
-    }
-  });
-  const setBadgeRule = (rule: BadgeRule) => {
-    setBadgeRuleState(rule);
-    try {
-      localStorage.setItem('oneiroi.badge', rule);
-    } catch {
-      // A device that keeps nothing counts everything.
-    }
-  };
+  const [waiting, setWaiting] = useState<NeedsYouEntry[]>([]);
   const residentId = resident?.id;
   const loadWaiting = useCallback(() => {
     if (!residentId) return;
     api
       .needsYou(residentId)
-      .then((entries) => setWaiting({ entries, at: Date.now() }))
+      .then(setWaiting)
       .catch(() => undefined);
   }, [residentId]);
   useEffect(() => loadWaiting(), [loadWaiting, destination]);
@@ -257,7 +241,7 @@ export function App() {
         margin: '0 auto',
       }}
     >
-      <TopBarExtra.Provider value={<WaitingBadge count={badgeCount(waiting.entries, badgeRule, waiting.at)} onOpen={() => go('waiting')} />}>
+      <TopBarExtra.Provider value={<WaitingBadge count={waiting.length} onOpen={() => go('waiting')} />}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: destination === 'chat' ? 'hidden' : 'auto' }}>
         {destination === 'chat' ? <ChatContainer resident={resident} /> : null}
         {destination === 'memory' ? <MemoryContainer resident={resident} /> : null}
@@ -266,7 +250,7 @@ export function App() {
         {destination === 'inbox' ? <InboxContainer resident={resident} focus={focus} onFocused={() => setFocus(null)} /> : null}
         {destination === 'waiting' ? (
           <MorePage title="Waiting on you">
-            <WaitingPage residentName={resident.name} entries={waiting.entries} rule={badgeRule} onRule={setBadgeRule} onOpen={openWaiting} />
+            <WaitingPage residentName={resident.name} entries={waiting} onOpen={openWaiting} />
           </MorePage>
         ) : null}
         {destination === 'correspondence' ? (
