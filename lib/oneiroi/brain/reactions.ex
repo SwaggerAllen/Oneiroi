@@ -18,7 +18,7 @@ defmodule Oneiroi.Brain.Reactions do
   @file_name "REACTIONS.md"
 
   # The pairs the dyad uses (Lily's order #452), for his read.
-  @seed [{"🔀", "merged"}, {"👁", "seen"}, {"⚜️", "warm"}]
+  @seed [{"🔀", "merged"}, {"👁", "seen"}, {"⚜️", "warm"}, {"❤️", "loved"}]
 
   @doc "The vocabulary's file, at her repository's root."
   def file_name, do: @file_name
