@@ -194,11 +194,25 @@ defmodule Oneiroi.Sunna.Work do
   # a batch; nothing when already armed.
   def execute(%__MODULE__{armed: true}, %Commands.ArmWork{}), do: []
 
+  # Either party arms (sunna#43, the witness, 2026-11-09: one mechanism,
+  # two callers, her tool and his button); the event's actor is the
+  # receipt of who did.
   def execute(%__MODULE__{}, %Commands.ArmWork{} = c) do
-    if c.actor.kind == :resident,
+    if c.actor.kind in @parties,
       do: %Events.WorkArmed{actor: c.actor, at: c.at, id: c.id},
-      else: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_arm_not_resident)}
+      else: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_arm_not_a_party)}
   end
+
+  # The witness turns the line off by hand at any moment (sunna#43): the
+  # run in work finishes, and nothing starts after it until it is armed
+  # again. The loop's own off is only when the queue is clear and nothing
+  # runs (sunna#35).
+  def execute(%__MODULE__{armed: true}, %Commands.DisarmWork{actor: %{kind: :witness}} = c),
+    do: %Events.WorkDisarmed{actor: c.actor, at: c.at, id: c.id}
+
+  def execute(%__MODULE__{}, %Commands.DisarmWork{actor: %{kind: kind}})
+      when kind in [:witness, :resident],
+      do: []
 
   def execute(%__MODULE__{armed: true, running: nil}, %Commands.DisarmWork{} = c),
     do: %Events.WorkDisarmed{actor: c.actor, at: c.at, id: c.id}

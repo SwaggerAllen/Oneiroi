@@ -49,6 +49,34 @@ defmodule OneiroiWeb.LibraryController do
     end
   end
 
+  operation(:download,
+    summary:
+      "A document's file, raw (seshat#50): the bytes as the repository holds them, read the way the document view reads them, as an attachment, always bytes to save",
+    parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],
+    responses: [ok: {"the file", "application/octet-stream", %Schema{type: :string}}]
+  )
+
+  def download(conn, %{"id" => id, "path" => path}) do
+    path = Enum.join(path, "/")
+
+    case Seshat.document(id, path) do
+      {:ok, %{content: content}} ->
+        # Always bytes to save, never a page to render: a document's
+        # words are hers and the browser must not run them.
+        send_download(conn, {:binary, content},
+          filename: download_name(path),
+          content_type: "application/octet-stream"
+        )
+
+      other ->
+        respond(conn, other)
+    end
+  end
+
+  # The file's own name, safe in a header.
+  defp download_name(path),
+    do: path |> Path.basename() |> String.replace(~r/[^A-Za-z0-9._-]/, "_")
+
   operation(:write,
     summary: "Write a file through the flow; the path says the kind; the index runs",
     parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],

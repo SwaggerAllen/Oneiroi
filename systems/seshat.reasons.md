@@ -356,3 +356,9 @@ uses; a database copy would be the very second list this avoids.
 Reusing the writing gate's review keeps one road for every decision
 of this shape, and the flow's own "then" keeps a signed-off design from
 ever being drafted for Substack.
+
+## #50
+The file in her repository is already the authoritative copy, and the
+view already reads it; a download is the same read handed over as a
+file, so it can not drift from what the page shows. Reads are not acts
+on her life, so they leave no event.

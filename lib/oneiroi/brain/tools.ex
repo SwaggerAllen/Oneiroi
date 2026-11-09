@@ -2864,11 +2864,16 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp arm_state(%{armed: true, armed_at: %DateTime{} = at}),
-    do: "The work line is armed (since #{local_stamp(at)})."
+  defp arm_state(%{armed: true, armed_at: %DateTime{} = at} = q),
+    do: "The work line is armed#{armed_by(q)} (since #{local_stamp(at)})."
 
   defp arm_state(%{armed: true}), do: "The work line is armed."
   defp arm_state(_q), do: "The work line is off; work_arm arms it for a batch."
+
+  # Who armed it (sunna#43): her tool, or his button.
+  defp armed_by(%{armed_by: "witness"}), do: " by your witness"
+  defp armed_by(%{armed_by: "resident"}), do: " by you"
+  defp armed_by(_q), do: ""
 
   defp work_line(item) do
     blocked = if item.blocked_on, do: " on #{item.blocked_on}", else: ""

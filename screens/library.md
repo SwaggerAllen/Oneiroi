@@ -21,7 +21,7 @@ moves the address. The waiting list's pieces (for review, to publish)
 open the piece's own page, where the decision sits beside its words.
 A document's page: its title and its kind and path in the top bar, a
 way back to its kind's list, when it came into the library and when it
-was last written and by whom, its versions and status, the piece's
+was last written and by whom, its versions and status, "Download the file" (the raw bytes as the repository holds them, seshat#50), the piece's
 review (Approve, Decline, each with a required note) when it waits on
 you, and its words whole, or that the library holds nothing there.
 

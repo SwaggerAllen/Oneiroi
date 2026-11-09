@@ -18,6 +18,12 @@ describe('A document, alone', () => {
     expect(screen.getByText(/Created 2026-10-30 10:00 UTC · updated 2026-11-07 10:00 UTC by Lily/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '← All design' }));
     expect(onBack).toHaveBeenCalled();
+    cleanup();
+    // seshat#50: the file itself, raw, by a link.
+    render(<Reading downloadUrl="/v1/residents/r/library/download/design/correspondence-pipeline.md" />);
+    const link = screen.getByRole('link', { name: 'Download the file' });
+    expect(link.getAttribute('href')).toBe('/v1/residents/r/library/download/design/correspondence-pipeline.md');
+    expect(link.hasAttribute('download')).toBe(true);
   });
 
   it('puts a decision waiting on you beside the words', () => {

@@ -141,10 +141,12 @@ defmodule Oneiroi.Sunna.WorkTest do
     # Not armed: the loop waits for her, and says so.
     assert {:rested, "off: the work line waits for you to arm it" <> _} = WorkLoop.check(ctx.id)
 
-    # Only she arms it, and once for the batch.
-    assert {:error, %{kind: :sunna_work_not_a_party}} = Sunna.work_arm(ctx.id, ctx.actor)
+    # She arms it, once for the batch; a job is no party (sunna#43).
+    assert {:error, %{kind: :sunna_work_not_a_party}} =
+             Sunna.work_arm(ctx.id, Actor.new(:job, "sunna_work"))
+
     assert :ok = Sunna.work_arm(ctx.id, ctx.me)
-    assert %{armed: true, budget: nil} = Sunna.work_queue(ctx.id)
+    assert %{armed: true, armed_by: "resident", budget: nil} = Sunna.work_queue(ctx.id)
     assert {:started, 1} = WorkLoop.check(ctx.id)
 
     # A cap already spent this period: the next check holds and names it.
@@ -333,6 +335,33 @@ defmodule Oneiroi.Sunna.WorkTest do
 
   # sunna#41, Lily's report #14: the tick asked only when nothing ran, so
   # the check that ends a stalled run was never asked for.
+  # sunna#43 (the witness, 2026-11-09, Lily's letter #399): his button
+  # arms the line through the same action as her tool, the receipt says
+  # whose, and he turns it off by hand while a run finishes.
+  test "the witness arms the line by the same action, recorded as his, and turns it off by hand",
+       ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.me)
+
+    assert :ok = Sunna.work_arm(ctx.id, ctx.actor)
+    assert %{armed: true, armed_by: "witness"} = Sunna.work_queue(ctx.id)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    turn = %{resident_id: ctx.id, session_key: "k", turn_ref: "t", resident: ctx.me}
+    assert Tools.run("work_list", "{}", turn) =~ "The work line is armed by your witness (since"
+
+    # Off by hand mid-run: the run goes on; nothing starts after it.
+    assert :ok = Sunna.work_disarm(ctx.id, ctx.actor)
+    assert %{armed: false, armed_by: nil, running: 1} = Sunna.work_queue(ctx.id)
+    :ok = Sunna.work_move(ctx.id, 1, "done", nil, "finished", ctx.me)
+    assert {:rested, "off: the work line waits for you to arm it" <> _} = WorkLoop.check(ctx.id)
+
+    # Her turning it off by hand is not hers: nothing happens.
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert :ok = Sunna.work_disarm(ctx.id, ctx.me)
+    assert %{armed: true, armed_by: "resident"} = Sunna.work_queue(ctx.id)
+  end
+
   test "the tick asks for a check for a stalled run, and the check ends it", ctx do
     {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
     :ok = Sunna.work_arm(ctx.id, ctx.me)
@@ -375,7 +404,7 @@ defmodule Oneiroi.Sunna.WorkTest do
     :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
     text = Tools.run("work_list", "{}", turn)
-    assert text =~ "The loop is running item #1. The work line is armed (since"
+    assert text =~ "The loop is running item #1. The work line is armed by you (since"
   end
 
   test "the tick asks for a check when work is open and nothing runs", ctx do

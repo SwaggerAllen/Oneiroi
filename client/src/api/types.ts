@@ -575,6 +575,8 @@ export interface WorkQueue {
   // Armed by her for a batch, off once the queue clears (sunna#35).
   armed: boolean;
   armed_at?: string | null;
+  // Who armed it (sunna#43): her tool, or his button.
+  armed_by?: 'resident' | 'witness' | null;
 }
 
 // A plugin, as the agreement shows it (brain#68, agathos-daimon#37):

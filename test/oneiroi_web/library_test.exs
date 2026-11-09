@@ -109,4 +109,25 @@ defmodule OneiroiWeb.LibraryTest do
     assert %{"scanned" => 2, "embedded" => 0} =
              conn |> post("#{base}/index") |> json_response(200)
   end
+
+  # seshat#50 (the witness, 2026-11-09, Lily's letter #401): a document's
+  # file, raw, the bytes the repository holds.
+  test "a document downloads as its file, byte for byte", %{conn: conn, id: id, dir: dir} do
+    base = "/v1/residents/#{id}/library"
+    words = "---\ntitle: Ünïcode & spaces\n---\n# A\n\nLine with trailing space \n\n\tTab.\n"
+
+    assert conn
+           |> put("#{base}/documents/design/my-spec.md", %{content: words})
+           |> json_response(200)
+
+    resp = get(conn, "#{base}/download/design/my-spec.md")
+    assert resp.status == 200
+    assert resp.resp_body == File.read!(Path.join(dir, "design/my-spec.md"))
+    assert [disposition] = get_resp_header(resp, "content-disposition")
+    assert disposition == ~s(attachment; filename="my-spec.md")
+    assert [type] = get_resp_header(resp, "content-type")
+    assert type =~ "application/octet-stream"
+
+    assert conn |> get("#{base}/download/design/none.md") |> response(404)
+  end
 end

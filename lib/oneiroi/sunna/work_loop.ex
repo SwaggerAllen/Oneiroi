@@ -115,6 +115,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  @doc "The witness turns the work line off by hand (sunna#43); the run in work finishes."
+  def disarm_by(resident_id, %Actor{} = actor) do
+    with {:ok, _} <-
+           dispatch(%Commands.DisarmWork{actor: actor, at: Clock.now(), id: resident_id}),
+         do: :ok
+  end
+
   defp disarm(resident_id),
     do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
 
@@ -156,7 +163,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
       budget: budget(resident_id),
       # Armed by her for a batch, off once the queue clears (sunna#35).
       armed: (state && state.armed) || false,
-      armed_at: state && state.armed_at
+      armed_at: state && state.armed_at,
+      # Who armed it (sunna#43): "resident" by her tool, "witness" by his button.
+      armed_by: state && state.armed_by
     }
   end
 

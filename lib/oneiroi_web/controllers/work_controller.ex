@@ -105,6 +105,34 @@ defmodule OneiroiWeb.WorkController do
     end
   end
 
+  operation(:arm,
+    summary:
+      "Arm the work line for a batch (sunna#43): the same action as the resident's work_arm, recorded as the witness's; the line goes off by itself when the queue clears",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "armed"]
+  )
+
+  def arm(conn, %{"id" => id}) do
+    case Sunna.work_arm(id, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:disarm,
+    summary:
+      "Turn the work line off by hand (sunna#43): the run in work finishes, and nothing starts until it is armed again",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "off"]
+  )
+
+  def disarm(conn, %{"id" => id}) do
+    case Sunna.work_disarm(id, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   defp number_invalid(conn),
     do:
       problem(

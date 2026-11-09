@@ -862,6 +862,7 @@ function DocumentContainer({ resident, path, doc, kindLabel, onBack }: { residen
             .catch((e: unknown) => setError(asApiError(e)))
         }
         onBack={onBack}
+        downloadUrl={api.downloadUrl(id, path)}
       />
     </>
   );
@@ -1249,6 +1250,8 @@ function WorkContainer({ resident }: { resident: Resident }) {
         onAdd={(what, doneWhen) => act(api.addWork(id, what, doneWhen))}
         onMove={(n, status, blockedOn, note) => act(api.moveWork(id, n, status, blockedOn, note))}
         onOrder={(order) => act(api.orderWork(id, order))}
+        onArm={() => act(api.armWork(id))}
+        onDisarm={() => act(api.disarmWork(id))}
       />
     </>
   );

@@ -20,6 +20,8 @@ export interface DocumentPageProps {
   onReview?: (path: string, decision: 'approve' | 'decline', note: string) => void;
   // Back to its kind's list.
   onBack: () => void;
+  // The file itself, raw, as the repository holds it (seshat#50).
+  downloadUrl?: string;
 }
 
 const meta = { margin: 0, fontSize: 13, color: 'var(--ink-muted)' } as const;
@@ -30,16 +32,21 @@ const when = (at: string | null | undefined) => (at ? `${at.slice(0, 16).replace
 // when it was last written, and, when it waits on you, the decision
 // beside it. A link from anywhere (the waiting list's piece, a search
 // hit) lands here.
-export function DocumentPage({ residentName, path, doc, kindLabel = null, content, missing = false, pieces = null, onReview, onBack }: DocumentPageProps) {
+export function DocumentPage({ residentName, path, doc, kindLabel = null, content, missing = false, pieces = null, onReview, onBack, downloadUrl }: DocumentPageProps) {
   const mine = pieces ? { for_review: pieces.for_review.filter((p) => p.path === path), approved: pieces.approved.filter((p) => p.path === path), drafted: pieces.drafted.filter((p) => p.path === path) } : null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title={doc?.title ?? path} line={kindLabel ? `${kindLabel} · ${path}` : path} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Button variant="quiet" onClick={onBack}>
             ← {kindLabel ? `All ${kindLabel.toLowerCase()}` : 'The library'}
           </Button>
+          {downloadUrl && !missing ? (
+            <a href={downloadUrl} download style={{ fontSize: 15 }}>
+              Download the file
+            </a>
+          ) : null}
         </div>
         {doc ? (
           <p style={meta}>

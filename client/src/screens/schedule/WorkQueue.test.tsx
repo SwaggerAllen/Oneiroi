@@ -99,4 +99,22 @@ describe('WorkQueue', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Blocked' })[1]);
     expect(onMove).toHaveBeenCalledWith(2, 'blocked', '1', 'after the doc');
   });
+
+  // sunna#43: his button arms by the same action as her tool, says whose,
+  // and turns the line off by hand.
+  it('arms the line when it is off with work open, and turns it off when armed, saying whose', () => {
+    cleanup();
+    const onArm = vi.fn();
+    const onDisarm = vi.fn();
+    render(<WorkQueue residentName="Lily" queue={queue({ running: null, armed: false })} onArm={onArm} onDisarm={onDisarm} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Arm the work line' }));
+    expect(onArm).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Turn the work line off' })).toBeNull();
+    cleanup();
+    render(<WorkQueue residentName="Lily" queue={queue({ armed_by: 'witness' })} onArm={onArm} onDisarm={onDisarm} />);
+    expect(screen.getByText(/Work line: armed by you,/)).toBeTruthy();
+    expect(screen.getByText(/The run in work finishes/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn the work line off' }));
+    expect(onDisarm).toHaveBeenCalled();
+  });
 });

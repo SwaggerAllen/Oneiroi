@@ -213,6 +213,8 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),
   markSent: (residentId: string, number: number, url: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
+  // A document's raw file (seshat#50): a link, not a call.
+  downloadUrl: (residentId: string, path: string) => `/v1/residents/${residentId}/library/download/${path.split('/').map(encodeURIComponent).join('/')}`,
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
@@ -278,6 +280,8 @@ export const api = {
   moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status, blocked_on: blockedOn, note }),
   orderWork: (residentId: string, order: number[]) => call<void>('PUT', `/v1/residents/${residentId}/work/order`, { order }),
+  armWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/arm`),
+  disarmWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/disarm`),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),
