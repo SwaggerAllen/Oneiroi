@@ -55,6 +55,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:turn_ref, :string)
       field(:letter, :integer)
       field(:emoji, :string)
+      field(:by, :string)
       field(:reacted_at, :utc_datetime_usec)
       field(:told_at, :utc_datetime_usec)
       field(:told_in, :string)
@@ -938,17 +939,17 @@ defmodule Oneiroi.Kumbukumbu.Store do
         do: from(r in q, where: r.session_key == ^opts[:session_key]),
         else: q
 
+    q = if opts[:by], do: from(r in q, where: r.by == ^opts[:by]), else: q
     Repo.all(q)
   end
 
-  @doc "Whether a session holds a reply of hers in the turn named (kumbukumbu#56)."
-  @spec reply?(String.t(), String.t()) :: boolean()
-  def reply?(session_key, turn_ref),
+  @doc "Whether a session holds a message of `role` in the turn named: hers is `assistant`, his `user` (kumbukumbu#56)."
+  @spec message?(String.t(), String.t(), String.t()) :: boolean()
+  def message?(session_key, turn_ref, role),
     do:
       Repo.exists?(
         from(m in Message,
-          where:
-            m.session_key == ^session_key and m.turn_ref == ^turn_ref and m.role == "assistant"
+          where: m.session_key == ^session_key and m.turn_ref == ^turn_ref and m.role == ^role
         )
       )
 

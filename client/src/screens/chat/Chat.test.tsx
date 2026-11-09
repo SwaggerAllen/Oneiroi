@@ -294,9 +294,15 @@ describe('Chat', () => {
     render(<Reacted onReact={onReact} />);
     const group = screen.getByRole('group', { name: 'Reacts' });
     expect(within(group).getByLabelText('⚜️, warm')).toBeTruthy();
-    // Only on the turn's reply: the witness's message and the tool call carry none.
+    // His on the turn's reply alone; the tool call carries none.
     expect(screen.getAllByRole('group', { name: 'Reacts' })).toHaveLength(1);
+    // Hers on his message, read only (two-way, kumbukumbu#56).
+    const hers = screen.getByRole('group', { name: "Lily's reacts" });
+    expect(within(hers).getByLabelText('❤️, loved')).toBeTruthy();
+    expect(within(hers).queryByRole('button')).toBeNull();
+    // The menu shows each emoji with its meaning, inline.
     fireEvent.click(within(group).getByRole('button', { name: 'React' }));
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['🔀 merged', '👁 seen', '⚜️ warm', '❤️ loved', 'Close']);
     fireEvent.click(within(group).getByRole('button', { name: 'React merged' }));
     expect(onReact).toHaveBeenCalledWith(expect.objectContaining({ turn_ref: 't1', role: 'assistant' }), '🔀');
     expect(within(group).queryByRole('button', { name: 'React merged' })).toBeNull();

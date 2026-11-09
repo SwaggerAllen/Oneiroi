@@ -281,7 +281,7 @@ export const api = {
   answerPlugin: (residentId: string, number: number, agree: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/plugins/proposals/${number}/answer`, { agree, note }),
   reacts: (residentId: string, sessionKey: string) =>
-    call<Array<{ number: number; target_kind: string; session_key: string | null; turn_ref: string | null; letter: number | null; emoji: string; reacted_at: string; told_at: string | null }>>(
+    call<Array<{ number: number; target_kind: string; session_key: string | null; turn_ref: string | null; letter: number | null; emoji: string; by: 'witness' | 'resident'; reacted_at: string; told_at: string | null }>>(
       'GET',
       `/v1/residents/${residentId}/reacts?session_key=${encodeURIComponent(sessionKey)}`,
     ),

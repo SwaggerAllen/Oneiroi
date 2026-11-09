@@ -10,6 +10,7 @@ defmodule Oneiroi.Brain.ReactsTest do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain
+  alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -115,12 +116,13 @@ defmodule Oneiroi.Brain.ReactsTest do
     assert request =~ "🌱 (taking root) on your reply"
   end
 
-  test "a react is the witness's, on a reply or letter that exists, and an emoji", ctx do
+  test "a react is a party's, on a message or letter that exists, and an emoji", ctx do
     {ref, _} = told(ctx, "hello")
     target = %{"kind" => "message", "session_key" => ctx.key, "turn_ref" => ref}
 
-    assert {:error, %{kind: :kumbukumbu_react_invalid}} =
-             Kumbukumbu.react(ctx.id, target, "⚜️", ctx.lily)
+    # The two of them react; nobody else does.
+    assert {:error, %{site: :kumbukumbu_reacts_ledger_party}} =
+             Kumbukumbu.react(ctx.id, target, "⚜️", Actor.new(:hands, "scrape"))
 
     assert {:error, %{site: :kumbukumbu_reacts_no_reply}} =
              Kumbukumbu.react(ctx.id, %{target | "turn_ref" => "nope"}, "⚜️", ctx.witness)
@@ -138,5 +140,80 @@ defmodule Oneiroi.Brain.ReactsTest do
              {"⚜️", "warm"},
              {"❤️", "loved"}
            ]
+  end
+
+  # Her side (the witness's call, 2026-11-09: two-way, inline, no tool
+  # call): a reply ending `react: <emoji>` reacts on the message of his it
+  # answers, lifted out of her words as the turn is kept.
+  test "she reacts inline: the line is lifted out of her reply and lands on his message, waking nobody",
+       ctx do
+    Fake.script(fn _ -> {:ok, "Thank you, that lands.\n\nreact: ❤️"} end, for: ctx.id)
+
+    {:ok, %{turn_ref: ref}} =
+      Brain.turn(ctx.id, ctx.key, "I love the etymologies kind", ctx.witness)
+
+    {:ok, _scope, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.key)
+    reply = Enum.find(messages, &(&1.turn_ref == ref and &1.role == "assistant"))
+    assert reply.content == "Thank you, that lands."
+
+    assert [%{by: "resident", emoji: "❤️", target_kind: "message", turn_ref: ^ref, told_at: nil}] =
+             Kumbukumbu.reacts(ctx.id, session_key: ctx.key)
+
+    # Hers are never told back to her as his.
+    assert Reactions.untold(ctx.id, ctx.key) == nil
+
+    # On a letter, by number.
+    {:ok, %{number: n}} =
+      Kumbukumbu.send_letter(ctx.id, ctx.key, %{to: "house", text: "a note"}, ctx.witness)
+
+    Fake.script(fn _ -> {:ok, "Read it.\nreact: 🔀 ##{n}"} end, for: ctx.id)
+    {:ok, _} = Brain.turn(ctx.id, ctx.key, "did you see my letter?", ctx.witness)
+
+    assert %{target_kind: "letter", letter: ^n, emoji: "🔀", by: "resident"} =
+             List.last(Kumbukumbu.reacts(ctx.id, []))
+  end
+
+  test "a line with nothing to land on, or a transcript imported, stays as written", ctx do
+    at = Clock.now()
+    words = "From before.\nreact: ⚜️"
+
+    # An import keeps its words as they were: no react is minted from history.
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "imported-1",
+        at,
+        [
+          %{role: :user, content: "then", sent_at: at, actor: ctx.witness},
+          %{role: :assistant, content: words, sent_at: at, actor: ctx.lily}
+        ],
+        ctx.witness
+      )
+
+    # A turn of hers with no message of his in it (a wake, free time).
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "wake-1",
+        at,
+        [%{role: :assistant, content: "Alone.\nreact: ⚜️", sent_at: at, actor: ctx.lily}],
+        ctx.lily
+      )
+
+    {:ok, _scope, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.key)
+    assert Enum.any?(messages, &(&1.content == words))
+    assert Enum.any?(messages, &(&1.content == "Alone.\nreact: ⚜️"))
+    assert Kumbukumbu.reacts(ctx.id, []) == []
+
+    # And she reacts on his messages, never her own.
+    assert {:error, %{site: :kumbukumbu_reacts_no_reply}} =
+             Kumbukumbu.react(
+               ctx.id,
+               %{"kind" => "message", "session_key" => ctx.key, "turn_ref" => "wake-1"},
+               "⚜️",
+               ctx.lily
+             )
   end
 end
