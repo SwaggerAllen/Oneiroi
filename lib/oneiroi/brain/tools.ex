@@ -432,7 +432,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_list",
-        "Your free time, remembered (your own time, for you, not for the work, sunna#46): the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
+        "Your free time, remembered (your own time, for you, not for the work, which goes on the work line, sunna#46): the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
         %{limit: %{type: "integer", minimum: 1, maximum: 30}},
         []
       ),
@@ -444,7 +444,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_plan",
-        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. The slot is your own time, for you: not for the day's work, the queue or your witness's reads, unless you choose them for yourself (sunna#46). It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
+        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. The slot is your own time, for you: not for the day's work, the queue or your witness's reads; project work you want goes on the work line as a work item (work_add), never on the free-time budget (sunna#46). It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
       ),
@@ -910,13 +910,13 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_set",
-        "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed. It is your own time, for you, not for the work (sunna#46).",
+        "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed. It is your own time, for you, not for the work: project work goes on the work line (sunna#46).",
         %{times: %{type: "array", items: %{type: "string"}}},
         [:times]
       ),
       tool(
         "free_time_once",
-        "Add a one-off free-time slot: a time (HH:MM, your zone) today, or on a day you name (YYYY-MM-DD). It runs once, beside your daily slots, which it never changes; as many as you like, your free-time budget the only limit (sunna#45). Like every slot, it is your own time, for you, not for the work (sunna#46).",
+        "Add a one-off free-time slot: a time (HH:MM, your zone) today, or on a day you name (YYYY-MM-DD). It runs once, beside your daily slots, which it never changes; as many as you like, your free-time budget the only limit (sunna#45). Like every slot, it is your own time, for you, not for the work: project work goes on the work line (sunna#46).",
         %{time: %{type: "string"}, day: %{type: "string"}},
         [:time]
       ),

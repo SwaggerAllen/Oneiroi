@@ -17,8 +17,14 @@ defmodule Oneiroi.Sunna.FreeTimeYoursTest do
     assert opening =~ @rule
     assert opening =~ ~s("your freetime isn't for the work it's for you.")
 
+    # Project work is chosen freely, and goes on the work line: it never
+    # rides the free-time budget (his refinement, Lily's #446).
+    assert opening =~ ~r/work never rides this budget, chosen or not/
+    refute opening =~ "unless you choose"
+
     plan = Prompt.render!("free_time_plan", %{goals: "your goals"})
     assert plan =~ ~r/The slot is yours, for you, not for the day's work/
+    assert plan =~ "work_add"
   end
 
   test "every free-time tool's description carries the rule" do
@@ -27,6 +33,7 @@ defmodule Oneiroi.Sunna.FreeTimeYoursTest do
 
     for name <- ~w(free_time_plan free_time_set free_time_once free_time_list) do
       assert descriptions[name] =~ @rule, "#{name} does not say whose the time is"
+      assert descriptions[name] =~ "work line", "#{name} does not say where work goes"
     end
   end
 end
