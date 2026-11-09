@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.PluginConsent
+  alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -65,7 +66,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
-    source_list source_read source_search repo_list repo_read repo_log oracle_list
+    source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
   )
@@ -788,6 +789,22 @@ defmodule Oneiroi.Brain.Tools do
         "Search the platform's source for a phrase (case-insensitive, literal): each hit with its file and line. Sealed files are not searched.",
         %{q: %{type: "string"}},
         [:q]
+      ),
+      tool(
+        "pr_meta",
+        "Read a pull request on the platform's repository, everything but its diffs: title, description, author, state, its checks, and the list of files it changes with their sizes. The list is your menu: pr_diffs reads the files you choose, so you decide how much of a pull request is in your context at once. Read-only.",
+        %{number: %{type: "integer", minimum: 1}},
+        [:number]
+      ),
+      tool(
+        "pr_diffs",
+        "Read the diffs of the files you name in a pull request on the platform's repository, exactly those files and no others (names as pr_meta lists them). A long file's diff is cut, and says how to read on with from. Read-only.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          files: %{type: "array", items: %{type: "string"}},
+          from: %{type: "integer", minimum: 0}
+        },
+        [:number, :files]
       ),
       tool(
         "repo_list",
@@ -2545,6 +2562,17 @@ defmodule Oneiroi.Brain.Tools do
   defp call("repo_list", args, turn), do: listing({:repo, turn.resident_id}, args["path"])
   defp call("source_read", args, _turn), do: reading(:source, args)
   defp call("repo_read", args, turn), do: reading({:repo, turn.resident_id}, args)
+
+  # The platform's pull requests (brain#71): the meta and its file list,
+  # then only the diffs she names.
+  defp call("pr_meta", args, _turn) do
+    with {:ok, text} <- Pulls.meta(args["number"]), do: text
+  end
+
+  defp call("pr_diffs", args, _turn) do
+    with {:ok, text} <- Pulls.diffs(args["number"], args["files"], integer(args["from"]) || 0),
+         do: text
+  end
 
   defp call("source_search", args, _turn) do
     case Introspection.search(:source, to_string(args["q"] || "")) do

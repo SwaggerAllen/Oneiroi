@@ -19,6 +19,8 @@ defmodule Oneiroi.Brain do
     top_level?: true,
     deps: [
       Oneiroi,
+      Req,
+      Req.Response,
       Commanded.Event.Handler,
       Oneiroi.AgathosDaimon,
       Oneiroi.Ethos,
@@ -52,6 +54,22 @@ defmodule Oneiroi.Brain do
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
+
+  @impl Oneiroi.Component
+  def feature_flags, do: [:brain_pulls_off]
+
+  # The platform's pull requests, read for the resident (brain#71): its
+  # own code under review, so nothing of hers crosses.
+  @impl Oneiroi.Component
+  def externals do
+    [
+      {:github_pulls,
+       adapter: Oneiroi.Brain.Pulls.GitHub,
+       fake: Oneiroi.Brain.Pulls.Fake,
+       kill_switch: :brain_pulls_off,
+       classification: :operational}
+    ]
+  end
 
   @impl Oneiroi.Component
   def config do
@@ -162,6 +180,26 @@ defmodule Oneiroi.Brain do
        default: ".",
        usage:
          "where the platform's own source is, for the resident to read the code running her (brain#46): the image copies it to /app/source and sets this; a checkout's root otherwise"},
+      {:pulls_client, "BRAIN_PULLS_CLIENT",
+       cast: &__MODULE__.cast_pulls_client/1,
+       default: "github",
+       usage:
+         "which pull requests port answers the resident's pr_meta and pr_diffs (brain#71): github in every real build, fake in test (conventions §9)"},
+      {:pulls_repo, "BRAIN_PULLS_REPO",
+       default: "SwaggerAllen/Oneiroi",
+       usage:
+         "the repository whose pull requests the resident reads (brain#71), as owner/name: the platform's own"},
+      {:github_token, "BRAIN_GITHUB_TOKEN",
+       secret: true,
+       required: false,
+       usage:
+         "a GitHub token for reading pull requests (brain#71), for a higher rate limit than anonymous reads; read-only scope is enough, and the platform's public repository needs none"},
+      {:pulls_diff_chars, "BRAIN_PULLS_DIFF_CHARS",
+       cast: :integer,
+       default: "20000",
+       tag: :bound,
+       usage:
+         "how much of one file's diff one pr_diffs read returns before saying how to read on (brain#71); a bound on one read's share of a turn, a guess"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
        default: "180000",
@@ -200,6 +238,13 @@ defmodule Oneiroi.Brain do
        "a path in the source or the repository is relative and plain: no .., no absolute path, no .git or build output",
        remedy: "name the file from the root, as the listing shows it"},
       {:brain_path_absent, "nothing is at that path", remedy: "list the folder first"},
+      {:brain_pulls_invalid,
+       "a pull request is named by its number, and pr_diffs by the files it changes, as pr_meta lists them (brain#71)",
+       remedy: "give the number, and for diffs a list of file paths from pr_meta"},
+      {:brain_pulls_absent, "the platform's repository has no pull request with that number",
+       remedy: "check the number"},
+      {:brain_pulls_failed, "GitHub did not answer the pull request read (brain#71)",
+       remedy: "try again in a while; a rate limit passes within the hour"},
       {:brain_path_sealed,
        "the file is sealed: the judge's prompts are witness-only, by an explicit list (brain#46)",
        remedy: "ask the witness; the list itself is in the spec and open to argument"},
@@ -353,4 +398,10 @@ defmodule Oneiroi.Brain do
   def cast_on_off("off"), do: {:ok, false}
   # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
   def cast_on_off(other), do: {:error, "is #{inspect(other)}, expected on or off"}
+
+  @doc false
+  def cast_pulls_client("github"), do: {:ok, :"Elixir.Oneiroi.Brain.Pulls.GitHub"}
+  def cast_pulls_client("fake"), do: {:ok, :"Elixir.Oneiroi.Brain.Pulls.Fake"}
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_pulls_client(other), do: {:error, "is #{inspect(other)}, expected github or fake"}
 end
