@@ -52,6 +52,21 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
     )
   end)
 
+  fold(%Events.GithubTokenStored{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :github, account(e.id),
+      set: [
+        github_token_ciphertext: Base.decode64!(e.token_ciphertext),
+        github_token_stored_at: e.at
+      ]
+    )
+  end)
+
+  fold(%Events.GithubTokenRevoked{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :github_revoked, account(e.id),
+      set: [github_token_ciphertext: nil, github_token_stored_at: nil]
+    )
+  end)
+
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(multi, :session, %Session{
       hash: e.session_hash,

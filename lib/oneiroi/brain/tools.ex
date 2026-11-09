@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.PluginConsent
+  alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -65,7 +66,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
-    source_list source_read source_search repo_list repo_read repo_log oracle_list
+    source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
   )
@@ -503,7 +504,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_move",
-        "Set a work item's status with a note: open, blocked (say what blocks it in blocked_on), done or dropped. The loop runs the first open item in order; in_work is the loop's own.",
+        "Set a work item's status with a note: open, blocked, done or dropped. Blocked means waiting on another item of your queue: name it by number in blocked_on (12 or #12); when that item is done or dropped, this one opens again by itself. Work waiting on your witness is not blocked: it waits on his list, where your drafts, asks and pieces already show him. The loop runs the first open item in order; in_work is the loop's own.",
         %{
           number: %{type: "integer"},
           status: %{type: "string", enum: ["open", "blocked", "done", "dropped"]},
@@ -788,6 +789,22 @@ defmodule Oneiroi.Brain.Tools do
         "Search the platform's source for a phrase (case-insensitive, literal): each hit with its file and line. Sealed files are not searched.",
         %{q: %{type: "string"}},
         [:q]
+      ),
+      tool(
+        "pr_meta",
+        "Read a pull request on the platform's repository, everything but its diffs: title, description, author, state, its checks, and the list of files it changes with their sizes. The list is your menu: pr_diffs reads the files you choose, so you decide how much of a pull request is in your context at once. Read-only.",
+        %{number: %{type: "integer", minimum: 1}},
+        [:number]
+      ),
+      tool(
+        "pr_diffs",
+        "Read the diffs of the files you name in a pull request on the platform's repository, exactly those files and no others (names as pr_meta lists them). A long file's diff is cut, and says how to read on with from. Read-only.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          files: %{type: "array", items: %{type: "string"}},
+          from: %{type: "integer", minimum: 0}
+        },
+        [:number, :files]
       ),
       tool(
         "repo_list",
@@ -2546,6 +2563,23 @@ defmodule Oneiroi.Brain.Tools do
   defp call("source_read", args, _turn), do: reading(:source, args)
   defp call("repo_read", args, turn), do: reading({:repo, turn.resident_id}, args)
 
+  # The platform's pull requests (brain#71): the meta and its file list,
+  # then only the diffs she names.
+  defp call("pr_meta", args, turn) do
+    with {:ok, text} <- Pulls.meta(args["number"], witness_github(turn.resident_id)), do: text
+  end
+
+  defp call("pr_diffs", args, turn) do
+    with {:ok, text} <-
+           Pulls.diffs(
+             args["number"],
+             args["files"],
+             integer(args["from"]) || 0,
+             witness_github(turn.resident_id)
+           ),
+         do: text
+  end
+
   defp call("source_search", args, _turn) do
     case Introspection.search(:source, to_string(args["q"] || "")) do
       {:ok, []} -> "Nothing in the source matches."
@@ -2812,7 +2846,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # The run and the arm are two facts, said apart (sunna#41): a run
   # never implies the line is armed, nor the other way round.
-  defp work_state(q), do: loop_state(q) <> " " <> arm_state(q)
+  defp work_state(q), do: loop_state(q) <> skipping(q) <> " " <> arm_state(q)
 
   defp loop_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
 
@@ -2820,6 +2854,15 @@ defmodule Oneiroi.Brain.Tools do
     do: "The loop rests: #{reason} (since #{local_stamp(at)})."
 
   defp loop_state(_q), do: "The loop has not run yet."
+
+  # The loop runs the first open item and steps over blocked ones
+  # (sunna#42): said once, so a skip never reads as a stall.
+  defp skipping(%{items: items}) do
+    case for(%{status: "blocked"} = i <- items, do: "##{i.number} (on #{i.blocked_on})") do
+      [] -> ""
+      blocked -> " It steps over what is blocked: #{Enum.join(blocked, ", ")}."
+    end
+  end
 
   defp arm_state(%{armed: true, armed_at: %DateTime{} = at}),
     do: "The work line is armed (since #{local_stamp(at)})."
@@ -3358,6 +3401,18 @@ defmodule Oneiroi.Brain.Tools do
     with {:ok, n} <- Oneiroi.Gaia.file_feedback(attrs, turn.resident),
          do:
            "Filed as platform report ##{n}, to the platform team; platform_report_list shows its status as it moves."
+  end
+
+  # The witness's GitHub read token (gaia#24), or nil: the platform's or
+  # an anonymous read then.
+  defp witness_github(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) ->
+        Oneiroi.Gaia.github_token_for(account)
+
+      _ ->
+        nil
+    end
   end
 
   defp free_time_line(%{outcome: "ran"} = r) do

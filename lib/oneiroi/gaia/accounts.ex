@@ -204,6 +204,56 @@ defmodule Oneiroi.Gaia.Accounts do
     end)
   end
 
+  @doc "Stores the witness's GitHub read token (gaia#24), encrypted; storing again rotates it."
+  def store_github_token(account_id, raw, %Actor{} = actor) do
+    raw = Secret.reveal(raw)
+    token = if is_binary(raw), do: String.trim(raw), else: ""
+
+    if token == "" do
+      {:error, Error.new(:gaia_github_token_required, :gaia_store_github_token_blank)}
+    else
+      command = %Commands.StoreGithubToken{
+        actor: actor,
+        at: Clock.now(),
+        id: account_id,
+        token_ciphertext: token |> Vault.encrypt() |> Base.encode64()
+      }
+
+      with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  def revoke_github_token(account_id, %Actor{} = actor) do
+    command = %Commands.RevokeGithubToken{actor: actor, at: Clock.now(), id: account_id}
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "The witness's GitHub read token, wrapped, for the pull requests port alone; nil when none is stored."
+  def github_token_for(account_id) do
+    Scope.account(account_id, fn ->
+      with %{github_token_ciphertext: ciphertext} when is_binary(ciphertext) <-
+             Store.account(account_id),
+           {:ok, token} <- Vault.decrypt(ciphertext) do
+        Secret.wrap(token)
+      else
+        _ -> nil
+      end
+    end)
+  end
+
+  @doc "Whether a GitHub read token is stored, and since when."
+  def github_token_status(account_id) do
+    Scope.account(account_id, fn ->
+      case Store.account(account_id) do
+        %{github_token_ciphertext: c, github_token_stored_at: at} when is_binary(c) ->
+          %{present: true, stored_at: at}
+
+        _ ->
+          %{present: false, stored_at: nil}
+      end
+    end)
+  end
+
   @doc "Whether a key is stored, and since when; the status the ledger screen shows."
   def key_status(account_id) do
     Scope.account(account_id, fn ->

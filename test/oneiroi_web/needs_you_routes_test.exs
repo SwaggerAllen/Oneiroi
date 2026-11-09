@@ -46,7 +46,8 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
 
     {:ok, 1} = Sunna.work_add(ctx.id, "Re-stage the Jack letter", "in the queue", ctx.lily)
     {:ok, 2} = Sunna.work_add(ctx.id, "Something open", "done", ctx.lily)
-    :ok = Sunna.work_move(ctx.id, 1, "blocked", "the address", "waiting on it", ctx.lily)
+    # Blocked on other work is the queue's, never his (sunna#42).
+    :ok = Sunna.work_move(ctx.id, 1, "blocked", "2", "waiting on it", ctx.lily)
 
     assert [
              %{"kind" => "ask", "ref" => 1, "screen" => "inbox", "long" => false},
@@ -54,12 +55,6 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
                "kind" => "reply_to_approve",
                "ref" => 2,
                "about" => %{"to" => "jack@example.com", "account" => "lily@example.com"}
-             },
-             %{
-               "kind" => "work_blocked",
-               "ref" => 1,
-               "screen" => "work",
-               "about" => %{"blocked_on" => "the address"}
              }
            ] = read(ctx)
 
@@ -68,8 +63,7 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
 
     assert [
              %{"kind" => "ask", "long" => true},
-             %{"kind" => "reply_to_send", "ref" => 2, "long" => true},
-             %{"kind" => "work_blocked", "long" => true}
+             %{"kind" => "reply_to_send", "ref" => 2, "long" => true}
            ] = read(ctx)
 
     # The mark is all: the reply is still approved and unsent, the ask open.

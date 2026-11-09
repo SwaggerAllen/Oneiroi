@@ -53,6 +53,7 @@ import { TopBarExtra } from '../components/topBarExtra';
 import { CorrespondencePage } from '../screens/correspondence/CorrespondencePage';
 import type { WaitingEntry } from '../screens/inbox/queue';
 import { DocumentPage } from '../screens/library/DocumentPage';
+import { GithubToken } from '../screens/connections/GithubToken';
 import { type LibraryRoute, libraryHash, parseLibraryHash } from '../screens/library/route';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
@@ -288,7 +289,12 @@ export function App() {
           <More onOpen={go} operator={me.roles?.includes('super_admin') ?? false} />
         ) : null}
         {destination === 'library' ? <LibraryContainer resident={resident} route={libraryRoute} onRoute={goLibrary} /> : null}
-        {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
+        {destination === 'connections' ? (
+          <>
+            <ConnectionsContainer resident={resident} />
+            <GithubTokenContainer resident={resident} />
+          </>
+        ) : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'agreement' ? (
           <>
@@ -1059,6 +1065,31 @@ function NotificationsContainer({ resident }: { resident: Resident }) {
         })
       }
     />
+  );
+}
+
+// The witness's GitHub read token (gaia#24), beside the connections.
+function GithubTokenContainer({ resident }: { resident: Resident }) {
+  const [status, setStatus] = useState<{ present: boolean; stored_at: string | null } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .me()
+      .then((m) => setStatus(m.github ?? { present: false, stored_at: null }))
+      .catch((e: unknown) => setError(asApiError(e)));
+  }, []);
+  useEffect(() => load(), [load]);
+  if (!status) return error ? <ErrorNotice error={error} /> : null;
+  const act = (p: Promise<unknown>) =>
+    p
+      .then(() => setError(null))
+      .then(load)
+      .catch((e: unknown) => setError(asApiError(e)));
+  return (
+    <div style={{ padding: '0 var(--space-4) var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      {error ? <ErrorNotice error={error} /> : null}
+      <GithubToken residentName={resident.name} status={status} onStore={(t) => act(api.storeGithubToken(t))} onRevoke={() => act(api.revokeGithubToken())} />
+    </div>
   );
 }
 

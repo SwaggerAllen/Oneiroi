@@ -102,7 +102,7 @@ leaves (or no cap), off waiting for her to arm it, or off with the queue
 clear (sunna#35)); the open, running and blocked items in priority
 order, each with its status, who added it (you or her), its runs, what
 done looks like, its last wrap and last note, and for each a note box
-with Blocked (with what blocks it), Unblock, Done, Drop and Move up
+with Blocked (on another item still to be done, picked from the queue; sunna#42), Unblock, Done, Drop and Move up; a blocked item says which item it waits on ("blocked on #12: what"), and opens again by itself when that item is done or dropped
 (`POST .../work/:number/status`, `PUT .../work/order`); the last five
 done or dropped below; and a form to add one of your own, what and done
 when (`POST .../work`). A blocked item on the Inbox's waiting list says

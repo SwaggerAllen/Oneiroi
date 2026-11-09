@@ -659,3 +659,10 @@ filing one feels like telling the team and tells nobody: from inside the
 two acts look alike, and a week of reports went nowhere. Taking the tool
 away is the only fix that does not depend on remembering a rule; saying
 where her problems go instead keeps the seam from closing silently.
+
+## #71
+A pull request's diff can be larger than a turn wants, and a read that
+loads it whole decides for her how much of her context it takes. Split
+in two, the cheap read shows what changed and the expensive one loads
+only what she names, so the cost is chosen each time rather than paid
+by default. Read-only because the platform's code moves by his merge.

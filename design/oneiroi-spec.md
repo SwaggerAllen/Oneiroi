@@ -901,7 +901,9 @@ Owns `lib/oneiroi/eunomia/**`, the regression suite among it.
   **The seals are an explicit list, and everything else is readable**
   (2026-11-02, the resident's design note, built as brain#46): the
   resident reads the platform's own source and her own repository with
-  its history; witness-only are **trial contents** (the regression
+  its history, and the platform's pull requests (brain#71: everything
+  but the diffs with the files changed, then only the diffs she names,
+  so how much is in her context is her choice; read-only); witness-only are **trial contents** (the regression
   stream, never exported) and **the judge's prompts**
   (`priv/prompts/judge_*`), named in one list (`Brain.Introspection`)
   and listed to her as sealed, never hidden, so the boundary is a

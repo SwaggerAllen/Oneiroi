@@ -106,8 +106,14 @@ defmodule Oneiroi.Brain.NeedsYou do
     end
   end
 
+  # Blocked work (sunna#42) waits on other work and is the queue's, not
+  # his: only an item blocked before the rule, its blocker a line of
+  # words rather than an item's number, still shows here, since what it
+  # waited on was mostly him, until it is triaged.
   defp work(resident_id) do
-    for w <- Sunna.work_queue(resident_id).items, w.status == "blocked" do
+    for w <- Sunna.work_queue(resident_id).items,
+        w.status == "blocked",
+        not item_ref?(w.blocked_on) do
       %{
         kind: "work_blocked",
         ref: w.number,
@@ -117,4 +123,6 @@ defmodule Oneiroi.Brain.NeedsYou do
       }
     end
   end
+
+  defp item_ref?(on), do: is_binary(on) and Regex.match?(~r/\A#\d+\z/, on)
 end

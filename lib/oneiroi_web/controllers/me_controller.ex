@@ -18,6 +18,7 @@ defmodule OneiroiWeb.MeController do
       via: Atom.to_string(p.via),
       residents: Oneiroi.Gaia.witnessed_residents(p.account_id),
       key: Oneiroi.Gaia.key_status(p.account_id),
+      github: Oneiroi.Gaia.github_token_status(p.account_id),
       roles: Oneiroi.Gaia.roles_of(p.account_id),
       household: Oneiroi.Gaia.household(p.account_id)
     })
@@ -68,6 +69,47 @@ defmodule OneiroiWeb.MeController do
 
       {:error, e} ->
         error(conn, 422, e)
+    end
+  end
+
+  # ---- the GitHub read token (gaia#24) ----
+
+  operation(:store_github_token,
+    summary:
+      "Store the GitHub read token the resident's pull request reads use (gaia#24); storing again rotates it",
+    request_body:
+      {"the token", "application/json",
+       %Schema{type: :object, required: [:token], properties: %{token: %Schema{type: :string}}}},
+    responses: [no_content: "stored"]
+  )
+
+  def store_github_token(%{assigns: %{principal: p}} = conn, %{"token" => raw}) do
+    case Oneiroi.Gaia.store_github_token(p.account_id, Secret.wrap(raw), actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  def store_github_token(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :github_token_required,
+        :web_me_store_github_token_required,
+        "token is required"
+      )
+
+  operation(:revoke_github_token,
+    summary: "Revoke the stored GitHub read token; reads go anonymous",
+    responses: [no_content: "revoked"]
+  )
+
+  def revoke_github_token(%{assigns: %{principal: p}} = conn, _params) do
+    case Oneiroi.Gaia.revoke_github_token(p.account_id, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, %{kind: :gaia_no_github_token} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
     end
   end
 

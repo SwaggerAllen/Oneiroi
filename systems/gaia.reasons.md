@@ -161,3 +161,10 @@ changeable without a deploy. The environment's value is kept as the
 starting point so a running platform does not lose its desk the day this
 ships; after the first setting it is ignored, so there is one answer and
 the screen says where it came from.
+
+## #24
+A credential the witness owns is the witness's to change, from the
+place he changes his other ones; one on the server's shell is the
+operator's, and the witness and the operator are not always the same
+person. Kept as the key is kept, encrypted, wrapped, and out of the
+export, because it is the same kind of thing.

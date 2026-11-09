@@ -54,6 +54,8 @@ defmodule OneiroiWeb.Router do
       post("/me/second-factor", SecondFactorController, :create)
       put("/me/key", MeController, :store_key)
       delete("/me/key", MeController, :revoke_key)
+      put("/me/github-token", MeController, :store_github_token)
+      delete("/me/github-token", MeController, :revoke_github_token)
       get("/me/push", MeController, :push)
       post("/me/push", MeController, :subscribe_push)
       delete("/me/push", MeController, :unsubscribe_push)

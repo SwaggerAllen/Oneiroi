@@ -267,3 +267,12 @@ only held in tests that called the check by hand. And the two parties
 were reading two different inferences of the same record, so the record
 seemed to disagree with itself; saying each fact on its own keeps the
 tool and the screen telling the same story.
+
+## #42
+A blocked item that names a person is a waiting-on-him entry filed in
+the wrong place, so two lists answered the same question and could
+disagree. Blocked on a number is a dependency the loop can see and act
+on: it knows when the blocker is done and frees what waited, which a
+line of words could never tell it. History is left as written because
+rewriting why something was blocked would put words in the past that
+nobody said then.

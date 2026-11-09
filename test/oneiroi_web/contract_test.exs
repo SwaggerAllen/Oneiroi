@@ -48,6 +48,8 @@ defmodule OneiroiWeb.ContractTest do
     {:put, "/v1/me/key", %{anonymous: 401, session: 422, token: 422}},
     {:post, "/v1/me/socket-token", %{anonymous: 401, session: 201, token: 201}},
     {:delete, "/v1/me/key", %{anonymous: 401, session: 404, token: 404}},
+    {:put, "/v1/me/github-token", %{anonymous: 401, session: 422, token: 422}},
+    {:delete, "/v1/me/github-token", %{anonymous: 401, session: 404, token: 404}},
     {:delete, "/v1/session", %{anonymous: 204, session: 204, token: 204}}
   ]
 
