@@ -16,8 +16,15 @@
 #   reader.sh publish   drafts the approved writing on Substack, never
 #                       publishing it, and brings back the URL once the
 #                       witness has (seshat#42)
-#   reader.sh login   opens the reader's browser profile, visible, to sign
-#                     in to Substack as the resident once
+#   reader.sh route     does the runs asked of the resident's own routes
+#                       (xenia#19): read-only, through the route's profile
+#   reader.sh login [profile]  opens a profile's browser, visible, to sign
+#                     in once: Substack as the resident unless named
+#
+# What to do comes from Oneiroi's route registry (xenia#19): every route
+# with its runner, its profile and whether it can fire. A profile the
+# witness revoked leaves its routes unable, and the run that would use
+# it does nothing through it: no account, no tool, no browser.
 #
 # The model never holds the Oneiroi token: this script makes every call
 # to Oneiroi, and headless Claude Code only reads and writes JSON files
@@ -85,16 +92,35 @@ model() {
     --output-format text)
 }
 
-# The witness's allowlists from Oneiroi; reader.conf's for reading
-# correspondence when Oneiroi does not answer, and no research then.
+# The routes and their profiles from Oneiroi (xenia#19): each profile's
+# sites are the witness's allowlists, and a revoked one stands down.
+# Against an Oneiroi without routes, the allowlists alone, every profile
+# standing; reader.conf's for reading correspondence when neither answers.
 sites() {
   local status
   SCRAPE_ORIGINS="${READER_ORIGINS:-$DEFAULT_ORIGINS}"
   RESEARCH_ORIGINS=""
+  SUBSTACK_STANDS=1
+  GMAIL_STANDS=1
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/reader/routes" "" "$WORK/routes.json")"
+  if [ "$status" = 200 ]; then
+    SCRAPE_ORIGINS="$(jq -r '[.profiles[] | select(.key == "substack") | .sites[]] | join(";")' "$WORK/routes.json")"
+    RESEARCH_ORIGINS="$(jq -r '[.profiles[] | select(.key == "research") | .sites[]] | join(";")' "$WORK/routes.json")"
+    stands substack || SUBSTACK_STANDS=""
+    stands gmail || GMAIL_STANDS=""
+    return 0
+  fi
+  echo '{"routes": [], "profiles": []}' > "$WORK/routes.json"
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/reader" "" "$OUT")"
   [ "$status" = 200 ] || return 0
   SCRAPE_ORIGINS="$(jq -r '.scrape | join(";")' "$OUT")"
   RESEARCH_ORIGINS="$(jq -r '.research | join(";")' "$OUT")"
+}
+
+# Whether a profile stands: listed and not revoked, or no registry at all.
+stands() {
+  jq -e --arg k "$1" '(.profiles | length) == 0 or any(.profiles[]; .key == $k and (.revoked | not))' \
+    "$WORK/routes.json" > /dev/null 2>&1
 }
 
 wait_for_work() {
@@ -135,7 +161,59 @@ wait_for_work() {
   if [ "$(jq -r '(.digests // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
     say "a digest is asked"
     digest
+    rmdir "$STATE/lock" 2>/dev/null
   fi
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
+  touch "$STATE/route-given-up"
+  if [ "$(jq -r --rawfile gone "$STATE/route-given-up" \
+      '($gone | split("\n")) as $g | [(.routes // [])[] | select((.number | tostring) as $n | ($g | index([$n])) == null)] | length' \
+      "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
+    say "a route of hers is asked"
+    route
+  fi
+}
+
+# Her own routes (xenia#19): each run asked, read through its route's
+# profile and nothing else, read-only. The request is the route's text,
+# handed as data; the sites and the browser are the profile's, from
+# Oneiroi, never from the request; where the notes land is Oneiroi's.
+# A run that writes nothing is tried twice, then said failed.
+route() {
+  local number status tries sites browser
+  lock
+  sites
+  touch "$STATE/route-given-up"
+  for number in $(jq -r '[.routes[] | select(.built_in | not) | select(.state == "ready") | .pending[].number] | .[]' "$WORK/routes.json"); do
+    grep -qx "$number" "$STATE/route-given-up" && continue
+    jq --argjson n "$number" '[.routes[].pending[]? | select(.number? == $n and has("prompt"))][0]
+      | {number, request: .prompt, sites}' "$WORK/routes.json" > "$WORK/route.json"
+    sites="$(jq -r --argjson n "$number" '[.routes[].pending[]? | select(.number? == $n and has("prompt"))][0] | .sites | join(";")' "$WORK/routes.json")"
+    browser="$(jq -r --argjson n "$number" '[.routes[].pending[]? | select(.number? == $n and has("prompt"))][0] | .browser // empty' "$WORK/routes.json")"
+    rm -f "$WORK/landed.json"
+    if [ -n "$browser" ] && [ -n "$sites" ]; then
+      model route "Read(/work/route.json),Edit(/work/landed.json),$(browser read)" "$sites" "$browser" ||
+        say "route run #$number ended badly"
+    else
+      say "route run #$number: its profile has no browser and sites to read through"
+    fi
+    if jq -e '(.text | type == "string") and (.text != "")' "$WORK/landed.json" > /dev/null 2>&1; then
+      jq '{title, text}' "$WORK/landed.json" > "$OUT.body"
+      status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/reader/routes/runs/$number/landed" "$OUT.body" "$OUT")"
+      rm -f "$OUT.body"
+      say "route run #$number landed; Oneiroi answered $status"
+    else
+      tries="$(( $(grep -c "^$number\$" "$STATE/route-tries" 2>/dev/null || echo 0) + 1 ))"
+      echo "$number" >> "$STATE/route-tries"
+      say "route run #$number wrote nothing (try $tries of 2)"
+      if [ "$tries" -ge 2 ]; then
+        echo "$number" >> "$STATE/route-given-up"
+        jq -n '{reason: "the reader ran twice and wrote nothing"}' > "$OUT.body"
+        status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/reader/routes/runs/$number/failed" "$OUT.body" "$OUT")"
+        rm -f "$OUT.body"
+        say "route run #$number said failed; Oneiroi answered $status"
+      fi
+    fi
+  done
 }
 
 # The digest (seshat#40): asked, never on a clock. What reached her
@@ -150,6 +228,7 @@ digest() {
   [ "$status" = 200 ] || { say "Oneiroi answered $status to the digests"; return 0; }
   number="$(jq -r '.[0].number // empty' "$OUT")"
   [ -n "$number" ] || return 0
+  [ -n "$GMAIL_STANDS" ] || { say "the Gmail profile is revoked; the digest waits"; return 0; }
   since="$(jq -r '.[0].since' "$OUT")"
   jq -n --arg since "$since" --arg email "${EMAIL_ACCOUNT:-}" --arg substack "${SUBSTACK_ACCOUNT:-}" \
     '{since: $since, email_account: $email, substack_account: $substack}' > "$WORK/digest.json"
@@ -319,15 +398,22 @@ send() {
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/replies" "" "$OUT")"
   [ "$status" = 200 ] || { say "Oneiroi answered $status to the replies"; return 0; }
   touch "$STATE/given-up"
-  jq --rawfile gone "$STATE/given-up" \
+  # Only what a standing sink serves (xenia#19): a reply whose route's
+  # profile is revoked waits, as one not yet approved does.
+  # Against an Oneiroi without routes (`registry` false), every approved one.
+  jq '{registry: ((.routes // []) | length > 0),
+       served: [(.routes // [])[] | select(.direction == "sink" and .state == "ready" and .runner == "send") | .pending[].number]}' \
+    "$WORK/routes.json" > "$WORK/servable.json" 2>/dev/null || echo '{"registry": false, "served": []}' > "$WORK/servable.json"
+  jq --rawfile gone "$STATE/given-up" --slurpfile s "$WORK/servable.json" \
     '($gone | split("\n")) as $g
      | [.[] | select((.number | tostring) as $n | ($g | index([$n])) == null)
+            | select(.number as $num | ($s[0].registry | not) or ($s[0].served | index([$num])) != null)
             | {number, platform, account, thread, to, in_reply_to, text}]' \
     "$OUT" > "$WORK/outbox.json" || return 0
   [ "$(jq length "$WORK/outbox.json")" -gt 0 ] || return 0
   rm -f "$WORK/sent.json"
 
-  model send "Read(/work/outbox.json),Edit(/work/sent.json),$(browser write),mcp__claude_ai_Gmail__reply" ||
+  model send "Read(/work/outbox.json),Edit(/work/sent.json),$(browser write)$([ -n "$GMAIL_STANDS" ] && echo ,mcp__claude_ai_Gmail__reply)" ||
     say "the send run ended badly"
 
   # Each reply the run says it sent is marked sent with where it is now;
@@ -384,12 +470,16 @@ scrape() {
   local since count status
   lock
   since="$(cat "$STATE/last-scrape" 2>/dev/null || date -u -v-2d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)"
-  jq -n --arg since "$since" --arg substack "${SUBSTACK_ACCOUNT:-}" --arg email "${EMAIL_ACCOUNT:-}" \
+  # Each source only while its profile stands (xenia#19): a revoked one
+  # gives the run no account and no tool to read it with.
+  [ -n "$SUBSTACK_STANDS" ] || [ -n "$GMAIL_STANDS" ] || { say "both correspondence profiles are revoked; nothing read"; return 0; }
+  jq -n --arg since "$since" --arg substack "$([ -n "$SUBSTACK_STANDS" ] && echo "${SUBSTACK_ACCOUNT:-}")" \
+    --arg email "$([ -n "$GMAIL_STANDS" ] && echo "${EMAIL_ACCOUNT:-}")" \
     '{since: $since, substack_account: $substack, email_account: $email}' > "$WORK/scrape.json"
   rm -f "$WORK/inbound.json"
   started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-  model scrape "Read(/work/scrape.json),Edit(/work/inbound.json),$(browser read),mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread" ||
+  model scrape "Read(/work/scrape.json),Edit(/work/inbound.json)$([ -n "$SUBSTACK_STANDS" ] && echo ",$(browser read)")$([ -n "$GMAIL_STANDS" ] && echo ,mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread)" ||
     say "the scrape run ended badly"
 
   [ -s "$WORK/inbound.json" ] || { say "the scrape wrote nothing; nothing delivered"; return 0; }
@@ -443,15 +533,26 @@ browser() {
   fi
 }
 
+# A profile signed in once, by hand: Substack's unless named. A profile
+# the witness made on Connections opens on its one origin, from Oneiroi.
 login() {
-  local profile="$READER/browser-profile"
+  local key="${1:-substack}" profile origin
+  if [ "$key" = substack ]; then
+    profile="$READER/browser-profile"
+    origin="https://substack.com/sign-in"
+  else
+    setup && sites
+    profile="$READER/$(jq -r --arg k "$key" '[.profiles[] | select(.key == $k) | .browser][0] // empty' "$WORK/routes.json")"
+    origin="$(jq -r --arg k "$key" '[.profiles[] | select(.key == $k) | .origin][0] // empty' "$WORK/routes.json")"
+    [ -n "$origin" ] && [ "$profile" != "$READER/" ] || { say "no profile $key with an origin on Oneiroi"; exit 0; }
+  fi
   mkdir -p "$profile"
-  say "opening Chrome on the reader's profile: sign in to Substack as the resident, then quit Chrome (Cmd-Q)"
-  open -na "Google Chrome" --args --user-data-dir="$profile" --no-first-run "https://substack.com/sign-in"
+  say "opening Chrome on the $key profile: sign in, then quit Chrome (Cmd-Q)"
+  open -na "Google Chrome" --args --user-data-dir="$profile" --no-first-run "$origin"
 }
 
 case "${1:-}" in
-  login) login ;;
+  login) login "${2:-}" ;;
   wait) setup && sites && wait_for_work ;;
   send) setup && sites && send ;;
   scrape) setup && sites && scrape ;;
@@ -459,5 +560,6 @@ case "${1:-}" in
   fetch) setup && fetch ;;
   digest) setup && sites && digest ;;
   publish) setup && sites && publish ;;
-  *) echo "usage: reader.sh wait|send|scrape|research|fetch|digest|publish|login" >&2; exit 2 ;;
+  route) setup && route ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|fetch|digest|publish|route|login [profile]" >&2; exit 2 ;;
 esac

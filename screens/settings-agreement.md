@@ -57,6 +57,19 @@ hour; a password field to store or replace it (`PUT
 /v1/me/github-token`), and Revoke, turned into its consequence before
 it acts (`DELETE /v1/me/github-token`). The token is never shown.
 
+Connections also carries **Routes and profiles** (`Routes.tsx`,
+xenia#19, `RoutesContainer` from `GET /v1/residents/:id/routes`): a
+note field; the profiles, each with its label, key, whether revoked,
+its origin or "signed in nowhere", whom it is signed in as, its reach
+(sites or connector) and the routes bound to it, with Revoke or Restore
+(each needs the note); a form to make a profile on exactly one site
+(refused here when it is not one https origin), which then says to
+sign it in with `reader.sh login <key>`; the routes, built-ins then
+hers, each with its direction, kind, profile and cadence, an unable one
+saying why, hers with what it reads for and "Ask a run"; her last ten
+runs; and a form to define a route of hers through a standing profile
+into a kind it may land in (the server's list).
+
 Connections, the adapters part, built 2026-11-02:
 `client/src/screens/connections/` (`Connections.tsx`, stories and
 tests) under More, loaded by `ConnectionsContainer` in

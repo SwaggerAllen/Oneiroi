@@ -48,7 +48,7 @@ defmodule Oneiroi.SimaQian.Export do
   # The resident's streams, by prefix (sima-qian#20). Every router's
   # prefix is here or in `@not_exported`, which the export test asserts
   # against the routers themselves.
-  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription xenia asks pieces work plugins kinds)
+  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription xenia asks pieces work plugins kinds routes)
 
   # Everything of the resident's that the repository does not carry,
   # each with the reason (sima-qian#43). The author's law (spec §6.10):
@@ -63,6 +63,9 @@ defmodule Oneiroi.SimaQian.Export do
     "regression" =>
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
     "account" => {:stream, "the witness's account, not the resident's"},
+    "profiles" =>
+      {:stream,
+       "the signed-in contexts her routes read through: credentials have one home, the witness's machine, and it is not transportable; her routes travel and name the profile they need (xenia#19)"},
     "platform" => {:stream, "the platform's front door and roles, no resident's (gaia#16)"},
     "household" =>
       {:stream,

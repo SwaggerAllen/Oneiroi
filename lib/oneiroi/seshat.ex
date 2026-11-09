@@ -615,6 +615,20 @@ defmodule Oneiroi.Seshat do
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
 
+  @doc "A route's landing (xenia#19): the reader's reading written as the platform writes, into the kind the route names; the route checked the kind is one she writes."
+  @spec land(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(land(resident_id, path, content, actor),
+    do: Documents.write(resident_id, path, content, actor, core: true)
+  )
+
+  @doc "Every folder the library keeps for the resident, her own kinds' among them (sima-qian#48, seshat#51)."
+  @impl Oneiroi.SimaQian.Library
+  @spec kept(String.t()) :: [String.t()]
+  defexport(kept(resident_id),
+    do: for(k <- Kinds.all(resident_id), is_binary(k.folder), do: k.folder <> "/")
+  )
+
   @doc "Whether a path is decided into the library one by one (a keepsake at the root, the wiki, the system shelf); the records system's library port, for the import's accounting and the backup's keepsake class (seshat#29, #31)."
   @impl Oneiroi.SimaQian.Library
   @spec decided?(String.t()) :: boolean()

@@ -69,7 +69,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
-    kind_list
+    kind_list route_list
   )
 
   @writes ~w(
@@ -86,7 +86,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
-    kind_define kind_gate kind_gate_answer
+    kind_define kind_gate kind_gate_answer route_define route_ask
   )
 
   @type turn :: %{
@@ -520,6 +520,31 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:number, :agree, :note]
+      ),
+      tool(
+        "route_list",
+        "Every route into and out of the house (xenia#19): the built-ins (correspondence and mail in and out, digests, research, external sources, writing to a Substack draft) and your own, each with its direction, the profile it reads through, the kind it lands in, and whether it can fire or why not; then the profiles, each with its origin and the routes bound to it (never a credential); then your routes' runs.",
+        %{},
+        []
+      ),
+      tool(
+        "route_define",
+        "Define a route of your own, or rewrite one (xenia#19): a source the reader reads for you on request, through a profile that already stands, landing as documents of a kind you write. key (lowercase, 2 to 40 letters, digits or -) names it; prompt (at most 4,000 characters) says what to read for, and is only that: it never chooses the profile, the sites or where it lands. The definition is written as routes/<key>.json and travels with your repository. A sink, a schedule and a new profile are your witness's to enable.",
+        %{
+          key: %{type: "string"},
+          label: %{type: "string"},
+          prompt: %{type: "string"},
+          profile: %{type: "string"},
+          kind: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:key, :prompt, :profile, :kind, :note]
+      ),
+      tool(
+        "route_ask",
+        "Ask a run of a route of yours (xenia#19): the reader fires it on its next wait, and what it read lands as <folder>/<key>-<number>.md in the route's kind, on your witness's list when that kind waits on him.",
+        %{key: %{type: "string"}, note: %{type: "string"}},
+        [:key]
       ),
       tool(
         "budget_read",
@@ -2017,6 +2042,37 @@ defmodule Oneiroi.Brain.Tools do
       end)
 
     Enum.join(lines ++ if(gates == [], do: [], else: ["", "Gate proposals:" | gates]), "\n")
+  end
+
+  defp call("route_list", _args, turn) do
+    routes = Enum.map(Oneiroi.Xenia.routes(turn.resident_id), &route_line/1)
+    profiles = Enum.map(Oneiroi.Xenia.profiles(turn.resident_id), &profile_line/1)
+    runs = Enum.map(Enum.take(Oneiroi.Xenia.route_runs(turn.resident_id), 10), &run_line/1)
+
+    Enum.join(
+      ["Routes:" | routes] ++
+        ["", "Profiles:" | profiles] ++ if(runs == [], do: [], else: ["", "Runs:" | runs]),
+      "\n"
+    )
+  end
+
+  defp call("route_define", args, turn) do
+    attrs = Map.take(args, ~w(key label prompt profile kind direction cadence))
+
+    with {:ok, key} <-
+           Oneiroi.Xenia.define_route(turn.resident_id, attrs, args["note"], turn.resident),
+         do: "Defined: #{key}, written as routes/#{key}.json. Ask a run with route_ask."
+  end
+
+  defp call("route_ask", args, turn) do
+    with {:ok, n} <-
+           Oneiroi.Xenia.ask_route(
+             turn.resident_id,
+             to_string(args["key"] || ""),
+             args["note"],
+             turn.resident
+           ),
+         do: "Asked as run ##{n}: the reader fires it on its next wait."
   end
 
   defp call("kind_define", args, turn) do
@@ -3904,4 +3960,24 @@ defmodule Oneiroi.Brain.Tools do
   # without `run/3` (the trial's answers) reads UTC rather than guessing.
   defp local_stamp(at), do: Local.stamp(Process.get(@zone_key, "Etc/UTC"), at)
   defp local_day(at), do: Local.day(Process.get(@zone_key, "Etc/UTC"), at)
+
+  # route_list's lines (xenia#19).
+  defp route_line(r) do
+    whose = if r.built_in, do: "built-in", else: "yours"
+    state = if r.state == "ready", do: "ready", else: "unable: #{r.why}"
+
+    "#{r.key} (#{whose}, #{r.direction}): #{r.label}; through #{r.profile}, #{r.kind}; #{r.cadence}; #{state}"
+  end
+
+  defp profile_line(p) do
+    state = if p.revoked, do: "revoked", else: "standing"
+    origin = if p.origin, do: " (#{p.origin})", else: ""
+    "#{p.key}: #{p.label}#{origin}; #{state}; routes: #{Enum.join(p.routes, ", ")}"
+  end
+
+  defp run_line(r) do
+    path = if r.path, do: " as #{r.path}", else: ""
+    reason = if r.reason, do: " (#{r.reason})", else: ""
+    "##{r.number} #{r.key}: #{r.state}#{path}#{reason}"
+  end
 end

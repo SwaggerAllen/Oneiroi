@@ -16,6 +16,10 @@ defmodule Oneiroi.Xenia do
     top_level?: true,
     deps: [
       Oneiroi,
+      # Routes (xenia#19): a route lands in a kind of her library, and
+      # its definition is written into her repository.
+      Oneiroi.Seshat,
+      Oneiroi.SimaQian,
       Commanded,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
@@ -34,6 +38,8 @@ defmodule Oneiroi.Xenia do
       Correspondence,
       Inbox,
       Router,
+      RoutesRouter,
+      ProfilesRouter,
       Commands.ReceiveMessage,
       Commands.BlockCorrespondent,
       Commands.UnblockCorrespondent,
@@ -42,6 +48,13 @@ defmodule Oneiroi.Xenia do
       Commands.DecideReply,
       Commands.MarkReplySent,
       Commands.SetReaderSites,
+      Commands.DefineRoute,
+      Commands.AskRoute,
+      Commands.LandRoute,
+      Commands.FailRoute,
+      Commands.SetProfile,
+      Commands.RevokeProfile,
+      Commands.RestoreProfile,
       Events.CorrespondenceReceived,
       Events.CorrespondenceMarked,
       Events.CorrespondentBlocked,
@@ -52,14 +65,26 @@ defmodule Oneiroi.Xenia do
       Events.ReplyDeclined,
       Events.ReplyMarkedSent,
       Events.ReaderSitesSet,
+      Events.RouteDefined,
+      Events.RouteChanged,
+      Events.RouteAsked,
+      Events.RouteLanded,
+      Events.RouteFailed,
+      Events.ProfileSet,
+      Events.ProfileRevoked,
+      Events.ProfileRestored,
       Store,
       Store.Message,
       Store.Block,
       Store.Reply,
-      Store.ReaderSites
+      Store.ReaderSites,
+      Store.Route,
+      Store.RouteRun,
+      Store.Profile
     ]
 
   alias Oneiroi.Xenia.Inbox
+  alias Oneiroi.Xenia.Routing
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -79,7 +104,15 @@ defmodule Oneiroi.Xenia do
       {Oneiroi.Xenia.Events.ReplyApproved, 1},
       {Oneiroi.Xenia.Events.ReplyDeclined, 1},
       {Oneiroi.Xenia.Events.ReplyMarkedSent, 1},
-      {Oneiroi.Xenia.Events.ReaderSitesSet, 1}
+      {Oneiroi.Xenia.Events.ReaderSitesSet, 1},
+      {Oneiroi.Xenia.Events.RouteDefined, 1},
+      {Oneiroi.Xenia.Events.RouteChanged, 1},
+      {Oneiroi.Xenia.Events.RouteAsked, 1},
+      {Oneiroi.Xenia.Events.RouteLanded, 1},
+      {Oneiroi.Xenia.Events.RouteFailed, 1},
+      {Oneiroi.Xenia.Events.ProfileSet, 1},
+      {Oneiroi.Xenia.Events.ProfileRevoked, 1},
+      {Oneiroi.Xenia.Events.ProfileRestored, 1}
     ]
   end
 
@@ -117,6 +150,17 @@ defmodule Oneiroi.Xenia do
        remedy: "read the replies; an approved, declined or sent reply stands as it is"},
       {:xenia_reply_not_approved, "only an approved reply is sent",
        remedy: "the witness approves it first"},
+      {:xenia_route_invalid,
+       "a route of hers is a source, asked on request, with a key of 2 to 40 lowercase letters, digits or -, a prompt of at most 4,000 characters, bound to a profile that stands, landing in a kind she writes whose approval stays in the house",
+       remedy:
+         "a sink, a schedule, a new profile and a kind that leaves the house are the witness's to enable; name what exists"},
+      {:xenia_route_unable, "the route cannot fire: its profile is revoked or gone",
+       remedy: "the witness restores the profile, or the route is bound to one that stands"},
+      {:xenia_no_such_route, "no route of hers, or no open run, has that name or number",
+       remedy: "read the routes; a built-in is asked through its own tool"},
+      {:xenia_profile_invalid,
+       "a profile is a key of 2 to 40 lowercase letters, digits or -, and exactly one origin (https://host)",
+       remedy: "name one origin; a profile never spans two"},
       {:xenia_dispatch_failed,
        "the command was not recorded: the command bus refused it or failed before the inbox decided",
        remedy:
@@ -125,7 +169,7 @@ defmodule Oneiroi.Xenia do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Xenia.Projectors.Correspondence]
+  def children, do: [Oneiroi.Xenia.Projectors.Correspondence, Oneiroi.Xenia.Projectors.Routes]
 
   @doc "Receives a delivery of messages; each answers `{:ok, number}` or `{:ok, :duplicate}` or its refusal."
   @spec receive_messages(String.t(), [map()], Oneiroi.Actor.t()) ::
@@ -207,4 +251,73 @@ defmodule Oneiroi.Xenia do
   @doc "What waits on the witness here: the replies to approve."
   @spec needs_you(String.t()) :: %{replies: non_neg_integer()}
   defexport(needs_you(resident_id), do: Inbox.needs_you(resident_id))
+
+  @doc "Every route of the house for the resident, the built-ins then hers, each with whether it can fire and why not (xenia#19)."
+  @spec routes(String.t()) :: [map()]
+  defexport(routes(resident_id), do: Routing.routes(resident_id))
+
+  @doc "The kinds a route of hers may land in (xenia#19)."
+  @spec route_landing_kinds(String.t()) :: [String.t()]
+  defexport(route_landing_kinds(resident_id), do: Routing.landing_kinds(resident_id))
+
+  @doc "Her routes' runs, newest first (xenia#19)."
+  @spec route_runs(String.t()) :: [map()]
+  defexport(route_runs(resident_id), do: Routing.runs(resident_id))
+
+  @doc "Defines or rewrites a route of hers against the safe subset, either party (xenia#19)."
+  @spec define_route(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(define_route(resident_id, attrs, note, actor),
+    do: Routing.define(resident_id, attrs, note, actor)
+  )
+
+  @doc "Asks a run of a route of hers, either party (xenia#19)."
+  @spec ask_route(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(ask_route(resident_id, key, note, actor),
+    do: Routing.ask(resident_id, key, note, actor)
+  )
+
+  @doc "A run's reading lands in its route's kind (xenia#19), the reader's or the witness's."
+  @spec land_route(String.t(), pos_integer(), String.t() | nil, String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(land_route(resident_id, number, title, text, actor),
+    do: Routing.land(resident_id, number, title, text, actor)
+  )
+
+  @doc "A run the reader could not do, and why (xenia#19)."
+  @spec fail_route(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(fail_route(resident_id, number, reason, actor),
+    do: Routing.fail(resident_id, number, reason, actor)
+  )
+
+  @doc "What the reader is given: every route with its runner, state and what waits, and the profiles (xenia#19)."
+  @spec reader(String.t()) :: map()
+  defexport(reader(resident_id), do: Routing.reader(resident_id))
+
+  @doc "The profiles her routes read through, with the routes bound to each; never a credential (xenia#19)."
+  @spec profiles(String.t()) :: [map()]
+  defexport(profiles(resident_id), do: Routing.profiles(resident_id))
+
+  @doc "The witness makes or names a profile (xenia#19)."
+  @spec set_profile(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_profile(resident_id, attrs, note, actor),
+    do: Routing.set_profile(resident_id, attrs, note, actor)
+  )
+
+  @doc "The witness revokes a profile; its routes stay, unable to fire (xenia#19)."
+  @spec revoke_profile(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(revoke_profile(resident_id, key, note, actor),
+    do: Routing.revoke_profile(resident_id, key, note, actor)
+  )
+
+  @doc "The witness restores a revoked profile (xenia#19)."
+  @spec restore_profile(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(restore_profile(resident_id, key, note, actor),
+    do: Routing.restore_profile(resident_id, key, note, actor)
+  )
 end

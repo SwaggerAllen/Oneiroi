@@ -374,6 +374,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon#32, brain#47) | resident, brain |
 | F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain#49, seshat#34) | brain, library |
 | F60 | Push to the witness's devices, content-free, when the resident writes unprompted | built (gaia#15): Web Push with VAPID, no payload, only for chat turns he did not start; the Home Screen app on an iPhone; opt-in per device on More; principle 14 held (asked for, never because he has been away) | identity, client |
+| F61 | Routes as data: every in and out of the house a source or a sink bound to one profile; the built-ins seeded; routes of the resident's own, sources on request, either party's; profiles the witness's, one origin each, never exported | built (xenia#19): the eight built-ins as the registry's seed with the reader's queues read through it; her routes against a safe subset, written as `routes/<key>.json`, fired by the reader read-only through their profile, landing as `<kind>/<key>-<n>.md`; profiles made, revoked and restored by the witness on Connections, a revoked one's routes listed as unable; user sinks, schedules and federation routes not built | inbound, hands |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
@@ -991,6 +992,12 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
 The reader, mail, feeds, the digest, correspondence and its approval queue.
 Owns `lib/oneiroi/xenia/**`.
 
+- **Routes as data** (xenia#19): every in and out of the house is a
+  source or a sink bound to one profile, a signed-in context on one
+  origin. The prompt is untrusted data and never chooses its profile,
+  sites or landing; every sink ends at the witness's approval; a route
+  of the resident's is a source on request through a profile that
+  stands; profiles are the witness's and never exported.
 - **The reader** is a hands agent (§6.8) that never holds the soul, a git
   token, or any core credential; it writes notes into a scratch directory
   and the core copies plain `.md` files into the repo (at most 20, 256 KiB
@@ -1224,6 +1231,10 @@ Owns `lib/oneiroi/sima_qian/**`.
     exported or read (§6.4, eunomia#12).
   - `account`: the witness's account stream, which is the witness's and
     not the resident's.
+  - `profiles`: the signed-in contexts her routes read through
+    (xenia#19). Credentials have one home, the witness's machine, and it
+    is not transportable; her routes travel and name the profile each
+    needs.
   - `platform`: the platform's own stream, the front door and the roles
     that keep it (gaia#16), which is no resident's.
   - `household`: the household stream, the billing owner and its

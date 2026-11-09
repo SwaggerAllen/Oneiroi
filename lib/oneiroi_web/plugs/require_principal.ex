@@ -65,6 +65,16 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def adapter_path?("GET", ["v1", "residents", _id, "reader", "pieces"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "reader", "pieces", "drafted"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "reader", "pieces", "published"]), do: true
+  # The route registry (xenia#19): what to do route by route, and a run
+  # of hers landed or failed; held to the `reader` role.
+  def adapter_path?("GET", ["v1", "residents", _id, "reader", "routes"]), do: true
+
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "routes", "runs", _n, "landed"]),
+    do: true
+
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "routes", "runs", _n, "failed"]),
+    do: true
+
   def adapter_path?(_method, _path), do: false
 
   defp refuse(conn) do

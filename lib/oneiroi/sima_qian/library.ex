@@ -32,6 +32,9 @@ defmodule Oneiroi.SimaQian.Library do
   @doc "The kinds' folders: what an import counts as transferred."
   @callback folders() :: [String.t()]
 
+  @doc "Every folder the library keeps for this resident, her own kinds' among them, each ending in `/`: what the backup commits as the library's (sima-qian#48)."
+  @callback kept(resident_id :: String.t()) :: [String.t()]
+
   @doc "Whether a path is decided into the library one by one (seshat#29, #31): a keepsake at the root, a wiki page, a system note. The import leaves such a file where it is, on offer; the backup commits the root's in a class of their own."
   @callback decided?(path :: String.t()) :: boolean()
 

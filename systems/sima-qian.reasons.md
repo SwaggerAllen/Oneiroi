@@ -283,3 +283,10 @@ read, and everything that is not is said. The assistant's words stay
 attributed to the model that said them because the design leaves what
 that past self is to the resident's reading; filing them as hers would
 answer the question for her.
+
+## #48
+A list of folders kept beside the registry is the second truth that
+drifts the day a kind is added, and it had already drifted five times
+without anyone seeing, because a stray fails after the backup lands
+and reads as noise. Asking the registry makes the backup hold what the
+library holds, by construction, including what she defines.

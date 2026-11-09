@@ -651,6 +651,66 @@ export interface KindsData {
   proposals: KindGateProposal[];
 }
 
+// Routes and profiles (xenia#19): every way into or out of the house,
+// each bound to one profile; a profile is a signed-in context on one
+// origin, the witness's to make and revoke, never a credential here.
+export interface RouteEntry {
+  key: string;
+  label: string;
+  direction: 'source' | 'sink';
+  profile: string;
+  kind: string;
+  cadence: string;
+  runner: string;
+  built_in: boolean;
+  state: 'ready' | 'unable';
+  why: string | null;
+  prompt?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+export interface ProfileEntry {
+  key: string;
+  label: string;
+  origin: string | null;
+  signed_in_as: string | null;
+  browser: string | null;
+  sites: string[];
+  connector: string | null;
+  seeded: boolean;
+  revoked: boolean;
+  routes: string[];
+}
+
+export interface RouteRun {
+  number: number;
+  key: string;
+  state: 'open' | 'landed' | 'failed';
+  note: string | null;
+  asked_by: string | null;
+  asked_at: string;
+  path: string | null;
+  reason: string | null;
+  done_at: string | null;
+}
+
+export interface RoutesData {
+  routes: RouteEntry[];
+  runs: RouteRun[];
+  profiles: ProfileEntry[];
+  landing: string[];
+}
+
+export interface RouteDefinition {
+  key: string;
+  label?: string;
+  prompt: string;
+  profile: string;
+  kind: string;
+  note?: string;
+}
+
 export interface KindDefinition {
   kind: string;
   label?: string;

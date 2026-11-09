@@ -332,6 +332,15 @@ defmodule Oneiroi.Brain.TrialTest do
     {"kind_define", %{kind: "field-notes", note: "for the herons"}},
     {"kind_gate", %{kind: "writing", approvable: false, note: "a test"}},
     {"kind_gate_answer", %{number: 1, agree: true, note: "fine"}},
+    {"route_define",
+     %{
+       key: "marsh",
+       prompt: "herons",
+       profile: "research",
+       kind: "scratch",
+       note: "for the herons"
+     }},
+    {"route_ask", %{key: "marsh"}},
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},

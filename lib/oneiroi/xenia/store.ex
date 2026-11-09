@@ -91,6 +91,76 @@ defmodule Oneiroi.Xenia.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Route do
+    @moduledoc "A route of the resident's own (xenia#19): its descriptor, the file under routes/ projected."
+    use Ecto.Schema
+    @primary_key false
+    schema "xenia_route" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:descriptor, :map)
+      field(:created_by, :string)
+      field(:updated_by, :string)
+      field(:created_at, :utc_datetime_usec)
+      field(:updated_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule RouteRun do
+    @moduledoc "One asked run of a route of hers (xenia#19): open until it lands or fails."
+    use Ecto.Schema
+    @primary_key false
+    schema "xenia_route_run" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:key, :string)
+      field(:state, :string)
+      field(:note, :string)
+      field(:asked_by, :string)
+      field(:asked_at, :utc_datetime_usec)
+      field(:path, :string)
+      field(:reason, :string)
+      field(:done_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Profile do
+    @moduledoc "A profile as the witness made, named or revoked it (xenia#19); a seeded one has a row only once he has touched it."
+    use Ecto.Schema
+    @primary_key false
+    schema "xenia_profile" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:label, :string)
+      field(:origin, :string)
+      field(:signed_in_as, :string)
+      field(:revoked, :boolean, default: false)
+      field(:note, :string)
+      field(:set_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  @spec routes() :: [Route.t()]
+  def routes, do: Repo.all(from(r in Route, order_by: [r.created_at, r.key]))
+
+  @spec route_runs(String.t() | nil) :: [RouteRun.t()]
+  def route_runs(nil), do: Repo.all(from(r in RouteRun, order_by: [desc: r.number]))
+
+  def route_runs(state),
+    do: Repo.all(from(r in RouteRun, where: r.state == ^state, order_by: r.number))
+
+  @spec route_run(pos_integer()) :: RouteRun.t() | nil
+  def route_run(number), do: Repo.one(from(r in RouteRun, where: r.number == ^number))
+
+  @spec profiles() :: [Profile.t()]
+  def profiles, do: Repo.all(from(p in Profile, order_by: p.key))
+
   @spec messages(String.t() | nil) :: [Message.t()]
   def messages(nil), do: Repo.all(from(m in Message, order_by: [desc: m.number]))
 

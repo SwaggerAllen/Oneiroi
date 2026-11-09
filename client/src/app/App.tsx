@@ -16,6 +16,7 @@ import type {
   NeedsYouEntry,
   PluginsData,
   KindsData,
+  RoutesData,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -66,6 +67,7 @@ import type { FlowApi } from '../screens/creation-flow/Gifts';
 import { Agreement } from '../screens/settings-agreement/Agreement';
 import { Plugins } from '../screens/settings-agreement/Plugins';
 import { Kinds } from '../screens/kinds/Kinds';
+import { Routes } from '../screens/connections/Routes';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -295,6 +297,7 @@ export function App() {
           <>
             <ConnectionsContainer resident={resident} />
             <GithubTokenContainer resident={resident} />
+            <RoutesContainer resident={resident} />
           </>
         ) : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
@@ -1341,6 +1344,47 @@ function PluginsContainer({ resident }: { resident: Resident }) {
       onPropose={(key, change, note) => run(() => api.proposePlugin(id, key, change, note), `Proposed; ${resident.name} answers.`)}
       onAnswer={(n, agree, note) => run(() => api.answerPlugin(id, n, agree, note), agree ? 'Agreed: the change is made.' : 'Declined.')}
       onOff={(key, note) => run(() => api.pluginOff(id, key, note), 'Switched off.')}
+    />
+  );
+}
+
+// Routes and profiles (xenia#19), on Connections beside the reader.
+function RoutesContainer({ resident }: { resident: Resident }) {
+  const [data, setData] = useState<RoutesData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api
+      .routes(resident.id)
+      .then(setData)
+      .catch(() => setData(null));
+  }, [resident.id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  if (!data) return null;
+  const id = resident.id;
+  const run = (work: () => Promise<string>) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(setSaid)
+      .catch((e: unknown) => setSaid(asApiError(e).meaning))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+  return (
+    <Routes
+      name={resident.name}
+      data={data}
+      busy={busy}
+      said={said}
+      onDefine={(definition) => run(() => api.defineRoute(id, definition).then((r) => `Defined: ${r.key}, written as routes/${r.key}.json.`))}
+      onAsk={(key, note) => run(() => api.askRoute(id, key, note).then((r) => `Asked as run #${r.number}; the reader fires it on its next wait.`))}
+      onSetProfile={(profile) => run(() => api.setProfile(id, profile).then(() => `Made ${profile.key}. Sign it in on the reader's machine: reader.sh login ${profile.key}.`))}
+      onRevoke={(key, note) => run(() => api.revokeProfile(id, key, note).then(() => `Revoked ${key}; its routes are unable until you restore it.`))}
+      onRestore={(key, note) => run(() => api.restoreProfile(id, key, note).then(() => `Restored ${key}.`))}
     />
   );
 }
