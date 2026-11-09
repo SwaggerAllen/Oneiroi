@@ -247,9 +247,9 @@ defmodule Oneiroi.Seshat do
   def errors do
     [
       {:seshat_path_invalid,
-       "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a keepsake's name alone at the root",
+       "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a text file's name alone at the root (a root document, or a keepsake once registered)",
        remedy:
-         "name the file as `<kind>/<name>.md`, or `<name>.md` for a keepsake; the kinds are the registry's"},
+         "name the file as `<kind>/<name>.md`, or `<name>.md` at the root; the kinds are the registry's"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
