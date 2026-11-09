@@ -202,10 +202,10 @@ defmodule Oneiroi.Brain do
          "how much of one file's diff one pr_diffs read returns before saying how to read on (brain#71); a bound on one read's share of a turn, a guess"},
       {:turn_timeout_ms, "BRAIN_TURN_TIMEOUT_MS",
        cast: :integer,
-       default: "180000",
+       default: "300000",
        tag: :bound,
        usage:
-         "how long a caller waits on a session process for a turn before giving up; a bound above the port's own timeout"}
+         "how long a caller waits on a session process for a turn before giving up; a bound above the port's own timeout. Five minutes (the witness, 2026-11-08): a work turn that wrote a whole design doc ran 3 min 22 s and the old 3 minutes orphaned its run"}
     ]
   end
 
