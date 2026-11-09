@@ -71,6 +71,7 @@ defmodule Oneiroi.Sunna.TickWorker do
     rounds(resident_id, settings, quiet, local, day)
     work(resident_id)
     _ = Schedules.wake_for_letters(resident_id, local, quiet, @actor)
+    _ = Schedules.wake_free_time(resident_id, local, quiet, @actor)
     :ok
   end
 
@@ -84,7 +85,12 @@ defmodule Oneiroi.Sunna.TickWorker do
   # it. A day recorded before slots (slot nil) still had its one.
   defp free_time(resident_id, settings, local, day) do
     ran = Scope.resident(resident_id, fn -> Schedules.free_time_ran(settings, day) end)
-    recent = Scope.resident(resident_id, fn -> Store.free_time_history(8) end)
+    # A one-off or a woken run (sunna#44, #45) is not a standing slot's.
+    recent =
+      resident_id
+      |> Scope.resident(fn -> Store.free_time_history(8) end)
+      |> Enum.filter(&Schedules.standing?(&1.slot))
+
     late = Oneiroi.Config.fetch!(:sunna, :late_minutes) * 60
 
     for time <- Schedules.free_times_of(settings),
@@ -100,7 +106,21 @@ defmodule Oneiroi.Sunna.TickWorker do
         else: Schedules.run_free_time(resident_id, day, time, @actor)
     end
 
+    once(resident_id, ran, local, day, late)
     :ok
+  end
+
+  # One-off slots (sunna#45): each runs once, at its time on its day,
+  # beside the standing slots, under its own label.
+  defp once(resident_id, ran, local, day, late) do
+    for o <- Scope.resident(resident_id, fn -> Store.free_time_once_from(day) end),
+        o.day == day,
+        label = Schedules.once_label(o.time),
+        not Map.has_key?(ran, label),
+        since = DateTime.diff(local, Schedules.at_time(local, o.time), :second),
+        since >= 0 and since <= late do
+      Schedules.run_free_time(resident_id, day, label, @actor)
+    end
   end
 
   # The day's thinking rounds (sunna#29), each run once when its drawn

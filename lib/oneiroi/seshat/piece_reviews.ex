@@ -33,7 +33,7 @@ defmodule Oneiroi.Seshat.PieceReviews do
     # (seshat#49), marked as its approval flow says.
     for_review =
       for d <- docs,
-          flow = Kinds.approval(Kinds.named(d.kind)),
+          flow = Kinds.approval(Kinds.named(resident_id, d.kind)),
           flow != nil and flow["marked_by"] == "status" and d.status == flow["status"],
           not decided?(reviews[d.path], d.hash),
           do: %{

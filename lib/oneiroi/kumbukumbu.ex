@@ -317,7 +317,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},

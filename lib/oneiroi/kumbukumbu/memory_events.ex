@@ -162,10 +162,28 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # (`Conversation.title/1`) or `witness`, `to` a conversation's name or
     # `house`, `in_reply_to` the letter it answers, and `keepsake` the
     # path of a keepsake the letter gives, the gift's provenance between
-    # conversations that are each the resident.
+    # conversations that are each the resident. Version 2 adds
+    # `to_session` (sunna#44): the conversation a platform letter answers,
+    # when the platform knows it (an oracle, research, digest or fetch
+    # answer), so a free-time answer wakes the very session that asked;
+    # nil on a version 1 letter, as on every letter addressed by name.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :number, :from, :from_session, :to, :in_reply_to, :text, :keepsake]
+      version: 2,
+      fields: [
+        :id,
+        :number,
+        :from,
+        :from_session,
+        :to,
+        :to_session,
+        :in_reply_to,
+        :text,
+        :keepsake
+      ]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HouseLetterSent do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HouseLettersRead do

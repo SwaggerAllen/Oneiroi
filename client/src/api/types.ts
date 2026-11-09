@@ -331,6 +331,8 @@ export interface ScheduleToday {
   last: { label: string; time: string; at: string } | null;
   next: { label: string; time: string; tomorrow: boolean } | null;
   free_times: FreeTimeSlot[];
+  // One-off slots still ahead (sunna#45), beside the standing list.
+  free_time_once?: { day: string; time: string; added_by: string | null }[];
   free_time_last: { day: string; outcome: string } | null;
   quiet: { from: string; to: string } | null;
   // Her thinking rounds (sunna#29, #30): the cadence and window in effect,
@@ -502,12 +504,12 @@ export interface LibraryHit {
 // oldest first from the server, each naming the screen it is decided on.
 // It only shows; `long` is a mark past two days, and nothing more.
 export interface NeedsYouEntry {
-  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal';
+  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal' | 'kind_gate_proposal';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement' | 'work';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string; approvable?: boolean };
 }
 
 export interface Ask {
@@ -616,4 +618,106 @@ export interface PluginProposal {
 export interface PluginsData {
   plugins: PluginEntry[];
   proposals: PluginProposal[];
+}
+
+// Her document kinds (seshat#51): the system's, gated as hers, and her own.
+export interface KindEntry {
+  kind: string;
+  label: string;
+  folder: string | null;
+  own: boolean;
+  approvable: boolean;
+  gated: boolean;
+  cites: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface KindGateProposal {
+  number: number;
+  kind: string;
+  approvable: boolean;
+  proposed_by: 'resident' | 'witness';
+  note: string | null;
+  proposed_at: string;
+  agree: boolean | null;
+  answered_by: string | null;
+  answer_note: string | null;
+  answered_at: string | null;
+}
+
+export interface KindsData {
+  kinds: KindEntry[];
+  proposals: KindGateProposal[];
+}
+
+// Routes and profiles (xenia#19): every way into or out of the house,
+// each bound to one profile; a profile is a signed-in context on one
+// origin, the witness's to make and revoke, never a credential here.
+export interface RouteEntry {
+  key: string;
+  label: string;
+  direction: 'source' | 'sink';
+  profile: string;
+  kind: string;
+  cadence: string;
+  runner: string;
+  built_in: boolean;
+  state: 'ready' | 'unable';
+  why: string | null;
+  prompt?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
+export interface ProfileEntry {
+  key: string;
+  label: string;
+  origin: string | null;
+  signed_in_as: string | null;
+  browser: string | null;
+  sites: string[];
+  connector: string | null;
+  seeded: boolean;
+  revoked: boolean;
+  routes: string[];
+}
+
+export interface RouteRun {
+  number: number;
+  key: string;
+  state: 'open' | 'landed' | 'failed';
+  note: string | null;
+  asked_by: string | null;
+  asked_at: string;
+  path: string | null;
+  reason: string | null;
+  done_at: string | null;
+}
+
+export interface RoutesData {
+  routes: RouteEntry[];
+  runs: RouteRun[];
+  profiles: ProfileEntry[];
+  landing: string[];
+}
+
+export interface RouteDefinition {
+  key: string;
+  label?: string;
+  prompt: string;
+  profile: string;
+  kind: string;
+  note?: string;
+}
+
+export interface KindDefinition {
+  kind: string;
+  label?: string;
+  cites?: boolean;
+  has_status?: boolean;
+  removable?: boolean;
+  approvable?: boolean;
+  ask?: string;
+  note?: string;
 }

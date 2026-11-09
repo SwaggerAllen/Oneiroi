@@ -16,6 +16,7 @@ defmodule Oneiroi.Sunna.Schedule do
     checkins: %{},
     free_times: nil,
     free_time_days: %{},
+    free_time_once: MapSet.new(),
     quiet: nil,
     dates: %{},
     days: MapSet.new(),
@@ -203,6 +204,21 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   # ---- free time ----
+
+  # A one-off slot (sunna#45): a real day and a time, once each; no cap,
+  # the free-time line the only limit.
+  def execute(%__MODULE__{free_time_once: once}, %Commands.AddFreeTimeOnce{} = c) do
+    cond do
+      not time_ok?(c.time) or not day_ok?(c.day) ->
+        {:error, Error.new(:sunna_time_invalid, :sunna_free_time_once_invalid)}
+
+      MapSet.member?(once, {c.day, c.time}) ->
+        []
+
+      true ->
+        %Events.FreeTimeOnceAdded{actor: c.actor, at: c.at, id: c.id, day: c.day, time: c.time}
+    end
+  end
 
   def execute(%__MODULE__{free_times: current}, %Commands.SetFreeTime{} = c) do
     times = List.wrap(c.times)
@@ -498,6 +514,10 @@ defmodule Oneiroi.Sunna.Schedule do
     do: %{s | free_time_days: Map.put(s.free_time_days, {e.day, e.slot}, e.at)}
 
   def apply(%__MODULE__{} = s, %Events.FreeTimePlanned{} = e), do: %{s | id: e.id}
+
+  def apply(%__MODULE__{} = s, %Events.FreeTimeOnceAdded{} = e),
+    do: %{s | id: e.id, free_time_once: MapSet.put(s.free_time_once, {e.day, e.time})}
+
   def apply(%__MODULE__{} = s, %Events.PlanningTurnRan{} = e), do: %{s | id: e.id}
 
   def apply(%__MODULE__{} = s, %Events.RoundsSet{} = e),

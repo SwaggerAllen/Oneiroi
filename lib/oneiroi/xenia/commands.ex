@@ -59,4 +59,34 @@ defmodule Oneiroi.Xenia.Commands do
   defmodule SetReaderSites do
     use Oneiroi.Command, fields: [:id, :scrape, :research]
   end
+
+  # Routes (xenia#19), on `routes-<resident_id>`.
+  defmodule DefineRoute do
+    use Oneiroi.Command, fields: [:id, :key, :descriptor, :note]
+  end
+
+  defmodule AskRoute do
+    use Oneiroi.Command, fields: [:id, :key, :note]
+  end
+
+  defmodule LandRoute do
+    use Oneiroi.Command, fields: [:id, :number, :path]
+  end
+
+  defmodule FailRoute do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
+
+  # Profiles (xenia#19), on `profiles-<resident_id>`: the witness's.
+  defmodule SetProfile do
+    use Oneiroi.Command, fields: [:id, :key, :profile, :note]
+  end
+
+  defmodule RevokeProfile do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
+
+  defmodule RestoreProfile do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
 end

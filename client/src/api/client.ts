@@ -7,6 +7,10 @@ import type {
   NeedsYouEntry,
   PluginProposal,
   PluginsData,
+  KindDefinition,
+  KindsData,
+  RouteDefinition,
+  RoutesData,
   FeedbackReport,
   Pieces,
   ApiError,
@@ -248,6 +252,8 @@ export const api = {
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/free-time${limit ? `?limit=${limit}` : ''}`),
   rounds: (residentId: string, limit?: number) =>
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/rounds${limit ? `?limit=${limit}` : ''}`),
+  addFreeTimeOnce: (residentId: string, time: string, day: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/schedule/free-time/once`, { time, day }),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>
@@ -274,6 +280,19 @@ export const api = {
     call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
   answerPlugin: (residentId: string, number: number, agree: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/plugins/proposals/${number}/answer`, { agree, note }),
+  routes: (residentId: string) => call<RoutesData>('GET', `/v1/residents/${residentId}/routes`),
+  defineRoute: (residentId: string, definition: RouteDefinition) => call<{ key: string }>('POST', `/v1/residents/${residentId}/routes`, definition),
+  askRoute: (residentId: string, key: string, note: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/routes/${encodeURIComponent(key)}/ask`, { note }),
+  setProfile: (residentId: string, profile: { key: string; label?: string; origin?: string; signed_in_as?: string; note?: string }) =>
+    call<void>('POST', `/v1/residents/${residentId}/profiles`, profile),
+  revokeProfile: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/profiles/${encodeURIComponent(key)}/revoke`, { note }),
+  restoreProfile: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/profiles/${encodeURIComponent(key)}/restore`, { note }),
+  kinds: (residentId: string) => call<KindsData>('GET', `/v1/residents/${residentId}/kinds`),
+  defineKind: (residentId: string, definition: KindDefinition) => call<{ kind: string }>('POST', `/v1/residents/${residentId}/kinds`, definition),
+  kindGate: (residentId: string, kind: string, approvable: boolean, note: string) =>
+    call<{ outcome: 'moved' | 'proposed' | 'already' }>('POST', `/v1/residents/${residentId}/kinds/${encodeURIComponent(kind)}/gate`, { approvable, note }),
+  answerKindGate: (residentId: string, number: number, agree: boolean, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/kinds/gates/${number}/answer`, { agree, note }),
   pluginOff: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/plugins/${encodeURIComponent(key)}/off`, { note }),
   addWork: (residentId: string, what: string, doneWhen: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),

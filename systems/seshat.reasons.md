@@ -362,3 +362,19 @@ The file in her repository is already the authoritative copy, and the
 view already reads it; a download is the same read handed over as a
 file, so it can not drift from what the page shows. Reads are not acts
 on her life, so they leave no event.
+
+## #51
+The registry in code was right while every reader was the platform's,
+and wrong the day a kind was something she wanted and he would sign
+off on: a code change for a folder is a deploy for a decision. The
+descriptor lives in its folder because the repository is what she
+takes with her (the witness: "as little as possible outside the
+filesystem"); the table is a projection of it so every reader stays
+one query. JSON rather than YAML because reading it needs nothing the
+release does not already carry. The safe subset is the line between a
+kind she arranges and a power she claims: who writes, how documents
+arrive and whether anything leaves the house are the platform's
+guarantees to both of them, so a descriptor cannot buy them. Gates are
+asymmetric because the cost is: putting a document in front of him
+more often costs him a click, taking the check away costs the
+agreement it stood for, so on is either word and off is both.

@@ -110,6 +110,17 @@ Email is read through the witness's claude.ai Gmail connector. It has to
 be connected to the resident's mailbox for the email half to find
 anything. The scrape searches for mail to `--email` alone.
 
+**Routes (xenia#19).** The reader asks Oneiroi for its routes at every
+run: each with its runner and profile, and whether it can fire. A
+profile you revoke on Connections stands down at the next run: the
+scrape reads nothing through it, and nothing is sent through it. A
+route of hers is fired by `wait` (or `reader.sh route`), read-only,
+through its profile's browser and sites; its prompt is handed as the
+request's text and nothing else. A profile you make on Connections is
+signed in once with `reader.sh login <its name>`. This needs the
+reader reinstalled (`install.sh` again) after the server has routes; an
+older reader keeps working, without them.
+
 A reinstall keeps an allowlist you have edited. Logs are in
 `~/.oneiroi/reader/log/`. `reader.sh send`,
 `reader.sh scrape` and `reader.sh research` run a job by hand.

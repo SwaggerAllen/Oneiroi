@@ -106,6 +106,28 @@ defmodule Oneiroi.SimaQian.BackupTest do
     assert %{last_backup_sequence: 3} = row(r.id)
   end
 
+  # sima-qian#48: every folder the library keeps is committed as the
+  # library's, a kind of hers among them (seshat#51); scratch/ and the
+  # others had been strays since they were added.
+  test "every kind's folder, hers among them, is committed as the library's and none is a stray",
+       %{r: r, actor: actor, bare: bare, working: working} do
+    :ok = Git.ensure_repo(working)
+
+    {:ok, "field-notes"} =
+      Oneiroi.Seshat.define_kind(r.id, %{"kind" => "field-notes"}, nil, actor)
+
+    for folder <- ~w(scratch human plugins external archive field-notes) do
+      File.mkdir_p!(Path.join(working, folder))
+      File.write!(Path.join([working, folder, "a.md"]), "# A\n")
+    end
+
+    assert {:ok, %{commits: commits}} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert {"library", library} = List.last(commits)
+
+    assert git!(bare, ["show", "--name-only", "--format=", library]) |> String.split("\n") ==
+             ~w(archive/a.md external/a.md field-notes/a.md field-notes/kind.json human/a.md plugins/a.md scratch/a.md)
+  end
+
   # Seshat #29: a keepsake is a root file named by itself, not by a
   # folder, so its class is the root's keepsakes as they stand.
   test "keepsakes at the root are committed in a class of their own after the soul, and are no strays",

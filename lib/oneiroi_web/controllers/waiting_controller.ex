@@ -19,7 +19,6 @@ defmodule OneiroiWeb.WaitingController do
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Apsu.Ops
   alias Oneiroi.Kumbukumbu
-  alias Oneiroi.Seshat
   alias Oneiroi.Xenia
   alias OpenApiSpex.Schema
 
@@ -54,42 +53,31 @@ defmodule OneiroiWeb.WaitingController do
         do: Enum.map(Kumbukumbu.inbox(id, params["session_key"]), &letter/1),
         else: []
 
+    # The reader's queues are the route registry's (xenia#19): what each
+    # route has waiting, served only while its profile stands. Numbers,
+    # platforms and paths, never words; a run of hers by route and number.
+    routes = if role in ["reader", :witness], do: Xenia.reader(id).routes, else: []
+    pending = fn key -> Enum.find_value(routes, [], &(&1.key == key and &1.pending)) end
+
     replies =
-      if role in ["reader", :witness],
-        do: Enum.map(Xenia.replies(id, "approved"), &%{number: &1.number, platform: &1.platform}),
-        else: []
-
-    reader? = role in ["reader", :witness]
-    research = numbers(reader?, fn -> Seshat.researches(id, status: "open") end)
-    # External sources waiting for a copy (seshat#46).
-    externals = numbers(reader?, fn -> Seshat.externals(id, status: "asked") end)
-    digests = numbers(reader?, fn -> Seshat.digests(id, status: "open") end)
-
-    # The writing gate (seshat#42): approved pieces to draft and drafted
-    # ones to watch, by path alone.
-    pieces =
-      if role in ["reader", :witness] do
-        %{to_draft: draft, to_watch: watch} = Seshat.pieces_for_reader(id)
-
-        Enum.map(draft, &%{path: &1.path, step: "draft"}) ++
-          Enum.map(watch, &%{path: &1.path, step: "watch"})
-      else
-        []
-      end
+      Enum.sort_by(pending.("correspondence-out") ++ pending.("mail-out"), & &1.number, :desc)
 
     json(conn, %{
       letters: letters,
       replies: replies,
-      research: research,
-      digests: digests,
-      externals: externals,
-      pieces: pieces
+      research: Enum.map(pending.("research"), &Map.take(&1, [:number])),
+      digests: Enum.map(pending.("digests"), &Map.take(&1, [:number])),
+      externals: Enum.map(pending.("external"), &Map.take(&1, [:number])),
+      pieces: pending.("writing-out"),
+      routes:
+        for(
+          r <- routes,
+          not r.built_in,
+          run <- r.pending,
+          do: %{route: r.key, number: run.number}
+        )
     })
   end
-
-  # The reader's queues by number alone, read only for a reader or the witness.
-  defp numbers(false, _read), do: []
-  defp numbers(true, read), do: Enum.map(read.(), &%{number: &1.number})
 
   defp letter(l), do: %{number: l.number, from: l.from_name, in_reply_to: l.in_reply_to}
 

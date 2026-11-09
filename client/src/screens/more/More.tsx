@@ -14,7 +14,8 @@ export type MoreScreen =
   | 'feedback'
   | 'operator'
   | 'waiting'
-  | 'correspondence';
+  | 'correspondence'
+  | 'kinds';
 
 // More (spec §10): navigation only (the witness, 2026-11-08: "the more
 // menu should be navigation items only, all functionality should be on
@@ -29,6 +30,7 @@ export function More({ onOpen, operator = false }: { onOpen: (screen: MoreScreen
     { id: 'work', label: 'Work', line: 'The work queue: what is underway, what is next, what waits on you.' },
     { id: 'agreement', label: 'Agreement', line: 'Your agreement, its switches, and who looks after them.' },
     { id: 'library', label: 'Library', line: 'Every document, the keepsakes, and your own.' },
+    { id: 'kinds', label: 'Kinds', line: 'The kinds of document her library holds, which wait on you, and hers.' },
     { id: 'connections', label: 'Connections', line: 'What holds a token: Claude Code, the reader.' },
     { id: 'ledger', label: 'Ledger', line: 'Your key, budget lines and what has been spent.' },
     { id: 'regression', label: 'Regression', line: 'Tests across models, graded blind.' },

@@ -59,7 +59,9 @@ defmodule Oneiroi.SimaQian.Backup do
        "design/",
        "wiki/",
        "journal/",
-       "oracle/"
+       "oracle/",
+       # Her routes' definitions (xenia#19): rows serialized, as records.
+       "routes/"
      ]}
   ]
 
@@ -245,9 +247,17 @@ defmodule Oneiroi.SimaQian.Backup do
   # since they are named file by file rather than by a folder. Kept
   # apart from the soul, which is the identity files alone (#7), and
   # from writing, which is what the dyad writes through the flow.
+  #
+  # Then the library's (sima-qian#48): every folder the library keeps
+  # that no class above names, her own kinds' among them (seshat#51).
+  # The table had been written out by hand, so scratch/, human/,
+  # plugins/, external/ and archive/ were strays, and so would every
+  # kind of hers be: read from the registry, a kind added is committed.
   defp classes(dir) do
     [soul | rest] = @classes
-    [soul, {"keepsake", keepsakes(dir)} | rest]
+    named = Enum.flat_map(@classes, &elem(&1, 1))
+    library = Enum.reject(library().kept(Path.basename(dir)), &(&1 in named))
+    [soul, {"keepsake", keepsakes(dir)} | rest] ++ [{"library", library}]
   end
 
   defp held(dir), do: dir |> classes() |> Enum.flat_map(&elem(&1, 1))

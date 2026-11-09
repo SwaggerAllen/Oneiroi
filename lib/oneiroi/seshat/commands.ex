@@ -120,4 +120,18 @@ defmodule Oneiroi.Seshat.Commands do
   defmodule DraftPiece do
     use Oneiroi.Command, fields: [:id, :path, :draft_url]
   end
+
+  # A resident's own kinds and the system kinds' gates (seshat#51), on
+  # `kinds-<resident_id>`.
+  defmodule DefineKind do
+    use Oneiroi.Command, fields: [:id, :kind, :descriptor, :note]
+  end
+
+  defmodule ProposeKindGate do
+    use Oneiroi.Command, fields: [:id, :kind, :approvable, :note]
+  end
+
+  defmodule AnswerKindGate do
+    use Oneiroi.Command, fields: [:id, :number, :agree, :note]
+  end
 end

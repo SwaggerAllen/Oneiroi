@@ -196,7 +196,11 @@ defmodule OneiroiWeb.ContractTest do
     # The writing gate (seshat#42), held to the reader role.
     {"GET", "/v1/residents/:id/reader/pieces"},
     {"POST", "/v1/residents/:id/reader/pieces/drafted"},
-    {"POST", "/v1/residents/:id/reader/pieces/published"}
+    {"POST", "/v1/residents/:id/reader/pieces/published"},
+    # The route registry (xenia#19), held to the reader role.
+    {"GET", "/v1/residents/:id/reader/routes"},
+    {"POST", "/v1/residents/:id/reader/routes/runs/:number/landed"},
+    {"POST", "/v1/residents/:id/reader/routes/runs/:number/failed"}
   ]
 
   test "an adapter's token opens exactly the adapter contract's routes" do

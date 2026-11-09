@@ -91,7 +91,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   # same); the edges stay only if the new kind mints them. The move
   # itself is a row, which a citation of the old path follows.
   fold(%Events.DocumentMoved{} = e, _metadata, fn multi ->
-    cites? = match?(%{cites: true}, Enum.find(Kinds.all(), &(&1.kind == e.to_kind)))
+    cites? = match?(%{cites: true}, Kinds.named(e.id, e.to_kind))
     refs = from(r in Reference, where: r.resident_id == ^e.id and r.from_path == ^e.from)
 
     multi

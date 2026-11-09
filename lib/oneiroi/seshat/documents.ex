@@ -27,6 +27,7 @@ defmodule Oneiroi.Seshat.Documents do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Router
   alias Oneiroi.Seshat.Store
+  alias Oneiroi.Seshat.UserKinds
   alias Oneiroi.SimaQian
 
   # Sobelow reads a `File` call on a built path as a traversal; every
@@ -38,8 +39,8 @@ defmodule Oneiroi.Seshat.Documents do
   # sobelow_skip ["Traversal.FileModule"]
   @doc "Writes a file through the flow (`core: true` for a kind the platform writes); returns the path, the kind, whether anything changed, and whether the index ran clean."
   def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
-    with {:ok, path} <- normalize(path),
-         {:ok, kind} <- writable_kind(path, Keyword.get(opts, :core, false), actor),
+    with {:ok, path} <- normalize(resident_id, path),
+         {:ok, kind} <- writable_kind(resident_id, path, Keyword.get(opts, :core, false), actor),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          :ok <- not_kept(kind, path, Path.join(dir, path), content, resident_id),
@@ -71,11 +72,11 @@ defmodule Oneiroi.Seshat.Documents do
   @doc "Adopts a file found in the repository under a kind's folder, as it is; the index runs."
   # sobelow_skip ["Traversal.FileModule"]
   def adopt(resident_id, path, %Actor{} = actor) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          :ok <- not_originals(path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, content} <- read_file(Path.join(dir, path)),
-         kind = Kinds.kind_of(path),
+         kind = Kinds.kind_of(resident_id, path),
          {:ok, events} <-
            dispatch(%Commands.AdoptDocument{
              actor: actor,
@@ -106,6 +107,10 @@ defmodule Oneiroi.Seshat.Documents do
   the library one by one.
   """
   def adopt_all(resident_id, %Actor{} = actor) do
+    # Her kinds first (seshat#51): a folder's kind.json makes its files
+    # adoptable on the same pass.
+    _ = UserKinds.load(resident_id, actor)
+
     with paths when is_list(paths) <- unadopted(resident_id),
          paths = Enum.reject(paths, &Kinds.decided?/1),
          {:ok, dir} <- SimaQian.repository_dir(resident_id) do
@@ -136,7 +141,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   defp register_originals(resident_id, dir, files, actor) do
     Enum.reduce_while(files, {:ok, []}, fn %{path: path, provenance: provenance}, {:ok, acc} ->
-      with {:ok, path} <- normalize(path),
+      with {:ok, path} <- normalize(resident_id, path),
            true <- Kinds.originals?(path) || refused_original(path),
            {:ok, content} <- read_file(Path.join(dir, path)),
            {:ok, events} <-
@@ -145,7 +150,7 @@ defmodule Oneiroi.Seshat.Documents do
                at: Clock.now(),
                id: resident_id,
                path: path,
-               kind: Kinds.kind_of(path).kind,
+               kind: Kinds.kind_of(resident_id, path).kind,
                hash: hash(content),
                bytes: byte_size(content),
                provenance: provenance
@@ -173,7 +178,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   # sobelow_skip ["Traversal.FileModule"]
   defp register(resident_id, dir, path, actor) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, content} <- read_file(Path.join(dir, path)),
          {:ok, _events} <-
            dispatch(%Commands.AdoptDocument{
@@ -181,7 +186,7 @@ defmodule Oneiroi.Seshat.Documents do
              at: Clock.now(),
              id: resident_id,
              path: path,
-             kind: Kinds.kind_of(path).kind,
+             kind: Kinds.kind_of(resident_id, path).kind,
              hash: hash(content),
              bytes: byte_size(content)
            }) do
@@ -197,7 +202,8 @@ defmodule Oneiroi.Seshat.Documents do
     with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       registered = resident_id |> list() |> MapSet.new(& &1.path)
 
-      Kinds.all()
+      resident_id
+      |> Kinds.all()
       |> Enum.reject(&(&1.adoption == :originals or is_nil(&1.folder)))
       |> Enum.flat_map(fn kind -> files_under(dir, kind.folder) end)
       |> Enum.concat(keepsakes_at(dir))
@@ -248,7 +254,7 @@ defmodule Oneiroi.Seshat.Documents do
   """
   # sobelow_skip ["Traversal.FileModule"]
   def fetch(resident_id, path) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, row} <- registered(resident_id, path, Path.join(dir, path)),
          {:ok, content} <- present(row, Path.join(dir, path)) do
@@ -320,7 +326,7 @@ defmodule Oneiroi.Seshat.Documents do
   published from its Substack draft (seshat#42, `PieceReviews`).
   """
   def record_published(resident_id, path, url, %Actor{} = actor) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, _} <-
            dispatch(%Commands.PublishPiece{
              actor: actor,
@@ -357,7 +363,7 @@ defmodule Oneiroi.Seshat.Documents do
     when_ = Clock.now() |> DateTime.to_date() |> Date.to_iso8601()
     who = Atom.to_string(actor.kind)
 
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, content} <- read_file(Path.join(dir, path)) do
       archived =
@@ -393,7 +399,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   @doc "Makes a root file a keepsake (seshat#44): a deliberate act, by either party; from then it is never written again."
   def register_keepsake(resident_id, path, %Actor{} = actor) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, _} <-
            dispatch(%Commands.RegisterKeepsake{
              actor: actor,
@@ -407,7 +413,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   @doc "Records why a keepsake mattered, in the resident's words (seshat#32)."
   def note_keepsake(resident_id, path, note, %Actor{} = actor) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, _} <-
            dispatch(%Commands.NoteKeepsake{
              actor: actor,
@@ -422,7 +428,7 @@ defmodule Oneiroi.Seshat.Documents do
 
   @doc "Links a session to a piece as its discussion."
   def discuss(resident_id, path, session_key, %Actor{} = actor) when is_binary(session_key) do
-    with {:ok, path} <- normalize(path),
+    with {:ok, path} <- normalize(resident_id, path),
          {:ok, _} <-
            dispatch(%Commands.OpenDiscussion{
              actor: actor,
@@ -451,10 +457,10 @@ defmodule Oneiroi.Seshat.Documents do
   """
   # sobelow_skip ["Traversal.FileModule"]
   def move(resident_id, from, to, %Actor{} = actor) do
-    with {:ok, from} <- normalize(from),
-         {:ok, to} <- normalize(to),
-         {:ok, from_kind} <- movable(from, actor),
-         {:ok, to_kind} <- movable(to, actor),
+    with {:ok, from} <- normalize(resident_id, from),
+         {:ok, to} <- normalize(resident_id, to),
+         {:ok, from_kind} <- movable(resident_id, from, actor),
+         {:ok, to_kind} <- movable(resident_id, to, actor),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          :ok <- target_free(to, Path.join(dir, to)),
          {:ok, content} <- source(from, Path.join(dir, from)),
@@ -480,13 +486,13 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   # A kind the mover could write a file into, by `write/4`'s rule.
-  defp movable(path, actor) do
-    case Kinds.kind_of(path) do
+  defp movable(resident_id, path, actor) do
+    case Kinds.kind_of(resident_id, path) do
       nil ->
         {:error, Error.new(:seshat_path_invalid, :seshat_documents_move_no_kind, path: path)}
 
       _kind ->
-        case writable_kind(path, false, actor) do
+        case writable_kind(resident_id, path, false, actor) do
           {:ok, kind} ->
             {:ok, kind}
 
@@ -526,8 +532,8 @@ defmodule Oneiroi.Seshat.Documents do
   """
   # sobelow_skip ["Traversal.FileModule"]
   def remove(resident_id, path, %Actor{} = actor) do
-    with {:ok, path} <- normalize(path),
-         kind when not is_nil(kind) <- Kinds.kind_of(path),
+    with {:ok, path} <- normalize(resident_id, path),
+         kind when not is_nil(kind) <- Kinds.kind_of(resident_id, path),
          :ok <- removable(kind, actor),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          {:ok, _events} <-
@@ -579,10 +585,10 @@ defmodule Oneiroi.Seshat.Documents do
   @spec hash(binary()) :: String.t()
   def hash(content), do: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
 
-  defp normalize(path), do: Kinds.normalize(path)
+  defp normalize(resident_id, path), do: Kinds.normalize(resident_id, path)
 
-  defp writable_kind(path, core?, %Actor{kind: by}) do
-    kind = Kinds.kind_of(path)
+  defp writable_kind(resident_id, path, core?, %Actor{kind: by}) do
+    kind = Kinds.kind_of(resident_id, path)
     with :ok <- witness_only(kind, by, core?), do: kind_writable(kind, path, core?)
   end
 

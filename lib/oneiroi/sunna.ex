@@ -94,6 +94,7 @@ defmodule Oneiroi.Sunna do
       Events.QuietHoursSet,
       Events.RoundsSet,
       Events.FreeTimePlanned,
+      Events.FreeTimeOnceAdded,
       Events.PlanningTurnRan,
       Events.DateSet,
       Events.DateChanged,
@@ -106,6 +107,7 @@ defmodule Oneiroi.Sunna do
       Store.Date,
       Store.Settings,
       Store.FreeTimeRun,
+      Store.FreeTimeOnce,
       Store.Round,
       Store.WorkItem,
       Store.WorkQueue
@@ -247,6 +249,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.QuietHoursSet, 1},
       {Oneiroi.Sunna.Events.RoundsSet, 1},
       {Oneiroi.Sunna.Events.FreeTimePlanned, 1},
+      {Oneiroi.Sunna.Events.FreeTimeOnceAdded, 1},
       {Oneiroi.Sunna.Events.PlanningTurnRan, 1},
       {Oneiroi.Sunna.Events.DateSet, 1},
       {Oneiroi.Sunna.Events.DateChanged, 1},
@@ -353,6 +356,17 @@ defmodule Oneiroi.Sunna do
   defexport(set_free_time(resident_id, time, actor),
     do: Schedules.set_free_time(resident_id, time, actor)
   )
+
+  @doc "Adds a one-off free-time slot (sunna#45): a time today or a day and time ahead, in her zone; either party; no cap."
+  @spec add_free_time_once(String.t(), String.t() | nil, String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(add_free_time_once(resident_id, day, time, actor),
+    do: Schedules.add_free_time_once(resident_id, day, time, actor)
+  )
+
+  @doc "The one-off free-time slots still ahead, in order (sunna#45)."
+  @spec free_time_once(String.t()) :: [Oneiroi.Sunna.Store.FreeTimeOnce.t()]
+  defexport(free_time_once(resident_id), do: Schedules.free_time_once(resident_id))
 
   @doc "Records her plan for the next free-time slot (sunna#31), written in the planning turn."
   @spec plan_free_time(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

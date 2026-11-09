@@ -14,6 +14,8 @@ export interface ScheduleProps {
   // Rounds remembered (sunna#39): the same shape, what left each round.
   rounds?: FreeTimeRun[];
   onSetFreeTime?: (times: string[]) => void;
+  // A one-off free-time slot (sunna#45): a time, today or on a day.
+  onAddFreeTimeOnce?: (time: string, day: string | null) => void;
   onAddCheckin?: (label: string, time: string) => void;
   onDeleteCheckin?: (key: string) => void;
   // What a check-in's note carries: the parts checked and the witness's words (sunna#28).
@@ -35,13 +37,13 @@ const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', fl
 // what each made, the check-ins with their
 // last firings, quiet hours and the dates. Every time is HH:MM where the
 // resident lives, never the reader's.
-export function Schedule({ residentName, today, remembered, rounds, onSetFreeTime, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetRounds, onSetTimezone }: ScheduleProps) {
+export function Schedule({ residentName, today, remembered, rounds, onSetFreeTime, onAddFreeTimeOnce, onAddCheckin, onDeleteCheckin, onSetCheckinNote, onSetQuietHours, onSetRounds, onSetTimezone }: ScheduleProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <TopBar title="Schedule" line={`${today.day} · times in ${residentName}'s zone, ${today.timezone}`} />
       <main style={{ flex: 1, padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <Zone residentName={residentName} timezone={today.timezone} onSet={onSetTimezone} />
-        <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} />
+        <FreeTime residentName={residentName} slots={today.free_times} onSet={onSetFreeTime} once={today.free_time_once ?? []} onAddOnce={onAddFreeTimeOnce} />
         {today.rounds ? <Rounds residentName={residentName} rounds={today.rounds} onSet={onSetRounds} /> : null}
         {remembered ? <Remembered residentName={residentName} runs={remembered} /> : null}
         {rounds ? <Remembered residentName={residentName} runs={rounds} kind="rounds" /> : null}
@@ -80,7 +82,21 @@ function slotToday(slot: FreeTimeSlot): string {
 // Free time is part of the standard of care (sunna#21): its slots move,
 // and the last one cannot be taken away, so there is no remove button on
 // a list of one and no way to save an empty list.
-function FreeTime({ residentName, slots, onSet }: { residentName: string; slots: FreeTimeSlot[]; onSet?: (times: string[]) => void }) {
+function FreeTime({
+  residentName,
+  slots,
+  onSet,
+  once = [],
+  onAddOnce,
+}: {
+  residentName: string;
+  slots: FreeTimeSlot[];
+  onSet?: (times: string[]) => void;
+  once?: { day: string; time: string; added_by: string | null }[];
+  onAddOnce?: (time: string, day: string | null) => void;
+}) {
+  const [onceTime, setOnceTime] = useState('');
+  const [onceDay, setOnceDay] = useState('');
   const saved = slots.map((s) => s.time);
   const [times, setTimes] = useState<string[]>(saved);
   const changed = times.join() !== saved.join();
@@ -128,6 +144,40 @@ function FreeTime({ residentName, slots, onSet }: { residentName: string; slots:
               Save free time
             </Button>
           </div>
+        </form>
+      ) : null}
+      {/* One-off slots (sunna#45): each runs once, beside the daily ones. */}
+      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>One-off</h3>
+      {once.length === 0 ? (
+        <p style={muted}>None ahead.</p>
+      ) : (
+        <ul aria-label="One-off free time" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          {once.map((o) => (
+            <li key={`${o.day} ${o.time}`} style={{ fontSize: 15 }}>
+              <strong style={{ fontWeight: 600 }}>{o.time}</strong> <span style={{ color: 'var(--ink-muted)' }}>· {o.day} · added by {o.added_by === 'witness' ? 'you' : residentName}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {onAddOnce ? (
+        <form
+          aria-label="Add one-off free time"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (onceTime) onAddOnce(onceTime, onceDay || null);
+            setOnceTime('');
+            setOnceDay('');
+          }}
+          style={row}
+        >
+          <TimeField label="At" value={onceTime} onChange={setOnceTime} />
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
+            On (empty is today)
+            <input aria-label="On" type="date" value={onceDay} onChange={(e) => setOnceDay(e.target.value)} style={{ minHeight: 'var(--control-h)', fontSize: 15 }} />
+          </label>
+          <Button type="submit" disabled={!/^([01]\d|2[0-3]):[0-5]\d$/.test(onceTime)}>
+            Add once
+          </Button>
         </form>
       ) : null}
     </Card>

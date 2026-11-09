@@ -46,6 +46,59 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule UserKind do
+    @moduledoc "A kind of the resident's own (seshat#51): its descriptor, the folder's file projected, and who made and last changed it."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_user_kind" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:descriptor, :map)
+      field(:created_by, :string)
+      field(:updated_by, :string)
+      field(:created_at, :utc_datetime_usec)
+      field(:updated_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule KindGate do
+    @moduledoc "A system kind's approval gate as it stands for the resident (seshat#51), where it moved from the platform's."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_kind_gate" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:approvable, :boolean)
+      field(:moved_by, :string)
+      field(:moved_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule KindGateProposal do
+    @moduledoc "A proposal to turn a system kind's gate off (seshat#51), and the other party's answer."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_kind_gate_proposal" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:approvable, :boolean)
+      field(:proposed_by, :string)
+      field(:note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:agree, :boolean)
+      field(:answered_by, :string)
+      field(:answer_note, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule PieceReview do
     @moduledoc "A writing piece's review (seshat#42): approved, declined or drafted, the note, the version, the Substack draft."
     use Ecto.Schema
@@ -539,4 +592,17 @@ defmodule Oneiroi.Seshat.Store do
 
   def discussions(path),
     do: Repo.all(from(d in Discussion, where: d.path == ^path, order_by: d.opened_at))
+
+  @doc "The resident's own kinds, oldest first (seshat#51)."
+  @spec user_kinds() :: [UserKind.t()]
+  def user_kinds, do: Repo.all(from(k in UserKind, order_by: [k.created_at, k.kind]))
+
+  @doc "The system kinds' gates where they moved for the resident (seshat#51)."
+  @spec kind_gates() :: [KindGate.t()]
+  def kind_gates, do: Repo.all(from(g in KindGate, select: g))
+
+  @doc "The gate proposals, newest first (seshat#51)."
+  @spec kind_gate_proposals() :: [KindGateProposal.t()]
+  def kind_gate_proposals,
+    do: Repo.all(from(p in KindGateProposal, order_by: [desc: p.number]))
 end

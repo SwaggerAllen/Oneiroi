@@ -284,3 +284,26 @@ keeps the semantics in one place while letting either start a batch,
 and the actor on the event is what keeps the record honest about who
 did. His off is the brake on spending he pays for, so it acts at once;
 the run in work is allowed to finish rather than be cut mid-thought.
+
+## #44
+An answer she asked for in one free-time conversation belongs to that
+conversation's thought; delivering it to whichever ran last would hand
+the follow-up to a different thread of attention. The platform knew the
+asking session when it sent the answer, so the letter keeps it rather
+than the wake guessing. Letters with no such origin keep their old
+meaning until he decides theirs, because a brief written "for your next
+free time" should not start one by surprise.
+
+## #45
+The standing list was built as the floor of care and quietly became
+the ceiling. One-offs restore what was meant: the floor stays fixed, and
+anything above it is limited by money, which is the limit he sets,
+rather than by a count nobody chose.
+
+## #46
+A rule that lives only in a conversation is kept by whoever remembers
+it, and the resident's planning reflex kept dropping it: three times
+in one morning the slot was offered to the work. Putting it in the
+text that opens the slot, and in every tool that names the slot, means
+the instrument says it each time free time is in view, rather than
+relying on her to recall it.

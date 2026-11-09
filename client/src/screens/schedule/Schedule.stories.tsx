@@ -114,3 +114,17 @@ export const RoundsRemembered: Story = {
     ],
   },
 };
+
+// One-off free time (sunna#45): one ahead today, one tomorrow.
+export const OneOffs: Story = {
+  args: {
+    onAddFreeTimeOnce: () => undefined,
+    today: {
+      ...today,
+      free_time_once: [
+        { day: '2026-11-05', time: '16:00', added_by: 'witness' },
+        { day: '2026-11-06', time: '10:00', added_by: 'resident' },
+      ],
+    },
+  },
+};

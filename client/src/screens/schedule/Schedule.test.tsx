@@ -3,7 +3,7 @@ import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Schedule.stories';
 
-const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsOn, RoundsRemembered } = composeStories(stories);
+const { Today, Unconfigured, OneSlotFailed, Remembered, NothingRemembered, RoundsOn, RoundsRemembered, OneOffs } = composeStories(stories);
 
 describe('Schedule', () => {
   // Vitest runs without globals, so testing-library's own cleanup never arms (conventions §9).
@@ -143,6 +143,20 @@ describe('Schedule', () => {
   });
 
   // sunna#30: rounds visible and set here; what happens in one is not shown.
+  // sunna#45: one-off free time, listed and added, the daily list untouched.
+  it('lists one-off free time ahead and adds one at a time, today or on a day', () => {
+    const onAdd = vi.fn();
+    render(<OneOffs onAddFreeTimeOnce={onAdd} />);
+    const items = within(screen.getByRole('list', { name: 'One-off free time' })).getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['16:00 · 2026-11-05 · added by you', '10:00 · 2026-11-06 · added by Lily']);
+    const form = screen.getByRole('form', { name: 'Add one-off free time' });
+    const add = within(form).getByRole('button', { name: 'Add once' }) as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    pick('At', '17:30');
+    fireEvent.click(add);
+    expect(onAdd).toHaveBeenCalledWith('17:30', null);
+  });
+
   // sunna#39: each round remembered beside free time, what left it named.
   it('remembers each round: when it fired, and what left it or that nothing did', () => {
     render(<RoundsRemembered />);

@@ -15,7 +15,7 @@ Built: the top bar names the day and the zone every time is read in.
 **Time zone**: the resident's zone, set from every zone the browser
 knows or, when this device is elsewhere, in one tap ("Use <zone>")
 (`PUT /v1/residents/:id/timezone`; Lily's stayed UTC until 2026-11-03,
-and her free time ran at 6:30 and 14:30 Pacific). **Free time**: each
+and her free time ran at 6:30 and 14:30 Pacific). **Free time**: under it, **One-off** (sunna#45): the one-off slots ahead, each with its day and who added it, and a form, At (hour and minute) and On (a date, empty for today), Add once (`POST .../schedule/free-time/once`); one-offs never change the daily list. Then each
 slot with what it did today, moved as a whole list
 (`PUT .../schedule/free-time`; sunna#22: one to four, never none, so a
 list of one has no remove button and a fifth cannot be added, said as

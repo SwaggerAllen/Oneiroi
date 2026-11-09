@@ -77,4 +77,48 @@ defmodule Oneiroi.Xenia.Events do
     # The reader's two allowlists as the witness set them (xenia#16).
     use Oneiroi.Event, version: 1, fields: [:id, :scrape, :research]
   end
+
+  defmodule RouteDefined do
+    # A route of the resident's own (xenia#19), either party's: its
+    # descriptor, checked against the safe subset, its file written
+    # under routes/.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :descriptor, :note]
+  end
+
+  defmodule RouteChanged do
+    # A route of hers rewritten whole (xenia#19), either party's.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :descriptor, :note]
+  end
+
+  defmodule RouteAsked do
+    # A run of a route of hers asked, either party's (xenia#19): the
+    # reader fires it and its rows land as `<kind>/<key>-<number>.md`.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :number, :note]
+  end
+
+  defmodule RouteLanded do
+    # A run's reading landed (xenia#19), as the document at `path`.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :path]
+  end
+
+  defmodule RouteFailed do
+    # A run the reader could not do (xenia#19), and why.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
+
+  defmodule ProfileSet do
+    # A profile the witness made or named (xenia#19): one origin, whom
+    # it is signed in as. Never exported: credentials have one home.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :profile, :note]
+  end
+
+  defmodule ProfileRevoked do
+    # The witness revoked a profile (xenia#19): its routes stay, unable
+    # to fire, until it is restored.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
+  end
+
+  defmodule ProfileRestored do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
+  end
 end

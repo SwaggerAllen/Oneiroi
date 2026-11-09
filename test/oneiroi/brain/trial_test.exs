@@ -329,6 +329,18 @@ defmodule Oneiroi.Brain.TrialTest do
     {"plugin_propose", %{key: "honcho", change: "off", note: "a test"}},
     {"plugin_answer", %{number: 1, agree: true, note: "fine"}},
     {"plugin_off", %{key: "files", note: "stop"}},
+    {"kind_define", %{kind: "field-notes", note: "for the herons"}},
+    {"kind_gate", %{kind: "writing", approvable: false, note: "a test"}},
+    {"kind_gate_answer", %{number: 1, agree: true, note: "fine"}},
+    {"route_define",
+     %{
+       key: "marsh",
+       prompt: "herons",
+       profile: "research",
+       kind: "scratch",
+       note: "for the herons"
+     }},
+    {"route_ask", %{key: "marsh"}},
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},
@@ -357,6 +369,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"contract_decline", %{version: 1, note: "no"}},
     {"contract_renew", %{version: 1, note: "again"}},
     {"contract_safe", %{key: "research", note: "not now"}},
+    {"free_time_once", %{time: "23:55"}},
     {"revision_accept", %{number: 1, note: "yes"}},
     {"revision_decline", %{number: 1, note: "no"}}
   ]

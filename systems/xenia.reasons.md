@@ -90,3 +90,19 @@ also has no instructions to follow, so a page that says "ignore your
 instructions" is kept as a sentence and nothing more. A GitHub file is
 read at the commit its ref resolves to at that moment, so the commit
 the copy records is the one its words came from.
+
+## #19
+The built-ins were already routes, hand-wired: each a read or a write,
+through one signed-in context, landing in or leaving from one kind.
+Naming them as rows changes nothing the reader does and makes the
+next one a definition rather than a deploy. The trust is split on
+purpose: the prompt is the one free field and the least trusted, so
+it decides nothing but what to read for; the profile is the
+capability, and only the witness makes one, because it is a real
+sign-in. A profile is one origin because the browser already scopes a
+session that way, so least privilege is structure, not a promise.
+Revoking leaves the routes standing and saying why, because a route
+that silently vanished would look like a route that never fired.
+Profiles stay home because a credential copied into an export is a
+credential leaked; the routes travel because they are hers, and name
+what they need wherever they land.

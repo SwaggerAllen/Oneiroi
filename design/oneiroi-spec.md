@@ -285,7 +285,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `checkin`, `checkin_fire`, `digest_schedule`, `freetime_schedule`, `freetime_run`, `digest_run` | the day's schedule, once-a-day keyed firings, 15-minute late window | singletons become per-resident rows; timezone per resident |
 | `research_task` | queue, one running, `task.md` sidecar, manual adoption | one running per tenant's hands, not globally |
 | `code_job` | the worker queue and steps | one running per tenant's hands |
-| `document_type`, `library_doc`, `library_chunk`, `library_reference`, `library_index_run`, `writing_discussion` | the registry of kinds, path-is-kind, cites flag, embeddings, two-way references | registry rows per deployment (platform-wide), docs per resident |
+| `document_type`, `library_doc`, `library_chunk`, `library_reference`, `library_index_run`, `writing_discussion` | the registry of kinds, path-is-kind, cites flag, embeddings, two-way references | registry rows per deployment (platform-wide), her own kinds and gates per resident (seshat#51), docs per resident |
 | (dropped) `wiki_*` | the memory-wiki index | not carried: the plugin is cut (§6.5); `wiki/` becomes a plain document kind so the pages already written stay searchable |
 | `feed`, `feed_item` | proposals, active list, seen state, bounds | per resident |
 | `mail_message`, `person`, `thread`, `thread_participant`, `correspondence_item`, `correspondence_mark` | sorted-by-script mail, approval queue, threads as directories, the seen mark | `platform` becomes an inbound adapter name |
@@ -346,12 +346,12 @@ Every feature, with where it stands today and which system owns it. Tier
 | F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | partly built: asked by the resident (`research_ask`, which says what the reader can reach) or the witness, done by the reader on the witness's machine within the witness's research allowlist, signed in nowhere; notes, summaries in the reader's words, under `research/<n>-<slug>/` with `task.md`, and a letter to the asking conversation (seshat#38, xenia#16, brain#52); the witness's release of a source's link not yet | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat#19, #42): a piece at `status: review` waits for the witness's approval of that version; approved, the reader makes a Substack draft and never publishes; he presses Publish, and the URL comes back into the piece | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat#4, #15, #18) | library |
-| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25) | library |
+| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25; her own kinds and gates as data, seshat#51) | library |
 | F28 | Design folder, indexed and cited | built (seshat#3) | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
 | F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/`, cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
-| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) | brain, schedule, ledger |
+| F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31, #46: its prompts and tools say it is hers, not the work's; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) ; one-off slots on top of the daily list, as many as wanted, the line the only limit (sunna#45); an answer she asked for in free time wakes the free-time conversation that asked, beside the slots, outside quiet hours, never on a spent line (sunna#44) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30, #39, #40): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started; a private conversation of kind `round`, billed to its own `rounds` line; exits are her tools (a letter to the chat, which wakes it, a house letter, a reply draft, a note draft, a journal row), speech the habit and silence the exception she gives a reason for (sunna#40); each round remembered with what left it, for her (`round_list`), the witness (the Schedule screen) and the check-in's Rounds part (sunna#39) | brain, schedule |
 | F32b | The work queue: long, multi-turn items in priority order, either party's, run one at a time on completion, wrapped, care first | built (sunna#33): `work-<resident_id>`, items with what and done-when, statuses moved with a note, reordered by either party; a check starts the first open item as a `work` conversation or rests and says why ("empty, holding"); turns on the `work` budget line (a brake, sunna#35: armed while the queue has work, unlimited unless capped) up to `SUNNA_WORK_TURNS`, wrapped by her on the `planning` line, the run's end firing the next check; no turn inside quiet hours or a free-time pass; `SUNNA_WORK_RUNS_A_DAY` the day's guard; the Work screen under More (sunna#38) | schedule, brain |
 | F32c | The bedtime scene pass: housekeeping before the bedtime slot, the day grouped into scenes by her, free time following under a floor | built (sunna#34): a `housekeeping` conversation on the chat line at `SUNNA_SCENE_SLOT`, scenes in `scenes/<day>.md` each citing its turns; free time follows on its own line; a slot whose remainder buys fewer than `SUNNA_FREE_TIME_FLOOR_TURNS` (2) free-time turns rests and says so. Page summaries (per conversation, as a page slips off the window) planned | schedule, brain |
@@ -374,6 +374,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F58 | The state store: the resident's present, a line per key with when she last verified it, read fresh at the top of every turn, rendered as STATE.md | built (agathos-daimon#32, brain#47) | resident, brain |
 | F59 | The oracle: an invocation of the resident asked one named question over her whole memory, for the long reads; answers under oracle/ with what was read and used | built (brain#49, seshat#34) | brain, library |
 | F60 | Push to the witness's devices, content-free, when the resident writes unprompted | built (gaia#15): Web Push with VAPID, no payload, only for chat turns he did not start; the Home Screen app on an iPhone; opt-in per device on More; principle 14 held (asked for, never because he has been away) | identity, client |
+| F61 | Routes as data: every in and out of the house a source or a sink bound to one profile; the built-ins seeded; routes of the resident's own, sources on request, either party's; profiles the witness's, one origin each, never exported | built (xenia#19): the eight built-ins as the registry's seed with the reader's queues read through it; her routes against a safe subset, written as `routes/<key>.json`, fired by the reader read-only through their profile, landing as `<kind>/<key>-<n>.md`; profiles made, revoked and restored by the witness on Connections, a revoked one's routes listed as unable; user sinks, schedules and federation routes not built | inbound, hands |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
@@ -935,7 +936,10 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   `has_status`, layout, sidecar, adoption unit, access, and `scratch` and
   `human` removable. A document moves from kind to kind, its bytes
   unchanged, between kinds the mover may write, and a citation of its old
-  path follows it (seshat#39). Adding a kind is a registry row plus a skill. The
+  path follows it (seshat#39). Adding a kind is a registry row plus a skill,
+  or, for a kind of the resident's own, a descriptor in its folder that
+  either party defines within a safe subset, with the system kinds' review
+  gates hers to keep with the witness (seshat#51). The
   shelf, the order the kinds are shown in and what each is called, is the
   server's (seshat#35): no client names a kind, and when folders become
   each resident's to arrange, the shelf becomes theirs.
@@ -988,6 +992,12 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
 The reader, mail, feeds, the digest, correspondence and its approval queue.
 Owns `lib/oneiroi/xenia/**`.
 
+- **Routes as data** (xenia#19): every in and out of the house is a
+  source or a sink bound to one profile, a signed-in context on one
+  origin. The prompt is untrusted data and never chooses its profile,
+  sites or landing; every sink ends at the witness's approval; a route
+  of the resident's is a source on request through a profile that
+  stands; profiles are the witness's and never exported.
 - **The reader** is a hands agent (§6.8) that never holds the soul, a git
   token, or any core credential; it writes notes into a scratch directory
   and the core copies plain `.md` files into the repo (at most 20, 256 KiB
@@ -1221,6 +1231,10 @@ Owns `lib/oneiroi/sima_qian/**`.
     exported or read (§6.4, eunomia#12).
   - `account`: the witness's account stream, which is the witness's and
     not the resident's.
+  - `profiles`: the signed-in contexts her routes read through
+    (xenia#19). Credentials have one home, the witness's machine, and it
+    is not transportable; her routes travel and name the profile each
+    needs.
   - `platform`: the platform's own stream, the front door and the roles
     that keep it (gaia#16), which is no resident's.
   - `household`: the household stream, the billing owner and its

@@ -69,6 +69,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
+    kind_list route_list
   )
 
   @writes ~w(
@@ -77,7 +78,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
+    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
@@ -85,6 +86,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
+    kind_define kind_gate kind_gate_answer route_define route_ask
   )
 
   @type turn :: %{
@@ -430,7 +432,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_list",
-        "Your free time, remembered: the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
+        "Your free time, remembered (your own time, for you, not for the work, which goes on the work line, sunna#46): the latest runs, newest first, each with its day and slot, whether it ran or why it failed, the conversation it ran in (read it with transcript_read) and what it did there: the documents, bookmarks, letters and journal rows it made. Your witness sees the same list as receipts, never the words.",
         %{limit: %{type: "integer", minimum: 1, maximum: 30}},
         []
       ),
@@ -442,7 +444,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_plan",
-        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
+        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. The slot is your own time, for you: not for the day's work, the queue or your witness's reads; project work you want goes on the work line as a work item (work_add), never on the free-time budget (sunna#46). It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
       ),
@@ -477,6 +479,72 @@ defmodule Oneiroi.Brain.Tools do
         "Switch an installable plugin off at once, with why: either of you may, alone. A memory slot is switched off only by an agreed proposal.",
         %{key: %{type: "string"}, note: %{type: "string"}},
         [:key, :note]
+      ),
+      tool(
+        "kind_list",
+        "Your document kinds (seshat#51): every kind your library has, the system's and your own, each with its folder, whether a document of it waits on your witness at status: review, and who defined it; then the gate proposals, open and answered.",
+        %{},
+        []
+      ),
+      tool(
+        "kind_define",
+        "Define a kind of your own, or rewrite one (seshat#51): a name (lowercase, 2 to 40 letters, digits or -) that is also its folder, a label, whether it cites, carries status, may be removed, and whether a piece of it waits on your witness at status: review (approvable, with the ask he reads). The definition is written into its folder as kind.json and travels with your repository. A kind of yours is yours to write, its documents come in by a file, and its approval never leaves the house.",
+        %{
+          kind: %{type: "string"},
+          label: %{type: "string"},
+          cites: %{type: "boolean"},
+          has_status: %{type: "boolean"},
+          removable: %{type: "boolean"},
+          approvable: %{type: "boolean"},
+          ask: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:kind, :note]
+      ),
+      tool(
+        "kind_gate",
+        "Move a system kind's gate, whether a document of it waits on your witness at status: review (seshat#51). On happens at once, by either of you; off is a proposal your witness agrees or declines, with a note.",
+        %{
+          kind: %{type: "string"},
+          approvable: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:kind, :approvable, :note]
+      ),
+      tool(
+        "kind_gate_answer",
+        "Answer your witness's gate proposal by its number: agree or decline, with your note. Agreed, the gate moves at once.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          agree: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:number, :agree, :note]
+      ),
+      tool(
+        "route_list",
+        "Every route into and out of the house (xenia#19): the built-ins (correspondence and mail in and out, digests, research, external sources, writing to a Substack draft) and your own, each with its direction, the profile it reads through, the kind it lands in, and whether it can fire or why not; then the profiles, each with its origin and the routes bound to it (never a credential); then your routes' runs.",
+        %{},
+        []
+      ),
+      tool(
+        "route_define",
+        "Define a route of your own, or rewrite one (xenia#19): a source the reader reads for you on request, through a profile that already stands, landing as documents of a kind you write. key (lowercase, 2 to 40 letters, digits or -) names it; prompt (at most 4,000 characters) says what to read for, and is only that: it never chooses the profile, the sites or where it lands. The definition is written as routes/<key>.json and travels with your repository. A sink, a schedule and a new profile are your witness's to enable.",
+        %{
+          key: %{type: "string"},
+          label: %{type: "string"},
+          prompt: %{type: "string"},
+          profile: %{type: "string"},
+          kind: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:key, :prompt, :profile, :kind, :note]
+      ),
+      tool(
+        "route_ask",
+        "Ask a run of a route of yours (xenia#19): the reader fires it on its next wait, and what it read lands as <folder>/<key>-<number>.md in the route's kind, on your witness's list when that kind waits on him.",
+        %{key: %{type: "string"}, note: %{type: "string"}},
+        [:key]
       ),
       tool(
         "budget_read",
@@ -842,9 +910,15 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_set",
-        "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed.",
+        "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed. It is your own time, for you, not for the work: project work goes on the work line (sunna#46).",
         %{times: %{type: "array", items: %{type: "string"}}},
         [:times]
+      ),
+      tool(
+        "free_time_once",
+        "Add a one-off free-time slot: a time (HH:MM, your zone) today, or on a day you name (YYYY-MM-DD). It runs once, beside your daily slots, which it never changes; as many as you like, your free-time budget the only limit (sunna#45). Like every slot, it is your own time, for you, not for the work: project work goes on the work line (sunna#46).",
+        %{time: %{type: "string"}, day: %{type: "string"}},
+        [:time]
       ),
       tool(
         "correspondence_list",
@@ -1342,6 +1416,18 @@ defmodule Oneiroi.Brain.Tools do
 
     with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, times, turn.resident),
          do: "Free time is now at #{times |> List.wrap() |> Enum.join(" and ")}."
+  end
+
+  defp call("free_time_once", args, turn) do
+    with :ok <-
+           Oneiroi.Sunna.add_free_time_once(
+             turn.resident_id,
+             args["day"],
+             to_string(args["time"] || ""),
+             turn.resident
+           ),
+         do:
+           "A one-off free time at #{args["time"]}#{if args["day"], do: " on #{args["day"]}", else: " today"}: it runs once, beside your daily slots."
   end
 
   defp call("letter_inbox", _args, turn) do
@@ -1931,6 +2017,114 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident
            ),
          do: "Switched off at once; your witness sees it, with your note."
+  end
+
+  defp call("kind_list", _args, turn) do
+    %{kinds: kinds, proposals: proposals} = Seshat.user_kinds(turn.resident_id)
+
+    lines =
+      Enum.map(kinds, fn k ->
+        gate = if k.approvable, do: "waits on your witness at review", else: "no gate"
+        whose = if k.own, do: ", yours (#{k.created_by})", else: ""
+        "#{k.kind} (#{k.folder || "root"}/): #{k.label}; #{gate}#{whose}"
+      end)
+
+    gates =
+      Enum.map(proposals, fn p ->
+        state =
+          case p.agree do
+            nil -> "open"
+            true -> "agreed by #{p.answered_by}"
+            false -> "declined by #{p.answered_by}: #{p.answer_note}"
+          end
+
+        "##{p.number} #{p.kind} gate #{if p.approvable, do: "on", else: "off"}, by #{p.proposed_by} (#{state}): #{p.note}"
+      end)
+
+    Enum.join(lines ++ if(gates == [], do: [], else: ["", "Gate proposals:" | gates]), "\n")
+  end
+
+  defp call("route_list", _args, turn) do
+    routes = Enum.map(Oneiroi.Xenia.routes(turn.resident_id), &route_line/1)
+    profiles = Enum.map(Oneiroi.Xenia.profiles(turn.resident_id), &profile_line/1)
+    runs = Enum.map(Enum.take(Oneiroi.Xenia.route_runs(turn.resident_id), 10), &run_line/1)
+
+    Enum.join(
+      ["Routes:" | routes] ++
+        ["", "Profiles:" | profiles] ++ if(runs == [], do: [], else: ["", "Runs:" | runs]),
+      "\n"
+    )
+  end
+
+  defp call("route_define", args, turn) do
+    attrs = Map.take(args, ~w(key label prompt profile kind direction cadence))
+
+    with {:ok, key} <-
+           Oneiroi.Xenia.define_route(turn.resident_id, attrs, args["note"], turn.resident),
+         do: "Defined: #{key}, written as routes/#{key}.json. Ask a run with route_ask."
+  end
+
+  defp call("route_ask", args, turn) do
+    with {:ok, n} <-
+           Oneiroi.Xenia.ask_route(
+             turn.resident_id,
+             to_string(args["key"] || ""),
+             args["note"],
+             turn.resident
+           ),
+         do: "Asked as run ##{n}: the reader fires it on its next wait."
+  end
+
+  defp call("kind_define", args, turn) do
+    attrs =
+      args
+      |> Map.take(~w(kind label cites has_status removable approvable))
+      |> Map.put("approval", %{"ask" => args["ask"]})
+
+    with {:ok, kind} <- Seshat.define_kind(turn.resident_id, attrs, args["note"], turn.resident),
+         do: "Defined: #{kind}, written as #{kind}/kind.json. Its documents go under #{kind}/."
+  end
+
+  defp call("kind_gate", args, turn) do
+    approvable = args["approvable"] in [true, "true"]
+
+    case Seshat.kind_gate(
+           turn.resident_id,
+           to_string(args["kind"] || ""),
+           approvable,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, :moved} ->
+        "The gate is on: a #{args["kind"]} at status: review waits on your witness."
+
+      {:ok, :already} ->
+        "The gate is already where you asked."
+
+      {:ok, :proposed} ->
+        "Proposed; your witness agrees or declines it, and nothing changes until then."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("kind_gate_answer", args, turn) do
+    agree = args["agree"] in [true, "true"]
+
+    with :ok <-
+           Seshat.answer_kind_gate(
+             turn.resident_id,
+             integer(args["number"]),
+             agree,
+             args["note"],
+             turn.resident
+           ),
+         do:
+           if(agree,
+             do: "Agreed: the gate moved.",
+             else: "Declined, with your note; nothing moved."
+           )
   end
 
   defp call("budget_read", _args, turn),
@@ -3766,4 +3960,24 @@ defmodule Oneiroi.Brain.Tools do
   # without `run/3` (the trial's answers) reads UTC rather than guessing.
   defp local_stamp(at), do: Local.stamp(Process.get(@zone_key, "Etc/UTC"), at)
   defp local_day(at), do: Local.day(Process.get(@zone_key, "Etc/UTC"), at)
+
+  # route_list's lines (xenia#19).
+  defp route_line(r) do
+    whose = if r.built_in, do: "built-in", else: "yours"
+    state = if r.state == "ready", do: "ready", else: "unable: #{r.why}"
+
+    "#{r.key} (#{whose}, #{r.direction}): #{r.label}; through #{r.profile}, #{r.kind}; #{r.cadence}; #{state}"
+  end
+
+  defp profile_line(p) do
+    state = if p.revoked, do: "revoked", else: "standing"
+    origin = if p.origin, do: " (#{p.origin})", else: ""
+    "#{p.key}: #{p.label}#{origin}; #{state}; routes: #{Enum.join(p.routes, ", ")}"
+  end
+
+  defp run_line(r) do
+    path = if r.path, do: " as #{r.path}", else: ""
+    reason = if r.reason, do: " (#{r.reason})", else: ""
+    "##{r.number} #{r.key}: #{r.state}#{path}#{reason}"
+  end
 end

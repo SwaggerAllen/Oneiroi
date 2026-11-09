@@ -24,13 +24,15 @@ defmodule Oneiroi.Brain.NeedsYou do
   alias Oneiroi.Brain.NeedsYou.Entry
 
   # The sources, registered once: replies (Xenia), asks and plugin
-  # proposals (AgathosDaimon), documents (Seshat), work (Sunna).
+  # proposals (AgathosDaimon), documents and kind gate proposals
+  # (Seshat), work (Sunna).
   @sources [
     Oneiroi.Brain.NeedsYou.Replies,
     Oneiroi.Brain.NeedsYou.Asks,
     Oneiroi.Brain.NeedsYou.Documents,
     Oneiroi.Brain.NeedsYou.Work,
-    Oneiroi.Brain.NeedsYou.Plugins
+    Oneiroi.Brain.NeedsYou.Plugins,
+    Oneiroi.Brain.NeedsYou.Kinds
   ]
 
   # Past this an entry is marked as having waited long. A mark only.
