@@ -394,3 +394,9 @@ back takes back exactly what it gave, and the citations reach memory as
 events on its own stream so a rebuild reproduces every weight. Renaming
 the projector refolds history under the new rules rather than leaving
 old weights computed under the old ones.
+
+## #55
+A name is enough to deliver a letter and not enough to say whose thought
+it continues when several conversations share it. The sender knew the
+session; dropping it at the boundary threw away the one fact the wake
+needs.

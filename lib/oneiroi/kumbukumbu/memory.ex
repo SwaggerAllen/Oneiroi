@@ -455,6 +455,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           from: String.trim(c.from),
           from_session: c.from_session,
           to: String.trim(c.to),
+          to_session: c.to_session,
           in_reply_to: c.in_reply_to,
           text: c.text,
           keepsake: c.keepsake

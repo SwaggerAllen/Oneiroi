@@ -101,6 +101,21 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule FreeTimeOnce do
+    @moduledoc "A one-off free-time slot (sunna#45): a day and a time in her zone, and who added it."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_free_time_once" do
+      field(:resident_id, :binary_id)
+      field(:day, :string)
+      field(:time, :string)
+      field(:added_by, :string)
+      field(:added_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Round do
     @moduledoc "One thinking round (sunna#39): claimed at its drawn slot, then ran in a conversation or failed with its kind."
     use Ecto.Schema
@@ -229,6 +244,11 @@ defmodule Oneiroi.Sunna.Store do
   def free_time_history(limit),
     do: Repo.all(from(r in FreeTimeRun, order_by: [desc: r.at], limit: ^limit))
 
+  @doc "The one-off free-time slots from `day` on, in order (sunna#45)."
+  @spec free_time_once_from(String.t()) :: [FreeTimeOnce.t()]
+  def free_time_once_from(day),
+    do: Repo.all(from(o in FreeTimeOnce, where: o.day >= ^day, order_by: [o.day, o.time]))
+
   @doc "The latest rounds, any day, newest first (sunna#39)."
   @spec rounds(pos_integer()) :: [Round.t()]
   def rounds(limit), do: Repo.all(from(r in Round, order_by: [desc: r.at], limit: ^limit))
@@ -237,6 +257,11 @@ defmodule Oneiroi.Sunna.Store do
   @spec rounds_since(DateTime.t()) :: [Round.t()]
   def rounds_since(since),
     do: Repo.all(from(r in Round, where: r.at >= ^since, order_by: r.at))
+
+  @doc "Whether a session is one a free-time run opened or resumed (sunna#44)."
+  @spec free_time_session?(String.t()) :: boolean()
+  def free_time_session?(key),
+    do: Repo.exists?(from(r in FreeTimeRun, where: r.session_key == ^key))
 
   @doc "The work queue's items in priority order (sunna#33)."
   @spec work_items() :: [WorkItem.t()]

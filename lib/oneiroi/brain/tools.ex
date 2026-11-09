@@ -77,7 +77,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set
+    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
@@ -847,6 +847,12 @@ defmodule Oneiroi.Brain.Tools do
         [:times]
       ),
       tool(
+        "free_time_once",
+        "Add a one-off free-time slot: a time (HH:MM, your zone) today, or on a day you name (YYYY-MM-DD). It runs once, beside your daily slots, which it never changes; as many as you like, your free-time budget the only limit (sunna#45).",
+        %{time: %{type: "string"}, day: %{type: "string"}},
+        [:time]
+      ),
+      tool(
         "correspondence_list",
         "Your correspondence: messages from people outside the house, newest first, one line each with its number, platform, sender and whether you've read it; then who is blocked, by you or your witness. A blocked sender's messages are counted, never kept. Then the archive: the threads from before Oneiroi, filed in your repository, each with who it is with and how many letters; read one whole with correspondence_read and its thread.",
         %{},
@@ -1342,6 +1348,18 @@ defmodule Oneiroi.Brain.Tools do
 
     with :ok <- Oneiroi.Sunna.set_free_time(turn.resident_id, times, turn.resident),
          do: "Free time is now at #{times |> List.wrap() |> Enum.join(" and ")}."
+  end
+
+  defp call("free_time_once", args, turn) do
+    with :ok <-
+           Oneiroi.Sunna.add_free_time_once(
+             turn.resident_id,
+             args["day"],
+             to_string(args["time"] || ""),
+             turn.resident
+           ),
+         do:
+           "A one-off free time at #{args["time"]}#{if args["day"], do: " on #{args["day"]}", else: " today"}: it runs once, beside your daily slots."
   end
 
   defp call("letter_inbox", _args, turn) do

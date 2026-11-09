@@ -331,6 +331,8 @@ export interface ScheduleToday {
   last: { label: string; time: string; at: string } | null;
   next: { label: string; time: string; tomorrow: boolean } | null;
   free_times: FreeTimeSlot[];
+  // One-off slots still ahead (sunna#45), beside the standing list.
+  free_time_once?: { day: string; time: string; added_by: string | null }[];
   free_time_last: { day: string; outcome: string } | null;
   quiet: { from: string; to: string } | null;
   // Her thinking rounds (sunna#29, #30): the cadence and window in effect,

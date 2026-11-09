@@ -67,6 +67,53 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc """
+  Adds a one-off free-time slot (sunna#45), either party's: `time` today
+  in her zone, or on `day`; never in the past. No cap: the free-time line
+  is the only limit. The standing list is untouched.
+  """
+  def add_free_time_once(resident_id, day, time, %Actor{} = actor) do
+    local = local_now(resident_id)
+    today = local_day(local)
+    day = if day in [nil, ""], do: today, else: day
+
+    if is_binary(day) and is_binary(time) and
+         (day > today or (day == today and time >= now_hhmm(local))),
+       do: dispatch_once(resident_id, day, time, actor),
+       else: {:error, Error.new(:sunna_time_invalid, :sunna_free_time_once_past)}
+  end
+
+  defp dispatch_once(resident_id, day, time, actor) do
+    command = %Commands.AddFreeTimeOnce{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: day,
+      time: time
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  defp now_hhmm(local), do: local |> DateTime.to_time() |> Time.to_string() |> String.slice(0, 5)
+
+  @doc "The one-off free-time slots still ahead, in order (sunna#45)."
+  def free_time_once(resident_id) do
+    local = local_now(resident_id)
+    today = local_day(local)
+    now = now_hhmm(local)
+
+    resident_id
+    |> then(&Scope.resident(&1, fn -> Store.free_time_once_from(today) end))
+    |> Enum.reject(&(&1.day == today and &1.time < now))
+  end
+
+  @doc "The run label a one-off slot records under (sunna#45), apart from the standing slots'."
+  def once_label(time), do: "once " <> time
+
+  @doc "Whether a run's label is a standing slot's (or a day's from before slots)."
+  def standing?(slot), do: is_nil(slot) or Regex.match?(~r/\A\d\d:\d\d\z/, slot)
+
   @doc "Records her plan for the next free-time slot (sunna#31)."
   def record_plan(resident_id, text, %Actor{} = actor) do
     command = %Commands.PlanFreeTime{actor: actor, at: Clock.now(), id: resident_id, text: text}
@@ -880,6 +927,99 @@ defmodule Oneiroi.Sunna.Schedules do
     else
       {:error, _} = failed -> failed
       _nothing_to_wake_for -> :ok
+    end
+  end
+
+  @doc """
+  Wakes free time for the letters addressed to it (sunna#44; the witness,
+  2026-11-09: "when you fire off something async, free time queues up
+  immediately for the follow up"). The letter's own record names the
+  session it answers (`to_session`, a platform answer), or, for a reply,
+  the session that sent what it answers (`from_session` of its
+  `in_reply_to`); when that is a free-time session, the woken run resumes
+  it. A letter with no free-time origin (a brief from the chat, his
+  answer to an ask) waits for the next slot as it always has: where those
+  go is the witness's open call. Beside the slots, never
+  one of them; one run for every letter waiting (the chat's woken set and
+  its hourly cap); none inside quiet hours, none while a free-time pass
+  runs (its next turn reads them), none when the free-time line is spent.
+  """
+  def wake_free_time(resident_id, local, quiet, %Actor{} = actor) do
+    with false <- quiet?(local, quiet),
+         [_ | _] = letters <- free_time_letters(resident_id),
+         {key, [_ | _] = owed} <- origin(resident_id, letters),
+         false <- free_time_spent?(resident_id),
+         false <- Scope.resident(resident_id, fn -> pass_underway?() end),
+         command = %Commands.WakeForLetters{
+           actor: actor,
+           at: Clock.now(),
+           id: resident_id,
+           numbers: Enum.map(owed, & &1.number),
+           limit: Config.fetch!(:sunna, :letter_wakes_per_hour)
+         },
+         {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <- dispatch(command) do
+      woken = Enum.filter(owed, &(&1.number in numbers))
+      label = "woken " <> now_hhmm(local)
+      resume_free_time(resident_id, local_day(local), label, key, woken, actor)
+    else
+      {:error, _} = failed -> failed
+      _nothing_to_wake_for -> :ok
+    end
+  end
+
+  # Letters to Free time no free-time conversation has read yet.
+  defp free_time_letters(resident_id) do
+    resident_id
+    |> Kumbukumbu.letters()
+    |> Enum.filter(&(&1.to_name == "Free time" and "Free time" not in (&1.read_by || [])))
+    |> Enum.sort_by(& &1.number)
+  end
+
+  defp free_time_spent?(resident_id) do
+    case free_time_budget_any(resident_id) do
+      %{left: left} -> left <= 0
+      nil -> false
+    end
+  end
+
+  # A free-time pass still running (its planning turn not yet closed it):
+  # the letter joins it, read on its next turn, rather than a second run.
+  defp pass_underway?,
+    do: Store.free_time_underway?(DateTime.add(Clock.now(), -6 * 3600, :second))
+
+  # The free-time session the oldest owed letter belongs to (sunna#44),
+  # with every waiting letter that belongs to it; nil when none has a
+  # free-time origin.
+  defp origin(resident_id, letters) do
+    by_number = Map.new(Kumbukumbu.letters(resident_id), &{&1.number, &1})
+
+    session = fn l ->
+      key = l.to_session || (by_number[l.in_reply_to] && by_number[l.in_reply_to].from_session)
+      if key && free_time_session?(resident_id, key), do: key
+    end
+
+    case Enum.find_value(letters, session) do
+      nil -> nil
+      key -> {key, Enum.filter(letters, &(session.(&1) == key))}
+    end
+  end
+
+  defp free_time_session?(resident_id, key),
+    do: Scope.resident(resident_id, fn -> Store.free_time_session?(key) end)
+
+  defp resume_free_time(resident_id, day, label, key, letters, actor) do
+    case wake(resident_id, key, letters_note(letters, Enum.map(letters, & &1.number)), :free_time) do
+      {:ok, result} ->
+        recorded = record_free_time(resident_id, {day, label}, key, nil, actor)
+        carry_on(resident_id, key, result, 2)
+        recorded
+
+      {:error, %{site: _} = e} ->
+        record_free_time(resident_id, {day, label}, nil, e, actor)
+
+      {:error, reason} ->
+        failure = Error.caught(:sunna_free_time_failed, :sunna_free_time_wake_failed, reason)
+        record_free_time(resident_id, {day, label}, nil, failure, actor)
     end
   end
 

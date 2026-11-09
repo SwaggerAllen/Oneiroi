@@ -122,6 +122,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
         from_name: e.from,
         from_session: e.from_session,
         to_name: e.to,
+        to_session: Map.get(e, :to_session),
         in_reply_to: e.in_reply_to,
         text: e.text,
         keepsake: e.keepsake,

@@ -48,7 +48,38 @@ defmodule OneiroiWeb.ScheduleController do
     responses: [ok: {"today", "application/json", %Schema{type: :object}}]
   )
 
-  def today(conn, %{"id" => id}), do: json(conn, id |> Sunna.today() |> today_json())
+  def today(conn, %{"id" => id}),
+    do:
+      json(
+        conn,
+        id
+        |> Sunna.today()
+        |> today_json()
+        |> Map.put(
+          :free_time_once,
+          Enum.map(
+            Sunna.free_time_once(id),
+            &%{day: &1.day, time: &1.time, added_by: &1.added_by}
+          )
+        )
+      )
+
+  operation(:add_free_time_once,
+    summary:
+      "Add a one-off free-time slot (sunna#45): `time` (HH:MM, her zone) today, or on `day` (YYYY-MM-DD); it runs once, beside the standing slots; no cap",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the slot", "application/json",
+       %Schema{
+         type: :object,
+         required: [:time],
+         properties: %{time: %Schema{type: :string}, day: %Schema{type: :string}}
+       }},
+    responses: [no_content: "added"]
+  )
+
+  def add_free_time_once(conn, %{"id" => id} = params),
+    do: respond(conn, Sunna.add_free_time_once(id, params["day"], params["time"], actor(conn)))
 
   operation(:free_time_history,
     summary:

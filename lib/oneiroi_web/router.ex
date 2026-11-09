@@ -186,6 +186,7 @@ defmodule OneiroiWeb.Router do
       put("/residents/:id/schedule/checkins/:key", ScheduleController, :change_checkin)
       delete("/residents/:id/schedule/checkins/:key", ScheduleController, :delete_checkin)
       put("/residents/:id/schedule/free-time", ScheduleController, :set_free_time)
+      post("/residents/:id/schedule/free-time/once", ScheduleController, :add_free_time_once)
       put("/residents/:id/schedule/quiet-hours", ScheduleController, :set_quiet_hours)
       put("/residents/:id/schedule/rounds", ScheduleController, :set_rounds)
       get("/residents/:id/dates", ScheduleController, :dates)

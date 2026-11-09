@@ -173,6 +173,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:from_name, :string)
       field(:from_session, :string)
       field(:to_name, :string)
+      field(:to_session, :string)
       field(:in_reply_to, :integer)
       field(:text, :string)
       field(:keepsake, :string)

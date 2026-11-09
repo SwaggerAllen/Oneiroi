@@ -1208,6 +1208,7 @@ function ScheduleContainer({ resident }: { resident: Resident }) {
         remembered={remembered}
         rounds={rounds}
         onSetFreeTime={(times) => act(api.setFreeTime(id, times))}
+        onAddFreeTimeOnce={(time, day) => act(api.addFreeTimeOnce(id, time, day))}
         onAddCheckin={(label, time) => act(api.addCheckin(id, label, time))}
         onDeleteCheckin={(key) => act(api.deleteCheckin(id, key))}
         onSetCheckinNote={(c, parts, prompt) => act(api.changeCheckin(id, c.key, c.label, c.time, { parts, prompt }))}

@@ -42,6 +42,12 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :day, :slot, :reason]
   end
 
+  defmodule AddFreeTimeOnce do
+    # A one-off free-time slot (sunna#45): a day and a time in her zone,
+    # either party's, on top of the standing list.
+    use Oneiroi.Command, fields: [:id, :day, :time]
+  end
+
   defmodule StartRound do
     # A thinking round (sunna#29), claimed before it runs, so the next
     # minute's tick cannot start the same round again while it thinks.

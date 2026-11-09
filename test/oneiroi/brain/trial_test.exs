@@ -357,6 +357,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"contract_decline", %{version: 1, note: "no"}},
     {"contract_renew", %{version: 1, note: "again"}},
     {"contract_safe", %{key: "research", note: "not now"}},
+    {"free_time_once", %{time: "23:55"}},
     {"revision_accept", %{number: 1, note: "yes"}},
     {"revision_decline", %{number: 1, note: "no"}}
   ]

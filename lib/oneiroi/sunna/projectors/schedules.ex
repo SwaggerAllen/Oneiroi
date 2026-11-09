@@ -6,7 +6,18 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
 
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
-  alias Oneiroi.Sunna.Store.{Checkin, Date, Day, Firing, FreeTimeRun, Hour, Round, Settings}
+
+  alias Oneiroi.Sunna.Store.{
+    Checkin,
+    Date,
+    Day,
+    Firing,
+    FreeTimeOnce,
+    FreeTimeRun,
+    Hour,
+    Round,
+    Settings
+  }
 
   fold(%Events.CheckinSet{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -110,6 +121,21 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
       :planning,
       from(r in FreeTimeRun, where: r.resident_id == ^e.id and r.session_key == ^e.session_key),
       set: [planning_nanos: e.cost_nanos]
+    )
+  end)
+
+  fold(%Events.FreeTimeOnceAdded{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :free_time_once,
+      %FreeTimeOnce{
+        resident_id: e.id,
+        day: e.day,
+        time: e.time,
+        added_by: to_string(Map.get(e.actor || %{}, :kind)),
+        added_at: e.at
+      },
+      on_conflict: :nothing
     )
   end)
 

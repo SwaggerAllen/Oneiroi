@@ -161,6 +161,13 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :every_hours, :waking]
   end
 
+  defmodule FreeTimeOnceAdded do
+    # A one-off free-time slot (sunna#45): runs once, at `time` on `day`
+    # in her zone, beside the standing slots; the free-time line is its
+    # only limit.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :time]
+  end
+
   defmodule FreeTimePlanned do
     # Her plan for the next free-time slot (sunna#31), in her words.
     use Oneiroi.Event, version: 1, fields: [:id, :text]

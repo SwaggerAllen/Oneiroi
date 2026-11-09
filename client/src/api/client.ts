@@ -248,6 +248,8 @@ export const api = {
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/free-time${limit ? `?limit=${limit}` : ''}`),
   rounds: (residentId: string, limit?: number) =>
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/rounds${limit ? `?limit=${limit}` : ''}`),
+  addFreeTimeOnce: (residentId: string, time: string, day: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/schedule/free-time/once`, { time, day }),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>

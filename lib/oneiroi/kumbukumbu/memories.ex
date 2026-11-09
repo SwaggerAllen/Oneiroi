@@ -747,6 +747,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         from: from,
         from_session: session_key,
         to: attrs[:to],
+        to_session: attrs[:to_session],
         in_reply_to: attrs[:in_reply_to],
         text: attrs[:text],
         keepsake: attrs[:keepsake]
@@ -762,8 +763,13 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "A house letter from the oracle to the conversation `session_key` (brain#49); nothing when that conversation has no name."
   def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
     case name_of(resident_id, session_key) do
-      nil -> {:ok, :no_conversation}
-      name -> send_letter(resident_id, nil, %{to: name, text: text}, actor)
+      nil ->
+        {:ok, :no_conversation}
+
+      # The session itself rides with its name (sunna#44): every free-time
+      # conversation is named Free time, and the answer belongs to one.
+      name ->
+        send_letter(resident_id, nil, %{to: name, to_session: session_key, text: text}, actor)
     end
   end
 
