@@ -92,7 +92,10 @@ function loopLine(name: string, q: Queue): string {
   const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
   const budget = q.armed ? `Work line: armed, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
   const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
-  if (q.running !== null) return `Running item #${q.running} now. ${runs} ${budget}`;
+  // The loop steps over blocked items to the next open one (sunna#42).
+  const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);
+  const skips = blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '';
+  if (q.running !== null) return `Running item #${q.running} now.${skips} ${runs} ${budget}`;
   if (q.rested) return `Resting: ${q.rested}. ${runs} ${budget}`;
   return `${name}'s loop has not run yet. ${budget}`;
 }

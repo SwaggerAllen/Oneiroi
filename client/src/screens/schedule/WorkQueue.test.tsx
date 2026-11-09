@@ -90,6 +90,7 @@ describe('WorkQueue', () => {
       />,
     );
     expect(screen.getByText(/blocked on #2: Item 2/)).toBeTruthy();
+    expect(screen.getByText(/Running item #1 now\. Stepping over blocked #4\./)).toBeTruthy();
     const picker = screen.getByRole('combobox', { name: '#2 blocked on' }) as HTMLSelectElement;
     // Not itself, not a done item.
     expect(Array.from(picker.options).map((o) => o.text)).toEqual(['another item…', '#1 Item 1', '#4 Item 4']);

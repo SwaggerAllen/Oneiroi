@@ -2846,7 +2846,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # The run and the arm are two facts, said apart (sunna#41): a run
   # never implies the line is armed, nor the other way round.
-  defp work_state(q), do: loop_state(q) <> " " <> arm_state(q)
+  defp work_state(q), do: loop_state(q) <> skipping(q) <> " " <> arm_state(q)
 
   defp loop_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
 
@@ -2854,6 +2854,15 @@ defmodule Oneiroi.Brain.Tools do
     do: "The loop rests: #{reason} (since #{local_stamp(at)})."
 
   defp loop_state(_q), do: "The loop has not run yet."
+
+  # The loop runs the first open item and steps over blocked ones
+  # (sunna#42): said once, so a skip never reads as a stall.
+  defp skipping(%{items: items}) do
+    case for(%{status: "blocked"} = i <- items, do: "##{i.number} (on #{i.blocked_on})") do
+      [] -> ""
+      blocked -> " It steps over what is blocked: #{Enum.join(blocked, ", ")}."
+    end
+  end
 
   defp arm_state(%{armed: true, armed_at: %DateTime{} = at}),
     do: "The work line is armed (since #{local_stamp(at)})."

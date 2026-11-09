@@ -446,6 +446,19 @@ defmodule Oneiroi.Sunna.WorkTest do
 
     assert %{status: "open"} = items[3]
 
+    # The loop steps over what is blocked to the first open item, and
+    # says so (the witness, 2026-11-08, Lily's letter #377).
+    {:ok, 4} = Sunna.work_add(ctx.id, "Social doc", "drafted", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 2, "blocked", "4", "after the social doc", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 3, "blocked", "2", "after the kinds doc", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 4} = WorkLoop.check(ctx.id)
+
+    turn = %{resident_id: ctx.id, session_key: "k", turn_ref: "t", resident: ctx.me}
+
+    assert Tools.run("work_list", "{}", turn) =~
+             "The loop is running item #4. It steps over what is blocked: #2 (on #4), #3 (on #2)."
+
     # A done item blocks nothing new.
     assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
              Sunna.work_move(ctx.id, 3, "blocked", "1", "again", ctx.me)
