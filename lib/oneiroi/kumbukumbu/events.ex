@@ -146,4 +146,16 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # (spec §6.3); a decision event, so it carries the resident's note.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :resident_id, :session_key]
   end
+
+  defmodule Reacted do
+    # The witness's react on a message or a letter of hers (kumbukumbu#56):
+    # numbered by the stream; it wakes nothing, and is told on her next
+    # turn, wherever that is.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :target, :emoji]
+  end
+
+  defmodule ReactsTold do
+    # The reacts through `through` were told her, on a turn of `session_key`.
+    use Oneiroi.Event, version: 1, fields: [:id, :through, :session_key]
+  end
 end

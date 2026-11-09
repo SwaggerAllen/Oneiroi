@@ -48,6 +48,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
+  alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
@@ -404,4 +405,15 @@ defmodule Oneiroi.Brain do
   def cast_pulls_client("fake"), do: {:ok, :"Elixir.Oneiroi.Brain.Pulls.Fake"}
   # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
   def cast_pulls_client(other), do: {:error, "is #{inspect(other)}, expected github or fake"}
+
+  @doc "The reacts' vocabulary, `[{emoji, meaning}]`, from REACTIONS.md or the seed (kumbukumbu#56, brain#73)."
+  @spec react_vocabulary(String.t()) :: [{String.t(), String.t()}]
+  defexport(react_vocabulary(resident_id), do: Reactions.vocabulary(resident_id))
+
+  @doc "Writes the reacts' vocabulary as REACTIONS.md, either party (brain#73)."
+  @spec set_react_vocabulary(String.t(), [{String.t(), String.t()}], Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_react_vocabulary(resident_id, pairs, actor),
+    do: Reactions.set_vocabulary(resident_id, pairs, actor)
+  )
 end

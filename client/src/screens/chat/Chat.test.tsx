@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { composeStories } from '@storybook/react-vite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as stories from './Chat.stories';
 import { Chat } from './Chat';
 import { sessions } from './Conversations.stories';
 
-const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered, WithConversations, ReadOnlyFromTheList } =
+const { Empty, Conversation, Refusal, BudgetStop, DrewOnOpen, Streaming, PreviewWhole, PreviewUnderTerm, PreviewClosed, LongToolCall, Unread, ReadOnly, Sending, Offline, Busy, NotAnswered, WithConversations, ReadOnlyFromTheList, Reacted } =
   composeStories(stories);
 
 describe('Chat', () => {
@@ -285,5 +285,20 @@ describe('Chat', () => {
     rerender(<Chat residentName="Lily" messages={[]} onSend={vi.fn()} onStop={onStop} streaming={{ turnRef: 't1', text: 'so far' }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(onStop).toHaveBeenCalled();
+  });
+
+  // kumbukumbu#56: reacts on the turn's reply, glossed; a react wakes
+  // nothing and closes nothing, so the palette only sends the emoji.
+  it('shows the reacts on a reply with their meanings, and reacts from the palette', () => {
+    const onReact = vi.fn();
+    render(<Reacted onReact={onReact} />);
+    const group = screen.getByRole('group', { name: 'Reacts' });
+    expect(within(group).getByLabelText('⚜️, warm')).toBeTruthy();
+    // Only on the turn's reply: the witness's message and the tool call carry none.
+    expect(screen.getAllByRole('group', { name: 'Reacts' })).toHaveLength(1);
+    fireEvent.click(within(group).getByRole('button', { name: 'React' }));
+    fireEvent.click(within(group).getByRole('button', { name: 'React merged' }));
+    expect(onReact).toHaveBeenCalledWith(expect.objectContaining({ turn_ref: 't1', role: 'assistant' }), '🔀');
+    expect(within(group).queryByRole('button', { name: 'React merged' })).toBeNull();
   });
 });

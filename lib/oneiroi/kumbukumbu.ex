@@ -55,6 +55,12 @@ defmodule Oneiroi.Kumbukumbu do
       Madeleine,
       Tree,
       MemoryRouter,
+      ReactsRouter,
+      Commands.React,
+      Commands.TellReacts,
+      Events.Reacted,
+      Events.ReactsTold,
+      Store.React,
       Index,
       MemoryCommands.AddBookmark,
       MemoryCommands.ExtendBookmark,
@@ -306,6 +312,8 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
       {Oneiroi.Kumbukumbu.Events.SessionShared, 1},
+      {Oneiroi.Kumbukumbu.Events.Reacted, 1},
+      {Oneiroi.Kumbukumbu.Events.ReactsTold, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkExtended, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkPinned, 2},
@@ -410,6 +418,9 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_command_refused,
        "the command was refused before memory read it: an actor, an instant or a decision's note was missing",
        remedy: "a decision carries a note; the details name what was missing"},
+      {:kumbukumbu_react_invalid,
+       "a react is the witness's: one emoji, or a short run of them, on a reply of hers in a turn or on a house letter that exists",
+       remedy: "name the conversation and turn, or the letter's number, and give an emoji"},
       {:kumbukumbu_dispatch_failed,
        "the command did not complete: the event store failed, or a projection did not catch up in time",
        remedy: "the platform's; retry, and read the cause on the log line"}
@@ -421,7 +432,8 @@ defmodule Oneiroi.Kumbukumbu do
     do: [
       Oneiroi.Kumbukumbu.Projectors.Conversations,
       Oneiroi.Kumbukumbu.Projectors.Memory,
-      Oneiroi.Kumbukumbu.Projectors.Edges
+      Oneiroi.Kumbukumbu.Projectors.Edges,
+      Oneiroi.Kumbukumbu.Projectors.Reacts
     ]
 
   @doc "Opens a session of a kind for the resident with the accounts party to it; returns its key."
@@ -1002,5 +1014,22 @@ defmodule Oneiroi.Kumbukumbu do
   @spec revisions_of(String.t(), String.t(), term()) :: [Oneiroi.Kumbukumbu.Store.Revision.t()]
   defexport(revisions_of(resident_id, kind, target_id),
     do: Memories.revisions_of(resident_id, kind, target_id)
+  )
+
+  @doc "The witness reacts on a reply of hers or a letter (kumbukumbu#56): it wakes nothing, and is told on her next turn."
+  @spec react(String.t(), map(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(react(resident_id, target, emoji, actor),
+    do: Oneiroi.Kumbukumbu.Reacts.react(resident_id, target, emoji, actor)
+  )
+
+  @doc "The reacts, oldest first; `untold: true`, `session_key:` (kumbukumbu#56)."
+  @spec reacts(String.t(), keyword()) :: [Oneiroi.Kumbukumbu.Store.React.t()]
+  defexport(reacts(resident_id, opts), do: Oneiroi.Kumbukumbu.Reacts.list(resident_id, opts))
+
+  @doc "The reacts through `through` were told her on a turn of `session_key` (kumbukumbu#56)."
+  @spec tell_reacts(String.t(), pos_integer(), String.t()) :: :ok | {:error, term()}
+  defexport(tell_reacts(resident_id, through, session_key),
+    do: Oneiroi.Kumbukumbu.Reacts.tell(resident_id, through, session_key)
   )
 end

@@ -42,6 +42,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Plugins
+  alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
@@ -235,13 +236,18 @@ defmodule Oneiroi.Brain.Turn do
 
     # Each notice with the kind it is, so the preview can name it
     # without its text; the turn carries the messages alone.
+    # The witness's reacts not yet told her (kumbukumbu#56): one line,
+    # once, on whichever turn comes next; marked told when it is captured.
+    reacts = Reactions.untold(resident_id, session_key)
+
     notices = [
       lapse: lapse_notice(lapse, row.timezone),
       model_change: model_change_notice(row),
       letters: letters_notice(row, resident_id),
       import: import_notice(row),
       restart: restart_notice(resident_id, session_key),
-      batch: batch_notice(earlier, rounds_each())
+      batch: batch_notice(earlier, rounds_each()),
+      reacts: reacts_notice(reacts)
     ]
 
     %{
@@ -267,6 +273,7 @@ defmodule Oneiroi.Brain.Turn do
       uses: [],
       slug: row.slug,
       letters_to_deliver: letters_to_deliver(row, resident_id),
+      reacts_through: reacts && elem(reacts, 1),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
@@ -328,6 +335,7 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp notice_reason(:lapse), do: "the lapse, told once (spec §6.11)"
+  defp notice_reason(:reacts), do: "the witness's reacts, told once (kumbukumbu#56)"
   defp notice_reason(:model_change), do: "the change of model, told once (spec §6.4)"
 
   defp notice_reason(:letters),
@@ -751,6 +759,9 @@ defmodule Oneiroi.Brain.Turn do
               resident
             )
 
+      if turn.reacts_through,
+        do: :ok = Kumbukumbu.tell_reacts(resident_id, turn.reacts_through, key)
+
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       # The bridge records its own failure (proteus#13); the turn is
@@ -881,6 +892,11 @@ defmodule Oneiroi.Brain.Turn do
   # turn, so a turn cut off by a restart is never read as her own
   # breakage. Derived from the record alone: a conversation whose last
   # message comes after the boot has been told.
+  defp reacts_notice(nil), do: []
+
+  defp reacts_notice({line, _through}),
+    do: [%{role: :system, content: line, sent_at: Clock.now(), actor: Actor.platform()}]
+
   defp restart_notice(resident_id, session_key) do
     with {[last], _total} <- Kumbukumbu.latest(resident_id, session_key, 1),
          [_ | _] = boots <- Boots.since(last.sent_at) do

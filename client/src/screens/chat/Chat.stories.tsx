@@ -198,3 +198,16 @@ export const NotAnswered: Story = {
     onDismiss: () => undefined,
   },
 };
+
+// kumbukumbu#56: the witness's reacts on a reply, and the palette.
+export const Reacted: Story = {
+  args: {
+    reacts: { t1: ['⚜️'] },
+    palette: [
+      { emoji: '🔀', meaning: 'merged' },
+      { emoji: '👁', meaning: 'seen' },
+      { emoji: '⚜️', meaning: 'warm' },
+    ],
+    onReact: () => undefined,
+  },
+};
