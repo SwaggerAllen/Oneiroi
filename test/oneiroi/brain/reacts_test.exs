@@ -8,7 +8,9 @@ defmodule Oneiroi.Brain.ReactsTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
@@ -83,14 +85,23 @@ defmodule Oneiroi.Brain.ReactsTest do
     {ref, _} = told(ctx, "hello")
     target = %{"kind" => "message", "session_key" => ctx.key, "turn_ref" => ref}
 
-    # Her edit, as a root document she writes.
-    {:ok, _} =
-      Oneiroi.Seshat.write(
-        ctx.id,
-        "REACTIONS.md",
-        "# Reactions\n\n- 🌱 growing\n- 👁 seen it\n",
-        ctx.lily
-      )
+    # Her edit, through her own tool, as a root document she writes.
+    turn = %{
+      resident_id: ctx.id,
+      session_key: ctx.key,
+      turn_ref: "t-vocab",
+      started_at: Clock.now(),
+      resident: Actor.new(:resident, ctx.id, "fake/model")
+    }
+
+    assert Tools.run(
+             "document_write",
+             Jason.encode!(%{
+               path: "REACTIONS.md",
+               content: "# Reactions\n\n- 🌱 growing\n- 👁 seen it\n"
+             }),
+             turn
+           ) =~ "Written REACTIONS.md"
 
     assert [{"🌱", "growing"}, {"👁", "seen it"}] = Brain.react_vocabulary(ctx.id)
     {:ok, _} = Kumbukumbu.react(ctx.id, target, "🌱", ctx.witness)
