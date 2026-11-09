@@ -280,6 +280,14 @@ export const api = {
     call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
   answerPlugin: (residentId: string, number: number, agree: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/plugins/proposals/${number}/answer`, { agree, note }),
+  reacts: (residentId: string, sessionKey: string) =>
+    call<Array<{ number: number; target_kind: string; session_key: string | null; turn_ref: string | null; letter: number | null; emoji: string; reacted_at: string; told_at: string | null }>>(
+      'GET',
+      `/v1/residents/${residentId}/reacts?session_key=${encodeURIComponent(sessionKey)}`,
+    ),
+  react: (residentId: string, target: { kind: 'message'; session_key: string; turn_ref: string } | { kind: 'letter'; number: number }, emoji: string) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/reacts`, { target, emoji }),
+  reactVocabulary: (residentId: string) => call<Array<{ emoji: string; meaning: string }>>('GET', `/v1/residents/${residentId}/reacts/vocabulary`),
   routes: (residentId: string) => call<RoutesData>('GET', `/v1/residents/${residentId}/routes`),
   defineRoute: (residentId: string, definition: RouteDefinition) => call<{ key: string }>('POST', `/v1/residents/${residentId}/routes`, definition),
   askRoute: (residentId: string, key: string, note: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/routes/${encodeURIComponent(key)}/ask`, { note }),

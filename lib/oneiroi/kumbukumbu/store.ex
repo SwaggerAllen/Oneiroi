@@ -43,6 +43,26 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule React do
+    @moduledoc "The witness's react on a message or letter of hers (kumbukumbu#56), and when it was told."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_react" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:target_kind, :string)
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:letter, :integer)
+      field(:emoji, :string)
+      field(:reacted_at, :utc_datetime_usec)
+      field(:told_at, :utc_datetime_usec)
+      field(:told_in, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Message do
     @moduledoc "One message of a turn, keyed by (session, sent_at, hash) as spec §3.2 carries from David."
     use Ecto.Schema
@@ -906,4 +926,33 @@ defmodule Oneiroi.Kumbukumbu.Store do
       )
     )
   end
+
+  @doc "The reacts, oldest first; `untold: true` for those not yet told her (kumbukumbu#56)."
+  @spec reacts(keyword()) :: [React.t()]
+  def reacts(opts \\ []) do
+    q = from(r in React, order_by: r.number)
+    q = if opts[:untold], do: from(r in q, where: is_nil(r.told_at)), else: q
+
+    q =
+      if opts[:session_key],
+        do: from(r in q, where: r.session_key == ^opts[:session_key]),
+        else: q
+
+    Repo.all(q)
+  end
+
+  @doc "Whether a session holds a reply of hers in the turn named (kumbukumbu#56)."
+  @spec reply?(String.t(), String.t()) :: boolean()
+  def reply?(session_key, turn_ref),
+    do:
+      Repo.exists?(
+        from(m in Message,
+          where:
+            m.session_key == ^session_key and m.turn_ref == ^turn_ref and m.role == "assistant"
+        )
+      )
+
+  @doc "Whether a house letter of that number exists (kumbukumbu#56)."
+  @spec letter?(integer()) :: boolean()
+  def letter?(number), do: Repo.exists?(from(l in HouseLetter, where: l.number == ^number))
 end

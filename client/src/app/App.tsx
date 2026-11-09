@@ -39,7 +39,7 @@ import type {
 } from '../api/types';
 import { BottomNav, type Destination } from '../components/BottomNav';
 import { ErrorNotice } from '../components/ErrorNotice';
-import { Chat } from '../screens/chat/Chat';
+import { Chat, type ReactPair } from '../screens/chat/Chat';
 import { compareCursor, mergeNewest } from '../screens/chat/page';
 import { batched, type Connection, failedFrom, loadOutbox, newRef, type Outgoing, saveOutbox, settle, underWay, update } from '../screens/chat/outbox';
 import { Ledger } from '../screens/ledger/Ledger';
@@ -567,6 +567,29 @@ function ChatContainer({ resident }: { resident: Resident }) {
     if (connection !== 'connected' || away > 30_000) setStream((n) => n + 1);
   });
 
+  // The witness's reacts on this conversation's replies, and the palette
+  // (kumbukumbu#56), read with the conversation.
+  const [reacts, setReacts] = useState<Record<string, string[]>>({});
+  const [palette, setPalette] = useState<ReactPair[]>([]);
+  const loadReacts = useCallback(() => {
+    if (!open) return;
+    api
+      .reacts(resident.id, open)
+      .then((rows) => {
+        const byTurn: Record<string, string[]> = {};
+        for (const r of rows) if (r.turn_ref) (byTurn[r.turn_ref] ??= []).push(r.emoji);
+        setReacts(byTurn);
+      })
+      .catch(() => undefined);
+  }, [resident.id, open]);
+  useEffect(() => loadReacts(), [loadReacts]);
+  useEffect(() => {
+    api
+      .reactVocabulary(resident.id)
+      .then(setPalette)
+      .catch(() => undefined);
+  }, [resident.id]);
+
   const shown = sessions.find((s) => s.key === open);
   // Anything but the chat is as the server says, and read only until it
   // has said.
@@ -650,6 +673,11 @@ function ChatContainer({ resident }: { resident: Resident }) {
         const note = prompt('A note Lily reads first');
         if (!note) return;
         void api.proposeBookmark(resident.id, message.session_key, message.turn_ref, line, note);
+      }}
+      reacts={reacts}
+      palette={palette}
+      onReact={(message, emoji) => {
+        void api.react(resident.id, { kind: 'message', session_key: message.session_key, turn_ref: message.turn_ref }, emoji).then(loadReacts);
       }}
     />
   );

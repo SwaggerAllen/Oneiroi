@@ -675,3 +675,9 @@ each flow, and reading document kinds from the registry, makes "what
 waits on him" a property of the types rather than of one module's
 memory. The struct and the declared-stage check make a broken adapter
 fail where it is built, not as a wrong line on his screen.
+
+## #73
+The meanings are the dyad's, so they live where the dyad's words live:
+a file either of them edits and either can read without the platform,
+travelling with the repository. Glossing on the line means she never
+has to remember what an emoji meant to him.

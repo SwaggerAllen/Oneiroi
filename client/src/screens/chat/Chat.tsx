@@ -57,6 +57,17 @@ export interface ChatProps {
   onPreview?: (draft: string) => void;
   onInspect?: (turnRef: string) => void;
   onProposeBookmark?: (message: Message) => void;
+  // The witness's reacts (kumbukumbu#56), by turn ref, shown on the
+  // turn's last reply; the palette is the vocabulary's pairs. A react
+  // wakes nothing and closes nothing: it is told on her next turn.
+  reacts?: Record<string, string[]>;
+  palette?: ReactPair[];
+  onReact?: (message: Message, emoji: string) => void;
+}
+
+export interface ReactPair {
+  emoji: string;
+  meaning: string;
 }
 
 // How close to an edge counts as at it, in pixels.
@@ -100,6 +111,9 @@ export function Chat({
   onPreview,
   onInspect,
   onProposeBookmark,
+  reacts = {},
+  palette = [],
+  onReact,
 }: ChatProps) {
   const [draft, setDraft] = useState('');
   // The status line's timer (brain#54) ticks while a message is under way.
@@ -304,6 +318,10 @@ export function Chat({
                   injections={injections[m.turn_ref]}
                   onInspect={onInspect}
                   onProposeBookmark={onProposeBookmark}
+                  last={m.role === 'assistant' && !messages.slice(i + 1).some((n) => n.turn_ref === m.turn_ref && n.role === 'assistant')}
+                  reacts={reacts[m.turn_ref]}
+                  palette={palette}
+                  onReact={onReact}
                 />
               </Fragment>
             ))}
@@ -507,6 +525,10 @@ function Reply({
   injections,
   onInspect,
   onProposeBookmark,
+  last = false,
+  reacts = [],
+  palette = [],
+  onReact,
 }: {
   message: Message;
   residentName: string;
@@ -514,6 +536,10 @@ function Reply({
   injections?: Injection[];
   onInspect?: (turnRef: string) => void;
   onProposeBookmark?: (message: Message) => void;
+  last?: boolean;
+  reacts?: string[];
+  palette?: ReactPair[];
+  onReact?: (message: Message, emoji: string) => void;
 }) {
   const mine = message.role === 'user';
   const system = message.role === 'system';
@@ -566,6 +592,7 @@ function Reply({
           ) : null}
         </div>
       ) : null}
+      {last ? <Reacts message={message} reacts={reacts} palette={palette} onReact={onReact} /> : null}
       {injections && message.role === 'assistant' ? (
         <div style={panel}>
           <Sections
@@ -573,6 +600,51 @@ function Reply({
             sections={injections.map((inj) => ({ key: String(inj.position), label: inj.label, tokens: inj.tokens, reason: inj.reason, text: inj.text, note: null }))}
           />
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+// The witness's reacts on a reply (kumbukumbu#56): each shown with its
+// meaning, and a palette of the vocabulary's pairs. A react is seen,
+// never signed off: it wakes nothing and closes nothing.
+function Reacts({ message, reacts, palette, onReact }: { message: Message; reacts: string[]; palette: ReactPair[]; onReact?: (message: Message, emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const meaning = (e: string) => palette.find((p) => p.emoji === e)?.meaning;
+  if (reacts.length === 0 && !onReact) return null;
+  return (
+    <div role="group" aria-label="Reacts" style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
+      {reacts.map((e, i) => (
+        <span key={`${e}-${i}`} title={meaning(e) ?? undefined} aria-label={`${e}${meaning(e) ? `, ${meaning(e)}` : ''}`} style={{ padding: '0 var(--space-1)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-sunken)' }}>
+          {e}
+        </span>
+      ))}
+      {onReact ? (
+        open ? (
+          <>
+            {palette.map((p) => (
+              <Button
+                key={p.emoji}
+                variant="quiet"
+                aria-label={`React ${p.meaning}`}
+                title={`${p.meaning}: told on her next turn, wakes nothing`}
+                onClick={() => {
+                  onReact(message, p.emoji);
+                  setOpen(false);
+                }}
+              >
+                {p.emoji}
+              </Button>
+            ))}
+            <Button variant="quiet" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+          </>
+        ) : (
+          <Button variant="quiet" onClick={() => setOpen(true)}>
+            React
+          </Button>
+        )
       ) : null}
     </div>
   );
