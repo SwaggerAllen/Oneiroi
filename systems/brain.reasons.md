@@ -666,3 +666,12 @@ loads it whole decides for her how much of her context it takes. Split
 in two, the cheap read shows what changed and the expensive one loads
 only what she names, so the cost is chosen each time rather than paid
 by default. Read-only because the platform's code moves by his merge.
+
+## #72
+Five hand-stitched lists meant a sixth kind of thing waiting on him
+would be invisible until someone remembered to add a function, and a
+kind made at runtime never would be. Declaring the held stages beside
+each flow, and reading document kinds from the registry, makes "what
+waits on him" a property of the types rather than of one module's
+memory. The struct and the declared-stage check make a broken adapter
+fail where it is built, not as a wrong line on his screen.
