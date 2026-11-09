@@ -15,6 +15,7 @@ defmodule Oneiroi.Gaia.Account do
     :password_hash,
     :second_factor,
     key?: false,
+    github?: false,
     sessions: MapSet.new(),
     tokens: MapSet.new(),
     witnessings: MapSet.new(),
@@ -95,6 +96,21 @@ defmodule Oneiroi.Gaia.Account do
   def execute(%__MODULE__{}, %Commands.RevokeKey{}),
     do: {:error, Error.new(:gaia_no_key, :gaia_account_revoke_key_absent)}
 
+  # The GitHub read token (gaia#24), the witness's alone, as the key is.
+  def execute(%__MODULE__{}, %Commands.StoreGithubToken{} = c),
+    do: %Events.GithubTokenStored{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      token_ciphertext: c.token_ciphertext
+    }
+
+  def execute(%__MODULE__{github?: true}, %Commands.RevokeGithubToken{} = c),
+    do: %Events.GithubTokenRevoked{actor: c.actor, at: c.at, id: c.id}
+
+  def execute(%__MODULE__{}, %Commands.RevokeGithubToken{}),
+    do: {:error, Error.new(:gaia_no_github_token, :gaia_account_revoke_github_absent)}
+
   # A device subscribes once and unsubscribes once (gaia#15): the same
   # endpoint again is no event either way.
   def execute(%__MODULE__{push: push}, %Commands.SubscribePush{} = c) do
@@ -156,6 +172,8 @@ defmodule Oneiroi.Gaia.Account do
 
   def apply(%__MODULE__{} = a, %Events.KeyStored{}), do: %{a | key?: true}
   def apply(%__MODULE__{} = a, %Events.KeyRevoked{}), do: %{a | key?: false}
+  def apply(%__MODULE__{} = a, %Events.GithubTokenStored{}), do: %{a | github?: true}
+  def apply(%__MODULE__{} = a, %Events.GithubTokenRevoked{}), do: %{a | github?: false}
 
   def apply(%__MODULE__{} = a, %Events.PushSubscribed{} = e),
     do: %{a | push: MapSet.put(a.push, e.endpoint)}

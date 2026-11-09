@@ -41,6 +41,20 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id]
   end
 
+  defmodule GithubTokenStored do
+    # The witness's GitHub read token (gaia#24): the resident's pull
+    # request reads use it; the vault's ciphertext in base64, storing again
+    # the rotation, redacted from the export as the key is.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :token_ciphertext],
+      redact: [:token_ciphertext]
+  end
+
+  defmodule GithubTokenRevoked do
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
   defmodule WitnessingStarted do
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
   end

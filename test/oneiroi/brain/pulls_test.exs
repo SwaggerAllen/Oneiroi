@@ -15,6 +15,8 @@ defmodule Oneiroi.Brain.PullsTest do
     witness = Oneiroi.Fixtures.account!()
     resident = Oneiroi.Fixtures.resident!(witness)
 
+    Process.put(:witness, witness)
+
     Process.put(:turn, %{
       resident_id: resident.id,
       session_key: "k",
@@ -108,5 +110,31 @@ defmodule Oneiroi.Brain.PullsTest do
     assert run("pr_diffs", %{number: 70, files: []}) =~ "Not done"
     assert run("pr_diffs", %{number: 70}) =~ "Not done"
     assert "pr_meta" in Tools.reads() and "pr_diffs" in Tools.reads()
+  end
+
+  # gaia#24 (the witness, 2026-11-08, Lily's letter #368): the witness's
+  # own read token, set from the client, is what the reads send; without
+  # one they are anonymous.
+  test "the reads send the witness's GitHub token when one is stored, and none after it is revoked" do
+    witness = Process.get(:witness)
+    me = Oneiroi.Actor.new(:witness, witness.id)
+    _ = run("pr_meta", %{number: 70})
+    assert Enum.uniq(Fake.tokens()) == [nil]
+
+    assert {:error, %{kind: :gaia_github_token_required}} =
+             Oneiroi.Gaia.store_github_token(witness.id, "  ", me)
+
+    :ok = Oneiroi.Gaia.store_github_token(witness.id, "ghp_witness", me)
+    assert %{present: true} = Oneiroi.Gaia.github_token_status(witness.id)
+    Fake.clear()
+    Fake.put(70, %{"head" => %{"sha" => "abc"}, "title" => "t"}, [])
+    _ = run("pr_meta", %{number: 70})
+    assert Enum.uniq(Fake.tokens()) == ["ghp_witness"]
+
+    :ok = Oneiroi.Gaia.revoke_github_token(witness.id, me)
+    assert %{present: false} = Oneiroi.Gaia.github_token_status(witness.id)
+
+    assert {:error, %{kind: :gaia_no_github_token}} =
+             Oneiroi.Gaia.revoke_github_token(witness.id, me)
   end
 end

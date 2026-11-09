@@ -1,13 +1,12 @@
 defmodule Oneiroi.Brain.Pulls.GitHub do
   @moduledoc """
   The pull requests port on GitHub's REST API (brain#71): reads only,
-  with `BRAIN_GITHUB_TOKEN` when set (a higher rate limit; the platform's
+  with the token it is handed (the witness's, gaia#24, else `BRAIN_GITHUB_TOKEN`) (a higher rate limit; the platform's
   repository is public, so none is needed).
   """
   @behaviour Oneiroi.Brain.Pulls
 
   alias Oneiroi.Brain.Error
-  alias Oneiroi.Config
   alias Oneiroi.Config.Secret
 
   @api "https://api.github.com"
@@ -15,22 +14,23 @@ defmodule Oneiroi.Brain.Pulls.GitHub do
   @max_pages 30
 
   @impl true
-  def pull(repo, number), do: get("/repos/#{repo}/pulls/#{number}", [])
+  def pull(repo, number, token), do: get("/repos/#{repo}/pulls/#{number}", [], token)
 
   @impl true
-  def files(repo, number), do: pages("/repos/#{repo}/pulls/#{number}/files", 1, [])
+  def files(repo, number, token),
+    do: pages("/repos/#{repo}/pulls/#{number}/files", 1, [], token)
 
   @impl true
-  def checks(repo, sha) do
+  def checks(repo, sha, token) do
     with {:ok, %{"check_runs" => runs}} <-
-           get("/repos/#{repo}/commits/#{sha}/check-runs", per_page: @per_page),
+           get("/repos/#{repo}/commits/#{sha}/check-runs", [per_page: @per_page], token),
          do: {:ok, runs}
   end
 
-  defp pages(path, page, acc) do
-    case get(path, per_page: @per_page, page: page) do
+  defp pages(path, page, acc, token) do
+    case get(path, [per_page: @per_page, page: page], token) do
       {:ok, batch} when is_list(batch) and length(batch) == @per_page and page < @max_pages ->
-        pages(path, page + 1, acc ++ batch)
+        pages(path, page + 1, acc ++ batch, token)
 
       {:ok, batch} when is_list(batch) ->
         {:ok, acc ++ batch}
@@ -40,10 +40,10 @@ defmodule Oneiroi.Brain.Pulls.GitHub do
     end
   end
 
-  defp get(path, params) do
+  defp get(path, params, token) do
     case Req.get(@api <> path,
            params: params,
-           headers: headers(),
+           headers: headers(token),
            retry: false,
            receive_timeout: 15_000
          ) do
@@ -61,14 +61,14 @@ defmodule Oneiroi.Brain.Pulls.GitHub do
     end
   end
 
-  defp headers do
+  defp headers(token) do
     base = [
       {"accept", "application/vnd.github+json"},
       {"x-github-api-version", "2022-11-28"},
       {"user-agent", "oneiroi"}
     ]
 
-    case Config.fetch!(:brain, :github_token) do
+    case token do
       nil -> base
       token -> [{"authorization", "Bearer " <> Secret.unwrap(token)} | base]
     end

@@ -17,19 +17,23 @@ defmodule Oneiroi.Brain.Pulls do
   alias Oneiroi.Brain.Error
   alias Oneiroi.Config
 
-  @callback pull(repo :: String.t(), number :: pos_integer()) :: {:ok, map()} | {:error, term()}
-  @callback files(repo :: String.t(), number :: pos_integer()) ::
+  # `token` is the witness's GitHub read token (gaia#24), else the
+  # platform's `BRAIN_GITHUB_TOKEN`, else nil for an anonymous read.
+  @callback pull(repo :: String.t(), number :: pos_integer(), token :: term()) ::
+              {:ok, map()} | {:error, term()}
+  @callback files(repo :: String.t(), number :: pos_integer(), token :: term()) ::
               {:ok, [map()]} | {:error, term()}
-  @callback checks(repo :: String.t(), sha :: String.t()) :: {:ok, [map()]} | {:error, term()}
+  @callback checks(repo :: String.t(), sha :: String.t(), token :: term()) ::
+              {:ok, [map()]} | {:error, term()}
 
   @doc "A pull request's title, description, author, state, its checks, and the files it changes, one line each, no diff."
-  @spec meta(term()) :: {:ok, String.t()} | {:error, Error.t()}
-  def meta(number) do
+  @spec meta(term(), term()) :: {:ok, String.t()} | {:error, Error.t()}
+  def meta(number, token \\ nil) do
     with {:ok, n} <- number(number),
-         {:ok, pr} <- call(:pull, [repo(), n]),
-         {:ok, files} <- call(:files, [repo(), n]) do
+         {:ok, pr} <- call(:pull, [repo(), n, token(token)]),
+         {:ok, files} <- call(:files, [repo(), n, token(token)]) do
       checks =
-        case call(:checks, [repo(), pr["head"]["sha"] || ""]) do
+        case call(:checks, [repo(), pr["head"]["sha"] || "", token(token)]) do
           {:ok, runs} -> runs
           {:error, _} -> :unknown
         end
@@ -39,11 +43,11 @@ defmodule Oneiroi.Brain.Pulls do
   end
 
   @doc "The diffs of the files named in a pull request, exactly those, each cut at `BRAIN_PULLS_DIFF_CHARS` from `from` with the way on said."
-  @spec diffs(term(), term(), term()) :: {:ok, String.t()} | {:error, Error.t()}
-  def diffs(number, names, from \\ 0) do
+  @spec diffs(term(), term(), term(), term()) :: {:ok, String.t()} | {:error, Error.t()}
+  def diffs(number, names, from \\ 0, token \\ nil) do
     with {:ok, n} <- number(number),
          {:ok, names} <- names(names),
-         {:ok, files} <- call(:files, [repo(), n]) do
+         {:ok, files} <- call(:files, [repo(), n, token(token)]) do
       by_name = Map.new(files, &{&1["filename"], &1})
       from = if is_integer(from) and from > 0, do: from, else: 0
       {:ok, Enum.map_join(names, "\n\n", &diff_text(n, &1, by_name[&1], from))}
@@ -132,6 +136,10 @@ defmodule Oneiroi.Brain.Pulls do
   defp names(_other), do: {:error, Error.new(:brain_pulls_invalid, :brain_pulls_files_invalid)}
 
   defp repo, do: Config.fetch!(:brain, :pulls_repo)
+
+  # The witness's token first (gaia#24), the platform's after, else none.
+  defp token(nil), do: Config.fetch!(:brain, :github_token)
+  defp token(witness_token), do: witness_token
 
   defp call(fun, args) do
     case apply(Config.fetch!(:brain, :pulls_client), fun, args) do

@@ -20,6 +20,8 @@ defmodule Oneiroi.Gaia.Store do
       field(:second_factor, :binary)
       field(:key_ciphertext, :binary)
       field(:key_stored_at, :utc_datetime_usec)
+      field(:github_token_ciphertext, :binary)
+      field(:github_token_stored_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
     end
   end

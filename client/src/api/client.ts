@@ -86,7 +86,10 @@ export const api = {
   door: () => call<{ state: GateState }>('GET', '/v1/door'),
   signUp: (email: string, password: string, code: string | null) =>
     call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
-  me: () => call<{ email: string; residents: string[]; roles?: string[]; key?: { present: boolean } }>('GET', '/v1/me'),
+  me: () =>
+    call<{ email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
+  storeGithubToken: (token: string) => call<void>('PUT', '/v1/me/github-token', { token }),
+  revokeGithubToken: () => call<void>('DELETE', '/v1/me/github-token'),
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
   setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),

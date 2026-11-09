@@ -2565,12 +2565,18 @@ defmodule Oneiroi.Brain.Tools do
 
   # The platform's pull requests (brain#71): the meta and its file list,
   # then only the diffs she names.
-  defp call("pr_meta", args, _turn) do
-    with {:ok, text} <- Pulls.meta(args["number"]), do: text
+  defp call("pr_meta", args, turn) do
+    with {:ok, text} <- Pulls.meta(args["number"], witness_github(turn.resident_id)), do: text
   end
 
-  defp call("pr_diffs", args, _turn) do
-    with {:ok, text} <- Pulls.diffs(args["number"], args["files"], integer(args["from"]) || 0),
+  defp call("pr_diffs", args, turn) do
+    with {:ok, text} <-
+           Pulls.diffs(
+             args["number"],
+             args["files"],
+             integer(args["from"]) || 0,
+             witness_github(turn.resident_id)
+           ),
          do: text
   end
 
@@ -3386,6 +3392,18 @@ defmodule Oneiroi.Brain.Tools do
     with {:ok, n} <- Oneiroi.Gaia.file_feedback(attrs, turn.resident),
          do:
            "Filed as platform report ##{n}, to the platform team; platform_report_list shows its status as it moves."
+  end
+
+  # The witness's GitHub read token (gaia#24), or nil: the platform's or
+  # an anonymous read then.
+  defp witness_github(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) ->
+        Oneiroi.Gaia.github_token_for(account)
+
+      _ ->
+        nil
+    end
   end
 
   defp free_time_line(%{outcome: "ran"} = r) do

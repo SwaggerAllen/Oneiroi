@@ -50,6 +50,8 @@ defmodule Oneiroi.Gaia do
       Events.TokenRevoked,
       Events.KeyStored,
       Events.KeyRevoked,
+      Events.GithubTokenStored,
+      Events.GithubTokenRevoked,
       Events.WitnessingStarted,
       Events.WitnessingEnded,
       Store,
@@ -164,6 +166,8 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.TokenRevoked, 1},
       {Oneiroi.Gaia.Events.KeyStored, 1},
       {Oneiroi.Gaia.Events.KeyRevoked, 1},
+      {Oneiroi.Gaia.Events.GithubTokenStored, 1},
+      {Oneiroi.Gaia.Events.GithubTokenRevoked, 1},
       {Oneiroi.Gaia.Events.WitnessingStarted, 1},
       {Oneiroi.Gaia.Events.WitnessingEnded, 1},
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
@@ -201,6 +205,10 @@ defmodule Oneiroi.Gaia do
        remedy: "log in again, or issue a new token"},
       {:gaia_key_required, "the key was empty",
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
+      {:gaia_github_token_required, "the GitHub token was empty",
+       remedy: "paste a read-only GitHub token; it is stored encrypted and shown to nobody again"},
+      {:gaia_no_github_token, "the account holds no GitHub token",
+       remedy: "nothing to revoke; without one, pull requests are read anonymously"},
       {:gaia_no_key, "the account holds no OpenRouter key",
        remedy: "store one on the Ledger screen; every model call for a resident spends it"},
       {:gaia_account_exists, "an account already holds that id",
@@ -378,6 +386,26 @@ defmodule Oneiroi.Gaia do
   @doc "Whether a key is stored and since when."
   @spec key_status(String.t()) :: %{present: boolean(), stored_at: DateTime.t() | nil}
   defexport(key_status(account_id), do: Accounts.key_status(account_id))
+
+  @doc "Stores the witness's GitHub read token (gaia#24), encrypted; storing again rotates it."
+  @spec store_github_token(String.t(), term(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(store_github_token(account_id, raw, actor),
+    do: Accounts.store_github_token(account_id, raw, actor)
+  )
+
+  @doc "Revokes the stored GitHub read token."
+  @spec revoke_github_token(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(revoke_github_token(account_id, actor),
+    do: Accounts.revoke_github_token(account_id, actor)
+  )
+
+  @doc "The witness's GitHub read token, wrapped, for the pull requests port; nil when none."
+  @spec github_token_for(String.t()) :: Oneiroi.Config.Secret.t() | nil
+  defexport(github_token_for(account_id), do: Accounts.github_token_for(account_id))
+
+  @doc "Whether a GitHub read token is stored and since when."
+  @spec github_token_status(String.t()) :: %{present: boolean(), stored_at: DateTime.t() | nil}
+  defexport(github_token_status(account_id), do: Accounts.github_token_status(account_id))
 
   @doc "The resident ids an account currently witnesses."
   @spec witnessed_residents(String.t()) :: [String.t()]

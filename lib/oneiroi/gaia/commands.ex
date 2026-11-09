@@ -35,6 +35,14 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  defmodule StoreGithubToken do
+    use Oneiroi.Command, fields: [:id, :token_ciphertext]
+  end
+
+  defmodule RevokeGithubToken do
+    use Oneiroi.Command, fields: [:id]
+  end
+
   defmodule StartWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end

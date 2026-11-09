@@ -49,6 +49,14 @@ what the UI pass left for it, so a design pass finds a record rather
 than a gap. The state list lives in the stories alone once they exist
 (DESIGN §4); nothing here names a state.
 
+Connections also carries **GitHub** (`GithubToken.tsx`, gaia#24,
+loaded by `GithubTokenContainer` from `/v1/me`'s `github`): whether a
+read token is stored and since when, or that the resident's pull
+request reads (brain#71) are anonymous without one, sixty requests an
+hour; a password field to store or replace it (`PUT
+/v1/me/github-token`), and Revoke, turned into its consequence before
+it acts (`DELETE /v1/me/github-token`). The token is never shown.
+
 Connections, the adapters part, built 2026-11-02:
 `client/src/screens/connections/` (`Connections.tsx`, stories and
 tests) under More, loaded by `ConnectionsContainer` in
