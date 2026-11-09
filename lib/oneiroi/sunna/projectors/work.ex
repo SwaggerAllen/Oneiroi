@@ -105,11 +105,17 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   end)
 
   fold(%Events.WorkArmed{} = e, _metadata, fn multi ->
-    queue(multi, e.id, armed: true, armed_at: e.at, rested_reason: nil, rested_at: nil)
+    queue(multi, e.id,
+      armed: true,
+      armed_at: e.at,
+      armed_by: actor_kind(e.actor),
+      rested_reason: nil,
+      rested_at: nil
+    )
   end)
 
   fold(%Events.WorkDisarmed{} = e, _metadata, fn multi ->
-    queue(multi, e.id, armed: false, armed_at: nil)
+    queue(multi, e.id, armed: false, armed_at: nil, armed_by: nil)
   end)
 
   fold(%Events.WorkRested{} = e, _metadata, fn multi ->
@@ -134,4 +140,9 @@ defmodule Oneiroi.Sunna.Projectors.Work do
       conflict_target: [:resident_id]
     )
   end
+
+  # Who armed the line (sunna#43): the resident or the witness, by kind.
+  defp actor_kind(%{kind: kind}), do: to_string(kind)
+  defp actor_kind(%{"kind" => kind}), do: to_string(kind)
+  defp actor_kind(_none), do: nil
 end

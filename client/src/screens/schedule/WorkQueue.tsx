@@ -14,6 +14,9 @@ export interface WorkQueueProps {
   onAdd?: (what: string, doneWhen: string) => void;
   onMove?: (number: number, status: string, blockedOn: string | null, note: string) => void;
   onOrder?: (order: number[]) => void;
+  // The work line by hand (sunna#43): arm it for a batch, or turn it off.
+  onArm?: () => void;
+  onDisarm?: () => void;
 }
 
 // The work queue (sunna#33): her long items and yours, in one list in
@@ -33,7 +36,7 @@ export function WorkPage(props: WorkQueueProps) {
   );
 }
 
-export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQueueProps) {
+export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder, onArm, onDisarm }: WorkQueueProps) {
   const [what, setWhat] = useState('');
   const [doneWhen, setDoneWhen] = useState('');
   const live = queue.items.filter((i) => i.status !== 'done' && i.status !== 'dropped');
@@ -46,6 +49,23 @@ export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQ
   return (
     <Card title="Work queue">
       <p style={muted}>{loopLine(residentName, queue)}</p>
+      {onArm && !queue.armed && live.some((i) => i.status === 'open') ? (
+        <div>
+          <Button variant="primary" onClick={onArm}>
+            Arm the work line
+          </Button>
+        </div>
+      ) : null}
+      {onDisarm && queue.armed ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <div>
+            <Button variant="quiet" onClick={onDisarm}>
+              Turn the work line off
+            </Button>
+          </div>
+          {queue.running !== null ? <span style={small}>The run in work finishes; nothing starts after it until the line is armed again.</span> : null}
+        </div>
+      ) : null}
       {live.length === 0 ? <p style={muted}>Nothing open.</p> : null}
       <ol aria-label="Work items" style={{ margin: 0, paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {live.map((item, i) => (
@@ -90,7 +110,8 @@ export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQ
 function loopLine(name: string, q: Queue): string {
   const cap = q.budget ? `$${(q.budget.left / 1e9).toFixed(2)} left of $${(q.budget.cap / 1e9).toFixed(2)} a ${q.budget.period}` : 'no cap';
   const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
-  const budget = q.armed ? `Work line: armed, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
+  const by = q.armed_by === 'witness' ? ' by you' : q.armed_by === 'resident' ? ` by ${name}` : '';
+  const budget = q.armed ? `Work line: armed${by}, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
   const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
   // The loop steps over blocked items to the next open one (sunna#42).
   const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);

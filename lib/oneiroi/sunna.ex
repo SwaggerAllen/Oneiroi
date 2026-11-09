@@ -407,6 +407,10 @@ defmodule Oneiroi.Sunna do
   @spec work_arm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_arm(resident_id, actor), do: WorkLoop.arm(resident_id, actor))
 
+  @doc "Turns the work line off by hand (sunna#43): the witness's; the run in work finishes."
+  @spec work_disarm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_disarm(resident_id, actor), do: WorkLoop.disarm_by(resident_id, actor))
+
   @doc "The work queue: its items in order and the loop's state, both parties' read."
   @spec work_queue(String.t()) :: map()
   defexport(work_queue(resident_id), do: WorkLoop.queue(resident_id))

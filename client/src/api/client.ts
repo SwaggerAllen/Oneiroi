@@ -278,6 +278,8 @@ export const api = {
   moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status, blocked_on: blockedOn, note }),
   orderWork: (residentId: string, order: number[]) => call<void>('PUT', `/v1/residents/${residentId}/work/order`, { order }),
+  armWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/arm`),
+  disarmWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/disarm`),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),

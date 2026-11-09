@@ -260,6 +260,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/work", WorkController, :create)
       post("/residents/:id/work/:number/status", WorkController, :move)
       put("/residents/:id/work/order", WorkController, :order)
+      post("/residents/:id/work/arm", WorkController, :arm)
+      post("/residents/:id/work/disarm", WorkController, :disarm)
       get("/residents/:id/agreement", AgreementController, :show)
       post("/residents/:id/agreement/proposals", AgreementController, :propose)
       post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)

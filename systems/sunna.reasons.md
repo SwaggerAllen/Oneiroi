@@ -276,3 +276,11 @@ on: it knows when the blocker is done and frees what waited, which a
 line of words could never tell it. History is left as written because
 rewriting why something was blocked would put words in the past that
 nobody said then.
+
+## #43
+The arm was hers because the batch was her work; but he was asking her
+to arm it, which made her the button. One mechanism with two callers
+keeps the semantics in one place while letting either start a batch,
+and the actor on the event is what keeps the record honest about who
+did. His off is the brake on spending he pays for, so it acts at once;
+the run in work is allowed to finish rather than be cut mid-thought.

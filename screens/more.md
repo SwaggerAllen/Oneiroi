@@ -97,7 +97,7 @@ Correspondence card. **Work** (`WorkPage` in `screens/schedule/WorkQueue.tsx`,
 sunna#33, #38): the work queue on a page of its own, the card the
 Schedule screen used to carry below the schedule: the loop's state in a
 line (running item #n, or resting and why, the runs today of the day's
-bound, and the work line, armed by her for a batch with what its cap
+bound, and the work line, armed for a batch by her or by you ("armed by you" / "by Lily", sunna#43), with Arm the work line when it is off with work open and Turn the work line off when armed (the run in work finishes), with what its cap
 leaves (or no cap), off waiting for her to arm it, or off with the queue
 clear (sunna#35)); the open, running and blocked items in priority
 order, each with its status, who added it (you or her), its runs, what
