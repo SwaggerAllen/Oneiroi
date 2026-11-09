@@ -504,7 +504,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_move",
-        "Set a work item's status with a note: open, blocked (say what blocks it in blocked_on), done or dropped. The loop runs the first open item in order; in_work is the loop's own.",
+        "Set a work item's status with a note: open, blocked, done or dropped. Blocked means waiting on another item of your queue: name it by number in blocked_on (12 or #12); when that item is done or dropped, this one opens again by itself. Work waiting on your witness is not blocked: it waits on his list, where your drafts, asks and pieces already show him. The loop runs the first open item in order; in_work is the loop's own.",
         %{
           number: %{type: "integer"},
           status: %{type: "string", enum: ["open", "blocked", "done", "dropped"]},

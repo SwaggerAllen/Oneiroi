@@ -100,22 +100,21 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert [%{number: 2, added_by: "witness"}, %{number: 1, added_by: "resident"}] =
              Sunna.work_queue(ctx.id).items
 
-    # Blocked says on what; a move carries a note.
-    # What blocks it is named, and the refusal says which field and its
-    # bound (sunna#36, platform report #7): 128 characters takes, 301 does not.
-    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
-             Sunna.work_move(ctx.id, 2, "blocked", nil, "waiting", ctx.me)
+    # Blocked is on another item, by its number (sunna#42): never on
+    # words, itself, or an item that is not there; a move carries a note.
+    for on <- [nil, "his export", "2", "#9", String.duplicate("x", 301)] do
+      assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
+               Sunna.work_move(ctx.id, 2, "blocked", on, "waiting", ctx.me)
+    end
 
-    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
-             Sunna.work_move(ctx.id, 2, "blocked", String.duplicate("x", 301), "waiting", ctx.me)
+    assert :ok = Sunna.work_move(ctx.id, 2, "blocked", "#1", "waiting on it", ctx.me)
 
-    assert :ok =
-             Sunna.work_move(ctx.id, 2, "blocked", String.duplicate("y", 128), "waiting", ctx.me)
-
-    assert :ok = Sunna.work_move(ctx.id, 2, "blocked", "his export", "waiting on it", ctx.me)
-
-    assert %{status: "blocked", blocked_on: "his export", note: "waiting on it"} =
+    assert %{status: "blocked", blocked_on: "#1", note: "waiting on it"} =
              hd(Sunna.work_queue(ctx.id).items)
+
+    # Not on one that waits on it.
+    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
+             Sunna.work_move(ctx.id, 1, "blocked", "2", "circle", ctx.me)
 
     # in_work is the loop's own; the witness cannot wrap.
     assert {:error, %{kind: :sunna_work_invalid}} =
@@ -288,7 +287,7 @@ defmodule Oneiroi.Sunna.WorkTest do
     refute WorkLoop.due?(ctx.id)
 
     # Touched by either party, it goes on.
-    :ok = Sunna.work_move(ctx.id, 1, "blocked", "a rest", "later", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 1, "blocked", "2", "after the social spec", ctx.me)
     assert {:started, 2} = WorkLoop.check(ctx.id)
   end
 
@@ -410,8 +409,46 @@ defmodule Oneiroi.Sunna.WorkTest do
         turn
       )
 
+    # blocked_on is an item's number now (sunna#42), so a long one is
+    # refused for what it is, the field named.
     assert text =~ "blocked_on"
-    assert text =~ "300 characters"
+
+    # A blocker that is not an item says what blocked means (sunna#42).
+    text =
+      Tools.run(
+        "work_move",
+        Jason.encode!(%{number: 1, status: "blocked", blocked_on: "his export", note: "n"}),
+        turn
+      )
+
+    assert text =~ "names the queue item that blocks it"
+    assert text =~ "waits on his list"
+  end
+
+  # sunna#42 (the witness, 2026-11-08, Lily's letter #374): blocked is a
+  # dependency on other work, released when that work is done or dropped.
+  test "an item blocked on another opens again when that one is done or dropped", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Queue doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 3} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 2, "blocked", "1", "after the queue doc", ctx.me)
+    :ok = Sunna.work_move(ctx.id, 3, "blocked", "#1", "after it too", ctx.me)
+
+    :ok = Sunna.work_move(ctx.id, 1, "done", nil, "drafted", ctx.me)
+
+    items = Map.new(Sunna.work_queue(ctx.id).items, &{&1.number, &1})
+
+    assert %{
+             status: "open",
+             blocked_on: nil,
+             note: "Item #1 is done, so this is no longer blocked."
+           } = items[2]
+
+    assert %{status: "open"} = items[3]
+
+    # A done item blocks nothing new.
+    assert {:error, %{kind: :sunna_work_blocked_on_invalid}} =
+             Sunna.work_move(ctx.id, 3, "blocked", "1", "again", ctx.me)
   end
 
   test "her tools read and keep the queue", ctx do

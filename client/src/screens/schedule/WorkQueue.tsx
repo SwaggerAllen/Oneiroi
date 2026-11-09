@@ -49,7 +49,7 @@ export function WorkQueue({ residentName, queue, onAdd, onMove, onOrder }: WorkQ
       {live.length === 0 ? <p style={muted}>Nothing open.</p> : null}
       <ol aria-label="Work items" style={{ margin: 0, paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {live.map((item, i) => (
-          <Item key={item.number} item={item} first={i === 0} onUp={onOrder ? () => up(item.number) : undefined} onMove={onMove} />
+          <Item key={item.number} item={item} items={queue.items} first={i === 0} onUp={onOrder ? () => up(item.number) : undefined} onMove={onMove} />
         ))}
       </ol>
       {finished.length ? (
@@ -97,9 +97,20 @@ function loopLine(name: string, q: Queue): string {
   return `${name}'s loop has not run yet. ${budget}`;
 }
 
-function Item({ item, first, onUp, onMove }: { item: WorkItem; first: boolean; onUp?: () => void; onMove?: WorkQueueProps['onMove'] }) {
+// What blocks an item is another item of the queue (sunna#42): "#12"
+// read as that item; anything else is a line from before the rule.
+function blockedLine(on: string | null, items: WorkItem[]): string {
+  const n = on && /^#\d+$/.test(on) ? Number(on.slice(1)) : null;
+  if (n === null) return `blocked on ${on ?? 'something unnamed'}`;
+  const other = items.find((i) => i.number === n);
+  return other ? `blocked on #${n}: ${other.what}` : `blocked on #${n}`;
+}
+
+function Item({ item, items, first, onUp, onMove }: { item: WorkItem; items: WorkItem[]; first: boolean; onUp?: () => void; onMove?: WorkQueueProps['onMove'] }) {
   const [note, setNote] = useState('');
   const [blockedOn, setBlockedOn] = useState('');
+  // What it can wait on: another item still to be done.
+  const blockers = items.filter((i) => i.number !== item.number && i.status !== 'done' && i.status !== 'dropped');
   const move = (status: string) => {
     onMove?.(item.number, status, status === 'blocked' ? blockedOn.trim() : null, note.trim());
     setNote('');
@@ -110,7 +121,7 @@ function Item({ item, first, onUp, onMove }: { item: WorkItem; first: boolean; o
         #{item.number} {item.what}
       </strong>
       <span style={small}>
-        {item.status === 'blocked' ? `blocked on ${item.blocked_on}` : item.status === 'in_work' ? 'running now' : 'open'} · added by {item.added_by === 'witness' ? 'you' : 'her'} · {item.runs} runs
+        {item.status === 'blocked' ? blockedLine(item.blocked_on, items) : item.status === 'in_work' ? 'running now' : 'open'} · added by {item.added_by === 'witness' ? 'you' : 'her'} · {item.runs} runs
       </span>
       <span style={small}>Done when: {item.done_when}</span>
       {item.wrapped_at ? (
@@ -123,10 +134,24 @@ function Item({ item, first, onUp, onMove }: { item: WorkItem; first: boolean; o
       {onMove ? (
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <Field label={`A note on #${item.number}`} value={note} onChange={(e) => setNote(e.target.value)} />
-          <Field label="Blocked on" value={blockedOn} onChange={(e) => setBlockedOn(e.target.value)} />
-          <Button variant="quiet" disabled={note.trim() === '' || blockedOn.trim() === ''} onClick={() => move('blocked')}>
-            Blocked
-          </Button>
+          {blockers.length > 0 ? (
+            <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, minWidth: 0 }}>
+                Blocked on
+                <select aria-label={`#${item.number} blocked on`} value={blockedOn} onChange={(e) => setBlockedOn(e.target.value)} style={{ minHeight: 'var(--control-h)', fontSize: 15, maxWidth: '100%' }}>
+                  <option value="">another item…</option>
+                  {blockers.map((b) => (
+                    <option key={b.number} value={String(b.number)}>
+                      #{b.number} {b.what}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button variant="quiet" disabled={note.trim() === '' || blockedOn === ''} onClick={() => move('blocked')}>
+                Blocked
+              </Button>
+            </>
+          ) : null}
           {item.status === 'blocked' ? (
             <Button variant="quiet" disabled={note.trim() === ''} onClick={() => move('open')}>
               Unblock

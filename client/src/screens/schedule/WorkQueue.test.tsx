@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkItem, WorkQueue as Queue } from '../../api/types';
 import { WorkQueue } from './WorkQueue';
@@ -75,5 +75,27 @@ describe('WorkQueue', () => {
     expect(onMove).toHaveBeenCalledWith(2, 'done', null, 'not yet');
     fireEvent.click(screen.getByRole('button', { name: 'Move up' }));
     expect(onOrder).toHaveBeenCalledWith([2, 1]);
+  });
+
+  // sunna#42: blocked is on another item, picked from the queue, and
+  // says which.
+  it('blocks an item on another one picked from the queue, and names it', () => {
+    cleanup();
+    const onMove = vi.fn();
+    render(
+      <WorkQueue
+        residentName="Lily"
+        queue={queue({ items: [item(1, { status: 'in_work' }), item(2), item(4, { status: 'blocked', blocked_on: '#2' }), item(3, { status: 'done' })] })}
+        onMove={onMove}
+      />,
+    );
+    expect(screen.getByText(/blocked on #2: Item 2/)).toBeTruthy();
+    const picker = screen.getByRole('combobox', { name: '#2 blocked on' }) as HTMLSelectElement;
+    // Not itself, not a done item.
+    expect(Array.from(picker.options).map((o) => o.text)).toEqual(['another item…', '#1 Item 1', '#4 Item 4']);
+    fireEvent.change(screen.getByLabelText('A note on #2'), { target: { value: 'after the doc' } });
+    fireEvent.change(picker, { target: { value: '1' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Blocked' })[1]);
+    expect(onMove).toHaveBeenCalledWith(2, 'blocked', '1', 'after the doc');
   });
 });
