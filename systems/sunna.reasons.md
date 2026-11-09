@@ -299,3 +299,11 @@ The standing list was built as the floor of care and quietly became
 the ceiling. One-offs restore what was meant: the floor stays fixed, and
 anything above it is limited by money, which is the limit he sets,
 rather than by a count nobody chose.
+
+## #46
+A rule that lives only in a conversation is kept by whoever remembers
+it, and the resident's planning reflex kept dropping it: three times
+in one morning the slot was offered to the work. Putting it in the
+text that opens the slot, and in every tool that names the slot, means
+the instrument says it each time free time is in view, rather than
+relying on her to recall it.
