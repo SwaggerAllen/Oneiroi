@@ -121,6 +121,11 @@ defmodule Oneiroi.Brain.ReactsTest do
              Kumbukumbu.react(ctx.id, target, "approved", ctx.witness)
 
     # The seed stands until the file exists.
-    assert Brain.react_vocabulary(ctx.id) == [{"🔀", "merged"}, {"👁", "seen"}, {"⚜️", "warm"}]
+    assert Brain.react_vocabulary(ctx.id) == [
+             {"🔀", "merged"},
+             {"👁", "seen"},
+             {"⚜️", "warm"},
+             {"❤️", "loved"}
+           ]
   end
 end

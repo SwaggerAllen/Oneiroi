@@ -207,6 +207,7 @@ export const Reacted: Story = {
       { emoji: '🔀', meaning: 'merged' },
       { emoji: '👁', meaning: 'seen' },
       { emoji: '⚜️', meaning: 'warm' },
+      { emoji: '❤️', meaning: 'loved' },
     ],
     onReact: () => undefined,
   },
