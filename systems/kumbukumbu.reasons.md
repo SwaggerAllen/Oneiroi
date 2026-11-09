@@ -400,3 +400,10 @@ A name is enough to deliver a letter and not enough to say whose thought
 it continues when several conversations share it. The sender knew the
 session; dropping it at the boundary threw away the one fact the wake
 needs.
+
+## #56
+A react is the smallest acknowledgement there is, and waking her for it
+would make it the loudest. Holding it until she next speaks keeps it at
+its size; telling it once, recorded with the turn that told it, keeps it
+from repeating or vanishing. It closes nothing because an emoji is too
+cheap to stand for a decision: merges and approvals keep their machinery.

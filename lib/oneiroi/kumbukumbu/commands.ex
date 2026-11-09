@@ -63,4 +63,16 @@ defmodule Oneiroi.Kumbukumbu.Commands do
   defmodule ShareSession do
     use Oneiroi.Command, decision: true, fields: [:id, :resident_id, :session_key]
   end
+
+  # Reacts (kumbukumbu#56), on `reacts-<resident_id>`; `id` is the resident.
+  defmodule React do
+    # The witness's react on one of her messages: `target` is
+    # `%{"kind" => "message", "session_key", "turn_ref"}` or
+    # `%{"kind" => "letter", "number"}`.
+    use Oneiroi.Command, fields: [:id, :target, :emoji]
+  end
+
+  defmodule TellReacts do
+    use Oneiroi.Command, fields: [:id, :through, :session_key]
+  end
 end
