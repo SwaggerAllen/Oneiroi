@@ -74,6 +74,15 @@ defmodule Oneiroi.Seshat do
       Events.PieceDrafted,
       PieceReviews,
       PiecesRouter,
+      KindsRouter,
+      Events.KindDefined,
+      Events.KindChanged,
+      Events.KindGateProposed,
+      Events.KindGateAnswered,
+      Events.KindGateMoved,
+      Store.UserKind,
+      Store.KindGate,
+      Store.KindGateProposal,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.KeepsakeRegistered,
@@ -123,6 +132,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
+  alias Oneiroi.Seshat.UserKinds
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -204,6 +214,11 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.PieceReviewed, 1},
       {Oneiroi.Seshat.Events.PieceDrafted, 1},
+      {Oneiroi.Seshat.Events.KindDefined, 1},
+      {Oneiroi.Seshat.Events.KindChanged, 1},
+      {Oneiroi.Seshat.Events.KindGateProposed, 1},
+      {Oneiroi.Seshat.Events.KindGateAnswered, 1},
+      {Oneiroi.Seshat.Events.KindGateMoved, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.KeepsakeRegistered, 1},
@@ -341,6 +356,15 @@ defmodule Oneiroi.Seshat do
        "the provider answered vectors that do not fit the index: another count than the chunks sent, or another width than SESHAT_EMBEDDING_WIDTH",
        remedy:
          "set SESHAT_EMBEDDING_WIDTH to the model's width, or pin a model that answers it; the next run tries again"},
+      {:seshat_kind_invalid,
+       "a kind of hers (seshat#51) is a lowercase name of its own folder, colliding with no kind; the resident writes it; files come in one by one; it claims no platform, import, keepsake or witness writing, no flow that leaves the house, no container yet",
+       remedy:
+         "name it freshly and keep to the safe subset: label, layout, cites, status, removable, approvable with a review flow"},
+      {:seshat_kind_not_a_party, "only the resident and her witness keep her kinds",
+       remedy: "ask the resident or the witness"},
+      {:seshat_kind_gate_invalid,
+       "a gate is a system kind's whose own flow waits on the witness; on is either party's at once, off is a proposal the other party answers, one open at a time",
+       remedy: "answer the open proposal, or ask the other party to"},
       {:seshat_dispatch_failed,
        "the command did not reach the library or the journal aggregate: the command middleware or the event store refused it",
        remedy:
@@ -353,7 +377,8 @@ defmodule Oneiroi.Seshat do
     do: [
       Oneiroi.Seshat.Projectors.Library,
       Oneiroi.Seshat.Projectors.Journal,
-      Oneiroi.Seshat.Projectors.Pieces
+      Oneiroi.Seshat.Projectors.Pieces,
+      Oneiroi.Seshat.Projectors.Kinds
     ]
 
   # ---- the registry ----
@@ -361,6 +386,45 @@ defmodule Oneiroi.Seshat do
   @doc "The document kinds registry: what each kind may do (spec §6.5)."
   @spec kinds() :: [map()]
   defexport(kinds(), do: Kinds.shelf())
+
+  @doc "The kinds a resident has, in shelf order (seshat#51): the system's, gated as hers, then her own."
+  @spec kinds(String.t()) :: [map()]
+  defexport(kinds(resident_id), do: Kinds.shelf(resident_id))
+
+  @doc "Her kinds as both parties read them, with the gate proposals (seshat#51)."
+  @spec user_kinds(String.t()) :: map()
+  defexport(user_kinds(resident_id), do: UserKinds.list(resident_id))
+
+  @doc "Defines or rewrites a kind of hers (seshat#51), either party; checked against the safe subset; its descriptor written into its folder."
+  @spec define_kind(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(define_kind(resident_id, attrs, note, actor),
+    do: UserKinds.define(resident_id, attrs, note, actor)
+  )
+
+  @doc "Moves a system kind's gate (seshat#51): on at once by either party; off as a proposal the other answers."
+  @spec kind_gate(String.t(), String.t(), boolean(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, :moved | :proposed | :already} | {:error, term()}
+  defexport(kind_gate(resident_id, kind, approvable, note, actor),
+    do: UserKinds.gate(resident_id, kind, approvable, note, actor)
+  )
+
+  @doc "The other party answers a kind gate proposal (seshat#51)."
+  @spec answer_kind_gate(
+          String.t(),
+          pos_integer(),
+          boolean(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(answer_kind_gate(resident_id, number, agree, note, actor),
+    do: UserKinds.answer(resident_id, number, agree, note, actor)
+  )
+
+  @doc "Loads every folder's descriptor back from the repository (seshat#51), refusing what claims too much."
+  @spec load_kinds(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(load_kinds(resident_id, actor), do: UserKinds.load(resident_id, actor))
 
   # ---- documents ----
 

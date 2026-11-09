@@ -285,7 +285,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `checkin`, `checkin_fire`, `digest_schedule`, `freetime_schedule`, `freetime_run`, `digest_run` | the day's schedule, once-a-day keyed firings, 15-minute late window | singletons become per-resident rows; timezone per resident |
 | `research_task` | queue, one running, `task.md` sidecar, manual adoption | one running per tenant's hands, not globally |
 | `code_job` | the worker queue and steps | one running per tenant's hands |
-| `document_type`, `library_doc`, `library_chunk`, `library_reference`, `library_index_run`, `writing_discussion` | the registry of kinds, path-is-kind, cites flag, embeddings, two-way references | registry rows per deployment (platform-wide), docs per resident |
+| `document_type`, `library_doc`, `library_chunk`, `library_reference`, `library_index_run`, `writing_discussion` | the registry of kinds, path-is-kind, cites flag, embeddings, two-way references | registry rows per deployment (platform-wide), her own kinds and gates per resident (seshat#51), docs per resident |
 | (dropped) `wiki_*` | the memory-wiki index | not carried: the plugin is cut (§6.5); `wiki/` becomes a plain document kind so the pages already written stay searchable |
 | `feed`, `feed_item` | proposals, active list, seen state, bounds | per resident |
 | `mail_message`, `person`, `thread`, `thread_participant`, `correspondence_item`, `correspondence_mark` | sorted-by-script mail, approval queue, threads as directories, the seen mark | `platform` becomes an inbound adapter name |
@@ -346,7 +346,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F24 | Research on request, one note per source, `task.md` sidecar; a source's link releasable by the witness, so the resident can read the page itself and cite it | partly built: asked by the resident (`research_ask`, which says what the reader can reach) or the witness, done by the reader on the witness's machine within the witness's research allowlist, signed in nowhere; notes, summaries in the reader's words, under `research/<n>-<slug>/` with `task.md`, and a letter to the asking conversation (seshat#38, xenia#16, brain#52); the witness's release of a source's link not yet | inbound, hands |
 | F25 | Writing: pieces with frontmatter status; review page; copy for publishing with references stripped; publish | built (seshat#19, #42): a piece at `status: review` waits for the witness's approval of that version; approved, the reader makes a Substack draft and never publishes; he presses Publish, and the URL comes back into the piece | library, client |
 | F26 | Library: one vector index over all folders, `slug:` footnotes both ways, edge minting only from resident-authored kinds | built (seshat#4, #15, #18) | library |
-| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25) | library |
+| F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25; her own kinds and gates as data, seshat#51) | library |
 | F28 | Design folder, indexed and cited | built (seshat#3) | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
 | F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/`, cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
@@ -935,7 +935,10 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   `has_status`, layout, sidecar, adoption unit, access, and `scratch` and
   `human` removable. A document moves from kind to kind, its bytes
   unchanged, between kinds the mover may write, and a citation of its old
-  path follows it (seshat#39). Adding a kind is a registry row plus a skill. The
+  path follows it (seshat#39). Adding a kind is a registry row plus a skill,
+  or, for a kind of the resident's own, a descriptor in its folder that
+  either party defines within a safe subset, with the system kinds' review
+  gates hers to keep with the witness (seshat#51). The
   shelf, the order the kinds are shown in and what each is called, is the
   server's (seshat#35): no client names a kind, and when folders become
   each resident's to arrange, the shelf becomes theirs.

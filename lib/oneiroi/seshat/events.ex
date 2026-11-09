@@ -174,4 +174,37 @@ defmodule Oneiroi.Seshat.Events do
     # the witness presses Publish there himself.
     use Oneiroi.Event, version: 1, fields: [:id, :path, :draft_url]
   end
+
+  defmodule KindDefined do
+    # A kind of the resident's own (seshat#51), either party's: its
+    # descriptor, checked against the safe subset, the file in its folder
+    # written beside it.
+    use Oneiroi.Event, version: 1, fields: [:id, :kind, :descriptor, :note]
+  end
+
+  defmodule KindChanged do
+    # A user kind's descriptor rewritten whole (seshat#51), either party's.
+    use Oneiroi.Event, version: 1, fields: [:id, :kind, :descriptor, :note]
+  end
+
+  defmodule KindGateProposed do
+    # A system kind's gate proposed off, away from safety (seshat#51): the
+    # other party answers. Numbered by the stream.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :kind, :approvable],
+      decision: true
+  end
+
+  defmodule KindGateAnswered do
+    # The other party's answer to a gate proposal (seshat#51), with a note.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :agree], decision: true
+  end
+
+  defmodule KindGateMoved do
+    # A system kind's gate as it now stands for the resident (seshat#51):
+    # back on by either party alone, off only by an agreed proposal
+    # (`number`).
+    use Oneiroi.Event, version: 1, fields: [:id, :kind, :approvable, :number]
+  end
 end

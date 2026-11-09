@@ -296,7 +296,7 @@ defmodule Oneiroi.Seshat.Index do
   end
 
   defp changed(resident_id, doc, content, chunks, model, now, acc) do
-    kind = Kinds.kind_of(doc.path)
+    kind = Kinds.kind_of(resident_id, doc.path)
 
     rows =
       Enum.map(chunks, fn {{{_path, i}, text}, vector} ->

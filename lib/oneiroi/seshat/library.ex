@@ -96,7 +96,9 @@ defmodule Oneiroi.Seshat.Library do
         {:error,
          Error.new(:seshat_no_such_document, :seshat_remove_document_absent, path: c.path)}
 
-      not Kinds.removable?(Kinds.kind_of(c.path) || %{}) ->
+      # A system kind's rule; a kind of hers (seshat#51) was checked
+      # against her registry by the service before it got here.
+      match?(%{}, Kinds.kind_of(c.path)) and not Kinds.removable?(Kinds.kind_of(c.path)) ->
         {:error, Error.new(:seshat_not_removable, :seshat_remove_document_kind, path: c.path)}
 
       true ->

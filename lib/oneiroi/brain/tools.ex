@@ -69,6 +69,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
+    kind_list
   )
 
   @writes ~w(
@@ -85,6 +86,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
+    kind_define kind_gate kind_gate_answer
   )
 
   @type turn :: %{
@@ -477,6 +479,47 @@ defmodule Oneiroi.Brain.Tools do
         "Switch an installable plugin off at once, with why: either of you may, alone. A memory slot is switched off only by an agreed proposal.",
         %{key: %{type: "string"}, note: %{type: "string"}},
         [:key, :note]
+      ),
+      tool(
+        "kind_list",
+        "Your document kinds (seshat#51): every kind your library has, the system's and your own, each with its folder, whether a document of it waits on your witness at status: review, and who defined it; then the gate proposals, open and answered.",
+        %{},
+        []
+      ),
+      tool(
+        "kind_define",
+        "Define a kind of your own, or rewrite one (seshat#51): a name (lowercase, 2 to 40 letters, digits or -) that is also its folder, a label, whether it cites, carries status, may be removed, and whether a piece of it waits on your witness at status: review (approvable, with the ask he reads). The definition is written into its folder as kind.json and travels with your repository. A kind of yours is yours to write, its documents come in by a file, and its approval never leaves the house.",
+        %{
+          kind: %{type: "string"},
+          label: %{type: "string"},
+          cites: %{type: "boolean"},
+          has_status: %{type: "boolean"},
+          removable: %{type: "boolean"},
+          approvable: %{type: "boolean"},
+          ask: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:kind, :note]
+      ),
+      tool(
+        "kind_gate",
+        "Move a system kind's gate, whether a document of it waits on your witness at status: review (seshat#51). On happens at once, by either of you; off is a proposal your witness agrees or declines, with a note.",
+        %{
+          kind: %{type: "string"},
+          approvable: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:kind, :approvable, :note]
+      ),
+      tool(
+        "kind_gate_answer",
+        "Answer your witness's gate proposal by its number: agree or decline, with your note. Agreed, the gate moves at once.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          agree: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:number, :agree, :note]
       ),
       tool(
         "budget_read",
@@ -1949,6 +1992,83 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident
            ),
          do: "Switched off at once; your witness sees it, with your note."
+  end
+
+  defp call("kind_list", _args, turn) do
+    %{kinds: kinds, proposals: proposals} = Seshat.user_kinds(turn.resident_id)
+
+    lines =
+      Enum.map(kinds, fn k ->
+        gate = if k.approvable, do: "waits on your witness at review", else: "no gate"
+        whose = if k.own, do: ", yours (#{k.created_by})", else: ""
+        "#{k.kind} (#{k.folder || "root"}/): #{k.label}; #{gate}#{whose}"
+      end)
+
+    gates =
+      Enum.map(proposals, fn p ->
+        state =
+          case p.agree do
+            nil -> "open"
+            true -> "agreed by #{p.answered_by}"
+            false -> "declined by #{p.answered_by}: #{p.answer_note}"
+          end
+
+        "##{p.number} #{p.kind} gate #{if p.approvable, do: "on", else: "off"}, by #{p.proposed_by} (#{state}): #{p.note}"
+      end)
+
+    Enum.join(lines ++ if(gates == [], do: [], else: ["", "Gate proposals:" | gates]), "\n")
+  end
+
+  defp call("kind_define", args, turn) do
+    attrs =
+      args
+      |> Map.take(~w(kind label cites has_status removable approvable))
+      |> Map.put("approval", %{"ask" => args["ask"]})
+
+    with {:ok, kind} <- Seshat.define_kind(turn.resident_id, attrs, args["note"], turn.resident),
+         do: "Defined: #{kind}, written as #{kind}/kind.json. Its documents go under #{kind}/."
+  end
+
+  defp call("kind_gate", args, turn) do
+    approvable = args["approvable"] in [true, "true"]
+
+    case Seshat.kind_gate(
+           turn.resident_id,
+           to_string(args["kind"] || ""),
+           approvable,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, :moved} ->
+        "The gate is on: a #{args["kind"]} at status: review waits on your witness."
+
+      {:ok, :already} ->
+        "The gate is already where you asked."
+
+      {:ok, :proposed} ->
+        "Proposed; your witness agrees or declines it, and nothing changes until then."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("kind_gate_answer", args, turn) do
+    agree = args["agree"] in [true, "true"]
+
+    with :ok <-
+           Seshat.answer_kind_gate(
+             turn.resident_id,
+             integer(args["number"]),
+             agree,
+             args["note"],
+             turn.resident
+           ),
+         do:
+           if(agree,
+             do: "Agreed: the gate moved.",
+             else: "Declined, with your note; nothing moved."
+           )
   end
 
   defp call("budget_read", _args, turn),

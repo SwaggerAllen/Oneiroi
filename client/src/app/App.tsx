@@ -15,6 +15,7 @@ import type {
   WorkQueue as WorkQueueData,
   NeedsYouEntry,
   PluginsData,
+  KindsData,
   IndexNow,
   Injection,
   Ledger as LedgerData,
@@ -64,6 +65,7 @@ import { type Begin, CreationFlow, type Gift } from '../screens/creation-flow/Cr
 import type { FlowApi } from '../screens/creation-flow/Gifts';
 import { Agreement } from '../screens/settings-agreement/Agreement';
 import { Plugins } from '../screens/settings-agreement/Plugins';
+import { Kinds } from '../screens/kinds/Kinds';
 import { Library } from '../screens/library/Library';
 import { Connections } from '../screens/connections/Connections';
 import { Login } from './Login';
@@ -174,7 +176,7 @@ export function App() {
       go('inbox');
       return;
     }
-    const screens: Record<string, Destination> = { Schedule: 'schedule', Work: 'work', Agreement: 'agreement' };
+    const screens: Record<string, Destination> = { Schedule: 'schedule', Work: 'work', Agreement: 'agreement', Kinds: 'kinds' };
     go(screens[where.screen] ?? 'inbox');
   };
 
@@ -303,6 +305,11 @@ export function App() {
           </>
         ) : null}
         {destination === 'regression' ? <RegressionContainer resident={resident} /> : null}
+        {destination === 'kinds' ? (
+          <MorePage title="Kinds">
+            <KindsContainer resident={resident} />
+          </MorePage>
+        ) : null}
         {destination === 'notifications' ? (
           <MorePage title="Notifications">
             <NotificationsContainer resident={resident} />
@@ -1334,6 +1341,46 @@ function PluginsContainer({ resident }: { resident: Resident }) {
       onPropose={(key, change, note) => run(() => api.proposePlugin(id, key, change, note), `Proposed; ${resident.name} answers.`)}
       onAnswer={(n, agree, note) => run(() => api.answerPlugin(id, n, agree, note), agree ? 'Agreed: the change is made.' : 'Declined.')}
       onOff={(key, note) => run(() => api.pluginOff(id, key, note), 'Switched off.')}
+    />
+  );
+}
+
+// Her kinds (seshat#51): gates moved and answered, kinds of hers defined.
+function KindsContainer({ resident }: { resident: Resident }) {
+  const [data, setData] = useState<KindsData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api
+      .kinds(resident.id)
+      .then(setData)
+      .catch(() => setData(null));
+  }, [resident.id]);
+  useEffect(() => load(), [load]);
+  useRefocus(() => load());
+  if (!data) return null;
+  const id = resident.id;
+  const run = (work: () => Promise<string>) => {
+    setBusy(true);
+    setSaid(null);
+    work()
+      .then(setSaid)
+      .catch((e: unknown) => setSaid(asApiError(e).meaning))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+  const gateSaid = { moved: 'The gate moved.', proposed: `Proposed; ${resident.name} answers.`, already: 'The gate is already there.' };
+  return (
+    <Kinds
+      name={resident.name}
+      data={data}
+      busy={busy}
+      said={said}
+      onDefine={(definition) => run(() => api.defineKind(id, definition).then((r) => `Defined: ${r.kind}, written as ${r.kind}/kind.json.`))}
+      onGate={(kind, approvable, note) => run(() => api.kindGate(id, kind, approvable, note).then((r) => gateSaid[r.outcome]))}
+      onAnswer={(n, agree, note) => run(() => api.answerKindGate(id, n, agree, note).then(() => (agree ? 'Agreed: the gate moved.' : 'Declined.')))}
     />
   );
 }

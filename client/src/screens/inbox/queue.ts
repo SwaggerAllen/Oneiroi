@@ -35,6 +35,8 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `Work item #${e.ref} blocked${a.blocked_on ? ` on ${a.blocked_on}` : ''}: ${a.what}`;
     case 'plugin_proposal':
       return `${residentName} proposes to ${a.change} the plugin ${a.key}: ${a.note}`;
+    case 'kind_gate_proposal':
+      return `${residentName} proposes the ${a.kind} gate ${a.approvable ? 'on' : 'off'}: ${a.note}`;
   }
 }
 
@@ -42,6 +44,7 @@ function where(e: NeedsYouEntry): WaitingEntry['where'] {
   if (e.screen === 'schedule') return { screen: 'Schedule' };
   if (e.screen === 'work') return { screen: 'Work' };
   if (e.screen === 'agreement') return { screen: 'Agreement' };
+  if (e.screen === 'kinds') return { screen: 'Kinds' };
   if (e.kind === 'ask') return { anchor: 'asks' };
   if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { doc: String(e.ref) };
   return { anchor: `reply-${e.ref}` };

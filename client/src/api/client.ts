@@ -7,6 +7,8 @@ import type {
   NeedsYouEntry,
   PluginProposal,
   PluginsData,
+  KindDefinition,
+  KindsData,
   FeedbackReport,
   Pieces,
   ApiError,
@@ -276,6 +278,12 @@ export const api = {
     call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
   answerPlugin: (residentId: string, number: number, agree: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/plugins/proposals/${number}/answer`, { agree, note }),
+  kinds: (residentId: string) => call<KindsData>('GET', `/v1/residents/${residentId}/kinds`),
+  defineKind: (residentId: string, definition: KindDefinition) => call<{ kind: string }>('POST', `/v1/residents/${residentId}/kinds`, definition),
+  kindGate: (residentId: string, kind: string, approvable: boolean, note: string) =>
+    call<{ outcome: 'moved' | 'proposed' | 'already' }>('POST', `/v1/residents/${residentId}/kinds/${encodeURIComponent(kind)}/gate`, { approvable, note }),
+  answerKindGate: (residentId: string, number: number, agree: boolean, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/kinds/gates/${number}/answer`, { agree, note }),
   pluginOff: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/plugins/${encodeURIComponent(key)}/off`, { note }),
   addWork: (residentId: string, what: string, doneWhen: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),

@@ -44,10 +44,19 @@ defmodule Oneiroi.Seshat.Citations do
   # session key is base64url and opens or closes on them about one time
   # in sixteen, which cut a transcript citation short.
   # Built once a node, from the kinds the registry names at the time.
+  # Her own kinds are citable as soon as they exist (seshat#51): every
+  # resident's, since a citation names its slug and is read across them.
+  defp user_kinds do
+    Scope.platform(fn -> Store.user_kinds() end) |> Enum.map(& &1.kind)
+  end
+
+  @doc "Forgets the built pattern, so the next extract learns a kind just defined (seshat#51)."
+  def relearn, do: :persistent_term.erase({__MODULE__, :citation})
+
   defp citation do
     case :persistent_term.get({__MODULE__, :citation}, nil) do
       nil ->
-        kinds = Enum.uniq(@record_kinds ++ Enum.map(Kinds.all(), & &1.kind))
+        kinds = Enum.uniq(@record_kinds ++ Enum.map(Kinds.all(), & &1.kind) ++ user_kinds())
 
         regex =
           Regex.compile!(
@@ -208,7 +217,7 @@ defmodule Oneiroi.Seshat.Citations do
 
   @doc "The review copy: content, status, and the references resolved (F25), `mark:` as for `references/3`."
   def review(resident_id, path, opts \\ []) do
-    with {:ok, path} <- Kinds.normalize(path),
+    with {:ok, path} <- Kinds.normalize(resident_id, path),
          {:ok, row} <- registered(resident_id, path),
          {:ok, content} <- read(resident_id, path) do
       references = references(resident_id, path, opts)
@@ -234,7 +243,7 @@ defmodule Oneiroi.Seshat.Citations do
 
   @doc "The copy for publishing: frontmatter and citations stripped."
   def publish_copy(resident_id, path) do
-    with {:ok, path} <- Kinds.normalize(path),
+    with {:ok, path} <- Kinds.normalize(resident_id, path),
          {:ok, _row} <- registered(resident_id, path),
          {:ok, content} <- read(resident_id, path) do
       {_front, body} = frontmatter(content)

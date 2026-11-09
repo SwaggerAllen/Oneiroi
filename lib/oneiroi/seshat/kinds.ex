@@ -25,7 +25,9 @@ defmodule Oneiroi.Seshat.Kinds do
   other one-segment path as nothing.
   """
 
+  alias Oneiroi.Scope
   alias Oneiroi.Seshat.Error
+  alias Oneiroi.Seshat.Store
 
   @kinds [
     %{
@@ -357,9 +359,205 @@ defmodule Oneiroi.Seshat.Kinds do
   # A goals ledger's name (seshat#43): a slug in capitals, then -GOALS.md.
   @goals ~r/\A[A-Z0-9][A-Z0-9-]{0,200}-GOALS\.md\z/
 
-  @doc "Every kind, in the registry's order."
+  @doc "Every system kind, in the registry's order."
   @spec all() :: [map()]
   def all, do: @kinds
+
+  # ---- per resident (seshat#51) ----
+
+  # The descriptor a kind folder carries (seshat#51): reserved by name in
+  # every folder, never a document, changed only through the kinds flow.
+  @descriptor "kind.json"
+
+  @doc "The descriptor's reserved name (seshat#51)."
+  @spec descriptor_name() :: String.t()
+  def descriptor_name, do: @descriptor
+
+  @doc "Every kind a resident has: the system kinds, each with her gate where one moved (seshat#51), then her own kinds."
+  @spec all(String.t()) :: [map()]
+  def all(resident_id) do
+    {gates, own} = resident_kinds(resident_id)
+    Enum.map(@kinds, &gated(&1, gates)) ++ own
+  end
+
+  @doc "A resident's kind by name, system or hers, or nil."
+  @spec named(String.t(), String.t()) :: map() | nil
+  def named(resident_id, kind), do: Enum.find(all(resident_id), &(&1.kind == kind))
+
+  @doc "The kind a path belongs to for a resident: a system kind (gated as hers), else one of her own by its folder."
+  @spec kind_of(String.t(), String.t()) :: map() | nil
+  def kind_of(resident_id, path) when is_binary(path) do
+    {gates, own} = resident_kinds(resident_id)
+
+    case kind_of(path) do
+      nil -> own_kind(own, path)
+      kind -> gated(kind, gates)
+    end
+  end
+
+  @doc "A path as the library accepts it for a resident: as `normalize/1`, her own kinds' folders included."
+  @spec normalize(String.t(), term()) :: {:ok, String.t()} | {:error, Error.t()}
+  def normalize(resident_id, path) when is_binary(path) do
+    case normalize(path) do
+      {:error, %{site: :seshat_kinds_path_outside_folders}} = refused ->
+        if descriptor?(path) or is_nil(own_kind(elem(resident_kinds(resident_id), 1), path)),
+          do: refused,
+          else: {:ok, path}
+
+      other ->
+        other
+    end
+  end
+
+  def normalize(_resident_id, other), do: normalize(other)
+
+  @doc "The kinds a document write may land in for a resident: the system's, and her own."
+  @spec writable(String.t()) :: [String.t()]
+  def writable(resident_id),
+    do: for(k <- all(resident_id), k.access in [:resident, :keepsake], do: k.kind)
+
+  @doc "The shelf for a resident: the system's order, then her own kinds under their labels."
+  @spec shelf(String.t()) :: [map()]
+  def shelf(resident_id) do
+    {gates, own} = resident_kinds(resident_id)
+    base = Enum.map(shelf(), &gated(&1, gates))
+    next = length(base)
+
+    base ++
+      (own
+       |> Enum.with_index(next)
+       |> Enum.map(fn {k, i} -> Map.merge(k, %{position: i}) end))
+  end
+
+  @doc "Whether a path is a folder's descriptor, which is never a document (seshat#51)."
+  @spec descriptor?(String.t()) :: boolean()
+  def descriptor?(path) when is_binary(path), do: Path.basename(path) == @descriptor
+  def descriptor?(_other), do: false
+
+  defp own_kind(own, path) do
+    case String.split(path, "/") do
+      [folder, _ | _] -> Enum.find(own, &(&1.folder == folder))
+      _ -> nil
+    end
+  end
+
+  defp gated(kind, gates) do
+    case Map.fetch(gates, kind.kind) do
+      {:ok, approvable} -> Map.put(kind, :approvable, approvable)
+      :error -> kind
+    end
+  end
+
+  defp resident_kinds(resident_id) do
+    Scope.resident(resident_id, fn ->
+      {Map.new(Store.kind_gates(), &{&1.kind, &1.approvable}),
+       Enum.map(Store.user_kinds(), &from_descriptor(&1.descriptor))}
+    end)
+  end
+
+  @doc """
+  A user kind's descriptor checked against the safe subset (seshat#51):
+  its own folder, colliding with no system kind and none of hers; the
+  resident writes it; a document comes in by a file; no claim of the
+  platform's, an import's, a keepsake's or the witness's writing; no
+  flow that leaves the house; no container yet. `{:ok, descriptor}` in
+  the file's own shape, or a refusal naming what was claimed.
+  """
+  @spec user_descriptor(map(), [String.t()]) :: {:ok, map()} | {:error, Error.t()}
+  def user_descriptor(attrs, taken) when is_map(attrs) do
+    a = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
+    kind = a["kind"]
+
+    cond do
+      not user_name?(kind) ->
+        {:error, Error.new(:seshat_kind_invalid, :seshat_kinds_user_name)}
+
+      not own_folder?(a, kind, taken) ->
+        {:error, Error.new(:seshat_kind_invalid, :seshat_kinds_user_folder_taken)}
+
+      claims?(a) ->
+        {:error, Error.new(:seshat_kind_invalid, :seshat_kinds_user_unsafe_claim)}
+
+      not_yet?(a) ->
+        {:error, Error.new(:seshat_kind_invalid, :seshat_kinds_user_not_yet)}
+
+      truthy?(a["approvable"]) and match?(%{"then" => _}, a["approval"]) ->
+        {:error, Error.new(:seshat_kind_invalid, :seshat_kinds_user_leaves_house)}
+
+      true ->
+        {:ok, descriptor(kind, a)}
+    end
+  end
+
+  defp own_folder?(a, kind, taken),
+    do:
+      (a["folder"] || kind) == kind and kind not in taken and
+        not Enum.any?(@kinds, &(&1.kind == kind or &1.folder == kind))
+
+  defp claims?(a),
+    do: (a["access"] || "resident") != "resident" or (a["adoption"] || "file") != "file"
+
+  defp user_name?(kind),
+    do: is_binary(kind) and Regex.match?(~r/\A[a-z][a-z0-9-]{1,39}\z/, kind)
+
+  defp not_yet?(a), do: truthy?(a["container"]) or truthy?(a["feed_exposed"])
+
+  defp truthy?(v), do: v in [true, "true"]
+
+  defp descriptor(kind, a) do
+    approvable = a["approvable"] in [true, "true"]
+    approval = if is_map(a["approval"]), do: a["approval"], else: %{}
+
+    %{
+      "kind" => kind,
+      "folder" => kind,
+      "label" => text(a["label"]) || String.capitalize(String.replace(kind, "-", " ")),
+      "layout" => text(a["layout"]) || "#{kind}/<name>.md",
+      "cites" => a["cites"] in [true, "true"],
+      "has_status" => a["has_status"] in [true, "true"] or approvable,
+      "removable" => a["removable"] in [true, "true"],
+      "access" => "resident",
+      "adoption" => "file",
+      "approvable" => approvable,
+      "approval" =>
+        if(approvable,
+          do: %{
+            "marked_by" => "status",
+            "status" => text(approval["status"]) || "review",
+            "ask" => text(approval["ask"]) || "Review the #{String.replace(kind, "-", " ")}",
+            "decisions" => ["approve", "decline"]
+          }
+        )
+    }
+  end
+
+  defp text(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: String.trim(v))
+  defp text(_v), do: nil
+
+  @doc "A user kind as the registry holds one, from its descriptor."
+  @spec from_descriptor(map()) :: map()
+  def from_descriptor(d) do
+    %{
+      kind: d["kind"],
+      folder: d["folder"],
+      label: d["label"],
+      layout: d["layout"],
+      cites: d["cites"] == true,
+      has_status: d["has_status"] == true,
+      removable: d["removable"] == true,
+      sidecar: nil,
+      adoption: :file,
+      access: :resident,
+      approvable: d["approvable"] == true,
+      approval: d["approval"],
+      user: true,
+      position: nil
+    }
+  end
+
+  @doc "The system kinds whose gate the consent flow moves (seshat#51): those whose own flow waits on the witness."
+  @spec gated_kinds() :: [String.t()]
+  def gated_kinds, do: for(k <- @kinds, Map.get(k, :approvable, false), do: k.kind)
 
   # The shelf (seshat#35): the order the kinds are shown in and what each
   # is called, one place on the server and never in a client. The gifts
@@ -512,6 +710,9 @@ defmodule Oneiroi.Seshat.Kinds do
     cond do
       byte_size(path) > @path_max ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_too_long)}
+
+      descriptor?(path) ->
+        {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_descriptor, path: path)}
 
       length(segments) < 2 and not (keepsake_name?(path) or goals_name?(path)) ->
         {:error, Error.new(:seshat_path_invalid, :seshat_kinds_path_no_folder, path: path)}

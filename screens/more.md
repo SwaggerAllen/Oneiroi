@@ -19,6 +19,8 @@ that opens it, and nothing on More acts. Each page below is its own
 destination, opened in place of More under a top bar with its title
 (`MorePage` in `More.tsx`).
 
+**Kinds** opens the kinds page (screen:kinds, seshat#51).
+
 **Notifications** (`Notifications.tsx`, gaia#15), its own page: on
 this device, whether notifications can be had and how. An iPhone or iPad
 not running from the Home Screen is told to add Oneiroi there first (only

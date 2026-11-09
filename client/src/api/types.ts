@@ -504,12 +504,12 @@ export interface LibraryHit {
 // oldest first from the server, each naming the screen it is decided on.
 // It only shows; `long` is a mark past two days, and nothing more.
 export interface NeedsYouEntry {
-  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal';
+  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal' | 'kind_gate_proposal';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement' | 'work';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string; approvable?: boolean };
 }
 
 export interface Ask {
@@ -618,4 +618,46 @@ export interface PluginProposal {
 export interface PluginsData {
   plugins: PluginEntry[];
   proposals: PluginProposal[];
+}
+
+// Her document kinds (seshat#51): the system's, gated as hers, and her own.
+export interface KindEntry {
+  kind: string;
+  label: string;
+  folder: string | null;
+  own: boolean;
+  approvable: boolean;
+  gated: boolean;
+  cites: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface KindGateProposal {
+  number: number;
+  kind: string;
+  approvable: boolean;
+  proposed_by: 'resident' | 'witness';
+  note: string | null;
+  proposed_at: string;
+  agree: boolean | null;
+  answered_by: string | null;
+  answer_note: string | null;
+  answered_at: string | null;
+}
+
+export interface KindsData {
+  kinds: KindEntry[];
+  proposals: KindGateProposal[];
+}
+
+export interface KindDefinition {
+  kind: string;
+  label?: string;
+  cites?: boolean;
+  has_status?: boolean;
+  removable?: boolean;
+  approvable?: boolean;
+  ask?: string;
+  note?: string;
 }
