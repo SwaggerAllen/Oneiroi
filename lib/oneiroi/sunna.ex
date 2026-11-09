@@ -171,10 +171,10 @@ defmodule Oneiroi.Sunna do
          "how long a work run may go with no end recorded before the check ends it as stalled (sunna#37): a run whose job died in a restart or a crash would otherwise hold the loop forever, saying it runs an item that is done; three hours is past any twenty-turn run measured so far"},
       {:work_runs_a_day, "SUNNA_WORK_RUNS_A_DAY",
        cast: :integer,
-       default: "8",
+       default: "20",
        tag: :bound,
        usage:
-         "how many runs of work-queue items may start in one of the resident's days (sunna#33): each finished run fires the next, so this is the guard on a loop that never empties; the budget line is the real limit. A guess"},
+         "how many runs of work-queue items may start in one of the resident's days (sunna#33): each finished run fires the next with no one in between, so this is the guard on a loop that never empties (an item wrapped open again and again); the work budget line is the real limit when one is set. Twenty (the witness, 2026-11-08), up from eight"},
       {:scene_slot, "SUNNA_SCENE_SLOT",
        default: "22:30",
        usage:
