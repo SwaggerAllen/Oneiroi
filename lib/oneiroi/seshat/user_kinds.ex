@@ -12,8 +12,6 @@ defmodule Oneiroi.Seshat.UserKinds do
   never touched.
   """
 
-  # sobelow_skip ["Traversal.FileModule"]
-
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
@@ -150,6 +148,9 @@ defmodule Oneiroi.Seshat.UserKinds do
     end
   end
 
+  # The path is one `Path.wildcard/1` found under her repository's root,
+  # never one a caller named.
+  # sobelow_skip ["Traversal.FileModule"]
   defp load_one(resident_id, path, owned, actor) do
     folder = path |> Path.dirname() |> Path.basename()
 
@@ -186,6 +187,9 @@ defmodule Oneiroi.Seshat.UserKinds do
 
   # The descriptor beside the documents it describes, with who wrote it
   # and when (seshat#51): the file is what travels.
+  # The folder is the kind's name, held to `[a-z][a-z0-9-]` by the safe
+  # subset before it gets here, so it cannot climb out of the root.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_descriptor(resident_id, descriptor, actor) do
     with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       folder = Path.join(dir, descriptor["folder"])

@@ -14,8 +14,6 @@ defmodule Oneiroi.Xenia.Routing do
   whatever the reader sends with it.
   """
 
-  # sobelow_skip ["Traversal.FileModule"]
-
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Scope
@@ -225,6 +223,9 @@ defmodule Oneiroi.Xenia.Routing do
 
   # The route as the file that travels (the witness's kinds-q6
   # principle, applied to routes): beside nothing of the platform's.
+  # The file is the route's key, held to `[a-z][a-z0-9-]` by the safe
+  # subset before it gets here, under the fixed routes/ folder.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_file(resident_id, descriptor, actor) do
     with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
       folder = Path.join(dir, @folder)
