@@ -213,6 +213,8 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/decision`, { approve, note }),
   markSent: (residentId: string, number: number, url: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/replies/${number}/sent`, { url }),
+  // A document's raw file (seshat#50): a link, not a call.
+  downloadUrl: (residentId: string, path: string) => `/v1/residents/${residentId}/library/download/${path.split('/').map(encodeURIComponent).join('/')}`,
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),

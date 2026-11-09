@@ -862,6 +862,7 @@ function DocumentContainer({ resident, path, doc, kindLabel, onBack }: { residen
             .catch((e: unknown) => setError(asApiError(e)))
         }
         onBack={onBack}
+        downloadUrl={api.downloadUrl(id, path)}
       />
     </>
   );
