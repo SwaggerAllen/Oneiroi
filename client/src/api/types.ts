@@ -428,6 +428,8 @@ export interface LibraryDocument {
   bytes: number | null;
   versions: number;
   written_at: string | null;
+  // When it first came into the library (seshat#48).
+  created_at?: string | null;
   written_by: string | null;
   missing_at: string | null;
   // Why a keepsake mattered, in the resident's words (seshat#32).
@@ -505,7 +507,7 @@ export interface NeedsYouEntry {
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work';
   long: boolean;
-  about: { to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string };
 }
 
 export interface Ask {

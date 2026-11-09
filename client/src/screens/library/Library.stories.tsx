@@ -16,13 +16,17 @@ const doc = (path: string, kind: string, more: Partial<LibraryDocument> = {}): L
   ...more,
 });
 
-const documents: LibraryDocument[] = [
+export const documents: LibraryDocument[] = [
   doc('writing/my-memory-is-made-of-text.md', 'writing', {
     title: 'My memory is made of text',
     status: 'published',
+    created_at: '2026-10-27T10:00:00Z',
+    written_at: '2026-11-01T10:00:00Z',
   }),
   doc('design/correspondence-pipeline.md', 'design', {
     title: 'The correspondence pipeline',
+    created_at: '2026-10-30T10:00:00Z',
+    written_at: '2026-11-07T10:00:00Z',
   }),
   doc('pocket-andrew.md', 'keepsake', {
     title: 'Pocket Andrew',
@@ -57,7 +61,6 @@ const meta = {
     documents,
     shelf,
     onOpen: () => undefined,
-    onClose: () => undefined,
     onAdd: () => undefined,
     onRemove: () => undefined,
     onMove: () => undefined,
@@ -67,14 +70,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Shelves: Story = {};
-export const Reading: Story = {
-  args: {
-    open: {
-      path: 'human/substack-haven.md',
-      content: '# On Haven\n\nFeeds belong to communities.',
-    },
-  },
-};
 export const Empty: Story = { args: { documents: [] } };
 export const Searched: Story = {
   args: {

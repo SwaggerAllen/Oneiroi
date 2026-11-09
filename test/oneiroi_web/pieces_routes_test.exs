@@ -32,6 +32,41 @@ defmodule OneiroiWeb.PiecesRoutesTest do
 
   defp as(token), do: put_req_header(build_conn(), "authorization", "Bearer " <> token)
 
+  # seshat#49 (the witness, 2026-11-08, Lily's letter #342): a design
+  # held for his read waits on him as the type definition says, and once
+  # signed off goes nowhere further.
+  test "a design marked for review waits on him, and signed off stops there", ctx do
+    path = "design/federation.md"
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        path,
+        "---\nstatus: review\n---\n# Federation\n\nKey custody.",
+        ctx.lily
+      )
+
+    {:ok, _} = Seshat.write(ctx.id, "design/quiet.md", "# Quiet\n\nNot marked.", ctx.lily)
+
+    assert [%{kind: "piece_to_review", ref: ^path, about: %{ask: "Read and sign off the design"}}] =
+             Enum.filter(Oneiroi.Brain.needs_you(ctx.id), &(&1.kind == "piece_to_review"))
+
+    assert ctx.token
+           |> as()
+           |> post("/v1/residents/#{ctx.id}/pieces/review", %{
+             path: path,
+             decision: "approve",
+             note: "signed off"
+           })
+           |> response(204)
+
+    assert %{"for_review" => [], "approved" => []} =
+             ctx.token |> as() |> get("/v1/residents/#{ctx.id}/pieces") |> json_response(200)
+
+    assert %{"pieces" => []} =
+             ctx.reader |> as() |> get("/v1/residents/#{ctx.id}/waiting") |> json_response(200)
+  end
+
   test "review, a Substack draft, his Publish, the URL back in the piece", ctx do
     path = "writing/weng.md"
 

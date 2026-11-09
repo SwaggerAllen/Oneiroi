@@ -75,7 +75,9 @@ defmodule Oneiroi.Brain.NeedsYou do
         ref: p.path,
         since: p.written_at,
         screen: "inbox",
-        about: %{title: p.title}
+        # The ask in the kind's own words (seshat#49): a piece to review,
+        # a design to read and sign off.
+        about: %{title: p.title, kind: p.kind, ask: p.ask}
       }
     ) ++
       for p <- drafted do

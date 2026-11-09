@@ -250,6 +250,8 @@ defmodule OneiroiWeb.LibraryController do
       indexed_at: d.indexed_at,
       missing_at: d.missing_at,
       written_at: d.written_at,
+      # When it was first registered (seshat#48): the library's created.
+      created_at: d.registered_at,
       written_by: d.written_by_kind,
       published_url: d.published_url,
       published_at: d.published_at,

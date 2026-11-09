@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Card } from '../../components/Card';
 import { age, type WaitingEntry } from './queue';
+import { libraryHash } from '../library/route';
+
+const href = (where: WaitingEntry['where']) => ('anchor' in where ? `#${where.anchor}` : 'doc' in where ? `#${libraryHash({ doc: where.doc })}` : '#');
 
 // Waiting on you (screens/inbox.md): the server's `needs_you` list,
 // oldest first, each a link to where its decision is made. The card
@@ -22,7 +25,7 @@ export function Waiting({ entries, now: fixed, onOpen }: { entries: WaitingEntry
                 <li key={e.key} style={{ fontSize: 15, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {onOpen ? (
                     <a
-                      href={'anchor' in e.where ? `#${e.where.anchor}` : '#'}
+                      href={href(e.where)}
                       onClick={(ev) => {
                         ev.preventDefault();
                         onOpen(e.where);
@@ -30,8 +33,8 @@ export function Waiting({ entries, now: fixed, onOpen }: { entries: WaitingEntry
                     >
                       {e.what}
                     </a>
-                  ) : 'anchor' in e.where ? (
-                    <a href={`#${e.where.anchor}`}>{e.what}</a>
+                  ) : 'anchor' in e.where || 'doc' in e.where ? (
+                    <a href={href(e.where)}>{e.what}</a>
                   ) : (
                     <span>{e.what}</span>
                   )}

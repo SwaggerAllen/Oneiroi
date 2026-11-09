@@ -11,6 +11,26 @@ Library (spec §10), partly built 2026-11-02: `client/src/screens/library/`
 `GET /v1/residents/:id/library` and `.../library/documents/*path`. The
 state list lives in the stories (DESIGN §4).
 
+Every list and every document is its own address (the witness,
+2026-11-08, through Lily's letter #338; `route.ts`): `#library` is
+every document, `#library/<kind>` one kind's list, and `#doc/<path>` a
+document alone on its own page (`DocumentPage.tsx`, loaded by
+`DocumentContainer`). The shell follows the hash when it changes, so a
+link from anywhere and the back button land on the same place; a tab
+moves the address. The waiting list's pieces (for review, to publish)
+open the piece's own page, where the decision sits beside its words.
+A document's page: its title and its kind and path in the top bar, a
+way back to its kind's list, when it came into the library and when it
+was last written and by whom, its versions and status, the piece's
+review (Approve, Decline, each with a required note) when it waits on
+you, and its words whole, or that the library holds nothing there.
+
+Every list sorts (the same letter): by updated (last written), created
+(first registered, `created_at` from the row's `registered_at`,
+seshat#48), or title, each either way round; updated, newest first, is
+the default, the working library's front page being what was touched
+lately. A document with no time sorts after every one with one.
+
 Built: a tab per kind across the top, All first and each with its
 count, in the server's shelf order and under its names (seshat#35).
 The client knows no kind: a kind with documents has a tab, so one the
@@ -26,8 +46,8 @@ words" runs the library's own index (`GET .../library/search?q=`, one
 embedding call, so it is a button rather than per keystroke) and shows
 the passages found for the tab, each opening its document. Keepsakes
 carry why each mattered in the resident's words, or that she has not
-said why yet (seshat#32); the shelf's server-given tabs now include Goals, At the root and Archive (seshat#43–#45), where an archived document reads whole with its frontmatter and its old path holds a tombstone saying where it went; a document opens and reads whole, as plain
-text, above the list; scratch and human documents are removed with the
+said why yet (seshat#32); the shelf's server-given tabs now include Goals, At the root and Archive (seshat#43–#45), where an archived document reads whole with its frontmatter and its old path holds a tombstone saying where it went; a document opens on its own page and reads whole, as plain
+text; scratch and human documents are removed with the
 button turned into its consequence; every document but the kinds their
 systems write (mail, feeds, correspondence, journal, the originals)
 offers Move, a new path in place (a name alone at the root is a

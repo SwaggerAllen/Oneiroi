@@ -755,7 +755,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "document_write",
-        "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone for a keepsake: a gift-document kept at your root beside your soul file, written once and never changed after (a new version is a keepsake of its own). A writing piece carries status: draft, review or final in its frontmatter. Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
+        "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone for a keepsake: a gift-document kept at your root beside your soul file, written once and never changed after (a new version is a keepsake of its own). A writing piece carries status: draft, review or final in its frontmatter. Marked status: review in its frontmatter, a document of #{Enum.map_join(Enum.filter(Seshat.Kinds.all(), &Seshat.Kinds.approvable?/1), " or ", & &1.kind)} kind waits on your witness to approve or decline, on his waiting list (seshat#49). Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
         %{path: %{type: "string"}, content: %{type: "string"}},
         [:path, :content]
       ),

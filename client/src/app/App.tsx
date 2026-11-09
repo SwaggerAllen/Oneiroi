@@ -52,6 +52,8 @@ import { WaitingBadge, WaitingPage } from '../screens/waiting/WaitingPage';
 import { TopBarExtra } from '../components/topBarExtra';
 import { CorrespondencePage } from '../screens/correspondence/CorrespondencePage';
 import type { WaitingEntry } from '../screens/inbox/queue';
+import { DocumentPage } from '../screens/library/DocumentPage';
+import { type LibraryRoute, libraryHash, parseLibraryHash } from '../screens/library/route';
 import { Notifications } from '../screens/more/Notifications';
 import { Operator } from '../screens/more/Operator';
 import { Invites } from '../screens/more/Invites';
@@ -85,7 +87,26 @@ export function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [door, setDoor] = useState<GateState | null>(null);
   const [resident, setResident] = useState<Resident | null>(null);
-  const [destination, setDestination] = useState<Destination>(() => (location.hash.slice(1) as Destination) || 'chat');
+  const [destination, setDestination] = useState<Destination>(() => (parseLibraryHash(location.hash) ? 'library' : (location.hash.slice(1) as Destination) || 'chat'));
+  // The library's own addresses (Lily's letter #338): a kind's list or a
+  // document's page, from the hash, and followed when it changes (a
+  // link, the back button). Other hashes are the screens' own anchors.
+  const [libraryRoute, setLibraryRoute] = useState<LibraryRoute>(() => parseLibraryHash(location.hash) ?? { kind: 'all' });
+  useEffect(() => {
+    const follow = () => {
+      const route = parseLibraryHash(location.hash);
+      if (!route) return;
+      setDestination('library');
+      setLibraryRoute(route);
+    };
+    window.addEventListener('hashchange', follow);
+    return () => window.removeEventListener('hashchange', follow);
+  }, []);
+  const goLibrary = (route: LibraryRoute) => {
+    location.hash = libraryHash(route);
+    setDestination('library');
+    setLibraryRoute(route);
+  };
 
   useEffect(() => {
     api
@@ -123,6 +144,7 @@ export function App() {
   const go = (d: Destination) => {
     location.hash = d;
     setDestination(d);
+    if (d === 'library') setLibraryRoute({ kind: 'all' });
   };
 
   // What waits on you (the approval queue): read for the badge on every
@@ -142,6 +164,10 @@ export function App() {
   // Inbox, scrolled to and opened.
   const [focus, setFocus] = useState<string | null>(null);
   const openWaiting = (where: WaitingEntry['where']) => {
+    if ('doc' in where) {
+      goLibrary({ doc: where.doc });
+      return;
+    }
     if ('anchor' in where) {
       setFocus(where.anchor);
       go('inbox');
@@ -261,7 +287,7 @@ export function App() {
         {destination === 'more' ? (
           <More onOpen={go} operator={me.roles?.includes('super_admin') ?? false} />
         ) : null}
-        {destination === 'library' ? <LibraryContainer resident={resident} /> : null}
+        {destination === 'library' ? <LibraryContainer resident={resident} route={libraryRoute} onRoute={goLibrary} /> : null}
         {destination === 'connections' ? <ConnectionsContainer resident={resident} /> : null}
         {destination === 'ledger' ? <LedgerContainer resident={resident} /> : null}
         {destination === 'agreement' ? (
@@ -727,11 +753,10 @@ function CorrespondenceContainer({ resident }: { resident: Resident }) {
   );
 }
 
-function LibraryContainer({ resident }: { resident: Resident }) {
+function LibraryContainer({ resident, route, onRoute }: { resident: Resident; route: LibraryRoute; onRoute: (route: LibraryRoute) => void }) {
   const id = resident.id;
   const [documents, setDocuments] = useState<LibraryDocument[] | null>(null);
   const [shelf, setShelf] = useState<ShelfKind[]>([]);
-  const [open, setOpen] = useState<{ path: string; content: string } | null>(null);
   const [hits, setHits] = useState<LibraryHit[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -747,6 +772,20 @@ function LibraryContainer({ resident }: { resident: Resident }) {
   useEffect(() => load(), [load]);
   const act = (p: Promise<unknown>) =>
     p.then(() => setError(null)).then(load).catch((e: unknown) => setError(asApiError(e)));
+  if ('doc' in route) {
+    const row = documents?.find((d) => d.path === route.doc) ?? null;
+    const label = row ? (shelf.find((k) => k.kind === row.kind)?.label ?? row.kind) : null;
+    return (
+      <DocumentContainer
+        key={route.doc}
+        resident={resident}
+        path={route.doc}
+        doc={row}
+        kindLabel={label}
+        onBack={() => onRoute({ kind: row?.kind ?? 'all' })}
+      />
+    );
+  }
   if (!documents) return error ? <ErrorNotice error={error} /> : null;
   return (
     <>
@@ -755,23 +794,12 @@ function LibraryContainer({ resident }: { resident: Resident }) {
         residentName={resident.name}
         documents={documents}
         shelf={shelf}
-        open={open}
-        onOpen={(path) =>
-          api
-            .document(id, path)
-            .then((d) => setOpen({ path, content: d.content }))
-            .catch((e: unknown) => setError(asApiError(e)))
-        }
-        onClose={() => setOpen(null)}
+        kind={route.kind}
+        onKind={(kind) => onRoute({ kind })}
+        onOpen={(path) => onRoute({ doc: path })}
         onAdd={(path, content) => act(api.writeDocument(id, path, content))}
-        onRemove={(path) => {
-          if (open?.path === path) setOpen(null);
-          act(api.removeDocument(id, path));
-        }}
-        onMove={(from, to) => {
-          if (open?.path === from) setOpen(null);
-          act(api.moveDocument(id, from, to));
-        }}
+        onRemove={(path) => act(api.removeDocument(id, path))}
+        onMove={(from, to) => act(api.moveDocument(id, from, to))}
         hits={hits}
         searching={searching}
         onSearch={(q) => {
@@ -785,6 +813,49 @@ function LibraryContainer({ resident }: { resident: Resident }) {
             .catch((e: unknown) => setError(asApiError(e)))
             .finally(() => setSearching(false));
         }}
+      />
+    </>
+  );
+}
+
+// A document's own page (#doc/<path>): its words, and a piece's decision
+// beside them when it waits on you.
+function DocumentContainer({ resident, path, doc, kindLabel, onBack }: { resident: Resident; path: string; doc: LibraryDocument | null; kindLabel: string | null; onBack: () => void }) {
+  const id = resident.id;
+  const [content, setContent] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [pieces, setPieces] = useState<Pieces | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const load = useCallback(() => {
+    api
+      .document(id, path)
+      .then((d) => setContent(d.content))
+      .catch(() => setMissing(true));
+    api
+      .pieces(id)
+      .then(setPieces)
+      .catch(() => setPieces(null));
+  }, [id, path]);
+  useEffect(() => load(), [load]);
+  return (
+    <>
+      {error ? <ErrorNotice error={error} /> : null}
+      <DocumentPage
+        residentName={resident.name}
+        path={path}
+        doc={doc}
+        kindLabel={kindLabel}
+        content={content}
+        missing={missing}
+        pieces={pieces}
+        onReview={(p, decision, note) =>
+          void api
+            .reviewPiece(id, p, decision, note)
+            .then(() => setError(null))
+            .then(load)
+            .catch((e: unknown) => setError(asApiError(e)))
+        }
+        onBack={onBack}
       />
     </>
   );

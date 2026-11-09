@@ -12,7 +12,9 @@ export interface WaitingEntry {
   since: string;
   long: boolean;
   // Where its decision is made: an anchor on this screen, or a screen's name.
-  where: { anchor: string } | { screen: string };
+  // A document's own page (#doc/<path>) for a piece: the decision sits
+  // beside its words there (Lily's letter #338).
+  where: { anchor: string } | { screen: string } | { doc: string };
 }
 
 function line(residentName: string, e: NeedsYouEntry): string {
@@ -25,7 +27,8 @@ function line(residentName: string, e: NeedsYouEntry): string {
     case 'ask':
       return `${residentName} asks: ${a.subject}`;
     case 'piece_to_review':
-      return `Review the piece ${a.title ?? e.ref}`;
+      // The ask in the kind's own words (seshat#49): a piece, a design.
+      return `${a.ask ?? 'Review the piece'} ${a.title ?? e.ref}`;
     case 'piece_to_publish':
       return `Publish the drafted piece ${a.title ?? e.ref}`;
     case 'work_blocked':
@@ -40,7 +43,7 @@ function where(e: NeedsYouEntry): WaitingEntry['where'] {
   if (e.screen === 'work') return { screen: 'Work' };
   if (e.screen === 'agreement') return { screen: 'Agreement' };
   if (e.kind === 'ask') return { anchor: 'asks' };
-  if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { anchor: 'pieces' };
+  if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { doc: String(e.ref) };
   return { anchor: `reply-${e.ref}` };
 }
 

@@ -13,10 +13,13 @@ export interface LibraryProps {
   // The kinds in the order they are shown, with their names, as the
   // server's registry gives them (seshat#35).
   shelf?: ShelfKind[];
-  // The document open now, with its words, or null.
-  open?: { path: string; content: string } | null;
+  // The kind whose list this is ('all' for every document): the route's
+  // (#library/<kind>), so each list is its own address. Uncontrolled
+  // without it.
+  kind?: string;
+  onKind?: (kind: string) => void;
+  // Opens a document's own page (#doc/<path>).
   onOpen?: (path: string) => void;
-  onClose?: () => void;
   // Adds a document of yours under human/ (seshat#33).
   onAdd?: (name: string, content: string) => void;
   // Removes a scratch or human document; only those are removable.
@@ -65,17 +68,20 @@ function shelfOf(shelf: ShelfKind[]) {
 // documents' words through the library's index; keepsakes with why each
 // mattered in her words; your own (human/), which you add and remove and
 // she reads; scratch, removable when its work is done.
-export function Library({ residentName, documents, shelf = [], open = null, onOpen, onClose, onAdd, onRemove, onMove, onSearch, hits = null, searching = false }: LibraryProps) {
+export function Library({ residentName, documents, shelf = [], kind, onKind, onOpen, onAdd, onRemove, onMove, onSearch, hits = null, searching = false }: LibraryProps) {
   const { label, rank } = shelfOf(shelf);
   // Yours is always a tab, so there is somewhere to add the first one.
   const kinds = [...new Set([...documents.map((d) => d.kind), ...(onAdd ? ['human'] : [])])].sort((a, b) => rank(a) - rank(b));
-  const [tab, setTab] = useState<string>('all');
+  const [ownTab, setOwnTab] = useState<string>('all');
+  const tab = kind ?? ownTab;
+  const setTab = onKind ?? setOwnTab;
   const [find, setFind] = useState('');
+  const [sort, setSort] = useState<Sort>('updated-desc');
   const needle = find.trim().toLowerCase();
   const inTab = documents.filter((d) => tab === 'all' || d.kind === tab);
   const shown = inTab
     .filter((d) => !needle || (d.title ?? '').toLowerCase().includes(needle) || d.path.toLowerCase().includes(needle))
-    .sort((a, b) => rank(a.kind) - rank(b.kind) || a.path.localeCompare(b.path));
+    .sort(sorter(sort, rank));
   const found = (hits ?? []).filter((h) => tab === 'all' || h.kind === tab);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -109,27 +115,6 @@ export function Library({ residentName, documents, shelf = [], open = null, onOp
           gap: 'var(--space-4)',
         }}
       >
-        {open ? (
-          <Card title={open.path}>
-            <pre
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-serif)',
-                fontSize: 15,
-                lineHeight: '23px',
-                whiteSpace: 'pre-wrap',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {open.content}
-            </pre>
-            {onClose ? (
-              <div>
-                <Button onClick={onClose}>Close</Button>
-              </div>
-            ) : null}
-          </Card>
-        ) : null}
         <form
           role="search"
           aria-label="Find in the library"
@@ -187,6 +172,18 @@ export function Library({ residentName, documents, shelf = [], open = null, onOp
           </Card>
         ) : null}
         {documents.length === 0 ? <p style={muted}>Nothing in the library yet.</p> : null}
+        {inTab.length > 1 ? (
+          <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', fontSize: 15 }}>
+            Sort by
+            <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as Sort)} style={{ minHeight: 'var(--control-h)', fontSize: 15 }}>
+              {SORTS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         {shown.length > 0 ? (
           <Card>
             <ul aria-label={tab === 'all' ? 'All documents' : label(tab)} style={{ ...list, gap: 0 }}>
@@ -214,6 +211,34 @@ export function Library({ residentName, documents, shelf = [], open = null, onOp
       </main>
     </div>
   );
+}
+
+// How a list is ordered (the witness, 2026-11-08, Lily's letter #338):
+// by title, or by when a document came in or was last written, either
+// way round. Last written, newest first, unless he says otherwise: the
+// working library's front page is what was touched lately.
+export type Sort = 'updated-desc' | 'updated-asc' | 'created-desc' | 'created-asc' | 'title-asc' | 'title-desc';
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'updated-desc', label: 'Updated, newest first' },
+  { id: 'updated-asc', label: 'Updated, oldest first' },
+  { id: 'created-desc', label: 'Created, newest first' },
+  { id: 'created-asc', label: 'Created, oldest first' },
+  { id: 'title-asc', label: 'Title, A to Z' },
+  { id: 'title-desc', label: 'Title, Z to A' },
+];
+
+// A document with no time sorts after every one with one, either way.
+function sorter(sort: Sort, rank: (kind: string) => number) {
+  const [key, dir] = sort.split('-') as ['updated' | 'created' | 'title', 'asc' | 'desc'];
+  const sign = dir === 'asc' ? 1 : -1;
+  return (a: LibraryDocument, b: LibraryDocument) => {
+    if (key === 'title') return sign * (rank(a.kind) - rank(b.kind) || (a.title ?? a.path).localeCompare(b.title ?? b.path));
+    const at = key === 'updated' ? a.written_at : (a.created_at ?? null);
+    const bt = key === 'updated' ? b.written_at : (b.created_at ?? null);
+    if (!at || !bt) return at ? -1 : bt ? 1 : a.path.localeCompare(b.path);
+    return sign * at.localeCompare(bt) || a.path.localeCompare(b.path);
+  };
 }
 
 // The kinds their systems write, which never move (seshat#39); the
