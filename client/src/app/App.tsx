@@ -569,15 +569,15 @@ function ChatContainer({ resident }: { resident: Resident }) {
 
   // The witness's reacts on this conversation's replies, and the palette
   // (kumbukumbu#56), read with the conversation.
-  const [reacts, setReacts] = useState<Record<string, string[]>>({});
+  const [reacts, setReacts] = useState<Record<string, { emoji: string; by: 'witness' | 'resident' }[]>>({});
   const [palette, setPalette] = useState<ReactPair[]>([]);
   const loadReacts = useCallback(() => {
     if (!open) return;
     api
       .reacts(resident.id, open)
       .then((rows) => {
-        const byTurn: Record<string, string[]> = {};
-        for (const r of rows) if (r.turn_ref) (byTurn[r.turn_ref] ??= []).push(r.emoji);
+        const byTurn: Record<string, { emoji: string; by: 'witness' | 'resident' }[]> = {};
+        for (const r of rows) if (r.turn_ref) (byTurn[r.turn_ref] ??= []).push({ emoji: r.emoji, by: r.by });
         setReacts(byTurn);
       })
       .catch(() => undefined);

@@ -407,3 +407,5 @@ would make it the loudest. Holding it until she next speaks keeps it at
 its size; telling it once, recorded with the turn that told it, keeps it
 from repeating or vanishing. It closes nothing because an emoji is too
 cheap to stand for a decision: merges and approvals keep their machinery.
+
+Inline rather than a tool call for her side: a react comes at the end of a reply, where a tool call would cost a whole further round for one emoji; a fixed final line costs nothing, and garbled it shows as text rather than failing silently. The safe word already reads a word out of her text, so the convention is one she knows.

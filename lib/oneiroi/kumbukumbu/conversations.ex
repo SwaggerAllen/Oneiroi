@@ -16,6 +16,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   alias Oneiroi.Kumbukumbu.Commands
   alias Oneiroi.Kumbukumbu.Conversation
   alias Oneiroi.Kumbukumbu.Error
+  alias Oneiroi.Kumbukumbu.Reacts
   alias Oneiroi.Kumbukumbu.Router
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
@@ -187,6 +188,13 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   """
   def capture(resident_id, key, turn_ref, %DateTime{} = started_at, messages, %Actor{} = actor)
       when is_list(messages) do
+    # Her inline reacts lifted out as a live turn of hers is kept, in any
+    # runtime (kumbukumbu#56); an import's transcript is kept as it was.
+    {messages, lifted} =
+      if actor.kind == :resident,
+        do: Reacts.lift(messages, key, turn_ref),
+        else: {messages, []}
+
     command = %Commands.CaptureTurn{
       actor: actor,
       at: Clock.now(),
@@ -198,7 +206,8 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       messages: Enum.map(messages, &wire_message/1)
     }
 
-    with {:ok, _events} <- dispatch(command), do: :ok
+    with {:ok, _events} <- dispatch(command),
+         do: Reacts.record_lifted(resident_id, lifted)
   end
 
   def record_context(resident_id, key, turn_ref, injections, %Actor{} = actor)

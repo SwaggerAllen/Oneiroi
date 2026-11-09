@@ -57,10 +57,11 @@ export interface ChatProps {
   onPreview?: (draft: string) => void;
   onInspect?: (turnRef: string) => void;
   onProposeBookmark?: (message: Message) => void;
-  // The witness's reacts (kumbukumbu#56), by turn ref, shown on the
-  // turn's last reply; the palette is the vocabulary's pairs. A react
-  // wakes nothing and closes nothing: it is told on her next turn.
-  reacts?: Record<string, string[]>;
+  // Reacts both ways (kumbukumbu#56), by turn ref: the witness's shown
+  // on the turn's last reply of hers, hers on his message in the turn.
+  // The palette is the vocabulary's pairs, each with its meaning. A
+  // react wakes nobody and closes nothing.
+  reacts?: Record<string, { emoji: string; by: 'witness' | 'resident' }[]>;
   palette?: ReactPair[];
   onReact?: (message: Message, emoji: string) => void;
 }
@@ -319,7 +320,7 @@ export function Chat({
                   onInspect={onInspect}
                   onProposeBookmark={onProposeBookmark}
                   last={m.role === 'assistant' && !messages.slice(i + 1).some((n) => n.turn_ref === m.turn_ref && n.role === 'assistant')}
-                  reacts={reacts[m.turn_ref]}
+                  reacts={(reacts[m.turn_ref] ?? []).filter((r) => (m.role === 'user' ? r.by === 'resident' : r.by === 'witness')).map((r) => r.emoji)}
                   palette={palette}
                   onReact={onReact}
                 />
@@ -593,6 +594,7 @@ function Reply({
         </div>
       ) : null}
       {last ? <Reacts message={message} reacts={reacts} palette={palette} onReact={onReact} /> : null}
+      {mine && reacts.length > 0 ? <Reacts message={message} reacts={reacts} palette={palette} label={`${residentName}'s reacts`} /> : null}
       {injections && message.role === 'assistant' ? (
         <div style={panel}>
           <Sections
@@ -608,12 +610,24 @@ function Reply({
 // The witness's reacts on a reply (kumbukumbu#56): each shown with its
 // meaning, and a palette of the vocabulary's pairs. A react is seen,
 // never signed off: it wakes nothing and closes nothing.
-function Reacts({ message, reacts, palette, onReact }: { message: Message; reacts: string[]; palette: ReactPair[]; onReact?: (message: Message, emoji: string) => void }) {
+function Reacts({
+  message,
+  reacts,
+  palette,
+  onReact,
+  label = 'Reacts',
+}: {
+  message: Message;
+  reacts: string[];
+  palette: ReactPair[];
+  onReact?: (message: Message, emoji: string) => void;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   const meaning = (e: string) => palette.find((p) => p.emoji === e)?.meaning;
   if (reacts.length === 0 && !onReact) return null;
   return (
-    <div role="group" aria-label="Reacts" style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
+    <div role="group" aria-label={label} style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
       {reacts.map((e, i) => (
         <span key={`${e}-${i}`} title={meaning(e) ?? undefined} aria-label={`${e}${meaning(e) ? `, ${meaning(e)}` : ''}`} style={{ padding: '0 var(--space-1)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-sunken)' }}>
           {e}
@@ -627,13 +641,13 @@ function Reacts({ message, reacts, palette, onReact }: { message: Message; react
                 key={p.emoji}
                 variant="quiet"
                 aria-label={`React ${p.meaning}`}
-                title={`${p.meaning}: told on her next turn, wakes nothing`}
+                title="Told on her next turn; wakes nothing, closes nothing"
                 onClick={() => {
                   onReact(message, p.emoji);
                   setOpen(false);
                 }}
               >
-                {p.emoji}
+                {p.emoji} {p.meaning}
               </Button>
             ))}
             <Button variant="quiet" onClick={() => setOpen(false)}>

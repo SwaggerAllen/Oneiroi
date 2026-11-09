@@ -202,7 +202,12 @@ export const NotAnswered: Story = {
 // kumbukumbu#56: the witness's reacts on a reply, and the palette.
 export const Reacted: Story = {
   args: {
-    reacts: { t1: ['⚜️'] },
+    reacts: {
+      t1: [
+        { emoji: '⚜️', by: 'witness' },
+        { emoji: '❤️', by: 'resident' },
+      ],
+    },
     palette: [
       { emoji: '🔀', meaning: 'merged' },
       { emoji: '👁', meaning: 'seen' },

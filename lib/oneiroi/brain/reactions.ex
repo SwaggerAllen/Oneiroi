@@ -58,7 +58,7 @@ defmodule Oneiroi.Brain.Reactions do
 
   @doc "The line for the reacts not yet told her, and the last number in it; nil when there are none."
   def untold(resident_id, session_key) do
-    case Kumbukumbu.reacts(resident_id, untold: true) do
+    case Kumbukumbu.reacts(resident_id, untold: true, by: "witness") do
       [] ->
         nil
 

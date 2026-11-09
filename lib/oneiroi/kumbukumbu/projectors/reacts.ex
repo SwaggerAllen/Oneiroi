@@ -22,6 +22,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Reacts do
         turn_ref: t["turn_ref"],
         letter: t["number"],
         emoji: e.emoji,
+        by: by(e.actor),
         reacted_at: e.at
       },
       on_conflict: :nothing
@@ -33,9 +34,14 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Reacts do
       multi,
       :told,
       from(r in React,
-        where: r.resident_id == ^e.id and r.number <= ^e.through and is_nil(r.told_at)
+        where:
+          r.resident_id == ^e.id and r.number <= ^e.through and r.by == "witness" and
+            is_nil(r.told_at)
       ),
       set: [told_at: e.at, told_in: e.session_key]
     )
   end)
+
+  defp by(%{kind: kind}), do: to_string(kind)
+  defp by(%{"kind" => kind}), do: to_string(kind)
 end

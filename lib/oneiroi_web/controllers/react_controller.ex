@@ -37,6 +37,7 @@ defmodule OneiroiWeb.ReactController do
           turn_ref: r.turn_ref,
           letter: r.letter,
           emoji: r.emoji,
+          by: r.by,
           reacted_at: r.reacted_at,
           told_at: r.told_at
         }
