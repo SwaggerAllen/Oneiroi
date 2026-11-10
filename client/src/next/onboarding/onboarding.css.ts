@@ -137,3 +137,7 @@ export const wakeMark = style({
   color: vars.color.resident.text,
   boxShadow: `0 0 60px 10px ${vars.color.resident.glow}`,
 });
+
+// Get a read's notes (agathos-daimon#40): one a line, its kind first.
+export const readNote = style({ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderTop: `1px solid ${vars.color.border}`, fontSize: 14, lineHeight: '21px' });
+export const quote = style({ fontFamily: font.voice, fontStyle: 'italic', color: vars.color.resident.text });

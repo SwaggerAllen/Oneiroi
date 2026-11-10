@@ -207,6 +207,24 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin, ...(drafted ?? {}) }),
   draftFile: (residentId: string, name: string, prompt: string) =>
     call<{ content: string; model: string; prompt: string }>('POST', `/v1/residents/${residentId}/files/${name}/draft`, { prompt }),
+  // The prompt path, Get a read, the examples (agathos-daimon#39, #40, #41).
+  draftAll: (residentId: string, prompt: string) =>
+    call<{
+      prompt: string;
+      drafts: Array<{ gift: string; file: string; content: string; origin: 'drafted'; model: string; prompt: string }>;
+      stopped: { file: string; kind: string; message: string } | null;
+    }>('POST', `/v1/residents/${residentId}/creation/drafts`, { prompt }),
+  giftRead: (residentId: string, name: string, content: string) =>
+    call<{
+      ref: string | null;
+      gift: string;
+      file: string;
+      notes: Array<{ kind: 'strong' | 'thin' | 'missing' | 'question' | 'cut'; text: string; quote: string | null }>;
+      model: string;
+      refused: string | null;
+    }>('POST', `/v1/residents/${residentId}/files/${name}/read`, { content }),
+  creationExamples: () =>
+    call<Array<{ set: string; prompt: string; files: Array<{ file: string; gift: string; title: string; content: string }> }>>('GET', '/v1/creation/examples'),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),

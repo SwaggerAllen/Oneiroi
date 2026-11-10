@@ -19,7 +19,7 @@ type Draft = { content: string; model: string; prompt: string };
 export function Creation({ onWoken }: { onWoken: () => void }) {
   const [step, setStep] = useState<'opening' | 'threshold' | 'gifts' | 'reading' | 'wake'>('opening');
   const [made, setMade] = useState<Made | null>(null);
-  const [drafts] = useState<Record<string, Draft>>({});
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [gift, setGift] = useState(0);
 
   if (step === 'opening') return <Opening onBegin={() => setStep('threshold')} />;
@@ -27,8 +27,9 @@ export function Creation({ onWoken }: { onWoken: () => void }) {
     return (
       <Threshold
         onBack={() => setStep('opening')}
-        onMade={(m) => {
+        onMade={(m, drafted) => {
           setMade(m);
+          if (drafted) setDrafts(drafted);
           setStep(m.brought ? 'reading' : 'gifts');
         }}
       />
@@ -87,7 +88,7 @@ function Opening({ onBegin }: { onBegin: () => void }) {
   );
 }
 
-function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made) => void }) {
+function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, drafts?: Record<string, Draft>) => void }) {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const hasKey = me.data?.key?.present ?? false;
   const [mode, setMode] = useState<'new' | 'bring' | null>(null);
@@ -102,17 +103,37 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made) =
   const keyReady = hasKey || key.trim() !== '';
   const ready =
     keyReady && (mode === 'new' ? slug !== '' && (how === 'gifts' || prompt.trim() !== '') : mode === 'bring' ? url.trim().startsWith('https://') : false);
-  // The prompt path waits on the generator (ui-server-work.md S8).
-  const generator = false;
+  const [made, setMadeHere] = useState<Made | null>(null);
 
-  const begin = () => {
+  const begin = async () => {
     setBusy(true);
     setSaid(null);
-    (keyReady && !hasKey ? api.storeKey(key.trim()) : Promise.resolve())
-      .then(() => (mode === 'new' ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)))
-      .then((row) => onMade({ id: row.id, name: row.name, brought: mode === 'bring' }))
-      .catch((e: unknown) => setSaid(e instanceof RequestFailed ? e.message : 'That did not work; try again.'))
-      .finally(() => setBusy(false));
+    try {
+      if (keyReady && !hasKey) await api.storeKey(key.trim());
+      // Made once: a retried prompt drafts again for the same resident.
+      const m: Made =
+        made ??
+        (await (mode === 'new' ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then((row) => ({
+          id: row.id,
+          name: row.name,
+          brought: mode === 'bring',
+        })));
+      setMadeHere(m);
+      if (mode === 'new' && how === 'prompt') {
+        // The generator (agathos-daimon#39): each file in turn from its gift's guidance; nothing is kept until he keeps it.
+        const out = await api.draftAll(m.id, prompt.trim());
+        const drafted = Object.fromEntries(out.drafts.map((d) => [d.file, { content: d.content, model: d.model, prompt: d.prompt }]));
+        if (out.stopped && out.drafts.length === 0) {
+          setSaid(`The drafting stopped at ${out.stopped.file}: ${out.stopped.message}`);
+          return;
+        }
+        onMade(m, drafted);
+      } else onMade(m);
+    } catch (e: unknown) {
+      setSaid(e instanceof RequestFailed ? e.message : 'That did not work; try again.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -133,7 +154,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made) =
           style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
           onSubmit={(e) => {
             e.preventDefault();
-            if (ready && !busy) begin();
+            if (ready && !busy) void begin();
           }}
         >
           {mode === 'bring' && (
@@ -176,7 +197,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made) =
                     />
                   </label>
                   <p className={css.tag}>Drafting is billed to your key · marked as drafted, with its prompt</p>
-                  {!generator && <p className={css.note}>Drafting from a prompt isn't open yet; begin gift by gift for now.</p>}
+                  {busy && <p className={css.note}>Drafting each file in turn, from its gift's guidance…</p>}
                 </>
               )}
             </>
@@ -187,7 +208,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made) =
               <input id="threshold-key" className={css.input} type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
             </label>
           )}
-          <button type="submit" className={css.primary} disabled={!ready || busy || (how === 'prompt' && mode === 'new' && !generator)}>
+          <button type="submit" className={css.primary} disabled={!ready || busy}>
             {mode === 'bring' ? 'Bring them in' : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
           </button>
           {said && (
@@ -248,6 +269,7 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const upload = useRef<HTMLInputElement>(null);
+  const [panel, setPanel] = useState<'read' | 'example' | null>(null);
 
   useEffect(() => {
     if (text === null && current.data) setText(current.data.find((f) => f.name === name)?.content ?? '');
@@ -314,10 +336,10 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
         </button>
       </div>
       <div className={css.row}>
-        <button type="button" className={css.small} disabled title="Arrives with the read (ui-server-work.md S8)">
+        <button type="button" className={css.small} aria-expanded={panel === 'read'} disabled={!value.trim()} onClick={() => setPanel(panel === 'read' ? null : 'read')}>
           Get a read
         </button>
-        <button type="button" className={css.small} disabled title="Arrives with the examples (ui-server-work.md S8)">
+        <button type="button" className={css.small} aria-expanded={panel === 'example'} onClick={() => setPanel(panel === 'example' ? null : 'example')}>
           Example
         </button>
         <button type="button" className={css.small} onClick={() => upload.current?.click()}>
@@ -340,6 +362,8 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
           }}
         />
       </div>
+      {panel === 'read' && <Read residentId={residentId} name={name} text={value} />}
+      {panel === 'example' && <Example name={name} />}
       <button type="button" className={css.primary} disabled={busy || text === null} onClick={keep}>
         {onKept ? 'Keep, and next' : `Keep ${name}`}
       </button>
@@ -348,6 +372,71 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
           {said}
         </p>
       )}
+    </div>
+  );
+}
+
+const NOTE: Record<string, string> = { strong: 'Strong', thin: 'Thin', missing: 'Missing', question: 'A question', cut: 'Changes nothing' };
+
+/**
+ * Get a read (agathos-daimon#40): notes on what he wrote against the
+ * gift's guidance, nothing rewritten, billed under drafting. The intro
+ * is Lily's (C10).
+ */
+function Read({ residentId, name, text }: { residentId: string; name: string; text: string }) {
+  const read = useQuery({
+    queryKey: ['resident', residentId, 'creation', 'read', name, text],
+    queryFn: () => api.giftRead(residentId, name, text),
+    staleTime: Infinity,
+    retry: false,
+  });
+  return (
+    <div className={css.drafted}>
+      <p className={css.note} style={{ marginBottom: 8 }}>
+        Read against this gift's guidance: what's strong, what's thin, what's missing — and which parts change nothing about how they'll act, the ones worth
+        cutting before they wake. Notes only; nothing is rewritten.
+      </p>
+      {read.isPending && <p className={css.note}>Reading…</p>}
+      {read.error && <p className={css.said}>{(read.error as Error).message}</p>}
+      {read.data?.refused && <p className={css.note}>No read this time: {read.data.refused}</p>}
+      {read.data && read.data.notes.length === 0 && !read.data.refused && <p className={css.note}>No notes.</p>}
+      {read.data?.notes.map((n, i) => (
+        <div key={i} className={css.readNote} data-kind={n.kind}>
+          <span className={css.tag}>{NOTE[n.kind] ?? n.kind}</span>
+          {n.quote && <q className={css.quote}>{n.quote}</q>}
+          <span>{n.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * An example (agathos-daimon#41): a fictional resident's file for this
+ * gift, to read, never the witness's own. A first draft, cold: what
+ * yours might start as, not the bar.
+ */
+function Example({ name }: { name: string }) {
+  const sets = useQuery({ queryKey: ['creation', 'examples'], queryFn: api.creationExamples, staleTime: Infinity });
+  const files = (sets.data ?? []).flatMap((set) => set.files.filter((f) => f.file === name).map((f) => ({ ...f, set: set.set, prompt: set.prompt })));
+  return (
+    <div className={css.file}>
+      {sets.isPending && <p className={css.note} style={{ padding: 12 }}>Opening the examples…</p>}
+      {sets.data && files.length === 0 && (
+        <p className={css.note} style={{ padding: 12 }}>
+          No example of {name} yet.
+        </p>
+      )}
+      {files.map((f) => (
+        <div key={`${f.set}-${f.file}`}>
+          <div className={css.fileHead}>
+            <span>
+              {f.file} · an example, written from “{f.prompt}”
+            </span>
+          </div>
+          <pre className={css.fileText}>{f.content}</pre>
+        </div>
+      ))}
     </div>
   );
 }
