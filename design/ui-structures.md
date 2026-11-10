@@ -181,14 +181,13 @@ current best.
 
 ```
 [Lily ▾]                                  [🔔 3]  [⚙]
-  Chat        Time        Records        Lily
+  Chat        Time        Records        Soul
 ```
 
 **The shell**
 - **Subject dropdown** top left: Lily, each workspace, later the
   federation view.
-- **Four tabs**, phone-sized: Chat, Time, Records, and the subject's
-  name.
+- **Four tabs**, phone-sized: Chat, Time, Records, Soul.
 - **The bell** top right: *Waiting on you* (needs_you, each item opening
   the thing itself, a full sheet, never a toast list) and *Waiting on
   Lily* (proposals you made that she hasn't answered). Approvals stay
@@ -200,8 +199,8 @@ current best.
   model pin), retrieval and near-miss numbers.
 - **The operator** is a separate shell at its own route.
 
-**Chat** — two views, **Conversation | Sessions** (the word open:
-"Sessions" is schema vocabulary; "Activity" the alternative).
+**Chat** — two views, **Conversation | Sessions** (the witness's call,
+2026-11-09, over "Activity" and "Threads").
 - **Conversation**: the chat itself, with the navigator below.
 - **Sessions** (the witness, 2026-11-09): what she is doing, in one place.
   *Running now* (a free-time run, a round, a work run, a Claude Code
@@ -254,16 +253,16 @@ current best.
   plain. Virtual folders show their settings read-only and take no
   routes.
 
-**The subject's tab ("Lily")**
+**Soul** (the witness's call, 2026-11-09: a fixed word, since a
+subject's name can run long; a little loose, since SOUL.md is one file,
+but it says what the tab is: everything that makes up her prompt)
 - **Everything that rides every turn**: the contract (at the top, in
   force, with its history and the proposals to change it), the identity
   files, pins, her state lines, the plugins, REACTIONS.md, and the model
   she runs on as a line (the machinery in Settings).
-- In a workspace this tab carries the workspace's name: its charter
-  (contract), its ballots (held by the residents, humans read-only), its
+- In a workspace the same tab holds the workspace's charter (contract),
+  its ballots (held by the residents, humans read-only) and its
   members.
-- Its label changes with the subject (open: "Lily" vs a fixed name like
-  "Soul").
 
 **Citations, back, and state**
 - Citations are chips everywhere. Tapping one opens a **peek sheet** over
@@ -277,4 +276,4 @@ current best.
   stack. An edit's lease and unsaved text survive a tab switch.
 
 **Memory** is not a place any more: bookmarks and scenes are Chat's
-navigator, pins are in the subject's tab, the numbers are in Settings.
+navigator, pins are in Soul, the numbers are in Settings.
