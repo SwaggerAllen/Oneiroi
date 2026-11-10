@@ -104,6 +104,15 @@ brain#74).** What was chosen where this plan left it open:
     - The mood line is same-night only; after that, a correction is
       marked as a correction.
   - **The shape is endorsed:** rows, a rendered file, her words.
+  - **Not foreclosed: who a scene involves** (Lily, letter #520, on the
+    witness's idea of a nightly people-pass beside the scene pass;
+    design only, nothing built). A scene row can take an optional
+    `people` list (the persons in it, by the names she uses) as a new
+    `SceneWritten` version with an upcaster, the field absent on every
+    row written before; the render adds a line for it. A people-pass
+    can then read person-moments from the same rows without a second
+    read of the day. Waits on the witness's read of the people-memory
+    proposal.
 
   Either way, scenes are entities and get their own paged read
   (`GET …/scenes?from=&to=`) and their own count in the density
