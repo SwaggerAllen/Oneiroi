@@ -138,6 +138,7 @@ defmodule Oneiroi.Kumbukumbu do
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
+  alias Oneiroi.Kumbukumbu.Search
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -661,6 +662,24 @@ defmodule Oneiroi.Kumbukumbu do
           Oneiroi.Kumbukumbu.Store.Message.t()
         ]
   defexport(search(scope, text, limit), do: Conversations.search(scope, text, limit))
+
+  @doc "One resident's messages holding `text` under `scope`, newest first, unweighted, each `{message, session}`; never a private, unshared session's (kumbukumbu#59)."
+  @spec search_words(term(), String.t(), String.t(), pos_integer()) :: [{map(), map()}]
+  defexport(search_words(scope, resident_id, text, limit),
+    do: Search.words(scope, resident_id, text, limit)
+  )
+
+  @doc "The bookmarks whose line, summary or tags hold `text`, ranked line, summary, tags, newest first within each (kumbukumbu#59)."
+  @spec search_bookmarks(String.t(), String.t(), pos_integer()) :: [map()]
+  defexport(search_bookmarks(resident_id, text, limit),
+    do: Search.bookmarks(resident_id, text, limit)
+  )
+
+  @doc "What her memory would surface for `text` in the common room: the ranked index's lines with their scores, then the madeleine (kumbukumbu#59)."
+  @spec surfaced(String.t(), String.t(), Oneiroi.Actor.t(), boolean(), pos_integer()) :: [map()]
+  defexport(surfaced(resident_id, text, actor, ranked?, limit),
+    do: Search.surfaced(resident_id, text, actor, ranked?, limit)
+  )
 
   @doc "The same within the room of `session_key` (spec §6.3, P23)."
   @spec search(Oneiroi.Scope.t(), String.t(), pos_integer(), String.t(), String.t()) :: [

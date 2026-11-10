@@ -395,3 +395,14 @@ they were; the summary is her reading of the day at the time, so a
 later reading sits beside it rather than over it; a mood is true of the
 night it was written, so the next day's change is a different statement
 and says so.
+
+## #53
+Records and scenes are two scopes of one index, so one embedding serves
+both and the provider is billed once a search. Filtering inside the
+query rather than after it keeps a scope from being crowded out by the
+other's nearer chunks: the library search's eight nearest could all be
+one kind. One row a document because the client opens documents, not
+chunks. Scenes are searched in their rendered files rather than their
+rows because the file is where the meaning index already is, and the
+rows hold the same words; a chunk can span scenes, so the ref names the
+day and leaves the id null rather than guess one.
