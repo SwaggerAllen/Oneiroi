@@ -12,8 +12,11 @@ defmodule Oneiroi.Seshat.Events.SceneWritten do
   nil). `written_on` is the resident's local day when it was written,
   which the mood's same-day rule reads.
   """
+  # Version 2 adds `people` (seshat#57): the persons in the scene, by the
+  # names she uses, trimmed and de-duplicated, at most `Scene.people_max/0`
+  # of them; the upcaster reads a version 1 scene as naming no one, `[]`.
   use Oneiroi.Event,
-    version: 1,
+    version: 2,
     fields: [
       :id,
       :day,
@@ -27,9 +30,15 @@ defmodule Oneiroi.Seshat.Events.SceneWritten do
       :mood,
       :rounds_ran_out,
       :register,
+      :people,
       :written_on
     ],
     instants: [:from_time, :to_time]
+end
+
+defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.SceneWritten do
+  def upcast(%{people: nil} = event, _metadata), do: %{event | people: []}
+  def upcast(event, _metadata), do: event
 end
 
 defmodule Oneiroi.Seshat.Events.SceneCorrected do
@@ -39,7 +48,9 @@ defmodule Oneiroi.Seshat.Events.SceneCorrected do
   field name with instants as ISO text, so the history keeps every value
   a scene ever had. `mood_correction` is true when the mood moved after
   the local day it was written, which the row and the file then mark
-  as a correction.
+  as a correction. `people` is a fact like the title (seshat#57): a
+  correction may move it, the list it replaced kept in `was`; the shape
+  is the same map, so the version stays 1.
   """
   use Oneiroi.Event,
     version: 1,

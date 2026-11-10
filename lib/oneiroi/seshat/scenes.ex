@@ -26,7 +26,7 @@ defmodule Oneiroi.Seshat.Scenes do
   alias Oneiroi.SimaQian
   alias Oneiroi.Sunna
 
-  @writing ~w(title from_turn to_turn from_time to_time summary mood rounds_ran_out register)
+  @writing ~w(title from_turn to_turn from_time to_time summary mood rounds_ran_out register people)
 
   @doc """
   What one `scene_write` call does, from its arguments (text keys):
@@ -89,6 +89,7 @@ defmodule Oneiroi.Seshat.Scenes do
              mood: blank_to_nil(args["mood"]),
              rounds_ran_out: flag(args["rounds_ran_out"]),
              register: blank_to_nil(args["register"]),
+             people: args["people"],
              today: today(resident_id)
            }) do
       {:ok, %{day: day, number: event.number, done: "written"}}
@@ -145,7 +146,8 @@ defmodule Oneiroi.Seshat.Scenes do
   end
 
   # The fields a correction names, as the history keeps them: text
-  # trimmed, times as ISO instants to the second, the flag a boolean.
+  # trimmed, times as ISO instants to the second, the flag a boolean,
+  # the people as given (the aggregate trims and de-duplicates them).
   defp changes(args, day, zone) do
     fields = Enum.filter(["summary", "mood" | Scene.facts()], &Map.has_key?(args, &1))
 
@@ -162,6 +164,7 @@ defmodule Oneiroi.Seshat.Scenes do
   end
 
   defp change("rounds_ran_out", value, _day, _zone), do: {:ok, flag(value)}
+  defp change("people", value, _day, _zone), do: {:ok, value}
 
   defp change(field, value, _day, _zone) when field in ["mood", "register"],
     do: {:ok, blank_to_nil(value)}
@@ -292,7 +295,8 @@ defmodule Oneiroi.Seshat.Scenes do
 
   @doc """
   A day's scenes as the file reads them: a heading a scene with its span,
-  turns, register and mood, its lines, then any correction of its lines;
+  turns, register, the people in it (seshat#57, only when it names any)
+  and mood, its lines, then any correction of its lines;
   a day not closed says so at the top.
   """
   @spec render(String.t(), [map()], boolean(), String.t()) :: String.t()
@@ -322,6 +326,7 @@ defmodule Oneiroi.Seshat.Scenes do
         span(s.from_time, s.to_time, zone),
         "turns `#{s.from_turn}` to `#{s.to_turn}`",
         s.register && @registers[s.register],
+        people_text(s.people),
         s.mood && mood_text(s)
       ]
       |> Enum.reject(&is_nil/1)
@@ -338,6 +343,9 @@ defmodule Oneiroi.Seshat.Scenes do
 
     "## #{s.number}. #{s.title}\n\n#{facts}\n#{rounds}#{corrected}\n#{s.summary}\n"
   end
+
+  defp people_text([_ | _] = people), do: "with " <> Enum.join(people, ", ")
+  defp people_text(_none), do: nil
 
   defp mood_text(%{mood_corrected_at: nil} = s), do: "mood: #{s.mood}"
 

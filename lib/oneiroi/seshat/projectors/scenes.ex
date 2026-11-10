@@ -27,6 +27,7 @@ defmodule Oneiroi.Seshat.Projectors.Scenes do
         mood: e.mood,
         rounds_ran_out: e.rounds_ran_out == true,
         register: e.register,
+        people: e.people || [],
         at: e.at,
         actor_kind: actor_kind(e.actor)
       },
@@ -96,7 +97,8 @@ defmodule Oneiroi.Seshat.Projectors.Scenes do
     "from_turn" => :from_turn,
     "to_turn" => :to_turn,
     "register" => :register,
-    "rounds_ran_out" => :rounds_ran_out
+    "rounds_ran_out" => :rounds_ran_out,
+    "people" => :people
   }
 
   # The row's new values: each fact moved, the times read back from the

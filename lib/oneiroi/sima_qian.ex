@@ -30,6 +30,7 @@ defmodule Oneiroi.SimaQian do
       Oneiroi.Nisaba,
       Oneiroi.Proteus,
       Commanded,
+      Commanded.Event.Upcaster,
       Ecto,
       Ecto.Query,
       EventStore,

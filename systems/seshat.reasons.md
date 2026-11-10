@@ -460,3 +460,21 @@ cannot see the screen. One open at a time keeps his list from filling
 with drafts of one idea. His answer reaches her as a letter, the way a
 plugin proposal's does, so she learns the outcome in the place she
 already reads such answers.
+
+## #57
+Who a scene involves is something only she can say at the time she
+cuts the day, and the scene pass is already reading every turn of it;
+asking a later pass to recover the people would mean reading the day a
+second time and guessing at the names she would have used. A list on
+the row she already writes (#52) costs one field now and gives the
+people-pass the witness approved its input, person by person and day
+by day, so it can be expanded later without touching the record. The
+names are hers because the record is: no directory of persons, no ids,
+no matching beyond trimming and case, so a name reads as she wrote it
+and two spellings of one person stay hers to correct. It is a fact
+rather than a reading, checkable against the turns, so it moves like
+the title does, the old list kept. The bounds keep a row a row: a
+scene with more than twenty people in it is a crowd, not a list, and a
+name past eighty characters is a description. A new version with an
+upcaster because events are immutable contracts; the correction's
+shape did not change, so its version did not either.

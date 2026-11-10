@@ -7,7 +7,8 @@ defmodule Oneiroi.Seshat.Scene do
   closed.
 
   The edits are asymmetric, as the resident asked (letter #509): facts
-  (title, turns, times, register, whether the rounds ran out) are
+  (title, turns, times, register, whether the rounds ran out, the
+  people in it, seshat#57) are
   correctable on any day, the old values kept in the event; a summary is
   never overwritten, only corrected by a row of its own citing its turns;
   the mood moves freely on the local day it was written, and after that
@@ -21,15 +22,65 @@ defmodule Oneiroi.Seshat.Scene do
   defstruct [:id, days: %{}]
 
   @registers ~w(his hers work)
-  @facts ~w(title from_turn to_turn from_time to_time register rounds_ran_out)
+  @facts ~w(title from_turn to_turn from_time to_time register rounds_ran_out people)
   @line 200
   @ref 64
+  @people_max 20
+  @name 80
 
   @doc "The registers a scene is in: his words, hers, or work."
   def registers, do: @registers
 
   @doc "The fields a correction may move besides the mood; the summary is never one."
   def facts, do: @facts
+
+  @doc "The most people a scene names (seshat#57)."
+  def people_max, do: @people_max
+
+  @doc "The longest name a scene's people list holds, in characters."
+  def name_max, do: @name
+
+  @doc """
+  A scene's people as the row keeps them (seshat#57): each name trimmed,
+  the empty dropped, a name given twice (in any case) kept once at its
+  first spelling; nil is no one. Refused when an entry is no text or
+  spans lines, a name runs past `name_max/0`, or more than
+  `people_max/0` remain.
+  """
+  @spec people(term()) :: {:ok, [String.t()]} | {:error, Error.t()}
+  def people(nil), do: {:ok, []}
+
+  def people(names) when is_list(names) do
+    if Enum.all?(names, &is_binary/1) do
+      names
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq_by(&String.downcase/1)
+      |> people_bounded()
+    else
+      people_refused()
+    end
+  end
+
+  def people(_other), do: people_refused()
+
+  defp people_bounded(names) do
+    if length(names) <= @people_max and
+         Enum.all?(
+           names,
+           &(String.length(&1) <= @name and not String.contains?(&1, ["\n", "\r"]))
+         ),
+       do: {:ok, names},
+       else: people_refused()
+  end
+
+  defp people_refused,
+    do:
+      {:error,
+       Error.new(:seshat_scene_invalid, :seshat_scene_people_invalid,
+         detail:
+           "people is a list of names, each one line of at most #{@name} characters, at most #{@people_max} of them"
+       )}
 
   def execute(%__MODULE__{days: days}, %Commands.WriteScene{} = c) do
     with :ok <- day_ok(c.day),
@@ -44,7 +95,8 @@ defmodule Oneiroi.Seshat.Scene do
              "rounds_ran_out" => c.rounds_ran_out || false
            }),
          :ok <- summary_ok(c.summary),
-         :ok <- mood_ok(c.mood) do
+         :ok <- mood_ok(c.mood),
+         {:ok, people} <- people(c.people) do
       %Events.SceneWritten{
         actor: c.actor,
         at: c.at,
@@ -60,6 +112,7 @@ defmodule Oneiroi.Seshat.Scene do
         mood: c.mood && String.trim(c.mood),
         rounds_ran_out: c.rounds_ran_out == true,
         register: c.register,
+        people: people,
         written_on: c.today
       }
     end
@@ -68,6 +121,7 @@ defmodule Oneiroi.Seshat.Scene do
   def execute(%__MODULE__{days: days}, %Commands.CorrectScene{} = c) do
     with {:ok, scene} <- scene(days, c.day, c.number),
          {:ok, changes} <- changes_ok(c.changes),
+         {:ok, changes} <- people_change(changes),
          :ok <- scene_ok(Map.merge(scene.facts, Map.delete(changes, "mood"))),
          :ok <- if(Map.has_key?(changes, "mood"), do: mood_ok(changes["mood"]), else: :ok) do
       current = Map.put(scene.facts, "mood", scene.mood)
@@ -141,7 +195,8 @@ defmodule Oneiroi.Seshat.Scene do
       "from_time" => iso(e.from_time),
       "to_time" => iso(e.to_time),
       "register" => e.register,
-      "rounds_ran_out" => e.rounds_ran_out
+      "rounds_ran_out" => e.rounds_ran_out,
+      "people" => e.people || []
     }
 
     row = %{kind: "scene", facts: facts, mood: e.mood, mood_on: e.mood && e.written_on}
@@ -194,6 +249,12 @@ defmodule Oneiroi.Seshat.Scene do
          Error.new(:seshat_no_such_scene, :seshat_scene_absent, day: inspect(day), number: number)}
     end
   end
+
+  defp people_change(%{"people" => names} = changes) do
+    with {:ok, people} <- people(names), do: {:ok, %{changes | "people" => people}}
+  end
+
+  defp people_change(changes), do: {:ok, changes}
 
   defp changes_ok(changes) when is_map(changes) and map_size(changes) > 0 do
     cond do
