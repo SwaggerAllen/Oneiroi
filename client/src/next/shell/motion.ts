@@ -1,41 +1,20 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 
-// Motion (ui-build.md, theming-notes.md): tabs dissolve, pushes slide,
-// reduced motion makes every one instant. The two dissolves are compared
-// side by side before one is chosen; until then the choice is a local
-// preference (`oneiroi.motion`), set from Settings.
-
-export type Dissolve = 'cross' | 'through';
-const KEY = 'oneiroi.motion';
-
-export function dissolve(): Dissolve {
-  try {
-    return window.localStorage.getItem(KEY) === 'through' ? 'through' : 'cross';
-  } catch {
-    return 'cross';
-  }
-}
-
-export function setDissolve(d: Dissolve) {
-  try {
-    window.localStorage.setItem(KEY, d);
-  } catch {
-    // A private window: the default stands.
-  }
-}
+// Motion (ui-build.md, theming-notes.md): tabs dissolve through the
+// ground, pushes slide, reduced motion makes every one instant. The
+// witness chose the fade through the ground over a direct crossfade
+// after a side-by-side (2026-11-10): at these lengths the crossfade
+// barely registered as a transition.
 
 export const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
 
-/** The timings for one dissolve: a true crossfade, or out to the ground and back in. */
-export const TIMING: Record<Dissolve, { out: number; in: number; delay: number }> = {
-  cross: { out: 200, in: 200, delay: 0 },
-  through: { out: 110, in: 150, delay: 110 },
-};
+/** Out to the ground, then in. */
+const TIMING = { out: 110, in: 150 };
 
 /**
- * Tab switches dissolve. Returns the tab that is leaving (kept visible,
+ * Tab switches fade out to the ground, then in. Returns the tab that is leaving (kept visible,
  * inert, while it fades) and a ref setter for each panel.
  */
 export function useTabDissolve<T extends string>(tab: T) {
@@ -47,12 +26,11 @@ export function useTabDissolve<T extends string>(tab: T) {
     const from = prev.current;
     prev.current = tab;
     if (from === tab || reduced()) return;
-    const t = TIMING[dissolve()];
     const out = panels.current.get(from);
     const incoming = panels.current.get(tab);
     setLeaving(from);
-    incoming?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: t.in, delay: t.delay, easing: EASE, fill: 'backwards' });
-    const a = out?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: t.out, easing: EASE, fill: 'forwards' });
+    incoming?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIMING.in, delay: TIMING.out, easing: EASE, fill: 'backwards' });
+    const a = out?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TIMING.out, easing: EASE, fill: 'forwards' });
     if (!a) return setLeaving(null);
     a.onfinish = () => {
       a.cancel();

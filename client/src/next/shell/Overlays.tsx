@@ -8,7 +8,6 @@ import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
-import { dissolve, setDissolve, type Dissolve } from './motion';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
@@ -192,33 +191,10 @@ function Settings() {
         {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
         <Row href="/client/" label="Open the current client" />
       </nav>
-      <Motion />
       <div className={css.account}>
         <span className={css.note}>{me.data?.email} · witness</span>
         <button type="button" className={css.secondary} onClick={() => void api.logout().then(() => window.location.reload())}>
           Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** The two tab dissolves, on trial until one is chosen (theming-notes.md). */
-function Motion() {
-  const [d, setD] = useState<Dissolve>(dissolve);
-  const pick = (next: Dissolve) => {
-    setDissolve(next);
-    setD(next);
-  };
-  return (
-    <div className={css.stack}>
-      <p className={css.meta}>TAB TRANSITION · ON TRIAL</p>
-      <div className={css.kinds} role="radiogroup" aria-label="Tab transition">
-        <button type="button" role="radio" aria-checked={d === 'cross'} className={d === 'cross' ? css.kindOn : css.kindOff} onClick={() => pick('cross')}>
-          Crossfade
-        </button>
-        <button type="button" role="radio" aria-checked={d === 'through'} className={d === 'through' ? css.kindOn : css.kindOff} onClick={() => pick('through')}>
-          Through the ground
         </button>
       </div>
     </div>

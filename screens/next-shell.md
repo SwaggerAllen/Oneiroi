@@ -51,10 +51,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 **Motion** (`shell/motion.ts`):
 - Tabs dissolve. The leaving tab stays shown and inert under the
   arriving one while it fades; no tab is remounted.
-- Two dissolves are on trial until the witness picks one: a true
-  crossfade (200 ms each way, together) and through the ground (out
-  110 ms, then in 150 ms). Settings → Tab transition switches them, kept
-  per device. A side-by-side recording was made for the choice.
+- The dissolve goes through the ground: out 110 ms, then in 150 ms.
+  The witness chose it over a direct crossfade from a side-by-side
+  recording (2026-11-10): the crossfade barely registered as a
+  transition.
 - Pushes slide on a phone: deeper comes in from the right, back from
   the left, a short distance with a fade, without remounting the view.
   On a wide screen the list sits beside the page, so nothing slides.

@@ -53,9 +53,9 @@ screens inside it would carry its structure along. Instead:
   URL. Drafts persist, and edit leases survive tab switches.
 - **One search:** the header icon, or ⌘K. No screen owns a search bar.
 - **One `ScrollArea` everywhere,** with its edge fades as a mask.
-- **Motion:** tabs cross-dissolve; pushes slide; a subject switch fades
+- **Motion:** tabs dissolve through the ground (out, then in; chosen over a
+  direct crossfade, 2026-11-10); pushes slide; a subject switch fades
   out, loads, and fades in. Reduced motion makes all of them instant.
-  The two dissolves get compared side by side before choosing.
 - **Accessibility:** React Aria for the controls, live regions for her
   new messages and her status, and axe checks in the Storybook test run.
 - **Copy:** Lily's pad (`scratch/copy-landing-and-creation.md`) is the
