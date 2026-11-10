@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { Presence } from '../state/store';
 
 /** "0:14" from milliseconds. */
@@ -31,4 +32,15 @@ export function presenceLine(p: Presence, connected: boolean, now: number): stri
 function clock(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Ticks once a second while `active`, so a timer on screen moves. */
+export function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
 }

@@ -10,6 +10,15 @@ import { fresh, keysFor, type Notice } from './notices';
 
 const CURSOR_KEY = 'oneiroi.next.cursor';
 
+export interface SessionEvents {
+  joined: () => void;
+  started: (turnRef: string) => void;
+  delta: (turnRef: string, text: string) => void;
+  status: (turnRef: string, state: string, detail: { name?: string; ahead?: number; into?: string } | null) => void;
+  turn: (turnRef: string) => void;
+  failed: (turnRef: string, reason: string) => void;
+}
+
 function storedCursor(residentId: string): number | null {
   try {
     const raw = localStorage.getItem(`${CURSOR_KEY}.${residentId}`);
@@ -34,9 +43,13 @@ export class Live {
   private seen = new Set<number>();
 
   private readonly queries: QueryClient;
+  private markReady: () => void = () => undefined;
+  /** Settles once the socket exists; joins asked for earlier wait on it. */
+  readonly ready: Promise<void>;
 
   constructor(queries: QueryClient) {
     this.queries = queries;
+    this.ready = new Promise((resolve) => (this.markReady = resolve));
   }
 
   async start() {
@@ -51,6 +64,7 @@ export class Live {
     this.socket.onClose(() => set('offline'));
     set('connecting');
     this.socket.connect();
+    this.markReady();
   }
 
   /** The frustration button that does real work: reconnect now, not after the backoff. */
@@ -103,6 +117,37 @@ export class Live {
         }
       });
     this.resident = channel;
+  }
+
+  /**
+   * Joins a session's stream (spec §5, brain#45) on the same socket:
+   * turn_started, delta, status, turn, failed. Returns a leave function.
+   */
+  session(residentId: string, key: string, on: SessionEvents): () => void {
+    let channel: Channel | null = null;
+    let left = false;
+    void this.ready.then(() => {
+      if (left || !this.socket) return;
+      channel = this.join(residentId, key, on);
+    });
+    return () => {
+      left = true;
+      channel?.leave();
+    };
+  }
+
+  private join(residentId: string, key: string, on: SessionEvents): Channel {
+    const channel = (this.socket as Socket).channel(`session:${residentId}:${key}`);
+    channel.on('turn_started', (p: { turn_ref: string }) => on.started(p.turn_ref));
+    channel.on('delta', (p: { turn_ref: string; text: string }) => on.delta(p.turn_ref, p.text));
+    channel.on('status', (p: { turn_ref: string; state: string; detail: { name?: string; ahead?: number; into?: string } | null }) =>
+      on.status(p.turn_ref, p.state, p.detail),
+    );
+    channel.on('turn', (p: { turn_ref: string }) => on.turn(p.turn_ref));
+    channel.on('failed', (p: { turn_ref: string; reason: string }) => on.failed(p.turn_ref, p.reason));
+    // A rejoin after an outage: what landed meanwhile is read again.
+    channel.join().receive('ok', () => on.joined());
+    return channel;
   }
 
   stop() {

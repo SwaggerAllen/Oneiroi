@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import { Login } from '../app/Login';
 import { Live } from './live/live';
+import { Chat } from './chat/Chat';
 import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import type { Tab } from './state/routes';
@@ -75,7 +76,9 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
       residentName={residentName}
       waiting={bell.data?.length ?? 0}
       onReconnect={() => void live.reconnect()}
-      renderTab={(tab, path) => <Placeholder tab={tab} path={path} />}
+      renderTab={(tab, path) =>
+        tab === 'chat' ? <Chat residentId={residentId} residentName={residentName} live={live} /> : <Placeholder tab={tab} path={path} />
+      }
     />
   );
 }

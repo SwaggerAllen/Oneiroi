@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: '../priv/static/client',
     emptyOutDir: true,
     rollupOptions: {
-      input: { main: resolve(__dirname, 'index.html'), next: resolve(__dirname, 'next.html') },
+      input: { main: resolve(import.meta.dirname, 'index.html'), next: resolve(import.meta.dirname, 'next.html') },
     },
   },
   test: {

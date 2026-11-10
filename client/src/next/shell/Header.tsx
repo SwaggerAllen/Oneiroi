@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useShell } from '../state/store';
 import { BellIcon, ChevronIcon, GearIcon, SearchIcon } from './icons';
-import { presenceLine } from './presence';
+import { presenceLine, useNow } from './presence';
 import * as css from './shell.css';
 
 export interface HeaderProps {
@@ -10,17 +9,6 @@ export interface HeaderProps {
   onSubject?: () => void;
   onBell?: () => void;
   onSettings?: () => void;
-}
-
-/** Ticks once a second while she is working, so the timer moves. */
-function useNow(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [active]);
-  return now;
 }
 
 export function Header({ name, waiting, onSubject, onBell, onSettings }: HeaderProps) {

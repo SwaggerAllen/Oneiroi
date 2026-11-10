@@ -1,0 +1,162 @@
+// The conversation's state (P1): the newest page from the query cache,
+// so a change notice refreshes it; older pages paged in on demand; the
+// turn streaming in; and the outbox, which holds every message the
+// witness sends under its own ref until its turn lands (brain#45). The
+// outbox and page helpers are the current client's, pure and tested.
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../../api/client';
+import type { Message } from '../../api/types';
+import { batched, loadOutbox, newRef, saveOutbox, settle, update, underWay, type Outgoing } from '../../screens/chat/outbox';
+import { compareCursor, mergeNewest, newestCursor } from '../../screens/chat/page';
+import type { Live } from '../live/live';
+import { useShell } from '../state/store';
+
+const PAGE = 40;
+
+export interface Stream {
+  turnRef: string;
+  text: string;
+}
+
+export function useChat(residentId: string, live: Live) {
+  const queries = useQueryClient();
+  const setPresence = useShell((s) => s.setPresence);
+
+  const main = useQuery({
+    queryKey: ['resident', residentId, 'chat', 'main'],
+    queryFn: () => api.mainSession(residentId),
+    staleTime: Infinity,
+  });
+  const key = main.data?.key ?? null;
+
+  const newestKey = useMemo(() => ['resident', residentId, 'chat', key, 'newest'], [residentId, key]);
+  const newest = useQuery({
+    queryKey: newestKey,
+    queryFn: () => api.transcriptPage(residentId, key as string, PAGE),
+    enabled: key !== null,
+  });
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [more, setMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [stream, setStream] = useState<Stream | null>(null);
+  const [outbox, setOutbox] = useState<Outgoing[]>([]);
+  const pagedBack = useRef(false);
+
+  // The newest page merged in whenever it is read again.
+  useEffect(() => {
+    if (!newest.data) return;
+    setMessages((loaded) => mergeNewest(loaded, newest.data.messages));
+    // Once older pages are in, whether more remain is theirs to say.
+    if (!pagedBack.current) setMore(newest.data.more);
+    // A turn's messages landing settle its outbox entries.
+    const answered = new Set(newest.data.messages.map((m) => m.turn_ref));
+    setOutbox((items) => settle(items, answered));
+  }, [newest.data]);
+
+  // The outbox survives a reload of this browser.
+  useEffect(() => {
+    if (key) setOutbox(loadOutbox(key));
+  }, [key]);
+  useEffect(() => {
+    if (key) saveOutbox(key, outbox);
+  }, [key, outbox]);
+
+  const refreshNewest = useCallback(() => queries.invalidateQueries({ queryKey: newestKey }), [queries, newestKey]);
+
+  // The live stream: presence for the header, the reply as it streams,
+  // the outbox's states, and a re-read when a turn lands.
+  useEffect(() => {
+    if (!key) return;
+    return live.session(residentId, key, {
+      joined: () => void refreshNewest(),
+      started: (ref) => {
+        setOutbox((o) => update(o, ref, { state: 'running' }));
+        setPresence({ state: 'thinking', since: Date.now() });
+      },
+      status: (ref, state, detail) => {
+        if (state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
+        if (detail?.into) setOutbox((o) => batched(o, ref, detail.into as string));
+        if (state === 'thinking' || state === 'tool') {
+          setOutbox((o) => update(o, ref, { state, detail: detail?.name }));
+          const current = useShell.getState().presence;
+          const sameStep = current.state === state && current.detail === detail?.name;
+          setPresence({ state, detail: detail?.name, since: sameStep ? current.since : Date.now() });
+        }
+      },
+      delta: (ref, text) => {
+        setStream((s) => (s && s.turnRef === ref ? { turnRef: ref, text: s.text + text } : { turnRef: ref, text }));
+        const current = useShell.getState().presence;
+        if (current.state !== 'writing') setPresence({ state: 'writing', since: Date.now() });
+        setOutbox((o) => update(o, ref, { state: 'writing' }));
+      },
+      turn: () => {
+        void refreshNewest().then(() => setStream(null));
+        setPresence({ state: 'idle', lastReply: new Date().toISOString() });
+      },
+      failed: (ref, reason) => {
+        setStream(null);
+        setOutbox((o) => update(o, ref, { state: 'failed', error: reason }));
+        setPresence({ state: 'idle' });
+      },
+    });
+  }, [live, residentId, key, refreshNewest, setPresence]);
+
+  const send = useCallback(
+    async (text: string, ref = newRef()) => {
+      if (!key || !text.trim()) return;
+      setOutbox((o) => (o.some((i) => i.ref === ref) ? update(o, ref, { state: 'sending' }) : [...o, { ref, text, state: 'sending', attempts: 0, sentAt: Date.now(), since: Date.now() }]));
+      try {
+        const taken = await api.submit(residentId, key, text, ref);
+        if (taken.state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
+        if (taken.state === 'running') setOutbox((o) => update(o, ref, { state: 'running' }));
+      } catch (e) {
+        setOutbox((o) => update(o, ref, { state: 'unsent', error: (e as Error).message, attempts: (o.find((i) => i.ref === ref)?.attempts ?? 0) + 1 }));
+      }
+    },
+    [residentId, key],
+  );
+
+  const stop = useCallback(async () => {
+    if (key) await api.stopTurn(residentId, key).catch(() => undefined);
+  }, [residentId, key]);
+
+  const loadOlder = useCallback(async () => {
+    if (!key || loadingOlder || !more) return;
+    const oldest = messages.find((m) => m.cursor)?.cursor;
+    if (!oldest) return;
+    setLoadingOlder(true);
+    pagedBack.current = true;
+    try {
+      const page = await api.transcriptPage(residentId, key, PAGE, oldest);
+      setMessages((loaded) => {
+        const known = new Set(loaded.map((m) => m.cursor));
+        return [...page.messages.filter((m) => !known.has(m.cursor)), ...loaded];
+      });
+      setMore(page.more);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [residentId, key, loadingOlder, more, messages]);
+
+  const working = outbox.some((i) => underWay.includes(i.state)) || stream !== null;
+  const pending = outbox.filter((i) => !messages.some((m) => m.turn_ref === i.ref || (i.into && m.turn_ref === i.into)));
+
+  return {
+    key,
+    ready: newest.isSuccess,
+    messages,
+    more,
+    loadingOlder,
+    loadOlder,
+    stream,
+    pending,
+    working,
+    send,
+    stop,
+    newestCursor: newestCursor(messages),
+    compareCursor,
+  };
+}
