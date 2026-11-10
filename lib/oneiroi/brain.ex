@@ -43,6 +43,7 @@ defmodule Oneiroi.Brain do
 
   alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.Checkin
+  alias Oneiroi.Brain.Creation
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
@@ -231,6 +232,11 @@ defmodule Oneiroi.Brain do
        remedy: "read the id off the resident list"},
       {:brain_file_unknown, "the file is not one of the resident's identity files",
        remedy: "draft one of the identity files the resident system names"},
+      {:brain_creation_closed, "the resident has woken, so the gifts are no longer drafted whole",
+       remedy:
+         "after first contact a change is a proposal: draft one file with Write it with me and propose it"},
+      {:brain_read_unreadable, "the read came back in a form the notes could not be read from",
+       remedy: "ask for the read again; the call was billed under drafting"},
       {:brain_oracle_silent, "the oracle's reading answered no words",
        remedy: "ask the question again; it may need narrower sources"},
       {:brain_summary_empty, "the model answered the compaction with no words",
@@ -392,6 +398,20 @@ defmodule Oneiroi.Brain do
           {:ok, Oneiroi.Brain.Drafting.draft()} | {:error, term()}
   defexport(draft(resident_id, file, prompt, actor),
     do: Drafting.draft(resident_id, file, prompt, actor)
+  )
+
+  @doc "The generator (agathos-daimon#39): a draft of every gift's file from the witness's prompt, under drafting; returned, not written."
+  @spec generate_gifts(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(generate_gifts(resident_id, prompt, actor),
+    do: Creation.generate(resident_id, prompt, actor)
+  )
+
+  @doc "Get a read (agathos-daimon#40): notes on one gift's draft against its guidance, under drafting, recorded beside the seeds."
+  @spec read_gift(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(read_gift(resident_id, file, content, actor),
+    do: Creation.read(resident_id, file, content, actor)
   )
 
   @doc false

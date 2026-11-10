@@ -201,7 +201,8 @@ defmodule Oneiroi.SimaQian.Export do
 
     stale =
       Path.wildcard(Path.join([dir, "records", "conversations", "*.md"])) ++
-        Path.wildcard(Path.join([dir, "records", "bookmarks.md"]))
+        Path.wildcard(Path.join([dir, "records", "bookmarks.md"])) ++
+        Path.wildcard(Path.join([dir, "records", "gift-reads.md"]))
 
     for full <- stale, Path.relative_to(full, dir) not in paths, do: File.rm!(full)
 
@@ -422,7 +423,8 @@ defmodule Oneiroi.SimaQian.Export do
     line's stream without it; `sequence` numbers the lines from 1 in the
     order they were written. Beside them, reading copies rendered from
     the same lines on every export: `conversations/<day>.md`, each
-    session's turns that day, and `bookmarks.md`; never read back, and a
+    session's turns that day, `bookmarks.md` and, from creation,
+    `gift-reads.md`; never read back, and a
     private session in them is its existence and counts alone. A backup commit's message
     carries `Oneiroi-Sequence`, the stream version the export ran
     through, and `Oneiroi-Root`, a Merkle root over this directory; a

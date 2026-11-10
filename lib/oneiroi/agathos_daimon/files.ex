@@ -43,6 +43,29 @@ defmodule Oneiroi.AgathosDaimon.Files do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc "Records a read of a gift's draft (agathos-daimon#40); returns its ref."
+  @spec record_read(String.t(), map(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  def record_read(resident_id, read, %Actor{} = actor) when is_map(read) do
+    ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+
+    command = %Commands.RecordGiftRead{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      ref: ref,
+      gift: Map.get(read, :gift),
+      file: Map.get(read, :file),
+      draft_sha: Map.get(read, :draft_sha),
+      notes: Map.get(read, :notes),
+      model: Map.get(read, :model)
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, ref}
+  end
+
+  @doc "The reads of one file's drafts, newest first."
+  def reads(resident_id, file), do: Scope.resident(resident_id, fn -> Store.gift_reads(file) end)
+
   @doc "A witness proposes an edit after first contact, with a note; returns the proposal's ref."
   def propose(resident_id, file, content, note, %Actor{} = actor) do
     ref = 9 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)

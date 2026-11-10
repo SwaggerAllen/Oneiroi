@@ -818,6 +818,39 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # A read of one gift's draft (agathos-daimon#40): for one of the
+  # identity files, of a draft named by its hash, with notes already
+  # read into their kinds by the brain. Recorded as given; it changes no
+  # file and no state.
+  def execute(%__MODULE__{}, %Commands.RecordGiftRead{} = c) do
+    cond do
+      c.file not in @files ->
+        {:error,
+         Error.new(:agathos_daimon_file_unknown, :agathos_daimon_resident_gift_read_file_unknown,
+           file: c.file,
+           files: @files
+         )}
+
+      not (is_binary(c.draft_sha) and Regex.match?(~r/\A[0-9a-f]{64}\z/, c.draft_sha)) or
+        not is_binary(c.gift) or not is_binary(c.ref) or not notes?(c.notes) ->
+        {:error,
+         Error.new(:agathos_daimon_gift_read_invalid, :agathos_daimon_resident_gift_read_invalid)}
+
+      true ->
+        %Events.GiftReadGiven{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          ref: c.ref,
+          gift: c.gift,
+          file: c.file,
+          draft_sha: c.draft_sha,
+          notes: c.notes,
+          model: c.model
+        }
+    end
+  end
+
   def execute(%__MODULE__{state_keys: keys}, %Commands.ClearStateLine{} = c) do
     cond do
       c.actor.kind != :resident ->
@@ -886,6 +919,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),
     do: %{r | sequences: Map.put(r.sequences, e.kind, e.number)}
+
+  def apply(%__MODULE__{} = r, %Events.GiftReadGiven{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.StateLineSet{} = e),
     do: %{r | state_keys: MapSet.put(r.state_keys, e.key)}
@@ -1022,6 +1057,26 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}
 
   # ---- helpers ----
+
+  @note_kinds ~w(strong thin missing question cut)
+
+  @doc "The kinds a read's note takes (agathos-daimon#40)."
+  @spec note_kinds() :: [String.t()]
+  def note_kinds, do: @note_kinds
+
+  defp notes?(notes) when is_list(notes), do: Enum.all?(notes, &note?/1)
+  defp notes?(_notes), do: false
+
+  defp note?(%{} = n) do
+    kind = Map.get(n, :kind) || Map.get(n, "kind")
+    text = Map.get(n, :text) || Map.get(n, "text")
+    quoted = Map.get(n, :quote, Map.get(n, "quote"))
+
+    kind in @note_kinds and is_binary(text) and text != "" and
+      (is_nil(quoted) or is_binary(quoted))
+  end
+
+  defp note?(_note), do: false
 
   defp write_ok(c) do
     cond do

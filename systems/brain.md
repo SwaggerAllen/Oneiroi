@@ -41,7 +41,8 @@ the `state` section among them (#47), the tool set
 one (`Oneiroi.Brain.Cut`, `BRAIN_TOOL_RESULT_CHARS`,
 `BRAIN_HISTORY_TOOL_CHARS`), what retrieval did with each target
 (`Oneiroi.Brain.Uses`), compaction (`Oneiroi.Brain.Compaction`),
-drafting (`Oneiroi.Brain.Drafting`), the preview
+drafting (`Oneiroi.Brain.Drafting`; the creation's generator and read
+in `Oneiroi.Brain.Creation` are agathos-daimon#39 and #40), the preview
 (`Oneiroi.Brain.Preview`), the adapter's assembly
 (`Oneiroi.Brain.Adapter`), the resident's reads of the source and her
 repository (`Oneiroi.Brain.Introspection`), the oracle

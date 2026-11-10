@@ -166,6 +166,14 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :key], bounds: [key: 64]
   end
 
+  # A read of one gift's draft (agathos-daimon#40), its notes written by
+  # the model under the drafting purpose; recorded, never applied.
+  defmodule RecordGiftRead do
+    use Oneiroi.Command,
+      fields: [:id, :ref, :gift, :file, :draft_sha, :notes, :model],
+      bounds: [ref: 64, gift: 64, draft_sha: 64]
+  end
+
   defmodule DeliverSelfLetters do
     use Oneiroi.Command, fields: [:id, :numbers, :model]
   end
