@@ -191,6 +191,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/replies/:number/sent", CorrespondenceController, :sent)
       get("/residents/:id/schedule", ScheduleController, :today)
       get("/residents/:id/schedule/days", ScheduleController, :days)
+      get("/residents/:id/days", DayController, :index)
       get("/residents/:id/schedule/free-time", ScheduleController, :free_time_history)
       get("/residents/:id/schedule/rounds", ScheduleController, :round_history)
       post("/residents/:id/schedule/checkins", ScheduleController, :set_checkin)

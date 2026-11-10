@@ -440,3 +440,13 @@ query and by the policy, because a search is the read most likely to be
 widened later and the cheapest place to lose the rule; a bookmark made
 in a private session is left out because its line is what that session
 said about itself.
+
+## #60
+The client placed a session on a day by its opening or its last turn,
+so the Oneiroi chat, spoken in every day, showed on two days of a month.
+Grouping the messages by day under the witness's own scope puts each
+session on the days it was lived, and the scope keeps every count to
+what he may already read. A locked session's messages are not his to
+count, so it keeps to the two instants its row already shows him,
+rather than a per-day count that would say more than the session list
+does.

@@ -12,6 +12,8 @@ defmodule Oneiroi.Kumbukumbu.Days do
 
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Kumbukumbu.Conversation
+  alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
@@ -99,6 +101,83 @@ defmodule Oneiroi.Kumbukumbu.Days do
       {:ok, %{from: Date.to_iso8601(first), to: Date.to_iso8601(last), zone: zone, days: days}}
     end
   end
+
+  @doc """
+  The sessions of each local day from `from` through `to` (ISO dates,
+  both included), as the witness's calendar reads them (kumbukumbu#60):
+  day to `[%{key, kind, title, locked, first_at, last_at, messages}]`,
+  first spoken in first; a day with none is left out. The sessions are
+  those `scope` lists for this resident, and a session is on each day it
+  holds a message the scope reads, with that day's first and last
+  instant and its count. A locked session (private and unshared, #28)
+  shows none of its messages to the account, so it is on the day it
+  opened and the day it was last spoken in, with the row's two instants
+  and no count: the receipts the session list already gives. Never a
+  word of any message.
+  """
+  @spec sessions(Scope.t(), String.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, %{String.t() => [map()]}} | {:error, Error.t()}
+  def sessions(scope, resident_id, from, to) do
+    zone = Local.zone(resident_id)
+
+    with {:ok, first, last} <- days(zone, from, to) do
+      lo = midnight(first, zone)
+      hi = midnight(Date.add(last, 1), zone)
+      span = {Date.to_iso8601(first), Date.to_iso8601(last)}
+
+      {rows, seen} =
+        Scope.run(scope, fn ->
+          {Enum.filter(Store.sessions(), &(&1.resident_id == resident_id)),
+           Store.session_days(resident_id, zone, lo, hi)}
+        end)
+
+      seen = Enum.group_by(seen, &elem(&1, 0))
+
+      days =
+        rows
+        |> Enum.flat_map(&placed(&1, Map.get(seen, &1.key, []), zone, span))
+        |> Enum.group_by(fn {day, _entry} -> day end, fn {_day, entry} -> entry end)
+        |> Map.new(fn {day, entries} ->
+          {day, Enum.sort_by(entries, &{DateTime.to_unix(&1.first_at, :microsecond), &1.key})}
+        end)
+
+      {:ok, days}
+    end
+  end
+
+  defp placed(s, seen, zone, span) do
+    cond do
+      s.private and not s.shared ->
+        last_at = Conversations.last_at(s)
+
+        for day <- Enum.uniq([Local.day(zone, s.opened_at), Local.day(zone, last_at)]),
+            within?(day, span),
+            do: {day, session_entry(s, true, s.opened_at, last_at, nil)}
+
+      seen != [] ->
+        for {_key, day, first_at, last_at, n} <- seen,
+            do: {day, session_entry(s, false, first_at, last_at, n)}
+
+      within?(Local.day(zone, s.opened_at), span) ->
+        [{Local.day(zone, s.opened_at), session_entry(s, false, s.opened_at, s.opened_at, 0)}]
+
+      true ->
+        []
+    end
+  end
+
+  defp within?(day, {first, last}), do: day >= first and day <= last
+
+  defp session_entry(s, locked, first_at, last_at, messages),
+    do: %{
+      key: s.key,
+      kind: s.kind,
+      title: Conversation.title(s),
+      locked: locked,
+      first_at: usec(first_at),
+      last_at: usec(last_at),
+      messages: messages
+    }
 
   defp days(zone, from, to) do
     today = Clock.now() |> DateTime.shift_zone!(zone) |> DateTime.to_date()

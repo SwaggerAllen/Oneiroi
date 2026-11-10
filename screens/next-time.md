@@ -31,7 +31,8 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
 
 Not built:
 - scene and session marks on the month, and future days' computed
-  schedules (S5, calendar ranges);
+  schedules: the server's calendar range is built (`GET …/days`, S5,
+  sunna#48), and the tab does not read it yet;
 - the year view;
 - editing check-ins, rounds and quiet hours (the current client still
   does those);

@@ -139,6 +139,19 @@ defmodule Oneiroi.Seshat.Journals do
   end
 
   @doc """
+  The marks of the listed days she wrote in (sunna#48): day to its delta,
+  counted in one statement; a day with no entry is left out. Counts only,
+  never words.
+  """
+  def marks(_resident_id, []), do: %{}
+
+  def marks(resident_id, days) do
+    resident_id
+    |> Scope.resident(fn -> Store.journal_counts(days) end)
+    |> Map.new(fn {day, counts} -> {day, delta_of_counts(counts)} end)
+  end
+
+  @doc """
   The plan-versus-actuals delta of a day's entries: how many of each
   kind, how many todos are done, and whether the day was planned and
   never wrapped, which is what the audit counts (huginn-muninn#15).

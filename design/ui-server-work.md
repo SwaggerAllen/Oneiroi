@@ -169,6 +169,19 @@ brain#74).** What was chosen where this plan left it open:
 
 ## S5 — Calendar ranges (P3)
 
+**Built (2026-11-10; F68; sunna#48, kumbukumbu#60).** What was chosen
+where this plan left it open:
+
+- `GET …/days?from=&to=`: both dates required and included, at most
+  62 days (`SUNNA_DAYS_SPAN`); a 422 otherwise.
+- Marks are the journal delta's counts; the story's sessions are the
+  days each was spoken in, with first and last instants and counts, a
+  locked one by its row's two instants; scenes carry titles and times,
+  not summaries. The journal and scenes follow `witness_reads`.
+- A schedule on today and every later day; null before today. Entries
+  carry `rule` (`{freq: "daily"}` or null) and `status` (`scheduled`),
+  the two fields recurrence will fill.
+
 - **Exists:** today's schedule; journal day rows newest first;
   `journal/:day`; the free-time history.
 - **Build:** `GET …/days?from=&to=`. Each day returns its journal

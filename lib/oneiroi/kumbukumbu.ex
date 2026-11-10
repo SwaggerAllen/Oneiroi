@@ -638,6 +638,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Days.counts(scope, resident_id, from, to, key)
   )
 
+  @doc "Per local day of a range, the sessions spoken in, with their first and last instants and counts, never words (kumbukumbu#60); a locked session by its row's receipts."
+  @spec session_days(Oneiroi.Scope.t(), String.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, %{String.t() => [map()]}} | {:error, term()}
+  defexport(session_days(scope, resident_id, from, to),
+    do: Days.sessions(scope, resident_id, from, to)
+  )
+
   @doc "The last `count` messages of a session, for the brain's live transcript."
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(recent(resident_id, key, count), do: Conversations.recent(resident_id, key, count))
