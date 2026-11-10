@@ -57,8 +57,12 @@ function Month() {
   const now = useNow(false);
   const today = useToday() ?? new Date(now).toISOString().slice(0, 10);
   const [shown, setShown] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
-  const journal = useQuery({ queryKey: ['resident', id, 'time', 'journal-days'], queryFn: () => api.journalDays(id) });
-  const written = new Set((journal.data ?? []).map((d) => d.day));
+  const cells = monthCells(shown.year, shown.month);
+  const from = cells.find((c) => c.day)?.day as string;
+  const to = [...cells].reverse().find((c) => c.day)?.day as string;
+  // One read for the month (sunna#48): her journal, the sessions and scenes, the schedule ahead.
+  const range = useQuery({ queryKey: ['resident', id, 'time', 'days', from], queryFn: () => api.days(id, from, to) });
+  const byDay = new Map((range.data?.days ?? []).map((d) => [d.day, d]));
 
   return (
     <ScrollArea label="Calendar">
@@ -81,26 +85,36 @@ function Month() {
           ))}
         </div>
         <div className={css.grid} role="grid" aria-label={`${MONTHS[shown.month - 1]} ${shown.year}`}>
-          {monthCells(shown.year, shown.month).map((c, i) =>
-            c.day ? (
+          {cells.map((c, i) => {
+            if (!c.day) return <span key={`blank-${i}`} />;
+            const d = byDay.get(c.day);
+            const wrote = d?.journal != null;
+            const talked = (d?.story.sessions.length ?? 0) > 0;
+            const scenes = (d?.story.scenes ?? []).filter((x) => x.kind === 'scene').length;
+            const free = (d?.schedule?.entries ?? []).some((e) => e.kind === 'free_time');
+            const says = [wrote && 'journal written', talked && `${d?.story.sessions.length} sessions`, scenes > 0 && `${scenes} scenes`, free && 'free time'].filter(Boolean);
+            return (
               <button
                 key={c.day}
                 type="button"
                 className={css.cell}
                 data-today={c.day === today}
                 data-past={c.day < today}
-                aria-label={`${c.day}${written.has(c.day) ? ', journal written' : ''}`}
+                aria-label={`${c.day}${says.length ? `, ${says.join(', ')}` : ''}`}
                 onClick={() => push(`day/${c.day}`)}
               >
                 <span>{c.date}</span>
-                {written.has(c.day) && <span className={css.journalDot} />}
+                <span className={css.marks} aria-hidden>
+                  {wrote && <span className={css.journalDot} />}
+                  {talked && <span className={css.sessionDot} />}
+                  {scenes > 0 && <span className={css.sceneBar} style={{ width: Math.min(18, 4 + scenes * 3) }} />}
+                  {free && <span className={css.freeDot} />}
+                </span>
               </button>
-            ) : (
-              <span key={`blank-${i}`} />
-            ),
-          )}
+            );
+          })}
         </div>
-        <p className={css.note}>A lilac dot is a day she wrote in her journal. Scene and session marks arrive with the calendar ranges (S5).</p>
+        <p className={css.note}>Lilac: she wrote in her journal. Blue: a session that day. A bar: her scenes that day. A ring: her free time ahead.</p>
       </div>
     </ScrollArea>
   );
@@ -112,13 +126,17 @@ function Day({ day }: { day: string }) {
   const { id, name } = useSubject();
   const back = useShell((s) => s.back);
   const today = useToday();
+  const one = useQuery({ queryKey: ['resident', id, 'time', 'day', day], queryFn: () => api.days(id, day, day).then((r) => r.days[0]) });
+  // Her entries in full, only for a day the range says she wrote in.
   const journal = useQuery({
     queryKey: ['resident', id, 'time', 'journal', day],
     queryFn: () => api.journalDay(id, day).catch(() => ({ day, entries: [] })),
+    enabled: one.data?.journal != null,
   });
-  const sessions = useQuery({ queryKey: ['resident', id, 'sessions', 'list'], queryFn: () => api.sessions(id) });
-  const schedule = useQuery({ queryKey: ['resident', id, 'time', 'schedule'], queryFn: () => api.schedule(id), enabled: day === today });
-  const that = (sessions.data ?? []).filter((s) => s.last_turn_at?.slice(0, 10) === day || s.opened_at.slice(0, 10) === day);
+  const that = one.data?.story.sessions ?? [];
+  const scenes = (one.data?.story.scenes ?? []).filter((x) => x.kind === 'scene');
+  const ahead = one.data?.schedule;
+  const clock = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
   const entries = (journal.data?.entries ?? []).slice().sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.number - b.number);
   const label = new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -144,33 +162,52 @@ function Day({ day }: { day: string }) {
             </div>
           ))}
         </section>
-        {day === today && schedule.data && (
+        {ahead && ahead.entries.length > 0 && (
           <section className={css.section}>
-            <h2 className={css.heading}>STILL TO COME</h2>
-            {schedule.data.checkins
-              .filter((c) => c.time > schedule.data.now.slice(11, 16))
-              .map((c) => (
-                <div key={c.key} className={css.row}>
-                  <span>{c.label}</span>
-                  <span className={css.meta}>{c.time}</span>
+            <h2 className={css.heading}>{day === today ? 'STILL TO COME' : 'AS IT STANDS'}</h2>
+            {ahead.entries
+              .filter((e) => day !== today || new Date(e.at).getTime() > Date.now())
+              .map((e) => (
+                <div key={`${e.kind}-${e.key}`} className={e.kind === 'free_time' ? css.rowHers : css.row}>
+                  <span>
+                    {e.kind === 'free_time' ? 'Free time' : (e.label ?? e.kind)}
+                    {e.deferred ? ' · after quiet hours' : ''}
+                    {e.rule ? '' : ' · once'}
+                  </span>
+                  <span className={css.meta}>{e.time}</span>
                 </div>
               ))}
-            {schedule.data.free_times
-              .filter((f) => f.time > schedule.data.now.slice(11, 16))
-              .map((f) => (
-                <div key={f.time} className={css.rowHers}>
-                  <span>Free time</span>
-                  <span className={css.meta}>{f.time}</span>
-                </div>
-              ))}
+            {ahead.rounds > 0 && <p className={css.note}>{`${name} has ${ahead.rounds} rounds of her own this day.`}</p>}
           </section>
         )}
+        <section className={css.section}>
+          <h2 className={css.headingHers}>
+            SCENES · {scenes.length}
+            {one.data?.story.complete === false ? ' · NOT FINISHED' : ''}
+          </h2>
+          {scenes.length === 0 && <p className={css.note}>{one.data?.journal === null && one.data?.story.complete === null ? 'No scenes for this day.' : 'No scenes yet.'}</p>}
+          {scenes.map((x) => (
+            <div key={x.number} className={css.rowHers}>
+              <span>{x.title ?? 'Untitled'}</span>
+              <span className={css.meta}>
+                {clock(x.from_time)}
+                {x.to_time ? `–${clock(x.to_time)}` : ''}
+              </span>
+            </div>
+          ))}
+        </section>
         <section className={css.section}>
           <h2 className={css.heading}>SESSIONS · {that.length}</h2>
           {that.map((s) => (
             <div key={s.key} className={css.row}>
-              <span>{s.title}</span>
-              <span className={css.meta}>{s.turns} TURNS</span>
+              <span>
+                {s.title}
+                {s.locked ? ' · private' : ''}
+              </span>
+              <span className={css.meta}>
+                {clock(s.first_at)}–{clock(s.last_at)}
+                {s.messages !== null ? ` · ${s.messages}` : ''}
+              </span>
             </div>
           ))}
         </section>

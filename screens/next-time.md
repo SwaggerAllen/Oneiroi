@@ -12,13 +12,20 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
 - **The month:**
   - Sunday first, arrows across months and years.
   - Today in the witness's colour.
-  - Past days are raised, and a lilac dot marks each day she wrote in
-    her journal.
+  - Past days are raised. Under each date, from one read of the month
+    (`GET …/days`, sunna#48): a lilac dot if she wrote in her journal, a
+    blue dot if a session was spoken in that day, a bar for her scenes
+    (longer with more), and a ring for free time ahead.
   - A day opens as `day/YYYY-MM-DD` on this tab's stack.
 - **A day:**
   - Her journal, in order: plan, note, todo, wrap; done todos struck.
-  - On today: the check-ins and free time still to come.
-  - The day's sessions.
+  - Ahead (today's rest, or any later day as it stands): the check-ins
+    (moved past quiet hours when they fall in them), her free time and
+    one-offs, and how many rounds of her own the day holds.
+  - Her scenes with their times, and "not finished" when the night's
+    pass didn't close the day.
+  - The sessions spoken in that day, with their span and message
+    count; a private one shows only its two times (kumbukumbu#60).
 - **Rhythm:**
   - Check-ins.
   - Her free time:
@@ -30,9 +37,6 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
   - Rounds, quiet hours and the time zone, read-only.
 
 Not built:
-- scene and session marks on the month, and future days' computed
-  schedules: the server's calendar range is built (`GET …/days`, S5,
-  sunna#48), and the tab does not read it yet;
 - the year view;
 - editing check-ins, rounds and quiet hours (the current client still
   does those);

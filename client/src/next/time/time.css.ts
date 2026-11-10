@@ -135,3 +135,9 @@ export const addButton = style({
   cursor: 'pointer',
   selectors: { '&:disabled': { opacity: 0.5, cursor: 'default' } },
 });
+
+// The month's marks under each date (sunna#48).
+export const marks = style({ display: 'flex', alignItems: 'center', gap: 3, minHeight: 6 });
+export const sessionDot = style({ width: 5, height: 5, borderRadius: 3, background: vars.color.witness.accent });
+export const sceneBar = style({ height: 3, borderRadius: 2, background: vars.color.resident.border });
+export const freeDot = style({ width: 6, height: 6, borderRadius: 3, border: `1px solid ${vars.color.resident.accent}` });

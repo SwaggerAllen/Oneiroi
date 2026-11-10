@@ -111,6 +111,21 @@ export interface Lease {
   kept_at: string | null;
 }
 
+export interface CalendarDay {
+  day: string;
+  journal: { plan: number; note: number; todo: number; done: number; wrap: number; unwrapped: boolean } | null;
+  story: {
+    sessions: Array<{ key: string; kind: string; title: string; locked: boolean; first_at: string; last_at: string; messages: number | null }>;
+    scenes: Array<{ number: number; kind: string; corrects: number | null; title: string | null; from_time: string | null; to_time: string | null }>;
+    complete: boolean | null;
+  };
+  schedule: {
+    quiet: { from: string; to: string } | null;
+    rounds: number;
+    entries: Array<{ kind: string; key: string; label: string | null; time: string; at: string; deferred?: boolean; rule: { freq: string } | null; status: string; added_by?: string; date_kind?: string }>;
+  } | null;
+}
+
 export type SearchResult =
   | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
@@ -306,6 +321,12 @@ export const api = {
   // A document's raw file (seshat#50): a link, not a call.
   downloadUrl: (residentId: string, path: string) => `/v1/residents/${residentId}/library/download/${path.split('/').map(encodeURIComponent).join('/')}`,
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  // A range of her days: journal marks, sessions and scenes, the schedule ahead (sunna#48, spec F68).
+  days: (residentId: string, from: string, to: string) =>
+    call<{ from: string; to: string; today: string; zone: string; witness_reads: boolean; days: CalendarDay[] }>(
+      'GET',
+      `/v1/residents/${residentId}/days?from=${from}&to=${to}`,
+    ),
   // The one search across kinds (kumbukumbu#59, spec F66).
   search: (residentId: string, q: string, scope: string) =>
     call<{ q: string; scope: string; results: SearchResult[] }>(
