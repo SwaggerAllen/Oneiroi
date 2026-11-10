@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`derive > pins the decided palette 1`] = `
+{
+  "border": "#25252f",
+  "borderStrong": "#31313e",
+  "ground": "#0a0a10",
+  "groundDeep": "#05050a",
+  "resident": {
+    "accent": "#d8b4fe",
+    "border": "#382848",
+    "borderStrong": "#4d3664",
+    "glow": "rgba(216,180,254,0.35)",
+    "on": "#271635",
+    "surface": "#1b1124",
+    "surfaceStrong": "#251832",
+    "text": "#e2c7ff",
+  },
+  "surface": "#17171e",
+  "surfaceRaised": "#1c1c22",
+  "text": "#eaeaf2",
+  "textFaint": "#676874",
+  "textMuted": "#90919e",
+  "witness": {
+    "accent": "#7ee7f5",
+    "border": "#00383f",
+    "borderStrong": "#004d56",
+    "glow": "rgba(126,231,245,0.35)",
+    "on": "#00262d",
+    "surface": "#001b1f",
+    "surfaceStrong": "#00252b",
+    "text": "#99e3ed",
+  },
+}
+`;
