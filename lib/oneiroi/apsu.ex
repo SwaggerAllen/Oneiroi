@@ -203,6 +203,10 @@ defmodule Oneiroi.Apsu do
        "the readiness probe's query raised: the database is unreachable or the pool has not started",
        remedy:
          "check the database's status and DATABASE_URL; the log line carrying this error's site names the exception's class"},
+      {:apsu_notice_failed,
+       "a change notice was not sent after a projection committed; the row stands and the client refetches on its next notice or reconnect",
+       remedy:
+         "the log line carrying this error's site names the exception's class; the notice is a convenience and nothing is lost (apsu#24)"},
       {:apsu_enqueue_failed, "a job was not enqueued: Oban refused the insert",
        remedy:
          "the job's args or options were invalid, or the database refused the row; the log line carrying this error's site names the cause's class"}
@@ -213,6 +217,11 @@ defmodule Oneiroi.Apsu do
   def processes do
     [{:apsu_pubsub, :local}, {:apsu_ops, :local}]
   end
+
+  # Change notices (apsu#24): `{resident_id, notice}` after a projection
+  # commits, filtered by the subscriber as the brain's session topic is.
+  @impl Oneiroi.Component
+  def pubsub_topics, do: [:notices]
 
   @impl Oneiroi.Component
   def telemetry_events do

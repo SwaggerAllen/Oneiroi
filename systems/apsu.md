@@ -10,6 +10,7 @@ paths:
   - lib/oneiroi_web.ex
   - lib/oneiroi_web/endpoint.ex
   - lib/oneiroi_web/router.ex
+  - lib/oneiroi_web/channels/resident_channel.ex
   - lib/oneiroi_web/api_spec.ex
   - lib/oneiroi_web/controllers/error_json.ex
   - lib/oneiroi_web/controllers/helpers.ex
@@ -20,6 +21,7 @@ paths:
   - test/oneiroi/apsu/**
   - test/oneiroi/platform_test.exs
   - test/oneiroi_web/health_test.exs
+  - test/oneiroi_web/channels/resident_channel_test.exs
   - Dockerfile
   - render.yaml
   - deploy/**
@@ -166,6 +168,7 @@ schema, `projection_versions`) and the application role.
   `<field>_too_long` at dispatch, before any event exists (conventions
   §6, §12).
 - **#23 The ops read surface: the failures as facts, the heartbeats as absences.** (The witness, 2026-11-04: "we just need a formal, owned querying surface"; design/logging-and-alerting.md step 1, Lily's, built 2026-11-06.) `Oneiroi.Apsu.Ops` owns two tables in its own process. The failure ring is a logger handler at warning and above keeping the last `APSU_FAILURE_RING` (200) as facts: when, level, component, error kind, site and cause, trace id, and the message trimmed to 300 characters and scrubbed by `LogRedacting`'s patterns; in-process so it answers when the backends are down, and gone on a restart, which the logs outside keep. The beats record when each adapter last asked `/waiting`. `GET /v1/ops/failures` (a super admin's: platform-wide) reads the ring, narrowed by kind, site, component or trace id, beside the jobs Oban discarded in the last day (worker, when, the attempt, the last error scrubbed, never the arguments). `GET /v1/residents/:id/ops/heartbeats` (the witness's) lists what always happens for the resident, when it last did and how often it should, read where it is already recorded: the backup when a remote is set (26 hours), free time's last run (26 hours), rounds' last start when they are on (14 hours, a waking day's gap), each live adapter's last ask (a reader 30 minutes; a brain only while its runtime is open, so unbounded); `late` when past it or never seen. Neither returns a word of conversation. Steps 2 and 3 (metrics with four alerts, logs shipped off Render) wait on the witness's calls: where the backend lives, and where an alert lands.
+- **#24 Change notices: the client is told what changed, never the data.** (The witness, 2026-11-10, the client rebuild: design/ui-server-work.md S1.) Every projector's `after_update/3`, defined once in `Oneiroi.Projection`, calls `Oneiroi.Apsu.Notices.projected/3` after its transaction commits, so a notice never runs ahead of the row it announces. A notice is `{kind, stream, ref, position}`: the event's short name, its stream with the resident's id taken out (the export's naming, sima-qian#20), the record it names (number, path, key, day or session key, else nil), and its global position in the store, the client's cursor. It goes out on `apsu:notices` as `{resident_id, notice}`. A stream with no resident id in it, or a sealed one (`regression`, eunomia#12), is never announced, and a failure inside `projected/3` is logged and swallowed so a notice can never stop a projector (#21). `OneiroiWeb.ResidentChannel` (`resident:<id>`, on the one socket, a witness of that resident only) answers the join with the store's head `position`; joined with `since`, it first pushes what was missed as one `notices`, read forward from the global order by `Notices.since/2`, or `reset` past 5,000 events read or 500 notices found (bounds, not measured), and the client then refetches what it shows. An event several projectors fold is announced once per projector; the client coalesces on `position`.
 
 ## #10 Initial vs target
 
