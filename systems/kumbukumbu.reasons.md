@@ -409,3 +409,17 @@ from repeating or vanishing. It closes nothing because an emoji is too
 cheap to stand for a decision: merges and approvals keep their machinery.
 
 Inline rather than a tool call for her side: a react comes at the end of a reply, where a tool call would cost a whole further round for one emoji; a fixed final line costs nothing, and garbled it shows as text rather than failing silently. The safe word already reads a word out of her text, so the convention is one she knows.
+
+## #57
+A scrubber over months cannot load months to draw a screen, and a jump
+to a spot has to land there without reading up to it. The unpaged
+shape stays because a client that has not changed must not break; the
+paged one follows the transcript's own (`more` in the direction read)
+so the client learns one convention. A date means her day, because the
+navigator is drawn in days she lived, not in UTC.
+
+## #58
+The track needs to know where the weight of the record lies before it
+loads any of it; one count per day per kind is the least that draws it.
+Every day of the range is answered, zeros included, so an empty day is
+a fact the server states rather than a gap the client infers.

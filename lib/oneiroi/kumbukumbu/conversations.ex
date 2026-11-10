@@ -357,6 +357,61 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end
   end
 
+  @doc "A page of a session's transcript forward (kumbukumbu#57): the first `limit` messages after the cursor (nil for the oldest), and whether later ones remain."
+  def transcript_after(scope, key, after_cursor, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      {messages, more} =
+        Scope.run(scope, fn -> Store.messages_after(key, after_cursor, limit) end)
+
+      {:ok, session, messages, more}
+    end
+  end
+
+  @doc """
+  The window of a session's transcript around an anchor (kumbukumbu#57):
+  a message's cursor (`{:cursor, {sequence, position}}`) or a turn's ref
+  (`{:turn, ref}`, its first message). About half of `limit` before the
+  anchor, the anchor, and the rest after it, in order, with whether
+  earlier and later ones remain.
+  """
+  def transcript_around(scope, key, anchor, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      Scope.run(scope, fn -> around(session, key, anchor, limit) end)
+    end
+  end
+
+  defp around(session, key, anchor, limit) do
+    case Store.anchor_message(key, anchor) do
+      nil ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_message, :kumbukumbu_transcript_anchor_absent, key: key)}
+
+      at ->
+        {:ok, session, window(key, at, limit)}
+    end
+  end
+
+  # About half each side; a side that runs out gives its room to the
+  # other, so the window is `limit` long while the session holds that many.
+  defp window(key, at, limit) do
+    cursor = {at.sequence, at.position}
+    {earlier, more_before} = Store.messages_page(key, cursor, div(limit, 2))
+    room = max(limit - 1 - length(earlier), 0)
+    {later, more_after} = Store.messages_after(key, cursor, room)
+
+    {earlier, more_before} =
+      if more_before and length(later) < room,
+        do: Store.messages_page(key, cursor, max(limit - 1 - length(later), 0)),
+        else: {earlier, more_before}
+
+    %{
+      messages: earlier ++ [at] ++ later,
+      anchor: at,
+      more_before: more_before,
+      more_after: more_after
+    }
+  end
+
   # The session as `transcript/2` lets a scope see it, without its messages.
   defp visible(scope, key) do
     Scope.run(scope, fn ->

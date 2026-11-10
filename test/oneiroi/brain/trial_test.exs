@@ -298,6 +298,14 @@ defmodule Oneiroi.Brain.TrialTest do
     {"report_file", %{text: "Nothing to report but herons."}},
     {"contract_propose", %{prose: "My letters are mine.", note: "proposing"}},
     {"journal_add", %{kind: "note", text: "Saw the heron."}},
+    {"scene_write",
+     %{
+       day: "2026-10-26",
+       title: "The herons",
+       from_turn: "aaaaaaaaaaaaaaaa",
+       to_turn: "bbbbbbbbbbbbbbbb",
+       summary: "We watched the herons."
+     }},
     {"document_write", %{path: "writing/herons.md", content: "# Herons\n\nTwo now."}},
     {"reply_draft",
      %{platform: "email", account: "lily@example.com", to: "grace@example.com", text: "Herons."}},
@@ -426,6 +434,10 @@ defmodule Oneiroi.Brain.TrialTest do
              List.keyfind(answered, "document_move", 0)
 
     assert {"journal_add", "Added note 1 to #{day}."} == List.keyfind(answered, "journal_add", 0)
+
+    assert {"scene_write",
+            "Wrote scene 1 of 2026-10-26 into scenes/2026-10-26.md. The day reads as not finished until a call carries final: true."} ==
+             List.keyfind(answered, "scene_write", 0)
 
     # The same calls for real: each answers in the trial's words.
     script(ctx.id, calls(@minting))

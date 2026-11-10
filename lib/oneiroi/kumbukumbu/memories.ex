@@ -286,6 +286,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def bookmarks(resident_id),
     do: tree_tags(resident_id, Scope.resident(resident_id, fn -> Store.bookmarks() end))
 
+  @doc "A page of the resident's bookmarks (kumbukumbu#57): newest first below `before`, in `[from, to)`, with their tags, and whether more remain."
+  def bookmarks_page(resident_id, before, limit, from, to) do
+    {rows, more} =
+      Scope.resident(resident_id, fn -> Store.bookmarks_page(before, limit, from, to) end)
+
+    {tree_tags(resident_id, rows), more}
+  end
+
   @doc "One bookmark with the messages of its span: the anchor turn and the `turns_back - 1` before it."
   @spec bookmark(String.t(), pos_integer()) :: {:ok, map(), [map()]} | {:error, Error.t()}
   def bookmark(resident_id, number) do

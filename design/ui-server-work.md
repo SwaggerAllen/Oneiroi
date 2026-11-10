@@ -26,6 +26,29 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
 
 ## S2 — Paging for the navigator and chat (P1)
 
+**Built (2026-11-10; F64, F65; kumbukumbu#57, #58, seshat#52, sunna#47,
+brain#74).** What was chosen where this plan left it open:
+
+- Bookmarks page by `before` (a number), `limit`, `from` and `to`; no
+  `since`: `from` covers it. No query keeps the bare array. A date bound
+  is her whole local day; an instant is exact, `to` exclusive.
+- Messages: `after` and `around` (a turn ref or a cursor; a short side
+  gives its room to the other). `around` wins over `after`, which wins
+  over `before`.
+- Scenes: `scene_write`, one call a scene; `final: true` closes the day
+  (on the last scene, or alone), no separate tool. `scene: n` corrects
+  facts or mood, `corrects: n` appends a summary correction; every
+  correction carries a `note`. `scenes/` became a platform kind, so
+  `document_write` no longer writes there. A pass that writes no scene
+  leaves no day row; the density's zero scenes beside the day's
+  messages is that read.
+- Backfill: `mix oneiroi.seshat.scene_backfill <id> [--dry-run]`, never
+  automatic; parsed days are closed (`complete: true`), the rest stay
+  prose.
+- Density: `GET …/density?from=&to=&session=`, every day of the range
+  (30 by default, 366 at most), counts only, so not behind
+  `witness_reads`; scenes count without their corrections.
+
 - **Exists:**
   - `GET …/bookmarks` returns every bookmark, newest first, unpaged.
   - `GET …/sessions/:key?limit=&before=` pages messages backward by

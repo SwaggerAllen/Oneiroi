@@ -80,7 +80,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
-    journal_add journal_done
+    journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
     keepsake_register document_archive
@@ -1043,6 +1043,27 @@ defmodule Oneiroi.Brain.Tools do
         "journal_read",
         "Read a day of your journal by its ISO date: the rows and the plan-versus-actuals delta.",
         %{day: %{type: "string"}},
+        [:day]
+      ),
+      tool(
+        "scene_write",
+        "Write one scene of a day (seshat#52), in order, one call a scene: its day (ISO), a title, the turns it covers by ref (from_turn, to_turn), its span (from_time, to_time: HH:MM on the day, or ISO instants), and a few lines of what happened in it (summary). Optional: mood, one honest phrase of yours, never inferred; register, whose words the scene is mostly (his, hers, or work); rounds_ran_out, true when your tool rounds ran out on it, which explains a terse scene. The rows are the record and scenes/<day>.md is rendered from them. The day reads as not finished until a call carries final: true: put it on the day's last scene, or call with only day and final: true once the last is written. To correct: scene: <n> with the facts that were wrong (title, turns, times, register, rounds_ran_out), on any day, the old values kept in the history; or with mood, which moves freely on the day you wrote it and after that is marked as a correction. A summary is never overwritten: corrects: <n> with the turns it cites and the corrected lines adds a correction row beside it. Every correction says why in note.",
+        %{
+          day: %{type: "string"},
+          title: %{type: "string"},
+          from_turn: %{type: "string"},
+          to_turn: %{type: "string"},
+          from_time: %{type: "string"},
+          to_time: %{type: "string"},
+          summary: %{type: "string"},
+          mood: %{type: "string"},
+          register: %{type: "string", enum: ["his", "hers", "work"]},
+          rounds_ran_out: %{type: "boolean"},
+          final: %{type: "boolean"},
+          scene: %{type: "integer"},
+          corrects: %{type: "integer"},
+          note: %{type: "string"}
+        },
         [:day]
       ),
       tool(
@@ -2883,6 +2904,13 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("scene_write", args, turn) do
+    case Seshat.scene_write(turn.resident_id, args, turn.resident) do
+      {:ok, done} -> scene_written(done)
+      other -> other
+    end
+  end
+
   defp call("contract_propose", args, turn) do
     given =
       Map.merge(
@@ -3221,6 +3249,43 @@ defmodule Oneiroi.Brain.Tools do
 
   defp answered("document_adopt", args, turn),
     do: {"Adopted #{library_path(args["path"])}.", turn}
+
+  # As the real write answers: a new scene numbered after the day's rows
+  # and the ones this trial minted; a correction as done.
+  defp answered("scene_write", args, turn) do
+    day = to_string(args["day"] || "")
+
+    cond do
+      args["scene"] ->
+        {scene_written(%{
+           day: day,
+           number: args["scene"],
+           done: "corrected",
+           complete: args["final"] == true
+         }), turn}
+
+      args["corrects"] || Enum.any?(~w(title summary from_turn to_turn), &Map.has_key?(args, &1)) ->
+        rows =
+          case Seshat.scenes(turn.resident_id, day, day) do
+            [%{scenes: rows}] -> length(rows)
+            _none -> 0
+          end
+
+        {n, turn} = mint(turn, {"scene", day}, rows)
+        done = if args["corrects"], do: "summary_corrected", else: "written"
+
+        {scene_written(%{
+           day: day,
+           number: n,
+           done: done,
+           corrects: args["corrects"],
+           complete: args["final"] == true
+         }), turn}
+
+      true ->
+        {scene_written(%{day: day, number: nil, done: "closed", complete: true}), turn}
+    end
+  end
 
   defp answered("journal_add", args, turn) do
     day = args["day"] || Oneiroi.Sunna.today(turn.resident_id).day
@@ -3732,6 +3797,32 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp seeds_cited(_resident_id, _cites), do: "cites is a list of seed numbers."
+
+  defp scene_written(%{day: day} = done) do
+    file = "scenes/#{day}.md"
+
+    what =
+      case done.done do
+        "written" ->
+          "Wrote scene #{done.number} of #{day} into #{file}."
+
+        "corrected" ->
+          "Corrected scene #{done.number} of #{day}#{if Map.get(done, :mood_correction), do: " (the mood marked as a correction, its day past)", else: ""}; the old values stay in the history."
+
+        "unchanged" ->
+          "Scene #{done.number} of #{day} already says that; nothing moved."
+
+        "summary_corrected" ->
+          "Added row #{done.number} of #{day}, correcting scene #{done.corrects}'s lines; its own stay as written."
+
+        "closed" ->
+          "Closed #{day}."
+      end
+
+    if done.complete,
+      do: what <> " The day is finished.",
+      else: what <> " The day reads as not finished until a call carries final: true."
+  end
 
   defp tool(name, description, properties, required) do
     %{
