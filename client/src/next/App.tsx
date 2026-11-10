@@ -4,8 +4,10 @@ import { api, RequestFailed } from '../api/client';
 import { Login } from '../app/Login';
 import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
+import { RecordsTab } from './records/RecordsTab';
 import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
+import { SubjectContext } from './state/resident';
 import type { Tab } from './state/routes';
 import { Theme } from './theme/Theme';
 
@@ -55,7 +57,11 @@ function Boot() {
   if (!resident) {
     return <div className={css.empty}>No resident yet. Creation lives in the current client for now.</div>;
   }
-  return <Home residentId={resident.id} residentName={resident.name} />;
+  return (
+    <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
+      <Home residentId={resident.id} residentName={resident.name} />
+    </SubjectContext.Provider>
+  );
 }
 
 function Home({ residentId, residentName }: { residentId: string; residentName: string }) {
@@ -77,7 +83,13 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
       waiting={bell.data?.length ?? 0}
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>
-        tab === 'chat' ? <ChatTab residentId={residentId} residentName={residentName} live={live} /> : <Placeholder tab={tab} path={path} />
+        tab === 'chat' ? (
+          <ChatTab residentId={residentId} residentName={residentName} live={live} />
+        ) : tab === 'records' ? (
+          <RecordsTab residentId={residentId} path={path} />
+        ) : (
+          <Placeholder tab={tab} path={path} />
+        )
       }
     />
   );

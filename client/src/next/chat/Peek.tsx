@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { api } from '../../api/client';
 import { useWide } from '../shell/useWide';
-import type { Citation } from './cite';
+import { documentPath, type Citation } from './cite';
 import { Markdown } from './Markdown';
 import * as css from './peek.css';
 
@@ -42,10 +42,11 @@ export function Peek(props: PeekProps) {
 }
 
 function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekProps & { citation: Citation }) {
+  const path = documentPath(citation);
   const doc = useQuery({
-    queryKey: ['resident', residentId, 'records', 'doc', citation.ref],
-    queryFn: () => api.document(residentId, citation.ref),
-    enabled: citation.kind === 'document',
+    queryKey: ['resident', residentId, 'records', 'doc', path],
+    queryFn: () => api.document(residentId, path as string),
+    enabled: path !== null,
   });
   const bookmark = useQuery({
     queryKey: ['resident', residentId, 'memory', 'bookmark', citation.ref],
@@ -64,10 +65,10 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
         </button>
       </div>
       <Heading slot="title" className={css.title}>
-        {citation.kind === 'document' ? citation.ref.split('/').pop()?.replace(/\.md$/, '') : `${citation.kind} ${citation.ref}`}
+        {path ? (path.split('/').pop() ?? path).replace(/\.md$/, '') : `${citation.kind} ${citation.ref}`}
       </Heading>
       <div className={css.body}>
-        {citation.kind === 'document' &&
+        {path !== null &&
           (doc.isPending ? (
             <p className={css.note}>Reading…</p>
           ) : doc.error ? (
@@ -89,7 +90,7 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
           ) : (
             <p className={css.note}>This bookmark couldn't be read here.</p>
           ))}
-        {citation.kind !== 'document' && citation.kind !== 'bookmark' && (
+        {path === null && citation.kind !== 'bookmark' && (
           <p className={css.note}>This kind of record opens in Records.</p>
         )}
       </div>

@@ -4,7 +4,7 @@ import type { Live } from '../live/live';
 import { useShell } from '../state/store';
 import { Chat } from './Chat';
 import * as css from './chatTab.css';
-import type { Citation } from './cite';
+import { documentPath, type Citation } from './cite';
 import { Peek } from './Peek';
 import { Sessions } from './Sessions';
 
@@ -18,7 +18,8 @@ export function ChatTab({ residentId, residentName, live }: { residentId: string
   const openFully = (c: Citation) => {
     setPeek(null);
     setTab('records');
-    push(c.kind === 'document' ? `doc/${c.ref}` : `cite/${c.kind}/${c.ref}`);
+    const path = documentPath(c);
+    push(path ? `doc/${path}` : `cite/${c.kind}/${c.ref}`);
   };
 
   return (

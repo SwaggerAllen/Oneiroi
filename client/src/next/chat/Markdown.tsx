@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useSubject } from '../state/resident';
 import { CITE_SCHEME, linkCitations, parseCite, type Citation } from './cite';
 import * as css from './chat.css';
 
@@ -8,6 +9,7 @@ import * as css from './chat.css';
  * default), and her citations as chips that open a peek.
  */
 export function Markdown({ text, onCite }: { text: string; onCite: (c: Citation) => void }) {
+  const { slug } = useSubject();
   return (
     <div className={css.prose}>
       <ReactMarkdown
@@ -31,7 +33,7 @@ export function Markdown({ text, onCite }: { text: string; onCite: (c: Citation)
           },
         }}
       >
-        {linkCitations(text)}
+        {linkCitations(text, slug)}
       </ReactMarkdown>
     </div>
   );

@@ -23,6 +23,7 @@ import type {
   HouseLetter,
   IndexNow,
   LibraryHit,
+  LibraryDocument,
   Message,
   LibraryIndex,
   Injection,
@@ -228,6 +229,19 @@ export const api = {
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
   document: (residentId: string, path: string) =>
     call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
+  // The whole read (seshat): its row, references resolved now, discussions.
+  documentRead: (residentId: string, path: string) =>
+    call<{
+      content: string;
+      document: LibraryDocument & { origin?: string | null };
+      references: Array<{ target: string; kind: string; ref: string; resolved: boolean; label: string | null; reason: string | null }>;
+      discussions: Array<{ session_key: string; opened_at: string }>;
+    }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
+  citedBy: (residentId: string, target: string) =>
+    call<Array<{ from_path: string; target: string; resolved: boolean; label: string | null }>>(
+      'GET',
+      `/v1/residents/${residentId}/library/cited-by?target=${encodeURIComponent(target)}`,
+    ),
   writeDocument: (residentId: string, path: string, content: string) =>
     call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
   // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
