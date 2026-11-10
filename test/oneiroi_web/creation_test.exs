@@ -123,12 +123,18 @@ defmodule OneiroiWeb.CreationTest do
            |> json_response(404)
   end
 
-  test "the examples are the committed sets, and none is an empty list", ctx do
+  test "the examples are the committed sets: the fictional one, and any other with a gift's file",
+       ctx do
     root = Path.join(:code.priv_dir(:oneiroi), "creation/examples")
     set = "test-#{System.unique_integer([:positive])}"
     dir = Path.join(root, set)
 
-    assert ctx |> conn_for() |> get("/v1/creation/examples") |> json_response(200) == []
+    # The committed set: her files from the prompt, a fictional witness's
+    # USER.md and GOALS.md, never LINKS.md (agathos-daimon#41, #42).
+    assert [%{"set" => "fictional", "files" => files}] =
+             ctx |> conn_for() |> get("/v1/creation/examples") |> json_response(200)
+
+    assert Enum.map(files, & &1["file"]) == ~w(IDENTITY.md SOUL.md USER.md GOALS.md)
 
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -138,6 +144,7 @@ defmodule OneiroiWeb.CreationTest do
     File.write!(Path.join(dir, "NOTES.md"), "not a gift's file\n")
 
     assert [
+             %{"set" => "fictional"},
              %{
                "set" => ^set,
                "prompt" => "someone",
