@@ -303,3 +303,26 @@ the mockup canvas:
   Instrument Serif did not; friendlier, if a little less distinctive.
   **JetBrains Mono for the technical**: record ids and citations, tags,
   times, counts, status labels.
+
+## Decided, 2026-11-10 (the witness), from the canvas review
+
+- **Edit leases.** A lease renews itself while its holder is actively
+  writing. After X minutes idle it becomes *takeable*, not revoked:
+  the holder is never booted and never loses edits. It is taken only
+  when their resident is waiting on that particular file, and then the
+  holder's draft is kept as a proposal.
+- **Restoring a version** is a direct edit, unless that edit would
+  ordinarily need a proposal, in which case it is a proposal.
+- **Ballots** open in the record viewer, as contract proposals do.
+  Passed ballots accumulate into the **charter** (or "constitution";
+  the name is open), which lives on the Soul tab.
+- **The desktop peek** stays open beside the chat while you write.
+- **Notifications** are an item in the bell's "Waiting on you". It
+  stays there as waiting until the witness accepts or explicitly
+  declines; declining sets "No thanks", and Settings can turn them on
+  later. The first-day panel in Chat carries the same item.
+- **Pending a look:** whether navigator search keeps its own drawer on
+  desktop or folds into a global ⌘K search.
+- **Small ends:** "Ask for one" mails allen.strut@pm.me for now. The
+  examples come from a generated fictional resident; the witness's own
+  files are never examples.
