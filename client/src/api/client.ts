@@ -23,6 +23,7 @@ import type {
   HouseLetter,
   IndexNow,
   LibraryHit,
+  Message,
   LibraryIndex,
   Injection,
   Ledger,
@@ -180,6 +181,9 @@ export const api = {
   indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
   retrieval: (residentId: string) => call<RetrievalCount[]>('GET', `/v1/residents/${residentId}/retrieval`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
+  // One bookmark with its span's messages (kumbukumbu#4): what a peek shows.
+  bookmark: (residentId: string, number: number | string) =>
+    call<Bookmark & { messages?: Message[] }>('GET', `/v1/residents/${residentId}/bookmarks/${number}`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),
   unpin: (residentId: string, number: number) =>

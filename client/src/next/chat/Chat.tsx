@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Message } from '../../api/types';
 import { toolSummary } from '../../screens/chat/page';
 import type { Live } from '../live/live';
@@ -8,6 +8,8 @@ import { useShell } from '../state/store';
 import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
+import { Reacts } from './Reacts';
+import { useReacts } from './useReacts';
 import { useChat } from './useChat';
 
 const READ_KEY = 'oneiroi.next.read.';
@@ -33,11 +35,20 @@ function hhmm(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export function Chat({ residentId, residentName, live }: { residentId: string; residentName: string; live: Live }) {
+export function Chat({
+  residentId,
+  residentName,
+  live,
+  onCite,
+}: {
+  residentId: string;
+  residentName: string;
+  live: Live;
+  onCite: (c: Citation) => void;
+}) {
   const chat = useChat(residentId, live);
+  const reacts = useReacts(residentId, chat.key);
   const presence = useShell((s) => s.presence);
-  const push = useShell((s) => s.push);
-  const setTab = useShell((s) => s.setTab);
   const scroller = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [atTop, setAtTop] = useState(false);
@@ -105,10 +116,7 @@ export function Chat({ residentId, residentName, live }: { residentId: string; r
     else el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   };
 
-  const openCite = (c: Citation) => {
-    setTab('records');
-    push(c.kind === 'document' ? `doc/${c.ref}` : `cite/${c.kind}/${c.ref}`);
-  };
+  const openCite = onCite;
 
   const submit = () => {
     const text = draft.trim();
@@ -135,7 +143,24 @@ export function Chat({ residentId, residentName, live }: { residentId: string; r
         <div className={css.list}>
           {chat.more && <div className={css.older}>{chat.loadingOlder ? 'Reading back…' : '·'}</div>}
           {chat.messages.map((m, i) => (
-            <MessageView key={m.cursor ?? `${m.turn_ref}-${i}`} m={m} unreadRule={i === firstUnread} onCite={openCite} />
+            <MessageView
+              key={m.cursor ?? `${m.turn_ref}-${i}`}
+              m={m}
+              unreadRule={i === firstUnread}
+              onCite={openCite}
+              reacts={
+                chat.key && (m.role === 'user' || m.role === 'assistant') ? (
+                  <Reacts
+                    residentId={residentId}
+                    sessionKey={chat.key}
+                    turnRef={m.turn_ref}
+                    residentName={residentName}
+                    canReact={m.role === 'assistant'}
+                    reacts={(reacts.get(m.turn_ref) ?? []).filter((r) => (m.role === 'assistant' ? r.by === 'witness' : r.by === 'resident'))}
+                  />
+                ) : null
+              }
+            />
           ))}
           {chat.stream && (
             <div className={css.hers} data-live="true" aria-live="polite">
@@ -204,7 +229,17 @@ export function Chat({ residentId, residentName, live }: { residentId: string; r
   );
 }
 
-function MessageView({ m, unreadRule, onCite }: { m: Message; unreadRule: boolean; onCite: (c: Citation) => void }) {
+function MessageView({
+  m,
+  unreadRule,
+  onCite,
+  reacts,
+}: {
+  m: Message;
+  unreadRule: boolean;
+  onCite: (c: Citation) => void;
+  reacts: ReactNode;
+}) {
   const rule = unreadRule ? (
     <div className={css.unread} data-unread-rule>
       <span className={css.unreadLabel}>NEW SINCE {hhmm(m.sent_at)}</span>
@@ -216,6 +251,7 @@ function MessageView({ m, unreadRule, onCite }: { m: Message; unreadRule: boolea
       <>
         {rule}
         <div className={css.mine}>{m.content}</div>
+        <div style={{ alignSelf: 'flex-end' }}>{reacts}</div>
       </>
     );
   }
@@ -225,7 +261,10 @@ function MessageView({ m, unreadRule, onCite }: { m: Message; unreadRule: boolea
         {rule}
         <div className={css.hers}>
           <Markdown text={m.content} onCite={onCite} />
-          <div className={css.meta}>{m.instant_inferred ? 'time unknown' : hhmm(m.sent_at)}</div>
+          <div className={css.meta}>
+            {m.instant_inferred ? 'time unknown' : hhmm(m.sent_at)}
+            {reacts}
+          </div>
         </div>
       </>
     );

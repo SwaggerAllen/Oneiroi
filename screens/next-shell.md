@@ -1,7 +1,11 @@
 ---
 paths:
   - client/next.html
-  - client/src/next/**
+  - client/src/next/*.tsx
+  - client/src/next/shell/**
+  - client/src/next/state/**
+  - client/src/next/live/**
+  - client/src/next/theme/**
 ---
 
 # next-shell
@@ -44,7 +48,7 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 - **ScrollArea.** Edge fades as a mask, shown only while there is more
   past that edge.
 
-Not built: every tab's content (P1–P5 put Chat, Records, Time, Soul,
-the bell and Settings in), the subject menu, motion, and theme seeds
+Not built: the other tabs' content (P2–P5 put Records, Time, Soul,
+the bell and Settings in; Chat is `screens/next-chat.md`), the subject menu, motion, and theme seeds
 from the server (S7). Sign-in reuses the current client's form until
 onboarding (P6).
