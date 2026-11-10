@@ -175,3 +175,9 @@ genuinely loads is switching subjects (`client-state.md`). **Decided
 fade-in.** It also carries a change of theme, so it's the transition
 that matters most. The theme variables are swapped while the screen
 is at the ground colour.
+
+**Decided (the witness, 2026-11-10, from the side-by-side recording):
+tabs fade through the ground too.** At 200 ms the direct crossfade
+barely registered as a transition; through the ground reads as one.
+Slowing the crossfade to half speed was the alternative, not worth it
+now.
