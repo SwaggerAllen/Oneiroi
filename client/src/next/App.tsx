@@ -15,6 +15,8 @@ import { Theme } from './theme/Theme';
 import { Auth } from './onboarding/Auth';
 import { Creation } from './onboarding/Creation';
 import { Landing } from './onboarding/Landing';
+import { useShell } from './state/store';
+import { useResidentTheme } from './theme/useResidentTheme';
 
 const queries = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } },
@@ -23,11 +25,17 @@ const queries = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queries}>
-      <Theme>
+      <ShellTheme>
         <Boot />
-      </Theme>
+      </ShellTheme>
     </QueryClientProvider>
   );
+}
+
+/** The theme on screen is the store's seeds: hers once a subject is open, the house's before. */
+function ShellTheme({ children }: { children: React.ReactNode }) {
+  const seeds = useShell((s) => s.seeds);
+  return <Theme seeds={seeds}>{children}</Theme>;
 }
 
 function Splash() {
@@ -79,6 +87,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
     return () => live.stop();
   }, [live, residentId]);
 
+  useResidentTheme(residentId);
   const notifications = useNotificationsAsk();
   const bell = useQuery({
     queryKey: ['resident', residentId, 'bell'],

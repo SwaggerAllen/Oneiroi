@@ -19,8 +19,8 @@ header's bell and gear. Built 2026-11-10.
   - An agreement entry opens Soul; the others open their screen in the
     current client until those screens are rebuilt.
   - Her theme proposal (seshat#56) shows in place: her ground with both
-    accents on it and her note, answered Accept or Decline with a note
-    she reads.
+    accents on it and her note; "Try it on" wears it until the bell
+    closes; answered Accept or Decline with a note she reads.
   - **Waiting on her** (brain#76): what he started that she hasn't
     answered or read, with how long: his agreement proposals, soul
     edits, bookmark proposals, revisions, plugin proposals, unread
@@ -39,6 +39,12 @@ header's bell and gear. Built 2026-11-10.
     each opening in the current client until rebuilt;
   - Send feedback, and Operator for platform roles;
   - the account, and Sign out.
+- **Theme** (Settings → Theme, seshat#56): her three seeds (the
+  ground, hers, yours) as colour pickers, worn on screen as you pick,
+  with the seven readability checks the server also runs. Saved to her
+  THEME.md with an optional note, or kept on this device only (a local
+  override, never sent). Saving is refused while any check fails.
+  Her proposals show in the bell with "Try it on".
 - **Feedback:** "Something's off" or "An idea", Lily's placeholder
   (C9), filed to the platform's triage list (gaia#20) with the tab it
   came from as its surface.

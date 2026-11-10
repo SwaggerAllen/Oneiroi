@@ -2,10 +2,11 @@
 // state lives in the query cache, never here.
 
 import { create } from 'zustand';
+import { DEFAULT_SEEDS, type Seeds } from '../theme/derive';
 import { TABS, type Location, type Tab } from './routes';
 
 export type Connection = 'connected' | 'connecting' | 'offline';
-export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | null;
+export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | 'theme' | null;
 
 export interface Presence {
   state: 'idle' | 'queued' | 'thinking' | 'writing' | 'tool';
@@ -23,6 +24,12 @@ interface ShellState {
   presence: Presence;
   searchOpen: boolean;
   overlay: Overlay;
+  /** The seeds on screen now: a try-on, else this device's override, else hers (P8). */
+  seeds: Seeds;
+  /** Seeds worn for a moment, to judge a proposal or an edit before keeping it. */
+  tryOn: Seeds | null;
+  setSeeds: (s: Seeds) => void;
+  setTryOn: (s: Seeds | null) => void;
   setOverlay: (o: Overlay) => void;
   go: (to: Location) => void;
   push: (path: string) => void;
@@ -45,6 +52,10 @@ export const useShell = create<ShellState>((set) => ({
   presence: { state: 'idle' },
   searchOpen: false,
   overlay: null,
+  seeds: DEFAULT_SEEDS,
+  tryOn: null,
+  setSeeds: (seeds) => set({ seeds }),
+  setTryOn: (tryOn) => set({ tryOn }),
   setOverlay: (overlay) => set({ overlay }),
 
   // Arriving from the URL (load, back/forward): the tab becomes active and

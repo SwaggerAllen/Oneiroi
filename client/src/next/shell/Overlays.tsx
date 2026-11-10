@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { api } from '../../api/client';
 import type { NeedsYouEntry } from '../../api/types';
@@ -8,12 +8,19 @@ import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
+import { ThemeSheet } from './ThemeSheet';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
   const overlay = useShell((s) => s.overlay);
   const setOverlay = useShell((s) => s.setOverlay);
-  const title = overlay === 'bell' ? 'Waiting' : overlay === 'push' ? 'Notifications' : overlay === 'settings' ? 'Settings' : 'Feedback';
+  const setTryOn = useShell((s) => s.setTryOn);
+  // A theme tried on in a sheet comes off when the sheet closes.
+  useEffect(() => {
+    if (overlay === null) setTryOn(null);
+  }, [overlay, setTryOn]);
+  const title =
+    overlay === 'bell' ? 'Waiting' : overlay === 'push' ? 'Notifications' : overlay === 'settings' ? 'Settings' : overlay === 'theme' ? 'Theme' : 'Feedback';
   return (
     <ModalOverlay className={css.overlay} isOpen={overlay !== null} onOpenChange={(open) => !open && setOverlay(null)} isDismissable>
       <Modal className={css.modal}>
@@ -31,6 +38,7 @@ export function Overlays() {
             {overlay === 'push' && <PushExplainer />}
             {overlay === 'settings' && <Settings />}
             {overlay === 'feedback' && <Feedback />}
+            {overlay === 'theme' && <ThemeSheet />}
           </div>
         </Dialog>
       </Modal>
@@ -121,9 +129,15 @@ function ThemeProposal({ number, since, seeds, note }: { number: number; since: 
   const { id, name } = useSubject();
   const queries = useQueryClient();
   const [answer, setAnswer] = useState('');
+  const tryOn = useShell((s) => s.tryOn);
+  const setTryOn = useShell((s) => s.setTryOn);
+  const wearing = tryOn !== null && tryOn === seeds;
   const answerIt = useMutation({
     mutationFn: (agree: boolean) => api.answerTheme(id, number, agree, answer.trim()),
-    onSuccess: () => void queries.invalidateQueries({ queryKey: ['resident', id] }),
+    onSuccess: () => {
+      setTryOn(null);
+      void queries.invalidateQueries({ queryKey: ['resident', id] });
+    },
   });
   return (
     <div className={css.item}>
@@ -139,6 +153,11 @@ function ThemeProposal({ number, since, seeds, note }: { number: number; since: 
       {note && <span>“{note}”</span>}
       <span className={css.since}>since {new Date(since).toLocaleString()}</span>
       <input id={`theme-answer-${number}`} className={css.answer} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="A note for her (needed)" aria-label="A note for her" />
+      {seeds && (
+        <button type="button" className={css.secondary} aria-pressed={wearing} onClick={() => setTryOn(wearing ? null : seeds)}>
+          {wearing ? 'Take it off' : 'Try it on'}
+        </button>
+      )}
       <span className={css.answerRow}>
         <button type="button" className={css.primary} disabled={!answer.trim() || answerIt.isPending} onClick={() => answerIt.mutate(true)}>
           Accept
@@ -248,6 +267,7 @@ function Settings() {
   return (
     <div className={css.stack}>
       <nav className={css.group} aria-label="This resident">
+        <Row label="Theme" onClick={() => setOverlay('theme')} />
         <Row href="/client/#ledger" label="Ledger" detail={spent ? '›' : undefined} />
         <Row href="/client/#kinds" label="Kinds and routes" />
         <Row href="/client/#connections" label="Profiles, keys and connections" />

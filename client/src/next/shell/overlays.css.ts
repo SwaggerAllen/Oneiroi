@@ -124,3 +124,5 @@ export const answer = style({
   font: `14px ${font.ui}`,
 });
 export const answerRow = style({ display: 'flex', gap: 8 });
+export const colorRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44, fontSize: 15 });
+export const colorPick = style({ display: 'flex', alignItems: 'center', gap: 8 });

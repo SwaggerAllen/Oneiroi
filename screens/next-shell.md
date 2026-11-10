@@ -63,7 +63,11 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   On a wide screen the list sits beside the page, so nothing slides.
 - Reduced motion makes all of it instant.
 
+**The theme** (P8, seshat#56): the screen wears the subject's seeds,
+in this order: a try-on (from the theme sheet or her proposal in the
+bell), else this device's own seeds, else her THEME.md, else the house
+colours. Before a subject opens, the house colours.
+
 Not built: the subject menu with its fade out, load, fade in (it
-carries the theme swap, P8), and theme seeds
-from the server (S7). Sign-in reuses the current client's form until
-onboarding (P6).
+carries the theme swap between residents). Sign-in is onboarding's
+(`screens/next-onboarding.md`).
