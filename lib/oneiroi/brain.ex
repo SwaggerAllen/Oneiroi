@@ -52,6 +52,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
+  alias Oneiroi.Brain.WaitingOnHer
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -259,9 +260,14 @@ defmodule Oneiroi.Brain do
   def processes,
     do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
 
-  # The oracle's reads (brain#49): on demand, no cron.
+  # The oracle's reads (brain#49): on demand, no cron. The needs-you
+  # push (brain#77): each minute, as the schedule's tick is.
   @impl Oneiroi.Component
-  def oban_queues, do: [{:brain_oracle, []}]
+  def oban_queues,
+    do: [
+      {:brain_oracle, []},
+      {:brain_needs_you, cron: [{"* * * * *", Oneiroi.Brain.NeedsYouPushWorker}]}
+    ]
 
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session]
@@ -330,6 +336,10 @@ defmodule Oneiroi.Brain do
   @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
+
+  @doc "Everything waiting on the resident, oldest first (brain#76): the witness's proposals she has not answered, his unread letters, the files his lease holds her from; it only shows."
+  @spec waiting_on_her(String.t()) :: [map()]
+  defexport(waiting_on_her(resident_id), do: WaitingOnHer.list(resident_id))
 
   @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}

@@ -4,7 +4,7 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Account, PushSubscription, Session, Token, Witnessing}
+  alias Oneiroi.Gaia.Store.{Account, PushAnswer, PushSubscription, Session, Token, Witnessing}
 
   fold(%Events.AccountCreated{} = e, _metadata, fn multi ->
     Multi.insert(multi, :account, %Account{
@@ -30,6 +30,13 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
       on_conflict: :nothing,
       conflict_target: [:account_id, :endpoint]
     )
+    |> answer(e.id, "subscribed", e.at)
+  end)
+
+  # The notifications question's answer (gaia#25): the latest of a
+  # device subscribing and "No thanks".
+  fold(%Events.PushDeclined{} = e, _metadata, fn multi ->
+    answer(multi, e.id, "declined", e.at)
   end)
 
   fold(%Events.PushUnsubscribed{} = e, _metadata, fn multi ->
@@ -110,6 +117,16 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   import Ecto.Query, only: [from: 2]
 
   defp account(id), do: from(a in Account, where: a.id == ^id)
+
+  defp answer(multi, id, answer, at),
+    do:
+      Multi.insert(
+        multi,
+        :push_answer,
+        %PushAnswer{account_id: id, state: answer, answered_at: at},
+        on_conflict: [set: [state: answer, answered_at: at]],
+        conflict_target: [:account_id]
+      )
 
   defp push(id, endpoint),
     do: from(p in PushSubscription, where: p.account_id == ^id and p.endpoint == ^endpoint)

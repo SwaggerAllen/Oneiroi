@@ -21,6 +21,7 @@ defmodule Oneiroi.Gaia.Push do
   alias Oneiroi.Config
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Error
+  alias Oneiroi.Gaia.Events
   alias Oneiroi.Gaia.Router
   alias Oneiroi.Gaia.Store
   alias Oneiroi.Scope
@@ -95,6 +96,83 @@ defmodule Oneiroi.Gaia.Push do
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc """
+  The witness's "No thanks" to the notifications question (gaia#25): the
+  account's answer, so the question leaves his needs-you list on every
+  device. Turning notifications on later from Settings is subscribing a
+  device, which is the other answer.
+  """
+  @spec decline(String.t(), Actor.t()) :: :ok | {:error, term()}
+  def decline(account_id, %Actor{} = actor) do
+    with {:ok, _} <-
+           dispatch(%Commands.DeclinePush{actor: actor, at: Clock.now(), id: account_id}),
+         do: :ok
+  end
+
+  @doc """
+  The account's answer to the notifications question (gaia#25), or nil
+  while it has none: the latest of "No thanks" and a device subscribing.
+  An account with a device subscribed before the answer was recorded
+  answered by subscribing it.
+  """
+  @spec answer(String.t()) :: %{answer: String.t(), answered_at: DateTime.t() | nil} | nil
+  def answer(account_id) do
+    Scope.account(account_id, fn ->
+      case Oneiroi.Repo.get_by(Store.PushAnswer, account_id: account_id) do
+        %Store.PushAnswer{state: answer, answered_at: at} ->
+          %{answer: answer, answered_at: at}
+
+        nil ->
+          first =
+            Oneiroi.Repo.one(
+              from(p in Store.PushSubscription,
+                where: p.account_id == ^account_id,
+                select: min(p.subscribed_at)
+              )
+            )
+
+          first && %{answer: "subscribed", answered_at: first}
+      end
+    end)
+  end
+
+  @doc """
+  A push for what waits on the witness (gaia#26, brain#77): of a
+  resident's needs-you entries (`%{"kind" => _, "ref" => _}`), the ones
+  never pushed for are recorded on the account and one content-free push
+  goes to his devices for them all. An entry is pushed for once, ever.
+  Nothing is recorded when nothing could be sent (no key, no device), so
+  an entry is never marked told when no device heard of it.
+  """
+  @spec needs_you(String.t(), String.t(), [map()]) :: {:ok, [map()]} | {:error, term()}
+  def needs_you(account_id, resident_id, entries) do
+    if entries == [] or not configured?() or subscriptions(account_id) == [] do
+      {:ok, []}
+    else
+      command = %Commands.RecordNeedsYouPush{
+        actor: Actor.platform(),
+        at: Clock.now(),
+        id: account_id,
+        resident_id: resident_id,
+        entries: entries
+      }
+
+      with {:ok, events} <- dispatch(command), do: told(account_id, events)
+    end
+  end
+
+  # The entries the aggregate recorded as new, and the one push for them.
+  defp told(account_id, events) do
+    case for(%Events.NeedsYouPushed{entries: e} <- List.wrap(events), do: e) do
+      [] ->
+        {:ok, []}
+
+      pushed ->
+        :ok = notify(account_id)
+        {:ok, List.flatten(pushed)}
+    end
   end
 
   @doc "The account's subscribed endpoints."

@@ -140,11 +140,12 @@ defmodule Oneiroi.Brain.Checkin do
     end
   end
 
-  # The same list the Inbox reads (brain#65), counted by kind.
+  # The same list the Inbox reads (brain#65), counted by kind; the
+  # notifications question is his devices', not hers to count (brain#76).
   defp needs_you(resident_id) do
     head = "# Waiting on the person who looks after you\n\n"
 
-    case NeedsYou.list(resident_id) do
+    case Enum.reject(NeedsYou.list(resident_id), &(&1.kind == NeedsYou.Notifications.kind())) do
       [] ->
         head <> "Nothing."
 
@@ -166,6 +167,7 @@ defmodule Oneiroi.Brain.Checkin do
   defp waiting_label("piece_to_publish"), do: "drafted piece(s) to publish"
   defp waiting_label("work_blocked"), do: "work item(s) blocked"
   defp waiting_label("plugin_proposal"), do: "plugin proposal(s) of hers to answer"
+  defp waiting_label("kind_gate_proposal"), do: "kind gate proposal(s) of hers to answer"
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.

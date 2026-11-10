@@ -124,18 +124,42 @@ defmodule OneiroiWeb.MeController do
 
   operation(:push,
     summary:
-      "Whether pushes are set up, the VAPID key a device subscribes with, and how many of this account's devices are subscribed",
+      "Whether pushes are set up, the VAPID key a device subscribes with, how many of this account's devices are subscribed, and the account's answer to the notifications question (gaia#25): `answered` is `subscribed`, `declined` or null, with `answered_at`",
     responses: [ok: {"push", "application/json", %Schema{type: :object}}]
   )
 
   def push(%{assigns: %{principal: p}} = conn, _params) do
     config = Oneiroi.Gaia.push_config()
 
-    json(conn, %{
-      enabled: config.enabled,
-      public_key: config.public_key,
-      devices: length(Oneiroi.Gaia.push_subscriptions(p.account_id))
-    })
+    json(
+      conn,
+      %{
+        enabled: config.enabled,
+        public_key: config.public_key,
+        devices: length(Oneiroi.Gaia.push_subscriptions(p.account_id))
+      }
+      |> Map.merge(answered(p.account_id))
+    )
+  end
+
+  defp answered(account_id) do
+    case Oneiroi.Gaia.push_answer(account_id) do
+      nil -> %{answered: nil, answered_at: nil}
+      %{answer: answer, answered_at: at} -> %{answered: answer, answered_at: at}
+    end
+  end
+
+  operation(:decline_push,
+    summary:
+      "No thanks to notifications (gaia#25): the account's answer, which takes the question off the needs-you list on every device; subscribing a device later answers it the other way",
+    responses: [ok: {"the answer", "application/json", %Schema{type: :object}}]
+  )
+
+  def decline_push(%{assigns: %{principal: p}} = conn, _params) do
+    case Oneiroi.Gaia.decline_push(p.account_id, actor(conn)) do
+      :ok -> json(conn, answered(p.account_id))
+      {:error, e} -> error(conn, 422, e)
+    end
   end
 
   operation(:subscribe_push,

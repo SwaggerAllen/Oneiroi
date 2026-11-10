@@ -61,6 +61,17 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule PushAnswer do
+    @moduledoc "The account's answer to the notifications question (gaia#25): subscribed or declined, the latest."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_push_answer" do
+      field(:account_id, :binary_id, primary_key: true)
+      field(:state, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Boot do
     @moduledoc "A platform boot (gaia#21): its number, the commit it ran, the one before, whether it changed; platform-scoped."
     use Ecto.Schema

@@ -74,6 +74,21 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :endpoint, :reason]
   end
 
+  defmodule PushDeclined do
+    # The witness's "No thanks" to the notifications question (gaia#25):
+    # the account's answer, kept until a device subscribes, which is the
+    # other answer. Nothing else is said.
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
+  defmodule NeedsYouPushed do
+    # The witness's devices were told that something waits on him
+    # (gaia#26, brain#77): the resident and the needs-you entries the push
+    # was for, each `%{"kind" => _, "ref" => _}`, its ref as a string. The
+    # aggregate keeps every entry ever pushed, so none is pushed twice.
+    use Oneiroi.Event, version: 1, fields: [:id, :resident_id, :entries]
+  end
+
   defmodule BootRecorded do
     # The platform started (gaia#21): numbered from 1, the commit it runs,
     # the one the boot before ran, and whether they differ. What restarted,

@@ -7,5 +7,6 @@ defmodule Oneiroi.Gaia.Router do
     commands: "Oneiroi.Gaia.Commands",
     dispatching:
       ~w(CreateAccount EnrollSecondFactor OpenSession CloseSession IssueToken RevokeToken
-         StoreKey RevokeKey StoreGithubToken RevokeGithubToken StartWitnessing EndWitnessing SubscribePush UnsubscribePush)
+         StoreKey RevokeKey StoreGithubToken RevokeGithubToken StartWitnessing EndWitnessing SubscribePush UnsubscribePush
+         DeclinePush RecordNeedsYouPush)
 end
