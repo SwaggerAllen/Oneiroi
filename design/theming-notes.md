@@ -170,5 +170,8 @@ Risks to the dissolve:
 direct crossfade against fade-out/fade-in. The tie-breaker is whether
 navigations need a loading pause, which the fade-to-ground gives a
 place for. With tabs mounted, that's rare. The one navigation that
-genuinely loads is switching subjects (`client-state.md`), so that may
-get the fade-to-ground even if tabs crossfade.
+genuinely loads is switching subjects (`client-state.md`). **Decided
+(the witness, 2026-11-10): switching subjects is fade-out, load,
+fade-in.** It also carries a change of theme, so it's the transition
+that matters most. The theme variables are swapped while the screen
+is at the ground colour.
