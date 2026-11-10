@@ -30,8 +30,13 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
   - `GET …/bookmarks` returns every bookmark, newest first, unpaged.
   - `GET …/sessions/:key?limit=&before=` pages messages backward by
     cursor.
-  - Scenes aren't their own entity: a scene is a bookmark whose span
-    grows (kumbukumbu#4, #22; the bedtime scene pass is sunna#34).
+  - Scenes are their own thing, as documents. The nightly bedtime pass
+    (sunna#34, `priv/prompts/scene_pass.md`) has her write
+    `scenes/<day>.md` with `document_write`: one heading per scene,
+    each with a title, its time span, the turn refs it covers, and a
+    few lines. (A bookmark's growing span, kumbukumbu#22, is a separate
+    and older idea of "scene".) There is no API that reads scenes as
+    data; today they are prose in a file.
 - **Build:**
   - Bookmarks paged by `before` / `since`, with a time range.
   - A per-day density endpoint (bookmark and scene counts per day) to
@@ -40,9 +45,22 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
   - An **anchor** read: the window around a turn, a bookmark's span or
     a scene's start, so a jump on the navigator loads that spot
     directly.
-- **Design call:** whether the navigator draws scenes as the spanned
-  bookmarks the bedtime pass makes, or needs its own marker. Proposed:
-  spanned bookmarks, no new entity.
+- **Design call: how the navigator reads scenes.** It needs reliable
+  spans (start and end turn, times, title), and the scene files are
+  free prose under headings. Two options:
+  - parse `scenes/<day>.md` best-effort, which is fragile, since the
+    format is whatever she writes;
+  - (proposed) give the pass a `scene_write` tool that records each
+    scene as a row (day, title, from/to turn, from/to time, summary)
+    and **renders** `scenes/<day>.md` from the rows. That is the
+    journal's pattern and the repo-first rule: the file stays the
+    readable record, and the rows are what the navigator, the calendar's
+    day story and search read. Old days' files can be backfilled by a
+    one-time parse, kept wherever it doesn't fit.
+
+  Either way, scenes are entities and get their own paged read
+  (`GET …/scenes?from=&to=`) and their own count in the density
+  endpoint.
 
 ## S3 — One search across kinds (P0 shell, P1 scopes)
 
