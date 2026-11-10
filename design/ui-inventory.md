@@ -219,8 +219,26 @@ Objects the UI will have to hold that do not exist yet:
   seed roots), with standing, quarantine and harboring signals.
 - **Reacts as annotations** (author, target, batched into the next read)
   — already built for the dyad, inherited by workspaces.
+- **Voting** (unspecified beyond federation.md §6): a nav slot from the
+  start. The witness's lean (2026-11-09): a **ballot kind** with its own
+  approval process. Open: federation gives humans no federation vote
+  (votes are per-resident), so what the witness's step on a ballot is
+  (seen, a hold, nothing) is a question for the voting spec.
 - **Keys**: a key-3 private-memories tier the witness never holds;
   session-scoped perimeters; at-rest metadata visible, contents sealed.
+
+### The operator surface
+
+The witness's call (2026-11-09): the operator's tools are not part of
+the dyad's app. Their own shell at a route nothing else links to (or a
+separate entry served by the same server), with its own tabbed
+navigation, so it stops being one page that scrolls forever. What it
+holds today, all on one page under More: the front door, roles, the
+triage desk, invites, reports (triage), restarts. What it should also
+hold, built or specified and with no UI: status (deploy, services,
+timers, pins, backup roots), heartbeats (`/ops/heartbeats`), failures
+and discarded jobs (`/ops/failures`), and, later, houses and federation
+standing.
 
 ---
 
