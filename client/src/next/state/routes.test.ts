@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { formatHash, parseHash } from './routes';
+import { formatHash, isTabHash, parseHash } from './routes';
 import { topOf, useShell } from './store';
 
 describe('routes', () => {
@@ -7,6 +7,12 @@ describe('routes', () => {
     const loc = parseHash('#/records/doc/etymologies/oneiric.md');
     expect(loc).toEqual({ tab: 'records', path: 'doc/etymologies/oneiric.md' });
     expect(formatHash(loc)).toBe('#/records/doc/etymologies/oneiric.md');
+  });
+
+  it('knows which hashes are the tabs', () => {
+    expect(isTabHash('#/records/doc/x')).toBe(true);
+    expect(isTabHash('')).toBe(true);
+    expect(isTabHash('#/operator')).toBe(false);
   });
 
   it('falls back to chat for an unknown or empty hash', () => {

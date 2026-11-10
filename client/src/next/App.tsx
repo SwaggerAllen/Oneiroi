@@ -4,6 +4,7 @@ import { api, RequestFailed } from '../api/client';
 import { Login } from '../app/Login';
 import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
+import { Operator } from './operator/Operator';
 import { useNotificationsAsk } from './shell/notifications';
 import { RecordsTab } from './records/RecordsTab';
 import { SoulTab } from './soul/SoulTab';
@@ -61,7 +62,9 @@ function Boot() {
   }
   return (
     <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
-      <Home residentId={resident.id} residentName={resident.name} />
+      <OperatorOr>
+        <Home residentId={resident.id} residentName={resident.name} />
+      </OperatorOr>
     </SubjectContext.Provider>
   );
 }
@@ -98,4 +101,15 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
       }
     />
   );
+}
+
+/** `#/operator` is its own shell (ui-structures.md D); everything else is the house. */
+function OperatorOr({ children }: { children: React.ReactNode }) {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const on = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return hash.startsWith('#/operator') ? <Operator /> : <>{children}</>;
 }

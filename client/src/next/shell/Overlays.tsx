@@ -172,7 +172,7 @@ function Settings() {
   const setOverlay = useShell((s) => s.setOverlay);
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const ledger = useQuery({ queryKey: ['resident', id, 'settings', 'ledger'], queryFn: () => api.ledger(id) });
-  const operator = (me.data?.roles ?? []).some((r) => r === 'operator' || r === 'super_admin' || r === 'triage');
+  const operator = (me.data?.roles ?? []).some((r) => r === 'super_admin' || r === 'admin');
   const spent = ledger.data ? JSON.stringify(ledger.data).match(/"spent[^"]*":\s*(\d+)/) : null;
 
   return (
@@ -188,7 +188,7 @@ function Settings() {
       </nav>
       <nav className={css.group} aria-label="You">
         <Row label="Send feedback" onClick={() => setOverlay('feedback')} />
-        {operator && <Row href="/client/#operator" label="Operator" />}
+        {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
         <Row href="/client/" label="Open the current client" />
       </nav>
       <div className={css.account}>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { formatHash, parseHash, TABS, type Tab } from '../state/routes';
+import { formatHash, isTabHash, parseHash, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
 import { Header } from './Header';
 import { OfflineBar } from './OfflineBar';
@@ -25,7 +25,9 @@ function useHashSync() {
   const stacks = useShell((s) => s.stacks);
 
   useEffect(() => {
-    const read = () => go(parseHash(window.location.hash));
+    const read = () => {
+      if (isTabHash(window.location.hash)) go(parseHash(window.location.hash));
+    };
     read();
     window.addEventListener('hashchange', read);
     return () => window.removeEventListener('hashchange', read);
@@ -33,6 +35,7 @@ function useHashSync() {
 
   useEffect(() => {
     const hash = formatHash({ tab, path: topOf(stacks, tab) });
+    if (!isTabHash(window.location.hash)) return;
     if (window.location.hash !== hash) window.history.pushState(null, '', hash);
   }, [tab, stacks]);
 }

@@ -121,6 +121,14 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/custody/decision`, { decision, note }),
   // Invite codes (gaia#18): SKUs a super admin issues; the code is shown once.
   invites: () => call<{ invites: Invite[]; defaults: InviteDefaults }>('GET', '/v1/platform/invites'),
+  // The ops read surface (apsu#23): failures as facts, heartbeats as absences.
+  opsFailures: () =>
+    call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
+  heartbeats: (residentId: string) =>
+    call<Array<{ name: string; last: string | null; every_seconds: number; late?: boolean } & Record<string, unknown>>>(
+      'GET',
+      `/v1/residents/${residentId}/ops/heartbeats`,
+    ),
   issueInvite: (sku: InviteRequest) => call<{ id: string; code: string }>('POST', '/v1/platform/invites', sku),
   revokeInvite: (id: string, note: string) => call<void>('DELETE', `/v1/platform/invites/${id}`, { note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),

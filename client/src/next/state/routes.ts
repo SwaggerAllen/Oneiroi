@@ -21,3 +21,9 @@ export function formatHash({ tab, path }: Location): string {
   const rest = path ? '/' + path.split('/').map(encodeURIComponent).join('/') : '';
   return `#/${tab}${rest}`;
 }
+
+/** Whether a hash belongs to the house's tabs (empty counts); `#/operator` is its own shell. */
+export function isTabHash(hash: string): boolean {
+  const first = hash.replace(/^#\/?/, '').split('/')[0];
+  return first === '' || (TABS as readonly string[]).includes(first);
+}
