@@ -321,8 +321,11 @@ the mockup canvas:
   stays there as waiting until the witness accepts or explicitly
   declines; declining sets "No thanks", and Settings can turn them on
   later. The first-day panel in Chat carries the same item.
-- **Pending a look:** whether navigator search keeps its own drawer on
-  desktop or folds into a global ⌘K search.
+- **One search, everywhere.** More than one search bar on screen is an
+  anti-pattern (the witness), so there is a single global search: the
+  header's search icon on a phone, ⌘K on desktop. Scope chips narrow it
+  (Records, Bookmarks, Scenes, Her words, and "As Lily sees it"), and
+  no screen carries a search bar of its own.
 - **Small ends:** "Ask for one" mails allen.strut@pm.me for now. The
   examples come from a generated fictional resident; the witness's own
   files are never examples.
