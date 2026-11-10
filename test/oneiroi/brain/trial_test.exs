@@ -349,6 +349,8 @@ defmodule Oneiroi.Brain.TrialTest do
        note: "for the herons"
      }},
     {"route_ask", %{key: "marsh"}},
+    {"theme_propose",
+     %{ground: "#0a0a10", resident: "#d8b4fe", witness: "#7ee7f5", note: "for the herons"}},
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},

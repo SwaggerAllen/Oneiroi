@@ -215,4 +215,20 @@ defmodule Oneiroi.Seshat.Events do
     # (`number`).
     use Oneiroi.Event, version: 1, fields: [:id, :kind, :approvable, :number]
   end
+
+  defmodule ThemeProposed do
+    # Her proposal of the three seeds (seshat#56), filed only once they
+    # passed the readability checks; numbered by the theme stream. The
+    # witness accepts or declines it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :ground, :resident, :witness],
+      decision: true
+  end
+
+  defmodule ThemeAnswered do
+    # The witness's answer to her theme proposal (seshat#56), with a
+    # note; accepted, THEME.md is written with the proposal's seeds.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :agree], decision: true
+  end
 end

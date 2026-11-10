@@ -99,6 +99,27 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule ThemeProposal do
+    @moduledoc "Her proposal of the three theme seeds (seshat#56), and the witness's answer."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_theme_proposal" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:ground, :string)
+      field(:resident, :string)
+      field(:witness, :string)
+      field(:note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:agree, :boolean)
+      field(:answered_by, :string)
+      field(:answer_note, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule PieceReview do
     @moduledoc "A writing piece's review (seshat#42): approved, declined or drafted, the note, the version, the Substack draft."
     use Ecto.Schema
@@ -795,4 +816,9 @@ defmodule Oneiroi.Seshat.Store do
   @spec kind_gate_proposals() :: [KindGateProposal.t()]
   def kind_gate_proposals,
     do: Repo.all(from(p in KindGateProposal, order_by: [desc: p.number]))
+
+  @doc "Her theme proposals, newest first (seshat#56)."
+  @spec theme_proposals() :: [ThemeProposal.t()]
+  def theme_proposals,
+    do: Repo.all(from(p in ThemeProposal, order_by: [desc: p.number]))
 end

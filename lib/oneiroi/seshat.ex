@@ -83,6 +83,14 @@ defmodule Oneiroi.Seshat do
       Store.UserKind,
       Store.KindGate,
       Store.KindGateProposal,
+      Theme,
+      Palette,
+      ThemeRouter,
+      Commands.ProposeTheme,
+      Commands.AnswerTheme,
+      Events.ThemeProposed,
+      Events.ThemeAnswered,
+      Store.ThemeProposal,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.KeepsakeRegistered,
@@ -151,6 +159,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
+  alias Oneiroi.Seshat.Theme
   alias Oneiroi.Seshat.UserKinds
   alias Oneiroi.Seshat.Versions
 
@@ -251,6 +260,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.KindGateProposed, 1},
       {Oneiroi.Seshat.Events.KindGateAnswered, 1},
       {Oneiroi.Seshat.Events.KindGateMoved, 1},
+      {Oneiroi.Seshat.Events.ThemeProposed, 1},
+      {Oneiroi.Seshat.Events.ThemeAnswered, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.KeepsakeRegistered, 1},
@@ -424,6 +435,28 @@ defmodule Oneiroi.Seshat do
       {:seshat_kind_gate_invalid,
        "a gate is a system kind's whose own flow waits on the witness; on is either party's at once, off is a proposal the other party answers, one open at a time",
        remedy: "answer the open proposal, or ask the other party to"},
+      {:seshat_theme_invalid,
+       "a theme is three #rrggbb seeds, a ground, her colour and his colour (seshat#56), and a proposal or an answer to one says why in a note",
+       remedy: "give ground, resident and witness as #rrggbb, and the note"},
+      {:seshat_theme_unreadable,
+       "those seeds would make the screen hard to read: a readability check of the theme's derivation failed (seshat#56)",
+       remedy:
+         "read which checks failed: text-facing colours need more contrast against the ground, and her colour and his need more hue or lightness between them"},
+      {:seshat_theme_not_his, "the theme's seeds are the witness's to set (seshat#56)",
+       remedy: "the resident proposes a theme with theme_propose; the witness answers it"},
+      {:seshat_theme_not_hers,
+       "a theme proposal is the resident's; the witness sets the seeds directly (seshat#56)",
+       remedy: "set the theme with PUT /v1/residents/:id/theme"},
+      {:seshat_theme_proposal_open,
+       "one theme proposal waits on the witness at a time (seshat#56)",
+       remedy: "wait for his answer to the open one"},
+      {:seshat_theme_answer_invalid,
+       "only the witness answers a theme proposal, and only an open one (seshat#56)",
+       remedy: "read the theme's proposals for the open one's number"},
+      {:seshat_theme_file,
+       "THEME.md is written only through the theme, where the readability checks run (seshat#56)",
+       remedy:
+         "the witness sets it with PUT /v1/residents/:id/theme; the resident proposes a change with theme_propose"},
       {:seshat_dispatch_failed,
        "the command did not reach the library, the journal or the scenes aggregate: the command middleware or the event store refused it",
        remedy:
@@ -439,7 +472,8 @@ defmodule Oneiroi.Seshat do
       Oneiroi.Seshat.Projectors.Journal,
       Oneiroi.Seshat.Projectors.Scenes,
       Oneiroi.Seshat.Projectors.Pieces,
-      Oneiroi.Seshat.Projectors.Kinds
+      Oneiroi.Seshat.Projectors.Kinds,
+      Oneiroi.Seshat.Projectors.Theme
     ]
 
   # ---- the registry ----
@@ -482,6 +516,37 @@ defmodule Oneiroi.Seshat do
   defexport(answer_kind_gate(resident_id, number, agree, note, actor),
     do: UserKinds.answer(resident_id, number, agree, note, actor)
   )
+
+  # ---- the theme (seshat#56) ----
+
+  @doc "The theme: the three seeds from THEME.md or the default, their checks, and her proposals."
+  @spec theme(String.t()) :: map()
+  defexport(theme(resident_id), do: Theme.read(resident_id))
+
+  @doc "The witness sets the theme's seeds, checked for readability, written as THEME.md with his note."
+  @spec set_theme(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(set_theme(resident_id, seeds, note, actor),
+    do: Theme.set(resident_id, seeds, note, actor)
+  )
+
+  @doc "She proposes the theme's seeds; checked first and refused with the report when unreadable. `{:ok, number, derived}`."
+  @spec propose_theme(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer(), map()} | {:error, term()}
+  defexport(propose_theme(resident_id, seeds, note, actor),
+    do: Theme.propose(resident_id, seeds, note, actor)
+  )
+
+  @doc "The witness accepts or declines her theme proposal, with a note; she is told."
+  @spec answer_theme(String.t(), pos_integer(), boolean(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_theme(resident_id, number, agree, note, actor),
+    do: Theme.answer(resident_id, number, agree, note, actor)
+  )
+
+  @doc "Her theme proposals, newest first (seshat#56)."
+  @spec theme_proposals(String.t()) :: [map()]
+  defexport(theme_proposals(resident_id), do: Theme.proposals(resident_id))
 
   @doc "Loads every folder's descriptor back from the repository (seshat#51), refusing what claims too much."
   @spec load_kinds(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

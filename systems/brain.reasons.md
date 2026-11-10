@@ -692,3 +692,10 @@ The tool's answer is the only way she learns why a write did not land;
 a refusal would read as an error in her words, and silence would read
 as written. Saying when to try again, and that nothing is held for
 her, keeps her from assuming the platform will finish it.
+
+## #80
+A proposal he must answer belongs on the one list of what waits on
+him, and the entry carries the seeds themselves so the bell can render
+a preview without a second read. One adapter and one registration line
+is what brain#72 made a new source cost, so nothing else in the queue
+changes.

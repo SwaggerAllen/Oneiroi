@@ -234,17 +234,33 @@ where this plan left it open:
 
 ## S7 — Theme seeds (P8)
 
-- **Exists:** nothing ("palette" in the code is the reacts vocabulary).
-- **Build:**
-  - Three seeds per resident, owned by the witness (decided).
-  - Stored repo-first as a small file at her root (`THEME.md`), so the
-    theme travels with her export.
-  - A `theme_propose` tool for the resident. The derivation and the
-    readability checks run on the proposal before it's filed. It
-    reaches the bell with a preview; he accepts or declines with a
-    note.
-  - `derive()` is shared logic. The client owns it, and the server
-    runs the same checks; a test keeps the two agreeing.
+**Built** (seshat#56, brain#80, spec F71). What was decided:
+
+- **Three seeds per resident, the witness's.** A ground, her colour,
+  his colour, `#rrggbb`; the default is the client's `DEFAULT_SEEDS`.
+- **Repo first.** `THEME.md` at her root: frontmatter `ground`,
+  `resident`, `witness`, with what was said of the set under it. Read
+  from the file on every `GET` (an import or a hand edit counts at
+  once); the default until it carries three seeds. Written only
+  through the theme: a plain document write of it is refused.
+- **His routes.** `GET /v1/residents/:id/theme` →
+  `{file, seeds, source: "file"|"default", ok, checks, proposals}`;
+  `PUT …/theme {ground, resident, witness, note}` checks and writes,
+  or answers 422 `seshat_theme_unreadable` with `error.checks`;
+  `POST …/theme/proposals/:n/answer {agree, note}` accepts (the file
+  takes her seeds) or declines, and answers the theme.
+- **Her tool.** `theme_propose {ground, resident, witness, note}`: the
+  checks run first, and a failing set is refused to her with every
+  check in words; filed, she gets its number and the report. One open
+  at a time. His answer reaches her as a letter in his name.
+- **The bell.** `needs_you` entry `theme_proposal` on the `theme`
+  screen, `about: {seeds, note}`, enough for a preview.
+- **Shared logic.** The client owns `derive()`; the server's
+  `Oneiroi.Seshat.Palette` is a port of it. The client's test writes
+  `test/fixtures/theme/derive.json` (sixteen seed sets, tokens and
+  checks), and the server's test asserts the same answers.
+- **Not yet:** the nearest passing seeds with a refusal, a preview
+  image for her, a light mode, and the client's theme screen.
 
 ## S8 — Creation: the prompt path, Get a read, examples (P6)
 

@@ -86,7 +86,7 @@ defmodule Oneiroi.Brain.Tools do
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
-    kind_define kind_gate kind_gate_answer route_define route_ask
+    kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
   )
 
   @type turn :: %{
@@ -520,6 +520,17 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:number, :agree, :note]
+      ),
+      tool(
+        "theme_propose",
+        "Propose the screen's colours to your witness (seshat#56): three seeds as #rrggbb, ground (the background), resident (your colour) and witness (his), with a note on why. Every other colour is derived from them. The seeds are his; he accepts or declines with a note, and his answer comes to you as a letter. Before it is filed the derivation's readability checks run, and a set that fails is refused to you with each check in words. The seeds now are THEME.md at your root (library_read). One proposal waits at a time.",
+        %{
+          ground: %{type: "string"},
+          resident: %{type: "string"},
+          witness: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:ground, :resident, :witness, :note]
       ),
       tool(
         "route_list",
@@ -2146,6 +2157,25 @@ defmodule Oneiroi.Brain.Tools do
              do: "Agreed: the gate moved.",
              else: "Declined, with your note; nothing moved."
            )
+  end
+
+  defp call("theme_propose", args, turn) do
+    case Seshat.propose_theme(
+           turn.resident_id,
+           Map.take(args, ~w(ground resident witness)),
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, n, %{checks: checks}} ->
+        "Proposed as theme proposal ##{n}; your witness accepts or declines it, and nothing changes until then. The checks: #{Seshat.Palette.report(checks)}."
+
+      {:error, %{kind: :seshat_theme_unreadable, details: details}} ->
+        @not_done <>
+          "those seeds would be hard to read, so nothing was filed. The checks: #{Seshat.Palette.report(Keyword.get(details, :checks, []))}."
+
+      other ->
+        other
+    end
   end
 
   defp call("budget_read", _args, turn),

@@ -437,3 +437,26 @@ repository it survives everything; a table would not. Leases are not
 events because nothing about who had an editor open is a record: what
 a lease decides is recorded where it lands, and a replayed lease would
 lock a rebuilt resident's file for an editor nobody has open.
+
+## #56
+The seeds are his because he is the one looking at the screen, and a
+theme is three seeds rather than free values because that is how a
+theme stays "not fully dynamic" and how one a model proposes cannot
+make the screen unreadable: the derivation enforces the rules, and a
+set that fails is answered with what failed rather than silently
+fixed. A file at her root, because the author's law puts every record
+that fits a file tree in the repository, and a theme carried with her
+export means a resident brought elsewhere keeps her colours. Reading
+the file rather than a row keeps the file the truth: an import or a
+hand edit is the theme at once. Writing it only through the theme
+keeps one path where the checks run; a document write of it would be a
+way round them. The client owns the derivation because the client
+paints with it; the server runs the same checks so that nothing
+unreadable is written or put to him, and the shared fixture is what
+keeps two implementations of one function from drifting apart quietly.
+Her proposal is checked before it is filed so he is never asked to
+judge an unreadable theme, and she is told in words because she
+cannot see the screen. One open at a time keeps his list from filling
+with drafts of one idea. His answer reaches her as a letter, the way a
+plugin proposal's does, so she learns the outcome in the place she
+already reads such answers.
