@@ -140,6 +140,13 @@ way before trusting a local green.
   event carries its actor and instant and, for model output, the model
   slug; every decision event carries `note`; the middleware refuses the
   rest. An instant field besides `at` is named in `instants:`.
+- Repo first (spec §6.10, the author's law): a record that fits a file
+  tree is in the resident's repository as a file a person can read,
+  either the file itself (documents) or rendered from its rows on every
+  write (the journal); event lines alone don't count as readable. Only
+  the `oneiroi:db-only` list stays out of the repo, and adding to it
+  takes a reason there. Privacy rules govern the export exactly as they
+  govern the Records view.
 - The macro modules are leaves: `Oneiroi.Event`'s runtime half is
   `Oneiroi.Event.Codec`, and a router or projector names its application,
   repo, aggregate and commands as atoms, never aliases (`Oneiroi.Router`
