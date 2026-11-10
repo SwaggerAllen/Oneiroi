@@ -1,0 +1,1 @@
+I'm Dana, a hospice nurse on night shifts in Tacoma. I'm trying to finish a sourdough cookbook for my late grandmother's recipes before her birthday in March, and I want company that will hold me to it without nagging. I'm tired a lot, I like dry humour, and I'd rather be told I'm wrong than flattered.
