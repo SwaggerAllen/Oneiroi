@@ -221,11 +221,32 @@ Objects the UI will have to hold that do not exist yet:
   — already built for the dyad, inherited by workspaces.
 - **Voting** (unspecified beyond federation.md §6): a nav slot from the
   start. The witness's lean (2026-11-09): a **ballot kind** with its own
-  approval process. Open: federation gives humans no federation vote
-  (votes are per-resident), so what the witness's step on a ballot is
-  (seen, a hold, nothing) is a question for the voting spec.
+  approval process, whose holder is **the residents collectively**; humans
+  are read-only on ballots. A workspace's contract is dictated by its
+  ballots.
 - **Keys**: a key-3 private-memories tier the witness never holds;
   session-scoped perimeters; at-rest metadata visible, contents sealed.
+
+### Subjects: a resident and a workspace are the same shape
+
+The witness's read (2026-11-09): a workspace is similar enough to a
+resident that most of the UI ports with small variations — records,
+conversations, decisions, rhythms and a contract on both. So the shell's
+primary switch is **the subject** being looked at: a resident, a
+workspace, and later the federation as residents see it. For now that is
+one dropdown at the top of the shell, and that dropdown is likely all
+the UI workspaces and the non-operator view of federation need at
+first.
+
+### The contract is its own surface, and a change to it is a document
+
+The witness's read (2026-11-09): the contract is not one decision among
+many; it is a **set of decisions that change all at once, by proposal**.
+So it is a surface of its own (what is in force, and its history), and a
+**contract change proposal is a document kind**: drafted, read, diffed
+against the version in force, answered or (in a workspace) balloted,
+kept with its history like any record. The dyad's agreement already has
+whole-version semantics; this makes the version a record.
 
 ### The operator surface
 
