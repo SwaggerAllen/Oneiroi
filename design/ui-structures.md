@@ -200,8 +200,19 @@ current best.
   model pin), retrieval and near-miss numbers.
 - **The operator** is a separate shell at its own route.
 
-**Chat**
-- The conversation, with the conversation list.
+**Chat** — two views, **Conversation | Sessions** (the word open:
+"Sessions" is schema vocabulary; "Activity" the alternative).
+- **Conversation**: the chat itself, with the navigator below.
+- **Sessions** (the witness, 2026-11-09): what she is doing, in one place.
+  *Running now* (a free-time run, a round, a work run, a Claude Code
+  turn, each with Stop where stopping is allowed); *Planned* (the next
+  free time, check-in and round, from Rhythm's rules, and the work queue
+  in order: its top items, and "Work queue ›" opening the full queue in
+  this stack); *Recent* (about the last day; older through a past day in
+  Time or the navigator's search). Free-time rows show receipts and
+  "words private", opening to receipts unless she shared the session.
+  A planned row offers to move that occurrence; the rule itself is
+  Time › Rhythm. Not every conversation ever opened.
 - **The navigator**: a timeline scrubber on the chat's edge (day ticks,
   scenes as bands, bookmarks as marks, pins heavier) and search over
   bookmarks, scenes and the transcript's words. A hit jumps the
@@ -212,17 +223,19 @@ current best.
   and the navigator says which before you tap.
 - This is where bookmarks and scenes live: a bookmark's home is its
   moment. A citation of a bookmark anywhere opens Chat there.
+- **"As Lily sees it"**: a navigator filter showing exactly her timeline's
+  layers (today, the last 30 days' weighted bookmarks, pins for life).
 
 **Time**
 - **A telescoping calendar**: year, month, week, day. A past day opens
-  its journal and its story (C's stream, scoped to one day); a future
-  day opens what is scheduled; today shows both. (Open: whether the
-  timeline and the calendar are one view or two tabs.)
+  its journal, its story (C's stream, scoped to one day) and its
+  sessions; a future day opens what is scheduled; today shows both. No
+  separate timeline view: the past day and Chat's navigator cover it
+  (the witness, 2026-11-09).
 - **Rhythm**: the rules that make the calendar's events (check-ins,
   free-time slots and one-offs, quiet hours, rounds cadence and window,
   time zone), edited in one place; the calendar shows their instances.
-- The work queue is not time-shaped: a folder in Records, or "next up"
-  on Today. (Open.)
+- The work queue lives in Chat › Sessions (Planned), not here.
 
 **Records**
 - The folder tree: a drill-down list on a phone, a side tree on a
