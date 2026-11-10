@@ -108,6 +108,10 @@ defmodule Oneiroi.Seshat do
       Store.Reference,
       Store.IndexRun,
       Store.Discussion,
+      Store.DocumentVersion,
+      Store.Lease,
+      Versions,
+      Leases,
       Store.Oracle,
       Store.Research,
       Store.External,
@@ -141,12 +145,14 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
+  alias Oneiroi.Seshat.Leases
   alias Oneiroi.Seshat.Oracles
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
   alias Oneiroi.Seshat.UserKinds
+  alias Oneiroi.Seshat.Versions
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -198,6 +204,18 @@ defmodule Oneiroi.Seshat do
        default: "8",
        tag: :bound,
        usage: "how many chunks a search returns at most; a bound"},
+      {:versions_limit, "SESHAT_VERSIONS_LIMIT",
+       cast: :integer,
+       default: "100",
+       tag: :bound,
+       usage:
+         "how many of the repository's commits of one path a document's versions read (seshat#54), newest first; each costs a git read of its blob; a bound, not measured"},
+      {:lease_idle_seconds, "SESHAT_LEASE_IDLE_SECONDS",
+       cast: :integer,
+       default: "300",
+       tag: :bound,
+       usage:
+         "how long the witness's edit lease goes without a renewal before it is takeable (seshat#55): never revoked, taken only by the resident's write waiting on that file, his draft kept; five minutes, a guess at an editor left open, not measured"},
       {:figures, "SESHAT_FIGURES",
        cast: &__MODULE__.cast_figures/1,
        default: "huginn_muninn",
@@ -223,7 +241,7 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Seshat.Events.DocumentWritten, 1},
+      {Oneiroi.Seshat.Events.DocumentWritten, 2},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.PieceReviewed, 1},
@@ -329,6 +347,20 @@ defmodule Oneiroi.Seshat do
       {:seshat_no_such_digest, "no digest has that number", remedy: "list the digests"},
       {:seshat_digest_settled, "that digest is already compiled or failed",
        remedy: "ask for a new digest"},
+      {:seshat_no_such_version,
+       "neither the file now nor any commit of it the versions read holds words with that hash (seshat#54)",
+       remedy:
+         "list the document's versions; a version written and overwritten between two backups is listed and not restorable"},
+      {:seshat_lease_held, "another account holds the edit lease on that path (seshat#55)",
+       remedy: "wait for it to be released, or ask whoever holds it"},
+      {:seshat_lease_taken,
+       "the lease was taken by the resident's write while it was idle; the draft it carried is kept at kept_at (seshat#55)",
+       remedy:
+         "read the document as it is now and the kept draft; acquire the lease again to edit"},
+      {:seshat_no_such_lease, "you hold no lease on that path", remedy: "acquire one first"},
+      {:seshat_lease_invalid,
+       "an edit lease is the witness's editor's: acquired, renewed and released by a witness",
+       remedy: "the resident's document_write waits on a lease rather than taking one"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -403,6 +435,7 @@ defmodule Oneiroi.Seshat do
   def children,
     do: [
       Oneiroi.Seshat.Projectors.Library,
+      Oneiroi.Seshat.Projectors.Versions,
       Oneiroi.Seshat.Projectors.Journal,
       Oneiroi.Seshat.Projectors.Scenes,
       Oneiroi.Seshat.Projectors.Pieces,
@@ -456,11 +489,91 @@ defmodule Oneiroi.Seshat do
 
   # ---- documents ----
 
-  @doc "Writes a file through the flow: the path says the kind, the file lands in the repository, the index runs."
+  @doc "Writes a file through the flow: the path says the kind, the file lands in the repository, the index runs. A resident's write on a path the witness holds a lease on waits, or takes the lease once idle (seshat#55): `written: false` with `waiting`, or `took`."
   @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(write(resident_id, path, content, actor),
-    do: Documents.write(resident_id, path, content, actor)
+    do: Leases.write(resident_id, path, content, actor)
+  )
+
+  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54)."
+  @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(write(resident_id, path, content, actor, opts),
+    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note]))
+  )
+
+  # ---- versions (seshat#54) ----
+
+  @doc "A document's versions, newest first, each with its act, actor, instant, note and whether it can be restored; and the hash of the file now."
+  @spec versions(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(versions(resident_id, path), do: Versions.list(resident_id, path))
+
+  @doc "The words of one version of a path, by its hash."
+  @spec version(String.t(), String.t(), String.t()) :: {:ok, binary()} | {:error, term()}
+  defexport(version(resident_id, path, hash), do: Versions.content(resident_id, path, hash))
+
+  @doc "The line diff between two versions of a path (`to` nil: the file now)."
+  @spec version_diff(String.t(), String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(version_diff(resident_id, path, from, to),
+    do: Versions.diff(resident_id, path, from, to)
+  )
+
+  @doc "Restores a version through the normal write: a direct write, or the proposal an identity file after first contact takes."
+  @spec restore(String.t(), String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(restore(resident_id, path, hash, note, actor),
+    do: Versions.restore(resident_id, path, hash, note, actor)
+  )
+
+  # ---- edit leases (seshat#55) ----
+
+  @doc "Acquires the witness's edit lease on a path, or renews his own."
+  @spec acquire_lease(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(acquire_lease(resident_id, path, actor),
+    do: Leases.acquire(resident_id, path, actor)
+  )
+
+  @doc "Renews the holder's lease, keeping his unsaved draft when given."
+  @spec renew_lease(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(renew_lease(resident_id, path, draft, actor),
+    do: Leases.renew(resident_id, path, draft, actor)
+  )
+
+  @doc "Releases the holder's lease."
+  @spec release_lease(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(release_lease(resident_id, path, actor),
+    do: Leases.release(resident_id, path, actor)
+  )
+
+  @doc "The lease on a path as both parties see it, or nil."
+  @spec lease(String.t(), String.t()) :: map() | nil
+  defexport(lease(resident_id, path), do: Leases.lease(resident_id, path))
+
+  @doc "Every lease on the resident's library."
+  @spec leases(String.t()) :: [map()]
+  defexport(leases(resident_id), do: Leases.list(resident_id))
+
+  # ---- reacts on documents (kumbukumbu#61) ----
+
+  @doc "A party reacts on a document: the path resolved here and the hash of the words it holds now, recorded on the reacts ledger."
+  @spec react_document(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(react_document(resident_id, path, emoji, actor),
+    do:
+      with(
+        {:ok, %{document: row, content: words}} <- Documents.fetch(resident_id, path),
+        do:
+          Oneiroi.Kumbukumbu.react(
+            resident_id,
+            %{"kind" => "document", "path" => row.path, "hash" => Documents.hash(words)},
+            emoji,
+            actor
+          )
+      )
   )
 
   # ---- the oracle (brain#49, seshat#34) ----

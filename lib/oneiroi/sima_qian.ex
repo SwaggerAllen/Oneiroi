@@ -244,6 +244,27 @@ defmodule Oneiroi.SimaQian do
       )
   )
 
+  @doc "The commits that changed one path of the resident's repository, newest first, each with the blob the path held after it (sima-qian#49, for seshat#54)."
+  @spec repository_history(String.t(), String.t(), pos_integer()) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(repository_history(resident_id, path, limit),
+    do:
+      with(
+        {:ok, dir} <- Backup.repository_dir(resident_id),
+        do: Git.history(dir, path, limit)
+      )
+  )
+
+  @doc "One blob's bytes from the resident's repository, by the sha `repository_history/3` named."
+  @spec repository_blob(String.t(), String.t()) :: {:ok, binary()} | {:error, term()}
+  defexport(repository_blob(resident_id, blob),
+    do:
+      with(
+        {:ok, dir} <- Backup.repository_dir(resident_id),
+        do: Git.blob(dir, blob)
+      )
+  )
+
   @doc "Recomputes the root over a resident's export and compares it with the last backup's."
   @spec attest(String.t(), Oneiroi.Actor.t()) ::
           {:ok, :held | :mismatch | :none} | {:error, term()}

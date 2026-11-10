@@ -54,6 +54,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:session_key, :string)
       field(:turn_ref, :string)
       field(:letter, :integer)
+      # A document reacted on (kumbukumbu#61): its path and the hash of
+      # the words it held then.
+      field(:path, :string)
+      field(:document_hash, :string)
       field(:emoji, :string)
       field(:by, :string)
       field(:reacted_at, :utc_datetime_usec)
@@ -1115,7 +1119,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
-  @doc "The reacts, oldest first; `untold: true` for those not yet told her (kumbukumbu#56)."
+  @doc "The reacts, oldest first; `untold: true` for those not yet told her (kumbukumbu#56), `path:` for one document's (#61)."
   @spec reacts(keyword()) :: [React.t()]
   def reacts(opts \\ []) do
     q = from(r in React, order_by: r.number)
@@ -1127,6 +1131,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
         else: q
 
     q = if opts[:by], do: from(r in q, where: r.by == ^opts[:by]), else: q
+    q = if opts[:path], do: from(r in q, where: r.path == ^opts[:path]), else: q
     Repo.all(q)
   end
 

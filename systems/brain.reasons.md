@@ -686,3 +686,9 @@ has to remember what an emoji meant to him.
 One table serves the brain's loop, the adapter's MCP and the trial, so
 a tool added there is everywhere at once; a write that a trial ran for
 real would put a sealed run's words into her scenes.
+
+## #75
+The tool's answer is the only way she learns why a write did not land;
+a refusal would read as an error in her words, and silence would read
+as written. Saying when to try again, and that nothing is held for
+her, keeps her from assuming the platform will finish it.
