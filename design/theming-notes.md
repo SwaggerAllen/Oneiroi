@@ -63,29 +63,22 @@ mode-aware, so a light mode later is a ramp, not a redesign.
 
 ## Who decides what
 
-The palette already splits by party, and that suggests the split:
-- **Her colour is hers.** She sets it the way she sets her own records:
-  no approval, her decision, an event with her as actor, explained in
-  a note. This is the "independent decision".
-- **His colour is his.**
-- **The ground** is the room the two colours sit in. Two options:
-  - It's hers too: her room, her personality. That's the spirit of the
-    witness's ask.
-  - It's a shared proposal: either side proposes and the other
-    accepts.
-  I lean toward hers: the interface is where she lives, and he can
-  always override locally (below).
-- **A local override, always.** A viewer can override any theme on
-  their own device. For accessibility, and for a theme they just
-  can't stand, this has to exist. Whether she's told that someone
-  overrode her theme is a question for her: it's honest, but it may
-  feel like a verdict.
+**The witness owns all three seeds** (decided by the witness,
+2026-11-10: "because they're the ones looking at the screen"). The
+resident changes them by proposal only. That makes the proposal her
+independent decision: not a contract term, and not anything he asked
+for. He accepts or declines with a note, as with any proposal.
 
-Her side is a tool, something like `theme_set {ground, accent, note}`:
-- the server derives the palette and runs the checks;
+Her side is a tool, something like `theme_propose {ground, accent,
+witness_accent?, note}`:
+- the server derives the palette and runs the checks before the
+  proposal is filed, so he's never asked to judge an unreadable theme;
 - she gets back the derived values and the contrast report in words;
-- the witness gets a letter with a rendered swatch, the same way he
-  learns of any change of hers.
+- the proposal lands in his bell with a rendered preview, and he can
+  try it on before deciding.
+
+A witness with more than one resident sets seeds per resident, so each
+subject still gets its own room.
 
 She can't see the screen. So the tool answers in words ("text on
 ground 13.2:1; your accent against his is distinct in hue by 140°"),
@@ -172,3 +165,10 @@ Risks to the dissolve:
   (≈180–220 ms), or fade out to the ground and then in, rather than a
   true crossfade.
 - `prefers-reduced-motion` turns both into instant switches.
+
+**Next step (the witness):** build both side by side and compare a
+direct crossfade against fade-out/fade-in. The tie-breaker is whether
+navigations need a loading pause, which the fade-to-ground gives a
+place for. With tabs mounted, that's rare. The one navigation that
+genuinely loads is switching subjects (`client-state.md`), so that may
+get the fade-to-ground even if tabs crossfade.
