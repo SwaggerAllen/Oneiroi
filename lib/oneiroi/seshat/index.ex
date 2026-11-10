@@ -90,6 +90,41 @@ defmodule Oneiroi.Seshat.Index do
     end
   end
 
+  @doc """
+  The nearest documents to a query in each of several path filters, the
+  query embedded once (seshat#52): `filters` names each filter, `{:prefix,
+  p}` or `{:except, [p]}`, and the answer is the same names to at most
+  `limit` documents each, nearest first. A blank query or an empty
+  library answers empty with no model call.
+  """
+  @spec search_within(String.t(), String.t(), Actor.t(), keyword(), pos_integer()) ::
+          {:ok, %{atom() => [map()]}} | {:error, term()}
+  def search_within(resident_id, query, %Actor{} = actor, filters, limit)
+      when is_binary(query) and is_list(filters) do
+    empty = Map.new(filters, fn {name, _filter} -> {name, []} end)
+
+    cond do
+      String.trim(query) == "" or filters == [] ->
+        {:ok, empty}
+
+      not Scope.resident(resident_id, fn -> Store.any_chunks?() end) ->
+        {:ok, empty}
+
+      true ->
+        model = Config.fetch!(:seshat, :embedding_model)
+
+        with {:ok, %{vectors: [vector]}} <-
+               Nisaba.embed(resident_id, model, [query], actor, :embeddings) do
+          {:ok,
+           Scope.resident(resident_id, fn ->
+             Map.new(filters, fn {name, filter} ->
+               {name, Store.nearest_documents(vector, limit, filter)}
+             end)
+           end)}
+        end
+    end
+  end
+
   @doc "A text in chunks of at most the bound, split on paragraphs; public so the split is testable."
   @spec chunk(String.t(), pos_integer()) :: [String.t()]
   def chunk(text, bound) when is_binary(text) and bound > 0 do

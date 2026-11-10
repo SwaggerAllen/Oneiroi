@@ -409,3 +409,20 @@ from repeating or vanishing. It closes nothing because an emoji is too
 cheap to stand for a decision: merges and approvals keep their machinery.
 
 Inline rather than a tool call for her side: a react comes at the end of a reply, where a tool call would cost a whole further round for one emoji; a fixed final line costs nothing, and garbled it shows as text rather than failing silently. The safe word already reads a word out of her text, so the convention is one she knows.
+
+## #57
+The client's rebuild has one search sheet, and one sheet over five
+endpoints would be five loading states and a ranking invented in the
+browser. Each half ranks by what it knows: phrase hits by recency,
+because §6.3 keeps transcript search unweighted; bookmarks by where
+the words fell, because a line is her headline for the moment; vectors
+by nearness. Those numbers mean different things, so "everything" is
+interleaved by position, never sorted by a score that would pretend
+they are one scale. "As she sees it" calls the turn's own retrieval
+rather than a copy of it, so it cannot drift from what she is actually
+given; the random draw and the pins are left out because neither is an
+answer to the words. Privacy is enforced twice for the words, in the
+query and by the policy, because a search is the read most likely to be
+widened later and the cheapest place to lose the rule; a bookmark made
+in a private session is left out because its line is what that session
+said about itself.

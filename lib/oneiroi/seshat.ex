@@ -732,6 +732,13 @@ defmodule Oneiroi.Seshat do
     do: Index.search(resident_id, query, actor, purpose)
   )
 
+  @doc "The nearest documents to a query in each named path filter (`{:prefix, p}` or `{:except, [p]}`), the query embedded once: the one search's records and scenes (seshat#52)."
+  @spec search_within(String.t(), String.t(), Oneiroi.Actor.t(), keyword(), pos_integer()) ::
+          {:ok, %{atom() => [map()]}} | {:error, term()}
+  defexport(search_within(resident_id, query, actor, filters, limit),
+    do: Index.search_within(resident_id, query, actor, filters, limit)
+  )
+
   # ---- citations ----
 
   @doc "What a document cites, each reference resolved now and the row marked (spec §6.5: resolution when read)."

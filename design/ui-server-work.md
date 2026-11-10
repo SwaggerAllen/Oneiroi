@@ -86,16 +86,35 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
   (`GET …/scenes?from=&to=`) and their own count in the density
   endpoint.
 
-## S3 — One search across kinds (P0 shell, P1 scopes)
+## S3 — One search across kinds (P0 shell, P1 scopes) — built
 
 - **Exists:** `GET …/transcripts/search` (message text, at most 100
-  results) and `GET …/library/search` (index chunks). There's no
-  bookmark search and no endpoint that searches across kinds.
-- **Build:** `GET …/search?q=&scope=` over transcripts, library
-  documents and records, bookmarks, and scenes. Results are typed and
-  ranked per scope, then interleaved.
-  - "As Lily sees it" is the `retrieval` path (`GET …/retrieval`): what
-    her memory would return, not the text index.
+  results) and `GET …/library/search` (index chunks), both unchanged.
+- **Built** (kumbukumbu#57, seshat#52, spec F66):
+  `GET …/search?q=&scope=` answers `{q, scope, results}`, each result
+  `{type, ref, title, snippet, at, score}`.
+  - **Types and refs:** `transcript` (`session_key`, `turn_ref`, the
+    message `cursor`), `document` (`path`), `bookmark` (`number`),
+    `scene` (`day`, `id`, `path`).
+  - **Scopes:**
+    - `words`: message text by phrase, newest first, unweighted.
+    - `bookmarks`: line, then summary, then tags (new).
+    - `records`: the library's documents except `scenes/`.
+    - `scenes`: the library's `scenes/<day>.md`.
+    - `as-she-sees-it`: the turn's own retrieval for the words in the
+      common room, the ranked index with its scores and then the
+      madeleine, not the text index.
+    - `everything` (default): records, bookmarks, scenes and words,
+      one of each per round, never sorted across scopes by score.
+  - **Bounds:** at most 50 a scope, 50 in all, no further pages. `q`
+    is at least 2 characters (`422 query_too_short`).
+  - **Privacy:** never a private, unshared session's words, nor the
+    bookmarks made in one. The witness's reads switch holds: off, the
+    bookmark scopes answer 403, and everything leaves them out.
+  - **TODO, once scene rows land (S2):** scenes are read from the
+    index by the `scenes/` prefix for now, with a null `id`. Then
+    search the rows directly; the result's type and ref keep their
+    shape.
 
 ## S4 — Documents: history, diff, reacts, leases (P2)
 

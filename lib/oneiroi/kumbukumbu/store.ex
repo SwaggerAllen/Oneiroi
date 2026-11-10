@@ -565,6 +565,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc """
+  One resident's messages holding `text`, newest first and unweighted
+  (spec §6.3), each with its session: the one search's words
+  (kumbukumbu#57). A private, unshared session's messages are left out
+  here as well as by the policy, which keys them away from the account
+  (#28), so a scope that reads them still never lists them.
+  """
+  @spec search_words(String.t(), String.t(), pos_integer()) :: [{Message.t(), Session.t()}]
+  def search_words(resident_id, text, limit) do
+    Repo.all(
+      from(m in Message,
+        join: s in Session,
+        on: s.resident_id == m.resident_id and s.key == m.session_key,
+        where:
+          m.resident_id == ^resident_id and ilike(m.content, ^search_pattern(text)) and
+            m.role != "tool" and (s.private == false or s.shared == true),
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit,
+        select: {m, s}
+      )
+    )
+  end
+
   defp search_pattern(text), do: "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
 
   @doc "The open capture failures the scope sees, oldest first."

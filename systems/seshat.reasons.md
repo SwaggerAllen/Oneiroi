@@ -378,3 +378,13 @@ guarantees to both of them, so a descriptor cannot buy them. Gates are
 asymmetric because the cost is: putting a document in front of him
 more often costs him a click, taking the check away costs the
 agreement it stood for, so on is either word and off is both.
+
+## #52
+Records and scenes are two scopes of one index, so one embedding serves
+both and the provider is billed once a search. Filtering inside the
+query rather than after it keeps a scope from being crowded out by the
+other's nearer chunks: the library search's eight nearest could all be
+one kind. One row a document because the client opens documents, not
+chunks. Scenes are read from their files only because the rows they
+will be are not built; the ref carries a null id now so a client
+written against it does not change when the id arrives.

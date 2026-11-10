@@ -508,6 +508,45 @@ defmodule Oneiroi.Seshat.Store do
     )
   end
 
+  @doc """
+  The nearest documents to a vector within a path filter, nearest first:
+  `{:prefix, p}` keeps the paths under `p`, `{:except, [p]}` leaves out
+  the paths under each `p`. One row a document, its nearest chunk, at
+  most `limit` documents (seshat#52, the one search).
+  """
+  def nearest_documents(vector, limit, filter) do
+    from(c in Chunk,
+      join: d in Document,
+      on: d.resident_id == c.resident_id and d.path == c.path,
+      order_by: cosine_distance(c.embedding, ^vector),
+      limit: ^(limit * 4),
+      select: %{
+        path: c.path,
+        ordinal: c.ordinal,
+        text: c.text,
+        kind: d.kind,
+        title: d.title,
+        written_at: d.written_at,
+        distance: cosine_distance(c.embedding, ^vector)
+      }
+    )
+    |> within(filter)
+    |> Repo.all()
+    |> Enum.uniq_by(& &1.path)
+    |> Enum.take(limit)
+  end
+
+  defp within(query, {:prefix, prefix}),
+    do: from(c in query, where: like(c.path, ^(like_escape(prefix) <> "%")))
+
+  defp within(query, {:except, prefixes}) do
+    Enum.reduce(prefixes, query, fn prefix, q ->
+      from(c in q, where: not like(c.path, ^(like_escape(prefix) <> "%")))
+    end)
+  end
+
+  defp like_escape(text), do: String.replace(text, ~r/[%_\\]/, &("\\" <> &1))
+
   # ---- references ----
 
   def references(path),

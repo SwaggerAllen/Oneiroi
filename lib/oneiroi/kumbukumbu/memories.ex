@@ -409,7 +409,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do:
       resident_id
       |> index(session_key)
-      |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: ""})
+      |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: "", scores: %{}})
 
   def ranked_index(resident_id, session_key, vector) do
     %{keys: keys} = Conversations.room(resident_id, session_key)
@@ -524,7 +524,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       seeds: ranking.seeds,
       explored: Enum.map(ranking.explored, & &1.bookmark.number),
       exploration: exploration,
-      considered: length(ranking.ranked) + length(ranking.rejected)
+      considered: length(ranking.ranked) + length(ranking.rejected),
+      # Each ranked line's score, by number (the one search reads them,
+      # kumbukumbu#57); the explored were drawn, not scored.
+      scores: Map.new(ranking.ranked, &{&1.bookmark.number, &1.score})
     }
   end
 
