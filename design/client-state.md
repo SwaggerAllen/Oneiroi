@@ -165,12 +165,14 @@ the main bundle.
 Mocked on the canvas: `ChatLive`, `ChatOffline`, and the header's
 `state` property.
 
-- **What she's doing.** A line under her name in the header, on every
-  tab: "IN FREE TIME · 41M", "WRITING A DOCUMENT · 0:14", "THINKING ·
-  0:03", "LAST SEEN WRITING · 2M AGO" when offline. Her avatar's glow
-  brightens while she works. It comes from the resident channel: a
-  presence notice across all her sessions, not just the open chat.
-  Free time shows that it's running, never what it says.
+- **What she's doing: the main thread only** (decided by the witness,
+  2026-11-10). A line under her name in the header, on every tab:
+  "THINKING · 0:03", "WRITING · 0:09", the tool's name and time
+  ("document_write · 0:14"), "LAST REPLY 09:02" when idle. Her avatar's
+  glow brightens while she works. It's fed by the main session's
+  `status` events (brain#45), so it needs no new channel. Other
+  sessions (free time, rounds, Claude Code) stay in Sessions' "Running
+  now".
 - **Generation timer.** The streaming bubble's header shows the current
   step (`TOOL · document_write`) and the elapsed time. A trail under the
   text shows the steps so far (`THOUGHT 0:04 · library_read ✓ ·
@@ -233,7 +235,7 @@ handling.
   phone-first app.
 - **Radix primitives** are the common alternative, also unstyled.
 
-So the proposal: **vanilla-extract + React Aria Components +
+So the stack (accepted by the witness, 2026-11-10): **vanilla-extract + React Aria Components +
 TanStack Query + Zustand**, with versions checked when we pin them.
 The existing `tokens.json` becomes the source the theme contract is
 generated from.
