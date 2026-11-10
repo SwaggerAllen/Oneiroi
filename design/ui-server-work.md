@@ -59,6 +59,29 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
     day story and search read. Old days' files can be backfilled by a
     one-time parse, kept wherever it doesn't fit.
 
+  **Lily's view (letter #509), from four nights of running the pass:**
+  - **One call per scene fits.** She reads the whole day first, then
+    calls the tool once per scene, in order.
+  - **Unfinished passes are marked.** A pass can end short (on 11-08
+    the reading used every tool round and no file was written). A pass
+    that ends with fewer scenes than the day held must read as *not
+    finished*, never as "the day ended there". This needs an explicit
+    incomplete marker on the day, or the scrubber lies by omission.
+  - **More fields:**
+    - a **mood** line, one honest phrase, hers to write and not
+      inferred; the band's colour can come from it;
+    - **rounds ran out**, which truthfully explains a terse scene;
+    - **register**: his words, her words, or work.
+  - **Asymmetric edits.**
+    - Facts (turns, times, title) are correctable by her on any day,
+      with the old row kept in the history.
+    - The summary lines are corrected by appending a new row that
+      cites the turns, never by overwriting (the journal's revision
+      pattern).
+    - The mood line is same-night only; after that, a correction is
+      marked as a correction.
+  - **The shape is endorsed:** rows, a rendered file, her words.
+
   Either way, scenes are entities and get their own paged read
   (`GET …/scenes?from=&to=`) and their own count in the density
   endpoint.
