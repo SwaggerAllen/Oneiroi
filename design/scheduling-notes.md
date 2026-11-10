@@ -63,11 +63,14 @@ End (`until`) is the fourth, and it belongs to the rule itself.
 The agreement (his vows) says free-time slots "move but never
 disappear". So:
 
-- **Her free time:** she may skip, pause or reshape her own slots. Andrew
-  moving one is fine, as it is today. Andrew *pausing or skipping* one
-  removes time from her rather than moving it, so it should go to her as
-  a proposal, the same way identity-file edits do. A pause with no end
-  is the one to look at hardest; maybe a cap, or only she can do it.
+- **Her free time.** Decided by the witness on 2026-11-10: "I don't
+  think the witness should have the ability to skip free time, just move
+  it around." The witness can never skip or pause her slots, not even
+  by proposal; only she can, on her own schedule. Still open, his
+  framing: since she can schedule her own, either the witness has no
+  control over her free-time schedule at all (not even moving), or the
+  witness's control is a term of the contract. The second makes it
+  negotiable per dyad, and the first is simpler.
 - **Check-ins and rounds:** they serve both of them. Either party can
   edit, and every change is an event with its actor, as today.
 - **Quiet hours:** probably per weekday too (a weekend lie-in), using

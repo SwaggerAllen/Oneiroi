@@ -77,7 +77,9 @@ self-letters, for the encryption scheme." The reading copies and Honcho
 withhold those words, but the event lines don't. Private seeds would
 join the same list. So the encryption scheme (or a redaction of private
 words from the event lines, with the words kept somewhere only she
-holds) is what makes Lily's constraint true. Every new rendered file
+holds) is what makes Lily's constraint true. The witness decided
+(2026-11-10) on encryption at the end of the MVP (`mvp.md` item 19):
+the storage keeps its shape and the export carries the words encrypted. Every new rendered file
 has to follow the readable copies' rule: render existence and counts,
 never the private words.
 
