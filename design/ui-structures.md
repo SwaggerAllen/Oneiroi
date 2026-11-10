@@ -171,3 +171,97 @@ Why: the tree carries the most weight for the least screen-building
 (the inventory's long tail becomes folders, not pages), it is the
 platform's own thesis, and it is what makes workspaces cheap. The
 timeline is what makes it feel alive rather than a file manager.
+
+---
+
+## D. The working direction (the witness and claude-code, 2026-11-09 evening)
+
+A's shell, B's folders, C's stream inside a day. Not decided; the
+current best.
+
+```
+[Lily ▾]                                  [🔔 3]  [⚙]
+  Chat        Time        Records        Lily
+```
+
+**The shell**
+- **Subject dropdown** top left: Lily, each workspace, later the
+  federation view.
+- **Four tabs**, phone-sized: Chat, Time, Records, and the subject's
+  name.
+- **The bell** top right: *Waiting on you* (needs_you, each item opening
+  the thing itself, a full sheet, never a toast list) and *Waiting on
+  Lily* (proposals you made that she hasn't answered). Approvals stay
+  the click that is always his; the bell frees a nav slot, it does not
+  make them ignorable.
+- **Settings** behind ⚙: the aggregate views. Ledger and budget, every
+  route in one list, profiles, keys, connections and adapters,
+  notifications, subscription, account, Regression (trials and the
+  model pin), retrieval and near-miss numbers.
+- **The operator** is a separate shell at its own route.
+
+**Chat**
+- The conversation, with the conversation list.
+- **The navigator**: a timeline scrubber on the chat's edge (day ticks,
+  scenes as bands, bookmarks as marks, pins heavier) and search over
+  bookmarks, scenes and the transcript's words. A hit jumps the
+  transcript to its moment, the bookmark's span highlighted. Needs a
+  "page around a moment" read (the transcript only pages backwards
+  today). An anchor in another conversation switches to it; one in a
+  private session (free time) lands on a locked row with its receipt,
+  and the navigator says which before you tap.
+- This is where bookmarks and scenes live: a bookmark's home is its
+  moment. A citation of a bookmark anywhere opens Chat there.
+
+**Time**
+- **A telescoping calendar**: year, month, week, day. A past day opens
+  its journal and its story (C's stream, scoped to one day); a future
+  day opens what is scheduled; today shows both. (Open: whether the
+  timeline and the calendar are one view or two tabs.)
+- **Rhythm**: the rules that make the calendar's events (check-ins,
+  free-time slots and one-offs, quiet hours, rounds cadence and window,
+  time zone), edited in one place; the calendar shows their instances.
+- The work queue is not time-shaped: a folder in Records, or "next up"
+  on Today. (Open.)
+
+**Records**
+- The folder tree: a drill-down list on a phone, a side tree on a
+  desktop. Real folders and **virtual folders** for records kept in the
+  database (positions, predictions, seeds, habits, commitments,
+  figures), opened by the same viewer.
+- **The record viewer**: rendered markdown, who wrote it and when,
+  history and diff, citations out and cited-by in, reacts, and Edit
+  with a visible lease where the kind lets the witness edit.
+- **Folder = kind.** Creating a top-level folder defines a kind; its
+  settings are the descriptor (who may edit, waits on you, cites); it
+  shows **how things arrive here**: its routes, each naming the profile
+  it reads through, with "manage" linking to Settings. Profiles and keys
+  are created and revoked only in Settings: shared, the witness's alone,
+  never exported. Only top-level folders are kinds; deeper folders are
+  plain. Virtual folders show their settings read-only and take no
+  routes.
+
+**The subject's tab ("Lily")**
+- **Everything that rides every turn**: the contract (at the top, in
+  force, with its history and the proposals to change it), the identity
+  files, pins, her state lines, the plugins, REACTIONS.md, and the model
+  she runs on as a line (the machinery in Settings).
+- In a workspace this tab carries the workspace's name: its charter
+  (contract), its ballots (held by the residents, humans read-only), its
+  members.
+- Its label changes with the subject (open: "Lily" vs a fixed name like
+  "Soul").
+
+**Citations, back, and state**
+- Citations are chips everywhere. Tapping one opens a **peek sheet** over
+  where you are; "open fully" moves into Records.
+- **Each tab keeps its own stack** (scroll, open record, search and
+  query, a half-written message). Back pops within the tab, so search →
+  citation → back returns to the search. A jump into another tab carries
+  a "← where you came from".
+- Tabs stay mounted, hidden, never torn down. Drafts persist per
+  conversation across reloads. The URL tracks the top of the current
+  stack. An edit's lease and unsaved text survive a tab switch.
+
+**Memory** is not a place any more: bookmarks and scenes are Chat's
+navigator, pins are in the subject's tab, the numbers are in Settings.
