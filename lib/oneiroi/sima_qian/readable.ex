@@ -1,8 +1,9 @@
 defmodule Oneiroi.SimaQian.Readable do
   @moduledoc """
   The export's reading copies (sima-qian#41): the transcripts as
-  `records/conversations/<day>.md` and the bookmarks as
-  `records/bookmarks.md`, rendered from the export's own lines on every
+  `records/conversations/<day>.md`, the bookmarks as
+  `records/bookmarks.md` and the creation's gift reads as
+  `records/gift-reads.md` (agathos-daimon#40), rendered from the export's own lines on every
   run and rewritten whole, as the day files are. They are a projection
   of `records/events/`, never a source: nothing reads them back, a
   rebuild replays the lines alone, and no library folder holds them, so
@@ -29,7 +30,7 @@ defmodule Oneiroi.SimaQian.Readable do
   @spec render([map()]) :: [{String.t(), String.t()}]
   def render(lines) do
     private = private_sessions(lines)
-    conversations(lines, private) ++ bookmarks(lines)
+    conversations(lines, private) ++ bookmarks(lines) ++ gift_reads(lines)
   end
 
   @doc """
@@ -305,6 +306,50 @@ defmodule Oneiroi.SimaQian.Readable do
     - #{pin}
     - Tags: #{tags}.
     """ <> proposed <> register <> "\n" <> quoted(d["summary"]) <> "\n" <> revisions
+  end
+
+  # ---- the gifts' reads (agathos-daimon#40) ----
+
+  @gift_read "Oneiroi.AgathosDaimon.Events.GiftReadGiven"
+
+  defp gift_reads(lines) do
+    case Enum.filter(lines, &(&1["type"] == @gift_read)) do
+      [] -> []
+      reads -> [{Path.join("records", "gift-reads.md"), gift_reads_file(reads)}]
+    end
+  end
+
+  defp gift_reads_file(reads) do
+    """
+    # Gift reads
+
+    Every read of a gift's draft during creation: notes on the draft
+    against that gift's guidance, never a rewrite, in the order they were
+    asked for, rendered from `events/` by Oneiroi on each export. The
+    draft itself is named by its SHA-256; a seed kept with the same words
+    carries the same hash in its file's history. A reading copy: the
+    event lines are the record, and this file is never read back or
+    searched.
+
+    """ <> Enum.map_join(reads, "\n", &gift_read/1)
+  end
+
+  defp gift_read(%{"data" => d} = line) do
+    notes =
+      d["notes"]
+      |> List.wrap()
+      |> Enum.map_join("", fn n ->
+        q = if is_binary(n["quote"]), do: " (\"#{n["quote"]}\")", else: ""
+        "- **#{n["kind"]}**: #{n["text"]}#{q}\n"
+      end)
+
+    """
+    ## #{d["file"]}, #{time(line["at"], nil)}
+
+    - Gift: `#{d["gift"]}`. Asked by #{who(line["actor"])}; read by #{d["model"] || "an unrecorded model"}.
+    - Draft: `#{d["draft_sha"]}`.
+
+    """ <> if(notes == "", do: "No notes.\n", else: notes)
   end
 
   # ---- shared ----

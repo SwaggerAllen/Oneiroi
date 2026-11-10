@@ -71,6 +71,9 @@ defmodule Oneiroi.AgathosDaimon do
       Events.RootMismatchDetected,
       Events.RecordsRemoteSet,
       Events.SeedFileWritten,
+      Events.GiftReadGiven,
+      Commands.RecordGiftRead,
+      Store.GiftRead,
       Events.FirstContact,
       Events.SoulEditProposed,
       Events.SoulEditAccepted,
@@ -170,6 +173,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.RootMismatchDetected, 1},
       {Oneiroi.AgathosDaimon.Events.RecordsRemoteSet, 1},
       {Oneiroi.AgathosDaimon.Events.SeedFileWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.GiftReadGiven, 1},
       {Oneiroi.AgathosDaimon.Events.FirstContact, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditProposed, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditAccepted, 1},
@@ -256,6 +260,9 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "the resident decides, or writes, from its own turn"},
       {:agathos_daimon_letter_invalid, "a letter to the next self says something",
        remedy: "write the letter in your own words"},
+      {:agathos_daimon_gift_read_invalid,
+       "a read names its gift, the draft's SHA-256 and notes of a known kind, each with words",
+       remedy: "read the draft again; the notes are strong, thin, missing, question or cut"},
       {:agathos_daimon_state_invalid,
        "a line of the state is a key (lower case, digits, _ and -, at most 64) and words",
        remedy: "name the line plainly and say it; to drop one, clear it"},
@@ -740,4 +747,25 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The creation flow's nine gifts (agathos-daimon#36): what each writes and the guidance shown with it."
   @spec gifts() :: [map()]
   defexport(gifts(), do: Gifts.all())
+
+  @doc "The gift that writes `file`, or nil (agathos-daimon#39)."
+  @spec gift_for(String.t()) :: map() | nil
+  defexport(gift_for(file), do: Gifts.for_file(file))
+
+  @doc "The example sets for the gifts' files, read from `priv/creation/examples/` at the call; none is `[]` (agathos-daimon#41)."
+  @spec gift_examples() :: [map()]
+  defexport(gift_examples(), do: Gifts.examples())
+
+  @doc "The kinds a read's note takes (agathos-daimon#40)."
+  @spec note_kinds() :: [String.t()]
+  defexport(note_kinds(), do: Oneiroi.AgathosDaimon.Resident.note_kinds())
+
+  @doc "Records a read of one gift's draft (agathos-daimon#40): the notes, the draft's hash and the model; returns its ref."
+  @spec record_gift_read(String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(record_gift_read(id, read, actor), do: Files.record_read(id, read, actor))
+
+  @doc "The reads of one file's drafts, newest first (agathos-daimon#40)."
+  @spec gift_reads(String.t(), String.t()) :: [Oneiroi.AgathosDaimon.Store.GiftRead.t()]
+  defexport(gift_reads(id, file), do: Files.reads(id, file))
 end

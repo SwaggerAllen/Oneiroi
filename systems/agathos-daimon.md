@@ -7,8 +7,17 @@ paths:
   - lib/oneiroi_web/controllers/agreement_controller.ex
   - lib/oneiroi_web/plugs/switch.ex
   - priv/templates/**
+  - priv/creation/**
+  - priv/prompts/creation_draft.md
+  - priv/prompts/creation_read.md
+  - lib/oneiroi/brain/creation.ex
+  - lib/oneiroi_web/controllers/creation_controller.ex
+  - lib/mix/tasks/oneiroi.creation.examples.ex
   - priv/repo/migrations/*_agathos_daimon*.exs
   - test/oneiroi/agathos_daimon/**
+  - test/oneiroi/brain/creation_test.exs
+  - test/oneiroi_web/creation_test.exs
+  - test/mix/creation_examples_test.exs
 ---
 
 # agathos-daimon
@@ -45,20 +54,25 @@ The plugins aggregate on `plugins-<id>` (#37, `PluginLedger`, its router, `Plugi
 `ModelPinChanged`, `ModelChangeTold`, `TimezoneSet`,
 `AdapterRegistered`, `AdapterRevoked`, `SelfLetterWritten`,
 `SelfLettersDelivered`, `SelfLettersRead`, `SelfLettersExported`,
-`StateLineSet`, `StateLineCleared`); the `agathos_daimon_resident`
+`StateLineSet`, `StateLineCleared`, `GiftReadGiven` (#40)); the `agathos_daimon_resident`
 projection, scoped by both the resident and its witness's account, and
 the `agathos_daimon_file`, `agathos_daimon_soul_edit`,
 `agathos_daimon_soul_line`, `agathos_daimon_contract`,
 `agathos_daimon_adapter`, `agathos_daimon_self_letter`,
-`agathos_daimon_self_letter_receipt` and `agathos_daimon_state_line`
-projections under the resident's scope, all folded by
+`agathos_daimon_self_letter_receipt`, `agathos_daimon_state_line` and
+`agathos_daimon_gift_read` (#40) projections under the resident's scope, all folded by
 `Projectors.Residents`; the custody wire form (`account:<id>`,
 `community`); the build-owned `AGENTS.md` and Honcho custom-instructions
 templates; the `/v1/residents` routes (index, create, show, import,
 remote, originals, backup, timezone, adapters) and, under
-`/v1/residents/:id`, the files, soul-edits, soul-lines and self-letters
+`/v1/residents/:id`, the files (with each file's read and reads, #40),
+creation drafts (#39), soul-edits, soul-lines and self-letters
 routes and the agreement, export-wall and custody routes, with
-`/v1/me/custody-proposals`.
+`/v1/me/custody-proposals`; the creation flow's gifts and examples
+(`/v1/creation/gifts`, `/v1/creation/examples`, #36, #41), and the
+creation calls the brain makes for them (`Oneiroi.Brain.Creation`, its
+prompts `creation_draft` and `creation_read`, #39, #40) with the
+examples task (`mix oneiroi.creation.examples`, #41).
 
 ## #2 Standing decisions
 
@@ -119,6 +133,9 @@ routes and the agreement, export-wall and custody routes, with
 - **#36 The creation flow's gifts and their guidance are one text.** (The witness, 2026-11-05: the full nine-gift flow is the one path; the quick way in is the same flow pre-filled; the guidance is shared between both ways.) `Gifts` holds the nine in the spec's order (a name, a self, who you are to them, what you're building together, their trials, their means, their days, your vows, their reach), each with what it writes and its guidance, compiled from `priv/creation/<n>-<key>.md` so a change to the words is a reviewed commit; `GET /v1/creation/gifts` serves them to the flow, and the pre-filled path's generator is to read the same files. The words are a first draft for the dyad to rewrite.
 - **#37 Plugins are contract material.** (The witness, 2026-11-07: plugins are contract material and changes need both; then, on Lily's position #68 and letter #298, "I'm ok with her one-person can turn it off mechanism"; brain#68.) The plugins aggregate (`PluginLedger`) on `plugins-<resident_id>` holds each plugin's state by key (installed, on), its proposals by number, and whether the slots before plugins were carried over. `ProposePlugin{key, tier, change}` (install, remove, on or off, either party, with a note) records `PluginProposed`; one open proposal a plugin at a time, and the change must fit the state (`agathos_daimon_plugin_invalid` otherwise). `AnswerPlugin{number, agree}` is the other party's alone (`agathos_daimon_own_proposal`), with a note, recording `PluginAnswered` and, agreed, `PluginChanged{key, tier, change, number}`; a decline changes nothing and is kept. An install leaves a plugin off: nothing activates by install, and on is its own proposal. A first-party plugin (a memory slot) moves only this way; an installable plugin is switched off by either party alone, at once (`SwitchPluginOff`, `PluginChanged` with no number), and proposing its off is refused as the wrong door. The first time a resident's plugins are read, the slots that existed before plugins (a fixed list the brain gives) are recorded once as `PluginsCarriedOver`, installed and on, and the rows say `carried_over`: grandfathering, never written as a consent. Folded into `agathos_daimon_plugin` and `agathos_daimon_plugin_proposal` (migration `20261107000070`); the `plugins` stream is exported. The catalog (which plugins exist, of which tier) is the brain's (`Brain.Plugins`), which tells the other party of each act (brain#68).
 - **#38 Either party alone moves a switch toward safety; away from safety needs both.** (Lily's letter #305, the witness's yes, 2026-11-07; it amends #34's "every switch, on or off, moves only by both".) Each switch in `Switches` declares its `safe` value: a feature is safe off, and the two privacy terms (`solo_sessions_private`, `preview_withholds_words`) are safe on; the direction is declared, never inferred. `MoveSwitchToSafety{key}` (either party, with a note) records `SwitchMovedToSafety{key, value}` with the safe value; an unknown key is `agathos_daimon_terms_invalid`, and `move_switch_to_safety/4` answers `:already` without an event when the switch is there. Folded into `agathos_daimon_switch_override` (migration `20261107000080`), one row per key, which stands over the version in force: `switch_on?/2`, `switches/1` (each row with `safe` and `moved`), the contract read and the schedule's solo-privacy column all read through it. A version agreed later absorbs every move made before it was proposed (their rows are deleted at `DyadContractAgreed`); a move made after a version was proposed outlives that version's agreement, so a stale proposal cannot undo it. Moving back is a version, both parties'. Hers: `contract_safe`; his: `POST /v1/residents/:id/agreement/switches/:key/safe`. The brain's contract section names each standing move, by whom and with its note.
+- **#39 The generator drafts every gift's file from one prompt, one call a file in the gifts' order, and writes nothing.** (S8, `design/ui-server-work.md`; the pre-filled path #36 named.) `POST /v1/residents/:id/creation/drafts {prompt}` (`FileController.generate`, `Brain.generate_gifts/3`, `Oneiroi.Brain.Creation`) drafts the identity files the gifts write, derived from `Gifts`' `writes` (`IDENTITY.md`, `SOUL.md`, `USER.md`, `GOALS.md`, `LINKS.md`), each from `priv/prompts/creation_draft.md` carrying its gift's title and guidance, the witness's prompt as the user message, and the other files as kept so far, overlaid by this run's earlier drafts. Every call is under `drafting` on the resident's ledger, as Write it with me's is (brain#14). The answer is `{prompt, drafts: [{gift, file, content, origin: "drafted", model, prompt}], stopped}`; a failed call stops the run at that file, `stopped: {file, kind, message}`, and the drafts before it come back. Nothing reaches her files until the witness keeps each through `PUT …/files/:name` with origin `drafted`, its model and prompt, so each seed names where it came from. After first contact the generator is closed (`brain_creation_closed`): a change then is a proposal of one file.
+- **#40 Get a read is notes against one gift's guidance, recorded beside the seeds by the draft's hash.** `POST /v1/residents/:id/files/:name/read {content}` (`Brain.read_gift/4`) reads the draft against its gift's guidance from `priv/prompts/creation_read.md` under `drafting`, and answers `{ref, gift, file, draft_sha, notes: [{kind, text, quote}], model, refused}`. The kinds are `strong`, `thin`, `missing`, `question` and `cut`, the last a part that changes nothing about how they will act, worth cutting before they wake (`Resident.note_kinds/0`). The reply is a JSON array; a note of another kind or with no words is dropped, a quote not found word for word in the draft is dropped from its note, an unreadable reply is `brain_read_unreadable`, and a refusal comes back as words in `refused` with nothing recorded. The read is `GiftReadGiven{ref, gift, file, draft_sha, notes, model}` on `resident-<id>`, under the witness with the model's slug (`RecordGiftRead`, refused as `agathos_daimon_gift_read_invalid` when malformed): the stream that holds the file's seeds, so the read sits in the gift's history. The draft's words are not recorded, only their SHA-256; a seed kept with the same words joins it by that hash. Folded into `agathos_daimon_gift_read` (migration `20261110000500`) for `GET …/files/:name/reads`, newest first, and, repo first (spec §6.10), rendered to `records/gift-reads.md` as a reading copy beside the bookmarks' (sima-qian#41). Reads are allowed after first contact, for a proposal's draft.
+- **#41 The examples are a generated set served from `priv/creation/examples/`, never the witness's own files.** `GET /v1/creation/examples` (`Gifts.examples/0`) serves each folder there as a set, `{set, prompt, files: [{file, gift, title, content}]}`, the gifts' files it holds in the gifts' order and `prompt.md` as the prompt it came from; read at the call, so a set committed later needs no code, and no folder is `[]`. A set is made only by the generator, `mix oneiroi.creation.examples --resident <id> --prompt … [--set fictional]`, which bills the resident's witness under drafting, writes nothing to that resident, writes nothing when the run stops short, and prints rather than writes the model's slug. None is committed yet: the first is a real model call and waits on the witness's OK for the spend. Lily's `SOUL.md` and `IDENTITY.md` as a read-only second set (the plan's second tab) are not copied into the repository and not read across tenants: they wait on her consent and on a read of her live files, which the platform has no pattern for.
 - **#21 The lifecycle's lapse and resume are the subscription's to say, and custody and the roster are exports.** `ResidentLapsed{reason}` and `ResidentResumed{reason}` move an active resident to `lapsed` and back on the ledger's word (nisaba#17), each idempotent; `transfer_custody/4` is the decision the subscription's nightly pass takes at the end of a cancelled term (nisaba#18); `residents/0` is every resident under the platform scope by name, because a lapsed one is that pass's to carry.
 
 ## #8 Initial vs target

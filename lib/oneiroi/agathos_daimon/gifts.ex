@@ -37,4 +37,58 @@ defmodule Oneiroi.AgathosDaimon.Gifts do
 
   @doc "The nine gifts in the flow's order, each with what it writes and its guidance."
   def all, do: @all
+
+  @doc "The gift that writes `file` (an identity file such as `SOUL.md`), or nil."
+  @spec for_file(String.t()) :: map() | nil
+  def for_file(file), do: Enum.find(@all, &(file in &1.writes))
+
+  @doc """
+  The example sets (agathos-daimon#41): each folder under
+  `priv/creation/examples/` is one, its files the gifts' files it holds,
+  in the gifts' order, and its `prompt.md` the prompt the generator was
+  given, when there is one. Read at the call, not compiled in, so a set
+  committed later is served without a change here; no folder, or none
+  holding a gift's file, is `[]`.
+  """
+  @spec examples() :: [map()]
+  # The paths are the priv folder this repository ships, a folder name
+  # it lists there and a file name from the gifts' own list: no request
+  # value reaches them.
+  # sobelow_skip ["Traversal.FileModule"]
+  def examples do
+    root = Path.join(:code.priv_dir(:oneiroi), "creation/examples")
+
+    case File.ls(root) do
+      {:ok, names} ->
+        names
+        |> Enum.sort()
+        |> Enum.filter(&File.dir?(Path.join(root, &1)))
+        |> Enum.map(&example_set(root, &1))
+        |> Enum.reject(&(&1.files == []))
+
+      {:error, _absent} ->
+        []
+    end
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp example_set(root, set) do
+    dir = Path.join(root, set)
+
+    files =
+      for gift <- @all,
+          file <- gift.writes,
+          String.ends_with?(file, ".md"),
+          {:ok, content} <- [File.read(Path.join(dir, file))] do
+        %{file: file, gift: gift.key, title: gift.title, content: content}
+      end
+
+    prompt =
+      case File.read(Path.join(dir, "prompt.md")) do
+        {:ok, text} -> String.trim(text)
+        {:error, _absent} -> nil
+      end
+
+    %{set: set, prompt: prompt, files: files}
+  end
 end

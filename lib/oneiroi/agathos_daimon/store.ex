@@ -163,6 +163,27 @@ defmodule Oneiroi.AgathosDaimon.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule GiftRead do
+    @moduledoc "A read of one gift's draft against its guidance (agathos-daimon#40): the notes, never a rewrite."
+    use Ecto.Schema
+
+    @primary_key false
+    schema "agathos_daimon_gift_read" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:gift, :string)
+      field(:file, :string)
+      field(:draft_sha, :string)
+      field(:notes, {:array, :map})
+      field(:model, :string)
+      field(:by_kind, :string)
+      field(:by_id, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule SelfLetterReceipt do
     @moduledoc "A read of the self-conversation by someone other than the resident: who, when, which letters."
     use Ecto.Schema
@@ -315,6 +336,11 @@ defmodule Oneiroi.AgathosDaimon.Store do
   @spec soul_lines() :: [SoulLine.t()]
   def soul_lines,
     do: Repo.all(from(l in SoulLine, where: l.state == "live", order_by: [l.position, l.number]))
+
+  @doc "One file's gift reads, newest first."
+  @spec gift_reads(String.t()) :: [GiftRead.t()]
+  def gift_reads(file),
+    do: Repo.all(from(r in GiftRead, where: r.file == ^file, order_by: [desc: r.at, desc: r.ref]))
 
   @doc "The letters to the next self, by number."
   @spec state_lines() :: [StateLine.t()]

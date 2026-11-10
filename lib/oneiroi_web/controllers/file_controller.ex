@@ -134,6 +134,112 @@ defmodule OneiroiWeb.FileController do
     do:
       problem(conn, 422, :prompt_required, :web_file_draft_prompt_required, "prompt is required")
 
+  operation(:generate,
+    summary:
+      "The generator (agathos-daimon#39): from who the witness wants to wake, a draft of every gift's file, billed as drafting; returned, not written",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the prompt", "application/json",
+       %Schema{type: :object, required: [:prompt], properties: %{prompt: %Schema{type: :string}}}},
+    responses: [
+      ok:
+        {"the prompt, the drafts in the gifts' order, and where a failed call stopped the run",
+         "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def generate(conn, %{"id" => id, "prompt" => prompt}) when is_binary(prompt) do
+    if String.trim(prompt) == "" do
+      generate(conn, %{})
+    else
+      case Oneiroi.Brain.generate_gifts(id, prompt, actor(conn)) do
+        {:ok, %{stopped: stopped} = result} ->
+          json(conn, %{result | stopped: stopped(stopped)})
+
+        {:error, %{kind: _} = e} ->
+          error(conn, 422, e)
+      end
+    end
+  end
+
+  def generate(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :prompt_required,
+        :web_file_generate_prompt_required,
+        "prompt is required"
+      )
+
+  defp stopped(nil), do: nil
+  defp stopped(s), do: %{file: s.file, kind: s.kind, message: s.message}
+
+  operation(:read,
+    summary:
+      "Get a read (agathos-daimon#40): notes on one gift's draft against its guidance, billed as drafting; nothing rewritten",
+    parameters: [id: [in: :path, type: :string], name: [in: :path, type: :string]],
+    request_body:
+      {"the draft", "application/json",
+       %Schema{
+         type: :object,
+         required: [:content],
+         properties: %{content: %Schema{type: :string}}
+       }},
+    responses: [
+      ok:
+        {"the read: its ref, the gift, the draft's hash, the notes and the model",
+         "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def read(conn, %{"id" => id, "name" => name, "content" => content}) when is_binary(content) do
+    if String.trim(content) == "" do
+      read(conn, %{})
+    else
+      case Oneiroi.Brain.read_gift(id, name, content, actor(conn)) do
+        {:ok, read} -> json(conn, read)
+        {:error, %{kind: _} = e} -> error(conn, 422, e)
+      end
+    end
+  end
+
+  def read(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :content_required,
+        :web_file_read_content_required,
+        "content is required: the draft to read"
+      )
+
+  operation(:reads,
+    summary: "The reads of one file's drafts, newest first (agathos-daimon#40)",
+    parameters: [id: [in: :path, type: :string], name: [in: :path, type: :string]],
+    responses: [ok: {"reads", "application/json", %Schema{type: :array}}]
+  )
+
+  def reads(conn, %{"id" => id, "name" => name}) do
+    json(
+      conn,
+      id
+      |> AgathosDaimon.gift_reads(name)
+      |> Enum.map(fn r ->
+        %{
+          ref: r.ref,
+          gift: r.gift,
+          file: r.file,
+          draft_sha: r.draft_sha,
+          notes: r.notes,
+          model: r.model,
+          by: %{kind: r.by_kind, id: r.by_id},
+          at: r.at
+        }
+      end)
+    )
+  end
+
   operation(:proposals,
     summary: "The open edit proposals awaiting the resident",
     parameters: [id: [in: :path, type: :string]],
