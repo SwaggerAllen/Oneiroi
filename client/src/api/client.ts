@@ -84,6 +84,33 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return json as T;
 }
 
+export interface DocumentVersion {
+  version: string;
+  act: 'written' | 'adopted' | 'moved' | 'archived' | 'tombstone' | 'committed';
+  at: string | null;
+  actor: { kind: string; id: string } | null;
+  note: string | null;
+  bytes: number | null;
+  commit: string | null;
+  committed_at: string | null;
+  current: boolean;
+  restorable: boolean;
+}
+
+export interface Lease {
+  path: string;
+  holder_id: string;
+  state: 'held' | 'taken';
+  acquired_at: string;
+  renewed_at: string;
+  takeable_at: string;
+  takeable: boolean;
+  waiting_at: string | null;
+  has_draft: boolean;
+  taken_at: string | null;
+  kept_at: string | null;
+}
+
 export type SearchResult =
   | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
@@ -294,6 +321,7 @@ export const api = {
     call<{
       content: string;
       document: LibraryDocument & { origin?: string | null };
+      lease?: Lease | null;
       references: Array<{ target: string; kind: string; ref: string; resolved: boolean; label: string | null; reason: string | null }>;
       discussions: Array<{ session_key: string; opened_at: string }>;
     }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
@@ -302,8 +330,24 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/library/cited-by?target=${encodeURIComponent(target)}`,
     ),
-  writeDocument: (residentId: string, path: string, content: string) =>
-    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  writeDocument: (residentId: string, path: string, content: string, note?: string) =>
+    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, note ? { content, note } : { content }),
+  // A document's history, its diffs, a restore (seshat#54), and the editor's lease (seshat#55).
+  versions: (residentId: string, path: string) =>
+    call<{ path: string; current: string | null; versions: DocumentVersion[] }>('GET', `/v1/residents/${residentId}/library/versions/${path}`),
+  version: (residentId: string, path: string, version: string) =>
+    call<{ path: string; version: string; content: string }>('GET', `/v1/residents/${residentId}/library/version/${path}?version=${version}`),
+  diff: (residentId: string, path: string, from: string, to?: string) =>
+    call<{ path: string; from: string; to: string | null; added: number; removed: number; runs: Array<{ op: 'eq' | 'del' | 'ins'; lines: string[] }> }>(
+      'GET',
+      `/v1/residents/${residentId}/library/diff/${path}?from=${from}${to ? `&to=${to}` : ''}`,
+    ),
+  restore: (residentId: string, path: string, version: string, note: string) =>
+    call<{ path: string; version: string; written?: unknown; proposed?: unknown }>('POST', `/v1/residents/${residentId}/library/restore`, { path, version, note }),
+  acquireLease: (residentId: string, path: string) => call<Lease>('POST', `/v1/residents/${residentId}/library/leases`, { path }),
+  renewLease: (residentId: string, path: string, draft?: string) =>
+    call<Lease>('POST', `/v1/residents/${residentId}/library/leases/renew`, draft === undefined ? { path } : { path, draft }),
+  releaseLease: (residentId: string, path: string) => call<void>('POST', `/v1/residents/${residentId}/library/leases/release`, { path }),
   // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
   moveDocument: (residentId: string, from: string, to: string) =>
     call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
@@ -370,7 +414,16 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/reacts?session_key=${encodeURIComponent(sessionKey)}`,
     ),
-  react: (residentId: string, target: { kind: 'message'; session_key: string; turn_ref: string } | { kind: 'letter'; number: number }, emoji: string) =>
+  documentReacts: (residentId: string, path: string) =>
+    call<Array<{ number: number; emoji: string; by: 'witness' | 'resident'; reacted_at: string; path: string | null }>>(
+      'GET',
+      `/v1/residents/${residentId}/reacts?path=${encodeURIComponent(path)}`,
+    ),
+  react: (
+    residentId: string,
+    target: { kind: 'message'; session_key: string; turn_ref: string } | { kind: 'letter'; number: number } | { kind: 'document'; path: string },
+    emoji: string,
+  ) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/reacts`, { target, emoji }),
   reactVocabulary: (residentId: string) => call<Array<{ emoji: string; meaning: string }>>('GET', `/v1/residents/${residentId}/reacts/vocabulary`),
   routes: (residentId: string) => call<RoutesData>('GET', `/v1/residents/${residentId}/routes`),

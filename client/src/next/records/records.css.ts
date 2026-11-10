@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { font, radius, vars, wide } from '../theme/contract.css';
+import { font, radius, status, vars, wide } from '../theme/contract.css';
 
 export const tab = style({ flex: 1, minHeight: 0, display: 'flex' });
 
@@ -135,3 +135,73 @@ export const label = style({ color: vars.color.textMuted });
 export const note = style({ margin: 0, fontSize: 13, lineHeight: '19px', color: vars.color.textMuted });
 
 export const emptyPage = style({ margin: 'auto', color: vars.color.textMuted, fontSize: 14 });
+
+// History, diff, restore (seshat#54) and the editor under a lease (seshat#55).
+export const tools = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' });
+const control = { minHeight: 38, padding: '0 12px', borderRadius: 10, font: `500 13px ${font.ui}`, cursor: 'pointer' } as const;
+export const action = style({
+  ...control,
+  border: 'none',
+  background: vars.color.witness.accent,
+  color: vars.color.witness.on,
+  fontWeight: 600,
+  selectors: { '&:disabled': { opacity: 0.45, cursor: 'default' } },
+});
+export const quiet = style({ ...control, border: `1px solid ${vars.color.borderStrong}`, background: 'none', color: vars.color.text });
+export const leaseNote = style({ font: `500 11px ${font.mono}`, color: vars.color.witness.accent });
+export const input = style({
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 10,
+  border: `1px solid ${vars.color.borderStrong}`,
+  background: vars.color.groundDeep,
+  color: vars.color.text,
+  font: `14px ${font.ui}`,
+  flex: '1 1 200px',
+});
+export const editor = style({
+  minHeight: '50vh',
+  padding: 14,
+  borderRadius: radius.m,
+  border: `1px solid ${vars.color.borderStrong}`,
+  background: vars.color.groundDeep,
+  color: vars.color.text,
+  font: `14px/22px ${font.mono}`,
+  resize: 'vertical',
+});
+export const restore = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' });
+export const versions = style({ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 });
+export const version = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  padding: '10px 12px',
+  borderRadius: radius.m,
+  background: vars.color.surface,
+  border: `1px solid ${vars.color.border}`,
+  selectors: { '&[data-open="true"]': { borderColor: vars.color.witness.border } },
+});
+export const versionHead = style({
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: vars.color.text,
+  font: `500 14px ${font.ui}`,
+  textAlign: 'left',
+  cursor: 'pointer',
+});
+export const versionBody = style({ display: 'flex', flexDirection: 'column', gap: 8 });
+export const diff = style({ margin: 0, padding: 10, borderRadius: 8, background: vars.color.groundDeep, font: `12px/19px ${font.mono}`, overflowX: 'auto', maxHeight: 420 });
+export const diffLine = style({
+  display: 'block',
+  whiteSpace: 'pre-wrap',
+  color: vars.color.textMuted,
+  selectors: {
+    '&[data-op="ins"]': { color: status.ok, background: 'rgba(80, 200, 120, 0.08)' },
+    '&[data-op="del"]': { color: status.error, background: 'rgba(240, 90, 90, 0.08)' },
+  },
+});

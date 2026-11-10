@@ -40,9 +40,26 @@ at `/client/next.html#/records`. Built 2026-11-10.
   - how things arrive: the routes landing in it, with their profile.
     Profiles and keys stay in Settings.
 
+- **History** (`history/<path>`, seshat#54): every version newest
+  first, with who, when and the note. One opens as a diff against the
+  file now (insertions and removals marked) with "Restore this version"
+  and an optional note; a restore that needs her consent says it was
+  proposed to her. A version overwritten before the repository's next
+  commit is listed, and says its words weren't kept.
+- **Edit** (`edit/<path>`, seshat#55): the editor takes the lease on
+  opening, renews it with the draft each minute while you type, and
+  releases it on save or close. The bar says when she is waiting on the
+  file, and if her write took the lease, that the draft is kept in your
+  own folder; the editor then stops taking input.
+- **Reacts on the record** (kumbukumbu#61), from the shared vocabulary,
+  and a note when the file is open in an editor or she is waiting on it.
+
+Checked in a browser on the local server: an edit saved with a note, the
+history with a diff against an older committed version, a restore, and a
+react. The lease being taken by her write is covered by the server's
+tests, not yet seen in a browser.
+
 Not built:
-- history, diffs and restore; editing under a lease; reacts on
-  documents (S4);
 - the database-backed folders (with the readable copies,
   records-in-repo.md);
 - ballots;
