@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatHash, isTabHash, parseHash, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
 import { Header } from './Header';
+import { usePushSlide, useTabDissolve } from './motion';
 import { OfflineBar } from './OfflineBar';
 import { Overlays } from './Overlays';
 import { SearchSheet } from './SearchSheet';
 import * as css from './shell.css';
 import { TabBar } from './TabBar';
+import { useWide } from './useWide';
 
 export interface ShellProps {
   residentId: string;
@@ -46,6 +48,12 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
   const stacks = useShell((s) => s.stacks);
   const setTab = useShell((s) => s.setTab);
   const setOverlay = useShell((s) => s.setOverlay);
+  const { leaving, ref } = useTabDissolve(tab);
+  const wide = useWide();
+  // On a wide screen Records and Time show the list beside the page, so
+  // a push changes one pane, not the view: only the narrow layout slides.
+  const [active, setActive] = useState<HTMLElement | null>(null);
+  usePushSlide(active, stacks[tab].length, !wide);
 
   return (
     <div className={css.root}>
@@ -55,7 +63,18 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
       </div>
       <main className={css.main}>
         {TABS.map((t) => (
-          <section key={t} className={css.panel} hidden={t !== tab} aria-label={t} inert={t !== tab}>
+          <section
+            key={t}
+            ref={(el) => {
+              ref(t)(el);
+              if (t === tab && el !== active) setActive(el);
+            }}
+            className={css.panel}
+            hidden={t !== tab && t !== leaving}
+            data-leaving={t === leaving || undefined}
+            aria-label={t}
+            inert={t !== tab}
+          >
             {renderTab(t, topOf(stacks, t))}
           </section>
         ))}

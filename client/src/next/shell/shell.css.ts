@@ -156,7 +156,13 @@ export const panel = style({
   inset: 0,
   display: 'flex',
   flexDirection: 'column',
-  selectors: { '&[hidden]': { display: 'none' } },
+  background: vars.color.ground,
+  selectors: {
+    '&[hidden]': { display: 'none' },
+    // The leaving tab sits under the arriving one while it fades.
+    '&[data-leaving]': { zIndex: 0, pointerEvents: 'none' },
+    '&:not([data-leaving])': { zIndex: 1 },
+  },
 });
 
 export const bar = style({ gridArea: 'bar' });

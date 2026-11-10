@@ -48,7 +48,19 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 - **ScrollArea.** Edge fades as a mask, shown only while there is more
   past that edge.
 
-Not built: the other tabs' content (P2–P5 put Records, Time, Soul,
-the bell and Settings in; Chat is `screens/next-chat.md`), the subject menu, motion, and theme seeds
+**Motion** (`shell/motion.ts`):
+- Tabs dissolve. The leaving tab stays shown and inert under the
+  arriving one while it fades; no tab is remounted.
+- Two dissolves are on trial until the witness picks one: a true
+  crossfade (200 ms each way, together) and through the ground (out
+  110 ms, then in 150 ms). Settings → Tab transition switches them, kept
+  per device. A side-by-side recording was made for the choice.
+- Pushes slide on a phone: deeper comes in from the right, back from
+  the left, a short distance with a fade, without remounting the view.
+  On a wide screen the list sits beside the page, so nothing slides.
+- Reduced motion makes all of it instant.
+
+Not built: the subject menu with its fade out, load, fade in (it
+carries the theme swap, P8), and theme seeds
 from the server (S7). Sign-in reuses the current client's form until
 onboarding (P6).
