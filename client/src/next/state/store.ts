@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { TABS, type Location, type Tab } from './routes';
 
 export type Connection = 'connected' | 'connecting' | 'offline';
+export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | null;
 
 export interface Presence {
   state: 'idle' | 'queued' | 'thinking' | 'writing' | 'tool';
@@ -21,6 +22,8 @@ interface ShellState {
   cursor: number | null; // the last notice position seen (apsu#24)
   presence: Presence;
   searchOpen: boolean;
+  overlay: Overlay;
+  setOverlay: (o: Overlay) => void;
   go: (to: Location) => void;
   push: (path: string) => void;
   back: () => void;
@@ -41,6 +44,8 @@ export const useShell = create<ShellState>((set) => ({
   cursor: null,
   presence: { state: 'idle' },
   searchOpen: false,
+  overlay: null,
+  setOverlay: (overlay) => set({ overlay }),
 
   // Arriving from the URL (load, back/forward): the tab becomes active and
   // its stack is cut back to the path if it is on it, or the path pushed.

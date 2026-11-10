@@ -4,6 +4,7 @@ import { api, RequestFailed } from '../api/client';
 import { Login } from '../app/Login';
 import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
+import { useNotificationsAsk } from './shell/notifications';
 import { RecordsTab } from './records/RecordsTab';
 import { SoulTab } from './soul/SoulTab';
 import { TimeTab } from './time/TimeTab';
@@ -72,6 +73,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
     return () => live.stop();
   }, [live, residentId]);
 
+  const notifications = useNotificationsAsk();
   const bell = useQuery({
     queryKey: ['resident', residentId, 'bell'],
     queryFn: () => api.needsYou(residentId),
@@ -81,7 +83,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
     <Shell
       residentId={residentId}
       residentName={residentName}
-      waiting={bell.data?.length ?? 0}
+      waiting={(bell.data?.length ?? 0) + (notifications.ask ? 1 : 0)}
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>
         tab === 'chat' ? (

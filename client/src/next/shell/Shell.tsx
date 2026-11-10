@@ -4,6 +4,7 @@ import { formatHash, parseHash, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
 import { Header } from './Header';
 import { OfflineBar } from './OfflineBar';
+import { Overlays } from './Overlays';
 import { SearchSheet } from './SearchSheet';
 import * as css from './shell.css';
 import { TabBar } from './TabBar';
@@ -41,10 +42,11 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
   const setTab = useShell((s) => s.setTab);
+  const setOverlay = useShell((s) => s.setOverlay);
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} />
+      <Header name={residentName} waiting={waiting} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>
@@ -57,6 +59,7 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
       </main>
       <TabBar active={tab} onSelect={setTab} />
       <SearchSheet residentId={residentId} residentName={residentName} />
+      <Overlays />
     </div>
   );
 }
