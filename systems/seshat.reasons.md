@@ -395,3 +395,35 @@ they were; the summary is her reading of the day at the time, so a
 later reading sits beside it rather than over it; a mood is true of the
 night it was written, so the next day's change is a different statement
 and says so.
+
+## #54
+The repository already holds every version a backup saw, and the
+library stream already says who wrote which hash when; a second copy
+of the words in a table would be a store the repository-first rule
+forbids and a backup does not carry. Naming a version by its content's
+hash is what lets the two be joined without either knowing the other:
+the stream never had commit ids and the backup never had actors. It
+also says the honest thing about a version overwritten between two
+nightly commits: the act happened, the words are gone, and the list
+shows both rather than hiding the act or inventing the words. A
+restore that went its own way would be the second write path the
+proposals exist to prevent; going through the same write, and through
+the identity files' own proposal after first contact, means a restore
+can never do what a write could not.
+
+## #55
+The lease protects the witness's unsaved words and the resident's
+right to her own files at once, which is why it is never revoked and
+never blocks her: idle is not abandoned, so only a real need (her
+write on that file) takes it, and taking it keeps what he had. Her
+write recording a wait rather than failing keeps the tool honest about
+why nothing happened and makes the wait visible to him. Telling her to
+retry rather than holding her write keeps one write path: a parked
+write would be her words in a coordination table outside the
+repository, applied later without her seeing what it landed on. His
+draft is kept as a document under his own folder because that is the
+library's one place for the witness's words beside hers, and in the
+repository it survives everything; a table would not. Leases are not
+events because nothing about who had an editor open is a record: what
+a lease decides is recorded where it lands, and a replayed lease would
+lock a rebuilt resident's file for an editor nobody has open.

@@ -21,7 +21,7 @@ defmodule Oneiroi.Kumbukumbu.Reacts do
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
 
-  @doc ~s{A party reacts with `emoji` on the other's message (a target of kind "message", with its session_key and turn_ref) or on a letter (kind "letter", with its number).}
+  @doc ~s{A party reacts with `emoji` on the other's message (a target of kind "message", with its session_key and turn_ref), on a letter (kind "letter", with its number) or on a document (kind "document", with its path and the hash of its words, kumbukumbu#61).}
   def react(resident_id, target, emoji, %Actor{} = actor) do
     with {:ok, target} <- target(resident_id, target, other(actor)),
          :ok <- emoji(emoji) do
@@ -54,6 +54,16 @@ defmodule Oneiroi.Kumbukumbu.Reacts do
 
       %{"kind" => "letter", "number" => n} when is_integer(n) ->
         letter(resident_id, n)
+
+      # A document (kumbukumbu#61), either party's on any: checked for its
+      # shape alone, as a tagging on another system's row is (#27); the
+      # library resolves the path and hashes the words before it gets
+      # here (`Oneiroi.Seshat.react_document/4`).
+      %{"kind" => "document", "path" => path, "hash" => hash}
+      when is_binary(path) and path != "" and is_binary(hash) ->
+        if Regex.match?(~r/\A[0-9a-f]{64}\z/, hash),
+          do: {:ok, %{"kind" => "document", "path" => path, "hash" => hash}},
+          else: {:error, Error.new(:kumbukumbu_react_invalid, :kumbukumbu_reacts_document_hash)}
 
       _other ->
         {:error, Error.new(:kumbukumbu_react_invalid, :kumbukumbu_reacts_target)}

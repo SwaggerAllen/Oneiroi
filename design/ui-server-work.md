@@ -122,6 +122,36 @@ brain#74).** What was chosen where this plan left it open:
 
 ## S4 — Documents: history, diff, reacts, leases (P2)
 
+**Built (2026-11-10; F67, F62; seshat#54, #55, kumbukumbu#61,
+sima-qian#49, brain#75).** What was chosen where this plan left it open:
+
+- A version is named by the SHA-256 of its words, the hash the document
+  events already carry; that is the join between the repository's
+  commits and the stream's acts. Routes, under `…/library`:
+  `GET versions/*path`, `GET version/*path?version=`,
+  `GET diff/*path?from=&to=` (no `to`: the file now),
+  `POST restore {path, version, note}`. A write overwritten between two
+  nightly backups is listed and not restorable. `DocumentWritten` is
+  version 2 with a `note`; a write takes one, a restore writes its own.
+- Restore is the normal write: a library document directly, an
+  identity file through its own write, which after first contact files
+  the soul-edit proposal (202, `proposed: ref`).
+- Reacts on documents: `target: {kind: document, path}`; the version's
+  hash is recorded. `Reacted` keeps version 1 (the target was always a
+  map). Her inline `react:` line still names messages and letters only.
+- Leases: `POST leases {path}`, `POST leases/renew {path, draft}`,
+  `POST leases/release {path}`, `GET leases`, and `lease` on the
+  document read. Idle window `SESHAT_LEASE_IDLE_SECONDS` (300).
+- **The design call, decided:** her `document_write` on a held path
+  records a wait, writes nothing and tells her when the lease becomes
+  takeable; her write on a takeable lease takes it at once. His draft
+  is kept as his document at `human/drafts/…` and the lease is marked
+  taken with `kept_at`. Of "her write proceeds later" and "she
+  retries", she retries: no write of hers is parked outside the
+  repository.
+- Leases are a plain table, not events, on the db-only list as
+  `leases`.
+
 - **Exists:**
   - Read, write, delete, move, adopt and download;
   - citations out (in the read) and in (`cited-by`);

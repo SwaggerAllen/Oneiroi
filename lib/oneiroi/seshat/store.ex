@@ -153,6 +153,46 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule DocumentVersion do
+    @moduledoc "One recorded version of a path (seshat#54): the act, its hash, who and when, and the writer's note."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_document_version" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:path, :string, primary_key: true)
+      field(:event_number, :integer, primary_key: true)
+      field(:act, :string)
+      field(:hash, :string)
+      field(:bytes, :integer)
+      field(:actor_kind, :string)
+      field(:actor_id, :string)
+      field(:note, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Lease do
+    @moduledoc "The witness's edit lease on a path (seshat#55): coordination state, never an event."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_lease" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:path, :string, primary_key: true)
+      field(:holder_id, :binary_id)
+      field(:state, :string)
+      field(:acquired_at, :utc_datetime_usec)
+      field(:renewed_at, :utc_datetime_usec)
+      field(:draft, :string)
+      field(:waiting_at, :utc_datetime_usec)
+      field(:taken_at, :utc_datetime_usec)
+      field(:kept_at, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Chunk do
     @moduledoc "One chunk of a document with its vector."
     use Ecto.Schema
@@ -532,6 +572,38 @@ defmodule Oneiroi.Seshat.Store do
 
   @doc "One digest by number, or nil."
   def digest(number), do: Repo.one(from(d in Digest, where: d.number == ^number))
+
+  @doc "A path's recorded versions, newest first (seshat#54)."
+  @spec versions(String.t()) :: [DocumentVersion.t()]
+  def versions(path),
+    do:
+      Repo.all(
+        from(v in DocumentVersion, where: v.path == ^path, order_by: [desc: v.event_number])
+      )
+
+  @doc "The lease on a path, held or taken (seshat#55); nil when none."
+  @spec lease(String.t()) :: Lease.t() | nil
+  def lease(path), do: Repo.one(from(l in Lease, where: l.path == ^path))
+
+  @doc "Every lease, by path."
+  @spec leases() :: [Lease.t()]
+  def leases, do: Repo.all(from(l in Lease, order_by: l.path))
+
+  @doc "Writes a lease row whole, the one there replaced."
+  @spec put_lease(Lease.t()) :: Lease.t()
+  def put_lease(%Lease{} = lease),
+    do:
+      Repo.insert!(lease,
+        on_conflict: {:replace_all_except, [:resident_id, :path]},
+        conflict_target: [:resident_id, :path]
+      )
+
+  @doc "Removes the lease on a path."
+  @spec delete_lease(String.t()) :: :ok
+  def delete_lease(path) do
+    Repo.delete_all(from(l in Lease, where: l.path == ^path))
+    :ok
+  end
 
   @doc "Where a path moved to, following moves to the last (seshat#39); nil if it never moved. A chain is at most as long as the moves, and a cycle stops at the path it began from."
   def moved_to(path, seen \\ MapSet.new()) do

@@ -8,7 +8,15 @@ defmodule Oneiroi.Seshat.Events do
   """
 
   defmodule DocumentWritten do
-    use Oneiroi.Event, version: 1, fields: [:id, :path, :kind, :hash, :bytes]
+    # Version 2 adds `note` (seshat#54): what the writer said of this
+    # version, a restore's "restored from" among them, shown in the
+    # document's versions; nil on every version 1 write, which the
+    # identity upcaster leaves as the struct's default.
+    use Oneiroi.Event, version: 2, fields: [:id, :path, :kind, :hash, :bytes, :note]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.DocumentWritten do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule DocumentAdopted do

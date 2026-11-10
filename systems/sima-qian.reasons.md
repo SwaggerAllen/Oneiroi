@@ -290,3 +290,12 @@ drifts the day a kind is added, and it had already drifted five times
 without anyone seeing, because a stray fails after the backup lands
 and reads as noise. Asking the registry makes the backup hold what the
 library holds, by construction, including what she defines.
+
+## #49
+A document's versions were the first reader of one path's whole
+history, and asking git once per commit for the blob would cost a
+process per commit before reading a word. One log call with the raw
+blob ids, then one read per distinct blob, keeps the cost to what is
+actually read; the port stays the only place git is called, so the
+credential and failure rules the port carries hold for it
+unchanged.

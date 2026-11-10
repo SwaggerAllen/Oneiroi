@@ -423,3 +423,16 @@ The track needs to know where the weight of the record lies before it
 loads any of it; one count per day per kind is the least that draws it.
 Every day of the range is answered, zeros included, so an empty day is
 a fact the server states rather than a gap the client infers.
+
+## #61
+A react on a document is the same gesture as one on a message: seen,
+never signed off. Recording the hash says which words it was about, so
+a later rewrite does not make an old react look like approval of new
+words. The library resolves the path because the library is what knows
+a document; the ledger depending on it would be the cycle the systems'
+order forbids, and #27 already settled that a row of another system is
+checked for its shape here. No new event version because nothing about
+the event's shape moved: a version is owed when a reader of the old
+shape would misread the new one, and a target map with a new kind is
+read by the old code as a target it does not know, which it never
+projects as anything else.

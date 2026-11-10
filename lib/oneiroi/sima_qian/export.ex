@@ -87,6 +87,9 @@ defmodule Oneiroi.SimaQian.Export do
     "redacted" =>
       {:fields,
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
+    "leases" =>
+      {:table,
+       "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"},
     "honcho-private" =>
       {:honcho,
        "Honcho's conclusions and summaries drawn from a private, unshared session: withheld from honcho/ as the session's words are from the reading copies (spec §6.3); Honcho keeps them"}

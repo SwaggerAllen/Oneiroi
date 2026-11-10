@@ -82,6 +82,7 @@ defmodule Oneiroi.Brain.Reactions do
   end
 
   defp where(%{target_kind: "letter", letter: n}, _here, _titles), do: "letter ##{n}"
+  defp where(%{target_kind: "document", path: path}, _here, _titles), do: "the document #{path}"
   defp where(%{session_key: here}, here, _titles), do: "your reply in this conversation"
 
   defp where(%{session_key: key}, _here, titles),

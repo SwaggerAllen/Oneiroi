@@ -37,7 +37,7 @@ defmodule Oneiroi.Seshat.Documents do
   # leading slash. A request value reaches the filesystem only through
   # that check.
   # sobelow_skip ["Traversal.FileModule"]
-  @doc "Writes a file through the flow (`core: true` for a kind the platform writes); returns the path, the kind, whether anything changed, and whether the index ran clean."
+  @doc "Writes a file through the flow (`core: true` for a kind the platform writes, `note:` for what the writer says of this version, seshat#54); returns the path, the kind, whether anything changed, and whether the index ran clean."
   def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
     with {:ok, path} <- normalize(resident_id, path),
          {:ok, kind} <- writable_kind(resident_id, path, Keyword.get(opts, :core, false), actor),
@@ -52,7 +52,8 @@ defmodule Oneiroi.Seshat.Documents do
              path: path,
              kind: kind.kind,
              hash: hash(content),
-             bytes: byte_size(content)
+             bytes: byte_size(content),
+             note: note(Keyword.get(opts, :note))
            }) do
       full = Path.join(dir, path)
       File.mkdir_p!(Path.dirname(full))
@@ -586,6 +587,16 @@ defmodule Oneiroi.Seshat.Documents do
   def hash(content), do: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
 
   defp normalize(resident_id, path), do: Kinds.normalize(resident_id, path)
+
+  # A version's note (seshat#54): words, trimmed, or nothing.
+  defp note(note) when is_binary(note) do
+    case String.trim(note) do
+      "" -> nil
+      words -> words
+    end
+  end
+
+  defp note(_none), do: nil
 
   defp writable_kind(resident_id, path, core?, %Actor{kind: by}) do
     kind = Kinds.kind_of(resident_id, path)

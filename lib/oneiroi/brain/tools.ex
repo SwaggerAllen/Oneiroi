@@ -2720,7 +2720,7 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
-      library_page(row, content, from)
+      library_page(row, content, from) <> leased(Seshat.lease(turn.resident_id, row.path))
     else
       {:error, %Seshat.Error{} = e} -> unreadable(e)
       other -> other
@@ -2839,23 +2839,13 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("document_write", args, turn) do
-    case Seshat.write(
-           turn.resident_id,
-           to_string(args["path"] || ""),
-           to_string(args["content"] || ""),
-           turn.resident
-         ) do
-      {:ok, %{path: path, changed: changed, indexed: indexed}} ->
-        "Written #{path}" <>
-          if(changed, do: "", else: " (unchanged)") <>
-          if(indexed,
-            do: " and indexed.",
-            else: "; the index did not run clean, it will again tonight."
-          )
-
-      other ->
-        other
-    end
+    turn.resident_id
+    |> Seshat.write(
+      to_string(args["path"] || ""),
+      to_string(args["content"] || ""),
+      turn.resident
+    )
+    |> written(turn)
   end
 
   defp call("document_adopt", args, turn) do
@@ -3371,6 +3361,46 @@ defmodule Oneiroi.Brain.Tools do
   defp page_footer(rows, further) do
     "#{further} more further back; bookmark_list with before: #{List.last(rows).number} and the same filters reads the next page."
   end
+
+  # What her document_write says (seshat#55 for the lease's two answers).
+  defp written({:ok, %{written: false, waiting: lease}}, turn), do: waiting(lease, turn)
+
+  defp written({:ok, %{path: path, took: lease} = written}, _turn) do
+    "Your witness's lease on #{path} had gone idle, so your write took it and went in" <>
+      if(lease.kept_at,
+        do: "; his unsaved draft is kept at #{lease.kept_at}, never lost.",
+        else: "; he had no unsaved draft to keep."
+      ) <> if(written.indexed, do: " Indexed.", else: "")
+  end
+
+  defp written({:ok, %{path: path, changed: changed, indexed: indexed}}, _turn) do
+    "Written #{path}" <>
+      if(changed, do: "", else: " (unchanged)") <>
+      if(indexed,
+        do: " and indexed.",
+        else: "; the index did not run clean, it will again tonight."
+      )
+  end
+
+  defp written(other, _turn), do: other
+
+  # Her write on a path her witness holds an edit lease on (seshat#55):
+  # nothing written, the wait recorded, and when to write again.
+  defp waiting(lease, turn) do
+    zone = Local.zone(turn.resident_id)
+
+    "Not written yet: your witness is editing #{lease.path} (his edit lease, last renewed #{Local.stamp(zone, lease.renewed_at)}). " <>
+      "Your wait is recorded and he can see it. If he releases the lease, or once it has been idle until #{Local.stamp(zone, lease.takeable_at)}, " <>
+      "write again: a write of yours on an idle lease takes it and goes in, his unsaved draft kept for him. Nothing you meant to write is held for you, so keep your words for that write."
+  end
+
+  # The witness's edit lease, shown to her where she reads (seshat#55).
+  defp leased(%{state: "held"} = lease),
+    do:
+      "\n\n(Your witness holds an edit lease on #{lease.path}: he is editing it. A document_write of yours here waits on him" <>
+        if(lease.takeable, do: ", and his lease is idle now, so it would take it.)", else: ".)")
+
+  defp leased(_none_or_taken), do: ""
 
   # A page of a document: a header naming the path, the kind, the bytes
   # and which characters these are, with the call that reads the next;

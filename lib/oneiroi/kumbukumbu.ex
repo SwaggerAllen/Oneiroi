@@ -426,8 +426,9 @@ defmodule Oneiroi.Kumbukumbu do
        "the command was refused before memory read it: an actor, an instant or a decision's note was missing",
        remedy: "a decision carries a note; the details name what was missing"},
       {:kumbukumbu_react_invalid,
-       "a react is the witness's: one emoji, or a short run of them, on a reply of hers in a turn or on a house letter that exists",
-       remedy: "name the conversation and turn, or the letter's number, and give an emoji"},
+       "a react is one emoji, or a short run of them, on the other party's message in a turn, a house letter that exists, or a document of the library (kumbukumbu#61)",
+       remedy:
+         "name the conversation and turn, the letter's number, or the document's path, and give an emoji"},
       {:kumbukumbu_dispatch_failed,
        "the command did not complete: the event store failed, or a projection did not catch up in time",
        remedy: "the platform's; retry, and read the cause on the log line"}
@@ -1084,7 +1085,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Oneiroi.Kumbukumbu.Reacts.react(resident_id, target, emoji, actor)
   )
 
-  @doc "The reacts, oldest first; `untold: true`, `session_key:` (kumbukumbu#56)."
+  @doc "The reacts, oldest first; `untold: true`, `session_key:` (kumbukumbu#56), `path:` (#61)."
   @spec reacts(String.t(), keyword()) :: [Oneiroi.Kumbukumbu.Store.React.t()]
   defexport(reacts(resident_id, opts), do: Oneiroi.Kumbukumbu.Reacts.list(resident_id, opts))
 

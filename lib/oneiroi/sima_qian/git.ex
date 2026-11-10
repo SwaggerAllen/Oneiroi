@@ -224,6 +224,66 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
+  @doc """
+  The commits that changed `path` in `dir`, newest first, at most
+  `limit`: `%{commit, at, subject, blob}`, the full commit sha, its
+  instant, its subject line and the full sha of the blob the path held
+  after it (nil where the commit removed it). Read in one call, so a
+  document's versions cost one git process plus one per blob read
+  (seshat#54). A repository with no commit yet has no history.
+  """
+  @spec history(Path.t(), String.t(), pos_integer()) :: {:ok, [map()]} | {:error, Error.t()}
+  def history(dir, path, limit) do
+    if head?(dir) do
+      args = [
+        "log",
+        "-n",
+        Integer.to_string(limit),
+        "--raw",
+        "--no-abbrev",
+        "--no-renames",
+        "--format=%x1e%H%x1f%aI%x1f%s",
+        "--",
+        path
+      ]
+
+      with {:ok, out} <- git(dir, args) do
+        {:ok,
+         out
+         |> String.split(<<30>>, trim: true)
+         |> Enum.map(&history_entry(&1, path))
+         |> Enum.reject(&is_nil/1)}
+      end
+    else
+      {:ok, []}
+    end
+  end
+
+  defp history_entry(record, path) do
+    [head | raw] = String.split(record, "\n", trim: true)
+
+    case String.split(head, <<31>>, parts: 3) do
+      [commit, at, subject] ->
+        %{commit: commit, at: at, subject: subject, blob: blob_after(raw, path)}
+
+      _other ->
+        nil
+    end
+  end
+
+  # A raw line is `:<mode> <mode> <old blob> <new blob> <status>\t<path>`;
+  # an all-zero new blob is the path removed.
+  defp blob_after(raw, path), do: Enum.find_value(raw, &raw_blob(&1, path))
+
+  defp raw_blob(line, path) do
+    with [meta, ^path] <- String.split(line, "\t", parts: 2),
+         [_old_mode, _new_mode, _old, new | _status] <- String.split(meta, " ") do
+      if String.trim(new, "0") == "", do: nil, else: new
+    else
+      _other -> false
+    end
+  end
+
   @doc "A blob's bytes exactly, by its sha."
   @spec blob(Path.t(), String.t()) :: {:ok, binary()} | {:error, Error.t()}
   def blob(dir, sha), do: run(@binary, dir, ["cat-file", "blob", sha], false)
