@@ -351,6 +351,13 @@ where this plan left it open:
     (`scratch/creation-gift-guidance.md`, work item #25) lands
     verbatim in `priv/creation/` once the witness approves it.
 
+- **Changed after the first live run (agathos-daimon#42, the witness's
+  calls, 2026-11-10):** the prompt path drafts only IDENTITY.md and
+  SOUL.md; the witness's files keep Write it with me, now told whose file
+  it is; drafting runs on `BRAIN_DRAFT_MODEL` (GLM 5.3), the read on the
+  judge; suggested trials are built; the examples task can draft USER.md
+  and GOALS.md for a fictional witness.
+
 ## S9 — Push triggers (P5)
 
 **Built (2026-11-10; F70; brain#77, gaia#26).** What was chosen where

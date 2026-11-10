@@ -172,6 +172,46 @@ defmodule OneiroiWeb.FileController do
         "prompt is required"
       )
 
+  operation(:trials,
+    summary:
+      "Suggested trials (agathos-daimon#42): drafted from her files so far and an optional note, billed as drafting; nothing is kept",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"an optional note", "application/json",
+       %Schema{type: :object, properties: %{note: %Schema{type: :string}}}},
+    responses: [
+      ok:
+        {"the suggestions", "application/json",
+         %Schema{
+           type: :object,
+           properties: %{
+             trials: %Schema{
+               type: :array,
+               items: %Schema{
+                 type: :object,
+                 properties: %{
+                   prompt: %Schema{type: :string},
+                   passes_if: %Schema{type: :string},
+                   fails_if: %Schema{type: :string}
+                 }
+               }
+             },
+             model: %Schema{type: :string}
+           }
+         }},
+      unprocessable_entity: {"closed or unreadable", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def trials(conn, %{"id" => id} = params) do
+    note = if is_binary(params["note"]), do: params["note"], else: ""
+
+    case Oneiroi.Brain.suggest_trials(id, note, actor(conn)) do
+      {:ok, result} -> json(conn, result)
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+    end
+  end
+
   defp stopped(nil), do: nil
   defp stopped(s), do: %{file: s.file, kind: s.kind, message: s.message}
 

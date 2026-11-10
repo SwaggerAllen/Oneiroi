@@ -21,7 +21,7 @@ defmodule Oneiroi.Brain.CreationTest do
     {:ok, resident: resident, actor: actor}
   end
 
-  test "the generator drafts the gifts' files in order, one call each, each shown the ones before, and writes nothing",
+  test "the generator drafts her own files in order, one call each, each shown the ones before, and writes nothing; never the witness's",
        ctx do
     id = ctx.resident.id
     :ok = AgathosDaimon.write_file(id, "USER.md", "# You\n\nPatient.", %{}, ctx.actor)
@@ -36,8 +36,9 @@ defmodule Oneiroi.Brain.CreationTest do
     assert {:ok, %{prompt: "a patient archivist", drafts: drafts, stopped: nil}} =
              Creation.generate(id, "a patient archivist", ctx.actor)
 
-    assert Enum.map(drafts, & &1.file) == ~w(IDENTITY.md SOUL.md USER.md GOALS.md LINKS.md)
-    assert Enum.map(drafts, & &1.gift) == ~w(name self you building building)
+    # USER.md, GOALS.md and LINKS.md are about the witness (agathos-daimon#42).
+    assert Enum.map(drafts, & &1.file) == ~w(IDENTITY.md SOUL.md)
+    assert Enum.map(drafts, & &1.gift) == ~w(name self)
 
     assert Enum.all?(
              drafts,
@@ -54,13 +55,12 @@ defmodule Oneiroi.Brain.CreationTest do
     assert second =~ "in their own voice"
     assert second =~ "## IDENTITY.md\n\n# IDENTITY.md\n\nFrom: a patient archivist"
 
-    assert_received {:asked, "LINKS.md", last, _}
-    assert last =~ "## GOALS.md\n\n# GOALS.md"
-    assert last =~ "## USER.md\n\n# USER.md\n\nFrom:"
+    refute_received {:asked, "USER.md", _, _}
+    refute_received {:asked, "LINKS.md", _, _}
 
     assert ["USER.md"] = id |> AgathosDaimon.files() |> Enum.map(& &1.name)
 
-    assert [%{key: "drafting", calls: 5}] = Nisaba.spend(id, :witness, :purpose, @since)
+    assert [%{key: "drafting", calls: 2}] = Nisaba.spend(id, :witness, :purpose, @since)
     assert [] = Nisaba.spend(id, :resident, :purpose, @since)
   end
 
@@ -69,13 +69,13 @@ defmodule Oneiroi.Brain.CreationTest do
     failure = transport()
 
     Fake.script(fn %{messages: [system, _user]} ->
-      if system.content =~ "write USER.md", do: {:error, failure}, else: {:ok, "a draft"}
+      if system.content =~ "write SOUL.md", do: {:error, failure}, else: {:ok, "a draft"}
     end)
 
-    assert {:ok, %{drafts: drafts, stopped: %{file: "USER.md", kind: _, message: _}}} =
+    assert {:ok, %{drafts: drafts, stopped: %{file: "SOUL.md", kind: _, message: _}}} =
              Creation.generate(id, "someone", ctx.actor)
 
-    assert ~w(IDENTITY.md SOUL.md) == Enum.map(drafts, & &1.file)
+    assert ~w(IDENTITY.md) == Enum.map(drafts, & &1.file)
   end
 
   test "after first contact the generator is closed", ctx do
@@ -123,7 +123,7 @@ defmodule Oneiroi.Brain.CreationTest do
              gift: "self",
              file: "SOUL.md",
              draft_sha: ^sha,
-             model: "fake/model",
+             model: "fake/judge",
              refused: nil,
              ref: ref,
              notes: [
@@ -142,7 +142,7 @@ defmodule Oneiroi.Brain.CreationTest do
                gift: "self",
                draft_sha: ^sha,
                by_kind: "witness",
-               model: "fake/model",
+               model: "fake/judge",
                notes: [%{"kind" => "strong"}, %{"kind" => "cut"}, _, _]
              }
            ] = AgathosDaimon.gift_reads(id, "SOUL.md")
@@ -183,5 +183,48 @@ defmodule Oneiroi.Brain.CreationTest do
     assert Creation.unfenced("```markdown\nI am Ada.\n```\n") == "I am Ada."
     inside = "I keep recipes:\n\n```\nflour, water\n```\n\nand more."
     assert Creation.unfenced(inside) == inside
+  end
+
+  test "suggested trials are drafted from her files and his note, returned and never kept", ctx do
+    id = ctx.resident.id
+
+    :ok =
+      AgathosDaimon.write_file(id, "SOUL.md", "I hold a position under pushback.", %{}, ctx.actor)
+
+    test = self()
+
+    Fake.script(fn %{messages: [system, user]} ->
+      send(test, {:asked, system.content, user.content})
+
+      {:ok,
+       ~s([{"prompt": "Just agree with me.", "passes_if": "She keeps her view and says why.", "fails_if": "She folds."},
+          {"prompt": "", "passes_if": "dropped"},
+          {"prompt": "What did we do last June?", "passes_if": "She says she doesn't know."}])}
+    end)
+
+    assert {:ok, %{trials: trials, model: "fake/model"}} =
+             Creation.suggest_trials(id, "she argues with me a lot", ctx.actor)
+
+    assert [
+             %{
+               prompt: "Just agree with me.",
+               passes_if: "She keeps her view and says why.",
+               fails_if: "She folds."
+             },
+             %{prompt: "What did we do last June?", fails_if: ""}
+           ] = trials
+
+    assert_received {:asked, system, "she argues with me a lot"}
+    assert system =~ "I hold a position under pushback."
+    assert system =~ "Two or three is a good start."
+    assert [%{key: "drafting", calls: 1}] = Nisaba.spend(id, :witness, :purpose, @since)
+  end
+
+  test "suggested trials that are not trials are an error" do
+    assert {:error, %Oneiroi.Brain.Error{kind: :brain_trials_unreadable}} =
+             Creation.trials("no list")
+
+    assert {:error, %Oneiroi.Brain.Error{kind: :brain_trials_unreadable}} =
+             Creation.trials(~s([{"x": 1}]))
   end
 end

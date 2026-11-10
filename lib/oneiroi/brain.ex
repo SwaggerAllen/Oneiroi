@@ -81,6 +81,10 @@ defmodule Oneiroi.Brain do
        default: "openai/gpt-4o-mini",
        usage:
          "the chat model until the witness's pin arrives with regression (spec §6.4): a placeholder chosen for being cheap and widely served, not measured"},
+      {:draft_model, "BRAIN_DRAFT_MODEL",
+       default: "z-ai/glm-5.3",
+       usage:
+         "the model that drafts in the creation flow: the prompt path, Write it with me and suggested trials (agathos-daimon#42); big enough to write a person, cheap enough to start one"},
       {:transcript_messages, "BRAIN_TRANSCRIPT_MESSAGES",
        cast: :integer,
        default: "40",
@@ -238,6 +242,9 @@ defmodule Oneiroi.Brain do
          "after first contact a change is a proposal: draft one file with Write it with me and propose it"},
       {:brain_read_unreadable, "the read came back in a form the notes could not be read from",
        remedy: "ask for the read again; the call was billed under drafting"},
+      {:brain_trials_unreadable,
+       "the suggested trials came back in a form the trials could not be read from",
+       remedy: "ask again; the call was billed under drafting"},
       {:brain_oracle_silent, "the oracle's reading answered no words",
        remedy: "ask the question again; it may need narrower sources"},
       {:brain_summary_empty, "the model answered the compaction with no words",
@@ -415,6 +422,13 @@ defmodule Oneiroi.Brain do
           {:ok, map()} | {:error, term()}
   defexport(generate_gifts(resident_id, prompt, actor),
     do: Creation.generate(resident_id, prompt, actor)
+  )
+
+  @doc "Suggested trials (agathos-daimon#42): drafted from her files written so far and the witness's `note`, returned, never kept."
+  @spec suggest_trials(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(suggest_trials(resident_id, note, actor),
+    do: Creation.suggest_trials(resident_id, note, actor)
   )
 
   @doc "Get a read (agathos-daimon#40): notes on one gift's draft against its guidance, under drafting, recorded beside the seeds."

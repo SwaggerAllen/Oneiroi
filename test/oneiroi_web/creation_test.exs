@@ -56,7 +56,7 @@ defmodule OneiroiWeb.CreationTest do
              | _
            ] = drafts
 
-    assert length(drafts) == 5
+    assert length(drafts) == 2
     assert [_agents] = ctx |> conn_for() |> get("/v1/residents/#{id}/files") |> json_response(200)
 
     assert %{"error" => %{"kind" => "prompt_required"}} =
@@ -82,7 +82,7 @@ defmodule OneiroiWeb.CreationTest do
              "file" => "USER.md",
              "draft_sha" => sha,
              "notes" => [%{"kind" => "thin", "text" => "Says little.", "quote" => "Patient."}],
-             "model" => "fake/model",
+             "model" => "fake/judge",
              "refused" => nil
            } =
              ctx

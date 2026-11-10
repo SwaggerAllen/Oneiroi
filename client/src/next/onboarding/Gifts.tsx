@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { TestTexts } from '../../api/types';
@@ -31,8 +32,51 @@ export function TrialsGift({ residentId }: { residentId: string }) {
   const [kept, setKept] = useState<string[]>([]);
   const [said, setSaid] = useState<string | null>(null);
   const ready = t.prompt.trim() !== '' && t.passes_if.trim() !== '';
+  const [note, setNote] = useState('');
+  // Suggested trials (agathos-daimon#42): drafted from her files so far; each kept only when kept.
+  const suggest = useMutation({ mutationFn: () => api.suggestTrials(residentId, note.trim()) });
+  const keep = (x: TestTexts) =>
+    api
+      .writeTest(residentId, x)
+      .then(() => {
+        setKept((k) => [...k, x.prompt]);
+        setSaid(null);
+      })
+      .catch((e: unknown) => setSaid(fail(e)));
   return (
     <div className={css.card}>
+      <div className={css.row}>
+        <input
+          id="trial-note"
+          className={css.input}
+          style={{ flex: '1 1 200px' }}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Help me: what should they hold to? (optional)"
+          aria-label="What should they hold to"
+        />
+        <button type="button" className={css.small} disabled={suggest.isPending} onClick={() => suggest.mutate()}>
+          {suggest.isPending ? 'Suggesting…' : 'Suggest some'}
+        </button>
+      </div>
+      {suggest.error && <Said text={fail(suggest.error)} />}
+      {suggest.data?.trials.map((x, i) => (
+        <div key={i} className={css.drafted}>
+          <p className={css.body} style={{ color: 'inherit' }}>
+            “{x.prompt}”
+          </p>
+          <p className={css.note}>Passes if {x.passes_if}</p>
+          {x.fails_if && <p className={css.note}>Fails if {x.fails_if}</p>}
+          <div className={css.row}>
+            <button type="button" className={css.small} disabled={kept.includes(x.prompt)} onClick={() => void keep(x)}>
+              {kept.includes(x.prompt) ? 'Kept' : 'Keep this trial'}
+            </button>
+            <button type="button" className={css.small} onClick={() => setT(x)}>
+              Edit it first
+            </button>
+          </div>
+        </div>
+      ))}
       <Field id="trial-prompt" label="The prompt" value={t.prompt} onChange={(v) => setT({ ...t, prompt: v })} />
       <Field id="trial-passes" label="Passes if" value={t.passes_if} onChange={(v) => setT({ ...t, passes_if: v })} />
       <Field id="trial-fails" label="Fails if" value={t.fails_if} onChange={(v) => setT({ ...t, fails_if: v })} />
@@ -40,16 +84,7 @@ export function TrialsGift({ residentId }: { residentId: string }) {
         type="button"
         className={css.secondary}
         disabled={!ready}
-        onClick={() =>
-          api
-            .writeTest(residentId, t)
-            .then(() => {
-              setKept([...kept, t.prompt]);
-              setT({ prompt: '', passes_if: '', fails_if: '' });
-              setSaid(null);
-            })
-            .catch((e: unknown) => setSaid(fail(e)))
-        }
+        onClick={() => void keep(t).then(() => setT({ prompt: '', passes_if: '', fails_if: '' }))}
       >
         Keep this trial
       </button>

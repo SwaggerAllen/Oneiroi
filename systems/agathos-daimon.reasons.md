@@ -293,3 +293,17 @@ files are hers; offering them to strangers needs her yes, and reading
 them would be a cross-tenant read the platform has never made, so the
 second set waits rather than being copied in.
 
+## #42
+The first live run drafted all five files from a prompt about the
+resident, and the three about the witness came back in her voice,
+about herself, with links made up: the prompt cannot know the person
+giving it, and a model asked to fill a file fills it. Drafting only her
+files keeps the prompt path honest; his own files stay his, with help
+that starts from what he says about himself. The models are the
+witness's call: big enough to write a person, cheap enough that
+starting one costs cents. The read is a judgement of the drafting, so
+it runs on the judge, from outside the model that drafted; on the
+default chat model the notes repeated their quotes and praised filler,
+and a stronger reader gave reasons. A trial is the hardest gift to
+write cold and the one that decides which model runs her, so it gets
+the same help the files do, kept only when he keeps it.

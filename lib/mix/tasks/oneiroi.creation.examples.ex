@@ -2,7 +2,8 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
   @shortdoc "Generates an example set of the gifts' files through the generator"
   @moduledoc """
   `mix oneiroi.creation.examples --resident <id> --prompt "<who to wake>"
-  [--set fictional] [--out <dir>]` (agathos-daimon#41): runs the
+  [--witness "<a fictional witness>"] [--set fictional] [--out <dir>]`
+  (agathos-daimon#41, #42): runs the
   generator (agathos-daimon#39) for a resident in creation, so the calls
   are billed to that resident's witness under drafting, and writes each
   drafted file, with the prompt as `prompt.md`, into
@@ -26,7 +27,7 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
   def run(args) do
     {opts, _rest, _} =
       OptionParser.parse(args,
-        strict: [resident: :string, prompt: :string, set: :string, out: :string]
+        strict: [resident: :string, prompt: :string, witness: :string, set: :string, out: :string]
       )
 
     id = opts[:resident] || Mix.raise("--resident <id> is required: a resident in creation")
@@ -38,8 +39,37 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
 
     out = opts[:out] || Path.join(["priv", "creation", "examples", set])
     Mix.Task.run("app.start")
-    id |> generate(prompt) |> write(prompt, out)
+
+    id
+    |> generate(prompt)
+    |> about_witness(id, opts[:witness])
+    |> write(prompt, out, opts[:witness])
   end
+
+  # The witness's files are not the prompt path's (agathos-daimon#42): with
+  # `--witness`, a short description of a fictional witness, USER.md and
+  # GOALS.md are drafted as Write it with me drafts them. LINKS.md never is:
+  # a fictional witness has no places of their own.
+  @witness_files ~w(USER.md GOALS.md)
+
+  defp about_witness({:ok, %{stopped: nil, drafts: drafts} = run}, id, witness)
+       when is_binary(witness) do
+    {:ok, row} = Oneiroi.AgathosDaimon.fetch(id)
+    actor = Oneiroi.Actor.new(:witness, row.account_id)
+
+    Enum.reduce_while(@witness_files, {:ok, run}, fn file, {:ok, acc} ->
+      case Oneiroi.Brain.draft(id, file, witness, actor) do
+        {:ok, d} ->
+          {:cont, {:ok, %{acc | drafts: acc.drafts ++ [Map.put(d, :file, file)]}}}
+
+        {:error, reason} ->
+          {:halt,
+           {:ok, %{acc | drafts: drafts, stopped: %{file: file, message: inspect(reason)}}}}
+      end
+    end)
+  end
+
+  defp about_witness(run, _id, _witness), do: run
 
   defp generate(id, prompt) do
     case Oneiroi.AgathosDaimon.fetch(id) do
@@ -52,9 +82,12 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
   end
 
   # sobelow_skip ["Traversal.FileModule"]
-  defp write({:ok, %{drafts: drafts, stopped: nil}}, prompt, out) do
+  defp write({:ok, %{drafts: drafts, stopped: nil}}, prompt, out, witness) do
     File.mkdir_p!(out)
     File.write!(Path.join(out, "prompt.md"), String.trim(prompt) <> "\n")
+
+    if is_binary(witness),
+      do: File.write!(Path.join(out, "witness.md"), String.trim(witness) <> "\n")
 
     for d <- drafts do
       File.write!(Path.join(out, d.file), String.trim(d.content) <> "\n")
@@ -64,9 +97,9 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
     Mix.shell().info("wrote #{length(drafts)} files to #{out}; read them before committing")
   end
 
-  defp write({:ok, %{stopped: stopped}}, _prompt, _out),
+  defp write({:ok, %{stopped: stopped}}, _prompt, _out, _witness),
     do: Mix.raise("the run stopped at #{stopped.file} (#{stopped.message}); nothing written")
 
-  defp write({:error, reason}, _prompt, _out),
+  defp write({:error, reason}, _prompt, _out, _witness),
     do: Mix.raise("the generator refused: #{inspect(reason)}")
 end

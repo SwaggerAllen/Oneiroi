@@ -94,6 +94,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/files/:name/read", FileController, :read)
       get("/residents/:id/files/:name/reads", FileController, :reads)
       post("/residents/:id/creation/drafts", FileController, :generate)
+      post("/residents/:id/creation/trials", FileController, :trials)
       get("/residents/:id/soul-edits", FileController, :proposals)
       get("/residents/:id/soul-lines", FileController, :soul_lines)
       get("/residents/:id/self-letters", FileController, :self_letters)

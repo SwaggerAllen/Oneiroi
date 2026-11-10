@@ -12,6 +12,8 @@ import * as css from './onboarding.css';
 // finished files whole (the witness's policy, 2026-11-05).
 
 const IDENTITY = ['IDENTITY.md', 'SOUL.md', 'USER.md', 'GOALS.md', 'LINKS.md'];
+// Files about the witness (agathos-daimon#42): the prompt path never drafts them.
+const WITNESS_FILES = ['USER.md', 'GOALS.md', 'LINKS.md'];
 
 type Made = { id: string; name: string; brought: boolean };
 type Draft = { content: string; model: string; prompt: string };
@@ -186,6 +188,9 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
                     <strong>Start from a prompt.</strong> Describe who you want to wake, and a first draft of every file is written for you, drawn from the same
                     guidance the gifts show. You'll still read and approve each one, gift by gift — this only starts the writing.
                   </p>
+                  <p className={css.note}>
+                    The prompt drafts who they are. The files about you (who you are to them, what you're building) stay yours to write, with help.
+                  </p>
                   <label className={css.field}>
                     Who do you want to wake?
                     <textarea
@@ -328,7 +333,7 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
           style={{ flex: '1 1 200px' }}
           value={ask}
           onChange={(e) => setAsk(e.target.value)}
-          placeholder="Write it with me: say what you want"
+          placeholder={WITNESS_FILES.includes(name) ? 'Write it with me: a few lines about you' : 'Write it with me: say what you want'}
           aria-label="Write it with me: say what you want"
         />
         <button type="button" className={css.small} disabled={busy || ask.trim() === ''} onClick={writeWithMe}>

@@ -12,8 +12,12 @@ file, serves an empty list.
 By the generator (agathos-daimon#39), never by hand and never by the fake
 provider:
 
-    mix oneiroi.creation.examples --resident <id> --prompt "<who to wake>" --set fictional
+    mix oneiroi.creation.examples --resident <id> --prompt "<who to wake>" \
+      --witness "<a fictional witness, a few lines>" --set fictional
 
+The prompt drafts the resident's own files; `--witness` drafts USER.md
+and GOALS.md for a fictional witness, as Write it with me would
+(agathos-daimon#42). LINKS.md is never drafted for an example.
 `--resident` is a resident in creation whose witness's key pays for the
 calls under drafting; the drafts are copied out here and nothing is
 written to that resident. The task makes real model calls, so it runs

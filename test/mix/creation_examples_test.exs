@@ -25,10 +25,35 @@ defmodule Mix.Tasks.Oneiroi.Creation.ExamplesTest do
 
     assert File.read!(Path.join(ctx.out, "prompt.md")) == "a lighthouse keeper\n"
 
-    for f <- ~w(IDENTITY.md SOUL.md USER.md GOALS.md LINKS.md),
+    for f <- ~w(IDENTITY.md SOUL.md),
         do: assert(File.read!(Path.join(ctx.out, f)) == "a drafted file\n")
 
+    refute File.exists?(Path.join(ctx.out, "USER.md"))
+
     assert [] = Oneiroi.AgathosDaimon.files(ctx.id)
+  end
+
+  test "with a fictional witness, USER.md and GOALS.md are drafted too; LINKS.md never", ctx do
+    Fake.reply("a drafted file")
+
+    Examples.run([
+      "--resident",
+      ctx.id,
+      "--prompt",
+      "a lighthouse keeper",
+      "--witness",
+      "a night-shift nurse who wants to write",
+      "--out",
+      ctx.out
+    ])
+
+    for f <- ~w(IDENTITY.md SOUL.md USER.md GOALS.md),
+        do: assert(File.read!(Path.join(ctx.out, f)) == "a drafted file\n")
+
+    assert File.read!(Path.join(ctx.out, "witness.md")) ==
+             "a night-shift nurse who wants to write\n"
+
+    refute File.exists?(Path.join(ctx.out, "LINKS.md"))
   end
 
   test "a run that stops short writes nothing", ctx do

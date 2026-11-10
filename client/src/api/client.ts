@@ -223,6 +223,12 @@ export const api = {
       model: string;
       refused: string | null;
     }>('POST', `/v1/residents/${residentId}/files/${name}/read`, { content }),
+  suggestTrials: (residentId: string, note: string) =>
+    call<{ trials: Array<{ prompt: string; passes_if: string; fails_if: string }>; model: string }>(
+      'POST',
+      `/v1/residents/${residentId}/creation/trials`,
+      note ? { note } : {},
+    ),
   creationExamples: () =>
     call<Array<{ set: string; prompt: string; files: Array<{ file: string; gift: string; title: string; content: string }> }>>('GET', '/v1/creation/examples'),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),

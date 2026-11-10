@@ -39,7 +39,17 @@ defmodule Oneiroi.Brain.Creation do
 
   @type note :: %{kind: String.t(), text: String.t(), quote: String.t() | nil}
 
-  @doc "The identity files the gifts write, in the gifts' order: what the generator drafts."
+  # The prompt path drafts only the resident's own files: USER.md, GOALS.md
+  # and LINKS.md are about the witness, and a prompt about who to wake
+  # cannot know them (the witness, 2026-11-10; agathos-daimon#42). Those
+  # stay gift by gift, with Write it with me.
+  @resident_files ~w(IDENTITY.md SOUL.md)
+
+  @doc "The resident's own files, in the gifts' order: what the generator drafts."
+  @spec prompt_files() :: [String.t()]
+  def prompt_files, do: Enum.filter(files(), &(&1 in @resident_files))
+
+  @doc "The identity files the gifts write, in the gifts' order."
   @spec files() :: [String.t()]
   def files do
     identity = Oneiroi.AgathosDaimon.identity_files()
@@ -60,7 +70,7 @@ defmodule Oneiroi.Brain.Creation do
     with {:ok, row} <- fetch(resident_id),
          :ok <- in_creation(row) do
       kept = Map.new(Oneiroi.AgathosDaimon.files(resident_id), &{&1.name, &1.content})
-      model = Config.fetch!(:brain, :chat_model)
+      model = Config.fetch!(:brain, :draft_model)
 
       ask = %{
         resident_id: resident_id,
@@ -71,7 +81,7 @@ defmodule Oneiroi.Brain.Creation do
       }
 
       {drafts, stopped} =
-        Enum.reduce_while(files(), {[], nil}, fn file, {drafts, nil} ->
+        Enum.reduce_while(prompt_files(), {[], nil}, fn file, {drafts, nil} ->
           step(draft_one(ask, file, existing(kept, drafts)), file, drafts)
         end)
 
@@ -142,6 +152,62 @@ defmodule Oneiroi.Brain.Creation do
   defp stopped(file, reason), do: %{file: file, kind: :failed, message: inspect(reason)}
 
   @doc """
+  Suggests a few trials (agathos-daimon#42) from the resident's files
+  written so far and the witness's `note`, under drafting, on the
+  drafting model. Returned, never kept: each is kept through the ordinary
+  regression write when the witness keeps it.
+  """
+  @spec suggest_trials(String.t(), String.t(), Actor.t()) ::
+          {:ok, %{trials: [map()], model: String.t()}} | {:error, term()}
+  def suggest_trials(resident_id, note, %Actor{} = actor) when is_binary(note) do
+    with {:ok, row} <- fetch(resident_id),
+         :ok <- in_creation(row) do
+      kept = Map.new(Oneiroi.AgathosDaimon.files(resident_id), &{&1.name, &1.content})
+      gift = Enum.find(Oneiroi.AgathosDaimon.gifts(), &(&1.key == "trials"))
+      model = Config.fetch!(:brain, :draft_model)
+
+      system =
+        Prompt.message("creation_trials", %{
+          name: row.name,
+          guidance: gift.guidance,
+          existing: existing(kept, [])
+        })
+
+      ask = if String.trim(note) == "", do: "Suggest the trials.", else: note
+      request = Request.new(model, [system, %{role: :user, content: ask}])
+
+      with {:ok, %Result{content: reply} = result} <-
+             Nisaba.call(resident_id, :drafting, request, actor),
+           {:ok, trials} <- trials(reply || "") do
+        {:ok, %{trials: trials, model: result.model || model}}
+      end
+    end
+  end
+
+  @doc "The trials in a reply: each with a prompt and what passing looks like; failing may be empty."
+  @spec trials(String.t()) :: {:ok, [map()]} | {:error, Error.t()}
+  def trials(reply) do
+    with [_ | _] = found <- Regex.run(~r/\[.*\]/s, reply),
+         {:ok, list} when is_list(list) <- Jason.decode(hd(found)),
+         [_ | _] = trials <- Enum.flat_map(list, &trial/1) do
+      {:ok, trials}
+    else
+      _unreadable ->
+        {:error, Error.new(:brain_trials_unreadable, :brain_creation_trials_unreadable)}
+    end
+  end
+
+  defp trial(%{"prompt" => p, "passes_if" => pass} = t) when is_binary(p) and is_binary(pass) do
+    fail = if is_binary(t["fails_if"]), do: String.trim(t["fails_if"]), else: ""
+
+    if String.trim(p) != "" and String.trim(pass) != "",
+      do: [%{prompt: String.trim(p), passes_if: String.trim(pass), fails_if: fail}],
+      else: []
+  end
+
+  defp trial(_other), do: []
+
+  @doc """
   Reads one gift's draft (`content`, for identity file `file`) against
   that gift's guidance and records the read. Returns the notes with the
   read's ref, the draft's SHA-256 and the model. A refusal comes back as
@@ -151,7 +217,9 @@ defmodule Oneiroi.Brain.Creation do
   def read(resident_id, file, content, %Actor{} = actor) when is_binary(content) do
     with {:ok, row} <- fetch(resident_id),
          {:ok, gift} <- gift(file) do
-      model = Config.fetch!(:brain, :chat_model)
+      # Read by the resident's judge, the witness's choice of the
+      # platform's (agathos-daimon#42): a reader from outside the drafting.
+      model = Oneiroi.Eunomia.judge_model(resident_id)
 
       system =
         Prompt.message("creation_read", %{
