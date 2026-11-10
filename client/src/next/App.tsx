@@ -6,10 +6,10 @@ import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
 import { RecordsTab } from './records/RecordsTab';
 import { SoulTab } from './soul/SoulTab';
+import { TimeTab } from './time/TimeTab';
 import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import { SubjectContext } from './state/resident';
-import type { Tab } from './state/routes';
 import { Theme } from './theme/Theme';
 
 const queries = new QueryClient({
@@ -91,25 +91,9 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
         ) : tab === 'soul' ? (
           <SoulTab />
         ) : (
-          <Placeholder tab={tab} path={path} />
+          <TimeTab path={path} />
         )
       }
     />
-  );
-}
-
-const SOON: Record<Tab, string> = {
-  chat: 'The conversation arrives in the next phase (P1).',
-  time: 'The calendar and her rhythm arrive in P3.',
-  records: 'The folder tree and the viewer arrive in P2.',
-  soul: 'Her agreement and identity arrive in P4.',
-};
-
-function Placeholder({ tab, path }: { tab: Tab; path: string }) {
-  return (
-    <div className={css.empty}>
-      {SOON[tab]}
-      {path && <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{path}</div>}
-    </div>
   );
 }

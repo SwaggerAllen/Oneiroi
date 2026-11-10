@@ -272,6 +272,13 @@ export const api = {
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/rounds${limit ? `?limit=${limit}` : ''}`),
   addFreeTimeOnce: (residentId: string, time: string, day: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/schedule/free-time/once`, { time, day }),
+  // Her journal (seshat#11): the latest days with their deltas, and one day whole.
+  journalDays: (residentId: string) => call<Array<{ day: string } & Record<string, unknown>>>('GET', `/v1/residents/${residentId}/journal`),
+  journalDay: (residentId: string, day: string) =>
+    call<{
+      day: string;
+      entries: Array<{ number: number; kind: string; register: string | null; text: string; at: string; by: string; done_at: string | null }>;
+    }>('GET', `/v1/residents/${residentId}/journal/${day}`),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>
