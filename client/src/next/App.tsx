@@ -5,6 +5,7 @@ import { Login } from '../app/Login';
 import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
 import { RecordsTab } from './records/RecordsTab';
+import { SoulTab } from './soul/SoulTab';
 import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import { SubjectContext } from './state/resident';
@@ -87,6 +88,8 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
           <ChatTab residentId={residentId} residentName={residentName} live={live} />
         ) : tab === 'records' ? (
           <RecordsTab residentId={residentId} path={path} />
+        ) : tab === 'soul' ? (
+          <SoulTab />
         ) : (
           <Placeholder tab={tab} path={path} />
         )
