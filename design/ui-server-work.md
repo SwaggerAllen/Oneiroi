@@ -50,7 +50,8 @@ per CLAUDE.md. Where an item needs a design call first, it says so.
   free prose under headings. Two options:
   - parse `scenes/<day>.md` best-effort, which is fragile, since the
     format is whatever she writes;
-  - (proposed) give the pass a `scene_write` tool that records each
+  - (**decided by the witness, 2026-11-10**, pending Lily's view on
+    the pass's shape) give the pass a `scene_write` tool that records each
     scene as a row (day, title, from/to turn, from/to time, summary)
     and **renders** `scenes/<day>.md` from the rows. That is the
     journal's pattern and the repo-first rule: the file stays the
