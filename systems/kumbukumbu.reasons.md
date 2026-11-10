@@ -423,3 +423,13 @@ The track needs to know where the weight of the record lies before it
 loads any of it; one count per day per kind is the least that draws it.
 Every day of the range is answered, zeros included, so an empty day is
 a fact the server states rather than a gap the client infers.
+
+## #59
+The client placed a session on a day by its opening or its last turn,
+so the Oneiroi chat, spoken in every day, showed on two days of a month.
+Grouping the messages by day under the witness's own scope puts each
+session on the days it was lived, and the scope keeps every count to
+what he may already read. A locked session's messages are not his to
+count, so it keeps to the two instants its row already shows him,
+rather than a per-day count that would say more than the session list
+does.

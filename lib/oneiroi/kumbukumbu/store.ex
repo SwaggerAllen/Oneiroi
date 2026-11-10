@@ -514,6 +514,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
     Repo.all(query)
   end
 
+  @doc "Per session and local day in `[from, to)`, its first and last message and how many (kumbukumbu#59): `{key, day, first, last, count}`, under the caller's scope."
+  @spec session_days(String.t(), String.t(), DateTime.t(), DateTime.t()) :: [
+          {String.t(), String.t(), DateTime.t(), DateTime.t(), non_neg_integer()}
+        ]
+  def session_days(resident_id, zone, from, to) do
+    Repo.all(
+      from(m in Message,
+        where: m.resident_id == ^resident_id and m.sent_at >= ^from and m.sent_at < ^to,
+        group_by: [m.session_key, selected_as(:day)],
+        select:
+          {m.session_key,
+           selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               m.sent_at,
+               ^zone
+             ),
+             :day
+           ), min(m.sent_at), max(m.sent_at), count()}
+      )
+    )
+  end
+
   @doc "How many bookmarks each local day holds (kumbukumbu#58): by the moment's instant, its anchor's or else its making's, in `[from, to)`."
   @spec bookmark_days(String.t(), DateTime.t(), DateTime.t()) :: [{String.t(), non_neg_integer()}]
   def bookmark_days(zone, from, to) do
