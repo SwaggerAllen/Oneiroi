@@ -177,4 +177,11 @@ defmodule Oneiroi.Brain.CreationTest do
     {:error, failure} = Fake.complete(Request.new("m", []), "k")
     failure
   end
+
+  test "a draft wrapped whole in a code fence is the file inside it; a fence within the file stays" do
+    assert Creation.unfenced("```\n# Soul\n\nI keep hymns.\n```") == "# Soul\n\nI keep hymns."
+    assert Creation.unfenced("```markdown\nI am Ada.\n```\n") == "I am Ada."
+    inside = "I keep recipes:\n\n```\nflour, water\n```\n\nand more."
+    assert Creation.unfenced(inside) == inside
+  end
 end

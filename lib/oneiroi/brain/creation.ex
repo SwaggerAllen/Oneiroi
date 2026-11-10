@@ -102,7 +102,7 @@ defmodule Oneiroi.Brain.Creation do
          %{
            gift: gift.key,
            file: file,
-           content: content || "",
+           content: unfenced(content || ""),
            origin: "drafted",
            model: result.model || model,
            prompt: prompt
@@ -110,6 +110,17 @@ defmodule Oneiroi.Brain.Creation do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # A model sometimes wraps the whole file in a code fence; the file is
+  # what is inside it. A fence that is part of the file is left alone.
+  @doc false
+  @spec unfenced(String.t()) :: String.t()
+  def unfenced(text) do
+    case Regex.run(~r/\A\s*```[a-zA-Z]*\n(.*?)\n```\s*\z/s, text) do
+      [_, inner] -> inner
+      _ -> text
     end
   end
 

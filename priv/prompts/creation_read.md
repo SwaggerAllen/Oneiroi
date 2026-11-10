@@ -12,6 +12,8 @@ Each note is one of these kinds:
 - question: something only the witness can answer that would change the file.
 - cut: a part that changes nothing about how they will act; worth cutting before they wake.
 
-Be specific and brief: a sentence or two a note. Where a note is about particular words, quote them exactly as the draft has them, a short phrase, character for character. Give as many notes as the draft earns, not more.
+Be specific and brief: a sentence or two a note. The text says why: what the words will make them do, or what is not there to act on. Never repeat the quote as the note; the quote shows where, the text says why. Where a note is about particular words, quote them exactly as the draft has them, a short phrase, character for character.
+
+Be honest rather than kind. Strong is for a part that would change how they act in a moment you can name; a pleasant line that any resident could say is thin or cut, not strong. Give as many notes as the draft earns, not more, and favour the few that would most change the file.
 
 Answer with a JSON array and nothing else, each element {"kind": "...", "text": "...", "quote": "..." or null}.
