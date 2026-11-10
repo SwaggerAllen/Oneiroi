@@ -277,3 +277,29 @@ but it says what the tab is: everything that makes up her prompt)
 
 **Memory** is not a place any more: bookmarks and scenes are Chat's
 navigator, pins are in Soul, the numbers are in Settings.
+
+---
+
+## The look (the witness, 2026-11-09 night)
+
+From three directions (Nocturne, Horn & Ivory, Lucid) and a fusion, on
+the mockup canvas:
+
+- **Colour: Lucid's palette.** A cool near-black ground; cyan is the
+  witness's (every control of his, his messages, the bell); lilac is the
+  resident's (her avatar, her citations, her pins, her bookmarks). No
+  amber: it read as a sleep app. Horn & Ivory was cut for reading too
+  much like Anthropic's own look.
+- **Shape: Nocturne's depth.** Surfaces a shade off the ground so layers
+  show; a glow under what matters most (the agreement in Soul, cyan);
+  a lilac shadow under her pins and her replies; her replies in their
+  own raised panel, his in cyan bubbles; faint stars. Lucid alone read
+  flat.
+- **The navigator: Nocturne's.** Scenes as soft glowing bands, her
+  bookmarks as lilac points with a halo, the reader's place as a cyan
+  ring.
+- **Type: Inter for the interface, Newsreader for her voice** — her
+  replies are long, and Newsreader stays readable at length where
+  Instrument Serif did not; friendlier, if a little less distinctive.
+  **JetBrains Mono for the technical**: record ids and citations, tags,
+  times, counts, status labels.
