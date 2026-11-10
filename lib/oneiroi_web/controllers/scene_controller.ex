@@ -12,16 +12,69 @@ defmodule OneiroiWeb.SceneController do
   # (agathos-daimon#34), after the party check.
   plug(OneiroiWeb.Plugs.Switch, [key: "witness_reads"] when action in [:index])
 
+  @nullable_text %Schema{type: :string, nullable: true}
+  @nullable_at %Schema{type: :string, format: :"date-time", nullable: true}
+
+  @scene %Schema{
+    type: :object,
+    required: [:number, :kind, :people, :rounds_ran_out],
+    properties: %{
+      number: %Schema{type: :integer},
+      kind: %Schema{type: :string, enum: ["scene", "correction"]},
+      corrects: %Schema{type: :integer, nullable: true},
+      title: @nullable_text,
+      from_turn: @nullable_text,
+      to_turn: @nullable_text,
+      from_time: @nullable_at,
+      to_time: @nullable_at,
+      summary: @nullable_text,
+      mood: @nullable_text,
+      mood_was: @nullable_text,
+      mood_corrected_at: @nullable_at,
+      register: %Schema{type: :string, enum: ["his", "hers", "work"], nullable: true},
+      people: %Schema{
+        type: :array,
+        items: %Schema{type: :string},
+        description:
+          "The persons in the scene by the names she uses (seshat#57); empty when she named none, and on a correction row"
+      },
+      rounds_ran_out: %Schema{type: :boolean},
+      at: @nullable_at,
+      by: @nullable_text,
+      corrected_at: @nullable_at
+    }
+  }
+
+  @days %Schema{
+    type: :object,
+    required: [:days],
+    properties: %{
+      days: %Schema{
+        type: :array,
+        items: %Schema{
+          type: :object,
+          required: [:day, :complete, :scenes],
+          properties: %{
+            day: %Schema{type: :string, format: :date},
+            complete: %Schema{type: :boolean},
+            closed_at: @nullable_at,
+            scenes: %Schema{type: :array, items: @scene}
+          }
+        }
+      }
+    }
+  }
+
   operation(:index,
     summary:
-      "The day's scenes as rows (seshat#52): every day with scenes from `from` to `to` (ISO dates, both included, either left open), oldest first, each `{day, complete, closed_at, scenes}`; `complete` is false until the bedtime pass closed the day, so a pass that ended short reads as not finished. Each row has its number, kind (`scene`, or `correction` of scene `corrects`'s lines), title, turns, times, summary, mood (with `mood_was` and `mood_corrected_at` when corrected past its day), register, rounds_ran_out, when and by whom written and when its facts were last corrected",
+      "The day's scenes as rows (seshat#52): every day with scenes from `from` to `to` (ISO dates, both included, either left open), oldest first, each `{day, complete, closed_at, scenes}`; `complete` is false until the bedtime pass closed the day, so a pass that ended short reads as not finished. Each row has its number, kind (`scene`, or `correction` of scene `corrects`'s lines), title, turns, times, summary, mood (with `mood_was` and `mood_corrected_at` when corrected past its day), register, rounds_ran_out, `people` (seshat#57: the names of the persons in it, as she names them, `[]` when none and on every correction row), when and by whom written and when its facts were last corrected",
     parameters: [
       id: [in: :path, type: :string],
       from: [in: :query, type: :string],
       to: [in: :query, type: :string]
     ],
     responses: [
-      ok: {"days", "application/json", %Schema{type: :object}},
+      ok: {"days", "application/json", @days},
       unprocessable_entity:
         {"a bound that is no date", "application/json", %Schema{type: :object}}
     ]
@@ -74,6 +127,7 @@ defmodule OneiroiWeb.SceneController do
       mood_was: s.mood_was,
       mood_corrected_at: s.mood_corrected_at,
       register: s.register,
+      people: s.people || [],
       rounds_ran_out: s.rounds_ran_out,
       at: s.at,
       by: s.actor_kind,

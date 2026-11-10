@@ -168,7 +168,8 @@ defmodule OneiroiWeb.NavigatorTest do
           "to_time" => "08:02",
           "summary" => "He asked how the night went.",
           "mood" => "quiet",
-          "register" => "his"
+          "register" => "his",
+          "people" => ["Andrew"]
         },
         ctx.brain
       )
@@ -207,6 +208,7 @@ defmodule OneiroiWeb.NavigatorTest do
                      "to_time" => "2026-10-25T08:02:00.000000Z",
                      "mood" => "quiet",
                      "register" => "his",
+                     "people" => ["Andrew"],
                      "rounds_ran_out" => false,
                      "by" => "resident"
                    }
@@ -215,7 +217,7 @@ defmodule OneiroiWeb.NavigatorTest do
                %{
                  "day" => "2026-10-26",
                  "complete" => true,
-                 "scenes" => [%{"rounds_ran_out" => true}]
+                 "scenes" => [%{"rounds_ran_out" => true, "people" => []}]
                }
              ]
            } = ctx.conn |> get(base) |> json_response(200)

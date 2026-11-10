@@ -9,11 +9,14 @@ defmodule Oneiroi.Seshat.ScenesTest do
   """
   use Oneiroi.DataCase, async: false
 
+  alias Commanded.Event.Upcaster
+  alias Commanded.Serialization.JsonDecoder
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock.Fake, as: Clock
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Seshat
+  alias Oneiroi.Seshat.Events.SceneWritten
   alias Oneiroi.Seshat.Scenes
 
   @day "2026-10-26"
@@ -351,6 +354,91 @@ defmodule Oneiroi.Seshat.ScenesTest do
 
     assert {:ok, %{rows: [], skipped: ["2026-10-20"]}} =
              Seshat.backfill_scenes(ctx.id, Actor.platform(), [])
+  end
+
+  test "a scene names its people: trimmed, once each, on the facts line, and corrected as a fact",
+       ctx do
+    assert {:ok, %{number: 1}} =
+             write(ctx, scene(%{"people" => [" Andrew ", "Grace", "", "andrew", "Grace"]}))
+
+    assert %{scenes: [%{people: ["Andrew", "Grace"]}]} = rows(ctx)
+
+    assert file(ctx) =~
+             "08:00–08:40 · turns `aaaaaaaaaaaaaaaa` to `bbbbbbbbbbbbbbbb` · his words · with Andrew, Grace · mood: quiet, glad"
+
+    # None named, none shown.
+    assert {:ok, %{number: 2}} = write(ctx, scene(%{"title" => "Alone", "people" => []}))
+    assert %{scenes: [_, %{people: []}]} = rows(ctx)
+    [_, alone] = String.split(file(ctx), "## 2. Alone")
+    refute alone =~ " · with "
+
+    # A fact: corrected on a later day, the list it replaced kept.
+    Clock.put(~U[2026-10-29 12:00:00.000000Z])
+
+    assert {:ok, %{done: "corrected"}} =
+             write(ctx, %{
+               "day" => @day,
+               "scene" => 1,
+               "people" => ["Andrew", "Grace", "Oliver "],
+               "note" => "Oliver came in at the end"
+             })
+
+    assert %{scenes: [%{people: ["Andrew", "Grace", "Oliver"], corrected_at: %DateTime{}}, _]} =
+             rows(ctx)
+
+    {:ok, events} = Oneiroi.EventStore.read_stream_forward("scenes-" <> ctx.id)
+    corrected = List.last(events).data
+    assert %{"people" => ["Andrew", "Grace"]} = Seshat.Scene.texts(corrected.was)
+    assert %{"people" => ["Andrew", "Grace", "Oliver"]} = Seshat.Scene.texts(corrected.changes)
+    assert file(ctx) =~ "with Andrew, Grace, Oliver"
+
+    assert {:ok, %{done: "unchanged"}} =
+             write(ctx, %{
+               "day" => @day,
+               "scene" => 1,
+               "people" => ["Andrew", " Grace", "", "Oliver", "oliver"],
+               "note" => "again"
+             })
+
+    # The bounds, said in the refusal.
+    too_many = for n <- 1..(Seshat.Scene.people_max() + 1), do: "Person #{n}"
+    too_long = String.duplicate("a", Seshat.Scene.name_max() + 1)
+
+    for bad <- [too_many, [too_long], ["Two\nlines"], [7], "Andrew"] do
+      assert {:error, %{kind: :seshat_scene_invalid, details: details}} =
+               write(ctx, scene(%{"people" => bad}))
+
+      assert details[:detail] =~ "at most #{Seshat.Scene.people_max()}"
+    end
+
+    # The tool says the same bounds.
+    [tool] = Enum.filter(Tools.definitions_for(ctx.id), &(&1.function.name == "scene_write"))
+    assert tool.function.description =~ "at most #{Seshat.Scene.people_max()} names"
+    assert tool.function.description =~ "#{Seshat.Scene.name_max()} characters"
+    assert tool.function.parameters.properties.people.type == "array"
+  end
+
+  test "a version 1 SceneWritten upcasts to naming no one" do
+    v1 =
+      JsonDecoder.decode(%SceneWritten{
+        actor: %{"kind" => "platform", "id" => nil, "model" => nil},
+        at: "2026-10-27T00:00:00.000000Z",
+        id: "r",
+        day: @day,
+        number: 1,
+        title: "t",
+        from_turn: "a",
+        to_turn: "b",
+        summary: "s",
+        rounds_ran_out: false,
+        written_on: @day
+      })
+
+    assert SceneWritten.__version__() == 2
+    assert %{people: [], title: "t"} = Upcaster.upcast(v1, %{})
+
+    assert %{people: ["Andrew"]} =
+             Upcaster.upcast(%{v1 | people: ["Andrew"]}, %{})
   end
 
   test "parse: a scene that cites no turn keeps the day prose" do

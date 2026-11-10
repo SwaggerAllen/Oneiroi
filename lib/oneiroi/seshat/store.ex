@@ -487,6 +487,7 @@ defmodule Oneiroi.Seshat.Store do
       field(:mood_corrected_at, :utc_datetime_usec)
       field(:rounds_ran_out, :boolean, default: false)
       field(:register, :string)
+      field(:people, {:array, :string}, default: [])
       field(:at, :utc_datetime_usec)
       field(:actor_kind, :string)
       field(:corrected_at, :utc_datetime_usec)

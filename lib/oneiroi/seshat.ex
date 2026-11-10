@@ -283,7 +283,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.ExternalFetchFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1},
-      {Oneiroi.Seshat.Events.SceneWritten, 1},
+      {Oneiroi.Seshat.Events.SceneWritten, 2},
       {Oneiroi.Seshat.Events.SceneCorrected, 1},
       {Oneiroi.Seshat.Events.SceneSummaryCorrected, 1},
       {Oneiroi.Seshat.Events.ScenesClosed, 1}
@@ -412,7 +412,7 @@ defmodule Oneiroi.Seshat do
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
       {:seshat_scene_invalid,
-       "a scene has a one-line title, its first and last turn refs, a few lines of what happened, an optional one-line mood, a register of his, hers or work, and times as HH:MM on its day or ISO instants; a correction names its scene and says why (seshat#52)",
+       "a scene has a one-line title, its first and last turn refs, a few lines of what happened, an optional one-line mood, a register of his, hers or work, an optional list of the people in it (at most 20 names of at most 80 characters, seshat#57), and times as HH:MM on its day or ISO instants; a correction names its scene and says why (seshat#52)",
        remedy: "read the error's detail and write the call again"},
       {:seshat_no_such_scene, "that day holds no scene with that number",
        remedy: "read the day's scenes; a correction row is corrected by another correction"},

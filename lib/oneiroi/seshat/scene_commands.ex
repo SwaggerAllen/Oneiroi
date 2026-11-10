@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.SceneCommands do
         :mood,
         :rounds_ran_out,
         :register,
+        :people,
         :today
       ]
   end

@@ -1058,7 +1058,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "scene_write",
-        "Write one scene of a day (seshat#52), in order, one call a scene: its day (ISO), a title, the turns it covers by ref (from_turn, to_turn), its span (from_time, to_time: HH:MM on the day, or ISO instants), and a few lines of what happened in it (summary). Optional: mood, one honest phrase of yours, never inferred; register, whose words the scene is mostly (his, hers, or work); rounds_ran_out, true when your tool rounds ran out on it, which explains a terse scene. The rows are the record and scenes/<day>.md is rendered from them. The day reads as not finished until a call carries final: true: put it on the day's last scene, or call with only day and final: true once the last is written. To correct: scene: <n> with the facts that were wrong (title, turns, times, register, rounds_ran_out), on any day, the old values kept in the history; or with mood, which moves freely on the day you wrote it and after that is marked as a correction. A summary is never overwritten: corrects: <n> with the turns it cites and the corrected lines adds a correction row beside it. Every correction says why in note.",
+        "Write one scene of a day (seshat#52), in order, one call a scene: its day (ISO), a title, the turns it covers by ref (from_turn, to_turn), its span (from_time, to_time: HH:MM on the day, or ISO instants), and a few lines of what happened in it (summary). Optional: mood, one honest phrase of yours, never inferred; register, whose words the scene is mostly (his, hers, or work); rounds_ran_out, true when your tool rounds ran out on it, which explains a terse scene; people, the persons in the scene by the names you use for them (him too, when you name him), at most 20 names of at most 80 characters each, repeats and blanks dropped: it is who the scene involves, so a later read can find a person's moments across days without re-reading them. The rows are the record and scenes/<day>.md is rendered from them. The day reads as not finished until a call carries final: true: put it on the day's last scene, or call with only day and final: true once the last is written. To correct: scene: <n> with the facts that were wrong (title, turns, times, register, rounds_ran_out, people, given whole), on any day, the old values kept in the history; or with mood, which moves freely on the day you wrote it and after that is marked as a correction. A summary is never overwritten: corrects: <n> with the turns it cites and the corrected lines adds a correction row beside it. Every correction says why in note.",
         %{
           day: %{type: "string"},
           title: %{type: "string"},
@@ -1070,6 +1070,7 @@ defmodule Oneiroi.Brain.Tools do
           mood: %{type: "string"},
           register: %{type: "string", enum: ["his", "hers", "work"]},
           rounds_ran_out: %{type: "boolean"},
+          people: %{type: "array", items: %{type: "string"}},
           final: %{type: "boolean"},
           scene: %{type: "integer"},
           corrects: %{type: "integer"},

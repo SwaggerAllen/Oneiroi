@@ -36,6 +36,7 @@ defmodule Oneiroi.SimaQian.Export do
   at all is `exceptions/0`, the code's copy of spec §6.10's list.
   """
 
+  alias Commanded.Event.Upcaster
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Purpose
@@ -271,10 +272,17 @@ defmodule Oneiroi.SimaQian.Export do
   def cutoff,
     do: DateTime.add(Clock.now(), -Config.fetch!(:sima_qian, :watermark_seconds), :second)
 
-  @doc "One export line for a recorded event, at `ordinal` among the exported lines."
+  @doc """
+  One export line for a recorded event, at `ordinal` among the exported
+  lines. The line says the event's version today, so its data is today's
+  shape: an event recorded at an older version goes through its upcaster
+  first, as every aggregate and projector reads it (a raw store read
+  does not), and a field a newer version added is written as the
+  upcaster fills it rather than as the null the older record left.
+  """
   @spec line(EventStore.RecordedEvent.t(), pos_integer(), String.t()) :: String.t()
   def line(%EventStore.RecordedEvent{} = recorded, ordinal, resident_id) do
-    %module{} = event = recorded.data
+    %module{} = event = Upcaster.upcast(recorded.data, %{})
     actor = event.actor
 
     data =

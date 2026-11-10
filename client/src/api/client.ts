@@ -304,6 +304,7 @@ export const api = {
           summary: string | null;
           mood: string | null;
           register: string | null;
+          people: string[];
           rounds_ran_out: boolean;
         }>;
       }>;
