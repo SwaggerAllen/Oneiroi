@@ -110,3 +110,17 @@ export const textarea = style({
   outline: 'none',
   resize: 'vertical',
 });
+
+// A theme proposal's preview: her ground with both accents on it (seshat#56).
+export const swatches = style({ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: `1px solid ${vars.color.border}`, fontSize: 14 });
+export const swatch = style({ width: 16, height: 16, borderRadius: 8 });
+export const answer = style({
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 10,
+  border: `1px solid ${vars.color.borderStrong}`,
+  background: vars.color.groundDeep,
+  color: vars.color.text,
+  font: `14px ${font.ui}`,
+});
+export const answerRow = style({ display: 'flex', gap: 8 });

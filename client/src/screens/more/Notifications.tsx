@@ -20,7 +20,7 @@ const muted = { margin: 0, fontSize: 15, color: 'var(--ink-muted)' } as const;
 // without being written to, never what she wrote. On an iPhone, only the
 // Home Screen app may ask, so the card says how to get there first.
 export function Notifications({ residentName, state, enabled, busy = false, said = null, onTurnOn, onTurnOff, onTest }: NotificationsProps) {
-  const what = `You'll be told when ${residentName} writes without being written to: a check-in, a letter, a round. The notification says only that she wrote, never what.`;
+  const what = `You'll be told when ${residentName} writes without being written to (a check-in, a letter, a round) and when something first waits on you. The notification says only that there's something new, never what.`;
   return (
     <Card title="Notifications">
       {state === 'loading' ? <p style={muted}>Checking this device…</p> : null}

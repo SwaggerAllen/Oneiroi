@@ -47,14 +47,32 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   work_blocked: 'Work waiting on you',
   plugin_proposal: 'A plugin proposal',
   kind_gate_proposal: 'A kind gate proposal',
+  theme_proposal: 'A theme proposal',
+  notifications: 'Notifications',
 };
+
+const HERS: Record<string, string> = {
+  contract_proposal: 'Your agreement',
+  soul_edit: 'Your edit',
+  bookmark_proposal: 'Your bookmark',
+  revision: 'Your revision',
+  plugin_proposal: 'Your plugin proposal',
+  letter: 'Your letter, unread',
+  lease_wait: 'Waiting on your editor',
+};
+
+const hrefFor = (screen: string) =>
+  screen === 'agreement' || screen === 'soul' ? '#/soul' : screen === 'library' ? '#/records' : screen === 'chat' ? '#/chat' : `/client/#${screen}`;
 
 function Bell() {
   const { id, name } = useSubject();
   const setOverlay = useShell((s) => s.setOverlay);
   const needs = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id) });
+  const hers = useQuery({ queryKey: ['resident', id, 'bell', 'hers'], queryFn: () => api.waitingOnHer(id) });
   const notifications = useNotificationsAsk();
-  const entries = needs.data ?? [];
+  // The server lists the notifications question too; it shows as its own item.
+  const entries = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
+  const theirs = hers.data ?? [];
 
   return (
     <div className={css.stack}>
@@ -66,18 +84,70 @@ function Bell() {
         </button>
       )}
       {entries.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
-      {entries.map((e) => (
-        <a key={`${e.kind}-${e.ref}`} className={css.item} href={e.screen === 'agreement' ? '#/soul' : `/client/#${e.screen}`} onClick={() => setOverlay(null)}>
+      {entries.map((e) =>
+        e.kind === 'theme_proposal' ? (
+          <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} />
+        ) : (
+          <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen)} onClick={() => setOverlay(null)}>
+            <span className={css.itemKind}>
+              {WORDS[e.kind] ?? e.kind}
+              {e.long ? ' · A WHILE' : ''}
+            </span>
+            <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
+            <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+          </a>
+        ),
+      )}
+      <h3 className={css.heading}>
+        WAITING ON {name.toUpperCase()} · {theirs.length}
+      </h3>
+      {theirs.length === 0 && <p className={css.note}>Nothing of yours waits on {name}.</p>}
+      {theirs.map((e) => (
+        <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen)} onClick={() => setOverlay(null)}>
           <span className={css.itemKind}>
-            {WORDS[e.kind] ?? e.kind}
+            {HERS[e.kind] ?? e.kind}
             {e.long ? ' · A WHILE' : ''}
           </span>
-          <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
+          <span>{e.title}</span>
           <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
         </a>
       ))}
-      <h3 className={css.heading}>WAITING ON {name.toUpperCase()}</h3>
-      <p className={css.note}>What waits on her joins with the bell's second half (S6).</p>
+    </div>
+  );
+}
+
+/** Her theme proposal (seshat#56): the three seeds shown, and his answer with a note. */
+function ThemeProposal({ number, since, seeds, note }: { number: number; since: string; seeds?: { ground: string; resident: string; witness: string }; note?: string }) {
+  const { id, name } = useSubject();
+  const queries = useQueryClient();
+  const [answer, setAnswer] = useState('');
+  const answerIt = useMutation({
+    mutationFn: (agree: boolean) => api.answerTheme(id, number, agree, answer.trim()),
+    onSuccess: () => void queries.invalidateQueries({ queryKey: ['resident', id] }),
+  });
+  return (
+    <div className={css.item}>
+      <span className={css.itemKind}>{name.toUpperCase()} PROPOSES A THEME · #{number}</span>
+      {seeds && (
+        <span className={css.swatches} style={{ background: seeds.ground }}>
+          <span className={css.swatch} style={{ background: seeds.resident }} title={`hers ${seeds.resident}`} />
+          <span style={{ color: seeds.resident, fontFamily: 'var(--font-voice, serif)' }}>{name}</span>
+          <span className={css.swatch} style={{ background: seeds.witness }} title={`yours ${seeds.witness}`} />
+          <span style={{ color: seeds.witness }}>you</span>
+        </span>
+      )}
+      {note && <span>“{note}”</span>}
+      <span className={css.since}>since {new Date(since).toLocaleString()}</span>
+      <input id={`theme-answer-${number}`} className={css.answer} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="A note for her (needed)" aria-label="A note for her" />
+      <span className={css.answerRow}>
+        <button type="button" className={css.primary} disabled={!answer.trim() || answerIt.isPending} onClick={() => answerIt.mutate(true)}>
+          Accept
+        </button>
+        <button type="button" className={css.secondary} disabled={!answer.trim() || answerIt.isPending} onClick={() => answerIt.mutate(false)}>
+          Decline
+        </button>
+      </span>
+      {answerIt.error && <span className={css.note}>{(answerIt.error as Error).message}</span>}
     </div>
   );
 }

@@ -89,7 +89,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
     <Shell
       residentId={residentId}
       residentName={residentName}
-      waiting={(bell.data?.length ?? 0) + (notifications.ask ? 1 : 0)}
+      waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0)}
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>
         tab === 'chat' ? (

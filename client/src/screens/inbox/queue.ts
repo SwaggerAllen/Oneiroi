@@ -37,6 +37,10 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `${residentName} proposes to ${a.change} the plugin ${a.key}: ${a.note}`;
     case 'kind_gate_proposal':
       return `${residentName} proposes the ${a.kind} gate ${a.approvable ? 'on' : 'off'}: ${a.note}`;
+    case 'theme_proposal':
+      return `${residentName} proposes a theme: ${a.note ?? ''}`;
+    case 'notifications':
+      return `Should ${residentName} be able to reach you?`;
   }
 }
 
@@ -45,6 +49,7 @@ function where(e: NeedsYouEntry): WaitingEntry['where'] {
   if (e.screen === 'work') return { screen: 'Work' };
   if (e.screen === 'agreement') return { screen: 'Agreement' };
   if (e.screen === 'kinds') return { screen: 'Kinds' };
+  if (e.kind === 'notifications') return { screen: 'Notifications' };
   if (e.kind === 'ask') return { anchor: 'asks' };
   if (e.kind === 'piece_to_review' || e.kind === 'piece_to_publish') return { doc: String(e.ref) };
   return { anchor: `reply-${e.ref}` };

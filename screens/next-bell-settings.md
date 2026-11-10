@@ -18,15 +18,21 @@ header's bell and gear. Built 2026-11-10.
     waited.
   - An agreement entry opens Soul; the others open their screen in the
     current client until those screens are rebuilt.
-  - "Waiting on her" is a placeholder until S6.
+  - Her theme proposal (seshat#56) shows in place: her ground with both
+    accents on it and her note, answered Accept or Decline with a note
+    she reads.
+  - **Waiting on her** (brain#76): what he started that she hasn't
+    answered or read, with how long: his agreement proposals, soul
+    edits, bookmark proposals, revisions, plugin proposals, unread
+    letters, and a file she waits to write while his editor holds it.
 - **Notifications** explain themselves before the browser asks (the
   canvas's Push board):
   - Lily's line (C11) and her sign-off;
   - what they are for, and what never;
   - the system prompt only on "Turn on notifications";
-  - "No thanks" clears the question at once, and the bell's count with
-    it. The answer is kept on this device; the account-wide answer is
-    S6's.
+  - "No thanks" answers for the account (gaia#25): the question and
+    the bell's count clear at once, and no other device asks again;
+    turning them on answers it too.
 - **Settings:**
   - one group of the resident's sections (ledger, kinds and routes,
     profiles and keys, notifications, regression, work, correspondence),
@@ -38,7 +44,5 @@ header's bell and gear. Built 2026-11-10.
   came from as its surface.
 
 Not built:
-- the server pushes for "something waits on you" (S9: today only her
-  unprompted writing pushes);
 - "Report this" on failures;
 - the always-visible alpha entry for feedback.

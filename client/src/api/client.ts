@@ -5,6 +5,7 @@ import type {
   Ask,
   WorkQueue,
   NeedsYouEntry,
+  WaitingOnHerEntry,
   PluginProposal,
   PluginsData,
   KindDefinition,
@@ -111,6 +112,24 @@ export interface Lease {
   kept_at: string | null;
 }
 
+export interface ThemeState {
+  file: string;
+  seeds: { ground: string; resident: string; witness: string };
+  source: 'file' | 'default';
+  ok: boolean;
+  checks: Array<{ name: string; passed: boolean; value: number; needs: number }>;
+  proposals: Array<{
+    number: number;
+    seeds: { ground: string; resident: string; witness: string };
+    note: string;
+    proposed_at: string;
+    agree: boolean | null;
+    answered_by: unknown;
+    answer_note: string | null;
+    answered_at: string | null;
+  }>;
+}
+
 export interface CalendarDay {
   day: string;
   journal: { plan: number; note: number; todo: number; done: number; wrap: number; unwrapped: boolean } | null;
@@ -192,7 +211,10 @@ export const api = {
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
   // Content-free pushes to this account's devices (gaia#15).
-  pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
+  pushConfig: () =>
+    call<{ enabled: boolean; public_key: string | null; devices: number; answered: 'subscribed' | 'declined' | null; answered_at: string | null }>('GET', '/v1/me/push'),
+  // "No thanks", once for the account on every device (gaia#25).
+  declinePush: () => call<{ answered: 'declined'; answered_at: string }>('POST', '/v1/me/push/decline'),
   subscribePush: (endpoint: string) => call<void>('POST', '/v1/me/push', { endpoint }),
   unsubscribePush: (endpoint: string) => call<void>('DELETE', '/v1/me/push', { endpoint }),
   testPush: () => call<{ sent: { device: string; result: string }[] }>('POST', '/v1/me/push/test'),
@@ -425,6 +447,13 @@ export const api = {
   stopTurn: (residentId: string, sessionKey: string) => call<void>('POST', `/v1/residents/${residentId}/sessions/${sessionKey}/stop`),
   work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),
   needsYou: (residentId: string) => call<NeedsYouEntry[]>('GET', `/v1/residents/${residentId}/needs_you`),
+  waitingOnHer: (residentId: string) => call<WaitingOnHerEntry[]>('GET', `/v1/residents/${residentId}/waiting_on_her`),
+  // Her theme (seshat#56): the witness's three seeds in THEME.md, and her proposals.
+  theme: (residentId: string) => call<ThemeState>('GET', `/v1/residents/${residentId}/theme`),
+  setTheme: (residentId: string, seeds: { ground: string; resident: string; witness: string }, note?: string) =>
+    call<ThemeState>('PUT', `/v1/residents/${residentId}/theme`, note ? { ...seeds, note } : seeds),
+  answerTheme: (residentId: string, number: number, agree: boolean, note: string) =>
+    call<ThemeState>('POST', `/v1/residents/${residentId}/theme/proposals/${number}/answer`, { agree, note }),
   plugins: (residentId: string) => call<PluginsData>('GET', `/v1/residents/${residentId}/plugins`),
   proposePlugin: (residentId: string, key: string, change: PluginProposal['change'], note: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
