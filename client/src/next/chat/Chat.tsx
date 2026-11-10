@@ -41,11 +41,14 @@ export function Chat({
   residentName,
   live,
   onCite,
+  jump: searchJump,
 }: {
   residentId: string;
   residentName: string;
   live: Live;
   onCite: (c: Citation) => void;
+  /** A turn to open at, from search: taken when it is this conversation's. */
+  jump?: { session: string; turn: string } | null;
 }) {
   const chat = useChat(residentId, live);
   const reacts = useReacts(residentId, chat.key);
@@ -136,6 +139,14 @@ export function Chat({
     setAtBottom(false);
     void chat.jumpTo(anchor);
   };
+
+  const jumpSession = searchJump?.session;
+  const jumpTurn = searchJump?.turn;
+  useEffect(() => {
+    if (jumpTurn && jumpSession && jumpSession === chat.key) jumpTo(jumpTurn);
+    // A jump is taken once, when it arrives or the conversation is known.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpSession, jumpTurn, chat.key]);
 
   const onEdges = useCallback((e: Edges) => {
     setAtBottom(!e.bottom);

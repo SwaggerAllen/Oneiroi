@@ -90,7 +90,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>
         tab === 'chat' ? (
-          <ChatTab residentId={residentId} residentName={residentName} live={live} />
+          <ChatTab residentId={residentId} residentName={residentName} live={live} path={path} />
         ) : tab === 'records' ? (
           <RecordsTab residentId={residentId} path={path} />
         ) : tab === 'soul' ? (

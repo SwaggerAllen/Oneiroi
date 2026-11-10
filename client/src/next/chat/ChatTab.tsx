@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import type { Live } from '../live/live';
 import { useShell } from '../state/store';
@@ -9,11 +9,17 @@ import { Peek } from './Peek';
 import { Sessions } from './Sessions';
 
 /** The Chat tab (ui-structures.md D): Conversation | Sessions, and the peek. */
-export function ChatTab({ residentId, residentName, live }: { residentId: string; residentName: string; live: Live }) {
+export function ChatTab({ residentId, residentName, live, path }: { residentId: string; residentName: string; live: Live; path: string }) {
   const [view, setView] = useState<'conversation' | 'sessions'>('conversation');
   const [peek, setPeek] = useState<Citation | null>(null);
   const setTab = useShell((s) => s.setTab);
   const push = useShell((s) => s.push);
+  // `turn/<session>/<turn>` (from search): the conversation, at that turn.
+  const [, session, turn] = path.startsWith('turn/') ? path.split('/') : [];
+  const jump = session && turn ? { session, turn } : null;
+  useEffect(() => {
+    if (path.startsWith('turn/')) setView('conversation');
+  }, [path]);
 
   const openFully = (c: Citation) => {
     setPeek(null);
@@ -42,7 +48,7 @@ export function ChatTab({ residentId, residentName, live }: { residentId: string
       <div className={css.body}>
         {/* Both stay mounted: the conversation keeps its place and its draft. */}
         <div className={css.pane} hidden={view !== 'conversation'}>
-          <Chat residentId={residentId} residentName={residentName} live={live} onCite={setPeek} />
+          <Chat residentId={residentId} residentName={residentName} live={live} onCite={setPeek} jump={jump} />
           <Peek residentId={residentId} citation={peek} onClose={() => setPeek(null)} onOpenFully={openFully} onCite={setPeek} />
         </div>
         <div className={css.pane} hidden={view !== 'sessions'}>

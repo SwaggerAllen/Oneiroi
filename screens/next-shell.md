@@ -42,9 +42,12 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   "Reconnecting…", says what time the data on screen is from, and
   offers Reconnect, which re-mints the token and reconnects at once.
 - **Search.** One sheet, from the header icon or ⌘K, with scope chips.
-  Until the cross-kind search lands (ui-server-work.md S3) it answers
-  Everything and Records from the library's index, and says the other
-  scopes are coming.
+  It answers from the cross-kind search (kumbukumbu#59): every scope,
+  typed results with their kind, title, day and snippet. A record or a
+  scene opens in Records, a bookmark as its citation, and her words open
+  the conversation at that turn (`#/chat/turn/<session>/<turn>`); a turn
+  in another session switches to Conversation but cannot open there yet,
+  because no transcript reader for other sessions is built.
 - **ScrollArea.** Edge fades as a mask, shown only while there is more
   past that edge.
 

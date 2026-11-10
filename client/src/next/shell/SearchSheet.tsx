@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Dialog, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
-import { api } from '../../api/client';
+import { api, type SearchResult } from '../../api/client';
+import { formatHash } from '../state/routes';
 import { useShell } from '../state/store';
 import * as css from './search.css';
 
@@ -18,8 +19,9 @@ const LABEL: Record<Scope, string> = {
 
 /**
  * The one search (ui-structures.md): the header's icon on a phone, ⌘K on a
- * wide screen, scopes to narrow it. Until the cross-kind search lands
- * (ui-server-work.md S3) it answers from the library's index.
+ * wide screen, scopes to narrow it. It answers from the cross-kind search
+ * (kumbukumbu#59): typed results, ranked within a scope, interleaved for
+ * everything. Each opens where it lives.
  */
 export function SearchSheet({ residentId, residentName }: { residentId: string; residentName: string }) {
   const open = useShell((s) => s.searchOpen);
@@ -39,13 +41,14 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   }, [setOpen]);
 
   const term = q.trim();
-  const searchable = term.length >= 2 && (scope === 'everything' || scope === 'records');
+  const searchable = term.length >= 2;
   const results = useQuery({
     queryKey: ['resident', residentId, 'search', scope, term],
-    queryFn: () => api.librarySearch(residentId, term),
+    queryFn: () => api.search(residentId, term, scope),
     enabled: open && searchable,
     staleTime: 30_000,
   });
+  const hits = results.data?.results;
 
   return (
     <ModalOverlay className={css.overlay} isOpen={open} onOpenChange={setOpen} isDismissable>
@@ -72,13 +75,16 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
             ))}
           </ToggleButtonGroup>
           <div className={css.results} aria-live="polite">
-            {!searchable && term.length >= 2 && <p className={css.note}>This scope arrives with the cross-kind search.</p>}
             {searchable && results.isPending && <p className={css.note}>Searching…</p>}
-            {searchable && results.data?.length === 0 && <p className={css.note}>Nothing found.</p>}
-            {results.data?.map((hit) => (
-              <a key={`${hit.path}:${hit.text.slice(0, 20)}`} className={css.hit} href={`#/records/doc/${hit.path}`} onClick={() => setOpen(false)}>
-                <span className={css.hitPath}>{hit.path}</span>
-                <span className={css.hitText}>{hit.text.slice(0, 160)}</span>
+            {searchable && results.error && <p className={css.note}>{(results.error as Error).message}</p>}
+            {searchable && hits?.length === 0 && <p className={css.note}>Nothing found.</p>}
+            {hits?.map((hit, i) => (
+              <a key={`${hit.type}:${i}`} className={css.hit} href={hrefOf(hit)} onClick={() => setOpen(false)}>
+                <span className={css.hitPath}>
+                  {KIND[hit.type]} · {hit.title}
+                  {hit.at ? ` · ${hit.at.slice(0, 10)}` : ''}
+                </span>
+                <span className={css.hitText}>{hit.snippet}</span>
               </a>
             ))}
           </div>
@@ -86,4 +92,19 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
       </Modal>
     </ModalOverlay>
   );
+}
+
+const KIND: Record<SearchResult['type'], string> = { transcript: 'Words', document: 'Record', bookmark: 'Bookmark', scene: 'Scene' };
+
+/** Where a result lives: a turn in the conversation, a document, a bookmark. */
+function hrefOf(hit: SearchResult): string {
+  switch (hit.type) {
+    case 'transcript':
+      return formatHash({ tab: 'chat', path: `turn/${hit.ref.session_key}/${hit.ref.turn_ref}` });
+    case 'bookmark':
+      return formatHash({ tab: 'records', path: `cite/bookmark/${hit.ref.number}` });
+    case 'document':
+    case 'scene':
+      return formatHash({ tab: 'records', path: `doc/${hit.ref.path}` });
+  }
 }

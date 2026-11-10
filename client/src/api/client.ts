@@ -84,6 +84,12 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return json as T;
 }
 
+export type SearchResult =
+  | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'bookmark'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null };
+
 export const api = {
   login: (email: string, password: string) =>
     call<{ account_id: string }>('POST', '/v1/session', { email, password }),
@@ -273,6 +279,12 @@ export const api = {
   // A document's raw file (seshat#50): a link, not a call.
   downloadUrl: (residentId: string, path: string) => `/v1/residents/${residentId}/library/download/${path.split('/').map(encodeURIComponent).join('/')}`,
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  // The one search across kinds (kumbukumbu#59, spec F66).
+  search: (residentId: string, q: string, scope: string) =>
+    call<{ q: string; scope: string; results: SearchResult[] }>(
+      'GET',
+      `/v1/residents/${residentId}/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}`,
+    ),
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
   document: (residentId: string, path: string) =>
