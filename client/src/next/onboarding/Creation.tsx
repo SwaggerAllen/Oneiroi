@@ -185,11 +185,10 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
               {how === 'prompt' && (
                 <>
                   <p className={css.body}>
-                    <strong>Start from a prompt.</strong> Describe who you want to wake, and a first draft of every file is written for you, drawn from the same
-                    guidance the gifts show. You'll still read and approve each one, gift by gift — this only starts the writing.
-                  </p>
-                  <p className={css.note}>
-                    The prompt drafts who they are. The files about you (who you are to them, what you're building) stay yours to write, with help.
+                    <strong>Start from a prompt.</strong> Describe who you want to wake, and the files that say who they are — their soul, their identity —
+                    are drafted for you from the same guidance the gifts show. The files about you — who you are to them, what you're building — stay in your
+                    hand: a prompt about who to wake can't know those. Write them yourself, with "Write it with me" to rough each one out. Every draft is still a
+                    starting point you approve, gift by gift.
                   </p>
                   <label className={css.field}>
                     Who do you want to wake?

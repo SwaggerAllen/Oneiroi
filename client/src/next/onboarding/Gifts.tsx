@@ -52,8 +52,8 @@ export function TrialsGift({ residentId }: { residentId: string }) {
           style={{ flex: '1 1 200px' }}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Help me: what should they hold to? (optional)"
-          aria-label="What should they hold to"
+          placeholder="What should a new model have to keep? (optional)"
+          aria-label="What should a new model have to keep"
         />
         <button type="button" className={css.small} disabled={suggest.isPending} onClick={() => suggest.mutate()}>
           {suggest.isPending ? 'Suggesting…' : 'Suggest some'}

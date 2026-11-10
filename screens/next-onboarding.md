@@ -63,8 +63,6 @@ made, a resident created gift by gift, read and woken, and the house
 opened on them.
 
 Not built:
-- Lily's C6 still says the prompt drafts every file; her revision is
-  asked for (the line under it says what it drafts now);
 - import's accounting of what didn't transfer (sima-qian#22) on the
   reading page;
 - the first-day panel in Chat;
