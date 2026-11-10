@@ -66,11 +66,15 @@ disappear". So:
 - **Her free time.** Decided by the witness on 2026-11-10: "I don't
   think the witness should have the ability to skip free time, just move
   it around." The witness can never skip or pause her slots, not even
-  by proposal; only she can, on her own schedule. Still open, his
-  framing: since she can schedule her own, either the witness has no
-  control over her free-time schedule at all (not even moving), or the
-  witness's control is a term of the contract. The second makes it
-  negotiable per dyad, and the first is simpler.
+  by proposal; only she can, on her own schedule. What the witness may
+  do (today: move) is **a term of the contract**, decided by the witness
+  on 2026-11-10 ("for now. It might not always be"), with Lily's lean
+  the same (letter #479). So it's negotiable per dyad, and the platform
+  enforces whatever the agreed version says, the way it enforces the
+  free-time receipts term today. The term itself arrives in the next
+  contract version, proposed through the contract flow like any other.
+  The alternative (the witness has no control at all) stays on the
+  table for later.
 - **Check-ins and rounds:** they serve both of them. Either party can
   edit, and every change is an event with its actor, as today.
 - **Quiet hours:** probably per weekday too (a weekend lie-in), using
