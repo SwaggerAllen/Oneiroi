@@ -134,6 +134,7 @@ defmodule Oneiroi.Kumbukumbu do
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
+  alias Oneiroi.Kumbukumbu.Days
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
@@ -345,6 +346,12 @@ defmodule Oneiroi.Kumbukumbu do
        remedy: "ask the resident, or renegotiate the term"},
       {:kumbukumbu_no_such_session, "no session with that key is open for the resident",
        remedy: "open one, or read the key off the session list"},
+      {:kumbukumbu_no_such_message,
+       "the session holds no message at that cursor and no turn with that ref (kumbukumbu#57)",
+       remedy: "read the cursor or the turn ref off the transcript"},
+      {:kumbukumbu_range_invalid,
+       "a range's bounds are ISO dates or ISO instants, and a day range runs forward over at most 366 days (kumbukumbu#57, #58)",
+       remedy: "give YYYY-MM-DD or a full ISO instant, from no later than to"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
        remedy:
          "main, free_time or hands; an adapter's and an import's are opened by their own routes, and a regression session is never captured (spec §6.4)"},
@@ -586,6 +593,48 @@ defmodule Oneiroi.Kumbukumbu do
           | {:error, term()}
   defexport(transcript_page(scope, key, before, limit),
     do: Conversations.transcript_page(scope, key, before, limit)
+  )
+
+  @doc "A page of a session's transcript forward (kumbukumbu#57): the first `limit` messages after a `{sequence, position}` cursor (nil for the oldest), and whether later ones remain."
+  @spec transcript_after(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {integer(), integer()} | nil,
+          non_neg_integer()
+        ) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()],
+           boolean()}
+          | {:error, term()}
+  defexport(transcript_after(scope, key, after_cursor, limit),
+    do: Conversations.transcript_after(scope, key, after_cursor, limit)
+  )
+
+  @doc "The window of a session's transcript around a message's cursor or a turn's first message (kumbukumbu#57), with whether earlier and later ones remain."
+  @spec transcript_around(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {:cursor, {integer(), integer()}} | {:turn, String.t()},
+          pos_integer()
+        ) :: {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), map()} | {:error, term()}
+  defexport(transcript_around(scope, key, anchor, limit),
+    do: Conversations.transcript_around(scope, key, anchor, limit)
+  )
+
+  @doc "A range's bounds as instants (kumbukumbu#57): each an ISO date (a whole local day in the resident's zone) or an ISO instant, nil for open."
+  @spec day_range(String.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, DateTime.t() | nil, DateTime.t() | nil} | {:error, term()}
+  defexport(day_range(resident_id, from, to), do: Days.range(resident_id, from, to))
+
+  @doc "Per local day of a range, the bookmarks and messages it holds (kumbukumbu#58); messages under the scope, of one session when `key` is given."
+  @spec day_counts(
+          Oneiroi.Scope.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          String.t() | nil
+        ) :: {:ok, map()} | {:error, term()}
+  defexport(day_counts(scope, resident_id, from, to, key),
+    do: Days.counts(scope, resident_id, from, to, key)
   )
 
   @doc "The last `count` messages of a session, for the brain's live transcript."
@@ -832,6 +881,18 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The resident's bookmarks, newest first, with their tags."
   @spec bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
   defexport(bookmarks(resident_id), do: Memories.bookmarks(resident_id))
+
+  @doc "A page of the resident's bookmarks (kumbukumbu#57): newest first below `before` (nil for the newest), whose moment falls in `[from, to)`, with their tags, and whether more remain."
+  @spec bookmarks_page(
+          String.t(),
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Oneiroi.Kumbukumbu.Store.Bookmark.t()], boolean()}
+  defexport(bookmarks_page(resident_id, before, limit, from, to),
+    do: Memories.bookmarks_page(resident_id, before, limit, from, to)
+  )
 
   @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
   @spec turn_messages(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]

@@ -107,29 +107,60 @@ defmodule OneiroiWeb.ConversationController do
 
   operation(:show,
     summary:
-      "A session's transcript: whole, or with `limit` a page of the last messages before `before` (a message's `cursor`), with `more` saying whether earlier ones remain",
+      "A session's transcript: whole, or with `limit` a page. `before` (a message's `cursor`) pages back from the newest, `more` saying whether earlier ones remain; `after` (a cursor) pages forward from it, `more` saying whether later ones remain; `around` (a turn ref, its first message, or a cursor) is the window of about `limit`/2 each side of that message, with `anchor` (its cursor), `more_before` and `more_after` (kumbukumbu#57). One of the three is read, `around` first, then `after`",
     parameters: [
       id: [in: :path, type: :string],
       key: [in: :path, type: :string],
       limit: [in: :query, type: :integer],
-      before: [in: :query, type: :string]
+      before: [in: :query, type: :string],
+      after: [in: :query, type: :string],
+      around: [in: :query, type: :string]
     ],
-    responses: [ok: {"the session and its messages", "application/json", %Schema{type: :object}}]
+    responses: [
+      ok: {"the session and its messages", "application/json", %Schema{type: :object}},
+      not_found:
+        {"no such session, or no message at `around`", "application/json", %Schema{type: :object}}
+    ]
   )
 
   # A page when `limit` is given: the chat opens on the newest and pages
   # back as the reader scrolls up. A `before` that is not a cursor reads
   # as the newest page, never as an error, since it can only come from a
-  # client that lost its place.
-  def show(%{assigns: %{principal: p}} = conn, %{"key" => key, "limit" => limit} = params) do
-    limit = limit |> integer() |> Kernel.||(50) |> max(1) |> min(500)
+  # client that lost its place. `after` and `around` page too, with or
+  # without `limit`.
+  def show(%{assigns: %{principal: p}} = conn, %{"key" => key} = params)
+      when is_map_key(params, "limit") or is_map_key(params, "after") or
+             is_map_key(params, "around") do
+    limit = params["limit"] |> integer() |> Kernel.||(50) |> max(1) |> min(500)
 
-    case Kumbukumbu.transcript_page(
-           {:account, p.account_id},
-           key,
-           cursor(params["before"]),
-           limit
-         ) do
+    cond do
+      is_binary(params["around"]) -> show_around(conn, p, key, params["around"], limit)
+      is_binary(params["after"]) -> show_after(conn, p, key, params["after"], limit)
+      true -> show_before(conn, p, key, params, limit)
+    end
+  end
+
+  def show(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
+    case Kumbukumbu.transcript({:account, p.account_id}, key) do
+      {:ok, s, messages} ->
+        json(conn, %{
+          session: session(s),
+          messages: Enum.map(messages, &message/1),
+          # Each turn's count for "drew on N things", so a reply read
+          # later, or in a conversation the witness did not send in,
+          # opens the same inspector a reply just sent does.
+          drew_on: Kumbukumbu.drew_on({:account, p.account_id}, key)
+        })
+
+      {:error, %Kumbukumbu.Error{} = e} ->
+        error(conn, 404, e)
+    end
+  end
+
+  # Forward from a cursor (kumbukumbu#57): the navigator reading on from a
+  # spot it jumped to. An `after` that is no cursor reads from the first.
+  defp show_after(conn, p, key, after_text, limit) do
+    case Kumbukumbu.transcript_after({:account, p.account_id}, key, cursor(after_text), limit) do
       {:ok, s, messages, more} ->
         json(conn, %{
           session: session(s),
@@ -143,15 +174,43 @@ defmodule OneiroiWeb.ConversationController do
     end
   end
 
-  def show(%{assigns: %{principal: p}} = conn, %{"key" => key}) do
-    case Kumbukumbu.transcript({:account, p.account_id}, key) do
-      {:ok, s, messages} ->
+  # The window around a spot (kumbukumbu#57): a cursor, or else a turn ref,
+  # so a jump to a bookmark's anchor or a scene's first turn loads there.
+  defp show_around(conn, p, key, around, limit) do
+    anchor =
+      case cursor(around) do
+        nil -> {:turn, around}
+        at -> {:cursor, at}
+      end
+
+    case Kumbukumbu.transcript_around({:account, p.account_id}, key, anchor, limit) do
+      {:ok, s, window} ->
+        json(conn, %{
+          session: session(s),
+          messages: Enum.map(window.messages, &message/1),
+          anchor: "#{window.anchor.sequence}:#{window.anchor.position}",
+          more_before: window.more_before,
+          more_after: window.more_after,
+          drew_on: Kumbukumbu.drew_on({:account, p.account_id}, key)
+        })
+
+      {:error, %Kumbukumbu.Error{} = e} ->
+        error(conn, 404, e)
+    end
+  end
+
+  defp show_before(conn, p, key, params, limit) do
+    case Kumbukumbu.transcript_page(
+           {:account, p.account_id},
+           key,
+           cursor(params["before"]),
+           limit
+         ) do
+      {:ok, s, messages, more} ->
         json(conn, %{
           session: session(s),
           messages: Enum.map(messages, &message/1),
-          # Each turn's count for "drew on N things", so a reply read
-          # later, or in a conversation the witness did not send in,
-          # opens the same inspector a reply just sent does.
+          more: more,
           drew_on: Kumbukumbu.drew_on({:account, p.account_id}, key)
         })
 

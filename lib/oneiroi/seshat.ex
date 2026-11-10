@@ -118,7 +118,20 @@ defmodule Oneiroi.Seshat do
       JournalCommands.AddJournalEntry,
       JournalCommands.MarkTodoDone,
       Events.JournalEntryAdded,
-      Events.JournalTodoDone
+      Events.JournalTodoDone,
+      Store.Scene,
+      Store.SceneDay,
+      Scene,
+      Scenes,
+      SceneRouter,
+      SceneCommands.WriteScene,
+      SceneCommands.CorrectScene,
+      SceneCommands.CorrectSceneSummary,
+      SceneCommands.CloseScenes,
+      Events.SceneWritten,
+      Events.SceneCorrected,
+      Events.SceneSummaryCorrected,
+      Events.ScenesClosed
     ]
 
   alias Oneiroi.Seshat.Citations
@@ -132,6 +145,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
+  alias Oneiroi.Seshat.Scenes
   alias Oneiroi.Seshat.UserKinds
 
   @impl Oneiroi.Component
@@ -239,7 +253,11 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.ExternalFetched, 1},
       {Oneiroi.Seshat.Events.ExternalFetchFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
-      {Oneiroi.Seshat.Events.JournalTodoDone, 1}
+      {Oneiroi.Seshat.Events.JournalTodoDone, 1},
+      {Oneiroi.Seshat.Events.SceneWritten, 1},
+      {Oneiroi.Seshat.Events.SceneCorrected, 1},
+      {Oneiroi.Seshat.Events.SceneSummaryCorrected, 1},
+      {Oneiroi.Seshat.Events.ScenesClosed, 1}
     ]
   end
 
@@ -251,7 +269,7 @@ defmodule Oneiroi.Seshat do
        remedy:
          "name the file as `<kind>/<name>.md`, or `<name>.md` at the root; the kinds are the registry's"},
       {:seshat_kind_not_writable,
-       "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
+       "that kind is written by the platform (mail, feeds, correspondence, the journal, the scenes) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
          "write under writing, design, research, wiki, scratch or posts; human/ is the witness's"},
       {:seshat_not_movable,
@@ -350,6 +368,15 @@ defmodule Oneiroi.Seshat do
       {:seshat_entry_text_invalid, "an entry is a text with words in it",
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
+      {:seshat_scene_invalid,
+       "a scene has a one-line title, its first and last turn refs, a few lines of what happened, an optional one-line mood, a register of his, hers or work, and times as HH:MM on its day or ISO instants; a correction names its scene and says why (seshat#52)",
+       remedy: "read the error's detail and write the call again"},
+      {:seshat_no_such_scene, "that day holds no scene with that number",
+       remedy: "read the day's scenes; a correction row is corrected by another correction"},
+      {:seshat_scene_summary_kept,
+       "a scene's summary is never overwritten: it is corrected by a row of its own that cites its turns (seshat#52)",
+       remedy:
+         "write a correction with corrects: <the scene's number>, the turns and the corrected lines"},
       {:seshat_no_such_day, "the schedule never opened that day",
        remedy: "a day opens at its first check-in or its first entry"},
       {:seshat_embedding_mismatched,
@@ -366,7 +393,7 @@ defmodule Oneiroi.Seshat do
        "a gate is a system kind's whose own flow waits on the witness; on is either party's at once, off is a proposal the other party answers, one open at a time",
        remedy: "answer the open proposal, or ask the other party to"},
       {:seshat_dispatch_failed,
-       "the command did not reach the library or the journal aggregate: the command middleware or the event store refused it",
+       "the command did not reach the library, the journal or the scenes aggregate: the command middleware or the event store refused it",
        remedy:
          "retry; if it repeats, an operator reads the log line carrying this error's site and cause"}
     ]
@@ -377,6 +404,7 @@ defmodule Oneiroi.Seshat do
     do: [
       Oneiroi.Seshat.Projectors.Library,
       Oneiroi.Seshat.Projectors.Journal,
+      Oneiroi.Seshat.Projectors.Scenes,
       Oneiroi.Seshat.Projectors.Pieces,
       Oneiroi.Seshat.Projectors.Kinds
     ]
@@ -830,6 +858,27 @@ defmodule Oneiroi.Seshat do
   @doc "Today's journal as the section the brain reads."
   @spec journal_text(String.t()) :: String.t()
   defexport(journal_text(resident_id), do: Journals.text(resident_id))
+
+  # ---- the scenes (seshat#52) ----
+
+  @doc "One `scene_write` call (seshat#52): writes a day's next scene, corrects one's facts or mood (`scene`), appends a correction of one's summary (`corrects`), and with `final: true` closes the day; renders `scenes/<day>.md`."
+  @spec scene_write(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(scene_write(resident_id, args, actor), do: Scenes.write(resident_id, args, actor))
+
+  @doc "The days with scenes in `[from, to]` (ISO dates, nil for open), each with `complete` and its rows in order (seshat#52)."
+  @spec scenes(String.t(), String.t() | nil, String.t() | nil) :: [map()]
+  defexport(scenes(resident_id, from, to), do: Scenes.days(resident_id, from, to))
+
+  @doc "How many scenes each day in `[from, to]` holds, corrections not counted (seshat#52, kumbukumbu#58)."
+  @spec scene_counts(String.t(), String.t(), String.t()) :: %{String.t() => non_neg_integer()}
+  defexport(scene_counts(resident_id, from, to), do: Scenes.counts(resident_id, from, to))
+
+  @doc "Reads the prose `scenes/<day>.md` files into rows, best-effort; a day that does not parse stays prose (seshat#52)."
+  @spec backfill_scenes(String.t(), Oneiroi.Actor.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(backfill_scenes(resident_id, actor, opts),
+    do: Scenes.backfill(resident_id, actor, opts)
+  )
 
   @doc "Days before today, among the last `days` opened, planned and never wrapped: what the journal delta audit reads."
   @spec unwrapped_days(String.t(), pos_integer()) :: [String.t()]

@@ -307,3 +307,11 @@ in one morning the slot was offered to the work. Putting it in the
 text that opens the slot, and in every tool that names the slot, means
 the instrument says it each time free time is in view, rather than
 relying on her to recall it.
+
+## #47
+The pass already knew the shape of a scene; giving it a tool per scene
+makes each one a row the navigator can read, and asking for the close
+on the last call means the only way to read as finished is to have
+finished. The schedule does not mark a short pass itself: the absence
+of the close is already the truth, and a second marker would be a
+second thing to keep in step.

@@ -4,6 +4,7 @@ defmodule OneiroiWeb.MemoryController do
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Ethos
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
   alias OpenApiSpex.Schema
 
   tags(["memory"])
@@ -14,13 +15,87 @@ defmodule OneiroiWeb.MemoryController do
   plug(OneiroiWeb.Plugs.Switch, [key: "revisions"] when action in [:revise])
 
   operation(:bookmarks,
-    summary: "The resident's bookmarks, newest first, with their tags and pins",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"bookmarks", "application/json", %Schema{type: :array}}]
+    summary:
+      "The resident's bookmarks, newest first, with their tags and pins: with no query, every one as an array; with any of `before` (a bookmark number), `limit` (default 50, at most 500), `from` and `to` (each an ISO date, a whole day in her zone, or an ISO instant; `to` exclusive for an instant), a page `{bookmarks, more}`, `more` saying whether older ones remain (kumbukumbu#57)",
+    parameters: [
+      id: [in: :path, type: :string],
+      before: [in: :query, type: :integer],
+      limit: [in: :query, type: :integer],
+      from: [in: :query, type: :string],
+      to: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"bookmarks, or a page of them", "application/json", %Schema{type: :object}},
+      unprocessable_entity:
+        {"a bound that is no date or instant", "application/json", %Schema{type: :object}}
+    ]
   )
 
-  def bookmarks(conn, %{"id" => id}),
-    do: json(conn, id |> Kumbukumbu.bookmarks() |> Enum.map(&bookmark/1))
+  @page_params ~w(before limit from to)
+
+  # Unpaged when no paging parameter is given: the shape every client
+  # before kumbukumbu#57 reads.
+  def bookmarks(conn, %{"id" => id} = params) do
+    if Enum.any?(@page_params, &Map.has_key?(params, &1)),
+      do: bookmarks_page(conn, id, params),
+      else: json(conn, id |> Kumbukumbu.bookmarks() |> Enum.map(&bookmark/1))
+  end
+
+  defp bookmarks_page(conn, id, params) do
+    limit = params["limit"] |> positive() |> Kernel.||(50) |> min(500)
+
+    case Kumbukumbu.day_range(id, params["from"], params["to"]) do
+      {:ok, from, to} ->
+        {rows, more} = Kumbukumbu.bookmarks_page(id, positive(params["before"]), limit, from, to)
+        json(conn, %{bookmarks: Enum.map(rows, &bookmark/1), more: more})
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
+  operation(:density,
+    summary:
+      "The navigator's track (kumbukumbu#58): per local day in the resident's zone from `from` to `to` (ISO dates, both included; the last 30 days through today by default; at most 366), how many bookmarks, scenes (seshat#52, corrections not counted) and messages it holds, every day of the range, oldest first. Messages are those of the sessions the witness sees, of one session when `session` names it. `{from, to, zone, days: [{day, bookmarks, scenes, messages}]}`",
+    parameters: [
+      id: [in: :path, type: :string],
+      from: [in: :query, type: :string],
+      to: [in: :query, type: :string],
+      session: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"the counts", "application/json", %Schema{type: :object}},
+      unprocessable_entity:
+        {"a range that is no range", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def density(%{assigns: %{principal: p}} = conn, %{"id" => id} = params) do
+    case Kumbukumbu.day_counts(
+           {:account, p.account_id},
+           id,
+           params["from"],
+           params["to"],
+           params["session"]
+         ) do
+      {:ok, counts} ->
+        scenes = Seshat.scene_counts(id, counts.from, counts.to)
+
+        days =
+          for d <- counts.days,
+              do: %{
+                day: d.day,
+                bookmarks: d.bookmarks,
+                scenes: Map.get(scenes, d.day, 0),
+                messages: d.messages
+              }
+
+        json(conn, %{counts | days: days})
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
 
   operation(:index_now,
     summary:
@@ -464,6 +539,19 @@ defmodule OneiroiWeb.MemoryController do
        do: error(conn, 404, e)
 
   defp respond(conn, {:error, e}), do: error(conn, 422, e)
+
+  # A paging number: a positive integer, else none (the newest page, the
+  # default size), as a `before` that is no cursor reads in the chat.
+  defp positive(n) when is_integer(n) and n > 0, do: n
+
+  defp positive(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} when n > 0 -> n
+      _other -> nil
+    end
+  end
+
+  defp positive(_other), do: nil
 
   defp integer(n) when is_integer(n), do: n
 

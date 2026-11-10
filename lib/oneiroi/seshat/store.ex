@@ -405,6 +405,85 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Scene do
+    @moduledoc "One row of a day's scenes (seshat#52): a scene, or a correction of one's summary (`kind`, `corrects`)."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_scene" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:corrects, :integer)
+      field(:title, :string)
+      field(:from_turn, :string)
+      field(:to_turn, :string)
+      field(:from_time, :utc_datetime_usec)
+      field(:to_time, :utc_datetime_usec)
+      field(:summary, :string)
+      field(:mood, :string)
+      field(:mood_was, :string)
+      field(:mood_corrected_at, :utc_datetime_usec)
+      field(:rounds_ran_out, :boolean, default: false)
+      field(:register, :string)
+      field(:at, :utc_datetime_usec)
+      field(:actor_kind, :string)
+      field(:corrected_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule SceneDay do
+    @moduledoc "A day that has scenes (seshat#52), and whether the pass closed it."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_scene_day" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:complete, :boolean, default: false)
+      field(:closed_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  # ---- the scenes (seshat#52) ----
+
+  @doc "A day's scene rows in order."
+  def scenes(day),
+    do: Repo.all(from(s in Scene, where: s.day == ^day, order_by: s.number))
+
+  @doc "The day rows in `[from, to]` (ISO dates, either nil for open), oldest first."
+  def scene_days(from, to) do
+    query = from(d in SceneDay, order_by: d.day)
+    query = if from, do: from(d in query, where: d.day >= ^from), else: query
+    query = if to, do: from(d in query, where: d.day <= ^to), else: query
+    Repo.all(query)
+  end
+
+  @doc "The scene rows of the days in `[from, to]`, by day and number."
+  def scenes_between(from, to) do
+    query = from(s in Scene, order_by: [s.day, s.number])
+    query = if from, do: from(s in query, where: s.day >= ^from), else: query
+    query = if to, do: from(s in query, where: s.day <= ^to), else: query
+    Repo.all(query)
+  end
+
+  @doc "How many scenes (never their corrections) each day in `[from, to]` holds."
+  def scene_counts(from, to) do
+    Repo.all(
+      from(s in Scene,
+        where: s.kind == "scene" and s.day >= ^from and s.day <= ^to,
+        group_by: s.day,
+        select: {s.day, count(s.number)}
+      )
+    )
+  end
+
+  @doc "A day's row, or nil."
+  def scene_day(day), do: Repo.one(from(d in SceneDay, where: d.day == ^day))
+
   # ---- the journal ----
 
   @doc "The entries written since an instant, oldest first."

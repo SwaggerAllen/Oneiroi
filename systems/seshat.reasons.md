@@ -378,3 +378,20 @@ guarantees to both of them, so a descriptor cannot buy them. Gates are
 asymmetric because the cost is: putting a document in front of him
 more often costs him a click, taking the check away costs the
 agreement it stood for, so on is either word and off is both.
+
+## #52
+The navigator needs spans it can trust, and prose under headings is
+whatever the night's writing made it; parsing it would be a guess
+redone on every read. Rows written by her, one call a scene, keep the
+words hers and the shape reliable, and rendering the file from them
+keeps the repository the readable record, the journal's settled
+pattern. The incomplete marker is Lily's: a pass that ran out of rounds
+wrote fewer scenes than the day held, and a track that shows only what
+was written says the day ended there, a lie by omission; so the day is
+unfinished until the pass says otherwise. The edits are asymmetric
+because the fields are: facts are checkable against the transcript,
+so correcting them only makes the map truer, and the history keeps what
+they were; the summary is her reading of the day at the time, so a
+later reading sits beside it rather than over it; a mood is true of the
+night it was written, so the next day's change is a different statement
+and says so.

@@ -107,6 +107,19 @@ defmodule Oneiroi.Seshat.Kinds do
       adoption: :none,
       access: :core
     },
+    # The day's scenes (seshat#52): the bedtime pass writes rows with
+    # scene_write, and the file is rendered from them on every write, as
+    # the journal's is; never a document write of either party's.
+    %{
+      kind: "scenes",
+      folder: "scenes",
+      cites: true,
+      has_status: false,
+      layout: "scenes/<day>.md, rendered from the day's scene rows",
+      sidecar: nil,
+      adoption: :none,
+      access: :core
+    },
     # Decided, never swept (seshat#31): the wiki became the catch-all an
     # import landed everything homeless in, Pocket Andrew among it, so a
     # file enters it by a write or by its own adoption, never by an
@@ -441,6 +454,12 @@ defmodule Oneiroi.Seshat.Kinds do
     end
   end
 
+  # A kind of hers whose name or folder a system kind took later (the
+  # scenes, seshat#52, which a resident may have made her own first) is
+  # shadowed by it: the system's rules hold its folder.
+  defp system_kind?(kind),
+    do: Enum.any?(@kinds, &(&1.kind == kind.kind or &1.folder == kind.folder))
+
   defp gated(kind, gates) do
     case Map.fetch(gates, kind.kind) do
       {:ok, approvable} -> Map.put(kind, :approvable, approvable)
@@ -451,7 +470,9 @@ defmodule Oneiroi.Seshat.Kinds do
   defp resident_kinds(resident_id) do
     Scope.resident(resident_id, fn ->
       {Map.new(Store.kind_gates(), &{&1.kind, &1.approvable}),
-       Enum.map(Store.user_kinds(), &from_descriptor(&1.descriptor))}
+       Store.user_kinds()
+       |> Enum.map(&from_descriptor(&1.descriptor))
+       |> Enum.reject(&system_kind?/1)}
     end)
   end
 
@@ -580,6 +601,7 @@ defmodule Oneiroi.Seshat.Kinds do
     {"posts", "Posts"},
     {"scratch", "Scratch"},
     {"journal", "Journal"},
+    {"scenes", "Scenes"},
     {"correspondence", "Correspondence"},
     {"mail", "Mail"},
     {"feeds", "Feeds"},

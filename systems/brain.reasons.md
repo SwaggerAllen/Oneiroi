@@ -681,3 +681,8 @@ The meanings are the dyad's, so they live where the dyad's words live:
 a file either of them edits and either can read without the platform,
 travelling with the repository. Glossing on the line means she never
 has to remember what an emoji meant to him.
+
+## #74
+One table serves the brain's loop, the adapter's MCP and the trial, so
+a tool added there is everywhere at once; a write that a trial ran for
+real would put a sealed run's words into her scenes.

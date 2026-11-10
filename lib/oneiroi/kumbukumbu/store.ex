@@ -431,6 +431,111 @@ defmodule Oneiroi.Kumbukumbu.Store do
     {rows |> Enum.take(limit) |> Enum.reverse(), length(rows) > limit}
   end
 
+  @doc """
+  A page of a session's messages forward (kumbukumbu#57): the first
+  `limit` after the `{sequence, position}` cursor, or the first `limit`
+  of all when it is nil, in order, and whether later ones remain.
+  """
+  @spec messages_after(String.t(), {integer(), integer()} | nil, non_neg_integer()) ::
+          {[Message.t()], boolean()}
+  def messages_after(key, after_cursor, limit) do
+    rows =
+      from(m in Message,
+        where: m.session_key == ^key,
+        order_by: [asc: m.sequence, asc: m.position],
+        limit: ^(limit + 1)
+      )
+      |> after_cursor(after_cursor)
+      |> Repo.all()
+
+    {Enum.take(rows, limit), length(rows) > limit}
+  end
+
+  defp after_cursor(query, nil), do: query
+
+  defp after_cursor(query, {sequence, position}),
+    do:
+      from(m in query,
+        where: m.sequence > ^sequence or (m.sequence == ^sequence and m.position > ^position)
+      )
+
+  @doc """
+  The message an anchor read centres on (kumbukumbu#57): the one at a
+  `{sequence, position}` cursor, or the first message of a turn by its
+  ref; nil when the session holds neither.
+  """
+  @spec anchor_message(String.t(), {:cursor, {integer(), integer()}} | {:turn, String.t()}) ::
+          Message.t() | nil
+  def anchor_message(key, {:cursor, {sequence, position}}),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.sequence == ^sequence and m.position == ^position,
+          limit: 1
+        )
+      )
+
+  def anchor_message(key, {:turn, ref}),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.turn_ref == ^ref,
+          order_by: [asc: m.sequence, asc: m.position],
+          limit: 1
+        )
+      )
+
+  @doc """
+  How many messages each local day holds (kumbukumbu#58): `{day, count}`
+  for the resident's messages sent in `[from, to)`, the day the ISO date
+  of the instant in `zone`, of one session when `key` is given. The
+  scope decides which sessions are seen; the resident is named too, as an
+  account's scope sees every resident it is party to.
+  """
+  @spec message_days(String.t(), String.t(), DateTime.t(), DateTime.t(), String.t() | nil) ::
+          [{String.t(), non_neg_integer()}]
+  def message_days(resident_id, zone, from, to, key) do
+    query =
+      from(m in Message,
+        where: m.resident_id == ^resident_id and m.sent_at >= ^from and m.sent_at < ^to,
+        group_by: selected_as(:day),
+        select:
+          {selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               m.sent_at,
+               ^zone
+             ),
+             :day
+           ), count()}
+      )
+
+    query = if key, do: from(m in query, where: m.session_key == ^key), else: query
+    Repo.all(query)
+  end
+
+  @doc "How many bookmarks each local day holds (kumbukumbu#58): by the moment's instant, its anchor's or else its making's, in `[from, to)`."
+  @spec bookmark_days(String.t(), DateTime.t(), DateTime.t()) :: [{String.t(), non_neg_integer()}]
+  def bookmark_days(zone, from, to) do
+    Repo.all(
+      from(b in Bookmark,
+        where:
+          coalesce(b.anchor_at, b.created_at) >= type(^from, :utc_datetime_usec) and
+            coalesce(b.anchor_at, b.created_at) < type(^to, :utc_datetime_usec),
+        group_by: selected_as(:day),
+        select:
+          {selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               coalesce(b.anchor_at, b.created_at),
+               ^zone
+             ),
+             :day
+           ), count()}
+      )
+    )
+  end
+
   defp before_cursor(query, nil), do: query
 
   defp before_cursor(query, {sequence, position}),
@@ -830,6 +935,42 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec bookmarks() :: [Bookmark.t()]
   def bookmarks do
     Bookmark |> from(order_by: [desc: :number]) |> Repo.all() |> with_tags()
+  end
+
+  @doc """
+  A page of the resident's bookmarks, newest first by number (kumbukumbu
+  #57): the first `limit` below `before` (nil for the newest) whose moment,
+  its anchor's instant or else its making's, falls in `[from, to)` (either
+  nil for open), each with its tags, and whether more remain.
+  """
+  @spec bookmarks_page(
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Bookmark.t()], boolean()}
+  def bookmarks_page(before, limit, from, to) do
+    query = from(b in Bookmark, order_by: [desc: b.number], limit: ^(limit + 1))
+    query = if before, do: from(b in query, where: b.number < ^before), else: query
+
+    query =
+      if from,
+        do:
+          from(b in query,
+            where: coalesce(b.anchor_at, b.created_at) >= type(^from, :utc_datetime_usec)
+          ),
+        else: query
+
+    query =
+      if to,
+        do:
+          from(b in query,
+            where: coalesce(b.anchor_at, b.created_at) < type(^to, :utc_datetime_usec)
+          ),
+        else: query
+
+    rows = Repo.all(query)
+    {rows |> Enum.take(limit) |> with_tags(), length(rows) > limit}
   end
 
   @doc "The timeline's bookmarks (kumbukumbu#51): pinned, or weighed 2 and up; oldest first by when the moment was."

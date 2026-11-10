@@ -126,7 +126,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert {:error, _} = Kinds.normalize("README.md")
     assert Kinds.refusal("README.md") == "a file at the root that is not an identity file"
 
-    assert Kinds.minting() == ~w(writing oracle research design journal system)
+    assert Kinds.minting() == ~w(writing oracle research design journal scenes system)
 
     assert Kinds.non_minting() ==
              ~w(wiki scratch human posts mail feeds plugins external correspondence memory goals archive root keepsake)
