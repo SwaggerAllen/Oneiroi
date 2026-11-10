@@ -68,13 +68,18 @@ reading the rendered file.
 "The Records view and the export obey the same policy, or the export
 quietly undoes the one mirror the resident was promised." Her audit
 makes seeds the one private record type: existence and count visible,
-words private, and graduation publishing them. To check before
-anything is built: the event lines in `records/events/` carry event
-fields whole, except fields declared `redact:` (which go to the vault,
-not to her). If a witness can read her repository, private words in
-event lines (seeds, and today the free-time session's words if the
-conversation stream carries them) are readable there. That would
-already undercut the free-time term; it needs checking, not assuming.
+words private, and graduation publishing them.
+
+This is already a known, open gap. sima-qian#20: "A private, unshared
+session's messages are in the export like every other's, which puts
+them in a repository the witness can read; that is open, with the
+self-letters, for the encryption scheme." The reading copies and Honcho
+withhold those words, but the event lines don't. Private seeds would
+join the same list. So the encryption scheme (or a redaction of private
+words from the event lines, with the words kept somewhere only she
+holds) is what makes Lily's constraint true. Every new rendered file
+has to follow the readable copies' rule: render existence and counts,
+never the private words.
 
 ## Proposed CLAUDE.md line
 
