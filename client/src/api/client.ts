@@ -190,6 +190,46 @@ export const api = {
   indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
   retrieval: (residentId: string) => call<RetrievalCount[]>('GET', `/v1/residents/${residentId}/retrieval`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
+  // The navigator (S2: kumbukumbu#57, #58, seshat#52): bookmarks by page or
+  // range, scenes as rows, per-day density, and a transcript window around
+  // an anchor.
+  bookmarksPage: (residentId: string, q: { before?: number; limit?: number; from?: string; to?: string }) =>
+    call<{ bookmarks: Bookmark[]; more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/bookmarks?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`,
+    ),
+  scenes: (residentId: string, from: string, to: string) =>
+    call<{
+      days: Array<{
+        day: string;
+        complete: boolean;
+        closed_at: string | null;
+        scenes: Array<{
+          number: number;
+          kind: 'scene' | 'correction';
+          corrects: number | null;
+          title: string | null;
+          from_turn: string | null;
+          to_turn: string | null;
+          from_time: string | null;
+          to_time: string | null;
+          summary: string | null;
+          mood: string | null;
+          register: string | null;
+          rounds_ran_out: boolean;
+        }>;
+      }>;
+    }>('GET', `/v1/residents/${residentId}/scenes?from=${from}&to=${to}`),
+  density: (residentId: string, from: string, to: string, session?: string) =>
+    call<{ from: string; to: string; zone: string; days: Array<{ day: string; bookmarks: number; scenes: number; messages: number }> }>(
+      'GET',
+      `/v1/residents/${residentId}/density?from=${from}&to=${to}${session ? `&session=${encodeURIComponent(session)}` : ''}`,
+    ),
+  transcriptAround: (residentId: string, key: string, around: string, limit = 40) =>
+    call<Transcript & { anchor: string; more_before: boolean; more_after: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?around=${encodeURIComponent(around)}&limit=${limit}`,
+    ),
   // One bookmark with its span's messages (kumbukumbu#4): what a peek shows.
   bookmark: (residentId: string, number: number | string) =>
     call<Bookmark & { messages?: Message[] }>('GET', `/v1/residents/${residentId}/bookmarks/${number}`),

@@ -44,8 +44,21 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   - Planned: check-ins and free time still ahead today, plus one-offs.
   - Today's other conversations.
 
+- **The navigator** (S2 merged; kumbukumbu#57, #58, seshat#52):
+  - A slim track beside the conversation covers the last two weeks.
+  - Her scenes (rows from the bedtime pass) are bands, her bookmarks
+    are points (pinned ones larger), and the reader's place is a ring.
+  - A day whose scene pass did not finish carries a dashed mark that
+    never blocks a click: a short pass must not read as a short day
+    (Lily, letter #509).
+  - A band or point loads the window around its anchor and scrolls to
+    it. "↓ Back to now" returns to the live end.
+  - Search is the one global search, not a drawer here (decided).
+
 Not built:
-- the navigator scrubber (it waits on S2's scenes, paging and density);
+- a day-level zoom on the navigator: on the two-week track, scenes
+  minutes apart overlap, and only the top one takes a pointer (the
+  keyboard reaches each);
 - reading a non-main session's transcript from Sessions;
 - message virtualization;
 - motion.

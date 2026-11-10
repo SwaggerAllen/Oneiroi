@@ -8,6 +8,7 @@ import { useShell } from '../state/store';
 import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
+import { Navigator } from './Navigator';
 import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';
 import { useChat } from './useChat';
@@ -56,6 +57,8 @@ export function Chat({
   const [opened, setOpened] = useState(false);
   const [draft, setDraft] = useState('');
   const heightBefore = useRef<number | null>(null);
+  const [placeAt, setPlaceAt] = useState<string | null>(null);
+  const jumpTarget = useRef<string | null>(null);
 
   // Where the reader left off, read once the session is known.
   useEffect(() => {
@@ -103,6 +106,37 @@ export function Chat({
     void chat.loadOlder();
   }, [atTop, opened, chat]);
 
+  // The reader's place for the navigator's ring: the first message at the top.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      const top = el.getBoundingClientRect().top;
+      const first = [...el.querySelectorAll<HTMLElement>('[data-at]')].find((n) => n.getBoundingClientRect().bottom > top);
+      setPlaceAt(first?.dataset.at ?? null);
+    };
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [chat.messages.length]);
+
+  // After a jump, bring the anchor into view.
+  useLayoutEffect(() => {
+    const anchor = jumpTarget.current;
+    if (!anchor || !scroller.current) return;
+    const node = scroller.current.querySelector(`[data-turn="${CSS.escape(anchor)}"]`);
+    if (node) {
+      node.scrollIntoView({ block: 'center' });
+      jumpTarget.current = null;
+    }
+  }, [chat.messages]);
+
+  const jumpTo = (anchor: string) => {
+    jumpTarget.current = anchor;
+    setAtBottom(false);
+    void chat.jumpTo(anchor);
+  };
+
   const onEdges = useCallback((e: Edges) => {
     setAtBottom(!e.bottom);
     setAtTop(!e.top);
@@ -111,6 +145,11 @@ export function Chat({
   const jump = () => {
     const el = scroller.current;
     if (!el) return;
+    if (chat.windowed) {
+      chat.toNewest();
+      setAtBottom(true);
+      return;
+    }
     const rule = el.querySelector('[data-unread-rule]');
     if (rule && unreadCount > 0) rule.scrollIntoView({ block: 'start', behavior: 'smooth' });
     else el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
@@ -139,6 +178,7 @@ export function Chat({
 
   return (
     <div className={css.column}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
       <ScrollArea scrollRef={scroller} onEdges={onEdges} label={`Conversation with ${residentName}`}>
         <div className={css.list}>
           {chat.more && <div className={css.older}>{chat.loadingOlder ? 'Reading back…' : '·'}</div>}
@@ -190,10 +230,12 @@ export function Chat({
           ))}
         </div>
       </ScrollArea>
+      <Navigator residentId={residentId} placeAt={placeAt} onJump={jumpTo} />
+      </div>
 
-      {!atBottom && (
+      {(!atBottom || chat.windowed) && (
         <button type="button" className={css.jump} onClick={jump}>
-          {unreadCount > 0 ? `↓ ${unreadCount} new` : '↓'}
+          {chat.windowed ? '↓ Back to now' : unreadCount > 0 ? `↓ ${unreadCount} new` : '↓'}
         </button>
       )}
 
@@ -250,7 +292,9 @@ function MessageView({
     return (
       <>
         {rule}
-        <div className={css.mine}>{m.content}</div>
+        <div className={css.mine} data-turn={m.turn_ref} data-at={m.instant_inferred ? undefined : m.sent_at}>
+          {m.content}
+        </div>
         <div style={{ alignSelf: 'flex-end' }}>{reacts}</div>
       </>
     );
@@ -259,7 +303,7 @@ function MessageView({
     return (
       <>
         {rule}
-        <div className={css.hers}>
+        <div className={css.hers} data-turn={m.turn_ref} data-at={m.instant_inferred ? undefined : m.sent_at}>
           <Markdown text={m.content} onCite={onCite} />
           <div className={css.meta}>
             {m.instant_inferred ? 'time unknown' : hhmm(m.sent_at)}

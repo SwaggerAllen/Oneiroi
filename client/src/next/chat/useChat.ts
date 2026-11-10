@@ -44,17 +44,20 @@ export function useChat(residentId: string, live: Live) {
   const [stream, setStream] = useState<Stream | null>(null);
   const [outbox, setOutbox] = useState<Outgoing[]>([]);
   const pagedBack = useRef(false);
+  // A jump far back (the navigator) reads a window around its anchor; the
+  // newest page stops merging in until the reader returns to the end.
+  const [windowed, setWindowed] = useState<{ anchor: string; moreAfter: boolean } | null>(null);
 
   // The newest page merged in whenever it is read again.
   useEffect(() => {
-    if (!newest.data) return;
+    if (!newest.data || windowed) return;
     setMessages((loaded) => mergeNewest(loaded, newest.data.messages));
     // Once older pages are in, whether more remain is theirs to say.
     if (!pagedBack.current) setMore(newest.data.more);
     // A turn's messages landing settle its outbox entries.
     const answered = new Set(newest.data.messages.map((m) => m.turn_ref));
     setOutbox((items) => settle(items, answered));
-  }, [newest.data]);
+  }, [newest.data, windowed]);
 
   // The outbox survives a reload of this browser.
   useEffect(() => {
@@ -141,6 +144,27 @@ export function useChat(residentId: string, live: Live) {
     }
   }, [residentId, key, loadingOlder, more, messages]);
 
+  const jumpTo = useCallback(
+    async (anchor: string) => {
+      if (!key) return;
+      const page = await api.transcriptAround(residentId, key, anchor, PAGE);
+      pagedBack.current = true;
+      setMessages(page.messages);
+      setMore(page.more_before);
+      setWindowed({ anchor: page.anchor ?? anchor, moreAfter: page.more_after });
+    },
+    [residentId, key],
+  );
+
+  const toNewest = useCallback(() => {
+    pagedBack.current = false;
+    setWindowed(null);
+    if (newest.data) {
+      setMessages(newest.data.messages);
+      setMore(newest.data.more);
+    }
+  }, [newest.data]);
+
   const working = outbox.some((i) => underWay.includes(i.state)) || stream !== null;
   const pending = outbox.filter((i) => !messages.some((m) => m.turn_ref === i.ref || (i.into && m.turn_ref === i.into)));
 
@@ -156,6 +180,9 @@ export function useChat(residentId: string, live: Live) {
     working,
     send,
     stop,
+    jumpTo,
+    toNewest,
+    windowed,
     newestCursor: newestCursor(messages),
     compareCursor,
   };
