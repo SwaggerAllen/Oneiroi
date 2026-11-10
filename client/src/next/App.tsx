@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
-import { Login } from '../app/Login';
 import { Live } from './live/live';
 import { ChatTab } from './chat/ChatTab';
 import { Operator } from './operator/Operator';
@@ -13,6 +12,9 @@ import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import { SubjectContext } from './state/resident';
 import { Theme } from './theme/Theme';
+import { Auth } from './onboarding/Auth';
+import { Creation } from './onboarding/Creation';
+import { Landing } from './onboarding/Landing';
 
 const queries = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } },
@@ -39,26 +41,27 @@ function Splash() {
 function Boot() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false });
   const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents, enabled: me.isSuccess });
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [door, setDoor] = useState<'landing' | 'new' | 'in'>(() => (window.location.hash === '#/welcome' ? 'in' : 'landing'));
 
   if (me.isPending) return <Splash />;
   if (me.error instanceof RequestFailed && me.error.status === 401) {
+    // Signed out: the landing page, then Welcome in (ui-build.md P6).
+    if (door === 'landing') return <Landing onInvite={() => setDoor('new')} onSignIn={() => setDoor('in')} />;
     return (
-      <Login
-        error={loginError}
-        onLogin={(email, password) =>
-          api
-            .login(email, password)
-            .then(() => me.refetch())
-            .catch((e: Error) => setLoginError(e.message))
-        }
+      <Auth
+        start={door}
+        onBack={() => setDoor('landing')}
+        onIn={() => {
+          void me.refetch();
+          void residents.refetch();
+        }}
       />
     );
   }
   if (residents.isPending) return <Splash />;
   const resident = residents.data?.[0];
   if (!resident) {
-    return <div className={css.empty}>No resident yet. Creation lives in the current client for now.</div>;
+    return <Creation onWoken={() => void residents.refetch()} />;
   }
   return (
     <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
