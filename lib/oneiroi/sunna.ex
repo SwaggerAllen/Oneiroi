@@ -447,6 +447,10 @@ defmodule Oneiroi.Sunna do
     do: Schedules.set_quiet_hours(resident_id, from, to, actor)
   )
 
+  @doc "Whether the resident's quiet hours hold now, in her zone."
+  @spec quiet_now?(String.t()) :: boolean()
+  defexport(quiet_now?(resident_id), do: Schedules.quiet_now?(resident_id))
+
   @doc "Sets a date (a new row when number is nil): title, instant, kind; returns the number."
   @spec set_date(String.t(), pos_integer() | nil, map(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}

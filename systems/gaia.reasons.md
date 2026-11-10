@@ -168,3 +168,19 @@ place he changes his other ones; one on the server's shell is the
 operator's, and the witness and the operator are not always the same
 person. Kept as the key is kept, encrypted, wrapped, and out of the
 export, because it is the same kind of thing.
+
+## #25
+The answer is the witness's about himself, so it belongs on his
+account, not on a device or a resident: one "No thanks" should hold on
+every screen he opens. Subscribing is a clearer answer than any button,
+so it counts. An unsubscribe does not reopen the question, because
+taking a device away is not asking to be asked again.
+
+## #26
+Deduplication lives in the aggregate because only the aggregate decides
+atomically: two workers reading the same list at once both ask, and one
+of them gets the event. On the account stream the record is the
+witness's and stays out of her export, where a list of which of her
+pending things he was buzzed about would be his business, not hers.
+The push stays empty for the reason #15 gave: nothing of hers passes
+through a push service, not even the name of what waits.

@@ -419,6 +419,12 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
+  @doc "Whether the resident's quiet hours hold now, in her zone (brain#77: the needs-you push waits them out)."
+  def quiet_now?(resident_id) do
+    settings = Scope.resident(resident_id, fn -> Store.settings() end)
+    quiet?(local_now(resident_id), quiet_of(settings))
+  end
+
   @doc "Whether a local instant falls inside quiet hours, which may cross midnight."
   def quiet?(_local, nil), do: false
 

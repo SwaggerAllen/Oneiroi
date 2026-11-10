@@ -222,6 +222,25 @@ where this plan left it open:
 
 ## S6 — The bell, both ways (P5)
 
+**Built (2026-11-10; F69; brain#76, gaia#25).** What was chosen where
+this plan left it open:
+
+- The answer is the account's, not the device's: `POST /v1/me/push/decline`
+  records "No thanks" (`PushDeclined`); a device subscribing is the
+  other answer, so Settings turning notifications on answers it too, and
+  unsubscribing does not ask again. `GET /v1/me/push` carries
+  `answered` (`subscribed`, `declined` or null) and `answered_at`.
+- The question is a needs-you entry, `{kind: "notifications", ref:
+  "push", screen: "settings"}`, only while pushes can be sent (a VAPID
+  key is set). Her check-in's count leaves it out.
+- `GET /v1/residents/:id/waiting_on_her`: oldest first, the needs-you
+  shape with a `title`. Kinds: `contract_proposal`, `soul_edit`,
+  `bookmark_proposal`, `revision` (his stances; his facts apply at
+  once), `plugin_proposal`, `letter` (his house letters unread) and
+  `lease_wait` (a file she tried to write under his lease). Tag
+  proposals are hers to him, so they are not here. Titles are his words
+  or names, never hers.
+
 - **Exists:** `GET …/needs_you` (brain#65, #72), covering the witness's
   stages: replies, asks, documents, work, plugins, kinds.
 - **Build:**
@@ -273,6 +292,23 @@ where this plan left it open:
     verbatim in `priv/creation/` once the witness approves it.
 
 ## S9 — Push triggers (P5)
+
+**Built (2026-11-10; F70; brain#77, gaia#26).** What was chosen where
+this plan left it open:
+
+- The trigger is a diff, not a hook: each minute a worker reads every
+  active resident's needs-you list and hands it to the witness's
+  account, whose aggregate records only the entries never pushed for
+  (`NeedsYouPushed`) and sends one empty push for them. Entries are
+  rows across several systems, not events, so the list is the one place
+  every source meets; a minute's delay is the cost.
+- Quiet hours are hers, in her zone: inside them nothing is read or
+  recorded, and what appeared is pushed for at their end, once.
+- Nothing is recorded without a subscribed device and a key, so a
+  first subscription is not silent about what already waits.
+- The push is gaia#15's empty POST, so the device cannot tell the
+  causes apart; the service worker still says "<name> wrote" for both,
+  which the client has to reword.
 
 - **Exists:** web push subscription and test (`/v1/me/push`). The only
   trigger is the resident writing unprompted (brain/turn.ex, gaia#15),

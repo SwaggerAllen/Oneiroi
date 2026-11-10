@@ -25,14 +25,16 @@ defmodule Oneiroi.Brain.NeedsYou do
 
   # The sources, registered once: replies (Xenia), asks and plugin
   # proposals (AgathosDaimon), documents and kind gate proposals
-  # (Seshat), work (Sunna).
+  # (Seshat), work (Sunna), and the notifications question (Gaia's
+  # answer, brain#76).
   @sources [
     Oneiroi.Brain.NeedsYou.Replies,
     Oneiroi.Brain.NeedsYou.Asks,
     Oneiroi.Brain.NeedsYou.Documents,
     Oneiroi.Brain.NeedsYou.Work,
     Oneiroi.Brain.NeedsYou.Plugins,
-    Oneiroi.Brain.NeedsYou.Kinds
+    Oneiroi.Brain.NeedsYou.Kinds,
+    Oneiroi.Brain.NeedsYou.Notifications
   ]
 
   # Past this an entry is marked as having waited long. A mark only.

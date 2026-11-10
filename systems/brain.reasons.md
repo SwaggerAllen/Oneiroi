@@ -692,3 +692,32 @@ The tool's answer is the only way she learns why a write did not land;
 a refusal would read as an error in her words, and silence would read
 as written. Saying when to try again, and that nothing is held for
 her, keeps her from assuming the platform will finish it.
+
+## #76
+The question is asked once per person, not per device: a "No thanks"
+kept on one phone would ask again on the next, and a witness told the
+same thing twice learns to stop reading the bell. Recording the answer
+on the account, and letting a subscription count as one, means the
+bell clears however he answered. It is asked only where a push could be
+sent, since asking for what cannot be given wastes his attention. It is
+kept out of her check-in because it is about his devices; her count is
+what he owes her. The second list exists because the bell was
+one-sided: he could see what waited on him but not what he had left
+with her, and an unanswered proposal of his reads to him as silence.
+Titles are built from his words and from names alone, so a list of
+pending acts cannot become a way to read a private session.
+
+## #77
+Needs-you entries are not events: they are rows in several systems
+standing in a stage he holds. Hooking each event that moves a row into
+such a stage would need every source to remember to push, and the
+first one forgotten would be a silent gap; reading the list each minute
+and diffing it against what was pushed is one mechanism over every
+source, now and later, at the cost of a minute's delay. The sent set is
+the account aggregate's, so "once ever" holds under two runs at once
+and through a rebuild. Quiet hours are hers because the platform's
+rhythm is set by her day; waiting them out rather than dropping the
+push keeps "first appears" true without waking him. A push recorded
+while no device existed would make the first subscription silent about
+everything already waiting, so nothing is recorded until a device can
+hear it.
