@@ -4,6 +4,9 @@ import { font, status, vars, wide } from '../theme/contract.css';
 export const column = style({
   flex: 1,
   minHeight: 0,
+  // A flex item won't shrink below its content's width without this: one
+  // wide code line or table would push the conversation off the screen.
+  minWidth: 0,
   display: 'flex',
   flexDirection: 'column',
   width: '100%',
@@ -49,7 +52,8 @@ globalStyle(`${prose} pre`, { background: vars.color.groundDeep, padding: 12, bo
 globalStyle(`${prose} pre code`, { background: 'none', padding: 0 });
 globalStyle(`${prose} blockquote`, { margin: 0, paddingLeft: 12, borderLeft: `2px solid ${vars.color.resident.border}`, fontStyle: 'italic', color: vars.color.textMuted });
 globalStyle(`${prose} ul, ${prose} ol`, { paddingLeft: 22, margin: '0 0 10px' });
-globalStyle(`${prose} table`, { borderCollapse: 'collapse', font: `14px ${font.ui}` });
+// A wide table scrolls inside the message rather than widening it.
+globalStyle(`${prose} table`, { display: 'block', maxWidth: '100%', overflowX: 'auto', borderCollapse: 'collapse', font: `14px ${font.ui}` });
 globalStyle(`${prose} th, ${prose} td`, { border: `1px solid ${vars.color.border}`, padding: '4px 8px' });
 
 export const chip = style({
