@@ -55,10 +55,12 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     it. "↓ Back to now" returns to the live end.
   - Search is the one global search, not a drawer here (decided).
 
+- **Mail**, the third view beside Conversation and Sessions: letters,
+  outside mail and blocks (`screens/next-mail.md`).
+
 Not built:
 - a day-level zoom on the navigator: on the two-week track, scenes
   minutes apart overlap, and only the top one takes a pointer (the
   keyboard reaches each);
 - reading a non-main session's transcript from Sessions;
 - message virtualization;
-- motion.

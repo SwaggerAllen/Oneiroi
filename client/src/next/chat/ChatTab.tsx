@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import type { Live } from '../live/live';
 import { useShell } from '../state/store';
+import { Mail } from '../inbox/Mail';
 import { Chat } from './Chat';
 import * as css from './chatTab.css';
 import { documentPath, type Citation } from './cite';
 import { Peek } from './Peek';
 import { Sessions } from './Sessions';
 
-/** The Chat tab (ui-structures.md D): Conversation | Sessions, and the peek. */
+/** The Chat tab (ui-structures.md D): Conversation | Sessions | Mail, and the peek. */
 export function ChatTab({ residentId, residentName, live, path }: { residentId: string; residentName: string; live: Live; path: string }) {
-  const [view, setView] = useState<'conversation' | 'sessions'>('conversation');
+  const [view, setView] = useState<'conversation' | 'sessions' | 'mail'>(() => (path === 'mail' ? 'mail' : 'conversation'));
   const [peek, setPeek] = useState<Citation | null>(null);
   const setTab = useShell((s) => s.setTab);
   const push = useShell((s) => s.push);
@@ -19,6 +20,7 @@ export function ChatTab({ residentId, residentName, live, path }: { residentId: 
   const jump = session && turn ? { session, turn } : null;
   useEffect(() => {
     if (path.startsWith('turn/')) setView('conversation');
+    if (path === 'mail') setView('mail');
   }, [path]);
 
   const openFully = (c: Citation) => {
@@ -35,7 +37,7 @@ export function ChatTab({ residentId, residentName, live, path }: { residentId: 
         selectionMode="single"
         disallowEmptySelection
         selectedKeys={[view]}
-        onSelectionChange={(keys) => setView([...keys][0] as 'conversation' | 'sessions')}
+        onSelectionChange={(keys) => setView([...keys][0] as 'conversation' | 'sessions' | 'mail')}
         className={css.switcher}
       >
         <ToggleButton id="conversation" className={css.option}>
@@ -43,6 +45,9 @@ export function ChatTab({ residentId, residentName, live, path }: { residentId: 
         </ToggleButton>
         <ToggleButton id="sessions" className={css.option}>
           Sessions
+        </ToggleButton>
+        <ToggleButton id="mail" className={css.option}>
+          Mail
         </ToggleButton>
       </ToggleButtonGroup>
       <div className={css.body}>
@@ -53,6 +58,9 @@ export function ChatTab({ residentId, residentName, live, path }: { residentId: 
         </div>
         <div className={css.pane} hidden={view !== 'sessions'}>
           <Sessions residentId={residentId} onConversation={() => setView('conversation')} />
+        </div>
+        <div className={css.pane} hidden={view !== 'mail'}>
+          {view === 'mail' && <Mail />}
         </div>
       </div>
     </div>

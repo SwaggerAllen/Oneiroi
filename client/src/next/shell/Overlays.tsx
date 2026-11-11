@@ -9,6 +9,7 @@ import { useShell } from '../state/store';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
 import { ThemeSheet } from './ThemeSheet';
+import { Answer, answersInPlace } from '../inbox/Answers';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
@@ -70,7 +71,7 @@ const HERS: Record<string, string> = {
 };
 
 const hrefFor = (screen: string) =>
-  screen === 'agreement' || screen === 'soul' ? '#/soul' : screen === 'library' ? '#/records' : screen === 'chat' ? '#/chat' : `/client/#${screen}`;
+  screen === 'agreement' || screen === 'soul' ? '#/soul' : screen === 'library' ? '#/records' : screen === 'chat' ? '#/chat/mail' : screen === 'inbox' ? '#/chat/mail' : `/client/#${screen}`;
 
 function Bell() {
   const { id, name } = useSubject();
@@ -95,6 +96,18 @@ function Bell() {
       {entries.map((e) =>
         e.kind === 'theme_proposal' ? (
           <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} />
+        ) : answersInPlace(e.kind) ? (
+          <details key={`${e.kind}-${e.ref}`} className={css.item}>
+            <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span className={css.itemKind}>
+                {WORDS[e.kind] ?? e.kind}
+                {e.long ? ' · A WHILE' : ''}
+              </span>
+              <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
+              <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+            </summary>
+            <Answer entry={e} />
+          </details>
         ) : (
           <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen)} onClick={() => setOverlay(null)}>
             <span className={css.itemKind}>
@@ -274,7 +287,7 @@ function Settings() {
         <Row href="/client/#notifications" label="Notifications" />
         <Row href="/client/#regression" label="Regression" />
         <Row href="/client/#work" label="Work queue" />
-        <Row href="/client/#correspondence" label="Correspondence" />
+        <Row href="#/chat/mail" label="Mail and correspondence" onClick={() => setOverlay(null)} />
       </nav>
       <nav className={css.group} aria-label="You">
         <Row label="Send feedback" onClick={() => setOverlay('feedback')} />

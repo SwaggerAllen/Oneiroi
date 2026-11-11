@@ -16,8 +16,9 @@ header's bell and gear. Built 2026-11-10.
   unanswered (decided 2026-11-10).
   - Each entry names what it is, what it concerns, and how long it has
     waited.
-  - An agreement entry opens Soul; the others open their screen in the
-    current client until those screens are rebuilt.
+  - Asks, reply drafts, replies to send and pieces are answered in
+    place (`screens/next-mail.md`); an agreement entry opens Soul; work,
+    plugin and kind-gate entries link to where they are decided.
   - Her theme proposal (seshat#56) shows in place: her ground with both
     accents on it and her note; "Try it on" wears it until the bell
     closes; answered Accept or Decline with a note she reads.
