@@ -214,3 +214,33 @@ and `mix oneiroi.sima_qian.rebuild <repo> --witness <account id>` against
 a second database. The export of the rebuilt resident is byte-identical
 up to the `Imported` line; the test suite asserts the same against a
 local bare repository on every PR.
+
+## 7. A local app server
+
+For trying the client against a real server on your own machine:
+`bin/dev up`, then <http://localhost:4000/client/index.html>, signed in
+as `dev@oneiroi.local` / `oneiroi-dev-password`. The script:
+
+- starts the Postgres container (`oneiroi-pg`, Postgres 16 with
+  pgvector, user and password `oneiroi`, port 5432; Docker Desktop has
+  to be running), migrates `oneiroi_dev`, and seeds it
+  (`mix oneiroi.dev.seed`): that account and one resident, Wren, whose
+  conversation already holds a long paragraph, a code block with a line
+  far wider than a phone, a wide table and an unbreakable word;
+- builds the client into the server and rebuilds it on every save
+  (reload the page to see a change);
+- runs the server on the in-memory provider, which answers each message
+  by repeating it and spends nothing. `bin/dev up --live` uses
+  OpenRouter instead, on the key stored for the account, and spends.
+  The provider is fixed when the code compiles, so the in-memory server
+  builds into `_build/dev_fake` and switching recompiles neither.
+
+`bin/dev status` says what runs, `bin/dev logs` follows the server,
+`bin/dev down` stops it, and `bin/dev reset` drops `oneiroi_dev` and
+starts again from the seed. The seed refuses any database whose name
+does not end in `_dev`, and nothing here reaches a deployment. Logs and
+process ids are under `tmp/dev/`.
+
+Keep the checkout out of a synced folder. iCloud's Desktop and
+Documents sync made " 2" copies of 450 files in this tree on
+2026-11-07, and the copied Elixir modules broke the local compile.

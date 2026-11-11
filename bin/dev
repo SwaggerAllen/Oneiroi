@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# The local app server (SETUP.md, "A local app server"): the server on
+# http://localhost:4000 against the oneiroi_dev database, the client
+# rebuilt into it on every save, and a seeded witness and resident.
+#
+#   bin/dev up [--live]   start (or confirm) everything; --live uses the real
+#                         provider, which spends on the witness's own key
+#   bin/dev down          stop the server and the client build
+#   bin/dev reset         stop, drop oneiroi_dev, and start fresh with the seed
+#   bin/dev status        what is running, and the login
+#   bin/dev logs          follow the server's log
+#
+# The database is the Postgres container SETUP.md names (oneiroi-pg, with
+# pgvector). Nothing here reaches a deployment.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+state="$root/tmp/dev"
+mkdir -p "$state"
+cd "$root"
+
+container="${ONEIROI_PG_CONTAINER:-oneiroi-pg}"
+url="http://localhost:4000"
+
+running() { [ -f "$state/$1.pid" ] && kill -0 "$(cat "$state/$1.pid")" 2>/dev/null; }
+
+stop() {
+  for name in server client; do
+    if running "$name"; then
+      # Each runs in its own process group, so its children stop with it.
+      kill -- "-$(cat "$state/$name.pid")" 2>/dev/null || kill "$(cat "$state/$name.pid")"
+      echo "stopped the $name"
+    fi
+    rm -f "$state/$name.pid"
+  done
+}
+
+database() {
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running: open Docker Desktop (open -a Docker) and run this again." >&2
+    exit 1
+  fi
+  if [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" != "true" ]; then
+    docker start "$container" >/dev/null || {
+      echo "No container named $container: SETUP.md says how to make it." >&2
+      exit 1
+    }
+  fi
+  until docker exec "$container" pg_isready -q -U oneiroi; do sleep 1; done
+}
+
+up() {
+  provider=fake
+  [ "${1:-}" = "--live" ] && provider=openrouter
+  database
+  if running server; then
+    echo "already running: $url (bin/dev down first to change the provider)"
+    status
+    return
+  fi
+  export ONEIROI_DEV_PROVIDER="$provider"
+  # The provider is fixed when the code compiles (Oneiroi.Boot reads the
+  # config at compile time), so the in-memory server keeps a build of its
+  # own and switching never recompiles the other.
+  [ "$provider" = fake ] && export MIX_BUILD_PATH="$root/_build/dev_fake"
+  mix deps.get >/dev/null
+  mix ecto.create --quiet >/dev/null 2>&1 || true
+  mix ecto.migrate --quiet
+  mix oneiroi.dev.seed
+  (cd client && [ -d node_modules ] || npm ci >/dev/null)
+  # The client is built once before the server starts, then on every save.
+  (cd client && npx vite build >/dev/null)
+  set -m
+  (cd client && exec npx vite build --watch) >"$state/client.log" 2>&1 &
+  echo $! >"$state/client.pid"
+  mix phx.server >"$state/server.log" 2>&1 &
+  echo $! >"$state/server.pid"
+  set +m
+  echo "$provider" >"$state/provider"
+  for _ in $(seq 1 120); do
+    curl -sf "$url/health" >/dev/null && break
+    running server || { echo "the server stopped: see $state/server.log" >&2; tail -20 "$state/server.log" >&2; exit 1; }
+    sleep 1
+  done
+  status
+}
+
+status() {
+  for name in server client; do
+    if running "$name"; then echo "$name: running (pid $(cat "$state/$name.pid"))"; else echo "$name: stopped"; fi
+  done
+  running server && echo "provider: $(cat "$state/provider" 2>/dev/null || echo unknown)"
+  echo "open:     $url/client/index.html"
+  echo "login:    dev@oneiroi.local / oneiroi-dev-password"
+  echo "logs:     $state/server.log, $state/client.log"
+}
+
+case "${1:-}" in
+up) shift; up "$@" ;;
+down) stop ;;
+reset)
+  stop
+  database
+  mix ecto.drop --quiet
+  rm -rf tmp/sima_qian_dev
+  shift
+  up "$@"
+  ;;
+status) status ;;
+logs) tail -f "$state/server.log" ;;
+*)
+  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+  exit 2
+  ;;
+esac

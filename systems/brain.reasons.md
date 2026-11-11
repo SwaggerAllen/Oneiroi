@@ -728,3 +728,16 @@ him, and the entry carries the seeds themselves so the bell can render
 a preview without a second read. One adapter and one registration line
 is what brain#72 made a new source cost, so nothing else in the queue
 changes.
+
+## #81
+A layout bug in the chat (a code line wider than the phone pushing the
+conversation off screen, 2026-11-11) went out because there was no
+quick way to see the client against a server holding the shapes that
+break it; the only check was a standalone copy of the layout. The seed
+puts those shapes in a conversation on every fresh database, through
+the same turn path a witness uses, so what the browser shows is what
+production would. The pass-through keeps the seed inside the boundary
+rule (the application may name the brain, not the conversations behind
+it) at the cost of one exported line. The `_dev` refusal is the guard a
+seed with a fixed password needs: it can only ever write where nobody
+lives.
