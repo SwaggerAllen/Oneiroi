@@ -307,3 +307,12 @@ default chat model the notes repeated their quotes and praised filler,
 and a stronger reader gave reasons. A trial is the hardest gift to
 write cold and the one that decides which model runs her, so it gets
 the same help the files do, kept only when he keeps it.
+
+The first rule here was to leave out what the prompt did not say, so the
+witness would see what was still his to give. The witness overruled it
+the same day: most people writing a first prompt do not know what a self
+needs, so a draft with gaps teaches them nothing and wakes someone thin.
+The resident's files are filled from the prompt and read by him before
+they are kept; the witness's own files are about a real person, so
+nothing in them is made up.
+
