@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { formatHash, isTabHash, parseHash, TABS, type Tab } from '../state/routes';
+import { SettingsPage } from '../settings/SettingsPage';
+import { formatHash, formatSettings, isTabHash, parseHash, parseSettings, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
 import { Header } from './Header';
 import { usePushSlide, useTabDissolve } from './motion';
@@ -20,26 +21,36 @@ export interface ShellProps {
   renderTab: (tab: Tab, path: string) => ReactNode;
 }
 
-/** Keeps the URL and the stacks in step, both ways. */
+/**
+ * Keeps the URL and the stacks in step, both ways. A settings page
+ * (`#/settings/<section>`) sits over the tabs: arriving at one opens it,
+ * and leaving it (Back, a tab, the browser's back) returns the URL to
+ * the tab underneath. Any other hash (`#/operator`) is left alone.
+ */
 function useHashSync() {
   const go = useShell((s) => s.go);
+  const setPage = useShell((s) => s.setPage);
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
+  const page = useShell((s) => s.page);
 
   useEffect(() => {
     const read = () => {
-      if (isTabHash(window.location.hash)) go(parseHash(window.location.hash));
+      const section = parseSettings(window.location.hash);
+      if (section) setPage(section);
+      else if (isTabHash(window.location.hash)) go(parseHash(window.location.hash));
     };
     read();
     window.addEventListener('hashchange', read);
     return () => window.removeEventListener('hashchange', read);
-  }, [go]);
+  }, [go, setPage]);
 
   useEffect(() => {
-    const hash = formatHash({ tab, path: topOf(stacks, tab) });
-    if (!isTabHash(window.location.hash)) return;
-    if (window.location.hash !== hash) window.history.pushState(null, '', hash);
-  }, [tab, stacks]);
+    const now = window.location.hash;
+    if (!isTabHash(now) && !parseSettings(now)) return;
+    const hash = page ? formatSettings(page) : formatHash({ tab, path: topOf(stacks, tab) });
+    if (now !== hash) window.history.pushState(null, '', hash);
+  }, [tab, stacks, page]);
 }
 
 export function Shell({ residentId, residentName, waiting, onReconnect, renderTab }: ShellProps) {
@@ -48,6 +59,8 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
   const stacks = useShell((s) => s.stacks);
   const setTab = useShell((s) => s.setTab);
   const setOverlay = useShell((s) => s.setOverlay);
+  const page = useShell((s) => s.page);
+  const setPage = useShell((s) => s.setPage);
   const { leaving, ref } = useTabDissolve(tab);
   const wide = useWide();
   // On a wide screen Records and Time show the list beside the page, so
@@ -70,14 +83,19 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
               if (t === tab && el !== active) setActive(el);
             }}
             className={css.panel}
-            hidden={t !== tab && t !== leaving}
+            hidden={page !== null || (t !== tab && t !== leaving)}
             data-leaving={t === leaving || undefined}
             aria-label={t}
-            inert={t !== tab}
+            inert={page !== null || t !== tab}
           >
             {renderTab(t, topOf(stacks, t))}
           </section>
         ))}
+        {page && (
+          <section className={css.panel} aria-label="settings">
+            <SettingsPage section={page} onBack={() => setPage(null)} />
+          </section>
+        )}
       </main>
       <TabBar active={tab} onSelect={setTab} />
       <SearchSheet residentId={residentId} residentName={residentName} />

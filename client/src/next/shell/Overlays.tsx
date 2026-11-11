@@ -5,6 +5,7 @@ import { api } from '../../api/client';
 import type { NeedsYouEntry } from '../../api/types';
 import { turnOn } from '../../app/push';
 import { useSubject } from '../state/resident';
+import type { SettingsSection } from '../state/routes';
 import { useShell } from '../state/store';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
@@ -254,26 +255,30 @@ function Row({ href, label, detail, onClick }: { href?: string; label: string; d
 
 /**
  * Settings (ui-structures.md D): the aggregates and the account. Each
- * section opens in the current client until it is rebuilt here.
+ * section opens as its own page over the tabs (`#/settings/<section>`,
+ * screens/next-settings.md); Correspondence still opens in the current
+ * client.
  */
 function Settings() {
-  const { id } = useSubject();
   const setOverlay = useShell((s) => s.setOverlay);
+  const setPage = useShell((s) => s.setPage);
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
-  const ledger = useQuery({ queryKey: ['resident', id, 'settings', 'ledger'], queryFn: () => api.ledger(id) });
   const operator = (me.data?.roles ?? []).some((r) => r === 'super_admin' || r === 'admin');
-  const spent = ledger.data ? JSON.stringify(ledger.data).match(/"spent[^"]*":\s*(\d+)/) : null;
+  const open = (section: SettingsSection) => () => {
+    setOverlay(null);
+    setPage(section);
+  };
 
   return (
     <div className={css.stack}>
       <nav className={css.group} aria-label="This resident">
         <Row label="Theme" onClick={() => setOverlay('theme')} />
-        <Row href="/client/#ledger" label="Ledger" detail={spent ? '›' : undefined} />
-        <Row href="/client/#kinds" label="Kinds and routes" />
-        <Row href="/client/#connections" label="Profiles, keys and connections" />
-        <Row href="/client/#notifications" label="Notifications" />
-        <Row href="/client/#regression" label="Regression" />
-        <Row href="/client/#work" label="Work queue" />
+        <Row label="Ledger" onClick={open('ledger')} />
+        <Row label="Kinds and routes" onClick={open('kinds')} />
+        <Row label="Profiles, keys and connections" onClick={open('connections')} />
+        <Row label="Notifications" onClick={open('notifications')} />
+        <Row label="Regression" onClick={open('regression')} />
+        <Row label="Work queue" onClick={open('work')} />
         <Row href="/client/#correspondence" label="Correspondence" />
       </nav>
       <nav className={css.group} aria-label="You">

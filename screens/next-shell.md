@@ -33,6 +33,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   - Every tab stays mounted, with its own stack. The URL hash tracks the
     active tab's top (`#/records/doc/…`), and switching tabs keeps each
     tab where it was.
+  - A settings page (`#/settings/<section>`, `screens/next-settings.md`) sits
+    over the tabs inside the same shell: the header and tab bar stay, the
+    tabs stay mounted underneath, and Back, a tab, or the browser's back
+    returns to the tab as it was.
 - **Live.**
   - One socket. It joins `resident:<id>` (apsu#24), applies notices as
     query invalidations by stream, coalesces repeats on `position`, and

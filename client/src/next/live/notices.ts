@@ -18,7 +18,7 @@ const BY_PREFIX: Record<string, Area[]> = {
   reacts: ['chat'],
   memory: ['memory', 'chat', 'bell'],
   library: ['records', 'bell'],
-  kinds: ['records', 'bell'],
+  kinds: ['records', 'bell', 'settings'],
   routes: ['records', 'settings'],
   judgement: ['records'],
   ethos: ['records', 'soul'],
@@ -29,10 +29,10 @@ const BY_PREFIX: Record<string, Area[]> = {
   governance: ['soul', 'bell'],
   ledger: ['settings'],
   subscription: ['settings'],
-  xenia: ['bell'],
+  xenia: ['bell', 'settings'],
   asks: ['bell'],
   pieces: ['bell'],
-  work: ['sessions', 'bell'],
+  work: ['sessions', 'bell', 'settings'],
   plugins: ['soul', 'bell'],
 };
 
