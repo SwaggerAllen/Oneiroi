@@ -50,6 +50,10 @@ defmodule OneiroiWeb.ContractTest do
     {:delete, "/v1/me/key", %{anonymous: 401, session: 404, token: 404}},
     {:put, "/v1/me/github-token", %{anonymous: 401, session: 422, token: 422}},
     {:delete, "/v1/me/github-token", %{anonymous: 401, session: 404, token: 404}},
+    {:get, "/v1/household", %{anonymous: 401, session: 200, token: 200}},
+    {:get, "/v1/household/contract", %{anonymous: 401, session: 200, token: 200}},
+    {:post, "/v1/household/contract", %{anonymous: 401, session: 422, token: 422}},
+    {:post, "/v1/household/votes", %{anonymous: 401, session: 422, token: 422}},
     {:delete, "/v1/session", %{anonymous: 204, session: 204, token: 204}}
   ]
 

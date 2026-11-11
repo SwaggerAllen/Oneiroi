@@ -124,12 +124,23 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :account_id]
   end
 
+  # Version 2 adds `signed_version` (gaia#28): the household contract's
+  # version in force when the member joined, which joining signs; nil on
+  # a version 1 membership and wherever no contract had been proposed.
   defmodule HouseholdWitnessJoined do
-    use Oneiroi.Event, version: 1, fields: [:id, :account_id]
+    use Oneiroi.Event, version: 2, fields: [:id, :account_id, :signed_version]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HouseholdWitnessJoined do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HouseholdResidentJoined do
-    use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
+    use Oneiroi.Event, version: 2, fields: [:id, :resident_id, :signed_version]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HouseholdResidentJoined do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HouseholdResidentLeft do
@@ -145,6 +156,61 @@ defmodule Oneiroi.Gaia.Events do
       fields: [:id, :plan, :price_nanos, :terms_until, :source],
       instants: [:terms_until],
       decision: true
+  end
+
+  # The household contract (gaia#27, #28): versioned prose, rules and
+  # settings, the dyad contract's pattern at the household's scale. The
+  # founding witness proposes version 1, prose alone; it is in force at
+  # once, and proposing it is the founder's signature.
+  defmodule HouseholdContractProposed do
+    use Oneiroi.Event, version: 1, fields: [:id, :version, :prose], decision: true
+  end
+
+  # A member's signature of the version in force, for a member who joined
+  # before there was one; joining after signs on the membership itself.
+  defmodule HouseholdContractSigned do
+    use Oneiroi.Event, version: 1, fields: [:id, :member_kind, :member_id, :version]
+  end
+
+  # A ballot (gaia#29): a bundle of rules and settings fixed here, on the
+  # thread whose trunk states it, with the term its proposer set.
+  defmodule HouseholdBallotOpened do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ballot, :thread, :bundle, :term_days, :closes_at],
+      instants: [:closes_at],
+      decision: true
+  end
+
+  # One vote a member, witness or resident, while the term runs (gaia#30).
+  defmodule HouseholdBallotVoted do
+    use Oneiroi.Event, version: 1, fields: [:id, :ballot, :member_kind, :member_id, :vote]
+  end
+
+  # The term closed: the tally over the members at the close, and whether
+  # a majority of them carried the bundle (gaia#30).
+  defmodule HouseholdBallotClosed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ballot, :passed, :yes, :no, :members],
+      decision: true
+  end
+
+  # A ballot carried: the contract's next version, whole, with the bundle
+  # it adds (gaia#31).
+  defmodule HouseholdContractAmended do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :version, :ballot, :prose, :rules, :settings, :bundle],
+      decision: true
+  end
+
+  # The watch (gaia#32): a resident opts in to one thread until an instant.
+  defmodule HouseholdThreadWatched do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :thread, :until],
+      instants: [:until]
   end
 
   # An invite code (gaia#18), on `invite-<id>`: a SKU (plan, list price,

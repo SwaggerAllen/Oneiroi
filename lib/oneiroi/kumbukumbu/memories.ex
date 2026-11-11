@@ -838,6 +838,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
+  @doc "The sender a household watch's letter carries (seshat#62), which the tick wakes the chat for (sunna#49)."
+  def household_sender, do: "the household"
+
   @doc "A house letter from the oracle to the conversation `session_key` (brain#49); nothing when that conversation has no name."
   def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
     case name_of(resident_id, session_key) do
@@ -937,6 +940,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   # A platform report for the triage resident (gaia#20).
   defp sender(_resident_id, nil, %Actor{kind: :job, id: "platform_reports"}),
     do: {:ok, "a platform report"}
+
+  # A household thread's watch (seshat#62): the poke names the thread and
+  # the reply, and the tick wakes the chat for it (sunna#49).
+  defp sender(_resident_id, nil, %Actor{kind: :job, id: "household_watch"}),
+    do: {:ok, household_sender()}
 
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do

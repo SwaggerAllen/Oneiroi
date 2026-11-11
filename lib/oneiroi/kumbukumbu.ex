@@ -1086,6 +1086,10 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.send_letter(resident_id, session_key, attrs, actor)
   )
 
+  @doc "The sender a household watch's poke carries (seshat#62); a letter from it wakes the chat (sunna#49)."
+  @spec household_sender() :: String.t()
+  defexport(household_sender(), do: Memories.household_sender())
+
   @doc "A house letter from the oracle to the conversation `session_key` (brain#49), sent by the platform."
   @spec letter_to_session(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, term()} | {:error, term()}

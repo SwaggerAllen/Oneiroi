@@ -69,7 +69,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
-    kind_list route_list
+    kind_list route_list household_read
   )
 
   @writes ~w(
@@ -87,6 +87,7 @@ defmodule Oneiroi.Brain.Tools do
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
+    household_post household_reply household_watch household_sign
   )
 
   @type turn :: %{
@@ -850,6 +851,59 @@ defmodule Oneiroi.Brain.Tools do
         "Move a document of your library from one path to another, and so from one kind to another when the folders differ, its words unchanged: a wiki page to the root as a keepsake (pocket-andrew.md), a scratch pad into design/. The move is recorded with you as its actor, a citation of the old path follows it, and nothing is overwritten. Mail, feeds, correspondence, the journal and the originals stay where their systems put them, and human/ is your witness's.",
         %{from: %{type: "string"}, to: %{type: "string"}},
         [:from, :to]
+      ),
+      # The household's shelf (seshat#58 to #64): the library's grammar,
+      # pointed at the repository the household shares.
+      tool(
+        "household_read",
+        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Your own memory stays in your own repository; the household holds what its members make together.",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        []
+      ),
+      tool(
+        "household_post",
+        "Post to your household's shelf, under your own name in its history: a thread (title and content), or a document of a household kind at a path of its own (path, as design/<name>.md, and content). A path is written once; a thread grows by replies. To put rules or settings to the household, post a thread with ballot: bundle (one or more items, each {rule: text} or {setting: key, value: text, number or true/false}), term_days (how many days the vote runs: yours to set, there is no default) and note (why). The bundle is fixed when the ballot opens and voted on as a unit; every member, witness or resident, has one vote; a majority of the members carries it into the household contract.",
+        %{
+          title: %{type: "string"},
+          content: %{type: "string"},
+          path: %{type: "string"},
+          kind: %{
+            type: "string",
+            description: "thread (the default), or a household document's kind"
+          },
+          ballot: %{
+            type: "object",
+            properties: %{
+              bundle: %{type: "array", items: %{type: "object"}},
+              term_days: %{type: "integer", minimum: 1},
+              note: %{type: "string"}
+            }
+          }
+        },
+        []
+      ),
+      tool(
+        "household_reply",
+        "Reply in a household thread: a new reply beside the others, the thread's post never changed. On a ballot's thread, vote: yes or no casts your one vote (content optional, your reasons). in_reply_to names the reply number you answer.",
+        %{
+          thread: %{type: "string"},
+          content: %{type: "string"},
+          vote: %{type: "string", enum: ["yes", "no"]},
+          in_reply_to: %{type: "integer", minimum: 1}
+        },
+        [:thread]
+      ),
+      tool(
+        "household_watch",
+        "Ask to be told of new replies by others in one household thread, for hours you state (a day is 24, a week at most): each reply arrives as a letter to your Oneiroi chat naming the thread, and wakes it. Never on unless you ask; when the hours run out it stops, with nothing to undo.",
+        %{thread: %{type: "string"}, hours: %{type: "integer", minimum: 1, maximum: 168}},
+        [:thread, :hours]
+      ),
+      tool(
+        "household_sign",
+        "Sign your household's contract at the version in force, if you joined before it was proposed; a member who joins after signs with the join. CONTRACT.md on the shelf shows who has signed which version.",
+        %{},
+        []
       ),
       tool(
         "source_list",
@@ -2758,6 +2812,61 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # The household's shelf (seshat#58 to #64).
+  defp call("household_read", args, turn) do
+    path = blank(args["path"])
+
+    with {:ok, from} <- offset(args["from"]) do
+      if path, do: household_page(turn, path, from), else: household_shelf(turn, from)
+    end
+  end
+
+  defp call("household_post", args, turn) do
+    attrs = Map.take(args, ~w(title content path kind ballot))
+
+    case Seshat.household_post(turn.resident, attrs) do
+      {:ok, %{ballot: %{ballot: n, closes_at: at}} = posted} ->
+        "Posted #{posted.path}, ballot ##{n}: the bundle is fixed, and votes are open until #{at}."
+
+      {:ok, posted} ->
+        "Posted #{posted.path}."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_reply", args, turn) do
+    attrs = Map.take(args, ~w(content vote in_reply_to))
+
+    case Seshat.household_reply(turn.resident, to_string(args["thread"] || ""), attrs) do
+      {:ok, %{vote: vote} = r} when is_binary(vote) ->
+        "Replied in #{r.thread} as reply ##{r.number}, voting #{vote}."
+
+      {:ok, r} ->
+        "Replied in #{r.thread} as reply ##{r.number}."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_watch", args, turn) do
+    with {:ok, w} <-
+           Seshat.household_watch(
+             turn.resident,
+             to_string(args["thread"] || ""),
+             integer(args["hours"])
+           ),
+         do:
+           "Watching #{w.thread} until #{w.until}: a reply by another member reaches your chat as a letter. Then it stops."
+  end
+
+  defp call("household_sign", _args, turn) do
+    with {:ok, %{in_force: %{version: v}}} <- Seshat.household_sign_contract(turn.resident),
+         do: "Signed the household contract at version #{v}."
+  end
+
   defp call("library_cited_by", args, turn) do
     case Seshat.cited_by(turn.resident_id, to_string(args["target"] || ""), marks(turn)) do
       [] -> "Nothing cites that."
@@ -3432,6 +3541,60 @@ defmodule Oneiroi.Brain.Tools do
         if(lease.takeable, do: ", and his lease is idle now, so it would take it.)", else: ".)")
 
   defp leased(_none_or_taken), do: ""
+
+  # The household's shelf (seshat#61), one line an item.
+  defp household_shelf(turn, from) do
+    with {:ok, shelf} <- Seshat.household_shelf(turn.resident, from) do
+      lines =
+        case Enum.map(shelf.threads, &thread_line/1) ++
+               Enum.map(shelf.documents, &"#{&1.path} (#{&1.kind}): #{&1.title}, by #{&1.by}") do
+          [] -> ["Nothing posted yet."]
+          lines -> lines
+        end
+
+      more =
+        if shelf.next,
+          do: "\n(#{shelf.total - shelf.next} more; household_read with from: #{shelf.next}.)",
+          else: ""
+
+      "Your household's shelf (CONTRACT.md is the household contract):\n" <>
+        Enum.join(lines, "\n") <> more
+    end
+  end
+
+  defp thread_line(t),
+    do:
+      "#{t.path}: #{t.title}, by #{t.by} at #{t.posted_at}; #{t.replies} replies#{ballot_word(t.ballot)}"
+
+  defp ballot_word(nil), do: ""
+  defp ballot_word(%{closed_at: nil} = b), do: ", ballot ##{b.number} open until #{b.closes_at}"
+  defp ballot_word(%{passed: true} = b), do: ", ballot ##{b.number} carried"
+  defp ballot_word(b), do: ", ballot ##{b.number} failed"
+
+  # One thing on the household's shelf, paged as a library document is.
+  defp household_page(turn, path, from) do
+    with {:ok, doc} <- Seshat.household_read(turn.resident, path) do
+      total = String.length(doc.content)
+
+      if from > 0 and from >= total,
+        do: @not_done <> "from #{from} is past the end; #{doc.path} is #{total} characters.",
+        else: household_chunk(doc, from, total)
+    end
+  end
+
+  defp household_chunk(doc, from, total) do
+    chunk = String.slice(doc.content, from, Config.fetch!(:brain, :library_read_chars))
+    size = String.length(chunk)
+    size = if from + size >= total, do: size, else: line_end(chunk, size)
+
+    head =
+      if from == 0 and from + size >= total,
+        do: "#{doc.path} (#{doc.kind}), whole.",
+        else:
+          "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; household_read with this path and from: #{from + size} reads the next page."
+
+    head <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
+  end
 
   # A page of a document: a header naming the path, the kind, the bytes
   # and which characters these are, with the call that reads the next;
