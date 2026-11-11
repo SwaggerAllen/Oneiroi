@@ -409,3 +409,86 @@ from repeating or vanishing. It closes nothing because an emoji is too
 cheap to stand for a decision: merges and approvals keep their machinery.
 
 Inline rather than a tool call for her side: a react comes at the end of a reply, where a tool call would cost a whole further round for one emoji; a fixed final line costs nothing, and garbled it shows as text rather than failing silently. The safe word already reads a word out of her text, so the convention is one she knows.
+
+## #57
+A scrubber over months cannot load months to draw a screen, and a jump
+to a spot has to land there without reading up to it. The unpaged
+shape stays because a client that has not changed must not break; the
+paged one follows the transcript's own (`more` in the direction read)
+so the client learns one convention. A date means her day, because the
+navigator is drawn in days she lived, not in UTC.
+
+## #58
+The track needs to know where the weight of the record lies before it
+loads any of it; one count per day per kind is the least that draws it.
+Every day of the range is answered, zeros included, so an empty day is
+a fact the server states rather than a gap the client infers.
+
+## #59
+The client's rebuild has one search sheet, and one sheet over five
+endpoints would be five loading states and a ranking invented in the
+browser. Each half ranks by what it knows: phrase hits by recency,
+because §6.3 keeps transcript search unweighted; bookmarks by where
+the words fell, because a line is her headline for the moment; vectors
+by nearness. Those numbers mean different things, so "everything" is
+interleaved by position, never sorted by a score that would pretend
+they are one scale. "As she sees it" calls the turn's own retrieval
+rather than a copy of it, so it cannot drift from what she is actually
+given; the random draw and the pins are left out because neither is an
+answer to the words. Privacy is enforced twice for the words, in the
+query and by the policy, because a search is the read most likely to be
+widened later and the cheapest place to lose the rule; a bookmark made
+in a private session is left out because its line is what that session
+said about itself.
+
+## #60
+The client placed a session on a day by its opening or its last turn,
+so the Oneiroi chat, spoken in every day, showed on two days of a month.
+Grouping the messages by day under the witness's own scope puts each
+session on the days it was lived, and the scope keeps every count to
+what he may already read. A locked session's messages are not his to
+count, so it keeps to the two instants its row already shows him,
+rather than a per-day count that would say more than the session list
+does.
+## #61
+A react on a document is the same gesture as one on a message: seen,
+never signed off. Recording the hash says which words it was about, so
+a later rewrite does not make an old react look like approval of new
+words. The library resolves the path because the library is what knows
+a document; the ledger depending on it would be the cycle the systems'
+order forbids, and #27 already settled that a row of another system is
+checked for its shape here. No new event version because nothing about
+the event's shape moved: a version is owed when a reader of the old
+shape would misread the new one, and a target map with a new kind is
+read by the old code as a target it does not know, which it never
+projects as anything else.
+
+## #62
+A bookmark is the resident's words about a moment, and a moment in a
+session #28 keeps to her is still that session: its line paraphrases
+what was said, its summary more so, and its span is the transcript
+itself. #59 drew this line for search alone, so the list, the page,
+the detail and the index kept returning the words the transcript route
+refused, and `GET …/bookmarks/:n` returned the span's messages outright.
+Marking rather than hiding keeps what is not words: he can see that
+something mattered to her on a day, and pin it, without reading what;
+a bookmark that silently vanished would make the numbers skip and the
+pins disappear for no stated reason. The lock is read from the session
+at each read, not stamped on the bookmark, so sharing lifts it with no
+second event to keep in step. Her reads are untouched because the rule
+is about the witness, not about the record. The link fields stay
+because every route behind them already refuses or shows only what
+the locked row shows; withholding them would buy nothing and would
+stop the client marking where the moment is. The scene pass, the
+preview and the citation label are recorded as gaps rather than
+changed here: the scene pass writes her own document, the preview's
+full text is the author's standing default, and each wants its own
+decision.
+
+## #63
+Once she answered, the proposal and her note became unreadable to the
+person they were addressed to: the route listed open ones only, so a
+decline's reason was written for him and shown to no one. Every fact
+the answer needs was already projected, so this is a read, not a new
+event. The default stays the open array because two clients count its
+length as what is waiting on her.

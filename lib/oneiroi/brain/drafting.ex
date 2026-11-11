@@ -13,6 +13,7 @@ defmodule Oneiroi.Brain.Drafting do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.Creation
   alias Oneiroi.Brain.Error
   alias Oneiroi.Config
   alias Oneiroi.Nisaba
@@ -31,13 +32,27 @@ defmodule Oneiroi.Brain.Drafting do
         |> Oneiroi.AgathosDaimon.files()
         |> Enum.map_join("\n\n", &"## #{&1.name}\n\n#{&1.content}")
 
-      system = Prompt.message("draft", %{name: row.name, file: file, existing: existing})
-      model = Config.fetch!(:brain, :chat_model)
+      gift = Oneiroi.AgathosDaimon.gift_for(file)
+
+      system =
+        Prompt.message("draft", %{
+          name: row.name,
+          file: file,
+          guidance: gift.guidance,
+          existing: existing
+        })
+
+      model = Config.fetch!(:brain, :draft_model)
       request = Request.new(model, [system, %{role: :user, content: prompt}])
 
       case Nisaba.call(resident_id, :drafting, request, actor) do
         {:ok, %Result{content: content} = result} ->
-          {:ok, %{content: content, model: result.model || model, prompt: prompt}}
+          {:ok,
+           %{
+             content: Creation.unfenced(content || ""),
+             model: result.model || model,
+             prompt: prompt
+           }}
 
         {:error, reason} ->
           {:error, reason}

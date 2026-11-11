@@ -60,6 +60,17 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :endpoint, :reason]
   end
 
+  defmodule DeclinePush do
+    # gaia#25: "No thanks" to the notifications question.
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule RecordNeedsYouPush do
+    # gaia#26: the entries a push about what waits on him would be for;
+    # the aggregate answers with the ones never pushed before.
+    use Oneiroi.Command, fields: [:id, :resident_id, :entries]
+  end
+
   # The platform stream (gaia#16): the front door and the roles that may
   # open it. `id` is "platform".
   defmodule SetGate do

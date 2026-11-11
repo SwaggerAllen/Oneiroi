@@ -307,3 +307,24 @@ in one morning the slot was offered to the work. Putting it in the
 text that opens the slot, and in every tool that names the slot, means
 the instrument says it each time free time is in view, rather than
 relying on her to recall it.
+
+## #47
+The pass already knew the shape of a scene; giving it a tool per scene
+makes each one a row the navigator can read, and asking for the close
+on the last call means the only way to read as finished is to have
+finished. The schedule does not mark a short pass itself: the absence
+of the close is already the truth, and a second marker would be a
+second thing to keep in step.
+
+## #48
+A month drawn from separate reads (the journal's days, the session
+list, today's schedule) made the client guess which session belonged to
+which day and showed nothing ahead of today. One read per range gives
+each day what it holds, in her zone, from the systems that own each
+part, so nothing is copied into a table that would have to be kept in
+step. The days ahead are computed rather than stored because the rules
+change and a stored future would be stale the moment either of them
+moved a slot; the cap keeps that computation a bounded cost. The entry
+carries a `rule` and a `status` now, while every rule is daily and every
+status scheduled, so recurrence can arrive later as new values in the
+same fields rather than a new shape every client must learn.

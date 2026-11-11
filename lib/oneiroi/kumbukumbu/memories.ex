@@ -286,6 +286,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def bookmarks(resident_id),
     do: tree_tags(resident_id, Scope.resident(resident_id, fn -> Store.bookmarks() end))
 
+  @doc "A page of the resident's bookmarks (kumbukumbu#57): newest first below `before`, in `[from, to)`, with their tags, and whether more remain."
+  def bookmarks_page(resident_id, before, limit, from, to) do
+    {rows, more} =
+      Scope.resident(resident_id, fn -> Store.bookmarks_page(before, limit, from, to) end)
+
+    {tree_tags(resident_id, rows), more}
+  end
+
   @doc "One bookmark with the messages of its span: the anchor turn and the `turns_back - 1` before it."
   @spec bookmark(String.t(), pos_integer()) :: {:ok, map(), [map()]} | {:error, Error.t()}
   def bookmark(resident_id, number) do
@@ -319,6 +327,70 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   def proposals(resident_id), do: Scope.resident(resident_id, fn -> Store.open_proposals() end)
+
+  # Which proposals a read asks for (kumbukumbu#63): the open ones, the
+  # ones she has answered, or both.
+  @proposal_states %{
+    open: ~w(open),
+    answered: ~w(accepted declined),
+    all: ~w(open accepted declined)
+  }
+
+  @doc "The bookmark proposals `which` names (`:open`, `:answered`, `:all`), oldest first (kumbukumbu#63)."
+  def proposals(resident_id, which) when is_map_key(@proposal_states, which),
+    do: Scope.resident(resident_id, fn -> Store.proposals_in(@proposal_states[which]) end)
+
+  # ---- the witness's reads of her bookmarks (kumbukumbu#62) ----
+
+  @doc """
+  The keys of her private sessions she has not shared (kumbukumbu#28):
+  a bookmark made in one is that session's words too, so every read of
+  a bookmark the witness takes withholds its words while the session is
+  locked.
+  """
+  @spec locked_sessions(String.t()) :: MapSet.t(String.t())
+  def locked_sessions(resident_id),
+    do: Scope.resident(resident_id, fn -> MapSet.new(Store.locked_keys()) end)
+
+  @doc """
+  Bookmark rows as the witness may read them (kumbukumbu#62): one made in
+  a locked session is marked `private: true` and its words withheld (the
+  line, the summary, the register and the timeline status, nil); its
+  number, moment, span length, pin, weight, tags and the
+  session and turn it links to stay.
+  """
+  @spec for_witness(String.t(), [Store.Bookmark.t()]) :: [Store.Bookmark.t()]
+  def for_witness(_resident_id, []), do: []
+
+  def for_witness(resident_id, rows) do
+    locked = locked_sessions(resident_id)
+    Enum.map(rows, &censor(&1, locked))
+  end
+
+  defp censor(b, locked) do
+    if MapSet.member?(locked, b.session_key),
+      do: %{b | private: true, line: nil, summary: nil, register: nil, status: nil},
+      else: b
+  end
+
+  @doc "Every bookmark as the witness reads it (kumbukumbu#62)."
+  def witness_bookmarks(resident_id), do: for_witness(resident_id, bookmarks(resident_id))
+
+  @doc "A page of bookmarks as the witness reads it (kumbukumbu#57, #62)."
+  def witness_bookmarks_page(resident_id, before, limit, from, to) do
+    {rows, more} = bookmarks_page(resident_id, before, limit, from, to)
+    {for_witness(resident_id, rows), more}
+  end
+
+  @doc "One bookmark as the witness reads it (kumbukumbu#62): a private one's span is withheld whole, an empty list."
+  def witness_bookmark(resident_id, number) do
+    with {:ok, b, span} <- bookmark(resident_id, number) do
+      case for_witness(resident_id, [b]) do
+        [%{private: true} = censored] -> {:ok, censored, []}
+        [open] -> {:ok, open, span}
+      end
+    end
+  end
 
   def tags(resident_id), do: Scope.resident(resident_id, fn -> Store.tags() end)
 
@@ -409,7 +481,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     do:
       resident_id
       |> index(session_key)
-      |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: ""})
+      |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: "", scores: %{}})
 
   def ranked_index(resident_id, session_key, vector) do
     %{keys: keys} = Conversations.room(resident_id, session_key)
@@ -524,7 +596,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       seeds: ranking.seeds,
       explored: Enum.map(ranking.explored, & &1.bookmark.number),
       exploration: exploration,
-      considered: length(ranking.ranked) + length(ranking.rejected)
+      considered: length(ranking.ranked) + length(ranking.rejected),
+      # Each ranked line's score, by number (the one search reads them,
+      # kumbukumbu#59); the explored were drawn, not scored.
+      scores: Map.new(ranking.ranked, &{&1.bookmark.number, &1.score})
     }
   end
 
@@ -562,6 +637,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   """
   @spec index_now(String.t()) :: %{
           listed: [pos_integer()],
+          private: [pos_integer()],
           left_out: non_neg_integer(),
           elsewhere: non_neg_integer(),
           budget: pos_integer(),
@@ -570,6 +646,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def index_now(resident_id) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     pins = pins(resident_id, nil)
+    locked = locked_sessions(resident_id)
     %{keys: keys} = Conversations.room(resident_id, nil)
     all = bookmarks(resident_id)
     ranked = Enum.count(all, &(is_nil(&1.pinned_at) and &1.session_key in keys))
@@ -580,6 +657,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     # "now" to show: what is in front of her every turn is the pins.
     %{
       listed: Enum.map(pins, & &1.number),
+      private: for(p <- pins, MapSet.member?(locked, p.session_key), do: p.number),
       left_out: ranked,
       elsewhere: elsewhere,
       budget: budget,

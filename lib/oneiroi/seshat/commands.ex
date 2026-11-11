@@ -2,7 +2,8 @@ defmodule Oneiroi.Seshat.Commands do
   @moduledoc "The library aggregate's commands; `id` is the resident's id."
 
   defmodule WriteDocument do
-    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes]
+    # `note` (seshat#54): what the writer said of this version, or nil.
+    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :note]
   end
 
   defmodule MoveDocument do
@@ -133,5 +134,15 @@ defmodule Oneiroi.Seshat.Commands do
 
   defmodule AnswerKindGate do
     use Oneiroi.Command, fields: [:id, :number, :agree, :note]
+  end
+
+  defmodule ProposeTheme do
+    # seshat#56: her three seeds, checked before they get here.
+    use Oneiroi.Command, fields: [:id, :ground, :resident, :witness], decision: true
+  end
+
+  defmodule AnswerTheme do
+    # seshat#56: the witness accepts or declines her proposal, with a note.
+    use Oneiroi.Command, fields: [:id, :number, :agree], decision: true
   end
 end

@@ -39,6 +39,9 @@ defmodule OneiroiWeb.LibraryController do
         json(conn, %{
           document: document(row),
           content: content,
+          # The witness's edit lease on it, held or taken, or null
+          # (seshat#55): shown to both parties.
+          lease: Seshat.lease(id, path),
           references: Seshat.references(id, path),
           discussions:
             Enum.map(discussions, &%{session_key: &1.session_key, opened_at: &1.opened_at})
@@ -78,24 +81,182 @@ defmodule OneiroiWeb.LibraryController do
     do: path |> Path.basename() |> String.replace(~r/[^A-Za-z0-9._-]/, "_")
 
   operation(:write,
-    summary: "Write a file through the flow; the path says the kind; the index runs",
+    summary:
+      "Write a file through the flow; the path says the kind; the index runs; `note` is what you say of this version (seshat#54), and a write to a path you hold a lease on renews it (seshat#55)",
     parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],
     request_body:
       {"the file", "application/json",
        %Schema{
          type: :object,
          required: [:content],
-         properties: %{content: %Schema{type: :string}}
+         properties: %{content: %Schema{type: :string}, note: %Schema{type: :string}}
        }},
     responses: [ok: {"what happened", "application/json", %Schema{type: :object}}]
   )
 
   def write(conn, %{"id" => id, "path" => path} = params) do
-    case Seshat.write(id, Enum.join(path, "/"), to_string(params["content"] || ""), actor(conn)) do
+    note = if is_binary(params["note"]), do: params["note"]
+
+    case Seshat.write(
+           id,
+           Enum.join(path, "/"),
+           to_string(params["content"] || ""),
+           actor(conn),
+           note: note
+         ) do
       {:ok, result} -> json(conn, result)
       other -> respond(conn, other)
     end
   end
+
+  operation(:versions,
+    summary:
+      "A document's versions, newest first (seshat#54): each `{version (the words' SHA-256), act, at, actor {kind, id} | null, note, bytes, commit, committed_at, current, restorable}`, from the repository's history joined to the library's record of who wrote what; `current` is the hash of the file now. Identity files (SOUL.md and the rest) by name.",
+    parameters: [id: [in: :path, type: :string], path: [in: :path, type: :string]],
+    responses: [ok: {"the versions", "application/json", %Schema{type: :object}}]
+  )
+
+  def versions(conn, %{"id" => id, "path" => path}) do
+    case Seshat.versions(id, Enum.join(path, "/")) do
+      {:ok, versions} -> json(conn, versions)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:version,
+    summary: "One version's words, by its hash (seshat#54)",
+    parameters: [
+      id: [in: :path, type: :string],
+      path: [in: :path, type: :string],
+      version: [in: :query, type: :string]
+    ],
+    responses: [ok: {"the words", "application/json", %Schema{type: :object}}]
+  )
+
+  def version(conn, %{"id" => id, "path" => path} = params) do
+    path = Enum.join(path, "/")
+
+    case Seshat.version(id, path, params["version"]) do
+      {:ok, content} -> json(conn, %{path: path, version: params["version"], content: content})
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:diff,
+    summary:
+      "The line diff between two versions (seshat#54): `from` a version's hash, `to` another or omitted for the file now; `{path, from, to, added, removed, runs: [{op: eq | del | ins, lines}]}`",
+    parameters: [
+      id: [in: :path, type: :string],
+      path: [in: :path, type: :string],
+      from: [in: :query, type: :string],
+      to: [in: :query, type: :string]
+    ],
+    responses: [ok: {"the diff", "application/json", %Schema{type: :object}}]
+  )
+
+  def diff(conn, %{"id" => id, "path" => path} = params) do
+    to = if params["to"] in [nil, ""], do: nil, else: params["to"]
+
+    case Seshat.version_diff(id, Enum.join(path, "/"), params["from"], to) do
+      {:ok, diff} -> json(conn, diff)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:restore,
+    summary:
+      "Restore a version (seshat#54): the write the normal path makes, `{path, version, written}`; an identity file after first contact is filed as the soul-edit proposal instead, 202 with `{path, version, proposed: ref}`",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"which version", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path, :version],
+         properties: %{
+           path: %Schema{type: :string},
+           version: %Schema{type: :string},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [
+      ok: {"written", "application/json", %Schema{type: :object}},
+      accepted: {"proposed", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def restore(conn, %{"id" => id} = params) do
+    case Seshat.restore(
+           id,
+           to_string(params["path"] || ""),
+           params["version"],
+           params["note"],
+           actor(conn)
+         ) do
+      {:ok, %{proposed: _} = proposed} -> conn |> put_status(202) |> json(proposed)
+      {:ok, restored} -> json(conn, restored)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:leases,
+    summary: "The edit leases on the library, held or taken (seshat#55)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"leases", "application/json", %Schema{type: :array}}]
+  )
+
+  def leases(conn, %{"id" => id}), do: json(conn, Seshat.leases(id))
+
+  operation(:acquire_lease,
+    summary:
+      "Acquire the edit lease on a path for your editor, or renew your own (seshat#55): `{path, holder_id, state, acquired_at, renewed_at, takeable_at, takeable, waiting_at, has_draft, taken_at, kept_at}`; 422 `seshat_lease_held` while another account holds it",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the path", "application/json",
+       %Schema{type: :object, required: [:path], properties: %{path: %Schema{type: :string}}}},
+    responses: [ok: {"the lease", "application/json", %Schema{type: :object}}]
+  )
+
+  def acquire_lease(conn, %{"id" => id} = params) do
+    case Seshat.acquire_lease(id, to_string(params["path"] || ""), actor(conn)) do
+      {:ok, lease} -> json(conn, lease)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:renew_lease,
+    summary:
+      "Renew your lease while you write, with your unsaved draft (seshat#55); 409 `seshat_lease_taken` with `kept_at` once the resident's write took it",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the path and the draft", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path],
+         properties: %{path: %Schema{type: :string}, draft: %Schema{type: :string}}
+       }},
+    responses: [ok: {"the lease", "application/json", %Schema{type: :object}}]
+  )
+
+  def renew_lease(conn, %{"id" => id} = params) do
+    draft = if is_binary(params["draft"]), do: params["draft"]
+
+    case Seshat.renew_lease(id, to_string(params["path"] || ""), draft, actor(conn)) do
+      {:ok, lease} -> json(conn, lease)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:release_lease,
+    summary: "Release your lease on a path, held or taken (seshat#55)",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the path", "application/json",
+       %Schema{type: :object, required: [:path], properties: %{path: %Schema{type: :string}}}},
+    responses: [no_content: "released"]
+  )
+
+  def release_lease(conn, %{"id" => id} = params),
+    do: respond(conn, Seshat.release_lease(id, to_string(params["path"] || ""), actor(conn)))
 
   operation(:remove,
     summary:
@@ -322,11 +483,14 @@ defmodule OneiroiWeb.LibraryController do
   defp respond(conn, {:error, %{kind: kind} = e})
        when kind in [
               :seshat_no_such_document,
+              :seshat_no_such_version,
               :seshat_no_such_file,
               :seshat_not_adopted,
               :seshat_document_missing
             ],
        do: error(conn, 404, e)
+
+  defp respond(conn, {:error, %{kind: :seshat_lease_taken} = e}), do: error(conn, 409, e)
 
   defp respond(conn, {:error, %{kind: _} = e}), do: error(conn, 422, e)
 end

@@ -36,6 +36,7 @@ defmodule Oneiroi.SimaQian.Export do
   at all is `exceptions/0`, the code's copy of spec §6.10's list.
   """
 
+  alias Commanded.Event.Upcaster
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Purpose
@@ -48,7 +49,7 @@ defmodule Oneiroi.SimaQian.Export do
   # The resident's streams, by prefix (sima-qian#20). Every router's
   # prefix is here or in `@not_exported`, which the export test asserts
   # against the routers themselves.
-  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal governance subscription xenia asks pieces work plugins kinds routes reacts)
+  @streams ~w(resident ethos judgement audits conversation memory ledger library schedule journal scenes governance subscription xenia asks pieces work plugins kinds routes reacts theme)
 
   # Everything of the resident's that the repository does not carry,
   # each with the reason (sima-qian#43). The author's law (spec §6.10):
@@ -87,6 +88,9 @@ defmodule Oneiroi.SimaQian.Export do
     "redacted" =>
       {:fields,
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
+    "leases" =>
+      {:table,
+       "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"},
     "honcho-private" =>
       {:honcho,
        "Honcho's conclusions and summaries drawn from a private, unshared session: withheld from honcho/ as the session's words are from the reading copies (spec §6.3); Honcho keeps them"}
@@ -198,7 +202,8 @@ defmodule Oneiroi.SimaQian.Export do
 
     stale =
       Path.wildcard(Path.join([dir, "records", "conversations", "*.md"])) ++
-        Path.wildcard(Path.join([dir, "records", "bookmarks.md"]))
+        Path.wildcard(Path.join([dir, "records", "bookmarks.md"])) ++
+        Path.wildcard(Path.join([dir, "records", "gift-reads.md"]))
 
     for full <- stale, Path.relative_to(full, dir) not in paths, do: File.rm!(full)
 
@@ -267,10 +272,17 @@ defmodule Oneiroi.SimaQian.Export do
   def cutoff,
     do: DateTime.add(Clock.now(), -Config.fetch!(:sima_qian, :watermark_seconds), :second)
 
-  @doc "One export line for a recorded event, at `ordinal` among the exported lines."
+  @doc """
+  One export line for a recorded event, at `ordinal` among the exported
+  lines. The line says the event's version today, so its data is today's
+  shape: an event recorded at an older version goes through its upcaster
+  first, as every aggregate and projector reads it (a raw store read
+  does not), and a field a newer version added is written as the
+  upcaster fills it rather than as the null the older record left.
+  """
   @spec line(EventStore.RecordedEvent.t(), pos_integer(), String.t()) :: String.t()
   def line(%EventStore.RecordedEvent{} = recorded, ordinal, resident_id) do
-    %module{} = event = recorded.data
+    %module{} = event = Upcaster.upcast(recorded.data, %{})
     actor = event.actor
 
     data =
@@ -419,7 +431,8 @@ defmodule Oneiroi.SimaQian.Export do
     line's stream without it; `sequence` numbers the lines from 1 in the
     order they were written. Beside them, reading copies rendered from
     the same lines on every export: `conversations/<day>.md`, each
-    session's turns that day, and `bookmarks.md`; never read back, and a
+    session's turns that day, `bookmarks.md` and, from creation,
+    `gift-reads.md`; never read back, and a
     private session in them is its existence and counts alone. A backup commit's message
     carries `Oneiroi-Sequence`, the stream version the export ran
     through, and `Oneiroi-Root`, a Merkle root over this directory; a

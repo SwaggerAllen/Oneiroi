@@ -11,6 +11,7 @@ defmodule OneiroiWeb.ReactController do
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Brain
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
   alias OpenApiSpex.Schema
 
   tags(["resident"])
@@ -19,13 +20,19 @@ defmodule OneiroiWeb.ReactController do
 
   operation(:index,
     summary:
-      "The reacts, oldest first, each with its target and whether it was told her; one conversation's with `session_key`",
-    parameters: [id: [in: :path, type: :string], session_key: [in: :query, type: :string]],
+      "The reacts, oldest first, each with its target and whether it was told her; one conversation's with `session_key`, one document's with `path` (kumbukumbu#61)",
+    parameters: [
+      id: [in: :path, type: :string],
+      session_key: [in: :query, type: :string],
+      path: [in: :query, type: :string]
+    ],
     responses: [ok: {"the reacts", "application/json", %Schema{type: :array}}]
   )
 
   def index(conn, %{"id" => id} = params) do
-    opts = if k = params["session_key"], do: [session_key: k], else: []
+    opts =
+      [session_key: params["session_key"], path: params["path"]]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     json(
       conn,
@@ -36,6 +43,8 @@ defmodule OneiroiWeb.ReactController do
           session_key: r.session_key,
           turn_ref: r.turn_ref,
           letter: r.letter,
+          path: r.path,
+          document_hash: r.document_hash,
           emoji: r.emoji,
           by: r.by,
           reacted_at: r.reacted_at,
@@ -47,7 +56,7 @@ defmodule OneiroiWeb.ReactController do
 
   operation(:react,
     summary:
-      "React on a reply of hers (`target: {kind: message, session_key, turn_ref}`) or a letter (`{kind: letter, number}`); it wakes nothing",
+      "React on a reply of hers (`target: {kind: message, session_key, turn_ref}`), a letter (`{kind: letter, number}`) or a document (`{kind: document, path}`, kumbukumbu#61, the version it holds now recorded); it wakes nothing",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the react", "application/json",
@@ -60,11 +69,18 @@ defmodule OneiroiWeb.ReactController do
   )
 
   def react(conn, %{"id" => id} = params) do
-    case Kumbukumbu.react(id, params["target"], params["emoji"], actor(conn)) do
+    case react_on(id, params["target"], params["emoji"], actor(conn)) do
       {:ok, n} -> conn |> put_status(201) |> json(%{number: n})
       {:error, e} -> error(conn, 422, e)
     end
   end
+
+  # A document is resolved by the library, which hashes the words it
+  # holds now (kumbukumbu#61); the rest are the reacts ledger's to check.
+  defp react_on(id, %{"kind" => "document", "path" => path}, emoji, actor) when is_binary(path),
+    do: Seshat.react_document(id, path, emoji, actor)
+
+  defp react_on(id, target, emoji, actor), do: Kumbukumbu.react(id, target, emoji, actor)
 
   operation(:vocabulary,
     summary:

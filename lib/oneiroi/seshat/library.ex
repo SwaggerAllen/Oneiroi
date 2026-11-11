@@ -53,7 +53,8 @@ defmodule Oneiroi.Seshat.Library do
           path: c.path,
           kind: c.kind,
           hash: c.hash,
-          bytes: c.bytes
+          bytes: c.bytes,
+          note: c.note
         }
     end
   end

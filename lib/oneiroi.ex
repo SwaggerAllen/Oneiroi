@@ -79,6 +79,7 @@ defmodule Oneiroi do
       Apsu.Clock.Fake,
       Apsu.HealthPlug,
       Apsu.Jobs,
+      Apsu.Notices,
       Apsu.Ops,
       Apsu.PubSub,
       Apsu.Vault,

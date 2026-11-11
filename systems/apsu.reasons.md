@@ -117,3 +117,16 @@ there is: the letter watch's silent 404s had no symptom, and a list of
 "when did this last happen" would have named it the first time anyone
 asked. They are read from where the facts already are rather than kept
 twice, except the adapters' asks, which nothing recorded.
+
+## #24
+The old client re-read every screen whenever the page came back
+(client#13), because nothing told it what had changed; the event log
+always knew. Announcing after the projection commits, rather than when
+the event is appended, is what makes a refetch on the notice safe: the
+row is already there to read. The notice carries no data so that the
+channel can never become a second read path with its own privacy rules.
+The cursor is the store's global position because it is the one order
+every stream shares. The replay is bounded and says `reset` past its
+bounds, because a client away for a week is cheaper to refetch than to
+replay.
+

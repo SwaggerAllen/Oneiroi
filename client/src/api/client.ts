@@ -5,6 +5,8 @@ import type {
   Ask,
   WorkQueue,
   NeedsYouEntry,
+  ScheduleDate,
+  WaitingOnHerEntry,
   PluginProposal,
   PluginsData,
   KindDefinition,
@@ -23,6 +25,8 @@ import type {
   HouseLetter,
   IndexNow,
   LibraryHit,
+  LibraryDocument,
+  Message,
   LibraryIndex,
   Injection,
   Ledger,
@@ -82,6 +86,72 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return json as T;
 }
 
+export interface DocumentVersion {
+  version: string;
+  act: 'written' | 'adopted' | 'moved' | 'archived' | 'tombstone' | 'committed';
+  at: string | null;
+  actor: { kind: string; id: string } | null;
+  note: string | null;
+  bytes: number | null;
+  commit: string | null;
+  committed_at: string | null;
+  current: boolean;
+  restorable: boolean;
+}
+
+export interface Lease {
+  path: string;
+  holder_id: string;
+  state: 'held' | 'taken';
+  acquired_at: string;
+  renewed_at: string;
+  takeable_at: string;
+  takeable: boolean;
+  waiting_at: string | null;
+  has_draft: boolean;
+  taken_at: string | null;
+  kept_at: string | null;
+}
+
+export interface ThemeState {
+  file: string;
+  seeds: { ground: string; resident: string; witness: string };
+  source: 'file' | 'default';
+  ok: boolean;
+  checks: Array<{ name: string; passed: boolean; value: number; needs: number }>;
+  proposals: Array<{
+    number: number;
+    seeds: { ground: string; resident: string; witness: string };
+    note: string;
+    proposed_at: string;
+    agree: boolean | null;
+    answered_by: unknown;
+    answer_note: string | null;
+    answered_at: string | null;
+  }>;
+}
+
+export interface CalendarDay {
+  day: string;
+  journal: { plan: number; note: number; todo: number; done: number; wrap: number; unwrapped: boolean } | null;
+  story: {
+    sessions: Array<{ key: string; kind: string; title: string; locked: boolean; first_at: string; last_at: string; messages: number | null }>;
+    scenes: Array<{ number: number; kind: string; corrects: number | null; title: string | null; from_time: string | null; to_time: string | null }>;
+    complete: boolean | null;
+  };
+  schedule: {
+    quiet: { from: string; to: string } | null;
+    rounds: number;
+    entries: Array<{ kind: string; key: string; label: string | null; time: string; at: string; deferred?: boolean; rule: { freq: string } | null; status: string; added_by?: string; date_kind?: string }>;
+  } | null;
+}
+
+export type SearchResult =
+  | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'bookmark'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null };
+
 export const api = {
   login: (email: string, password: string) =>
     call<{ account_id: string }>('POST', '/v1/session', { email, password }),
@@ -119,6 +189,14 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/custody/decision`, { decision, note }),
   // Invite codes (gaia#18): SKUs a super admin issues; the code is shown once.
   invites: () => call<{ invites: Invite[]; defaults: InviteDefaults }>('GET', '/v1/platform/invites'),
+  // The ops read surface (apsu#23): failures as facts, heartbeats as absences.
+  opsFailures: () =>
+    call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
+  heartbeats: (residentId: string) =>
+    call<Array<{ name: string; last: string | null; every_seconds: number; late?: boolean } & Record<string, unknown>>>(
+      'GET',
+      `/v1/residents/${residentId}/ops/heartbeats`,
+    ),
   issueInvite: (sku: InviteRequest) => call<{ id: string; code: string }>('POST', '/v1/platform/invites', sku),
   revokeInvite: (id: string, note: string) => call<void>('DELETE', `/v1/platform/invites/${id}`, { note }),
   residents: () => call<Resident[]>('GET', '/v1/residents'),
@@ -130,11 +208,69 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin, ...(drafted ?? {}) }),
   draftFile: (residentId: string, name: string, prompt: string) =>
     call<{ content: string; model: string; prompt: string }>('POST', `/v1/residents/${residentId}/files/${name}/draft`, { prompt }),
+  // After first contact a write is a proposal with a note (202 and its ref);
+  // before it, a direct write (204, nothing back).
+  proposeFile: (residentId: string, name: string, content: string, note: string) =>
+    call<{ ref: string } | undefined>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin: 'authored', note }),
+  soulEdits: (residentId: string, state?: 'open' | 'answered' | 'withdrawn' | 'all') =>
+    call<SoulEdit[]>('GET', `/v1/residents/${residentId}/soul-edits${state ? `?state=${state}` : ''}`),
+  withdrawSoulEdit: (residentId: string, ref: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/soul-edits/${encodeURIComponent(ref)}/withdraw`, { note }),
+  soulLines: (residentId: string) => call<SoulLine[]>('GET', `/v1/residents/${residentId}/soul-lines`),
+  // This read leaves a receipt she sees (spec §12, P41).
+  selfLetters: (residentId: string) => call<SelfLetters>('GET', `/v1/residents/${residentId}/self-letters`),
+  // Character (spec §6.17).
+  habits: (residentId: string) => call<Habit[]>('GET', `/v1/residents/${residentId}/habits`),
+  affirmHabit: (residentId: string, number: number, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/habits/${number}/affirm`, { note }),
+  seeds: (residentId: string) => call<Seed[]>('GET', `/v1/residents/${residentId}/seeds`),
+  commitments: (residentId: string) => call<Commitment[]>('GET', `/v1/residents/${residentId}/commitments`),
+  releaseCommitment: (residentId: string, number: number, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/commitments/${number}/release`, { note }),
+  positions: (residentId: string) => call<Position[]>('GET', `/v1/residents/${residentId}/positions`),
+  predictions: (residentId: string) => call<Predictions>('GET', `/v1/residents/${residentId}/predictions`),
+  resolvePrediction: (residentId: string, number: number, outcome: 'right' | 'wrong' | 'void', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/predictions/${number}/resolve`, { outcome, note }),
+  // Memory's consents: her tag proposals, your revisions, your bookmark proposals.
+  decideTag: (residentId: string, slug: string, decision: 'approve' | 'reject', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/tags/${encodeURIComponent(slug)}/decision`, { decision, note }),
+  revisions: (residentId: string) => call<Revision[]>('GET', `/v1/residents/${residentId}/revisions`),
+  revise: (residentId: string, r: { target_kind: string; target_id: string; kind: 'fact' | 'stance'; text: string; note: string }) =>
+    call<{ number: number; state: 'applied' | 'proposed' }>('POST', `/v1/residents/${residentId}/revisions`, r),
+  bookmarkProposals: (residentId: string, state?: 'open' | 'answered' | 'all') =>
+    call<BookmarkProposal[]>('GET', `/v1/residents/${residentId}/bookmark-proposals${state ? `?state=${state}` : ''}`),
+  // The prompt path, Get a read, the examples (agathos-daimon#39, #40, #41).
+  draftAll: (residentId: string, prompt: string) =>
+    call<{
+      prompt: string;
+      drafts: Array<{ gift: string; file: string; content: string; origin: 'drafted'; model: string; prompt: string }>;
+      stopped: { file: string; kind: string; message: string } | null;
+    }>('POST', `/v1/residents/${residentId}/creation/drafts`, { prompt }),
+  giftRead: (residentId: string, name: string, content: string) =>
+    call<{
+      ref: string | null;
+      gift: string;
+      file: string;
+      notes: Array<{ kind: 'strong' | 'thin' | 'missing' | 'question' | 'cut'; text: string; quote: string | null }>;
+      model: string;
+      refused: string | null;
+    }>('POST', `/v1/residents/${residentId}/files/${name}/read`, { content }),
+  suggestTrials: (residentId: string, note: string) =>
+    call<{ trials: Array<{ prompt: string; passes_if: string; fails_if: string }>; model: string }>(
+      'POST',
+      `/v1/residents/${residentId}/creation/trials`,
+      note ? { note } : {},
+    ),
+  creationExamples: () =>
+    call<Array<{ set: string; prompt: string; files: Array<{ file: string; gift: string; title: string; content: string }> }>>('GET', '/v1/creation/examples'),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
   // Content-free pushes to this account's devices (gaia#15).
-  pushConfig: () => call<{ enabled: boolean; public_key: string | null; devices: number }>('GET', '/v1/me/push'),
+  pushConfig: () =>
+    call<{ enabled: boolean; public_key: string | null; devices: number; answered: 'subscribed' | 'declined' | null; answered_at: string | null }>('GET', '/v1/me/push'),
+  // "No thanks", once for the account on every device (gaia#25).
+  declinePush: () => call<{ answered: 'declined'; answered_at: string }>('POST', '/v1/me/push/decline'),
   subscribePush: (endpoint: string) => call<void>('POST', '/v1/me/push', { endpoint }),
   unsubscribePush: (endpoint: string) => call<void>('DELETE', '/v1/me/push', { endpoint }),
   testPush: () => call<{ sent: { device: string; result: string }[] }>('POST', '/v1/me/push/test'),
@@ -180,6 +316,52 @@ export const api = {
   indexNow: (residentId: string) => call<IndexNow>('GET', `/v1/residents/${residentId}/index`),
   retrieval: (residentId: string) => call<RetrievalCount[]>('GET', `/v1/residents/${residentId}/retrieval`),
   bookmarks: (residentId: string) => call<Bookmark[]>('GET', `/v1/residents/${residentId}/bookmarks`),
+  // The navigator (S2: kumbukumbu#57, #58, seshat#52): bookmarks by page or
+  // range, scenes as rows, per-day density, and a transcript window around
+  // an anchor.
+  bookmarksPage: (residentId: string, q: { before?: number; limit?: number; from?: string; to?: string }) =>
+    call<{ bookmarks: Bookmark[]; more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/bookmarks?${new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`,
+    ),
+  scenes: (residentId: string, from: string, to: string) =>
+    call<{
+      days: Array<{
+        day: string;
+        complete: boolean;
+        closed_at: string | null;
+        scenes: Array<{
+          number: number;
+          kind: 'scene' | 'correction';
+          corrects: number | null;
+          title: string | null;
+          from_turn: string | null;
+          to_turn: string | null;
+          from_time: string | null;
+          to_time: string | null;
+          summary: string | null;
+          mood: string | null;
+          register: string | null;
+          people: string[];
+          rounds_ran_out: boolean;
+        }>;
+      }>;
+    }>('GET', `/v1/residents/${residentId}/scenes?from=${from}&to=${to}`),
+  density: (residentId: string, from: string, to: string, session?: string) =>
+    call<{ from: string; to: string; zone: string; days: Array<{ day: string; bookmarks: number; scenes: number; messages: number }> }>(
+      'GET',
+      `/v1/residents/${residentId}/density?from=${from}&to=${to}${session ? `&session=${encodeURIComponent(session)}` : ''}`,
+    ),
+  transcriptAround: (residentId: string, key: string, around: string, limit = 40) =>
+    call<Transcript & { anchor: string; more_before: boolean; more_after: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?around=${encodeURIComponent(around)}&limit=${limit}`,
+    ),
+  // The same read, typed as the server sends it. The span carries no word
+  // of whether its session is private, so Soul › Memory keeps only the
+  // bookmark (screens/next-soul.md).
+  bookmarkDetail: (residentId: string, number: number | string) =>
+    call<{ bookmark: Bookmark; span: Message[] }>('GET', `/v1/residents/${residentId}/bookmarks/${number}`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),
   unpin: (residentId: string, number: number) =>
@@ -220,12 +402,54 @@ export const api = {
   // A document's raw file (seshat#50): a link, not a call.
   downloadUrl: (residentId: string, path: string) => `/v1/residents/${residentId}/library/download/${path.split('/').map(encodeURIComponent).join('/')}`,
   library: (residentId: string) => call<LibraryIndex>('GET', `/v1/residents/${residentId}/library`),
+  // A range of her days: journal marks, sessions and scenes, the schedule ahead (sunna#48, spec F68).
+  days: (residentId: string, from: string, to: string) =>
+    call<{ from: string; to: string; today: string; zone: string; witness_reads: boolean; days: CalendarDay[] }>(
+      'GET',
+      `/v1/residents/${residentId}/days?from=${from}&to=${to}`,
+    ),
+  // The one search across kinds (kumbukumbu#59, spec F66).
+  search: (residentId: string, q: string, scope: string) =>
+    call<{ q: string; scope: string; results: SearchResult[] }>(
+      'GET',
+      `/v1/residents/${residentId}/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}`,
+    ),
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
   document: (residentId: string, path: string) =>
     call<{ content: string }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
-  writeDocument: (residentId: string, path: string, content: string) =>
-    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, { content }),
+  // The whole read (seshat): its row, references resolved now, discussions.
+  documentRead: (residentId: string, path: string) =>
+    call<{
+      content: string;
+      document: LibraryDocument & { origin?: string | null };
+      lease?: Lease | null;
+      references: Array<{ target: string; kind: string; ref: string; resolved: boolean; label: string | null; reason: string | null }>;
+      discussions: Array<{ session_key: string; opened_at: string }>;
+    }>('GET', `/v1/residents/${residentId}/library/documents/${path}`),
+  citedBy: (residentId: string, target: string) =>
+    call<Array<{ from_path: string; target: string; resolved: boolean; label: string | null }>>(
+      'GET',
+      `/v1/residents/${residentId}/library/cited-by?target=${encodeURIComponent(target)}`,
+    ),
+  writeDocument: (residentId: string, path: string, content: string, note?: string) =>
+    call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, note ? { content, note } : { content }),
+  // A document's history, its diffs, a restore (seshat#54), and the editor's lease (seshat#55).
+  versions: (residentId: string, path: string) =>
+    call<{ path: string; current: string | null; versions: DocumentVersion[] }>('GET', `/v1/residents/${residentId}/library/versions/${path}`),
+  version: (residentId: string, path: string, version: string) =>
+    call<{ path: string; version: string; content: string }>('GET', `/v1/residents/${residentId}/library/version/${path}?version=${version}`),
+  diff: (residentId: string, path: string, from: string, to?: string) =>
+    call<{ path: string; from: string; to: string | null; added: number; removed: number; runs: Array<{ op: 'eq' | 'del' | 'ins'; lines: string[] }> }>(
+      'GET',
+      `/v1/residents/${residentId}/library/diff/${path}?from=${from}${to ? `&to=${to}` : ''}`,
+    ),
+  restore: (residentId: string, path: string, version: string, note: string) =>
+    call<{ path: string; version: string; written?: unknown; proposed?: unknown }>('POST', `/v1/residents/${residentId}/library/restore`, { path, version, note }),
+  acquireLease: (residentId: string, path: string) => call<Lease>('POST', `/v1/residents/${residentId}/library/leases`, { path }),
+  renewLease: (residentId: string, path: string, draft?: string) =>
+    call<Lease>('POST', `/v1/residents/${residentId}/library/leases/renew`, draft === undefined ? { path } : { path, draft }),
+  releaseLease: (residentId: string, path: string) => call<void>('POST', `/v1/residents/${residentId}/library/leases/release`, { path }),
   // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
   moveDocument: (residentId: string, from: string, to: string) =>
     call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
@@ -254,6 +478,13 @@ export const api = {
     call<FreeTimeRun[]>('GET', `/v1/residents/${residentId}/schedule/rounds${limit ? `?limit=${limit}` : ''}`),
   addFreeTimeOnce: (residentId: string, time: string, day: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/schedule/free-time/once`, { time, day }),
+  // Her journal (seshat#11): the latest days with their deltas, and one day whole.
+  journalDays: (residentId: string) => call<Array<{ day: string } & Record<string, unknown>>>('GET', `/v1/residents/${residentId}/journal`),
+  journalDay: (residentId: string, day: string) =>
+    call<{
+      day: string;
+      entries: Array<{ number: number; kind: string; register: string | null; text: string; at: string; by: string; done_at: string | null }>;
+    }>('GET', `/v1/residents/${residentId}/journal/${day}`),
   setFreeTime: (residentId: string, times: string[]) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/free-time`, { times }),
   addCheckin: (residentId: string, label: string, time: string) =>
@@ -275,6 +506,13 @@ export const api = {
   stopTurn: (residentId: string, sessionKey: string) => call<void>('POST', `/v1/residents/${residentId}/sessions/${sessionKey}/stop`),
   work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),
   needsYou: (residentId: string) => call<NeedsYouEntry[]>('GET', `/v1/residents/${residentId}/needs_you`),
+  waitingOnHer: (residentId: string) => call<WaitingOnHerEntry[]>('GET', `/v1/residents/${residentId}/waiting_on_her`),
+  // Her theme (seshat#56): the witness's three seeds in THEME.md, and her proposals.
+  theme: (residentId: string) => call<ThemeState>('GET', `/v1/residents/${residentId}/theme`),
+  setTheme: (residentId: string, seeds: { ground: string; resident: string; witness: string }, note?: string) =>
+    call<ThemeState>('PUT', `/v1/residents/${residentId}/theme`, note ? { ...seeds, note } : seeds),
+  answerTheme: (residentId: string, number: number, agree: boolean, note: string) =>
+    call<ThemeState>('POST', `/v1/residents/${residentId}/theme/proposals/${number}/answer`, { agree, note }),
   plugins: (residentId: string) => call<PluginsData>('GET', `/v1/residents/${residentId}/plugins`),
   proposePlugin: (residentId: string, key: string, change: PluginProposal['change'], note: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/plugins/proposals`, { key, change, note }),
@@ -285,7 +523,16 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/reacts?session_key=${encodeURIComponent(sessionKey)}`,
     ),
-  react: (residentId: string, target: { kind: 'message'; session_key: string; turn_ref: string } | { kind: 'letter'; number: number }, emoji: string) =>
+  documentReacts: (residentId: string, path: string) =>
+    call<Array<{ number: number; emoji: string; by: 'witness' | 'resident'; reacted_at: string; path: string | null }>>(
+      'GET',
+      `/v1/residents/${residentId}/reacts?path=${encodeURIComponent(path)}`,
+    ),
+  react: (
+    residentId: string,
+    target: { kind: 'message'; session_key: string; turn_ref: string } | { kind: 'letter'; number: number } | { kind: 'document'; path: string },
+    emoji: string,
+  ) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/reacts`, { target, emoji }),
   reactVocabulary: (residentId: string) => call<Array<{ emoji: string; meaning: string }>>('GET', `/v1/residents/${residentId}/reacts/vocabulary`),
   routes: (residentId: string) => call<RoutesData>('GET', `/v1/residents/${residentId}/routes`),
@@ -316,6 +563,13 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/rounds`, { every_hours: everyHours, waking }),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/quiet-hours`, { from, to }),
+  // Important dates (spec §6.7): a title, the instant, a kind; countdowns derived now.
+  dates: (residentId: string) => call<ScheduleDate[]>('GET', `/v1/residents/${residentId}/dates`),
+  addDate: (residentId: string, d: { title: string; on: string; kind: string }) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/dates`, d),
+  changeDate: (residentId: string, number: number, d: { title: string; on: string; kind: string }) =>
+    call<void>('PUT', `/v1/residents/${residentId}/dates/${number}`, d),
+  removeDate: (residentId: string, number: number) => call<void>('DELETE', `/v1/residents/${residentId}/dates/${number}`),
   setTimezone: (residentId: string, timezone: string) => call<void>('PUT', `/v1/residents/${residentId}/timezone`, { timezone }),
   ledger: (residentId: string) => call<Ledger>('GET', `/v1/residents/${residentId}/ledger`),
   setBudget: (residentId: string, purpose: string, cap: string | null, period: string) =>
@@ -434,4 +688,137 @@ export interface Platform {
   triage?: { slug: string | null; from: 'setting' | 'environment' | null; note: string | null; set_by: string | null; set_at: string | null };
   // The latest restarts (gaia#21), newest first, each as its line.
   restarts?: { number: number; commit: string | null; previous: string | null; changed: boolean; booted_at: string; line: string }[];
+}
+
+// A witness's edit to an identity file after first contact, open until she
+// answers (agathos-daimon). The route lists open ones only.
+export interface SoulEdit {
+  ref: string;
+  file: string;
+  content: string;
+  note: string | null;
+  state: string;
+  proposed_by: { kind: string; id: string };
+  proposed_at: string;
+  /** Her answer (agathos-daimon#43), null while open. */
+  answer?: { decision: 'accepted' | 'declined'; note: string | null; at: string } | null;
+  /** Your withdrawal (#44), null unless withdrawn. */
+  withdrawn?: { note: string; at: string } | null;
+}
+
+// One line of SOUL.md with the seeds it cites and how often her citations hang on it.
+export interface SoulLine {
+  number: number;
+  text: string;
+  position: number;
+  cites: number[];
+  version: number;
+  written_at: string;
+  reworded_at: string | null;
+  citations: number;
+  days: number;
+}
+
+export interface SelfLetters {
+  letters: Array<{ number: number; text: string; model: string | null; written_at: string; delivered_at: string | null; delivered_to: string | null }>;
+  receipts: Array<{ at: string; by_kind: string; by_id: string; numbers: number[] }>;
+}
+
+export interface Habit {
+  number: number;
+  name: string;
+  trigger: Record<string, unknown>;
+  stance: string | null;
+  seed_number: number | null;
+  habit: number;
+  connection: number;
+  citations: number;
+  days: number;
+  affirmations: number;
+  defined_by: { kind: string; id: string };
+  defined_at: string;
+  revised_at: string | null;
+  revisions: number;
+}
+
+export interface Seed {
+  number: number;
+  text: string;
+  state: string;
+  planted_at: string;
+  closed_at: string | null;
+  graduated_to: { kind: string; id: string } | null;
+  graduation_note: string | null;
+  citations: number;
+  days: number;
+}
+
+export interface Commitment {
+  number: number;
+  to: string;
+  text: string;
+  state: string;
+  made_at: string;
+  closed_at: string | null;
+  closed_by_kind: string | null;
+  note: string | null;
+}
+
+export interface Position {
+  number: number;
+  statement: string;
+  session_key: string | null;
+  turn_ref: string | null;
+  replaces: number | null;
+  replaced_by: number | null;
+  taken_at: string;
+  replaced_at: string | null;
+}
+
+export interface Prediction {
+  number: number;
+  statement: string;
+  due: string | null;
+  logged_at: string;
+  outcome: 'right' | 'wrong' | 'void' | null;
+  note: string | null;
+  resolved_at: string | null;
+}
+
+export interface Predictions {
+  open: Prediction[];
+  resolved: Prediction[];
+  tally: Partial<Record<'right' | 'wrong' | 'void', number>>;
+}
+
+export interface Revision {
+  number: number;
+  target_kind: string;
+  target_id: string;
+  kind: 'fact' | 'stance' | string;
+  text: string;
+  note: string | null;
+  state: string;
+  by: { kind: string; id: string };
+  at: string;
+  decided_at: string | null;
+  decision_note: string | null;
+}
+
+export interface BookmarkProposal {
+  ref: string;
+  session_key: string;
+  anchor_ref: string;
+  line: string;
+  note: string | null;
+  state: string;
+  proposed_by: { kind: string; id: string };
+  proposed_at: string;
+  /** Her answer (kumbukumbu#63): a decline with her note, or the bookmark she wrote from it. */
+  answer?: {
+    decision: 'accepted' | 'declined';
+    note: string | null;
+    at: string;
+    bookmark: { number: number; line: string | null; summary: string | null; private: boolean } | null;
+  } | null;
 }

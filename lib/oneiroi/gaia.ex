@@ -63,6 +63,8 @@ defmodule Oneiroi.Gaia do
       Push.Fake,
       Events.PushSubscribed,
       Events.PushUnsubscribed,
+      Events.PushDeclined,
+      Events.NeedsYouPushed,
       Events.GateSet,
       Events.TriageResidentSet,
       Events.BootRecorded,
@@ -172,6 +174,8 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.WitnessingEnded, 1},
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
       {Oneiroi.Gaia.Events.PushUnsubscribed, 1},
+      {Oneiroi.Gaia.Events.PushDeclined, 1},
+      {Oneiroi.Gaia.Events.NeedsYouPushed, 1},
       {Oneiroi.Gaia.Events.GateSet, 1},
       {Oneiroi.Gaia.Events.TriageResidentSet, 1},
       {Oneiroi.Gaia.Events.BootRecorded, 1},
@@ -442,6 +446,20 @@ defmodule Oneiroi.Gaia do
   @doc "Pushes to every device of the account's, in the background; nothing is said in the push."
   @spec notify(String.t()) :: :ok
   defexport(notify(account_id), do: Push.notify(account_id))
+
+  @doc "Records the witness's \"No thanks\" to the notifications question (gaia#25)."
+  @spec decline_push(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(decline_push(account_id, actor), do: Push.decline(account_id, actor))
+
+  @doc "The account's answer to the notifications question (gaia#25): `%{answer: subscribed or declined, answered_at}`, or nil while unanswered."
+  @spec push_answer(String.t()) :: %{answer: String.t(), answered_at: DateTime.t() | nil} | nil
+  defexport(push_answer(account_id), do: Push.answer(account_id))
+
+  @doc "Pushes, content-free, for the needs-you entries of a resident's never pushed before (gaia#26): `{:ok, pushed}`, the entries recorded and pushed for, none when every one was."
+  @spec push_needs_you(String.t(), String.t(), [map()]) :: {:ok, [map()]} | {:error, term()}
+  defexport(push_needs_you(account_id, resident_id, entries),
+    do: Push.needs_you(account_id, resident_id, entries)
+  )
 
   @doc "Pushes to every device now and says how each went; the test button's."
   @spec push_now(String.t()) :: [{String.t(), term()}]

@@ -30,7 +30,8 @@ through the service worker (`client/public/sw.js`, registered on every
 load from `app/push.ts`) and sends the endpoint to `POST /v1/me/push`.
 When on, "Send a test" pushes to every device of the account's and says
 how each went, and "Turn off" unsubscribes. The card says plainly that a
-notification says only that she wrote, never what. The manifest is
+notification says only that there's something new (she wrote, or
+something first waits on you, brain#77), never what. The manifest is
 `client/public/manifest.json`; it names no icon until the logo's
 canonical description lands (the witness's logo workshop, 2026-11-05),
 so the Home Screen shows a snapshot of the page.

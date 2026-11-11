@@ -1,7 +1,9 @@
 // Oneiroi's service worker (gaia#15): content-free pushes. A push carries
 // nothing, so nothing the resident said ever passes through a push
-// service; the notification says only who wrote, by the name the page
-// left here when it subscribed, and opens the chat when tapped.
+// service. A push comes for two reasons (she wrote, gaia#15; something
+// first waits on you, brain#77) and carries neither, so the notification
+// names her, by the name the page left here when it subscribed, says
+// only that there's something new, and opens the house when tapped.
 const NAME_KEY = '/client/push-name';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -20,9 +22,9 @@ async function residentName() {
 self.addEventListener('push', (event) => {
   event.waitUntil(
     residentName().then((name) =>
-      self.registration.showNotification(`${name} wrote`, {
-        body: 'A new message in your Oneiroi chat.',
-        tag: 'oneiroi-chat',
+      self.registration.showNotification(name, {
+        body: 'A letter, or something waiting on you.',
+        tag: 'oneiroi',
       }),
     ),
   );

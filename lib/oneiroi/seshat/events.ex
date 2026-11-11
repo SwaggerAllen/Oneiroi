@@ -8,7 +8,15 @@ defmodule Oneiroi.Seshat.Events do
   """
 
   defmodule DocumentWritten do
-    use Oneiroi.Event, version: 1, fields: [:id, :path, :kind, :hash, :bytes]
+    # Version 2 adds `note` (seshat#54): what the writer said of this
+    # version, a restore's "restored from" among them, shown in the
+    # document's versions; nil on every version 1 write, which the
+    # identity upcaster leaves as the struct's default.
+    use Oneiroi.Event, version: 2, fields: [:id, :path, :kind, :hash, :bytes, :note]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.DocumentWritten do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule DocumentAdopted do
@@ -206,5 +214,21 @@ defmodule Oneiroi.Seshat.Events do
     # back on by either party alone, off only by an agreed proposal
     # (`number`).
     use Oneiroi.Event, version: 1, fields: [:id, :kind, :approvable, :number]
+  end
+
+  defmodule ThemeProposed do
+    # Her proposal of the three seeds (seshat#56), filed only once they
+    # passed the readability checks; numbered by the theme stream. The
+    # witness accepts or declines it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :ground, :resident, :witness],
+      decision: true
+  end
+
+  defmodule ThemeAnswered do
+    # The witness's answer to her theme proposal (seshat#56), with a
+    # note; accepted, THEME.md is written with the proposal's seeds.
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :agree], decision: true
   end
 end

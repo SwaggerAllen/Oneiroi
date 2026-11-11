@@ -1,0 +1,1218 @@
+[
+  {
+    "seeds": {
+      "ground": "#0a0a10",
+      "resident": "#d8b4fe",
+      "witness": "#7ee7f5"
+    },
+    "ok": true,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.5
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.33
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.23
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 11.17
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 13.76
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 11.13
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 1.66
+      }
+    ],
+    "tokens": {
+      "ground": "#0a0a10",
+      "groundDeep": "#05050a",
+      "surface": "#17171e",
+      "surfaceRaised": "#1c1c22",
+      "border": "#25252f",
+      "borderStrong": "#31313e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      },
+      "witness": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0a0a10",
+      "resident": "#d8b4fe",
+      "witness": "#d4b0fa"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.5
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.33
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.23
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 11.17
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 10.71
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 9.12
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": false,
+        "value": 0.08
+      }
+    ],
+    "tokens": {
+      "ground": "#0a0a10",
+      "groundDeep": "#05050a",
+      "surface": "#17171e",
+      "surfaceRaised": "#1c1c22",
+      "border": "#25252f",
+      "borderStrong": "#31313e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      },
+      "witness": {
+        "accent": "#d4b0fa",
+        "on": "#261635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(212,176,250,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#8a8a8a",
+      "resident": "#d8b4fe",
+      "witness": "#7ee7f5"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": false,
+        "value": 2.9
+      },
+      {
+        "name": "muted text on ground",
+        "passed": false,
+        "value": 1.11
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 1.95
+      },
+      {
+        "name": "his colour on ground",
+        "passed": false,
+        "value": 2.41
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 11.13
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 1.66
+      }
+    ],
+    "tokens": {
+      "ground": "#8a8a8a",
+      "groundDeep": "#818181",
+      "surface": "#9c9c9c",
+      "surfaceRaised": "#a2a2a2",
+      "border": "#b0afab",
+      "borderStrong": "#c1bfb8",
+      "text": "#eeebe4",
+      "textMuted": "#979285",
+      "textFaint": "#6d695c",
+      "resident": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      },
+      "witness": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#f5f5f0",
+      "resident": "#d8b4fe",
+      "witness": "#7ee7f5"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": false,
+        "value": 1.09
+      },
+      {
+        "name": "muted text on ground",
+        "passed": false,
+        "value": 2.84
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 5.48
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 1.62
+      },
+      {
+        "name": "his colour on ground",
+        "passed": false,
+        "value": 1.31
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 11.13
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 1.66
+      }
+    ],
+    "tokens": {
+      "ground": "#f5f5f0",
+      "groundDeep": "#ebebe6",
+      "surface": "#ffffff",
+      "surfaceRaised": "#ffffff",
+      "border": "#ffffff",
+      "borderStrong": "#ffffff",
+      "text": "#ecece4",
+      "textMuted": "#939385",
+      "textFaint": "#6a6a5d",
+      "resident": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      },
+      "witness": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0a0a10",
+      "resident": "#4b2a7a",
+      "witness": "#7ee7f5"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.5
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.33
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.23
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 1.8
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 13.76
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 11.13
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 3.32
+      }
+    ],
+    "tokens": {
+      "ground": "#0a0a10",
+      "groundDeep": "#05050a",
+      "surface": "#17171e",
+      "surfaceRaised": "#1c1c22",
+      "border": "#25252f",
+      "borderStrong": "#31313e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#4b2a7a",
+        "on": "#231837",
+        "surface": "#191226",
+        "surfaceStrong": "#231934",
+        "border": "#35294a",
+        "borderStrong": "#483867",
+        "text": "#dcc8ff",
+        "glow": "rgba(75,42,122,0.35)"
+      },
+      "witness": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0a0a10",
+      "resident": "#d8b4fe",
+      "witness": "#1f4e79"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.5
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.33
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.23
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 11.17
+      },
+      {
+        "name": "his colour on ground",
+        "passed": false,
+        "value": 2.28
+      },
+      {
+        "name": "text on his colour",
+        "passed": false,
+        "value": 1.9
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.75
+      }
+    ],
+    "tokens": {
+      "ground": "#0a0a10",
+      "groundDeep": "#05050a",
+      "surface": "#17171e",
+      "surfaceRaised": "#1c1c22",
+      "border": "#25252f",
+      "borderStrong": "#31313e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      },
+      "witness": {
+        "accent": "#1f4e79",
+        "on": "#04203a",
+        "surface": "#061727",
+        "surfaceStrong": "#0a2135",
+        "border": "#19324a",
+        "borderStrong": "#244564",
+        "text": "#b3d9ff",
+        "glow": "rgba(31,78,121,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0a0a10",
+      "resident": "#fff0f5",
+      "witness": "#7ee7f5"
+    },
+    "ok": true,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.5
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.33
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.23
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 17.89
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 13.76
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 11.13
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.47
+      }
+    ],
+    "tokens": {
+      "ground": "#0a0a10",
+      "groundDeep": "#05050a",
+      "surface": "#17171e",
+      "surfaceRaised": "#1c1c22",
+      "border": "#25252f",
+      "borderStrong": "#31313e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#fff0f5",
+        "on": "#261c20",
+        "surface": "#191516",
+        "surfaceStrong": "#231d1f",
+        "border": "#352e30",
+        "borderStrong": "#484043",
+        "text": "#dcd1d4",
+        "glow": "rgba(255,240,245,0.35)"
+      },
+      "witness": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#101820",
+      "resident": "#ffb86b",
+      "witness": "#6be3ff"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 15.04
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 5.79
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.77
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 10.5
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 11.98
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 10.64
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.47
+      }
+    ],
+    "tokens": {
+      "ground": "#101820",
+      "groundDeep": "#0a1119",
+      "surface": "#1e262f",
+      "surfaceRaised": "#232b34",
+      "border": "#2a3541",
+      "borderStrong": "#354351",
+      "text": "#e6ecf2",
+      "textMuted": "#89949e",
+      "textFaint": "#606a74",
+      "resident": {
+        "accent": "#ffb86b",
+        "on": "#321800",
+        "surface": "#221202",
+        "surfaceStrong": "#2f1a02",
+        "border": "#442a09",
+        "borderStrong": "#5e3906",
+        "text": "#fdc994",
+        "glow": "rgba(255,184,107,0.35)"
+      },
+      "witness": {
+        "accent": "#6be3ff",
+        "on": "#002631",
+        "surface": "#001a21",
+        "surfaceStrong": "#00252e",
+        "border": "#003743",
+        "borderStrong": "#004c5d",
+        "text": "#90e3f8",
+        "glow": "rgba(107,227,255,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#000000",
+      "resident": "#ff5c8a",
+      "witness": "#5cff9d"
+    },
+    "ok": true,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 17.48
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.66
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.73
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 7.15
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 16.25
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 12.5
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.44
+      }
+    ],
+    "tokens": {
+      "ground": "#000000",
+      "groundDeep": "#000000",
+      "surface": "#010101",
+      "surfaceRaised": "#020202",
+      "border": "#070506",
+      "borderStrong": "#130e0f",
+      "text": "#f1e8eb",
+      "textMuted": "#9d8d92",
+      "textFaint": "#736468",
+      "resident": {
+        "accent": "#ff5c8a",
+        "on": "#36111a",
+        "surface": "#250e13",
+        "surfaceStrong": "#33141b",
+        "border": "#49222b",
+        "borderStrong": "#652e3b",
+        "text": "#ffbcca",
+        "glow": "rgba(255,92,138,0.35)"
+      },
+      "witness": {
+        "accent": "#5cff9d",
+        "on": "#012711",
+        "surface": "#051b0d",
+        "surfaceStrong": "#082614",
+        "border": "#143921",
+        "borderStrong": "#184e2d",
+        "text": "#a6e6b9",
+        "glow": "rgba(92,255,157,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#1a1a2e",
+      "resident": "#e94560",
+      "witness": "#f0a500"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 14.25
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 5.47
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.58
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 4.46
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 8.19
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 7.95
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 1.01
+      }
+    ],
+    "tokens": {
+      "ground": "#1a1a2e",
+      "groundDeep": "#14151f",
+      "surface": "#292a35",
+      "surfaceRaised": "#2e2f3a",
+      "border": "#383947",
+      "borderStrong": "#454557",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#e94560",
+        "on": "#371115",
+        "surface": "#250e10",
+        "surfaceStrong": "#331417",
+        "border": "#4a2326",
+        "borderStrong": "#662f34",
+        "text": "#ffbcc0",
+        "glow": "rgba(233,69,96,0.35)"
+      },
+      "witness": {
+        "accent": "#f0a500",
+        "on": "#2f1a00",
+        "surface": "#201301",
+        "surfaceStrong": "#2d1b00",
+        "border": "#412b06",
+        "borderStrong": "#5a3b00",
+        "text": "#f7cd91",
+        "glow": "rgba(240,165,0,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0b1d13",
+      "resident": "#a3e635",
+      "witness": "#c084fc"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 14.72
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 5.68
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.74
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 11.61
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 6.63
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 6.32
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.94
+      }
+    ],
+    "tokens": {
+      "ground": "#0b1d13",
+      "groundDeep": "#0a150e",
+      "surface": "#1f2a23",
+      "surfaceRaised": "#242f28",
+      "border": "#2b3a31",
+      "borderStrong": "#35483d",
+      "text": "#e6ede9",
+      "textMuted": "#89968d",
+      "textFaint": "#606d65",
+      "resident": {
+        "accent": "#a3e635",
+        "on": "#162402",
+        "surface": "#101905",
+        "surfaceStrong": "#182408",
+        "border": "#273613",
+        "borderStrong": "#354a17",
+        "text": "#c2e0a1",
+        "glow": "rgba(163,230,53,0.35)"
+      },
+      "witness": {
+        "accent": "#c084fc",
+        "on": "#261736",
+        "surface": "#1a1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c6ff",
+        "glow": "rgba(192,132,252,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#202020",
+      "resident": "#ff0000",
+      "witness": "#ff3300"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 13.69
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 5.25
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.44
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 4.07
+      },
+      {
+        "name": "his colour on ground",
+        "passed": false,
+        "value": 4.44
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 4.57
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": false,
+        "value": 0.12
+      }
+    ],
+    "tokens": {
+      "ground": "#202020",
+      "groundDeep": "#191919",
+      "surface": "#2f2f2f",
+      "surfaceRaised": "#343434",
+      "border": "#3f3e3b",
+      "borderStrong": "#4d4b45",
+      "text": "#eeebe4",
+      "textMuted": "#979285",
+      "textFaint": "#6d695c",
+      "resident": {
+        "accent": "#ff0000",
+        "on": "#37120e",
+        "surface": "#250e0b",
+        "surfaceStrong": "#331511",
+        "border": "#4a231e",
+        "borderStrong": "#663029",
+        "text": "#ffbeb2",
+        "glow": "rgba(255,0,0,0.35)"
+      },
+      "witness": {
+        "accent": "#ff3300",
+        "on": "#37120b",
+        "surface": "#250e0a",
+        "surfaceStrong": "#33150f",
+        "border": "#4a241c",
+        "borderStrong": "#663026",
+        "text": "#ffbfaf",
+        "glow": "rgba(255,51,0,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#2b1d0e",
+      "resident": "#ffd27f",
+      "witness": "#8fd3ff"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 13.69
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 5.24
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.44
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 11.5
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 10.06
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 10.05
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.6
+      }
+    ],
+    "tokens": {
+      "ground": "#2b1d0e",
+      "groundDeep": "#20180f",
+      "surface": "#362d24",
+      "surfaceRaised": "#3b3229",
+      "border": "#473c30",
+      "borderStrong": "#57493a",
+      "text": "#f0eae4",
+      "textMuted": "#9b9086",
+      "textFaint": "#71675d",
+      "resident": {
+        "accent": "#ffd27f",
+        "on": "#2d1b00",
+        "surface": "#1f1401",
+        "surfaceStrong": "#2b1c00",
+        "border": "#3f2d04",
+        "borderStrong": "#573d00",
+        "text": "#f1cf94",
+        "glow": "rgba(255,210,127,0.35)"
+      },
+      "witness": {
+        "accent": "#8fd3ff",
+        "on": "#002238",
+        "surface": "#021826",
+        "surfaceStrong": "#022234",
+        "border": "#103449",
+        "borderStrong": "#174763",
+        "text": "#aadcfd",
+        "glow": "rgba(143,211,255,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#3a0ca3",
+      "resident": "#f72585",
+      "witness": "#4cc9f0"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 9.96
+      },
+      {
+        "name": "muted text on ground",
+        "passed": false,
+        "value": 3.82
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 1.52
+      },
+      {
+        "name": "her colour on ground",
+        "passed": false,
+        "value": 3.16
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 6.2
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 8.31
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2.3
+      }
+    ],
+    "tokens": {
+      "ground": "#3a0ca3",
+      "groundDeep": "#343540",
+      "surface": "#4c4d59",
+      "surfaceRaised": "#51525e",
+      "border": "#5c5d6c",
+      "borderStrong": "#696b7e",
+      "text": "#eaeaf2",
+      "textMuted": "#90919e",
+      "textFaint": "#676874",
+      "resident": {
+        "accent": "#f72585",
+        "on": "#35111e",
+        "surface": "#240e15",
+        "surfaceStrong": "#32141e",
+        "border": "#48222f",
+        "borderStrong": "#642e40",
+        "text": "#ffbcd1",
+        "glow": "rgba(247,37,133,0.35)"
+      },
+      "witness": {
+        "accent": "#4cc9f0",
+        "on": "#002534",
+        "surface": "#001a23",
+        "surfaceStrong": "#002430",
+        "border": "#003746",
+        "borderStrong": "#004b61",
+        "text": "#8fe2ff",
+        "glow": "rgba(76,201,240,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#121212",
+      "resident": "#bb86fc",
+      "witness": "#03dac6"
+    },
+    "ok": false,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 15.74
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.04
+      },
+      {
+        "name": "faint text on surface",
+        "passed": false,
+        "value": 2.97
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 7.07
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 10.57
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 8.93
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 2
+      }
+    ],
+    "tokens": {
+      "ground": "#121212",
+      "groundDeep": "#0c0c0c",
+      "surface": "#202020",
+      "surfaceRaised": "#242424",
+      "border": "#2f2e2c",
+      "borderStrong": "#3d3b35",
+      "text": "#eeebe4",
+      "textMuted": "#979285",
+      "textFaint": "#6d695c",
+      "resident": {
+        "accent": "#bb86fc",
+        "on": "#251736",
+        "surface": "#1a1125",
+        "surfaceStrong": "#241933",
+        "border": "#372849",
+        "borderStrong": "#4b3765",
+        "text": "#e0c6ff",
+        "glow": "rgba(187,134,252,0.35)"
+      },
+      "witness": {
+        "accent": "#03dac6",
+        "on": "#002822",
+        "surface": "#001c18",
+        "surfaceStrong": "#002722",
+        "border": "#003a33",
+        "borderStrong": "#005047",
+        "text": "#8de8da",
+        "glow": "rgba(3,218,198,0.35)"
+      }
+    }
+  },
+  {
+    "seeds": {
+      "ground": "#0d0d0d",
+      "resident": "#7ee7f5",
+      "witness": "#d8b4fe"
+    },
+    "ok": true,
+    "checks": [
+      {
+        "name": "text on ground",
+        "passed": true,
+        "value": 16.32
+      },
+      {
+        "name": "muted text on ground",
+        "passed": true,
+        "value": 6.26
+      },
+      {
+        "name": "faint text on surface",
+        "passed": true,
+        "value": 3.17
+      },
+      {
+        "name": "her colour on ground",
+        "passed": true,
+        "value": 13.55
+      },
+      {
+        "name": "his colour on ground",
+        "passed": true,
+        "value": 10.99
+      },
+      {
+        "name": "text on his colour",
+        "passed": true,
+        "value": 9.49
+      },
+      {
+        "name": "her colour apart from his",
+        "passed": true,
+        "value": 1.66
+      }
+    ],
+    "tokens": {
+      "ground": "#0d0d0d",
+      "groundDeep": "#070707",
+      "surface": "#1a1a1a",
+      "surfaceRaised": "#1f1f1f",
+      "border": "#2a2926",
+      "borderStrong": "#37352f",
+      "text": "#eeebe4",
+      "textMuted": "#979285",
+      "textFaint": "#6d695c",
+      "resident": {
+        "accent": "#7ee7f5",
+        "on": "#00262d",
+        "surface": "#001b1f",
+        "surfaceStrong": "#00252b",
+        "border": "#00383f",
+        "borderStrong": "#004d56",
+        "text": "#99e3ed",
+        "glow": "rgba(126,231,245,0.35)"
+      },
+      "witness": {
+        "accent": "#d8b4fe",
+        "on": "#271635",
+        "surface": "#1b1124",
+        "surfaceStrong": "#251832",
+        "border": "#382848",
+        "borderStrong": "#4d3664",
+        "text": "#e2c7ff",
+        "glow": "rgba(216,180,254,0.35)"
+      }
+    }
+  }
+]

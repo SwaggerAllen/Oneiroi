@@ -83,6 +83,14 @@ defmodule Oneiroi.Seshat do
       Store.UserKind,
       Store.KindGate,
       Store.KindGateProposal,
+      Theme,
+      Palette,
+      ThemeRouter,
+      Commands.ProposeTheme,
+      Commands.AnswerTheme,
+      Events.ThemeProposed,
+      Events.ThemeAnswered,
+      Store.ThemeProposal,
       Events.DiscussionOpened,
       Events.KeepsakeNoted,
       Events.KeepsakeRegistered,
@@ -108,6 +116,10 @@ defmodule Oneiroi.Seshat do
       Store.Reference,
       Store.IndexRun,
       Store.Discussion,
+      Store.DocumentVersion,
+      Store.Lease,
+      Versions,
+      Leases,
       Store.Oracle,
       Store.Research,
       Store.External,
@@ -118,7 +130,20 @@ defmodule Oneiroi.Seshat do
       JournalCommands.AddJournalEntry,
       JournalCommands.MarkTodoDone,
       Events.JournalEntryAdded,
-      Events.JournalTodoDone
+      Events.JournalTodoDone,
+      Store.Scene,
+      Store.SceneDay,
+      Scene,
+      Scenes,
+      SceneRouter,
+      SceneCommands.WriteScene,
+      SceneCommands.CorrectScene,
+      SceneCommands.CorrectSceneSummary,
+      SceneCommands.CloseScenes,
+      Events.SceneWritten,
+      Events.SceneCorrected,
+      Events.SceneSummaryCorrected,
+      Events.ScenesClosed
     ]
 
   alias Oneiroi.Seshat.Citations
@@ -128,11 +153,15 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
+  alias Oneiroi.Seshat.Leases
   alias Oneiroi.Seshat.Oracles
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
+  alias Oneiroi.Seshat.Scenes
+  alias Oneiroi.Seshat.Theme
   alias Oneiroi.Seshat.UserKinds
+  alias Oneiroi.Seshat.Versions
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -184,6 +213,18 @@ defmodule Oneiroi.Seshat do
        default: "8",
        tag: :bound,
        usage: "how many chunks a search returns at most; a bound"},
+      {:versions_limit, "SESHAT_VERSIONS_LIMIT",
+       cast: :integer,
+       default: "100",
+       tag: :bound,
+       usage:
+         "how many of the repository's commits of one path a document's versions read (seshat#54), newest first; each costs a git read of its blob; a bound, not measured"},
+      {:lease_idle_seconds, "SESHAT_LEASE_IDLE_SECONDS",
+       cast: :integer,
+       default: "300",
+       tag: :bound,
+       usage:
+         "how long the witness's edit lease goes without a renewal before it is takeable (seshat#55): never revoked, taken only by the resident's write waiting on that file, his draft kept; five minutes, a guess at an editor left open, not measured"},
       {:figures, "SESHAT_FIGURES",
        cast: &__MODULE__.cast_figures/1,
        default: "huginn_muninn",
@@ -209,7 +250,7 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Seshat.Events.DocumentWritten, 1},
+      {Oneiroi.Seshat.Events.DocumentWritten, 2},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.PieceReviewed, 1},
@@ -219,6 +260,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.KindGateProposed, 1},
       {Oneiroi.Seshat.Events.KindGateAnswered, 1},
       {Oneiroi.Seshat.Events.KindGateMoved, 1},
+      {Oneiroi.Seshat.Events.ThemeProposed, 1},
+      {Oneiroi.Seshat.Events.ThemeAnswered, 1},
       {Oneiroi.Seshat.Events.DiscussionOpened, 1},
       {Oneiroi.Seshat.Events.KeepsakeNoted, 1},
       {Oneiroi.Seshat.Events.KeepsakeRegistered, 1},
@@ -239,7 +282,11 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.ExternalFetched, 1},
       {Oneiroi.Seshat.Events.ExternalFetchFailed, 1},
       {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
-      {Oneiroi.Seshat.Events.JournalTodoDone, 1}
+      {Oneiroi.Seshat.Events.JournalTodoDone, 1},
+      {Oneiroi.Seshat.Events.SceneWritten, 2},
+      {Oneiroi.Seshat.Events.SceneCorrected, 1},
+      {Oneiroi.Seshat.Events.SceneSummaryCorrected, 1},
+      {Oneiroi.Seshat.Events.ScenesClosed, 1}
     ]
   end
 
@@ -251,7 +298,7 @@ defmodule Oneiroi.Seshat do
        remedy:
          "name the file as `<kind>/<name>.md`, or `<name>.md` at the root; the kinds are the registry's"},
       {:seshat_kind_not_writable,
-       "that kind is written by the platform (mail, feeds, correspondence, the journal) or is the originals import's read-only copy (memory), never through a document write",
+       "that kind is written by the platform (mail, feeds, correspondence, the journal, the scenes) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
          "write under writing, design, research, wiki, scratch or posts; human/ is the witness's"},
       {:seshat_not_movable,
@@ -311,6 +358,20 @@ defmodule Oneiroi.Seshat do
       {:seshat_no_such_digest, "no digest has that number", remedy: "list the digests"},
       {:seshat_digest_settled, "that digest is already compiled or failed",
        remedy: "ask for a new digest"},
+      {:seshat_no_such_version,
+       "neither the file now nor any commit of it the versions read holds words with that hash (seshat#54)",
+       remedy:
+         "list the document's versions; a version written and overwritten between two backups is listed and not restorable"},
+      {:seshat_lease_held, "another account holds the edit lease on that path (seshat#55)",
+       remedy: "wait for it to be released, or ask whoever holds it"},
+      {:seshat_lease_taken,
+       "the lease was taken by the resident's write while it was idle; the draft it carried is kept at kept_at (seshat#55)",
+       remedy:
+         "read the document as it is now and the kept draft; acquire the lease again to edit"},
+      {:seshat_no_such_lease, "you hold no lease on that path", remedy: "acquire one first"},
+      {:seshat_lease_invalid,
+       "an edit lease is the witness's editor's: acquired, renewed and released by a witness",
+       remedy: "the resident's document_write waits on a lease rather than taking one"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -350,6 +411,15 @@ defmodule Oneiroi.Seshat do
       {:seshat_entry_text_invalid, "an entry is a text with words in it",
        remedy: "say it shorter"},
       {:seshat_no_such_todo, "no open todo has that number on that day", remedy: "read the day"},
+      {:seshat_scene_invalid,
+       "a scene has a one-line title, its first and last turn refs, a few lines of what happened, an optional one-line mood, a register of his, hers or work, an optional list of the people in it (at most 20 names of at most 80 characters, seshat#57), and times as HH:MM on its day or ISO instants; a correction names its scene and says why (seshat#52)",
+       remedy: "read the error's detail and write the call again"},
+      {:seshat_no_such_scene, "that day holds no scene with that number",
+       remedy: "read the day's scenes; a correction row is corrected by another correction"},
+      {:seshat_scene_summary_kept,
+       "a scene's summary is never overwritten: it is corrected by a row of its own that cites its turns (seshat#52)",
+       remedy:
+         "write a correction with corrects: <the scene's number>, the turns and the corrected lines"},
       {:seshat_no_such_day, "the schedule never opened that day",
        remedy: "a day opens at its first check-in or its first entry"},
       {:seshat_embedding_mismatched,
@@ -365,8 +435,30 @@ defmodule Oneiroi.Seshat do
       {:seshat_kind_gate_invalid,
        "a gate is a system kind's whose own flow waits on the witness; on is either party's at once, off is a proposal the other party answers, one open at a time",
        remedy: "answer the open proposal, or ask the other party to"},
+      {:seshat_theme_invalid,
+       "a theme is three #rrggbb seeds, a ground, her colour and his colour (seshat#56), and a proposal or an answer to one says why in a note",
+       remedy: "give ground, resident and witness as #rrggbb, and the note"},
+      {:seshat_theme_unreadable,
+       "those seeds would make the screen hard to read: a readability check of the theme's derivation failed (seshat#56)",
+       remedy:
+         "read which checks failed: text-facing colours need more contrast against the ground, and her colour and his need more hue or lightness between them"},
+      {:seshat_theme_not_his, "the theme's seeds are the witness's to set (seshat#56)",
+       remedy: "the resident proposes a theme with theme_propose; the witness answers it"},
+      {:seshat_theme_not_hers,
+       "a theme proposal is the resident's; the witness sets the seeds directly (seshat#56)",
+       remedy: "set the theme with PUT /v1/residents/:id/theme"},
+      {:seshat_theme_proposal_open,
+       "one theme proposal waits on the witness at a time (seshat#56)",
+       remedy: "wait for his answer to the open one"},
+      {:seshat_theme_answer_invalid,
+       "only the witness answers a theme proposal, and only an open one (seshat#56)",
+       remedy: "read the theme's proposals for the open one's number"},
+      {:seshat_theme_file,
+       "THEME.md is written only through the theme, where the readability checks run (seshat#56)",
+       remedy:
+         "the witness sets it with PUT /v1/residents/:id/theme; the resident proposes a change with theme_propose"},
       {:seshat_dispatch_failed,
-       "the command did not reach the library or the journal aggregate: the command middleware or the event store refused it",
+       "the command did not reach the library, the journal or the scenes aggregate: the command middleware or the event store refused it",
        remedy:
          "retry; if it repeats, an operator reads the log line carrying this error's site and cause"}
     ]
@@ -376,9 +468,12 @@ defmodule Oneiroi.Seshat do
   def children,
     do: [
       Oneiroi.Seshat.Projectors.Library,
+      Oneiroi.Seshat.Projectors.Versions,
       Oneiroi.Seshat.Projectors.Journal,
+      Oneiroi.Seshat.Projectors.Scenes,
       Oneiroi.Seshat.Projectors.Pieces,
-      Oneiroi.Seshat.Projectors.Kinds
+      Oneiroi.Seshat.Projectors.Kinds,
+      Oneiroi.Seshat.Projectors.Theme
     ]
 
   # ---- the registry ----
@@ -422,17 +517,128 @@ defmodule Oneiroi.Seshat do
     do: UserKinds.answer(resident_id, number, agree, note, actor)
   )
 
+  # ---- the theme (seshat#56) ----
+
+  @doc "The theme: the three seeds from THEME.md or the default, their checks, and her proposals."
+  @spec theme(String.t()) :: map()
+  defexport(theme(resident_id), do: Theme.read(resident_id))
+
+  @doc "The witness sets the theme's seeds, checked for readability, written as THEME.md with his note."
+  @spec set_theme(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(set_theme(resident_id, seeds, note, actor),
+    do: Theme.set(resident_id, seeds, note, actor)
+  )
+
+  @doc "She proposes the theme's seeds; checked first and refused with the report when unreadable. `{:ok, number, derived}`."
+  @spec propose_theme(String.t(), map(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer(), map()} | {:error, term()}
+  defexport(propose_theme(resident_id, seeds, note, actor),
+    do: Theme.propose(resident_id, seeds, note, actor)
+  )
+
+  @doc "The witness accepts or declines her theme proposal, with a note; she is told."
+  @spec answer_theme(String.t(), pos_integer(), boolean(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_theme(resident_id, number, agree, note, actor),
+    do: Theme.answer(resident_id, number, agree, note, actor)
+  )
+
+  @doc "Her theme proposals, newest first (seshat#56)."
+  @spec theme_proposals(String.t()) :: [map()]
+  defexport(theme_proposals(resident_id), do: Theme.proposals(resident_id))
+
   @doc "Loads every folder's descriptor back from the repository (seshat#51), refusing what claims too much."
   @spec load_kinds(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(load_kinds(resident_id, actor), do: UserKinds.load(resident_id, actor))
 
   # ---- documents ----
 
-  @doc "Writes a file through the flow: the path says the kind, the file lands in the repository, the index runs."
+  @doc "Writes a file through the flow: the path says the kind, the file lands in the repository, the index runs. A resident's write on a path the witness holds a lease on waits, or takes the lease once idle (seshat#55): `written: false` with `waiting`, or `took`."
   @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(write(resident_id, path, content, actor),
-    do: Documents.write(resident_id, path, content, actor)
+    do: Leases.write(resident_id, path, content, actor)
+  )
+
+  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54)."
+  @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(write(resident_id, path, content, actor, opts),
+    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note]))
+  )
+
+  # ---- versions (seshat#54) ----
+
+  @doc "A document's versions, newest first, each with its act, actor, instant, note and whether it can be restored; and the hash of the file now."
+  @spec versions(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(versions(resident_id, path), do: Versions.list(resident_id, path))
+
+  @doc "The words of one version of a path, by its hash."
+  @spec version(String.t(), String.t(), String.t()) :: {:ok, binary()} | {:error, term()}
+  defexport(version(resident_id, path, hash), do: Versions.content(resident_id, path, hash))
+
+  @doc "The line diff between two versions of a path (`to` nil: the file now)."
+  @spec version_diff(String.t(), String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(version_diff(resident_id, path, from, to),
+    do: Versions.diff(resident_id, path, from, to)
+  )
+
+  @doc "Restores a version through the normal write: a direct write, or the proposal an identity file after first contact takes."
+  @spec restore(String.t(), String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(restore(resident_id, path, hash, note, actor),
+    do: Versions.restore(resident_id, path, hash, note, actor)
+  )
+
+  # ---- edit leases (seshat#55) ----
+
+  @doc "Acquires the witness's edit lease on a path, or renews his own."
+  @spec acquire_lease(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(acquire_lease(resident_id, path, actor),
+    do: Leases.acquire(resident_id, path, actor)
+  )
+
+  @doc "Renews the holder's lease, keeping his unsaved draft when given."
+  @spec renew_lease(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(renew_lease(resident_id, path, draft, actor),
+    do: Leases.renew(resident_id, path, draft, actor)
+  )
+
+  @doc "Releases the holder's lease."
+  @spec release_lease(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(release_lease(resident_id, path, actor),
+    do: Leases.release(resident_id, path, actor)
+  )
+
+  @doc "The lease on a path as both parties see it, or nil."
+  @spec lease(String.t(), String.t()) :: map() | nil
+  defexport(lease(resident_id, path), do: Leases.lease(resident_id, path))
+
+  @doc "Every lease on the resident's library."
+  @spec leases(String.t()) :: [map()]
+  defexport(leases(resident_id), do: Leases.list(resident_id))
+
+  # ---- reacts on documents (kumbukumbu#61) ----
+
+  @doc "A party reacts on a document: the path resolved here and the hash of the words it holds now, recorded on the reacts ledger."
+  @spec react_document(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(react_document(resident_id, path, emoji, actor),
+    do:
+      with(
+        {:ok, %{document: row, content: words}} <- Documents.fetch(resident_id, path),
+        do:
+          Oneiroi.Kumbukumbu.react(
+            resident_id,
+            %{"kind" => "document", "path" => row.path, "hash" => Documents.hash(words)},
+            emoji,
+            actor
+          )
+      )
   )
 
   # ---- the oracle (brain#49, seshat#34) ----
@@ -732,6 +938,13 @@ defmodule Oneiroi.Seshat do
     do: Index.search(resident_id, query, actor, purpose)
   )
 
+  @doc "The nearest documents to a query in each named path filter (`{:prefix, p}` or `{:except, [p]}`), the query embedded once: the one search's records and scenes (seshat#53)."
+  @spec search_within(String.t(), String.t(), Oneiroi.Actor.t(), keyword(), pos_integer()) ::
+          {:ok, %{atom() => [map()]}} | {:error, term()}
+  defexport(search_within(resident_id, query, actor, filters, limit),
+    do: Index.search_within(resident_id, query, actor, filters, limit)
+  )
+
   # ---- citations ----
 
   @doc "What a document cites, each reference resolved now and the row marked (spec §6.5: resolution when read)."
@@ -823,6 +1036,10 @@ defmodule Oneiroi.Seshat do
   @spec journal_days(String.t(), pos_integer()) :: [map()]
   defexport(journal_days(resident_id, limit), do: Journals.days(resident_id, limit))
 
+  @doc "The journal's marks on each of `days` (ISO dates) she wrote in, day to its delta: counts by kind, never words (sunna#48)."
+  @spec journal_marks(String.t(), [String.t()]) :: %{String.t() => map()}
+  defexport(journal_marks(resident_id, days), do: Journals.marks(resident_id, days))
+
   @doc "Today's journal as the timeline's event lines (brain#67): `{day, [%{number, kind, at, first, done}]}`."
   @spec journal_lines(String.t()) :: {String.t(), [map()]}
   defexport(journal_lines(resident_id), do: Journals.lines(resident_id))
@@ -830,6 +1047,27 @@ defmodule Oneiroi.Seshat do
   @doc "Today's journal as the section the brain reads."
   @spec journal_text(String.t()) :: String.t()
   defexport(journal_text(resident_id), do: Journals.text(resident_id))
+
+  # ---- the scenes (seshat#52) ----
+
+  @doc "One `scene_write` call (seshat#52): writes a day's next scene, corrects one's facts or mood (`scene`), appends a correction of one's summary (`corrects`), and with `final: true` closes the day; renders `scenes/<day>.md`."
+  @spec scene_write(String.t(), map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(scene_write(resident_id, args, actor), do: Scenes.write(resident_id, args, actor))
+
+  @doc "The days with scenes in `[from, to]` (ISO dates, nil for open), each with `complete` and its rows in order (seshat#52)."
+  @spec scenes(String.t(), String.t() | nil, String.t() | nil) :: [map()]
+  defexport(scenes(resident_id, from, to), do: Scenes.days(resident_id, from, to))
+
+  @doc "How many scenes each day in `[from, to]` holds, corrections not counted (seshat#52, kumbukumbu#58)."
+  @spec scene_counts(String.t(), String.t(), String.t()) :: %{String.t() => non_neg_integer()}
+  defexport(scene_counts(resident_id, from, to), do: Scenes.counts(resident_id, from, to))
+
+  @doc "Reads the prose `scenes/<day>.md` files into rows, best-effort; a day that does not parse stays prose (seshat#52)."
+  @spec backfill_scenes(String.t(), Oneiroi.Actor.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(backfill_scenes(resident_id, actor, opts),
+    do: Scenes.backfill(resident_id, actor, opts)
+  )
 
   @doc "Days before today, among the last `days` opened, planned and never wrapped: what the journal delta audit reads."
   @spec unwrapped_days(String.t(), pos_integer()) :: [String.t()]

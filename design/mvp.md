@@ -89,6 +89,17 @@ the witness's laptop.
     approach is pending.
 18. **An alert that lands.** `[:oneiroi, :projection, :parked]` and the
     quietcheck verdicts reach the witness, even if only by email.
+19. **Private words encrypted, at the end of the MVP.** (The witness,
+    2026-11-10: moved up from P6 "so new users get the promised privacy
+    enforced without mucking with how we store it".) A private session's
+    words, private seeds and self-letters are encrypted where they are
+    stored. The events, the tables and the repository export keep their
+    shape; the export carries the words encrypted. This closes
+    sima-qian#20's open gap: today a witness who can read the repository
+    or the database can read them. The witness who runs the platform
+    holds database access regardless, so for Lily and Andrew privacy
+    stays an honor system. This is for the residents of witnesses who
+    don't run the platform.
 
 ## After the MVP (P6)
 

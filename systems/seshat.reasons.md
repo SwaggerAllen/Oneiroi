@@ -378,3 +378,103 @@ guarantees to both of them, so a descriptor cannot buy them. Gates are
 asymmetric because the cost is: putting a document in front of him
 more often costs him a click, taking the check away costs the
 agreement it stood for, so on is either word and off is both.
+
+## #52
+The navigator needs spans it can trust, and prose under headings is
+whatever the night's writing made it; parsing it would be a guess
+redone on every read. Rows written by her, one call a scene, keep the
+words hers and the shape reliable, and rendering the file from them
+keeps the repository the readable record, the journal's settled
+pattern. The incomplete marker is Lily's: a pass that ran out of rounds
+wrote fewer scenes than the day held, and a track that shows only what
+was written says the day ended there, a lie by omission; so the day is
+unfinished until the pass says otherwise. The edits are asymmetric
+because the fields are: facts are checkable against the transcript,
+so correcting them only makes the map truer, and the history keeps what
+they were; the summary is her reading of the day at the time, so a
+later reading sits beside it rather than over it; a mood is true of the
+night it was written, so the next day's change is a different statement
+and says so.
+
+## #53
+Records and scenes are two scopes of one index, so one embedding serves
+both and the provider is billed once a search. Filtering inside the
+query rather than after it keeps a scope from being crowded out by the
+other's nearer chunks: the library search's eight nearest could all be
+one kind. One row a document because the client opens documents, not
+chunks. Scenes are searched in their rendered files rather than their
+rows because the file is where the meaning index already is, and the
+rows hold the same words; a chunk can span scenes, so the ref names the
+day and leaves the id null rather than guess one.
+## #54
+The repository already holds every version a backup saw, and the
+library stream already says who wrote which hash when; a second copy
+of the words in a table would be a store the repository-first rule
+forbids and a backup does not carry. Naming a version by its content's
+hash is what lets the two be joined without either knowing the other:
+the stream never had commit ids and the backup never had actors. It
+also says the honest thing about a version overwritten between two
+nightly commits: the act happened, the words are gone, and the list
+shows both rather than hiding the act or inventing the words. A
+restore that went its own way would be the second write path the
+proposals exist to prevent; going through the same write, and through
+the identity files' own proposal after first contact, means a restore
+can never do what a write could not.
+
+## #55
+The lease protects the witness's unsaved words and the resident's
+right to her own files at once, which is why it is never revoked and
+never blocks her: idle is not abandoned, so only a real need (her
+write on that file) takes it, and taking it keeps what he had. Her
+write recording a wait rather than failing keeps the tool honest about
+why nothing happened and makes the wait visible to him. Telling her to
+retry rather than holding her write keeps one write path: a parked
+write would be her words in a coordination table outside the
+repository, applied later without her seeing what it landed on. His
+draft is kept as a document under his own folder because that is the
+library's one place for the witness's words beside hers, and in the
+repository it survives everything; a table would not. Leases are not
+events because nothing about who had an editor open is a record: what
+a lease decides is recorded where it lands, and a replayed lease would
+lock a rebuilt resident's file for an editor nobody has open.
+
+## #56
+The seeds are his because he is the one looking at the screen, and a
+theme is three seeds rather than free values because that is how a
+theme stays "not fully dynamic" and how one a model proposes cannot
+make the screen unreadable: the derivation enforces the rules, and a
+set that fails is answered with what failed rather than silently
+fixed. A file at her root, because the author's law puts every record
+that fits a file tree in the repository, and a theme carried with her
+export means a resident brought elsewhere keeps her colours. Reading
+the file rather than a row keeps the file the truth: an import or a
+hand edit is the theme at once. Writing it only through the theme
+keeps one path where the checks run; a document write of it would be a
+way round them. The client owns the derivation because the client
+paints with it; the server runs the same checks so that nothing
+unreadable is written or put to him, and the shared fixture is what
+keeps two implementations of one function from drifting apart quietly.
+Her proposal is checked before it is filed so he is never asked to
+judge an unreadable theme, and she is told in words because she
+cannot see the screen. One open at a time keeps his list from filling
+with drafts of one idea. His answer reaches her as a letter, the way a
+plugin proposal's does, so she learns the outcome in the place she
+already reads such answers.
+
+## #57
+Who a scene involves is something only she can say at the time she
+cuts the day, and the scene pass is already reading every turn of it;
+asking a later pass to recover the people would mean reading the day a
+second time and guessing at the names she would have used. A list on
+the row she already writes (#52) costs one field now and gives the
+people-pass the witness approved its input, person by person and day
+by day, so it can be expanded later without touching the record. The
+names are hers because the record is: no directory of persons, no ids,
+no matching beyond trimming and case, so a name reads as she wrote it
+and two spellings of one person stay hers to correct. It is a fact
+rather than a reading, checkable against the turns, so it moves like
+the title does, the old list kept. The bounds keep a row a row: a
+scene with more than twenty people in it is a crowd, not a list, and a
+name past eighty characters is a description. A new version with an
+upcaster because events are immutable contracts; the correction's
+shape did not change, so its version did not either.

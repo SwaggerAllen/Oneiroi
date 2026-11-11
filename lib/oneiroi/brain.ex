@@ -43,6 +43,7 @@ defmodule Oneiroi.Brain do
 
   alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.Checkin
+  alias Oneiroi.Brain.Creation
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
@@ -52,6 +53,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
+  alias Oneiroi.Brain.WaitingOnHer
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -79,6 +81,10 @@ defmodule Oneiroi.Brain do
        default: "openai/gpt-4o-mini",
        usage:
          "the chat model until the witness's pin arrives with regression (spec §6.4): a placeholder chosen for being cheap and widely served, not measured"},
+      {:draft_model, "BRAIN_DRAFT_MODEL",
+       default: "z-ai/glm-5.3",
+       usage:
+         "the model that drafts in the creation flow: the prompt path, Write it with me and suggested trials (agathos-daimon#42); big enough to write a person, cheap enough to start one"},
       {:transcript_messages, "BRAIN_TRANSCRIPT_MESSAGES",
        cast: :integer,
        default: "40",
@@ -231,6 +237,14 @@ defmodule Oneiroi.Brain do
        remedy: "read the id off the resident list"},
       {:brain_file_unknown, "the file is not one of the resident's identity files",
        remedy: "draft one of the identity files the resident system names"},
+      {:brain_creation_closed, "the resident has woken, so the gifts are no longer drafted whole",
+       remedy:
+         "after first contact a change is a proposal: draft one file with Write it with me and propose it"},
+      {:brain_read_unreadable, "the read came back in a form the notes could not be read from",
+       remedy: "ask for the read again; the call was billed under drafting"},
+      {:brain_trials_unreadable,
+       "the suggested trials came back in a form the trials could not be read from",
+       remedy: "ask again; the call was billed under drafting"},
       {:brain_oracle_silent, "the oracle's reading answered no words",
        remedy: "ask the question again; it may need narrower sources"},
       {:brain_summary_empty, "the model answered the compaction with no words",
@@ -259,9 +273,14 @@ defmodule Oneiroi.Brain do
   def processes,
     do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
 
-  # The oracle's reads (brain#49): on demand, no cron.
+  # The oracle's reads (brain#49): on demand, no cron. The needs-you
+  # push (brain#77): each minute, as the schedule's tick is.
   @impl Oneiroi.Component
-  def oban_queues, do: [{:brain_oracle, []}]
+  def oban_queues,
+    do: [
+      {:brain_oracle, []},
+      {:brain_needs_you, cron: [{"* * * * *", Oneiroi.Brain.NeedsYouPushWorker}]}
+    ]
 
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session]
@@ -331,6 +350,10 @@ defmodule Oneiroi.Brain do
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
 
+  @doc "Everything waiting on the resident, oldest first (brain#76): the witness's proposals she has not answered, his unread letters, the files his lease holds her from; it only shows."
+  @spec waiting_on_her(String.t()) :: [map()]
+  defexport(waiting_on_her(resident_id), do: WaitingOnHer.list(resident_id))
+
   @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}
   defexport(stop(resident_id, session_key, by), do: Session.stop(resident_id, session_key, by))
@@ -392,6 +415,27 @@ defmodule Oneiroi.Brain do
           {:ok, Oneiroi.Brain.Drafting.draft()} | {:error, term()}
   defexport(draft(resident_id, file, prompt, actor),
     do: Drafting.draft(resident_id, file, prompt, actor)
+  )
+
+  @doc "The generator (agathos-daimon#39): a draft of every gift's file from the witness's prompt, under drafting; returned, not written."
+  @spec generate_gifts(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(generate_gifts(resident_id, prompt, actor),
+    do: Creation.generate(resident_id, prompt, actor)
+  )
+
+  @doc "Suggested trials (agathos-daimon#42): drafted from her files written so far and the witness's `note`, returned, never kept."
+  @spec suggest_trials(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(suggest_trials(resident_id, note, actor),
+    do: Creation.suggest_trials(resident_id, note, actor)
+  )
+
+  @doc "Get a read (agathos-daimon#40): notes on one gift's draft against its guidance, under drafting, recorded beside the seeds."
+  @spec read_gift(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(read_gift(resident_id, file, content, actor),
+    do: Creation.read(resident_id, file, content, actor)
   )
 
   @doc false

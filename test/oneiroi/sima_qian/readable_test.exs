@@ -178,9 +178,21 @@ defmodule Oneiroi.SimaQian.ReadableTest do
         brain
       )
 
+    {:ok, n} =
+      Kumbukumbu.add_bookmark(
+        r.id,
+        %{session_key: key, anchor_ref: "t-alone", line: "the #{unique} alone", summary: "mine"},
+        brain
+      )
+
     Clock.Fake.advance(120)
     {:ok, _} = Export.write(r.id, dir)
     day = read(dir, "records/conversations/2026-10-26.md")
+
+    # A bookmark made there is the session's words too (kumbukumbu#62).
+    marks = read(dir, "records/bookmarks.md")
+    assert marks =~ "## #{n}. (in a private session)"
+    refute marks =~ unique
 
     assert day =~
              "## Free time session `#{key}`\n\nOpened at 12:00:00 UTC by **resident** (fake/model), through `brain`; parties: `#{a.id}`.\n\n" <>
@@ -200,6 +212,7 @@ defmodule Oneiroi.SimaQian.ReadableTest do
     {:ok, _} = Export.write(r.id, dir)
     shared = read(dir, "records/conversations/2026-10-26.md")
     assert shared =~ "> I watched a #{unique}."
+    assert read(dir, "records/bookmarks.md") =~ "## #{n}. the #{unique} alone"
     assert shared =~ "*Opened private under the contract at 12:00:00 UTC.*"
 
     assert shared =~
@@ -229,5 +242,49 @@ defmodule Oneiroi.SimaQian.ReadableTest do
 
     assert {:error, %{kind: :seshat_path_invalid}} =
              Seshat.adopt(ctx.r.id, "records/conversations/2026-10-26.md", ctx.witness)
+  end
+
+  test "a gift's read is a reading copy beside the seeds, by the draft's hash (agathos-daimon#40)",
+       ctx do
+    sha = String.duplicate("a", 64)
+
+    {:ok, ref} =
+      Oneiroi.AgathosDaimon.record_gift_read(
+        ctx.r.id,
+        %{
+          gift: "self",
+          file: "SOUL.md",
+          draft_sha: sha,
+          model: "fake/model",
+          notes: [
+            %{kind: "cut", text: "Changes nothing.", quote: "I like blue."},
+            %{kind: "missing", text: "No refusals named.", quote: nil}
+          ]
+        },
+        ctx.witness
+      )
+
+    assert is_binary(ref)
+    Clock.Fake.advance(120)
+    {:ok, %{files: files}} = Export.write(ctx.r.id, ctx.dir)
+    assert "records/gift-reads.md" in files
+    copy = read(ctx.dir, "records/gift-reads.md")
+    assert copy =~ "## SOUL.md, "
+    assert copy =~ "Gift: `self`. Asked by **witness** `#{ctx.a.id}`; read by fake/model."
+    assert copy =~ "Draft: `#{sha}`."
+    assert copy =~ "- **cut**: Changes nothing. (\"I like blue.\")\n"
+    assert copy =~ "- **missing**: No refusals named.\n"
+
+    assert {:error, %{kind: :agathos_daimon_gift_read_invalid}} =
+             Oneiroi.AgathosDaimon.record_gift_read(
+               ctx.r.id,
+               %{
+                 gift: "self",
+                 file: "SOUL.md",
+                 draft_sha: sha,
+                 notes: [%{kind: "praise", text: "x"}]
+               },
+               ctx.witness
+             )
   end
 end

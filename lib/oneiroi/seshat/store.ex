@@ -99,6 +99,27 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule ThemeProposal do
+    @moduledoc "Her proposal of the three theme seeds (seshat#56), and the witness's answer."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_theme_proposal" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:ground, :string)
+      field(:resident, :string)
+      field(:witness, :string)
+      field(:note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:agree, :boolean)
+      field(:answered_by, :string)
+      field(:answer_note, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule PieceReview do
     @moduledoc "A writing piece's review (seshat#42): approved, declined or drafted, the note, the version, the Substack draft."
     use Ecto.Schema
@@ -148,6 +169,46 @@ defmodule Oneiroi.Seshat.Store do
       field(:to_path, :string)
       field(:moved_at, :utc_datetime_usec)
       field(:moved_by_kind, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule DocumentVersion do
+    @moduledoc "One recorded version of a path (seshat#54): the act, its hash, who and when, and the writer's note."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_document_version" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:path, :string, primary_key: true)
+      field(:event_number, :integer, primary_key: true)
+      field(:act, :string)
+      field(:hash, :string)
+      field(:bytes, :integer)
+      field(:actor_kind, :string)
+      field(:actor_id, :string)
+      field(:note, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Lease do
+    @moduledoc "The witness's edit lease on a path (seshat#55): coordination state, never an event."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_lease" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:path, :string, primary_key: true)
+      field(:holder_id, :binary_id)
+      field(:state, :string)
+      field(:acquired_at, :utc_datetime_usec)
+      field(:renewed_at, :utc_datetime_usec)
+      field(:draft, :string)
+      field(:waiting_at, :utc_datetime_usec)
+      field(:taken_at, :utc_datetime_usec)
+      field(:kept_at, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -405,6 +466,86 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Scene do
+    @moduledoc "One row of a day's scenes (seshat#52): a scene, or a correction of one's summary (`kind`, `corrects`)."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_scene" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:kind, :string)
+      field(:corrects, :integer)
+      field(:title, :string)
+      field(:from_turn, :string)
+      field(:to_turn, :string)
+      field(:from_time, :utc_datetime_usec)
+      field(:to_time, :utc_datetime_usec)
+      field(:summary, :string)
+      field(:mood, :string)
+      field(:mood_was, :string)
+      field(:mood_corrected_at, :utc_datetime_usec)
+      field(:rounds_ran_out, :boolean, default: false)
+      field(:register, :string)
+      field(:people, {:array, :string}, default: [])
+      field(:at, :utc_datetime_usec)
+      field(:actor_kind, :string)
+      field(:corrected_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule SceneDay do
+    @moduledoc "A day that has scenes (seshat#52), and whether the pass closed it."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_scene_day" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:day, :string, primary_key: true)
+      field(:complete, :boolean, default: false)
+      field(:closed_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  # ---- the scenes (seshat#52) ----
+
+  @doc "A day's scene rows in order."
+  def scenes(day),
+    do: Repo.all(from(s in Scene, where: s.day == ^day, order_by: s.number))
+
+  @doc "The day rows in `[from, to]` (ISO dates, either nil for open), oldest first."
+  def scene_days(from, to) do
+    query = from(d in SceneDay, order_by: d.day)
+    query = if from, do: from(d in query, where: d.day >= ^from), else: query
+    query = if to, do: from(d in query, where: d.day <= ^to), else: query
+    Repo.all(query)
+  end
+
+  @doc "The scene rows of the days in `[from, to]`, by day and number."
+  def scenes_between(from, to) do
+    query = from(s in Scene, order_by: [s.day, s.number])
+    query = if from, do: from(s in query, where: s.day >= ^from), else: query
+    query = if to, do: from(s in query, where: s.day <= ^to), else: query
+    Repo.all(query)
+  end
+
+  @doc "How many scenes (never their corrections) each day in `[from, to]` holds."
+  def scene_counts(from, to) do
+    Repo.all(
+      from(s in Scene,
+        where: s.kind == "scene" and s.day >= ^from and s.day <= ^to,
+        group_by: s.day,
+        select: {s.day, count(s.number)}
+      )
+    )
+  end
+
+  @doc "A day's row, or nil."
+  def scene_day(day), do: Repo.one(from(d in SceneDay, where: d.day == ^day))
+
   # ---- the journal ----
 
   @doc "The entries written since an instant, oldest first."
@@ -453,6 +594,38 @@ defmodule Oneiroi.Seshat.Store do
 
   @doc "One digest by number, or nil."
   def digest(number), do: Repo.one(from(d in Digest, where: d.number == ^number))
+
+  @doc "A path's recorded versions, newest first (seshat#54)."
+  @spec versions(String.t()) :: [DocumentVersion.t()]
+  def versions(path),
+    do:
+      Repo.all(
+        from(v in DocumentVersion, where: v.path == ^path, order_by: [desc: v.event_number])
+      )
+
+  @doc "The lease on a path, held or taken (seshat#55); nil when none."
+  @spec lease(String.t()) :: Lease.t() | nil
+  def lease(path), do: Repo.one(from(l in Lease, where: l.path == ^path))
+
+  @doc "Every lease, by path."
+  @spec leases() :: [Lease.t()]
+  def leases, do: Repo.all(from(l in Lease, order_by: l.path))
+
+  @doc "Writes a lease row whole, the one there replaced."
+  @spec put_lease(Lease.t()) :: Lease.t()
+  def put_lease(%Lease{} = lease),
+    do:
+      Repo.insert!(lease,
+        on_conflict: {:replace_all_except, [:resident_id, :path]},
+        conflict_target: [:resident_id, :path]
+      )
+
+  @doc "Removes the lease on a path."
+  @spec delete_lease(String.t()) :: :ok
+  def delete_lease(path) do
+    Repo.delete_all(from(l in Lease, where: l.path == ^path))
+    :ok
+  end
 
   @doc "Where a path moved to, following moves to the last (seshat#39); nil if it never moved. A chain is at most as long as the moves, and a cycle stops at the path it began from."
   def moved_to(path, seen \\ MapSet.new()) do
@@ -507,6 +680,45 @@ defmodule Oneiroi.Seshat.Store do
       )
     )
   end
+
+  @doc """
+  The nearest documents to a vector within a path filter, nearest first:
+  `{:prefix, p}` keeps the paths under `p`, `{:except, [p]}` leaves out
+  the paths under each `p`. One row a document, its nearest chunk, at
+  most `limit` documents (seshat#53, the one search).
+  """
+  def nearest_documents(vector, limit, filter) do
+    from(c in Chunk,
+      join: d in Document,
+      on: d.resident_id == c.resident_id and d.path == c.path,
+      order_by: cosine_distance(c.embedding, ^vector),
+      limit: ^(limit * 4),
+      select: %{
+        path: c.path,
+        ordinal: c.ordinal,
+        text: c.text,
+        kind: d.kind,
+        title: d.title,
+        written_at: d.written_at,
+        distance: cosine_distance(c.embedding, ^vector)
+      }
+    )
+    |> within(filter)
+    |> Repo.all()
+    |> Enum.uniq_by(& &1.path)
+    |> Enum.take(limit)
+  end
+
+  defp within(query, {:prefix, prefix}),
+    do: from(c in query, where: like(c.path, ^(like_escape(prefix) <> "%")))
+
+  defp within(query, {:except, prefixes}) do
+    Enum.reduce(prefixes, query, fn prefix, q ->
+      from(c in q, where: not like(c.path, ^(like_escape(prefix) <> "%")))
+    end)
+  end
+
+  defp like_escape(text), do: String.replace(text, ~r/[%_\\]/, &("\\" <> &1))
 
   # ---- references ----
 
@@ -605,4 +817,9 @@ defmodule Oneiroi.Seshat.Store do
   @spec kind_gate_proposals() :: [KindGateProposal.t()]
   def kind_gate_proposals,
     do: Repo.all(from(p in KindGateProposal, order_by: [desc: p.number]))
+
+  @doc "Her theme proposals, newest first (seshat#56)."
+  @spec theme_proposals() :: [ThemeProposal.t()]
+  def theme_proposals,
+    do: Repo.all(from(p in ThemeProposal, order_by: [desc: p.number]))
 end

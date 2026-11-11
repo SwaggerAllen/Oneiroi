@@ -37,9 +37,10 @@ defmodule Oneiroi.Seshat.Documents do
   # leading slash. A request value reaches the filesystem only through
   # that check.
   # sobelow_skip ["Traversal.FileModule"]
-  @doc "Writes a file through the flow (`core: true` for a kind the platform writes); returns the path, the kind, whether anything changed, and whether the index ran clean."
+  @doc "Writes a file through the flow (`core: true` for a kind the platform writes, `note:` for what the writer says of this version, seshat#54); returns the path, the kind, whether anything changed, and whether the index ran clean."
   def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
     with {:ok, path} <- normalize(resident_id, path),
+         :ok <- not_theme(path, Keyword.get(opts, :theme, false)),
          {:ok, kind} <- writable_kind(resident_id, path, Keyword.get(opts, :core, false), actor),
          :ok <- size_ok(content),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
@@ -52,7 +53,8 @@ defmodule Oneiroi.Seshat.Documents do
              path: path,
              kind: kind.kind,
              hash: hash(content),
-             bytes: byte_size(content)
+             bytes: byte_size(content),
+             note: note(Keyword.get(opts, :note))
            }) do
       full = Path.join(dir, path)
       File.mkdir_p!(Path.dirname(full))
@@ -400,6 +402,7 @@ defmodule Oneiroi.Seshat.Documents do
   @doc "Makes a root file a keepsake (seshat#44): a deliberate act, by either party; from then it is never written again."
   def register_keepsake(resident_id, path, %Actor{} = actor) do
     with {:ok, path} <- normalize(resident_id, path),
+         :ok <- not_theme(path, false),
          {:ok, _} <-
            dispatch(%Commands.RegisterKeepsake{
              actor: actor,
@@ -459,6 +462,8 @@ defmodule Oneiroi.Seshat.Documents do
   def move(resident_id, from, to, %Actor{} = actor) do
     with {:ok, from} <- normalize(resident_id, from),
          {:ok, to} <- normalize(resident_id, to),
+         :ok <- not_theme(from, false),
+         :ok <- not_theme(to, false),
          {:ok, from_kind} <- movable(resident_id, from, actor),
          {:ok, to_kind} <- movable(resident_id, to, actor),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
@@ -586,6 +591,23 @@ defmodule Oneiroi.Seshat.Documents do
   def hash(content), do: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
 
   defp normalize(resident_id, path), do: Kinds.normalize(resident_id, path)
+
+  # A version's note (seshat#54): words, trimmed, or nothing.
+  defp note(note) when is_binary(note) do
+    case String.trim(note) do
+      "" -> nil
+      words -> words
+    end
+  end
+
+  defp note(_none), do: nil
+
+  # THEME.md is written only through the theme (seshat#56), whose checks
+  # run first: the witness's set, or her proposal once he accepts it.
+  defp not_theme("THEME.md", false),
+    do: {:error, Error.new(:seshat_theme_file, :seshat_documents_theme_file)}
+
+  defp not_theme(_path, _through_theme), do: :ok
 
   defp writable_kind(resident_id, path, core?, %Actor{kind: by}) do
     kind = Kinds.kind_of(resident_id, path)

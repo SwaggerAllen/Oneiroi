@@ -35,6 +35,7 @@ defmodule Oneiroi.Sunna do
       Error,
       Schedule,
       Schedules,
+      Calendar,
       Router,
       TickWorker,
       FreeTimeWorker,
@@ -114,6 +115,7 @@ defmodule Oneiroi.Sunna do
     ]
 
   alias Oneiroi.Scope
+  alias Oneiroi.Sunna.Calendar
   alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
@@ -193,6 +195,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "the floor under a free-time slot (sunna#34, Lily's amendment), in turns: with a free-time line set, a slot whose remainder buys fewer than this many turns at what a free-time turn cost over the last week rests and says so; 0 is no floor. Two is the witness's number, 2026-11-06"},
+      {:days_span, "SUNNA_DAYS_SPAN",
+       cast: :integer,
+       default: "62",
+       tag: :bound,
+       usage:
+         "the most days one calendar range (`GET /v1/residents/:id/days`, sunna#48) may span, both ends included: two months, so a month view with its spill-over weeks is one read; each future day's schedule is computed on the read, so the bound is the read's cost; a bound, not measured"},
       {:wake, "SUNNA_WAKE",
        cast: &__MODULE__.cast_wake/1,
        default: "brain",
@@ -296,6 +304,9 @@ defmodule Oneiroi.Sunna do
       {:sunna_no_such_checkin, "no check-in has that key", remedy: "read the schedule"},
       {:sunna_no_such_date, "no date has that number", remedy: "read the dates"},
       {:sunna_day_invalid, "a day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
+      {:sunna_range_invalid,
+       "a calendar range is two ISO dates, `from` no later than `to`, spanning at most SUNNA_DAYS_SPAN days (sunna#48)",
+       remedy: "give both bounds as YYYY-MM-DD, in order, and read a longer stretch in pieces"},
       {:sunna_no_such_resident, "the schedule woke a resident the registry does not hold",
        remedy: "the tick reads the registry first; one that vanished between is a bug to report"},
       {:sunna_wake_failed, "the wake port failed to wake the brain for a check-in or free time",
@@ -436,6 +447,10 @@ defmodule Oneiroi.Sunna do
     do: Schedules.set_quiet_hours(resident_id, from, to, actor)
   )
 
+  @doc "Whether the resident's quiet hours hold now, in her zone."
+  @spec quiet_now?(String.t()) :: boolean()
+  defexport(quiet_now?(resident_id), do: Schedules.quiet_now?(resident_id))
+
   @doc "Sets a date (a new row when number is nil): title, instant, kind; returns the number."
   @spec set_date(String.t(), pos_integer() | nil, map(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
@@ -482,6 +497,14 @@ defmodule Oneiroi.Sunna do
   @doc "The journal's day rows, newest first."
   @spec days(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Day.t()]
   defexport(days(resident_id, limit), do: Schedules.days(resident_id, limit))
+
+  @doc "A calendar range of her local days (sunna#48): `{:ok, %{from, to, today, zone, days}}`, or `sunna_day_invalid` / `sunna_range_invalid`."
+  @spec days_range(String.t(), term(), term()) :: {:ok, map()} | {:error, term()}
+  defexport(days_range(resident_id, from, to), do: Calendar.range(resident_id, from, to))
+
+  @doc "The schedule the rules as they stand would run on each of `days` that is today or later (sunna#48): day to `%{quiet, rounds, entries}`."
+  @spec day_schedules(String.t(), [String.t()]) :: %{String.t() => map()}
+  defexport(day_schedules(resident_id, days), do: Calendar.schedules(resident_id, days))
 
   @doc "One day row, or nil."
   @spec day(String.t(), String.t()) :: Oneiroi.Sunna.Store.Day.t() | nil

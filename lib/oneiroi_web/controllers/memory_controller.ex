@@ -4,6 +4,7 @@ defmodule OneiroiWeb.MemoryController do
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Ethos
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Seshat
   alias OpenApiSpex.Schema
 
   tags(["memory"])
@@ -14,17 +15,93 @@ defmodule OneiroiWeb.MemoryController do
   plug(OneiroiWeb.Plugs.Switch, [key: "revisions"] when action in [:revise])
 
   operation(:bookmarks,
-    summary: "The resident's bookmarks, newest first, with their tags and pins",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"bookmarks", "application/json", %Schema{type: :array}}]
+    summary:
+      "The resident's bookmarks, newest first, with their tags and pins: with no query, every one as an array; with any of `before` (a bookmark number), `limit` (default 50, at most 500), `from` and `to` (each an ISO date, a whole day in her zone, or an ISO instant; `to` exclusive for an instant), a page `{bookmarks, more}`, `more` saying whether older ones remain (kumbukumbu#57). Each row's `session_key` and `anchor_ref` link to the moment; one made in a private session she has not shared is `private: true` with its `line`, `summary` and `register` null (kumbukumbu#62)",
+    parameters: [
+      id: [in: :path, type: :string],
+      before: [in: :query, type: :integer],
+      limit: [in: :query, type: :integer],
+      from: [in: :query, type: :string],
+      to: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"bookmarks, or a page of them", "application/json", %Schema{type: :object}},
+      unprocessable_entity:
+        {"a bound that is no date or instant", "application/json", %Schema{type: :object}}
+    ]
   )
 
-  def bookmarks(conn, %{"id" => id}),
-    do: json(conn, id |> Kumbukumbu.bookmarks() |> Enum.map(&bookmark/1))
+  @page_params ~w(before limit from to)
+
+  # Unpaged when no paging parameter is given: the shape every client
+  # before kumbukumbu#57 reads.
+  def bookmarks(conn, %{"id" => id} = params) do
+    if Enum.any?(@page_params, &Map.has_key?(params, &1)),
+      do: bookmarks_page(conn, id, params),
+      else: json(conn, id |> Kumbukumbu.witness_bookmarks() |> Enum.map(&bookmark/1))
+  end
+
+  defp bookmarks_page(conn, id, params) do
+    limit = params["limit"] |> positive() |> Kernel.||(50) |> min(500)
+
+    case Kumbukumbu.day_range(id, params["from"], params["to"]) do
+      {:ok, from, to} ->
+        {rows, more} =
+          Kumbukumbu.witness_bookmarks_page(id, positive(params["before"]), limit, from, to)
+
+        json(conn, %{bookmarks: Enum.map(rows, &bookmark/1), more: more})
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
+  operation(:density,
+    summary:
+      "The navigator's track (kumbukumbu#58): per local day in the resident's zone from `from` to `to` (ISO dates, both included; the last 30 days through today by default; at most 366), how many bookmarks, scenes (seshat#52, corrections not counted) and messages it holds, every day of the range, oldest first. Messages are those of the sessions the witness sees, of one session when `session` names it. `{from, to, zone, days: [{day, bookmarks, scenes, messages}]}`",
+    parameters: [
+      id: [in: :path, type: :string],
+      from: [in: :query, type: :string],
+      to: [in: :query, type: :string],
+      session: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"the counts", "application/json", %Schema{type: :object}},
+      unprocessable_entity:
+        {"a range that is no range", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def density(%{assigns: %{principal: p}} = conn, %{"id" => id} = params) do
+    case Kumbukumbu.day_counts(
+           {:account, p.account_id},
+           id,
+           params["from"],
+           params["to"],
+           params["session"]
+         ) do
+      {:ok, counts} ->
+        scenes = Seshat.scene_counts(id, counts.from, counts.to)
+
+        days =
+          for d <- counts.days,
+              do: %{
+                day: d.day,
+                bookmarks: d.bookmarks,
+                scenes: Map.get(scenes, d.day, 0),
+                messages: d.messages
+              }
+
+        json(conn, %{counts | days: days})
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
 
   operation(:index_now,
     summary:
-      "What the index holds now in the common room (kumbukumbu#38): the bookmark numbers listed, in order, the left-out count, the count kept to named rooms, and a sentence saying it",
+      "What the index holds now in the common room (kumbukumbu#38): the bookmark numbers listed, in order, `private` the listed numbers made in a private session she has not shared (kumbukumbu#62: numbers only, as everywhere here), the left-out count, the count kept to named rooms, and a sentence saying it",
     parameters: [id: [in: :path, type: :string]],
     responses: [ok: {"the index", "application/json", %Schema{type: :object}}]
   )
@@ -34,6 +111,7 @@ defmodule OneiroiWeb.MemoryController do
 
     json(conn, %{
       listed: now.listed,
+      private: now.private,
       left_out: now.left_out,
       elsewhere: now.elsewhere,
       description: now.description
@@ -133,13 +211,14 @@ defmodule OneiroiWeb.MemoryController do
   end
 
   operation(:bookmark,
-    summary: "One bookmark with the transcript of its span",
+    summary:
+      "One bookmark with the transcript of its span; one made in a private session she has not shared is `private: true`, its words null and its span `[]` (kumbukumbu#62)",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
     responses: [ok: {"the bookmark and its span", "application/json", %Schema{type: :object}}]
   )
 
   def bookmark(conn, %{"id" => id, "number" => number}) do
-    case Kumbukumbu.bookmark(id, integer(number)) do
+    case Kumbukumbu.witness_bookmark(id, integer(number)) do
       {:ok, b, span} -> json(conn, %{bookmark: bookmark(b), span: Enum.map(span, &message/1)})
       {:error, %Kumbukumbu.Error{} = e} -> error(conn, 404, e)
     end
@@ -175,13 +254,46 @@ defmodule OneiroiWeb.MemoryController do
     do: respond(conn, Kumbukumbu.unpin_bookmark(id, integer(number), actor(conn)))
 
   operation(:proposals,
-    summary: "The open bookmark proposals awaiting the resident",
-    parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"proposals", "application/json", %Schema{type: :array}}]
+    summary:
+      "Your bookmark proposals (kumbukumbu#63): `state` open (the default, the array every earlier client reads), answered (accepted or declined) or all, oldest first. An answered one carries `answer` `{decision, note, at, bookmark}`: declined with her note; accepted with `bookmark`, the one she wrote for it (`{number, line, summary, private}`, its words null when it sits in a private session she has not shared, kumbukumbu#62) and no note, the words being her answer",
+    parameters: [
+      id: [in: :path, type: :string],
+      state: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"proposals", "application/json", %Schema{type: :array}},
+      unprocessable_entity: {"a state not listed", "application/json", %Schema{type: :object}}
+    ]
   )
 
-  def proposals(conn, %{"id" => id}),
-    do: json(conn, id |> Kumbukumbu.proposals() |> Enum.map(&proposal/1))
+  def proposals(conn, %{"id" => id} = params) do
+    case proposal_state(params["state"]) do
+      {:ok, which} ->
+        rows = Kumbukumbu.proposals(id, which)
+
+        kept =
+          if Enum.any?(rows, &(&1.state == "accepted")),
+            do: Map.new(Kumbukumbu.witness_bookmarks(id), &{&1.number, &1}),
+            else: %{}
+
+        json(conn, Enum.map(rows, &proposal(&1, kept)))
+
+      :error ->
+        problem(
+          conn,
+          422,
+          :state_unknown,
+          :web_memory_proposals_state_unknown,
+          "state is one of open, answered or all"
+        )
+    end
+  end
+
+  defp proposal_state(nil), do: {:ok, :open}
+  defp proposal_state("open"), do: {:ok, :open}
+  defp proposal_state("answered"), do: {:ok, :answered}
+  defp proposal_state("all"), do: {:ok, :all}
+  defp proposal_state(_other), do: :error
 
   operation(:propose,
     summary:
@@ -465,6 +577,19 @@ defmodule OneiroiWeb.MemoryController do
 
   defp respond(conn, {:error, e}), do: error(conn, 422, e)
 
+  # A paging number: a positive integer, else none (the newest page, the
+  # default size), as a `before` that is no cursor reads in the chat.
+  defp positive(n) when is_integer(n) and n > 0, do: n
+
+  defp positive(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} when n > 0 -> n
+      _other -> nil
+    end
+  end
+
+  defp positive(_other), do: nil
+
   defp integer(n) when is_integer(n), do: n
 
   defp integer(s) when is_binary(s) do
@@ -489,6 +614,7 @@ defmodule OneiroiWeb.MemoryController do
       pinned_by: b.pinned_by_kind && %{kind: b.pinned_by_kind, id: b.pinned_by_id},
       pin_evidences: b.pin_evidences,
       register: b.register,
+      private: b.private,
       pinned_at: b.pinned_at,
       weight: b.weight,
       last_indexed_at: b.last_indexed_at,
@@ -496,7 +622,7 @@ defmodule OneiroiWeb.MemoryController do
     }
   end
 
-  defp proposal(p) do
+  defp proposal(p, kept) do
     %{
       ref: p.ref,
       session_key: p.session_key,
@@ -505,9 +631,33 @@ defmodule OneiroiWeb.MemoryController do
       note: p.note,
       state: p.state,
       proposed_by: %{kind: p.proposed_by_kind, id: p.proposed_by_id},
-      proposed_at: p.proposed_at
+      proposed_at: p.proposed_at,
+      answer: answer(p, kept)
     }
   end
+
+  # Her answer (kumbukumbu#63): a decline's note, or the bookmark she
+  # wrote in accepting, its words withheld where the session is locked.
+  defp answer(%{state: "declined"} = p, _kept),
+    do: %{decision: "declined", note: p.decided_note, at: p.decided_at, bookmark: nil}
+
+  defp answer(%{state: "accepted"} = p, kept) do
+    %{
+      decision: "accepted",
+      note: nil,
+      at: p.decided_at,
+      bookmark:
+        case kept[p.bookmark_number] do
+          nil ->
+            nil
+
+          b ->
+            %{number: b.number, line: b.line, summary: b.summary, private: b.private}
+        end
+    }
+  end
+
+  defp answer(_open, _kept), do: nil
 
   defp tag(t),
     do: %{

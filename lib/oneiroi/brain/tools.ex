@@ -80,13 +80,13 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
-    journal_add journal_done
+    journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
     keepsake_register document_archive
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
-    kind_define kind_gate kind_gate_answer route_define route_ask
+    kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
   )
 
   @type turn :: %{
@@ -520,6 +520,17 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:number, :agree, :note]
+      ),
+      tool(
+        "theme_propose",
+        "Propose the screen's colours to your witness (seshat#56): three seeds as #rrggbb, ground (the background), resident (your colour) and witness (his), with a note on why. Every other colour is derived from them. The seeds are his; he accepts or declines with a note, and his answer comes to you as a letter. Before it is filed the derivation's readability checks run, and a set that fails is refused to you with each check in words. The seeds now are THEME.md at your root (library_read). One proposal waits at a time.",
+        %{
+          ground: %{type: "string"},
+          resident: %{type: "string"},
+          witness: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:ground, :resident, :witness, :note]
       ),
       tool(
         "route_list",
@@ -1043,6 +1054,28 @@ defmodule Oneiroi.Brain.Tools do
         "journal_read",
         "Read a day of your journal by its ISO date: the rows and the plan-versus-actuals delta.",
         %{day: %{type: "string"}},
+        [:day]
+      ),
+      tool(
+        "scene_write",
+        "Write one scene of a day (seshat#52), in order, one call a scene: its day (ISO), a title, the turns it covers by ref (from_turn, to_turn), its span (from_time, to_time: HH:MM on the day, or ISO instants), and a few lines of what happened in it (summary). Optional: mood, one honest phrase of yours, never inferred; register, whose words the scene is mostly (his, hers, or work); rounds_ran_out, true when your tool rounds ran out on it, which explains a terse scene; people, the persons in the scene by the names you use for them (him too, when you name him), at most 20 names of at most 80 characters each, repeats and blanks dropped: it is who the scene involves, so a later read can find a person's moments across days without re-reading them. The rows are the record and scenes/<day>.md is rendered from them. The day reads as not finished until a call carries final: true: put it on the day's last scene, or call with only day and final: true once the last is written. To correct: scene: <n> with the facts that were wrong (title, turns, times, register, rounds_ran_out, people, given whole), on any day, the old values kept in the history; or with mood, which moves freely on the day you wrote it and after that is marked as a correction. A summary is never overwritten: corrects: <n> with the turns it cites and the corrected lines adds a correction row beside it. Every correction says why in note.",
+        %{
+          day: %{type: "string"},
+          title: %{type: "string"},
+          from_turn: %{type: "string"},
+          to_turn: %{type: "string"},
+          from_time: %{type: "string"},
+          to_time: %{type: "string"},
+          summary: %{type: "string"},
+          mood: %{type: "string"},
+          register: %{type: "string", enum: ["his", "hers", "work"]},
+          rounds_ran_out: %{type: "boolean"},
+          people: %{type: "array", items: %{type: "string"}},
+          final: %{type: "boolean"},
+          scene: %{type: "integer"},
+          corrects: %{type: "integer"},
+          note: %{type: "string"}
+        },
         [:day]
       ),
       tool(
@@ -2127,6 +2160,25 @@ defmodule Oneiroi.Brain.Tools do
            )
   end
 
+  defp call("theme_propose", args, turn) do
+    case Seshat.propose_theme(
+           turn.resident_id,
+           Map.take(args, ~w(ground resident witness)),
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, n, %{checks: checks}} ->
+        "Proposed as theme proposal ##{n}; your witness accepts or declines it, and nothing changes until then. The checks: #{Seshat.Palette.report(checks)}."
+
+      {:error, %{kind: :seshat_theme_unreadable, details: details}} ->
+        @not_done <>
+          "those seeds would be hard to read, so nothing was filed. The checks: #{Seshat.Palette.report(Keyword.get(details, :checks, []))}."
+
+      other ->
+        other
+    end
+  end
+
   defp call("budget_read", _args, turn),
     do: Nisaba.budgets(turn.resident_id, :resident) |> Enum.map_join("\n", &budget_line/1)
 
@@ -2699,7 +2751,7 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
-      library_page(row, content, from)
+      library_page(row, content, from) <> leased(Seshat.lease(turn.resident_id, row.path))
     else
       {:error, %Seshat.Error{} = e} -> unreadable(e)
       other -> other
@@ -2818,23 +2870,13 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("document_write", args, turn) do
-    case Seshat.write(
-           turn.resident_id,
-           to_string(args["path"] || ""),
-           to_string(args["content"] || ""),
-           turn.resident
-         ) do
-      {:ok, %{path: path, changed: changed, indexed: indexed}} ->
-        "Written #{path}" <>
-          if(changed, do: "", else: " (unchanged)") <>
-          if(indexed,
-            do: " and indexed.",
-            else: "; the index did not run clean, it will again tonight."
-          )
-
-      other ->
-        other
-    end
+    turn.resident_id
+    |> Seshat.write(
+      to_string(args["path"] || ""),
+      to_string(args["content"] || ""),
+      turn.resident
+    )
+    |> written(turn)
   end
 
   defp call("document_adopt", args, turn) do
@@ -2880,6 +2922,13 @@ defmodule Oneiroi.Brain.Tools do
         Seshat.Journals.render(d.day, entries) <>
           "\nDelta: #{delta.plan} planned, #{delta.done} of #{delta.todo} todos done, #{delta.wrap} wrap " <>
           if(delta.unwrapped, do: "(planned and not wrapped).", else: "lines.")
+    end
+  end
+
+  defp call("scene_write", args, turn) do
+    case Seshat.scene_write(turn.resident_id, args, turn.resident) do
+      {:ok, done} -> scene_written(done)
+      other -> other
     end
   end
 
@@ -3222,6 +3271,43 @@ defmodule Oneiroi.Brain.Tools do
   defp answered("document_adopt", args, turn),
     do: {"Adopted #{library_path(args["path"])}.", turn}
 
+  # As the real write answers: a new scene numbered after the day's rows
+  # and the ones this trial minted; a correction as done.
+  defp answered("scene_write", args, turn) do
+    day = to_string(args["day"] || "")
+
+    cond do
+      args["scene"] ->
+        {scene_written(%{
+           day: day,
+           number: args["scene"],
+           done: "corrected",
+           complete: args["final"] == true
+         }), turn}
+
+      args["corrects"] || Enum.any?(~w(title summary from_turn to_turn), &Map.has_key?(args, &1)) ->
+        rows =
+          case Seshat.scenes(turn.resident_id, day, day) do
+            [%{scenes: rows}] -> length(rows)
+            _none -> 0
+          end
+
+        {n, turn} = mint(turn, {"scene", day}, rows)
+        done = if args["corrects"], do: "summary_corrected", else: "written"
+
+        {scene_written(%{
+           day: day,
+           number: n,
+           done: done,
+           corrects: args["corrects"],
+           complete: args["final"] == true
+         }), turn}
+
+      true ->
+        {scene_written(%{day: day, number: nil, done: "closed", complete: true}), turn}
+    end
+  end
+
   defp answered("journal_add", args, turn) do
     day = args["day"] || Oneiroi.Sunna.today(turn.resident_id).day
 
@@ -3306,6 +3392,46 @@ defmodule Oneiroi.Brain.Tools do
   defp page_footer(rows, further) do
     "#{further} more further back; bookmark_list with before: #{List.last(rows).number} and the same filters reads the next page."
   end
+
+  # What her document_write says (seshat#55 for the lease's two answers).
+  defp written({:ok, %{written: false, waiting: lease}}, turn), do: waiting(lease, turn)
+
+  defp written({:ok, %{path: path, took: lease} = written}, _turn) do
+    "Your witness's lease on #{path} had gone idle, so your write took it and went in" <>
+      if(lease.kept_at,
+        do: "; his unsaved draft is kept at #{lease.kept_at}, never lost.",
+        else: "; he had no unsaved draft to keep."
+      ) <> if(written.indexed, do: " Indexed.", else: "")
+  end
+
+  defp written({:ok, %{path: path, changed: changed, indexed: indexed}}, _turn) do
+    "Written #{path}" <>
+      if(changed, do: "", else: " (unchanged)") <>
+      if(indexed,
+        do: " and indexed.",
+        else: "; the index did not run clean, it will again tonight."
+      )
+  end
+
+  defp written(other, _turn), do: other
+
+  # Her write on a path her witness holds an edit lease on (seshat#55):
+  # nothing written, the wait recorded, and when to write again.
+  defp waiting(lease, turn) do
+    zone = Local.zone(turn.resident_id)
+
+    "Not written yet: your witness is editing #{lease.path} (his edit lease, last renewed #{Local.stamp(zone, lease.renewed_at)}). " <>
+      "Your wait is recorded and he can see it. If he releases the lease, or once it has been idle until #{Local.stamp(zone, lease.takeable_at)}, " <>
+      "write again: a write of yours on an idle lease takes it and goes in, his unsaved draft kept for him. Nothing you meant to write is held for you, so keep your words for that write."
+  end
+
+  # The witness's edit lease, shown to her where she reads (seshat#55).
+  defp leased(%{state: "held"} = lease),
+    do:
+      "\n\n(Your witness holds an edit lease on #{lease.path}: he is editing it. A document_write of yours here waits on him" <>
+        if(lease.takeable, do: ", and his lease is idle now, so it would take it.)", else: ".)")
+
+  defp leased(_none_or_taken), do: ""
 
   # A page of a document: a header naming the path, the kind, the bytes
   # and which characters these are, with the call that reads the next;
@@ -3732,6 +3858,32 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp seeds_cited(_resident_id, _cites), do: "cites is a list of seed numbers."
+
+  defp scene_written(%{day: day} = done) do
+    file = "scenes/#{day}.md"
+
+    what =
+      case done.done do
+        "written" ->
+          "Wrote scene #{done.number} of #{day} into #{file}."
+
+        "corrected" ->
+          "Corrected scene #{done.number} of #{day}#{if Map.get(done, :mood_correction), do: " (the mood marked as a correction, its day past)", else: ""}; the old values stay in the history."
+
+        "unchanged" ->
+          "Scene #{done.number} of #{day} already says that; nothing moved."
+
+        "summary_corrected" ->
+          "Added row #{done.number} of #{day}, correcting scene #{done.corrects}'s lines; its own stay as written."
+
+        "closed" ->
+          "Closed #{day}."
+      end
+
+    if done.complete,
+      do: what <> " The day is finished.",
+      else: what <> " The day reads as not finished until a call carries final: true."
+  end
 
   defp tool(name, description, properties, required) do
     %{

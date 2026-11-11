@@ -1,3 +1,3 @@
-Their reach: what they can do outside the conversation. Hands, the agents that browse and build for them, are not on the platform yet; a reader on your own machine can be connected from Connections after they wake.
+Their reach: what they can do outside the conversation.
 
-Nothing to choose here today. When hands arrive, this is where you will give them.
+Nothing to choose here today. A reader on your own machine, and hands — the agents that browse and build for them — can be connected from Connections after they wake. When more arrives, this is where you will give them.

@@ -24,6 +24,9 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
     resident = Fixtures.resident!(account)
     witness = Actor.new(:witness, account.id)
     {:ok, token, _} = Oneiroi.Gaia.issue_token(account.id, "t", witness)
+    # The notifications question answered, so the list is the systems'
+    # (its own test is the bell's, brain#76).
+    :ok = Oneiroi.Gaia.decline_push(account.id, witness)
     {:ok, id: resident.id, token: token, me: witness, lily: Actor.new(:resident, resident.id)}
   end
 

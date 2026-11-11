@@ -170,6 +170,19 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :file, :content, :origin, :model, :prompt]
   end
 
+  defmodule GiftReadGiven do
+    # A read of one gift's draft against that gift's guidance
+    # (agathos-daimon#40): which file it was for, the SHA-256 of the draft
+    # read (its words stay the witness's until he keeps them; a kept seed
+    # with the same words joins it by hash), the notes (each `kind`,
+    # `text` and a `quote` from the draft or nil) and the model that wrote
+    # them. Kept beside the seeds on the resident's stream: the file's
+    # history is there.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ref, :gift, :file, :draft_sha, :notes, :model]
+  end
+
   defmodule FirstContact do
     # The first captured turn in a session that is not a regression
     # session (spec §6.2): from here the files are proposed, not given,
@@ -188,6 +201,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
   end
 
   defmodule SoulEditDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
+  defmodule SoulEditWithdrawn do
+    # The witness takes back his own open proposal (agathos-daimon#44):
+    # the note is what the resident is told, in a letter to her chat.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
   end
 

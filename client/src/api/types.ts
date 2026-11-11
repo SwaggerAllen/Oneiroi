@@ -125,8 +125,10 @@ export interface Turn {
 
 export interface Bookmark {
   number: number;
-  line: string;
+  /** Withheld (null) when it was made in a private session she hasn't shared (kumbukumbu#62). */
+  line: string | null;
   summary: string | null;
+  private?: boolean;
   session_key: string;
   anchor_ref: string;
   anchor_at: string;
@@ -143,6 +145,10 @@ export interface Tag {
   slug: string;
   state: 'proposed' | 'active' | 'retired' | 'rejected' | string;
   note: string | null;
+  // Who proposed it, and when it was made and decided (kumbukumbu).
+  proposed_by?: { kind: string; id: string } | null;
+  created_at?: string;
+  decided_at?: string | null;
 }
 
 export interface KeyStatus {
@@ -504,12 +510,33 @@ export interface LibraryHit {
 // oldest first from the server, each naming the screen it is decided on.
 // It only shows; `long` is a mark past two days, and nothing more.
 export interface NeedsYouEntry {
-  kind: 'reply_to_approve' | 'reply_to_send' | 'ask' | 'piece_to_review' | 'piece_to_publish' | 'work_blocked' | 'plugin_proposal' | 'kind_gate_proposal';
+  kind:
+    | 'reply_to_approve'
+    | 'reply_to_send'
+    | 'ask'
+    | 'piece_to_review'
+    | 'piece_to_publish'
+    | 'work_blocked'
+    | 'plugin_proposal'
+    | 'kind_gate_proposal'
+    | 'theme_proposal'
+    | 'notifications';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string; approvable?: boolean };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string } };
+}
+
+/** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */
+export interface WaitingOnHerEntry {
+  kind: 'contract_proposal' | 'soul_edit' | 'bookmark_proposal' | 'revision' | 'plugin_proposal' | 'letter' | 'lease_wait';
+  ref: number | string;
+  title: string;
+  since: string;
+  screen: string;
+  long: boolean;
+  about: Record<string, unknown>;
 }
 
 export interface Ask {

@@ -40,6 +40,15 @@ defmodule Oneiroi.Projection do
         {:ok, config}
       end
 
+      # Once the fold has committed, the resident's client is told what
+      # changed (apsu#24); never the data, and never in a way that can
+      # stop the projector.
+      @impl Commanded.Projections.Ecto
+      def after_update(event, metadata, _changes) do
+        alias Oneiroi.Apsu.Notices
+        Notices.projected(unquote(name), event, metadata)
+      end
+
       # One event a projector cannot fold never stops the app (2026-11-03,
       # the outage this is the lesson of): see `Oneiroi.Projection.failed/4`.
       @impl Commanded.Event.Handler

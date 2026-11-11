@@ -134,14 +134,252 @@ defmodule OneiroiWeb.FileController do
     do:
       problem(conn, 422, :prompt_required, :web_file_draft_prompt_required, "prompt is required")
 
-  operation(:proposals,
-    summary: "The open edit proposals awaiting the resident",
+  operation(:generate,
+    summary:
+      "The generator (agathos-daimon#39): from who the witness wants to wake, a draft of every gift's file, billed as drafting; returned, not written",
     parameters: [id: [in: :path, type: :string]],
-    responses: [ok: {"proposals", "application/json", %Schema{type: :array}}]
+    request_body:
+      {"the prompt", "application/json",
+       %Schema{type: :object, required: [:prompt], properties: %{prompt: %Schema{type: :string}}}},
+    responses: [
+      ok:
+        {"the prompt, the drafts in the gifts' order, and where a failed call stopped the run",
+         "application/json", %Schema{type: :object}}
+    ]
   )
 
-  def proposals(conn, %{"id" => id}),
-    do: json(conn, id |> AgathosDaimon.edit_proposals() |> Enum.map(&proposal/1))
+  def generate(conn, %{"id" => id, "prompt" => prompt}) when is_binary(prompt) do
+    if String.trim(prompt) == "" do
+      generate(conn, %{})
+    else
+      case Oneiroi.Brain.generate_gifts(id, prompt, actor(conn)) do
+        {:ok, %{stopped: stopped} = result} ->
+          json(conn, %{result | stopped: stopped(stopped)})
+
+        {:error, %{kind: _} = e} ->
+          error(conn, 422, e)
+      end
+    end
+  end
+
+  def generate(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :prompt_required,
+        :web_file_generate_prompt_required,
+        "prompt is required"
+      )
+
+  operation(:trials,
+    summary:
+      "Suggested trials (agathos-daimon#42): drafted from her files so far and an optional note, billed as drafting; nothing is kept",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"an optional note", "application/json",
+       %Schema{type: :object, properties: %{note: %Schema{type: :string}}}},
+    responses: [
+      ok:
+        {"the suggestions", "application/json",
+         %Schema{
+           type: :object,
+           properties: %{
+             trials: %Schema{
+               type: :array,
+               items: %Schema{
+                 type: :object,
+                 properties: %{
+                   prompt: %Schema{type: :string},
+                   passes_if: %Schema{type: :string},
+                   fails_if: %Schema{type: :string}
+                 }
+               }
+             },
+             model: %Schema{type: :string}
+           }
+         }},
+      unprocessable_entity: {"closed or unreadable", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def trials(conn, %{"id" => id} = params) do
+    note = if is_binary(params["note"]), do: params["note"], else: ""
+
+    case Oneiroi.Brain.suggest_trials(id, note, actor(conn)) do
+      {:ok, result} -> json(conn, result)
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+    end
+  end
+
+  defp stopped(nil), do: nil
+  defp stopped(s), do: %{file: s.file, kind: s.kind, message: s.message}
+
+  operation(:read,
+    summary:
+      "Get a read (agathos-daimon#40): notes on one gift's draft against its guidance, billed as drafting; nothing rewritten",
+    parameters: [id: [in: :path, type: :string], name: [in: :path, type: :string]],
+    request_body:
+      {"the draft", "application/json",
+       %Schema{
+         type: :object,
+         required: [:content],
+         properties: %{content: %Schema{type: :string}}
+       }},
+    responses: [
+      ok:
+        {"the read: its ref, the gift, the draft's hash, the notes and the model",
+         "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def read(conn, %{"id" => id, "name" => name, "content" => content}) when is_binary(content) do
+    if String.trim(content) == "" do
+      read(conn, %{})
+    else
+      case Oneiroi.Brain.read_gift(id, name, content, actor(conn)) do
+        {:ok, read} -> json(conn, read)
+        {:error, %{kind: _} = e} -> error(conn, 422, e)
+      end
+    end
+  end
+
+  def read(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :content_required,
+        :web_file_read_content_required,
+        "content is required: the draft to read"
+      )
+
+  operation(:reads,
+    summary: "The reads of one file's drafts, newest first (agathos-daimon#40)",
+    parameters: [id: [in: :path, type: :string], name: [in: :path, type: :string]],
+    responses: [ok: {"reads", "application/json", %Schema{type: :array}}]
+  )
+
+  def reads(conn, %{"id" => id, "name" => name}) do
+    json(
+      conn,
+      id
+      |> AgathosDaimon.gift_reads(name)
+      |> Enum.map(fn r ->
+        %{
+          ref: r.ref,
+          gift: r.gift,
+          file: r.file,
+          draft_sha: r.draft_sha,
+          notes: r.notes,
+          model: r.model,
+          by: %{kind: r.by_kind, id: r.by_id},
+          at: r.at
+        }
+      end)
+    )
+  end
+
+  operation(:proposals,
+    summary:
+      "Your edit proposals (agathos-daimon#43): `state` open (the default, the array every earlier client reads), answered (accepted or declined by her), withdrawn, or all, oldest first. Each row's `answer` is her decision `{decision, note, at}` once she has answered, else null; `withdrawn` is `{note, at}` once you have taken it back, else null",
+    parameters: [
+      id: [in: :path, type: :string],
+      state: [in: :query, type: :string]
+    ],
+    responses: [
+      ok: {"proposals", "application/json", %Schema{type: :array}},
+      unprocessable_entity: {"a state not listed", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def proposals(conn, %{"id" => id} = params) do
+    case edit_state(params["state"]) do
+      {:ok, which} ->
+        json(conn, id |> AgathosDaimon.edit_proposals(which) |> Enum.map(&proposal/1))
+
+      :error ->
+        problem(
+          conn,
+          422,
+          :state_unknown,
+          :web_file_proposals_state_unknown,
+          "state is one of open, answered, withdrawn or all"
+        )
+    end
+  end
+
+  defp edit_state(nil), do: {:ok, :open}
+  defp edit_state("open"), do: {:ok, :open}
+  defp edit_state("answered"), do: {:ok, :answered}
+  defp edit_state("withdrawn"), do: {:ok, :withdrawn}
+  defp edit_state("all"), do: {:ok, :all}
+  defp edit_state(_other), do: :error
+
+  operation(:withdraw,
+    summary:
+      "Withdraw your open edit proposal, with a note (agathos-daimon#44): it leaves her open list and she is told in a letter to her chat, your note in it. One she has answered, or you have withdrawn, is refused (409)",
+    parameters: [id: [in: :path, type: :string], ref: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [
+      no_content: "withdrawn",
+      not_found: {"no proposal has that ref", "application/json", %Schema{type: :object}},
+      conflict: {"answered or withdrawn already", "application/json", %Schema{type: :object}},
+      unprocessable_entity: {"no note", "application/json", %Schema{type: :object}}
+    ]
+  )
+
+  def withdraw(conn, %{"id" => id, "ref" => ref, "note" => note})
+      when is_binary(note) and note != "" do
+    edit = Enum.find(AgathosDaimon.edit_proposals(id), &(&1.ref == ref))
+
+    case AgathosDaimon.withdraw_edit(id, ref, note, actor(conn)) do
+      :ok ->
+        tell_withdrawn(id, edit, note, actor(conn))
+        send_resp(conn, 204, "")
+
+      {:error, %{kind: :agathos_daimon_no_such_proposal} = e} ->
+        error(conn, 404, e)
+
+      {:error, %{kind: :agathos_daimon_proposal_answered} = e} ->
+        error(conn, 409, e)
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+    end
+  end
+
+  def withdraw(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :note_required,
+        :web_file_withdraw_note_required,
+        "a withdrawal carries a note: she is told why"
+      )
+
+  # His act reaches her as a letter to her chat, in his name, as the
+  # plugin and theme answers do; she reads the open proposals herself.
+  defp tell_withdrawn(id, edit, note, actor) do
+    file = if edit, do: " to #{edit.file}", else: ""
+
+    _ =
+      Oneiroi.Kumbukumbu.send_letter(
+        id,
+        nil,
+        %{
+          to: "Oneiroi chat",
+          text:
+            "Your witness withdrew his proposed edit#{file}; there is nothing to answer. His note: #{note}"
+        },
+        actor
+      )
+
+    :ok
+  end
 
   operation(:soul_lines,
     summary:
@@ -241,7 +479,12 @@ defmodule OneiroiWeb.FileController do
       note: p.note,
       state: p.state,
       proposed_by: %{kind: p.proposed_by_kind, id: p.proposed_by_id},
-      proposed_at: p.proposed_at
+      proposed_at: p.proposed_at,
+      answer:
+        if(p.state in ["accepted", "declined"],
+          do: %{decision: p.state, note: p.decided_note, at: p.decided_at}
+        ),
+      withdrawn: if(p.state == "withdrawn", do: %{note: p.decided_note, at: p.decided_at})
     }
   end
 end

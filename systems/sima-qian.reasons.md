@@ -290,3 +290,24 @@ drifts the day a kind is added, and it had already drifted five times
 without anyone seeing, because a stray fails after the backup lands
 and reads as noise. Asking the registry makes the backup hold what the
 library holds, by construction, including what she defines.
+
+## #49
+A document's versions were the first reader of one path's whole
+history, and asking git once per commit for the blob would cost a
+process per commit before reading a word. One log call with the raw
+blob ids, then one read per distinct blob, keeps the cost to what is
+actually read; the port stays the only place git is called, so the
+credential and failure rules the port carries hold for it
+unchanged.
+
+## #50
+A line carries its version so that a reader knows the shape of its
+data; a line that says version 2 over version 1's data tells that
+reader something false, and a rebuild or a reader outside the platform
+would take the null at its word. Upcasting where the line is written
+is the same read the aggregates and projectors already get, so the
+export says what the platform itself believes. The fixture held only
+the resident's own events, all at version 1, so the guard it was meant
+to be had nothing to guard: the protocol's fallback made every type
+look upcast. A line at an older version, with what it must become
+written beside it, is what makes a missing upcaster fail.

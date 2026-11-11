@@ -39,8 +39,9 @@ the app while the account witnesses no resident:
   which opens the chat. A resident brought from a repository goes from
   the threshold straight to the reading.
 
-Not built: the pre-filled path (the generator, whose guidance is to be a
-reviewed design document first), the wish and files intake paths, the
+Not built: the pre-filled path on the screens (the server's generator,
+Get a read and the example sets are built, agathos-daimon#39 to #41; the
+screens do not call them yet), the wish and files intake paths, the
 peer card's approval, candidate models with the trials, and the trials
 run at the waking.
 

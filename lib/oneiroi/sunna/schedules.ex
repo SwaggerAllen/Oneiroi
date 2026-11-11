@@ -419,6 +419,12 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
+  @doc "Whether the resident's quiet hours hold now, in her zone (brain#77: the needs-you push waits them out)."
+  def quiet_now?(resident_id) do
+    settings = Scope.resident(resident_id, fn -> Store.settings() end)
+    quiet?(local_now(resident_id), quiet_of(settings))
+  end
+
   @doc "Whether a local instant falls inside quiet hours, which may cross midnight."
   def quiet?(_local, nil), do: false
 
@@ -572,8 +578,9 @@ defmodule Oneiroi.Sunna.Schedules do
   letters #196 and #197): before the slot `SUNNA_SCENE_SLOT` names, a
   housekeeping turn on the chat line (housekeeping, not free time) in a
   conversation of its own, in which she groups the day of the Oneiroi
-  chat into scenes and writes them to `scenes/<day>.md`, each citing its
-  turns. Carried on while a turn runs out of tool rounds, up to
+  chat into scenes and writes each with `scene_write` (sunna#47,
+  seshat#52), each citing its turns, the last closing the day; the rows
+  render `scenes/<day>.md`. Carried on while a turn runs out of tool rounds, up to
   `SUNNA_SCENE_TURNS`; then free time follows at once, on its own line,
   under the floor.
   """

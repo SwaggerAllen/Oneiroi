@@ -134,9 +134,11 @@ defmodule Oneiroi.Kumbukumbu do
     ]
 
   alias Oneiroi.Kumbukumbu.Conversations
+  alias Oneiroi.Kumbukumbu.Days
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
+  alias Oneiroi.Kumbukumbu.Search
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -345,6 +347,12 @@ defmodule Oneiroi.Kumbukumbu do
        remedy: "ask the resident, or renegotiate the term"},
       {:kumbukumbu_no_such_session, "no session with that key is open for the resident",
        remedy: "open one, or read the key off the session list"},
+      {:kumbukumbu_no_such_message,
+       "the session holds no message at that cursor and no turn with that ref (kumbukumbu#57)",
+       remedy: "read the cursor or the turn ref off the transcript"},
+      {:kumbukumbu_range_invalid,
+       "a range's bounds are ISO dates or ISO instants, and a day range runs forward over at most 366 days (kumbukumbu#57, #58)",
+       remedy: "give YYYY-MM-DD or a full ISO instant, from no later than to"},
       {:kumbukumbu_kind_invalid, "the session kind is not one memory captures",
        remedy:
          "main, free_time or hands; an adapter's and an import's are opened by their own routes, and a regression session is never captured (spec §6.4)"},
@@ -419,8 +427,9 @@ defmodule Oneiroi.Kumbukumbu do
        "the command was refused before memory read it: an actor, an instant or a decision's note was missing",
        remedy: "a decision carries a note; the details name what was missing"},
       {:kumbukumbu_react_invalid,
-       "a react is the witness's: one emoji, or a short run of them, on a reply of hers in a turn or on a house letter that exists",
-       remedy: "name the conversation and turn, or the letter's number, and give an emoji"},
+       "a react is one emoji, or a short run of them, on the other party's message in a turn, a house letter that exists, or a document of the library (kumbukumbu#61)",
+       remedy:
+         "name the conversation and turn, the letter's number, or the document's path, and give an emoji"},
       {:kumbukumbu_dispatch_failed,
        "the command did not complete: the event store failed, or a projection did not catch up in time",
        remedy: "the platform's; retry, and read the cause on the log line"}
@@ -588,6 +597,55 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.transcript_page(scope, key, before, limit)
   )
 
+  @doc "A page of a session's transcript forward (kumbukumbu#57): the first `limit` messages after a `{sequence, position}` cursor (nil for the oldest), and whether later ones remain."
+  @spec transcript_after(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {integer(), integer()} | nil,
+          non_neg_integer()
+        ) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()],
+           boolean()}
+          | {:error, term()}
+  defexport(transcript_after(scope, key, after_cursor, limit),
+    do: Conversations.transcript_after(scope, key, after_cursor, limit)
+  )
+
+  @doc "The window of a session's transcript around a message's cursor or a turn's first message (kumbukumbu#57), with whether earlier and later ones remain."
+  @spec transcript_around(
+          Oneiroi.Scope.t(),
+          String.t(),
+          {:cursor, {integer(), integer()}} | {:turn, String.t()},
+          pos_integer()
+        ) :: {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), map()} | {:error, term()}
+  defexport(transcript_around(scope, key, anchor, limit),
+    do: Conversations.transcript_around(scope, key, anchor, limit)
+  )
+
+  @doc "A range's bounds as instants (kumbukumbu#57): each an ISO date (a whole local day in the resident's zone) or an ISO instant, nil for open."
+  @spec day_range(String.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, DateTime.t() | nil, DateTime.t() | nil} | {:error, term()}
+  defexport(day_range(resident_id, from, to), do: Days.range(resident_id, from, to))
+
+  @doc "Per local day of a range, the bookmarks and messages it holds (kumbukumbu#58); messages under the scope, of one session when `key` is given."
+  @spec day_counts(
+          Oneiroi.Scope.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          String.t() | nil
+        ) :: {:ok, map()} | {:error, term()}
+  defexport(day_counts(scope, resident_id, from, to, key),
+    do: Days.counts(scope, resident_id, from, to, key)
+  )
+
+  @doc "Per local day of a range, the sessions spoken in, with their first and last instants and counts, never words (kumbukumbu#60); a locked session by its row's receipts."
+  @spec session_days(Oneiroi.Scope.t(), String.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, %{String.t() => [map()]}} | {:error, term()}
+  defexport(session_days(scope, resident_id, from, to),
+    do: Days.sessions(scope, resident_id, from, to)
+  )
+
   @doc "The last `count` messages of a session, for the brain's live transcript."
   @spec recent(String.t(), String.t(), pos_integer()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(recent(resident_id, key, count), do: Conversations.recent(resident_id, key, count))
@@ -612,6 +670,24 @@ defmodule Oneiroi.Kumbukumbu do
           Oneiroi.Kumbukumbu.Store.Message.t()
         ]
   defexport(search(scope, text, limit), do: Conversations.search(scope, text, limit))
+
+  @doc "One resident's messages holding `text` under `scope`, newest first, unweighted, each `{message, session}`; never a private, unshared session's (kumbukumbu#59)."
+  @spec search_words(term(), String.t(), String.t(), pos_integer()) :: [{map(), map()}]
+  defexport(search_words(scope, resident_id, text, limit),
+    do: Search.words(scope, resident_id, text, limit)
+  )
+
+  @doc "The bookmarks whose line, summary or tags hold `text`, ranked line, summary, tags, newest first within each (kumbukumbu#59)."
+  @spec search_bookmarks(String.t(), String.t(), pos_integer()) :: [map()]
+  defexport(search_bookmarks(resident_id, text, limit),
+    do: Search.bookmarks(resident_id, text, limit)
+  )
+
+  @doc "What her memory would surface for `text` in the common room: the ranked index's lines with their scores, then the madeleine (kumbukumbu#59)."
+  @spec surfaced(String.t(), String.t(), Oneiroi.Actor.t(), boolean(), pos_integer()) :: [map()]
+  defexport(surfaced(resident_id, text, actor, ranked?, limit),
+    do: Search.surfaced(resident_id, text, actor, ranked?, limit)
+  )
 
   @doc "The same within the room of `session_key` (spec §6.3, P23)."
   @spec search(Oneiroi.Scope.t(), String.t(), pos_integer(), String.t(), String.t()) :: [
@@ -833,6 +909,18 @@ defmodule Oneiroi.Kumbukumbu do
   @spec bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
   defexport(bookmarks(resident_id), do: Memories.bookmarks(resident_id))
 
+  @doc "A page of the resident's bookmarks (kumbukumbu#57): newest first below `before` (nil for the newest), whose moment falls in `[from, to)`, with their tags, and whether more remain."
+  @spec bookmarks_page(
+          String.t(),
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Oneiroi.Kumbukumbu.Store.Bookmark.t()], boolean()}
+  defexport(bookmarks_page(resident_id, before, limit, from, to),
+    do: Memories.bookmarks_page(resident_id, before, limit, from, to)
+  )
+
   @doc "The messages of one turn, by ref, under the resident's scope: what a habit's citation reads back (ethos)."
   @spec turn_messages(String.t(), String.t()) :: [Oneiroi.Kumbukumbu.Store.Message.t()]
   defexport(turn_messages(resident_id, turn_ref),
@@ -848,6 +936,44 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The open bookmark proposals, oldest first."
   @spec proposals(String.t()) :: [Oneiroi.Kumbukumbu.Store.BookmarkProposal.t()]
   defexport(proposals(resident_id), do: Memories.proposals(resident_id))
+
+  @doc "The bookmark proposals by state (kumbukumbu#63): `:open`, `:answered` (accepted or declined) or `:all`, oldest first; an answered one carries her note (declined) or the bookmark she wrote (accepted)."
+  @spec proposals(String.t(), :open | :answered | :all) ::
+          [Oneiroi.Kumbukumbu.Store.BookmarkProposal.t()]
+  defexport(proposals(resident_id, which), do: Memories.proposals(resident_id, which))
+
+  @doc "The keys of her private sessions she has not shared (kumbukumbu#28, #62)."
+  @spec locked_sessions(String.t()) :: MapSet.t(String.t())
+  defexport(locked_sessions(resident_id), do: Memories.locked_sessions(resident_id))
+
+  @doc "Bookmark rows as the witness may read them (kumbukumbu#62): one made in a private, unshared session marked `private` with its line, summary, register and status withheld."
+  @spec for_witness(String.t(), [Oneiroi.Kumbukumbu.Store.Bookmark.t()]) ::
+          [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
+  defexport(for_witness(resident_id, rows), do: Memories.for_witness(resident_id, rows))
+
+  @doc "Every bookmark, newest first, as the witness reads it (kumbukumbu#62)."
+  @spec witness_bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
+  defexport(witness_bookmarks(resident_id), do: Memories.witness_bookmarks(resident_id))
+
+  @doc "A page of bookmarks as the witness reads it (kumbukumbu#57, #62)."
+  @spec witness_bookmarks_page(
+          String.t(),
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Oneiroi.Kumbukumbu.Store.Bookmark.t()], boolean()}
+  defexport(witness_bookmarks_page(resident_id, before, limit, from, to),
+    do: Memories.witness_bookmarks_page(resident_id, before, limit, from, to)
+  )
+
+  @doc "One bookmark as the witness reads it (kumbukumbu#62): a private one's words and its span's messages withheld."
+  @spec witness_bookmark(String.t(), pos_integer()) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Bookmark.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
+          | {:error, term()}
+  defexport(witness_bookmark(resident_id, number),
+    do: Memories.witness_bookmark(resident_id, number)
+  )
 
   @doc "The tag set, every state."
   @spec tags(String.t()) :: [Oneiroi.Kumbukumbu.Store.Tag.t()]
@@ -934,7 +1060,7 @@ defmodule Oneiroi.Kumbukumbu do
   @spec pins(String.t(), String.t() | nil) :: [map()]
   defexport(pins(resident_id, session_key), do: Memories.pins(resident_id, session_key))
 
-  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu#38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
+  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu#38): the numbers listed in order, those of them made in a private, unshared session (kumbukumbu#62), the left-out count, the count in named rooms, the budget and a sentence saying it."
   @spec index_now(String.t()) :: map()
   defexport(index_now(resident_id), do: Memories.index_now(resident_id))
 
@@ -1023,7 +1149,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Oneiroi.Kumbukumbu.Reacts.react(resident_id, target, emoji, actor)
   )
 
-  @doc "The reacts, oldest first; `untold: true`, `session_key:` (kumbukumbu#56)."
+  @doc "The reacts, oldest first; `untold: true`, `session_key:` (kumbukumbu#56), `path:` (#61)."
   @spec reacts(String.t(), keyword()) :: [Oneiroi.Kumbukumbu.Store.React.t()]
   defexport(reacts(resident_id, opts), do: Oneiroi.Kumbukumbu.Reacts.list(resident_id, opts))
 

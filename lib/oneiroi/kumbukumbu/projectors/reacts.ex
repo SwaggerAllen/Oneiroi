@@ -21,6 +21,8 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Reacts do
         session_key: t["session_key"],
         turn_ref: t["turn_ref"],
         letter: t["number"],
+        path: t["path"],
+        document_hash: t["hash"],
         emoji: e.emoji,
         by: by(e.actor),
         reacted_at: e.at

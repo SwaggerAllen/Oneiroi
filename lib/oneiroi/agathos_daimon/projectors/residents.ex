@@ -24,6 +24,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   alias Oneiroi.AgathosDaimon.Store.{
     Adapter,
     Contract,
+    GiftRead,
     IdentityFile,
     Resident,
     SelfLetter,
@@ -379,6 +380,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     decide_edit(multi, e, "declined")
   end)
 
+  fold(%Events.SoulEditWithdrawn{} = e, _metadata, fn multi ->
+    decide_edit(multi, e, "withdrawn")
+  end)
+
   # An applied edit keeps the seed's origin: the row says where the file
   # first came from and who wrote it last; the log says everything.
   fold(%Events.SoulEditApplied{} = e, _metadata, fn multi ->
@@ -483,6 +488,29 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   defp actor_field(_other, _key), do: nil
 
+  # ---- the gifts' reads (agathos-daimon#40) ----
+
+  fold(%Events.GiftReadGiven{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:gift_read, e.ref},
+      %GiftRead{
+        resident_id: e.id,
+        ref: e.ref,
+        gift: e.gift,
+        file: e.file,
+        draft_sha: e.draft_sha,
+        notes: Enum.map(e.notes, &stringed/1),
+        model: e.model,
+        by_kind: actor_kind(e.actor),
+        by_id: actor_id(e.actor),
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :ref]
+    )
+  end)
+
   # ---- the state store (agathos-daimon#32) ----
 
   fold(%Events.StateLineSet{} = e, _metadata, fn multi ->
@@ -578,6 +606,16 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
       set: [exported_at: e.at]
     )
   end)
+
+  # A note as the log returns it (string keys) or as dispatched (atoms):
+  # stored with string keys either way.
+  defp stringed(note) when is_map(note) do
+    %{
+      "kind" => to_string(Map.get(note, :kind) || Map.get(note, "kind")),
+      "text" => Map.get(note, :text) || Map.get(note, "text"),
+      "quote" => Map.get(note, :quote, Map.get(note, "quote"))
+    }
+  end
 
   defp actor_kind(%{kind: kind}), do: to_string(kind)
   defp actor_kind(_actor), do: "unknown"

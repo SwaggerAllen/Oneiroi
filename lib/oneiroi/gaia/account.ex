@@ -19,7 +19,9 @@ defmodule Oneiroi.Gaia.Account do
     sessions: MapSet.new(),
     tokens: MapSet.new(),
     witnessings: MapSet.new(),
-    push: MapSet.new()
+    push: MapSet.new(),
+    push_answer: nil,
+    pushed: MapSet.new()
   ]
 
   @type t :: %__MODULE__{}
@@ -131,6 +133,34 @@ defmodule Oneiroi.Gaia.Account do
       else: []
   end
 
+  # The notifications question (gaia#25): "No thanks" is recorded once,
+  # and again only after a subscription answered it the other way.
+  def execute(%__MODULE__{push_answer: :declined}, %Commands.DeclinePush{}), do: []
+
+  def execute(%__MODULE__{}, %Commands.DeclinePush{} = c),
+    do: %Events.PushDeclined{actor: c.actor, at: c.at, id: c.id}
+
+  # One push per needs-you entry, ever (gaia#26): of the entries named,
+  # only those never pushed for this resident are recorded; none new is
+  # no event, and so no push.
+  def execute(%__MODULE__{pushed: pushed}, %Commands.RecordNeedsYouPush{} = c) do
+    fresh =
+      c.entries
+      |> Enum.map(&%{"kind" => to_string(&1["kind"]), "ref" => to_string(&1["ref"])})
+      |> Enum.uniq()
+      |> Enum.reject(&MapSet.member?(pushed, pushed_key(c.resident_id, &1)))
+
+    if fresh == [],
+      do: [],
+      else: %Events.NeedsYouPushed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        resident_id: c.resident_id,
+        entries: fresh
+      }
+  end
+
   # Idempotent on purpose: the witnessing handler replays (conventions §7).
   def execute(%__MODULE__{witnessings: s}, %Commands.StartWitnessing{} = c) do
     if MapSet.member?(s, c.resident_id),
@@ -176,7 +206,15 @@ defmodule Oneiroi.Gaia.Account do
   def apply(%__MODULE__{} = a, %Events.GithubTokenRevoked{}), do: %{a | github?: false}
 
   def apply(%__MODULE__{} = a, %Events.PushSubscribed{} = e),
-    do: %{a | push: MapSet.put(a.push, e.endpoint)}
+    do: %{a | push: MapSet.put(a.push, e.endpoint), push_answer: :subscribed}
+
+  def apply(%__MODULE__{} = a, %Events.PushDeclined{}), do: %{a | push_answer: :declined}
+
+  def apply(%__MODULE__{} = a, %Events.NeedsYouPushed{} = e),
+    do: %{
+      a
+      | pushed: Enum.reduce(e.entries, a.pushed, &MapSet.put(&2, pushed_key(e.resident_id, &1)))
+    }
 
   def apply(%__MODULE__{} = a, %Events.PushUnsubscribed{} = e),
     do: %{a | push: MapSet.delete(a.push, e.endpoint)}
@@ -186,4 +224,6 @@ defmodule Oneiroi.Gaia.Account do
 
   def apply(%__MODULE__{} = a, %Events.WitnessingEnded{} = e),
     do: %{a | witnessings: MapSet.delete(a.witnessings, e.resident_id)}
+
+  defp pushed_key(resident_id, %{"kind" => kind, "ref" => ref}), do: {resident_id, kind, ref}
 end

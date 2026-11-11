@@ -54,6 +54,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:session_key, :string)
       field(:turn_ref, :string)
       field(:letter, :integer)
+      # A document reacted on (kumbukumbu#61): its path and the hash of
+      # the words it held then.
+      field(:path, :string)
+      field(:document_hash, :string)
       field(:emoji, :string)
       field(:by, :string)
       field(:reacted_at, :utc_datetime_usec)
@@ -179,6 +183,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
       field(:tags, {:array, :string}, virtual: true, default: [])
+      # Set on the witness's reads alone (kumbukumbu#62): the bookmark
+      # was made in a private session she has not shared, and its words
+      # are withheld.
+      field(:private, :boolean, virtual: true, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -431,6 +439,134 @@ defmodule Oneiroi.Kumbukumbu.Store do
     {rows |> Enum.take(limit) |> Enum.reverse(), length(rows) > limit}
   end
 
+  @doc """
+  A page of a session's messages forward (kumbukumbu#57): the first
+  `limit` after the `{sequence, position}` cursor, or the first `limit`
+  of all when it is nil, in order, and whether later ones remain.
+  """
+  @spec messages_after(String.t(), {integer(), integer()} | nil, non_neg_integer()) ::
+          {[Message.t()], boolean()}
+  def messages_after(key, after_cursor, limit) do
+    rows =
+      from(m in Message,
+        where: m.session_key == ^key,
+        order_by: [asc: m.sequence, asc: m.position],
+        limit: ^(limit + 1)
+      )
+      |> after_cursor(after_cursor)
+      |> Repo.all()
+
+    {Enum.take(rows, limit), length(rows) > limit}
+  end
+
+  defp after_cursor(query, nil), do: query
+
+  defp after_cursor(query, {sequence, position}),
+    do:
+      from(m in query,
+        where: m.sequence > ^sequence or (m.sequence == ^sequence and m.position > ^position)
+      )
+
+  @doc """
+  The message an anchor read centres on (kumbukumbu#57): the one at a
+  `{sequence, position}` cursor, or the first message of a turn by its
+  ref; nil when the session holds neither.
+  """
+  @spec anchor_message(String.t(), {:cursor, {integer(), integer()}} | {:turn, String.t()}) ::
+          Message.t() | nil
+  def anchor_message(key, {:cursor, {sequence, position}}),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.sequence == ^sequence and m.position == ^position,
+          limit: 1
+        )
+      )
+
+  def anchor_message(key, {:turn, ref}),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.turn_ref == ^ref,
+          order_by: [asc: m.sequence, asc: m.position],
+          limit: 1
+        )
+      )
+
+  @doc """
+  How many messages each local day holds (kumbukumbu#58): `{day, count}`
+  for the resident's messages sent in `[from, to)`, the day the ISO date
+  of the instant in `zone`, of one session when `key` is given. The
+  scope decides which sessions are seen; the resident is named too, as an
+  account's scope sees every resident it is party to.
+  """
+  @spec message_days(String.t(), String.t(), DateTime.t(), DateTime.t(), String.t() | nil) ::
+          [{String.t(), non_neg_integer()}]
+  def message_days(resident_id, zone, from, to, key) do
+    query =
+      from(m in Message,
+        where: m.resident_id == ^resident_id and m.sent_at >= ^from and m.sent_at < ^to,
+        group_by: selected_as(:day),
+        select:
+          {selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               m.sent_at,
+               ^zone
+             ),
+             :day
+           ), count()}
+      )
+
+    query = if key, do: from(m in query, where: m.session_key == ^key), else: query
+    Repo.all(query)
+  end
+
+  @doc "Per session and local day in `[from, to)`, its first and last message and how many (kumbukumbu#60): `{key, day, first, last, count}`, under the caller's scope."
+  @spec session_days(String.t(), String.t(), DateTime.t(), DateTime.t()) :: [
+          {String.t(), String.t(), DateTime.t(), DateTime.t(), non_neg_integer()}
+        ]
+  def session_days(resident_id, zone, from, to) do
+    Repo.all(
+      from(m in Message,
+        where: m.resident_id == ^resident_id and m.sent_at >= ^from and m.sent_at < ^to,
+        group_by: [m.session_key, selected_as(:day)],
+        select:
+          {m.session_key,
+           selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               m.sent_at,
+               ^zone
+             ),
+             :day
+           ), min(m.sent_at), max(m.sent_at), count()}
+      )
+    )
+  end
+
+  @doc "How many bookmarks each local day holds (kumbukumbu#58): by the moment's instant, its anchor's or else its making's, in `[from, to)`."
+  @spec bookmark_days(String.t(), DateTime.t(), DateTime.t()) :: [{String.t(), non_neg_integer()}]
+  def bookmark_days(zone, from, to) do
+    Repo.all(
+      from(b in Bookmark,
+        where:
+          coalesce(b.anchor_at, b.created_at) >= type(^from, :utc_datetime_usec) and
+            coalesce(b.anchor_at, b.created_at) < type(^to, :utc_datetime_usec),
+        group_by: selected_as(:day),
+        select:
+          {selected_as(
+             fragment(
+               "to_char((? AT TIME ZONE 'UTC') AT TIME ZONE ?, 'YYYY-MM-DD')",
+               coalesce(b.anchor_at, b.created_at),
+               ^zone
+             ),
+             :day
+           ), count()}
+      )
+    )
+  end
+
   defp before_cursor(query, nil), do: query
 
   defp before_cursor(query, {sequence, position}),
@@ -561,6 +697,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
             m.role != "tool",
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit
+      )
+    )
+  end
+
+  @doc """
+  One resident's messages holding `text`, newest first and unweighted
+  (spec §6.3), each with its session: the one search's words
+  (kumbukumbu#59). A private, unshared session's messages are left out
+  here as well as by the policy, which keys them away from the account
+  (#28), so a scope that reads them still never lists them.
+  """
+  @spec search_words(String.t(), String.t(), pos_integer()) :: [{Message.t(), Session.t()}]
+  def search_words(resident_id, text, limit) do
+    Repo.all(
+      from(m in Message,
+        join: s in Session,
+        on: s.resident_id == m.resident_id and s.key == m.session_key,
+        where:
+          m.resident_id == ^resident_id and ilike(m.content, ^search_pattern(text)) and
+            m.role != "tool" and (s.private == false or s.shared == true),
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit,
+        select: {m, s}
       )
     )
   end
@@ -832,6 +991,42 @@ defmodule Oneiroi.Kumbukumbu.Store do
     Bookmark |> from(order_by: [desc: :number]) |> Repo.all() |> with_tags()
   end
 
+  @doc """
+  A page of the resident's bookmarks, newest first by number (kumbukumbu
+  #57): the first `limit` below `before` (nil for the newest) whose moment,
+  its anchor's instant or else its making's, falls in `[from, to)` (either
+  nil for open), each with its tags, and whether more remain.
+  """
+  @spec bookmarks_page(
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Bookmark.t()], boolean()}
+  def bookmarks_page(before, limit, from, to) do
+    query = from(b in Bookmark, order_by: [desc: b.number], limit: ^(limit + 1))
+    query = if before, do: from(b in query, where: b.number < ^before), else: query
+
+    query =
+      if from,
+        do:
+          from(b in query,
+            where: coalesce(b.anchor_at, b.created_at) >= type(^from, :utc_datetime_usec)
+          ),
+        else: query
+
+    query =
+      if to,
+        do:
+          from(b in query,
+            where: coalesce(b.anchor_at, b.created_at) < type(^to, :utc_datetime_usec)
+          ),
+        else: query
+
+    rows = Repo.all(query)
+    {rows |> Enum.take(limit) |> with_tags(), length(rows) > limit}
+  end
+
   @doc "The timeline's bookmarks (kumbukumbu#51): pinned, or weighed 2 and up; oldest first by when the moment was."
   def timeline_bookmarks do
     Repo.all(
@@ -867,6 +1062,19 @@ defmodule Oneiroi.Kumbukumbu.Store do
       Repo.all(
         from(p in BookmarkProposal, where: p.state == "open", order_by: [asc: p.proposed_at])
       )
+
+  @doc "The bookmark proposals in `states` (open, accepted, declined), oldest first (kumbukumbu#63)."
+  @spec proposals_in([String.t()]) :: [BookmarkProposal.t()]
+  def proposals_in(states) when is_list(states),
+    do:
+      Repo.all(
+        from(p in BookmarkProposal, where: p.state in ^states, order_by: [asc: p.proposed_at])
+      )
+
+  @doc "The keys of the private sessions she has not shared (kumbukumbu#28)."
+  @spec locked_keys() :: [String.t()]
+  def locked_keys,
+    do: Repo.all(from(s in Session, where: s.private and not s.shared, select: s.key))
 
   @doc "The tag set, every state, by slug."
   @spec tags() :: [Tag.t()]
@@ -928,7 +1136,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
-  @doc "The reacts, oldest first; `untold: true` for those not yet told her (kumbukumbu#56)."
+  @doc "The reacts, oldest first; `untold: true` for those not yet told her (kumbukumbu#56), `path:` for one document's (#61)."
   @spec reacts(keyword()) :: [React.t()]
   def reacts(opts \\ []) do
     q = from(r in React, order_by: r.number)
@@ -940,6 +1148,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
         else: q
 
     q = if opts[:by], do: from(r in q, where: r.by == ^opts[:by]), else: q
+    q = if opts[:path], do: from(r in q, where: r.path == ^opts[:path]), else: q
     Repo.all(q)
   end
 
