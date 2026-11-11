@@ -226,7 +226,9 @@ as `dev@oneiroi.local` / `oneiroi-dev-password`. The script:
   to be running), migrates `oneiroi_dev`, and seeds it
   (`mix oneiroi.dev.seed`): that account and one resident, Wren, whose
   conversation already holds a long paragraph, a code block with a line
-  far wider than a phone, a wide table and an unbreakable word;
+  far wider than a phone, a wide table, an unbreakable word and a system
+  line with a long link, plus a day of journal entries, two empty work
+  sessions and three asks in the bell;
 - builds the client into the server and rebuilds it on every save
   (reload the page to see a change);
 - runs the server on the in-memory provider, which answers each message

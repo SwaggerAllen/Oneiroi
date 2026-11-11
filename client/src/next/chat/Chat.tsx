@@ -170,6 +170,8 @@ export function Chat({
 
   const openCite = onCite;
 
+  const touch = useTouch();
+
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
@@ -178,12 +180,24 @@ export function Chat({
     setAtBottom(true);
   };
 
+  // On a keyboard, Enter sends and Shift+Enter breaks the line. On a
+  // touch screen Enter is the only way to break a line, so it does that,
+  // and the arrow sends.
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !touch) {
       e.preventDefault();
       submit();
     }
   };
+
+  // The box grows with what is written, up to its max height, then scrolls.
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, [draft]);
 
   const now = useNow(chat.stream !== null);
   const stepLabel =
@@ -262,8 +276,10 @@ export function Chat({
         }}
       >
         <textarea
+          ref={box}
           className={css.input}
           rows={1}
+          enterKeyHint={touch ? 'enter' : 'send'}
           value={draft}
           aria-label={`Message ${residentName}`}
           placeholder={chat.working ? `Queue a message for ${residentName}` : `Say something to ${residentName}`}
@@ -333,4 +349,18 @@ function MessageView({
     return <div className={css.tool} title={m.content.slice(0, 400)}>↳ {line}</div>;
   }
   return <div className={css.system}>{m.content.slice(0, 200)}</div>;
+}
+
+/** Whether the main pointer is a finger: a phone or tablet, where Enter must break the line. */
+function useTouch(): boolean {
+  const query = '(pointer: coarse)';
+  const [touch, setTouch] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia?.(query);
+    if (!list) return;
+    const change = () => setTouch(list.matches);
+    list.addEventListener('change', change);
+    return () => list.removeEventListener('change', change);
+  }, []);
+  return touch;
 }

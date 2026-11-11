@@ -736,8 +736,10 @@ quick way to see the client against a server holding the shapes that
 break it; the only check was a standalone copy of the layout. The seed
 puts those shapes in a conversation on every fresh database, through
 the same turn path a witness uses, so what the browser shows is what
-production would. The pass-through keeps the seed inside the boundary
-rule (the application may name the brain, not the conversations behind
-it) at the cost of one exported line. The `_dev` refusal is the guard a
+production would; the journal, the empty sessions and the asks are the
+day view's and the bell's equivalents, found the same afternoon. Putting
+it in the brain keeps the task inside the boundary rule (the application
+may name the brain, not the systems behind it) without an export per
+system it writes. The `_dev` refusal is the guard a
 seed with a fixed password needs: it can only ever write where nobody
 lives.

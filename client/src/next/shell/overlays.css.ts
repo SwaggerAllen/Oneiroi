@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { font, radius, vars, wide } from '../theme/contract.css';
+import { font, radius, status, vars, wide } from '../theme/contract.css';
 
 export const overlay = style({
   position: 'fixed',
@@ -58,6 +58,25 @@ const itemBase = {
 } as const;
 export const item = style({ ...itemBase, border: `1px solid ${vars.color.border}` });
 export const itemDashed = style({ ...itemBase, border: `1px dashed ${vars.color.witness.border}` });
+// An item answered here stays, folded and recoloured, until the bell
+// closes: the list's refresh can lag the answer, and a card that simply
+// vanished (or simply stayed) said nothing about what was done.
+const answeredBase = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  padding: '10px 14px',
+  borderRadius: 14,
+  font: `14px ${font.ui}`,
+  color: vars.color.textMuted,
+} as const;
+export const answeredYes = style({ ...answeredBase, background: `color-mix(in srgb, ${status.ok} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${status.ok} 45%, transparent)` });
+export const answeredNo = style({ ...answeredBase, background: vars.color.ground, border: `1px solid ${vars.color.border}` });
+export const answeredYesWord = style({ font: `600 11px ${font.mono}`, letterSpacing: '0.04em', color: status.ok });
+export const answeredNoWord = style({ font: `600 11px ${font.mono}`, letterSpacing: '0.04em', color: vars.color.textMuted });
+export const answeredTitle = style({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+export const answeredNote = style({ fontSize: 13, fontStyle: 'italic' });
+
 export const itemKind = style({ font: `500 11px ${font.mono}`, color: vars.color.witness.accent });
 export const since = style({ font: `500 11px ${font.mono}`, color: vars.color.textMuted });
 

@@ -39,7 +39,7 @@ defmodule Oneiroi.Brain do
       # The oracle's worker (brain#49), as every system with a worker has.
       Oban
     ],
-    exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun]
+    exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun, DevSeed]
 
   alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.Checkin
@@ -357,13 +357,6 @@ defmodule Oneiroi.Brain do
   @doc "Stops the turn running in a session (brain#61): `by` is `:witness` (his Stop); `{:error, _}` when nothing runs."
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}
   defexport(stop(resident_id, session_key, by), do: Session.stop(resident_id, session_key, by))
-
-  @doc "The resident's main session with a witness, opened if new: the key `turn/4` takes, for a shell task (the dev seed) that holds no route."
-  @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
-          {:ok, String.t()} | {:error, term()}
-  defexport(main_session(resident_id, account_id, actor),
-    do: Oneiroi.Kumbukumbu.main_session(resident_id, account_id, actor)
-  )
 
   @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
