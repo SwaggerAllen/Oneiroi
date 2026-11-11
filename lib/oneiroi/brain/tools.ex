@@ -959,7 +959,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (no in_reply_to across residents; say in the text what it answers). A name no conversation or household resident answers to is refused, with the names there are.",
+        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A name no conversation or household resident answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
@@ -1473,7 +1473,7 @@ defmodule Oneiroi.Brain.Tools do
   defp call("letter_send", args, turn) do
     case sibling(turn.resident_id, to_string(args["to"] || "")) do
       nil -> own_letter(args, turn)
-      {sibling, from} -> sibling_letter(sibling, from, args, turn)
+      {sibling, me} -> sibling_letter(sibling, me, args, turn)
     end
   end
 
@@ -4041,8 +4041,18 @@ defmodule Oneiroi.Brain.Tools do
   defp letter_head(l) do
     reply = if l.in_reply_to, do: " in reply to ##{l.in_reply_to}", else: ""
 
-    "##{l.number} from #{l.from_name} to #{l.to_name}, #{local_stamp(l.sent_at)}#{reply}"
+    "##{l.number} from #{l.from_name} to #{l.to_name}#{linked(Map.get(l, :link))}, " <>
+      "#{local_stamp(l.sent_at)}#{reply}"
   end
+
+  # A letter between residents names the other copy (kumbukumbu#66).
+  defp linked(%{"direction" => "from", "resident" => name, "number" => n}),
+    do: " (#{qualified(name, n)} in #{name}'s letters)"
+
+  defp linked(%{"direction" => "to", "resident" => name}),
+    do: " (your copy; it went to #{name}'s Oneiroi chat)"
+
+  defp linked(_none), do: ""
 
   defp letter_whole(l) do
     gift =
@@ -4306,29 +4316,29 @@ defmodule Oneiroi.Brain.Tools do
   # A letter to a resident of her own household (brain#83): by that
   # resident's name, when no conversation of hers answers to it. It lands
   # in the sibling's Oneiroi chat and wakes it, as her own letters do.
-  defp sibling_letter(sibling, from, args, turn) do
-    cond do
-      args["in_reply_to"] not in [nil, ""] ->
-        @not_done <>
-          "a letter to #{sibling.name} doesn't thread: letter numbers are each resident's own. " <>
-          "Send it without in_reply_to, and say in the text which letter it answers."
+  # Her copy and the sibling's are linked (kumbukumbu#66), so an
+  # in_reply_to in her own numbers threads on both sides.
+  defp sibling_letter(sibling, me, args, turn) do
+    if blank(args["keepsake"]) != nil do
+      @not_done <>
+        "a keepsake is given to your own conversations, not to #{sibling.name}. Send the letter without it."
+    else
+      attrs = %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])}
 
-      blank(args["keepsake"]) != nil ->
-        @not_done <>
-          "a keepsake is given to your own conversations, not to #{sibling.name}. Send the letter without it."
+      case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
+        {:ok, %{number: n, copy: copy}} ->
+          "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{me.name} " <>
+            "(#{qualified(sibling.name, n)}); your copy is ##{copy} in your letters."
 
-      true ->
-        text = to_string(args["text"] || "")
-
-        case Kumbukumbu.send_sibling_letter(sibling.id, from, text, turn.resident) do
-          {:ok, %{number: n}} ->
-            "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{from}."
-
-          other ->
-            other
-        end
+        other ->
+          other
+      end
     end
   end
+
+  # A letter's number in a sibling's letters, qualified by her name so it
+  # can't be mistaken for one of your own (the witness, 2026-11-11).
+  defp qualified(name, number), do: "#{String.downcase(name)}##{number}"
 
   # The resident of her household `to` names, with her own name as the
   # sender; nil when a conversation of hers answers to the name first, or
@@ -4341,7 +4351,7 @@ defmodule Oneiroi.Brain.Tools do
          %{members: members} <- Oneiroi.Gaia.resident_household(resident_id),
          %{} = me <- Enum.find(members, &resident?(&1, resident_id)),
          %{} = sibling <- Enum.find(members, &sibling?(&1, resident_id, name)) do
-      {sibling, me.name}
+      {sibling, me}
     else
       _none -> nil
     end

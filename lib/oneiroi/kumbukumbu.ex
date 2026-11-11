@@ -327,7 +327,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 2},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 3},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -395,6 +395,10 @@ defmodule Oneiroi.Kumbukumbu do
          "address it by a name from the list: house, Free time, the Oneiroi chat, or a conversation's name exactly as the list gives it"},
       {:kumbukumbu_no_such_letter, "no house letter has that number",
        remedy: "list the letters; a reply answers one that was sent"},
+      {:kumbukumbu_letter_not_from_sibling,
+       "the letter you answer did not come from the resident you are writing to",
+       remedy:
+         "answer a letter by the number it has in your letters, from the resident it came from; or send without in_reply_to"},
       {:kumbukumbu_no_such_revision, "no proposed revision has that number",
        remedy: "read the revisions; an applied or declined one is decided"},
       {:kumbukumbu_no_such_proposal, "no open proposal has that ref",
@@ -1086,12 +1090,16 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.send_letter(resident_id, session_key, attrs, actor)
   )
 
-  @doc "A letter from a resident to a household sibling, landing in the sibling's Oneiroi chat (kumbukumbu#65)."
-  @spec send_sibling_letter(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+  @doc "A letter from a resident to a household sibling (kumbukumbu#65, #66): her copy, and the sibling's in its Oneiroi chat; `from`/`to` are `%{id, name}`, `attrs` the text and `in_reply_to`."
+  @spec send_sibling_letter(map(), String.t() | nil, map(), map(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
-  defexport(send_sibling_letter(recipient_id, from_name, text, actor),
-    do: Memories.send_sibling_letter(recipient_id, from_name, text, actor)
+  defexport(send_sibling_letter(from, session_key, to, attrs, actor),
+    do: Memories.send_sibling_letter(from, session_key, to, attrs, actor)
   )
+
+  @doc "Whether a letter is a resident's own copy of one she sent a sibling (kumbukumbu#66)."
+  @spec sent_to_sibling?(map()) :: boolean()
+  defexport(sent_to_sibling?(letter), do: Memories.sent_to_sibling?(letter))
 
   @doc "Whether a letter came from a household sibling (kumbukumbu#65)."
   @spec from_sibling?(map()) :: boolean()

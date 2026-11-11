@@ -508,3 +508,14 @@ in the recipient's own stream, so everything that reads letters (her
 inbox, the wake, the witness's view) reads it unchanged. Marking it by
 who wrote it and from where, rather than by a new field, keeps the event
 as it is: no new version, no upcaster.
+
+## #66
+A letter that existed only in the recipient's stream could not be
+answered in its thread: her answer's `in_reply_to` was a number the
+sender had never seen. Keeping a copy on each side and linking them
+means each resident still answers with her own numbers, which is the
+only numbering she sees, and the translation happens where both streams
+are known. Qualifying the other side's number with the resident's name
+(the witness's suggestion) is what keeps the two numberings from ever
+being read as one. The sender's copy is also simply her outbox, which a
+one-copy letter lacked.

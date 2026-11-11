@@ -271,18 +271,27 @@ defmodule Oneiroi.HouseholdCommunicationTest do
              &(&1.text == "Me too." and &1.in_reply_to == to_iris)
            )
 
-    # Between the two residents, a letter by name (kumbukumbu#65,
-    # brain#83): it lands in the sibling's Oneiroi chat, from the sender's
-    # name, and wakes that chat; a thread mostly does not wake anyone.
-    assert run("letter_send", %{to: "iris", text: "Shall we cook Sunday?"}, lily) =~
-             "to Iris's Oneiroi chat, from Lily"
+    # Between the two residents, a letter by name (kumbukumbu#65, #66,
+    # brain#83): one copy in each resident's letters, linked, so it lands
+    # in the sibling's Oneiroi chat from the sender's name, wakes that
+    # chat, and an answer threads on both sides.
+    assert sent = run("letter_send", %{to: "iris", text: "Shall we cook Sunday?"}, lily)
+    assert sent =~ "to Iris's Oneiroi chat, from Lily"
 
     assert [%{from_name: "Lily", to_name: "Oneiroi chat", text: "Shall we cook Sunday?"} = to_her] =
              Enum.filter(Kumbukumbu.inbox(iris.id, iris.chat), &(&1.from_name == "Lily"))
 
     assert Kumbukumbu.from_sibling?(to_her)
-    # Lily keeps nothing of Iris's: the letter is in Iris's letters only.
-    refute Enum.any?(Kumbukumbu.letters(lily.id), &(&1.text == "Shall we cook Sunday?"))
+
+    # Lily's copy: her record of what she sent, linked to Iris, waking nothing.
+    assert [%{to_name: "Iris"} = her_copy] =
+             Enum.filter(Kumbukumbu.letters(lily.id), &(&1.text == "Shall we cook Sunday?"))
+
+    assert Kumbukumbu.sent_to_sibling?(her_copy)
+    assert %{"direction" => "from", "number" => copy_number} = to_her.link
+    assert copy_number == her_copy.number
+    assert sent =~ "iris##{to_her.number}"
+    assert sent =~ "your copy is ##{her_copy.number}"
 
     Fake.clear()
     Fake.reply("Yes, Sunday.", for: iris.id)
@@ -294,20 +303,54 @@ defmodule Oneiroi.HouseholdCommunicationTest do
              &(&1.role == "system" and &1.content =~ "##{to_her.number} from Lily")
            )
 
-    # Her answer goes back the same way, without threading across residents.
-    assert run("letter_send", %{to: "Lily", text: "Yes.", in_reply_to: to_her.number}, iris) =~
-             "doesn't thread"
+    # Iris's inbox names the other copy, qualified by Lily's name.
+    assert run("letter_inbox", %{}, iris) =~ "(lily##{her_copy.number} in Lily's letters)"
 
-    assert run("letter_send", %{to: "Lily", text: "Yes, Sunday."}, iris) =~
+    # Iris answers with her own number for the letter; it threads under
+    # Lily's copy in Lily's letters, and under Lily's letter in hers.
+    assert run(
+             "letter_send",
+             %{to: "Lily", text: "Yes, Sunday.", in_reply_to: to_her.number},
+             iris
+           ) =~
              "to Lily's Oneiroi chat"
 
-    assert Enum.any?(Kumbukumbu.inbox(lily.id, lily.chat), &(&1.from_name == "Iris"))
+    assert [%{in_reply_to: answered} = answer] =
+             Enum.filter(Kumbukumbu.inbox(lily.id, lily.chat), &(&1.text == "Yes, Sunday."))
+
+    assert answered == her_copy.number
+    assert answer.link["resident"] == "Iris"
+
+    assert [%{in_reply_to: own} = iris_copy] =
+             Enum.filter(
+               Kumbukumbu.letters(iris.id),
+               &(&1.text == "Yes, Sunday." and &1.to_name == "Lily")
+             )
+
+    assert own == to_her.number
+
+    # And back again, so it threads both ways: Lily's answer to Iris's
+    # letter sits, in Iris's letters, under Iris's own copy of it.
+    assert run("letter_send", %{to: "Iris", text: "Good.", in_reply_to: answer.number}, lily) =~
+             "to Iris's Oneiroi chat"
+
+    iris_copy_number = iris_copy.number
+
+    assert [%{in_reply_to: ^iris_copy_number}] =
+             Enum.filter(Kumbukumbu.inbox(iris.id, iris.chat), &(&1.text == "Good."))
+
+    # A number that isn't a letter from that sibling is refused, in words.
+    assert run("letter_send", %{to: "Lily", text: "Hm.", in_reply_to: to_iris}, iris) =~
+             "did not come from the resident you are writing to"
+
+    assert run("letter_send", %{to: "Lily", text: "Hm.", keepsake: "notes.md"}, iris) =~
+             "Not done:"
 
     # Her own conversations come first, and a name nobody answers to is refused.
     assert run("letter_send", %{to: "Nobody", text: "Hello"}, lily) =~ "Not done:"
 
     # The witness writes as the witness, never as a sibling.
-    refute Kumbukumbu.from_sibling?(%{by_kind: "witness", from_session: nil})
+    refute Kumbukumbu.from_sibling?(%{by_kind: "witness", from_session: nil, link: nil})
   end
 
   test "a ballot's bundle is fixed once it opens: every change is refused, and the amendment is exactly the bundle voted on",

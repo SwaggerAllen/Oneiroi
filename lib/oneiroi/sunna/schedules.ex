@@ -1039,7 +1039,7 @@ defmodule Oneiroi.Sunna.Schedules do
     |> Kumbukumbu.letters()
     |> Enum.any?(
       &(wakes?(&1) and &1.to_name not in ["house", "Free time"] and
-          &1.to_name not in &1.read_by)
+          &1.to_name not in &1.read_by and not Kumbukumbu.sent_to_sibling?(&1))
     )
   end
 

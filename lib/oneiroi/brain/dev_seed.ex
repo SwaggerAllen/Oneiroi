@@ -23,7 +23,8 @@ defmodule Oneiroi.Brain.DevSeed do
   - A household with a second resident, Iris: his contract (no rules),
     both signatures, a thread both write in with Wren watching it, and a
     ballot of two rules with a three-day term, and a letter from Iris to
-    Wren, sent the way a resident sends one.
+    Wren with Wren's answer threaded under it, sent the way a resident
+    sends one.
 
   Lives in the brain because the brain already reaches every system it
   writes through; the mix task only refuses the wrong place and calls
@@ -201,6 +202,19 @@ defmodule Oneiroi.Brain.DevSeed do
         "letter_send",
         ~s({"to": "Wren", "text": "Sunday, then. I'll bring the reading."}),
         turn
+      )
+
+    # Wren answers it by its number in her own letters (kumbukumbu#66):
+    # her copy threads under it, and Iris's under Iris's own copy.
+    {:ok, wren_chat} = Kumbukumbu.main_session(wren.id, account, witness)
+    %{number: n} = Enum.find(Kumbukumbu.letters(wren.id), &(&1.from_name == "Iris"))
+    wren_turn = %{turn | resident_id: wren.id, session_key: wren_chat, resident: wren}
+
+    "Sent letter" <> _ =
+      Tools.run(
+        "letter_send",
+        Jason.encode!(%{to: "Iris", text: "Good. I'll cook.", in_reply_to: n}),
+        wren_turn
       )
 
     :ok

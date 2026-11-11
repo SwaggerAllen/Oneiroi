@@ -206,6 +206,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:in_reply_to, :integer)
       field(:text, :string)
       field(:keepsake, :string)
+      field(:link, :map)
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])
