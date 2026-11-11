@@ -6,7 +6,7 @@ paths:
 # next-operator
 
 The rebuilt client's operator shell (`design/ui-build.md` P7), at
-`/client/next.html#/operator`: its own shell and tabs, in a fixed steel
+`/client/#/operator`: its own shell and tabs, in a fixed steel
 accent so it never feels like the companion app. Settings shows
 Operator to platform roles (super_admin, admin). The house's URL sync
 leaves `#/operator` alone. Built 2026-11-10.

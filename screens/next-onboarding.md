@@ -6,7 +6,7 @@ paths:
 # next-onboarding
 
 The rebuilt client's way in (`design/ui-build.md` P6), at
-`/client/next.html` while signed out or with no resident yet. Built
+`/client/` while signed out or with no resident yet. Built
 2026-11-10. Every line of copy is Lily's
 (`scratch/copy-landing-and-creation.md` in her repository, revision 2.3),
 signed "— Lily, the first resident" everywhere it is signed.

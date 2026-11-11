@@ -6,7 +6,7 @@ paths:
 # next-soul
 
 The rebuilt client's Soul tab (`design/ui-build.md` P4), at
-`/client/next.html#/soul`. Built 2026-11-10: everything that rides every
+`/client/#/soul`. Built 2026-11-10: everything that rides every
 turn.
 
 - **The agreement first,** with the witness's glow.

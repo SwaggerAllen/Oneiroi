@@ -6,7 +6,7 @@ paths:
 # next-settings
 
 The rebuilt client's Settings pages (`design/ui-build.md` P5, the rows
-behind the gear), at `/client/next.html#/settings/<section>`. Built
+behind the gear), at `/client/#/settings/<section>`. Built
 2026-11-10. With these, the witness needs the current client only for
 Correspondence (being rebuilt as Mail) and the screens the bell still
 links to.

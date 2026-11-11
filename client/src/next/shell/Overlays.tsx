@@ -309,7 +309,7 @@ function Settings() {
       <nav className={css.group} aria-label="You">
         <Row label="Send feedback" onClick={() => setOverlay('feedback')} />
         {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
-        <Row href="/client/" label="Open the current client" />
+        <Row href="/client/classic.html" label="Open the old client" />
       </nav>
       <div className={css.account}>
         <span className={css.note}>{me.data?.email} · witness</span>

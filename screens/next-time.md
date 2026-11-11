@@ -6,7 +6,7 @@ paths:
 # next-time
 
 The rebuilt client's Time tab (`design/ui-build.md` P3), at
-`/client/next.html#/time`. Built 2026-11-10.
+`/client/#/time`. Built 2026-11-10.
 
 - **Calendar | Rhythm,** both mounted.
 - **The month:**

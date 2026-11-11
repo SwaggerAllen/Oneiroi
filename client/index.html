@@ -2,19 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- The keyboard resizes the layout rather than panning the page under
-         the browser's bars (interactive-widget), and the page reaches the
-         screen's edges with the safe areas padded inside (viewport-fit). -->
+    <!-- The client (design/ui-build.md): switched in here at parity; the
+         old one is kept at /client/classic.html. The keyboard resizes the
+         layout rather than panning the page (interactive-widget), and the
+         page reaches the screen's edges with the safe areas padded inside
+         (viewport-fit). Installable from the Home Screen, where an iPhone
+         allows push (gaia#1). -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Oneiroi</title>
-    <!-- Installable from the Home Screen, which is where an iPhone allows push (gaia#1). -->
     <link rel="manifest" href="/client/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Oneiroi" />
-    <meta name="theme-color" content="#1f5c6e" />
+    <meta name="theme-color" content="#0a0a10" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/next/main.tsx"></script>
   </body>
 </html>

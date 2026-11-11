@@ -1,6 +1,8 @@
 ---
 paths:
   - client/next.html
+  - client/index.html
+  - client/classic.html
   - client/src/next/*.tsx
   - client/src/next/shell/**
   - client/src/next/state/**
@@ -11,7 +13,7 @@ paths:
 # next-shell
 
 The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
-`/client/next.html` beside the current client until parity. Built
+`/client/` beside the current client until parity. Built
 2026-11-10:
 
 - **Theme.** `derive(seeds)` turns three seeds (ground, her colour, his

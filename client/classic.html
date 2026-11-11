@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The old client, kept at /client/classic.html after the switch as a
+         way back while the new one settles (design/ui-build.md). -->
+    <!-- The keyboard resizes the layout rather than panning the page under
+         the browser's bars (interactive-widget), and the page reaches the
+         screen's edges with the safe areas padded inside (viewport-fit). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>Oneiroi (the old client)</title>
+    <!-- Installable from the Home Screen, which is where an iPhone allows push (gaia#1). -->
+    <link rel="manifest" href="/client/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Oneiroi" />
+    <meta name="theme-color" content="#1f5c6e" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

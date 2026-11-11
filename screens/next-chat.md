@@ -6,7 +6,7 @@ paths:
 # next-chat
 
 The rebuilt client's Chat tab (`design/ui-build.md` P1), at
-`/client/next.html#/chat`. Built 2026-11-10.
+`/client/#/chat`. Built 2026-11-10.
 
 - **Conversation | Sessions** switch. Both stay mounted, so the
   conversation keeps its place and its draft.

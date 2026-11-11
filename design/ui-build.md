@@ -98,3 +98,13 @@ makes theming a data change.
   gate line.
 - The client gate line (CLAUDE.md) passes at every merge:
   `npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook`.
+
+## The switch (2026-11-10)
+
+At parity the new client took `/client/index.html`, the address the
+installed app starts at and a notification opens. The old client stays at
+`/client/classic.html`, reachable from Settings → "Open the old client",
+while the new one settles; `/client/next.html` stays as an alias so links
+to it keep working. Parity was checked call by call: every API call the
+old client makes is made by the new one, except those listed as not built
+in the `screens/next-*.md` docs.

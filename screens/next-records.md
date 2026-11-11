@@ -6,7 +6,7 @@ paths:
 # next-records
 
 The rebuilt client's Records tab (`design/ui-build.md` P2, first half),
-at `/client/next.html#/records`. Built 2026-11-10.
+at `/client/#/records`. Built 2026-11-10.
 
 - **The tree.**
   - One folder per kind with documents, plus any kind she owns.
