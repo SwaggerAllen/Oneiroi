@@ -28,11 +28,12 @@ export const option = style({
   },
 });
 
-export const body = style({ flex: 1, minHeight: 0, display: 'flex' });
+export const body = style({ flex: 1, minHeight: 0, minWidth: 0, display: 'flex' });
 
 export const pane = style({
   flex: 1,
   minHeight: 0,
+  minWidth: 0,
   display: 'flex',
   selectors: { '&[hidden]': { display: 'none' } },
 });

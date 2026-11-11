@@ -191,7 +191,7 @@ export function Chat({
 
   return (
     <div className={css.column}>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: 'flex' }}>
       <ScrollArea scrollRef={scroller} onEdges={onEdges} label={`Conversation with ${residentName}`}>
         <div className={css.list}>
           {chat.more && <div className={css.older}>{chat.loadingOlder ? 'Reading back…' : '·'}</div>}

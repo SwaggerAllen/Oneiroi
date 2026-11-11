@@ -16,6 +16,9 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     pages back, keeping the reader's place.
   - Her replies render as markdown (no raw HTML), with her citations
     (`<slug>:<kind>/<ref>`) as chips; the witness's words stay plain.
+    The conversation never grows wider than the screen: a long word
+    wraps, and a wide code block or table scrolls sideways inside its
+    message.
   - Tool calls collapse to one line.
   - The turn streams in under its step (thinking, the tool's name,
     writing) and a timer. The same status events drive the header's
