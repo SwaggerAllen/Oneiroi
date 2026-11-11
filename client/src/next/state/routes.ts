@@ -27,3 +27,17 @@ export function isTabHash(hash: string): boolean {
   const first = hash.replace(/^#\/?/, '').split('/')[0];
   return first === '' || (TABS as readonly string[]).includes(first);
 }
+
+// Settings sections are full pages inside the house (`#/settings/<section>`),
+// over the tabs rather than in one: the tabs stay mounted underneath and
+// come back as they were.
+export const SETTINGS = ['ledger', 'kinds', 'connections', 'notifications', 'regression', 'work'] as const;
+export type SettingsSection = (typeof SETTINGS)[number];
+
+/** The section a hash opens, or null when it is not a settings page. */
+export function parseSettings(hash: string): SettingsSection | null {
+  const [first, second] = hash.replace(/^#\/?/, '').split('/');
+  return first === 'settings' && (SETTINGS as readonly string[]).includes(second) ? (second as SettingsSection) : null;
+}
+
+export const formatSettings = (section: SettingsSection) => `#/settings/${section}`;

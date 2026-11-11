@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { formatHash, isTabHash, parseHash } from './routes';
+import { formatHash, formatSettings, isTabHash, parseHash, parseSettings } from './routes';
 import { topOf, useShell } from './store';
 
 describe('routes', () => {
@@ -58,5 +58,37 @@ describe('stacks', () => {
     expect(useShell.getState().offlineSince).toBe(1000);
     s.setConnection('connected', 9000);
     expect(useShell.getState().offlineSince).toBeNull();
+  });
+});
+
+describe('settings pages', () => {
+  beforeEach(() => useShell.setState(useShell.getInitialState()));
+
+  it('reads and writes a section, and nothing else as one', () => {
+    expect(parseSettings('#/settings/ledger')).toBe('ledger');
+    expect(parseSettings(formatSettings('regression'))).toBe('regression');
+    expect(parseSettings('#/settings/nowhere')).toBeNull();
+    expect(parseSettings('#/records/doc/x')).toBeNull();
+    expect(isTabHash('#/settings/ledger')).toBe(false);
+  });
+
+  it('closes over the tab it was opened from, which comes back as it was', () => {
+    const s = useShell.getState();
+    s.setTab('records');
+    s.push('doc/a');
+    s.setPage('work');
+    expect(useShell.getState().page).toBe('work');
+    useShell.getState().setPage(null);
+    expect(useShell.getState().tab).toBe('records');
+    expect(topOf(useShell.getState().stacks, 'records')).toBe('doc/a');
+  });
+
+  it('closes when a tab is tapped or the URL goes to a tab', () => {
+    useShell.getState().setPage('ledger');
+    useShell.getState().setTab('time');
+    expect(useShell.getState().page).toBeNull();
+    useShell.getState().setPage('ledger');
+    useShell.getState().go({ tab: 'records', path: 'folder/notes' });
+    expect(useShell.getState().page).toBeNull();
   });
 });

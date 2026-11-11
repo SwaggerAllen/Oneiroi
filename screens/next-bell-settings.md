@@ -17,8 +17,10 @@ header's bell and gear. Built 2026-11-10.
   - Each entry names what it is, what it concerns, and how long it has
     waited.
   - Asks, reply drafts, replies to send and pieces are answered in
-    place (`screens/next-mail.md`); an agreement entry opens Soul; work,
-    plugin and kind-gate entries link to where they are decided.
+    place (`screens/next-mail.md`); the rest open where they are decided,
+    all in this client: an agreement entry Soul's agreement, a plugin
+    proposal Soul's plugins, work and kind gates their Settings pages,
+    the notifications question its page. Nothing opens the old client.
   - Her theme proposal (seshat#56) shows in place: her ground with both
     accents on it and her note; "Try it on" wears it until the bell
     closes; answered Accept or Decline with a note she reads.
@@ -35,9 +37,11 @@ header's bell and gear. Built 2026-11-10.
     the bell's count clear at once, and no other device asks again;
     turning them on answers it too.
 - **Settings:**
-  - one group of the resident's sections (ledger, kinds and routes,
-    profiles and keys, notifications, regression, work, correspondence),
-    each opening in the current client until rebuilt;
+  - one group of the resident's sections: Theme (below); Ledger, Kinds
+    and routes, Profiles keys and connections, Notifications, Regression
+    and Work queue, each closing the sheet and opening its own page over
+    the tabs (`screens/next-settings.md`); Correspondence, still opening in the
+    current client;
   - Send feedback, and Operator for platform roles;
   - the account, and Sign out.
 - **Theme** (Settings → Theme, seshat#56): her three seeds (the
