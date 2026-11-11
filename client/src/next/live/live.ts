@@ -39,6 +39,7 @@ function storeCursor(residentId: string, position: number) {
 export class Live {
   private socket: Socket | null = null;
   private token = '';
+  private stopped = false;
   private resident: Channel | null = null;
   private seen = new Set<number>();
 
@@ -54,7 +55,11 @@ export class Live {
 
   async start() {
     this.token = (await api.socketToken()).token;
-    const set = useShell.getState().setConnection;
+    // A stopped Live says nothing: its socket's close lands after the next
+    // subject's socket opened, and would mark that one offline.
+    const set = (c: Parameters<ReturnType<typeof useShell.getState>['setConnection']>[0]) => {
+      if (!this.stopped) useShell.getState().setConnection(c);
+    };
     this.socket = new Socket('/socket', { params: () => ({ token: this.token }) });
     this.socket.onOpen(() => set('connected'));
     this.socket.onError(() => {
@@ -151,6 +156,7 @@ export class Live {
   }
 
   stop() {
+    this.stopped = true;
     this.resident?.leave();
     this.socket?.disconnect();
   }

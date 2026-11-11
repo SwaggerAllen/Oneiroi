@@ -74,6 +74,14 @@ in this order: a try-on (from the theme sheet or her proposal in the
 bell), else this device's own seeds, else her THEME.md, else the house
 colours. Before a subject opens, the house colours.
 
-Not built: the subject menu with its fade out, load, fade in (it
-carries the theme swap between residents). Sign-in is onboarding's
+**The subject menu** (the header's name and chevron; the canvas's
+Subject board): every resident you look after, the one shown ticked.
+Choosing another fades the house out to the ground, swaps her theme,
+records and connection, and fades in (decided: a subject switch carries
+the theme, so it gets the pause); every tab returns to its root, since
+the old paths were the other resident's. The choice is kept on this
+device. "Wake someone new" opens creation over the house, with Back to
+return; Operator is listed for platform roles.
+
+Not built: workspaces in the menu (later). Sign-in is onboarding's
 (`screens/next-onboarding.md`).

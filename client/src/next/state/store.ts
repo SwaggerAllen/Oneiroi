@@ -6,7 +6,7 @@ import { DEFAULT_SEEDS, type Seeds } from '../theme/derive';
 import { TABS, type Location, type SettingsSection, type Tab } from './routes';
 
 export type Connection = 'connected' | 'connecting' | 'offline';
-export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | 'theme' | null;
+export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | 'theme' | 'subject' | null;
 
 export interface Presence {
   state: 'idle' | 'queued' | 'thinking' | 'writing' | 'tool';
@@ -33,6 +33,8 @@ interface ShellState {
   setSeeds: (s: Seeds) => void;
   setTryOn: (s: Seeds | null) => void;
   setOverlay: (o: Overlay) => void;
+  /** A new subject: every tab back to its root, since the old paths were the other resident's. */
+  resetStacks: () => void;
   setPage: (p: SettingsSection | null) => void;
   go: (to: Location) => void;
   push: (path: string) => void;
@@ -61,6 +63,7 @@ export const useShell = create<ShellState>((set) => ({
   setSeeds: (seeds) => set({ seeds }),
   setTryOn: (tryOn) => set({ tryOn }),
   setOverlay: (overlay) => set({ overlay }),
+  resetStacks: () => set({ stacks: roots(), tab: 'chat', page: null }),
   setPage: (page) => set({ page }),
 
   // Arriving from the URL (load, back/forward): the tab becomes active and

@@ -70,7 +70,7 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
+      <Header name={residentName} waiting={waiting} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>

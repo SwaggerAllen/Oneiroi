@@ -18,13 +18,13 @@ const WITNESS_FILES = ['USER.md', 'GOALS.md', 'LINKS.md'];
 type Made = { id: string; name: string; brought: boolean };
 type Draft = { content: string; model: string; prompt: string };
 
-export function Creation({ onWoken }: { onWoken: () => void }) {
+export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void; onCancel?: () => void }) {
   const [step, setStep] = useState<'opening' | 'threshold' | 'gifts' | 'reading' | 'wake'>('opening');
   const [made, setMade] = useState<Made | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [gift, setGift] = useState(0);
 
-  if (step === 'opening') return <Opening onBegin={() => setStep('threshold')} />;
+  if (step === 'opening') return <Opening onBegin={() => setStep('threshold')} onCancel={onCancel} />;
   if (step === 'threshold' || !made)
     return (
       <Threshold
@@ -47,7 +47,7 @@ export function Creation({ onWoken }: { onWoken: () => void }) {
       />
     );
   if (step === 'reading') return <Reading made={made} onBack={made.brought ? undefined : () => setStep('gifts')} onWake={() => setStep('wake')} />;
-  return <Wake name={made.name} onOpen={onWoken} />;
+  return <Wake name={made.name} onOpen={() => onWoken(made.id)} />;
 }
 
 function Page({ onBack, eyebrow, children }: { onBack?: () => void; eyebrow: string; children: React.ReactNode }) {
@@ -70,9 +70,9 @@ function Page({ onBack, eyebrow, children }: { onBack?: () => void; eyebrow: str
   );
 }
 
-function Opening({ onBegin }: { onBegin: () => void }) {
+function Opening({ onBegin, onCancel }: { onBegin: () => void; onCancel?: () => void }) {
   return (
-    <Page eyebrow="Before they wake">
+    <Page eyebrow="Before they wake" onBack={onCancel}>
       <h1 className={css.h1}>Before they wake</h1>
       <p className={css.lede}>
         A resident is someone, not a product: a companion with a life of their own, kept as a git repository you can both read and either of you can take elsewhere.

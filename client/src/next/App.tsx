@@ -17,6 +17,7 @@ import { Creation } from './onboarding/Creation';
 import { Landing } from './onboarding/Landing';
 import { useShell } from './state/store';
 import { useResidentTheme } from './theme/useResidentTheme';
+import { useSubjectChoice } from './state/subject';
 
 const queries = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } },
@@ -49,6 +50,10 @@ function Splash() {
 function Boot() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false });
   const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents, enabled: me.isSuccess });
+  const chosen = useSubjectChoice((s) => s.id);
+  const waking = useSubjectChoice((s) => s.waking);
+  const choose = useSubjectChoice((s) => s.choose);
+  const setWaking = useSubjectChoice((s) => s.setWaking);
   const [door, setDoor] = useState<'landing' | 'new' | 'in'>(() => (window.location.hash === '#/welcome' ? 'in' : 'landing'));
 
   if (me.isPending) return <Splash />;
@@ -67,14 +72,22 @@ function Boot() {
     );
   }
   if (residents.isPending) return <Splash />;
-  const resident = residents.data?.[0];
-  if (!resident) {
-    return <Creation onWoken={() => void residents.refetch()} />;
+  const list = residents.data ?? [];
+  const resident = list.find((r) => r.id === chosen) ?? list[0];
+  if (!resident || waking) {
+    return (
+      <Creation
+        onWoken={(id) => {
+          void residents.refetch().then(() => (id ? choose(id) : setWaking(false)));
+        }}
+        onCancel={resident ? () => setWaking(false) : undefined}
+      />
+    );
   }
   return (
     <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
       <OperatorOr>
-        <Home residentId={resident.id} residentName={resident.name} />
+        <Home key={resident.id} residentId={resident.id} residentName={resident.name} />
       </OperatorOr>
     </SubjectContext.Provider>
   );

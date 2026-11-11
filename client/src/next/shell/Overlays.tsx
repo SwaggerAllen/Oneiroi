@@ -11,6 +11,7 @@ import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
 import { ThemeSheet } from './ThemeSheet';
 import { Answer, answersInPlace } from '../inbox/Answers';
+import { switchSubject, useSubjectChoice } from '../state/subject';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
@@ -22,7 +23,7 @@ export function Overlays() {
     if (overlay === null) setTryOn(null);
   }, [overlay, setTryOn]);
   const title =
-    overlay === 'bell' ? 'Waiting' : overlay === 'push' ? 'Notifications' : overlay === 'settings' ? 'Settings' : overlay === 'theme' ? 'Theme' : 'Feedback';
+    overlay === 'subject' ? 'Residents' : overlay === 'bell' ? 'Waiting' : overlay === 'push' ? 'Notifications' : overlay === 'settings' ? 'Settings' : overlay === 'theme' ? 'Theme' : 'Feedback';
   return (
     <ModalOverlay className={css.overlay} isOpen={overlay !== null} onOpenChange={(open) => !open && setOverlay(null)} isDismissable>
       <Modal className={css.modal}>
@@ -41,6 +42,7 @@ export function Overlays() {
             {overlay === 'settings' && <Settings />}
             {overlay === 'feedback' && <Feedback />}
             {overlay === 'theme' && <ThemeSheet />}
+            {overlay === 'subject' && <SubjectSheet />}
           </div>
         </Dialog>
       </Modal>
@@ -317,6 +319,64 @@ function Settings() {
           Sign out
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The subject menu (the canvas's Subject board): each resident you look
+ * after, the one shown ticked; choosing another fades the house out, swaps
+ * her theme and records, and fades in. Waking someone new opens creation.
+ */
+function SubjectSheet() {
+  const { id } = useSubject();
+  const setOverlay = useShell((s) => s.setOverlay);
+  const resetStacks = useShell((s) => s.resetStacks);
+  const choose = useSubjectChoice((s) => s.choose);
+  const setWaking = useSubjectChoice((s) => s.setWaking);
+  const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents });
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const operator = (me.data?.roles ?? []).some((r) => r === 'super_admin' || r === 'admin');
+  return (
+    <div className={css.stack}>
+      <h3 className={css.heading}>RESIDENTS</h3>
+      <nav className={css.group} aria-label="Residents">
+        {(residents.data ?? []).map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            className={css.row}
+            aria-current={r.id === id ? 'true' : undefined}
+            onClick={() => {
+              setOverlay(null);
+              if (r.id !== id)
+                switchSubject(() => {
+                  resetStacks();
+                  choose(r.id);
+                });
+            }}
+          >
+            <span>{r.name}</span>
+            <span className={css.since}>{r.id === id ? '✓' : '›'}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          className={css.row}
+          onClick={() => {
+            setOverlay(null);
+            switchSubject(() => setWaking(true));
+          }}
+        >
+          <span>+ Wake someone new</span>
+          <span className={css.since}>›</span>
+        </button>
+      </nav>
+      {operator && (
+        <nav className={css.group} aria-label="The platform">
+          <Row href="#/operator" label="Operator" detail="/operator ›" onClick={() => setOverlay(null)} />
+        </nav>
+      )}
     </div>
   );
 }
