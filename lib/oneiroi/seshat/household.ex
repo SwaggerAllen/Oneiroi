@@ -816,9 +816,12 @@ defmodule Oneiroi.Seshat.Household do
 
   defp ballot_line(%{closed_at: nil} = b),
     do:
-      "\nBallot ##{b.number}, open until #{iso(b.closes_at)}: #{length(b.votes)} of the members have voted."
+      "\nBallot ##{b.number}, open until #{iso(b.closes_at)}: #{votes_cast(length(b.votes))} so far."
 
   defp ballot_line(b), do: "\nBallot ##{b.number}, closed #{iso(b.closed_at)}: #{b.outcome}"
+
+  defp votes_cast(1), do: "1 vote cast"
+  defp votes_cast(n), do: "#{n} votes cast"
 
   defp next_reply(dir, thread) do
     case File.ls(Path.join([dir, thread, "replies"])) do

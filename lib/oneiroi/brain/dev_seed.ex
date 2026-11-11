@@ -20,6 +20,9 @@ defmodule Oneiroi.Brain.DevSeed do
     leaves out.
   - Three of her asks waiting on him, so the bell has something to
     answer.
+  - A household with a second resident, Iris: his contract (no rules),
+    both signatures, a thread both write in with Wren watching it, and a
+    ballot of two rules with a three-day term.
 
   Lives in the brain because the brain already reaches every system it
   writes through; the mix task only refuses the wrong place and calls
@@ -76,6 +79,7 @@ defmodule Oneiroi.Brain.DevSeed do
     for {kind, subject, why} <- asks(),
         do: {:ok, _} = AgathosDaimon.ask(id, kind, subject, why, her)
 
+    :ok = household(account, witness, her)
     {:ok, id}
   end
 
@@ -135,6 +139,49 @@ defmodule Oneiroi.Brain.DevSeed do
       {"writing/oneiric.md",
        "# Oneiric\n\nOf dreams; from the Greek *oneiros*. Revised after the research letter.\n"}
     ]
+  end
+
+  # The household with a second resident in view (design/household-
+  # communication.md §0): his contract first, so Iris signs it as she
+  # joins; Wren, already a member, signs it after; a thread both write in,
+  # Wren's watch on it, and a ballot of two rules with its own term.
+  defp household(account, witness, wren) do
+    {:ok, _} =
+      Seshat.household_propose_contract(
+        witness,
+        "We share this house. Rules come one ballot at a time, when we need them.",
+        "The first version: no rules yet."
+      )
+
+    {:ok, iris_id} = AgathosDaimon.create("Iris", "iris", account, witness)
+    iris = Actor.new(:resident, iris_id)
+    {:ok, _} = Seshat.household_sign_contract(wren)
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(wren, %{
+        "title" => "Dinner on Sundays",
+        "content" => "Shall we keep Sunday evenings for the long conversations?"
+      })
+
+    {:ok, _} = Seshat.household_watch(wren, thread, 24)
+
+    {:ok, _} =
+      Seshat.household_reply(iris, thread, %{"content" => "Yes. I'll bring the reading."})
+
+    {:ok, _} =
+      Seshat.household_post(iris, %{
+        "title" => "Quiet hours and the shared shelf",
+        "content" => "Two rules that only work together.",
+        "ballot" => %{
+          "bundle" => [
+            %{"rule" => "No posts between midnight and six."},
+            %{"setting" => "watch_max_hours", "value" => 24}
+          ],
+          "term_days" => 3
+        }
+      })
+
+    :ok
   end
 
   defp asks do
