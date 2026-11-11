@@ -8,6 +8,7 @@ import { useShell } from '../state/store';
 import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
+import { FirstDay } from './FirstDay';
 import { Navigator } from './Navigator';
 import { TurnTools } from './TurnTools';
 import { Reacts } from './Reacts';
@@ -194,6 +195,7 @@ export function Chat({
       <ScrollArea scrollRef={scroller} onEdges={onEdges} label={`Conversation with ${residentName}`}>
         <div className={css.list}>
           {chat.more && <div className={css.older}>{chat.loadingOlder ? 'Reading back…' : '·'}</div>}
+          {!chat.more && <FirstDay residentId={residentId} residentName={residentName} />}
           {chat.messages.map((m, i) => (
             <MessageView
               key={m.cursor ?? `${m.turn_ref}-${i}`}

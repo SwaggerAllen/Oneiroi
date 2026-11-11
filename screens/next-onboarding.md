@@ -58,6 +58,14 @@ witness's OK on the spend, and read before it was committed. The prompt
 path, suggested trials and Get a read (on the judge) were each run live
 there once.
 
+- **Your first day** (in Chat, at the top of the conversation; the
+  canvas's EmptyChat board): three things worth doing in her first week,
+  each ticked from what is so: her free time set, an agreement in
+  force, your answer on notifications (the bell carries the same item).
+  "1 of 3" counts them; each open one links to where it is done; the
+  panel goes when all three are done, after her first week, or when you
+  close it (this device's choice).
+
 Checked in a browser on the local server: an invite issued, an account
 made, a resident created gift by gift, read and woken, and the house
 opened on them.
@@ -65,5 +73,4 @@ opened on them.
 Not built:
 - import's accounting of what didn't transfer (sima-qian#22) on the
   reading page;
-- the first-day panel in Chat;
 - terms and privacy pages (none exist yet).
