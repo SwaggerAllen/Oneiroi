@@ -143,6 +143,10 @@ export interface Tag {
   slug: string;
   state: 'proposed' | 'active' | 'retired' | 'rejected' | string;
   note: string | null;
+  // Who proposed it, and when it was made and decided (kumbukumbu).
+  proposed_by?: { kind: string; id: string } | null;
+  created_at?: string;
+  decided_at?: string | null;
 }
 
 export interface KeyStatus {

@@ -207,6 +207,33 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin, ...(drafted ?? {}) }),
   draftFile: (residentId: string, name: string, prompt: string) =>
     call<{ content: string; model: string; prompt: string }>('POST', `/v1/residents/${residentId}/files/${name}/draft`, { prompt }),
+  // After first contact a write is a proposal with a note (202 and its ref);
+  // before it, a direct write (204, nothing back).
+  proposeFile: (residentId: string, name: string, content: string, note: string) =>
+    call<{ ref: string } | undefined>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin: 'authored', note }),
+  soulEdits: (residentId: string) => call<SoulEdit[]>('GET', `/v1/residents/${residentId}/soul-edits`),
+  soulLines: (residentId: string) => call<SoulLine[]>('GET', `/v1/residents/${residentId}/soul-lines`),
+  // This read leaves a receipt she sees (spec §12, P41).
+  selfLetters: (residentId: string) => call<SelfLetters>('GET', `/v1/residents/${residentId}/self-letters`),
+  // Character (spec §6.17).
+  habits: (residentId: string) => call<Habit[]>('GET', `/v1/residents/${residentId}/habits`),
+  affirmHabit: (residentId: string, number: number, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/habits/${number}/affirm`, { note }),
+  seeds: (residentId: string) => call<Seed[]>('GET', `/v1/residents/${residentId}/seeds`),
+  commitments: (residentId: string) => call<Commitment[]>('GET', `/v1/residents/${residentId}/commitments`),
+  releaseCommitment: (residentId: string, number: number, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/commitments/${number}/release`, { note }),
+  positions: (residentId: string) => call<Position[]>('GET', `/v1/residents/${residentId}/positions`),
+  predictions: (residentId: string) => call<Predictions>('GET', `/v1/residents/${residentId}/predictions`),
+  resolvePrediction: (residentId: string, number: number, outcome: 'right' | 'wrong' | 'void', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/predictions/${number}/resolve`, { outcome, note }),
+  // Memory's consents: her tag proposals, your revisions, your bookmark proposals.
+  decideTag: (residentId: string, slug: string, decision: 'approve' | 'reject', note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/tags/${encodeURIComponent(slug)}/decision`, { decision, note }),
+  revisions: (residentId: string) => call<Revision[]>('GET', `/v1/residents/${residentId}/revisions`),
+  revise: (residentId: string, r: { target_kind: string; target_id: string; kind: 'fact' | 'stance'; text: string; note: string }) =>
+    call<{ number: number; state: 'applied' | 'proposed' }>('POST', `/v1/residents/${residentId}/revisions`, r),
+  bookmarkProposals: (residentId: string) => call<BookmarkProposal[]>('GET', `/v1/residents/${residentId}/bookmark-proposals`),
   // The prompt path, Get a read, the examples (agathos-daimon#39, #40, #41).
   draftAll: (residentId: string, prompt: string) =>
     call<{
@@ -647,4 +674,126 @@ export interface Platform {
   triage?: { slug: string | null; from: 'setting' | 'environment' | null; note: string | null; set_by: string | null; set_at: string | null };
   // The latest restarts (gaia#21), newest first, each as its line.
   restarts?: { number: number; commit: string | null; previous: string | null; changed: boolean; booted_at: string; line: string }[];
+}
+
+// A witness's edit to an identity file after first contact, open until she
+// answers (agathos-daimon). The route lists open ones only.
+export interface SoulEdit {
+  ref: string;
+  file: string;
+  content: string;
+  note: string | null;
+  state: string;
+  proposed_by: { kind: string; id: string };
+  proposed_at: string;
+}
+
+// One line of SOUL.md with the seeds it cites and how often her citations hang on it.
+export interface SoulLine {
+  number: number;
+  text: string;
+  position: number;
+  cites: number[];
+  version: number;
+  written_at: string;
+  reworded_at: string | null;
+  citations: number;
+  days: number;
+}
+
+export interface SelfLetters {
+  letters: Array<{ number: number; text: string; model: string | null; written_at: string; delivered_at: string | null; delivered_to: string | null }>;
+  receipts: Array<{ at: string; by_kind: string; by_id: string; numbers: number[] }>;
+}
+
+export interface Habit {
+  number: number;
+  name: string;
+  trigger: Record<string, unknown>;
+  stance: string | null;
+  seed_number: number | null;
+  habit: number;
+  connection: number;
+  citations: number;
+  days: number;
+  affirmations: number;
+  defined_by: { kind: string; id: string };
+  defined_at: string;
+  revised_at: string | null;
+  revisions: number;
+}
+
+export interface Seed {
+  number: number;
+  text: string;
+  state: string;
+  planted_at: string;
+  closed_at: string | null;
+  graduated_to: { kind: string; id: string } | null;
+  graduation_note: string | null;
+  citations: number;
+  days: number;
+}
+
+export interface Commitment {
+  number: number;
+  to: string;
+  text: string;
+  state: string;
+  made_at: string;
+  closed_at: string | null;
+  closed_by_kind: string | null;
+  note: string | null;
+}
+
+export interface Position {
+  number: number;
+  statement: string;
+  session_key: string | null;
+  turn_ref: string | null;
+  replaces: number | null;
+  replaced_by: number | null;
+  taken_at: string;
+  replaced_at: string | null;
+}
+
+export interface Prediction {
+  number: number;
+  statement: string;
+  due: string | null;
+  logged_at: string;
+  outcome: 'right' | 'wrong' | 'void' | null;
+  note: string | null;
+  resolved_at: string | null;
+}
+
+export interface Predictions {
+  open: Prediction[];
+  resolved: Prediction[];
+  tally: Partial<Record<'right' | 'wrong' | 'void', number>>;
+}
+
+export interface Revision {
+  number: number;
+  target_kind: string;
+  target_id: string;
+  kind: 'fact' | 'stance' | string;
+  text: string;
+  note: string | null;
+  state: string;
+  by: { kind: string; id: string };
+  at: string;
+  decided_at: string | null;
+  decision_note: string | null;
+}
+
+export interface BookmarkProposal {
+  ref: string;
+  session_key: string;
+  anchor_ref: string;
+  line: string;
+  note: string | null;
+  state: string;
+  proposed_by: { kind: string; id: string };
+  proposed_at: string;
 }

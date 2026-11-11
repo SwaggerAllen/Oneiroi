@@ -110,3 +110,64 @@ export const row = style({
   border: `1px solid ${vars.color.border}`,
   fontSize: 15,
 });
+
+// The stack's pages (character, consents, the agreement in full, an edit).
+export const back = style({
+  alignSelf: 'flex-start',
+  minHeight: 40,
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: vars.color.witness.accent,
+  font: `500 14px ${font.ui}`,
+  cursor: 'pointer',
+});
+export const title = style({ margin: 0, fontFamily: font.voice, fontWeight: 500, fontSize: 28 });
+export const lead = style({ margin: 0, fontSize: 14, lineHeight: '21px', color: vars.color.textMuted });
+
+// A row that opens a page.
+export const link = style({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  width: '100%',
+  minHeight: 46,
+  padding: '0 12px',
+  borderRadius: 10,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.surface,
+  color: vars.color.text,
+  font: `15px ${font.ui}`,
+  textAlign: 'left',
+  cursor: 'pointer',
+});
+export const waits = style({ font: `500 11px ${font.mono}`, color: vars.color.witness.accent });
+
+// A record card: hers (lilac) or plain.
+const cardBase = { display: 'flex', flexDirection: 'column', gap: 6, padding: 12, borderRadius: 10 } as const;
+export const card = style({ ...cardBase, background: vars.color.surface, border: `1px solid ${vars.color.border}` });
+export const cardHers = style({ ...cardBase, background: vars.color.resident.surface, border: `1px solid ${vars.color.resident.border}` });
+export const cardWaiting = style({ ...cardBase, background: vars.color.surfaceRaised, border: `1px solid ${vars.color.witness.border}` });
+export const words = style({ margin: 0, fontFamily: font.voice, fontSize: 16, lineHeight: '22px', color: vars.color.resident.text, overflowWrap: 'anywhere' });
+export const plain = style({ margin: 0, fontSize: 15, lineHeight: '21px', overflowWrap: 'anywhere' });
+export const struck = style({ textDecoration: 'line-through', opacity: 0.65 });
+
+export const input = style({ ...field, minHeight: 44, padding: '0 12px', font: `15px ${font.ui}` });
+export const select = style({ ...field, minHeight: 44, padding: '0 10px', font: `15px ${font.ui}`, colorScheme: 'dark' });
+export const formRow = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' });
+export const label = style({ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 160px', font: `500 11px ${font.mono}`, color: vars.color.textMuted });
+export const check = style({ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, lineHeight: '20px' });
+export const said = style({ margin: 0, fontSize: 13, lineHeight: '19px', color: vars.color.text });
+export const small = style({
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: radius.m,
+  border: `1px solid ${vars.color.witness.border}`,
+  background: vars.color.witness.surface,
+  color: vars.color.witness.accent,
+  font: `500 13px ${font.ui}`,
+  cursor: 'pointer',
+  selectors: { '&:disabled': { opacity: 0.5, cursor: 'default' } },
+});
+export const pre = style({ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: `13px/19px ${font.mono}`, color: vars.color.textMuted });

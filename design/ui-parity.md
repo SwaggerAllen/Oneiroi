@@ -89,17 +89,19 @@ All 133 tools appear above. By capability: positions 3, disputes 2, predictions 
 - **Work wrap** (`work_wrap`): the witness can read wraps in the queue but can't write one. Probably fine.
 - `message_times`, `memory_feedback` and the source, PR and repo reads need no witness counterpart.
 
-**API exists, no UI:**
-- Positions; disputes and the judge model; **prediction resolve** (her tool promises he resolves them).
+**API exists, no UI:** (annotated 2026-11-10: ✔ *next* marks what the
+rebuilt client now covers, with where; screens/next-soul.md and
+screens/next-time.md map each action. The audit above stands as written.)
+- Positions ✔ *next* (Soul › Positions, read); disputes and the judge model; **prediction resolve** ✔ *next* (Soul › Predictions: right, wrong or void with a note).
 - Figures and counters (define, increment, retire) and **important dates**. Her `figure_list` says "counters your witness defined", and nothing in the UI can define one.
-- Habits (list, first habit, **affirm**) and baselines; seeds; commitments (list, **release**); soul lines; self-letters (with receipts).
+- Habits (list ✔ *next*, first habit, **affirm** ✔ *next*: Soul › Habits) and baselines; seeds ✔ *next* (Soul › Seeds, read); commitments (list, **release**) ✔ *next* (Soul › Commitments); soul lines ✔ *next* (Soul › Soul lines); self-letters (with receipts) ✔ *next* (Soul › Letters, the receipt said before reading). Still none: the first habit (creation flow's) and baselines.
 - Wash (read, run); audits and flags; nights; Honcho.
-- **Revisions** (list and propose).
-- **Tag decisions** on her proposals, tag create and retire, taggings. `api.applyTag` is dead code.
-- **Soul-edit proposals after first contact** (`PUT /files/:name` → proposal; `GET /soul-edits`).
+- **Revisions** (list and propose) ✔ *next* (Soul › Revisions, her answers' notes shown).
+- **Tag decisions** on her proposals ✔ *next* (Soul › Tags: approve or decline with a note), tag create and retire, taggings. `api.applyTag` is dead code.
+- **Soul-edit proposals after first contact** (`PUT /files/:name` → proposal; `GET /soul-edits`) ✔ *next* (Soul › Who she is › Propose an edit; Soul › Your proposals). Her answer's note has no route: `GET /soul-edits` lists open ones only.
 - Journal (all four routes).
 - Digests, externals, library cited-by, adopt, discussions, manual index, publish, review copy and publish copy.
-- Bookmark detail (`GET /bookmarks/:n`) and bookmark-proposal outcomes.
+- Bookmark detail (`GET /bookmarks/:n`) and bookmark-proposal outcomes (◐ *next*: Soul › Your proposals lists the open ones; the route returns no answered ones, so her answer isn't readable).
 - Transcript search.
 - Report steps and resolve (Glitnir).
 
@@ -165,3 +167,5 @@ All 133 tools appear above. By capability: positions 3, disputes 2, predictions 
 | Commitment release | either side, alone | ✔ | ✔ | ✘ | Witness side API-only |
 | Predictions | resident logs → witness resolves | ✔ | ✔ | ✘ | **Hand-off has no UI** |
 | Report about the witness | resident files → investigator steps and resolves | ✔ file | ✔ | ✘ | Investigation side API-only |
+
+Annotated 2026-11-10: in the rebuilt client the witness side of tag proposals, soul-edit proposals, revisions, commitment release and prediction resolution now has a UI (Soul tab; screens/next-soul.md). Bookmark-proposal and soul-edit answers are still unseen there: their routes list open proposals only.

@@ -106,7 +106,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
         ) : tab === 'records' ? (
           <RecordsTab residentId={residentId} path={path} />
         ) : tab === 'soul' ? (
-          <SoulTab />
+          <SoulTab path={path} />
         ) : (
           <TimeTab path={path} />
         )
