@@ -9,6 +9,7 @@ import { AgreementPage } from './AgreementPage';
 import { Proposals, Revisions, Tags } from './Between';
 import { Commitments, Habits, Letters, Positions, Predictions, Seeds, SoulLines } from './Character';
 import { FileEdit } from './FileEdit';
+import { BookmarkPage, Memory } from './Memory';
 import { NoteAction } from './NoteAction';
 import { Plugins } from './Plugins';
 import { IDENTITY, proposedTags, soulPage } from './soul';
@@ -54,6 +55,10 @@ export function SoulTab({ path }: { path: string }) {
       return <Revisions onBack={back} />;
     case 'proposals':
       return <Proposals onBack={back} />;
+    case 'memory':
+      return <Memory onBack={back} />;
+    case 'bookmark':
+      return <BookmarkPage number={at.number} onBack={back} />;
   }
 }
 
@@ -157,6 +162,7 @@ function Root() {
               <span>{b.line}</span>
             </div>
           ))}
+          {row('Her bookmarks, and what she sees every turn', 'memory')}
         </section>
 
         <section className={css.section}>

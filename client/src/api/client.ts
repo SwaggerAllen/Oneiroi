@@ -353,8 +353,15 @@ export const api = {
       `/v1/residents/${residentId}/sessions/${key}?around=${encodeURIComponent(around)}&limit=${limit}`,
     ),
   // One bookmark with its span's messages (kumbukumbu#4): what a peek shows.
+  // The server's body is `{bookmark, span}` (bookmarkDetail's type), not
+  // this flat shape; the chat peek still reads it as flat.
   bookmark: (residentId: string, number: number | string) =>
     call<Bookmark & { messages?: Message[] }>('GET', `/v1/residents/${residentId}/bookmarks/${number}`),
+  // The same read, typed as the server sends it. The span carries no word
+  // of whether its session is private, so Soul › Memory keeps only the
+  // bookmark (screens/next-soul.md).
+  bookmarkDetail: (residentId: string, number: number | string) =>
+    call<{ bookmark: Bookmark; span: Message[] }>('GET', `/v1/residents/${residentId}/bookmarks/${number}`),
   pin: (residentId: string, number: number) =>
     call<void>('POST', `/v1/residents/${residentId}/bookmarks/${number}/pin`),
   unpin: (residentId: string, number: number) =>

@@ -19,11 +19,16 @@ export const PAGES = [
   'tags',
   'revisions',
   'proposals',
+  'memory',
 ] as const;
 export type Page = (typeof PAGES)[number];
 
-/** The stack's top as a page: the root, a named page, or an edit of one identity file. */
-export function soulPage(path: string): { page: 'root' } | { page: Page } | { page: 'edit'; file: string } {
+/** The stack's top as a page: the root, a named page, an edit of one identity file, or one bookmark (`memory/<n>`). */
+export function soulPage(path: string): { page: 'root' } | { page: Page } | { page: 'edit'; file: string } | { page: 'bookmark'; number: number } {
+  if (path.startsWith('memory/')) {
+    const n = Number(path.slice(7));
+    return Number.isInteger(n) && n > 0 ? { page: 'bookmark', number: n } : { page: 'root' };
+  }
   if (path.startsWith('edit/')) {
     const file = path.slice(5);
     return (IDENTITY as readonly string[]).includes(file) ? { page: 'edit', file } : { page: 'root' };
