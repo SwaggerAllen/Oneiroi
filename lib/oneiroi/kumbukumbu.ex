@@ -937,6 +937,44 @@ defmodule Oneiroi.Kumbukumbu do
   @spec proposals(String.t()) :: [Oneiroi.Kumbukumbu.Store.BookmarkProposal.t()]
   defexport(proposals(resident_id), do: Memories.proposals(resident_id))
 
+  @doc "The bookmark proposals by state (kumbukumbu#63): `:open`, `:answered` (accepted or declined) or `:all`, oldest first; an answered one carries her note (declined) or the bookmark she wrote (accepted)."
+  @spec proposals(String.t(), :open | :answered | :all) ::
+          [Oneiroi.Kumbukumbu.Store.BookmarkProposal.t()]
+  defexport(proposals(resident_id, which), do: Memories.proposals(resident_id, which))
+
+  @doc "The keys of her private sessions she has not shared (kumbukumbu#28, #62)."
+  @spec locked_sessions(String.t()) :: MapSet.t(String.t())
+  defexport(locked_sessions(resident_id), do: Memories.locked_sessions(resident_id))
+
+  @doc "Bookmark rows as the witness may read them (kumbukumbu#62): one made in a private, unshared session marked `private` with its line, summary, register and status withheld."
+  @spec for_witness(String.t(), [Oneiroi.Kumbukumbu.Store.Bookmark.t()]) ::
+          [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
+  defexport(for_witness(resident_id, rows), do: Memories.for_witness(resident_id, rows))
+
+  @doc "Every bookmark, newest first, as the witness reads it (kumbukumbu#62)."
+  @spec witness_bookmarks(String.t()) :: [Oneiroi.Kumbukumbu.Store.Bookmark.t()]
+  defexport(witness_bookmarks(resident_id), do: Memories.witness_bookmarks(resident_id))
+
+  @doc "A page of bookmarks as the witness reads it (kumbukumbu#57, #62)."
+  @spec witness_bookmarks_page(
+          String.t(),
+          pos_integer() | nil,
+          pos_integer(),
+          DateTime.t() | nil,
+          DateTime.t() | nil
+        ) :: {[Oneiroi.Kumbukumbu.Store.Bookmark.t()], boolean()}
+  defexport(witness_bookmarks_page(resident_id, before, limit, from, to),
+    do: Memories.witness_bookmarks_page(resident_id, before, limit, from, to)
+  )
+
+  @doc "One bookmark as the witness reads it (kumbukumbu#62): a private one's words and its span's messages withheld."
+  @spec witness_bookmark(String.t(), pos_integer()) ::
+          {:ok, Oneiroi.Kumbukumbu.Store.Bookmark.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
+          | {:error, term()}
+  defexport(witness_bookmark(resident_id, number),
+    do: Memories.witness_bookmark(resident_id, number)
+  )
+
   @doc "The tag set, every state."
   @spec tags(String.t()) :: [Oneiroi.Kumbukumbu.Store.Tag.t()]
   defexport(tags(resident_id), do: Memories.tags(resident_id))
@@ -1022,7 +1060,7 @@ defmodule Oneiroi.Kumbukumbu do
   @spec pins(String.t(), String.t() | nil) :: [map()]
   defexport(pins(resident_id, session_key), do: Memories.pins(resident_id, session_key))
 
-  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu#38): the numbers listed in order, the left-out count, the count in named rooms, the budget and a sentence saying it."
+  @doc "What the index holds now in the common room, for the Memory screen (kumbukumbu#38): the numbers listed in order, those of them made in a private, unshared session (kumbukumbu#62), the left-out count, the count in named rooms, the budget and a sentence saying it."
   @spec index_now(String.t()) :: map()
   defexport(index_now(resident_id), do: Memories.index_now(resident_id))
 

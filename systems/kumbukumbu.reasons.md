@@ -462,3 +462,33 @@ the event's shape moved: a version is owed when a reader of the old
 shape would misread the new one, and a target map with a new kind is
 read by the old code as a target it does not know, which it never
 projects as anything else.
+
+## #62
+A bookmark is the resident's words about a moment, and a moment in a
+session #28 keeps to her is still that session: its line paraphrases
+what was said, its summary more so, and its span is the transcript
+itself. #59 drew this line for search alone, so the list, the page,
+the detail and the index kept returning the words the transcript route
+refused, and `GET …/bookmarks/:n` returned the span's messages outright.
+Marking rather than hiding keeps what is not words: he can see that
+something mattered to her on a day, and pin it, without reading what;
+a bookmark that silently vanished would make the numbers skip and the
+pins disappear for no stated reason. The lock is read from the session
+at each read, not stamped on the bookmark, so sharing lifts it with no
+second event to keep in step. Her reads are untouched because the rule
+is about the witness, not about the record. The link fields stay
+because every route behind them already refuses or shows only what
+the locked row shows; withholding them would buy nothing and would
+stop the client marking where the moment is. The scene pass, the
+preview and the citation label are recorded as gaps rather than
+changed here: the scene pass writes her own document, the preview's
+full text is the author's standing default, and each wants its own
+decision.
+
+## #63
+Once she answered, the proposal and her note became unreadable to the
+person they were addressed to: the route listed open ones only, so a
+decline's reason was written for him and shown to no one. Every fact
+the answer needs was already projected, so this is a read, not a new
+event. The default stays the open array because two clients count its
+length as what is waiting on her.

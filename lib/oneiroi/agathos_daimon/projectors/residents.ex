@@ -380,6 +380,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     decide_edit(multi, e, "declined")
   end)
 
+  fold(%Events.SoulEditWithdrawn{} = e, _metadata, fn multi ->
+    decide_edit(multi, e, "withdrawn")
+  end)
+
   # An applied edit keeps the seed's origin: the row says where the file
   # first came from and who wrote it last; the log says everything.
   fold(%Events.SoulEditApplied{} = e, _metadata, fn multi ->

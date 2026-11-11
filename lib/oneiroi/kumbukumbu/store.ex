@@ -183,6 +183,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:last_recalled_at, :utc_datetime_usec)
       field(:created_at, :utc_datetime_usec)
       field(:tags, {:array, :string}, virtual: true, default: [])
+      # Set on the witness's reads alone (kumbukumbu#62): the bookmark
+      # was made in a private session she has not shared, and its words
+      # are withheld.
+      field(:private, :boolean, virtual: true, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -1058,6 +1062,19 @@ defmodule Oneiroi.Kumbukumbu.Store do
       Repo.all(
         from(p in BookmarkProposal, where: p.state == "open", order_by: [asc: p.proposed_at])
       )
+
+  @doc "The bookmark proposals in `states` (open, accepted, declined), oldest first (kumbukumbu#63)."
+  @spec proposals_in([String.t()]) :: [BookmarkProposal.t()]
+  def proposals_in(states) when is_list(states),
+    do:
+      Repo.all(
+        from(p in BookmarkProposal, where: p.state in ^states, order_by: [asc: p.proposed_at])
+      )
+
+  @doc "The keys of the private sessions she has not shared (kumbukumbu#28)."
+  @spec locked_keys() :: [String.t()]
+  def locked_keys,
+    do: Repo.all(from(s in Session, where: s.private and not s.shared, select: s.key))
 
   @doc "The tag set, every state, by slug."
   @spec tags() :: [Tag.t()]

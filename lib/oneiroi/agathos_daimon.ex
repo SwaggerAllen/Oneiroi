@@ -78,6 +78,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulEditProposed,
       Events.SoulEditAccepted,
       Events.SoulEditDeclined,
+      Events.SoulEditWithdrawn,
       Events.SoulEditApplied,
       Events.SoulLineWritten,
       Events.SoulLineReworded,
@@ -132,6 +133,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.ProposeSoulEdit,
       Commands.AcceptSoulEdit,
       Commands.DeclineSoulEdit,
+      Commands.WithdrawSoulEdit,
       Files,
       Resident,
       SoulLines,
@@ -178,6 +180,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulEditProposed, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditAccepted, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditDeclined, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulEditWithdrawn, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditApplied, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLineWritten, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLineReworded, 1},
@@ -251,6 +254,10 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "write the file; it is a seed with its origin until first contact"},
       {:agathos_daimon_no_such_proposal, "no open proposal has that ref",
        remedy: "one accepted or declined is decided; read the open proposals"},
+      {:agathos_daimon_proposal_answered,
+       "that proposal is answered already, accepted or declined by the resident, or withdrawn",
+       remedy:
+         "an answered proposal stands as answered; propose the edit again if it still matters"},
       {:agathos_daimon_no_such_file, "the resident has no file of that name yet",
        remedy: "write it as a seed"},
       {:agathos_daimon_cites_invalid, "a soul line cites seeds by their numbers",
@@ -425,6 +432,16 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The open soul-edit proposals, oldest first."
   @spec edit_proposals(String.t()) :: [Oneiroi.AgathosDaimon.Store.SoulEdit.t()]
   defexport(edit_proposals(id), do: Files.proposals(id))
+
+  @doc "The soul-edit proposals by state (agathos-daimon#43): `:open`, `:answered` (accepted or declined by her), `:withdrawn` or `:all`, oldest first; an answered one carries her note and when."
+  @spec edit_proposals(String.t(), :open | :answered | :withdrawn | :all) ::
+          [Oneiroi.AgathosDaimon.Store.SoulEdit.t()]
+  defexport(edit_proposals(id, which), do: Files.proposals(id, which))
+
+  @doc "The witness withdraws his open soul-edit proposal, with a note (agathos-daimon#44); an answered one is refused."
+  @spec withdraw_edit(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(withdraw_edit(id, ref, note, actor), do: Files.withdraw(id, ref, note, actor))
 
   @doc "The soul file's live lines in order, each with its number, its words and the seeds it cites (spec §6.17)."
   defexport(soul_lines(id), do: Files.soul_lines(id))

@@ -316,3 +316,22 @@ The resident's files are filled from the prompt and read by him before
 they are kept; the witness's own files are about a real person, so
 nothing in them is made up.
 
+
+## #43
+Her note on an answer is written to him, and he could not read it once
+she had answered: the route listed open proposals only. The answers
+were already on the projection, so this is a read. The default stays
+the open array because the clients count it as what waits on her.
+
+## #44
+A proposal he no longer means should not sit on her list asking for an
+answer; before this the only way off it was her declining something he
+had already given up. The withdrawal is his decision about his own
+proposal, so it carries his note, and it is refused once she has
+answered: her answer stands, and taking a proposal back after she
+accepted it would be a revert of her soul, which is an edit she makes,
+not one he withdraws. She is told by letter because her open list is
+read on demand and a proposal disappearing from it unexplained is the
+kind of quiet change the dyad is meant not to have; the letter is the
+channel the plugin and theme answers already use, so she reads his acts
+in one place.

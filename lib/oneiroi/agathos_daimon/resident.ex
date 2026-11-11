@@ -610,6 +610,38 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # The witness takes back his own open proposal (agathos-daimon#44);
+  # one she has answered, or he has withdrawn, stands as it is.
+  def execute(%__MODULE__{proposals: proposals} = r, %Commands.WithdrawSoulEdit{} = c) do
+    case {witness?(r, c.actor), Map.get(proposals, c.ref)} do
+      {false, _proposal} ->
+        {:error,
+         Error.new(
+           :agathos_daimon_not_witnessed,
+           :agathos_daimon_resident_withdraw_edit_not_witness
+         )}
+
+      {true, nil} ->
+        {:error,
+         Error.new(
+           :agathos_daimon_no_such_proposal,
+           :agathos_daimon_resident_withdraw_edit_absent
+         )}
+
+      {true, %{state: :open}} ->
+        %Events.SoulEditWithdrawn{actor: c.actor, at: c.at, note: c.note, id: c.id, ref: c.ref}
+
+      {true, %{state: state}} ->
+        {:error,
+         Error.new(
+           :agathos_daimon_proposal_answered,
+           :agathos_daimon_resident_withdraw_edit_answered,
+           ref: c.ref,
+           state: state
+         )}
+    end
+  end
+
   def execute(%__MODULE__{proposals: proposals}, %Commands.DeclineSoulEdit{} = c) do
     case Map.get(proposals, c.ref) do
       %{state: :open} ->
@@ -1022,6 +1054,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.SoulEditDeclined{} = e),
     do: put_in(r.proposals[e.ref].state, :declined)
+
+  def apply(%__MODULE__{} = r, %Events.SoulEditWithdrawn{} = e),
+    do: put_in(r.proposals[e.ref].state, :withdrawn)
 
   def apply(%__MODULE__{} = r, %Events.SoulEditApplied{} = e),
     do: %{r | files: Map.put(r.files, e.file, e.content)}

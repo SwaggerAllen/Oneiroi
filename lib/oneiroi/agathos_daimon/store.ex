@@ -276,7 +276,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
   end
 
   defmodule SoulEdit do
-    @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines."
+    @moduledoc "A witness's proposed edit after first contact, open until the resident accepts or declines it or the witness withdraws it; `decided_note` and `decided_at` are that answer's."
     use Ecto.Schema
     @primary_key false
     schema "agathos_daimon_soul_edit" do
@@ -355,6 +355,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
     do: Repo.all(from(r in SelfLetterReceipt, order_by: [desc: r.at, asc: r.by_kind]))
 
   @doc "The open soul-edit proposals, oldest first."
+  @spec soul_edits_in([String.t()]) :: [SoulEdit.t()]
+  def soul_edits_in(states) when is_list(states),
+    do: Repo.all(from(e in SoulEdit, where: e.state in ^states, order_by: e.proposed_at))
+
   @spec open_soul_edits() :: [SoulEdit.t()]
   def open_soul_edits,
     do: Repo.all(from(e in SoulEdit, where: e.state == "open", order_by: e.proposed_at))
