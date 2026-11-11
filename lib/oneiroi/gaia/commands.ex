@@ -148,6 +148,29 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :thread, :hours], bounds: [thread: 255]
   end
 
+  # The beats (gaia#33 to #38).
+  defmodule SetHouseholdWakeProfile do
+    use Oneiroi.Command, decision: true, fields: [:id, :profile], bounds: [profile: 32]
+  end
+
+  defmodule RegisterHouseholdBeat do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  # The minute's look at the beats: time out an overrun turn, close the
+  # beats that ended, fire the next turn when one is due.
+  defmodule TickHouseholdBeats do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule EndHouseholdTurn do
+    use Oneiroi.Command, decision: true, fields: [:id, :turn, :outcome], bounds: [outcome: 32]
+  end
+
+  defmodule OpenHouseholdTurn do
+    use Oneiroi.Command, decision: true, fields: [:id, :resident_id]
+  end
+
   # The invite stream (gaia#18). `id` is the invite's.
   defmodule IssueInvite do
     use Oneiroi.Command,

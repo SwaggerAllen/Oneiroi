@@ -10,8 +10,11 @@ defmodule Oneiroi.Gaia.Projectors.Household do
   alias Oneiroi.Gaia.Store.{
     Household,
     HouseholdBallot,
+    HouseholdBeat,
+    HouseholdBeatMember,
     HouseholdContract,
     HouseholdResident,
+    HouseholdTurn,
     HouseholdVote,
     HouseholdWatch,
     HouseholdWitness
@@ -213,6 +216,123 @@ defmodule Oneiroi.Gaia.Projectors.Household do
       watched_at: e.at
     })
   end)
+
+  # ---- the beats (gaia#33 to #38) ----
+
+  fold(%Events.HouseholdWakeProfileSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :profile,
+      %HouseholdBeatMember{
+        household_id: e.id,
+        member_kind: e.member_kind,
+        member_id: e.member_id,
+        profile: e.profile
+      },
+      on_conflict: [set: [profile: e.profile]],
+      conflict_target: [:household_id, :member_kind, :member_id]
+    )
+  end)
+
+  fold(%Events.HouseholdBeatRegistered{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :registered,
+      %HouseholdBeatMember{
+        household_id: e.id,
+        member_kind: "resident",
+        member_id: e.resident_id,
+        registered_at: e.at,
+        registered_for: e.beat_top
+      },
+      on_conflict: [set: [registered_at: e.at, registered_for: e.beat_top]],
+      conflict_target: [:household_id, :member_kind, :member_id]
+    )
+  end)
+
+  fold(%Events.HouseholdTurnFired{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :turn,
+      %HouseholdTurn{
+        household_id: e.id,
+        turn: e.turn,
+        speaker_id: e.resident_id,
+        beat_top: e.beat_top,
+        fired_at: e.at,
+        ends_by: e.ends_by,
+        opened_by: e.opened_by,
+        missed: e.missed || 0
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :turn]
+    )
+  end)
+
+  fold(%Events.HouseholdTurnEnded{} = e, _metadata, fn multi ->
+    {missed, inc} = if e.outcome == "completed", do: {0, 0}, else: {1, 1}
+
+    multi
+    |> Multi.update_all(
+      :ended,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and a turn's number is within it
+      from(t in HouseholdTurn, where: t.household_id == ^e.id and t.turn == ^e.turn),
+      set: [ended_at: e.at, outcome: e.outcome, note: e.note]
+    )
+    |> Multi.insert(
+      :missed,
+      %HouseholdBeatMember{
+        household_id: e.id,
+        member_kind: "resident",
+        member_id: e.resident_id,
+        missed: missed
+      },
+      on_conflict: missed_update(inc),
+      conflict_target: [:household_id, :member_kind, :member_id]
+    )
+  end)
+
+  fold(%Events.HouseholdBeatClosed{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.insert(
+      :beat,
+      %HouseholdBeat{
+        household_id: e.id,
+        beat_top: e.beat_top,
+        closed_at: e.at,
+        turns: e.turns,
+        passed_over: e.passed_over,
+        consumed: e.consumed,
+        carried: e.carried,
+        note: e.note
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :beat_top]
+    )
+    |> Multi.update_all(
+      :passed_over,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and its members are within it
+      from(m in HouseholdBeatMember,
+        where:
+          m.household_id == ^e.id and m.member_kind == "resident" and
+            m.member_id in ^e.passed_over
+      ),
+      inc: [missed: 1]
+    )
+    |> Multi.update_all(
+      :consumed,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and its members are within it
+      from(m in HouseholdBeatMember,
+        where:
+          m.household_id == ^e.id and m.member_kind == "resident" and m.member_id in ^e.consumed
+      ),
+      set: [registered_at: nil, registered_for: nil]
+    )
+  end)
+
+  # A completed turn clears what she had missed; any other end adds one.
+  defp missed_update(0), do: [set: [missed: 0]]
+  defp missed_update(inc), do: [inc: [missed: inc]]
 
   defp by(%{kind: kind, id: id}), do: "#{kind}:#{id}"
   defp by(%{"kind" => kind, "id" => id}), do: "#{kind}:#{id}"

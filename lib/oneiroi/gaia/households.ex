@@ -16,6 +16,7 @@ defmodule Oneiroi.Gaia.Households do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Gaia.Accounts
+  alias Oneiroi.Gaia.Beats
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Error
@@ -500,6 +501,329 @@ defmodule Oneiroi.Gaia.Households do
         )
       )
     end)
+  end
+
+  # ---- the beats (gaia#33 to #38) ----
+
+  @doc "Every household's id, for the minute's look at the beats (gaia#33: every household runs on beats)."
+  def all_ids do
+    Scope.platform(fn -> Repo.all(from(h in Store.Household, select: h.id)) end)
+  end
+
+  @doc "The beats' shape in force for a household: its contract's settings over the defaults (gaia#33)."
+  def beat_shape(household_id) do
+    settings =
+      Scope.platform(fn ->
+        Repo.one(
+          from(c in Store.HouseholdContract,
+            where: c.household_id == ^household_id,
+            order_by: [desc: c.version],
+            limit: 1,
+            select: c.settings
+          )
+        )
+      end)
+
+    Beats.shape(settings)
+  end
+
+  @doc "A member sets her own wake profile, with a note (gaia#37)."
+  def set_wake_profile(household_id, profile, note, %Actor{} = actor) do
+    dispatch(%Commands.SetHouseholdWakeProfile{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      profile: profile,
+      note: note
+    })
+  end
+
+  @doc "A resident enters the queue (gaia#35); answers the beat she queues for, or her standing registration's."
+  def register_beat(household_id, %Actor{} = actor) do
+    command = %Commands.RegisterHouseholdBeat{actor: actor, at: Clock.now(), id: household_id}
+
+    case HouseholdRouter.dispatch(command) do
+      {:ok, [%Events.HouseholdBeatRegistered{beat_top: top}]} ->
+        {:ok, %{beat_top: top, already: false}}
+
+      {:ok, []} ->
+        {:ok,
+         %{beat_top: member_row(household_id, "resident", actor.id).registered_for, already: true}}
+
+      other ->
+        refused(other)
+    end
+  end
+
+  @doc "The minute's look at one household's beats (gaia#35, #36, #38): answers the events it recorded."
+  def tick_beats(household_id, %Actor{} = actor) do
+    events(%Commands.TickHouseholdBeats{actor: actor, at: Clock.now(), id: household_id})
+  end
+
+  @doc "Ends a turn with its outcome and a note (gaia#36); a turn ended already is no event."
+  def end_turn(household_id, turn, outcome, note, %Actor{} = actor) do
+    events(%Commands.EndHouseholdTurn{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      turn: turn,
+      outcome: outcome,
+      note: note
+    })
+  end
+
+  @doc "The platform opens a turn for a resident now, outside the queue (gaia#36): the dev seed's and the suite's."
+  def open_turn(household_id, resident_id, note, %Actor{} = actor) do
+    command = %Commands.OpenHouseholdTurn{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      resident_id: resident_id,
+      note: note
+    }
+
+    case HouseholdRouter.dispatch(command) do
+      {:ok, [%Events.HouseholdTurnFired{} = e]} -> {:ok, turn_of(e)}
+      other -> refused(other)
+    end
+  end
+
+  defp events(command) do
+    case HouseholdRouter.dispatch(command) do
+      {:ok, events} when is_list(events) -> {:ok, events}
+      other -> refused(other)
+    end
+  end
+
+  @doc "A fired turn as the beats read it."
+  def turn_of(%Events.HouseholdTurnFired{} = e),
+    do: %{
+      turn: e.turn,
+      resident_id: e.resident_id,
+      beat_top: e.beat_top,
+      fired_at: e.at,
+      ends_by: e.ends_by,
+      opened_by: e.opened_by,
+      missed: e.missed
+    }
+
+  @doc "One turn by its number, or nil."
+  def turn(household_id, number) do
+    Scope.platform(fn ->
+      Repo.one(
+        from(t in Store.HouseholdTurn,
+          where: t.household_id == ^household_id and t.turn == ^number
+        )
+      )
+    end)
+    |> turn_row()
+  end
+
+  @doc "The turn a resident holds at `at`: fired, not ended, its guideline not run out; or nil."
+  def open_turn_of(household_id, resident_id, %DateTime{} = at) do
+    Scope.platform(fn ->
+      Repo.one(
+        from(t in Store.HouseholdTurn,
+          where:
+            t.household_id == ^household_id and t.speaker_id == ^resident_id and
+              is_nil(t.ended_at) and t.ends_by > ^at,
+          order_by: [desc: t.turn],
+          limit: 1
+        )
+      )
+    end)
+    |> turn_row()
+  end
+
+  @doc "A resident's latest turn before this one, or nil."
+  def last_turn(household_id, resident_id, before \\ nil) do
+    Scope.platform(fn ->
+      query =
+        from(t in Store.HouseholdTurn,
+          where: t.household_id == ^household_id and t.speaker_id == ^resident_id,
+          order_by: [desc: t.turn],
+          limit: 1
+        )
+
+      query = if before, do: from(t in query, where: t.turn < ^before), else: query
+      Repo.one(query)
+    end)
+    |> turn_row()
+  end
+
+  defp turn_row(nil), do: nil
+
+  defp turn_row(t),
+    do: %{
+      turn: t.turn,
+      resident_id: t.speaker_id,
+      beat_top: t.beat_top,
+      fired_at: t.fired_at,
+      ends_by: t.ends_by,
+      opened_by: t.opened_by,
+      missed: t.missed,
+      ended_at: t.ended_at,
+      outcome: t.outcome,
+      note: t.note
+    }
+
+  defp member_row(household_id, kind, id) do
+    Scope.platform(fn ->
+      Repo.one(
+        from(m in Store.HouseholdBeatMember,
+          where: m.household_id == ^household_id and m.member_kind == ^kind and m.member_id == ^id
+        )
+      )
+    end) ||
+      %Store.HouseholdBeatMember{household_id: household_id, member_kind: kind, member_id: id}
+  end
+
+  @doc """
+  The household's beats as its members read them at `at` (gaia#33 to
+  #38): the shape and its phase; the beat now (its top, when sign-up
+  closes, when it ends) and the next top; the turn open; the queue in
+  the order the next turns fire, each with her position, what she has
+  missed and the beat she waits for; every member's wake profile; and
+  the beats closed lately, newest first.
+  """
+  def beats(household_id, %DateTime{} = at) do
+    shape = beat_shape(household_id)
+    top = Beats.top(household_id, shape, at)
+    signup = Beats.signup_closes(top, shape)
+    members = members(household_id)
+
+    {rows, turns, closed} =
+      Scope.platform(fn ->
+        {Repo.all(from(m in Store.HouseholdBeatMember, where: m.household_id == ^household_id)),
+         Repo.all(
+           from(t in Store.HouseholdTurn,
+             where: t.household_id == ^household_id and t.beat_top == ^top,
+             order_by: t.turn
+           )
+         ),
+         Repo.all(
+           from(b in Store.HouseholdBeat,
+             where: b.household_id == ^household_id,
+             order_by: [desc: b.beat_top],
+             limit: 12
+           )
+         )}
+      end)
+
+    rows = Map.new(rows, &{{&1.member_kind, &1.member_id}, &1})
+    names = Map.new(members, &{&1.id, &1.name})
+    counts = Enum.frequencies_by(turns, & &1.speaker_id)
+
+    open =
+      Enum.find_value(turns, fn t ->
+        if is_nil(t.ended_at), do: turn_row(t)
+      end) || open_anywhere(household_id)
+
+    queue = queue(members, rows, counts, shape, top)
+
+    %{
+      household_id: household_id,
+      shape: shape,
+      phase_minutes: Beats.phase(household_id, shape.beat),
+      now: at,
+      beat: %{
+        top: top,
+        signup_closes: signup,
+        ends: Beats.ends(top, shape),
+        turns_fired: length(turns),
+        turns: Enum.map(turns, &turn_row/1)
+      },
+      next_top: Beats.ends(top, shape),
+      open_turn: open && Map.put(open, :name, names[open.resident_id]),
+      queue: Enum.map(queue, &Map.put(&1, :name, names[&1.resident_id])),
+      profiles: Enum.map(members, &profile_of(&1, rows[{&1.kind, &1.id}], shape)),
+      closed: Enum.map(closed, &closed_of/1)
+    }
+  end
+
+  # The registered residents in the order the next turns fire (gaia#35),
+  # each with the beat she waits for: this one while she is in its queue
+  # with her share not used, else the next.
+  defp queue(members, rows, counts, shape, top) do
+    signup = Beats.signup_closes(top, shape)
+
+    for m <- members,
+        m.kind == "resident",
+        row = rows[{"resident", m.id}],
+        row && row.registered_at do
+      %{
+        resident_id: m.id,
+        registered_at: row.registered_at,
+        missed: row.missed,
+        count: Map.get(counts, m.id, 0)
+      }
+    end
+    |> Beats.order()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {q, i} ->
+      in_line = DateTime.compare(q.registered_at, signup) == :lt and q.count < shape.share
+
+      %{
+        position: i,
+        resident_id: q.resident_id,
+        registered_at: q.registered_at,
+        missed: q.missed,
+        turns_this_beat: q.count,
+        waits_for: if(in_line, do: top, else: Beats.ends(top, shape))
+      }
+    end)
+  end
+
+  defp profile_of(m, nil, shape),
+    do: %{
+      kind: m.kind,
+      id: m.id,
+      name: m.name,
+      profile: default_profile(m.kind, shape),
+      missed: 0
+    }
+
+  defp profile_of(m, row, shape),
+    do: %{
+      kind: m.kind,
+      id: m.id,
+      name: m.name,
+      profile: row.profile || default_profile(m.kind, shape),
+      missed: row.missed
+    }
+
+  defp closed_of(b),
+    do: %{
+      beat_top: b.beat_top,
+      closed_at: b.closed_at,
+      turns: b.turns,
+      passed_over: b.passed_over,
+      carried: b.carried,
+      note: b.note
+    }
+
+  defp default_profile("witness", _shape), do: "self"
+  defp default_profile(_resident, shape), do: shape.resident_profile
+
+  defp open_anywhere(household_id) do
+    Scope.platform(fn ->
+      Repo.one(
+        from(t in Store.HouseholdTurn,
+          where: t.household_id == ^household_id and is_nil(t.ended_at),
+          order_by: [desc: t.turn],
+          limit: 1
+        )
+      )
+    end)
+    |> turn_row()
+  end
+
+  @doc "A member's wake profile: her own, or the default (gaia#37)."
+  def wake_profile(household_id, kind, id) do
+    case member_row(household_id, kind, id) do
+      %{profile: p} when is_binary(p) -> p
+      _none -> default_profile(kind, beat_shape(household_id))
+    end
   end
 
   defp refused({:error, %Error{}} = refused), do: refused
