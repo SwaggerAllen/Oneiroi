@@ -277,13 +277,7 @@ defmodule Oneiroi.Seshat.Household do
          {:ok, dir} <- provision(household_id) do
       cond do
         name in [@contract, "contract"] ->
-          {:ok,
-           %{
-             path: @contract,
-             kind: "contract",
-             title: "The household contract",
-             content: File.read!(Path.join(dir, @contract))
-           }}
+          read_contract(dir)
 
         thread = thread_path(name) ->
           read_thread(actor, household_id, dir, thread)
@@ -293,6 +287,19 @@ defmodule Oneiroi.Seshat.Household do
       end
     end
   end
+
+  # The contract's rendering, at the root of a directory the household's
+  # id named; no request value reaches the path.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp read_contract(dir),
+    do:
+      {:ok,
+       %{
+         path: @contract,
+         kind: "contract",
+         title: "The household contract",
+         content: File.read!(Path.join(dir, @contract))
+       }}
 
   defp read_thread(actor, household_id, dir, thread) do
     with {:ok, t} <- load_thread(dir, thread),
