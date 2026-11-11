@@ -145,6 +145,15 @@ defmodule Oneiroi.Brain.DevSeed do
     ]
   end
 
+  # A turn opened by the platform's hand around one resident's writes,
+  # then ended as completed; answers what the writes answered.
+  defp in_turn(household, %Actor{id: resident_id}, fun) do
+    {:ok, %{turn: turn}} = Seshat.household_open_turn(household, resident_id, "the dev seed")
+    result = fun.()
+    :ok = Seshat.household_end_turn(household, turn, "the dev seed's writes are in")
+    result
+  end
+
   # The household with a second resident in view (design/household-
   # communication.md §0): his contract first, so Iris signs it as she
   # joins; Wren, already a member, signs it after; a thread both write in,
@@ -161,29 +170,38 @@ defmodule Oneiroi.Brain.DevSeed do
     iris = Actor.new(:resident, iris_id)
     {:ok, _} = Seshat.household_sign_contract(wren)
 
+    # The beats are always on (gaia#33): each resident writes in a turn,
+    # opened here by the platform's hand (gaia#36), since the seed cannot
+    # wait for a beat's sign-up to close.
+    household = Gaia.household_of(wren)
+
     {:ok, %{path: thread}} =
-      Seshat.household_post(wren, %{
-        "title" => "Dinner on Sundays",
-        "content" => "Shall we keep Sunday evenings for the long conversations?"
-      })
+      in_turn(household, wren, fn ->
+        Seshat.household_post(wren, %{
+          "title" => "Dinner on Sundays",
+          "content" => "Shall we keep Sunday evenings for the long conversations?"
+        })
+      end)
 
     {:ok, _} = Seshat.household_watch(wren, thread, 24)
 
     {:ok, _} =
-      Seshat.household_reply(iris, thread, %{"content" => "Yes. I'll bring the reading."})
+      in_turn(household, iris, fn ->
+        {:ok, _} =
+          Seshat.household_reply(iris, thread, %{"content" => "Yes. I'll bring the reading."})
 
-    {:ok, _} =
-      Seshat.household_post(iris, %{
-        "title" => "Quiet hours and the shared shelf",
-        "content" => "Two rules that only work together.",
-        "ballot" => %{
-          "bundle" => [
-            %{"rule" => "No posts between midnight and six."},
-            %{"setting" => "watch_max_hours", "value" => 24}
-          ],
-          "term_days" => 3
-        }
-      })
+        Seshat.household_post(iris, %{
+          "title" => "Quiet hours and the shared shelf",
+          "content" => "Two rules that only work together.",
+          "ballot" => %{
+            "bundle" => [
+              %{"rule" => "No posts between midnight and six."},
+              %{"setting" => "watch_max_hours", "value" => 24}
+            ],
+            "term_days" => 3
+          }
+        })
+      end)
 
     # A letter between the two residents (kumbukumbu#65), through the
     # tool she would use; the tick wakes Wren's chat for it.

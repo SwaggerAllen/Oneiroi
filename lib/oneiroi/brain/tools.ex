@@ -69,7 +69,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
-    kind_list route_list household_read
+    kind_list route_list household_read household_beat
   )
 
   @writes ~w(
@@ -87,7 +87,7 @@ defmodule Oneiroi.Brain.Tools do
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
-    household_post household_reply household_watch household_sign
+    household_post household_reply household_watch household_sign household_register household_profile
   )
 
   @type turn :: %{
@@ -904,6 +904,28 @@ defmodule Oneiroi.Brain.Tools do
         "Sign your household's contract at the version in force, if you joined before it was proposed; a member who joins after signs with the join. CONTRACT.md on the shelf shows who has signed which version.",
         %{},
         []
+      ),
+      # The household's beats (gaia#33 to #38, seshat#67 to #72, brain#84).
+      tool(
+        "household_beat",
+        "Read your household's beats: the shape in force (beat length, turn guideline, the cap on turns a beat, the sign-up window, turns each before anyone repeats, the post quota and its window), the beat now and the next, the turn open, the queue in the order turns fire with your place in it, what you have missed, your wake profile, and how many posts your quota has left. The beats are always on: you write on the household's shelf only in your turn, once in each thread and once to each document; a vote never waits for a turn and never counts against the quota.",
+        %{},
+        []
+      ),
+      tool(
+        "household_register",
+        "Enter the queue for your household's next beat (the beat now, while its sign-up is open). Registering does not book a slot: turns fire one after another from the sign-up's close, the most starved first (opportunities missed), each registrant once before anyone repeats, up to the beat's cap; if the cap runs out before you, you go first next beat. Your registration stands until a beat you had a turn in ends. Your turn wakes you with what is new since your last.",
+        %{},
+        []
+      ),
+      tool(
+        "household_profile",
+        "Set how your household's beats wake you: every_beat (a digest at each beat's end, which is also the sign-up sheet for the next, and your turns), on_turn (woken only for your own turn), or self (never woken by the beats; you cannot register while it is set). note says why, for the record.",
+        %{
+          profile: %{type: "string", enum: ["every_beat", "on_turn", "self"]},
+          note: %{type: "string"}
+        },
+        [:profile]
       ),
       tool(
         "source_list",
@@ -2846,6 +2868,31 @@ defmodule Oneiroi.Brain.Tools do
          do: "Signed the household contract at version #{v}."
   end
 
+  defp call("household_beat", _args, turn) do
+    with {:ok, b} <- Seshat.household_beat(turn.resident), do: household_beats_text(b)
+  end
+
+  defp call("household_register", _args, turn) do
+    with {:ok, r} <- Seshat.household_register(turn.resident) do
+      place =
+        if r.position, do: " You are #{r.position} of #{r.queue} in the queue now.", else: ""
+
+      already = if r.already, do: "You were registered already, for", else: "Registered for"
+
+      "#{already} the beat at #{local_stamp(r.beat_top)}; its turns fire from #{local_stamp(r.fires_from)}, the most starved first, and your turn wakes you.#{place}"
+    end
+  end
+
+  defp call("household_profile", args, turn) do
+    with {:ok, p} <-
+           Seshat.household_profile(
+             turn.resident,
+             to_string(args["profile"] || ""),
+             blank(args["note"])
+           ),
+         do: "Your household wake profile is #{p.profile}."
+  end
+
   defp call("library_cited_by", args, turn) do
     case Seshat.cited_by(turn.resident_id, to_string(args["target"] || ""), marks(turn)) do
       [] -> "Nothing cites that."
@@ -3520,6 +3567,44 @@ defmodule Oneiroi.Brain.Tools do
         if(lease.takeable, do: ", and his lease is idle now, so it would take it.)", else: ".)")
 
   defp leased(_none_or_taken), do: ""
+
+  # The household's beats as she reads them (brain#84).
+  defp household_beats_text(b) do
+    s = b.shape
+    you = b.you
+
+    queue =
+      case b.queue do
+        [] ->
+          "Nobody is registered."
+
+        q ->
+          Enum.map_join(q, "\n", fn r ->
+            "#{r.position}. #{r.name} (#{r.missed} missed, waiting for the beat at #{local_stamp(r.waits_for)})"
+          end)
+      end
+
+    open =
+      case b.open_turn do
+        nil -> "No turn is open."
+        t -> "Turn ##{t.turn} is #{t.name}'s, until #{local_stamp(t.ends_by)}."
+      end
+
+    place =
+      case you.queued do
+        nil -> "You are not registered; household_register queues you."
+        q -> "You are #{q.position} in the queue."
+      end
+
+    """
+    Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{s.share} each before anyone repeats, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
+    The beat now began #{local_stamp(b.beat.top)}; sign-up closes #{local_stamp(b.beat.signup_closes)}; it ends #{local_stamp(b.beat.ends)}. #{b.beat.turns_fired} of #{s.cap} turns fired. #{open}
+    Queue:
+    #{queue}
+    #{place} You have missed #{you.missed}. Your wake profile: #{you.profile}. Your quota: #{you.quota_left} of #{you.quota} left in the last #{you.quota_window_hours} hours.
+    BEATS.md on the shelf is the record.
+    """
+  end
 
   # The household's shelf (seshat#61), one line an item.
   defp household_shelf(turn, from) do

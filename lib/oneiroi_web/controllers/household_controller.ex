@@ -114,6 +114,87 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:beats,
+    summary:
+      "The household's beats (gaia#33 to #38): the shape in force with its phase, the beat now and the next, the turn open, the queue in firing order, every member's wake profile, the beats closed lately, and this witness's own part: its profile (self: a witness is never woken) and its post quota left",
+    responses: [ok: {"the beats", "application/json", %Schema{type: :object}}]
+  )
+
+  def beats(conn, _params) do
+    case Seshat.household_beat(actor(conn)) do
+      {:ok, b} -> json(conn, b)
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
+  operation(:profile,
+    summary:
+      "Set this witness's own wake profile in the household's beats, with a note: a witness is never woken, so self is the one it takes (gaia#37)",
+    request_body:
+      {"the profile", "application/json",
+       %Schema{
+         type: :object,
+         required: [:profile],
+         properties: %{profile: %Schema{type: :string}, note: %Schema{type: :string}}
+       }},
+    responses: [ok: {"the profile", "application/json", %Schema{type: :object}}]
+  )
+
+  def profile(conn, params) do
+    case Seshat.household_profile(actor(conn), to_string(params["profile"] || ""), params["note"]) do
+      {:ok, p} -> json(conn, p)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:post,
+    summary:
+      "Post a thread as this witness, where the household's contract carries witnesses_post (seshat#69): within the post quota, at most once in a thread a beat, never a turn",
+    request_body:
+      {"the thread", "application/json",
+       %Schema{
+         type: :object,
+         required: [:title, :content],
+         properties: %{title: %Schema{type: :string}, content: %Schema{type: :string}}
+       }},
+    responses: [created: {"the thread", "application/json", %Schema{type: :object}}]
+  )
+
+  def post(conn, params) do
+    attrs = %{"title" => params["title"], "content" => params["content"]}
+
+    case Seshat.household_post(actor(conn), attrs) do
+      {:ok, posted} -> conn |> put_status(201) |> json(posted)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:reply,
+    summary:
+      "Reply in a household thread as this witness, in words, where the household's contract carries witnesses_post (seshat#69): within the post quota, at most once in a thread a beat",
+    request_body:
+      {"the reply", "application/json",
+       %Schema{
+         type: :object,
+         required: [:thread, :content],
+         properties: %{
+           thread: %Schema{type: :string},
+           content: %Schema{type: :string},
+           in_reply_to: %Schema{type: :integer}
+         }
+       }},
+    responses: [created: {"the reply", "application/json", %Schema{type: :object}}]
+  )
+
+  def reply(conn, params) do
+    attrs = %{"content" => params["content"], "in_reply_to" => params["in_reply_to"]}
+
+    case Seshat.household_reply(actor(conn), to_string(params["thread"] || ""), attrs) do
+      {:ok, reply} -> conn |> put_status(201) |> json(reply)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   defp offset(nil), do: 0
 
   defp offset(from) do

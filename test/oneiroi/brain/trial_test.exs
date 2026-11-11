@@ -385,7 +385,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"household_post", %{title: "Herons", content: "Seen at the weir."}},
     {"household_reply", %{thread: "threads/2026-10-26-herons", content: "And again."}},
     {"household_watch", %{thread: "threads/2026-10-26-herons", hours: 24}},
-    {"household_sign", %{}}
+    {"household_sign", %{}},
+    {"household_register", %{}},
+    {"household_profile", %{profile: "every_beat", note: "the digest"}}
   ]
 
   @other [

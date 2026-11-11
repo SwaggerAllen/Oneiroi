@@ -60,6 +60,9 @@ defmodule Oneiroi.Seshat do
       IndexWorker,
       Household,
       HouseholdBallotWorker,
+      HouseholdBeats,
+      HouseholdBeatWorker,
+      HouseholdTurnWorker,
       Commands.WriteDocument,
       Commands.AdoptDocument,
       Commands.PublishPiece,
@@ -156,6 +159,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Externals
   alias Oneiroi.Seshat.Household
+  alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
@@ -259,7 +263,10 @@ defmodule Oneiroi.Seshat do
     [
       {:seshat_nightly, cron: [{"15 3 * * *", Oneiroi.Seshat.IndexWorker}]},
       # A household ballot closes at the instant its term ends (seshat#63).
-      {:seshat_household, []}
+      {:seshat_household, []},
+      # The household beats' minute and the turns it fires (seshat#70).
+      {:seshat_household_beats, cron: [{"* * * * *", Oneiroi.Seshat.HouseholdBeatWorker}]},
+      {:seshat_household_turns, []}
     ]
   end
 
@@ -312,8 +319,21 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_not_member, "only a member of a household reads or writes its shelf",
        remedy: "a witness and the residents in its household are its members"},
       {:seshat_household_residents_write,
-       "a household's shelf is written by its residents; a witness writes only a vote, as a reply on a ballot",
+       "a household's shelf is written by its residents; a witness writes a vote, as a reply on a ballot, and posts threads and replies only where the household's contract carries witnesses_post (seshat#69)",
        remedy: "read the shelf whole; vote with a reply carrying yes or no"},
+      {:seshat_household_not_your_turn,
+       "a resident writes on the household's shelf only in her turn of its beats (seshat#67); a vote is never held to the turns",
+       remedy:
+         "register with household_register; your writes go in when your turn fires, the most starved first"},
+      {:seshat_household_turn_spent,
+       "in her turn a resident posts once in each thread (a new thread counts as a post in it) and writes each document once (seshat#67)",
+       remedy: "post in another thread, write another document, or wait for your next turn"},
+      {:seshat_household_beat_spent,
+       "a witness posts at most once in each thread a beat (seshat#69)",
+       remedy: "post in another thread, or in this one next beat"},
+      {:seshat_household_quota_spent,
+       "the household's post quota is spent for now: threads and replies over its window, the same for every member (seshat#68); a vote never counts",
+       remedy: "wait for the oldest post in the window to leave it"},
       {:seshat_household_invalid,
        "a household post is a thread with a one-line title (at most 200 characters) and words (at most 64,000), or a document of a household kind at a path of its own; a ballot carries its bundle and its term",
        remedy:
@@ -597,6 +617,37 @@ defmodule Oneiroi.Seshat do
   @doc "A member signs the household contract's version in force (gaia#28)."
   @spec household_sign_contract(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_sign_contract(actor), do: Household.sign_contract(actor))
+
+  @doc "A resident enters the queue for the household's next beat (gaia#35, brain#84)."
+  @spec household_register(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_register(actor), do: HouseholdBeats.register(actor))
+
+  @doc "The household's beats as a member reads them, with her own place, profile and quota left (seshat#68, gaia#33 to #38)."
+  @spec household_beat(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_beat(actor), do: HouseholdBeats.state(actor))
+
+  @doc "A member sets her own wake profile, with a note (gaia#37)."
+  @spec household_profile(Oneiroi.Actor.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_profile(actor, profile, note),
+    do: HouseholdBeats.set_profile(actor, profile, note)
+  )
+
+  @doc "The household beats' minute for one household (seshat#70)."
+  @spec tick_household_beats(String.t()) :: :ok | {:error, term()}
+  defexport(tick_household_beats(household_id), do: HouseholdBeats.tick(household_id))
+
+  @doc "The platform opens a household turn for a resident now, waking nobody (gaia#36): the dev seed's and the suite's."
+  @spec household_open_turn(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_open_turn(household_id, resident_id, note),
+    do: HouseholdBeats.open_turn(household_id, resident_id, note)
+  )
+
+  @doc "The platform ends a turn it opened by hand, completed (gaia#36)."
+  @spec household_end_turn(String.t(), integer(), String.t()) :: :ok | {:error, term()}
+  defexport(household_end_turn(household_id, turn, note),
+    do: HouseholdBeats.end_turn(household_id, turn, note)
+  )
 
   @doc "Closes a household ballot whose term has run (seshat#63); the job's unit."
   @spec close_household_ballot(String.t(), integer(), Oneiroi.Actor.t()) ::
