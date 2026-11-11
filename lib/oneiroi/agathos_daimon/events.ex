@@ -204,6 +204,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
   end
 
+  defmodule SoulEditWithdrawn do
+    # The witness takes back his own open proposal (agathos-daimon#44):
+    # the note is what the resident is told, in a letter to her chat.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :ref]
+  end
+
   defmodule SoulEditApplied do
     # The file as written after first contact: by the resident accepting
     # a proposal (`ref` set) or editing on its own (`ref` nil). One

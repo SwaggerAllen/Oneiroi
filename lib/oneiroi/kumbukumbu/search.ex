@@ -100,9 +100,5 @@ defmodule Oneiroi.Kumbukumbu.Search do
   end
 
   # The keys of the resident's private sessions she has not shared.
-  defp withheld(resident_id) do
-    Scope.resident(resident_id, fn ->
-      for s <- Store.sessions(), s.private and not s.shared, into: MapSet.new(), do: s.key
-    end)
-  end
+  defp withheld(resident_id), do: Memories.locked_sessions(resident_id)
 end

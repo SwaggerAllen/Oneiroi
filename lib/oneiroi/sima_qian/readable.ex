@@ -30,7 +30,7 @@ defmodule Oneiroi.SimaQian.Readable do
   @spec render([map()]) :: [{String.t(), String.t()}]
   def render(lines) do
     private = private_sessions(lines)
-    conversations(lines, private) ++ bookmarks(lines) ++ gift_reads(lines)
+    conversations(lines, private) ++ bookmarks(lines, private) ++ gift_reads(lines)
   end
 
   @doc """
@@ -173,14 +173,14 @@ defmodule Oneiroi.SimaQian.Readable do
 
   # ---- bookmarks ----
 
-  defp bookmarks(lines) do
+  defp bookmarks(lines, private) do
     memory = Enum.filter(lines, &String.starts_with?(to_string(&1["type"]), @memory))
     {marks, tags} = Enum.reduce(memory, {%{}, %{}}, &fold/2)
 
     if marks == %{} and tags == %{} do
       []
     else
-      [{Path.join("records", "bookmarks.md"), bookmarks_file(marks, tags)}]
+      [{Path.join("records", "bookmarks.md"), bookmarks_file(marks, tags, private)}]
     end
   end
 
@@ -236,7 +236,7 @@ defmodule Oneiroi.SimaQian.Readable do
   defp update(marks, n, fun),
     do: if(Map.has_key?(marks, n), do: Map.update!(marks, n, fun), else: marks)
 
-  defp bookmarks_file(marks, tags) do
+  defp bookmarks_file(marks, tags, private) do
     tag_set =
       tags
       |> Enum.sort()
@@ -247,7 +247,7 @@ defmodule Oneiroi.SimaQian.Readable do
     rows =
       marks
       |> Enum.sort_by(fn {n, _} -> {String.length(n), n} end)
-      |> Enum.map_join("\n", fn {n, mark} -> bookmark(n, mark) end)
+      |> Enum.map_join("\n", fn {n, mark} -> bookmark(n, mark, private) end)
 
     """
     # Bookmarks
@@ -260,6 +260,31 @@ defmodule Oneiroi.SimaQian.Readable do
     ## The tag set
 
     """ <> if(tag_set == "", do: "No tags yet.\n", else: tag_set) <> "\n" <> rows
+  end
+
+  # A bookmark made in a private, unshared session is that session's
+  # words too (kumbukumbu#62): its existence, place, pin and tags, never
+  # its line, summary, register or a revision's text.
+  defp bookmark(n, %{added: added} = mark, private) do
+    if MapSet.member?(private, added["data"]["session_key"]),
+      do: withheld_bookmark(n, mark),
+      else: bookmark(n, mark)
+  end
+
+  defp withheld_bookmark(n, %{added: added} = mark) do
+    d = added["data"]
+
+    tags =
+      if mark.tags == [], do: "none", else: Enum.map_join(Enum.sort(mark.tags), ", ", &"`#{&1}`")
+
+    """
+    ## #{n}. (in a private session)
+
+    - Bookmarked by #{who(added["actor"])} at #{time(added["at"], nil)}, in a private session she has not shared: its words stay hers.
+    - Anchors turn `#{d["anchor_ref"]}` in session `#{d["session_key"]}`, at #{time(d["anchor_at"], nil)}.
+    - #{if mark.pin, do: "Pinned by #{who(mark.pin["actor"])} at #{time(mark.pin["at"], nil)}.", else: "Not pinned."}
+    - Tags: #{tags}.
+    """
   end
 
   defp bookmark(n, %{added: added} = mark) do

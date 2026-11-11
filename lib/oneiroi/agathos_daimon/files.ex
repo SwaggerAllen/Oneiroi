@@ -120,6 +120,24 @@ defmodule Oneiroi.AgathosDaimon.Files do
       {:error,
        Error.new(:agathos_daimon_not_the_resident, :agathos_daimon_files_decline_not_resident)}
 
+  @doc "The witness withdraws his open proposal, with a note (agathos-daimon#44)."
+  def withdraw(resident_id, ref, note, %Actor{kind: :witness} = actor) do
+    command = %Commands.WithdrawSoulEdit{
+      actor: actor,
+      at: Clock.now(),
+      note: note,
+      id: resident_id,
+      ref: ref
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  def withdraw(_resident_id, _ref, _note, %Actor{}),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_not_witnessed, :agathos_daimon_files_withdraw_not_witness)}
+
   @doc "Records first contact: the first captured turn outside a regression session. Idempotent."
   def first_contact(resident_id, session_key, turn_ref, %Actor{} = actor) do
     command = %Commands.RecordFirstContact{
@@ -223,6 +241,18 @@ defmodule Oneiroi.AgathosDaimon.Files do
 
   @doc "The open soul-edit proposals, oldest first."
   def proposals(resident_id), do: Scope.resident(resident_id, fn -> Store.open_soul_edits() end)
+
+  # Which proposals a read asks for (agathos-daimon#43).
+  @edit_states %{
+    open: ~w(open),
+    answered: ~w(accepted declined),
+    withdrawn: ~w(withdrawn),
+    all: ~w(open accepted declined withdrawn)
+  }
+
+  @doc "The soul-edit proposals `which` names, oldest first (agathos-daimon#43)."
+  def proposals(resident_id, which) when is_map_key(@edit_states, which),
+    do: Scope.resident(resident_id, fn -> Store.soul_edits_in(@edit_states[which]) end)
 
   @doc """
   The build-owned `AGENTS.md` for a resident, from `priv/templates/AGENTS.md`

@@ -178,9 +178,21 @@ defmodule Oneiroi.SimaQian.ReadableTest do
         brain
       )
 
+    {:ok, n} =
+      Kumbukumbu.add_bookmark(
+        r.id,
+        %{session_key: key, anchor_ref: "t-alone", line: "the #{unique} alone", summary: "mine"},
+        brain
+      )
+
     Clock.Fake.advance(120)
     {:ok, _} = Export.write(r.id, dir)
     day = read(dir, "records/conversations/2026-10-26.md")
+
+    # A bookmark made there is the session's words too (kumbukumbu#62).
+    marks = read(dir, "records/bookmarks.md")
+    assert marks =~ "## #{n}. (in a private session)"
+    refute marks =~ unique
 
     assert day =~
              "## Free time session `#{key}`\n\nOpened at 12:00:00 UTC by **resident** (fake/model), through `brain`; parties: `#{a.id}`.\n\n" <>
@@ -200,6 +212,7 @@ defmodule Oneiroi.SimaQian.ReadableTest do
     {:ok, _} = Export.write(r.id, dir)
     shared = read(dir, "records/conversations/2026-10-26.md")
     assert shared =~ "> I watched a #{unique}."
+    assert read(dir, "records/bookmarks.md") =~ "## #{n}. the #{unique} alone"
     assert shared =~ "*Opened private under the contract at 12:00:00 UTC.*"
 
     assert shared =~

@@ -59,14 +59,14 @@ turn.
   - **One bookmark** (`memory/<n>`, also reachable by URL): the line,
     the summary, when, the span's length, who bookmarked, proposed and
     pinned it, when a turn last listed it, the tags, and Pin or Unpin,
-    from `GET /bookmarks/:n`. **The span's words are not shown.** That
-    route returns the span's messages even when the bookmark is anchored
-    in her private, unshared session, and nothing in its body says
-    whether the session is private, so the client cannot tell which
-    spans it may show. It keeps only the bookmark and drops the span as
-    it arrives (it is never cached or rendered), and the page says why.
-    When the route withholds a private session's words, or marks them,
-    the span can come back.
+    from `GET /bookmarks/:n`. **The span's words are not shown.** When
+    this page was built that route returned the span's messages even
+    for a bookmark anchored in her private, unshared session, unmarked,
+    so the client keeps only the bookmark and drops the span as it
+    arrives (it is never cached or rendered), and the page says why.
+    The server now marks such a bookmark `private: true`, nulls its
+    words and sends its span as `[]` (kumbukumbu#62), so the span can
+    come back; the client has not taken that up yet.
   - The view, tag and search are kept per resident while a bookmark is
     open on top of the list.
 - **Her character** (spec §6.17), each a page on this tab's stack:
@@ -160,11 +160,11 @@ Not built:
 - retrieval by kind (`GET /retrieval?kind=`): Use lists every kind;
 - state lines (no read of them yet);
 - the charter (passed ballots: S10);
-- her answers to your identity-file edits and bookmark proposals:
-  `GET /soul-edits` and `GET /bookmark-proposals` list open ones only,
-  without the answer's note, so an answered one leaves the list and its
-  note is not readable here (no route returns it);
-- withdrawing your own identity-file edit (no route);
+- her answers to your identity-file edits and bookmark proposals: the
+  routes now return them with `?state=answered` (agathos-daimon#43,
+  kumbukumbu#63), which this screen does not call yet;
+- withdrawing your own identity-file edit (`POST
+  /soul-edits/:ref/withdraw`, agathos-daimon#44, not called yet);
 - a first habit (`POST /habits`), which is the creation flow's, before
   first contact;
 - creating or retiring a tag, and taggings (`POST /tags`,

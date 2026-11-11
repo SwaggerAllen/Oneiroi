@@ -123,6 +123,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :ref]
   end
 
+  defmodule WithdrawSoulEdit do
+    use Oneiroi.Command, decision: true, fields: [:id, :ref]
+  end
+
   defmodule PinModel do
     use Oneiroi.Command, fields: [:id, :model, :reason]
   end
