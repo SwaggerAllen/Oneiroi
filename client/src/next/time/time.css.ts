@@ -22,8 +22,8 @@ export const option = style({
   cursor: 'pointer',
   selectors: { '&[data-selected]': { background: vars.color.surfaceRaised, color: vars.color.text } },
 });
-export const body = style({ flex: 1, minHeight: 0, display: 'flex' });
-export const pane = style({ flex: 1, minHeight: 0, display: 'flex', selectors: { '&[hidden]': { display: 'none' } } });
+export const body = style({ flex: 1, minHeight: 0, minWidth: 0, display: 'flex' });
+export const pane = style({ flex: 1, minHeight: 0, minWidth: 0, display: 'flex', selectors: { '&[hidden]': { display: 'none' } } });
 
 export const page = style({ display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 16px 28px', maxWidth: 720, width: '100%', margin: '0 auto' });
 
@@ -86,14 +86,51 @@ export const journal = style({
   border: `1px solid ${vars.color.resident.border}`,
   boxShadow: `0 10px 30px -18px ${vars.color.resident.glow}`,
 });
-export const entry = style({ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 10 });
+// minmax(0, 1fr): a plain 1fr will not shrink below its longest word, and one path or link pushed the day off the screen.
+export const entry = style({ display: 'grid', gridTemplateColumns: '52px minmax(0, 1fr)', gap: 10 });
+export const entryAt = style({ display: 'block', font: `500 10px/14px ${font.mono}`, color: vars.color.textFaint });
 export const entryKind = style({ font: `500 11px/22px ${font.mono}`, color: vars.color.resident.text, opacity: 0.8 });
 export const entryText = style({
   fontFamily: font.voice,
   fontSize: 16,
   lineHeight: '22px',
   color: vars.color.resident.text,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
   selectors: { '&[data-done="true"]': { textDecoration: 'line-through', opacity: 0.7 } },
+});
+
+export const journalTools = style({ display: 'flex', flexDirection: 'column', gap: 8 });
+export const journalSearch = style({
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 10,
+  border: `1px solid ${vars.color.resident.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `15px ${font.ui}`,
+});
+export const journalFilters = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' });
+export const chips = style({ display: 'flex', flexWrap: 'wrap', gap: 6 });
+export const chip = style({
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 16,
+  border: `1px solid ${vars.color.resident.border}`,
+  background: 'none',
+  color: vars.color.resident.text,
+  font: `500 12px ${font.ui}`,
+  cursor: 'pointer',
+  selectors: { '&[aria-pressed="true"]': { background: vars.color.resident.surfaceStrong, borderColor: vars.color.resident.borderStrong } },
+});
+export const journalOrder = style({
+  minHeight: 32,
+  padding: '0 8px',
+  borderRadius: 8,
+  border: `1px solid ${vars.color.resident.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `13px ${font.ui}`,
 });
 
 export const section = style({ display: 'flex', flexDirection: 'column', gap: 6 });
@@ -105,10 +142,12 @@ const rowBase = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  gap: 10,
   minHeight: 46,
-  padding: '0 12px',
+  padding: '8px 12px',
   borderRadius: 10,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 } as const;
 export const row = style({ ...rowBase, background: vars.color.surface, border: `1px solid ${vars.color.border}` });
 export const rowHers = style({ ...rowBase, background: vars.color.resident.surface, border: `1px solid ${vars.color.resident.border}` });

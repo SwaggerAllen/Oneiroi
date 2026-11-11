@@ -7,6 +7,7 @@ import { useNow } from '../shell/presence';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { MONTHS, monthCells, shiftMonth } from './calendar';
+import { Journal } from './Journal';
 import { Rhythm } from './Rhythm';
 import * as css from './time.css';
 
@@ -90,11 +91,12 @@ function Month() {
             if (!c.day) return <span key={`blank-${i}`} />;
             const d = byDay.get(c.day);
             const wrote = d?.journal != null;
-            const talked = (d?.story.sessions.length ?? 0) > 0;
+            const spoken = (d?.story.sessions ?? []).filter(heldWords);
+            const talked = spoken.length > 0;
             const scenes = (d?.story.scenes ?? []).filter((x) => x.kind === 'scene').length;
             const free = (d?.schedule?.entries ?? []).some((e) => e.kind === 'free_time');
             const dated = (d?.schedule?.entries ?? []).find((e) => e.kind === 'date');
-            const says = [wrote && 'journal written', talked && `${d?.story.sessions.length} sessions`, scenes > 0 && `${scenes} scenes`, free && 'free time', dated && (dated.label ?? 'a date')].filter(Boolean);
+            const says = [wrote && 'journal written', talked && `${spoken.length} sessions`, scenes > 0 && `${scenes} scenes`, free && 'free time', dated && (dated.label ?? 'a date')].filter(Boolean);
             return (
               <button
                 key={c.day}
@@ -123,7 +125,9 @@ function Month() {
   );
 }
 
-const ORDER = ['plan', 'note', 'todo', 'wrap'];
+// A session opened and never spoken in carries nothing to read; a
+// private one keeps its count back (null), so it stays.
+const heldWords = (s: { messages: number | null }) => s.messages !== 0;
 
 function Day({ day }: { day: string }) {
   const { id, name } = useSubject();
@@ -136,11 +140,12 @@ function Day({ day }: { day: string }) {
     queryFn: () => api.journalDay(id, day).catch(() => ({ day, entries: [] })),
     enabled: one.data?.journal != null,
   });
-  const that = one.data?.story.sessions ?? [];
+  const all = one.data?.story.sessions ?? [];
+  const that = all.filter(heldWords);
+  const empty = all.length - that.length;
   const scenes = (one.data?.story.scenes ?? []).filter((x) => x.kind === 'scene');
   const ahead = one.data?.schedule;
   const clock = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
-  const entries = (journal.data?.entries ?? []).slice().sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.number - b.number);
   const label = new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
@@ -153,18 +158,7 @@ function Day({ day }: { day: string }) {
           {label}
           {day === today && <span className={css.todayTag}> TODAY</span>}
         </h1>
-        <section className={css.journal}>
-          <h2 className={css.headingHers}>{name.toUpperCase()}'S JOURNAL</h2>
-          {entries.length === 0 && <p className={css.note}>Nothing written this day.</p>}
-          {entries.map((e) => (
-            <div key={e.number} className={css.entry}>
-              <span className={css.entryKind}>{e.kind.toUpperCase()}</span>
-              <span className={css.entryText} data-done={!!e.done_at}>
-                {e.text}
-              </span>
-            </div>
-          ))}
-        </section>
+        <Journal key={day} name={name} entries={journal.data?.entries ?? []} />
         {ahead && ahead.entries.length > 0 && (
           <section className={css.section}>
             <h2 className={css.heading}>{day === today ? 'STILL TO COME' : 'AS IT STANDS'}</h2>
@@ -201,6 +195,7 @@ function Day({ day }: { day: string }) {
         </section>
         <section className={css.section}>
           <h2 className={css.heading}>SESSIONS · {that.length}</h2>
+          {that.length === 0 && <p className={css.note}>No conversation this day.</p>}
           {that.map((s) => (
             <div key={s.key} className={css.row}>
               <span>
@@ -213,6 +208,7 @@ function Day({ day }: { day: string }) {
               </span>
             </div>
           ))}
+          {empty > 0 && <p className={css.note}>{empty === 1 ? 'One session opened and never spoken in is left out.' : `${empty} sessions opened and never spoken in are left out.`}</p>}
         </section>
       </div>
     </ScrollArea>

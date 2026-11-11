@@ -18,7 +18,8 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     (`<slug>:<kind>/<ref>`) as chips; the witness's words stay plain.
     The conversation never grows wider than the screen: a long word
     wraps, and a wide code block or table scrolls sideways inside its
-    message.
+    message. A system line (a wake's note) breaks a long link rather
+    than widening the conversation.
   - Tool calls collapse to one line.
   - The turn streams in under its step (thinking, the tool's name,
     writing) and a timer. The same status events drive the header's
@@ -28,6 +29,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   she works is queued. "Not sent" and "No reply came" offer Send again
   under the same ref.
 - **Stop** replaces Send while she works and the box is empty.
+- **The box** grows with what is written, up to 180px, then scrolls.
+  With a keyboard, Enter sends and Shift+Enter breaks the line; on a
+  touch screen (`pointer: coarse`) Enter breaks the line and the arrow
+  sends, and the keyboard's key says so.
 - **Unread:** the conversation opens on the first unread reply, under a
   "New since HH:MM" rule. The read mark advances whenever the reader is
   at the bottom. "↓ n new" jumps to the rule, or to the bottom.

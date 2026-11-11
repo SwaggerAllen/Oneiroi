@@ -16,10 +16,20 @@ import * as css from './inbox.css';
 export const answersInPlace = (kind: NeedsYouEntry['kind']) =>
   kind === 'ask' || kind === 'reply_to_approve' || kind === 'reply_to_send' || kind === 'piece_to_review' || kind === 'piece_to_publish';
 
-function useDone() {
+/** What was decided, for the bell to keep showing once the item is answered. */
+export interface Answered {
+  word: string;
+  yes: boolean;
+  note: string;
+}
+
+type OnAnswered = (a: Answered) => void;
+
+function useDone(onAnswered?: OnAnswered) {
   const qc = useQueryClient();
   const { id } = useSubject();
-  return () => {
+  return (a: Answered) => {
+    onAnswered?.(a);
     void qc.invalidateQueries({ queryKey: ['resident', id, 'bell'] });
     void qc.invalidateQueries({ queryKey: ['resident', id, 'mail'] });
   };
@@ -27,30 +37,32 @@ function useDone() {
 
 const fail = (e: unknown) => (e instanceof Error ? e.message : 'That did not go through.');
 
-export function Answer({ entry }: { entry: NeedsYouEntry }) {
+export function Answer({ entry, onAnswered }: { entry: NeedsYouEntry; onAnswered?: OnAnswered }) {
   switch (entry.kind) {
     case 'ask':
-      return <AskAnswer number={Number(entry.ref)} />;
+      return <AskAnswer number={Number(entry.ref)} onAnswered={onAnswered} />;
     case 'reply_to_approve':
     case 'reply_to_send':
-      return <ReplyAnswer number={Number(entry.ref)} />;
+      return <ReplyAnswer number={Number(entry.ref)} onAnswered={onAnswered} />;
     case 'piece_to_review':
     case 'piece_to_publish':
-      return <PieceAnswer path={String(entry.ref)} />;
+      return <PieceAnswer path={String(entry.ref)} onAnswered={onAnswered} />;
     default:
       return null;
   }
 }
 
-function AskAnswer({ number }: { number: number }) {
+const ASK_WORDS = { approve: 'APPROVED', decline: 'DECLINED', noted: 'NOTED' } as const;
+
+function AskAnswer({ number, onAnswered }: { number: number; onAnswered?: OnAnswered }) {
   const { id, name } = useSubject();
-  const done = useDone();
+  const done = useDone(onAnswered);
   const asks = useQuery({ queryKey: ['resident', id, 'mail', 'asks'], queryFn: () => api.asks(id) });
   const ask = asks.data?.find((a) => a.number === number);
   const [note, setNote] = useState('');
   const answer = useMutation({
     mutationFn: (decision: 'approve' | 'decline' | 'noted') => api.answerAsk(id, number, decision, note.trim()),
-    onSuccess: done,
+    onSuccess: (_r, decision) => done({ word: ASK_WORDS[decision], yes: decision !== 'decline', note: note.trim() }),
   });
   if (!ask) return asks.isPending ? <p className={css.note}>Opening the ask…</p> : null;
   const ready = note.trim() !== '' && !answer.isPending;
@@ -84,15 +96,21 @@ function AskAnswer({ number }: { number: number }) {
   );
 }
 
-function ReplyAnswer({ number }: { number: number }) {
+function ReplyAnswer({ number, onAnswered }: { number: number; onAnswered?: OnAnswered }) {
   const { id, name } = useSubject();
-  const done = useDone();
+  const done = useDone(onAnswered);
   const replies = useQuery({ queryKey: ['resident', id, 'mail', 'replies'], queryFn: () => api.replies(id) });
   const reply = replies.data?.find((r) => r.number === number);
   const [note, setNote] = useState('');
   const [url, setUrl] = useState('');
-  const decide = useMutation({ mutationFn: (approve: boolean) => api.decideReply(id, number, approve, note.trim()), onSuccess: done });
-  const sent = useMutation({ mutationFn: () => api.markSent(id, number, url.trim() || null), onSuccess: done });
+  const decide = useMutation({
+    mutationFn: (approve: boolean) => api.decideReply(id, number, approve, note.trim()),
+    onSuccess: (_r, approve) => done({ word: approve ? 'APPROVED TO SEND' : 'DECLINED', yes: approve, note: note.trim() }),
+  });
+  const sent = useMutation({
+    mutationFn: () => api.markSent(id, number, url.trim() || null),
+    onSuccess: () => done({ word: 'MARKED SENT', yes: true, note: url.trim() }),
+  });
   if (!reply) return replies.isPending ? <p className={css.note}>Opening the reply…</p> : null;
   return (
     <div className={css.panel}>
@@ -131,15 +149,18 @@ function ReplyAnswer({ number }: { number: number }) {
   );
 }
 
-function PieceAnswer({ path }: { path: string }) {
+function PieceAnswer({ path, onAnswered }: { path: string; onAnswered?: OnAnswered }) {
   const { id, name } = useSubject();
-  const done = useDone();
+  const done = useDone(onAnswered);
   const setOverlay = useShell((s) => s.setOverlay);
   const pieces = useQuery({ queryKey: ['resident', id, 'mail', 'pieces'], queryFn: () => api.pieces(id) });
   const review = pieces.data?.for_review.find((p) => p.path === path);
   const drafted = pieces.data?.drafted.find((p) => p.path === path) ?? pieces.data?.approved.find((p) => p.path === path);
   const [note, setNote] = useState('');
-  const decide = useMutation({ mutationFn: (d: 'approve' | 'decline') => api.reviewPiece(id, path, d, note.trim()), onSuccess: done });
+  const decide = useMutation({
+    mutationFn: (d: 'approve' | 'decline') => api.reviewPiece(id, path, d, note.trim()),
+    onSuccess: (_r, d) => done({ word: d === 'approve' ? 'APPROVED' : 'DECLINED', yes: d === 'approve', note: note.trim() }),
+  });
   const read = (
     <a className={css.link} href={formatHash({ tab: 'records', path: `doc/${path}` })} onClick={() => setOverlay(null)}>
       Read it in Records ›

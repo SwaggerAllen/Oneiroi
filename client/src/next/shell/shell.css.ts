@@ -157,6 +157,9 @@ export const panel = style({
   display: 'flex',
   flexDirection: 'column',
   background: vars.color.ground,
+  // Inherited by every tab: a word longer than the screen (a path, a
+  // link) breaks rather than pushing the page sideways.
+  overflowWrap: 'anywhere',
   selectors: {
     '&[hidden]': { display: 'none' },
     // The leaving tab sits under the arriving one while it fades.

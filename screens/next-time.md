@@ -18,14 +18,21 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
     (longer with more), and a ring for free time ahead.
   - A day opens as `day/YYYY-MM-DD` on this tab's stack.
 - **A day:**
-  - Her journal, in order: plan, note, todo, wrap; done todos struck.
+  - Her journal, by kind (plan, note, todo, wrap) or by when she wrote
+    each, oldest or newest first; each entry with its time; done todos
+    struck. With more than three entries: a search over the words and
+    a filter by kind with each kind's count, and the heading says how
+    many of how many show. A long word or path wraps inside the entry.
   - Ahead (today's rest, or any later day as it stands): the check-ins
     (moved past quiet hours when they fall in them), her free time and
     one-offs, and how many rounds of her own the day holds.
   - Her scenes with their times, and "not finished" when the night's
     pass didn't close the day.
   - The sessions spoken in that day, with their span and message
-    count; a private one shows only its two times (kumbukumbu#60).
+    count; a private one shows only its two times (kumbukumbu#60). A
+    session opened and never spoken in (a work session that ended
+    before a word) is left out, here and in the month's blue dot, and
+    the day says how many were.
 - **Rhythm** (`Rhythm.tsx`), ported from the current client's Schedule,
   every time HH:MM in her zone:
   - **Check-ins:** the next one; each with today's or its last outcome

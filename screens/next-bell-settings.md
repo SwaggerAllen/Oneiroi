@@ -21,6 +21,12 @@ header's bell and gear. Built 2026-11-10.
     all in this client: an agreement entry Soul's agreement, a plugin
     proposal Soul's plugins, work and kind gates their Settings pages,
     the notifications question its page. Nothing opens the old client.
+  - An item answered here stays in its place until the bell closes,
+    folded to its title and recoloured: green with ✓ and what was
+    decided (approved, approved to send, marked sent, noted, accepted),
+    or grey with ✕ for declined, and the note under it. The count drops
+    at once; the server's list can lag the answer, and a card that
+    vanished or stayed open said nothing about what happened.
   - Her theme proposal (seshat#56) shows in place: her ground with both
     accents on it and her note; "Try it on" wears it until the bell
     closes; answered Accept or Decline with a note she reads.

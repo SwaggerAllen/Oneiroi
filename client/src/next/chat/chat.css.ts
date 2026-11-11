@@ -32,6 +32,8 @@ export const mine = style({
 });
 
 export const hers = style({
+  minWidth: 0,
+  overflowWrap: 'anywhere',
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
@@ -82,7 +84,8 @@ export const tool = style({
   textOverflow: 'ellipsis',
 });
 
-export const system = style({ alignSelf: 'center', font: `500 11px ${font.mono}`, color: vars.color.textFaint, textAlign: 'center' });
+// Centred, so its width is its content's: a long link must break here or it widens the conversation.
+export const system = style({ alignSelf: 'center', maxWidth: '100%', overflowWrap: 'anywhere', font: `500 11px ${font.mono}`, color: vars.color.textFaint, textAlign: 'center' });
 
 export const step = style({ display: 'flex', justifyContent: 'space-between', font: `500 11px ${font.mono}`, color: vars.color.resident.text });
 
@@ -157,6 +160,7 @@ export const input = style({
   flex: 1,
   minHeight: 44,
   maxHeight: 180,
+  overflowY: 'auto',
   resize: 'none',
   padding: '11px 14px',
   borderRadius: 22,

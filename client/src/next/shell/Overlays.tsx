@@ -10,7 +10,7 @@ import { useShell } from '../state/store';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
 import { ThemeSheet } from './ThemeSheet';
-import { Answer, answersInPlace } from '../inbox/Answers';
+import { Answer, answersInPlace, type Answered } from '../inbox/Answers';
 import { switchSubject, useSubjectChoice } from '../state/subject';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
@@ -94,23 +94,33 @@ function Bell() {
   const needs = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id) });
   const hers = useQuery({ queryKey: ['resident', id, 'bell', 'hers'], queryFn: () => api.waitingOnHer(id) });
   const notifications = useNotificationsAsk();
+  // What was answered here, kept until the bell closes: the item stays in
+  // its place, folded, saying what was decided, whether or not the
+  // server's list has caught up yet.
+  const [answered, setAnswered] = useState<Map<string, { entry: NeedsYouEntry; answer: Answered }>>(() => new Map());
+  const keep = (entry: NeedsYouEntry) => (answer: Answered) => setAnswered((m) => new Map(m).set(keyOf(entry), { entry, answer }));
   // The server lists the notifications question too; it shows as its own item.
-  const entries = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
+  const listed = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
+  const gone = [...answered.values()].filter((a) => !listed.some((e) => keyOf(e) === keyOf(a.entry))).map((a) => a.entry);
+  const all = [...listed, ...gone].sort((a, b) => a.since.localeCompare(b.since));
+  const open = listed.filter((e) => !answered.has(keyOf(e)));
   const theirs = hers.data ?? [];
 
   return (
     <div className={css.stack}>
-      <h3 className={css.heading}>WAITING ON YOU · {entries.length + (notifications.ask ? 1 : 0)}</h3>
+      <h3 className={css.heading}>WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}</h3>
       {notifications.ask && (
         <button type="button" className={css.itemDashed} onClick={() => setOverlay('push')}>
           <span className={css.itemKind}>NOTIFICATIONS · UNANSWERED</span>
           <span>Should {name} be able to reach you?</span>
         </button>
       )}
-      {entries.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
-      {entries.map((e) =>
-        e.kind === 'theme_proposal' ? (
-          <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} />
+      {open.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
+      {all.map((e) =>
+        answered.has(keyOf(e)) ? (
+          <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
+        ) : e.kind === 'theme_proposal' ? (
+          <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} onAnswered={keep(e)} />
         ) : answersInPlace(e.kind) ? (
           <details key={`${e.kind}-${e.ref}`} className={css.item}>
             <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -121,7 +131,7 @@ function Bell() {
               <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
               <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
             </summary>
-            <Answer entry={e} />
+            <Answer entry={e} onAnswered={keep(e)} />
           </details>
         ) : (
           <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen, e.kind)} onClick={() => setOverlay(null)}>
@@ -152,8 +162,37 @@ function Bell() {
   );
 }
 
+const keyOf = (e: NeedsYouEntry) => `${e.kind}-${e.ref}`;
+const titleOf = (e: NeedsYouEntry) => e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref);
+
+/** An item answered from the bell: folded to one line, recoloured, saying what was decided and the note. */
+function AnsweredCard({ entry, answer }: { entry: NeedsYouEntry; answer: Answered }) {
+  return (
+    <div className={answer.yes ? css.answeredYes : css.answeredNo} role="status">
+      <span className={answer.yes ? css.answeredYesWord : css.answeredNoWord}>
+        {answer.yes ? '✓ ' : '✕ '}
+        {answer.word} · {WORDS[entry.kind] ?? (entry.kind === 'theme_proposal' ? 'THEME' : entry.kind)}
+      </span>
+      <span className={css.answeredTitle}>{entry.kind === 'theme_proposal' ? `Theme #${entry.ref}` : titleOf(entry)}</span>
+      {answer.note && <span className={css.answeredNote}>“{answer.note}”</span>}
+    </div>
+  );
+}
+
 /** Her theme proposal (seshat#56): the three seeds shown, and his answer with a note. */
-function ThemeProposal({ number, since, seeds, note }: { number: number; since: string; seeds?: { ground: string; resident: string; witness: string }; note?: string }) {
+function ThemeProposal({
+  number,
+  since,
+  seeds,
+  note,
+  onAnswered,
+}: {
+  number: number;
+  since: string;
+  seeds?: { ground: string; resident: string; witness: string };
+  note?: string;
+  onAnswered?: (a: Answered) => void;
+}) {
   const { id, name } = useSubject();
   const queries = useQueryClient();
   const [answer, setAnswer] = useState('');
@@ -162,7 +201,8 @@ function ThemeProposal({ number, since, seeds, note }: { number: number; since: 
   const wearing = tryOn !== null && tryOn === seeds;
   const answerIt = useMutation({
     mutationFn: (agree: boolean) => api.answerTheme(id, number, agree, answer.trim()),
-    onSuccess: () => {
+    onSuccess: (_r, agree) => {
+      onAnswered?.({ word: agree ? 'ACCEPTED' : 'DECLINED', yes: agree, note: answer.trim() });
       setTryOn(null);
       void queries.invalidateQueries({ queryKey: ['resident', id] });
     },
