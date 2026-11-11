@@ -93,7 +93,8 @@ function Month() {
             const talked = (d?.story.sessions.length ?? 0) > 0;
             const scenes = (d?.story.scenes ?? []).filter((x) => x.kind === 'scene').length;
             const free = (d?.schedule?.entries ?? []).some((e) => e.kind === 'free_time');
-            const says = [wrote && 'journal written', talked && `${d?.story.sessions.length} sessions`, scenes > 0 && `${scenes} scenes`, free && 'free time'].filter(Boolean);
+            const dated = (d?.schedule?.entries ?? []).find((e) => e.kind === 'date');
+            const says = [wrote && 'journal written', talked && `${d?.story.sessions.length} sessions`, scenes > 0 && `${scenes} scenes`, free && 'free time', dated && (dated.label ?? 'a date')].filter(Boolean);
             return (
               <button
                 key={c.day}
@@ -110,12 +111,13 @@ function Month() {
                   {talked && <span className={css.sessionDot} />}
                   {scenes > 0 && <span className={css.sceneBar} style={{ width: Math.min(18, 4 + scenes * 3) }} />}
                   {free && <span className={css.freeDot} />}
+                  {dated && <span className={css.dateMark} title={dated.label ?? undefined} />}
                 </span>
               </button>
             );
           })}
         </div>
-        <p className={css.note}>Lilac: she wrote in her journal. Blue: a session that day. A bar: her scenes that day. A ring: her free time ahead.</p>
+        <p className={css.note}>Lilac: she wrote in her journal. Blue: a session that day. A bar: her scenes that day. A ring: her free time ahead. A diamond: an important date.</p>
       </div>
     </ScrollArea>
   );

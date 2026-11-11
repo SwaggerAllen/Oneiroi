@@ -5,6 +5,7 @@ import type {
   Ask,
   WorkQueue,
   NeedsYouEntry,
+  ScheduleDate,
   WaitingOnHerEntry,
   PluginProposal,
   PluginsData,
@@ -558,6 +559,13 @@ export const api = {
     call<void>('PUT', `/v1/residents/${residentId}/schedule/rounds`, { every_hours: everyHours, waking }),
   setQuietHours: (residentId: string, from: string | null, to: string | null) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/quiet-hours`, { from, to }),
+  // Important dates (spec §6.7): a title, the instant, a kind; countdowns derived now.
+  dates: (residentId: string) => call<ScheduleDate[]>('GET', `/v1/residents/${residentId}/dates`),
+  addDate: (residentId: string, d: { title: string; on: string; kind: string }) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/dates`, d),
+  changeDate: (residentId: string, number: number, d: { title: string; on: string; kind: string }) =>
+    call<void>('PUT', `/v1/residents/${residentId}/dates/${number}`, d),
+  removeDate: (residentId: string, number: number) => call<void>('DELETE', `/v1/residents/${residentId}/dates/${number}`),
   setTimezone: (residentId: string, timezone: string) => call<void>('PUT', `/v1/residents/${residentId}/timezone`, { timezone }),
   ledger: (residentId: string) => call<Ledger>('GET', `/v1/residents/${residentId}/ledger`),
   setBudget: (residentId: string, purpose: string, cap: string | null, period: string) =>

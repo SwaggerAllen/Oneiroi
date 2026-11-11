@@ -34,6 +34,7 @@ export function Rhythm() {
             <FreeTime s={s} refresh={refresh} />
             {s.rounds && <Rounds rounds={s.rounds} refresh={refresh} />}
             <Quiet quiet={s.quiet} refresh={refresh} />
+            <Dates dates={s.dates} refresh={refresh} />
             <Zone timezone={s.timezone} refresh={refresh} />
           </>
         )}
@@ -369,5 +370,111 @@ function Zone({ timezone, refresh }: { timezone: string; refresh: Refresh }) {
       </div>
       <Failed error={set.error} />
     </section>
+  );
+}
+
+const KINDS = [
+  { kind: 'deadline', label: 'A deadline' },
+  { kind: 'anniversary', label: 'An anniversary' },
+  { kind: 'window', label: 'A window' },
+  { kind: 'recurring', label: 'Every year' },
+];
+
+const countdown = (n: number) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : n > 1 ? `in ${n} days` : n === -1 ? 'yesterday' : `${-n} days ago`);
+// The instant as the day it falls on, in the browser's own date input form.
+const dayOf = (iso: string) => iso.slice(0, 10);
+
+/**
+ * Important dates (spec §6.7): what she counts down to with you and keeps
+ * in mind on the day; a check-in's "dates" part carries them. A date is a
+ * day; it is stored as noon on it, so no zone moves it across midnight.
+ */
+function Dates({ dates, refresh }: { dates: ScheduleToday['dates']; refresh: Refresh }) {
+  const { id, name } = useSubject();
+  const [title, setTitle] = useState('');
+  const [on, setOn] = useState('');
+  const [kind, setKind] = useState('deadline');
+  const add = useWrite(
+    () => api.addDate(id, { title: title.trim(), on: `${on}T12:00:00Z`, kind }),
+    () => (setTitle(''), setOn(''), refresh()),
+  );
+  const sorted = [...dates].sort((a, b) => a.days_to - b.days_to);
+  return (
+    <section className={css.section} aria-label="Important dates">
+      <h2 className={css.headingWitness}>IMPORTANT DATES</h2>
+      {sorted.length === 0 && <p className={css.note}>None yet. A deadline, an anniversary, a window: what {name} should count down to with you.</p>}
+      {sorted.map((d) => (
+        <DateRow key={d.number} d={d} refresh={refresh} />
+      ))}
+      <div className={css.addRow}>
+        <input id="date-title" className={css.time} style={{ flex: '1 1 160px' }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What it is" aria-label="What it is" />
+        <input id="date-on" className={css.time} type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="The day" />
+        <select id="date-kind" className={css.time} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Kind">
+          {KINDS.map((k) => (
+            <option key={k.kind} value={k.kind}>
+              {k.label}
+            </option>
+          ))}
+        </select>
+        <button type="button" className={css.addButton} disabled={!title.trim() || !on || add.isPending} onClick={() => add.mutate(undefined)}>
+          Add the date
+        </button>
+      </div>
+      <Failed error={add.error} />
+    </section>
+  );
+}
+
+function DateRow({ d, refresh }: { d: ScheduleToday['dates'][number]; refresh: Refresh }) {
+  const { id } = useSubject();
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(d.title);
+  const [on, setOn] = useState(dayOf(d.on));
+  const [kind, setKind] = useState(d.kind);
+  const [confirming, setConfirming] = useState(false);
+  const change = useWrite(() => api.changeDate(id, d.number, { title: title.trim(), on: `${on}T12:00:00Z`, kind }), () => (setEditing(false), refresh()));
+  const remove = useWrite(() => api.removeDate(id, d.number), refresh);
+  const label = KINDS.find((k) => k.kind === d.kind)?.label ?? d.kind;
+  return (
+    <div className={css.row} style={{ flexWrap: 'wrap', gap: 8 }}>
+      {editing ? (
+        <span className={css.addRow} style={{ flexBasis: '100%' }}>
+          <input className={css.time} style={{ flex: '1 1 160px' }} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="What it is" />
+          <input className={css.time} type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="The day" />
+          <select className={css.time} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Kind">
+            {KINDS.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+          <button type="button" className={css.addButton} disabled={!title.trim() || !on || change.isPending} onClick={() => change.mutate(undefined)}>
+            Save
+          </button>
+          <button type="button" className={css.quiet} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <>
+          <span>
+            {d.title}
+            <span className={css.note}> · {label}</span>
+          </span>
+          <span className={css.meta}>
+            {new Date(d.on).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} · {countdown(d.days_to)}
+          </span>
+          <span className={css.addRow} style={{ flexBasis: '100%' }}>
+            <button type="button" className={css.quiet} onClick={() => setEditing(true)}>
+              Change
+            </button>
+            <button type="button" className={css.quiet} onClick={() => (confirming ? remove.mutate(undefined) : setConfirming(true))} onBlur={() => setConfirming(false)}>
+              {confirming ? 'Remove it' : 'Remove'}
+            </button>
+          </span>
+        </>
+      )}
+      <Failed error={change.error ?? remove.error} />
+    </div>
   );
 }

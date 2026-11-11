@@ -58,6 +58,12 @@ Every action the current client's ScheduleContainer offers is here
 against Mira through the worktree's Vite server: Rhythm reads, a
 check-in added and deleted.
 
+- **Important dates** (Rhythm, spec §6.7): each with its kind (a
+  deadline, an anniversary, a window, every year) and its countdown;
+  added, changed and removed (remove asks twice). A date is a day, kept
+  as noon on it so no zone moves it across midnight. The month marks a
+  day holding one with a diamond, named in the day's label.
+
 Not built:
 - the year view;
 - recurrence (scheduling-notes.md);

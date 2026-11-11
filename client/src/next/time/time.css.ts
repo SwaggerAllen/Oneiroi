@@ -169,3 +169,4 @@ export const quiet = style({
   cursor: 'pointer',
   selectors: { '&:disabled': { opacity: 0.5, cursor: 'default' } },
 });
+export const dateMark = style({ width: 6, height: 6, transform: 'rotate(45deg)', background: vars.color.witness.accent });
