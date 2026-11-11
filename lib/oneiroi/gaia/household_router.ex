@@ -6,5 +6,7 @@ defmodule Oneiroi.Gaia.HouseholdRouter do
     prefix: "household-",
     commands: "Oneiroi.Gaia.Commands",
     dispatching:
-      ~w(FoundHousehold JoinHouseholdWitness JoinHouseholdResident LeaveHouseholdResident GrantHouseholdTerms)
+      ~w(FoundHousehold JoinHouseholdWitness JoinHouseholdResident LeaveHouseholdResident GrantHouseholdTerms
+        ProposeHouseholdContract SignHouseholdContract OpenHouseholdBallot VoteHouseholdBallot
+        CloseHouseholdBallot WatchHouseholdThread)
 end

@@ -6,7 +6,16 @@ defmodule Oneiroi.Gaia.Projectors.Household do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Household, HouseholdResident, HouseholdWitness}
+
+  alias Oneiroi.Gaia.Store.{
+    Household,
+    HouseholdBallot,
+    HouseholdContract,
+    HouseholdResident,
+    HouseholdVote,
+    HouseholdWatch,
+    HouseholdWitness
+  }
 
   fold(%Events.HouseholdFounded{} = e, _metadata, fn multi ->
     multi
@@ -26,7 +35,13 @@ defmodule Oneiroi.Gaia.Projectors.Household do
     Multi.insert(
       multi,
       :witness,
-      %HouseholdWitness{household_id: e.id, account_id: e.account_id, joined_at: e.at},
+      %HouseholdWitness{
+        household_id: e.id,
+        account_id: e.account_id,
+        joined_at: e.at,
+        signed_version: e.signed_version,
+        signed_at: e.signed_version && e.at
+      },
       on_conflict: :nothing,
       conflict_target: [:household_id, :account_id]
     )
@@ -36,7 +51,13 @@ defmodule Oneiroi.Gaia.Projectors.Household do
     Multi.insert(
       multi,
       :resident,
-      %HouseholdResident{household_id: e.id, resident_id: e.resident_id, joined_at: e.at},
+      %HouseholdResident{
+        household_id: e.id,
+        resident_id: e.resident_id,
+        joined_at: e.at,
+        signed_version: e.signed_version,
+        signed_at: e.signed_version && e.at
+      },
       on_conflict: :nothing,
       conflict_target: [:household_id, :resident_id]
     )
@@ -66,4 +87,134 @@ defmodule Oneiroi.Gaia.Projectors.Household do
       ]
     )
   end)
+
+  # ---- the contract, its ballots and the watch (gaia#27 to #32) ----
+
+  fold(%Events.HouseholdContractProposed{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :contract,
+      %HouseholdContract{
+        household_id: e.id,
+        version: e.version,
+        prose: e.prose,
+        decided_by: by(e.actor),
+        decided_at: e.at,
+        note: e.note
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :version]
+    )
+  end)
+
+  fold(%Events.HouseholdContractSigned{member_kind: "witness"} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :signed,
+      from(m in HouseholdWitness,
+        where: m.household_id == ^e.id and m.account_id == ^e.member_id
+      ),
+      set: [signed_version: e.version, signed_at: e.at]
+    )
+  end)
+
+  fold(%Events.HouseholdContractSigned{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :signed,
+      from(m in HouseholdResident,
+        where: m.household_id == ^e.id and m.resident_id == ^e.member_id
+      ),
+      set: [signed_version: e.version, signed_at: e.at]
+    )
+  end)
+
+  fold(%Events.HouseholdBallotOpened{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :ballot,
+      %HouseholdBallot{
+        household_id: e.id,
+        number: e.ballot,
+        thread: e.thread,
+        bundle: e.bundle,
+        term_days: e.term_days,
+        opened_by: by(e.actor),
+        opened_at: e.at,
+        closes_at: e.closes_at,
+        note: e.note
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :number]
+    )
+  end)
+
+  fold(%Events.HouseholdBallotVoted{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :vote,
+      %HouseholdVote{
+        household_id: e.id,
+        ballot: e.ballot,
+        member_kind: e.member_kind,
+        member_id: e.member_id,
+        vote: e.vote,
+        voted_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :ballot, :member_kind, :member_id]
+    )
+  end)
+
+  fold(%Events.HouseholdBallotClosed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :closed,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and a ballot's number is within it
+      from(b in HouseholdBallot, where: b.household_id == ^e.id and b.number == ^e.ballot),
+      set: [
+        closed_at: e.at,
+        passed: e.passed,
+        yes: e.yes,
+        no: e.no,
+        members: e.members,
+        outcome: e.note
+      ]
+    )
+  end)
+
+  fold(%Events.HouseholdContractAmended{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :contract,
+      %HouseholdContract{
+        household_id: e.id,
+        version: e.version,
+        prose: e.prose,
+        rules: e.rules,
+        settings: e.settings,
+        bundle: e.bundle,
+        ballot: e.ballot,
+        decided_by: by(e.actor),
+        decided_at: e.at,
+        note: e.note
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :version]
+    )
+  end)
+
+  fold(%Events.HouseholdThreadWatched{} = e, _metadata, fn multi ->
+    Multi.insert(multi, :watch, %HouseholdWatch{
+      household_id: e.id,
+      watcher_id: e.resident_id,
+      thread: e.thread,
+      until: e.until,
+      watched_at: e.at
+    })
+  end)
+
+  defp by(%{kind: kind, id: id}), do: "#{kind}:#{id}"
+  defp by(%{"kind" => kind, "id" => id}), do: "#{kind}:#{id}"
+  defp by(_none), do: nil
 end

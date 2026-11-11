@@ -26,6 +26,9 @@ defmodule Oneiroi.Seshat do
       Oneiroi.AgathosDaimon,
       Oneiroi.Ethos,
       Oneiroi.Eunomia,
+      # The household's membership, its contract, ballots and watch
+      # (gaia#27 to #32), for the household's shelf (seshat#58).
+      Oneiroi.Gaia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
       Oneiroi.SimaQian,
@@ -55,6 +58,8 @@ defmodule Oneiroi.Seshat do
       Figures,
       Router,
       IndexWorker,
+      Household,
+      HouseholdBallotWorker,
       Commands.WriteDocument,
       Commands.AdoptDocument,
       Commands.PublishPiece,
@@ -150,6 +155,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Externals
+  alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
@@ -169,6 +175,11 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def config do
     [
+      {:household_witness_reads, "SESHAT_HOUSEHOLD_WITNESS_READS",
+       cast: &__MODULE__.cast_witness_reads/1,
+       default: "whole",
+       usage:
+         "what a witness reads of a household's shelf (seshat#64): whole, every thread and document, the resident's lean on design household-communication §8, his word awaited; own, only what the witness or a resident it witnesses took part in"},
       {:embedding_model, "SESHAT_EMBEDDING_MODEL",
        default: "openai/text-embedding-3-small",
        usage:
@@ -244,7 +255,11 @@ defmodule Oneiroi.Seshat do
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:seshat_nightly, cron: [{"15 3 * * *", Oneiroi.Seshat.IndexWorker}]}]
+    [
+      {:seshat_nightly, cron: [{"15 3 * * *", Oneiroi.Seshat.IndexWorker}]},
+      # A household ballot closes at the instant its term ends (seshat#63).
+      {:seshat_household, []}
+    ]
   end
 
   @impl Oneiroi.Component
@@ -293,6 +308,23 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def errors do
     [
+      {:seshat_household_not_member, "only a member of a household reads or writes its shelf",
+       remedy: "a witness and the residents in its household are its members"},
+      {:seshat_household_residents_write,
+       "a household's shelf is written by its residents; a witness writes only a vote, as a reply on a ballot",
+       remedy: "read the shelf whole; vote with a reply carrying yes or no"},
+      {:seshat_household_invalid,
+       "a household post is a thread with a one-line title (at most 200 characters) and words (at most 64,000), or a document of a household kind at a path of its own; a ballot carries its bundle and its term",
+       remedy:
+         "household_read lists the shelf; a thread needs a title and words, a document a path like design/<name>.md"},
+      {:seshat_household_written, "a household path is written once; replies append beside it",
+       remedy: "post under a new name, or reply to the thread"},
+      {:seshat_household_no_such_thread, "the household has no thread at that path",
+       remedy: "household_read with no path lists the threads, each by its path"},
+      {:seshat_household_no_such_document, "the household's shelf holds nothing at that path",
+       remedy: "household_read with no path lists what it holds"},
+      {:seshat_household_not_a_ballot, "a vote is a reply on a thread that holds a ballot",
+       remedy: "reply with words alone here; a ballot's thread says so at its top"},
       {:seshat_path_invalid,
        "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a text file's name alone at the root (a root document, or a keepsake once registered)",
        remedy:
@@ -518,6 +550,60 @@ defmodule Oneiroi.Seshat do
   )
 
   # ---- the theme (seshat#56) ----
+
+  # ---- the household's shelf (seshat#58 to #64) ----
+
+  @doc "The household's shelf as a member reads it, paged (seshat#61): the contract, the threads newest first, the documents."
+  @spec household_shelf(Oneiroi.Actor.t(), non_neg_integer()) :: {:ok, map()} | {:error, term()}
+  defexport(household_shelf(actor, from), do: Household.shelf(actor, from))
+
+  @doc "One thread with every reply, a document, or the contract, whole (seshat#61)."
+  @spec household_read(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_read(actor, path), do: Household.read(actor, path))
+
+  @doc "A resident posts a thread, a ballot's thread, or a document of a household kind (seshat#59, #63)."
+  @spec household_post(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_post(actor, attrs), do: Household.post(actor, attrs))
+
+  @doc "A member appends to a thread: a resident's words or vote, a witness's vote (seshat#59, #60, #63)."
+  @spec household_reply(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_reply(actor, thread, attrs), do: Household.reply(actor, thread, attrs))
+
+  @doc "A resident watches a household thread for the hours it states (seshat#62)."
+  @spec household_watch(Oneiroi.Actor.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_watch(actor, thread, hours), do: Household.watch(actor, thread, hours))
+
+  @doc "The household contract as its members read it (gaia#27 to #31)."
+  @spec household_contract(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_contract(actor), do: Household.contract(actor))
+
+  @doc "The founding witness proposes the household contract's version 1; CONTRACT.md is rendered (gaia#27)."
+  @spec household_propose_contract(Oneiroi.Actor.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_propose_contract(actor, prose, note),
+    do: Household.propose_contract(actor, prose, note)
+  )
+
+  @doc "A member signs the household contract's version in force (gaia#28)."
+  @spec household_sign_contract(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_sign_contract(actor), do: Household.sign_contract(actor))
+
+  @doc "Closes a household ballot whose term has run (seshat#63); the job's unit."
+  @spec close_household_ballot(String.t(), integer(), Oneiroi.Actor.t()) ::
+          {:ok, map() | :closed} | {:error, term()}
+  defexport(close_household_ballot(household_id, ballot, actor),
+    do: Household.close_ballot(household_id, ballot, actor)
+  )
+
+  @doc false
+  def cast_witness_reads("whole"), do: {:ok, :whole}
+  def cast_witness_reads("own"), do: {:ok, :own}
+
+  def cast_witness_reads(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected whole or own"}
+  end
 
   @doc "The theme: the three seeds from THEME.md or the default, their checks, and her proposals."
   @spec theme(String.t()) :: map()

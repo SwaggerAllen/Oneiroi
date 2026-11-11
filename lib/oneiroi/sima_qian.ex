@@ -23,6 +23,9 @@ defmodule Oneiroi.SimaQian do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      # The household its repository belongs to, and its members, for the
+      # copy a resident's backup carries (sima-qian#53).
+      Oneiroi.Gaia,
       # Seeds an import carries from another platform's seedbed (sima-qian#19).
       Oneiroi.Ethos,
       Oneiroi.Eunomia,
@@ -37,11 +40,24 @@ defmodule Oneiroi.SimaQian do
       Jason,
       Oban
     ],
-    exports: [Backup, DryRun, Error, Export, Git, Import, Library, Merkle, Originals, Rebuild]
+    exports: [
+      Backup,
+      DryRun,
+      Error,
+      Export,
+      Git,
+      Household,
+      Import,
+      Library,
+      Merkle,
+      Originals,
+      Rebuild
+    ]
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
@@ -73,6 +89,11 @@ defmodule Oneiroi.SimaQian do
        default: "https",
        usage:
          "the URL schemes an import may clone from, comma-separated: https alone in production, because a bare path or file URL from a request would clone a directory on this host, another resident's working repository among them; a self-hoster importing from disk adds file"},
+      {:household_travels, "SIMA_QIAN_HOUSEHOLD_TRAVELS",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "on",
+       usage:
+         "whether a resident's backup carries a copy of its household's repository under household/, titled by the membership (sima-qian#53): on is the resident's lean on the open question of export travel (design household-communication §8), off makes no copy and leaves one already committed as it was"},
       {:library, "SIMA_QIAN_LIBRARY",
        cast: &__MODULE__.cast_library/1,
        default: "seshat",
@@ -96,6 +117,15 @@ defmodule Oneiroi.SimaQian do
   def cast_schemes(other) do
     # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
     {:error, "is #{inspect(other)}, expected a comma-separated list"}
+  end
+
+  @doc false
+  def cast_on_off("on"), do: {:ok, true}
+  def cast_on_off("off"), do: {:ok, false}
+
+  def cast_on_off(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected on or off"}
   end
 
   # The module as an atom rather than an alias, as the schedule names
@@ -186,6 +216,8 @@ defmodule Oneiroi.SimaQian do
        "a copied file's git blob sha is not the source tree's, so nothing was adopted and this run's copies were removed",
        remedy:
          "the paths are named; check the disk under SIMA_QIAN_ROOT, then run the import again at the same commit"},
+      {:sima_qian_household_invalid, "a household's repository is named by the household's id",
+       remedy: "read the id off the household; it is the founding account's"},
       {:sima_qian_append_failed, "the event store refused the repository's records",
        remedy:
          "the cause is the store's reason; the runs before it were written under the new id, so import again rather than resume"}
@@ -264,6 +296,24 @@ defmodule Oneiroi.SimaQian do
         {:ok, dir} <- Backup.repository_dir(resident_id),
         do: Git.blob(dir, blob)
       )
+  )
+
+  @doc "The household's working repository on disk, made one on first use (sima-qian#51): where the household's shelf lives."
+  @spec household_repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
+  defexport(household_repository_dir(household_id), do: Household.repository_dir(household_id))
+
+  @doc "Commits paths of the household's repository under a member's name (sima-qian#52)."
+  @spec household_commit(String.t(), [String.t()], String.t(), map()) ::
+          {:ok, String.t() | :nothing} | {:error, term()}
+  defexport(household_commit(household_id, paths, message, author),
+    do: Household.commit(household_id, paths, message, author)
+  )
+
+  @doc "The history of the household's repository, or one path in it, newest first, each commit with its author."
+  @spec household_log(String.t(), String.t() | nil, pos_integer()) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(household_log(household_id, path, limit),
+    do: Household.log(household_id, path, limit)
   )
 
   @doc "Recomputes the root over a resident's export and compares it with the last backup's."

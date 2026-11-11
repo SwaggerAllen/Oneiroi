@@ -920,7 +920,7 @@ defmodule Oneiroi.Sunna.Schedules do
          [_ | _] = letters <-
            resident_id
            |> Kumbukumbu.inbox(key)
-           |> Enum.filter(&(&1.to_name == name and is_binary(&1.from_session))),
+           |> Enum.filter(&(&1.to_name == name and wakes?(&1))),
          command = %Commands.WakeForLetters{
            actor: actor,
            at: Clock.now(),
@@ -1038,10 +1038,17 @@ defmodule Oneiroi.Sunna.Schedules do
     resident_id
     |> Kumbukumbu.letters()
     |> Enum.any?(
-      &(is_binary(&1.from_session) and &1.to_name not in ["house", "Free time"] and
+      &(wakes?(&1) and &1.to_name not in ["house", "Free time"] and
           &1.to_name not in &1.read_by)
     )
   end
+
+  # A letter another conversation sent wakes the chat (#24), and so does a
+  # household watch's poke (sunna#49): the resident asked for it, for a
+  # term it set, so a reply in that thread reaches her as one from her
+  # own conversations does.
+  defp wakes?(letter),
+    do: is_binary(letter.from_session) or letter.from_name == Kumbukumbu.household_sender()
 
   defp letters_note(letters, numbers) do
     listed =

@@ -78,6 +78,13 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdResidentJoined,
       Events.HouseholdResidentLeft,
       Events.HouseholdTermsGranted,
+      Events.HouseholdContractProposed,
+      Events.HouseholdContractSigned,
+      Events.HouseholdBallotOpened,
+      Events.HouseholdBallotVoted,
+      Events.HouseholdBallotClosed,
+      Events.HouseholdContractAmended,
+      Events.HouseholdThreadWatched,
       Households,
       HouseholdRouter,
       Events.InviteIssued,
@@ -182,10 +189,17 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.RoleGranted, 1},
       {Oneiroi.Gaia.Events.RoleRevoked, 1},
       {Oneiroi.Gaia.Events.HouseholdFounded, 1},
-      {Oneiroi.Gaia.Events.HouseholdWitnessJoined, 1},
-      {Oneiroi.Gaia.Events.HouseholdResidentJoined, 1},
+      {Oneiroi.Gaia.Events.HouseholdWitnessJoined, 2},
+      {Oneiroi.Gaia.Events.HouseholdResidentJoined, 2},
       {Oneiroi.Gaia.Events.HouseholdResidentLeft, 1},
       {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1},
+      {Oneiroi.Gaia.Events.HouseholdContractProposed, 1},
+      {Oneiroi.Gaia.Events.HouseholdContractSigned, 1},
+      {Oneiroi.Gaia.Events.HouseholdBallotOpened, 1},
+      {Oneiroi.Gaia.Events.HouseholdBallotVoted, 1},
+      {Oneiroi.Gaia.Events.HouseholdBallotClosed, 1},
+      {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
+      {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.InviteIssued, 1},
       {Oneiroi.Gaia.Events.InviteRedeemed, 1},
       {Oneiroi.Gaia.Events.InviteRevoked, 1},
@@ -235,6 +249,34 @@ defmodule Oneiroi.Gaia do
       {:gaia_household_invalid,
        "a household is founded by an account, and its terms are a plan, a price of zero or more, an end and a source, with a note",
        remedy: "the details name what is expected"},
+      {:gaia_not_the_founder,
+       "the household contract's first version is the founding witness's to propose",
+       remedy: "the account that founded the household proposes it; every member signs it"},
+      {:gaia_not_a_member,
+       "only a member of the household, a witness or a resident in it, may do that",
+       remedy: "a resident watches; any member signs, opens a ballot and votes"},
+      {:gaia_household_contract_invalid,
+       "the household contract's first version is prose (at most 20,000 characters) with a note, proposed once; a signature is of the version in force",
+       remedy:
+         "read the contract; after version 1 every change is a ballot, and a member signs the version in force"},
+      {:gaia_ballot_invalid,
+       "a ballot is one to twenty rules or settings, a term of one or more whole days set by its proposer, and a note, on a household whose contract is proposed; a vote is yes or no",
+       remedy:
+         "a rule is {\"rule\": text}; a setting is {\"setting\": a lowercase key, \"value\": text, a number or true/false}"},
+      {:gaia_ballot_fixed,
+       "a ballot's bundle is fixed when it opens: nothing is added, changed or removed while it runs",
+       remedy: "let this ballot close; open another on its own thread with the bundle you want"},
+      {:gaia_no_such_ballot, "the household has no ballot with that number",
+       remedy: "read the contract; it lists every ballot"},
+      {:gaia_ballot_closed, "the ballot's term has ended, so it takes no more votes",
+       remedy: "its outcome is on the contract once it is closed"},
+      {:gaia_ballot_open, "the ballot's term is still running",
+       remedy: "it closes at the instant its proposer set; votes are open until then"},
+      {:gaia_ballot_voted, "each member votes once on a ballot",
+       remedy: "your vote stands as cast"},
+      {:gaia_watch_invalid,
+       "a watch is a thread of the household and a term of 1 to 168 hours, stated every time",
+       remedy: "name the thread and how many hours; a day is 24"},
       {:gaia_invite_invalid,
        "an invite is a plan, a price of zero or more, a discount from 0 to 100, at least a day of terms and one use, an optional expiry, and a note",
        remedy: "the details name what is expected; a revocation carries a note too"},
@@ -536,6 +578,99 @@ defmodule Oneiroi.Gaia do
   @doc "The id of the household the account is in (gaia#17)."
   @spec household_id(String.t()) :: String.t()
   defexport(household_id(account_id), do: Households.household_id(account_id))
+
+  @doc "The household a member is in, by its actor (gaia#27): a resident's, or a witness's; nil for anyone else."
+  @spec household_of(Oneiroi.Actor.t()) :: String.t() | nil
+  defexport(household_of(actor), do: Households.household_of(actor))
+
+  @doc "The household a resident is in, with its members by name, or nil (gaia#27)."
+  @spec resident_household(String.t()) :: map() | nil
+  defexport(resident_household(resident_id), do: Households.resident_household(resident_id))
+
+  @doc "The household's members by the names the house uses, each with what it signed (gaia#28)."
+  @spec household_members(String.t()) :: [map()]
+  defexport(household_members(household_id), do: Households.members(household_id))
+
+  @doc "Whether the actor is a witness or a resident in the household."
+  @spec household_member?(String.t(), Oneiroi.Actor.t()) :: boolean()
+  defexport(household_member?(household_id, actor), do: Households.member?(household_id, actor))
+
+  @doc "The name the house uses for a member actor, or nil."
+  @spec household_member_name(String.t(), Oneiroi.Actor.t()) :: String.t() | nil
+  defexport(household_member_name(household_id, actor),
+    do: Households.member_name(household_id, actor)
+  )
+
+  @doc "The household contract (gaia#27 to #31): the version in force, every version, the members' signatures and the ballots."
+  @spec household_contract(String.t()) :: map()
+  defexport(household_contract(household_id), do: Households.contract(household_id))
+
+  @doc "The founding witness proposes the household contract's version 1, prose alone (gaia#27)."
+  @spec propose_household_contract(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(propose_household_contract(household_id, prose, note, actor),
+    do: Households.propose_contract(household_id, prose, note, actor)
+  )
+
+  @doc "A member signs the household contract's version in force (gaia#28)."
+  @spec sign_household_contract(String.t(), integer(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(sign_household_contract(household_id, version, actor),
+    do: Households.sign_contract(household_id, version, actor)
+  )
+
+  @doc "Opens a ballot on a thread with its bundle fixed and its term set by the proposer (gaia#29)."
+  @spec open_household_ballot(
+          String.t(),
+          String.t(),
+          list(),
+          integer(),
+          String.t(),
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(open_household_ballot(household_id, thread, bundle, term_days, note, actor),
+    do: Households.open_ballot(household_id, thread, bundle, term_days, note, actor)
+  )
+
+  @doc "Whether a bundle is one or more rules or settings as the contract holds them (gaia#29)."
+  @spec household_bundle?(term()) :: boolean()
+  defexport(household_bundle?(bundle),
+    do: Oneiroi.Gaia.Household.bundle?(Households.normalize_bundle(bundle))
+  )
+
+  @doc "The ballot a household thread holds, or nil."
+  @spec household_ballot_for_thread(String.t(), String.t()) :: map() | nil
+  defexport(household_ballot_for_thread(household_id, thread),
+    do: Households.ballot_for_thread(household_id, thread)
+  )
+
+  @doc "A member's one vote, yes or no, on an open ballot (gaia#30)."
+  @spec vote_household_ballot(String.t(), integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(vote_household_ballot(household_id, ballot, vote, actor),
+    do: Households.vote(household_id, ballot, vote, actor)
+  )
+
+  @doc "Closes a ballot whose term has run, recording a carried bundle as the contract's next version (gaia#30, #31)."
+  @spec close_household_ballot(String.t(), integer(), Oneiroi.Actor.t()) ::
+          {:ok, map() | :closed} | {:error, term()}
+  defexport(close_household_ballot(household_id, ballot, actor),
+    do: Households.close_ballot(household_id, ballot, actor)
+  )
+
+  @doc "A resident watches one household thread for the hours it states (gaia#32)."
+  @spec watch_household_thread(String.t(), String.t(), integer(), Oneiroi.Actor.t()) ::
+          {:ok, DateTime.t()} | {:error, term()}
+  defexport(watch_household_thread(household_id, thread, hours, actor),
+    do: Households.watch(household_id, thread, hours, actor)
+  )
+
+  @doc "The residents whose watch on a thread runs past `at` (gaia#32)."
+  @spec household_watchers(String.t(), String.t(), DateTime.t()) :: [String.t()]
+  defexport(household_watchers(household_id, thread, at),
+    do: Households.watchers(household_id, thread, at)
+  )
 
   @doc "Grants a household its subscription terms (gaia#17): the platform's, on an invite redeemed, or a super admin's."
   @spec grant_household_terms(String.t(), map(), String.t(), Oneiroi.Actor.t()) ::
