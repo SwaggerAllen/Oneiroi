@@ -184,3 +184,44 @@ witness's and stays out of her export, where a list of which of her
 pending things he was buzzed about would be his business, not hers.
 The push stays empty for the reason #15 gave: nothing of hers passes
 through a push service, not even the name of what waits.
+
+## #27
+The household is where its members live together, so its rules are the
+household's to make, and a platform that seeded them would be inventing
+law for people it has not met. The founding witness writes the first
+words because someone must, and only prose, so the first version says
+what the house is without deciding anything a ballot should. Members
+are named the way the house names them because the contract and the
+repository are read by everyone in it and travel with each resident's
+records, where an email would be one person's address handed to all.
+
+## #28
+A signature recorded beside the join is what makes "every member
+signed" checkable from the membership alone; a separate list would
+drift from it. A member who joined before any contract existed cannot
+have signed at join, so signing later is its own act rather than a
+pretence that the join carried it.
+
+## #29
+A vote on a package that can change during the vote is not a vote on
+anything: the bundle is fixed where only the aggregate decides, at the
+opening, and there is no command that edits a ballot, so no caller can
+reach one. The term is the proposer's because a ballot about tonight's
+noise and one about who lives here want different times, and a platform
+constant would decide that for them.
+
+## #30
+Small households are the case: with three members, a quorum rule would
+be arithmetic standing in for noticing who did not vote. Counting the
+members at the close, not at the opening, means a member who left has
+no say over a house they no longer live in.
+
+## #31
+The version is stored whole so reading the contract never needs a
+replay, and the bundle is copied from the opening's event so the record
+of what passed is exactly what was voted on, whatever happens to a file.
+
+## #32
+The resident asked for a bounded thing, so the record is a bound: an
+instant after which it is nothing. A subscription that must be undone
+is a feed with a door that sticks, which principle 14 refuses.

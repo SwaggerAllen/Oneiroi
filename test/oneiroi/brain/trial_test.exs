@@ -381,7 +381,11 @@ defmodule Oneiroi.Brain.TrialTest do
     {"contract_safe", %{key: "research", note: "not now"}},
     {"free_time_once", %{time: "23:55"}},
     {"revision_accept", %{number: 1, note: "yes"}},
-    {"revision_decline", %{number: 1, note: "no"}}
+    {"revision_decline", %{number: 1, note: "no"}},
+    {"household_post", %{title: "Herons", content: "Seen at the weir."}},
+    {"household_reply", %{thread: "threads/2026-10-26-herons", content: "And again."}},
+    {"household_watch", %{thread: "threads/2026-10-26-herons", hours: 24}},
+    {"household_sign", %{}}
   ]
 
   @other [

@@ -484,13 +484,13 @@ defmodule Oneiroi.Seshat.Household do
     by = author(household_id, actor)
     meta = thread_meta(title || Path.basename(path, ".md"), by, actor)
 
-    with false <- File.exists?(Path.join(dir, path)) || :exists,
+    with false <- File.exists?(Path.join(dir, path)),
          :ok <- write_new!(dir, path, render(meta, text)),
          written = descriptor(dir, Kinds.kind_of(path)) ++ [path],
          {:ok, _} <- commit(household_id, written, "Post: #{path}", by) do
       {:ok, %{path: path, title: title}}
     else
-      :exists ->
+      true ->
         {:error,
          Error.new(:seshat_household_written, :seshat_household_document_exists, path: path)}
 

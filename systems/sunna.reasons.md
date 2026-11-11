@@ -328,3 +328,9 @@ moved a slot; the cap keeps that computation a bounded cost. The entry
 carries a `rule` and a `status` now, while every rule is daily and every
 status scheduled, so recurrence can arrive later as new values in the
 same fields rather than a new shape every client must learn.
+
+## #49
+The watch exists so a reply reaches her while the conversation is
+alive; a letter that waited for her to look would be the household's
+shelf again. She asked for it and set its end, so the wake is hers, and
+it takes the chat's existing bounds rather than new ones.

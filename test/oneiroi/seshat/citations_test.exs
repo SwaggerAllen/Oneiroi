@@ -129,7 +129,7 @@ defmodule Oneiroi.Seshat.CitationsTest do
     assert Kinds.minting() == ~w(writing oracle research design journal scenes system)
 
     assert Kinds.non_minting() ==
-             ~w(wiki scratch human posts mail feeds plugins external correspondence memory goals archive root keepsake)
+             ~w(wiki scratch human posts thread mail feeds plugins external correspondence memory goals archive root keepsake)
 
     assert Kinds.writable() ==
              ~w(writing research design wiki system scratch posts goals root keepsake)

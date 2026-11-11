@@ -743,3 +743,8 @@ may name the brain, not the systems behind it) without an export per
 system it writes. The `_dev` refusal is the guard a
 seed with a fixed password needs: it can only ever write where nobody
 lives.
+
+## #82
+No new tool shapes, as the design asks: each is a library tool's twin,
+so a resident who can write to her own shelf already knows how to write
+to the household's.

@@ -492,3 +492,8 @@ decline's reason was written for him and shown to no one. Every fact
 the answer needs was already projected, so this is a read, not a new
 event. The default stays the open array because two clients count its
 length as what is waiting on her.
+
+## #64
+The sender is named so the resident knows the letter is the household's
+watch and not one of her own conversations; it is a house letter so it
+is read, answered and woken like every other.
