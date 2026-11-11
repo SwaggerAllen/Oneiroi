@@ -50,7 +50,8 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
   });
   const bookmark = useQuery({
     queryKey: ['resident', residentId, 'memory', 'bookmark', citation.ref],
-    queryFn: () => api.bookmark(residentId, citation.ref),
+    // The body is {bookmark, span}; the span is dropped (its words may be a private session's).
+    queryFn: () => api.bookmarkDetail(residentId, citation.ref).then((r) => r.bookmark),
     enabled: citation.kind === 'bookmark',
   });
 

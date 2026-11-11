@@ -158,9 +158,6 @@ Not built:
 - a bookmark's span (above), and pinning as a soul line's evidence
   (`POST /bookmarks/:n/pin` with `evidences`), which no client offered;
 - retrieval by kind (`GET /retrieval?kind=`): Use lists every kind;
-- `api.bookmark`'s declared type is flat (`Bookmark & {messages}`) and
-  the server's body is `{bookmark, span}`, so the chat peek's bookmark
-  reads `line` off the wrong level; the peek is Chat's to fix;
 - state lines (no read of them yet);
 - the charter (passed ballots: S10);
 - her answers to your identity-file edits and bookmark proposals:
