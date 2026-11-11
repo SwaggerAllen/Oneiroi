@@ -21,6 +21,9 @@ turn.
   - Amend: edits the prose and proposes it as a new whole version, with
     a note. There is no separate amend endpoint; an amendment is a new
     version.
+  - Each answer closes its editor at once and says what was done
+    (agreed, declined, or the new version proposed), before the
+    refreshed agreement arrives.
 - **Who she is:** the identity files (SOUL, IDENTITY, USER, GOALS,
   LINKS), all five listed, a file not written yet saying so; each opens
   rendered with **Propose an edit** (`edit/<FILE>`). The edit page is
@@ -128,7 +131,8 @@ turn.
     note (`POST /agreement/switches/:key/safe`);
   - **Propose a version**: every switch, your vows in prose and a
     required note, the switches it changes named; refused while a
-    version is open;
+    version is open; once proposed, the form gives way to the version's
+    number and that the one in force stays until she answers;
   - the versions so far, each with its note, answer and prose;
   - who looks after her: the export wall (lock or reveal, with a note),
     handing over to an account by email, and withdrawing a handover,

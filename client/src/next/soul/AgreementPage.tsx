@@ -108,7 +108,9 @@ function Propose({ a }: { a: Agreement }) {
           {said}
         </p>
       )}
-      {open ? (
+      {said ? (
+        <p className={css.note}>The version in force stays until {name} answers.</p>
+      ) : open ? (
         <p className={css.note}>A version is already open; it is answered before another is proposed.</p>
       ) : (
         <div className={css.cardWaiting}>
