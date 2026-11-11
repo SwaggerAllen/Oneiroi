@@ -1,12 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { api, type GateState } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
+import { Invites } from './Invites';
+import { SaidLine } from './parts';
+import { Roles } from './Roles';
+import { Triage } from './Triage';
+import { useOp } from './useOp';
 import * as css from './operator.css';
 
-type Tab = 'status' | 'door' | 'invites' | 'triage';
+type Tab = 'status' | 'door' | 'roles' | 'invites' | 'triage';
+const TABS: Tab[] = ['status', 'door', 'roles', 'invites', 'triage'];
 
 /**
  * The operator shell (ui-structures.md D: a separate shell at its own
@@ -33,7 +39,7 @@ export function Operator() {
         onSelectionChange={(k) => setTab([...k][0] as Tab)}
         className={css.tabs}
       >
-        {(['status', 'door', 'invites', 'triage'] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <ToggleButton key={t} id={t} className={css.tab}>
             {t[0].toUpperCase() + t.slice(1)}
           </ToggleButton>
@@ -44,6 +50,7 @@ export function Operator() {
           <div className={css.page}>
             {tab === 'status' && <Status />}
             {tab === 'door' && <Door />}
+            {tab === 'roles' && <Roles />}
             {tab === 'invites' && <Invites />}
             {tab === 'triage' && <Triage />}
           </div>
@@ -93,77 +100,49 @@ function Status() {
   );
 }
 
+const GATES: { state: GateState; line: string }[] = [
+  { state: 'closed', line: 'Nobody can sign up.' },
+  { state: 'invite', line: 'Sign-up takes an invite code (the alpha).' },
+  { state: 'open', line: 'Anyone can sign up.' },
+];
+
+/** The front door (gaia#16), set with a recorded note. Roles have their own tab. */
 function Door() {
-  const queries = useQueryClient();
   const platform = useQuery({ queryKey: ['operator', 'platform'], queryFn: api.platform });
+  const op = useOp();
   const [note, setNote] = useState('');
-  const set = useMutation({
-    mutationFn: (state: GateState) => api.setGate(state, note),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ['operator', 'platform'] }),
-  });
   const gate = platform.data?.gate;
   return (
-    <>
-      <section className={css.card}>
-        <h2 className={css.heading}>THE FRONT DOOR</h2>
-        <p>
-          The door is <strong>{gate?.state ?? '…'}</strong>
-          {gate?.set_at ? ` since ${new Date(gate.set_at).toLocaleString()}` : ''}
-          {gate?.note ? ` — “${gate.note}”` : ''}
-        </p>
-        <input className={css.input} placeholder="Why (recorded with the change)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Note" />
-        <div className={css.buttons}>
-          {(['closed', 'invite', 'open'] as GateState[]).map((s) => (
-            <button key={s} type="button" className={css.button} disabled={!note.trim() || s === gate?.state || set.isPending} onClick={() => set.mutate(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className={css.card}>
-        <h2 className={css.heading}>ROLES</h2>
-        {(platform.data?.roles ?? []).map((r) => (
-          <div key={`${r.account_id}-${r.role}`} className={css.row}>
-            <span>{r.email ?? r.account_id}</span>
-            <span className={css.mono}>{r.role}</span>
-          </div>
+    <section className={css.card} aria-label="The front door">
+      <h2 className={css.heading}>THE FRONT DOOR</h2>
+      <p>
+        The door is <strong>{gate?.state ?? '…'}</strong>
+        {gate?.set_at ? ` since ${new Date(gate.set_at).toLocaleString()}` : ''}
+        {gate?.note ? ` — “${gate.note}”` : ''}
+      </p>
+      <input className={css.input} placeholder="Why (recorded with the change)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Note" />
+      <div className={css.buttons}>
+        {GATES.map((g) => (
+          <button
+            key={g.state}
+            type="button"
+            className={css.button}
+            title={g.line}
+            disabled={!note.trim() || g.state === gate?.state || op.busy}
+            onClick={() => void op.run(() => api.setGate(g.state, note.trim()).then(() => `The front door is ${g.state}.`), ['operator', 'platform']).then((ok) => ok && setNote(''))}
+          >
+            {g.state}
+          </button>
         ))}
-      </section>
-    </>
-  );
-}
-
-function Invites() {
-  const invites = useQuery({ queryKey: ['operator', 'invites'], queryFn: api.invites });
-  return (
-    <section className={css.card}>
-      <h2 className={css.heading}>INVITES · {invites.data?.invites.length ?? 0}</h2>
-      {(invites.data?.invites ?? []).map((i) => (
-        <div key={i.id} className={css.row}>
-          <span>
-            {i.plan} · {i.redeemed}/{i.uses} used{i.note ? ` · ${i.note}` : ''}
-          </span>
-          <span className={css.mono}>{i.expires_at ? `until ${i.expires_at.slice(0, 10)}` : 'no expiry'}</span>
-        </div>
-      ))}
-      <p className={css.note}>Issuing and revoking stay in the current client's Operator for now.</p>
-    </section>
-  );
-}
-
-function Triage() {
-  const reports = useQuery({ queryKey: ['operator', 'feedback'], queryFn: api.allFeedback });
-  return (
-    <section className={css.card}>
-      <h2 className={css.heading}>TRIAGE · {reports.data?.length ?? 0}</h2>
-      {(reports.data ?? []).map((r) => (
-        <div key={r.number} className={css.failure}>
-          <span className={css.mono}>
-            #{r.number} · {r.kind} · {r.status} · {r.surface ?? 'no surface'} · {new Date(r.filed_at).toLocaleString()}
-          </span>
-          <span>{r.body}</span>
-        </div>
-      ))}
+      </div>
+      <ul className={css.lines}>
+        {GATES.map((g) => (
+          <li key={g.state} className={css.note}>
+            <strong>{g.state}</strong>: {g.line}
+          </li>
+        ))}
+      </ul>
+      <SaidLine said={op.said} />
     </section>
   );
 }
