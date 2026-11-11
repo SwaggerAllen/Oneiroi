@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api } from '../../api/client';
+import { api, type SoulEdit } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import { NoteAction, PageHead } from './NoteAction';
@@ -168,45 +168,110 @@ function Revise() {
   );
 }
 
-/** Your proposals still open with her: identity-file edits and bookmarks. */
+/**
+ * Your proposals to her (agathos-daimon#43, #44; kumbukumbu#63): open ones
+ * waiting on her, which an identity-file edit can be withdrawn from with a
+ * note; answered ones with her decision and her note; an accepted
+ * bookmark with the line she wrote from yours.
+ */
 export function Proposals({ onBack }: { onBack: () => void }) {
   const { id, name } = useSubject();
-  const edits = useQuery({ queryKey: ['resident', id, 'soul', 'soul-edits'], queryFn: () => api.soulEdits(id) });
-  const bookmarks = useQuery({ queryKey: ['resident', id, 'soul', 'bookmark-proposals'], queryFn: () => api.bookmarkProposals(id) });
+  const [view, setView] = useState<'open' | 'answered' | 'withdrawn'>('open');
+  const edits = useQuery({ queryKey: ['resident', id, 'soul', 'soul-edits', 'all'], queryFn: () => api.soulEdits(id, 'all') });
+  const bookmarks = useQuery({ queryKey: ['resident', id, 'soul', 'bookmark-proposals', 'all'], queryFn: () => api.bookmarkProposals(id, 'all') });
+  const editsIn = (edits.data ?? []).filter((e) => (view === 'withdrawn' ? !!e.withdrawn : view === 'answered' ? !!e.answer : !e.answer && !e.withdrawn));
+  const bookmarksIn = view === 'withdrawn' ? [] : (bookmarks.data ?? []).filter((b) => (view === 'answered' ? !!b.answer : !b.answer));
+  const count = (v: typeof view) =>
+    (edits.data ?? []).filter((e) => (v === 'withdrawn' ? !!e.withdrawn : v === 'answered' ? !!e.answer : !e.answer && !e.withdrawn)).length +
+    (v === 'withdrawn' ? 0 : (bookmarks.data ?? []).filter((b) => (v === 'answered' ? !!b.answer : !b.answer)).length);
   return (
     <ScrollArea label="Your proposals">
       <div className={css.page}>
-        <PageHead
-          title="Your proposals"
-          lead={`What you've proposed that ${name} hasn't answered yet. Once she answers, it leaves this list: an accepted edit is in her file, an accepted bookmark is in her memory.`}
-          onBack={onBack}
-        />
-        <h2 className={css.heading}>IDENTITY FILES · {edits.data?.length ?? 0}</h2>
-        {edits.data?.length === 0 && <p className={css.note}>None open.</p>}
-        {(edits.data ?? []).map((e) => (
-          <div key={e.ref} className={css.cardWaiting}>
-            <p className={css.meta}>
-              {e.file} · {e.proposed_by.kind === 'witness' ? 'YOU' : e.proposed_by.kind.toUpperCase()} · {day(e.proposed_at)} · WAITING ON {name.toUpperCase()}
-            </p>
-            {e.note && <p className={css.note}>Your note: “{e.note}”</p>}
-            <details>
-              <summary className={css.meta}>THE FILE AS PROPOSED</summary>
-              <pre className={css.pre}>{e.content}</pre>
-            </details>
-          </div>
+        <PageHead title="Your proposals" lead={`What you've proposed to ${name}: waiting on her, answered with her note, or withdrawn.`} onBack={onBack} />
+        <div className={css.buttons} role="group" aria-label="Which proposals">
+          {(['open', 'answered', 'withdrawn'] as const).map((v) => (
+            <button key={v} type="button" className={view === v ? css.primary : css.secondary} aria-pressed={view === v} onClick={() => setView(v)}>
+              {v === 'open' ? 'Waiting on her' : v === 'answered' ? 'Answered' : 'Withdrawn'} · {count(v)}
+            </button>
+          ))}
+        </div>
+        <h2 className={css.heading}>IDENTITY FILES · {editsIn.length}</h2>
+        {editsIn.length === 0 && <p className={css.note}>None.</p>}
+        {editsIn.map((e) => (
+          <EditProposal key={e.ref} e={e} name={name} />
         ))}
-        <h2 className={css.heading}>BOOKMARKS · {bookmarks.data?.length ?? 0}</h2>
-        {bookmarks.data?.length === 0 && <p className={css.note}>None open. You propose one from a message in Chat.</p>}
-        {(bookmarks.data ?? []).map((b) => (
-          <div key={b.ref} className={css.cardWaiting}>
-            <p className={css.meta}>
-              {day(b.proposed_at)} · WAITING ON {name.toUpperCase()}
-            </p>
-            <p className={css.plain}>{b.line}</p>
-            {b.note && <p className={css.note}>Your note: “{b.note}”</p>}
-          </div>
-        ))}
+        {view !== 'withdrawn' && (
+          <>
+            <h2 className={css.heading}>BOOKMARKS · {bookmarksIn.length}</h2>
+            {bookmarksIn.length === 0 && <p className={css.note}>{view === 'open' ? 'None open. You suggest one from her reply in Chat.' : 'None.'}</p>}
+            {bookmarksIn.map((b) => (
+              <div key={b.ref} className={b.answer ? css.card : css.cardWaiting}>
+                <p className={css.meta}>
+                  {day(b.proposed_at)}
+                  {b.answer ? ` · ${b.answer.decision === 'accepted' ? 'SHE KEPT IT' : 'SHE DECLINED'} ${day(b.answer.at)}` : ` · WAITING ON ${name.toUpperCase()}`}
+                </p>
+                <p className={css.plain}>{b.line}</p>
+                {b.note && <p className={css.note}>Your note: “{b.note}”</p>}
+                {b.answer?.decision === 'declined' && b.answer.note && <p className={css.note}>Her note: “{b.answer.note}”</p>}
+                {b.answer?.bookmark &&
+                  (b.answer.bookmark.private ? (
+                    <p className={css.note}>She kept it as bookmark #{b.answer.bookmark.number}, in a private session; its words are hers.</p>
+                  ) : (
+                    <p className={css.note}>
+                      In her words, #{b.answer.bookmark.number}: “{b.answer.bookmark.line}”
+                    </p>
+                  ))}
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </ScrollArea>
+  );
+}
+
+function EditProposal({ e, name }: { e: SoulEdit; name: string }) {
+  const { id } = useSubject();
+  const qc = useQueryClient();
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [note, setNote] = useState('');
+  const withdraw = useMutation({
+    mutationFn: () => api.withdrawSoulEdit(id, e.ref, note.trim()),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['resident', id, 'soul'] }),
+  });
+  const status = e.withdrawn
+    ? `WITHDRAWN ${day(e.withdrawn.at)}`
+    : e.answer
+      ? `${e.answer.decision === 'accepted' ? 'SHE ACCEPTED' : 'SHE DECLINED'} ${day(e.answer.at)}`
+      : `WAITING ON ${name.toUpperCase()}`;
+  return (
+    <div className={e.answer || e.withdrawn ? css.card : css.cardWaiting}>
+      <p className={css.meta}>
+        {e.file} · {day(e.proposed_at)} · {status}
+      </p>
+      {e.note && <p className={css.note}>Your note: “{e.note}”</p>}
+      {e.answer?.note && <p className={css.note}>Her note: “{e.answer.note}”</p>}
+      {e.withdrawn && <p className={css.note}>Why you withdrew it: “{e.withdrawn.note}”</p>}
+      <details>
+        <summary className={css.meta}>THE FILE AS PROPOSED</summary>
+        <pre className={css.pre}>{e.content}</pre>
+      </details>
+      {!e.answer && !e.withdrawn &&
+        (withdrawing ? (
+          <div className={css.buttons}>
+            <input id={`withdraw-${e.ref}`} className={css.input} value={note} onChange={(ev) => setNote(ev.target.value)} placeholder="Why (she reads it)" aria-label="Why you withdraw it" />
+            <button type="button" className={css.secondary} disabled={!note.trim() || withdraw.isPending} onClick={() => withdraw.mutate()}>
+              Withdraw it
+            </button>
+          </div>
+        ) : (
+          <div className={css.buttons}>
+            <button type="button" className={css.small} onClick={() => setWithdrawing(true)}>
+              Withdraw
+            </button>
+          </div>
+        ))}
+      {withdraw.error && <p className={css.note}>That didn't go through: {(withdraw.error as Error).message}</p>}
+    </div>
   );
 }

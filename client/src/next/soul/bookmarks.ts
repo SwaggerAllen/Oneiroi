@@ -20,7 +20,7 @@ export function filterBookmarks(rows: Bookmark[], tag: string | null, query: str
   return rows.filter(
     (b) =>
       (tag === null || b.tags.includes(tag)) &&
-      (!needle || b.line.toLowerCase().includes(needle) || (b.summary ?? '').toLowerCase().includes(needle)),
+      (!needle || (b.line ?? "").toLowerCase().includes(needle) || (b.summary ?? '').toLowerCase().includes(needle)),
   );
 }
 

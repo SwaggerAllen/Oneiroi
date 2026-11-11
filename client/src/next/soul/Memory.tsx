@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Bookmark, RetrievalCount } from '../../api/types';
 import { ScrollArea } from '../shell/ScrollArea';
+import { formatHash } from '../state/routes';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { activeTags, filterBookmarks, listedBookmarks, spanWords, who, type MemoryView } from './bookmarks';
@@ -138,16 +139,32 @@ function Row({ b, inIndex }: { b: Bookmark; inIndex: boolean }) {
         {b.pinned_at ? ` · PINNED BY ${who(b.pinned_by?.kind, name).toUpperCase()}` : ''}
         {inIndex ? ' · EVERY TURN' : ''}
       </p>
-      <p className={css.words}>{b.line}</p>
-      {b.summary && <p className={css.note}>{b.summary}</p>}
+      {b.private ? (
+        <p className={css.note}>In a private session of {name}'s: its words are hers.</p>
+      ) : (
+        <>
+          <p className={css.words}>{b.line}</p>
+          {b.summary && <p className={css.note}>{b.summary}</p>}
+        </>
+      )}
       {b.tags.length > 0 && <p className={css.meta}>{b.tags.map((t) => `#${t}`).join(' ')}</p>}
       <div className={css.buttons}>
         <button type="button" className={css.secondary} onClick={() => push(`memory/${b.number}`)}>
           Open
         </button>
+        {!b.private && <MomentLink b={b} />}
         <PinButton b={b} />
       </div>
     </div>
+  );
+}
+
+/** The moment itself, in the conversation at its turn: linked, not shown (the witness's call). */
+function MomentLink({ b }: { b: Bookmark }) {
+  return (
+    <a className={css.secondary} style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} href={formatHash({ tab: 'chat', path: `turn/${b.session_key}/${b.anchor_ref}` })}>
+      Open the moment ›
+    </a>
   );
 }
 
@@ -171,10 +188,10 @@ function PinButton({ b }: { b: Bookmark }) {
 }
 
 /**
- * One bookmark (`memory/<n>`), from `GET /bookmarks/:n`. That read also
- * returns the span's messages, and says nothing of whether the span's
- * session is private and unshared; so only the bookmark is kept and the
- * span is dropped as it arrives (screens/next-soul.md).
+ * One bookmark (`memory/<n>`), from `GET /bookmarks/:n`. The moment is
+ * linked, not shown (the witness's call); a bookmark from a private
+ * session she hasn't shared arrives marked, its words withheld
+ * (kumbukumbu#62), and is said to be hers.
  */
 export function BookmarkPage({ number, onBack }: { number: number; onBack: () => void }) {
   const { id, name } = useSubject();
@@ -192,8 +209,14 @@ export function BookmarkPage({ number, onBack }: { number: number; onBack: () =>
         {one.error && <p className={css.note}>This bookmark couldn't be read here.</p>}
         {b && (
           <div className={b.pinned_at ? css.cardHers : css.card}>
-            <p className={css.words}>{b.line}</p>
-            {b.summary && <p className={css.plain}>{b.summary}</p>}
+            {b.private ? (
+              <p className={css.note}>Made in a private session of {name}'s that she hasn't shared: its words, and the moment around it, are hers.</p>
+            ) : (
+              <>
+                <p className={css.words}>{b.line}</p>
+                {b.summary && <p className={css.plain}>{b.summary}</p>}
+              </>
+            )}
             <p className={css.meta}>
               {new Date(b.anchor_at).toLocaleString()} · {spanWords(b.turns_back).toUpperCase()} · BOOKMARKED BY {who(b.added_by.kind, name).toUpperCase()}
               {b.proposed_by ? ' · PROPOSED BY YOU' : ''}
@@ -206,11 +229,8 @@ export function BookmarkPage({ number, onBack }: { number: number; onBack: () =>
             )}
             {b.last_indexed_at && <p className={css.meta}>LAST LISTED IN A TURN {day(b.last_indexed_at)}</p>}
             {b.tags.length > 0 && <p className={css.meta}>{b.tags.map((t) => `#${t}`).join(' ')}</p>}
-            <p className={css.note}>
-              The span's words are not shown here: the server doesn't say whether its conversation is one {name} keeps private, so
-              they stay where the transcript's own rules govern them.
-            </p>
             <div className={css.buttons}>
+              {!b.private && <MomentLink b={b} />}
               <PinButton b={b} />
             </div>
           </div>

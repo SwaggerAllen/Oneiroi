@@ -109,8 +109,18 @@ describe('Soul › Memory', () => {
     expect(await screen.findByText('the lake in March')).toBeTruthy();
     expect(screen.getByText('by the water')).toBeTruthy();
     expect(screen.queryByText(/words from a private session/)).toBeNull();
-    expect(screen.getByText(/span's words are not shown here/)).toBeTruthy();
+    // The moment is linked, not shown (the witness's call).
+    expect(screen.getByRole('link', { name: /Open the moment/ }).getAttribute('href')).toMatch(/^#\/chat\/turn\//);
     fireEvent.click(screen.getByRole('button', { name: 'Unpin' }));
     await waitFor(() => expect(unpin).toHaveBeenCalledWith('r1', 1));
+  });
+
+  it('marks a bookmark from a private session, with no words and no link to the moment', async () => {
+    const hidden = bm({ number: 9, line: null, summary: null, private: true });
+    vi.spyOn(api, 'bookmarkDetail').mockResolvedValue({ bookmark: hidden, span: [] });
+    vi.spyOn(api, 'indexNow').mockResolvedValue({ listed: [], left_out: 0, elsewhere: 0, description: '' });
+    render(wrap(<BookmarkPage number={9} onBack={() => undefined} />));
+    expect(await screen.findByText(/a private session of Mira's that she hasn't shared/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Open the moment/ })).toBeNull();
   });
 });

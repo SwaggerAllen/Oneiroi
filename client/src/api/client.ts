@@ -212,7 +212,10 @@ export const api = {
   // before it, a direct write (204, nothing back).
   proposeFile: (residentId: string, name: string, content: string, note: string) =>
     call<{ ref: string } | undefined>('PUT', `/v1/residents/${residentId}/files/${name}`, { content, origin: 'authored', note }),
-  soulEdits: (residentId: string) => call<SoulEdit[]>('GET', `/v1/residents/${residentId}/soul-edits`),
+  soulEdits: (residentId: string, state?: 'open' | 'answered' | 'withdrawn' | 'all') =>
+    call<SoulEdit[]>('GET', `/v1/residents/${residentId}/soul-edits${state ? `?state=${state}` : ''}`),
+  withdrawSoulEdit: (residentId: string, ref: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/soul-edits/${encodeURIComponent(ref)}/withdraw`, { note }),
   soulLines: (residentId: string) => call<SoulLine[]>('GET', `/v1/residents/${residentId}/soul-lines`),
   // This read leaves a receipt she sees (spec §12, P41).
   selfLetters: (residentId: string) => call<SelfLetters>('GET', `/v1/residents/${residentId}/self-letters`),
@@ -234,7 +237,8 @@ export const api = {
   revisions: (residentId: string) => call<Revision[]>('GET', `/v1/residents/${residentId}/revisions`),
   revise: (residentId: string, r: { target_kind: string; target_id: string; kind: 'fact' | 'stance'; text: string; note: string }) =>
     call<{ number: number; state: 'applied' | 'proposed' }>('POST', `/v1/residents/${residentId}/revisions`, r),
-  bookmarkProposals: (residentId: string) => call<BookmarkProposal[]>('GET', `/v1/residents/${residentId}/bookmark-proposals`),
+  bookmarkProposals: (residentId: string, state?: 'open' | 'answered' | 'all') =>
+    call<BookmarkProposal[]>('GET', `/v1/residents/${residentId}/bookmark-proposals${state ? `?state=${state}` : ''}`),
   // The prompt path, Get a read, the examples (agathos-daimon#39, #40, #41).
   draftAll: (residentId: string, prompt: string) =>
     call<{
@@ -696,6 +700,10 @@ export interface SoulEdit {
   state: string;
   proposed_by: { kind: string; id: string };
   proposed_at: string;
+  /** Her answer (agathos-daimon#43), null while open. */
+  answer?: { decision: 'accepted' | 'declined'; note: string | null; at: string } | null;
+  /** Your withdrawal (#44), null unless withdrawn. */
+  withdrawn?: { note: string; at: string } | null;
 }
 
 // One line of SOUL.md with the seeds it cites and how often her citations hang on it.
@@ -806,4 +814,11 @@ export interface BookmarkProposal {
   state: string;
   proposed_by: { kind: string; id: string };
   proposed_at: string;
+  /** Her answer (kumbukumbu#63): a decline with her note, or the bookmark she wrote from it. */
+  answer?: {
+    decision: 'accepted' | 'declined';
+    note: string | null;
+    at: string;
+    bookmark: { number: number; line: string | null; summary: string | null; private: boolean } | null;
+  } | null;
 }

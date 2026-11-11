@@ -125,8 +125,10 @@ export interface Turn {
 
 export interface Bookmark {
   number: number;
-  line: string;
+  /** Withheld (null) when it was made in a private session she hasn't shared (kumbukumbu#62). */
+  line: string | null;
   summary: string | null;
+  private?: boolean;
   session_key: string;
   anchor_ref: string;
   anchor_at: string;

@@ -59,14 +59,15 @@ turn.
   - **One bookmark** (`memory/<n>`, also reachable by URL): the line,
     the summary, when, the span's length, who bookmarked, proposed and
     pinned it, when a turn last listed it, the tags, and Pin or Unpin,
-    from `GET /bookmarks/:n`. **The span's words are not shown.** When
-    this page was built that route returned the span's messages even
-    for a bookmark anchored in her private, unshared session, unmarked,
-    so the client keeps only the bookmark and drops the span as it
-    arrives (it is never cached or rendered), and the page says why.
-    The server now marks such a bookmark `private: true`, nulls its
-    words and sends its span as `[]` (kumbukumbu#62), so the span can
-    come back; the client has not taken that up yet.
+    from `GET /bookmarks/:n`. **The moment is linked, not shown** (the
+    witness's call): "Open the moment" opens the conversation at its
+    turn (`#/chat/turn/<session>/<turn>`), on the list rows too.
+  - **A bookmark from her private session** she hasn't shared arrives
+    marked `private` with its line, summary and span withheld
+    (kumbukumbu#62): the list and the page say it is in a private
+    session of hers and its words are hers, with no link to the moment;
+    the navigator's point for it is unlabelled and does not jump, and a
+    citation peek says the same.
   - The view, tag and search are kept per resident while a bookmark is
     open on top of the list.
 - **Her character** (spec §6.17), each a page on this tab's stack:
@@ -100,9 +101,16 @@ turn.
     the record (kind and number or path), fact or stance, the
     correction and a required note (`POST /revisions`). A fact holds at
     once; a stance is proposed to her.
-  - Your proposals (`proposals`): your open identity-file edits (with
-    the file as proposed and your note) and your open bookmark
-    proposals (`GET /soul-edits`, `GET /bookmark-proposals`).
+  - Your proposals (`proposals`): Waiting on her, Answered and
+    Withdrawn, each with its count (`GET /soul-edits?state=all`,
+    `GET /bookmark-proposals?state=all`; agathos-daimon#43,
+    kumbukumbu#63). An identity-file edit shows the file as proposed,
+    your note, and her decision with her note once she answers; an open
+    one can be **withdrawn** with a note she reads (`POST
+    /soul-edits/:ref/withdraw`, #44). A bookmark proposal shows your
+    line and note, and her answer: declined with her note, or kept as
+    her own bookmark in her words (marked, and its words withheld, when
+    she kept it in a private session).
 - **Reacts:** the vocabulary, each emoji with its meaning.
 - **Plugins and model:** installed plugins on or off, and her chat model
   (or the platform default). **Every plugin, and proposals**
@@ -155,16 +163,11 @@ tests (a note gates every consent action; the letters are not read
 until you choose; an edit is proposed with its note).
 
 Not built:
-- a bookmark's span (above), and pinning as a soul line's evidence
-  (`POST /bookmarks/:n/pin` with `evidences`), which no client offered;
+- pinning as a soul line's evidence (`POST /bookmarks/:n/pin` with
+  `evidences`), which no client offered;
 - retrieval by kind (`GET /retrieval?kind=`): Use lists every kind;
 - state lines (no read of them yet);
 - the charter (passed ballots: S10);
-- her answers to your identity-file edits and bookmark proposals: the
-  routes now return them with `?state=answered` (agathos-daimon#43,
-  kumbukumbu#63), which this screen does not call yet;
-- withdrawing your own identity-file edit (`POST
-  /soul-edits/:ref/withdraw`, agathos-daimon#44, not called yet);
 - a first habit (`POST /habits`), which is the creation flow's, before
   first contact;
 - creating or retiring a tag, and taggings (`POST /tags`,

@@ -93,9 +93,10 @@ export function Navigator({
             type="button"
             className={b.pinned_at ? css.pin : css.point}
             style={{ top: `${top}%` }}
-            aria-label={`Bookmark ${b.number}: ${b.line}`}
-            title={`#${b.number} ${b.line}`}
-            onClick={() => onJump(b.anchor_ref)}
+            aria-label={b.private ? `Bookmark ${b.number}, in a private session` : `Bookmark ${b.number}: ${b.line}`}
+            title={b.private ? `#${b.number} · in a private session` : `#${b.number} ${b.line}`}
+            onClick={() => !b.private && onJump(b.anchor_ref)}
+            disabled={b.private}
           />
         );
       })}

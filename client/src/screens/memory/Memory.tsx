@@ -50,7 +50,7 @@ export function Memory({ residentName, bookmarks, tags, index, retrieval = null,
     tab === 'index' ? inIndex : tab === 'all' ? bookmarks : tab === 'pinned' ? pinned : bookmarks.filter((b) => b.tags.includes(tab.slice(4)));
   const needle = query.trim().toLowerCase();
   const rows = needle
-    ? byTab.filter((b) => b.line.toLowerCase().includes(needle) || (b.summary ?? '').toLowerCase().includes(needle))
+    ? byTab.filter((b) => (b.line ?? "").toLowerCase().includes(needle) || (b.summary ?? '').toLowerCase().includes(needle))
     : byTab;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>

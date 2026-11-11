@@ -82,7 +82,7 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
             <p className={css.note}>Reading…</p>
           ) : bookmark.data ? (
             <>
-              <p className={css.line}>{bookmark.data.line}</p>
+              <p className={css.line}>{bookmark.data.private ? 'In a private session: its words are hers.' : bookmark.data.line}</p>
               {bookmark.data.summary && <p className={css.note}>{bookmark.data.summary}</p>}
               <p className={css.meta}>
                 {new Date(bookmark.data.anchor_at).toLocaleString()} · {bookmark.data.tags.join(' · ')}
