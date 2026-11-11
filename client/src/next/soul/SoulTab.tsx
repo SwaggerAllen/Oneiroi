@@ -105,7 +105,7 @@ function Root() {
         <section className={css.agreement} aria-label="Your agreement">
           <h2 className={css.headingWitness}>YOUR AGREEMENT WITH {name.toUpperCase()}</h2>
           {agreement.isPending && <p className={css.note}>Reading…</p>}
-          {contract?.open && <OpenVersion v={contract.open} name={name} inForce={contract.in_force} />}
+          {contract?.open && <OpenVersion key={contract.open.version} v={contract.open} name={name} inForce={contract.in_force} />}
           {contract?.in_force && !contract.open && <VersionBody v={contract.in_force} />}
           {!contract?.in_force && !contract?.open && agreement.data && (
             <p className={css.note}>Unstated: no version has been agreed yet.</p>
@@ -238,12 +238,23 @@ function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; i
   const [mode, setMode] = useState<'read' | 'decline' | 'amend'>('read');
   const [note, setNote] = useState('');
   const [prose, setProse] = useState(v.prose);
-  const done = () => queries.invalidateQueries({ queryKey: ['resident', id, 'soul', 'agreement'] });
+  const [said, setSaid] = useState<string | null>(null);
+  // The answer closes the editor at once, whether or not the refreshed
+  // agreement has arrived: the read can lag the write.
+  const done = (words: string) => {
+    setMode('read');
+    setNote('');
+    setSaid(words);
+    return queries.invalidateQueries({ queryKey: ['resident', id, 'soul', 'agreement'] });
+  };
   const decide = useMutation({
     mutationFn: (d: 'agree' | 'decline') => api.decideContract(id, v.version, d, note),
-    onSuccess: done,
+    onSuccess: (_r, d) => done(d === 'agree' ? `You agreed to version ${v.version}.` : `You declined version ${v.version}; ${name} reads your note.`),
   });
-  const amend = useMutation({ mutationFn: () => api.proposeContract(id, v.terms, prose, note), onSuccess: done });
+  const amend = useMutation({
+    mutationFn: () => api.proposeContract(id, v.terms, prose, note),
+    onSuccess: (r) => done(`Version ${r.version} is proposed; ${name} decides.`),
+  });
   const waitsOnWitness = v.proposed_by === 'resident';
 
   return (
@@ -264,7 +275,12 @@ function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; i
           {v.proposed_by === 'resident' ? `${name}'s note` : 'Your note'}: “{v.note}”
         </p>
       )}
-      {waitsOnWitness && (
+      {said && (
+        <p className={css.said} role="status">
+          {said}
+        </p>
+      )}
+      {waitsOnWitness && !said && (
         <div className={css.decision}>
           {mode !== 'read' && (
             <textarea
