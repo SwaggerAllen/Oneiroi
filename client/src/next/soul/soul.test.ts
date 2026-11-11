@@ -26,6 +26,9 @@ describe('soul', () => {
     // Only the identity files are proposed from here; anything else is the root.
     expect(soulPage('edit/AGENTS.md')).toEqual({ page: 'root' });
     expect(soulPage('nowhere')).toEqual({ page: 'root' });
+    expect(soulPage('memory')).toEqual({ page: 'memory' });
+    expect(soulPage('memory/12')).toEqual({ page: 'bookmark', number: 12 });
+    expect(soulPage('memory/x')).toEqual({ page: 'root' });
   });
 
   it('names the switches a drafted version moves', () => {
