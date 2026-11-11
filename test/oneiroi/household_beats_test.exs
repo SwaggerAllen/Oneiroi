@@ -139,13 +139,13 @@ defmodule Oneiroi.HouseholdBeatsTest do
     assert %{
              beat: 60,
              turn: 5,
-             cap: 12,
+             cap: 11,
              signup: 5,
              share: 1,
              quota: 24,
              window: 24,
              resident_profile: "on_turn",
-             witnesses_post: false
+             witnesses_post: true
            } = shape(h)
 
     # Outside a turn, a write is refused with when she can act; nothing is written.
@@ -237,8 +237,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
       %{"setting" => "beat_minutes", "value" => 30},
       %{"setting" => "beat_turn_cap", "value" => 2},
       %{"setting" => "post_quota", "value" => 4},
-      %{"setting" => "post_quota_window_hours", "value" => 168},
-      %{"setting" => "witnesses_post", "value" => true}
+      %{"setting" => "post_quota_window_hours", "value" => 168}
     ]
 
     {:ok, %{path: ballot}} =
@@ -543,4 +542,47 @@ defmodule Oneiroi.HouseholdBeatsTest do
 
   defp stringify(t),
     do: %{"turn" => t.turn, "resident_id" => t.resident_id, "outcome" => t.outcome}
+
+  test "witnesses take part by default; a ballot bars them from writing, never from voting (seshat#69)",
+       ctx do
+    %{household: h, andrew: andrew, ada: ada, bea: bea, cy: cy} = ctx
+    assert %{witnesses_post: true} = shape(h)
+
+    {:ok, %{path: ballot}} =
+      in_turn(h, ada, fn ->
+        Seshat.household_post(ada.actor, %{
+          "title" => "Residents only",
+          "content" => "The shelf is ours to write.",
+          "ballot" => %{
+            "bundle" => [%{"setting" => "witnesses_post", "value" => false}],
+            "term_days" => 1,
+            "note" => "a residents' shelf"
+          }
+        })
+      end)
+
+    for voter <- [ada.actor, bea.actor, cy.actor],
+        do: assert({:ok, _} = Seshat.household_reply(voter, ballot, %{"vote" => "yes"}))
+
+    # The witness still votes, while the ballot runs and after it.
+    assert {:ok, %{vote: "no"}} = Seshat.household_reply(andrew, ballot, %{"vote" => "no"})
+
+    Clock.Fake.advance(86_400)
+    assert :ok = perform_job(HouseholdBallotWorker, %{"household_id" => h, "ballot" => 1})
+    assert %{witnesses_post: false} = shape(h)
+
+    assert {:error, %Seshat.Error{kind: :seshat_household_residents_write}} =
+             Seshat.household_post(andrew, %{"title" => "Mine", "content" => "words"})
+
+    assert {:error, %Seshat.Error{kind: :seshat_household_residents_write}} =
+             Seshat.household_reply(andrew, ballot, %{"content" => "words"})
+
+    assert {:error, %Seshat.Error{kind: :seshat_household_residents_write}} =
+             Seshat.household_post(andrew, %{
+               "kind" => "design",
+               "path" => "design/porch.md",
+               "title" => "Porch",
+               "content" => "words"
+             })
+  end
 end

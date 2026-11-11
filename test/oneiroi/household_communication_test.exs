@@ -199,12 +199,22 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert {:error, %Seshat.Error{kind: :seshat_household_no_such_thread}} =
              Seshat.household_read(Actor.new(:witness, stranger.id), thread)
 
-    # The witness reads; it does not write the rooms.
-    assert {:error, %Seshat.Error{kind: :seshat_household_residents_write}} =
+    # The witness takes part alongside the residents in every way
+    # (seshat#69): a thread, a reply, a household document.
+    assert {:ok, %{path: mine}} =
              Seshat.household_post(andrew, %{title: "Mine", content: "words"})
 
-    assert {:error, %Seshat.Error{kind: :seshat_household_residents_write}} =
-             Seshat.household_reply(andrew, thread, %{"content" => "words"})
+    # A witness posts once in a thread a beat; its thread was that post.
+    assert {:error, %Seshat.Error{kind: :seshat_household_beat_spent}} =
+             Seshat.household_reply(andrew, mine, %{"content" => "more words"})
+
+    assert {:ok, _} =
+             Seshat.household_post(andrew, %{
+               "kind" => "design",
+               "path" => "design/kitchen.md",
+               "title" => "The kitchen",
+               "content" => "Shelves on the left."
+             })
 
     # A resident's own library refuses the household's kind.
     assert {:error, %Seshat.Error{}} =

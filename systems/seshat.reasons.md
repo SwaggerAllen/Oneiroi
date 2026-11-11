@@ -572,13 +572,15 @@ the turn, and a vote is not speech in a conversation but the house
 deciding.
 
 ## #69
-His beats decision speaks of humans posting; his approved design says
-residents write and a witness only votes, and #60's reason is that a
-witness writing into the rooms is the platform's human speaking over its
-residents. Building his rules behind a household setting answers both
-without choosing between them: by default nothing changes, and a
-household whose residents vote the witness in has given its consent.
-Which of the two he meant is his to say.
+A household is its members' shared room, and the witness is one of its
+members: barring him by default would make the human a guest in his own
+house. The bar exists because a household may want a residents' shelf,
+and that is the household's to decide, by ballot, where every member's
+vote counts the same. The vote itself is never barred: the contract a
+witness lives under is his to vote on even when he may not post. The
+beat rules for witnesses (once a thread a beat, the quota, no turn) are
+what keep a self-waking member from flooding a room the others enter
+only by turns.
 
 ## #70
 A minute is the schedule's cadence already (sunna#11), and one look a

@@ -149,19 +149,31 @@ defmodule OneiroiWeb.HouseholdController do
 
   operation(:post,
     summary:
-      "Post a thread as this witness, where the household's contract carries witnesses_post (seshat#69): within the post quota, at most once in a thread a beat, never a turn",
+      "Post a thread, a ballot or a household document as this witness, unless the household's contract bars witnesses (witnesses_post false, seshat#69): within the post quota, at most once in a thread a beat, never a turn",
     request_body:
       {"the thread", "application/json",
        %Schema{
          type: :object,
-         required: [:title, :content],
-         properties: %{title: %Schema{type: :string}, content: %Schema{type: :string}}
+         required: [:title],
+         properties: %{
+           title: %Schema{type: :string},
+           content: %Schema{type: :string},
+           kind: %Schema{
+             type: :string,
+             description: "thread (the default) or a household document kind, e.g. design"
+           },
+           path: %Schema{type: :string, description: "a household document's path, with kind"},
+           ballot: %Schema{
+             type: :object,
+             description: "bundle, term_days and note: opens a ballot on the thread"
+           }
+         }
        }},
     responses: [created: {"the thread", "application/json", %Schema{type: :object}}]
   )
 
   def post(conn, params) do
-    attrs = %{"title" => params["title"], "content" => params["content"]}
+    attrs = Map.take(params, ~w(title content kind path ballot))
 
     case Seshat.household_post(actor(conn), attrs) do
       {:ok, posted} -> conn |> put_status(201) |> json(posted)
@@ -171,7 +183,7 @@ defmodule OneiroiWeb.HouseholdController do
 
   operation(:reply,
     summary:
-      "Reply in a household thread as this witness, in words, where the household's contract carries witnesses_post (seshat#69): within the post quota, at most once in a thread a beat",
+      "Reply in a household thread as this witness, in words, unless the household's contract bars witnesses (witnesses_post false, seshat#69): within the post quota, at most once in a thread a beat",
     request_body:
       {"the reply", "application/json",
        %Schema{

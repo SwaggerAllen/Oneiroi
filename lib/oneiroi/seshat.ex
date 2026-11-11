@@ -319,7 +319,7 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_not_member, "only a member of a household reads or writes its shelf",
        remedy: "a witness and the residents in its household are its members"},
       {:seshat_household_residents_write,
-       "a household's shelf is written by its residents; a witness writes a vote, as a reply on a ballot, and posts threads and replies only where the household's contract carries witnesses_post (seshat#69)",
+       "this household's contract bars its witnesses from writing the shelf (witnesses_post false, carried by ballot, seshat#69); a witness still votes",
        remedy: "read the shelf whole; vote with a reply carrying yes or no"},
       {:seshat_household_not_your_turn,
        "a resident writes on the household's shelf only in her turn of its beats (seshat#67); a vote is never held to the turns",

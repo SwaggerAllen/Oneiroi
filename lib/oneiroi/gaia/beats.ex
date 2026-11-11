@@ -20,19 +20,22 @@ defmodule Oneiroi.Gaia.Beats do
   """
 
   # The shape when the contract says nothing (gaia#33): an hour's beat, a
-  # five-minute turn guideline, twelve turns, five minutes of sign-up at
-  # the top, one turn each before anyone repeats, and twenty-four posts a
-  # member in any twenty-four hours.
+  # five-minute turn guideline, five minutes of sign-up at the top, as
+  # many turns as fit after it (eleven: the witness, 2026-11-11, "for a 60
+  # minute beat with 5 minute turns and a five minute sign up you can only
+  # fit 11 turns"), one turn each before anyone repeats, and twenty-four
+  # posts a member in any twenty-four hours. The cap has no number of its
+  # own until a ballot gives it one: unset, it is what the shape fits.
   @defaults %{
     "beat_minutes" => 60,
     "turn_minutes" => 5,
-    "beat_turn_cap" => 12,
+    "beat_turn_cap" => nil,
     "signup_minutes" => 5,
     "turns_per_registrant" => 1,
     "post_quota" => 24,
     "post_quota_window_hours" => 24,
     "resident_wake_profile" => "on_turn",
-    "witnesses_post" => false
+    "witnesses_post" => true
   }
 
   # The bounds each integer setting is held to at a ballot's opening: the
@@ -73,30 +76,37 @@ defmodule Oneiroi.Gaia.Beats do
     end
   end
 
-  @doc "Whether settings, merged whole, still give a beat: a sign-up window shorter than the beat, and a turn no longer than it."
+  @doc "Whether settings, merged whole, still give a beat: a sign-up window shorter than the beat, and room after it for at least one whole turn."
   @spec shape_ok?(map()) :: boolean()
   def shape_ok?(settings) do
     s = Map.merge(@defaults, Map.take(settings || %{}, keys()))
 
-    s["signup_minutes"] < s["beat_minutes"] and s["turn_minutes"] <= s["beat_minutes"]
+    s["signup_minutes"] < s["beat_minutes"] and
+      s["turn_minutes"] <= s["beat_minutes"] - s["signup_minutes"]
   end
+
+  @doc "How many whole turns fit in a beat after its sign-up: the cap when no ballot has set one."
+  @spec fit(pos_integer(), non_neg_integer(), pos_integer()) :: pos_integer()
+  def fit(beat, signup, turn), do: max(1, div(beat - signup, turn))
 
   @doc "The shape in force: the contract's settings over the defaults."
   @spec shape(map() | nil) :: map()
   def shape(settings) do
     s = Map.merge(@defaults, Map.take(settings || %{}, keys()))
     beat = s["beat_minutes"]
+    turn = min(s["turn_minutes"], beat)
+    signup = min(s["signup_minutes"], beat - 1)
 
     %{
       beat: beat,
-      turn: min(s["turn_minutes"], beat),
-      cap: s["beat_turn_cap"],
-      signup: min(s["signup_minutes"], beat - 1),
+      turn: turn,
+      cap: s["beat_turn_cap"] || fit(beat, signup, turn),
+      signup: signup,
       share: s["turns_per_registrant"],
       quota: s["post_quota"],
       window: s["post_quota_window_hours"],
       resident_profile: s["resident_wake_profile"],
-      witnesses_post: s["witnesses_post"] == true
+      witnesses_post: s["witnesses_post"] != false
     }
   end
 

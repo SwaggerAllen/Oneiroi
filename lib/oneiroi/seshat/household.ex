@@ -78,9 +78,9 @@ defmodule Oneiroi.Seshat.Household do
   # The household the actor is a member of, for the beats' own calls.
   def member_household(%Actor{} = actor), do: household(actor)
 
-  # Residents post; a witness only where the household's contract says
-  # its witnesses post (seshat#69, `witnesses_post`, false by default:
-  # seshat#60 holds until a ballot carries it).
+  # Every member posts: a witness takes part alongside the residents in
+  # every way (the witness, 2026-11-11), unless a ballot has carried
+  # `witnesses_post` false to bar the household's witnesses (seshat#69).
   defp may_post(%Actor{kind: :resident}, _household_id), do: :ok
 
   defp may_post(%Actor{kind: :witness}, household_id) do
@@ -510,8 +510,7 @@ defmodule Oneiroi.Seshat.Household do
     title = one_line(attrs["title"])
     text = to_string(attrs["content"] || "")
 
-    with :ok <- resident_documents(actor),
-         {:ok, path} <- household_path(attrs["path"] || ""),
+    with {:ok, path} <- household_path(attrs["path"] || ""),
          false <- Kinds.container?(Kinds.kind_of(path)),
          :ok <- worded(text, false) do
       locked(household_id, fn -> write_document(actor, household_id, dir, {path, title, text}) end)
@@ -546,12 +545,6 @@ defmodule Oneiroi.Seshat.Household do
 
   # A household document is a resident's (seshat#69): a witness who posts
   # posts threads and replies.
-  defp resident_documents(%Actor{kind: :resident}), do: :ok
-
-  defp resident_documents(%Actor{}),
-    do:
-      {:error, Error.new(:seshat_household_residents_write, :seshat_household_witness_documents)}
-
   # ---- reply (seshat#59, #60, #62, #63) ----
 
   @doc """
