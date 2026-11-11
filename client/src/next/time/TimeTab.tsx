@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { api } from '../../api/client';
@@ -7,6 +7,7 @@ import { useNow } from '../shell/presence';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { MONTHS, monthCells, shiftMonth } from './calendar';
+import { Rhythm } from './Rhythm';
 import * as css from './time.css';
 
 /**
@@ -211,97 +212,6 @@ function Day({ day }: { day: string }) {
             </div>
           ))}
         </section>
-      </div>
-    </ScrollArea>
-  );
-}
-
-/**
- * Rhythm: the rules. The witness may move her free time and add to it,
- * never take a slot away (the free-time term, scheduling-notes.md); a
- * slot is changed by moving it.
- */
-function Rhythm() {
-  const { id } = useSubject();
-  const queries = useQueryClient();
-  const schedule = useQuery({ queryKey: ['resident', id, 'time', 'schedule'], queryFn: () => api.schedule(id) });
-  const refresh = () => queries.invalidateQueries({ queryKey: ['resident', id, 'time'] });
-  const move = useMutation({
-    mutationFn: ({ from, to }: { from: string; to: string }) =>
-      api.setFreeTime(id, (schedule.data?.free_times ?? []).map((f) => (f.time === from ? to : f.time))),
-    onSuccess: refresh,
-  });
-  const add = useMutation({
-    mutationFn: (time: string) => api.setFreeTime(id, [...(schedule.data?.free_times ?? []).map((f) => f.time), time]),
-    onSuccess: refresh,
-  });
-  const [adding, setAdding] = useState('');
-  const s = schedule.data;
-
-  return (
-    <ScrollArea label="Rhythm">
-      <div className={css.page}>
-        {schedule.isPending && <p className={css.note}>Reading…</p>}
-        {s && (
-          <>
-            <section className={css.section}>
-              <h2 className={css.headingWitness}>CHECK-INS</h2>
-              {s.checkins.map((c) => (
-                <div key={c.key} className={css.row}>
-                  <span>{c.label}</span>
-                  <span className={css.meta}>{c.time}</span>
-                </div>
-              ))}
-            </section>
-            <section className={css.section}>
-              <h2 className={css.headingHers}>FREE TIME · HERS</h2>
-              {s.free_times.map((f) => (
-                <label key={f.time} className={css.rowHers}>
-                  <span>Daily</span>
-                  <input
-                    type="time"
-                    className={css.time}
-                    defaultValue={f.time}
-                    aria-label={`Move the ${f.time} slot`}
-                    onBlur={(e) => e.target.value && e.target.value !== f.time && move.mutate({ from: f.time, to: e.target.value })}
-                  />
-                </label>
-              ))}
-              {(s.free_time_once ?? []).map((o) => (
-                <div key={`${o.day}-${o.time}`} className={css.rowHers}>
-                  <span>Once</span>
-                  <span className={css.meta}>
-                    {o.day} {o.time}
-                  </span>
-                </div>
-              ))}
-              <div className={css.addRow}>
-                <input type="time" className={css.time} value={adding} onChange={(e) => setAdding(e.target.value)} aria-label="A new daily free-time slot" />
-                <button type="button" className={css.addButton} disabled={!adding || add.isPending} onClick={() => add.mutate(adding)}>
-                  Add a slot
-                </button>
-              </div>
-              <p className={css.note}>Slots move; they never disappear. Only she can take one away.</p>
-            </section>
-            <section className={css.section}>
-              <h2 className={css.heading}>ROUNDS · QUIET · ZONE</h2>
-              <div className={css.row}>
-                <span>Rounds</span>
-                <span className={css.meta}>
-                  {s.rounds ? `EVERY ${s.rounds.every_hours}H${s.rounds.waking ? ` · ${s.rounds.waking}` : ''}` : '—'}
-                </span>
-              </div>
-              <div className={css.row}>
-                <span>Quiet hours</span>
-                <span className={css.meta}>{s.quiet ? `${s.quiet.from}–${s.quiet.to}` : 'NONE'}</span>
-              </div>
-              <div className={css.row}>
-                <span>Time zone</span>
-                <span className={css.meta}>{s.timezone.toUpperCase()}</span>
-              </div>
-            </section>
-          </>
-        )}
       </div>
     </ScrollArea>
   );

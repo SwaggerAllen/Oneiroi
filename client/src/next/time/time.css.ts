@@ -123,7 +123,7 @@ export const time = style({
   font: `500 13px ${font.mono}`,
   colorScheme: 'dark',
 });
-export const addRow = style({ display: 'flex', gap: 8, alignItems: 'center' });
+export const addRow = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' });
 export const addButton = style({
   minHeight: 38,
   padding: '0 14px',
@@ -141,3 +141,31 @@ export const marks = style({ display: 'flex', alignItems: 'center', gap: 3, minH
 export const sessionDot = style({ width: 5, height: 5, borderRadius: 3, background: vars.color.witness.accent });
 export const sceneBar = style({ height: 3, borderRadius: 2, background: vars.color.resident.border });
 export const freeDot = style({ width: 6, height: 6, borderRadius: 3, border: `1px solid ${vars.color.resident.accent}` });
+
+// Rhythm's editing (ported from the current client's Schedule).
+export const card = style({ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: 10, background: vars.color.surface, border: `1px solid ${vars.color.border}` });
+export const cardHead = style({ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontSize: 15 });
+export const form = style({ display: 'flex', flexDirection: 'column', gap: 8 });
+export const text = style({
+  width: '100%',
+  padding: 10,
+  borderRadius: radius.m,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `14px/20px ${font.ui}`,
+  resize: 'vertical',
+});
+export const fieldset = style({ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, border: 0 });
+export const check = style({ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, lineHeight: '20px' });
+export const quiet = style({
+  minHeight: 38,
+  padding: '0 12px',
+  borderRadius: radius.m,
+  border: `1px solid ${vars.color.borderStrong}`,
+  background: 'none',
+  color: vars.color.text,
+  font: `500 13px ${font.ui}`,
+  cursor: 'pointer',
+  selectors: { '&:disabled': { opacity: 0.5, cursor: 'default' } },
+});
