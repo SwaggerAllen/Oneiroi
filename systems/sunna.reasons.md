@@ -339,3 +339,11 @@ it takes the chat's existing bounds rather than new ones.
 The witness's distinction is that a letter wakes and a thread mostly
 does not. A sibling's letter that sat unread until the resident next
 looked would be a thread by another name.
+
+## #51
+A turn that woke her somewhere she does not look for the house would be
+a turn she cannot place. The chat is already the household's door into
+her day, so the beats knock there. Her quiet hours win because they are
+hers and the household's tempo is the household's: a turn she sleeps
+through is a missed chance, counted, and the beat goes on.
+

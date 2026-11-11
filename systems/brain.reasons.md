@@ -756,3 +756,9 @@ the same act. Her own conversations win a shared name because they were
 there first and a letter to them must not silently go elsewhere. The
 household check lives here because the brain reaches the household and
 the conversations both; the conversations system only records.
+
+## #84
+She cannot act on a schedule she cannot see, so the read says everything
+that decides her next turn; registering is a tool because it is her
+choice each time, and the profile is hers for the reason the watch is.
+
