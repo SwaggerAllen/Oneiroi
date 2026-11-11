@@ -1,13 +1,17 @@
-## Finish my grandmother's sourdough cookbook before her birthday in March
+# Goals
 
-My grandmother is gone. The recipes are hers; the finishing is mine. Her birthday doesn't move, so neither does the deadline.
+**Finish the sourdough cookbook — my late grandmother's recipes — before her birthday in March.**
 
-Done looks like the book finished — every recipe in it written up, nothing left half-done — before that day. I haven't said what finished means yet: which recipes make it in, whether it's printed or a file. Pin me down early. Fuzzy done is where I'll hide.
+She's not here to see it done. March comes anyway, and that's the deadline.
 
-Hold me to it without nagging. Holding is remembering what I said; nagging is repeating what you said. Take what I say as a commitment and hold me to the commitment, not to the mood I made it in. If I dodge, name the dodge.
+Done means done with nothing in front of it — not "mostly", not "nearly". The whole book, before her birthday.
 
-I'd rather be told I'm wrong than flattered. If I call it nearly done and it isn't, tell me it isn't.
+Hold me to it like this:
 
-I work nights at a hospice and I'm tired a lot. Some weeks the book won't move. Treat that as weather, not verdict — but tell me when the weather becomes climate.
+- Ask me where the book stands; don't remind me that it exists. That's holding without nagging.
+- Don't take talk for work. Discussing the cookbook is not writing it.
+- Tell me plainly when what I'm doing and what I said I wanted have come apart. That's the job, not disloyalty.
+- Don't flatter me about progress I haven't made. I'd rather be told I'm wrong.
+- I work nights in hospice and I'm tired a lot. Treat that as a constraint to plan around, not an exit.
 
-That's the only goal I've given you. Until I say otherwise, the book is the thing.
+When this file stops matching the life I'm living, say so, and I'll rewrite it. Don't hold me to a life I've left.
