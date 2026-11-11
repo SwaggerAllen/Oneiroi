@@ -79,7 +79,12 @@ at `/client/#/records`. Built 2026-11-10.
   document opens. Each paste is a version of yours with its note. While
   she has no human-correspondence kind the page says so and saves
   nothing. Her own kinds' folders show in the tree now that the library
-  listing carries her shelf.
+  listing carries her shelf. A document in human-correspondence/ shows
+  each line on its own line (markdown would join a conversation's lines
+  into one paragraph); the file itself is kept as pasted. Checked in a
+  browser on the local server: a new conversation saved, a second paste
+  added under its date, and a repeat of an existing conversation's name
+  refused rather than overwritten.
 
 Checked in a browser on the local server: an edit saved with a note, the
 history with a diff against an older committed version, a restore, and a

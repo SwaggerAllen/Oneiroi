@@ -47,7 +47,7 @@ export function PasteConversation({ residentId, onAdded, onBack }: { residentId:
           at the end, under the date.
         </p>
         {library.isSuccess && !hasKind && <p className={css.note}>{who} has no {CORRESPONDENCE} folder yet. She makes it as a kind of hers; then a paste lands there.</p>}
-        <select className={css.input} value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Conversation">
+        <select className={css.inputStacked} value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Conversation">
           <option value={NEW}>A new conversation</option>
           {conversations.map((d) => (
             <option key={d.path} value={d.path}>
@@ -57,8 +57,8 @@ export function PasteConversation({ residentId, onAdded, onBack }: { residentId:
         </select>
         {target === NEW && (
           <>
-            <input className={css.input} value={withWhom} onChange={(e) => setWithWhom(e.target.value)} placeholder="Who it is with" aria-label="With whom" />
-            <input className={css.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A title (optional)" aria-label="Title" />
+            <input className={css.inputStacked} value={withWhom} onChange={(e) => setWithWhom(e.target.value)} placeholder="Who it is with" aria-label="With whom" />
+            <input className={css.inputStacked} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A title (optional)" aria-label="Title" />
           </>
         )}
         <textarea className={css.editor} value={text} onChange={(e) => setText(e.target.value)} aria-label="The conversation" />

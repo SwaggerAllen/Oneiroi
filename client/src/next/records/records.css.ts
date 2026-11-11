@@ -172,6 +172,10 @@ export const input = style({
   font: `14px ${font.ui}`,
   flex: '1 1 200px',
 });
+// The same field in a stacked form: in a column, the row's 200px basis
+// would become each field's height.
+export const inputStacked = style([input, { flex: 'none', minHeight: 44 }]);
+
 export const editor = style({
   minHeight: '50vh',
   padding: 14,

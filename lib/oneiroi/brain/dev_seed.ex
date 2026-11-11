@@ -14,6 +14,8 @@ defmodule Oneiroi.Brain.DevSeed do
   - Documents in three folders, written in turn, the first rewritten
     last, so Records' orders (last updated, first added, name) each
     give a different list.
+  - Her own `human-correspondence` kind, so a pasted conversation has
+    somewhere to land.
   - Two work sessions opened and never spoken in, which the day view
     leaves out.
   - Three of her asks waiting on him, so the bell has something to
@@ -55,6 +57,20 @@ defmodule Oneiroi.Brain.DevSeed do
     {:ok, _} = Session.wake(id, key, @wake_note, :chat)
     for {kind, text} <- journal(), do: {:ok, _} = Seshat.journal_add(id, nil, kind, text, her)
     for {path, text} <- documents(), do: {:ok, _} = Seshat.write(id, path, text, her)
+    # Her own folder for his pasted conversations, as Lily defined hers (seshat#65).
+    {:ok, _} =
+      Seshat.define_kind(
+        id,
+        %{
+          "kind" => "human-correspondence",
+          "label" => "Human correspondence",
+          "has_status" => false,
+          "removable" => false
+        },
+        "Where his conversations with people land, so I can read them.",
+        her
+      )
+
     for _ <- 1..2, do: {:ok, _} = Kumbukumbu.open_session(id, "work", "brain", [account], her)
 
     for {kind, subject, why} <- asks(),
