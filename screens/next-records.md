@@ -71,6 +71,15 @@ at `/client/#/records`. Built 2026-11-10.
   words, written under human/, which she reads and never edits. A record
   just written or moved is read again for a moment until it is
   registered.
+- **Paste a conversation** (`paste`, under Add a document, seshat#65,
+  #66): an exchange you are having with someone, pasted into her
+  human-correspondence/ folder. Choose a new conversation (who it is
+  with, and a title, optional) or one already there, paste, and save; a
+  paste into an existing one is added at its end under the date, and the
+  document opens. Each paste is a version of yours with its note. While
+  she has no human-correspondence kind the page says so and saves
+  nothing. Her own kinds' folders show in the tree now that the library
+  listing carries her shelf.
 
 Checked in a browser on the local server: an edit saved with a note, the
 history with a diff against an older committed version, a restore, and a

@@ -7,6 +7,7 @@ import { AddDocument } from './AddDocument';
 import { Editor } from './Editor';
 import { FolderSettings } from './FolderSettings';
 import { History } from './History';
+import { PasteConversation } from './PasteConversation';
 import * as css from './records.css';
 import { Tree } from './Tree';
 import { Viewer } from './Viewer';
@@ -14,6 +15,7 @@ import { Viewer } from './Viewer';
 /**
  * The Records tab: its stack's top says what shows (`doc/<path>`,
  * `history/<path>`, `edit/<path>`, `folder/<kind>`, `cite/<kind>/<ref>`,
+ * `new`, `paste`,
  * or the tree). On a wide screen
  * the tree stays beside the page; on a phone the page takes the screen
  * and Back pops the stack.
@@ -29,7 +31,7 @@ export function RecordsTab({ residentId, path }: { residentId: string; path: str
     const doc = documentPath(c);
     push(doc ? `doc/${doc}` : `cite/${c.kind}/${c.ref}`);
   };
-  const tree = <Tree residentId={residentId} current={path} onOpen={push} onSettings={(k) => push(`folder/${k}`)} onAdd={() => push('new')} />;
+  const tree = <Tree residentId={residentId} current={path} onOpen={push} onSettings={(k) => push(`folder/${k}`)} onAdd={() => push('new')} onPaste={() => push('paste')} />;
 
   // On a wide screen the tree is already beside the page.
   const empty = <div className={css.emptyPage}>Choose a record from the tree.</div>;
@@ -41,6 +43,8 @@ export function RecordsTab({ residentId, path }: { residentId: string; path: str
     page = <History residentId={residentId} path={path.slice(8)} onBack={back} />;
   } else if (path === 'new') {
     page = <AddDocument residentId={residentId} onAdded={(p) => push(`doc/${p}`)} onBack={back} />;
+  } else if (path === 'paste') {
+    page = <PasteConversation residentId={residentId} onAdded={(p) => push(`doc/${p}`)} onBack={back} />;
   } else if (path.startsWith('edit/')) {
     page = <Editor residentId={residentId} path={path.slice(5)} onDone={back} />;
   } else if (path.startsWith('folder/')) {

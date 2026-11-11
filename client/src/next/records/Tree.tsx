@@ -18,12 +18,14 @@ export function Tree({
   onOpen,
   onSettings,
   onAdd,
+  onPaste,
 }: {
   residentId: string;
   current: string;
   onOpen: (path: string) => void;
   onSettings: (kind: string) => void;
   onAdd?: () => void;
+  onPaste?: () => void;
 }) {
   const library = useQuery({ queryKey: ['resident', residentId, 'records', 'library'], queryFn: () => api.library(residentId) });
   const kinds = useQuery({ queryKey: ['resident', residentId, 'records', 'kinds'], queryFn: () => api.kinds(residentId) });
@@ -75,6 +77,11 @@ export function Tree({
         {onAdd && (
           <button type="button" className={css.folder} onClick={onAdd}>
             <span className={css.folderName}>+ Add a document of yours</span>
+          </button>
+        )}
+        {onPaste && (
+          <button type="button" className={css.folder} onClick={onPaste}>
+            <span className={css.folderName}>+ Paste a conversation</span>
           </button>
         )}
         {library.isPending && <p className={css.note}>Reading the shelves…</p>}

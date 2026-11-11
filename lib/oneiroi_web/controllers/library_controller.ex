@@ -18,7 +18,9 @@ defmodule OneiroiWeb.LibraryController do
 
   def index(conn, %{"id" => id}) do
     json(conn, %{
-      kinds: Seshat.kinds(),
+      # Her shelf (seshat#51): the system's kinds, then her own, whose
+      # folders the Records tree shows.
+      kinds: Seshat.kinds(id),
       documents: id |> Seshat.documents() |> Enum.map(&document/1),
       unadopted: Seshat.unadopted(id),
       runs: id |> Seshat.index_runs(5) |> Enum.map(&run/1)
@@ -104,6 +106,34 @@ defmodule OneiroiWeb.LibraryController do
            actor(conn),
            note: note
          ) do
+      {:ok, result} -> json(conn, result)
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:paste,
+    summary:
+      "Paste a conversation of yours with another person into her human-correspondence/ (seshat#65): `with` (whom it is with) and an optional `title` start a new document, never over one there; `path` names one there to add to, under a dated heading (seshat#66). Written as you with a note; the index runs",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the paste", "application/json",
+       %Schema{
+         type: :object,
+         required: [:text],
+         properties: %{
+           text: %Schema{type: :string},
+           path: %Schema{type: :string},
+           with: %Schema{type: :string},
+           title: %Schema{type: :string}
+         }
+       }},
+    responses: [ok: {"what happened", "application/json", %Schema{type: :object}}]
+  )
+
+  def paste(conn, %{"id" => id} = params) do
+    attrs = Map.take(params, ["text", "path", "with", "title"])
+
+    case Seshat.paste_correspondence(id, attrs, actor(conn)) do
       {:ok, result} -> json(conn, result)
       other -> respond(conn, other)
     end

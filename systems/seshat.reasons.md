@@ -478,3 +478,40 @@ scene with more than twenty people in it is a crowd, not a list, and a
 name past eighty characters is a description. A new version with an
 upcaster because events are immutable contracts; the correction's
 shape did not change, so its version did not either.
+
+## #65
+The witness talks with people the resident never hears from, and what
+they say bears on her work with him: a lease he is signing, a friend's
+news, a thread about something they are building. She had a folder for
+it already, her own kind, and no way for the words to reach it short of
+his retyping them as a document of his under human/, which is his own
+writing rather than his exchanges with others, or her copying them from
+a chat. A paste is the cheapest honest path: the words as they were,
+written by him, with his note on the version, so she can tell what she
+is reading and who put it there. It goes through the one write so the
+lease, the version history and the index hold for it as for anything
+else; a second path would be a second set of rules. The folder is hers
+by her name, and the platform refuses rather than guessing another
+folder when it is missing, because landing his correspondence somewhere
+she did not choose would put it where she does not look. The title
+names the file because a person's name alone would collide across
+conversations, and a new conversation never overwrites one there,
+since replacing an exchange he meant to add to would lose words with
+nothing but the history to say so. Only he pastes because only he has
+these conversations; she writes into her own kind with her own tool.
+The listing answering her shelf is what makes the folder visible to
+him at all: the tree read only the system's kinds, so a kind of hers
+with documents in it never showed.
+
+## #66
+An exchange with a person goes on, and she reads it best as one
+document in order, not as a pile of fragments she has to put together.
+Appending on the server, rather than letting the client send back the
+whole document with the new part on the end, keeps the client from ever
+holding a stale copy it could write over hers, and keeps the date the
+server's rather than a browser's clock. A dated heading per paste says
+when he brought each part in, which is what he knows for certain; the
+dates inside the pasted text are the conversation's own and stay as he
+pasted them. Nothing earlier is touched, so every version is the one
+before plus a section, and an edit to earlier words is the editor's
+(#55), a separate act with its own note.
