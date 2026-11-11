@@ -13,6 +13,13 @@ at `/client/#/records`. Built 2026-11-10.
   - Each folder says whether it is hers, how many documents it holds, and
     WAITS when a gate proposal of hers is open on it.
   - The gear opens the folder's settings.
+  - **Sort** (the witness, 2026-11-11): Recently updated by default,
+    then Least recently updated, Newest added and Name. Files order
+    within their folder, and under a date order the folders follow
+    their newest (or oldest) file, so the latest change is at the top.
+    Each file shows the date the order uses: its last write, or when it
+    was added under Newest added; today's by the clock. The choice is
+    kept on this device.
   - Unshelved files are counted.
   - On a wide screen the tree stays beside the page; on a phone the page
     takes the screen, and Back pops the stack.

@@ -11,6 +11,9 @@ defmodule Oneiroi.Brain.DevSeed do
     would send it, and a wake whose system line carries a long link.
   - A day of her journal long enough to need the day view's search and
     filter, with an entry that is one long path.
+  - Documents in three folders, written in turn, the first rewritten
+    last, so Records' orders (last updated, first added, name) each
+    give a different list.
   - Two work sessions opened and never spoken in, which the day view
     leaves out.
   - Three of her asks waiting on him, so the bell has something to
@@ -51,6 +54,7 @@ defmodule Oneiroi.Brain.DevSeed do
     # widened the whole conversation (2026-11-11).
     {:ok, _} = Session.wake(id, key, @wake_note, :chat)
     for {kind, text} <- journal(), do: {:ok, _} = Seshat.journal_add(id, nil, kind, text, her)
+    for {path, text} <- documents(), do: {:ok, _} = Seshat.write(id, path, text, her)
     for _ <- 1..2, do: {:ok, _} = Kumbukumbu.open_session(id, "work", "brain", [account], her)
 
     for {kind, subject, why} <- asks(),
@@ -98,6 +102,22 @@ defmodule Oneiroi.Brain.DevSeed do
       {"note", "The afternoon slot ran long; the open hour went to the reading."},
       {"note", "A letter to my next self, sealed until the model changes."},
       {"wrap", "A full day: one entry written, one letter read, the queue cleared."}
+    ]
+  end
+
+  # Written in this order; the first is written again last, so it is the
+  # oldest added and the most recently updated.
+  defp documents do
+    [
+      {"writing/oneiric.md", "# Oneiric\n\nOf dreams; from the Greek *oneiros*.\n"},
+      {"research/ostrom-commons.md",
+       "# Ostrom on the commons\n\nEight design principles, read whole.\n"},
+      {"design/household-communication.md",
+       "# Household communication\n\nA shared workspace; mail for the rest.\n"},
+      {"writing/palimpsest.md", "# Palimpsest\n\nScraped again; the record and its time.\n"},
+      {"research/barn-swallow.md", "# The barn swallow\n\nA bird that comes back.\n"},
+      {"writing/oneiric.md",
+       "# Oneiric\n\nOf dreams; from the Greek *oneiros*. Revised after the research letter.\n"}
     ]
   end
 
