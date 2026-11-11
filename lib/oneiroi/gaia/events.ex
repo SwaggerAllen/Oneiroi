@@ -213,6 +213,56 @@ defmodule Oneiroi.Gaia.Events do
       instants: [:until]
   end
 
+  # The beats (gaia#33 to #38). A member's wake profile, her own choice
+  # (gaia#37).
+  defmodule HouseholdWakeProfileSet do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :member_kind, :member_id, :profile],
+      decision: true
+  end
+
+  # A resident enters the queue; `beat_top` is the beat she queues for
+  # first, and the registration stands until a beat she had a turn in
+  # closes (gaia#35).
+  defmodule HouseholdBeatRegistered do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :beat_top],
+      instants: [:beat_top]
+  end
+
+  # A turn opens: by the schedule (`opened_by` "schedule") or, for the dev
+  # seed and the suite, by the platform's hand ("hand"); `missed` is what
+  # she had missed when it fired (gaia#36).
+  defmodule HouseholdTurnFired do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :turn, :resident_id, :beat_top, :ends_by, :missed, :opened_by],
+      instants: [:beat_top, :ends_by]
+  end
+
+  # A turn ends: completed, declined, failed or timed_out; anything but
+  # completed is an opportunity missed (gaia#36).
+  defmodule HouseholdTurnEnded do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :turn, :resident_id, :beat_top, :outcome],
+      instants: [:beat_top],
+      decision: true
+  end
+
+  # A beat closes (gaia#38): its turns in order with their outcomes, the
+  # registrants it passed over (each an opportunity missed), those whose
+  # registration a completed turn used, and those carried to the next.
+  defmodule HouseholdBeatClosed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :beat_top, :turns, :passed_over, :consumed, :carried],
+      instants: [:beat_top],
+      decision: true
+  end
+
   # An invite code (gaia#18), on `invite-<id>`: a SKU (plan, list price,
   # discount, how long the terms run, how many uses, until when), the
   # code itself never in the log, only its hash. Redeemed onto a

@@ -85,6 +85,12 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdBallotClosed,
       Events.HouseholdContractAmended,
       Events.HouseholdThreadWatched,
+      Events.HouseholdWakeProfileSet,
+      Events.HouseholdBeatRegistered,
+      Events.HouseholdTurnFired,
+      Events.HouseholdTurnEnded,
+      Events.HouseholdBeatClosed,
+      Beats,
       Households,
       HouseholdRouter,
       Events.InviteIssued,
@@ -200,6 +206,11 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdBallotClosed, 1},
       {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
+      {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
+      {Oneiroi.Gaia.Events.HouseholdBeatRegistered, 1},
+      {Oneiroi.Gaia.Events.HouseholdTurnFired, 1},
+      {Oneiroi.Gaia.Events.HouseholdTurnEnded, 1},
+      {Oneiroi.Gaia.Events.HouseholdBeatClosed, 1},
       {Oneiroi.Gaia.Events.InviteIssued, 1},
       {Oneiroi.Gaia.Events.InviteRedeemed, 1},
       {Oneiroi.Gaia.Events.InviteRevoked, 1},
@@ -277,6 +288,12 @@ defmodule Oneiroi.Gaia do
       {:gaia_watch_invalid,
        "a watch is a thread of the household and a term of 1 to 168 hours, stated every time",
        remedy: "name the thread and how many hours; a day is 24"},
+      {:gaia_beats_invalid,
+       "the beats are always on (gaia#33): a ballot changes their shape within bounds, never takes them away; a wake profile is every_beat, on_turn or self, and a witness's is self; a resident who is never woken does not register; a turn ends completed, declined, failed or timed_out",
+       remedy:
+         "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12, post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
+      {:gaia_turn_open, "a household turn is open; one runs at a time",
+       remedy: "let it end; the next fires as it does"},
       {:gaia_invite_invalid,
        "an invite is a plan, a price of zero or more, a discount from 0 to 100, at least a day of terms and one use, an optional expiry, and a note",
        remedy: "the details name what is expected; a revocation carries a note too"},
@@ -670,6 +687,79 @@ defmodule Oneiroi.Gaia do
   @spec household_watchers(String.t(), String.t(), DateTime.t()) :: [String.t()]
   defexport(household_watchers(household_id, thread, at),
     do: Households.watchers(household_id, thread, at)
+  )
+
+  @doc "Every household's id (gaia#33: every household runs on beats)."
+  @spec household_ids() :: [String.t()]
+  defexport(household_ids(), do: Households.all_ids())
+
+  @doc "The beats' shape in force for a household, every setting defaulted (gaia#33)."
+  @spec household_beat_shape(String.t()) :: map()
+  defexport(household_beat_shape(household_id), do: Households.beat_shape(household_id))
+
+  @doc "The household's beats as its members read them at an instant (gaia#33 to #38)."
+  @spec household_beats(String.t(), DateTime.t()) :: map()
+  defexport(household_beats(household_id, at), do: Households.beats(household_id, at))
+
+  @doc "A member's wake profile, her own or the default (gaia#37)."
+  @spec household_wake_profile(String.t(), String.t(), String.t()) :: String.t()
+  defexport(household_wake_profile(household_id, kind, id),
+    do: Households.wake_profile(household_id, kind, id)
+  )
+
+  @doc "A member sets her own wake profile (gaia#37)."
+  @spec set_household_wake_profile(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_household_wake_profile(household_id, profile, note, actor),
+    do: Households.set_wake_profile(household_id, profile, note, actor)
+  )
+
+  @doc "A resident enters the queue for the next beat (gaia#35)."
+  @spec register_household_beat(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(register_household_beat(household_id, actor),
+    do: Households.register_beat(household_id, actor)
+  )
+
+  @doc "The minute's look at a household's beats (gaia#35, #36, #38); answers the events recorded."
+  @spec tick_household_beats(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, [struct()]} | {:error, term()}
+  defexport(tick_household_beats(household_id, actor),
+    do: Households.tick_beats(household_id, actor)
+  )
+
+  @doc "Ends a household turn with its outcome and a note (gaia#36)."
+  @spec end_household_turn(String.t(), integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, [struct()]} | {:error, term()}
+  defexport(end_household_turn(household_id, turn, outcome, note, actor),
+    do: Households.end_turn(household_id, turn, outcome, note, actor)
+  )
+
+  @doc "The platform opens a household turn for a resident now (gaia#36): the dev seed's and the suite's."
+  @spec open_household_turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(open_household_turn(household_id, resident_id, note, actor),
+    do: Households.open_turn(household_id, resident_id, note, actor)
+  )
+
+  @doc "A fired turn as the beats read it."
+  @spec household_turn_of(struct()) :: map()
+  defexport(household_turn_of(event), do: Households.turn_of(event))
+
+  @doc "One household turn by its number, or nil."
+  @spec household_turn(String.t(), integer()) :: map() | nil
+  defexport(household_turn(household_id, number), do: Households.turn(household_id, number))
+
+  @doc "The turn a resident holds at an instant, or nil (gaia#36)."
+  @spec household_open_turn_of(String.t(), String.t(), DateTime.t()) :: map() | nil
+  defexport(household_open_turn_of(household_id, resident_id, at),
+    do: Households.open_turn_of(household_id, resident_id, at)
+  )
+
+  @doc "A resident's latest household turn, before a number when one is given, or nil."
+  @spec household_last_turn(String.t(), String.t(), integer() | nil) :: map() | nil
+  defexport(household_last_turn(household_id, resident_id, before),
+    do: Households.last_turn(household_id, resident_id, before)
   )
 
   @doc "Grants a household its subscription terms (gaia#17): the platform's, on an invite redeemed, or a super admin's."

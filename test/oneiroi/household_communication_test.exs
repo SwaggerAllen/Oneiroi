@@ -78,6 +78,17 @@ defmodule Oneiroi.HouseholdCommunicationTest do
 
   defp run(name, args, r), do: Tools.run(name, Jason.encode!(args), turn(r))
 
+  # The beats are always on (gaia#33): a resident writes in her turn. The
+  # platform's hand opens one around her writes (gaia#36), a second on,
+  # so the files' instants tell one turn from the last, and ends it.
+  defp in_turn(household, r, fun) do
+    Clock.Fake.advance(1)
+    {:ok, %{turn: turn}} = Seshat.household_open_turn(household, r.id, "the suite")
+    result = fun.()
+    :ok = Seshat.household_end_turn(household, turn, "the suite's writes are in")
+    result
+  end
+
   defp authors(household, path) do
     {:ok, commits} = SimaQian.household_log(household, path, 50)
     Enum.map(commits, & &1.author)
@@ -125,42 +136,50 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     # ---- a thread posted and replied to by both residents ----
     assert "Posted threads/" <> _ =
              posted =
-             run(
-               "household_post",
-               %{title: "The garden", content: "Shall we plant tomatoes?"},
-               lily
-             )
+             in_turn(household, lily, fn ->
+               run(
+                 "household_post",
+                 %{title: "The garden", content: "Shall we plant tomatoes?"},
+                 lily
+               )
+             end)
 
     thread = posted |> String.trim_leading("Posted ") |> String.trim_trailing(".")
 
-    assert run("household_reply", %{thread: thread, content: "Yes, and basil."}, iris) =~
-             "as reply #1"
+    assert in_turn(household, iris, fn ->
+             run("household_reply", %{thread: thread, content: "Yes, and basil."}, iris)
+           end) =~ "as reply #1"
 
-    assert run(
-             "household_reply",
-             %{thread: thread, content: "Basil it is.", in_reply_to: 1},
-             lily
-           ) =~
-             "as reply #2"
+    assert in_turn(household, lily, fn ->
+             run(
+               "household_reply",
+               %{thread: thread, content: "Basil it is.", in_reply_to: 1},
+               lily
+             )
+           end) =~ "as reply #2"
 
     # Each write is a commit under its writer's name; the trunk is never rewritten.
     assert authors(household, thread) == ["Lily", "Iris", "Lily"]
     assert authors(household, thread <> "/trunk.md") == ["Lily"]
 
     # A document of a household kind, posted once.
-    assert run(
-             "household_post",
-             %{kind: "design", path: "design/beds.md", content: "Two beds."},
-             iris
-           ) ==
+    assert in_turn(household, iris, fn ->
+             run(
+               "household_post",
+               %{kind: "design", path: "design/beds.md", content: "Two beds."},
+               iris
+             )
+           end) ==
              "Posted design/beds.md."
 
     assert {:error, %Seshat.Error{kind: :seshat_household_written}} =
-             Seshat.household_post(iris.actor, %{
-               kind: "design",
-               path: "design/beds.md",
-               content: "again"
-             })
+             in_turn(household, iris, fn ->
+               Seshat.household_post(iris.actor, %{
+                 kind: "design",
+                 path: "design/beds.md",
+                 content: "again"
+               })
+             end)
 
     # ---- every member reads it whole: both residents and the witness ----
     for reader <- [andrew, lily.actor, iris.actor] do
@@ -197,8 +216,9 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert run("household_watch", %{thread: thread, hours: 24}, iris) =~
              "Watching #{thread} until"
 
-    assert run("household_reply", %{thread: thread, content: "I'll water them."}, lily) =~
-             "as reply #3"
+    assert in_turn(household, lily, fn ->
+             run("household_reply", %{thread: thread, content: "I'll water them."}, lily)
+           end) =~ "as reply #3"
 
     assert [%{to_name: "Oneiroi chat", text: poke}] = watch_letters(iris)
     assert poke =~ "Lily replied in the household thread #{thread}"
@@ -207,7 +227,10 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert watch_letters(lily) == []
 
     # Her own reply does not poke her.
-    assert run("household_reply", %{thread: thread, content: "Thank you."}, iris) =~ "as reply #4"
+    assert in_turn(household, iris, fn ->
+             run("household_reply", %{thread: thread, content: "Thank you."}, iris)
+           end) =~ "as reply #4"
+
     assert [_one] = watch_letters(iris)
 
     # The poke wakes her chat, naming the letter and never its words.
@@ -222,8 +245,9 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     # Past the term, silence: nothing sent, nothing to unsubscribe.
     Clock.Fake.advance(25 * 3600)
 
-    assert run("household_reply", %{thread: thread, content: "Tomatoes are up."}, lily) =~
-             "as reply #5"
+    assert in_turn(household, lily, fn ->
+             run("household_reply", %{thread: thread, content: "Tomatoes are up."}, lily)
+           end) =~ "as reply #5"
 
     assert [_still_one] = watch_letters(iris)
 
@@ -363,11 +387,13 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     ]
 
     assert {:ok, %{path: thread, ballot: %{ballot: 1, closes_at: closes_at}}} =
-             Seshat.household_post(lily.actor, %{
-               "title" => "Quiet hours",
-               "content" => "A rule and a setting, together.",
-               "ballot" => %{"bundle" => bundle, "term_days" => 3, "note" => "the evenings"}
-             })
+             in_turn(household, lily, fn ->
+               Seshat.household_post(lily.actor, %{
+                 "title" => "Quiet hours",
+                 "content" => "A rule and a setting, together.",
+                 "ballot" => %{"bundle" => bundle, "term_days" => 3, "note" => "the evenings"}
+               })
+             end)
 
     assert closes_at == DateTime.add(Clock.now(), 3 * 86_400, :second)
 
@@ -455,29 +481,34 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     %{household: household, andrew: andrew, lily: lily, iris: iris} = ctx
 
     {:ok, %{path: short, ballot: %{ballot: 1, closes_at: short_end}}} =
-      Seshat.household_post(lily.actor, %{
-        "title" => "Shoes off",
-        "content" => "One rule.",
-        "ballot" => %{
-          "bundle" => [%{"rule" => "Shoes off inside."}],
-          "term_days" => 1,
-          "note" => "floors"
-        }
-      })
+      in_turn(household, lily, fn ->
+        Seshat.household_post(lily.actor, %{
+          "title" => "Shoes off",
+          "content" => "One rule.",
+          "ballot" => %{
+            "bundle" => [%{"rule" => "Shoes off inside."}],
+            "term_days" => 1,
+            "note" => "floors"
+          }
+        })
+      end)
 
     {:ok, %{path: long, ballot: %{ballot: 2, closes_at: long_end}}} =
-      Seshat.household_post(iris.actor, %{
-        "title" => "A cat",
-        "content" => "One setting.",
-        "ballot" => %{
-          "bundle" => [%{"setting" => "cat", "value" => true}],
-          "term_days" => 5,
-          "note" => "company"
-        }
-      })
+      in_turn(household, iris, fn ->
+        Seshat.household_post(iris.actor, %{
+          "title" => "A cat",
+          "content" => "One setting.",
+          "ballot" => %{
+            "bundle" => [%{"setting" => "cat", "value" => true}],
+            "term_days" => 5,
+            "note" => "company"
+          }
+        })
+      end)
 
+    # Each posted in her own turn, a second apart.
     now = Clock.now()
-    assert short_end == DateTime.add(now, 86_400, :second)
+    assert short_end == DateTime.add(now, 86_400 - 1, :second)
     assert long_end == DateTime.add(now, 5 * 86_400, :second)
 
     for voter <- [lily.actor, iris.actor, andrew],
@@ -515,11 +546,13 @@ defmodule Oneiroi.HouseholdCommunicationTest do
 
     # No platform term: the proposer must set one.
     assert {:error, %Gaia.Error{kind: :gaia_ballot_invalid}} =
-             Seshat.household_post(lily.actor, %{
-               "title" => "No term",
-               "content" => "x",
-               "ballot" => %{"bundle" => [%{"rule" => "r"}], "note" => "n"}
-             })
+             in_turn(household, lily, fn ->
+               Seshat.household_post(lily.actor, %{
+                 "title" => "No term",
+                 "content" => "x",
+                 "ballot" => %{"bundle" => [%{"rule" => "r"}], "note" => "n"}
+               })
+             end)
   end
 
   test "the household's repository travels with a resident's backup, titled by its membership",
@@ -527,7 +560,9 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     %{lily: lily, iris: iris} = ctx
 
     {:ok, %{path: thread}} =
-      Seshat.household_post(iris.actor, %{"title" => "Hello", "content" => "From Iris."})
+      in_turn(ctx.household, iris, fn ->
+        Seshat.household_post(iris.actor, %{"title" => "Hello", "content" => "From Iris."})
+      end)
 
     bare = Path.join(System.tmp_dir!(), "oneiroi-bare-#{System.unique_integer([:positive])}")
     :ok = Git.init_bare(bare)

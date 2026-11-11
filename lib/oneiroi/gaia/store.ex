@@ -238,6 +238,56 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule HouseholdBeatMember do
+    @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile, her standing registration and what she has missed."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_beat_member" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:member_kind, :string, primary_key: true)
+      field(:member_id, :binary_id, primary_key: true)
+      field(:profile, :string)
+      field(:registered_at, :utc_datetime_usec)
+      field(:registered_for, :utc_datetime_usec)
+      field(:missed, :integer, default: 0)
+    end
+  end
+
+  defmodule HouseholdTurn do
+    @moduledoc "A household turn (gaia#36): whose, in which beat, when it fired, its guideline, and how it ended."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_turn" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:turn, :integer, primary_key: true)
+      field(:speaker_id, :binary_id)
+      field(:beat_top, :utc_datetime_usec)
+      field(:fired_at, :utc_datetime_usec)
+      field(:ends_by, :utc_datetime_usec)
+      field(:opened_by, :string)
+      field(:missed, :integer, default: 0)
+      field(:ended_at, :utc_datetime_usec)
+      field(:outcome, :string)
+      field(:note, :string)
+    end
+  end
+
+  defmodule HouseholdBeat do
+    @moduledoc "A closed household beat (gaia#38): its turns with their outcomes, who it passed over, whose registration it used, who it carried on."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_beat" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:beat_top, :utc_datetime_usec, primary_key: true)
+      field(:closed_at, :utc_datetime_usec)
+      field(:turns, {:array, :map}, default: [])
+      field(:passed_over, {:array, :binary_id}, default: [])
+      field(:consumed, {:array, :binary_id}, default: [])
+      field(:carried, {:array, :binary_id}, default: [])
+      field(:note, :string)
+    end
+  end
+
   defmodule Invite do
     @moduledoc "An invite code's SKU and its standing (gaia#18), platform-scoped; the code only as its hash."
     use Ecto.Schema

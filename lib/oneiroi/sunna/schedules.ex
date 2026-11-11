@@ -1065,6 +1065,47 @@ defmodule Oneiroi.Sunna.Schedules do
     Prompt.render!("letters_wake", %{letters: listed})
   end
 
+  @doc """
+  Wakes a resident's Oneiroi chat for her household (sunna#51): a turn
+  of the household's beats, or the digest at a beat's end, with the
+  household's note, billed as the chat is. Declined, with nothing called,
+  for a resident who is not active or is inside her quiet hours: the
+  household's clock does not override her own. Answers `{:ok, :woken}`
+  when the wake's turn is done.
+  """
+  def wake_for_household(resident_id, note, %Actor{} = actor) do
+    with {:ok, %{state: "active"}} <- resident(resident_id),
+         false <- quiet?(local_now(resident_id), household_quiet(resident_id)),
+         :ok <- wake_main(resident_id, note, actor) do
+      {:ok, :woken}
+    else
+      {:error, _} = failed ->
+        failed
+
+      true ->
+        {:error,
+         Error.new(:sunna_household_wake_declined, :sunna_household_wake_quiet,
+           resident_id: resident_id
+         )}
+
+      _not_active ->
+        {:error,
+         Error.new(:sunna_household_wake_declined, :sunna_household_wake_inactive,
+           resident_id: resident_id
+         )}
+    end
+  end
+
+  defp household_quiet(resident_id) do
+    case settings(resident_id) do
+      %{quiet_from: from, quiet_to: to} when is_binary(from) and is_binary(to) ->
+        %{from: from, to: to}
+
+      _none ->
+        nil
+    end
+  end
+
   defp wake_main(resident_id, note, actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, actor),

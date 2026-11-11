@@ -309,6 +309,10 @@ defmodule Oneiroi.Sunna do
        remedy: "give both bounds as YYYY-MM-DD, in order, and read a longer stretch in pieces"},
       {:sunna_no_such_resident, "the schedule woke a resident the registry does not hold",
        remedy: "the tick reads the registry first; one that vanished between is a bug to report"},
+      {:sunna_household_wake_declined,
+       "the household's wake was declined: the resident is not active, or is inside her quiet hours (sunna#51)",
+       remedy:
+         "nothing to do: her turn passes without stalling the beat and counts as an opportunity missed"},
       {:sunna_wake_failed, "the wake port failed to wake the brain for a check-in or free time",
        remedy: "the next due wake tries again; a repeat is the brain's to look at"},
       {:sunna_free_time_failed, "free time could not be opened and was recorded as failed",
@@ -517,6 +521,13 @@ defmodule Oneiroi.Sunna do
   @doc "Runs one resident's tick now; what the minute job does for each."
   @spec tick(String.t()) :: :ok | :skipped
   defexport(tick(resident_id), do: TickWorker.tick(resident_id))
+
+  @doc "Wakes a resident's Oneiroi chat for her household's beats, with the household's note (sunna#51)."
+  @spec wake_for_household(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, :woken} | {:error, term()}
+  defexport(wake_for_household(resident_id, note, actor),
+    do: Schedules.wake_for_household(resident_id, note, actor)
+  )
 
   @doc "The marked hours, newest first (spec §6.7, P20 as amended): the pulse, one row per local hour the tick reached."
   @spec hours(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Hour.t()]

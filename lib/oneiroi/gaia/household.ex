@@ -21,6 +21,7 @@ defmodule Oneiroi.Gaia.Household do
   until an instant.
   """
 
+  alias Oneiroi.Gaia.Beats
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Events
@@ -35,7 +36,18 @@ defmodule Oneiroi.Gaia.Household do
     signatures: %{},
     ballots: %{},
     threads: MapSet.new(),
-    next_ballot: 1
+    next_ballot: 1,
+    # The beats (gaia#33 to #38): each member's own wake profile, the
+    # standing registrations (resident => when), opportunities missed
+    # since her last completed turn, the turn open now, and each beat not
+    # yet closed with its turns (top's unix microsecond => beat).
+    profiles: %{},
+    regs: %{},
+    missed: %{},
+    open_turn: nil,
+    next_turn: 1,
+    beats: %{},
+    closed_through: nil
   ]
 
   @plan_limit 60
@@ -194,8 +206,8 @@ defmodule Oneiroi.Gaia.Household do
       not (is_integer(c.term_days) and c.term_days >= 1 and c.term_days <= @term_days_max) ->
         {:error, Error.new(:gaia_ballot_invalid, :gaia_household_ballot_term)}
 
-      not bundle?(c.bundle) ->
-        {:error, Error.new(:gaia_ballot_invalid, :gaia_household_ballot_bundle)}
+      bundle_refused(h, c.bundle) ->
+        bundle_refused(h, c.bundle)
 
       true ->
         %Events.HouseholdBallotOpened{
@@ -285,6 +297,307 @@ defmodule Oneiroi.Gaia.Household do
           until: DateTime.add(c.at, c.hours * 3600, :second)
         }
     end
+  end
+
+  # ---- the beats (gaia#33 to #38) ----
+
+  def execute(%__MODULE__{} = h, %Commands.SetHouseholdWakeProfile{} = c) do
+    member = member(h, c.actor)
+
+    cond do
+      is_nil(member) ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_profile_not_member)}
+
+      c.profile not in Beats.profiles() ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_profile_unknown)}
+
+      # A human is never woken (gaia#37): self is a witness's only profile.
+      match?({"witness", _}, member) and c.profile != "self" ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_profile_witness)}
+
+      profile(h, member) == c.profile and Map.has_key?(h.profiles, member) ->
+        []
+
+      true ->
+        {kind, id} = member
+
+        %Events.HouseholdWakeProfileSet{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          member_kind: kind,
+          member_id: id,
+          profile: c.profile,
+          note: c.note
+        }
+    end
+  end
+
+  def execute(%__MODULE__{} = h, %Commands.RegisterHouseholdBeat{} = c) do
+    member = member(h, c.actor)
+
+    cond do
+      not match?({"resident", _}, member) ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_register_not_resident)}
+
+      # Never woken, so never fired: the profile says how she is reached.
+      profile(h, member) == "self" ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_self)}
+
+      # Registered and still in line: nothing new. Registered, but her
+      # share of a beat not yet closed is used, so that beat's close will
+      # use this registration: a fresh one, for the next.
+      Map.has_key?(h.regs, c.actor.id) and not share_used?(h, c.actor.id) ->
+        []
+
+      true ->
+        %Events.HouseholdBeatRegistered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: c.actor.id,
+          beat_top: Beats.registers_for(h.id, shape(h), c.at)
+        }
+    end
+  end
+
+  def execute(%__MODULE__{} = h, %Commands.TickHouseholdBeats{} = c) do
+    shape = shape(h)
+
+    {h, []}
+    |> step(time_out(h, c))
+    |> then(fn {h, acc} -> Enum.reduce(closes(h, c, shape), {h, acc}, &step(&2, &1)) end)
+    |> then(fn {h, acc} -> step({h, acc}, fire(h, c, shape, "schedule", nil)) end)
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  def execute(%__MODULE__{} = h, %Commands.EndHouseholdTurn{} = c) do
+    cond do
+      c.outcome not in ~w(completed declined failed timed_out) ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_turn_outcome)}
+
+      open?(h.open_turn, c.turn) ->
+        ended(h.open_turn, c, c.outcome, c.note)
+
+      true ->
+        []
+    end
+  end
+
+  # A turn by the platform's hand (gaia#36): the dev seed and the suite
+  # open one for a resident now, outside the queue; no route reaches it.
+  def execute(%__MODULE__{} = h, %Commands.OpenHouseholdTurn{} = c) do
+    cond do
+      not match?(%{kind: :platform}, c.actor) ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_hand_turn_not_platform)}
+
+      not MapSet.member?(h.residents, c.resident_id) ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_hand_turn_not_resident)}
+
+      h.open_turn != nil ->
+        {:error, Error.new(:gaia_turn_open, :gaia_household_hand_turn_open)}
+
+      true ->
+        fire(h, c, shape(h), "hand", c.resident_id)
+    end
+  end
+
+  defp open?(%{turn: turn}, turn), do: true
+  defp open?(_open, _turn), do: false
+
+  defp share_used?(h, resident_id) do
+    share = shape(h).share
+    Enum.any?(Map.values(h.beats), &(Map.get(&1.counts, resident_id, 0) >= share))
+  end
+
+  defp step({h, acc}, nil), do: {h, acc}
+  defp step({h, acc}, event), do: {__MODULE__.apply(h, event), [event | acc]}
+
+  defp shape(h), do: Beats.shape(settings(h))
+
+  defp settings(%__MODULE__{contract: %{settings: settings}}), do: settings
+  defp settings(%__MODULE__{}), do: %{}
+
+  # A member's wake profile: her own, or the household's default for a
+  # resident (gaia#37), self for a witness.
+  defp profile(h, {kind, _id} = member) do
+    case Map.fetch(h.profiles, member) do
+      {:ok, p} -> p
+      :error when kind == "witness" -> "self"
+      :error -> shape(h).resident_profile
+    end
+  end
+
+  # A turn past its guideline ends as timed out, and the beat moves on.
+  defp time_out(%__MODULE__{open_turn: %{ends_by: by} = open}, c) do
+    if DateTime.compare(c.at, by) != :lt,
+      do:
+        ended(
+          open,
+          c,
+          "timed_out",
+          "The turn's guideline ran out before the wake ended; the beat moved on."
+        )
+  end
+
+  defp time_out(%__MODULE__{}, _c), do: nil
+
+  defp ended(open, c, outcome, note),
+    do: %Events.HouseholdTurnEnded{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      turn: open.turn,
+      resident_id: open.resident_id,
+      beat_top: open.beat_top,
+      outcome: outcome,
+      note: note || "The turn ended: #{outcome}."
+    }
+
+  # Every beat that has ended and is not closed: one with turns in it,
+  # and the beat just ended when it had a queue or a member woken at
+  # every beat's end. Oldest first.
+  defp closes(h, c, shape) do
+    current = Beats.top(h.id, shape, c.at)
+    previous = DateTime.add(current, -shape.beat * 60, :second)
+
+    tops =
+      h.beats
+      |> Map.values()
+      |> Enum.map(& &1.top)
+      |> Enum.filter(&(DateTime.compare(&1, current) == :lt))
+
+    tops = if previous_due?(h, previous, shape), do: [previous | tops], else: tops
+
+    tops
+    |> Enum.uniq_by(&DateTime.to_unix(&1, :microsecond))
+    |> Enum.reject(&closed?(h, &1))
+    |> Enum.sort_by(&DateTime.to_unix(&1, :microsecond))
+    |> Enum.map(&close_beat(h, c, shape, &1))
+  end
+
+  defp previous_due?(h, previous, shape) do
+    queue(h, previous, shape) != [] or
+      Enum.any?(h.residents, &(profile(h, {"resident", &1}) == "every_beat"))
+  end
+
+  defp closed?(%__MODULE__{closed_through: nil}, _top), do: false
+
+  defp closed?(%__MODULE__{closed_through: through}, top),
+    do: DateTime.compare(top, through) != :gt
+
+  # Who was in the beat's queue: registered before its sign-up closed,
+  # still registered, still a resident.
+  defp queue(h, top, shape) do
+    closes = Beats.signup_closes(top, shape)
+
+    for {rid, at} <- h.regs,
+        MapSet.member?(h.residents, rid),
+        DateTime.compare(at, closes) == :lt,
+        do: rid
+  end
+
+  defp close_beat(h, c, shape, top) do
+    beat = beat(h, top)
+    turns = Enum.map(beat.turns, &Map.put(&1, "outcome", &1["outcome"] || "open"))
+    completed = for t <- turns, t["outcome"] == "completed", uniq: true, do: t["resident_id"]
+    queue = queue(h, top, shape)
+    passed_over = Enum.reject(queue, &Map.has_key?(beat.counts, &1))
+    consumed = Enum.filter(queue, &(&1 in completed))
+    carried = Enum.sort(queue -- consumed)
+
+    %Events.HouseholdBeatClosed{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      beat_top: top,
+      turns: turns,
+      passed_over: Enum.sort(passed_over),
+      consumed: Enum.sort(consumed),
+      carried: carried,
+      note:
+        "The beat closed: #{length(turns)} #{if length(turns) == 1, do: "turn", else: "turns"}, #{length(passed_over)} passed over, #{length(carried)} carried to the next."
+    }
+  end
+
+  defp beat(h, top),
+    do:
+      Map.get(h.beats, DateTime.to_unix(top, :microsecond), %{
+        top: top,
+        fired: 0,
+        counts: %{},
+        turns: []
+      })
+
+  # The next turn, when one is due: no turn open, the beat's sign-up
+  # closed and the beat not ended, its cap not reached, and a registrant
+  # in its queue with fewer turns this beat than her share (gaia#35). By
+  # the platform's hand, the resident named, now.
+  defp fire(%__MODULE__{open_turn: nil} = h, c, shape, "schedule", nil) do
+    top = Beats.top(h.id, shape, c.at)
+    beat = beat(h, top)
+
+    with true <- DateTime.compare(c.at, Beats.signup_closes(top, shape)) != :lt,
+         true <- beat.fired < shape.cap,
+         [first | _] <-
+           h
+           |> queue(top, shape)
+           |> Enum.filter(&(Map.get(beat.counts, &1, 0) < shape.share))
+           |> Enum.reject(&(profile(h, {"resident", &1}) == "self"))
+           |> Enum.map(
+             &%{
+               resident_id: &1,
+               count: Map.get(beat.counts, &1, 0),
+               missed: Map.get(h.missed, &1, 0),
+               registered_at: h.regs[&1]
+             }
+           )
+           |> Beats.order() do
+      fired(h, c, shape, top, first.resident_id, "schedule")
+    else
+      _none -> nil
+    end
+  end
+
+  defp fire(%__MODULE__{open_turn: nil} = h, c, shape, "hand", resident_id),
+    do: fired(h, c, shape, Beats.top(h.id, shape, c.at), resident_id, "hand")
+
+  defp fire(%__MODULE__{}, _c, _shape, _by, _resident_id), do: nil
+
+  defp fired(h, c, shape, top, resident_id, by),
+    do: %Events.HouseholdTurnFired{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      turn: h.next_turn,
+      resident_id: resident_id,
+      beat_top: top,
+      ends_by: DateTime.add(c.at, shape.turn * 60, :second),
+      missed: Map.get(h.missed, resident_id, 0),
+      opened_by: by
+    }
+
+  defp bundle_refused(h, bundle) do
+    cond do
+      not bundle?(bundle) ->
+        {:error, Error.new(:gaia_ballot_invalid, :gaia_household_ballot_bundle)}
+
+      not beats_kept?(h, bundle) ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_ballot_beats)}
+
+      true ->
+        nil
+    end
+  end
+
+  # A ballot may change the beats' shape, never take them away (gaia#33):
+  # each beat setting in its bounds, and the shape it leaves still a beat.
+  defp beats_kept?(h, bundle) do
+    settings = for %{"setting" => k, "value" => v} <- bundle, into: %{}, do: {k, v}
+
+    Enum.all?(settings, fn {k, v} -> Beats.setting_ok?(k, v) end) and
+      Beats.shape_ok?(Map.merge(settings(h), settings))
   end
 
   # The members at the close are the electorate: a majority of them
@@ -437,6 +750,80 @@ defmodule Oneiroi.Gaia.Household do
 
   def apply(%__MODULE__{} = h, %Events.HouseholdTermsGranted{} = e),
     do: %{h | terms: {e.plan, e.price_nanos, e.terms_until}}
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdWakeProfileSet{} = e),
+    do: %{h | profiles: Map.put(h.profiles, {e.member_kind, e.member_id}, e.profile)}
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdBeatRegistered{} = e),
+    do: %{h | regs: Map.put(h.regs, e.resident_id, e.at)}
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdTurnFired{} = e) do
+    key = DateTime.to_unix(e.beat_top, :microsecond)
+    beat = beat(h, e.beat_top)
+
+    beat = %{
+      beat
+      | fired: beat.fired + 1,
+        counts: Map.update(beat.counts, e.resident_id, 1, &(&1 + 1)),
+        turns:
+          beat.turns ++
+            [%{"turn" => e.turn, "resident_id" => e.resident_id, "outcome" => nil}]
+    }
+
+    %{
+      h
+      | open_turn: %{
+          turn: e.turn,
+          resident_id: e.resident_id,
+          beat_top: e.beat_top,
+          ends_by: e.ends_by
+        },
+        next_turn: e.turn + 1,
+        beats: Map.put(h.beats, key, beat)
+    }
+  end
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdTurnEnded{} = e) do
+    key = DateTime.to_unix(e.beat_top, :microsecond)
+
+    beats =
+      if Map.has_key?(h.beats, key), do: Map.update!(h.beats, key, &outcome(&1, e)), else: h.beats
+
+    # A completed turn clears what she had missed; anything else is one
+    # more opportunity missed (gaia#36).
+    missed =
+      if e.outcome == "completed",
+        do: Map.delete(h.missed, e.resident_id),
+        else: Map.update(h.missed, e.resident_id, 1, &(&1 + 1))
+
+    open = if open?(h.open_turn, e.turn), do: nil, else: h.open_turn
+    %{h | open_turn: open, beats: beats, missed: missed}
+  end
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdBeatClosed{} = e) do
+    missed = Enum.reduce(e.passed_over, h.missed, &Map.update(&2, &1, 1, fn n -> n + 1 end))
+
+    %{
+      h
+      | missed: missed,
+        regs: Map.drop(h.regs, e.consumed),
+        beats: Map.delete(h.beats, DateTime.to_unix(e.beat_top, :microsecond)),
+        closed_through: latest(h.closed_through, e.beat_top)
+    }
+  end
+
+  defp outcome(beat, e),
+    do: %{
+      beat
+      | turns:
+          Enum.map(
+            beat.turns,
+            &if(&1["turn"] == e.turn, do: Map.put(&1, "outcome", e.outcome), else: &1)
+          )
+    }
+
+  defp latest(nil, top), do: top
+  defp latest(through, top), do: if(DateTime.compare(top, through) == :gt, do: top, else: through)
 
   defp terms_ok?(c) do
     is_binary(c.plan) and String.trim(c.plan) != "" and String.length(c.plan) <= @plan_limit and
