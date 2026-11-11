@@ -16,11 +16,13 @@ export function Tree({
   current,
   onOpen,
   onSettings,
+  onAdd,
 }: {
   residentId: string;
   current: string;
   onOpen: (path: string) => void;
   onSettings: (kind: string) => void;
+  onAdd?: () => void;
 }) {
   const library = useQuery({ queryKey: ['resident', residentId, 'records', 'library'], queryFn: () => api.library(residentId) });
   const kinds = useQuery({ queryKey: ['resident', residentId, 'records', 'kinds'], queryFn: () => api.kinds(residentId) });
@@ -36,6 +38,11 @@ export function Tree({
     <ScrollArea label="Records">
       <div className={css.pad}>
         <h2 className={css.heading}>FOLDERS · KINDS</h2>
+        {onAdd && (
+          <button type="button" className={css.folder} onClick={onAdd}>
+            <span className={css.folderName}>+ Add a document of yours</span>
+          </button>
+        )}
         {library.isPending && <p className={css.note}>Reading the shelves…</p>}
         {shelf.map((k) => {
           const docs = (byKind.get(k.kind) ?? []).slice().sort((a, b) => a.path.localeCompare(b.path));

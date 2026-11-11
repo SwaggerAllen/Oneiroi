@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { api } from '../../api/client';
@@ -17,6 +18,7 @@ export function Reacts({
   reacts,
   canReact,
   residentName,
+  extra,
 }: {
   residentId: string;
   sessionKey: string;
@@ -24,6 +26,8 @@ export function Reacts({
   reacts: React[];
   canReact: boolean;
   residentName: string;
+  /** More of the message's own actions, beside the react button. */
+  extra?: ReactNode;
 }) {
   const queries = useQueryClient();
   const vocabulary = useQuery({
@@ -63,6 +67,7 @@ export function Reacts({
           </Popover>
         </MenuTrigger>
       )}
+      {extra}
     </div>
   );
 }

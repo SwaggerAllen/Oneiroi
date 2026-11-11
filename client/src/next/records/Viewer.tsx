@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
-import { api } from '../../api/client';
+import { api, RequestFailed } from '../../api/client';
 import { Markdown } from '../chat/Markdown';
 import { targetsFor, type Citation } from '../chat/cite';
 import * as reactCss from '../chat/reacts.css';
@@ -21,6 +22,7 @@ export function Viewer({
   onCite,
   onOpen,
   onBack,
+  onGone,
 }: {
   residentId: string;
   slug: string;
@@ -28,10 +30,15 @@ export function Viewer({
   onCite: (c: Citation) => void;
   onOpen: (path: string) => void;
   onBack: () => void;
+  /** After a remove: the record is gone, so not back to it. */
+  onGone: () => void;
 }) {
   const read = useQuery({
     queryKey: ['resident', residentId, 'records', 'doc', path, 'full'],
     queryFn: () => api.documentRead(residentId, path),
+    // A document just written or moved is registered a moment later.
+    retry: (n, e) => n < 4 && e instanceof RequestFailed && e.status === 404,
+    retryDelay: 600,
   });
   const targets = targetsFor(slug, path);
   const citedBy = useQuery({
@@ -65,6 +72,10 @@ export function Viewer({
           <button type="button" className={css.quiet} onClick={() => onOpen(`edit/${path}`)}>
             Edit
           </button>
+          <a className={css.quiet} style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} href={api.downloadUrl(residentId, path)} download>
+            Download
+          </a>
+          <DocActions residentId={residentId} path={path} kind={doc?.kind ?? folder} onMoved={(to) => onOpen(`doc/${to}`)} onRemoved={onGone} />
           <DocReacts residentId={residentId} path={path} residentName={name} />
           {lease && (
             <span className={css.leaseNote}>
@@ -146,5 +157,43 @@ function DocReacts({ residentId, path, residentName }: { residentId: string; pat
         </Popover>
       </MenuTrigger>
     </div>
+  );
+}
+
+// Kinds whose documents stay where they are (the old library's rule; the server says the rest).
+const STAYS = new Set(['mail', 'feeds', 'correspondence', 'journal', 'memory', 'originals', 'scenes']);
+
+/** Move to another path, and so another kind (seshat#39); remove a scratch or human document (seshat#33). */
+function DocActions({ residentId, path, kind, onMoved, onRemoved }: { residentId: string; path: string; kind: string; onMoved: (to: string) => void; onRemoved: () => void }) {
+  const qc = useQueryClient();
+  const [moving, setMoving] = useState(false);
+  const [to, setTo] = useState(path);
+  const [confirming, setConfirming] = useState(false);
+  const refresh = () => void qc.invalidateQueries({ queryKey: ['resident', residentId, 'records'] });
+  const move = useMutation({ mutationFn: () => api.moveDocument(residentId, path, to.trim()), onSuccess: (r) => (refresh(), onMoved(r.to)) });
+  const remove = useMutation({ mutationFn: () => api.removeDocument(residentId, path), onSuccess: () => (refresh(), onRemoved()) });
+  const removable = kind === 'scratch' || kind === 'human';
+  return (
+    <>
+      {!STAYS.has(kind) && (
+        <button type="button" className={css.quiet} aria-expanded={moving} onClick={() => setMoving(!moving)}>
+          Move
+        </button>
+      )}
+      {removable && (
+        <button type="button" className={css.quiet} onClick={() => (confirming ? remove.mutate() : setConfirming(true))} onBlur={() => setConfirming(false)}>
+          {confirming ? 'Remove it for good' : 'Remove'}
+        </button>
+      )}
+      {moving && (
+        <span className={css.restore} style={{ flexBasis: '100%' }}>
+          <input id="move-to" className={css.input} value={to} onChange={(e) => setTo(e.target.value)} aria-label="Move to" />
+          <button type="button" className={css.action} disabled={!to.trim() || to.trim() === path || move.isPending} onClick={() => move.mutate()}>
+            Move it
+          </button>
+        </span>
+      )}
+      {(move.error || remove.error) && <span className={css.note}>{((move.error ?? remove.error) as Error).message}</span>}
+    </>
   );
 }

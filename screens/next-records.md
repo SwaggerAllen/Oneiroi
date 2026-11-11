@@ -54,6 +54,17 @@ at `/client/next.html#/records`. Built 2026-11-10.
 - **Reacts on the record** (kumbukumbu#61), from the shared vocabulary,
   and a note when the file is open in an editor or she is waiting on it.
 
+- **Download, move, remove** on a record: Download saves the file;
+  Move sends it to another path, and so another kind (seshat#39; mail,
+  feeds, correspondence, journal, memory, originals and scenes stay where
+  they are, and the server refuses a taken path); Remove asks twice and
+  only shows on scratch and human documents (seshat#33), and returns to
+  the tree.
+- **Add a document of yours** (`new`, top of the tree): a name and its
+  words, written under human/, which she reads and never edits. A record
+  just written or moved is read again for a moment until it is
+  registered.
+
 Checked in a browser on the local server: an edit saved with a note, the
 history with a diff against an older committed version, a restore, and a
 react. The lease being taken by her write is covered by the server's

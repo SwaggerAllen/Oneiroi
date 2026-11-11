@@ -55,6 +55,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     it. "↓ Back to now" returns to the live end.
   - Search is the one global search, not a drawer here (decided).
 
+- **On her replies:** "What she was given" lists that turn's context,
+  part by part, with its size and why it was there (and its words where
+  the server shows them); "Suggest a bookmark" proposes a line and why,
+  which she accepts, rewrites or declines in her own words.
 - **Mail**, the third view beside Conversation and Sessions: letters,
   outside mail and blocks (`screens/next-mail.md`).
 

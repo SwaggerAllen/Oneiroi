@@ -3,6 +3,7 @@ import { documentPath, type Citation } from '../chat/cite';
 import { useWide } from '../shell/useWide';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
+import { AddDocument } from './AddDocument';
 import { Editor } from './Editor';
 import { FolderSettings } from './FolderSettings';
 import { History } from './History';
@@ -20,6 +21,7 @@ import { Viewer } from './Viewer';
 export function RecordsTab({ residentId, path }: { residentId: string; path: string }) {
   const push = useShell((s) => s.push);
   const back = useShell((s) => s.back);
+  const go = useShell((s) => s.go);
   const { slug } = useSubject();
   const wide = useWide();
 
@@ -27,16 +29,18 @@ export function RecordsTab({ residentId, path }: { residentId: string; path: str
     const doc = documentPath(c);
     push(doc ? `doc/${doc}` : `cite/${c.kind}/${c.ref}`);
   };
-  const tree = <Tree residentId={residentId} current={path} onOpen={push} onSettings={(k) => push(`folder/${k}`)} />;
+  const tree = <Tree residentId={residentId} current={path} onOpen={push} onSettings={(k) => push(`folder/${k}`)} onAdd={() => push('new')} />;
 
   // On a wide screen the tree is already beside the page.
   const empty = <div className={css.emptyPage}>Choose a record from the tree.</div>;
   let page = wide ? empty : tree;
   let citation: Citation | null = null;
   if (path.startsWith('doc/')) {
-    page = <Viewer residentId={residentId} slug={slug} path={path.slice(4)} onCite={openCite} onOpen={push} onBack={back} />;
+    page = <Viewer residentId={residentId} slug={slug} path={path.slice(4)} onCite={openCite} onOpen={push} onBack={back} onGone={() => go({ tab: 'records', path: '' })} />;
   } else if (path.startsWith('history/')) {
     page = <History residentId={residentId} path={path.slice(8)} onBack={back} />;
+  } else if (path === 'new') {
+    page = <AddDocument residentId={residentId} onAdded={(p) => push(`doc/${p}`)} onBack={back} />;
   } else if (path.startsWith('edit/')) {
     page = <Editor residentId={residentId} path={path.slice(5)} onDone={back} />;
   } else if (path.startsWith('folder/')) {

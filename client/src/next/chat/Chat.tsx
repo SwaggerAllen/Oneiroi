@@ -9,6 +9,7 @@ import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
 import { Navigator } from './Navigator';
+import { TurnTools } from './TurnTools';
 import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';
 import { useChat } from './useChat';
@@ -208,6 +209,7 @@ export function Chat({
                     residentName={residentName}
                     canReact={m.role === 'assistant'}
                     reacts={(reacts.get(m.turn_ref) ?? []).filter((r) => (m.role === 'assistant' ? r.by === 'witness' : r.by === 'resident'))}
+                    extra={m.role === 'assistant' ? <TurnTools residentId={residentId} sessionKey={chat.key} turnRef={m.turn_ref} residentName={residentName} /> : undefined}
                   />
                 ) : null
               }
