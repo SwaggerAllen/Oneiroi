@@ -35,13 +35,14 @@ export const row = style({
   padding: '8px 0',
   borderBottom: `1px solid ${steelBorder}`,
   fontSize: 14,
-  selectors: { '&[data-late="true"]': { color: status.warn } },
+  alignItems: 'center',
+  selectors: { '&[data-late="true"]': { color: status.warn }, '&[data-gone="true"]': { color: vars.color.textMuted } },
 });
 export const failure = style({ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderBottom: `1px solid ${steelBorder}`, fontSize: 13 });
 export const mono = style({ font: `500 11px ${font.mono}`, color: vars.color.textMuted });
 export const note = style({ margin: 0, fontSize: 13, color: vars.color.textMuted });
 export const input = style({ minHeight: 40, padding: '0 12px', borderRadius: 8, border: `1px solid ${steelBorder}`, background: '#0b0d10', color: vars.color.text, font: `14px ${font.ui}` });
-export const buttons = style({ display: 'flex', gap: 8 });
+export const buttons = style({ display: 'flex', flexWrap: 'wrap', gap: 8 });
 export const button = style({
   minHeight: 38,
   padding: '0 14px',
@@ -53,3 +54,20 @@ export const button = style({
   cursor: 'pointer',
   selectors: { '&:disabled': { opacity: 0.4, cursor: 'default' } },
 });
+export const primary = style([button, { background: steel, color: '#0b0d10', borderColor: steel, fontWeight: 600 }]);
+export const danger = style([button, { color: status.error, borderColor: status.error }]);
+export const filter = style([button, { minHeight: 32, selectors: { '&[aria-pressed="true"]': { background: steel, color: '#0b0d10' } } }]);
+export const link = style({ alignSelf: 'flex-start', padding: 0, border: 'none', background: 'none', color: steel, font: `500 14px ${font.ui}`, textAlign: 'left', cursor: 'pointer' });
+export const said = style({ margin: 0, fontSize: 13, color: steel });
+export const refused = style({ margin: 0, fontSize: 13, color: status.error });
+export const field = style({ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, fontSize: 12, color: vars.color.textMuted });
+export const form = style({ display: 'flex', flexDirection: 'column', gap: 10 });
+export const grid = style({ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', alignItems: 'end', gap: 10 });
+export const inline = style({ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'flex-end' });
+export const stack = style({ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, overflowWrap: 'anywhere' });
+export const code = style({ margin: 0, font: `600 22px ${font.mono}`, color: steel, letterSpacing: '0.04em', overflowWrap: 'anywhere', userSelect: 'all' });
+export const clip = style({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+export const detail = style({ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6 });
+export const reportBody = style({ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' });
+export const logged = style({ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 });
+export const lines = style({ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 2 });
