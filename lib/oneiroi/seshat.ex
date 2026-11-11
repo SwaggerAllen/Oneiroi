@@ -155,6 +155,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Leases
   alias Oneiroi.Seshat.Oracles
+  alias Oneiroi.Seshat.Pastes
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
   alias Oneiroi.Seshat.Researches
@@ -457,6 +458,14 @@ defmodule Oneiroi.Seshat do
        "THEME.md is written only through the theme, where the readability checks run (seshat#56)",
        remedy:
          "the witness sets it with PUT /v1/residents/:id/theme; the resident proposes a change with theme_propose"},
+      {:seshat_paste_invalid,
+       "a pasted conversation is the witness's: words, and either an existing document under human-correspondence/ to add them to or whom a new one is with (a line of up to 200 characters) and its title, whose name no document there has yet (seshat#65, #66)",
+       remedy:
+         "paste the words; name the conversation to add to, or whom it is with; choose the existing one rather than starting it again"},
+      {:seshat_paste_no_kind,
+       "she has no human-correspondence kind; a pasted conversation lands only there (seshat#65)",
+       remedy:
+         "the resident defines it as a kind of hers (kind_define), and the paste lands there"},
       {:seshat_dispatch_failed,
        "the command did not reach the library, the journal or the scenes aggregate: the command middleware or the event store refused it",
        remedy:
@@ -566,6 +575,13 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(write(resident_id, path, content, actor, opts),
     do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note]))
+  )
+
+  @doc "The witness pastes a conversation of his with another person into her human-correspondence/ (seshat#65): a new document, or appended to one there under a dated heading (seshat#66); written as him with a note, and indexed."
+  @spec paste_correspondence(String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(paste_correspondence(resident_id, attrs, actor),
+    do: Pastes.paste(resident_id, attrs, actor)
   )
 
   # ---- versions (seshat#54) ----
