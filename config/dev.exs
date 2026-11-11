@@ -19,8 +19,12 @@ config :oneiroi,
           # 32 zero bytes, base64: a dev key, never a deployment's.
           "APSU_VAULT_KEY" => "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
           "APSU_CLOCK" => "system",
-          # Dev talks to OpenRouter on the witness's own key, as a deployment does.
-          "NISABA_PROVIDER" => "openrouter",
+          # Dev talks to OpenRouter on the witness's own key, as a deployment
+          # does. The one value read from the shell: `bin/dev` runs the
+          # local app server on the in-memory provider ("fake") so testing
+          # the client spends nothing, and `bin/dev up --live` leaves this
+          # default (SETUP.md, "A local app server").
+          "NISABA_PROVIDER" => System.get_env("ONEIROI_DEV_PROVIDER", "openrouter"),
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev"
         }}
 
