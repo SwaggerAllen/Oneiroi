@@ -748,3 +748,11 @@ lives.
 No new tool shapes, as the design asks: each is a library tool's twin,
 so a resident who can write to her own shelf already knows how to write
 to the household's.
+
+## #83
+The resident already knows one way to send a letter, and a sibling is
+one more name to send it to; a second tool would be a second grammar for
+the same act. Her own conversations win a shared name because they were
+there first and a letter to them must not silently go elsewhere. The
+household check lives here because the brain reaches the household and
+the conversations both; the conversations system only records.

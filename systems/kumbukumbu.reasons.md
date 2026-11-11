@@ -497,3 +497,14 @@ length as what is waiting on her.
 The sender is named so the resident knows the letter is the household's
 watch and not one of her own conversations; it is a house letter so it
 is read, answered and woken like every other.
+
+## #65
+Until a household held two residents there was nobody to write to, so
+#44's letters reached only one resident's own conversations. A second
+resident needs to be reached the way a letter reaches her: one to one,
+and waking her, which a household thread deliberately does not do. Two
+channels for two uses, one mail system: the letter is the same record
+in the recipient's own stream, so everything that reads letters (her
+inbox, the wake, the witness's view) reads it unchanged. Marking it by
+who wrote it and from where, rather than by a new field, keeps the event
+as it is: no new version, no upcaster.

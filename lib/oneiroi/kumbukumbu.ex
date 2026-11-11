@@ -1086,6 +1086,17 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.send_letter(resident_id, session_key, attrs, actor)
   )
 
+  @doc "A letter from a resident to a household sibling, landing in the sibling's Oneiroi chat (kumbukumbu#65)."
+  @spec send_sibling_letter(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(send_sibling_letter(recipient_id, from_name, text, actor),
+    do: Memories.send_sibling_letter(recipient_id, from_name, text, actor)
+  )
+
+  @doc "Whether a letter came from a household sibling (kumbukumbu#65)."
+  @spec from_sibling?(map()) :: boolean()
+  defexport(from_sibling?(letter), do: Memories.from_sibling?(letter))
+
   @doc "The sender a household watch's poke carries (seshat#62); a letter from it wakes the chat (sunna#49)."
   @spec household_sender() :: String.t()
   defexport(household_sender(), do: Memories.household_sender())

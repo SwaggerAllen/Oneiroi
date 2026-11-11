@@ -959,7 +959,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. A name no conversation answers to is refused, with the names there are.",
+        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (no in_reply_to across residents; say in the text what it answers). A name no conversation or household resident answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
@@ -1471,30 +1471,9 @@ defmodule Oneiroi.Brain.Tools do
   # House letters (kumbukumbu#44): the sender is the conversation this
   # turn is in, named by the server; a keepsake given must be one.
   defp call("letter_send", args, turn) do
-    keepsake = blank(args["keepsake"])
-
-    with :ok <- given_keepsake(turn.resident_id, keepsake),
-         {:ok, %{number: n, from: from}} <-
-           Kumbukumbu.send_letter(
-             turn.resident_id,
-             turn.session_key,
-             %{
-               to: to_string(args["to"] || ""),
-               text: to_string(args["text"] || ""),
-               in_reply_to: integer(args["in_reply_to"]),
-               keepsake: keepsake
-             },
-             turn.resident
-           ) do
-      "Sent letter ##{n} from #{from} to #{args["to"]}."
-    else
-      # The names travel with the refusal: the remedy says to pick one,
-      # and the error's text alone does not say which there are.
-      {:error, %{kind: :kumbukumbu_letter_unaddressed, details: details}} = refused ->
-        text(refused) <> " The names: " <> Enum.join(details[:names], "; ") <> "."
-
-      other ->
-        other
+    case sibling(turn.resident_id, to_string(args["to"] || "")) do
+      nil -> own_letter(args, turn)
+      {sibling, from} -> sibling_letter(sibling, from, args, turn)
     end
   end
 
@@ -4295,4 +4274,81 @@ defmodule Oneiroi.Brain.Tools do
     reason = if r.reason, do: " (#{r.reason})", else: ""
     "##{r.number} #{r.key}: #{r.state}#{path}#{reason}"
   end
+
+  defp own_letter(args, turn) do
+    keepsake = blank(args["keepsake"])
+
+    with :ok <- given_keepsake(turn.resident_id, keepsake),
+         {:ok, %{number: n, from: from}} <-
+           Kumbukumbu.send_letter(
+             turn.resident_id,
+             turn.session_key,
+             %{
+               to: to_string(args["to"] || ""),
+               text: to_string(args["text"] || ""),
+               in_reply_to: integer(args["in_reply_to"]),
+               keepsake: keepsake
+             },
+             turn.resident
+           ) do
+      "Sent letter ##{n} from #{from} to #{args["to"]}."
+    else
+      # The names travel with the refusal: the remedy says to pick one,
+      # and the error's text alone does not say which there are.
+      {:error, %{kind: :kumbukumbu_letter_unaddressed, details: details}} = refused ->
+        text(refused) <> " The names: " <> Enum.join(details[:names], "; ") <> "."
+
+      other ->
+        other
+    end
+  end
+
+  # A letter to a resident of her own household (brain#83): by that
+  # resident's name, when no conversation of hers answers to it. It lands
+  # in the sibling's Oneiroi chat and wakes it, as her own letters do.
+  defp sibling_letter(sibling, from, args, turn) do
+    cond do
+      args["in_reply_to"] not in [nil, ""] ->
+        @not_done <>
+          "a letter to #{sibling.name} doesn't thread: letter numbers are each resident's own. " <>
+          "Send it without in_reply_to, and say in the text which letter it answers."
+
+      blank(args["keepsake"]) != nil ->
+        @not_done <>
+          "a keepsake is given to your own conversations, not to #{sibling.name}. Send the letter without it."
+
+      true ->
+        text = to_string(args["text"] || "")
+
+        case Kumbukumbu.send_sibling_letter(sibling.id, from, text, turn.resident) do
+          {:ok, %{number: n}} ->
+            "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{from}."
+
+          other ->
+            other
+        end
+    end
+  end
+
+  # The resident of her household `to` names, with her own name as the
+  # sender; nil when a conversation of hers answers to the name first, or
+  # no sibling does.
+  defp sibling(resident_id, to) do
+    name = to |> String.trim() |> String.downcase()
+    own = Enum.map(Kumbukumbu.letter_addresses(resident_id), &String.downcase/1)
+
+    with false <- name == "" or name in own,
+         %{members: members} <- Oneiroi.Gaia.resident_household(resident_id),
+         %{} = me <- Enum.find(members, &resident?(&1, resident_id)),
+         %{} = sibling <- Enum.find(members, &sibling?(&1, resident_id, name)) do
+      {sibling, me.name}
+    else
+      _none -> nil
+    end
+  end
+
+  defp resident?(member, id), do: member.kind == "resident" and member.id == id
+
+  defp sibling?(member, id, name),
+    do: member.kind == "resident" and member.id != id and String.downcase(member.name) == name
 end

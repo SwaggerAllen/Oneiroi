@@ -271,11 +271,43 @@ defmodule Oneiroi.HouseholdCommunicationTest do
              &(&1.text == "Me too." and &1.in_reply_to == to_iris)
            )
 
-    # Between the two residents there is no house letter: a letter is the
-    # work log between one resident's own conversations (kumbukumbu#44),
-    # and her name is no conversation of Lily's. The household thread is
-    # where they talk; this pins the gap the build did not close.
-    assert run("letter_send", %{to: "Iris", text: "Hello"}, lily) =~ "Not done:"
+    # Between the two residents, a letter by name (kumbukumbu#65,
+    # brain#83): it lands in the sibling's Oneiroi chat, from the sender's
+    # name, and wakes that chat; a thread mostly does not wake anyone.
+    assert run("letter_send", %{to: "iris", text: "Shall we cook Sunday?"}, lily) =~
+             "to Iris's Oneiroi chat, from Lily"
+
+    assert [%{from_name: "Lily", to_name: "Oneiroi chat", text: "Shall we cook Sunday?"} = to_her] =
+             Enum.filter(Kumbukumbu.inbox(iris.id, iris.chat), &(&1.from_name == "Lily"))
+
+    assert Kumbukumbu.from_sibling?(to_her)
+    # Lily keeps nothing of Iris's: the letter is in Iris's letters only.
+    refute Enum.any?(Kumbukumbu.letters(lily.id), &(&1.text == "Shall we cook Sunday?"))
+
+    Fake.clear()
+    Fake.reply("Yes, Sunday.", for: iris.id)
+    assert :ok = Sunna.tick(iris.id)
+    {:ok, _session, woken} = Kumbukumbu.transcript({:account, ctx.witness.id}, iris.chat)
+
+    assert Enum.any?(
+             woken,
+             &(&1.role == "system" and &1.content =~ "##{to_her.number} from Lily")
+           )
+
+    # Her answer goes back the same way, without threading across residents.
+    assert run("letter_send", %{to: "Lily", text: "Yes.", in_reply_to: to_her.number}, iris) =~
+             "doesn't thread"
+
+    assert run("letter_send", %{to: "Lily", text: "Yes, Sunday."}, iris) =~
+             "to Lily's Oneiroi chat"
+
+    assert Enum.any?(Kumbukumbu.inbox(lily.id, lily.chat), &(&1.from_name == "Iris"))
+
+    # Her own conversations come first, and a name nobody answers to is refused.
+    assert run("letter_send", %{to: "Nobody", text: "Hello"}, lily) =~ "Not done:"
+
+    # The witness writes as the witness, never as a sibling.
+    refute Kumbukumbu.from_sibling?(%{by_kind: "witness", from_session: nil})
   end
 
   test "a ballot's bundle is fixed once it opens: every change is refused, and the amendment is exactly the bundle voted on",

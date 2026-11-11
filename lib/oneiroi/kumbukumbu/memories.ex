@@ -838,6 +838,40 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
+  @doc """
+  A letter from a resident to a sibling in her household (kumbukumbu#65):
+  it lands in the sibling's own letters, to the sibling's Oneiroi chat,
+  from the sender's name and from no conversation of the sibling's. The
+  caller (the brain's `letter_send`) has checked both are residents of
+  one household; this only records it. It does not thread: a letter
+  number is the sibling's, not the sender's, so `in_reply_to` stays out.
+  """
+  def send_sibling_letter(recipient_id, from_name, text, %Actor{kind: :resident} = actor) do
+    command = %Commands.SendHouseLetter{
+      actor: actor,
+      at: Clock.now(),
+      id: recipient_id,
+      from: from_name,
+      from_session: nil,
+      to: "Oneiroi chat",
+      to_session: nil,
+      in_reply_to: nil,
+      text: text,
+      keepsake: nil
+    }
+
+    case dispatch(command) do
+      {:ok, [%Events.HouseLetterSent{number: n}]} -> {:ok, %{number: n, from: from_name}}
+      other -> other
+    end
+  end
+
+  @doc "Whether a letter came from a sibling in the household (kumbukumbu#65): a resident wrote it from none of this resident's conversations."
+  def from_sibling?(%{by_kind: by_kind, from_session: from_session}),
+    do: to_string(by_kind) == "resident" and is_nil(from_session)
+
+  def from_sibling?(_letter), do: false
+
   @doc "The sender a household watch's letter carries (seshat#62), which the tick wakes the chat for (sunna#49)."
   def household_sender, do: "the household"
 

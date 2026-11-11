@@ -1046,9 +1046,12 @@ defmodule Oneiroi.Sunna.Schedules do
   # A letter another conversation sent wakes the chat (#24), and so does a
   # household watch's poke (sunna#49): the resident asked for it, for a
   # term it set, so a reply in that thread reaches her as one from her
-  # own conversations does.
+  # own conversations does. A sibling's letter wakes it too (sunna#50):
+  # waking is what a letter is for, where a thread mostly does not.
   defp wakes?(letter),
-    do: is_binary(letter.from_session) or letter.from_name == Kumbukumbu.household_sender()
+    do:
+      is_binary(letter.from_session) or letter.from_name == Kumbukumbu.household_sender() or
+        Kumbukumbu.from_sibling?(letter)
 
   defp letters_note(letters, numbers) do
     listed =

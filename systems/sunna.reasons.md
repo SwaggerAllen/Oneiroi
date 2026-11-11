@@ -334,3 +334,8 @@ The watch exists so a reply reaches her while the conversation is
 alive; a letter that waited for her to look would be the household's
 shelf again. She asked for it and set its end, so the wake is hers, and
 it takes the chat's existing bounds rather than new ones.
+
+## #50
+The witness's distinction is that a letter wakes and a thread mostly
+does not. A sibling's letter that sat unread until the resident next
+looked would be a thread by another name.

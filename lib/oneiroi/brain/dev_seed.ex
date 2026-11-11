@@ -22,7 +22,8 @@ defmodule Oneiroi.Brain.DevSeed do
     answer.
   - A household with a second resident, Iris: his contract (no rules),
     both signatures, a thread both write in with Wren watching it, and a
-    ballot of two rules with a three-day term.
+    ballot of two rules with a three-day term, and a letter from Iris to
+    Wren, sent the way a resident sends one.
 
   Lives in the brain because the brain already reaches every system it
   writes through; the mix task only refuses the wrong place and calls
@@ -31,7 +32,9 @@ defmodule Oneiroi.Brain.DevSeed do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Session
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Gaia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -180,6 +183,25 @@ defmodule Oneiroi.Brain.DevSeed do
           "term_days" => 3
         }
       })
+
+    # A letter between the two residents (kumbukumbu#65), through the
+    # tool she would use; the tick wakes Wren's chat for it.
+    {:ok, iris_chat} = Kumbukumbu.main_session(iris_id, account, witness)
+
+    turn = %{
+      resident_id: iris_id,
+      session_key: iris_chat,
+      turn_ref: "seed",
+      started_at: Clock.now(),
+      resident: iris
+    }
+
+    "Sent letter" <> _ =
+      Tools.run(
+        "letter_send",
+        ~s({"to": "Wren", "text": "Sunday, then. I'll bring the reading."}),
+        turn
+      )
 
     :ok
   end
