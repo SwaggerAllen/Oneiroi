@@ -143,6 +143,10 @@ defmodule Oneiroi.Sunna.Store do
       field(:done_when, :string)
       field(:status, :string)
       field(:blocked_on, :string)
+      # Held for the witness (sunna#54): the ask, who held it, when.
+      field(:held_ask, :string)
+      field(:held_by, :string)
+      field(:held_at, :utc_datetime_usec)
       field(:position, :integer)
       field(:added_by, :string)
       field(:added_at, :utc_datetime_usec)

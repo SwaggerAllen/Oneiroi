@@ -21,6 +21,10 @@ header's bell and gear. Built 2026-11-10.
     all in this client: an agreement entry Soul's agreement, a plugin
     proposal Soul's plugins, work and kind gates their Settings pages,
     the notifications question its page. Nothing opens the old client.
+  - Work held for him (brain#86, sunna#54) is an entry of its own,
+    "Work · waiting on you", its line the ask ("Work item #25 held:
+    your word on two wordings"), opening the Work page, where he
+    releases it with a note, or moves it done or dropped.
   - An item answered here stays in its place until the bell closes,
     folded to its title and recoloured: green with ✓ and what was
     decided (approved, approved to send, marked sent, noted, accepted),

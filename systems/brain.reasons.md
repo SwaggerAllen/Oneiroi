@@ -770,3 +770,15 @@ work run unwrapped, and the loop started the same item again: twenty
 runs of one item in eight minutes, each an empty conversation. A tool is
 one step in a turn; its failure is something to tell her, not a reason
 to end what she was doing.
+
+## #86
+His list is the one place that says what waits on him (#65, #72), and
+the bell, the Waiting page and his devices all read it; a held item that
+did not reach it would be his work hidden in the queue he does not open,
+which is what he asked to end. The ask is the entry's words because it
+is what he has to answer, and the item's title alone does not say that.
+
+## #87
+She knows when the next move is his, usually at the end of a run, so the
+hold is in the tools she already uses to say where an item stands.
+

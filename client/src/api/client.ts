@@ -556,6 +556,9 @@ export const api = {
     call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),
   moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status, blocked_on: blockedOn, note }),
+  // Held for the witness (sunna#54): the ask says what is needed of him; release is moveWork back to open.
+  holdWork: (residentId: string, number: number, ask: string, note: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status: 'held', ask, note }),
   orderWork: (residentId: string, order: number[]) => call<void>('PUT', `/v1/residents/${residentId}/work/order`, { order }),
   armWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/arm`),
   disarmWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/disarm`),

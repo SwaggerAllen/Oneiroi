@@ -9,12 +9,14 @@ import { useAct } from './useAct';
 import { blockedLine, isLive, loopLine, movedUp, settingsKey } from './logic';
 
 type Move = (n: number, status: string, blockedOn: string | null, note: string) => void;
+type Hold = (n: number, ask: string) => void;
 
 /**
  * The work queue (sunna#33, #38): her long items and yours in one list in
  * priority order, and the loop that runs the first open one, wraps it and
  * fires the next. Arm or turn off the line (sunna#43), reorder, move an
- * item's status with a note, and read each item's last wrap.
+ * item's status with a note, hold one for your word with an ask and
+ * release it (sunna#54, #55), and read each item's last wrap.
  */
 export function Work() {
   const { id, name } = useSubject();
@@ -34,6 +36,7 @@ export function Work() {
   const live = q.items.filter(isLive);
   const finished = q.items.filter((i) => !isLive(i)).slice(-5);
   const move: Move = (n, status, blockedOn, note) => run(() => api.moveWork(id, n, status, blockedOn, note).then(() => `#${n} is ${status === 'open' ? 'open again' : status}.`));
+  const hold: Hold = (n, ask) => run(() => api.holdWork(id, n, ask, null).then(() => `#${n} is held for you; the loop steps over it until you release it.`));
 
   return (
     <>
@@ -102,6 +105,7 @@ export function Work() {
                     }
               }
               onMove={move}
+              onHold={hold}
             />
           ))}
         </ol>
@@ -149,9 +153,12 @@ export function Work() {
   );
 }
 
-function Item({ item, items, busy, onUp, onMove }: { item: WorkItem; items: WorkItem[]; busy: boolean; onUp?: () => void; onMove: Move }) {
+function Item({ item, items, busy, onUp, onMove, onHold }: { item: WorkItem; items: WorkItem[]; busy: boolean; onUp?: () => void; onMove: Move; onHold: Hold }) {
   const [note, setNote] = useState('');
   const [blockedOn, setBlockedOn] = useState('');
+  const [holding, setHolding] = useState(false);
+  const [ask, setAsk] = useState('');
+  const held = item.status === 'held';
   // What it can wait on: another item still to be done.
   const blockers = items.filter((i) => i.number !== item.number && isLive(i));
   const noted = note.trim() !== '' && !busy;
@@ -165,7 +172,7 @@ function Item({ item, items, busy, onUp, onMove }: { item: WorkItem; items: Work
         #{item.number} {item.what}
       </strong>
       <span className={css.note}>
-        {item.status === 'blocked' ? blockedLine(item.blocked_on, items) : item.status === 'in_work' ? 'running now' : 'open'} · added by{' '}
+        {item.status === 'blocked' ? blockedLine(item.blocked_on, items) : item.status === 'in_work' ? 'running now' : held ? 'held for you' : 'open'} · added by{' '}
         {item.added_by === 'witness' ? 'you' : 'her'} · {item.runs} runs
       </span>
       <span className={css.note}>Done when: {item.done_when}</span>
@@ -175,7 +182,29 @@ function Item({ item, items, busy, onUp, onMove }: { item: WorkItem; items: Work
           {item.slipped ? `; slipped ${item.slipped}` : ''}; why: {item.why}
         </span>
       )}
+      {held && (
+        <span className={css.text}>
+          HELD · {item.held_by === 'witness' ? 'you held it' : 'she asks you'}: {item.held_ask}
+        </span>
+      )}
       {item.note && <span className={css.note}>Note: {item.note}</span>}
+      {holding && !held && (
+        <div className={css.row}>
+          <Field label={`What #${item.number} waits on you for`} value={ask} onChange={(e) => setAsk(e.target.value)} />
+          <button
+            type="button"
+            className={css.quiet}
+            disabled={busy || ask.trim() === ''}
+            onClick={() => {
+              onHold(item.number, ask.trim());
+              setAsk('');
+              setHolding(false);
+            }}
+          >
+            Hold
+          </button>
+        </div>
+      )}
       <div className={css.row}>
         <Field label={`A note on #${item.number}`} value={note} onChange={(e) => setNote(e.target.value)} />
         {blockers.length > 0 && (
@@ -196,6 +225,15 @@ function Item({ item, items, busy, onUp, onMove }: { item: WorkItem; items: Work
         {item.status === 'blocked' && (
           <button type="button" className={css.quiet} disabled={!noted} onClick={() => move('open')}>
             Unblock
+          </button>
+        )}
+        {held ? (
+          <button type="button" className={css.quiet} disabled={!noted} onClick={() => move('open')}>
+            Release
+          </button>
+        ) : (
+          <button type="button" className={css.quiet} disabled={busy} aria-expanded={holding} onClick={() => setHolding((h) => !h)}>
+            Hold for me…
           </button>
         )}
         <button type="button" className={css.quiet} disabled={!noted} onClick={() => move('done')}>

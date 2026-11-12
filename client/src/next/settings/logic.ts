@@ -122,7 +122,8 @@ export function loopLine(name: string, q: WorkQueue): string {
   const line = q.armed ? `Work line: armed${by}, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
   const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
   const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);
-  const skips = blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '';
+  const held = q.items.filter((i) => i.status === 'held').map((i) => `#${i.number}`);
+  const skips = (blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '') + (held.length > 0 ? ` Stepping over ${held.join(', ')}, held for you.` : '');
   if (q.running !== null) return `Running item #${q.running} now.${skips} ${runs} ${line}`;
   if (q.rested) return `Resting: ${q.rested}. ${runs} ${line}`;
   return `${name}'s loop has not run yet. ${line}`;

@@ -31,6 +31,8 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `${a.ask ?? 'Review the piece'} ${a.title ?? e.ref}`;
     case 'piece_to_publish':
       return `Publish the drafted piece ${a.title ?? e.ref}`;
+    case 'work_held':
+      return `Work item #${e.ref} held: ${a.ask ?? a.what}`;
     case 'work_blocked':
       return `Work item #${e.ref} blocked${a.blocked_on ? ` on ${a.blocked_on}` : ''}: ${a.what}`;
     case 'plugin_proposal':

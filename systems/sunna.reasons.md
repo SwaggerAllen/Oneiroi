@@ -360,3 +360,28 @@ are spent by a fault and not by work, the cap keeps the line shut until
 midnight in her zone, after the fault is fixed (the witness,
 2026-11-11: "so that once we fix this I can restart"). Giving the runs
 back is his act, with a note, so she reads why her day restarted.
+
+## #54
+#42 took work waiting on the witness off the blocked list so that one
+list, his, would say what waits on him; but only drafts, asks and
+pieces reached that list, so an item whose next move was his word lit
+nothing, and he found it only by opening a queue he rarely opens.
+Holding it with an ask puts the item itself on his list in the words he
+must answer. A status rather than a column edit because everything else
+the queue knows about an item is a move on its stream with its actor and
+note, and the loop already reads status to decide what it may run. A
+new event rather than a new version of `WorkMoved`: the ask belongs to
+the hold alone, and no stored move has to be read again.
+
+## #55
+A mark that could outlive its ask would be a second state to keep true
+by hand, and his list would fill with holds already answered. Tying the
+mark to the status means the act that answers it, his release or her
+taking it back, is the act that clears it; the release's note carries
+his answer to her, where she already reads a move's note.
+
+## #56
+The wrap is where she knows what is left; when what is left is his word,
+wrapping it open would have the loop start it again with nothing to do,
+and wrapping it blocked was what #42 ruled out.
+
