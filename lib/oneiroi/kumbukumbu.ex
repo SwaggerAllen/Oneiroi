@@ -694,6 +694,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Search.bookmarks(resident_id, text, limit)
   )
 
+  @doc "The same, narrowed (kumbukumbu#69): `pinned: true`, `tag:`, `made_by:` (`resident` or `witness`), `from:`/`to:` on the moment."
+  @spec search_bookmarks(String.t(), String.t(), pos_integer(), keyword()) :: [map()]
+  defexport(search_bookmarks(resident_id, text, limit, narrow),
+    do: Search.bookmarks(resident_id, text, limit, narrow)
+  )
+
   @doc "What her memory would surface for `text` in the common room: the ranked index's lines with their scores, then the madeleine (kumbukumbu#59)."
   @spec surfaced(String.t(), String.t(), Oneiroi.Actor.t(), boolean(), pos_integer()) :: [map()]
   defexport(surfaced(resident_id, text, actor, ranked?, limit),

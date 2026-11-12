@@ -756,7 +756,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
   `:oldest`, `:from` and `:to` instants bounding `sent_at` (from
   inclusive, to exclusive), `:keys` to keep to those sessions (her
   room), and `:witness` true to leave a private, unshared session's
-  messages out as `search_words/3` does. Tool calls are never searched.
+  messages out as `search_words/3` does; `:who`, an actor kind
+  (`resident`, `witness`, `platform`), keeps to who said it, and
+  `:conversations`, session kinds, to those kinds of conversation
+  (kumbukumbu#69). Tool calls are never searched.
   """
   @spec search_page(String.t(), String.t(), keyword()) ::
           {[{Message.t(), Session.t()}], boolean()}
@@ -783,6 +786,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:to, %DateTime{} = at}, q -> from([m, _s] in q, where: m.sent_at < ^at)
         {:keys, keys}, q when is_list(keys) -> from([m, _s] in q, where: m.session_key in ^keys)
         {:witness, true}, q -> from([_m, s] in q, where: s.private == false or s.shared == true)
+        {:who, kind}, q when is_binary(kind) -> from([m, _s] in q, where: m.actor_kind == ^kind)
+        {:conversations, [_ | _] = kinds}, q -> from([_m, s] in q, where: s.kind in ^kinds)
         _other, q -> q
       end)
 

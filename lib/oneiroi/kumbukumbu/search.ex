@@ -35,14 +35,15 @@ defmodule Oneiroi.Kumbukumbu.Search do
   tag's, newest first within each. Each `%{bookmark, matched, score}`,
   the score 1.0, 0.67 or 0.33 by where it matched.
   """
-  @spec bookmarks(String.t(), String.t(), pos_integer()) :: [map()]
-  def bookmarks(resident_id, text, limit) do
+  @spec bookmarks(String.t(), String.t(), pos_integer(), keyword()) :: [map()]
+  def bookmarks(resident_id, text, limit, narrow \\ []) do
     needle = text |> String.trim() |> String.downcase()
     withheld = withheld(resident_id)
 
     resident_id
     |> Memories.bookmarks()
     |> Enum.reject(&MapSet.member?(withheld, &1.session_key))
+    |> Enum.filter(&kept?(&1, narrow))
     |> Enum.flat_map(fn b ->
       case matched(b, needle) do
         nil -> []
@@ -51,6 +52,20 @@ defmodule Oneiroi.Kumbukumbu.Search do
     end)
     |> Enum.sort_by(&{-&1.score, -&1.bookmark.number})
     |> Enum.take(limit)
+  end
+
+  # kumbukumbu#69: pinned only, a tag, who made it (`resident` hers,
+  # `witness` from his suggestion), and its moment in a range.
+  defp kept?(b, narrow) do
+    Enum.all?(narrow, fn
+      {:pinned, true} -> b.pinned_at != nil
+      {:tag, tag} when is_binary(tag) -> tag in (b.tags || [])
+      {:made_by, "witness"} -> b.proposed_by_kind == "witness"
+      {:made_by, "resident"} -> b.proposed_by_kind != "witness"
+      {:from, %DateTime{} = at} -> DateTime.compare(b.anchor_at, at) != :lt
+      {:to, %DateTime{} = at} -> DateTime.compare(b.anchor_at, at) == :lt
+      _other -> true
+    end)
   end
 
   defp matched(b, needle) do

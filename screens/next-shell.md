@@ -54,9 +54,15 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   the conversation at that turn (`#/chat/turn/<session>/<turn>`); a turn
   in another session switches to Conversation but cannot open there yet,
   because no transcript reader for other sessions is built. Transcripts
-  also narrow (kumbukumbu#67): From and To days (this browser's zone,
-  both included), Newest or Oldest first, and a page of 50 with Newer
-  and Next page buttons when there is more than one.
+  page by 50 with Newer and Next page buttons (kumbukumbu#67). Every
+  scope but Everything and As she sees it has a **Filter** button
+  (kumbukumbu#69) that opens its filters, with a count of those set and
+  Clear: From and To days (this browser's zone, both included) and an
+  order (Best match, Newest, Oldest; transcripts Newest or Oldest);
+  records add Updated or Created, Written by, Status, Folder and Kinds
+  (her own kinds included); transcripts add Said by and Conversations;
+  bookmarks add Pinned only, Tag and Made (by her or from your
+  suggestion); scenes add Mood and Person.
 - **ScrollArea.** Edge fades as a mask, shown only while there is more
   past that edge.
 

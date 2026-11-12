@@ -159,7 +159,11 @@ defmodule OneiroiWeb.SearchController do
   # Words pages, sorts and takes a date range (kumbukumbu#67); every other
   # scope answers its one list.
   defp run(conn, id, q, "words", params) do
-    case paging(params) do
+    case with(
+           {:ok, opts, page} <- paging(params),
+           {:ok, narrow} <- narrow("words", params),
+           do: {:ok, opts ++ narrow, page}
+         ) do
       {:ok, opts, page} ->
         %{assigns: %{principal: p}} = conn
 
@@ -178,9 +182,179 @@ defmodule OneiroiWeb.SearchController do
     end
   end
 
+  # Records, bookmarks and scenes narrow and sort (kumbukumbu#69); the
+  # results stay the scope's nearest or best 50, the sort orders them.
+  defp run(conn, id, q, scope, params) when scope in ["records", "bookmarks", "scenes"] do
+    with {:ok, narrow} <- narrow(scope, params),
+         {:ok, sort} <- sort_of(params["sort"]),
+         {:ok, results} <- narrowed(conn, id, q, scope, narrow) do
+      {:ok, %{results: sorted(results, sort)}}
+    else
+      {:refused, what} ->
+        problem(conn, 422, :search_filter_invalid, :web_search_filter_invalid, what)
+
+      other ->
+        other
+    end
+  end
+
   defp run(conn, id, q, scope, _params) do
     with {:ok, results} <- run(conn, id, q, scope), do: {:ok, %{results: results}}
   end
+
+  defp narrowed(conn, id, q, "records", narrow) do
+    with {:ok, library} <- library(conn, id, q, [:records], reads?(id), narrow),
+         do: {:ok, library.records}
+  end
+
+  defp narrowed(conn, id, q, "scenes", narrow) do
+    with {:ok, library} <- library(conn, id, q, [:scenes], true, []),
+         do: {:ok, scenes_kept(id, library.scenes, narrow)}
+  end
+
+  defp narrowed(_conn, id, q, "bookmarks", narrow) do
+    {:ok,
+     id
+     |> Kumbukumbu.search_bookmarks(q, @page, narrow)
+     |> Enum.map(&bookmark(&1.bookmark, &1.score, q))}
+  end
+
+  # A scene hit is a day's file: the day stays when it falls in the range
+  # and one of its scenes has the mood and the person asked for.
+  defp scenes_kept(_id, hits, []), do: hits
+
+  defp scenes_kept(id, hits, narrow) do
+    days = Enum.map(hits, & &1.ref.day)
+
+    rows =
+      case days do
+        [] ->
+          %{}
+
+        days ->
+          id |> Seshat.scenes(Enum.min(days), Enum.max(days)) |> Map.new(&{&1.day, &1.scenes})
+      end
+
+    Enum.filter(hits, fn %{ref: %{day: day}} ->
+      in_range?(day, narrow) and scene_matches?(Map.get(rows, day, []), narrow)
+    end)
+  end
+
+  defp in_range?(day, narrow) do
+    from = narrow[:from] && narrow[:from] |> DateTime.to_date() |> Date.to_iso8601()
+    to = narrow[:to] && narrow[:to] |> DateTime.to_date() |> Date.to_iso8601()
+    (from == nil or day >= from) and (to == nil or day < to)
+  end
+
+  defp scene_matches?(scenes, narrow) do
+    mood = narrow[:mood]
+    person = narrow[:person]
+
+    (mood == nil and person == nil) or
+      Enum.any?(scenes, fn sc ->
+        (mood == nil or String.contains?(String.downcase(sc.mood || ""), mood)) and
+          (person == nil or Enum.any?(sc.people || [], &(String.downcase(&1) == person)))
+      end)
+  end
+
+  # ---- the filters (kumbukumbu#69) ----
+
+  @authors ~w(resident witness platform)
+  @made_by ~w(resident witness)
+
+  defp narrow(scope, params) do
+    with {:ok, from} <- instant(params["from"], "from"),
+         {:ok, to} <- instant(params["to"], "to"),
+         {:ok, own} <- narrow_of(scope, params) do
+      {:ok, Enum.reject([from: from, to: to] ++ own, &(elem(&1, 1) in [nil, []]))}
+    end
+  end
+
+  defp narrow_of("words", params) do
+    with {:ok, who} <- one_of(params["who"], @authors, "who"),
+         {:ok, kinds} <-
+           some_of(
+             params["conversations"],
+             Kumbukumbu.Conversation.kinds() ++ ["imported"],
+             "conversations"
+           ),
+         do: {:ok, who: who, conversations: kinds}
+  end
+
+  defp narrow_of("records", params) do
+    with {:ok, date} <- one_of(params["date"], ~w(created updated), "date"),
+         {:ok, author} <- one_of(params["author"], @authors, "author"),
+         do:
+           {:ok,
+            date: date && String.to_existing_atom(date),
+            kinds: list(params["kinds"]),
+            status: blank(params["status"]),
+            author: author,
+            folder: blank(params["folder"])}
+  end
+
+  defp narrow_of("bookmarks", params) do
+    with {:ok, made_by} <- one_of(params["made_by"], @made_by, "made_by"),
+         do:
+           {:ok,
+            pinned: params["pinned"] == "true" || nil, tag: blank(params["tag"]), made_by: made_by}
+  end
+
+  defp narrow_of("scenes", params),
+    do: {:ok, mood: lower(params["mood"]), person: lower(params["person"])}
+
+  defp one_of(raw, allowed, name) do
+    case blank(raw) do
+      nil ->
+        {:ok, nil}
+
+      value ->
+        if value in allowed,
+          do: {:ok, value},
+          else: {:refused, "#{name} is one of #{Enum.join(allowed, ", ")}"}
+    end
+  end
+
+  defp some_of(raw, allowed, name) do
+    values = list(raw)
+
+    case values -- allowed do
+      [] -> {:ok, values}
+      _unknown -> {:refused, "#{name} are among #{Enum.join(allowed, ", ")}"}
+    end
+  end
+
+  defp list(nil), do: []
+
+  defp list(raw),
+    do:
+      raw
+      |> to_string()
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+  defp blank(nil), do: nil
+
+  defp blank(raw),
+    do: if(String.trim(to_string(raw)) == "", do: nil, else: String.trim(to_string(raw)))
+
+  defp lower(raw), do: raw |> blank() |> then(&(&1 && String.downcase(&1)))
+
+  defp sort_of(nil), do: {:ok, :relevance}
+  defp sort_of("relevance"), do: {:ok, :relevance}
+  defp sort_of("newest"), do: {:ok, :newest}
+  defp sort_of("oldest"), do: {:ok, :oldest}
+  defp sort_of(_other), do: {:refused, "sort is relevance, newest or oldest"}
+
+  # A result without an instant (a scene read from its file) sorts by its day.
+  defp sorted(results, :relevance), do: results
+  defp sorted(results, :newest), do: Enum.sort_by(results, &instant_key/1, :desc)
+  defp sorted(results, :oldest), do: Enum.sort_by(results, &instant_key/1, :asc)
+
+  defp instant_key(%{at: %DateTime{} = at}), do: DateTime.to_iso8601(at)
+  defp instant_key(%{ref: %{day: day}}) when is_binary(day), do: day
+  defp instant_key(_result), do: ""
 
   defp paging(params) do
     with {:ok, page} <- page(params["page"]),
@@ -256,12 +430,13 @@ defmodule OneiroiWeb.SearchController do
   # Records and scenes in one embedding of the query. Records are every
   # indexed document but the scenes, and the journal's days too while
   # the agreement keeps the witness from reading the journal.
-  defp library(conn, id, q, wanted, reads?) do
+  defp library(conn, id, q, wanted, reads?, narrow \\ []) do
     except = if reads?, do: [@scenes], else: [@scenes, "journal/"]
+    date = Keyword.get(narrow, :date, :updated)
 
     filters =
       Enum.flat_map(wanted, fn
-        :records -> [records: {:except, except}]
+        :records -> [records: {:narrow, {:except, except}, narrow}]
         :scenes -> [scenes: {:prefix, @scenes}]
         _other -> []
       end)
@@ -269,7 +444,7 @@ defmodule OneiroiWeb.SearchController do
     with {:ok, hits} <- Seshat.search_within(id, q, actor(conn), filters, @page) do
       {:ok,
        %{
-         records: Enum.map(Map.get(hits, :records, []), &document/1),
+         records: Enum.map(Map.get(hits, :records, []), &document(&1, date)),
          scenes: Enum.map(Map.get(hits, :scenes, []), &scene/1)
        }}
     end
@@ -312,13 +487,15 @@ defmodule OneiroiWeb.SearchController do
       score: nil
     }
 
-  defp document(hit),
+  # `at` is the date the reader filtered on: the last write, or with
+  # `date=created` the registration (kumbukumbu#69).
+  defp document(hit, date),
     do: %{
       type: "document",
       ref: %{path: hit.path},
       title: hit.title || hit.path,
       snippet: clip(hit.text),
-      at: hit.written_at,
+      at: if(date == :created, do: Map.get(hit, :registered_at), else: hit.written_at),
       score: similarity(hit.distance)
     }
 

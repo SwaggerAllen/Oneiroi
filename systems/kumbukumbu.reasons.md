@@ -546,3 +546,16 @@ back to the last message so a time after the session's end still lands
 somewhere rather than refusing. It reuses `around` instead of a new
 route so the client's one window read, its anchor and its paging
 forward and back all hold unchanged.
+
+## #69
+
+Only transcripts narrowed, so the witness could not ask the obvious
+questions of the rest: her drafts last week, the bookmarks she pinned,
+the scenes where she was glad. Records filter inside the vector query,
+not after it, so a narrow filter still returns the nearest matches of
+the documents it allows instead of the few that survived a top-50 cut.
+Sort orders that best 50 rather than paging by date, because a meaning
+search has no stable order past its rank; transcripts, matched by
+phrase, page instead (#67). Scenes filter by day because the search
+reads the day's file: matching the file and then its rows keeps one
+embedding per day, and the day is the unit the reader opens.
