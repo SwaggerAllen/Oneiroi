@@ -15,8 +15,9 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   moves on; a wake still running at the guideline is timed out by the
   minute, and its writes after that are refused as outside her turn. A
   beat that just closed wakes each resident whose profile is
-  `every_beat` with its digest, which is also the sign-up sheet for the
-  next.
+  `every_beat` with its digest. There is no sign-up wake: a resident
+  registers from whatever wake she is in (her turn, a digest, her chat),
+  for any beat to come (gaia#35, #39).
 
   **The record** (seshat#71). `BEATS.md` at the household repository's
   root is rendered after every change: the shape in force and its phase,
@@ -41,25 +42,81 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
 
   # ---- a member's own (brain#84) ----
 
-  @doc "A resident enters the queue (gaia#35): answers the beat she waits for, when its turns start firing, and her place now."
-  def register(%Actor{} = actor) do
-    with {:ok, household_id} <- Household.member_household(actor),
-         {:ok, registered} <- Gaia.register_household_beat(household_id, actor) do
-      _ = render(household_id)
+  @doc """
+  A resident registers for one beat (gaia#35, #39): by its top (`beat`,
+  ISO 8601) or by how many beats ahead (`beats_ahead`, 0 the beat
+  running, 1 the next, the default). Answers the beat, when its turns
+  fire, and her place among its registrants as things stand. Joining the
+  beat running fires her at once when no turn is open.
+  """
+  def register(%Actor{} = actor, target \\ %{}) do
+    with {:ok, household_id} <- Household.member_household(actor) do
       shape = Gaia.household_beat_shape(household_id)
-      beats = Gaia.household_beats(household_id, Clock.now())
-      queued = Enum.find(beats.queue, &(&1.resident_id == actor.id))
-      top = (queued && queued.waits_for) || registered.beat_top
+      now = Clock.now()
+      top = target_top(household_id, shape, now, target)
 
-      {:ok,
-       %{
-         beat_top: top,
-         fires_from: Beats.signup_closes(top, shape),
-         already: registered.already,
-         position: queued && queued.position,
-         queue: length(beats.queue)
-       }}
+      case Gaia.register_household_beat(household_id, top, actor) do
+        {:ok, registered} ->
+          registered(household_id, actor, shape, now, registered)
+
+        {:error, %{kind: :gaia_beat_closed} = e} ->
+          {:error, next_open(e, household_id, shape, now)}
+
+        other ->
+          other
+      end
     end
+  end
+
+  defp target_top(household_id, shape, now, target) do
+    target = Map.new(target, fn {k, v} -> {to_string(k), v} end)
+
+    case target do
+      %{"beat" => iso} when is_binary(iso) and iso != "" ->
+        case DateTime.from_iso8601(iso) do
+          {:ok, at, _} -> at
+          _bad -> nil
+        end
+
+      %{"beats_ahead" => n} when is_integer(n) and n >= 0 ->
+        Beats.ahead(household_id, shape, now, n)
+
+      _next ->
+        Beats.ahead(household_id, shape, now, 1)
+    end
+  end
+
+  defp registered(household_id, actor, shape, now, registered) do
+    top = registered.beat_top
+
+    if DateTime.compare(top, Beats.top(household_id, shape, now)) == :eq, do: tick(household_id)
+    _ = render(household_id)
+    beats = Gaia.household_beats(household_id, Clock.now())
+    those = Enum.find(beats.registrations, &(DateTime.compare(&1.beat_top, top) == :eq))
+    residents = (those && those.residents) || []
+    place = Enum.find_index(residents, &(&1.resident_id == actor.id))
+    signup = Beats.signup_closes(top, shape)
+
+    {:ok,
+     %{
+       beat_top: top,
+       fires_from: if(DateTime.compare(now, signup) == :gt, do: now, else: signup),
+       already: registered.already,
+       position: place && place + 1,
+       registered: length(residents),
+       turn: beats.open_turn && beats.open_turn.resident_id == actor.id && beats.open_turn
+     }}
+  end
+
+  # A beat she cannot join: the remedy names the next she can.
+  defp next_open(error, household_id, shape, now) do
+    next = Beats.ahead(household_id, shape, now, 1)
+
+    %{
+      error
+      | remedy:
+          "Register for the next beat, which begins #{iso(next)} (beats_ahead: 1, the default), or a later one by its top; its sign-up is open until #{iso(Beats.signup_closes(next, shape))}."
+    }
   end
 
   @doc "A member sets her own wake profile, with a note (gaia#37)."
@@ -99,6 +156,12 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
          profile: mine && mine.profile,
          missed: (mine && mine.missed) || 0,
          queued: Enum.find(beats.queue, &(&1.resident_id == actor.id)),
+         registrations:
+           for(
+             r <- beats.registrations,
+             Enum.any?(r.residents, &(&1.resident_id == actor.id)),
+             do: r.beat_top
+           ),
          turn: if(open && open.resident_id == actor.id, do: open),
          quota: shape.quota,
          quota_left: max(shape.quota - posted, 0),
@@ -224,11 +287,11 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     On the household's shelf since your last turn (#{iso(since)}):
     #{delta(writes, since, turn.resident_id)}
 
-    This turn is a window until #{iso(turn.ends_by)}, about #{minutes} minutes: a guideline, and the turn ends when this wake does. In it you may post once in each thread (a new thread counts as a post in it) and write each household document once; household_read reads any of the above whole. Your post quota: #{left} of #{shape.quota} left in the last #{shape.window} hours. A vote is never held to the turns or the quota. household_beat shows the queue; household_register queues you for a later beat.
+    This turn is a window until #{iso(turn.ends_by)}, about #{minutes} minutes: a guideline, and the turn ends when this wake does. In it you may post once in each thread (a new thread counts as a post in it) and write each household document once; household_read reads any of the above whole. Your post quota: #{left} of #{shape.quota} left in the last #{shape.window} hours. A vote is never held to the turns or the quota. household_beat shows the queue and your registrations. #{register_line(household_id, shape, turn.fired_at)}
     """
   end
 
-  @doc "A beat's digest: its turns, who it passed over, what is new on the shelf in it, and the sign-up for the next."
+  @doc "A beat's digest: its turns, who it passed over, what is new on the shelf in it, and how to register for a coming beat."
   def digest_note(household_id, top) do
     shape = Gaia.household_beat_shape(household_id)
     beats = Gaia.household_beats(household_id, Clock.now())
@@ -246,9 +309,14 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
 
     passed =
       case closed && closed.passed_over do
-        nil -> ""
-        [] -> ""
-        ids -> " Passed over, first next time: #{Enum.map_join(ids, ", ", &names[&1])}."
+        nil ->
+          ""
+
+        [] ->
+          ""
+
+        ids ->
+          " Passed over, each a miss banked, first whenever they next register: #{Enum.map_join(ids, ", ", &names[&1])}."
       end
 
     """
@@ -259,8 +327,16 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     On the shelf in that beat:
     #{delta(Household.writes(dir), top, nil)}
 
-    Sign-up for the beat at #{iso(next)} is open until #{iso(Beats.signup_closes(next, shape))}: household_register queues you, and turns fire one after another from then, the most starved first. Your household writes go in during your turn; a vote does not wait for one.
+    The beat running began #{iso(next)}; beats_ahead: 0 registers for it while its sign-up is open, until #{iso(Beats.signup_closes(next, shape))}. #{register_line(household_id, shape, Clock.now())} Your household writes go in during your turn; a vote does not wait for one.
     """
+  end
+
+  # How to register for a coming beat, said in every wake the beats send
+  # (seshat#72): there is no sign-up wake of its own.
+  defp register_line(household_id, shape, at) do
+    [a, b, c] = Beats.upcoming(household_id, shape, at, 3)
+
+    "household_register signs you up for one coming beat: the next by default (begins #{iso(a)}, sign-up open until #{iso(Beats.signup_closes(a, shape))}), or beats_ahead: n, or beat: its top (then #{iso(b)}, #{iso(c)}, every #{shape.beat} minutes); a registration lasts for its beat only."
   end
 
   defp delta(writes, since, except) do
@@ -306,6 +382,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     names = Map.new(b.profiles, &{&1.id, &1.name})
     settings = settings_lines(s)
     queue = queue_lines(b.queue)
+    registrations = registration_lines(b.registrations)
     open = open_line(b.open_turn, names)
     profiles = Enum.map_join(b.profiles, "\n", &"- #{&1.name} (#{&1.kind}): #{&1.profile}")
     closed = closed_lines(b.closed, names)
@@ -313,7 +390,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     """
     # The household's beats
 
-    Always on: a ballot changes their shape, never whether there are beats. Turns fire one after another from each beat's sign-up close, the most starved first (opportunities missed, not time), each registrant once before anyone repeats, up to the cap. A resident writes in her turn: once in each thread and once to each document. Every member, witness or resident, posts within the quota; a vote never counts and never waits.
+    Always on: a ballot changes their shape, never whether there are beats. A registration is for one beat, any beat to come, and ends with it. Turns fire one after another from each beat's sign-up close, the most starved first (opportunities missed, not time), each registrant once before anyone repeats, up to the cap. A resident writes in her turn: once in each thread and once to each document. Every member, witness or resident, posts within the quota; a vote never counts and never waits.
 
     ## The shape in force
 
@@ -327,9 +404,13 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
 
     The open turn: #{open}
 
-    ## The queue
+    ## The queue of the beat now
 
     #{queue}
+
+    ## Registrations by beat
+
+    #{registrations}
 
     ## Wake profiles
 
@@ -359,12 +440,20 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
         fn {k, v} -> "- #{k}: #{v}" end
       )
 
-  defp queue_lines([]), do: "Nobody is registered."
+  defp queue_lines([]), do: "Nobody is registered for it."
 
   defp queue_lines(queue),
     do:
       Enum.map_join(queue, "\n", fn r ->
-        "#{r.position}. #{r.name}, registered #{iso(r.registered_at)}, #{r.missed} missed, waiting for the beat at #{iso(r.waits_for)}"
+        "#{r.position}. #{r.name}, registered #{iso(r.registered_at)}, #{r.missed} missed, #{r.turns_this_beat} #{if r.turns_this_beat == 1, do: "turn", else: "turns"} in it"
+      end)
+
+  defp registration_lines([]), do: "None: a registration is for one beat, and none is open."
+
+  defp registration_lines(registrations),
+    do:
+      Enum.map_join(registrations, "\n", fn r ->
+        "- #{iso(r.beat_top)}: #{Enum.map_join(r.residents, ", ", & &1.name)}"
       end)
 
   defp open_line(nil, _names), do: "None."
@@ -379,7 +468,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
       Enum.map_join(
         closed,
         "\n",
-        &"- #{iso(&1.beat_top)}: #{turns_line(&1.turns, names)}#{carried_line(&1.carried, names)}"
+        &"- #{iso(&1.beat_top)}: #{turns_line(&1.turns, names)}#{passed_line(&1.passed_over, names)}"
       )
 
   defp turns_line([], _names), do: "no turns"
@@ -387,8 +476,10 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   defp turns_line(turns, names),
     do: Enum.map_join(turns, ", ", &"##{&1["turn"]} #{names[&1["resident_id"]]} #{&1["outcome"]}")
 
-  defp carried_line([], _names), do: ""
-  defp carried_line(ids, names), do: "; carried on: #{Enum.map_join(ids, ", ", &names[&1])}"
+  defp passed_line([], _names), do: ""
+
+  defp passed_line(ids, names),
+    do: "; passed over (a miss banked): #{Enum.map_join(ids, ", ", &names[&1])}"
 
   # ---- the platform's hand (gaia#36) ----
 

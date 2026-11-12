@@ -6,7 +6,8 @@ defmodule Oneiroi.HouseholdBeatsTest do
   creation on the default shape, with its phase; a ballot changing the
   shape (and refused when it would take the beats away); registration;
   turns fired by the minute from the sign-up's close, starved-first, one
-  after another as each wake ends, up to the cap, the rest carried and
+  after another as each wake ends, up to the cap; a registration for one
+  beat, any beat to come, ending with it, its miss banked so she goes
   first next beat; the turn's window (once in each thread, once to each
   document); writes outside a turn refused, votes allowed anytime and
   never counted; the post quota, for a resident and for the witness; the
@@ -152,7 +153,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
     assert {:error, %Seshat.Error{kind: :seshat_household_not_your_turn, remedy: remedy}} =
              Seshat.household_post(ada.actor, %{"title" => "Hello", "content" => "First."})
 
-    assert remedy =~ "household_register now queues you for the beat at"
+    assert remedy =~ "household_register signs you up for a coming beat"
     assert run("household_post", %{title: "Hello", content: "First."}, ada) =~ "Not done:"
     assert {:ok, %{threads: []}} = Seshat.household_shelf(ada.actor, 0)
 
@@ -177,7 +178,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
     # sign-up close and not a second before.
     assert run("household_register", %{}, ada) =~ "Registered for the beat at"
     assert run("household_register", %{}, ada) =~ "You were registered already"
-    [%{resident_id: ada_id, waits_for: waits}] = beats(h).queue
+    [%{beat_top: waits, residents: [%{resident_id: ada_id}]}] = beats(h).registrations
     assert ada_id == ada.id
     assert rem(div(DateTime.to_unix(waits), 60) - phase, 60) == 0
 
@@ -270,7 +271,8 @@ defmodule Oneiroi.HouseholdBeatsTest do
       assert run("household_register", %{}, r) =~ "Registered for the beat at"
     end
 
-    assert Enum.map(beats(h).queue, & &1.name) == ["Ada", "Bea", "Cy"]
+    assert [%{beat_top: ^n1, residents: registered}] = beats(h).registrations
+    assert Enum.map(registered, & &1.name) == ["Ada", "Bea", "Cy"]
 
     # Sign-up for N1 closes five minutes in: the earliest registration fires first.
     put(Beats.signup_closes(n1, shape(h)))
@@ -317,7 +319,8 @@ defmodule Oneiroi.HouseholdBeatsTest do
     assert {:error, %Seshat.Error{kind: :seshat_household_not_your_turn, remedy: remedy}} =
              Seshat.household_reply(bea.actor, garden, %{"content" => "Yes!"})
 
-    assert remedy =~ "You are registered, first in the queue"
+    assert remedy =~ "You are registered for the beat at"
+    assert remedy =~ "first as things stand"
 
     # ---- the witness: no turn, one post a thread a beat, no slot taken ----
     fired = beats(h).beat.turns_fired
@@ -349,7 +352,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
              Seshat.household_post(ada.actor, %{"title" => "Late", "content" => "x"})
 
     run_turn(h, bea, t2)
-    # Her turn had, she queues again for the next beat while this one runs.
+    # Her turn had, she registers for the next beat while this one runs.
     assert run("household_register", %{}, bea) =~ "Registered for the beat at"
     assert bea_note_lines.() =~ "#{garden} \"Garden\": a new thread by Ada"
     assert bea_note_lines.() =~ "design/beds.md: posted by Ada"
@@ -361,17 +364,22 @@ defmodule Oneiroi.HouseholdBeatsTest do
     tick(h)
     assert open_turn(h) == nil
 
-    # ---- the beat closes: Cy carried, Ada's digest (every_beat) only ----
+    # ---- the beat closes: Cy passed over, her registration ended with
+    # it and the miss banked; Ada's digest (every_beat) only ----
     n2 = Beats.ends(n1, shape(h))
     put(n2)
     tick(h)
 
-    assert [%{beat_top: closed_top, passed_over: [cy_id], carried: [cy_id]} | _] =
-             beats(h).closed
+    assert [%{beat_top: closed_top, passed_over: [cy_id], carried: []} | _] = beats(h).closed
 
     assert cy_id == cy.id
     assert DateTime.compare(closed_top, n1) == :eq
     assert missed(h, cy) == 1
+
+    refute Enum.any?(beats(h).registrations, fn r ->
+             Enum.any?(r.residents, &(&1.resident_id == cy_id))
+           end)
+
     # The digest wakes only the every_beat resident, for the beat just ended.
     top_iso = DateTime.to_iso8601(n1)
     assert {ada.id, top_iso} in digest_jobs(h)
@@ -388,13 +396,17 @@ defmodule Oneiroi.HouseholdBeatsTest do
 
     digest = Enum.find(system_lines(witness, ada), &(&1 =~ "this is its digest"))
     assert digest =~ "Ada (completed), Bea (completed)"
-    assert digest =~ "Passed over, first next time: Cy"
-    assert digest =~ "household_register queues you"
+    assert digest =~ "Passed over, each a miss banked, first whenever they next register: Cy"
+    assert digest =~ "household_register signs you up for one coming beat"
+    refute digest =~ "sign-up sheet"
     refute Enum.any?(system_lines(witness, cy), &(&1 =~ "digest"))
 
-    # ---- N2: Ada registers again, after Bea; Cy, starved, goes first ----
+    # ---- N2, whose sign-up is open: Cy and Ada register for it (Bea did
+    # during N1); Cy, her miss banked, goes first ----
     Clock.Fake.advance(60)
-    assert run("household_register", %{}, ada) =~ "Registered for the beat at"
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Registered for the beat at"
+    Clock.Fake.advance(1)
+    assert run("household_register", %{beats_ahead: 0}, ada) =~ "Registered for the beat at"
     assert Enum.map(beats(h).queue, & &1.name) == ["Cy", "Bea", "Ada"]
 
     put(Beats.signup_closes(n2, shape(h)))
@@ -420,15 +432,21 @@ defmodule Oneiroi.HouseholdBeatsTest do
              Seshat.household_post(cy.actor, %{"title" => "Late", "content" => "x"})
 
     run_turn(h, bea, t4)
-    # The cap again: Ada carried this time.
+    # The cap again: Ada is passed over this time.
     assert open_turn(h) == nil
 
-    # ---- N3: carried and starved first; across the beats, nobody starved ----
+    # ---- N3: both register again; starved first; nobody starved ----
     n3 = Beats.ends(n2, shape(h))
     put(n3)
     tick(h)
-    assert [%{passed_over: [^ada_id], carried: carried} | _] = beats(h).closed
-    assert Enum.sort(carried) == Enum.sort([ada.id, cy.id])
+    assert [%{passed_over: [^ada_id], carried: []} | _] = beats(h).closed
+    assert beats(h).registrations == []
+    assert missed(h, ada) == 1
+
+    for r <- [ada, cy] do
+      Clock.Fake.advance(1)
+      assert run("household_register", %{beats_ahead: 0}, r) =~ "Registered for the beat at"
+    end
 
     put(Beats.signup_closes(n3, shape(h)))
     tick(h)
@@ -584,5 +602,86 @@ defmodule Oneiroi.HouseholdBeatsTest do
                "title" => "Porch",
                "content" => "words"
              })
+  end
+
+  test "a registration is for one beat: any beat to come, several at once; the beat running joined only when its queue is empty and she has not gone",
+       ctx do
+    %{household: h, ada: ada, bea: bea, cy: cy} = ctx
+    s = shape(h)
+    n1 = Beats.ahead(h, s, Clock.now(), 1)
+    n2 = Beats.ahead(h, s, Clock.now(), 2)
+
+    # Two beats ahead, by offset or by its top; one registration a beat.
+    assert run("household_register", %{beats_ahead: 2}, ada) =~ "Registered for the beat at"
+
+    assert run("household_register", %{beat: DateTime.to_iso8601(n2)}, ada) =~
+             "You were registered already"
+
+    assert run("household_register", %{}, bea) =~ "Registered for the beat at"
+
+    assert [
+             %{beat_top: ^n1, residents: [%{name: "Bea"}]},
+             %{beat_top: ^n2, residents: [%{name: "Ada"}]}
+           ] =
+             beats(h).registrations
+
+    assert run("household_beat", %{}, ada) =~ "Beats to come"
+
+    # Not a beat-top, a beat gone, or past a week: refused.
+    assert run("household_register", %{beat: DateTime.to_iso8601(DateTime.add(n1, 60))}, cy) =~
+             "Not done:"
+
+    assert {:error, %Gaia.Error{kind: :gaia_beat_closed, remedy: remedy}} =
+             Seshat.household_register(cy.actor, %{
+               "beat" => DateTime.to_iso8601(DateTime.add(n1, -2 * 3600))
+             })
+
+    assert remedy =~ "Register for the next beat, which begins"
+    assert run("household_register", %{beats_ahead: 24 * 8}, cy) =~ "Not done:"
+
+    # N1: Bea, its only registrant, goes; nobody else waits.
+    put(Beats.signup_closes(n1, s))
+    tick(h)
+    assert %{turn: t1, resident_id: bea_id} = open_turn(h)
+    assert bea_id == bea.id
+    run_turn(h, bea, t1)
+    assert open_turn(h) == nil
+
+    # Cy joins the beat running after its sign-up: its queue is empty, and
+    # she fires at once.
+    Clock.Fake.advance(60)
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Your turn is open now"
+    assert %{turn: t2, resident_id: cy_id} = open_turn(h)
+    assert cy_id == cy.id
+
+    # Bea's registration for it is the one she had: no second turn.
+    assert {:ok, %{already: true}} = Seshat.household_register(bea.actor, %{"beats_ahead" => 0})
+    assert %{turn: ^t2} = open_turn(h)
+    run_turn(h, cy, t2)
+
+    # Ada, who has gone in it (a turn by the platform's hand), cannot join
+    # it; the remedy names the next beat.
+    in_turn(h, ada, fn -> :ok end)
+
+    assert {:error, %Gaia.Error{kind: :gaia_beat_closed, remedy: remedy}} =
+             Seshat.household_register(ada.actor, %{"beats_ahead" => 0})
+
+    assert remedy =~ "Register for the next beat"
+
+    # N2: Ada (registered at the start) and Bea; while Bea still waits for
+    # her first turn, Cy cannot join it.
+    assert run("household_register", %{}, bea) =~ "Registered for the beat at"
+    put(Beats.signup_closes(n2, s))
+    tick(h)
+    assert %{turn: t3, resident_id: ada_id} = open_turn(h)
+    assert ada_id == ada.id
+
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Not done:"
+    run_turn(h, ada, t3)
+    assert %{turn: t4, resident_id: ^bea_id} = open_turn(h)
+    run_turn(h, bea, t4)
+
+    # Everyone registered has gone: the beat running is open to Cy again.
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Your turn is open now"
   end
 end

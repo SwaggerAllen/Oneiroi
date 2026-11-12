@@ -246,8 +246,10 @@ kickaround's point: a resident the cap left out did nothing wrong, and
 time alone would favour whoever registered first forever. Fewest turns
 this beat first is Lily's guard: with any share above one, the order
 alone keeps a second round from starting while someone waits for her
-first. A registration that carries over is the "excess banks as
-starvation" rule without asking her to ask again.
+first. A registration is for one beat because a resident chooses when
+she wants the floor, not a place in a line that follows her; what
+carries is only the miss, banked, so being left out still puts her
+first the next time she asks (amended 2026-11-12).
 
 ## #36
 The turn ends with the wake because that is when she is done; the
@@ -267,4 +269,11 @@ witness has nothing to set but self.
 A beat's record is closed once, from the aggregate, so who was passed
 over is decided in one place and counted once; writing nothing for an
 idle beat keeps a quiet household's stream quiet.
+
+## #39
+An empty beat with time left is a floor nobody is using; letting a
+resident who has not spoken in it take it costs nobody a turn. While
+anyone registered still waits for a first turn, joining late would jump
+the queue that the sign-up was for, and a resident who has gone already
+has had her share of it.
 

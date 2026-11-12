@@ -131,15 +131,20 @@ defmodule Oneiroi.Gaia.Beats do
   @spec ends(DateTime.t(), map()) :: DateTime.t()
   def ends(top, shape), do: DateTime.add(top, shape.beat * 60, :second)
 
-  @doc "The beat a registration at `at` queues for: this one while its sign-up is open, else the next (gaia#35)."
-  @spec registers_for(String.t(), map(), DateTime.t()) :: DateTime.t()
-  def registers_for(household_id, shape, at) do
-    top = top(household_id, shape, at)
+  @doc "Whether an instant is one of the household's beat-tops under the shape."
+  @spec aligned?(String.t(), map(), DateTime.t()) :: boolean()
+  def aligned?(household_id, shape, %DateTime{} = at),
+    do: DateTime.compare(top(household_id, shape, at), at) == :eq
 
-    if DateTime.compare(at, signup_closes(top, shape)) == :lt,
-      do: top,
-      else: ends(top, shape)
-  end
+  @doc "The beat-tops `ahead` beats after the one `at` falls in: 0 is the beat running, 1 the next."
+  @spec ahead(String.t(), map(), DateTime.t(), non_neg_integer()) :: DateTime.t()
+  def ahead(household_id, shape, at, n),
+    do: DateTime.add(top(household_id, shape, at), n * shape.beat * 60, :second)
+
+  @doc "The next `n` beat-tops after the beat `at` falls in."
+  @spec upcoming(String.t(), map(), DateTime.t(), pos_integer()) :: [DateTime.t()]
+  def upcoming(household_id, shape, at, n),
+    do: Enum.map(1..n, &ahead(household_id, shape, at, &1))
 
   @doc """
   The starved-first order (gaia#35): fewest turns this beat first, so no

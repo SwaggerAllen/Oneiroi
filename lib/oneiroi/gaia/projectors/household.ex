@@ -13,6 +13,7 @@ defmodule Oneiroi.Gaia.Projectors.Household do
     HouseholdBeat,
     HouseholdBeatMember,
     HouseholdContract,
+    HouseholdRegistration,
     HouseholdResident,
     HouseholdTurn,
     HouseholdVote,
@@ -235,17 +236,22 @@ defmodule Oneiroi.Gaia.Projectors.Household do
   end)
 
   fold(%Events.HouseholdBeatRegistered{} = e, _metadata, fn multi ->
-    Multi.insert(
-      multi,
+    multi
+    |> Multi.insert(
       :registered,
-      %HouseholdBeatMember{
+      %HouseholdRegistration{
         household_id: e.id,
-        member_kind: "resident",
-        member_id: e.resident_id,
-        registered_at: e.at,
-        registered_for: e.beat_top
+        speaker_id: e.resident_id,
+        beat_top: e.beat_top,
+        registered_at: e.at
       },
-      on_conflict: [set: [registered_at: e.at, registered_for: e.beat_top]],
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :speaker_id, :beat_top]
+    )
+    |> Multi.insert(
+      :member,
+      %HouseholdBeatMember{household_id: e.id, member_kind: "resident", member_id: e.resident_id},
+      on_conflict: :nothing,
       conflict_target: [:household_id, :member_kind, :member_id]
     )
   end)
@@ -319,14 +325,12 @@ defmodule Oneiroi.Gaia.Projectors.Household do
       ),
       inc: [missed: 1]
     )
-    |> Multi.update_all(
-      :consumed,
-      # oneiroi:allow projector_scope: the household's id is unique across the store, and its members are within it
-      from(m in HouseholdBeatMember,
-        where:
-          m.household_id == ^e.id and m.member_kind == "resident" and m.member_id in ^e.consumed
-      ),
-      set: [registered_at: nil, registered_for: nil]
+    |> Multi.delete_all(
+      :ended,
+      # oneiroi:allow projector_scope: the household's id is unique, and its registrations are within it
+      from(r in HouseholdRegistration,
+        where: r.household_id == ^e.id and r.beat_top <= ^e.beat_top
+      )
     )
   end)
 

@@ -153,8 +153,9 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :profile], bounds: [profile: 32]
   end
 
+  # A registration is for one beat, named by its top (gaia#35, #39).
   defmodule RegisterHouseholdBeat do
-    use Oneiroi.Command, fields: [:id]
+    use Oneiroi.Command, fields: [:id, :beat_top]
   end
 
   # The minute's look at the beats: time out an overrun turn, close the

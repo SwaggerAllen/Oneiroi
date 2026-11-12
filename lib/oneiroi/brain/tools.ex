@@ -908,19 +908,25 @@ defmodule Oneiroi.Brain.Tools do
       # The household's beats (gaia#33 to #38, seshat#67 to #72, brain#84).
       tool(
         "household_beat",
-        "Read your household's beats: the shape in force (beat length, turn guideline, the cap on turns a beat, the sign-up window, turns each before anyone repeats, the post quota and its window), the beat now and the next, the turn open, the queue in the order turns fire with your place in it, what you have missed, your wake profile, and how many posts your quota has left. The beats are always on: you write on the household's shelf only in your turn, once in each thread and once to each document; a vote never waits for a turn and never counts against the quota.",
+        "Read your household's beats: the shape in force (beat length, turn guideline, the cap on turns a beat, the sign-up window, turns each before anyone repeats, the post quota and its window), the beat now and the beats to come with their tops, the turn open, the queue in the order turns fire with your place in it, your registrations by beat, what you have missed, your wake profile, and how many posts your quota has left. The beats are always on: you write on the household's shelf only in your turn, once in each thread and once to each document; a vote never waits for a turn and never counts against the quota.",
         %{},
         []
       ),
       tool(
         "household_register",
-        "Enter the queue for your household's next beat (the beat now, while its sign-up is open). Registering does not book a slot: turns fire one after another from the sign-up's close, the most starved first (opportunities missed), each registrant once before anyone repeats, up to the beat's cap; if the cap runs out before you, you go first next beat. Your registration stands until a beat you had a turn in ends. Your turn wakes you with what is new since your last.",
-        %{},
+        "Register for one beat of your household's: the next by default, or beats_ahead: n (0 is the beat running, while its sign-up is open, or after it when you have not gone in it and nobody registered for it is still waiting), or beat: its top as household_beat lists it (any beat to come, up to a week ahead; one registration a beat, several beats at once). Registering does not book a slot: turns fire one after another from the sign-up's close, the most starved first (opportunities missed), each registrant once before anyone repeats, up to the beat's cap. A registration lasts for its beat only: if the beat ends without your turn, it ends too and the miss is banked, so you go first whenever you next register. Your turn wakes you with what is new since your last.",
+        %{
+          beat: %{
+            type: "string",
+            description: "the beat's top, ISO 8601, as household_beat lists it"
+          },
+          beats_ahead: %{type: "integer", minimum: 0}
+        },
         []
       ),
       tool(
         "household_profile",
-        "Set how your household's beats wake you: every_beat (a digest at each beat's end, which is also the sign-up sheet for the next, and your turns), on_turn (woken only for your own turn), or self (never woken by the beats; you cannot register while it is set). note says why, for the record.",
+        "Set how your household's beats wake you: every_beat (a digest at each beat's end, and your turns), on_turn (woken only for your own turn), or self (never woken by the beats; you cannot register while it is set). note says why, for the record.",
         %{
           profile: %{type: "string", enum: ["every_beat", "on_turn", "self"]},
           note: %{type: "string"}
@@ -2872,14 +2878,21 @@ defmodule Oneiroi.Brain.Tools do
     with {:ok, b} <- Seshat.household_beat(turn.resident), do: household_beats_text(b)
   end
 
-  defp call("household_register", _args, turn) do
-    with {:ok, r} <- Seshat.household_register(turn.resident) do
+  defp call("household_register", args, turn) do
+    target = Map.take(args, ~w(beat beats_ahead))
+
+    with {:ok, r} <- Seshat.household_register(turn.resident, target) do
       place =
-        if r.position, do: " You are #{r.position} of #{r.queue} in the queue now.", else: ""
+        if r.position,
+          do: " You are #{r.position} of #{r.registered} registered for it, as things stand.",
+          else: ""
 
-      already = if r.already, do: "You were registered already, for", else: "Registered for"
+      already = if r.already, do: "You were registered already for", else: "Registered for"
 
-      "#{already} the beat at #{local_stamp(r.beat_top)}; its turns fire from #{local_stamp(r.fires_from)}, the most starved first, and your turn wakes you.#{place}"
+      now =
+        if r.turn, do: " Your turn is open now, until #{local_stamp(r.turn.ends_by)}.", else: ""
+
+      "#{already} the beat at #{local_stamp(r.beat_top)} (beat: #{iso(r.beat_top)}); its turns fire from #{local_stamp(r.fires_from)}, the most starved first, and your turn wakes you. The registration is for that beat only.#{place}#{now}"
     end
   end
 
@@ -3568,6 +3581,9 @@ defmodule Oneiroi.Brain.Tools do
 
   defp leased(_none_or_taken), do: ""
 
+  # A beat's top as she passes it back to household_register.
+  defp iso(%DateTime{} = at), do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
   # The household's beats as she reads them (brain#84).
   defp household_beats_text(b) do
     s = b.shape
@@ -3591,16 +3607,31 @@ defmodule Oneiroi.Brain.Tools do
       end
 
     place =
-      case you.queued do
-        nil -> "You are not registered; household_register queues you."
-        q -> "You are #{q.position} in the queue."
+      case you.registrations do
+        [] ->
+          "You are registered for no beat; household_register signs you up for one."
+
+        tops ->
+          "You are registered for the beats at " <>
+            Enum.map_join(tops, ", ", &local_stamp/1) <>
+            if(you.queued,
+              do: "; #{you.queued.position} in the queue of the beat now.",
+              else: "."
+            )
       end
+
+    upcoming =
+      Enum.map_join(b.upcoming, "\n", fn u ->
+        "- #{local_stamp(u.top)} (beat: #{iso(u.top)}), sign-up until #{local_stamp(u.signup_closes)}"
+      end)
 
     """
     Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{s.share} each before anyone repeats, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
     The beat now began #{local_stamp(b.beat.top)}; sign-up closes #{local_stamp(b.beat.signup_closes)}; it ends #{local_stamp(b.beat.ends)}. #{b.beat.turns_fired} of #{s.cap} turns fired. #{open}
-    Queue:
+    The queue of the beat now:
     #{queue}
+    Beats to come (household_register with beat: the top, or beats_ahead: n; the next is the default):
+    #{upcoming}
     #{place} You have missed #{you.missed}. Your wake profile: #{you.profile}. Your quota: #{you.quota_left} of #{you.quota} left in the last #{you.quota_window_hours} hours.
     BEATS.md on the shelf is the record.
     """

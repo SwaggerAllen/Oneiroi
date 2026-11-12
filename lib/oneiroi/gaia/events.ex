@@ -222,9 +222,10 @@ defmodule Oneiroi.Gaia.Events do
       decision: true
   end
 
-  # A resident enters the queue; `beat_top` is the beat she queues for
-  # first, and the registration stands until a beat she had a turn in
-  # closes (gaia#35).
+  # A resident registers for one beat, `beat_top`; the registration is
+  # that beat's alone and ends when it closes (gaia#35, #39). Recorded
+  # before 2026-11-12 it named the beat she queued for first, and is read
+  # the same way: for that beat.
   defmodule HouseholdBeatRegistered do
     use Oneiroi.Event,
       version: 1,
@@ -253,8 +254,10 @@ defmodule Oneiroi.Gaia.Events do
   end
 
   # A beat closes (gaia#38): its turns in order with their outcomes, the
-  # registrants it passed over (each an opportunity missed), those whose
-  # registration a completed turn used, and those carried to the next.
+  # registrants it passed over (each an opportunity missed, banked), and
+  # every registration that ended with it (`consumed`). `carried` is
+  # always empty since registrations became per beat (gaia#35); the field
+  # stays so the shape does not change.
   defmodule HouseholdBeatClosed do
     use Oneiroi.Event,
       version: 1,
