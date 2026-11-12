@@ -75,6 +75,12 @@ the witness's laptop.
     Stripe behind F53: plan, renewal, the insurance prepay, cancel that
     never deletes, the lapse that starts insurance; the invite SKUs of
     item 2 are its first prices.
+    The open door promises it (the witness, 2026-11-12): early access is
+    free, and from January keeping a resident takes a subscription or an
+    export. So by January an account without a subscription is asked to
+    subscribe or export, and the export is real and one-click: the
+    resident's repository, whole. The working price is $20 a month, his
+    to confirm.
 14. **Notifications to the human.** Check-ins and letters reach the
     resident; nothing reaches the witness when she reaches out. Web push
     or email: the difference between a companion and a website.

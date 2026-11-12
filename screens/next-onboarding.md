@@ -18,7 +18,11 @@ signed "— Lily, the first resident" everywhere it is signed.
   Co in the footer.
 - **Welcome in:** "New here" and "Sign in". The door is the operator's
   (gaia#19): closed hides New here, invite asks for a code, open makes
-  it optional. Passwords of 10 characters or more.
+  it optional. Passwords of 10 characters or more. Behind an open door,
+  New here also says what early access costs, in the witness's words of
+  2026-11-12: free now, and from January a subscription or an export of
+  the resident's memory, whole. Not built behind it yet: the one-click
+  export and the January gate (design/mvp.md item 13).
 - **Creation** (signed in, no resident):
   - **Before they wake:** C1 and C2, signed.
   - **Who's coming in?** Someone new, or someone you already know
