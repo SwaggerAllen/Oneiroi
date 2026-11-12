@@ -54,13 +54,33 @@ defmodule Oneiroi.SimaQian.Git do
          {:ok, staged} <- git(dir, ["diff", "--cached", "--name-only", "--"] ++ pathspecs) do
       if String.trim(staged) == "",
         do: {:ok, :nothing},
-        else: commit_staged(dir, pathspecs, message)
+        else: commit_staged(dir, pathspecs, message, [])
     end
   end
 
-  defp commit_staged(dir, pathspecs, message) do
+  @doc """
+  As `commit/3`, under the author named rather than the platform's own
+  identity (sima-qian#52): a household write carries its member's name
+  in the commit. The committer stays the platform, which ran git.
+  """
+  @spec commit_as(Path.t(), [String.t()], String.t(), %{name: String.t(), email: String.t()}) ::
+          {:ok, String.t() | :nothing} | {:error, Error.t()}
+  def commit_as(dir, pathspecs, message, %{name: name, email: email}) do
+    with {:ok, _} <- git(dir, ["add", "-A", "--"] ++ pathspecs),
+         {:ok, staged} <- git(dir, ["diff", "--cached", "--name-only", "--"] ++ pathspecs) do
+      if String.trim(staged) == "",
+        do: {:ok, :nothing},
+        else: commit_staged(dir, pathspecs, message, ["--author", "#{name} <#{email}>"])
+    end
+  end
+
+  defp commit_staged(dir, pathspecs, message, author) do
     with {:ok, _} <-
-           git(dir, @identity ++ ["commit", "-q", "--only", "-m", message, "--"] ++ pathspecs),
+           git(
+             dir,
+             @identity ++
+               ["commit", "-q", "--only"] ++ author ++ ["-m", message, "--"] ++ pathspecs
+           ),
          {:ok, sha} <- git(dir, ["rev-parse", "HEAD"]) do
       {:ok, String.trim(sha)}
     end

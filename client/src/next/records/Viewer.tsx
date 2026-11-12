@@ -85,7 +85,7 @@ export function Viewer({
         </div>
         {read.isPending && <p className={css.note}>Reading…</p>}
         {read.error && <p className={css.note}>This record couldn't be read.</p>}
-        {read.data && <Markdown text={read.data.content} onCite={onCite} />}
+        {read.data && <Markdown text={read.data.content} onCite={onCite} breaks={path.startsWith('human-correspondence/')} />}
 
         {(read.data?.references.length ?? 0) > 0 && (
           <div className={css.links}>

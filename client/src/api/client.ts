@@ -434,6 +434,9 @@ export const api = {
     ),
   writeDocument: (residentId: string, path: string, content: string, note?: string) =>
     call<{ path: string }>('PUT', `/v1/residents/${residentId}/library/documents/${path}`, note ? { content, note } : { content }),
+  // A conversation of his pasted into her human-correspondence/ (seshat#65): `with` (and a title) starts one, `path` adds to one (seshat#66).
+  pasteConversation: (residentId: string, paste: { text: string; path?: string; with?: string; title?: string }) =>
+    call<{ path: string; kind: string; created: boolean; changed: boolean; indexed: boolean }>('POST', `/v1/residents/${residentId}/library/paste`, paste),
   // A document's history, its diffs, a restore (seshat#54), and the editor's lease (seshat#55).
   versions: (residentId: string, path: string) =>
     call<{ path: string; current: string | null; versions: DocumentVersion[] }>('GET', `/v1/residents/${residentId}/library/versions/${path}`),

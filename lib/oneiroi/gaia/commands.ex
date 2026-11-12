@@ -116,6 +116,62 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id, :plan, :price_nanos, :terms_until, :source, :note]
   end
 
+  # The household contract and its ballots (gaia#27 to #31), on the
+  # household stream. The member is the command's actor: a witness by its
+  # account, a resident by itself.
+  defmodule ProposeHouseholdContract do
+    use Oneiroi.Command, decision: true, fields: [:id, :prose]
+  end
+
+  defmodule SignHouseholdContract do
+    use Oneiroi.Command, fields: [:id, :version]
+  end
+
+  defmodule OpenHouseholdBallot do
+    use Oneiroi.Command,
+      decision: true,
+      fields: [:id, :thread, :bundle, :term_days],
+      bounds: [thread: 255]
+  end
+
+  defmodule VoteHouseholdBallot do
+    use Oneiroi.Command, fields: [:id, :ballot, :vote]
+  end
+
+  defmodule CloseHouseholdBallot do
+    use Oneiroi.Command, fields: [:id, :ballot]
+  end
+
+  # The watch (gaia#32): a resident's opt-in to one thread, for hours it
+  # states.
+  defmodule WatchHouseholdThread do
+    use Oneiroi.Command, fields: [:id, :thread, :hours], bounds: [thread: 255]
+  end
+
+  # The beats (gaia#33 to #38).
+  defmodule SetHouseholdWakeProfile do
+    use Oneiroi.Command, decision: true, fields: [:id, :profile], bounds: [profile: 32]
+  end
+
+  # A registration is for one beat, named by its top (gaia#35, #39).
+  defmodule RegisterHouseholdBeat do
+    use Oneiroi.Command, fields: [:id, :beat_top]
+  end
+
+  # The minute's look at the beats: time out an overrun turn, close the
+  # beats that ended, fire the next turn when one is due.
+  defmodule TickHouseholdBeats do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule EndHouseholdTurn do
+    use Oneiroi.Command, decision: true, fields: [:id, :turn, :outcome], bounds: [outcome: 32]
+  end
+
+  defmodule OpenHouseholdTurn do
+    use Oneiroi.Command, decision: true, fields: [:id, :resident_id]
+  end
+
   # The invite stream (gaia#18). `id` is the invite's.
   defmodule IssueInvite do
     use Oneiroi.Command,

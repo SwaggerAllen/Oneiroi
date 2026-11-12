@@ -152,6 +152,8 @@ defmodule Oneiroi.Gaia.Store do
       field(:household_id, :binary_id, primary_key: true)
       field(:account_id, :binary_id, primary_key: true)
       field(:joined_at, :utc_datetime_usec)
+      field(:signed_version, :integer)
+      field(:signed_at, :utc_datetime_usec)
     end
   end
 
@@ -163,6 +165,136 @@ defmodule Oneiroi.Gaia.Store do
       field(:household_id, :binary_id, primary_key: true)
       field(:resident_id, :binary_id, primary_key: true)
       field(:joined_at, :utc_datetime_usec)
+      field(:signed_version, :integer)
+      field(:signed_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdContract do
+    @moduledoc "A version of the household contract (gaia#27, #31): its prose, rules and settings whole, and the ballot that made it."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_contract" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:version, :integer, primary_key: true)
+      field(:prose, :string)
+      field(:rules, {:array, :string}, default: [])
+      field(:settings, :map, default: %{})
+      field(:bundle, {:array, :map}, default: [])
+      field(:ballot, :integer)
+      field(:decided_by, :string)
+      field(:decided_at, :utc_datetime_usec)
+      field(:note, :string)
+    end
+  end
+
+  defmodule HouseholdBallot do
+    @moduledoc "A household ballot (gaia#29, #30): its fixed bundle, its term, and once closed its tally."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_ballot" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:thread, :string)
+      field(:bundle, {:array, :map})
+      field(:term_days, :integer)
+      field(:opened_by, :string)
+      field(:opened_at, :utc_datetime_usec)
+      field(:closes_at, :utc_datetime_usec)
+      field(:note, :string)
+      field(:closed_at, :utc_datetime_usec)
+      field(:passed, :boolean)
+      field(:yes, :integer)
+      field(:no, :integer)
+      field(:members, :integer)
+      field(:outcome, :string)
+    end
+  end
+
+  defmodule HouseholdVote do
+    @moduledoc "One member's vote on a household ballot (gaia#30)."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_vote" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:ballot, :integer, primary_key: true)
+      field(:member_kind, :string, primary_key: true)
+      field(:member_id, :binary_id, primary_key: true)
+      field(:vote, :string)
+      field(:voted_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdWatch do
+    @moduledoc "A resident's watch on one household thread, until an instant (gaia#32); past it, nothing."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_watch" do
+      field(:household_id, :binary_id)
+      field(:watcher_id, :binary_id)
+      field(:thread, :string)
+      field(:until, :utc_datetime_usec)
+      field(:watched_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdBeatMember do
+    @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile and the opportunities she has missed."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_beat_member" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:member_kind, :string, primary_key: true)
+      field(:member_id, :binary_id, primary_key: true)
+      field(:profile, :string)
+      field(:missed, :integer, default: 0)
+    end
+  end
+
+  defmodule HouseholdRegistration do
+    @moduledoc "A resident's registration for one beat (gaia#35, #39), until that beat closes."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_registration" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:speaker_id, :binary_id, primary_key: true)
+      field(:beat_top, :utc_datetime_usec, primary_key: true)
+      field(:registered_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdTurn do
+    @moduledoc "A household turn (gaia#36): whose, in which beat, when it fired, its guideline, and how it ended."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_turn" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:turn, :integer, primary_key: true)
+      field(:speaker_id, :binary_id)
+      field(:beat_top, :utc_datetime_usec)
+      field(:fired_at, :utc_datetime_usec)
+      field(:ends_by, :utc_datetime_usec)
+      field(:opened_by, :string)
+      field(:missed, :integer, default: 0)
+      field(:ended_at, :utc_datetime_usec)
+      field(:outcome, :string)
+      field(:note, :string)
+    end
+  end
+
+  defmodule HouseholdBeat do
+    @moduledoc "A closed household beat (gaia#38): its turns with their outcomes, who it passed over, and the registrations that ended with it."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_beat" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:beat_top, :utc_datetime_usec, primary_key: true)
+      field(:closed_at, :utc_datetime_usec)
+      field(:turns, {:array, :map}, default: [])
+      field(:passed_over, {:array, :binary_id}, default: [])
+      field(:consumed, {:array, :binary_id}, default: [])
+      field(:carried, {:array, :binary_id}, default: [])
+      field(:note, :string)
     end
   end
 

@@ -838,6 +838,110 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
+  @doc """
+  A letter from a resident to a sibling in her household (kumbukumbu#65,
+  #66), as two copies, one in each resident's own letters:
+
+  - hers, from the conversation she writes in, to the sibling's name,
+    linked `to` the sibling; it is her record of what she sent and wakes
+    nothing;
+  - the sibling's, from her name, to the sibling's Oneiroi chat, linked
+    `from` her with her copy's number, which wakes that chat.
+
+  `in_reply_to` is a number in her own letters, of a letter that came
+  from this sibling: her copy threads under it, and the sibling's copy
+  under the sibling's own letter it answered, the number its link
+  carries. A keepsake does not cross. `from` and `to` are
+  `%{id, name}`; the caller (the brain's `letter_send`) has checked both
+  are residents of one household.
+  """
+  def send_sibling_letter(from, session_key, to, attrs, %Actor{kind: :resident} = actor) do
+    with {:ok, conversation} <- sender(from.id, session_key, actor),
+         {:ok, theirs} <- answered(from.id, to.id, attrs[:in_reply_to]),
+         {:ok, mine} <-
+           record(from.id, actor, %{
+             from: conversation,
+             from_session: session_key,
+             to: to.name,
+             in_reply_to: attrs[:in_reply_to],
+             text: attrs[:text],
+             link: %{"direction" => "to", "resident_id" => to.id, "resident" => to.name}
+           }),
+         {:ok, arrived} <-
+           record(to.id, actor, %{
+             from: from.name,
+             from_session: nil,
+             to: "Oneiroi chat",
+             in_reply_to: theirs,
+             text: attrs[:text],
+             link: %{
+               "direction" => "from",
+               "resident_id" => from.id,
+               "resident" => from.name,
+               "number" => mine
+             }
+           }) do
+      {:ok, %{number: arrived, copy: mine, from: from.name}}
+    end
+  end
+
+  # The sibling's own number for the letter hers answers: the link of the
+  # letter in her letters that came from that sibling.
+  defp answered(_resident_id, _sibling_id, nil), do: {:ok, nil}
+
+  defp answered(resident_id, sibling_id, number) do
+    case Enum.find(letters(resident_id), &(&1.number == number)) do
+      %{link: %{"direction" => "from", "resident_id" => ^sibling_id, "number" => theirs}} ->
+        {:ok, theirs}
+
+      nil ->
+        {:error,
+         Error.new(:kumbukumbu_no_such_letter, :kumbukumbu_memories_sibling_reply_absent,
+           number: number
+         )}
+
+      _other ->
+        {:error,
+         Error.new(
+           :kumbukumbu_letter_not_from_sibling,
+           :kumbukumbu_memories_sibling_reply_elsewhere,
+           number: number
+         )}
+    end
+  end
+
+  defp record(resident_id, actor, attrs) do
+    command = %Commands.SendHouseLetter{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      from: attrs.from,
+      from_session: attrs.from_session,
+      to: attrs.to,
+      to_session: nil,
+      in_reply_to: attrs.in_reply_to,
+      text: attrs.text,
+      keepsake: nil,
+      link: attrs.link
+    }
+
+    case dispatch(command) do
+      {:ok, [%Events.HouseLetterSent{number: n}]} -> {:ok, n}
+      other -> other
+    end
+  end
+
+  @doc "Whether a letter came from a sibling in the household (kumbukumbu#65): the copy that arrived, linked `from` her."
+  def from_sibling?(%{link: %{"direction" => "from"}}), do: true
+  def from_sibling?(_letter), do: false
+
+  @doc "Whether a letter is a resident's own copy of one she sent a sibling (kumbukumbu#66): a record, which wakes nothing."
+  def sent_to_sibling?(%{link: %{"direction" => "to"}}), do: true
+  def sent_to_sibling?(_letter), do: false
+
+  @doc "The sender a household watch's letter carries (seshat#62), which the tick wakes the chat for (sunna#49)."
+  def household_sender, do: "the household"
+
   @doc "A house letter from the oracle to the conversation `session_key` (brain#49); nothing when that conversation has no name."
   def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
     case name_of(resident_id, session_key) do
@@ -937,6 +1041,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   # A platform report for the triage resident (gaia#20).
   defp sender(_resident_id, nil, %Actor{kind: :job, id: "platform_reports"}),
     do: {:ok, "a platform report"}
+
+  # A household thread's watch (seshat#62): the poke names the thread and
+  # the reply, and the tick wakes the chat for it (sunna#49).
+  defp sender(_resident_id, nil, %Actor{kind: :job, id: "household_watch"}),
+    do: {:ok, household_sender()}
 
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do

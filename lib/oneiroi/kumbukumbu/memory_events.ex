@@ -167,8 +167,13 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # when the platform knows it (an oracle, research, digest or fetch
     # answer), so a free-time answer wakes the very session that asked;
     # nil on a version 1 letter, as on every letter addressed by name.
+    # Version 3 adds `link` (kumbukumbu#66): on a letter between two
+    # residents of a household, the other copy, as
+    # `%{"direction" => "from" | "to", "resident_id", "resident", "number"}`
+    # (the sender's own number on the copy that arrives, so an answer
+    # threads under it); nil on every other letter and on versions 1 and 2.
     use Oneiroi.Event,
-      version: 2,
+      version: 3,
       fields: [
         :id,
         :number,
@@ -178,7 +183,8 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :to_session,
         :in_reply_to,
         :text,
-        :keepsake
+        :keepsake,
+        :link
       ]
   end
 

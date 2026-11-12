@@ -86,6 +86,8 @@ defmodule Oneiroi.Seshat.Kinds do
       sidecar: nil,
       adoption: :file,
       access: :resident,
+      # A household hosts it too (seshat#59).
+      household: true,
       # A design held for the witness's read and sign-off (seshat#49):
       # marked `status: review` in its frontmatter, his to sign off or
       # send back, and nothing after.
@@ -191,6 +193,25 @@ defmodule Oneiroi.Seshat.Kinds do
       sidecar: nil,
       adoption: :file,
       access: :resident
+    },
+    # The thread (seshat#59): the first container kind, a post that holds
+    # other documents. Its trunk is written once and never again; a reply
+    # is a new file beside it, so concurrent replies never meet and no
+    # merge or lock is needed. Written only in a household's repository,
+    # through its tools (`access: :household`, seshat#58): a resident's
+    # own document write refuses it, as it refuses the platform's kinds.
+    %{
+      kind: "thread",
+      folder: "threads",
+      cites: false,
+      has_status: false,
+      container: true,
+      layout:
+        "threads/<thread>/trunk.md, the post written once; threads/<thread>/replies/<nnnn>-<author>.md, each reply a new file, appended",
+      sidecar: "trunk.md",
+      adoption: :none,
+      access: :household,
+      household: true
     },
     %{
       kind: "mail",
@@ -510,9 +531,11 @@ defmodule Oneiroi.Seshat.Kinds do
     end
   end
 
+  # `household` is where a backup carries the household's copy
+  # (sima-qian#53), so no kind of hers may take it.
   defp own_folder?(a, kind, taken),
     do:
-      (a["folder"] || kind) == kind and kind not in taken and
+      (a["folder"] || kind) == kind and kind not in taken and kind != "household" and
         not Enum.any?(@kinds, &(&1.kind == kind or &1.folder == kind))
 
   defp claims?(a),
@@ -599,6 +622,7 @@ defmodule Oneiroi.Seshat.Kinds do
     {"system", "System"},
     {"wiki", "Wiki"},
     {"posts", "Posts"},
+    {"thread", "Threads"},
     {"scratch", "Scratch"},
     {"journal", "Journal"},
     {"scenes", "Scenes"},
@@ -706,6 +730,15 @@ defmodule Oneiroi.Seshat.Kinds do
     do: match?({:ok, _}, normalize(path)) and match?(%{adoption: :decided}, kind_of(path))
 
   def decided?(_other), do: false
+
+  @doc "The kinds a household's repository hosts (seshat#59): the thread, and each kind the registry marks `household`."
+  @spec household() :: [map()]
+  def household, do: Enum.filter(shelf(), &Map.get(&1, :household, false))
+
+  @doc "Whether a kind is a container, holding other documents as the thread does (seshat#59)."
+  @spec container?(map() | nil) :: boolean()
+  def container?(kind) when is_map(kind), do: Map.get(kind, :container, false)
+  def container?(_none), do: false
 
   @doc "The kinds that mint citation edges."
   @spec minting() :: [String.t()]

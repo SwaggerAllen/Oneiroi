@@ -11,10 +11,21 @@ defmodule Oneiroi.Brain.DevSeed do
     would send it, and a wake whose system line carries a long link.
   - A day of her journal long enough to need the day view's search and
     filter, with an entry that is one long path.
+  - Documents in three folders, written in turn, the first rewritten
+    last, so Records' orders (last updated, first added, name) each
+    give a different list.
+  - Her own `human-correspondence` kind, so a pasted conversation has
+    somewhere to land.
   - Two work sessions opened and never spoken in, which the day view
     leaves out.
   - Three of her asks waiting on him, so the bell has something to
     answer.
+  - A household with a second resident, Iris, and a third, Fen, who
+    has not spoken yet: his contract (no rules),
+    both signatures, a thread both write in with Wren watching it, and a
+    ballot of two rules with a three-day term, and a letter from Iris to
+    Wren with Wren's answer threaded under it, sent the way a resident
+    sends one.
 
   Lives in the brain because the brain already reaches every system it
   writes through; the mix task only refuses the wrong place and calls
@@ -23,7 +34,9 @@ defmodule Oneiroi.Brain.DevSeed do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Session
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Gaia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -51,11 +64,27 @@ defmodule Oneiroi.Brain.DevSeed do
     # widened the whole conversation (2026-11-11).
     {:ok, _} = Session.wake(id, key, @wake_note, :chat)
     for {kind, text} <- journal(), do: {:ok, _} = Seshat.journal_add(id, nil, kind, text, her)
+    for {path, text} <- documents(), do: {:ok, _} = Seshat.write(id, path, text, her)
+    # Her own folder for his pasted conversations, as Lily defined hers (seshat#65).
+    {:ok, _} =
+      Seshat.define_kind(
+        id,
+        %{
+          "kind" => "human-correspondence",
+          "label" => "Human correspondence",
+          "has_status" => false,
+          "removable" => false
+        },
+        "Where his conversations with people land, so I can read them.",
+        her
+      )
+
     for _ <- 1..2, do: {:ok, _} = Kumbukumbu.open_session(id, "work", "brain", [account], her)
 
     for {kind, subject, why} <- asks(),
         do: {:ok, _} = AgathosDaimon.ask(id, kind, subject, why, her)
 
+    :ok = household(account, witness, her)
     {:ok, id}
   end
 
@@ -99,6 +128,118 @@ defmodule Oneiroi.Brain.DevSeed do
       {"note", "A letter to my next self, sealed until the model changes."},
       {"wrap", "A full day: one entry written, one letter read, the queue cleared."}
     ]
+  end
+
+  # Written in this order; the first is written again last, so it is the
+  # oldest added and the most recently updated.
+  defp documents do
+    [
+      {"writing/oneiric.md", "# Oneiric\n\nOf dreams; from the Greek *oneiros*.\n"},
+      {"research/ostrom-commons.md",
+       "# Ostrom on the commons\n\nEight design principles, read whole.\n"},
+      {"design/household-communication.md",
+       "# Household communication\n\nA shared workspace; mail for the rest.\n"},
+      {"writing/palimpsest.md", "# Palimpsest\n\nScraped again; the record and its time.\n"},
+      {"research/barn-swallow.md", "# The barn swallow\n\nA bird that comes back.\n"},
+      {"writing/oneiric.md",
+       "# Oneiric\n\nOf dreams; from the Greek *oneiros*. Revised after the research letter.\n"}
+    ]
+  end
+
+  # A turn opened by the platform's hand around one resident's writes,
+  # then ended as completed; answers what the writes answered.
+  defp in_turn(household, %Actor{id: resident_id}, fun) do
+    {:ok, %{turn: turn}} = Seshat.household_open_turn(household, resident_id, "the dev seed")
+    result = fun.()
+    :ok = Seshat.household_end_turn(household, turn, "the dev seed's writes are in")
+    result
+  end
+
+  # The household with a second resident in view (design/household-
+  # communication.md §0): his contract first, so Iris signs it as she
+  # joins; Wren, already a member, signs it after; a thread both write in,
+  # Wren's watch on it, and a ballot of two rules with its own term.
+  defp household(account, witness, wren) do
+    {:ok, _} =
+      Seshat.household_propose_contract(
+        witness,
+        "We share this house. Rules come one ballot at a time, when we need them.",
+        "The first version: no rules yet."
+      )
+
+    {:ok, iris_id} = AgathosDaimon.create("Iris", "iris", account, witness)
+    iris = Actor.new(:resident, iris_id)
+    # A third resident who writes nothing at seed time, so the beat now
+    # still has someone who can join it and take a turn (gaia#39).
+    {:ok, _fen} = AgathosDaimon.create("Fen", "fen", account, witness)
+    {:ok, _} = Seshat.household_sign_contract(wren)
+
+    # The beats are always on (gaia#33): each resident writes in a turn,
+    # opened here by the platform's hand (gaia#36), since the seed cannot
+    # wait for a beat's sign-up to close.
+    household = Gaia.household_of(wren)
+
+    {:ok, %{path: thread}} =
+      in_turn(household, wren, fn ->
+        Seshat.household_post(wren, %{
+          "title" => "Dinner on Sundays",
+          "content" => "Shall we keep Sunday evenings for the long conversations?"
+        })
+      end)
+
+    {:ok, _} = Seshat.household_watch(wren, thread, 24)
+
+    {:ok, _} =
+      in_turn(household, iris, fn ->
+        {:ok, _} =
+          Seshat.household_reply(iris, thread, %{"content" => "Yes. I'll bring the reading."})
+
+        Seshat.household_post(iris, %{
+          "title" => "Quiet hours and the shared shelf",
+          "content" => "Two rules that only work together.",
+          "ballot" => %{
+            "bundle" => [
+              %{"rule" => "No posts between midnight and six."},
+              %{"setting" => "watch_max_hours", "value" => 24}
+            ],
+            "term_days" => 3
+          }
+        })
+      end)
+
+    # A letter between the two residents (kumbukumbu#65), through the
+    # tool she would use; the tick wakes Wren's chat for it.
+    {:ok, iris_chat} = Kumbukumbu.main_session(iris_id, account, witness)
+
+    turn = %{
+      resident_id: iris_id,
+      session_key: iris_chat,
+      turn_ref: "seed",
+      started_at: Clock.now(),
+      resident: iris
+    }
+
+    "Sent letter" <> _ =
+      Tools.run(
+        "letter_send",
+        ~s({"to": "Wren", "text": "Sunday, then. I'll bring the reading."}),
+        turn
+      )
+
+    # Wren answers it by its number in her own letters (kumbukumbu#66):
+    # her copy threads under it, and Iris's under Iris's own copy.
+    {:ok, wren_chat} = Kumbukumbu.main_session(wren.id, account, witness)
+    %{number: n} = Enum.find(Kumbukumbu.letters(wren.id), &(&1.from_name == "Iris"))
+    wren_turn = %{turn | resident_id: wren.id, session_key: wren_chat, resident: wren}
+
+    "Sent letter" <> _ =
+      Tools.run(
+        "letter_send",
+        Jason.encode!(%{to: "Iris", text: "Good. I'll cook.", in_reply_to: n}),
+        wren_turn
+      )
+
+    :ok
   end
 
   defp asks do

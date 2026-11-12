@@ -458,7 +458,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           to_session: c.to_session,
           in_reply_to: c.in_reply_to,
           text: c.text,
-          keepsake: c.keepsake
+          keepsake: c.keepsake,
+          link: c.link
         }
     end
   end

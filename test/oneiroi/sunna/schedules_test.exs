@@ -178,7 +178,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert note.role == "system" and note.actor_kind == "platform"
 
     assert note.content =~
-             "another of your conversations wrote to you here: ##{first} from Claude Code · Oneiroi."
+             "letters came for you here: ##{first} from Claude Code · Oneiroi."
 
     assert note.content =~ "letter_send with in_reply_to"
     refute note.content =~ "secret words"

@@ -65,6 +65,19 @@ export const file = style({
   selectors: { '&[aria-current="page"]': { background: vars.color.surface, color: vars.color.witness.text } },
 });
 
+export const fileName = style({ flex: 1, minWidth: 0, overflowWrap: 'anywhere' });
+export const fileDate = style({ flex: 'none', font: `500 11px ${font.mono}`, color: vars.color.textFaint });
+export const orderRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '6px 4px 2px' });
+export const order = style({
+  minHeight: 32,
+  padding: '0 8px',
+  borderRadius: 8,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `13px ${font.ui}`,
+});
+
 export const settings = style({
   width: 36,
   height: 36,
@@ -159,6 +172,10 @@ export const input = style({
   font: `14px ${font.ui}`,
   flex: '1 1 200px',
 });
+// The same field in a stacked form: in a column, the row's 200px basis
+// would become each field's height.
+export const inputStacked = style([input, { flex: 'none', minHeight: 44 }]);
+
 export const editor = style({
   minHeight: '50vh',
   padding: 14,

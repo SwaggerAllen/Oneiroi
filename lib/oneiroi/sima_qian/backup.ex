@@ -30,6 +30,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.HonchoMemory
+  alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Merkle
 
   @classes [
@@ -62,7 +63,12 @@ defmodule Oneiroi.SimaQian.Backup do
        "oracle/",
        # Her routes' definitions (xenia#19): rows serialized, as records.
        "routes/"
-     ]}
+     ]},
+    # The household's repository as it travels with her records
+    # (sima-qian#53): a copy, titled by the membership, rewritten whole
+    # each run; a class of its own, so a sibling's post never rides in a
+    # commit of hers.
+    {"household", ["household/"]}
   ]
 
   def set_remote(resident_id, url, token, %Actor{} = actor) when is_binary(url) do
@@ -95,6 +101,7 @@ defmodule Oneiroi.SimaQian.Backup do
          # receipt (agathos-daimon#28): the words left the house.
          :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
          root = Merkle.root(Path.join(dir, "records")),
+         :ok <- Household.travel(resident_id, dir),
          {:ok, commits} <- commit_classes(dir, export.through, root),
          :ok <- push(dir, row),
          {:ok, _} <- record_backup(resident_id, export.through, root, commits, actor) do

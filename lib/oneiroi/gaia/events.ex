@@ -124,12 +124,23 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :account_id]
   end
 
+  # Version 2 adds `signed_version` (gaia#28): the household contract's
+  # version in force when the member joined, which joining signs; nil on
+  # a version 1 membership and wherever no contract had been proposed.
   defmodule HouseholdWitnessJoined do
-    use Oneiroi.Event, version: 1, fields: [:id, :account_id]
+    use Oneiroi.Event, version: 2, fields: [:id, :account_id, :signed_version]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HouseholdWitnessJoined do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HouseholdResidentJoined do
-    use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
+    use Oneiroi.Event, version: 2, fields: [:id, :resident_id, :signed_version]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: HouseholdResidentJoined do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule HouseholdResidentLeft do
@@ -144,6 +155,114 @@ defmodule Oneiroi.Gaia.Events do
       version: 1,
       fields: [:id, :plan, :price_nanos, :terms_until, :source],
       instants: [:terms_until],
+      decision: true
+  end
+
+  # The household contract (gaia#27, #28): versioned prose, rules and
+  # settings, the dyad contract's pattern at the household's scale. The
+  # founding witness proposes version 1, prose alone; it is in force at
+  # once, and proposing it is the founder's signature.
+  defmodule HouseholdContractProposed do
+    use Oneiroi.Event, version: 1, fields: [:id, :version, :prose], decision: true
+  end
+
+  # A member's signature of the version in force, for a member who joined
+  # before there was one; joining after signs on the membership itself.
+  defmodule HouseholdContractSigned do
+    use Oneiroi.Event, version: 1, fields: [:id, :member_kind, :member_id, :version]
+  end
+
+  # A ballot (gaia#29): a bundle of rules and settings fixed here, on the
+  # thread whose trunk states it, with the term its proposer set.
+  defmodule HouseholdBallotOpened do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ballot, :thread, :bundle, :term_days, :closes_at],
+      instants: [:closes_at],
+      decision: true
+  end
+
+  # One vote a member, witness or resident, while the term runs (gaia#30).
+  defmodule HouseholdBallotVoted do
+    use Oneiroi.Event, version: 1, fields: [:id, :ballot, :member_kind, :member_id, :vote]
+  end
+
+  # The term closed: the tally over the members at the close, and whether
+  # a majority of them carried the bundle (gaia#30).
+  defmodule HouseholdBallotClosed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :ballot, :passed, :yes, :no, :members],
+      decision: true
+  end
+
+  # A ballot carried: the contract's next version, whole, with the bundle
+  # it adds (gaia#31).
+  defmodule HouseholdContractAmended do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :version, :ballot, :prose, :rules, :settings, :bundle],
+      decision: true
+  end
+
+  # The watch (gaia#32): a resident opts in to one thread until an instant.
+  defmodule HouseholdThreadWatched do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :thread, :until],
+      instants: [:until]
+  end
+
+  # The beats (gaia#33 to #38). A member's wake profile, her own choice
+  # (gaia#37).
+  defmodule HouseholdWakeProfileSet do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :member_kind, :member_id, :profile],
+      decision: true
+  end
+
+  # A resident registers for one beat, `beat_top`; the registration is
+  # that beat's alone and ends when it closes (gaia#35, #39). Recorded
+  # before 2026-11-12 it named the beat she queued for first, and is read
+  # the same way: for that beat.
+  defmodule HouseholdBeatRegistered do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :beat_top],
+      instants: [:beat_top]
+  end
+
+  # A turn opens: by the schedule (`opened_by` "schedule") or, for the dev
+  # seed and the suite, by the platform's hand ("hand"); `missed` is what
+  # she had missed when it fired (gaia#36).
+  defmodule HouseholdTurnFired do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :turn, :resident_id, :beat_top, :ends_by, :missed, :opened_by],
+      instants: [:beat_top, :ends_by]
+  end
+
+  # A turn ends: completed, declined, failed or timed_out; anything but
+  # completed is an opportunity missed (gaia#36).
+  defmodule HouseholdTurnEnded do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :turn, :resident_id, :beat_top, :outcome],
+      instants: [:beat_top],
+      decision: true
+  end
+
+  # A beat closes (gaia#38): its turns in order with their outcomes, the
+  # registrants it passed over (each an opportunity missed, banked), and
+  # every registration that ended with it (`consumed`). `carried` is
+  # always empty since registrations became per beat (gaia#35); the field
+  # stays so the shape does not change.
+  defmodule HouseholdBeatClosed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :beat_top, :turns, :passed_over, :consumed, :carried],
+      instants: [:beat_top],
       decision: true
   end
 

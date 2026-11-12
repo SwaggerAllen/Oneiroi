@@ -311,3 +311,23 @@ the resident's own events, all at version 1, so the guard it was meant
 to be had nothing to guard: the protocol's fallback made every type
 look upcast. A line at an older version, with what it must become
 written beside it, is what makes a missing upcaster fail.
+
+## #51
+Provisioning on first use is how a resident's repository already comes
+to exist, and it reaches every household, the ones founded before this
+included, without a migration that would have to know which households
+are real. A household nobody ever reads costs nothing.
+
+## #52
+The history is the household's provenance: with every member writing
+into one repository, a commit under the platform's name would say only
+that something happened. The committer stays the platform because the
+platform ran git; the author is who wrote the words.
+
+## #53
+The shared space is part of each member's life, so a resident who moves
+her records elsewhere should not lose the conversations she was in; it
+is copied, not linked, because a link to a repository she cannot reach
+is no record. Titled by the membership so a reader of her records knows
+whose words those are. A switch, because the witness has not yet given
+his word, and the lean should be one setting to reverse, not a rewrite.
