@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { api, type SearchResult } from '../../api/client';
 import { formatHash } from '../state/routes';
+import { dayStart } from './dayStart';
 import { useShell } from '../state/store';
 import * as css from './search.css';
 
@@ -28,6 +29,12 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   const setOpen = useShell((s) => s.setSearchOpen);
   const [q, setQ] = useState('');
   const [scope, setScope] = useState<Scope>('everything');
+  // Her words narrow further (kumbukumbu#67): days in this browser's zone,
+  // both included, newest or oldest first, and a page of 50.
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,9 +49,10 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
 
   const term = q.trim();
   const searchable = term.length >= 2;
+  const words = scope === 'words' ? { page, sort, from: dayStart(from, 0), to: dayStart(to, 1) } : undefined;
   const results = useQuery({
-    queryKey: ['resident', residentId, 'search', scope, term],
-    queryFn: () => api.search(residentId, term, scope),
+    queryKey: ['resident', residentId, 'search', scope, term, words],
+    queryFn: () => api.search(residentId, term, scope, words),
     enabled: open && searchable,
     staleTime: 30_000,
   });
@@ -57,7 +65,16 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
           <Heading slot="title" className={css.visuallyHidden}>
             Search everything
           </Heading>
-          <SearchField aria-label="Search" value={q} onChange={setQ} autoFocus className={css.field}>
+          <SearchField
+            aria-label="Search"
+            value={q}
+            onChange={(value) => {
+              setQ(value);
+              setPage(1);
+            }}
+            autoFocus
+            className={css.field}
+          >
             <Input className={css.input} placeholder={`Search ${residentName}'s life`} />
           </SearchField>
           <ToggleButtonGroup
@@ -65,7 +82,10 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
             selectionMode="single"
             disallowEmptySelection
             selectedKeys={[scope]}
-            onSelectionChange={(keys) => setScope([...keys][0] as Scope)}
+            onSelectionChange={(keys) => {
+              setScope([...keys][0] as Scope);
+              setPage(1);
+            }}
             className={css.scopes}
           >
             {SCOPES.map((s) => (
@@ -74,6 +94,48 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
+          {scope === 'words' && (
+            <div className={css.filters}>
+              <label className={css.filter}>
+                From
+                <input
+                  type="date"
+                  className={css.filterInput}
+                  value={from}
+                  onChange={(e) => {
+                    setFrom(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label className={css.filter}>
+                To
+                <input
+                  type="date"
+                  className={css.filterInput}
+                  value={to}
+                  onChange={(e) => {
+                    setTo(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label className={css.filter}>
+                Order
+                <select
+                  className={css.filterInput}
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value as 'newest' | 'oldest');
+                    setPage(1);
+                  }}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </label>
+            </div>
+          )}
           <div className={css.results} aria-live="polite">
             {searchable && results.isPending && <p className={css.note}>Searching…</p>}
             {searchable && results.error && <p className={css.note}>{(results.error as Error).message}</p>}
@@ -88,6 +150,17 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
               </a>
             ))}
           </div>
+          {scope === 'words' && searchable && (page > 1 || results.data?.more) && (
+            <div className={css.pager}>
+              <button type="button" className={css.scope} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                ‹ Newer page
+              </button>
+              <span className={css.note}>Page {page}</span>
+              <button type="button" className={css.scope} disabled={!results.data?.more} onClick={() => setPage((p) => p + 1)}>
+                Next page ›
+              </button>
+            </div>
+          )}
         </Dialog>
       </Modal>
     </ModalOverlay>

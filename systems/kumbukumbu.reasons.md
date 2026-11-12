@@ -519,3 +519,19 @@ are known. Qualifying the other side's number with the resident's name
 (the witness's suggestion) is what keeps the two numberings from ever
 being read as one. The sender's copy is also simply her outbox, which a
 one-copy letter lacked.
+
+## #67
+
+Search stopped at 50 newest matches, so a phrase common across weeks of
+talk could not be followed back past the last few days, and neither
+party could ask for a stretch of time. Paging by offset is enough here:
+the result set is a phrase match over one resident's messages, re-read
+on every page, and a page shifting by a message that arrives between
+two reads is a smaller harm than a cursor scheme the client and the
+tool would both have to carry. The date range is on `sent_at` because
+that is the instant a message has; `to` is exclusive so two adjacent
+ranges never count a message twice, and each side turns its own days
+into instants in its own zone (the browser's for the witness, hers for
+the resident), so a day means the day its reader lives in. The
+witness's query keeps #59's privacy in the query itself; hers does not
+need it, her reads being whole.

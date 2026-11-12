@@ -86,3 +86,17 @@ export const visuallyHidden = style({
   clip: 'rect(0 0 0 0)',
   whiteSpace: 'nowrap',
 });
+
+// Her words' narrowing (kumbukumbu#67): a date range, the order, the page.
+export const filters = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' });
+export const filter = style({ display: 'flex', alignItems: 'center', gap: 6, font: `500 12px ${font.ui}`, color: vars.color.textMuted });
+export const filterInput = style({
+  minHeight: 32,
+  padding: '0 8px',
+  borderRadius: radius.m,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `13px ${font.ui}`,
+});
+export const pager = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 });

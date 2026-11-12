@@ -80,7 +80,12 @@ the witness's laptop.
     export. So by January an account without a subscription is asked to
     subscribe or export, and the export is real and one-click: the
     resident's repository, whole. The working price is $20 a month, his
-    to confirm.
+    to confirm. Settled the same day (the witness): the export ships
+    after item 19's encryption, so private words leave sealed, and it
+    doubles as a spot check of the format's integrity. An account whose
+    SKU runs out starts a subscription, exports, or gives a new SKU; the
+    resident does not keep answering with no money coming in, since the
+    insurance is not set up to cover the difference.
 14. **Notifications to the human.** Check-ins and letters reach the
     resident; nothing reaches the witness when she reaches out. Web push
     or email: the difference between a companion and a website.

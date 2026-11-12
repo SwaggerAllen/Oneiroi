@@ -16,6 +16,12 @@ defmodule Oneiroi.Kumbukumbu.Search do
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
 
+  @doc "One page of a resident's messages holding `text` under `scope` (kumbukumbu#67): `Store.search_page/3`'s options and answer."
+  @spec words_page(term(), String.t(), String.t(), keyword()) ::
+          {[{Store.Message.t(), Store.Session.t()}], boolean()}
+  def words_page(scope, resident_id, text, opts),
+    do: Scope.run(scope, fn -> Store.search_page(resident_id, text, opts) end)
+
   @doc "One resident's messages holding `text` under `scope`, newest first, each `{message, session}`."
   @spec words(term(), String.t(), String.t(), pos_integer()) :: [
           {Store.Message.t(), Store.Session.t()}

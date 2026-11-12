@@ -292,8 +292,15 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search every transcript, past the index: for the exact phrase (newest first, each hit the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
-        %{q: %{type: "string"}, by: %{type: "string", enum: ["both", "phrase", "meaning"]}},
+        "Search every transcript, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        %{
+          q: %{type: "string"},
+          by: %{type: "string", enum: ["both", "phrase", "meaning"]},
+          page: %{type: "integer"},
+          sort: %{type: "string", enum: ["newest", "oldest"]},
+          from: %{type: "string"},
+          to: %{type: "string"}
+        },
         [:q]
       ),
       tool(
@@ -1823,29 +1830,17 @@ defmodule Oneiroi.Brain.Tools do
     q = to_string(args["q"] || "")
     by = if args["by"] in ["phrase", "meaning"], do: args["by"], else: "both"
 
-    phrase =
-      if by == "meaning",
-        do: [],
-        else:
-          Kumbukumbu.search(
-            {:resident, turn.resident_id},
-            q,
-            20,
-            turn.resident_id,
-            turn.session_key
-          )
+    case phrase_paging(args) do
+      {:ok, opts, page} ->
+        {phrase, more} =
+          if by == "meaning",
+            do: {[], false},
+            else: phrase_page(turn, q, opts, page)
 
-    phrase_text = phrase_text(phrase, q)
+        transcript_search_text(turn, q, by, phrase, phrase_text(phrase, q, page, more))
 
-    case by do
-      "phrase" ->
-        phrase_text
-
-      "meaning" ->
-        meaning_text(turn, q, [])
-
-      "both" ->
-        "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, phrase)
+      {:refused, why} ->
+        @not_done <> why
     end
   end
 
@@ -3882,15 +3877,95 @@ defmodule Oneiroi.Brain.Tools do
   # cites the seed it grew from, which has usually graduated into it);
   # checked here because the resident system cannot read the character
   # system's rows (ethos#13).
-  defp phrase_text([], _q), do: "No message holds that phrase."
+  @phrase_page 20
 
-  defp phrase_text(rows, q),
-    do:
+  defp transcript_search_text(turn, q, by, phrase, phrase_text) do
+    case by do
+      "phrase" ->
+        phrase_text
+
+      "meaning" ->
+        meaning_text(turn, q, [])
+
+      "both" ->
+        "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, phrase)
+    end
+  end
+
+  # Her room's messages, the page asked for (kumbukumbu#67). Her own
+  # reads are whole: a private session of hers is hers to search.
+  defp phrase_page(turn, q, opts, page) do
+    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
+
+    {rows, more} =
+      Kumbukumbu.search_words_page(
+        {:resident, turn.resident_id},
+        turn.resident_id,
+        q,
+        [keys: keys, limit: @phrase_page, offset: (page - 1) * @phrase_page] ++ opts
+      )
+
+    {Enum.map(rows, &elem(&1, 0)), more}
+  end
+
+  defp phrase_paging(args) do
+    with {:ok, page} <- phrase_page_number(args["page"]),
+         {:ok, sort} <- phrase_sort(args["sort"]),
+         {:ok, from} <- local_bound(args["from"], 0),
+         {:ok, to} <- local_bound(args["to"], 1),
+         do: {:ok, [sort: sort, from: from, to: to], page}
+  end
+
+  defp phrase_page_number(nil), do: {:ok, 1}
+  defp phrase_page_number(n) when is_integer(n) and n >= 1, do: {:ok, n}
+  defp phrase_page_number(_other), do: {:refused, "page is a whole number from 1."}
+
+  defp phrase_sort(nil), do: {:ok, :newest}
+  defp phrase_sort("newest"), do: {:ok, :newest}
+  defp phrase_sort("oldest"), do: {:ok, :oldest}
+  defp phrase_sort(_other), do: {:refused, "sort is newest or oldest."}
+
+  # A YYYY-MM-DD day in her zone as the instant it starts, `shift` days
+  # on: `to` is the start of the day after, so the day itself is in.
+  defp local_bound(nil, _shift), do: {:ok, nil}
+  defp local_bound("", _shift), do: {:ok, nil}
+
+  defp local_bound(day, shift) when is_binary(day) do
+    zone = Process.get(@zone_key, "Etc/UTC")
+
+    with {:ok, date} <- Date.from_iso8601(day),
+         {:ok, at} <- day_start(Date.add(date, shift), zone) do
+      {:ok, DateTime.shift_zone!(at, "Etc/UTC")}
+    else
+      _bad -> {:refused, "from and to are days, YYYY-MM-DD."}
+    end
+  end
+
+  defp local_bound(_other, _shift), do: {:refused, "from and to are days, YYYY-MM-DD."}
+
+  defp day_start(date, zone) do
+    case DateTime.new(date, ~T[00:00:00], zone) do
+      {:ok, at} -> {:ok, at}
+      {:ambiguous, first, _second} -> {:ok, first}
+      {:gap, _before, after_gap} -> {:ok, after_gap}
+      error -> error
+    end
+  end
+
+  defp phrase_text([], _q, 1, _more), do: "No message holds that phrase."
+  defp phrase_text([], _q, page, _more), do: "Page #{page} is past the last match."
+
+  defp phrase_text(rows, q, page, more) do
+    lines =
       Enum.map_join(
         rows,
         "\n",
-        &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}: #{Cut.around(&1.content || "", q, 160)}"
+        &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}, #{local_day(&1.sent_at)}: #{Cut.around(&1.content || "", q, 160)}"
       )
+
+    tail = if more, do: "\n(More: page #{page + 1}.)", else: ""
+    "Page #{page}:\n" <> lines <> tail
+  end
 
   defp near_text([]), do: "Nothing embedded comes near that yet."
 

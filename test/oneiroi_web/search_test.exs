@@ -155,6 +155,62 @@ defmodule OneiroiWeb.SearchTest do
     assert %{"ref" => %{"turn_ref" => "t1"}} = older
   end
 
+  defp capture_at!(ctx, ref, content, at) do
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        ref,
+        at,
+        [%{role: :assistant, content: content, sent_at: at, actor: ctx.brain}],
+        ctx.brain
+      )
+  end
+
+  test "the words scope pages, sorts oldest or newest and keeps to a date range (kumbukumbu#67)",
+       ctx do
+    day = 86_400
+    capture_at!(ctx, "t1", "The wren sang, first.", ctx.at)
+    capture_at!(ctx, "t2", "The wren sang, second.", DateTime.add(ctx.at, 2 * day))
+    capture_at!(ctx, "t3", "The wren sang, third.", DateTime.add(ctx.at, 4 * day))
+
+    get = fn params ->
+      ctx.conn
+      |> get("/v1/residents/#{ctx.id}/search", Map.merge(%{q: "wren", scope: "words"}, params))
+    end
+
+    turns = fn body -> Enum.map(body["results"], & &1["ref"]["turn_ref"]) end
+
+    body = get.(%{}) |> json_response(200)
+    assert turns.(body) == ["t3", "t2", "t1"]
+    assert %{"page" => 1, "more" => false} = body
+
+    assert get.(%{sort: "oldest"}) |> json_response(200) |> turns.() == ["t1", "t2", "t3"]
+
+    from = DateTime.add(ctx.at, day) |> DateTime.to_iso8601()
+    to = DateTime.add(ctx.at, 3 * day) |> DateTime.to_iso8601()
+    assert get.(%{from: from, to: to}) |> json_response(200) |> turns.() == ["t2"]
+    assert get.(%{from: from}) |> json_response(200) |> turns.() == ["t3", "t2"]
+
+    assert %{"results" => [], "page" => 2, "more" => false} =
+             get.(%{page: "2"}) |> json_response(200)
+
+    for bad <- [%{page: "0"}, %{page: "x"}, %{sort: "best"}, %{from: "yesterday"}] do
+      assert %{"error" => %{"kind" => "search_paging_invalid"}} = get.(bad) |> json_response(422)
+    end
+
+    # A page is `limit` long, and `more` says another follows.
+    page = fn n ->
+      Kumbukumbu.search_words_page({:resident, ctx.id}, ctx.id, "wren",
+        limit: 2,
+        offset: (n - 1) * 2
+      )
+    end
+
+    assert {[_, _], true} = page.(1)
+    assert {[{%{turn_ref: "t1"}, _session}], false} = page.(2)
+  end
+
   test "the bookmarks scope searches the line, the summary and the tags, the line's matches first",
        ctx do
     capture!(ctx, ctx.key, "t1", "a moment")
