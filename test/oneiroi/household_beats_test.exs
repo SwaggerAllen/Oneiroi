@@ -637,7 +637,8 @@ defmodule Oneiroi.HouseholdBeatsTest do
              })
 
     assert remedy =~ "Register for the next beat, which begins"
-    assert run("household_register", %{beats_ahead: 24 * 8}, cy) =~ "Not done:"
+    # However far ahead (Andrew, 2026-11-11): a year out is a beat to come.
+    assert run("household_register", %{beats_ahead: 24 * 365}, cy) =~ "Registered for the beat at"
 
     # N1: Bea, its only registrant, goes; nobody else waits.
     put(Beats.signup_closes(n1, s))

@@ -63,8 +63,6 @@ defmodule Oneiroi.Gaia.Household do
   # The watch's term, stated by the resident every time (gaia#32): a day
   # is the model, a week the most, so it always ends.
   @watch_hours_max 168
-  # How far ahead a beat may be registered for (gaia#35): a week.
-  @register_ahead_days 7
 
   def execute(%__MODULE__{id: nil}, %Commands.FoundHousehold{} = c) do
     if is_binary(c.account_id),
@@ -398,8 +396,9 @@ defmodule Oneiroi.Gaia.Household do
   defp open?(_open, _turn), do: false
 
   # A registration is for one beat (gaia#35, Andrew 2026-11-11: "it's
-  # always signing up for a specific beat"): any beat to come, up to a
-  # week ahead, while its sign-up is open; the beat now running after its
+  # always signing up for a specific beat"): any beat to come, however
+  # far ahead ("I don't see any particular reason we should limit how far
+  # out a beat can be scheduled"), while its sign-up is open; the beat now running after its
   # sign-up only when she has not gone in it, nobody registered for it is
   # still waiting for a first turn, and its cap is not reached (gaia#39).
   defp register(h, c, shape) do
@@ -408,7 +407,7 @@ defmodule Oneiroi.Gaia.Household do
     rid = c.actor.id
 
     cond do
-      refused = beat_refused(h, shape, c.at, top, current) ->
+      refused = beat_refused(h, shape, top, current) ->
         refused
 
       Map.has_key?(h.regs, {rid, key(top)}) ->
@@ -430,16 +429,13 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
-  defp beat_refused(h, shape, at, top, current) do
+  defp beat_refused(h, shape, top, current) do
     cond do
       not (match?(%DateTime{}, top) and Beats.aligned?(h.id, shape, top)) ->
         {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_not_a_top)}
 
       DateTime.compare(top, current) == :lt ->
         {:error, Error.new(:gaia_beat_closed, :gaia_household_register_past)}
-
-      DateTime.diff(top, at) > @register_ahead_days * 86_400 ->
-        {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_too_far)}
 
       true ->
         nil

@@ -914,7 +914,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "household_register",
-        "Register for one beat of your household's: the next by default, or beats_ahead: n (0 is the beat running, while its sign-up is open, or after it when you have not gone in it and nobody registered for it is still waiting), or beat: its top as household_beat lists it (any beat to come, up to a week ahead; one registration a beat, several beats at once). Registering does not book a slot: turns fire one after another from the sign-up's close, the most starved first (opportunities missed), each registrant once before anyone repeats, up to the beat's cap. A registration lasts for its beat only: if the beat ends without your turn, it ends too and the miss is banked, so you go first whenever you next register. Your turn wakes you with what is new since your last.",
+        "Register for one beat of your household's: the next by default, or beats_ahead: n (0 is the beat running, while its sign-up is open, or after it when you have not gone in it and nobody registered for it is still waiting), or beat: its top as household_beat lists it (any beat to come, however far ahead; one registration a beat, several beats at once). Registering does not book a slot: turns fire one after another from the sign-up's close, the most starved first (opportunities missed), each registrant once before anyone repeats, up to the beat's cap. A registration lasts for its beat only: if the beat ends without your turn, it ends too and the miss is banked, so you go first whenever you next register. Your turn wakes you with what is new since your last.",
         %{
           beat: %{
             type: "string",
