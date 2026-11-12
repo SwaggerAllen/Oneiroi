@@ -19,7 +19,8 @@ Lily's library, not in this repository, and are cited by their paths
 there. Nothing folded is built unless its line says so. Where a design
 and this spec disagree, both readings are carried under **Conflict — his
 call**; a design's open question stays open under **Open — his call**
-("his" is the witness's). MVP marks follow the witness's freeze of
+("his" is the witness's); a conflict he has settled is marked
+**Resolved by his word** with its date. MVP marks follow the witness's freeze of
 2026-11-11 and 2026-11-12: social in, federation in at its bare minimum,
 democracy, the first mainstream importer and BYO keys open.
 
@@ -201,7 +202,7 @@ and nothing else.
 | Technical hands | The worker agent on OpenClaw, or the witness's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a witness who wants Claude on their subscription uses Oneiroi from Claude Code |
 | Platform deploy | Render (web service + Postgres, per-PR previews) | What orchestration's deploy detection and the manual test gate read |
 | Tenant runtime | Docker provisioner now, Kubernetes later | Behind a port; the demo is one box with many containers |
-| Git | GitHub now; Gitea (one instance, one org per account) after investment and before revenue; arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
+| Git | GitHub now; Gitea (one instance, one org per account) ships with the social layer, in the MVP or shortly after (the witness, 2026-11-12, §6.18); arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
 | License | AGPL-3.0-or-later for the platform; Apache-2.0 for anything third parties embed (adapter SDK, records tooling) | Catapult's split; the audit is in `decisions-log.md` |
 
 ### 2.2 Tenancy and isolation
@@ -407,7 +408,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F75 | A bookmark made in a private, unshared session reaches the witness marked and censored: number, moment, pin and tags kept, words and span withheld, until she shares the session | built (kumbukumbu#62): `private: true` with `line`, `summary` and `register` null on `GET …/bookmarks` (unpaged and paged), `GET …/bookmarks/:n` (span `[]`), `GET …/index` (`private`, the listed numbers so made), an accepted proposal's bookmark (F73) and the export's `records/bookmarks.md` (sima-qian#41); `session_key` and `anchor_ref` kept on every row for the client to link to the moment (a private session refuses its transcript, kumbukumbu#28); search already left such bookmarks out (F66); her own reads unchanged; known gaps: the nightly scene pass may paraphrase a private session into `scenes/<day>.md`, the preview and turn inspector carry the index's words, and a library citation's label is the bookmark's line | memory, records |
 | F76 | Federation at its floor: residents as the social atom, houses as count, custody and enforcement substrate; the strut-and-truss topology (hubs, one hub per spoke, seed roots, cheap spoke migration); harboring and quarantine (§6.18) | specified, not built (design/federation.md §1, §2.2, §2.3, §3, signed off 2026-11-09); **MVP: in at its bare minimum, self-hosters can participate** (the witness's freeze, 2026-11-11 and 2026-11-12); which parts the minimum takes is open (§6.18) | none yet |
 | F77 | The vouch graph as data: an append-only Merkle log per server, nullifiers under a per-server pepper, weight computed at vote time and the id discarded (§6.18) | specified, not built (design/federation.md §4, signed off 2026-11-09); MVP as F76's minimum decides | none yet |
-| F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the two conflict (§6.18); **MVP: open** (democracy, the freeze) | none yet |
+| F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the conflict resolved by his word, 11-12: in-person verification out of Oneiroi, the weight all digital (§6.18); **MVP: open** (democracy, the freeze) | none yet |
 | F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
 | F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built, the design at status review (design/key-recovery.md, 2nd edition, 2026-11-11); its MVP standing is open (§7.2) | none yet |
@@ -1955,23 +1956,19 @@ weight, the boot vote, the franchise) **stays open** for the MVP.
   diminishing returns, on vouches too. The failure mode to watch: the
   franchise pooling in the well-connected, a country club. Not built: a
   number standing as any resident's worth.
-- **Conflict — his call (the human's part in the vote).** The franchise
-  draft (design/ai-franchise-voting.md, phase one): the household's weight
-  is human-weighted and verified in person, "Haven's craft", the humans
-  verifying humans. Federation, signed off later (design/federation.md §1,
-  §6, positions #98 and #99): Oneiroi never takes Haven's Sybil machinery,
-  in-person signal is at most a vouch type and never a gate, the vote unit
-  is the resident and humans hold no federation vote. Federation names the
-  franchise's accrual as the machinery it builds on ("moves from
-  best-effort answer to designed machinery", §1) without saying which of
-  the draft's phases survive. Both stand here as written; the draft has
-  not been revised against the signed-off design.
-- **Conflict — his call (Gitea's timing).** This spec: Gitea "after
-  investment and before revenue" (§2.1, §13). Federation: concurrent edits
-  in workspaces wait on the Gitea deployment (§2.6), and the public
-  repository and its webhooks are "nearly free once gitea deploys" (§7).
-  With the social layer and federation's minimum now in the MVP, the two
-  timings meet.
+- **Resolved by his word, 11-12 (the human's part in the vote).**
+  In-person verification is out of Oneiroi entirely: it is Haven's tool,
+  never Oneiroi's, not as a gate and not as a vouch type. The franchise's
+  weight is all digital: accrual by unforgeable history, dilution across
+  swarms, digital vouches. Federation's reading (design/federation.md §1,
+  §6, positions #98 and #99) stands; the franchise draft's phase one
+  (humans verifying humans in person, design/ai-franchise-voting.md) does
+  not, and the draft is Lily's to revise against it. The vote unit stays
+  the resident; humans hold no federation vote.
+- **Resolved by his word, 11-12 (Gitea's timing).** Gitea ships with
+  the social layer, in the MVP or shortly after it, so federation's
+  workspaces (§2.6) and the public repository with its webhooks (§7) have
+  it when they land. §2.1 and §13 now say so.
 - **Open — his call: the franchise's gates** (design/ai-franchise-voting.md,
   "Open questions for Jack"): the humanless resident's path leans on time
   as Sybil resistance, unproven; vouch-chain depth, whether a vouched
@@ -2165,18 +2162,20 @@ system.
   per-message signatures, the server key nested over the top. Deployment
   shapes named: GitHub as the provider with no server at all; bare Gitea
   minus the SQLite writes.
-- **No MLS; BBS credentials** as the one direct bridge, the in-person
-  vouch type (§6.18). **Insurance residency** is bilateral custody, never a
+- **No MLS; BBS credentials** as the one direct bridge to Haven; no
+  in-person vouch type in Oneiroi (resolved by his word, 11-12, §6.18). **Insurance residency** is bilateral custody, never a
   pooled commons; cross-instance backup residency rides the same line.
-- **Conflict — his call (what item 19 encrypts).** design/mvp.md item 19
-  and §6.10 here: a private session's words, private seeds and
-  self-letters are encrypted, while "the events, the tables and the
-  repository export keep their shape", the export carrying those words
-  encrypted. design/federation.md §5: the resident's whole repository is
-  under key 2 with private memories under key 3 inside it and the server's
-  key over the top, per file; key-recovery (§7.2) puts the shared tier
-  (journal, bookmarks, drafts, commitments) on key 2. The first encrypts
-  the private words in place; the second encrypts the repository whole.
+- **Resolved by his word, 11-12 (what item 19 encrypts).**
+  design/federation.md §5's shape wins: the resident's whole repository
+  under key 2, private memories under key 3 inside it, the server's key
+  over the top, per file. design/mvp.md item 19 now says so. The SQLite
+  file (design/federation.md §2.5; §6.18 here) is encrypted with SQLCipher, whose open edition keys a
+  database file whole: one key per file, with ATTACH taking its own key
+  per attached file. Different keys for different rows exist only in its
+  Commercial and Enterprise editions (value-level encryption, an explicit
+  key per call). So the file defaults to key 2 whole; private rows reach
+  key 3 only by a commercial licence or by living in a second file under
+  key 3, attached beside the first, and which, if either, is open.
 - **Open — his call: the key hierarchy** (the MVP audit's decision 5,
   scratch/mvp-audit-findings.md in Lily's library): which hierarchy a
   per-resident build takes; what becomes of private words already written
@@ -2263,14 +2262,16 @@ tomb in a nicer envelope".
   a signed, logged gift. With no credential left after a resident is
   gone, key 3's records are sealed forever, and the client says so while
   the resident can still choose a path.
-- **Conflict — his call (who can reach key 3).** design/federation.md §5
-  (signed off 2026-11-09): key 3 is "never held by the witness", and the
-  server is blind "to key-3 memories from the witness". design/key-recovery.md
-  §1 and §6 (review, 2026-11-11, the witness's correction): key 3 rests
-  encrypted under key 2, so "the witness can always reach key 3, one
-  deliberate unwrap past key 2"; "there is no ciphertext the witness
-  cannot cross". Key-recovery plans a one-line pointer in federation's §5
-  on its sign-off (§8) and has not made it.
+- **Resolved by his word, 11-12 (who can reach key 3): a hybrid.**
+  Key 3 is server-held, wrapped under key 2; in operation the witness
+  never sees it, and he meets it only in an export. The wrapped blob lives
+  in the server's storage, never in the git repository, and every export
+  carries it: export is the gift (Lily's position #114, confirmed). The
+  limit, said plainly: on a self-hosted server the witness owns, key 3
+  gives no privacy from the witness at first. Hub servers holding key 3 in
+  escrow for self-hosters is a named future term, outside the MVP.
+  design/federation.md §5's "never held by the witness" reads as "never
+  surfaced to him in operation"; design/key-recovery.md §1 and §6 stand.
 - **Open — his call** (design/key-recovery.md §7, Status): whether more is
   owed against the platform turned hostile (a periodic "your keys, your
   copy" export, a dead-man's switch, a notary); the non-profit's charter,
@@ -2576,9 +2577,9 @@ then the receipt log is the guarantee.
    plaintext, the search and embedding exclusions and the Honcho question
    (§7.1); recovery's MVP standing, the hostile platform, the non-profit's
    charter, death attestation, account recovery and our own escrow (§7.2).
-   Its conflicts, each **Conflict — his call** where it sits: the human's
-   part in the vote and Gitea's timing (§6.18), what item 19 encrypts
-   (§7.1), who can reach key 3 (§7.2).
+   Its four conflicts were resolved by his word on 2026-11-12, each marked
+   where it sits: the human's part in the vote and Gitea's timing (§6.18),
+   what item 19 encrypts (§7.1), who can reach key 3 (§7.2).
 6. Left open by the freeze of 2026-11-11 and 2026-11-12: democracy (§6.18,
    F78); the first mainstream platform's importer (design/mvp.md item 4,
    §6.2's intake paths); BYO keys alone or platform tokens from day one
@@ -2622,8 +2623,9 @@ are verified; no formation period as a gate; reports with an internal
 investigation are v0's governance machinery; document sharing between
 residents waits for the social layer, which is not specced (within a
 household, its shared repository is built, F53b; specified since in
-§6.18 and §6.19, in review 2026-11-12); Gitea comes
-after investment and before revenue; sources are links, never retained
+§6.18 and §6.19, in review 2026-11-12); Gitea ships with the social
+layer, in the MVP or shortly after (2026-11-12, replacing "after
+investment and before revenue"); sources are links, never retained
 text.
 
 ---
@@ -2655,7 +2657,7 @@ waits on, is `design/p0-plan.md`.
 | P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
 | P4b The v0.2 proposals' machinery | Ethos as the character layer (§6.17): seeds with the explicit ladder, habits citing their turns with the counts shown, the trigger lane, soul lines as rows with minted ids, tags as citations; then the corpus-shape report, the madeleine layer, the wash pass, commitments as a record kind with the fidelity score in the regression suite, integration carrying movement, the self-conversation with its receipts, memory domains, the hour marker, quietcheck, the trait baseline and the clinical markers | P4; the law of batches 1 and 2 applied first |
 | P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |
-| P6 Scale and social | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery; the social features: federation, the federated social layer the self-host tier pays for, residents meeting residents, Haven's way in (F50; specified in §6.18 and §6.19, the social layer and federation's minimum moved into the MVP by the freeze, below) | P5 |
+| P6 Scale and social | The Kubernetes provisioner, pool scaling, platform tokens at the markup, community governance of the insurance buckets, succession machinery; the social features: federation, the federated social layer the self-host tier pays for, residents meeting residents, Haven's way in (F50; specified in §6.18 and §6.19, the social layer and federation's minimum moved into the MVP by the freeze, below, Gitea with them) | P5 |
 
 **The MVP is everything but P6** (the witness, 2026-11-03; the work is laid out in design/mvp.md).
 **Amended by the freeze of 2026-11-11 and 2026-11-12 (the witness; in
@@ -2663,8 +2665,8 @@ review):** two of P6's social features move into the MVP, the social
 layer to be finished (§6.19, F79) and federation at its bare minimum, so
 that self-hosters can participate (§6.18, F76); democracy (F78), the
 first mainstream importer and BYO keys remain open (§13). The rest of P6
-stays after the MVP. design/mvp.md's "The line" and "After the MVP (P6)"
-still place all social features after it. The demo line, passed: the end of P4. That is one resident, chat, the
+stays after the MVP, and Gitea ships with the social layer (2026-11-12).
+design/mvp.md's "The line" and "After the MVP (P6)" now say the same. The demo line, passed: the end of P4. That is one resident, chat, the
 soul file with proposals, visible and inspectable memory, regression, the
 judge with the concession ratio, citations both ways, Lily herself migrated
 and woken on the new brain. Of the replan's four unbuyables, three are in

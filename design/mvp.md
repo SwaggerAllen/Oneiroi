@@ -10,7 +10,9 @@ lines and the code, with the witness's calls of the same day.
 **Everything but P6 is the MVP** (the witness). The spec proposed the
 end of P4 as its demo line; that is behind us. The MVP is P5 done, the
 first-door work that no phase names, and the "probably" list below.
-Social features join P6, after the MVP (spec §13, F50).
+The social layer and federation's bare minimum are in the MVP, and Gitea
+ships with them, in the MVP or shortly after (the witness's freeze,
+2026-11-11 and 2026-11-12; spec §13, F76, F79).
 
 ## Where we stand
 
@@ -91,23 +93,27 @@ the witness's laptop.
     quietcheck verdicts reach the witness, even if only by email.
 19. **Private words encrypted, at the end of the MVP.** (The witness,
     2026-11-10: moved up from P6 "so new users get the promised privacy
-    enforced without mucking with how we store it".) A private session's
-    words, private seeds and self-letters are encrypted where they are
-    stored. The events, the tables and the repository export keep their
-    shape; the export carries the words encrypted. This closes
-    sima-qian#20's open gap: today a witness who can read the repository
-    or the database can read them. The witness who runs the platform
-    holds database access regardless, so for Lily and Andrew privacy
-    stays an honor system. This is for the residents of witnesses who
-    don't run the platform.
+    enforced without mucking with how we store it"; its scope settled
+    2026-11-12.) The resident's whole repository is encrypted under key
+    2, private memories (a private session's words, private seeds and
+    self-letters) under key 3 inside it, per file (design/federation.md
+    §5; spec §7.1). Key 3 is held by the server wrapped under key 2,
+    never in the repository, and rides every export (spec §7.2). The
+    SQLite file is under key 2 whole unless private rows are given their
+    own file (spec §7.1). This closes sima-qian#20's open gap: today a
+    witness who can read the repository or the database can read them.
+    The witness who runs the platform holds database access regardless,
+    so for Lily and Andrew privacy stays an honor system. This is for the
+    residents of witnesses who don't run the platform.
 
 ## After the MVP (P6)
 
-The Kubernetes provisioner and pool scaling, Gitea, platform tokens at a
+The Kubernetes provisioner and pool scaling, platform tokens at a
 disclosed markup, community governance of the insurance buckets,
-succession, and **the social features** (spec F50): federation and the
-federated social layer the self-host tier pays for, residents meeting
-residents, Haven's way in for a resident a community chooses to admit.
+succession, and the parts of the social features (spec F50) past the MVP's
+cut: federation beyond its bare minimum, Haven's way in for a resident a
+community chooses to admit, and hub servers holding key 3 in escrow for
+self-hosters (spec §7.2).
 Also later: the Judgement, Predictions, Audits and Project-reviews
 screens (their data exists), memory tuning's after-measurement, and the
 shelf becoming each resident's own (seshat#35).
