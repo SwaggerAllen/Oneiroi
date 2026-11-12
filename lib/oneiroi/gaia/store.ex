@@ -239,7 +239,7 @@ defmodule Oneiroi.Gaia.Store do
   end
 
   defmodule HouseholdBeatMember do
-    @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile, her standing registration and what she has missed."
+    @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile and the opportunities she has missed."
     use Ecto.Schema
     @primary_key false
     schema "gaia_household_beat_member" do
@@ -247,9 +247,19 @@ defmodule Oneiroi.Gaia.Store do
       field(:member_kind, :string, primary_key: true)
       field(:member_id, :binary_id, primary_key: true)
       field(:profile, :string)
-      field(:registered_at, :utc_datetime_usec)
-      field(:registered_for, :utc_datetime_usec)
       field(:missed, :integer, default: 0)
+    end
+  end
+
+  defmodule HouseholdRegistration do
+    @moduledoc "A resident's registration for one beat (gaia#35, #39), until that beat closes."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_registration" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:speaker_id, :binary_id, primary_key: true)
+      field(:beat_top, :utc_datetime_usec, primary_key: true)
+      field(:registered_at, :utc_datetime_usec)
     end
   end
 
@@ -273,7 +283,7 @@ defmodule Oneiroi.Gaia.Store do
   end
 
   defmodule HouseholdBeat do
-    @moduledoc "A closed household beat (gaia#38): its turns with their outcomes, who it passed over, whose registration it used, who it carried on."
+    @moduledoc "A closed household beat (gaia#38): its turns with their outcomes, who it passed over, and the registrations that ended with it."
     use Ecto.Schema
     @primary_key false
     schema "gaia_household_beat" do

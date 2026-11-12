@@ -538,17 +538,21 @@ defmodule Oneiroi.Gaia.Households do
     })
   end
 
-  @doc "A resident enters the queue (gaia#35); answers the beat she queues for, or her standing registration's."
-  def register_beat(household_id, %Actor{} = actor) do
-    command = %Commands.RegisterHouseholdBeat{actor: actor, at: Clock.now(), id: household_id}
+  @doc "A resident registers for one beat, by its top (gaia#35, #39); answers it, and whether she was registered for it already."
+  def register_beat(household_id, beat_top, %Actor{} = actor) do
+    command = %Commands.RegisterHouseholdBeat{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      beat_top: beat_top
+    }
 
     case HouseholdRouter.dispatch(command) do
       {:ok, [%Events.HouseholdBeatRegistered{beat_top: top}]} ->
         {:ok, %{beat_top: top, already: false}}
 
       {:ok, []} ->
-        {:ok,
-         %{beat_top: member_row(household_id, "resident", actor.id).registered_for, already: true}}
+        {:ok, %{beat_top: beat_top, already: true}}
 
       other ->
         refused(other)
@@ -692,9 +696,15 @@ defmodule Oneiroi.Gaia.Households do
     signup = Beats.signup_closes(top, shape)
     members = members(household_id)
 
-    {rows, turns, closed} =
+    {rows, regs, turns, closed} =
       Scope.platform(fn ->
         {Repo.all(from(m in Store.HouseholdBeatMember, where: m.household_id == ^household_id)),
+         Repo.all(
+           from(r in Store.HouseholdRegistration,
+             where: r.household_id == ^household_id and r.beat_top >= ^top,
+             order_by: [r.beat_top, r.registered_at]
+           )
+         ),
          Repo.all(
            from(t in Store.HouseholdTurn,
              where: t.household_id == ^household_id and t.beat_top == ^top,
@@ -719,7 +729,8 @@ defmodule Oneiroi.Gaia.Households do
         if is_nil(t.ended_at), do: turn_row(t)
       end) || open_anywhere(household_id)
 
-    queue = queue(members, rows, counts, shape, top)
+    missed = for {{_kind, id}, row} <- rows, into: %{}, do: {id, row.missed}
+    queue = queue(Enum.filter(regs, &(&1.beat_top == top)), missed, counts, top)
 
     %{
       household_id: household_id,
@@ -736,40 +747,65 @@ defmodule Oneiroi.Gaia.Households do
       next_top: Beats.ends(top, shape),
       open_turn: open && Map.put(open, :name, names[open.resident_id]),
       queue: Enum.map(queue, &Map.put(&1, :name, names[&1.resident_id])),
+      registrations: registrations(regs, missed, names),
+      upcoming:
+        Enum.map(
+          Beats.upcoming(household_id, shape, at, 6),
+          &%{top: &1, signup_closes: Beats.signup_closes(&1, shape)}
+        ),
       profiles: Enum.map(members, &profile_of(&1, rows[{&1.kind, &1.id}], shape)),
       closed: Enum.map(closed, &closed_of/1)
     }
   end
 
-  # The registered residents in the order the next turns fire (gaia#35),
-  # each with the beat she waits for: this one while she is in its queue
-  # with her share not used, else the next.
-  defp queue(members, rows, counts, shape, top) do
-    signup = Beats.signup_closes(top, shape)
-
-    for m <- members,
-        m.kind == "resident",
-        row = rows[{"resident", m.id}],
-        row && row.registered_at do
-      %{
-        resident_id: m.id,
-        registered_at: row.registered_at,
-        missed: row.missed,
-        count: Map.get(counts, m.id, 0)
+  # The beat running's registrants in the order its turns fire (gaia#35):
+  # fewest turns in it, most missed, earliest registered.
+  defp queue(regs, missed, counts, top) do
+    regs
+    |> Enum.map(
+      &%{
+        resident_id: &1.speaker_id,
+        registered_at: &1.registered_at,
+        missed: Map.get(missed, &1.speaker_id, 0),
+        count: Map.get(counts, &1.speaker_id, 0)
       }
-    end
+    )
     |> Beats.order()
     |> Enum.with_index(1)
     |> Enum.map(fn {q, i} ->
-      in_line = DateTime.compare(q.registered_at, signup) == :lt and q.count < shape.share
-
       %{
         position: i,
         resident_id: q.resident_id,
         registered_at: q.registered_at,
         missed: q.missed,
         turns_this_beat: q.count,
-        waits_for: if(in_line, do: top, else: Beats.ends(top, shape))
+        waits_for: top
+      }
+    end)
+  end
+
+  # Every registration from the beat running on, by beat, each beat's
+  # registrants in the order they would fire as things stand.
+  defp registrations(regs, missed, names) do
+    regs
+    |> Enum.group_by(& &1.beat_top)
+    |> Enum.sort_by(fn {top, _} -> DateTime.to_unix(top, :microsecond) end)
+    |> Enum.map(fn {top, rs} ->
+      ordered =
+        rs
+        |> Enum.map(
+          &%{
+            resident_id: &1.speaker_id,
+            registered_at: &1.registered_at,
+            missed: Map.get(missed, &1.speaker_id, 0),
+            count: 0
+          }
+        )
+        |> Beats.order()
+
+      %{
+        beat_top: top,
+        residents: Enum.map(ordered, &Map.put(&1, :name, names[&1.resident_id]))
       }
     end)
   end

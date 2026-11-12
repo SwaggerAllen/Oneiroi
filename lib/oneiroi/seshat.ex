@@ -618,9 +618,9 @@ defmodule Oneiroi.Seshat do
   @spec household_sign_contract(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_sign_contract(actor), do: Household.sign_contract(actor))
 
-  @doc "A resident enters the queue for the household's next beat (gaia#35, brain#84)."
-  @spec household_register(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
-  defexport(household_register(actor), do: HouseholdBeats.register(actor))
+  @doc "A resident registers for one beat: by its top (`beat`) or `beats_ahead`, the next by default (gaia#35, #39, brain#84)."
+  @spec household_register(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_register(actor, target), do: HouseholdBeats.register(actor, target))
 
   @doc "The household's beats as a member reads them, with her own place, profile and quota left (seshat#68, gaia#33 to #38)."
   @spec household_beat(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

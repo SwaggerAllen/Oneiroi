@@ -292,6 +292,9 @@ defmodule Oneiroi.Gaia do
        "the beats are always on (gaia#33): a ballot changes their shape within bounds, never takes them away; a wake profile is every_beat, on_turn or self, and a witness's is self; a resident who is never woken does not register; a turn ends completed, declined, failed or timed_out",
        remedy:
          "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12, post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
+      {:gaia_beat_closed,
+       "a registration is for one beat to come, or for the beat running only while its sign-up is open, or after it when she has not gone in it, nobody registered for it waits for a first turn and its cap has room (gaia#35, #39)",
+       remedy: "register for the next beat, or a later one by its top"},
       {:gaia_turn_open, "a household turn is open; one runs at a time",
        remedy: "let it end; the next fires as it does"},
       {:gaia_invite_invalid,
@@ -714,11 +717,11 @@ defmodule Oneiroi.Gaia do
     do: Households.set_wake_profile(household_id, profile, note, actor)
   )
 
-  @doc "A resident enters the queue for the next beat (gaia#35)."
-  @spec register_household_beat(String.t(), Oneiroi.Actor.t()) ::
+  @doc "A resident registers for one beat, by its top (gaia#35, #39)."
+  @spec register_household_beat(String.t(), DateTime.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
-  defexport(register_household_beat(household_id, actor),
-    do: Households.register_beat(household_id, actor)
+  defexport(register_household_beat(household_id, beat_top, actor),
+    do: Households.register_beat(household_id, beat_top, actor)
   )
 
   @doc "The minute's look at a household's beats (gaia#35, #36, #38); answers the events recorded."

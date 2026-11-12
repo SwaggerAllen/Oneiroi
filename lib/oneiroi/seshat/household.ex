@@ -822,26 +822,44 @@ defmodule Oneiroi.Seshat.Household do
             DateTime.compare(&1.at, since) != :lt)
       )
 
-  # The refusal outside a turn names when she can next act (seshat#67).
+  # The refusal outside a turn names when she can next act (seshat#67):
+  # her next registration and its place, or the next beat to register for.
   defp not_your_turn(household_id, actor, shape, now) do
     beats = Gaia.household_beats(household_id, now)
-    queued = Enum.find(beats.queue, &(&1.resident_id == actor.id))
+
+    # The beat running orders by turns had in it too; a beat to come by
+    # what each has missed and when she registered.
+    mine =
+      case Enum.find(beats.queue, &(&1.resident_id == actor.id)) do
+        %{position: place} ->
+          {beats.beat.top, place}
+
+        nil ->
+          Enum.find_value(beats.registrations, &place_in(&1, actor.id))
+      end
 
     remedy =
-      case queued do
+      case mine do
         nil ->
-          top = Beats.registers_for(household_id, shape, now)
+          top = Beats.ahead(household_id, shape, now, 1)
 
-          "household_register now queues you for the beat at #{iso(top)}; its turns fire one after another from #{iso(Beats.signup_closes(top, shape))}, the most starved first, and your writes go in during your turn. A vote is never held to the turns."
+          "household_register signs you up for a coming beat: the next begins #{iso(top)} and its turns fire one after another from #{iso(Beats.signup_closes(top, shape))}, the most starved first; your writes go in during your turn. A vote is never held to the turns."
 
-        q ->
-          "You are registered, #{ordinal(q.position)} in the queue for the beat at #{iso(q.waits_for)}; its turns fire from #{iso(Beats.signup_closes(q.waits_for, shape))}, and your writes go in during your turn. A vote is never held to the turns."
+        {top, place} ->
+          "You are registered for the beat at #{iso(top)}, #{ordinal(place)} as things stand; its turns fire from #{iso(Beats.signup_closes(top, shape))}, and your writes go in during your turn. A vote is never held to the turns."
       end
 
     %{
       Error.new(:seshat_household_not_your_turn, :seshat_household_write_outside_turn)
       | remedy: remedy
     }
+  end
+
+  defp place_in(registration, id) do
+    case Enum.find_index(registration.residents, &(&1.resident_id == id)) do
+      nil -> nil
+      i -> {registration.beat_top, i + 1}
+    end
   end
 
   defp ordinal(1), do: "first"

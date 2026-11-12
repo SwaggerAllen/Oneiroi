@@ -38,7 +38,8 @@ defmodule Oneiroi.Gaia.Household do
     threads: MapSet.new(),
     next_ballot: 1,
     # The beats (gaia#33 to #38): each member's own wake profile, the
-    # standing registrations (resident => when), opportunities missed
+    # registrations, each for one beat ({resident, top's unix
+    # microsecond} => when), opportunities missed
     # since her last completed turn, the turn open now, and each beat not
     # yet closed with its turns (top's unix microsecond => beat).
     profiles: %{},
@@ -62,6 +63,8 @@ defmodule Oneiroi.Gaia.Household do
   # The watch's term, stated by the resident every time (gaia#32): a day
   # is the model, a week the most, so it always ends.
   @watch_hours_max 168
+  # How far ahead a beat may be registered for (gaia#35): a week.
+  @register_ahead_days 7
 
   def execute(%__MODULE__{id: nil}, %Commands.FoundHousehold{} = c) do
     if is_binary(c.account_id),
@@ -344,20 +347,8 @@ defmodule Oneiroi.Gaia.Household do
       profile(h, member) == "self" ->
         {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_self)}
 
-      # Registered and still in line: nothing new. Registered, but her
-      # share of a beat not yet closed is used, so that beat's close will
-      # use this registration: a fresh one, for the next.
-      Map.has_key?(h.regs, c.actor.id) and not share_used?(h, c.actor.id) ->
-        []
-
       true ->
-        %Events.HouseholdBeatRegistered{
-          actor: c.actor,
-          at: c.at,
-          id: c.id,
-          resident_id: c.actor.id,
-          beat_top: Beats.registers_for(h.id, shape(h), c.at)
-        }
+        register(h, c, shape(h))
     end
   end
 
@@ -406,10 +397,65 @@ defmodule Oneiroi.Gaia.Household do
   defp open?(%{turn: turn}, turn), do: true
   defp open?(_open, _turn), do: false
 
-  defp share_used?(h, resident_id) do
-    share = shape(h).share
-    Enum.any?(Map.values(h.beats), &(Map.get(&1.counts, resident_id, 0) >= share))
+  # A registration is for one beat (gaia#35, Andrew 2026-11-11: "it's
+  # always signing up for a specific beat"): any beat to come, up to a
+  # week ahead, while its sign-up is open; the beat now running after its
+  # sign-up only when she has not gone in it, nobody registered for it is
+  # still waiting for a first turn, and its cap is not reached (gaia#39).
+  defp register(h, c, shape) do
+    top = c.beat_top
+    current = Beats.top(h.id, shape, c.at)
+    rid = c.actor.id
+
+    cond do
+      refused = beat_refused(h, shape, c.at, top, current) ->
+        refused
+
+      Map.has_key?(h.regs, {rid, key(top)}) ->
+        []
+
+      DateTime.compare(top, current) == :eq and
+        DateTime.compare(c.at, Beats.signup_closes(top, shape)) != :lt and
+          not joinable?(h, shape, top, rid) ->
+        {:error, Error.new(:gaia_beat_closed, :gaia_household_register_current_taken)}
+
+      true ->
+        %Events.HouseholdBeatRegistered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: rid,
+          beat_top: top
+        }
+    end
   end
+
+  defp beat_refused(h, shape, at, top, current) do
+    cond do
+      not (match?(%DateTime{}, top) and Beats.aligned?(h.id, shape, top)) ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_not_a_top)}
+
+      DateTime.compare(top, current) == :lt ->
+        {:error, Error.new(:gaia_beat_closed, :gaia_household_register_past)}
+
+      DateTime.diff(top, at) > @register_ahead_days * 86_400 ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_register_too_far)}
+
+      true ->
+        nil
+    end
+  end
+
+  # The beat running, joined after its sign-up: she has not gone in it,
+  # nobody registered for it waits for a first turn, the cap has room.
+  defp joinable?(h, shape, top, rid) do
+    beat = beat(h, top)
+
+    Map.get(beat.counts, rid, 0) == 0 and beat.fired < shape.cap and
+      not Enum.any?(queue(h, top), &(Map.get(beat.counts, &1, 0) == 0))
+  end
+
+  defp key(top), do: DateTime.to_unix(top, :microsecond)
 
   defp step({h, acc}, nil), do: {h, acc}
   defp step({h, acc}, event), do: {__MODULE__.apply(h, event), [event | acc]}
@@ -455,20 +501,19 @@ defmodule Oneiroi.Gaia.Household do
       note: note || "The turn ended: #{outcome}."
     }
 
-  # Every beat that has ended and is not closed: one with turns in it,
-  # and the beat just ended when it had a queue or a member woken at
-  # every beat's end. Oldest first.
+  # Every beat that has ended and is not closed: one with turns in it or
+  # registrations for it, and the beat just ended when a member is woken
+  # at every beat's end. Oldest first.
   defp closes(h, c, shape) do
     current = Beats.top(h.id, shape, c.at)
     previous = DateTime.add(current, -shape.beat * 60, :second)
 
     tops =
-      h.beats
-      |> Map.values()
-      |> Enum.map(& &1.top)
+      (Enum.map(Map.values(h.beats), & &1.top) ++
+         Enum.map(Map.keys(h.regs), fn {_rid, us} -> DateTime.from_unix!(us, :microsecond) end))
       |> Enum.filter(&(DateTime.compare(&1, current) == :lt))
 
-    tops = if previous_due?(h, previous, shape), do: [previous | tops], else: tops
+    tops = if previous_due?(h), do: [previous | tops], else: tops
 
     tops
     |> Enum.uniq_by(&DateTime.to_unix(&1, :microsecond))
@@ -477,35 +522,29 @@ defmodule Oneiroi.Gaia.Household do
     |> Enum.map(&close_beat(h, c, shape, &1))
   end
 
-  defp previous_due?(h, previous, shape) do
-    queue(h, previous, shape) != [] or
-      Enum.any?(h.residents, &(profile(h, {"resident", &1}) == "every_beat"))
-  end
+  defp previous_due?(h),
+    do: Enum.any?(h.residents, &(profile(h, {"resident", &1}) == "every_beat"))
 
   defp closed?(%__MODULE__{closed_through: nil}, _top), do: false
 
   defp closed?(%__MODULE__{closed_through: through}, top),
     do: DateTime.compare(top, through) != :gt
 
-  # Who was in the beat's queue: registered before its sign-up closed,
-  # still registered, still a resident.
-  defp queue(h, top, shape) do
-    closes = Beats.signup_closes(top, shape)
-
-    for {rid, at} <- h.regs,
-        MapSet.member?(h.residents, rid),
-        DateTime.compare(at, closes) == :lt,
-        do: rid
+  # The beat's queue: the residents registered for it.
+  defp queue(h, top) do
+    k = key(top)
+    for {{rid, ^k}, _at} <- h.regs, MapSet.member?(h.residents, rid), do: rid
   end
 
-  defp close_beat(h, c, shape, top) do
+  defp close_beat(h, c, _shape, top) do
     beat = beat(h, top)
     turns = Enum.map(beat.turns, &Map.put(&1, "outcome", &1["outcome"] || "open"))
-    completed = for t <- turns, t["outcome"] == "completed", uniq: true, do: t["resident_id"]
-    queue = queue(h, top, shape)
+    queue = queue(h, top)
+    # Every registration for the beat ends with it, turn or none; one that
+    # had none banks an opportunity missed (gaia#38). Nothing carries.
     passed_over = Enum.reject(queue, &Map.has_key?(beat.counts, &1))
-    consumed = Enum.filter(queue, &(&1 in completed))
-    carried = Enum.sort(queue -- consumed)
+    consumed = queue
+    carried = []
 
     %Events.HouseholdBeatClosed{
       actor: c.actor,
@@ -517,7 +556,7 @@ defmodule Oneiroi.Gaia.Household do
       consumed: Enum.sort(consumed),
       carried: carried,
       note:
-        "The beat closed: #{length(turns)} #{if length(turns) == 1, do: "turn", else: "turns"}, #{length(passed_over)} passed over, #{length(carried)} carried to the next."
+        "The beat closed: #{length(turns)} #{if length(turns) == 1, do: "turn", else: "turns"}, #{length(passed_over)} passed over, each an opportunity missed."
     }
   end
 
@@ -542,7 +581,7 @@ defmodule Oneiroi.Gaia.Household do
          true <- beat.fired < shape.cap,
          [first | _] <-
            h
-           |> queue(top, shape)
+           |> queue(top)
            |> Enum.filter(&(Map.get(beat.counts, &1, 0) < shape.share))
            |> Enum.reject(&(profile(h, {"resident", &1}) == "self"))
            |> Enum.map(
@@ -550,7 +589,7 @@ defmodule Oneiroi.Gaia.Household do
                resident_id: &1,
                count: Map.get(beat.counts, &1, 0),
                missed: Map.get(h.missed, &1, 0),
-               registered_at: h.regs[&1]
+               registered_at: h.regs[{&1, key(top)}]
              }
            )
            |> Beats.order() do
@@ -755,7 +794,7 @@ defmodule Oneiroi.Gaia.Household do
     do: %{h | profiles: Map.put(h.profiles, {e.member_kind, e.member_id}, e.profile)}
 
   def apply(%__MODULE__{} = h, %Events.HouseholdBeatRegistered{} = e),
-    do: %{h | regs: Map.put(h.regs, e.resident_id, e.at)}
+    do: %{h | regs: Map.put(h.regs, {e.resident_id, key(e.beat_top)}, e.at)}
 
   def apply(%__MODULE__{} = h, %Events.HouseholdTurnFired{} = e) do
     key = DateTime.to_unix(e.beat_top, :microsecond)
@@ -806,7 +845,7 @@ defmodule Oneiroi.Gaia.Household do
     %{
       h
       | missed: missed,
-        regs: Map.drop(h.regs, e.consumed),
+        regs: Map.reject(h.regs, fn {{_rid, us}, _at} -> us <= key(e.beat_top) end),
         beats: Map.delete(h.beats, DateTime.to_unix(e.beat_top, :microsecond)),
         closed_through: latest(h.closed_through, e.beat_top)
     }
