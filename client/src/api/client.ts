@@ -409,11 +409,17 @@ export const api = {
       `/v1/residents/${residentId}/days?from=${from}&to=${to}`,
     ),
   // The one search across kinds (kumbukumbu#59, spec F66).
-  search: (residentId: string, q: string, scope: string) =>
-    call<{ q: string; scope: string; results: SearchResult[] }>(
+  // Her words page, sort and take a date range (kumbukumbu#67): `from`
+  // and `to` are instants, `to` exclusive.
+  search: (residentId: string, q: string, scope: string, words?: { page: number; sort: 'newest' | 'oldest'; from?: string; to?: string }) => {
+    const narrow = words
+      ? `&page=${words.page}&sort=${words.sort}${words.from ? `&from=${encodeURIComponent(words.from)}` : ''}${words.to ? `&to=${encodeURIComponent(words.to)}` : ''}`
+      : '';
+    return call<{ q: string; scope: string; results: SearchResult[]; page?: number; more?: boolean }>(
       'GET',
-      `/v1/residents/${residentId}/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}`,
-    ),
+      `/v1/residents/${residentId}/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}${narrow}`,
+    );
+  },
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
   document: (residentId: string, path: string) =>

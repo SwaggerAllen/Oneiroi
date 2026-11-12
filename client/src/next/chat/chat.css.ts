@@ -98,7 +98,7 @@ export const caret = style({
   background: vars.color.resident.accent,
 });
 
-export const pendingLine = style({ alignSelf: 'flex-end', font: `500 10px ${font.mono}`, color: vars.color.textFaint, textTransform: 'uppercase' });
+export const pendingLine = style({ alignSelf: 'flex-end', display: 'flex', gap: 8, alignItems: 'center', font: `500 10px ${font.mono}`, color: vars.color.textFaint, textTransform: 'uppercase' });
 
 export const failed = style({ alignSelf: 'flex-end', display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: status.error });
 

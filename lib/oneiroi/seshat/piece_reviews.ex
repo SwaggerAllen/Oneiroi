@@ -29,11 +29,18 @@ defmodule Oneiroi.Seshat.PieceReviews do
     docs = Documents.list(resident_id)
     reviews = reviews(resident_id)
 
+    # Her kinds read once, not once a document: `Kinds.named/2` reads the
+    # gates and her own kinds' descriptors on every call, and a library of
+    # 1,353 documents made each needs-you read some 2,700 queries
+    # (2026-11-12, when four at once preceded the web service's
+    # out-of-memory restart).
+    flows = Map.new(Kinds.all(resident_id), &{&1.kind, Kinds.approval(&1)})
+
     # Every kind whose definition says its documents wait on him
     # (seshat#49), marked as its approval flow says.
     for_review =
       for d <- docs,
-          flow = Kinds.approval(Kinds.named(resident_id, d.kind)),
+          flow = flows[d.kind],
           flow != nil and flow["marked_by"] == "status" and d.status == flow["status"],
           not decided?(reviews[d.path], d.hash),
           do: %{

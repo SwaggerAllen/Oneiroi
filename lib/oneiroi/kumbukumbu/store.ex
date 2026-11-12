@@ -725,6 +725,47 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc """
+  One page of a resident's messages holding `text`, for the paged
+  search (kumbukumbu#67): `{[{message, session}], more?}`. `opts`:
+  `:limit` and `:offset` (the page), `:sort` `:newest` (the default) or
+  `:oldest`, `:from` and `:to` instants bounding `sent_at` (from
+  inclusive, to exclusive), `:keys` to keep to those sessions (her
+  room), and `:witness` true to leave a private, unshared session's
+  messages out as `search_words/3` does. Tool calls are never searched.
+  """
+  @spec search_page(String.t(), String.t(), keyword()) ::
+          {[{Message.t(), Session.t()}], boolean()}
+  def search_page(resident_id, text, opts) do
+    limit = Keyword.fetch!(opts, :limit)
+    order = if opts[:sort] == :oldest, do: :asc, else: :desc
+
+    query =
+      from(m in Message,
+        join: s in Session,
+        on: s.resident_id == m.resident_id and s.key == m.session_key,
+        where:
+          m.resident_id == ^resident_id and ilike(m.content, ^search_pattern(text)) and
+            m.role != "tool",
+        order_by: [{^order, m.sent_at}, {^order, m.sequence}, {^order, m.position}],
+        limit: ^(limit + 1),
+        offset: ^Keyword.get(opts, :offset, 0),
+        select: {m, s}
+      )
+
+    query =
+      Enum.reduce(opts, query, fn
+        {:from, %DateTime{} = at}, q -> from([m, _s] in q, where: m.sent_at >= ^at)
+        {:to, %DateTime{} = at}, q -> from([m, _s] in q, where: m.sent_at < ^at)
+        {:keys, keys}, q when is_list(keys) -> from([m, _s] in q, where: m.session_key in ^keys)
+        {:witness, true}, q -> from([_m, s] in q, where: s.private == false or s.shared == true)
+        _other, q -> q
+      end)
+
+    rows = Repo.all(query)
+    {Enum.take(rows, limit), length(rows) > limit}
+  end
+
   defp search_pattern(text), do: "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
 
   @doc "The open capture failures the scope sees, oldest first."

@@ -62,7 +62,27 @@ defmodule OneiroiWeb.SearchController do
     parameters: [
       id: [in: :path, type: :string],
       q: [in: :query, type: :string, required: true],
-      scope: [in: :query, type: %Schema{type: :string, enum: @scopes}]
+      scope: [in: :query, type: %Schema{type: :string, enum: @scopes}],
+      page: [
+        in: :query,
+        type: :integer,
+        description: "words only (kumbukumbu#67): the page, from 1, 50 a page"
+      ],
+      sort: [
+        in: :query,
+        type: %Schema{type: :string, enum: ["newest", "oldest"]},
+        description: "words only: newest first (the default) or oldest"
+      ],
+      from: [
+        in: :query,
+        type: :string,
+        description: "words only: an ISO 8601 instant; messages sent at or after it"
+      ],
+      to: [
+        in: :query,
+        type: :string,
+        description: "words only: an ISO 8601 instant; messages sent before it"
+      ]
     ],
     responses: [
       ok:
@@ -73,10 +93,13 @@ defmodule OneiroiWeb.SearchController do
            properties: %{
              q: %Schema{type: :string},
              scope: %Schema{type: :string, enum: @scopes},
-             results: %Schema{type: :array, items: @result}
+             results: %Schema{type: :array, items: @result},
+             page: %Schema{type: :integer, description: "words only"},
+             more: %Schema{type: :boolean, description: "words only: another page follows"}
            }
          }},
-      unprocessable_entity: "q shorter than 2 characters, or a scope not listed",
+      unprocessable_entity:
+        "q shorter than 2 characters, a scope not listed, or a page, sort or range that does not read",
       forbidden: "the scope reads bookmarks and the agreement switches the witness's reads off"
     ]
   )
@@ -86,8 +109,8 @@ defmodule OneiroiWeb.SearchController do
     scope = params["scope"] || "everything"
 
     with :ok <- check(conn, id, q, scope),
-         {:ok, results} <- run(conn, id, q, scope) do
-      json(conn, %{q: q, scope: scope, results: results})
+         {:ok, results} <- run(conn, id, q, scope, params) do
+      json(conn, Map.merge(%{q: q, scope: scope}, results))
     else
       %Plug.Conn{} = refused -> refused
       {:error, %{kind: _} = e} -> error(conn, 502, e)
@@ -132,6 +155,65 @@ defmodule OneiroiWeb.SearchController do
   end
 
   # ---- the scopes ----
+
+  # Words pages, sorts and takes a date range (kumbukumbu#67); every other
+  # scope answers its one list.
+  defp run(conn, id, q, "words", params) do
+    case paging(params) do
+      {:ok, opts, page} ->
+        %{assigns: %{principal: p}} = conn
+
+        {rows, more} =
+          Kumbukumbu.search_words_page(
+            {:account, p.account_id},
+            id,
+            q,
+            [witness: true, limit: @page, offset: (page - 1) * @page] ++ opts
+          )
+
+        {:ok, %{results: Enum.map(rows, &transcript(&1, q)), page: page, more: more}}
+
+      {:refused, what} ->
+        problem(conn, 422, :search_paging_invalid, :web_search_paging_invalid, what)
+    end
+  end
+
+  defp run(conn, id, q, scope, _params) do
+    with {:ok, results} <- run(conn, id, q, scope), do: {:ok, %{results: results}}
+  end
+
+  defp paging(params) do
+    with {:ok, page} <- page(params["page"]),
+         {:ok, sort} <- sort(params["sort"]),
+         {:ok, from} <- instant(params["from"], "from"),
+         {:ok, to} <- instant(params["to"], "to") do
+      {:ok, [sort: sort, from: from, to: to], page}
+    end
+  end
+
+  defp page(nil), do: {:ok, 1}
+
+  defp page(raw) do
+    case Integer.parse(to_string(raw)) do
+      {n, ""} when n >= 1 -> {:ok, n}
+      _other -> {:refused, "page is a whole number from 1"}
+    end
+  end
+
+  defp sort(nil), do: {:ok, :newest}
+  defp sort("newest"), do: {:ok, :newest}
+  defp sort("oldest"), do: {:ok, :oldest}
+  defp sort(_other), do: {:refused, "sort is newest or oldest"}
+
+  defp instant(nil, _name), do: {:ok, nil}
+  defp instant("", _name), do: {:ok, nil}
+
+  defp instant(raw, name) do
+    case DateTime.from_iso8601(to_string(raw)) do
+      {:ok, at, _offset} -> {:ok, at}
+      _other -> {:refused, "#{name} is an ISO 8601 instant with its offset"}
+    end
+  end
 
   defp run(conn, id, q, "everything") do
     reads? = reads?(id)

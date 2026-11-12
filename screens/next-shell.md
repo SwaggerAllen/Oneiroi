@@ -53,7 +53,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   scene opens in Records, a bookmark as its citation, and her words open
   the conversation at that turn (`#/chat/turn/<session>/<turn>`); a turn
   in another session switches to Conversation but cannot open there yet,
-  because no transcript reader for other sessions is built.
+  because no transcript reader for other sessions is built. Her words
+  also narrow (kumbukumbu#67): From and To days (this browser's zone,
+  both included), Newest or Oldest first, and a page of 50 with Newer
+  and Next page buttons when there is more than one.
 - **ScrollArea.** Edge fades as a mask, shown only while there is more
   past that edge.
 

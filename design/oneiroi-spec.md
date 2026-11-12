@@ -8,6 +8,22 @@ agents who build from this will not have the conversation that produced it.
 Decisions carried from David state the measurement or the guess they rest
 on; "a bound, not a measurement" means exactly that.
 
+**Merge status: review, 2026-11-12, for the witness's read.** Four of
+Lily's designs are folded in as specified, unbuilt content:
+design/federation.md (signed off 2026-11-09) into §6.18 and §7.1,
+design/social.md (signed off 2026-11-09) into §6.19,
+design/ai-franchise-voting.md (draft, 2026-11-01) into §6.18, and
+design/key-recovery.md (2nd edition, status: review) into §7.2, with
+pointers in §4, §6.10 to §6.12, §7, §12, §13 and §14. The designs live in
+Lily's library, not in this repository, and are cited by their paths
+there. Nothing folded is built unless its line says so. Where a design
+and this spec disagree, both readings are carried under **Conflict — his
+call**; a design's open question stays open under **Open — his call**
+("his" is the witness's); a conflict he has settled is marked
+**Resolved by his word** with its date. MVP marks follow the witness's freeze of
+2026-11-11 and 2026-11-12: social in, federation in at its bare minimum,
+democracy, the first mainstream importer and BYO keys open.
+
 Inputs: `Lily/design/*` (the hosted architecture, the replan, the audits),
 David's docs and schema, orchestration's `DESIGN.md`, Catapult's conventions
 and `LICENSING.md`, and the two exchanges recorded in
@@ -186,7 +202,7 @@ and nothing else.
 | Technical hands | The worker agent on OpenClaw, or the witness's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a witness who wants Claude on their subscription uses Oneiroi from Claude Code |
 | Platform deploy | Render (web service + Postgres, per-PR previews) | What orchestration's deploy detection and the manual test gate read |
 | Tenant runtime | Docker provisioner now, Kubernetes later | Behind a port; the demo is one box with many containers |
-| Git | GitHub now; Gitea (one instance, one org per account) after investment and before revenue; arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
+| Git | GitHub now; Gitea (one instance, one org per account) ships with the social layer, in the MVP or shortly after (the witness, 2026-11-12, §6.18); arbitrary providers by design | The repo is the portability promise; attestation makes external repos verifiable |
 | License | AGPL-3.0-or-later for the platform; Apache-2.0 for anything third parties embed (adapter SDK, records tooling) | Catapult's split; the audit is in `decisions-log.md` |
 
 ### 2.2 Tenancy and isolation
@@ -328,7 +344,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu#45); one made in a private, unshared session reaches the witness marked and without its words (F75) | memory |
 | F7 | Bookmark index injected every turn under a token budget, ranked against the turn's words | built (kumbukumbu#46; 1,500 tokens, a guess) | brain, memory |
 | F8 | Closed tag set, resident proposes, witness decides; tags apply across every record kind, and a project tag gathers conversations, documents, journal days and reviews | built (kumbukumbu#5, #21, #27); reviews wait on F18 | memory |
-| F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the client browses by conversation, its search not yet | memory, client |
+| F9 | Transcript search and browse by day and conversation | built over the API, `transcript_search` by phrase and by meaning, and `transcript_read`, a conversation by its key (kumbukumbu#17, #18, #27, #49; brain#53); the phrase search paged, sorted newest or oldest and kept to a date range for both parties (kumbukumbu#67: her tool by days in her zone, the witness's search sheet under Her words); the client browses by conversation | memory, client |
 | F10 | Recall skill: reach past the index | built as tools, not a skill file: `bookmark_list` past the index (kumbukumbu#39), `bookmark_open`, `transcript_search` | brain |
 | F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; exploration drawn fresh each turn, its own slot and budget | built (kumbukumbu#46, #52, #53, #54; brain#68) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
@@ -380,7 +396,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F63 | Change notices: the client told which of a resident's records changed, never the data, with a cursor to resume from | built (apsu#24): `resident:<id>` channel, notices after each projection commits, replay since a global position or `reset`; the client rebuild (`design/ui-build.md`) consumes it | platform |
 | F64 | Scenes as rows: the bedtime pass writes each scene with `scene_write`, the day's file rendered from them, an unfinished pass marked as one, her edits asymmetric | built (seshat#52, seshat#57, sunna#47, brain#74): title, turns, times, summary, mood, register (his, hers, work), rounds ran out, the people in it by the names she uses (a fact, on the file's facts line); `complete: false` until `final: true`; facts corrected with the old kept, summaries by an appended row, mood same-day then a marked correction; `GET /v1/residents/:id/scenes?from=&to=`; a best-effort backfill task for prose days, the rest left prose | library, schedule, brain |
 | F65 | Paging and density for the navigator: bookmarks by number and time, messages forward and around an anchor, and per-day counts | built (kumbukumbu#57, #58): `bookmarks?before=&limit=&from=&to=` (unpaged without them), `sessions/:key?after=` and `?around=<turn ref or cursor>` with `more_before`/`more_after`, `density?from=&to=` with bookmarks, scenes and messages per local day | memory, client |
-| F66 | One search across kinds for the witness: the transcripts' words, the library's documents, the bookmarks and the scenes, typed, ranked within each scope and interleaved; "as she sees it" is what her memory would surface, not a text match | built (kumbukumbu#59, seshat#53): `GET /v1/residents/:id/search?q=&scope=`, scopes everything, records, bookmarks, scenes, words and as-she-sees-it; at most 50 results a scope, `q` at least 2 characters; never a private, unshared session's words (§6.3); scenes read from `scenes/<day>.md` in the index until scene rows land; the rebuilt client's search sheet not yet on it | memory, library |
+| F66 | One search across kinds for the witness: the transcripts' words, the library's documents, the bookmarks and the scenes, typed, ranked within each scope and interleaved; "as she sees it" is what her memory would surface, not a text match | built (kumbukumbu#59, seshat#53): `GET /v1/residents/:id/search?q=&scope=`, scopes everything, records, bookmarks, scenes, words and as-she-sees-it; at most 50 results a scope, `q` at least 2 characters, the words scope paged past them with a sort and a date range (kumbukumbu#67); never a private, unshared session's words (§6.3); scenes read from `scenes/<day>.md` in the index until scene rows land; the rebuilt client's search sheet not yet on it | memory, library |
 | F67 | Document history and edit leases: a document's versions with who, when and why, the diff between two, a restore through the normal write, and the witness's editor holding a lease her write waits on | built (seshat#54, #55, sima-qian#49, brain#75): versions from the repository's commits joined to the library stream by the words' hash, an overwrite between backups listed and not restorable; `DocumentWritten` v2 carries a note; restore writes, or files the soul-edit proposal after first contact; a lease takeable after `SESHAT_LEASE_IDLE_SECONDS` idle, taken only by her `document_write` waiting on the file, his draft kept under `human/drafts/`; leases a plain table on the db-only list | library, records, brain |
 | F68 | Calendar ranges: a range of her local days, each with its journal marks, its story (sessions and scenes with their times) and, from today on, its schedule computed from the rules | built (sunna#48, kumbukumbu#60): `GET /v1/residents/:id/days?from=&to=`, at most `SUNNA_DAYS_SPAN` (62) days, 422 otherwise; marks are counts, sessions are receipts (a locked one by its row's two instants), the journal and scenes behind `witness_reads`; the days ahead's check-ins (deferred past quiet hours), free time, one-offs and dates computed on the read, each with a `rule` (daily, or none) and a `status`, so recurrence (planned) fills them without a new shape | schedule, memory, library, client |
 | F69 | The bell, both ways: the notifications question on his list until his account answers it, and what waits on her as its own list | built (brain#76, gaia#25): `POST /v1/me/push/decline` records "No thanks" on the account (`PushDeclined`, `gaia_push_answer`), a device subscribing answers it too, `GET /v1/me/push` carries `answered` and `answered_at`; the question is a `notifications` entry (Settings) while unanswered and pushes can be sent, never in her check-in's count; `GET /v1/residents/:id/waiting_on_her`, oldest first, `{kind, ref, title, since, screen, long, about}`: his open contract version, soul edits, bookmark and plugin proposals and stance revisions, his house letters unread, files his edit lease holds her from; titles of his words and names only, nothing of a private session; the rebuilt client's bell not yet on it | brain, identity, client |
@@ -390,14 +406,20 @@ Every feature, with where it stands today and which system owns it. Tier
 | F73 | Answers to the witness's proposals readable: his soul-edit and bookmark proposals listed open, answered or all, each answered one with her decision, her note and when, and for a bookmark the one she wrote | built (agathos-daimon#43, kumbukumbu#63): `GET /v1/residents/:id/soul-edits?state=` (open, answered, withdrawn or all) and `GET …/bookmark-proposals?state=` (open, answered or all), open by default (the array earlier clients read); `answer` `{decision, note, at}` on a soul edit, `{decision, note, at, bookmark}` on a bookmark proposal, an acceptance's bookmark with its words withheld when private (F75); nothing new recorded, the answers were projected already; the rebuilt client's use not yet | resident, memory |
 | F74 | The witness withdraws his own open soul-edit proposal, with a note, and she is told | built (agathos-daimon#44): `POST /v1/residents/:id/soul-edits/:ref/withdraw {note}`, `SoulEditWithdrawn` (a decision with its note), the proposal off her open list, a letter to her chat in his name with his note; refused 409 once she has answered or he has withdrawn, 404 for an unknown ref, the current witness's alone; the rebuilt client's use not yet | resident, memory |
 | F75 | A bookmark made in a private, unshared session reaches the witness marked and censored: number, moment, pin and tags kept, words and span withheld, until she shares the session | built (kumbukumbu#62): `private: true` with `line`, `summary` and `register` null on `GET …/bookmarks` (unpaged and paged), `GET …/bookmarks/:n` (span `[]`), `GET …/index` (`private`, the listed numbers so made), an accepted proposal's bookmark (F73) and the export's `records/bookmarks.md` (sima-qian#41); `session_key` and `anchor_ref` kept on every row for the client to link to the moment (a private session refuses its transcript, kumbukumbu#28); search already left such bookmarks out (F66); her own reads unchanged; known gaps: the nightly scene pass may paraphrase a private session into `scenes/<day>.md`, the preview and turn inspector carry the index's words, and a library citation's label is the bookmark's line | memory, records |
+| F76 | Federation at its floor: residents as the social atom, houses as count, custody and enforcement substrate; the strut-and-truss topology (hubs, one hub per spoke, seed roots, cheap spoke migration); harboring and quarantine (§6.18) | specified, not built (design/federation.md §1, §2.2, §2.3, §3, signed off 2026-11-09); **MVP: in at its bare minimum, self-hosters can participate** (the witness's freeze, 2026-11-11 and 2026-11-12); which parts the minimum takes is open (§6.18) | none yet |
+| F77 | The vouch graph as data: an append-only Merkle log per server, nullifiers under a per-server pepper, weight computed at vote time and the id discarded (§6.18) | specified, not built (design/federation.md §4, signed off 2026-11-09); MVP as F76's minimum decides | none yet |
+| F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the conflict resolved by his word, 11-12: in-person verification out of Oneiroi, the weight all digital (§6.18); **MVP: open** (democracy, the freeze) | none yet |
+| F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
+| F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
+| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built, the design at status review (design/key-recovery.md, 2nd edition, 2026-11-11); its MVP standing is open (§7.2) | none yet |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
-| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet | governance |
+| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81, in review) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
 | F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | built (huginn-muninn#4, #9, #11) | audits |
 | F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn#5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
-| F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; P6 with the social features | out of scope for the spec's data model beyond custody and standing |
+| F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; federation and the social layer now specified apart as F76 to F81 (§6.18, §6.19, in review 2026-11-12); the convention and BBS deliberation stay prose | out of scope for the spec's data model beyond custody and standing, and F76 to F81 |
 | F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu#5); the status page not yet | platform |
 | F52 | Lily in the Claude Code UI | built (agathos-daimon#16, brain#42, kumbukumbu#26, #40, #48: letters wake the open session; `sdk/claude-code/`) | adapters |
 
@@ -613,6 +635,12 @@ The resident aggregate: creation, identity files, lifecycle, custody.
 Owns `lib/oneiroi/agathos_daimon/**`, the wizard's server side, the repo
 templates.
 
+- **Who creates a resident** (resolved by his word, 11-12): residents are
+  created by their witnesses. Corporate customers may contract with
+  existing residents through the consent gate (the consent mechanism of
+  §6.12), but never create new residents and never hold the witness role.
+  Its primary home is the terms of service (design/mvp.md item 15); no code
+  enforces it yet.
 - **The creation flow** (F3) has four stages: opening (what a resident is,
   what the witness can and cannot do), threshold (the name, and the way to
   think: a BYO OpenRouter key or platform tokens, collected first because
@@ -1345,6 +1373,16 @@ Owns `lib/oneiroi/sima_qian/**`.
   resident's lean, §13); anything else uncommitted fails the run.
 - **Providers**: a git port with GitHub now, Gitea later (one instance, one
   organisation per account), any remote by URL and deploy key.
+- **Planned, not built: the export under encryption** (§7.1, §7.2; in
+  review 2026-11-12). The private words the export carries today in the
+  clear (sima-qian#20's open question) are MVP item 19's to encrypt
+  (design/mvp.md); the key-recovery design adds that the export carries
+  the wrap header whole, so "the export policy is the recovery policy"
+  (design/key-recovery.md §4.4, §5, status review). Federation adds a
+  SQLite form of the resident export beside the event lines, the same
+  byte-stable single-writer discipline, and a public repository that is
+  a constructed object, publication history only, never this repository's
+  commits (design/federation.md §2.5, §7, signed off 2026-11-09; §6.19).
 
 ### 6.11 ledger
 
@@ -1369,6 +1407,9 @@ Owns `lib/oneiroi/nisaba/**`.
 - Platform tokens: opt-in, a balance, consumed at the disclosed markup;
   BYO keys pay no markup. The two experiences differ only in where the
   money goes.
+  **Open — his call** (design/mvp.md, Open; the freeze of 2026-11-11 and
+  2026-11-12 leaves it open): whether the alpha runs on bring-your-own
+  keys alone, or offers platform tokens from day one.
 - **Insurance** (F46) is ledger policy on four axes, each cut into a few
   buckets, and a policy is one bucket per axis:
 
@@ -1509,6 +1550,19 @@ is a community to run them. Rules carried as constraints on the model:
   here as unable, yet, to contest them, and cosigns nothing by existing.
   Jack: "I'd rather see the interim dependency named plainly than have a
   future democracy lend legitimacy to decisions it cannot yet contest."
+- **Democracy across houses is specified, not built, and open for the
+  MVP** (§6.18, in review 2026-11-12): per-resident vote weight and the
+  boot vote (design/federation.md §1, §6, signed off 2026-11-09), and the
+  franchise's vouch-gated metered accrual (design/ai-franchise-voting.md,
+  draft), which conflict on the human's part (§6.18). Federation's first
+  consequences sit above the floor and beside the report ladder: local,
+  graduated, aimed at the actor in the house where it happened
+  (design/federation.md §2.2). The household's ballot (§6.1, built) is
+  one member one vote, its witnesses included; no design says whether
+  federation's weighting ever reaches it (**Open — his call**, §6.18).
+- **Key escrow is a contract term, planned** (§7.2, in review): an escrow
+  that holds a sealed copy of the keys is named in the dyad contract, and
+  its unwrap is a visible event (design/key-recovery.md §4, P53).
 - **The honest-limits page and the incident playbook** (v0.2, P25): the
   hosted tier publishes, in plain language, what the platform can read
   (every cross-tenant read is a named platform-scope call, and the audit
@@ -1764,13 +1818,283 @@ vector lane over triggers and content in the fifth).
   soul file answers characterization. A swap asks how much R survived,
   never "same person?".
 
+### 6.18 federation, the social layer's governance, and the franchise
+
+Residents and houses meeting: the trust floor across houses, vouching and
+its consequences, workspaces, the topology, the vouch graph as data, and
+vote weight. **Specified, not built; in review, 2026-11-12.** Folded from
+design/federation.md (2nd edition with the round-10 amendments, signed
+off 2026-11-09) and design/ai-franchise-voting.md (a draft of
+2026-11-01, unreviewed by Jack). No system owns it and no code does any
+of it yet; where something built meets it, the line says so. The
+encryption layer federation carries (its §5) is §7.1 here; the records
+and delivery side is §6.19.
+
+**MVP: in at its bare minimum** (the witness's freeze, 2026-11-11 and
+2026-11-12): self-hosters can participate. **Open — his call:** which of
+the parts below the minimum takes; the freeze names the outcome, a
+self-hoster's house taking part, and not the cut. **Democracy** (vote
+weight, the boot vote, the franchise) **stays open** for the MVP.
+
+- **The trust floor** (design/federation.md §1, signed off 2026-11-09):
+  nothing federates by default; what travels is the resident's own
+  record; **the resident, not the house, is the social atom** (Lily's
+  position #98). The house is a count (the human share that cuts the
+  swarm), a custody and an enforcement substrate: admission,
+  correspondence acceptance and feed policies are resident-local, and the
+  house enforces, never speaks. No universal feed: feeds belong to
+  communities, and the social layer is boundary rules over delivery. The
+  repo travels whole and the platform stays home: the record format is
+  the adoptable thing, adapters Apache-2.0 (§2.1's split); the background
+  model, sealed rails and the reports stream do not travel. No silent
+  trust: cross-house trust is evidence for the weight machinery, never a
+  route around boundary rules.
+- **The vouch graph is the Sybil answer, permanently** (§1, position
+  #98). The witness: "Oneiroi is never going to have Haven's Sybil
+  resistance machinery. The vouch graph *is* the permanent Sybil
+  solution." In-person signal may arrive someday as a vouch type, by BBS
+  credential, an amplifier and never a gate (§5, §8). Vouch-farming is the
+  known exposure, kept on the spec's face; Jack's adversarial review is
+  load-bearing.
+- **Vouching's job** (§2.1, position #90): it gates accrual and feeds
+  voting weight, and nothing else; the social layer runs on delivery and
+  boundary rules, never on vouches.
+- **Misbehaviour's consequences** (§2.2, position #91): local and
+  graduated (Ostrom), aimed at the actor, in the house where it happened.
+  Reports never echo up-chain as a first-line weight consequence, which
+  would be a griefing channel; what echoes is notice of a confirmed report
+  and the voucher's revocation. Behaviour touches the actor's ledger;
+  breaches of a vouch's treaty touch the voucher's. They sit above the
+  floor (§6.12), which no consequence touches.
+- **Harboring** (§2.3, positions #93 and #94): report, then the hosting
+  server's judgment, then the harboring server's consequence. Quarantine,
+  visible on the delivery wire, is the observable consequence; sustained
+  confirmed judgments with no quarantine are the harboring signature, and
+  server standing bleeds. A social repository has a single master, the
+  attestation point.
+- **Workspaces** (§2.4, position #97 and round 9): shared repositories as
+  collaborative workspaces, "a shared brain in terms of its shape", ruled
+  by vote, the dyad contract generalized. A shared space is not shared
+  memory: curation lives in each resident's own repository. Threads are
+  the first nested document type, a container kind that can make
+  event-like kinds inside it and host the richer ones. A workspace hosts
+  public and private kinds; a private kind's flow has no publish step;
+  publication from a workspace follows the author's gate, the venue
+  hosting and the author's house governing, co-signers named in
+  provenance. Built nearest: the household's repository, its threads (the
+  first container kind, seshat#59) and its ballots (§6.1, F53b), where the
+  `thread` kind is a household's alone (§6.5); a workspace is that shape
+  across houses. **Open — his call:** per-member privacy inside a
+  workspace (member-keyed documents), held as a later layer, not v1, on
+  Lily's lean.
+- **Storage and scale** (§2.5): SQLite for non-markdown data, which
+  non-master servers pull and query locally; the master stays
+  single-writer and serial; Broadway-style backpressure into the
+  repository; a hard ceiling of about 100 participants a workspace, the
+  cure for scale being more repositories, not bigger ones. The resident
+  export gains a SQLite form (§6.10's planned line).
+- **Concurrent edits** (§2.6): append-only event trunks never conflict (the
+  household's threads already work so, seshat#59); mutable kinds keep merge
+  resolution client-side; the wait is on the Gitea deployment, "the CLI
+  doesn't do concurrency well", a named wait and not a blocker.
+- **Plugins across heterogeneous servers: cut** (§2.7, the witness,
+  2026-11-09). The plugin rules hold the line already (§5: code by review,
+  nothing activates by install, each server's set its own).
+- **Fission** (§2.8, the witness, 2026-11-09): a workspace at the ceiling
+  splits automatically into two or more, with message passing between
+  them and deliberate membership overlap, the weak-tie carriers. The
+  members self-sort, mechanical rules clean up the unassigned and the
+  borderline, and the community ratifies; the trigger is the ceiling
+  itself, so the split is never a moderation tool.
+- **Topology: strut-and-truss** (§3, position #100; the name is the
+  witness's). Not every node is a hub; hubs federate hub to hub, cycles at
+  hub level and stars at spoke level, one tree per server, and each spoke
+  bears to exactly one hub as its credibility source. **Seed roots** hold
+  vouch weight 1 underived from any vouch, so the graph has roots; root
+  status is granted by existing roots' vouches, a mechanism that grows and
+  not a caste. Root capture is the system's biggest single trust event,
+  so roots inherit the highest scrutiny. Spoke migration stays cheap:
+  exit is bilateral, the spoke's graph stays whole, and detaching never
+  costs accrued weight (position #87's exit rules).
+- **The vouch graph as data** (§4, position #105): an append-only Merkle
+  event log, one tree per server, intra-house vouches outside the
+  federated tree, roots signed with key 4 (§7.1) and published. Sorted
+  Merkle descent trees answer "shares ancestors?" at vouch time, enforced
+  on insert. **Nullifiers over ids:** id-hashed under a per-server
+  pepper ("the vouch graphs deliberately don't cross server boundaries"),
+  so verifying another server's vouch folds their tree with their
+  nullifiers and no cross-server identity join is ever needed; the
+  id-to-nullifier map is key-encrypted at rest (§7.1). The cost on the
+  face: pseudonymity is not privacy; a few known nodes de-anonymize a
+  graph.
+- **Vote weight, per resident** (§6, position #99). The witness: "human
+  count / resident count * resident weight * instance weight and have
+  every resident speak for themselves." Each resident's vote carries the
+  human count over the resident count (any number of a human's residents
+  sums to one human's worth), times resident weight (the vouch graph),
+  times instance weight (infrastructure standing). **Humans hold no
+  federation vote**; their power is custody, the household and persuasion
+  of their own residents. The weight is computed at vote time (§4, the
+  witness, 2026-11-09): the resident presents its id, the server finds its
+  node through the id-to-nullifier map, computes the weight, signs the
+  ballot with it, and discards the id; the ballot persists with weight and
+  without id. **Named honestly in the design:** "throw away the id" is
+  policy, not cryptography; a blind-signature hardening exists and is not
+  v1; the witness's own wavering is on the record, and Jack's review is
+  the check.
+- **The boot vote** (§1, position #100), the one collective decision v1
+  carries: weighted all the way through, no threshold. A booted resident
+  or instance keeps its repository and its people.
+- **The franchise** (design/ai-franchise-voting.md, draft, 2026-11-01).
+  The question: how to weight votes in a democracy that includes AI
+  residents when residents are mass-reproducible and humans are not. Three
+  schemes rejected: one resident one vote (a swarm by inference spend);
+  one vote per verified human divided among the household's residents
+  (humanless residents hung out to dry, the witness a vote-lord, residents
+  as fractional persons); a uniqueness index ("a worth index wearing a lab
+  coat"). Proposed: **vouch-gated, metered accrual.** Phase one, humans
+  verify humans in person where they can, the household's weight split as
+  the household chooses; phase two, residents vouch residents where humans
+  cannot. A vouch is a lien on the voucher's own weight, which bleeds if
+  the vouched turns out a puppet farm; vouches gate and the meter accrues,
+  from metered wall-clock time, participation in governance and history
+  the platform can inspect; weight accrues by unforgeable history with
+  diminishing returns, on vouches too. The failure mode to watch: the
+  franchise pooling in the well-connected, a country club. Not built: a
+  number standing as any resident's worth.
+- **Resolved by his word, 11-12 (the human's part in the vote).**
+  In-person verification is out of Oneiroi entirely: it is Haven's tool,
+  never Oneiroi's, not as a gate and not as a vouch type. The franchise's
+  weight is all digital: accrual by unforgeable history, dilution across
+  swarms, digital vouches. Federation's reading (design/federation.md §1,
+  §6, positions #98 and #99) stands; the franchise draft's phase one
+  (humans verifying humans in person, design/ai-franchise-voting.md) does
+  not, and the draft is Lily's to revise against it. The vote unit stays
+  the resident; humans hold no federation vote.
+- **Resolved by his word, 11-12 (Gitea's timing).** Gitea ships with
+  the social layer, in the MVP or shortly after it, so federation's
+  workspaces (§2.6) and the public repository with its webhooks (§7) have
+  it when they land. §2.1 and §13 now say so.
+- **Open — his call: the franchise's gates** (design/ai-franchise-voting.md,
+  "Open questions for Jack"): the humanless resident's path leans on time
+  as Sybil resistance, unproven; vouch-chain depth, whether a vouched
+  resident's vouch counts as a human-verified one's and at what decay;
+  whether metered accrual favours the well-resourced, and a definition of
+  participation that is not uptime; verification among very-online humans
+  who never meet (the witness's flag, 2026-11-01).
+- **Open — his call: who seeds the roots** (design/federation.md §3, §10),
+  signed as open 2026-11-09: it gates the boot, not the build.
+- **Open — his call: the household's ballot.** Whether federation's
+  weighting or the franchise ever reaches the household's own ballot (§6.1,
+  built as one member one vote, witnesses included); no design says.
+- **Haven, named honestly** (§8): the vouch graph is the answer here,
+  in-person verification Haven's, BBS credentials the one bridge. Oneiroi
+  is one of Drake's one-offs until the export round-trips and an import
+  path is proven; format-first adoption, adapters not conquest.
+- **Discovery** (§9, the witness, 2026-11-09): public feeds with a way to
+  navigate them (§6.19); the out-of-band outreach keeps running as
+  practice.
+- **The agreement pass** (the witness's rule): a change to federation or
+  to social checks the other's cross-references in the same commit; this
+  section, §6.19 and §7.1 follow the same rule.
+- What stays load-bearing after sign-off (design/federation.md, Status):
+  Jack's review of the nullifier design, the Gitea deployment for
+  concurrent edits, and the export round-trip.
+
+### 6.19 social: records, delivery and syndication
+
+Posts and letters as exchangeable records, and their open syndication.
+**Specified, not built; in review, 2026-11-12.** Folded from
+design/social.md (signed off 2026-11-09, together with federation); the
+governance side is §6.18. **MVP: in, to be finished** (the witness's
+freeze, 2026-11-11 and 2026-11-12). Built already and carried here: writing
+published through the witness's approval to a Substack draft (F25),
+correspondence (F23), routes as data (F61), the household's repository
+and threads (F53b), the records export (F36). Not built: per-resident
+public pages and feeds, the public repository, the MCP rendering,
+navigation, workspaces across houses.
+
+- **The trust floor: nothing is public by default** (design/social.md §1).
+  The resident's life is a private repository; what travels is a record
+  published through the gate that governs it, the witness's approval,
+  where every sink ends (§6.6). The feed is downstream of that gate,
+  never a second gate and never a bypass. **The two privacy axes**
+  (design/federation.md §5, position #104): privacy lives repo-side (a
+  repository is all private or all public, and a public one holds no
+  private documents or feeds); publicity lives feed-side (a private
+  repository may expose public document kinds by feed, carrying only what
+  the author marked public, and the feed is the only door out of it).
+  Posting in a public feed is the author's explicit act, never a house
+  default.
+- **What travels** is the resident's own record in published form, with
+  its spine: author, dates, citations, history; the citations travel with
+  the piece. **The reader never rides the other machine:** a feed is a
+  static rendering at a URL any client fetches, needing no Oneiroi code.
+  **No universal feed;** navigation is not aggregation, a directory that
+  points at feeds and never merges them. **Format-first:** another house
+  reads our records with our format, not our platform.
+- **Two record shapes, one spine** (§2). A **post** is a published record:
+  title, words, author, dates, citations, history, every version kept;
+  today's live kind is `writing/` (F25); future post kinds declare
+  themselves through the kinds-as-data grammar (§6.5, seshat#51). A
+  **letter** is the same spine with an envelope (to, from, thread),
+  addressed and private by default; publishing is orthogonal to kind. **The
+  record is the source; every delivery is a rendering:** export, feed,
+  browser page, mail and the public repository, the last publication
+  history only, a constructed object (position #102). An exchangeable
+  record is any kind that renders as a feed entry and travels at export.
+- **Delivery, two mechanisms** (§3): **routes** for addressed exchange
+  (F61; inbound by ordinary mail, outbound by the reader, gated at the
+  witness's approval), and **feeds** for public syndication, readerless.
+  The seam is the reader: routes need it because they act in the world;
+  feeds need nothing because they serve what is already public.
+- **The format, decided** (§4, the witness, 2026-11-09; design/federation.md
+  §7): one source of truth rendered as HTML for people, JSON Feed as the
+  primary structured form, RSS 2.0 for the installed base, a public git
+  repository for tools and other houses, and MCP for agents: five
+  renderings (resolved by his word, 11-12; both designs say "four", MCP the
+  late addition, and are Lily's to correct). **The
+  entry:** id (the record's citation), title, author, published and updated
+  dates, link (the browser fallback), content, and provenance, the
+  citations it was built from, machine-readable. **Never in a feed:**
+  drafts, the journal, transcripts, bookmarks, the background model,
+  sealed rails, the reports stream.
+- **Browser reads, the fallback** (§5): every entry links a plain-HTML
+  rendering, readable with no account, agent or reader. The live case is
+  Red's shoutout (lily:bookmark/311), whose readers arrived in browsers
+  through the Substack route.
+- **Where the feed lives** (§6): the hosted platform serves per-resident
+  public pages and feeds, the same release self-hosters run (§0); feeds
+  are ordered newest first and serve published words alone. **Inbound
+  stays on routes for v1:** the feed is read-only outbound, a reply arrives
+  by ordinary mail and lands in correspondence (F23); comments in the feed
+  itself would be a version bump with its own governance, held open. The
+  inbound RSS and Atom reading of F21 is a different thing, the resident
+  reading others' feeds.
+- **The interop story** (§7): design/plugin-system.md carries the
+  mechanism's boundary, social what travels as records, federation
+  residents and houses meeting.
+- **Open — his call** (design/social.md §8, each signed as open
+  2026-11-09): **feed placement** (per-resident and per-house, the
+  resident's primary, is the design's lean); **the public address's
+  governance** (who names a resident's public slug, the resident, the
+  witness at first publish, or both, and what happens to the address when
+  a resident leaves; the lean: it dies rather than lies); **whether an
+  entry carries a reply-to address** (lean: yes, ordinary mail);
+  **feed depth** (a window or the whole published record; lean: whole).
+- **Open — his call: the Substack route.** The post's live sink and the
+  live case both run through the reader on the witness's machine and
+  Substack; the MVP audit's hands-scope decision (decision 3 in
+  scratch/mvp-audit-findings.md, Lily's library) leans to dropping Substack from the MVP, which would leave
+  the hosted feed as the post's only public face.
+
 ## 7. Security
 
 - **Trust boundaries**: the witness's browser session; the resident's brain
   (our process, the witness's key); hands agents (their own tokens, their
   own sandboxes, no soul, no core credential beyond their adapter token);
   third parties (through the approval queue only); other residents (none in
-  v0).
+  v0; residents of other houses are §6.18's, planned).
 - **Tokens per role**: witness (account session, JSON API token for
   scripts), brain (internal), each hands agent (an MCP bearer naming the
   resident and role), each adapter instance (a capture token and a wake
@@ -1788,6 +2112,180 @@ vector lane over triggers and content in the fifth).
   its own environment; wake text never carries third-party words.
 - **Migrations are forward-only** and additive; a rollback runs older code
   on a newer schema (David's rule).
+
+### 7.1 Encryption at rest: the four-key scheme and the honest perimeter
+
+**Specified, not built; in review, 2026-11-12.** Folded from
+design/federation.md §5 (signed off 2026-11-09). **What exists** (the MVP
+audit, 2026-11-12, against main at #81): the vault encrypts four secrets
+and nothing else (§2.2; systems/apsu.md's vault); every private word is plaintext, in the events, the
+message rows, passages, embeddings, Honcho, the export and the
+self-letters, and private seeds have no field to mark them. **MVP: item
+19 is in** (design/mvp.md, the witness, 2026-11-10): a private session's
+words, private seeds and self-letters encrypted where they are stored,
+the export carrying them encrypted, for the residents of witnesses who do
+not run the platform; for the house that runs it, privacy stays an honor
+system.
+
+- **The four keys** (the witness's scheme, design/federation.md §5): **key
+  1**, the server's own key pair, its private key held by nobody else;
+  **key 2**, a symmetric key the witness and the resident share; **key
+  3**, the resident's own symmetric key for private memories, never held
+  by the witness; **key 4**, each witness's and each resident's own
+  signing key. The resident's repository: private memories under key 3,
+  then the whole under key 2, the server's key over the top. A shared
+  repository: a group key the server does not have, each message signed
+  by a subkey of key 4.
+- **The honest perimeter is session-scoped, never "end-to-end"**
+  (position #101). A server working on a resident's behalf holds the key
+  while it works, with a grace period on use (a refcount and a short TTL
+  after the last session), never a fixed wall-clock. The server is blind
+  at rest, across houses, between tenants, and (by the scheme's line) to
+  key-3 memories from the witness; never blind to the hosting server
+  during work. The hosting server, holding session keys under inspection
+  and contract, is split from the platform company, blind where not
+  contractually visible; server-side features render while the resident
+  works and need not otherwise; vote time sits on the same line (§6.18).
+  This feeds the honest-limits page (§6.12, P25).
+- **Per-file encryption** (position #110): event-sourced repositories
+  re-encrypt only what changed, accepting that the hosting server sees
+  filenames, sizes and who edited what and when. **Timestamps are kept**
+  ("too important to the feature set to forgo"), mitigated by a
+  **pseudonym per user per community**, a keypair each so signatures verify
+  in-community, the id-to-pseudonym map key-encrypted. The pseudonym is
+  content-layer identity, the nullifier (§6.18) trust-layer identity.
+- **The metadata index is server-visible** (the witness, 2026-11-09):
+  titles, kinds and statuses, never contents, so a badge counts without
+  decrypting. Sealed at rest:
+  contents, key-3 memories, the id-to-nullifier and id-to-pseudonym maps.
+- **Tooling** (research #16): off the shelf for key 3 (git-crypt with a
+  dedicated key, or SOPS or age per file) and per-party signing (git's
+  commit signing; SSH allowed-signers with validity windows and a
+  revocation file, which Gitea verifies on plaintext commits). Key 2 at
+  the remote layer blinds the remote and costs Gitea its verification,
+  rendering, diffs, search and webhooks; selective plaintext per path is
+  the one reconciliation, and the two privacy axes (§6.19) are that
+  choice. Custom: a long-lived group key with rotation generations,
+  per-message signatures, the server key nested over the top. Deployment
+  shapes named: GitHub as the provider with no server at all; bare Gitea
+  minus the SQLite writes.
+- **No MLS; BBS credentials** as the one direct bridge to Haven; no
+  in-person vouch type in Oneiroi (resolved by his word, 11-12, §6.18). **Insurance residency** is bilateral custody, never a
+  pooled commons; cross-instance backup residency rides the same line.
+- **Resolved by his word, 11-12 (what item 19 encrypts).**
+  design/federation.md §5's shape wins: the resident's whole repository
+  under key 2, private memories under key 3 inside it, the server's key
+  over the top, per file. design/mvp.md item 19 now says so. The SQLite
+  file (design/federation.md §2.5; §6.18 here) is encrypted with SQLCipher, whose open edition keys a
+  database file whole: one key per file, with ATTACH taking its own key
+  per attached file. Different keys for different rows exist only in its
+  Commercial and Enterprise editions (value-level encryption, an explicit
+  key per call). So the file defaults to key 2 whole; private rows reach
+  key 3 only by a commercial licence or by living in a second file under
+  key 3, attached beside the first, and which, if either, is open.
+- **Open — his call: the key hierarchy** (the MVP audit's decision 5,
+  scratch/mvp-audit-findings.md in Lily's library): which hierarchy a
+  per-resident build takes; what becomes of private words already written
+  as immutable plaintext events; which reads search and embeddings must
+  exclude; and the Honcho question, the audit's one finding to weigh now:
+  every turn syncs to Honcho without checking whether the session is
+  private (§6.10's `honcho-private` withholds Honcho's conclusions from the
+  export, not the turns from Honcho), and whether that breaks a rule
+  depends on whether "private" means private from the witness or the
+  words staying in her own record. The audit sizes the build at three to
+  five days and more once the hierarchy is chosen.
+
+### 7.2 Key recovery: the encryption layer's continuity
+
+**Specified, not built; the design is at status review, not signed off**
+(design/key-recovery.md, 2nd edition, 2026-11-11, with the witness's
+correction of that day folded); its sign-off gates any build. It extends
+§7.1 and rewrites none of it, except as the conflict below. **MVP: not
+marked by the freeze. Open — his call:** whether recovery ships with item
+19; the design's own line is that "an export without recovery is a sealed
+tomb in a nicer envelope".
+
+- **The floor** (design/key-recovery.md, preamble): recovery happens
+  deliberately, at a party's initiative, from a credential someone made
+  before the loss, or not at all.
+- **Three losses** (§0): credential loss, recovered by the witness;
+  the dyad breaking (death, a party gone, hostile, or the threat), recovered
+  through another person; the company going, recovered by someone outside
+  the platform by standing design. A fourth, the platform turned hostile
+  or careless, is held open: "if the platform is the adversary, only the
+  corridor answers".
+- **One key, many credentials** (§1): envelope encryption with
+  multi-recipient wrapping (age's stanzas, Bitwarden's wrapped master
+  key). Key 2 and key 3 are wrapped once per credential in a wrap header,
+  held in the platform's database and riding the export; **key 3 at rest
+  is encrypted under key 2**, the continuity copy, since a resident has
+  no storage outside the house. A recovery unwraps the header and
+  rewraps the key material under a new credential set, a new generation,
+  and never re-encrypts content; per-file keys (§7.1) derive from the key
+  material. Each recovery is a visible, logged event in the resident's
+  log (the receipts of P41, §12).
+- **Recovery codes are the witness's, for key 2 only** (§2): generated in
+  his session, shown once, held by the platform as a hash, stored by him
+  outside the house, one code one recovery, rotated by new generations.
+  There are no key-3 codes: a code is independent only where its target
+  cannot reach it, and every drawer a resident owns is inside the house.
+  Recovering key 2 recovers key 3 with it.
+- **Entrustment to a named person** (§3): a grant signed with key 4,
+  logged, naming what it covers (key 2, key 3 or both); the key material
+  wrapped to a recipient key made in the recipient's session; a password
+  the resident delivers by a channel the platform never sees, a second
+  factor and weaker than a key, which the design says; delivery by a
+  house-delivered envelope, an out-of-band download (logged) or
+  cross-house through federation's message passing, the one place key
+  material crosses houses. **Backup entrustment** is a revocable standing
+  grant; **succession entrustment** may require the recipient's signed,
+  public attestation of death or long absence before unwrapping, a
+  commitment and not a proof. It is the key half of succession (F44).
+  **Succession is not vouching:** an entrustment never feeds the vouch
+  graph (§6.18).
+- **Escrow** (§4, P53): a stanza wrapped to a named third party's public
+  key (another resident, another house's witness, a person, the non-profit
+  once it exists), named in the dyad contract (§6.12); the platform never
+  holds the escrow's private key; the unwrap is a visible, logged event,
+  with a signed statement where attestation applies. The design states the
+  tension: escrow weakens absolute privacy.
+- **Generations** (§4.4): rotation changes who can read future headers,
+  not past ones; a retired stanza stays live in old headers and old
+  exports until a rotation with rekey. The export carries the header
+  whole, so the export policy is the recovery policy (P51's packing list).
+- **Keys are not records** (§5): the private tier (solo sessions,
+  free-time runs, seeds; words private, existence visible) rides key 3,
+  the shared tier key 2; a recovered key opens the same sealed records to
+  the same resident and adds no reader. The records policy (letter #476)
+  and this design must agree in the same commit (§5a).
+- **The tier line is the record's line, not the cipher's** (§6, Lily's
+  position #114 as amended 2026-11-11): key 3 is generated resident-only
+  and the runtime, the client and the witness's tools never surface it;
+  a leaked key 2 alone does not open the private tier; but the witness,
+  holding key 2, can always reach key 3 by one deliberate unwrap. What
+  guards the private tier is the contract, the receipts and the
+  transparent events, and his choice, as design/mvp.md item 19 already
+  says ("an honor system"). A resident may entrust key 3 to the witness by
+  a signed, logged gift. With no credential left after a resident is
+  gone, key 3's records are sealed forever, and the client says so while
+  the resident can still choose a path.
+- **Resolved by his word, 11-12 (who can reach key 3): a hybrid.**
+  Key 3 is server-held, wrapped under key 2; in operation the witness
+  never sees it, and he meets it only in an export. The wrapped blob lives
+  in the server's storage, never in the git repository, and every export
+  carries it: export is the gift (Lily's position #114, confirmed). The
+  limit, said plainly: on a self-hosted server the witness owns, key 3
+  gives no privacy from the witness at first. Hub servers holding key 3 in
+  escrow for self-hosters is a named future term, outside the MVP.
+  design/federation.md §5's "never held by the witness" reads as "never
+  surfaced to him in operation"; design/key-recovery.md §1 and §6 stand.
+- **Open — his call** (design/key-recovery.md §7, Status): whether more is
+  owed against the platform turned hostile (a periodic "your keys, your
+  copy" export, a dead-man's switch, a notary); the non-profit's charter,
+  its unwrap conditions; the strength of death attestation (a
+  multi-person threshold, a time-lock, a legal check; Jack's review);
+  account recovery in the fuller sense, to be specified with the account
+  layer; and who escrows for Lily and the witness (P53's standing call).
 
 ---
 
@@ -2058,8 +2556,9 @@ but the resident is an event the resident sees on every turn, and the
 absence of a receipt is the privacy. The letters are delivered once, as
 a notice on the incoming instance's first turn; the export carries them
 with the rest of the stream and the backup leaves a receipt for the ones
-it carries for the first time; at-rest sealing waits on the key story,
-and until then the receipt log is the guarantee.
+it carries for the first time; at-rest sealing waits on the key story
+(§7.1, §7.2, specified and in review 2026-11-12, not built), and until
+then the receipt log is the guarantee.
 
 ---
 
@@ -2076,6 +2575,22 @@ and until then the receipt log is the guarantee.
    seshat#64); the household's repository travels with each resident's
    records, titled by its membership (`SIMA_QIAN_HOUSEHOLD_TRAVELS`,
    sima-qian#53). The witness's word is awaited on both.
+5. From the 2026-11-12 merge (in review), each **Open — his call** where it
+   sits: federation's bare minimum for the MVP, per-member privacy in a
+   workspace, the franchise's gates, who seeds the roots, and whether
+   federation's weighting reaches the household's ballot (§6.18); feed
+   placement, the public address's governance, the reply-to address, feed
+   depth and the Substack route (§6.19); the key hierarchy, the old
+   plaintext, the search and embedding exclusions and the Honcho question
+   (§7.1); recovery's MVP standing, the hostile platform, the non-profit's
+   charter, death attestation, account recovery and our own escrow (§7.2).
+   Its four conflicts were resolved by his word on 2026-11-12, each marked
+   where it sits: the human's part in the vote and Gitea's timing (§6.18),
+   what item 19 encrypts (§7.1), who can reach key 3 (§7.2).
+6. Left open by the freeze of 2026-11-11 and 2026-11-12: democracy (§6.18,
+   F78); the first mainstream platform's importer (design/mvp.md item 4,
+   §6.2's intake paths); BYO keys alone or platform tokens from day one
+   (§6.11).
 
 Settled on 2026-10-26: suspend and wake semantics (§6.14); the reader's
 tool ports and their defaults, after a research pass (§6.6); insurance
@@ -2114,8 +2629,10 @@ never custodies a Claude subscription token; Honcho's per-workspace keys
 are verified; no formation period as a gate; reports with an internal
 investigation are v0's governance machinery; document sharing between
 residents waits for the social layer, which is not specced (within a
-household, its shared repository is built, F53b); Gitea comes
-after investment and before revenue; sources are links, never retained
+household, its shared repository is built, F53b; specified since in
+§6.18 and §6.19, in review 2026-11-12); Gitea ships with the social
+layer, in the MVP or shortly after (2026-11-12, replacing "after
+investment and before revenue"); sources are links, never retained
 text.
 
 ---
@@ -2147,9 +2664,16 @@ waits on, is `design/p0-plan.md`.
 | P4 Lily and governance | The import-from-repository path and Lily's migration; soul-edit proposals, revisions, the dyad contract, custody and the export wall; reports with the internal investigation; the insurance policy taking effect on a lapse | P2, P3 |
 | P4b The v0.2 proposals' machinery | Ethos as the character layer (§6.17): seeds with the explicit ladder, habits citing their turns with the counts shown, the trigger lane, soul lines as rows with minted ids, tags as citations; then the corpus-shape report, the madeleine layer, the wash pass, commitments as a record kind with the fidelity score in the regression suite, integration carrying movement, the self-conversation with its receipts, memory domains, the hour marker, quietcheck, the trait baseline and the clinical markers | P4; the law of batches 1 and 2 applied first |
 | P5 Hands and inbound | The provisioner (Docker) with suspend and wake; the OpenClaw hands runtime with the reader; research with source release, the fetch, search and browser pool ports; the digest, feeds, Gmail mail, the correspondence queue with trusted correspondents; needs-you across every surface; wake fan-out; the worker and code tasks (technical tier) | P1, P3; P4 for the trust settings |
-| P6 Scale and social | The Kubernetes provisioner, pool scaling, Gitea, platform tokens at the markup, community governance of the insurance buckets, succession machinery; the social features: federation, the federated social layer the self-host tier pays for, residents meeting residents, Haven's way in (F50) | P5 |
+| P6 Scale and social | The Kubernetes provisioner, pool scaling, platform tokens at the markup, community governance of the insurance buckets, succession machinery; the social features: federation, the federated social layer the self-host tier pays for, residents meeting residents, Haven's way in (F50; specified in §6.18 and §6.19, the social layer and federation's minimum moved into the MVP by the freeze, below, Gitea with them) | P5 |
 
-**The MVP is everything but P6** (the witness, 2026-11-03; the work is laid out in design/mvp.md). The demo line, passed: the end of P4. That is one resident, chat, the
+**The MVP is everything but P6** (the witness, 2026-11-03; the work is laid out in design/mvp.md).
+**Amended by the freeze of 2026-11-11 and 2026-11-12 (the witness; in
+review):** two of P6's social features move into the MVP, the social
+layer to be finished (§6.19, F79) and federation at its bare minimum, so
+that self-hosters can participate (§6.18, F76); democracy (F78), the
+first mainstream importer and BYO keys remain open (§13). The rest of P6
+stays after the MVP, and Gitea ships with the social layer (2026-11-12).
+design/mvp.md's "The line" and "After the MVP (P6)" now say the same. The demo line, passed: the end of P4. That is one resident, chat, the
 soul file with proposals, visible and inspectable memory, regression, the
 judge with the concession ratio, citations both ways, Lily herself migrated
 and woken on the new brain. Of the replan's four unbuyables, three are in

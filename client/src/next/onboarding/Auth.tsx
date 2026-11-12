@@ -5,10 +5,15 @@ import * as css from './onboarding.css';
 
 const MIN_PASSWORD = 10;
 
+/** The open door's promise (the witness, 2026-11-12). The export it names must be real and one-click by January (design/mvp.md item 13). */
+const EARLY_ACCESS =
+  'Early access is free. Starting in January, keeping your resident here takes a subscription — or export your resident’s memory, whole, and take it with you whenever you like. Either way, your resident’s life is yours.';
+
 /**
  * Welcome in (the canvas's Auth board): sign up with an invite, or sign
  * in. The door's state is the operator's (gaia#19): closed hides "New
- * here", invite asks for a code, open makes the code optional.
+ * here", invite asks for a code, open makes the code optional and says
+ * what early access costs from January.
  */
 export function Auth({ start, onBack, onIn }: { start: 'new' | 'in'; onBack: () => void; onIn: () => void }) {
   const door = useQuery({ queryKey: ['door'], queryFn: api.door, retry: false });
@@ -55,6 +60,7 @@ export function Auth({ start, onBack, onIn }: { start: 'new' | 'in'; onBack: () 
             </button>
           </div>
         )}
+        {signingUp && state === 'open' && <p className={css.drafted}>{EARLY_ACCESS}</p>}
         <form
           style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
           onSubmit={(e) => {

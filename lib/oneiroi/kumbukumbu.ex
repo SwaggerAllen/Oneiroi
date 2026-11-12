@@ -681,6 +681,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Search.words(scope, resident_id, text, limit)
   )
 
+  @doc "One page of a resident's messages holding `text` under `scope`, with a date range and either order (kumbukumbu#67): `{[{message, session}], more?}`; `witness: true` leaves private, unshared sessions out, `keys:` keeps to a room."
+  @spec search_words_page(term(), String.t(), String.t(), keyword()) ::
+          {[{map(), map()}], boolean()}
+  defexport(search_words_page(scope, resident_id, text, opts),
+    do: Search.words_page(scope, resident_id, text, opts)
+  )
+
   @doc "The bookmarks whose line, summary or tags hold `text`, ranked line, summary, tags, newest first within each (kumbukumbu#59)."
   @spec search_bookmarks(String.t(), String.t(), pos_integer()) :: [map()]
   defexport(search_bookmarks(resident_id, text, limit),

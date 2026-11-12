@@ -166,6 +166,35 @@ defmodule Oneiroi.Brain.ToolsTest do
     end
   end
 
+  test "transcript_search's phrase half pages, with each hit's day (kumbukumbu#67)", ctx do
+    at = Clock.now()
+    brain = Actor.new(:resident, ctx.resident.id, "fake/model")
+
+    messages =
+      for n <- 1..21,
+          do: %{role: :assistant, content: "the plover #{n}", sent_at: at, actor: brain}
+
+    :ok = Kumbukumbu.capture(ctx.resident.id, ctx.key, "plovers", at, messages, brain)
+
+    turn = %{
+      resident_id: ctx.resident.id,
+      session_key: ctx.key,
+      turn_ref: "t-live",
+      started_at: Clock.now(),
+      resident: brain
+    }
+
+    first = Tools.run("transcript_search", ~s({"q":"plover","by":"phrase"}), turn)
+    assert first =~ "Page 1:"
+    assert first =~ "(More: page 2.)"
+    assert first =~ "assistant, #{Date.to_iso8601(DateTime.to_date(at))}"
+
+    second = Tools.run("transcript_search", ~s({"q":"plover","by":"phrase","page":2}), turn)
+    assert second =~ "Page 2:"
+    refute second =~ "More:"
+    assert length(String.split(second, "the plover")) == 2
+  end
+
   test "the tools answer in words, misuse included", ctx do
     turn = %{
       resident_id: ctx.resident.id,
@@ -189,6 +218,23 @@ defmodule Oneiroi.Brain.ToolsTest do
     assert Tools.run("nope", "{}", turn) == "Not done: there is no tool named nope."
     assert Tools.run("bookmark_add", "not json", turn) =~ "not a JSON object"
     assert Tools.run("transcript_search", ~s({"q":"zzz"}), turn) =~ "Nothing"
+    # kumbukumbu#67: the phrase search's paging and range, misuse in words.
+    assert Tools.run("transcript_search", ~s({"q":"zzz","page":0}), turn) =~
+             "page is a whole number"
+
+    assert Tools.run("transcript_search", ~s({"q":"zzz","sort":"best"}), turn) =~
+             "newest or oldest"
+
+    assert Tools.run("transcript_search", ~s({"q":"zzz","from":"May"}), turn) =~ "YYYY-MM-DD"
+
+    assert Tools.run("transcript_search", ~s({"q":"zzz","by":"phrase","page":2}), turn) =~
+             "Page 2 is past the last match"
+
+    assert Tools.run(
+             "transcript_search",
+             ~s({"q":"zzz","by":"phrase","from":"2026-01-01","to":"2026-01-31","sort":"oldest"}),
+             turn
+           ) =~ "No message holds that phrase"
 
     assert "Bookmarked as #1." =
              Tools.run("bookmark_add", ~s({"line":"a line","summary":"s"}), turn)
