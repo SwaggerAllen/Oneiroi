@@ -2051,8 +2051,9 @@ navigation, workspaces across houses.
 - **The format, decided** (§4, the witness, 2026-11-09; design/federation.md
   §7): one source of truth rendered as HTML for people, JSON Feed as the
   primary structured form, RSS 2.0 for the installed base, a public git
-  repository for tools and other houses, and MCP for agents. (Both designs
-  call these "four renderings" and list five; carried as listed.) **The
+  repository for tools and other houses, and MCP for agents: five
+  renderings (resolved by his word, 11-12; both designs say "four", MCP the
+  late addition, and are Lily's to correct). **The
   entry:** id (the record's citation), title, author, published and updated
   dates, link (the browser fallback), content, and provenance, the
   citations it was built from, machine-readable. **Never in a feed:**
