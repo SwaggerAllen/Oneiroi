@@ -688,7 +688,7 @@ defmodule Oneiroi.Seshat.Store do
   most `limit` documents (seshat#53, the one search). A filter may come
   as `{:narrow, filter, narrow}` (kumbukumbu#69): `narrow` keeps to documents of
   the `:kinds` listed, of a `:status`, written by an `:author` (the
-  actor kind of the last write), under a `:folder`, and with the
+  actor kind of the last write), and with the
   `:date` field (`:created`, registration, or `:updated`, the last
   write) at or after `:from` and before `:to`.
   """
@@ -747,9 +747,6 @@ defmodule Oneiroi.Seshat.Store do
 
       {:author, a}, q when is_binary(a) ->
         from([doc: d] in q, where: d.written_by_kind == ^a)
-
-      {:folder, f}, q when is_binary(f) ->
-        from([doc: d] in q, where: like(d.path, ^(like_escape(f) <> "%")))
 
       {:from, %DateTime{} = at}, q ->
         from([doc: d] in q, where: field(d, ^field) >= ^at)

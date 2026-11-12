@@ -59,7 +59,7 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   (kumbukumbu#69) that opens its filters, with a count of those set and
   Clear: From and To days (this browser's zone, both included) and an
   order (Best match, Newest, Oldest; transcripts Newest or Oldest);
-  records add Updated or Created, Written by, Status, Folder and Kinds
+  records add Updated or Created, Written by, Status and Kinds
   (her own kinds included); transcripts add Said by and Conversations;
   bookmarks add Pinned only, Tag and Made (by her or from your
   suggestion); scenes add Mood and Person.

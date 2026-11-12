@@ -13,7 +13,6 @@ export interface Filters {
   kinds: string[];
   status: string;
   author: '' | 'resident' | 'witness' | 'platform';
-  folder: string;
   // Transcripts
   who: '' | 'resident' | 'witness' | 'platform';
   conversations: string[];
@@ -34,7 +33,6 @@ export const NO_FILTERS: Filters = {
   kinds: [],
   status: '',
   author: '',
-  folder: '',
   who: '',
   conversations: [],
   pinned: false,
@@ -66,7 +64,7 @@ export function sorts(scope: string): Sort[] {
 /** How many filters are set for a scope, for the button's count. */
 export function activeCount(scope: string, f: Filters): number {
   const own: Record<string, unknown[]> = {
-    records: [f.kinds.length > 0, f.status, f.author, f.folder],
+    records: [f.kinds.length > 0, f.status, f.author],
     words: [f.who, f.conversations.length > 0],
     bookmarks: [f.pinned, f.tag, f.madeBy],
     scenes: [f.mood, f.person],
@@ -96,7 +94,6 @@ export function toParams(scope: string, f: Filters, page = 1): Record<string, st
     if (f.kinds.length) out.kinds = f.kinds.join(',');
     if (f.status.trim()) out.status = f.status.trim();
     if (f.author) out.author = f.author;
-    if (f.folder.trim()) out.folder = f.folder.trim();
   }
   if (scope === 'bookmarks') {
     if (f.pinned) out.pinned = 'true';

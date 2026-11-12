@@ -289,8 +289,7 @@ defmodule OneiroiWeb.SearchController do
             date: date && String.to_existing_atom(date),
             kinds: list(params["kinds"]),
             status: blank(params["status"]),
-            author: author,
-            folder: blank(params["folder"])}
+            author: author}
   end
 
   defp narrow_of("bookmarks", params) do

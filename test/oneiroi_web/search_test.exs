@@ -327,7 +327,7 @@ defmodule OneiroiWeb.SearchTest do
     end
   end
 
-  test "records narrow by kind, author, folder and a created or updated range (kumbukumbu#69)",
+  test "records narrow by kind, author and a created or updated range (kumbukumbu#69)",
        ctx do
     {:ok, _} =
       Seshat.write(ctx.id, "writing/heron.md", "# Heron\n\nThe heron on the weir.", ctx.brain)
@@ -350,7 +350,6 @@ defmodule OneiroiWeb.SearchTest do
     assert paths.(%{}) == ["design/weir-notes.md", "writing/heron.md"]
     assert paths.(%{kinds: "writing"}) == ["writing/heron.md"]
     assert paths.(%{kinds: "writing,design"}) == ["design/weir-notes.md", "writing/heron.md"]
-    assert paths.(%{folder: "design/"}) == ["design/weir-notes.md"]
     assert paths.(%{author: "resident"}) == ["design/weir-notes.md", "writing/heron.md"]
     assert paths.(%{author: "witness"}) == []
     future = DateTime.add(Clock.now(), 86_400) |> DateTime.to_iso8601()

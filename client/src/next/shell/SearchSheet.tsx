@@ -166,10 +166,6 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                       Status
                       <input className={css.filterInput} value={filters.status} onChange={(e) => set('status', e.target.value)} placeholder="draft, review…" />
                     </label>
-                    <label className={css.filter}>
-                      Folder
-                      <input className={css.filterInput} value={filters.folder} onChange={(e) => set('folder', e.target.value)} placeholder="writing/" />
-                    </label>
                   </div>
                   <fieldset className={css.checks}>
                     <legend className={css.filter}>Kinds</legend>
