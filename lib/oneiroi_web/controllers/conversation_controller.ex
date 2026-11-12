@@ -107,7 +107,7 @@ defmodule OneiroiWeb.ConversationController do
 
   operation(:show,
     summary:
-      "A session's transcript: whole, or with `limit` a page. `before` (a message's `cursor`) pages back from the newest, `more` saying whether earlier ones remain; `after` (a cursor) pages forward from it, `more` saying whether later ones remain; `around` (a turn ref, its first message, or a cursor) is the window of about `limit`/2 each side of that message, with `anchor` (its cursor), `more_before` and `more_after` (kumbukumbu#57). One of the three is read, `around` first, then `after`",
+      "A session's transcript: whole, or with `limit` a page. `before` (a message's `cursor`) pages back from the newest, `more` saying whether earlier ones remain; `after` (a cursor) pages forward from it, `more` saying whether later ones remain; `around` (a turn ref, its first message, a cursor, or an ISO 8601 instant with its offset, the first message sent at or after it or else the last before, kumbukumbu#68) is the window of about `limit`/2 each side of that message, with `anchor` (its cursor), `more_before` and `more_after` (kumbukumbu#57). One of the three is read, `around` first, then `after`",
     parameters: [
       id: [in: :path, type: :string],
       key: [in: :path, type: :string],
@@ -178,9 +178,10 @@ defmodule OneiroiWeb.ConversationController do
   # so a jump to a bookmark's anchor or a scene's first turn loads there.
   defp show_around(conn, p, key, around, limit) do
     anchor =
-      case cursor(around) do
-        nil -> {:turn, around}
-        at -> {:cursor, at}
+      case {cursor(around), DateTime.from_iso8601(around)} do
+        {nil, {:ok, at, _offset}} -> {:at, at}
+        {nil, _not_an_instant} -> {:turn, around}
+        {at, _instant} -> {:cursor, at}
       end
 
     case Kumbukumbu.transcript_around({:account, p.account_id}, key, anchor, limit) do

@@ -150,6 +150,20 @@ defmodule OneiroiWeb.NavigatorTest do
     assert %{"error" => %{"kind" => "kumbukumbu_no_such_message"}} =
              ctx.conn |> get(base, %{around: "turn-99"}) |> json_response(404)
 
+    # Around an instant (kumbukumbu#68): the first message sent at or after
+    # it; before the first, the first; past the last, the last. turn-n is
+    # at 08:0n:00 and her answer a second later.
+    at = fn instant ->
+      body = ctx.conn |> get(base, %{around: instant, limit: 2}) |> json_response(200)
+      Enum.find(body["messages"], &(&1["cursor"] == body["anchor"]))["content"]
+    end
+
+    assert at.("2026-10-26T08:03:00Z") == "his 3"
+    assert at.("2026-10-26T08:03:00.500Z") == "her 3"
+    assert at.("2026-10-26T01:02:30-07:00") == "his 3"
+    assert at.("2026-10-25T00:00:00Z") == "his 1"
+    assert at.("2026-10-27T00:00:00Z") == "her 5"
+
     # `before` pages back as it did.
     assert %{"messages" => [%{"content" => "her 5"}], "more" => true} =
              ctx.conn |> get(base, %{limit: 1}) |> json_response(200)

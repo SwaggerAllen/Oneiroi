@@ -68,6 +68,17 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     (Lily, letter #509).
   - A band or point loads the window around its anchor and scrolls to
     it. "↓ Back to now" returns to the live end.
+  - **Places** (the witness, 2026-11-12): a band or point also opens
+    the track out into a panel beside it, and ≡ at the track's top
+    opens it with nothing chosen. Her scenes (time span, mood, title,
+    summary) and bookmarks (number, pin, time, line, summary) over the
+    same two weeks, in time order under each local day, focused on the
+    one chosen (else the newest). A place jumps the conversation there.
+    A bookmark from a private session shows its number and time only.
+    At the top, a day and time (this browser's zone) jumps to the
+    message nearest it (kumbukumbu#68). × or Escape closes it. A place
+    this conversation does not hold (a bookmark made in another
+    session) leaves the reader where they are.
   - Search is the one global search, not a drawer here (decided).
 
 - **On her replies:** "What she was given" lists that turn's context,
@@ -78,6 +89,8 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   outside mail and blocks (`screens/next-mail.md`).
 
 Not built:
+- places further back than the two weeks (the day-and-time jump
+  reaches any time);
 - a day-level zoom on the navigator: on the two-week track, scenes
   minutes apart overlap, and only the top one takes a pointer (the
   keyboard reaches each);

@@ -470,10 +470,14 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
   @doc """
   The message an anchor read centres on (kumbukumbu#57): the one at a
-  `{sequence, position}` cursor, or the first message of a turn by its
-  ref; nil when the session holds neither.
+  `{sequence, position}` cursor, the first message of a turn by its
+  ref, or the message nearest an instant (kumbukumbu#68); nil when the
+  session holds none.
   """
-  @spec anchor_message(String.t(), {:cursor, {integer(), integer()}} | {:turn, String.t()}) ::
+  @spec anchor_message(
+          String.t(),
+          {:cursor, {integer(), integer()}} | {:turn, String.t()} | {:at, DateTime.t()}
+        ) ::
           Message.t() | nil
   def anchor_message(key, {:cursor, {sequence, position}}),
     do:
@@ -483,6 +487,26 @@ defmodule Oneiroi.Kumbukumbu.Store do
           limit: 1
         )
       )
+
+  # An instant (kumbukumbu#68): the first message sent at or after it,
+  # else the last before it, so a time past the session's end lands on
+  # its newest message.
+  def anchor_message(key, {:at, %DateTime{} = at}) do
+    Repo.one(
+      from(m in Message,
+        where: m.session_key == ^key and m.sent_at >= ^at,
+        order_by: [asc: m.sent_at, asc: m.sequence, asc: m.position],
+        limit: 1
+      )
+    ) ||
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^key and m.sent_at < ^at,
+          order_by: [desc: m.sent_at, desc: m.sequence, desc: m.position],
+          limit: 1
+        )
+      )
+  end
 
   def anchor_message(key, {:turn, ref}),
     do:

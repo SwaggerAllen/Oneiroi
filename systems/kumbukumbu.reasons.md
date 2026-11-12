@@ -535,3 +535,14 @@ into instants in its own zone (the browser's for the witness, hers for
 the resident), so a day means the day its reader lives in. The
 witness's query keeps #59's privacy in the query itself; hers does not
 need it, her reads being whole.
+
+## #68
+
+A reader who remembers when something was said, and not its words or
+its bookmark, had no way in but paging back. The instant is answered by
+the nearest message on the later side, because a reader asking for
+"Tuesday at 3" wants what was said from then on; past the end it falls
+back to the last message so a time after the session's end still lands
+somewhere rather than refusing. It reuses `around` instead of a new
+route so the client's one window read, its anchor and its paging
+forward and back all hold unchanged.
