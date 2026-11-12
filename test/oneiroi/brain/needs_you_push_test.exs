@@ -13,6 +13,8 @@ defmodule Oneiroi.Brain.NeedsYouPushTest do
   alias Oneiroi.Brain.NeedsYouPushWorker
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
+  alias Oneiroi.Gaia.Account
+  alias Oneiroi.Gaia.Events.NeedsYouPushed
   alias Oneiroi.Gaia.Push.Fake
   alias Oneiroi.Sunna
 
@@ -89,5 +91,28 @@ defmodule Oneiroi.Brain.NeedsYouPushTest do
     refute Sunna.quiet_now?(ctx.id)
     assert {:ok, [%{"kind" => "ask"}]} = NeedsYouPushWorker.push(ctx.id, ctx.account)
     assert eventually(&Fake.sent/0) == [@apple]
+  end
+
+  test "an account rebuilt from its stream reads a pushed entry's keys either way (gaia#26)" do
+    # Recorded with string keys; read back from the store with atom keys.
+    # A rebuild that met the second crashed every command on the account,
+    # sign-in included (2026-11-11).
+    account = %Account{id: "a", pushed: MapSet.new()}
+
+    for entries <- [
+          [%{"kind" => "piece_to_review", "ref" => "design/key-recovery.md"}],
+          [%{kind: "piece_to_review", ref: "design/key-recovery.md"}]
+        ] do
+      event = %NeedsYouPushed{
+        actor: Actor.platform(),
+        at: Clock.now(),
+        id: "a",
+        resident_id: "r",
+        entries: entries
+      }
+
+      rebuilt = Account.apply(account, event)
+      assert MapSet.member?(rebuilt.pushed, {"r", "piece_to_review", "design/key-recovery.md"})
+    end
   end
 end

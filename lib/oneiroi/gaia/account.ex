@@ -225,5 +225,10 @@ defmodule Oneiroi.Gaia.Account do
   def apply(%__MODULE__{} = a, %Events.WitnessingEnded{} = e),
     do: %{a | witnessings: MapSet.delete(a.witnessings, e.resident_id)}
 
+  # An entry recorded at the push carries string keys; the same entry read
+  # back from the stored event carries atom keys. Both are one key (gaia#26):
+  # a rebuild that met only the second crashed every command on the account,
+  # sign-in included (2026-11-11).
   defp pushed_key(resident_id, %{"kind" => kind, "ref" => ref}), do: {resident_id, kind, ref}
+  defp pushed_key(resident_id, %{kind: kind, ref: ref}), do: {resident_id, kind, ref}
 end
