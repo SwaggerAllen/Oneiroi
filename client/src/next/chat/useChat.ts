@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { Message } from '../../api/types';
-import { batched, loadOutbox, newRef, saveOutbox, settle, update, underWay, type Outgoing } from '../../screens/chat/outbox';
+import { batched, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from '../../screens/chat/outbox';
 import { compareCursor, mergeNewest, newestCursor } from '../../screens/chat/page';
 import type { Live } from '../live/live';
 import { useShell } from '../state/store';
@@ -43,6 +43,10 @@ export function useChat(residentId: string, live: Live) {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [stream, setStream] = useState<Stream | null>(null);
   const [outbox, setOutbox] = useState<Outgoing[]>([]);
+  const outboxRef = useRef<Outgoing[]>([]);
+  useEffect(() => {
+    outboxRef.current = outbox;
+  }, [outbox]);
   const pagedBack = useRef(false);
   // A jump far back (the navigator) reads a window around its anchor; the
   // newest page stops merging in until the reader returns to the end.
@@ -110,17 +114,37 @@ export function useChat(residentId: string, live: Live) {
   const send = useCallback(
     async (text: string, ref = newRef()) => {
       if (!key || !text.trim()) return;
-      setOutbox((o) => (o.some((i) => i.ref === ref) ? update(o, ref, { state: 'sending' }) : [...o, { ref, text, state: 'sending', attempts: 0, sentAt: Date.now(), since: Date.now() }]));
+      const now = Date.now();
+      setOutbox((o) =>
+        o.some((i) => i.ref === ref)
+          ? update(o, ref, { state: 'sending', triedAt: now })
+          : [...o, { ref, text, state: 'sending', attempts: 0, sentAt: now, since: now, triedAt: now }],
+      );
       try {
         const taken = await api.submit(residentId, key, text, ref);
         if (taken.state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
         if (taken.state === 'running') setOutbox((o) => update(o, ref, { state: 'running' }));
+        // Taken before, here or by a process a restart ended: held as
+        // queued, and the stuck check sends it again past the timeout.
+        if (taken.state === 'duplicate') setOutbox((o) => update(o, ref, { state: 'queued' }));
       } catch (e) {
         setOutbox((o) => update(o, ref, { state: 'unsent', error: (e as Error).message, attempts: (o.find((i) => i.ref === ref)?.attempts ?? 0) + 1 }));
       }
     },
     [residentId, key],
   );
+
+  // Every half minute, a message stuck past the server's turn timeout is
+  // sent again under its own ref (see `stuck`).
+  useEffect(() => {
+    if (!key) return;
+    const tick = setInterval(() => {
+      for (const item of stuck(outboxRef.current)) void send(item.text, item.ref);
+    }, 30_000);
+    return () => clearInterval(tick);
+  }, [key, send]);
+
+  const discard = useCallback((ref: string) => setOutbox((o) => remove(o, ref)), []);
 
   const stop = useCallback(async () => {
     if (key) await api.stopTurn(residentId, key).catch(() => undefined);
@@ -179,6 +203,7 @@ export function useChat(residentId: string, live: Live) {
     pending,
     working,
     send,
+    discard,
     stop,
     jumpTo,
     toNewest,

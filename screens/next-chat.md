@@ -27,7 +27,14 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again
-  under the same ref.
+  under the same ref. A message taken and then never heard of again (a
+  queue lost to a restart, or a send answered as a duplicate of a claim
+  that died with it) is sent again under its ref every half minute once
+  it has sat past the server's turn timeout, so the dead claim is taken
+  again (STUCK_MS, 330s, over BRAIN_TURN_TIMEOUT_MS). Every queued,
+  sending, failed or unsent message also offers Remove, which takes this
+  browser's copy off the screen; a message the server still holds may
+  yet run, and lands in the transcript if it does.
 - **Stop** replaces Send while she works and the box is empty.
 - **The box** grows with what is written, up to 180px, then scrolls.
   With a keyboard, Enter sends and Shift+Enter breaks the line; on a

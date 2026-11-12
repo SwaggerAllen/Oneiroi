@@ -251,9 +251,19 @@ export function Chat({
                   <button type="button" className={css.linkButton} onClick={() => void chat.send(p.text, p.ref)}>
                     Send again
                   </button>
+                  <button type="button" className={css.linkButton} onClick={() => chat.discard(p.ref)}>
+                    Remove
+                  </button>
                 </div>
               ) : (
-                <div className={css.pendingLine}>{p.state === 'queued' ? 'queued' : p.state === 'sending' ? 'sending' : ''}</div>
+                <div className={css.pendingLine}>
+                  {p.state === 'queued' ? 'queued' : p.state === 'sending' ? 'sending' : ''}
+                  {(p.state === 'queued' || p.state === 'sending') && (
+                    <button type="button" className={css.linkButton} onClick={() => chat.discard(p.ref)} aria-label="Remove this message from the screen">
+                      Remove
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}

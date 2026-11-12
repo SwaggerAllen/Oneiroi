@@ -30,6 +30,8 @@ export interface Outgoing {
   // the epoch), for the timers the witness reads (brain#54).
   sentAt?: number;
   since?: number;
+  // When it was last sent to the server, for the stuck check below.
+  triedAt?: number;
 }
 
 // The states a turn is under way in: taken and not yet answered.
@@ -73,6 +75,30 @@ export function elapsed(ms: number): string {
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+
+// How long a message may sit taken but unheard of before it is sent
+// again: past the server's turn timeout (BRAIN_TURN_TIMEOUT_MS, 300s),
+// when a claim that died with a restart is taken again (brain#45).
+export const STUCK_MS = 330_000;
+
+// Messages that were taken and then nothing more was heard of them: a
+// queue lost to a restart, or a send the server answered as a duplicate
+// of a claim that died. Sending one again under its own ref is safe
+// either way: a turn still alive answers it as a duplicate, a dead claim
+// past the timeout is taken again. One that joined another's turn goes
+// with that turn and is never sent alone.
+export function stuck(items: Outgoing[], now = Date.now(), after = STUCK_MS): Outgoing[] {
+  return items.filter(
+    (i) => i.into === undefined && (i.state === 'sending' || underWay.includes(i.state)) && now - (i.triedAt ?? i.since ?? i.sentAt ?? now) >= after,
+  );
+}
+
+// The witness takes a message off this screen (the fallback when one
+// will not settle). It is this browser's copy only: a message the server
+// still holds may yet run, and its turn lands in the transcript if so.
+export function remove(items: Outgoing[], ref: string): Outgoing[] {
+  return items.filter((i) => i.ref !== ref);
 }
 
 // A message is done when its turn is in the transcript with a reply.

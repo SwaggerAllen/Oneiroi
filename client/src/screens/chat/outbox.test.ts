@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batched, elapsed, failedFrom, itemLine, newRef, type Outgoing, settle, statusLine, update } from './outbox';
+import { batched, elapsed, failedFrom, itemLine, newRef, type Outgoing, remove, settle, statusLine, STUCK_MS, stuck, update } from './outbox';
 
 const item = (ref: string, state: Outgoing['state'], more: Partial<Outgoing> = {}): Outgoing => ({ ref, text: ref, state, attempts: 0, ...more });
 
@@ -64,5 +64,25 @@ describe('outbox', () => {
   it('says why a message did not go or was not answered', () => {
     expect(itemLine(item('a', 'unsent', { error: 'text is required' }), 'Lily')).toBe('not sent: text is required');
     expect(itemLine(item('a', 'failed'), 'Lily')).toBe("Lily couldn't answer");
+  });
+});
+
+describe('stuck and remove (a queue lost to a restart)', () => {
+  const at = 1_000_000;
+  const item = (over: Partial<Outgoing>): Outgoing => ({ ref: 'r1', text: 'hi', state: 'queued', attempts: 0, sentAt: at, since: at, ...over });
+
+  it('a taken message nothing more was heard of is stuck past the timeout, and only then', () => {
+    expect(stuck([item({})], at + STUCK_MS - 1)).toEqual([]);
+    expect(stuck([item({})], at + STUCK_MS).map((i) => i.ref)).toEqual(['r1']);
+    expect(stuck([item({ state: 'sending' })], at + STUCK_MS)).toHaveLength(1);
+  });
+
+  it('a fresh try restarts the clock; failed, unsent and batched messages are never resent alone', () => {
+    expect(stuck([item({ triedAt: at + 100_000 })], at + STUCK_MS)).toEqual([]);
+    expect(stuck([item({ state: 'failed' }), item({ state: 'unsent' }), item({ into: 't2' })], at + STUCK_MS)).toEqual([]);
+  });
+
+  it('remove takes one message off and leaves the rest', () => {
+    expect(remove([item({}), item({ ref: 'r2' })], 'r1').map((i) => i.ref)).toEqual(['r2']);
   });
 });
