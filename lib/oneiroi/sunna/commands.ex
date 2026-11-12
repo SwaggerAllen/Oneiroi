@@ -140,6 +140,10 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  defmodule ResetWorkRuns do
+    use Oneiroi.Command, fields: [:id], decision: true
+  end
+
   defmodule RestWork do
     use Oneiroi.Command, fields: [:id, :reason]
   end

@@ -122,6 +122,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
          do: :ok
   end
 
+  @doc "The witness gives the day's runs back (sunna#53), with a note; the loop checks at once."
+  def reset_runs_by(resident_id, note, %Actor{} = actor) do
+    command = %Commands.ResetWorkRuns{actor: actor, at: Clock.now(), id: resident_id, note: note}
+
+    with {:ok, _} <- dispatch(command) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
   defp disarm(resident_id),
     do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
 
@@ -327,7 +337,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
     ended =
       dispatch(%Commands.EndWork{actor: @actor, at: Clock.now(), id: resident_id, number: number})
 
-    worker().enqueue_check(resident_id)
+    # A run that ended in an error waits before the next check (sunna#52):
+    # the same item would start again at once, fail the same way, and a
+    # day's runs went in eight minutes of empty conversations (2026-11-11).
+    case result do
+      {:error, _} ->
+        worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds))
+
+      _ok ->
+        worker().enqueue_check(resident_id)
+    end
 
     case {result, ended} do
       {{:error, _} = failed, _} -> failed

@@ -227,6 +227,8 @@ defmodule Oneiroi.Brain do
        remedy: "plugin_list names every plugin and its key"},
       {:brain_nothing_running, "no turn is running in that conversation to stop",
        remedy: "nothing to do: the turn had already ended"},
+      {:brain_tool_raised, "a tool failed inside the platform; the turn went on without it",
+       remedy: "nothing for her to do; the log line carries the cause for the platform's team"},
       {:brain_turn_crashed, "the turn's process stopped before it answered",
        remedy: "send the message again; the session's next message still runs"},
       {:brain_budget_stopped,

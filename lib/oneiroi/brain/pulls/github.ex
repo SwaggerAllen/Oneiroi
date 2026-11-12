@@ -61,16 +61,23 @@ defmodule Oneiroi.Brain.Pulls.GitHub do
     end
   end
 
-  defp headers(token) do
+  @doc false
+  # Public for its test: an unset token reads anonymously (brain#85).
+  def headers(token) do
     base = [
       {"accept", "application/vnd.github+json"},
       {"x-github-api-version", "2022-11-28"},
       {"user-agent", "oneiroi"}
     ]
 
-    case token do
-      nil -> base
-      token -> [{"authorization", "Bearer " <> Secret.unwrap(token)} | base]
+    # An unset optional secret arrives wrapped around nothing: a read with
+    # no token is an anonymous read, never a crash (brain#85).
+    case token && Secret.unwrap(token) do
+      value when is_binary(value) and value != "" ->
+        [{"authorization", "Bearer " <> value} | base]
+
+      _none ->
+        base
     end
   end
 end

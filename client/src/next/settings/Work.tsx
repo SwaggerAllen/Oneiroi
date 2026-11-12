@@ -24,6 +24,7 @@ export function Work() {
   });
   const [what, setWhat] = useState('');
   const [doneWhen, setDoneWhen] = useState('');
+  const [resetNote, setResetNote] = useState('');
   const act = useAct();
   const run = (work: () => Promise<string>) => void act.run(work, ['resident', id, 'sessions'], ['resident', id, 'bell']);
 
@@ -53,6 +54,31 @@ export function Work() {
               </button>
             </div>
             {q.running !== null && <span className={css.note}>The run in work finishes; nothing starts after it until the line is armed again.</span>}
+          </div>
+        )}
+        {q.runs_today > 0 && (
+          <div className={css.column}>
+            <span className={css.note}>
+              {q.runs_today} of {q.runs_a_day} runs used today.
+            </span>
+            <Field label="Why the runs come back (she reads it)" value={resetNote} onChange={(e) => setResetNote(e.target.value)} />
+            <div>
+              <button
+                type="button"
+                className={css.secondary}
+                disabled={act.busy || resetNote.trim() === ''}
+                onClick={() =>
+                  run(() =>
+                    api.resetWorkRuns(id, resetNote.trim()).then(() => {
+                      setResetNote('');
+                      return "Today's runs are back; the loop checks now.";
+                    }),
+                  )
+                }
+              >
+                Reset today's runs
+              </button>
+            </div>
           </div>
         )}
         <Said said={act.said} />

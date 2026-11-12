@@ -68,6 +68,7 @@ defmodule Oneiroi.Sunna do
       Commands.RestWork,
       Commands.ArmWork,
       Commands.DisarmWork,
+      Commands.ResetWorkRuns,
       Events.WorkAdded,
       Events.WorkMoved,
       Events.WorkOrdered,
@@ -77,6 +78,7 @@ defmodule Oneiroi.Sunna do
       Events.WorkRested,
       Events.WorkArmed,
       Events.WorkDisarmed,
+      Events.WorkRunsReset,
       Events.LettersWoke,
       Events.CheckinSet,
       Events.CheckinChanged,
@@ -179,6 +181,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many runs of work-queue items may start in one of the resident's days (sunna#33): each finished run fires the next with no one in between, so this is the guard on a loop that never empties (an item wrapped open again and again); the work budget line is the real limit when one is set. Twenty (the witness, 2026-11-08), up from eight"},
+      {:work_retry_seconds, "SUNNA_WORK_RETRY_SECONDS",
+       cast: :integer,
+       default: "900",
+       tag: :bound,
+       usage:
+         "how long the work loop waits before its next check after a run that ended in an error (sunna#52): without it the same item starts again at once and fails the same way, and one broken run spends the day's runs (2026-11-11, twenty in eight minutes). Fifteen minutes"},
       {:scene_slot, "SUNNA_SCENE_SLOT",
        default: "22:30",
        usage:
@@ -272,7 +280,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.WorkRunEnded, 1},
       {Oneiroi.Sunna.Events.WorkRested, 1},
       {Oneiroi.Sunna.Events.WorkArmed, 1},
-      {Oneiroi.Sunna.Events.WorkDisarmed, 1}
+      {Oneiroi.Sunna.Events.WorkDisarmed, 1},
+      {Oneiroi.Sunna.Events.WorkRunsReset, 1}
     ]
   end
 
@@ -439,6 +448,12 @@ defmodule Oneiroi.Sunna do
   @doc "Turns the work line off by hand (sunna#43): the witness's; the run in work finishes."
   @spec work_disarm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_disarm(resident_id, actor), do: WorkLoop.disarm_by(resident_id, actor))
+
+  @doc "Gives the day's work runs back (sunna#53): the witness's, with a note; the loop checks at once."
+  @spec work_reset_runs(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_reset_runs(resident_id, note, actor),
+    do: WorkLoop.reset_runs_by(resident_id, note, actor)
+  )
 
   @doc "The work queue: its items in order and the loop's state, both parties' read."
   @spec work_queue(String.t()) :: map()

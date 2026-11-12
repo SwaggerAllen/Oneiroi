@@ -133,6 +133,23 @@ defmodule OneiroiWeb.WorkController do
     end
   end
 
+  operation(:reset_runs,
+    summary:
+      "Give the day's work runs back (sunna#53): the count starts over and the loop checks at once; the witness's, with a note",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the note", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "reset"]
+  )
+
+  def reset_runs(conn, %{"id" => id} = params) do
+    case Sunna.work_reset_runs(id, params["note"], actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   defp number_invalid(conn),
     do:
       problem(

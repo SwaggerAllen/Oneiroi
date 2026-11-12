@@ -232,6 +232,12 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id]
   end
 
+  defmodule WorkRunsReset do
+    # The witness gives the day's runs back (sunna#53), with a note: the
+    # count starts over and a rest for spent runs is lifted.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
+  end
+
   defmodule WorkRested do
     # The loop resting, and why: "empty, holding" is a state, not a failure.
     use Oneiroi.Event, version: 1, fields: [:id, :reason]

@@ -762,3 +762,11 @@ She cannot act on a schedule she cannot see, so the read says everything
 that decides her next turn; registering is a tool because it is her
 choice each time, and the profile is hers for the reason the watch is.
 
+## #85
+On 2026-11-11 `pr_meta` raised on every call in production: the unset
+token arrived as a secret wrapped around nil, and the header built
+"Bearer " with nothing. The raise ended the whole turn, which ended the
+work run unwrapped, and the loop started the same item again: twenty
+runs of one item in eight minutes, each an empty conversation. A tool is
+one step in a turn; its failure is something to tell her, not a reason
+to end what she was doing.

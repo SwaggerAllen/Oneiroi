@@ -118,6 +118,10 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     queue(multi, e.id, armed: false, armed_at: nil, armed_by: nil)
   end)
 
+  fold(%Events.WorkRunsReset{} = e, _metadata, fn multi ->
+    queue(multi, e.id, runs_on_day: 0, rested_reason: nil, rested_at: nil)
+  end)
+
   fold(%Events.WorkRested{} = e, _metadata, fn multi ->
     queue(multi, e.id, rested_reason: e.reason, rested_at: e.at)
   end)

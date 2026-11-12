@@ -347,3 +347,16 @@ her day, so the beats knock there. Her quiet hours win because they are
 hers and the household's tempo is the household's: a turn she sleeps
 through is a missed chance, counted, and the beat goes on.
 
+## #52
+A failing item is first in the queue, so an immediate check starts it
+again and it fails the same way: on 2026-11-11 a crashing tool spent
+the day's twenty runs in eight minutes. The cap held, but too late to
+be useful. A pause turns a tight failure loop into a few tries an hour,
+leaving time for a fix, or for the witness to notice.
+
+## #53
+The daily cap guards against a loop that never empties, but when runs
+are spent by a fault and not by work, the cap keeps the line shut until
+midnight in her zone, after the fault is fixed (the witness,
+2026-11-11: "so that once we fix this I can restart"). Giving the runs
+back is his act, with a note, so she reads why her day restarted.

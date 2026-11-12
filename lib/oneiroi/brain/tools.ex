@@ -20,11 +20,14 @@ defmodule Oneiroi.Brain.Tools do
   a trial.
   """
 
+  require Logger
+
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.PluginConsent
@@ -1258,7 +1261,7 @@ defmodule Oneiroi.Brain.Tools do
           "#{switch.label} is switched off in your agreement with your witness; a version that turns it on, agreed by you both, brings it back."
 
       {nil, {:ok, args}} ->
-        name |> call(args, turn) |> text()
+        guarded(name, args, turn)
 
       {nil, :error} ->
         @not_done <> "the arguments were not a JSON object."
@@ -4477,4 +4480,23 @@ defmodule Oneiroi.Brain.Tools do
 
   defp sibling?(member, id, name),
     do: member.kind == "resident" and member.id != id and String.downcase(member.name) == name
+
+  # A tool that raises answers in words, and the turn goes on (brain#85):
+  # one broken tool must not end the turn, and with it a work run, which
+  # the loop would start again (sunna#52).
+  defp guarded(name, args, turn) do
+    name |> call(args, turn) |> text()
+  rescue
+    exception ->
+      failure = Error.caught(:brain_tool_raised, :brain_tools_tool_raised, exception, tool: name)
+
+      Logger.error(
+        "brain: the tool #{name} raised: " <> Exception.format(:error, exception, __STACKTRACE__),
+        error_kind: failure.kind,
+        error_site: failure.site
+      )
+
+      @not_done <>
+        "the tool #{name} failed inside the platform, not by anything you did; it is logged for the platform's team. Carry on without it."
+  end
 end

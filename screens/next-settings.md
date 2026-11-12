@@ -113,7 +113,7 @@ it, in the server's own words.
 - **Work queue** (sunna#33, #35, #38, #42, #43):
   - the line in words: running, resting, runs today, armed by whom and
     what is left of its cap; "Arm the work line" when it is off and
-    something is open, "Turn the work line off" when armed;
+    something is open, "Turn the work line off" when armed; once a run has been used today, how many of the day's runs are used and "Reset today's runs" with a note she reads (sunna#53);
   - the live items in order: status, who added it, runs, done when, the
     last wrap (shipped, slipped, why), the note; with a note: Blocked on
     another item, Unblock, Done, Drop; "Move up";
@@ -135,7 +135,7 @@ it, in the server's own words.
 | (new) | `declinePush` | Notifications |
 | Regression | `regressionTests`, `regressionRuns`, `regressionRun`, `writeTest`, `changeTest`, `startRun`, `grade`, `favourite`, `pinModel`, `socketToken` with the run channel | Regression |
 | (new here) | `suggestTrials` | Regression |
-| Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork` | Work queue |
+| Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
 
 Not built:
 - Correspondence (the Mail view replaces it);

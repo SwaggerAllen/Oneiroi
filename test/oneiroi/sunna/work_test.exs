@@ -513,4 +513,49 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert Tools.run("work_list", "{}", turn) =~
              "#1 [open] Social spec. Done when: a draft for his read (added by resident, 0 runs)."
   end
+
+  test "a run that fails waits before the next check, so one broken run cannot spend the day (sunna#52)",
+       ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Design people-memory", "a draft", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+
+    # The turn fails (here, the budget stops it): the run ends unwrapped.
+    :ok = Nisaba.set_budget(ctx.id, :work, 1, :day, ctx.actor)
+    clear_jobs()
+    assert {:error, _} = WorkLoop.turn(ctx.id, key, 1, 1)
+    assert %{running: nil} = Sunna.work_queue(ctx.id)
+
+    # The next check is scheduled after the pause, not at once.
+    [scheduled] =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Sunna.WorkWorker",
+            select: %{args: j.args, at: j.scheduled_at}
+          )
+        )
+      end)
+      |> Enum.filter(&(&1.args["resident_id"] == ctx.id and &1.args["turn"] == "check"))
+
+    wait = Oneiroi.Config.fetch!(:sunna, :work_retry_seconds)
+    assert DateTime.diff(scheduled.at, DateTime.utc_now()) > wait - 60
+  end
+
+  test "the witness gives the day's runs back with a note; she cannot (sunna#53)", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Design people-memory", "a draft", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    assert %{runs_today: 1} = Sunna.work_queue(ctx.id)
+
+    assert {:error, %{kind: :sunna_work_not_a_party}} =
+             Sunna.work_reset_runs(ctx.id, "mine back", ctx.me)
+
+    clear_jobs()
+    assert :ok = Sunna.work_reset_runs(ctx.id, "the broken runs are fixed", ctx.actor)
+    assert %{runs_today: 0} = Sunna.work_queue(ctx.id)
+    # The loop checks at once.
+    assert Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))
+  end
 end
