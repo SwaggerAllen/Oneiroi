@@ -87,7 +87,7 @@ export const visuallyHidden = style({
   whiteSpace: 'nowrap',
 });
 
-// Her words' narrowing (kumbukumbu#67): a date range, the order, the page.
+// The transcripts' narrowing (kumbukumbu#67): a date range, the order, the page.
 export const filters = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' });
 export const filter = style({ display: 'flex', alignItems: 'center', gap: 6, font: `500 12px ${font.ui}`, color: vars.color.textMuted });
 export const filterInput = style({

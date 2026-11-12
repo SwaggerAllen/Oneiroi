@@ -50,10 +50,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 - **Search.** One sheet, from the header icon or ⌘K, with scope chips.
   It answers from the cross-kind search (kumbukumbu#59): every scope,
   typed results with their kind, title, day and snippet. A record or a
-  scene opens in Records, a bookmark as its citation, and her words open
+  scene opens in Records, a bookmark as its citation, and a transcript hit opens
   the conversation at that turn (`#/chat/turn/<session>/<turn>`); a turn
   in another session switches to Conversation but cannot open there yet,
-  because no transcript reader for other sessions is built. Her words
+  because no transcript reader for other sessions is built. Transcripts
   also narrow (kumbukumbu#67): From and To days (this browser's zone,
   both included), Newest or Oldest first, and a page of 50 with Newer
   and Next page buttons when there is more than one.

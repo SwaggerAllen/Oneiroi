@@ -409,7 +409,7 @@ export const api = {
       `/v1/residents/${residentId}/days?from=${from}&to=${to}`,
     ),
   // The one search across kinds (kumbukumbu#59, spec F66).
-  // Her words page, sort and take a date range (kumbukumbu#67): `from`
+  // Transcripts page, sort and take a date range (kumbukumbu#67): `from`
   // and `to` are instants, `to` exclusive.
   search: (residentId: string, q: string, scope: string, words?: { page: number; sort: 'newest' | 'oldest'; from?: string; to?: string }) => {
     const narrow = words

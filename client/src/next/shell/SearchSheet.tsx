@@ -14,7 +14,7 @@ const LABEL: Record<Scope, string> = {
   records: 'Records',
   bookmarks: 'Bookmarks',
   scenes: 'Scenes',
-  words: 'Her words',
+  words: 'Transcripts',
   'as-she-sees-it': 'As she sees it',
 };
 
@@ -29,7 +29,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   const setOpen = useShell((s) => s.setSearchOpen);
   const [q, setQ] = useState('');
   const [scope, setScope] = useState<Scope>('everything');
-  // Her words narrow further (kumbukumbu#67): days in this browser's zone,
+  // Transcripts narrow further (kumbukumbu#67): days in this browser's zone,
   // both included, newest or oldest first, and a page of 50.
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -167,7 +167,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   );
 }
 
-const KIND: Record<SearchResult['type'], string> = { transcript: 'Words', document: 'Record', bookmark: 'Bookmark', scene: 'Scene' };
+const KIND: Record<SearchResult['type'], string> = { transcript: 'Transcript', document: 'Record', bookmark: 'Bookmark', scene: 'Scene' };
 
 /** Where a result lives: a turn in the conversation, a document, a bookmark. */
 function hrefOf(hit: SearchResult): string {
