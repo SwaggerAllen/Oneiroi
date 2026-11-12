@@ -44,16 +44,18 @@ defmodule OneiroiWeb.WorkController do
   end
 
   operation(:move,
-    summary: "Move an item's status with a note: open, blocked (on what), done or dropped",
+    summary:
+      "Move an item's status with a note: open, blocked (on what), held (with an ask of the witness, sunna#54; the note optional), done or dropped. Moving a held item open releases it (sunna#55)",
     parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
     request_body:
       {"the move", "application/json",
        %Schema{
          type: :object,
-         required: [:status, :note],
+         required: [:status],
          properties: %{
-           status: %Schema{type: :string, enum: ~w(open blocked done dropped)},
+           status: %Schema{type: :string, enum: ~w(open blocked held done dropped)},
            blocked_on: %Schema{type: :string},
+           ask: %Schema{type: :string},
            note: %Schema{type: :string}
          }
        }},
@@ -62,15 +64,7 @@ defmodule OneiroiWeb.WorkController do
 
   def move(conn, %{"id" => id, "number" => number} = params) do
     with {n, ""} <- Integer.parse(to_string(number)),
-         :ok <-
-           Sunna.work_move(
-             id,
-             n,
-             params["status"],
-             params["blocked_on"],
-             params["note"],
-             actor(conn)
-           ) do
+         :ok <- moved(id, n, params, actor(conn)) do
       send_resp(conn, 204, "")
     else
       {:error, %{kind: :sunna_no_such_work} = e} -> error(conn, 404, e)
@@ -132,6 +126,30 @@ defmodule OneiroiWeb.WorkController do
       {:error, e} -> error(conn, 422, e)
     end
   end
+
+  operation(:reset_runs,
+    summary:
+      "Give the day's work runs back (sunna#53): the count starts over and the loop checks at once; the witness's, with a note",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the note", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "reset"]
+  )
+
+  def reset_runs(conn, %{"id" => id} = params) do
+    case Sunna.work_reset_runs(id, params["note"], actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  # Held carries the ask (sunna#54); every other status is a plain move.
+  defp moved(id, n, %{"status" => "held"} = params, actor),
+    do: Sunna.work_hold(id, n, params["ask"], params["note"], actor)
+
+  defp moved(id, n, params, actor),
+    do: Sunna.work_move(id, n, params["status"], params["blocked_on"], params["note"], actor)
 
   defp number_invalid(conn),
     do:

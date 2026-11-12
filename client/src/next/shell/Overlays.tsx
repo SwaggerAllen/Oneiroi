@@ -56,6 +56,7 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   ask: 'An ask',
   piece_to_review: 'A piece to review',
   piece_to_publish: 'A piece to publish',
+  work_held: 'Work · waiting on you',
   work_blocked: 'Work waiting on you',
   plugin_proposal: 'A plugin proposal',
   kind_gate_proposal: 'A kind gate proposal',
@@ -88,7 +89,8 @@ const HREF: Record<string, string> = {
 };
 const hrefFor = (screen: string, kind?: string) => (kind === 'plugin_proposal' ? '#/soul/plugins' : (HREF[screen] ?? '#/chat'));
 
-function Bell() {
+/** What waits on you and on her: exported for its test, which renders it without the modal. */
+export function Bell() {
   const { id, name } = useSubject();
   const setOverlay = useShell((s) => s.setOverlay);
   const needs = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id) });

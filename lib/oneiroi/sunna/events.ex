@@ -188,12 +188,21 @@ defmodule Oneiroi.Sunna.Events do
   end
 
   defmodule WorkMoved do
-    # A status set by hand (open, blocked, done, dropped), with its note;
+    # A status set by hand (open, blocked, done, dropped; held is
+    # `WorkHeld`, sunna#54), with its note;
     # `blocked_on` names what holds a blocked item.
     use Oneiroi.Event,
       version: 1,
       decision: true,
       fields: [:id, :number, :status, :blocked_on]
+  end
+
+  defmodule WorkHeld do
+    # An item held for the witness (sunna#54): its next move is his, and
+    # `ask` says in plain words what she, or he, needs from him; with the
+    # note of the move or the wrap that held it. The status is `held`
+    # until a move or a start takes it out (sunna#55).
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :ask]
   end
 
   defmodule WorkOrdered do
@@ -230,6 +239,12 @@ defmodule Oneiroi.Sunna.Events do
   defmodule WorkDisarmed do
     # The batch over: the check found the queue clear, and the line is off.
     use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
+  defmodule WorkRunsReset do
+    # The witness gives the day's runs back (sunna#53), with a note: the
+    # count starts over and a rest for spent runs is lifted.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
 
   defmodule WorkRested do

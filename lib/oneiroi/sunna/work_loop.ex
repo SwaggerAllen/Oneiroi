@@ -65,7 +65,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  @doc "Moves an item's status (open, blocked with what blocks it, done, dropped), with a note."
+  @doc "Moves an item's status (open, blocked with what blocks it, done, dropped), with a note; held is `hold/5`."
   def move(resident_id, number, status, blocked_on, note, %Actor{} = actor) do
     command = %Commands.MoveWork{
       actor: actor,
@@ -79,6 +79,28 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
     with {:ok, _} <- dispatch(command), do: :ok
   end
+
+  @doc """
+  Holds an item for the witness (sunna#54): its next move is his, and
+  `ask` says what is needed of him in plain words. Either party's; the
+  note, when none is given, says only that it is held. It clears when
+  the item is moved or started (sunna#55).
+  """
+  def hold(resident_id, number, ask, note, %Actor{} = actor) do
+    command = %Commands.MoveWork{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      number: number,
+      status: "held",
+      ask: ask,
+      note: if(blank?(note), do: "Held for the witness's word.", else: note)
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  defp blank?(text), do: not is_binary(text) or String.trim(text) == ""
 
   @doc "Puts the numbers given first, in that order; the rest keep theirs after."
   def order(resident_id, numbers, %Actor{} = actor) do
@@ -97,7 +119,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
       slipped: attrs[:slipped],
       why: attrs[:why],
       status: attrs[:status],
-      blocked_on: attrs[:blocked_on]
+      blocked_on: attrs[:blocked_on],
+      ask: attrs[:ask]
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
@@ -122,6 +145,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
          do: :ok
   end
 
+  @doc "The witness gives the day's runs back (sunna#53), with a note; the loop checks at once."
+  def reset_runs_by(resident_id, note, %Actor{} = actor) do
+    command = %Commands.ResetWorkRuns{actor: actor, at: Clock.now(), id: resident_id, note: note}
+
+    with {:ok, _} <- dispatch(command) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
   defp disarm(resident_id),
     do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
 
@@ -140,6 +173,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
             :done_when,
             :status,
             :blocked_on,
+            :held_ask,
+            :held_by,
+            :held_at,
             :position,
             :added_by,
             :added_at,
@@ -216,16 +252,17 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  # Nothing open: what is left waits on other work or on the witness
+  # (sunna#42, #54), named.
   defp empty(items) do
-    case Enum.filter(items, &(&1.status == "blocked")) do
-      [] ->
-        "empty, holding"
-
-      blocked ->
-        "empty, holding: " <>
-          Enum.map_join(blocked, "; ", &"##{&1.number} blocked on #{&1.blocked_on}")
+    case Enum.filter(items, &(&1.status in ["blocked", "held"])) do
+      [] -> "empty, holding"
+      waiting -> "empty, holding: " <> Enum.map_join(waiting, "; ", &waiting/1)
     end
   end
+
+  defp waiting(%{status: "held"} = i), do: "##{i.number} held for the witness: #{i.held_ask}"
+  defp waiting(i), do: "##{i.number} blocked on #{i.blocked_on}"
 
   defp start(resident_id, item) do
     with {:ok, row} <- resident(resident_id),
@@ -327,7 +364,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
     ended =
       dispatch(%Commands.EndWork{actor: @actor, at: Clock.now(), id: resident_id, number: number})
 
-    worker().enqueue_check(resident_id)
+    # A run that ended in an error waits before the next check (sunna#52):
+    # the same item would start again at once, fail the same way, and a
+    # day's runs went in eight minutes of empty conversations (2026-11-11).
+    case result do
+      {:error, _} ->
+        worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds))
+
+      _ok ->
+        worker().enqueue_check(resident_id)
+    end
 
     case {result, ended} do
       {{:error, _} = failed, _} -> failed
@@ -432,9 +478,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
         if(item.slipped, do: "; slipped: #{item.slipped}", else: "") <> "; why: #{item.why}."
 
   defp line(item) do
-    blocked = if item.blocked_on, do: " on #{item.blocked_on}", else: ""
-    "#{item.number}. [#{item.status}#{blocked}] #{item.what} (added by #{item.added_by})"
+    "#{item.number}. [#{item.status}#{on(item)}] #{item.what} (added by #{item.added_by})"
   end
+
+  defp on(%{status: "held", held_ask: ask}) when is_binary(ask), do: ": #{ask}"
+  defp on(%{blocked_on: on}) when is_binary(on), do: " on #{on}"
+  defp on(_item), do: ""
 
   # ---- care, budget, state ----
 

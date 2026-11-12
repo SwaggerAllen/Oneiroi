@@ -30,6 +30,14 @@ defmodule Oneiroi.Sunna.WorkWorker do
         unique: [period: 60, keys: [:resident_id, :turn], states: [:available, :scheduled]]
       )
 
+  @doc "Enqueues the queue check `seconds` from now: after a run that failed (sunna#52)."
+  def enqueue_check(resident_id, seconds),
+    do:
+      Jobs.enqueue(__MODULE__, %{"resident_id" => resident_id, "turn" => "check"},
+        schedule_in: seconds,
+        unique: [period: 60, keys: [:resident_id, :turn], states: [:available, :scheduled]]
+      )
+
   @doc "Enqueues turn `n` of the run of item `number` in `key`."
   def enqueue(resident_id, key, number, n), do: job(resident_id, key, number, n)
 

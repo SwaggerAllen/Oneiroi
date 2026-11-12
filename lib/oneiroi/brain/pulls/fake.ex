@@ -20,6 +20,9 @@ defmodule Oneiroi.Brain.Pulls.Fake do
         Map.put(all(), number, %{pull: pull, files: files, checks: checks})
       )
 
+  @doc "Makes reading pull request `number` raise, as a broken client would (brain#85)."
+  def raise_on(number), do: :persistent_term.put(@key, Map.put(all(), number, :raise))
+
   @doc "The tokens the reads were handed, in order, unwrapped (nil for anonymous)."
   def tokens, do: :persistent_term.get(@tokens, [])
 
@@ -58,6 +61,7 @@ defmodule Oneiroi.Brain.Pulls.Fake do
   defp with_pull(number, take) do
     case Map.get(all(), number) do
       nil -> {:error, Error.new(:brain_pulls_absent, :brain_pulls_fake_not_found)}
+      :raise -> raise ArgumentError, "a broken pull request client"
       p -> {:ok, take.(p)}
     end
   end

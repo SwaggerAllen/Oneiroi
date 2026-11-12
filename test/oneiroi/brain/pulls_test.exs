@@ -137,4 +137,22 @@ defmodule Oneiroi.Brain.PullsTest do
     assert {:error, %{kind: :gaia_no_github_token}} =
              Oneiroi.Gaia.revoke_github_token(witness.id, me)
   end
+
+  test "an unset token reads anonymously, never a crash; a tool that raises answers in words (brain#85)" do
+    alias Oneiroi.Brain.Pulls.GitHub
+    alias Oneiroi.Config.Secret
+
+    # Production's optional secret arrives wrapped around nothing.
+    for token <- [nil, Secret.wrap(nil), Secret.wrap("")] do
+      refute Enum.any?(GitHub.headers(token), fn {name, _} -> name == "authorization" end)
+    end
+
+    assert {"authorization", "Bearer tok"} in GitHub.headers(Secret.wrap("tok"))
+
+    # A client that raises: the tool says so and the turn goes on.
+    Fake.raise_on(99)
+    out = Tools.run("pr_meta", ~s({"number": 99}), Process.get(:turn))
+    assert out =~ "Not done:"
+    assert out =~ "failed inside the platform"
+  end
 end
