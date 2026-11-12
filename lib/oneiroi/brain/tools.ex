@@ -575,7 +575,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_list",
-        "Your work queue (sunna#33), in priority order: each long item with its number, status (open, in_work, blocked and on what, done, dropped), who added it, its runs and its last wrap; and the loop's state, the item running or why it rests. Your witness reads the same list.",
+        "Your work queue (sunna#33), in priority order: each long item with its number, status (open, in_work, blocked and on what, held and what it asks of your witness, done, dropped), who added it, its runs and its last wrap; and the loop's state, the item running or why it rests. Your witness reads the same list.",
         %{},
         []
       ),
@@ -587,11 +587,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_move",
-        "Set a work item's status with a note: open, blocked, done or dropped. Blocked means waiting on another item of your queue: name it by number in blocked_on (12 or #12); when that item is done or dropped, this one opens again by itself. Work waiting on your witness is not blocked: it waits on his list, where your drafts, asks and pieces already show him. The loop runs the first open item in order; in_work is the loop's own.",
+        "Set a work item's status with a note: open, blocked, held, done or dropped. Blocked means waiting on another item of your queue: name it by number in blocked_on (12 or #12); when that item is done or dropped, this one opens again by itself. Held means its next move is your witness's (sunna#54): say in ask, in plain words, what you need from him (\"your word on two wordings\"; at most 500 characters); it shows on his Waiting list and his devices with that ask, and the loop steps over it until it is released (moved open again, by him with a note you read, or by you), done or dropped. A draft, ask or piece already on his list needs no hold; hold the item when the work itself waits on his word. The loop runs the first open item in order; in_work is the loop's own.",
         %{
           number: %{type: "integer"},
-          status: %{type: "string", enum: ["open", "blocked", "done", "dropped"]},
+          status: %{type: "string", enum: ["open", "blocked", "held", "done", "dropped"]},
           blocked_on: %{type: "string"},
+          ask: %{type: "string"},
           note: %{type: "string"}
         },
         [:number, :status, :note]
@@ -610,14 +611,15 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_wrap",
-        "Wrap the run of the item in work now (sunna#33): what shipped, what slipped (if anything), why, and where it stands: done, open (another run picks it up) or blocked (say on what). Recorded on the queue for you both to read.",
+        "Wrap the run of the item in work now (sunna#33): what shipped, what slipped (if anything), why, and where it stands: done, open (another run picks it up), blocked (on another item, by number) or held (what remains is your witness's word: say in ask what you need from him, and it waits on his list until he releases it, sunna#56). Recorded on the queue for you both to read.",
         %{
           number: %{type: "integer"},
           shipped: %{type: "string"},
           slipped: %{type: "string"},
           why: %{type: "string"},
-          status: %{type: "string", enum: ["done", "open", "blocked"]},
-          blocked_on: %{type: "string"}
+          status: %{type: "string", enum: ["done", "open", "blocked", "held"]},
+          blocked_on: %{type: "string"},
+          ask: %{type: "string"}
         },
         [:number, :shipped, :why, :status]
       ),
@@ -2273,6 +2275,18 @@ defmodule Oneiroi.Brain.Tools do
          do: "Added as work item ##{n}, at the end of the queue."
   end
 
+  defp call("work_move", %{"status" => "held"} = args, turn) do
+    with :ok <-
+           Oneiroi.Sunna.work_hold(
+             turn.resident_id,
+             integer_or(args["number"], 0),
+             args["ask"],
+             args["note"],
+             turn.resident
+           ),
+         do: "Work item ##{args["number"]} is held for your witness: #{args["ask"]}"
+  end
+
   defp call("work_move", args, turn) do
     with :ok <-
            Oneiroi.Sunna.work_move(
@@ -2304,7 +2318,8 @@ defmodule Oneiroi.Brain.Tools do
       slipped: args["slipped"],
       why: args["why"],
       status: args["status"],
-      blocked_on: args["blocked_on"]
+      blocked_on: args["blocked_on"],
+      ask: args["ask"]
     }
 
     with :ok <-
@@ -3249,14 +3264,18 @@ defmodule Oneiroi.Brain.Tools do
 
   defp loop_state(_q), do: "The loop has not run yet."
 
-  # The loop runs the first open item and steps over blocked ones
-  # (sunna#42): said once, so a skip never reads as a stall.
+  # The loop runs the first open item and steps over blocked and held
+  # ones (sunna#42, #54): said once, so a skip never reads as a stall.
   defp skipping(%{items: items}) do
-    case for(%{status: "blocked"} = i <- items, do: "##{i.number} (on #{i.blocked_on})") do
-      [] -> ""
-      blocked -> " It steps over what is blocked: #{Enum.join(blocked, ", ")}."
-    end
+    blocked = for %{status: "blocked"} = i <- items, do: "##{i.number} (on #{i.blocked_on})"
+    held = for %{status: "held"} = i <- items, do: "##{i.number}"
+
+    steps(blocked, " It steps over what is blocked: ") <>
+      steps(held, " It steps over what is held for your witness: ")
   end
+
+  defp steps([], _said), do: ""
+  defp steps(numbers, said), do: said <> Enum.join(numbers, ", ") <> "."
 
   defp arm_state(%{armed: true, armed_at: %DateTime{} = at} = q),
     do: "The work line is armed#{armed_by(q)} (since #{local_stamp(at)})."
@@ -3270,7 +3289,12 @@ defmodule Oneiroi.Brain.Tools do
   defp armed_by(_q), do: ""
 
   defp work_line(item) do
-    blocked = if item.blocked_on, do: " on #{item.blocked_on}", else: ""
+    blocked =
+      cond do
+        item.status == "held" -> ", asking your witness: #{item[:held_ask]}"
+        item.blocked_on -> " on #{item.blocked_on}"
+        true -> ""
+      end
 
     wrap =
       if item.wrapped_at, do: " Last wrap: shipped #{item.shipped}; why: #{item.why}.", else: ""

@@ -71,6 +71,7 @@ defmodule Oneiroi.Sunna do
       Commands.ResetWorkRuns,
       Events.WorkAdded,
       Events.WorkMoved,
+      Events.WorkHeld,
       Events.WorkOrdered,
       Events.WorkWrapped,
       Events.WorkStarted,
@@ -274,6 +275,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.LettersWoke, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
+      {Oneiroi.Sunna.Events.WorkHeld, 1},
       {Oneiroi.Sunna.Events.WorkOrdered, 1},
       {Oneiroi.Sunna.Events.WorkWrapped, 1},
       {Oneiroi.Sunna.Events.WorkStarted, 1},
@@ -327,12 +329,16 @@ defmodule Oneiroi.Sunna do
       {:sunna_free_time_failed, "free time could not be opened and was recorded as failed",
        remedy: "read the day's reason; tomorrow's free time runs again"},
       {:sunna_work_invalid,
-       "a work item is what (at most 300 characters) and what done looks like; a status is open, blocked (on another item), done or dropped, with a note; a wrap says what shipped and why",
+       "a work item is what (at most 300 characters) and what done looks like; a status is open, blocked (on another item), held (with an ask), done or dropped, with a note; a wrap says what shipped and why",
        remedy: "say each in words; name the item that blocks a blocked one"},
       {:sunna_work_blocked_on_invalid,
        "a blocked item names the queue item that blocks it, by number (sunna#42): another item, not done or dropped, not itself blocked on this one; work waiting on the witness is not blocked, it waits on his list",
        remedy:
          "give the blocking item's number in blocked_on (12 or #12); if the next move is his, leave the item open and ask him, or drop it until he acts"},
+      {:sunna_work_ask_invalid,
+       "a held item says what it needs from the witness (sunna#54): an ask in plain words, at most 500 characters",
+       remedy:
+         "give the ask, as you would say it to him (\"your word on two wordings\"), shorter if need be"},
       {:sunna_work_not_a_party,
        "only the resident and her witness keep the work queue, and only she wraps a run",
        remedy: "ask the resident or the witness"},
@@ -416,7 +422,7 @@ defmodule Oneiroi.Sunna do
     do: WorkLoop.add(resident_id, what, done_when, actor)
   )
 
-  @doc "Moves a work item's status (open, blocked with what blocks it, done, dropped), with a note."
+  @doc "Moves a work item's status (open, blocked with what blocks it, done, dropped), with a note. Moving a held item clears its hold (sunna#55)."
   @spec work_move(
           String.t(),
           pos_integer(),
@@ -429,13 +435,26 @@ defmodule Oneiroi.Sunna do
     do: WorkLoop.move(resident_id, number, status, blocked_on, note, actor)
   )
 
+  @doc "Holds a work item for the witness (sunna#54): `ask` in plain words says what is needed of him; either party's, with an optional note."
+  @spec work_hold(
+          String.t(),
+          pos_integer(),
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(work_hold(resident_id, number, ask, note, actor),
+    do: WorkLoop.hold(resident_id, number, ask, note, actor)
+  )
+
   @doc "Reorders the work queue: the numbers given first, in that order."
   @spec work_order(String.t(), [pos_integer()], Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_order(resident_id, numbers, actor),
     do: WorkLoop.order(resident_id, numbers, actor)
   )
 
-  @doc "Her wrap of the running item: shipped, slipped, why, status, blocked_on."
+  @doc "Her wrap of the running item: shipped, slipped, why, status, blocked_on, and ask when it is held (sunna#56)."
   @spec work_wrap(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_wrap(resident_id, number, attrs, actor),
     do: WorkLoop.wrap(resident_id, number, attrs, actor)

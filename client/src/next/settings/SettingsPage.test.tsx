@@ -81,6 +81,29 @@ describe('settings pages', () => {
     expect(back).toHaveBeenCalled();
   });
 
+  it('holds an item for you with an ask, and releases it with a note (sunna#54, #55)', async () => {
+    vi.spyOn(api, 'work').mockResolvedValue({ ...queue, items: [item(1, 'Read the essay'), { ...item(2, 'Write the reply'), status: 'held', held_ask: 'your word on two wordings', held_by: 'resident', held_at: '2026-11-11T09:00:00Z' }] });
+    const hold = vi.spyOn(api, 'holdWork').mockResolvedValue(undefined);
+    const move = vi.spyOn(api, 'moveWork').mockResolvedValue(undefined);
+    page('work');
+
+    // The held one says so, with her ask, and is released only with a note.
+    expect(await screen.findByText('HELD · she asks you: your word on two wordings')).toBeTruthy();
+    const release = screen.getByRole('button', { name: 'Release' }) as HTMLButtonElement;
+    expect(release.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('A note on #2'), { target: { value: 'the second one' } });
+    fireEvent.click(release);
+    await waitFor(() => expect(move).toHaveBeenCalledWith('r1', 2, 'open', null, 'the second one'));
+
+    // The open one is held for you only with an ask.
+    fireEvent.click(screen.getByRole('button', { name: 'Hold for me…' }));
+    const button = screen.getByRole('button', { name: 'Hold' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('What #1 waits on you for'), { target: { value: 'my read first' } });
+    fireEvent.click(button);
+    await waitFor(() => expect(hold).toHaveBeenCalledWith('r1', 1, 'my read first', null));
+  });
+
   it('changes a budget line from the line itself', async () => {
     const ledger: Ledger = {
       key: { present: true, stored_at: '2026-11-01T00:00:00Z' },

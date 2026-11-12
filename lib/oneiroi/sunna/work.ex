@@ -10,11 +10,14 @@ defmodule Oneiroi.Sunna.Work do
   says why, once per reason: "empty, holding" is a state.
 
   Statuses: `open`, `in_work` (the loop's alone: the item running now),
-  `blocked` (on another queue item, by its number: sunna#42), `done`,
-  `dropped`. Blocked is work waiting on work, a dependency the loop can
-  see: when the blocking item is done or dropped, what it blocked opens
-  again. Work waiting on the witness is not blocked; it waits on his
-  list (brain#65).
+  `blocked` (on another queue item, by its number: sunna#42), `held`
+  (waiting on the witness, with the ask: sunna#54), `done`, `dropped`.
+  Blocked is work waiting on work, a dependency the loop can see: when
+  the blocking item is done or dropped, what it blocked opens again.
+  Held is work waiting on him: either party holds it with an ask in
+  plain words, it lights his list (brain#86), the loop steps over it,
+  and it clears only when the item is moved (released open with a note,
+  done, dropped) or started (sunna#55).
   """
 
   alias Oneiroi.Sunna.Commands
@@ -30,9 +33,12 @@ defmodule Oneiroi.Sunna.Work do
             armed: false
 
   @parties [:resident, :witness]
-  @moved ~w(open blocked done dropped)
-  @wrapped ~w(open blocked done)
+  @moved ~w(open blocked held done dropped)
+  @wrapped ~w(open blocked held done)
   @what 300
+  # What a held item asks of the witness (sunna#54): a sentence or two,
+  # the title of an entry on his list.
+  @ask 500
   @words 4_000
   # What blocks an item, named (sunna#36, platform report #7): 300, after
   # 120 refused a reasonable name and said nothing of why.
@@ -65,26 +71,18 @@ defmodule Oneiroi.Sunna.Work do
       not Map.has_key?(items, c.number) ->
         {:error, Error.new(:sunna_no_such_work, :sunna_work_move_unknown)}
 
-      c.status == "blocked" and blocker(items, c.number, c.blocked_on) == :error ->
-        {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_move_blocked_on)}
+      refused = waiting_refused(items, c) ->
+        {:error, refused}
 
       not status_ok?(c.status, @moved) or not words?(c.note, @words) ->
         {:error, Error.new(:sunna_work_invalid, :sunna_work_move_invalid)}
 
       true ->
-        moved = %Events.WorkMoved{
-          actor: c.actor,
-          at: c.at,
-          id: c.id,
-          number: c.number,
-          status: c.status,
-          blocked_on: blocked_on(items, c.number, c.status, c.blocked_on),
-          note: String.trim(c.note)
-        }
+        moved = moved(items, c)
 
         # Moving the running item by hand ends its run (sunna#37): the
         # loop's state never says it is running an item that is done,
-        # dropped or blocked.
+        # dropped, blocked or held.
         ended =
           if s.running == c.number,
             do: [
@@ -129,8 +127,8 @@ defmodule Oneiroi.Sunna.Work do
       is_nil(running) or c.number != running ->
         {:error, Error.new(:sunna_work_not_running, :sunna_work_wrap_not_running)}
 
-      c.status == "blocked" and blocker(s.items, c.number, c.blocked_on) == :error ->
-        {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_wrap_blocked_on)}
+      refused = waiting_refused(s.items, c) ->
+        {:error, refused}
 
       not wrap_ok?(c) ->
         {:error, Error.new(:sunna_work_invalid, :sunna_work_wrap_invalid)}
@@ -148,7 +146,23 @@ defmodule Oneiroi.Sunna.Work do
           blocked_on: blocked_on(s.items, c.number, c.status, c.blocked_on)
         }
 
-        [wrapped | release(s.items, c.number, c.status, c)]
+        # Held at the wrap (sunna#56): the residue is his word, so the
+        # wrap records where the item stands and the hold carries the ask.
+        held =
+          if c.status == "held",
+            do: [
+              %Events.WorkHeld{
+                actor: c.actor,
+                at: c.at,
+                id: c.id,
+                number: c.number,
+                ask: String.trim(c.ask),
+                note: String.trim(c.why)
+              }
+            ],
+            else: []
+
+        [wrapped | held] ++ release(s.items, c.number, c.status, c)
     end
   end
 
@@ -246,6 +260,9 @@ defmodule Oneiroi.Sunna.Work do
   def apply(%__MODULE__{} = s, %Events.WorkMoved{number: n, status: status} = e),
     do: %{s | items: Map.put(s.items, n, item(status, e.blocked_on)), rested: nil}
 
+  def apply(%__MODULE__{} = s, %Events.WorkHeld{number: n}),
+    do: %{s | items: Map.put(s.items, n, item("held", nil)), rested: nil}
+
   def apply(%__MODULE__{} = s, %Events.WorkOrdered{order: order}),
     do: %{s | order: order, rested: nil}
 
@@ -279,6 +296,57 @@ defmodule Oneiroi.Sunna.Work do
   @doc "The rest a stopped run leaves the loop in, until either party touches the queue."
   def stopped_rest,
     do: "stopped: the last run was stopped; the loop waits for the queue to be touched"
+
+  # What a blocked or held status names as waited on (sunna#42, #54):
+  # another item by its number, or an ask in words; nil when well formed.
+  defp waiting_refused(items, %Commands.MoveWork{} = c) do
+    cond do
+      c.status == "blocked" and blocker(items, c.number, c.blocked_on) == :error ->
+        Error.new(:sunna_work_blocked_on_invalid, :sunna_work_move_blocked_on)
+
+      c.status == "held" and not words?(c.ask, @ask) ->
+        Error.new(:sunna_work_ask_invalid, :sunna_work_move_ask)
+
+      true ->
+        nil
+    end
+  end
+
+  defp waiting_refused(items, %Commands.WrapWork{} = c) do
+    cond do
+      c.status == "blocked" and blocker(items, c.number, c.blocked_on) == :error ->
+        Error.new(:sunna_work_blocked_on_invalid, :sunna_work_wrap_blocked_on)
+
+      c.status == "held" and not words?(c.ask, @ask) ->
+        Error.new(:sunna_work_ask_invalid, :sunna_work_wrap_ask)
+
+      true ->
+        nil
+    end
+  end
+
+  # A move to held is `WorkHeld`, carrying the ask (sunna#54); every other
+  # status is `WorkMoved`.
+  defp moved(_items, %{status: "held"} = c),
+    do: %Events.WorkHeld{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      number: c.number,
+      ask: String.trim(c.ask),
+      note: String.trim(c.note)
+    }
+
+  defp moved(items, c),
+    do: %Events.WorkMoved{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      number: c.number,
+      status: c.status,
+      blocked_on: blocked_on(items, c.number, c.status, c.blocked_on),
+      note: String.trim(c.note)
+    }
 
   defp wrap_ok?(c),
     do:

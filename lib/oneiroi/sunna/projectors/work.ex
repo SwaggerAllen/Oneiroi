@@ -9,6 +9,10 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   alias Oneiroi.Sunna.Store.{WorkItem, WorkQueue}
   alias Oneiroi.Sunna.Work
 
+  # A held mark never outlives its ask (sunna#55): every move, wrap or
+  # start of the item clears it.
+  @unheld [held_ask: nil, held_by: nil, held_at: nil]
+
   fold(%Events.WorkAdded{} = e, _metadata, fn multi ->
     multi
     |> Multi.insert(
@@ -31,9 +35,30 @@ defmodule Oneiroi.Sunna.Projectors.Work do
 
   fold(%Events.WorkMoved{} = e, _metadata, fn multi ->
     multi
+    |> item(
+      e.id,
+      e.number,
+      [
+        status: e.status,
+        blocked_on: e.blocked_on,
+        note: e.note,
+        moved_by: Atom.to_string(e.actor.kind),
+        moved_at: e.at
+      ] ++ @unheld
+    )
+    |> queue(e.id, rested_reason: nil, rested_at: nil)
+  end)
+
+  # Held for the witness (sunna#54): the ask stands on the item until a
+  # move or a start takes it out (sunna#55).
+  fold(%Events.WorkHeld{} = e, _metadata, fn multi ->
+    multi
     |> item(e.id, e.number,
-      status: e.status,
-      blocked_on: e.blocked_on,
+      status: "held",
+      blocked_on: nil,
+      held_ask: e.ask,
+      held_by: Atom.to_string(e.actor.kind),
+      held_at: e.at,
       note: e.note,
       moved_by: Atom.to_string(e.actor.kind),
       moved_at: e.at
@@ -56,13 +81,20 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   end)
 
   fold(%Events.WorkWrapped{} = e, _metadata, fn multi ->
-    item(multi, e.id, e.number,
-      status: e.status,
-      blocked_on: e.blocked_on,
-      shipped: e.shipped,
-      slipped: e.slipped,
-      why: e.why,
-      wrapped_at: e.at
+    # A wrap held (sunna#56) is followed by its `WorkHeld`, which sets the
+    # ask again; any other wrap leaves nothing held.
+    item(
+      multi,
+      e.id,
+      e.number,
+      [
+        status: e.status,
+        blocked_on: e.blocked_on,
+        shipped: e.shipped,
+        slipped: e.slipped,
+        why: e.why,
+        wrapped_at: e.at
+      ] ++ @unheld
     )
   end)
 
@@ -71,7 +103,7 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     |> Multi.update_all(
       :started,
       from(w in WorkItem, where: w.resident_id == ^e.id and w.number == ^e.number),
-      set: [status: "in_work", blocked_on: nil, session_key: e.session_key],
+      set: [status: "in_work", blocked_on: nil, session_key: e.session_key] ++ @unheld,
       inc: [runs: 1]
     )
     |> Multi.run(:day_runs, fn repo, _ ->

@@ -516,6 +516,7 @@ export interface NeedsYouEntry {
     | 'ask'
     | 'piece_to_review'
     | 'piece_to_publish'
+    | 'work_held'
     | 'work_blocked'
     | 'plugin_proposal'
     | 'kind_gate_proposal'
@@ -525,7 +526,7 @@ export interface NeedsYouEntry {
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string } };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string } };
 }
 
 /** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */
@@ -578,6 +579,10 @@ export interface WorkItem {
   done_when: string;
   status: 'open' | 'in_work' | 'blocked' | 'done' | 'dropped' | string;
   blocked_on: string | null;
+  // Held for the witness (sunna#54): what it asks of him, who held it, when.
+  held_ask?: string | null;
+  held_by?: string | null;
+  held_at?: string | null;
   position: number;
   added_by: string;
   added_at: string;

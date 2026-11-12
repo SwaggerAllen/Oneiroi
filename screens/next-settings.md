@@ -110,13 +110,18 @@ it, in the server's own words.
     mocked steps); Passes, Fails, Favourite;
   - results by pass rate, with "Pin for chat" asked twice and the chat
     model marked.
-- **Work queue** (sunna#33, #35, #38, #42, #43):
+- **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55):
   - the line in words: running, resting, runs today, armed by whom and
     what is left of its cap; "Arm the work line" when it is off and
     something is open, "Turn the work line off" when armed; once a run has been used today, how many of the day's runs are used and "Reset today's runs" with a note she reads (sunna#53);
   - the live items in order: status, who added it, runs, done when, the
     last wrap (shipped, slipped, why), the note; with a note: Blocked on
     another item, Unblock, Done, Drop; "Move up";
+  - "Hold for me…" opens an ask field ("What #n waits on you for") and
+    Hold, required; a held item says "held for you" and "HELD · she asks
+    you: <ask>" (or "you held it"), and "Release", with the note she
+    reads, moves it open again (sunna#54, #55); the line says it steps
+    over what is held;
   - add work (what, done when); the last five finished.
 
 ## The current client's actions, each covered
@@ -136,11 +141,10 @@ it, in the server's own words.
 | Regression | `regressionTests`, `regressionRuns`, `regressionRun`, `writeTest`, `changeTest`, `startRun`, `grade`, `favourite`, `pinModel`, `socketToken` with the run channel | Regression |
 | (new here) | `suggestTrials` | Regression |
 | Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
+| (new) | `holdWork` | Work queue |
 
 Not built:
 - Correspondence (the Mail view replaces it);
-- the bell's entries for work, kinds and plugins still open the current
-  client's screens (the bell is `screens/next-bell-settings.md`'s);
 - subscription, export, retrieval and near-miss numbers
   (ui-structures.md D lists them under Settings; no screen exists yet);
 - the results' fidelity numbers (facts, voice, commitments), which the

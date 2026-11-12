@@ -11,6 +11,7 @@ defmodule Oneiroi.Sunna.WorkTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -557,5 +558,157 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert %{runs_today: 0} = Sunna.work_queue(ctx.id)
     # The loop checks at once.
     assert Enum.any?(jobs(ctx.id), &(&1["turn"] == "check"))
+  end
+
+  # Held (sunna#54–#56, brain#86): work whose next move is the witness's.
+  defp waiting(id), do: Enum.filter(NeedsYou.list(id), &(&1.kind == "work_held"))
+
+  test "either party holds an item with an ask; without one it is refused (sunna#54)", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.actor)
+
+    for ask <- [nil, "  ", String.duplicate("x", 501)] do
+      assert {:error, %{kind: :sunna_work_ask_invalid}} =
+               Sunna.work_hold(ctx.id, 1, ask, "his call", ctx.me)
+    end
+
+    # A plain move to held carries no ask, and is refused the same way.
+    assert {:error, %{kind: :sunna_work_ask_invalid}} =
+             Sunna.work_move(ctx.id, 1, "held", nil, "his call", ctx.me)
+
+    assert :ok = Sunna.work_hold(ctx.id, 1, "your word on two wordings", nil, ctx.me)
+    assert :ok = Sunna.work_hold(ctx.id, 2, "I want to read it first", "mine", ctx.actor)
+
+    items = Map.new(Sunna.work_queue(ctx.id).items, &{&1.number, &1})
+
+    assert %{
+             status: "held",
+             held_ask: "your word on two wordings",
+             held_by: "resident",
+             held_at: %DateTime{},
+             note: "Held for the witness's word."
+           } = items[1]
+
+    assert %{status: "held", held_by: "witness", note: "mine"} = items[2]
+
+    # Each lights his list, the ask its subject, since it was held.
+    assert [
+             %{
+               ref: 1,
+               screen: "work",
+               since: since,
+               about: %{ask: "your word on two wordings", subject: subject}
+             },
+             %{ref: 2}
+           ] = waiting(ctx.id)
+
+    assert since == items[1].held_at
+    assert subject == "Work item #1 held: your word on two wordings"
+  end
+
+  test "the loop steps over a held item to the next open one, and rests naming it", ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.me)
+    :ok = Sunna.work_hold(ctx.id, 1, "your word on two wordings", nil, ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 2} = WorkLoop.check(ctx.id)
+
+    turn = %{resident_id: ctx.id, session_key: "k", turn_ref: "t", resident: ctx.me}
+    listed = Tools.run("work_list", "{}", turn)
+    assert listed =~ "It steps over what is held for your witness: #1."
+    assert listed =~ "#1 [held, asking your witness: your word on two wordings] Kinds doc."
+
+    # Done with the other: nothing open, so it rests and names the hold.
+    :ok = Sunna.work_move(ctx.id, 2, "done", nil, "drafted", ctx.me)
+
+    assert {:rested, "empty, holding: #1 held for the witness: your word on two wordings"} =
+             WorkLoop.check(ctx.id)
+  end
+
+  test "a hold never outlives its ask: his release, a done, her reopening each clear it (sunna#55)",
+       ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.me)
+    {:ok, 3} = Sunna.work_add(ctx.id, "Social doc", "drafted", ctx.me)
+    for n <- 1..3, do: :ok = Sunna.work_hold(ctx.id, n, "your word on #{n}", nil, ctx.me)
+    assert [_, _, _] = waiting(ctx.id)
+
+    # He releases it open, with a note she reads.
+    :ok = Sunna.work_move(ctx.id, 1, "open", nil, "the second wording", ctx.actor)
+    # He finishes another; she reopens the third herself.
+    :ok = Sunna.work_move(ctx.id, 2, "done", nil, "said yes", ctx.actor)
+    :ok = Sunna.work_move(ctx.id, 3, "open", nil, "I'll decide it myself", ctx.me)
+
+    assert [] = waiting(ctx.id)
+
+    for i <- Sunna.work_queue(ctx.id).items do
+      assert %{held_ask: nil, held_by: nil, held_at: nil} = i
+    end
+
+    assert %{status: "open", note: "the second wording", moved_by: "witness"} =
+             hd(Sunna.work_queue(ctx.id).items)
+  end
+
+  test "her tools hold and wrap held; holding the running item ends its run (sunna#56)", ctx do
+    turn = %{
+      resident_id: ctx.id,
+      session_key: "s",
+      turn_ref: "t",
+      started_at: Clock.now(),
+      resident: ctx.me
+    }
+
+    {:ok, 1} = Sunna.work_add(ctx.id, "Kinds doc", "drafted", ctx.me)
+    {:ok, 2} = Sunna.work_add(ctx.id, "Routes doc", "drafted", ctx.me)
+
+    assert Tools.run("work_move", ~s({"number": 2, "status": "held", "note": "his"}), turn) =~
+             "ask"
+
+    assert Tools.run(
+             "work_move",
+             ~s({"number": 2, "status": "held", "ask": "which route name?", "note": "his"}),
+             turn
+           ) =~ "Work item #2 is held for your witness: which route name?"
+
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    wrap = %{
+      number: 1,
+      shipped: "two wordings",
+      why: "the choice is his",
+      status: "held"
+    }
+
+    # Held at the wrap needs its ask too.
+    assert Tools.run("work_wrap", Jason.encode!(wrap), turn) =~ "ask"
+
+    assert Tools.run(
+             "work_wrap",
+             Jason.encode!(Map.put(wrap, :ask, "your word on two wordings")),
+             turn
+           ) =~ "Wrapped: work item #1 is held."
+
+    assert %{
+             status: "held",
+             held_ask: "your word on two wordings",
+             shipped: "two wordings",
+             note: "the choice is his"
+           } = hd(Sunna.work_queue(ctx.id).items)
+
+    assert [%{ref: 1}, %{ref: 2}] = Enum.sort_by(waiting(ctx.id), & &1.ref)
+
+    # The run ends with the item still held, and nothing open rests.
+    assert {:rested, "empty, holding: #1 held for the witness" <> _} = WorkLoop.check(ctx.id)
+    assert %{running: nil} = Sunna.work_queue(ctx.id)
+
+    # Holding the item that runs ends its run, as any move does (sunna#37).
+    :ok = Sunna.work_move(ctx.id, 2, "open", nil, "the first name", ctx.actor)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 2} = WorkLoop.check(ctx.id)
+    :ok = Sunna.work_hold(ctx.id, 2, "one more look", nil, ctx.actor)
+
+    assert %{running: nil, items: [_, %{number: 2, status: "held", held_by: "witness"}]} =
+             Sunna.work_queue(ctx.id)
   end
 end

@@ -108,8 +108,10 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule MoveWork do
+    # `ask`: what a held item needs from the witness (sunna#54), required
+    # with status `held` and nothing otherwise.
     use Oneiroi.Command,
-      fields: [:id, :number, :status, :blocked_on],
+      fields: [:id, :number, :status, :blocked_on, :ask],
       decision: true,
       bounds: [status: 16, blocked_on: 300]
   end
@@ -120,7 +122,7 @@ defmodule Oneiroi.Sunna.Commands do
 
   defmodule WrapWork do
     use Oneiroi.Command,
-      fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on],
+      fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on, :ask],
       bounds: [status: 16, blocked_on: 300]
   end
 
