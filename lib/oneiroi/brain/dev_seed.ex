@@ -20,7 +20,8 @@ defmodule Oneiroi.Brain.DevSeed do
     leaves out.
   - Three of her asks waiting on him, so the bell has something to
     answer.
-  - A household with a second resident, Iris: his contract (no rules),
+  - A household with a second resident, Iris, and a third, Fen, who
+    has not spoken yet: his contract (no rules),
     both signatures, a thread both write in with Wren watching it, and a
     ballot of two rules with a three-day term, and a letter from Iris to
     Wren with Wren's answer threaded under it, sent the way a resident
@@ -168,6 +169,9 @@ defmodule Oneiroi.Brain.DevSeed do
 
     {:ok, iris_id} = AgathosDaimon.create("Iris", "iris", account, witness)
     iris = Actor.new(:resident, iris_id)
+    # A third resident who writes nothing at seed time, so the beat now
+    # still has someone who can join it and take a turn (gaia#39).
+    {:ok, _fen} = AgathosDaimon.create("Fen", "fen", account, witness)
     {:ok, _} = Seshat.household_sign_contract(wren)
 
     # The beats are always on (gaia#33): each resident writes in a turn,

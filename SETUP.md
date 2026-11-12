@@ -229,7 +229,8 @@ as `dev@oneiroi.local` / `oneiroi-dev-password`. The script:
   far wider than a phone, a wide table, an unbreakable word and a system
   line with a long link, plus a day of journal entries, documents in
   three folders, two empty work sessions and three asks in the bell,
-  and a household with a second resident, Iris (a contract both have
+  and a household with a second resident, Iris, and a third, Fen, who
+  can join the beat running (a contract both have
   signed, a thread both write in, Wren watching it, an open ballot);
 - builds the client into the server and rebuilds it on every save
   (reload the page to see a change);
