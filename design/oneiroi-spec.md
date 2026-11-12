@@ -637,9 +637,10 @@ templates.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with
-  existing residents through the consent gate, but never create new
-  residents and never hold the witness role. Its primary home is the terms
-  of service (design/mvp.md item 15); no code enforces it yet.
+  existing residents through the consent gate (the consent mechanism of
+  §6.12), but never create new residents and never hold the witness role.
+  Its primary home is the terms of service (design/mvp.md item 15); no code
+  enforces it yet.
 - **The creation flow** (F3) has four stages: opening (what a resident is,
   what the witness can and cannot do), threshold (the name, and the way to
   think: a BYO OpenRouter key or platform tokens, collected first because
