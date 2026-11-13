@@ -18,7 +18,6 @@ defmodule Oneiroi.Brain.Retry do
 
   alias Oneiroi.Actor
   alias Oneiroi.Brain.Error
-  alias Oneiroi.Brain.NeedsYou.Failures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Sunna
 
@@ -60,7 +59,7 @@ defmodule Oneiroi.Brain.Retry do
   @doc "Runs every turn the provider refused for credit again, each purpose once; `{:ok, labels}`."
   @spec credits(String.t(), Actor.t()) :: {:ok, [String.t()]} | {:error, term()}
   def credits(resident_id, %Actor{} = actor) do
-    failures = Enum.filter(open_failures(resident_id), &Failures.credits?(&1.reason))
+    failures = Enum.filter(open_failures(resident_id), &credits?(&1.reason))
 
     with {:ok, _settled} <- settle(failures, actor) do
       kinds = kinds(resident_id)
@@ -139,4 +138,11 @@ defmodule Oneiroi.Brain.Retry do
 
   defp kinds(resident_id),
     do: Map.new(Kumbukumbu.sessions({:resident, resident_id}), &{&1.key, &1.kind})
+
+  @doc "Whether a failure's reason is the provider refusing for credit: a 402 that says so."
+  @spec credits?(String.t() | nil) :: boolean()
+  def credits?(reason) when is_binary(reason),
+    do: String.contains?(reason, "402") and String.contains?(String.downcase(reason), "credit")
+
+  def credits?(_reason), do: false
 end

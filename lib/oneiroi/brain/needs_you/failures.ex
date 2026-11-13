@@ -48,12 +48,9 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
     credit_entry(credits) ++ Enum.map(others, &failed(resident_id, &1, kinds))
   end
 
-  @doc "Whether a failure's reason is the provider refusing for credit."
+  @doc "Whether a failure's reason is the provider refusing for credit (`Retry.credits?/1`, where the rule lives so the edge between the two runs one way)."
   @spec credits?(String.t() | nil) :: boolean()
-  def credits?(reason) when is_binary(reason),
-    do: String.contains?(reason, "402") and String.contains?(String.downcase(reason), "credit")
-
-  def credits?(_reason), do: false
+  defdelegate credits?(reason), to: Retry
 
   defp credit_entry([]), do: []
 
