@@ -1283,6 +1283,27 @@ defmodule Oneiroi.Brain.Tools do
   """
   @spec run(String.t(), String.t(), turn()) :: String.t()
   def run(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
+    run_guarded(name, arguments, turn)
+  rescue
+    # The call's own reads before `guarded/3` (her zone, the contract's
+    # switch) raise into the same answer as a tool that raises (brain#85):
+    # on 2026-11-13 at 22:31Z the zone read found the connection pool full
+    # and the whole free-time turn crashed (brain#93).
+    exception ->
+      failure = Error.caught(:brain_tool_raised, :brain_tools_run_raised, exception, tool: name)
+
+      Logger.error(
+        "brain: the call to #{name} raised before it ran: " <>
+          Exception.format(:error, exception, __STACKTRACE__),
+        error_kind: failure.kind,
+        error_site: failure.site
+      )
+
+      @not_done <>
+        "the call to #{name} failed inside the platform before it ran, not by anything you did; it is logged. It did nothing, so it can be tried again."
+  end
+
+  defp run_guarded(name, arguments, turn) do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 

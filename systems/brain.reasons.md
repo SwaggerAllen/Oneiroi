@@ -833,3 +833,12 @@ honest: the tag is the conversation's current domain the moment it
 lands, and a message queued behind a running turn would otherwise move
 the running turn into its domain. The section is one line because she
 needs to know the line exists, not to be reminded of it at length.
+
+## #93
+
+The preamble is reads alone, so a failure there did nothing and saying
+so is true; a turn is too dear to lose to a moment's contention, the
+more so a scheduled one nobody is watching. The fix to the contention
+itself is the client's, which was multiplying reads the server could
+not drop; the pool's size is a setting (`APSU_POOL_SIZE`) for the
+witness to weigh, not a code change.

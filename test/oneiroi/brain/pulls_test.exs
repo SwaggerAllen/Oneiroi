@@ -154,5 +154,17 @@ defmodule Oneiroi.Brain.PullsTest do
     out = Tools.run("pr_meta", ~s({"number": 99}), Process.get(:turn))
     assert out =~ "Not done:"
     assert out =~ "failed inside the platform"
+
+    # The call's own reads before the tool runs raise into words too
+    # (brain#93; 2026-11-13 22:31Z, the zone read found the pool full and
+    # the free-time turn crashed): here a resident id that is none.
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        out = Tools.run("bookmark_list", "{}", %{Process.get(:turn) | resident_id: "not-an-id"})
+        assert out =~ "failed inside the platform before it ran"
+        assert out =~ "It did nothing, so it can be tried again."
+      end)
+
+    assert log =~ "brain_tools_run_raised" or log =~ "raised before it ran"
   end
 end
