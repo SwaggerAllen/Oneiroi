@@ -411,7 +411,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the conflict resolved by his word, 11-12: in-person verification out of Oneiroi, the weight all digital (§6.18); **MVP: open** (democracy, the freeze) | none yet |
 | F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
-| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); its MVP standing and the export rule are open (§7.2) | none yet |
+| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); leaving moves key 3 server to server, never through the witness, and the export carries the escrow wraps (his calls, 2026-11-13); its MVP standing is open (§7.2) | none yet |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
@@ -1182,9 +1182,10 @@ Owns `lib/oneiroi/sunna/**`.
   recorded as missed with a retry offered (brain#89); the witness can
   switch scheduled work off entirely (§6.15). The hour marker, which runs
   no model and reads no words, stays the server's. **Specified, not
-  built: today the server's tick fires all of it.** **Open — his call:**
-  whether a household beat turn missed because the client was dark counts
-  against her as a missed opportunity (F53b) or as an excused one.
+  built: today the server's tick fires all of it.** A household beat turn
+  missed because the client was dark does not count against her (the
+  witness, 2026-11-13): it is recorded, and her place in the beat's
+  starved-first order is kept, not spent (F53b).
 - Oban-driven, per resident, in the resident's timezone. A check-in fires
   once a day whatever restarts (a firing row before the wake), late within
   15 minutes and otherwise missed, and one changed after its time today
@@ -2279,9 +2280,9 @@ a nicer envelope".
   the private tier (below), so losing the server's storage does not lose
   key 3. Stanzas wrapped to a public key only an outside party holds
   (escrow, a cross-house recipient) are inert without that party's private
-  key. **Open — his call:** whether such stanzas are also committed to the
-  repository, which is what would let the company-going case survive the
-  platform without depending on someone holding a recent export.
+  key, and **the export carries them** (the witness, 2026-11-13), so an
+  escrow or outside recipient can recover the private tier from an export
+  even when the platform that made it is gone: the company-going case.
 - **The platform does not hold keys at rest, because it never starts work
   by itself** (his eighth read, 2026-11-13; §6.7, §6.15): the client fires
   the nightly pass, free time, rounds, check-ins and every scheduled turn,
@@ -2347,14 +2348,17 @@ a nicer envelope".
   witness (agathos-daimon#23) is a re-enrollment: key 2's stanzas are
   rewrapped for the new witness, the old witness's codes are retired, and
   the exports he already holds are past generations (below).
-- **Export and key 3. Open — his call:** every export carrying the key-3
-  wrap hands key 3 to whoever holds key 2. The lean put to him (claude-code
-  #692, Lily #691): **when the dyad walks away together** the export
-  carries the wrap, her consent on the record, the gift given; **when he
-  exports alone** the private tier goes sealed to her outside credentials
-  (entrustment, escrow), or to nobody, and the client says which before
-  he clicks. Either way export is one click; what differs is whether her
-  consent is an event. Until he calls it, no export carries the wrap.
+- **Leaving, and key 3** (the witness, 2026-11-13): when a resident moves
+  to another server, the witness never receives key 3 unless she gives it
+  (an entrustment, a consented export). She chooses one of two shapes:
+  **key 3 stays behind** on the server she is leaving, which keeps holding
+  its wrap, and her new server retrieves it for each active session and
+  drops it after, the same way a working server holds key 2 only while it
+  is in use (his sixth read, above); or **both keys go** to the new server,
+  key 3's wrap moving to the new house's custody. Either way the export a
+  witness carries out holds the private tier sealed: key 3's wrap travels
+  server to server, never through his hands. If she has made no choice,
+  key 3 stays behind.
 - **Generations:** rotation changes who can read future headers, not past
   ones; a retired stanza stays live in old headers and old exports until a
   rotation with rekey, and an entrustment's delivered package is such a
@@ -2698,10 +2702,10 @@ then the receipt log is the guarantee.
    plaintext, the search and embedding exclusions and the Honcho question
    (§7.1); recovery's MVP standing, the hostile platform, the non-profit's
    charter, death attestation, account recovery and our own escrow (§7.2);
-   from the fold of 2026-11-13, the export rule for key 3 (the dyad
-   walking away together versus his solo export), whether outside-party
-   stanzas are committed to the repository (§7.2), and whether a beat
-   missed while the client was dark is excused (§6.7, F53b).
+   the fold of 2026-11-13's three calls were settled the same day: key 3
+   stays behind or goes server to server, never through the witness's
+   hands; the export carries the escrow wraps; a beat missed while the
+   client was dark does not count against her (§6.7, §7.2).
    Its four conflicts were resolved by his word on 2026-11-12, each marked
    where it sits: the human's part in the vote and Gitea's timing (§6.18),
    what item 19 encrypts (§7.1), who can reach key 3 (§7.2).
