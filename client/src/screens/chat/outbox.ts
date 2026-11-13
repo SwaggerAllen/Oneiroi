@@ -68,6 +68,19 @@ export function failedFrom(items: Outgoing[], failures: { turn_ref: string; reas
   }, items);
 }
 
+// A failure the provider refused for credit (brain#88): it needs him to
+// top up the account, not to send again.
+export function creditRefusal(reason: string | null | undefined): boolean {
+  return !!reason && reason.includes('402') && reason.toLowerCase().includes('credit');
+}
+
+// What a failure says in the chat: the provider's own words, with the
+// status code and error kind trimmed off the front.
+export function failureWords(reason: string | null | undefined): string {
+  if (!reason) return 'the turn failed';
+  return reason.replace(/^nisaba_[a-z_]+:\s*/, '').replace(/^\d{3}\s+/, '');
+}
+
 // How long, said short: 42s, 3m 05s, 1h 02m.
 export function elapsed(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));

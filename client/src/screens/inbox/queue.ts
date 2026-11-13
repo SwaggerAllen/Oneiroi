@@ -37,6 +37,10 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `Work item #${e.ref} blocked${a.blocked_on ? ` on ${a.blocked_on}` : ''}: ${a.what}`;
     case 'plugin_proposal':
       return `${residentName} proposes to ${a.change} the plugin ${a.key}: ${a.note}`;
+    case 'provider_credits':
+      return `OpenRouter is out of credits: ${a.what}`;
+    case 'turn_failed':
+      return `${residentName} couldn’t answer: ${a.reason}`;
     case 'kind_gate_proposal':
       return `${residentName} proposes the ${a.kind} gate ${a.approvable ? 'on' : 'off'}: ${a.note}`;
     case 'theme_proposal':

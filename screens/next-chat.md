@@ -27,7 +27,14 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again
-  under the same ref. A message taken and then never heard of again (a
+  under the same ref, the failure's reason after "No reply" (and
+  "No reply: OpenRouter is out of credits" when the provider refused
+  for credit, brain#88). A turn of this conversation that failed with no
+  message of his waiting on it (a check-in, a wake) shows as a line in
+  the conversation with when and the provider's words, "Add credits"
+  when it was refused for credit, and Dismiss; the failures are read on
+  arrival and every minute, so one that happened while he was away is
+  there when he comes back. A message taken and then never heard of again (a
   queue lost to a restart, or a send answered as a duplicate of a claim
   that died with it) is sent again under its ref every half minute once
   it has sat past the server's turn timeout, so the dead claim is taken

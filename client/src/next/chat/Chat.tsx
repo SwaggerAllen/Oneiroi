@@ -10,6 +10,7 @@ import * as css from './chat.css';
 import { Markdown } from './Markdown';
 import { FirstDay } from './FirstDay';
 import { Navigator } from './Navigator';
+import { creditRefusal, failureWords } from '../../screens/chat/outbox';
 import { TurnTools } from './TurnTools';
 import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';
@@ -248,6 +249,27 @@ export function Chat({
               <Markdown text={chat.stream.text} onCite={openCite} />
             </div>
           )}
+          {chat.unanswered.map((f) => (
+            <div key={`failed-${f.turn_ref}`} className={css.failedTurn} role="status">
+              <span>
+                {residentName} couldn't answer · {new Date(f.failed_at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+              </span>
+              <span className={css.failedReason}>
+                {creditRefusal(f.reason) ? 'OpenRouter is out of credits. ' : ''}
+                {failureWords(f.reason)}
+              </span>
+              <span style={{ display: 'flex', gap: 12 }}>
+                {creditRefusal(f.reason) && (
+                  <a className={css.linkButton} href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer">
+                    Add credits
+                  </a>
+                )}
+                <button type="button" className={css.linkButton} onClick={() => void chat.dismissFailure(f.turn_ref)}>
+                  Dismiss
+                </button>
+              </span>
+            </div>
+          ))}
           {chat.pending.map((p) => (
             <div key={p.ref} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div className={css.mine} style={{ opacity: p.state === 'sending' || p.state === 'unsent' ? 0.7 : 1 }}>
@@ -255,7 +277,7 @@ export function Chat({
               </div>
               {p.state === 'failed' || p.state === 'unsent' ? (
                 <div className={css.failed}>
-                  {p.state === 'failed' ? 'No reply came' : 'Not sent'}
+                  {p.state === 'failed' ? (creditRefusal(p.error) ? 'No reply: OpenRouter is out of credits' : p.error ? `No reply: ${failureWords(p.error)}` : 'No reply came') : 'Not sent'}
                   <button type="button" className={css.linkButton} onClick={() => void chat.send(p.text, p.ref)}>
                     Send again
                   </button>

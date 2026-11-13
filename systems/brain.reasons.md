@@ -782,3 +782,15 @@ is what he has to answer, and the item's title alone does not say that.
 She knows when the next move is his, usually at the end of a run, so the
 hold is in the tools she already uses to say where an item stands.
 
+## #88
+
+A scheduled turn has no message of his waiting on it, so when the
+provider refused it the failure was recorded and shown nowhere: the
+06:00 check-in on 2026-11-13 failed on an account out of credit, and so
+did every turn for twelve hours, his own replies included, with nothing
+on any screen saying why. A failure is something he must act on (top up,
+or look at what broke), which is what the needs-you list is for. Credit
+refusals fold into one entry because one act settles all of them, and a
+night of failed turns would otherwise bury the rest of the list. The
+week's window keeps failures from before this existed from arriving as
+a flood of stale news.

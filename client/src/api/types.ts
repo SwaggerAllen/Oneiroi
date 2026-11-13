@@ -521,12 +521,14 @@ export interface NeedsYouEntry {
     | 'plugin_proposal'
     | 'kind_gate_proposal'
     | 'theme_proposal'
-    | 'notifications';
+    | 'notifications'
+    | 'provider_credits'
+    | 'turn_failed';
   ref: number | string;
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string } };
+  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
 }
 
 /** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */

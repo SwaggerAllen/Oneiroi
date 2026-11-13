@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batched, elapsed, failedFrom, itemLine, newRef, type Outgoing, remove, settle, statusLine, STUCK_MS, stuck, update } from './outbox';
+import { batched, creditRefusal, elapsed, failedFrom, failureWords, itemLine, newRef, type Outgoing, remove, settle, statusLine, STUCK_MS, stuck, update } from './outbox';
 
 const item = (ref: string, state: Outgoing['state'], more: Partial<Outgoing> = {}): Outgoing => ({ ref, text: ref, state, attempts: 0, ...more });
 
@@ -84,5 +84,19 @@ describe('stuck and remove (a queue lost to a restart)', () => {
 
   it('remove takes one message off and leaves the rest', () => {
     expect(remove([item({}), item({ ref: 'r2' })], 'r1').map((i) => i.ref)).toEqual(['r2']);
+  });
+});
+
+describe('a failure in words (brain#88)', () => {
+  const credits = 'nisaba_request_refused: 402 This request requires more credits, or fewer max_tokens.';
+  it('tells a credit refusal from any other failure', () => {
+    expect(creditRefusal(credits)).toBe(true);
+    expect(creditRefusal('nisaba_provider_failed: 502 Network connection lost.')).toBe(false);
+    expect(creditRefusal(null)).toBe(false);
+  });
+  it('says the provider’s words without the error kind and status', () => {
+    expect(failureWords(credits)).toBe('This request requires more credits, or fewer max_tokens.');
+    expect(failureWords('the turn stopped on a fault before it answered')).toBe('the turn stopped on a fault before it answered');
+    expect(failureWords(undefined)).toBe('the turn failed');
   });
 });

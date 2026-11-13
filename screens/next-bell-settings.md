@@ -25,6 +25,14 @@ header's bell and gear. Built 2026-11-10.
     "Work · waiting on you", its line the ask ("Work item #25 held:
     your word on two wordings"), opening the Work page, where he
     releases it with a note, or moves it done or dropped.
+  - **A turn that failed** (brain#88; the witness, 2026-11-13): every
+    turn the provider refused for credit folds into one "OpenRouter is
+    out of credits" entry, saying how many turns it refused and the
+    provider's words, with "Add credits on OpenRouter" and "I topped up —
+    dismiss". Any other failed turn (a check-in, free time, a round, a
+    reply) is its own entry with the conversation and the reason, and
+    Dismiss. Dismissing settles the failures (marked lost); the bell's
+    push tells his devices of a new one like any entry.
   - An item answered here stays in its place until the bell closes,
     folded to its title and recoloured: green with ✓ and what was
     decided (approved, approved to send, marked sent, noted, accepted),

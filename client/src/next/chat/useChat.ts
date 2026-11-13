@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { Message } from '../../api/types';
-import { batched, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from '../../screens/chat/outbox';
+import { batched, failedFrom, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from '../../screens/chat/outbox';
 import { compareCursor, mergeNewest, newestCursor } from '../../screens/chat/page';
 import type { Live } from '../live/live';
 import { useShell } from '../state/store';
@@ -104,12 +104,13 @@ export function useChat(residentId: string, live: Live) {
         setPresence({ state: 'idle', lastReply: new Date().toISOString() });
       },
       failed: (ref, reason) => {
+        void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
         setStream(null);
         setOutbox((o) => update(o, ref, { state: 'failed', error: reason }));
         setPresence({ state: 'idle' });
       },
     });
-  }, [live, residentId, key, refreshNewest, setPresence]);
+  }, [live, residentId, key, refreshNewest, setPresence, queries]);
 
   const send = useCallback(
     async (text: string, ref = newRef()) => {
@@ -145,6 +146,28 @@ export function useChat(residentId: string, live: Live) {
   }, [key, send]);
 
   const discard = useCallback((ref: string) => setOutbox((o) => remove(o, ref)), []);
+
+  // The turns that failed and are not yet settled (brain#54, #88), read on
+  // arrival and every minute: a failure broadcast while the page was away
+  // still marks its message, and a scheduled turn's failure (a check-in,
+  // with no message of his waiting) shows as a line of its own.
+  const failuresKey = useMemo(() => ['resident', residentId, 'capture-failures'], [residentId]);
+  const failures = useQuery({ queryKey: failuresKey, queryFn: () => api.captureFailures(residentId), enabled: !!key, refetchInterval: 60_000 });
+  useEffect(() => {
+    if (failures.data) setOutbox((o) => failedFrom(o, failures.data));
+  }, [failures.data]);
+  const unanswered = (failures.data ?? []).filter(
+    (f) => f.session_key === key && !outbox.some((i) => i.ref === f.turn_ref || i.into === f.turn_ref) && !messages.some((m) => m.turn_ref === f.turn_ref && m.role === 'assistant'),
+  );
+  const dismissFailure = useCallback(
+    async (turnRef: string) => {
+      if (!key) return;
+      await api.resolveFailure(residentId, key, turnRef, 'dismissed from the chat').catch(() => undefined);
+      void queries.invalidateQueries({ queryKey: failuresKey });
+      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
+    },
+    [residentId, key, queries, failuresKey],
+  );
 
   const stop = useCallback(async () => {
     if (key) await api.stopTurn(residentId, key).catch(() => undefined);
@@ -204,6 +227,8 @@ export function useChat(residentId: string, live: Live) {
     working,
     send,
     discard,
+    unanswered,
+    dismissFailure,
     stop,
     jumpTo,
     toNewest,

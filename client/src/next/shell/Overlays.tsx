@@ -62,6 +62,8 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   kind_gate_proposal: 'A kind gate proposal',
   theme_proposal: 'A theme proposal',
   notifications: 'Notifications',
+  provider_credits: 'OpenRouter is out of credits',
+  turn_failed: 'A turn that failed',
 };
 
 const HERS: Record<string, string> = {
@@ -121,6 +123,8 @@ export function Bell() {
       {all.map((e) =>
         answered.has(keyOf(e)) ? (
           <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
+        ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
+          <FailureItem key={keyOf(e)} residentId={id} entry={e} name={name} onAnswered={keep(e)} />
         ) : e.kind === 'theme_proposal' ? (
           <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} onAnswered={keep(e)} />
         ) : answersInPlace(e.kind) ? (
@@ -455,6 +459,58 @@ function Feedback() {
         Send
       </button>
       {send.error && <p className={css.note}>{(send.error as Error).message}</p>}
+    </div>
+  );
+}
+
+const CONVERSATION: Record<string, string> = {
+  main: 'the chat',
+  free_time: 'free time',
+  round: 'a round',
+  work: 'a work session',
+  housekeeping: 'housekeeping',
+  hands: 'the hands',
+  adapter: 'an adapter',
+};
+
+/**
+ * A turn that failed (brain#88): out of credits, one item for every turn
+ * the provider refused, with the way to top up; any other failure with its
+ * reason. Dismiss settles them (marked lost) once he has seen or fixed it.
+ */
+function FailureItem({ residentId, entry, name, onAnswered }: { residentId: string; entry: NeedsYouEntry; name: string; onAnswered: (a: Answered) => void }) {
+  const queries = useQueryClient();
+  const credits = entry.kind === 'provider_credits';
+  const turns: Array<{ session_key: string; turn_ref: string }> = credits
+    ? (entry.about.failures ?? [])
+    : [{ session_key: entry.about.session_key ?? '', turn_ref: String(entry.ref) }];
+  const dismiss = useMutation({
+    mutationFn: () => Promise.all(turns.map((t) => api.resolveFailure(residentId, t.session_key, t.turn_ref, credits ? 'credits topped up' : 'seen in the bell'))),
+    onSuccess: () => {
+      onAnswered({ word: 'DISMISSED', yes: true, note: '' });
+      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
+      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
+    },
+  });
+  return (
+    <div className={css.item} role="group" aria-label={WORDS[entry.kind]}>
+      <span className={css.itemKind}>
+        {WORDS[entry.kind]}
+        {entry.long ? ' · A WHILE' : ''}
+      </span>
+      <span>{credits ? `${name}'s turns are being refused until the account is topped up. ${entry.about.what}.` : `${name} couldn't answer${entry.about.conversation ? ` in ${CONVERSATION[entry.about.conversation] ?? entry.about.conversation}` : ''}.`}</span>
+      <span className={css.since}>{String(entry.about.reason ?? '').replace(/^nisaba_[a-z_]+:\s*/, '')}</span>
+      <span className={css.since}>since {new Date(entry.since).toLocaleString()}</span>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {credits && (
+          <a className={css.primary} href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            Add credits on OpenRouter
+          </a>
+        )}
+        <button type="button" className={css.secondary} onClick={() => dismiss.mutate()} disabled={dismiss.isPending}>
+          {credits ? 'I topped up — dismiss' : 'Dismiss'}
+        </button>
+      </span>
     </div>
   );
 }

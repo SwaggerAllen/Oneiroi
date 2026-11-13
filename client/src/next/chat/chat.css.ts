@@ -194,3 +194,21 @@ export const stopButton = style([
 ]);
 
 export const stopSquare = style({ width: 13, height: 13, borderRadius: 3, background: vars.color.witness.accent });
+
+// A turn that failed with no message of his waiting on it (a check-in,
+// free time), or one he can do something about (brain#88).
+export const failedTurn = style({
+  alignSelf: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  maxWidth: 'min(560px, 100%)',
+  minWidth: 0,
+  padding: '10px 14px',
+  borderRadius: 12,
+  border: `1px solid ${status.error}`,
+  font: `500 12px ${font.mono}`,
+  color: status.error,
+  overflowWrap: 'anywhere',
+});
+export const failedReason = style({ font: `13px ${font.ui}`, color: vars.color.text, lineHeight: '19px' });

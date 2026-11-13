@@ -307,6 +307,9 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/capture-failures`,
     ),
+  // Settle a failed turn (brain#88's Dismiss): marked lost, with a note.
+  resolveFailure: (residentId: string, key: string, turnRef: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/capture-failures/${encodeURIComponent(turnRef)}`, { key, how: 'marked_lost', note }),
   injections: (residentId: string, turnRef: string) =>
     call<Injection[]>('GET', `/v1/residents/${residentId}/turns/${turnRef}/context`),
 
