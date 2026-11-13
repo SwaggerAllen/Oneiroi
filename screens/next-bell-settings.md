@@ -31,7 +31,9 @@ header's bell and gear. Built 2026-11-10.
     provider's words, with "Add credits on OpenRouter" and "I topped up —
     dismiss". Any other failed turn (a check-in, free time, a round, a
     reply) is its own entry with the conversation and the reason, and
-    Dismiss. Dismissing settles the failures (marked lost); the bell's
+    Dismiss. Both look like failures (the witness, 2026-11-13): the
+    signal red border and label with ⚠, on a faint red wash, the same
+    red on every theme. Dismissing settles the failures (marked lost); the bell's
     push tells his devices of a new one like any entry.
   - An item answered here stays in its place until the bell closes,
     folded to its title and recoloured: green with ✓ and what was

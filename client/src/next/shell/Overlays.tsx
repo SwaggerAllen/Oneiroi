@@ -493,8 +493,9 @@ function FailureItem({ residentId, entry, name, onAnswered }: { residentId: stri
     },
   });
   return (
-    <div className={css.item} role="group" aria-label={WORDS[entry.kind]}>
-      <span className={css.itemKind}>
+    <div className={css.itemFailed} role="group" aria-label={WORDS[entry.kind]}>
+      <span className={css.itemKindFailed}>
+        {'⚠ '}
         {WORDS[entry.kind]}
         {entry.long ? ' · A WHILE' : ''}
       </span>
