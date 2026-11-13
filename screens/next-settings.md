@@ -110,13 +110,19 @@ it, in the server's own words.
     mocked steps); Passes, Fails, Favourite;
   - results by pass rate, with "Pin for chat" asked twice and the chat
     model marked.
-- **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55):
+- **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55, #58):
   - the line in words: running, resting, runs today, armed by whom and
     what is left of its cap; "Arm the work line" when it is off and
     something is open, "Turn the work line off" when armed; once a run has been used today, how many of the day's runs are used and "Reset today's runs" with a note she reads (sunna#53);
-  - the live items in order: status, who added it, runs, done when, the
+  - the live items in order: status, who added it, done when, the
     last wrap (shipped, slipped, why), the note; with a note: Blocked on
     another item, Unblock, Done, Drop; "Move up";
+  - on an item that has run, how long it has been in work (sunna#58):
+    "running 1h 30m this run · 6h 30m in work over 4 runs since
+    2026-11-11", ticking while it runs; a run past an hour turns the
+    line amber with "running long: worth a look"; an item that ran
+    before the time was kept says only its runs; the line above says
+    "Running item #n now, for …";
   - "Hold for me…" opens an ask field ("What #n waits on you for") and
     Hold, required; a held item says "held for you" and "HELD · she asks
     you: <ask>" (or "you held it"), and "Release", with the note she

@@ -597,6 +597,10 @@ export interface WorkItem {
   wrapped_at: string | null;
   runs: number;
   session_key: string | null;
+  // How long it has been in work (sunna#58): its first run's start, and
+  // the seconds its ended runs took; empty on an item that ran before.
+  first_started_at?: string | null;
+  worked_seconds?: number;
 }
 
 export interface WorkQueue {

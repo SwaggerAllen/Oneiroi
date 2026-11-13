@@ -321,6 +321,7 @@ defmodule Oneiroi.Sunna.WorkTest do
     {:ok, 2} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
     :ok = Sunna.work_arm(ctx.id, ctx.me)
     {:started, 1} = WorkLoop.check(ctx.id)
+    %{running_since: first} = Sunna.work_queue(ctx.id)
 
     # Its job died: nothing ends it. Inside the bound, it still runs.
     assert :running = WorkLoop.check(ctx.id)
@@ -330,8 +331,13 @@ defmodule Oneiroi.Sunna.WorkTest do
     Clock.Fake.advance(181 * 60)
     assert {:started, 1} = WorkLoop.check(ctx.id)
 
-    assert %{running: 1, items: [%{number: 1, status: "in_work", runs: 2} | _]} =
+    assert %{running: 1, items: [%{number: 1, status: "in_work", runs: 2} = item | _]} =
              Sunna.work_queue(ctx.id)
+
+    # How long it has been in work (sunna#58): the first run's start kept
+    # across runs, and the ended run's time added to the item.
+    assert item.first_started_at == first
+    assert item.worked_seconds >= 181 * 60
   end
 
   # sunna#41, Lily's report #14: the tick asked only when nothing ran, so

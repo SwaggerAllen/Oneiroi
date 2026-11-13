@@ -159,6 +159,10 @@ defmodule Oneiroi.Sunna.Store do
       field(:wrapped_at, :utc_datetime_usec)
       field(:runs, :integer, default: 0)
       field(:session_key, :string)
+      # How long it has been in work (sunna#58): its first run's start, and
+      # the seconds its ended runs took.
+      field(:first_started_at, :utc_datetime_usec)
+      field(:worked_seconds, :integer, default: 0)
     end
 
     @type t :: %__MODULE__{}

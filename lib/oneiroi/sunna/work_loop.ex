@@ -187,7 +187,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
             :why,
             :wrapped_at,
             :runs,
-            :session_key
+            :session_key,
+            :first_started_at,
+            :worked_seconds
           ])
         ),
       running: live(state, items),
