@@ -186,7 +186,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                 <>
                   <div className={css.filters}>
                     <label className={css.filter}>
-                      Said by
+                      Written by
                       <select className={css.filterInput} value={filters.who} onChange={(e) => set('who', e.target.value as Filters['who'])}>
                         <option value="">Anyone</option>
                         <option value="resident">{residentName}</option>
