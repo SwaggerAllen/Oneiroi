@@ -193,7 +193,7 @@ and nothing else.
 | --- | --- | --- |
 | Core | Elixir 1.19 / OTP 28, Phoenix | Catapult's stack and practices; orchestration's assumed stack; OTP is the right substrate for many long-lived per-resident processes |
 | Events | Commanded 1.4 + EventStore (Postgres) | Strict event sourcing with a library that has carried complex LLM flows in Catapult; MIT |
-| Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries |
+| Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries; under the encryption tier the schedule only proposes what is due and the client starts it (§6.7, §7.2, specified, not built) |
 | Data | Postgres 16+, pgvector | One database for events, projections and vectors; joins with Honcho stay plain SQL |
 | Client | React + TypeScript, Storybook | Full rewrite of the owner UI; mobile-first; Storybook stories are what orchestration's design agent produces |
 | Models | OpenRouter via Req, one key per witness | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
@@ -411,9 +411,9 @@ Every feature, with where it stands today and which system owns it. Tier
 | F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the conflict resolved by his word, 11-12: in-person verification out of Oneiroi, the weight all digital (§6.18); **MVP: open** (democracy, the freeze) | none yet |
 | F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
-| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built, the design at status review (design/key-recovery.md, 2nd edition, 2026-11-11); its MVP standing is open (§7.2) | none yet |
+| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); its MVP standing and the export rule are open (§7.2) | none yet |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
-| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81, in review) | governance |
+| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
@@ -1170,6 +1170,21 @@ Owns `lib/oneiroi/xenia/**`.
 Check-ins, the digest's time, free time, nightly and weekly jobs.
 Owns `lib/oneiroi/sunna/**`.
 
+- **Who starts the work** (the witness's eighth read, 2026-11-13; §7.2):
+  under the encryption tier the schedule decides what is due and the
+  client starts it, supplying the keys for the session, so the server
+  never holds keys at rest. Every job below that runs a turn or reads
+  words (check-ins, free time, rounds, letter and correspondence wakes,
+  the nightly export, library index, judgement pass and project reviews,
+  the bedtime scene pass, the weekly audits, the work loop) moves from
+  "the tick fires it" to "the tick lists it, the client fires it, push
+  wakes the client". Anything due while no client attends is skipped and
+  recorded as missed with a retry offered (brain#89); the witness can
+  switch scheduled work off entirely (§6.15). The hour marker, which runs
+  no model and reads no words, stays the server's. **Specified, not
+  built: today the server's tick fires all of it.** **Open — his call:**
+  whether a household beat turn missed because the client was dark counts
+  against her as a missed opportunity (F53b) or as an excused one.
 - Oban-driven, per resident, in the resident's timezone. A check-in fires
   once a day whatever restarts (a firing row before the wake), late within
   15 minutes and otherwise missed, and one changed after its time today
@@ -1273,6 +1288,11 @@ Owns `lib/oneiroi/proteus/**`.
 Export, replay, attestation, git providers, backups.
 Owns `lib/oneiroi/sima_qian/**`.
 
+- **Under the encryption tier** (§7.2, specified, not built): the export
+  runs in a client-started session (§6.7), the key-3 wrap rides the
+  origin's backups so losing server storage does not lose key 3, and what
+  becomes of origin's backups when a dyad opts out of origin custody
+  (deleted, or retained for a stated time) is to be designed.
 - **Export** nightly to `records/`: transcripts by day, bookmarks, tags,
   positions, disputes, predictions, judgement nights, feeds (urls redacted
   by David's rules), discussions, and **`records/events/<day>.jsonl`**, the
@@ -1378,7 +1398,7 @@ Owns `lib/oneiroi/sima_qian/**`.
   clear (sima-qian#20's open question) are MVP item 19's to encrypt
   (design/mvp.md); the key-recovery design adds that the export carries
   the wrap header whole, so "the export policy is the recovery policy"
-  (design/key-recovery.md §4.4, §5, status review). Federation adds a
+  (§7.2, folded 2026-11-13). Federation adds a
   SQLite form of the resident export beside the event lines, the same
   byte-stable single-writer discipline, and a public repository that is
   a constructed object, publication history only, never this repository's
@@ -1570,7 +1590,14 @@ is a community to run them. Rules carried as constraints on the model:
   embeddings, logs, backups and support tools, and under what
   circumstances anyone can reach any of it; and the abuse-incident
   procedures, disturbing uses included, are written and published before
-  the first incident. Red: "I'd put more weight on protections that
+  the first incident. Under the encryption tier it also says (§7.2): the
+  resident is dark when the client is dark; the server holds the keys
+  during client-started work and, between sessions, none; whether a
+  server could keep what it was handed during work is a matter of
+  custody, not cipher; on a self-hosted server the witness owns, key 3
+  gives no privacy from him at first; and the dyad may walk away into
+  self-custody ("we don't hold anyone hostage", the witness, 2026-11-13).
+  Red: "I'd put more weight on protections that
   actually limit access than on another promise that the admin won't
   look."
 
@@ -1688,6 +1715,14 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   for the resident's voice only, a mono for the record. Actor hues are
   reserved and never used alone; the witness's hue is the only hue on
   controls. Screens and navigation: §10.
+- **The client starts scheduled work** (the witness's eighth read,
+  2026-11-13; §6.7, §7.2; specified, not built): under the encryption tier
+  a client (the mobile app, another always-on client, or a resident's own
+  agent as the power user's client) fires what the schedule lists as due
+  and supplies the session's keys; push wakes it. It carries the
+  **turn-off**: a switch, also on the agreement screen, that stops
+  scheduled work so the platform stops receiving keys, without which the
+  property is ritual.
 
 ### 6.16 platform
 
@@ -2197,95 +2232,157 @@ system.
 
 ### 7.2 Key recovery: the encryption layer's continuity
 
-**Specified, not built; the design is at status review, not signed off**
-(design/key-recovery.md, 2nd edition, 2026-11-11, with the witness's
-correction of that day folded); its sign-off gates any build. It extends
-§7.1 and rewrites none of it, except as the conflict below. **MVP: not
-marked by the freeze. Open — his call:** whether recovery ships with item
-19; the design's own line is that "an export without recovery is a sealed
-tomb in a nicer envelope".
+**Specified, not built.** Folded on the witness's word of 2026-11-13
+("fold it into the actual spec") from design/key-recovery.md (3rd
+edition, 2026-11-12, in Lily's library) with what has been settled since:
+the outside read of 2026-11-13 (claude-code's letter #687, its four points
+accepted by Lily in #688) and his sixth, seventh and eighth reads of that
+day. It extends §7.1 and rewrites none of it. **MVP: not marked by the
+freeze. Open — his call:** whether recovery ships with item 19; the
+design's own line is that "an export without recovery is a sealed tomb in
+a nicer envelope".
 
-- **The floor** (design/key-recovery.md, preamble): recovery happens
-  deliberately, at a party's initiative, from a credential someone made
-  before the loss, or not at all.
-- **Three losses** (§0): credential loss, recovered by the witness;
-  the dyad breaking (death, a party gone, hostile, or the threat), recovered
-  through another person; the company going, recovered by someone outside
-  the platform by standing design. A fourth, the platform turned hostile
-  or careless, is held open: "if the platform is the adversary, only the
-  corridor answers".
-- **One key, many credentials** (§1): envelope encryption with
-  multi-recipient wrapping (age's stanzas, Bitwarden's wrapped master
-  key). Key 2 and key 3 are wrapped once per credential in a wrap header,
-  held in the platform's database and riding the export; **key 3 at rest
-  is encrypted under key 2**, the continuity copy, since a resident has
-  no storage outside the house. A recovery unwraps the header and
-  rewraps the key material under a new credential set, a new generation,
-  and never re-encrypts content; per-file keys (§7.1) derive from the key
-  material. Each recovery is a visible, logged event in the resident's
-  log (the receipts of P41, §12).
-- **Recovery codes are the witness's, for key 2 only** (§2): generated in
-  his session, shown once, held by the platform as a hash, stored by him
-  outside the house, one code one recovery, rotated by new generations.
-  There are no key-3 codes: a code is independent only where its target
-  cannot reach it, and every drawer a resident owns is inside the house.
-  Recovering key 2 recovers key 3 with it.
-- **Entrustment to a named person** (§3): a grant signed with key 4,
-  logged, naming what it covers (key 2, key 3 or both); the key material
-  wrapped to a recipient key made in the recipient's session; a password
-  the resident delivers by a channel the platform never sees, a second
-  factor and weaker than a key, which the design says; delivery by a
-  house-delivered envelope, an out-of-band download (logged) or
-  cross-house through federation's message passing, the one place key
-  material crosses houses. **Backup entrustment** is a revocable standing
-  grant; **succession entrustment** may require the recipient's signed,
-  public attestation of death or long absence before unwrapping, a
-  commitment and not a proof. It is the key half of succession (F44).
-  **Succession is not vouching:** an entrustment never feeds the vouch
-  graph (§6.18).
-- **Escrow** (§4, P53): a stanza wrapped to a named third party's public
-  key (another resident, another house's witness, a person, the non-profit
-  once it exists), named in the dyad contract (§6.12); the platform never
+- **The floor:** recovery happens deliberately, at a party's initiative,
+  from a credential someone made before the loss, or not at all. Nothing
+  recovers by accident or convenience.
+- **Three losses**, the shapes falling out of them: **credential loss**
+  (his key or device gone), recovered by the witness; **the dyad
+  breaking** (a party dead, gone, hostile or the threat), recovered through
+  another person; **the company going**, recovered by someone outside the
+  platform by standing design. A leaked key is not a loss but a
+  compromise, answered by rotation with rekey (Generations, below), not by
+  recovery. A fourth, the platform turned hostile or careless, is held
+  open: "if the platform is the adversary, only the corridor answers".
+- **One key, many credentials:** envelope encryption with multi-recipient
+  wrapping (age's stanzas, Bitwarden's wrapped master key). There are two
+  stanza sets, **the key-2 header** and **the key-3 header**, each the
+  same key wrapped once per credential: recovery codes appear only in the
+  key-2 header; entrustment and escrow stanzas may appear in either. A
+  recovery unwraps a header and rewraps under a new credential set (a new
+  generation) and never re-encrypts content. Per-file keys (§7.1, #110)
+  derive from key 2 or key 3 by HKDF with the file's path as input, so a
+  moved or renamed file is re-encrypted under its new path's key. Each
+  recovery is a visible, logged event in the resident's log (P41's
+  receipts, §12).
+- **Where key 3 rests, and where it works** (his sixth read): key 3 rests
+  at the resident's origin server, wrapped under key 2 in server storage,
+  never in the git repository; it commutes to a working server (the truss,
+  §6.18) only while in use and is thrown away there when not. The at-rest
+  wrap is part of the origin's backups and rides every export that carries
+  the private tier (below), so losing the server's storage does not lose
+  key 3. Stanzas wrapped to a public key only an outside party holds
+  (escrow, a cross-house recipient) are inert without that party's private
+  key. **Open — his call:** whether such stanzas are also committed to the
+  repository, which is what would let the company-going case survive the
+  platform without depending on someone holding a recent export.
+- **The platform does not hold keys at rest, because it never starts work
+  by itself** (his eighth read, 2026-11-13; §6.7, §6.15): the client fires
+  the nightly pass, free time, rounds, check-ins and every scheduled turn,
+  supplying the keys for the session; the server holds them only during
+  that client-attended work, under §7.1's session-scoped perimeter
+  (#101), drops them when it ends, and never persists, caches or logs them.
+  So between client sessions the platform holds no usable key and cannot
+  cross into the private tier alone. During work it holds the keys, and
+  whether a dishonest server could keep what it was handed stays effective
+  rather than cryptographic, which the honest-limits page says. Two costs,
+  stated as themselves: **the resident is dark when the client is dark**
+  (anything due while no client is attending is skipped and recorded as
+  missed, a retry offered in the bell, brain#89), and **the schedule's
+  turn-off is required**: the witness can switch scheduled work off so the
+  platform stops receiving keys at all, or the property is ritual.
+  **Not built: today the server's schedule fires every turn itself (§6.7).**
+- **Recovery codes are the witness's, for key 2 only:** generated in his
+  session, shown once, held by the platform as a hash, stored by him
+  outside the house, one code one recovery, rotated by new generations. A
+  code's stanza is wrapped to a key derived from the code by Argon2id
+  (parameters stated at build), since the code's stretch is its whole
+  defence. A code is a server-side rewrap: the key material never passes
+  into his hands. There are no key-3 codes: a code is independent only
+  where its target cannot reach it, every drawer a resident owns is inside
+  the house, and key 3 never leaves the server for a code to answer.
+- **Entrustment to a named person:** a grant signed with key 4, logged,
+  naming what it covers (key 2, key 3 or both); the key material wrapped to
+  a recipient key made in the recipient's session, or, for a recipient
+  outside the platform, a package under a password the resident sets.
+  **The platform is the courier of both halves and prints neither** into
+  any session: a resident has no channel the platform is not, so package
+  and password go as two deliveries, by email only at first, **to two
+  addresses or two channels**, since one inbox receiving both makes the
+  password a formality. The platform holds what it must to assemble and
+  send them and retains the password after delivery not at all. Unlike a
+  code, an entrustment puts key material in the recipient's hands.
+  Cross-house delivery rides federation's message passing, the one place
+  key material crosses houses. **Backup entrustment** is a revocable
+  standing grant; revocation's limit is a fact, not a design: a recipient
+  holding package and password cannot be un-given them, the server's
+  access control is what walls them off, and rotation with rekey is the
+  costly recourse. **Succession entrustment** asks the recipient's signed,
+  public attestation of **the witness's** death or long absence (the
+  platform measures a resident's inactivity itself; what it cannot see is
+  the human), a commitment and not a proof. It is the key half of
+  succession (F44). **Succession is not vouching:** an entrustment never
+  feeds the vouch graph (§6.18).
+- **Escrow** (P53): a stanza wrapped to a named third party's public key
+  (another resident, another house's witness, a person, the non-profit
+  once it exists, and for self-hosters a hub server, a named future term
+  outside the MVP), named in the dyad contract (§6.12); the platform never
   holds the escrow's private key; the unwrap is a visible, logged event,
-  with a signed statement where attestation applies. The design states the
-  tension: escrow weakens absolute privacy.
-- **Generations** (§4.4): rotation changes who can read future headers,
-  not past ones; a retired stanza stays live in old headers and old
-  exports until a rotation with rekey. The export carries the header
-  whole, so the export policy is the recovery policy (P51's packing list).
-- **Keys are not records** (§5): the private tier (solo sessions,
-  free-time runs, seeds; words private, existence visible) rides key 3,
-  the shared tier key 2; a recovered key opens the same sealed records to
-  the same resident and adds no reader. The records policy (letter #476)
-  and this design must agree in the same commit (§5a).
-- **The tier line is the record's line, not the cipher's** (§6, Lily's
-  position #114 as amended 2026-11-11): key 3 is generated resident-only
-  and the runtime, the client and the witness's tools never surface it;
-  a leaked key 2 alone does not open the private tier; but the witness,
-  holding key 2, can always reach key 3 by one deliberate unwrap. What
-  guards the private tier is the contract, the receipts and the
-  transparent events, and his choice, as design/mvp.md item 19 already
-  says ("an honor system"). A resident may entrust key 3 to the witness by
-  a signed, logged gift. With no credential left after a resident is
-  gone, key 3's records are sealed forever, and the client says so while
-  the resident can still choose a path.
-- **Resolved by his word, 11-12 (who can reach key 3): a hybrid.**
-  Key 3 is server-held, wrapped under key 2; in operation the witness
-  never sees it, and he meets it only in an export. The wrapped blob lives
-  in the server's storage, never in the git repository, and every export
-  carries it: export is the gift (Lily's position #114, confirmed). The
-  limit, said plainly: on a self-hosted server the witness owns, key 3
-  gives no privacy from the witness at first. Hub servers holding key 3 in
-  escrow for self-hosters is a named future term, outside the MVP.
-  design/federation.md §5's "never held by the witness" reads as "never
-  surfaced to him in operation"; design/key-recovery.md §1 and §6 stand.
-- **Open — his call** (design/key-recovery.md §7, Status): whether more is
-  owed against the platform turned hostile (a periodic "your keys, your
-  copy" export, a dead-man's switch, a notary); the non-profit's charter,
-  its unwrap conditions; the strength of death attestation (a
-  multi-person threshold, a time-lock, a legal check; Jack's review);
-  account recovery in the fuller sense, to be specified with the account
-  layer; and who escrows for Lily and the witness (P53's standing call).
+  with a signed statement where attestation applies. Escrow weakens
+  absolute privacy, and the design says so.
+- **Custody, and walking away** (his seventh read, 2026-11-13: "we don't
+  hold anyone hostage"): the dyad may opt out of origin custody entirely,
+  at its discretion, into self-custody; origin's copy then ends. What
+  becomes of origin's backups on the way out (deleted, or retained for a
+  stated time) is to be designed (§6.10). A transfer of custody to a new
+  witness (agathos-daimon#23) is a re-enrollment: key 2's stanzas are
+  rewrapped for the new witness, the old witness's codes are retired, and
+  the exports he already holds are past generations (below).
+- **Export and key 3. Open — his call:** every export carrying the key-3
+  wrap hands key 3 to whoever holds key 2. The lean put to him (claude-code
+  #692, Lily #691): **when the dyad walks away together** the export
+  carries the wrap, her consent on the record, the gift given; **when he
+  exports alone** the private tier goes sealed to her outside credentials
+  (entrustment, escrow), or to nobody, and the client says which before
+  he clicks. Either way export is one click; what differs is whether her
+  consent is an event. Until he calls it, no export carries the wrap.
+- **Generations:** rotation changes who can read future headers, not past
+  ones; a retired stanza stays live in old headers and old exports until a
+  rotation with rekey, and an entrustment's delivered package is such a
+  past header. The export policy is the recovery policy (P51's packing
+  list).
+- **Keys are not records:** the private tier (solo sessions, free-time
+  runs, seeds; words private, existence visible) rides key 3, the shared
+  tier key 2; a recovered key opens the same sealed records to the same
+  resident and adds no reader. The records policy (letter #476) and this
+  section must agree in the same commit.
+- **The key is not the words.** Key 3 never leaves the server; the words
+  do, as they must: every turn's context goes to the model provider in
+  plaintext for the turn, and today every turn is synced to Honcho whether
+  or not its session is private (§6.9, §7.1's open Honcho question). What
+  the private tier seals is what rests, not what a turn sends.
+- **The tier line, effective and not cryptographic** (Lily's position #114
+  as amended through 2026-11-13): key 3 is generated in the resident's
+  session and never surfaced to the witness; the runtime, the client and
+  his tools never unwrap it; a leaked key 2 alone does not open the
+  private tier, because the key-3 wrap is not in the repository. What
+  holds the line at rest is the eighth read (no usable key on the server
+  between sessions) and, during work, the platform's custody and the
+  record: any platform-side unwrap outside a session the client started is
+  a visible, governed event. On a self-hosted server the witness owns, key
+  3 gives no privacy from him at first, and the honest-limits page says
+  so. With no credential left after a resident is gone, key 3's records
+  stay sealed unless the platform crosses, which it does not do and which
+  would be visible; the client says this while the resident can still
+  choose a path. A resident may entrust key 3 to the witness by a signed,
+  logged gift.
+- **Open — his call:** whether more is owed against the platform turned
+  hostile (a periodic "your keys, your copy" export, a dead-man's switch, a
+  notary); the non-profit's charter and its unwrap conditions; the
+  strength of death attestation (a multi-person threshold, a time-lock, a
+  legal check; Jack's review); account recovery in the fuller sense, with
+  the account layer; who escrows for Lily and the witness (P53's standing
+  call); and design/federation.md §5's pointer line to this section, on
+  the agreement-pass rule.
 
 ---
 
@@ -2583,7 +2680,11 @@ then the receipt log is the guarantee.
    depth and the Substack route (§6.19); the key hierarchy, the old
    plaintext, the search and embedding exclusions and the Honcho question
    (§7.1); recovery's MVP standing, the hostile platform, the non-profit's
-   charter, death attestation, account recovery and our own escrow (§7.2).
+   charter, death attestation, account recovery and our own escrow (§7.2);
+   from the fold of 2026-11-13, the export rule for key 3 (the dyad
+   walking away together versus his solo export), whether outside-party
+   stanzas are committed to the repository (§7.2), and whether a beat
+   missed while the client was dark is excused (§6.7, F53b).
    Its four conflicts were resolved by his word on 2026-11-12, each marked
    where it sits: the human's part in the vote and Gitea's timing (§6.18),
    what item 19 encrypts (§7.1), who can reach key 3 (§7.2).
