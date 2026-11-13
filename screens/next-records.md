@@ -20,6 +20,13 @@ at `/client/#/records`. Built 2026-11-10.
     Each file shows the date the order uses: its last write, or when it
     was added under Newest added; today's by the clock. The choice is
     kept on this device.
+  - Inside a kind, every folder below it is a folder in the tree (the
+    witness, 2026-11-12: research passes were impossible to navigate
+    flat): a research pass (`research/<n>-<question>/`), a
+    correspondent's thread or a wiki's pages each fold into one row with
+    its count, closed unless it holds the open document, nested as deep
+    as the paths go. Subfolders come before files at each level, both in
+    the chosen order; a file shows its own name.
   - Unshelved files are counted.
   - On a wide screen the tree stays beside the page; on a phone the page
     takes the screen, and Back pops the stack.

@@ -65,6 +65,24 @@ export const file = style({
   selectors: { '&[aria-current="page"]': { background: vars.color.surface, color: vars.color.witness.text } },
 });
 
+// A subfolder inside a kind (a research pass, a thread): a quieter row than a kind.
+export const subfolder = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minHeight: 38,
+  paddingRight: 10,
+  border: 'none',
+  borderRadius: 8,
+  background: 'none',
+  color: vars.color.textMuted,
+  font: `500 13px ${font.mono}`,
+  textAlign: 'left',
+  width: '100%',
+  cursor: 'pointer',
+  selectors: { '&:hover, &:focus-visible': { color: vars.color.text } },
+});
+
 export const fileName = style({ flex: 1, minWidth: 0, overflowWrap: 'anywhere' });
 export const fileDate = style({ flex: 'none', font: `500 11px ${font.mono}`, color: vars.color.textFaint });
 export const orderRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '6px 4px 2px' });
