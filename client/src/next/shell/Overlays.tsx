@@ -8,6 +8,8 @@ import { useSubject } from '../state/resident';
 import type { SettingsSection } from '../state/routes';
 import { useShell } from '../state/store';
 import { isFailure } from './failures';
+import { Linked } from './Linked';
+import { pieces } from './paths';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
 import { ThemeSheet } from './ThemeSheet';
@@ -123,6 +125,21 @@ export function Bell() {
           <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
         ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
           <FailureItem key={keyOf(e)} residentId={id} entry={e} name={name} onAnswered={keep(e)} />
+        ) : (e.kind === 'work_held' || e.kind === 'work_blocked') && hasPath(titleOf(e)) ? (
+          // A held item names what to review (brain#90): its path opens it; the card's own link opens Work.
+          <div key={keyOf(e)} className={css.item}>
+            <span className={css.itemKind}>
+              {WORDS[e.kind] ?? e.kind}
+              {e.long ? ' · A WHILE' : ''}
+            </span>
+            <span>
+              <Linked text={titleOf(e)} onOpen={() => setOverlay(null)} />
+            </span>
+            <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+            <a className={css.since} href={hrefFor(e.screen, e.kind)} onClick={() => setOverlay(null)}>
+              Open in Work ›
+            </a>
+          </div>
         ) : e.kind === 'theme_proposal' ? (
           <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} onAnswered={keep(e)} />
         ) : answersInPlace(e.kind) ? (
@@ -168,6 +185,8 @@ export function Bell() {
 }
 
 const keyOf = (e: NeedsYouEntry) => `${e.kind}-${e.ref}`;
+
+const hasPath = (text: string) => pieces(text).some((p) => 'path' in p);
 
 function NotificationsAsk({ name, onOpen }: { name: string; onOpen: () => void }) {
   return (

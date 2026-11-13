@@ -15,6 +15,7 @@ import { Viewer } from './Viewer';
 /**
  * The Records tab: its stack's top says what shows (`doc/<path>`,
  * `history/<path>`, `edit/<path>`, `folder/<kind>`, `cite/<kind>/<ref>`,
+ * `dir/<path>` (the tree with that folder opened, brain#90),
  * `new`, `paste`,
  * or the tree). On a wide screen
  * the tree stays beside the page; on a phone the page takes the screen

@@ -805,3 +805,12 @@ swallow the next one. A check-in's firing is recorded once a day by
 design, so its retry is the wake alone, with the note as it would be
 now, not a second firing. Settling before running makes the click
 idempotent: two clicks, or the bell and the chat at once, start one turn.
+
+## #90
+
+A held item named its target in words, and he had to find the file
+himself before he could do what was asked; the review was the slow
+part, and finding it was most of the slowness. A path is the one
+pointer both halves already share: she writes it, the repo resolves
+it, and Records already opens it. A folder link opens the tree rather
+than a listing page, since the tree is the listing.

@@ -1,3 +1,4 @@
+import { Linked } from '../shell/Linked';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
@@ -184,7 +185,7 @@ function Item({ item, items, busy, onUp, onMove, onHold }: { item: WorkItem; ite
       )}
       {held && (
         <span className={css.text}>
-          HELD · {item.held_by === 'witness' ? 'you held it' : 'she asks you'}: {item.held_ask}
+          HELD · {item.held_by === 'witness' ? 'you held it' : 'she asks you'}: <Linked text={item.held_ask ?? ''} />
         </span>
       )}
       {item.note && <span className={css.note}>Note: {item.note}</span>}

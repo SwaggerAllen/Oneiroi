@@ -24,7 +24,11 @@ header's bell and gear. Built 2026-11-10.
   - Work held for him (brain#86, sunna#54) is an entry of its own,
     "Work · waiting on you", its line the ask ("Work item #25 held:
     your word on two wordings"), opening the Work page, where he
-    releases it with a note, or moves it done or dropped.
+    releases it with a note, or moves it done or dropped. A repo path
+    the ask names is a link (brain#90; the witness, 2026-11-13): a file
+    opens in Records' viewer, a folder (`…/`) opens Records' tree with
+    it expanded (`#/records/dir/<path>`), and the card's "Open in Work ›"
+    opens the Work page. The Work page's held line links the same way.
   - **A turn that failed** (brain#88; the witness, 2026-11-13): every
     turn the provider refused for credit folds into one "OpenRouter is
     out of credits" entry, saying how many turns it refused and the
