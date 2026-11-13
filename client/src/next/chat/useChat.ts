@@ -113,16 +113,19 @@ export function useChat(residentId: string, live: Live) {
   }, [live, residentId, key, refreshNewest, setPresence, queries]);
 
   const send = useCallback(
-    async (text: string, ref = newRef()) => {
+    async (text: string, ref = newRef(), domain?: string | null) => {
       if (!key || !text.trim()) return;
       const now = Date.now();
+      // Sent again, it keeps the domain it was first sent in.
+      const held = outboxRef.current.find((i) => i.ref === ref);
+      const named = held ? held.domain : domain;
       setOutbox((o) =>
         o.some((i) => i.ref === ref)
           ? update(o, ref, { state: 'sending', triedAt: now })
-          : [...o, { ref, text, state: 'sending', attempts: 0, sentAt: now, since: now, triedAt: now }],
+          : [...o, { ref, text, state: 'sending', attempts: 0, sentAt: now, since: now, triedAt: now, ...(domain === undefined ? {} : { domain }) }],
       );
       try {
-        const taken = await api.submit(residentId, key, text, ref);
+        const taken = await api.submit(residentId, key, text, ref, named);
         if (taken.state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
         if (taken.state === 'running') setOutbox((o) => update(o, ref, { state: 'running' }));
         // Taken before, here or by a process a restart ended: held as
@@ -146,6 +149,18 @@ export function useChat(residentId: string, live: Live) {
   }, [key, send]);
 
   const discard = useCallback((ref: string) => setOutbox((o) => remove(o, ref)), []);
+
+  // The conversation's current domain (kumbukumbu#72), as the newest page
+  // reads it, and a turn renamed after the fact.
+  const domainNow = newest.data?.session.domain ?? null;
+  const tagTurn = useCallback(
+    async (turnRef: string, domain: string | null) => {
+      if (!key) return;
+      await api.tagDomain(residentId, key, turnRef, domain);
+      await refreshNewest();
+    },
+    [residentId, key, refreshNewest],
+  );
 
   // The turns that failed and are not yet settled (brain#54, #88), read on
   // arrival and every minute: a failure broadcast while the page was away
@@ -236,6 +251,8 @@ export function useChat(residentId: string, live: Live) {
     working,
     send,
     discard,
+    domainNow,
+    tagTurn,
     unanswered,
     dismissFailure,
     retryFailure,

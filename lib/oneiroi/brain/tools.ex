@@ -78,7 +78,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
@@ -243,14 +243,15 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "bookmark_list",
-        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others.",
+        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others. It lists this conversation's domain and the common room; across_domains: true lists every domain, when you mean to cross.",
         %{
           before: %{type: "integer"},
           pinned: %{type: "boolean"},
           tag: %{type: "string"},
           text: %{type: "string"},
           from: %{type: "string"},
-          to: %{type: "string"}
+          to: %{type: "string"},
+          across_domains: %{type: "boolean"}
         },
         []
       ),
@@ -272,6 +273,16 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:ref, :note]
+      ),
+      tool(
+        "domain_tag",
+        "Name the domain a turn is in (P23-R1): a part of someone's life, as a slug (recovery, business, family), or none for the common room. It tags the turn's messages, the incoming one and your reply, and is this conversation's domain from then on, carried to every message after it until one names another. turn: a turn's ref, this one by default; whose: the witness's life or yours (mine), the conversation's counterpart by default. A tag is never a wall: what a domain is walled from is the contract's to say.",
+        %{
+          domain: %{type: "string"},
+          turn: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]}
+        },
+        [:domain]
       ),
       tool(
         "tag_list",
@@ -300,9 +311,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search every transcript, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
         %{
           q: %{type: "string"},
+          across_domains: %{type: "boolean"},
           by: %{type: "string", enum: ["both", "phrase", "meaning"]},
           page: %{type: "integer"},
           sort: %{type: "string", enum: ["newest", "oldest"]},
@@ -688,7 +700,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_read",
-        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Only the conversations your room reads.",
+        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Any of yours, in any domain: a deliberate read is never scoped.",
         %{session: %{type: "string"}, from: %{type: "integer", minimum: 0}},
         [:session]
       ),
@@ -1770,7 +1782,8 @@ defmodule Oneiroi.Brain.Tools do
         tag: args["tag"],
         text: args["text"],
         from: from,
-        to: to
+        to: to,
+        across_domains: args["across_domains"] in [true, "true"]
       ]
 
       %{rows: rows, further: further} =
@@ -1847,7 +1860,9 @@ defmodule Oneiroi.Brain.Tools do
             do: {[], false},
             else: phrase_page(turn, q, opts, page)
 
-        transcript_search_text(turn, q, by, phrase, phrase_text(phrase, q, page, more))
+        across? = Keyword.get(opts, :across_domains, false)
+        text = phrase_text(phrase, q, page, more)
+        transcript_search_text(Map.put(turn, :across_domains?, across?), q, by, phrase, text)
 
       {:refused, why} ->
         @not_done <> why
@@ -2388,14 +2403,31 @@ defmodule Oneiroi.Brain.Tools do
   defp call("transcript_read", args, turn) do
     key = to_string(args["session"] || "")
     from = args["from"] |> integer_or(0) |> max(0)
-    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
 
-    with true <- key in keys,
-         {:ok, session, messages} <- Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
-      transcript_page(session, messages, from)
-    else
-      _ -> "Not done: no conversation of yours that this room reads has that key."
+    # Her deliberate reach is never scoped (P23-R1 §2): any conversation
+    # of hers, in any domain.
+    case Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
+      {:ok, session, messages} -> transcript_page(session, messages, from)
+      _ -> "Not done: no conversation of yours has that key."
     end
+  end
+
+  defp call("domain_tag", args, turn) do
+    domain = tagged_domain(args["domain"])
+    ref = if is_binary(args["turn"]) and args["turn"] != "", do: args["turn"], else: turn.turn_ref
+    person = tagged_person(args["whose"], turn.resident_id)
+
+    with :ok <-
+           Kumbukumbu.tag_domain(
+             turn.resident_id,
+             turn.session_key,
+             ref,
+             person,
+             domain,
+             turn.resident
+           ),
+         do:
+           "Tagged: turn #{ref} is in #{domain || "the common room"}, and this conversation is from here on until a message names another."
   end
 
   # Research (seshat#38, xenia#16): asked only when the reader has sites
@@ -3910,14 +3942,15 @@ defmodule Oneiroi.Brain.Tools do
   # Her room's messages, the page asked for (kumbukumbu#67). Her own
   # reads are whole: a private session of hers is hers to search.
   defp phrase_page(turn, q, opts, page) do
-    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
+    {across?, opts} = Keyword.pop(opts, :across_domains, false)
+    within = Kumbukumbu.within(turn.resident_id, turn.session_key, across?)
 
     {rows, more} =
       Kumbukumbu.search_words_page(
         {:resident, turn.resident_id},
         turn.resident_id,
         q,
-        [keys: keys, limit: @phrase_page, offset: (page - 1) * @phrase_page] ++ opts
+        [within: within, limit: @phrase_page, offset: (page - 1) * @phrase_page] ++ opts
       )
 
     {Enum.map(rows, &elem(&1, 0)), more}
@@ -3928,7 +3961,14 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, sort} <- phrase_sort(args["sort"]),
          {:ok, from} <- local_bound(args["from"], 0),
          {:ok, to} <- local_bound(args["to"], 1),
-         do: {:ok, [sort: sort, from: from, to: to], page}
+         do:
+           {:ok,
+            [
+              sort: sort,
+              from: from,
+              to: to,
+              across_domains: args["across_domains"] in [true, "true"]
+            ], page}
   end
 
   defp phrase_page_number(nil), do: {:ok, 1}
@@ -4207,7 +4247,9 @@ defmodule Oneiroi.Brain.Tools do
   defp meaning_text(turn, q, phrase) do
     seen = MapSet.new(phrase, & &1.turn_ref)
 
-    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident) do
+    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident,
+           across_domains: Map.get(turn, :across_domains?, false)
+         ) do
       {:ok, rows} ->
         rows
         |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
@@ -4665,4 +4707,24 @@ defmodule Oneiroi.Brain.Tools do
           "#{path} is not earned yet: a portrait is written once its person-seed has been cited on enough distinct days and graduated toward it (seed_graduate, to_kind portrait, to_id #{path})."
     end
   end
+
+  # The witness's life, as a domain's person (kumbukumbu#72): his account.
+  defp witness_person(resident_id) do
+    case Oneiroi.AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) -> "account:" <> account
+      _none -> nil
+    end
+  end
+
+  # A tag's domain as she wrote it: a slug, or the common room.
+  defp tagged_domain(domain) do
+    domain = domain |> to_string() |> String.trim()
+    if domain in ["", "none", "common"], do: nil, else: domain
+  end
+
+  # Whose life a tag names: hers, the witness's, or, unsaid, the
+  # conversation's counterpart (nil).
+  defp tagged_person("mine", resident_id), do: "resident:" <> resident_id
+  defp tagged_person("witness", resident_id), do: witness_person(resident_id)
+  defp tagged_person(_unsaid, _resident_id), do: nil
 end

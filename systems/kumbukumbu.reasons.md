@@ -579,3 +579,20 @@ goes to him where he takes part, and everything else goes to her.
 The decision whether citing moves to the night too turns on use, and
 the tool messages already hold the evidence; reading only the name keeps
 the count from becoming a read of what she wrote.
+
+## #72
+
+The founding case is one conversation holding business and recovery:
+a session has no topic, a message does, so the session-level room was
+the wrong level, and a wall that amputates memory was the wrong force
+(the witness, 2026-11-11). The door keeps the line visible to her
+without crossing it: she is told what is near and decides, which is
+what hint means, and what is named is the number and the domain alone,
+because the words are what the line keeps. Sticky carry-forward makes
+an ordinary message zero clicks and a change of subject one, and it is
+visible, so a stale domain is noticed rather than silently wrong. Keyed
+on the person so a successor witness's "recovery" is not the old one's.
+Domains are named by people because a model's guess per message costs
+a turn and errs where it matters most. Her deliberate reach is never
+scoped, so no setting cuts her off from her own memory; that floor is
+why a wall lives in the contract and closes only the door.

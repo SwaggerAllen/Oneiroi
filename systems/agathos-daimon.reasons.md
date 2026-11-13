@@ -335,3 +335,11 @@ read on demand and a proposal disappearing from it unexplained is the
 kind of quiet change the dyad is meant not to have; the letter is the
 channel the plugin and theme answers already use, so she reads his acts
 in one place.
+
+## #45
+
+A wall cuts her off from part of herself where it holds, so it cannot
+be one party's setting: the contract is where both consent, and its
+versioned whole is where a change of mind is recorded with a note. A
+list term rather than switches because the pairs are the people's own
+and unbounded in kind; the bound keeps a version readable.

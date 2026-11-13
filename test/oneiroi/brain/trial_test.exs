@@ -386,7 +386,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"household_watch", %{thread: "threads/2026-10-26-herons", hours: 24}},
     {"household_sign", %{}},
     {"household_register", %{}},
-    {"household_profile", %{profile: "every_beat", note: "the digest"}}
+    {"household_profile", %{profile: "every_beat", note: "the digest"}},
+    {"domain_tag", %{domain: "business"}}
   ]
 
   @other [

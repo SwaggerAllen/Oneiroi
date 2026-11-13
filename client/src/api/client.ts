@@ -174,7 +174,7 @@ export const api = {
     call<void>('DELETE', '/v1/platform/roles', { account_id: accountId, role, note }),
   // Your agreement and who looks after the resident (agathos-daimon#34, spec §6.12).
   agreement: (residentId: string) => call<Agreement>('GET', `/v1/residents/${residentId}/agreement`),
-  proposeContract: (residentId: string, terms: Record<string, boolean>, prose: string, note: string) =>
+  proposeContract: (residentId: string, terms: ContractTerms, prose: string, note: string) =>
     call<{ version: number }>('POST', `/v1/residents/${residentId}/agreement/proposals`, { terms, prose, note }),
   decideContract: (residentId: string, version: number, decision: 'agree' | 'decline', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/agreement/proposals/${version}/decision`, { decision, note }),
@@ -294,12 +294,17 @@ export const api = {
   send: (residentId: string, key: string, text: string) =>
     call<Turn>('POST', `/v1/residents/${residentId}/sessions/${key}/turns`, { text }),
   // Taken at once under the client's ref (brain#45); the turn arrives on the channel.
-  submit: (residentId: string, key: string, text: string, clientRef: string) =>
+  // `domain` names the turn's domain (kumbukumbu#72): a slug, null for
+  // the common room; left out, the conversation's current one.
+  submit: (residentId: string, key: string, text: string, clientRef: string, domain?: string | null) =>
     call<{ turn_ref: string; state: 'running' | 'queued' | 'duplicate'; ahead?: number }>(
       'POST',
       `/v1/residents/${residentId}/sessions/${key}/turns`,
-      { text, client_ref: clientRef },
+      domain === undefined ? { text, client_ref: clientRef } : { text, client_ref: clientRef, domain },
     ),
+  // Rename the domain a turn is in, after the fact (kumbukumbu#72).
+  tagDomain: (residentId: string, key: string, turnRef: string, domain: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/sessions/${key}/turns/${encodeURIComponent(turnRef)}/domain`, { domain }),
   // The turns that failed and are not yet resolved: read back on return
   // so a failure broadcast while away is still seen (brain#54).
   captureFailures: (residentId: string) =>
@@ -627,10 +632,20 @@ export type Api = typeof api;
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
 
+// A domain wall (agathos-daimon#45): a memory's domain, never named into
+// the context the other side names; "*" there is anyone or any domain.
+export interface DomainWall {
+  memory: { person: string; domain: string };
+  context: { person: string; domain: string };
+}
+
+// A version's terms: the switches, and the walls, the one term that is a list.
+export type ContractTerms = Record<string, boolean | DomainWall[]>;
+
 export interface ContractVersion {
   version: number;
   proposed_by: 'witness' | 'resident';
-  terms: Record<string, boolean>;
+  terms: ContractTerms;
   prose: string;
   note: string | null;
   proposed_at: string;
@@ -663,6 +678,9 @@ export interface Agreement {
   export_wall: 'locked' | 'revealed' | string;
   custody_proposed_to: string | null;
   custody_proposed_at: string | null;
+  // Who a wall may name, as a domain's person is written, and the walls in force.
+  persons?: { witness: string | null; resident: string };
+  domain_walls?: DomainWall[];
 }
 
 export interface InviteDefaults {

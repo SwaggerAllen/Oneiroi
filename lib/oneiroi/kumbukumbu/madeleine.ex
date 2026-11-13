@@ -71,8 +71,8 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   provider fails, or every near bookmark is gated out. The query's
   embedding bills under `purpose`.
   """
-  @spec recall(String.t(), String.t(), Actor.t(), [String.t()] | nil, atom()) :: recall() | nil
-  def recall(resident_id, text, %Actor{} = actor, keys \\ nil, purpose \\ :embeddings)
+  @spec recall(String.t(), String.t(), Actor.t(), MapSet.t() | nil, atom()) :: recall() | nil
+  def recall(resident_id, text, %Actor{} = actor, allowed \\ nil, purpose \\ :embeddings)
       when is_binary(text) do
     model = Config.fetch!(:kumbukumbu, :embedding_model)
 
@@ -87,7 +87,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
       true ->
         case embed(resident_id, model, [text], actor, purpose) do
-          {:ok, [vector]} -> choose(resident_id, vector, keys)
+          {:ok, [vector]} -> choose(resident_id, vector, allowed)
           _failed -> nil
         end
     end
@@ -121,21 +121,22 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
   @doc """
   The madeleine for a vector already embedded (`query/4`), within the
-  room `keys`, never one of `exclude`: the ranked index is itself ranked
+  numbers `allowed` (its domain, kumbukumbu#72), never one of `exclude`: the ranked index is itself ranked
   by nearness now (kumbukumbu#46), so what it returned this turn is not
   unheard, and the madeleine reaches past it.
   """
-  @spec recall_near(String.t(), [float()] | nil, [String.t()] | nil, [pos_integer()]) ::
+  @spec recall_near(String.t(), [float()] | nil, MapSet.t() | nil, [pos_integer()]) ::
           recall() | nil
-  def recall_near(resident_id, vector, keys, exclude \\ [])
-  def recall_near(_resident_id, nil, _keys, _exclude), do: nil
+  def recall_near(resident_id, vector, allowed, exclude \\ [])
+  def recall_near(_resident_id, nil, _allowed, _exclude), do: nil
 
-  def recall_near(resident_id, vector, keys, exclude),
-    do: choose(resident_id, vector, keys, exclude)
+  def recall_near(resident_id, vector, allowed, exclude),
+    do: choose(resident_id, vector, allowed, exclude)
 
-  # `keys` is the room (spec §6.3, P23): a bookmark of a session outside
-  # it is not adjacent to anything said here, whatever its distance.
-  defp choose(resident_id, vector, keys, exclude \\ []) do
+  # `allowed` is the bookmarks of the current domain and the common room
+  # (P23-R1 §2, kumbukumbu#72), by number, or nil for every one: the
+  # madeleine never crosses a domain line uninvited.
+  defp choose(resident_id, vector, allowed, exclude \\ []) do
     bound = Config.fetch!(:kumbukumbu, :madeleine_distance_percent) / 100
     now = Clock.now()
     unheard = DateTime.add(now, -Config.fetch!(:kumbukumbu, :madeleine_unheard_days), :day)
@@ -146,7 +147,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
 
       rows =
         Store.bookmarks()
-        |> Enum.filter(&(is_nil(keys) or &1.session_key in keys))
+        |> Enum.filter(&(is_nil(allowed) or MapSet.member?(allowed, &1.number)))
         |> Enum.reject(&(&1.number in exclude))
         |> Map.new(&{&1.number, &1})
 

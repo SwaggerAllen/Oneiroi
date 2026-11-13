@@ -333,12 +333,13 @@ defmodule Oneiroi.Brain do
   Takes the witness's message under the client's ref and answers at once
   (brain#45): `running`, `queued` with how many wait ahead, or
   `duplicate` when that ref was taken before. The turn's outcome arrives
-  on the session topic.
+  on the session topic. `domain:` (a slug, or nil for the common
+  room) names the domain its turn is in (kumbukumbu#72).
   """
-  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
-  defexport(submit(resident_id, session_key, text, actor, ref),
-    do: Session.submit(resident_id, session_key, text, actor, ref)
+  defexport(submit(resident_id, session_key, text, actor, ref, opts \\ []),
+    do: Session.submit(resident_id, session_key, text, actor, ref, opts)
   )
 
   @doc "The plugin catalog with the resident's state and every proposal (brain#68)."

@@ -131,6 +131,13 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/sessions", ConversationController, :create)
       get("/residents/:id/sessions/:key", ConversationController, :show)
       post("/residents/:id/sessions/:key/turns", ConversationController, :turn)
+
+      post(
+        "/residents/:id/sessions/:key/turns/:turn_ref/domain",
+        ConversationController,
+        :tag_domain
+      )
+
       post("/residents/:id/sessions/:key/preview", ConversationController, :preview)
       post("/residents/:id/sessions/:key/stop", ConversationController, :stop)
       get("/residents/:id/transcripts/search", ConversationController, :search)

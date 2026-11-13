@@ -9,7 +9,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
   custody transfer the new witness is party to nothing that came before,
   which is the export wall (spec §6.12).
   """
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query, only: [from: 2, dynamic: 1, dynamic: 2]
   import Pgvector.Ecto.Query, only: [cosine_distance: 2]
 
   alias Oneiroi.Kumbukumbu.Conversation
@@ -38,6 +38,13 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:compacted_through, :integer, default: 0)
       field(:open_turn_ref, :string)
       field(:open_turn_at, :utc_datetime_usec)
+      # The conversation's current domain (kumbukumbu#72): the last one a
+      # party named (`current_set`), which every untagged message after it
+      # takes; before any, the opening `domain`.
+      field(:current_person, :string)
+      field(:current_domain, :string)
+      field(:current_set, :boolean, default: false)
+      field(:current_turn_ref, :string)
     end
 
     @type t :: %__MODULE__{}
@@ -88,6 +95,11 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:content, :string)
       field(:refusal, :boolean, default: false)
       field(:instant_inferred, :boolean, default: false)
+      # Its domain (kumbukumbu#72): whose life and which part of it, nil
+      # for the common room; `domain_tagged` when a party named it.
+      field(:domain_person, :string)
+      field(:domain, :string)
+      field(:domain_tagged, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -712,19 +724,32 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
-  @doc "The same, within the sessions named (the room, spec §6.3 P23)."
-  @spec search(String.t(), pos_integer(), [String.t()]) :: [Message.t()]
-  def search(text, limit, keys) when is_list(keys) do
-    Repo.all(
-      from(m in Message,
-        where:
-          ilike(m.content, ^search_pattern(text)) and m.session_key in ^keys and
-            m.role != "tool",
-        order_by: [desc: m.sequence, desc: m.position],
-        limit: ^limit
-      )
+  @doc "The same, within a domain and the common room (`{:domain, current}`, kumbukumbu#72), or across every one (`:any`)."
+  @spec search(String.t(), pos_integer(), :any | {:domain, map() | nil}) :: [Message.t()]
+  def search(text, limit, within) do
+    from(m in Message,
+      where: ilike(m.content, ^search_pattern(text)) and m.role != "tool",
+      order_by: [desc: m.sequence, desc: m.position],
+      limit: ^limit
     )
+    |> within(within)
+    |> Repo.all()
   end
+
+  @doc """
+  A query over messages kept to a domain and the common room
+  (`{:domain, current}`, P23-R1 §2), or left whole (`:any`, her
+  deliberate cross). The message is the query's first binding.
+  """
+  def within(query, :any), do: query
+
+  def within(query, {:domain, nil}), do: from([m, ...] in query, where: is_nil(m.domain))
+
+  def within(query, {:domain, %{person: person, domain: domain}}),
+    do:
+      from([m, ...] in query,
+        where: is_nil(m.domain) or (m.domain_person == ^person and m.domain == ^domain)
+      )
 
   @doc """
   One resident's messages holding `text`, newest first and unweighted
@@ -757,8 +782,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
   search (kumbukumbu#67): `{[{message, session}], more?}`. `opts`:
   `:limit` and `:offset` (the page), `:sort` `:newest` (the default) or
   `:oldest`, `:from` and `:to` instants bounding `sent_at` (from
-  inclusive, to exclusive), `:keys` to keep to those sessions (her
-  room), and `:witness` true to leave a private, unshared session's
+  inclusive, to exclusive), `:within` to keep to a domain and the
+  common room (`within/2`, kumbukumbu#72), and `:witness` true to leave a private, unshared session's
   messages out as `search_words/3` does; `:who`, an actor kind
   (`resident`, `witness`, `platform`), keeps to who said it, and
   `:conversations`, session kinds, to those kinds of conversation
@@ -793,8 +818,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:to, %DateTime{} = at}, q ->
           from([m, _s] in q, where: m.sent_at < ^at)
 
-        {:keys, keys}, q when is_list(keys) ->
-          from([m, _s] in q, where: m.session_key in ^keys)
+        {:within, within}, q ->
+          within(q, within)
 
         {:witness, true}, q ->
           from([_m, s] in q, where: s.private == false or s.shared == true)
@@ -1049,11 +1074,15 @@ defmodule Oneiroi.Kumbukumbu.Store do
     end)
   end
 
-  @doc "The passages nearest a vector among the sessions named, nearest first."
-  def nearest_passages(vector, keys, limit) when is_list(keys) do
+  @doc "The passages nearest a vector within a domain and the common room, or across every one (`within/2`), nearest first."
+  def nearest_passages(vector, within, limit) do
     Repo.all(
       from(p in Passage,
-        where: p.session_key in ^keys,
+        join: m in Message,
+        on:
+          m.resident_id == p.resident_id and m.session_key == p.session_key and
+            m.sent_at == p.sent_at and m.hash == p.hash,
+        where: ^passage_within(within),
         order_by: cosine_distance(p.embedding, ^vector),
         limit: ^limit,
         select: %{
@@ -1067,6 +1096,16 @@ defmodule Oneiroi.Kumbukumbu.Store do
       )
     )
   end
+
+  defp passage_within(:any), do: dynamic(true)
+  defp passage_within({:domain, nil}), do: dynamic([_p, m], is_nil(m.domain))
+
+  defp passage_within({:domain, %{person: person, domain: domain}}),
+    do:
+      dynamic(
+        [_p, m],
+        is_nil(m.domain) or (m.domain_person == ^person and m.domain == ^domain)
+      )
 
   @doc "The madeleine's rows, by kind and number."
   @spec vectors() :: [Vector.t()]

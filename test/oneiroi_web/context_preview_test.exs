@@ -61,9 +61,9 @@ defmodule OneiroiWeb.ContextPreviewTest do
   test "Memory's index is what is in front of every turn now (the pins) and how the rest are ranked, worded by the server",
        ctx do
     {:ok, ikey} =
-      Kumbukumbu.open_session(ctx.id, "free_time", "brain", [ctx.account.id], ctx.actor,
-        domain: "intimate"
-      )
+      Kumbukumbu.open_session(ctx.id, "free_time", "brain", [ctx.account.id], ctx.actor)
+
+    :ok = Kumbukumbu.tag_domain(ctx.id, ikey, "t-intimate", nil, "intimate", ctx.actor)
 
     capture!(ctx, ctx.key, "t-main")
     capture!(ctx, ikey, "t-intimate")
@@ -83,7 +83,7 @@ defmodule OneiroiWeb.ContextPreviewTest do
 
     assert description =~ "under a budget of #{budget} tokens (a bound)"
     assert description =~ "1 pin in front of every turn, in the stable prefix."
-    assert description =~ "ranked only in that room's conversations"
+    assert description =~ "ranked only where the conversation is in that domain"
 
     # Every row is unmarked: the tab never read last_indexed_at.
     assert ctx.conn

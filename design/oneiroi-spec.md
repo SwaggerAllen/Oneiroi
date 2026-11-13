@@ -413,7 +413,8 @@ Every feature, with where it stands today and which system owns it. Tier
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
 | F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); leaving moves key 3 server to server, never through the witness, and the export carries the escrow wraps (his calls, 2026-11-13); its MVP standing is open (§7.2) | none yet |
 | F82 | Portraits: people-memory as a person-seed planted and cited by the night's people pass, graduated on five cited days into a portrait file she writes, claims cited and without interiority | built (design/portraits.md; ethos#21, brain#91, sunna#57): the people and behaviour passes chained after the scene pass, seed_plant theirs alone, citations naming their turn, `portrait` a graduation target refused under `ETHOS_PORTRAIT_DAYS` cited days, a `portraits/` file written only once earned; the citation tools' use counted (kumbukumbu#71) | memory, schedule, character |
-| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
+| F83 | Domains per message: a part of someone's life, named by people on a turn and carried forward; another domain's memory a door, never shown; walls only by the contract | built (P23-R1; kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): `MessageDomainTagged`, the composer's chip and a turn's re-tag, her `domain_tag`, the domain line in her context, doors under the index, `across_domains` on her searches, walls as a contract term with the agreement screen's editor. Per-message tags in household threads, sibling letters and beats, a bookmark's domain set at write time, and journal rows' domains planned | memory, governance |
+| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34, #45; brain#24, #27): the switch registry and the domain walls as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
@@ -773,14 +774,22 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   tombstone. The madeleine layer (v0.2, P10, built: kumbukumbu#34): gated,
   non-repeating associative recall chosen by the embedding index,
   adjacent but unheard, excluded from limit-adjacent material, logged
-  with its reason, one bookmark a turn in a section of its own. Memory
-  carries a domain (v0.2, P23, built: kumbukumbu#36, brain#35, ethos
-  #19): a session names its room at the opening (a slug: intimate,
-  business, family; the main session is the common room) and the index,
-  the search, the madeleine and the lane's exemplars reach the room's
-  sessions and the common room's, never another domain's; shipped as an
-  intent with an audit rather than a proof, the near-miss record showing
-  a domain line approached and not crossed.
+  with its reason, one bookmark a turn in a section of its own. **Memory
+  carries a domain, per message** (P23-R1, superseding P23's rooms;
+  built: kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): a domain
+  is a part of someone's life, `(person, slug)`, and a message's: the
+  incoming one and her reply take the domain a party named on the turn,
+  else the conversation's current one, the last named and carried
+  forward, else the common room. People name domains (the composer's
+  chip, her `domain_tag`, a re-tag after); nothing detects them, and the
+  scene pass may audit and never set them. Retrieval hints rather than
+  walls: from a turn in one domain, a memory of another that ranks in is
+  named as a door, by its number and domain, never its words; the
+  madeleine never crosses; searches keep to the domain and the common
+  room unless she crosses on purpose; her deliberate reach
+  (`bookmark_open`, a transcript read, a search across domains) is
+  never scoped. A wall is a contract term both agree (§6.12), and closes
+  the door alone.
 - **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
   a line the witness wrote there would be the witness writing into the
@@ -1516,8 +1525,15 @@ is a community to run them. Rules carried as constraints on the model:
   44), and a switch for every feature beyond the floor: the witness's
   reads of the journal and bookmarks, model-choice trials, wash flags,
   revisions, ranked memory, retrieval that learns from feedback, the
-  background model, the oracle, research, digests and correspondence.
-  **A version is whole** (the witness, 2026-11-05): it sets every
+  background model, the oracle, research, digests and correspondence;
+  and the **domain walls** (agathos-daimon#45; the witness, 2026-11-13:
+  "All of the domain boundaries are set in the contract. Hard filter
+  especially because that's cutting a resident off from part of
+  themselves"), the one term that is a list: a memory of one person's
+  domain never named into a context the wall names. A wall binds what
+  retrieval offers, never her reach or the witness's reads; on a custody
+  transfer, walling the previous witness's domains is a term the new
+  contract proposes, not a default. **A version is whole** (the witness, 2026-11-05): it sets every
   switch, is agreed or declined as a unit, and so a switch moves away
   from safety only by both parties. **Toward safety, either alone**
   (Lily, letter #305; agathos-daimon#38): each switch declares its safe

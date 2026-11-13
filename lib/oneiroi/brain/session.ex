@@ -51,13 +51,18 @@ defmodule Oneiroi.Brain.Session do
   when it starts now, `queued` with how many wait ahead, or `duplicate`
   when the ref was taken before (brain#45).
   """
-  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
-  def submit(resident_id, session_key, text, actor, ref) when is_binary(ref) do
+  def submit(resident_id, session_key, text, actor, ref, opts \\ []) when is_binary(ref) do
+    # The composer's domain (kumbukumbu#72), carried on the item and
+    # named when its turn starts, never when it is queued: a message
+    # waiting behind a running turn must not move that turn's domain.
+    opts = Keyword.take(opts, [:domain])
+
     with {:ok, pid} <- ensure(resident_id, session_key) do
       GenServer.call(
         pid,
-        {:submit, %{ref: ref, text: text, actor: actor, opts: [], taken_at: Clock.now()}}
+        {:submit, %{ref: ref, text: text, actor: actor, opts: opts, taken_at: Clock.now()}}
       )
     end
   end
@@ -168,13 +173,18 @@ defmodule Oneiroi.Brain.Session do
         # and each one joined says which turn it went into.
         opts =
           item.opts
+          |> Keyword.delete(:domain)
           |> Keyword.put(:turn_ref, item.ref)
           |> Keyword.put(:earlier, Enum.map(Enum.drop(batch, -1), &said/1))
+
+        # The batch's domain is its newest message's that named one.
+        domain = batch |> Enum.filter(&Keyword.has_key?(&1.opts, :domain)) |> List.last()
 
         for f <- followers, do: status(state, f.ref, "batched", %{into: item.ref})
 
         task =
           Task.Supervisor.async_nolink(@tasks, fn ->
+            tag_domain(id, key, item.ref, domain)
             Turn.run(id, key, last.text, last.actor, opts)
           end)
 
@@ -183,6 +193,17 @@ defmodule Oneiroi.Brain.Session do
 
       {:empty, _queue} ->
         %{state | running: nil}
+    end
+  end
+
+  # The turn named into the domain its message carried, before it runs,
+  # so its capture lands there and its context is assembled there.
+  defp tag_domain(_id, _key, _ref, nil), do: :ok
+
+  defp tag_domain(id, key, ref, item) do
+    case Kumbukumbu.tag_domain(id, key, ref, nil, item.opts[:domain], item.actor) do
+      :ok -> :ok
+      {:error, _refused} -> :ok
     end
   end
 

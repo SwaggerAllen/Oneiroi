@@ -39,9 +39,11 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   # a client, and read by no nightly pass, because it was judged where
   # it was said.
   @imported "imported"
-  # A domain is a slug the witness names at the session's opening (spec
-  # §6.3, P23): the room, and the common room when nil.
+  # A domain is a slug a party names (P23-R1, kumbukumbu#72): a part of
+  # someone's life, the common room when nil. Its person is whose life:
+  # an account or a resident, by id.
   @domain ~r/\A[a-z][a-z0-9-]{1,31}\z/
+  @person ~r/\A(account|resident):[0-9a-fA-F-]{36}\z/
 
   @doc "The session kinds a conversation may be; regression sessions are never captured (spec §6.4)."
   @spec kinds() :: [String.t()]
@@ -296,6 +298,38 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     end
   end
 
+  def execute(%__MODULE__{}, %Commands.TagDomain{} = c) do
+    cond do
+      not domain_ok?(c.domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_conversation_tag_domain_invalid,
+           domain: c.domain
+         )}
+
+      not (is_binary(c.person) and Regex.match?(@person, c.person)) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_conversation_tag_person_invalid,
+           person: c.person
+         )}
+
+      not (is_binary(c.turn_ref) and c.turn_ref != "") ->
+        {:error, Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_conversation_tag_turn_invalid)}
+
+      true ->
+        %Events.MessageDomainTagged{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          resident_id: c.resident_id,
+          session_key: c.session_key,
+          turn_ref: c.turn_ref,
+          # The common room names no one.
+          person: if(c.domain, do: c.person),
+          domain: c.domain
+        }
+    end
+  end
+
   def execute(%__MODULE__{}, %Commands.ShareSession{} = c),
     do: %Events.SessionShared{
       actor: c.actor,
@@ -373,6 +407,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     do: %{s | failures: Map.delete(s.failures, e.turn_ref)}
 
   def apply(%__MODULE__{} = s, %Events.SessionShared{}), do: s
+  def apply(%__MODULE__{} = s, %Events.MessageDomainTagged{}), do: s
   def apply(%__MODULE__{} = s, %Events.SessionMadePrivate{}), do: s
 
   @doc "The idempotency key of a turn: when it started and the hash of its messages' hashes, in order."

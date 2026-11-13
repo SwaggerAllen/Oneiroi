@@ -21,8 +21,9 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     brain = Actor.new(:resident, id, "fake/model")
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, actor)
 
-    {:ok, ikey} =
-      Kumbukumbu.open_session(id, "free_time", "brain", [witness.id], actor, domain: "intimate")
+    {:ok, ikey} = Kumbukumbu.open_session(id, "free_time", "brain", [witness.id], actor)
+    # Her free time named intimate (kumbukumbu#72): its turns are hers.
+    :ok = Kumbukumbu.tag_domain(id, ikey, "t-intimate", nil, "intimate", actor)
 
     at = Clock.now()
 
@@ -126,7 +127,8 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     assert Enum.all?(left, &(&1 in (numbers(first) ++ numbers(rest))))
   end
 
-  test "the room's line holds: a bookmark of another domain is never listed outside it", ctx do
+  test "the domain's line holds: a bookmark of another domain is listed only across domains",
+       ctx do
     add(ctx, 1)
     add(ctx, 2, intimate: true, pinned: true)
     add(ctx, 3)
@@ -135,6 +137,8 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
     assert numbers(Kumbukumbu.bookmark_page(ctx.id, ctx.key, pinned: true)) == []
     assert numbers(Kumbukumbu.bookmark_page(ctx.id, ctx.ikey, [])) == [3, 2, 1]
     assert numbers(Kumbukumbu.bookmark_page(ctx.id, ctx.ikey, pinned: true)) == [2]
+    # Her deliberate cross (P23-R1 §2) lists every domain.
+    assert numbers(Kumbukumbu.bookmark_page(ctx.id, ctx.key, across_domains: true)) == [3, 2, 1]
   end
 
   test "what is in front of every turn now: the pins, and the rest said to be ranked", ctx do
@@ -154,6 +158,8 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
 
     assert text =~ "1 pin in front of every turn, in the stable prefix."
     assert text =~ "The other 1 are ranked against each turn's words"
-    assert text =~ "1 bookmark made in a named room is ranked only in that room's conversations."
+
+    assert text =~
+             "1 bookmark in a named domain is ranked only where the conversation is in that domain, and named as a door elsewhere."
   end
 end

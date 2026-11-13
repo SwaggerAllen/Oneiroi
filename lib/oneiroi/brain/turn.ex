@@ -1234,7 +1234,7 @@ defmodule Oneiroi.Brain.Turn do
       |> Plugins.active(turn)
       |> Enum.flat_map(fn
         :where ->
-          where_section(turn, session)
+          where_section(turn, session) ++ domain_section(turn, session)
 
         :summary ->
           section(
@@ -1249,6 +1249,38 @@ defmodule Oneiroi.Brain.Turn do
 
     {sections, index}
   end
+
+  # The domain this conversation is in now (P23-R1, kumbukumbu#72), so
+  # she never answers inside a line she cannot see: named while it is
+  # one, silent in the common room.
+  defp domain_section(%{trial?: true}, _session), do: []
+  defp domain_section(%{oracle?: true}, _session), do: []
+  defp domain_section(_turn, nil), do: []
+
+  defp domain_section(turn, session) do
+    case Kumbukumbu.domain_now(turn.resident_id, session.key) do
+      nil ->
+        []
+
+      %{person: person, domain: domain} ->
+        section(
+          "domain",
+          Prompt.render!("domain_now", %{domain: domain, whose: whose(turn, person)}),
+          "the domain this conversation is in now (kumbukumbu#72): #{domain}, as last named"
+        )
+    end
+  end
+
+  defp whose(turn, "resident:" <> id) when id == turn.resident_id, do: "your own life"
+
+  defp whose(turn, "account:" <> id) do
+    case Oneiroi.AgathosDaimon.fetch(turn.resident_id) do
+      {:ok, %{account_id: ^id}} -> "your witness's life"
+      _other -> "another person's life"
+    end
+  end
+
+  defp whose(_turn, _person), do: "another's life"
 
   defp where_section(%{trial?: true}, _session), do: []
   defp where_section(%{oracle?: true}, _session), do: []

@@ -60,6 +60,12 @@ defmodule Oneiroi.Kumbukumbu.Commands do
       fields: [:id, :resident_id, :session_key, :turn_ref, :how]
   end
 
+  # A turn's messages named into a domain (kumbukumbu#72).
+  defmodule TagDomain do
+    use Oneiroi.Command,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :person, :domain]
+  end
+
   defmodule ShareSession do
     use Oneiroi.Command, decision: true, fields: [:id, :resident_id, :session_key]
   end

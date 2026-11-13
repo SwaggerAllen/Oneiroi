@@ -44,7 +44,8 @@ turn.
   - **Every turn** (the default view): the bookmarks the index lists
     (`GET /index`, today her pins), the server's own description of the
     index, and what it leaves out: how many are ranked per turn under
-    the budget instead, and how many are ranked only in their room.
+    the budget instead, and how many are in a named domain, ranked only
+    where the conversation is in it (kumbukumbu#72).
   - **All:** every bookmark, newest first, twenty a page with **Older
     bookmarks** (`GET /bookmarks?limit=&before=`).
   - **Pinned:** every pin, newest first.
@@ -129,10 +130,17 @@ turn.
     version's change, a move toward safety standing over it, and
     **Switch on now / off now** toward its safe value, alone, with a
     note (`POST /agreement/switches/:key/safe`);
-  - **Propose a version**: every switch, your vows in prose and a
-    required note, the switches it changes named; refused while a
-    version is open; once proposed, the form gives way to the version's
-    number and that the one in force stays until she answers;
+  - **Domain walls** (agathos-daimon#45): the walls in force in words
+    ("your recovery is never named into your business"), or that there
+    are none and another domain's memory is a door; the open version's
+    walls when they differ;
+  - **Propose a version**: every switch, the domain walls (the ones in
+    force carried in, each removable; a new one from whose domain, its
+    slug, whose context and its slug or any, "Add the wall"), your vows
+    in prose and a required note, the switches it changes named;
+    refused while a version is open; once proposed, the form gives way
+    to the version's number and that the one in force stays until she
+    answers;
   - the versions so far, each with its note, answer and prose;
   - who looks after her: the export wall (lock or reveal, with a note),
     handing over to an account by email, and withdrawing a handover,

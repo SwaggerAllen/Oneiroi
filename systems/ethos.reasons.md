@@ -152,3 +152,8 @@ A person met once stays a cheap seed; a portrait is earned by someone
 who keeps coming up, and the count of distinct cited days is the
 evidence the habit ladder already trusts. The target is the file so the
 graduation and the write meet on one name.
+
+## #22
+
+The lane's exemplars are an uninvited surface like the index, so they
+take the same rule: named, not shown, and her reach to the turn intact.

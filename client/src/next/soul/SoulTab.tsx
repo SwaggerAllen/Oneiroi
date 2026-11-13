@@ -213,7 +213,8 @@ function Root() {
 }
 
 function VersionBody({ v }: { v: ContractVersion }) {
-  const enforced = Object.entries(v.terms).filter(([, on]) => on);
+  // The switches on; the walls, a list, are said on the agreement page.
+  const enforced = Object.entries(v.terms).filter(([, on]) => on === true);
   return (
     <>
       {enforced.length > 0 && (

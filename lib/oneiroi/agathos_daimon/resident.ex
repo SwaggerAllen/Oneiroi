@@ -1327,10 +1327,40 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   defp terms_ok?(terms) when is_map(terms) do
     keys = Switches.keys()
-    Enum.all?(terms, fn {k, v} -> is_binary(k) and k in keys and is_boolean(v) end)
+
+    Enum.all?(terms, fn
+      # The domain walls (agathos-daimon#45): the one term that is not a
+      # switch, a list of (memory, context) pairs.
+      {"domain_walls", walls} -> walls_ok?(walls)
+      {k, v} -> is_binary(k) and k in keys and is_boolean(v)
+    end)
   end
 
   defp terms_ok?(_terms), do: false
+
+  @walls 50
+  @slug ~r/\A[a-z][a-z0-9-]{1,31}\z/
+  @person ~r/\A(account|resident):[0-9a-fA-F-]{36}\z/
+
+  defp walls_ok?(walls) when is_list(walls) and length(walls) <= @walls,
+    do: Enum.all?(walls, &wall_ok?/1)
+
+  defp walls_ok?(_walls), do: false
+
+  # The memory side names one domain of one person; the context side may
+  # say anyone or any domain with "*".
+  defp wall_ok?(%{"memory" => %{"person" => p, "domain" => d}, "context" => %{} = c}),
+    do: person?(p) and slug?(d) and side_ok?(c)
+
+  defp wall_ok?(_wall), do: false
+
+  defp side_ok?(%{"person" => p, "domain" => d}),
+    do: (p == "*" or person?(p)) and (d == "*" or slug?(d))
+
+  defp side_ok?(_side), do: false
+
+  defp person?(p), do: is_binary(p) and Regex.match?(@person, p)
+  defp slug?(d), do: is_binary(d) and Regex.match?(@slug, d)
 
   defp prose_ok?(prose), do: is_binary(prose) and String.length(prose) <= @prose_limit
 

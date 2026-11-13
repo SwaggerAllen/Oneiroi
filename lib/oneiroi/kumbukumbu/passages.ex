@@ -67,16 +67,19 @@ defmodule Oneiroi.Kumbukumbu.Passages do
   end
 
   @doc """
-  The passages nearest `text` among the conversations the room of
-  `session_key` reads, nearest first; empty, with no model call, for
+  The passages nearest `text` in the current domain of `session_key`
+  and the common room, or in every domain with `across_domains: true`
+  (P23-R1 §2), nearest first; empty, with no model call, for
   blank words or when nothing is embedded there. The query bills under
   `embeddings`.
   """
-  @spec search(String.t(), String.t() | nil, String.t(), pos_integer(), Actor.t()) ::
+  @spec search(String.t(), String.t() | nil, String.t(), pos_integer(), Actor.t(), keyword()) ::
           {:ok, [map()]} | {:error, term()}
-  def search(resident_id, session_key, text, limit, %Actor{} = actor) do
+  def search(resident_id, session_key, text, limit, %Actor{} = actor, opts \\ []) do
     model = Config.fetch!(:kumbukumbu, :embedding_model)
-    %{keys: keys} = Conversations.room(resident_id, session_key)
+
+    within =
+      Conversations.within(resident_id, session_key, Keyword.get(opts, :across_domains) == true)
 
     if String.trim(text) == "" do
       {:ok, []}
@@ -84,7 +87,7 @@ defmodule Oneiroi.Kumbukumbu.Passages do
       with {:ok, [vector]} <- embed(resident_id, model, [text], actor) do
         {:ok,
          Scope.resident(resident_id, fn ->
-           Store.nearest_passages(Pgvector.new(vector), keys, limit)
+           Store.nearest_passages(Pgvector.new(vector), within, limit)
          end)}
       end
     end

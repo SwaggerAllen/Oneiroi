@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Message } from '../../api/types';
 import { toolSummary } from '../../screens/chat/page';
 import type { Live } from '../live/live';
@@ -15,6 +15,8 @@ import { TurnTools } from './TurnTools';
 import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';
 import { useChat } from './useChat';
+import { DomainChip } from './DomainChip';
+import { domainBreaks, knownDomains } from './domains';
 
 const READ_KEY = 'oneiroi.next.read.';
 
@@ -181,11 +183,18 @@ export function Chat({
 
   const touch = useTouch();
 
+  // The domain picked for the next message (kumbukumbu#72): undefined
+  // carries the conversation's current one.
+  const [picked, setPicked] = useState<string | null | undefined>(undefined);
+  const breaks = useMemo(() => domainBreaks(chat.messages), [chat.messages]);
+  const known = useMemo(() => knownDomains(chat.messages, chat.domainNow), [chat.messages, chat.domainNow]);
+
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
     setDraft('');
-    void chat.send(text);
+    void chat.send(text, undefined, picked);
+    setPicked(undefined);
     setAtBottom(true);
   };
 
@@ -224,6 +233,7 @@ export function Chat({
               key={m.cursor ?? `${m.turn_ref}-${i}`}
               m={m}
               unreadRule={i === firstUnread}
+              domainRule={breaks.has(i) ? (breaks.get(i) ?? 'common room') : null}
               onCite={openCite}
               reacts={
                 chat.key && (m.role === 'user' || m.role === 'assistant') ? (
@@ -234,7 +244,11 @@ export function Chat({
                     residentName={residentName}
                     canReact={m.role === 'assistant'}
                     reacts={(reacts.get(m.turn_ref) ?? []).filter((r) => (m.role === 'assistant' ? r.by === 'witness' : r.by === 'resident'))}
-                    extra={m.role === 'assistant' ? <TurnTools residentId={residentId} sessionKey={chat.key} turnRef={m.turn_ref} residentName={residentName} /> : undefined}
+                    extra={
+                      m.role === 'assistant' ? (
+                        <TurnTools residentId={residentId} sessionKey={chat.key} turnRef={m.turn_ref} residentName={residentName} domain={m.domain?.slug ?? null} onRetag={chat.tagTurn} />
+                      ) : undefined
+                    }
                   />
                 ) : null
               }
@@ -311,6 +325,7 @@ export function Chat({
         </button>
       )}
 
+      {chat.key && <DomainChip now={chat.domainNow} known={known} picked={picked} onPick={setPicked} />}
       <form
         className={css.composer}
         onSubmit={(e) => {
@@ -348,19 +363,32 @@ export function Chat({
 function MessageView({
   m,
   unreadRule,
+  domainRule,
   onCite,
   reacts,
 }: {
   m: Message;
   unreadRule: boolean;
+  domainRule: string | null;
   onCite: (c: Citation) => void;
   reacts: ReactNode;
 }) {
-  const rule = unreadRule ? (
+  const unread = unreadRule ? (
     <div className={css.unread} data-unread-rule>
       <span className={css.unreadLabel}>NEW SINCE {hhmm(m.sent_at)}</span>
     </div>
   ) : null;
+  // Where the transcript moves into another domain (kumbukumbu#72).
+  const rule = (
+    <>
+      {unread}
+      {domainRule && (
+        <div className={css.domainRule} data-domain-rule={domainRule}>
+          — {domainRule} —
+        </div>
+      )}
+    </>
+  );
 
   if (m.role === 'user') {
     return (

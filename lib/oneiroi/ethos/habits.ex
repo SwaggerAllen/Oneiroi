@@ -326,11 +326,13 @@ defmodule Oneiroi.Ethos.Habits do
     {header, turns}
   end
 
-  # The room (spec §6.3, P23): a situation with a session names it, and
-  # a cited turn from a session outside it is not shown, however strong
-  # the habit; without one, every cited turn may be.
+  # The domain (P23-R1, kumbukumbu#72): a situation with a session is in
+  # its conversation's current domain, and a cited turn of another is
+  # named by its ref and domain and never shown, however strong the
+  # habit, unless the contract walls it (then not named at all); without
+  # a session, every cited turn may be shown.
   defp room_keys(resident_id, %{session_key: key}) when is_binary(key),
-    do: Kumbukumbu.room(resident_id, key).keys
+    do: {:domain, Kumbukumbu.domain_now(resident_id, key)}
 
   defp room_keys(_resident_id, _situation), do: nil
 
@@ -346,15 +348,30 @@ defmodule Oneiroi.Ethos.Habits do
   defp exemplar(resident_id, %{target_id: turn_ref} = citation, room) do
     case resident_id
          |> Kumbukumbu.turn_messages(turn_ref)
-         |> Enum.find(&(&1.role == "assistant" and (is_nil(room) or &1.session_key in room))) do
+         |> Enum.find(&(&1.role == "assistant")) do
       nil ->
         nil
 
       m ->
-        "- turn #{turn_ref}: \"#{String.slice(m.content, 0, @exemplar_chars)}\"" <>
-          movement_line(citation.movement)
+        key = m.domain && %{person: m.domain_person, domain: m.domain}
+
+        cond do
+          shown?(key, room) ->
+            "- turn #{turn_ref}: \"#{String.slice(m.content, 0, @exemplar_chars)}\"" <>
+              movement_line(citation.movement)
+
+          Kumbukumbu.walled?(resident_id, key, elem(room, 1)) ->
+            nil
+
+          true ->
+            "- turn #{turn_ref}: nearby in another domain (#{key.domain}); transcript_read opens it if you want it"
+        end
     end
   end
+
+  defp shown?(_key, nil), do: true
+  defp shown?(nil, _room), do: true
+  defp shown?(key, {:domain, current}), do: key == current
 
   # What the cited moment changed (P34), on the line under the words,
   # so the brain reads the movement beside the moment and never in its

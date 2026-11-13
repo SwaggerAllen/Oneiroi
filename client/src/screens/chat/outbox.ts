@@ -32,6 +32,9 @@ export interface Outgoing {
   since?: number;
   // When it was last sent to the server, for the stuck check below.
   triedAt?: number;
+  // The domain it was sent in (kumbukumbu#72), sent again with it: a
+  // slug, null for the common room, absent for the conversation's own.
+  domain?: string | null;
 }
 
 // The states a turn is under way in: taken and not yet answered.

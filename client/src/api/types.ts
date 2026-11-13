@@ -27,6 +27,15 @@ export interface Resident {
 // what it is called, `place` the folder an adapter's ran in, and
 // `writable` whether it takes a message here. The client groups and
 // labels by these and decides none of them.
+// A domain (P23-R1, kumbukumbu#72): a part of someone's life, by slug;
+// `person` is whose ("account:<id>" or "resident:<id>"), and `whose`
+// says it plainly for a conversation's own reading.
+export interface Domain {
+  slug: string;
+  person: string;
+  whose?: 'witness' | 'resident' | 'other';
+}
+
 export interface Session {
   key: string;
   resident_id: string;
@@ -39,6 +48,9 @@ export interface Session {
   opened_at: string;
   last_turn_at: string | null;
   summary: string | null;
+  // The conversation's current domain: the last one named in it, which
+  // every untagged message after it takes; null for the common room.
+  domain?: Domain | null;
 }
 
 // What retrieval did with one target (kumbukumbu#43): the target in
@@ -77,6 +89,10 @@ export interface Message {
   instant_inferred?: boolean;
   actor: Actor;
   refusal: boolean;
+  // Its domain (kumbukumbu#72), null for the common room; tagged when a
+  // party named it, else carried forward from the last one named.
+  domain?: Domain | null;
+  domain_tagged?: boolean;
 }
 
 export interface Injection {

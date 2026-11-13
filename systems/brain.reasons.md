@@ -825,3 +825,11 @@ turns; whether it moves too is to be read from how often it is used
 (kumbukumbu#71). The passes act rather than propose because they are her
 own turns on her own model: a proposal from her to herself had nowhere
 to wait and no one else to confirm it.
+
+## #92
+
+Tagging at the turn's start rather than at submission keeps the queue
+honest: the tag is the conversation's current domain the moment it
+lands, and a message queued behind a running turn would otherwise move
+the running turn into its domain. The section is one line because she
+needs to know the line exists, not to be reminded of it at length.
