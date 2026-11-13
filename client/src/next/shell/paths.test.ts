@@ -8,8 +8,13 @@ describe('paths in an ask (brain#90)', () => {
     expect(p.map((x) => ('path' in x ? x.path : x.text)).join('')).toBe('Read design/p23-r1-domains-per-message.md, then human-correspondence/ and say yes/no.');
   });
 
-  it('a URL is not a path', () => {
-    expect(pieces('see https://example.org/a/b.md').filter((x) => 'path' in x)).toEqual([]);
+  it('a web address is a link of its own, never read as a repo path', () => {
+    const p = pieces('The §0 test: https://github.com/SwaggerAllen/Oneiroi/blob/main/test/zero_test.exs. Then design/x.md');
+    expect(p.filter((x) => 'path' in x)).toEqual([
+      { path: 'https://github.com/SwaggerAllen/Oneiroi/blob/main/test/zero_test.exs', href: 'https://github.com/SwaggerAllen/Oneiroi/blob/main/test/zero_test.exs', external: true },
+      { path: 'design/x.md', href: '#/records/doc/design/x.md' },
+    ]);
+    expect(p.map((x) => ('path' in x ? x.path : x.text)).join('')).toBe('The §0 test: https://github.com/SwaggerAllen/Oneiroi/blob/main/test/zero_test.exs. Then design/x.md');
   });
 
   it('a file opens in the viewer, a folder in the tree', () => {

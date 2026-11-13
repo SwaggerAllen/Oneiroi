@@ -27,7 +27,8 @@ header's bell and gear. Built 2026-11-10.
     releases it with a note, or moves it done or dropped. A repo path
     the ask names is a link (brain#90; the witness, 2026-11-13): a file
     opens in Records' viewer, a folder (`…/`) opens Records' tree with
-    it expanded (`#/records/dir/<path>`), and the card's "Open in Work ›"
+    it expanded (`#/records/dir/<path>`), a web address (a GitHub URL for
+    a file outside her tree) opens in a new tab, and the card's "Open in Work ›"
     opens the Work page. The Work page's held line links the same way.
   - **A turn that failed** (brain#88; the witness, 2026-11-13): every
     turn the provider refused for credit folds into one "OpenRouter is

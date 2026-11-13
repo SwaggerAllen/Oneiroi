@@ -9,7 +9,7 @@ export function Linked({ text, className, onOpen }: { text: string; className?: 
     <>
       {parts.map((p, i) =>
         'path' in p ? (
-          <a key={i} className={className} href={p.href} onClick={onOpen}>
+          <a key={i} className={className} href={p.href} onClick={p.external ? undefined : onOpen} {...(p.external ? { target: '_blank', rel: 'noreferrer' } : {})}>
             {p.path}
           </a>
         ) : (
