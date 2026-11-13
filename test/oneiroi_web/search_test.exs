@@ -361,6 +361,84 @@ defmodule OneiroiWeb.SearchTest do
              searched(ctx, %{q: "heron", scope: "records", date: "someday"}) |> json_response(422)
   end
 
+  test "letters: the house letters holding the words, by who wrote them and who they went to (kumbukumbu#70)",
+       ctx do
+    {:ok, _} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        nil,
+        %{to: "house", text: "The heron at the weir."},
+        ctx.actor
+      )
+
+    {:ok, _} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        nil,
+        %{to: "Oneiroi chat", text: "Another heron."},
+        ctx.actor
+      )
+
+    {:ok, _} =
+      Kumbukumbu.send_letter(ctx.id, nil, %{to: "house", text: "No birds here."}, ctx.actor)
+
+    numbers = fn params ->
+      searched(ctx, Map.merge(%{q: "heron", scope: "letters"}, params))
+      |> json_response(200)
+      |> refs("number")
+    end
+
+    assert numbers.(%{}) == [2, 1]
+    assert numbers.(%{sort: "oldest"}) == [1, 2]
+    assert numbers.(%{written_by: "witness"}) == [2, 1]
+    assert numbers.(%{written_by: "Iris"}) == []
+    assert numbers.(%{sent_to: "house"}) == [1]
+
+    assert %{
+             "results" => [
+               %{"type" => "letter", "title" => title, "snippet" => "Another heron."} | _
+             ]
+           } =
+             searched(ctx, %{q: "heron", scope: "letters"}) |> json_response(200)
+
+    assert title == "#2 · witness → Oneiroi chat"
+
+    assert ctx.conn |> get("/v1/residents/#{ctx.id}/letters/parties") |> json_response(200) ==
+             ["Oneiroi chat", "house", "witness"]
+
+    assert %{"error" => %{"kind" => "search_filter_invalid"}} =
+             searched(ctx, %{q: "heron", scope: "letters", sort: "best"}) |> json_response(422)
+  end
+
+  test "transcripts narrow by who they were sent to (kumbukumbu#70)", ctx do
+    capture!(ctx, ctx.key, "t-her", "The plover ran along the sand.")
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "t-his",
+        ctx.at,
+        [%{role: :user, content: "Did you see the plover?", sent_at: ctx.at, actor: ctx.actor}],
+        ctx.brain
+      )
+
+    free = private_session!(ctx)
+    :ok = Kumbukumbu.share_session(ctx.id, free, "read it", ctx.brain)
+    capture!(ctx, free, "t-alone", "A plover, to myself.")
+
+    turns = fn params ->
+      searched(ctx, Map.merge(%{q: "plover", scope: "words"}, params))
+      |> json_response(200)
+      |> refs("turn_ref")
+      |> Enum.sort()
+    end
+
+    assert turns.(%{}) == ["t-alone", "t-her", "t-his"]
+    assert turns.(%{sent_to: "witness"}) == ["t-her"]
+    assert turns.(%{sent_to: "resident"}) == ["t-his"]
+  end
+
   test "scenes narrow by mood and person, by their day (kumbukumbu#69)", ctx do
     {:ok, _} =
       Seshat.scene_write(

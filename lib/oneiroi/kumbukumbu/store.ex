@@ -749,6 +749,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  # The conversations the witness takes part in, for Sent to (kumbukumbu#70).
+  @with_witness ~w(main adapter imported)
+
   @doc """
   One page of a resident's messages holding `text`, for the paged
   search (kumbukumbu#67): `{[{message, session}], more?}`. `opts`:
@@ -759,7 +762,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
   messages out as `search_words/3` does; `:who`, an actor kind
   (`resident`, `witness`, `platform`), keeps to who said it, and
   `:conversations`, session kinds, to those kinds of conversation
-  (kumbukumbu#69). Tool calls are never searched.
+  (kumbukumbu#69); `:sent_to`, `witness` or `resident`, keeps to what
+  went to him (her words where he takes part) or to her (everyone
+  else's), kumbukumbu#70. Tool calls are never searched.
   """
   @spec search_page(String.t(), String.t(), keyword()) ::
           {[{Message.t(), Session.t()}], boolean()}
@@ -782,13 +787,35 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
     query =
       Enum.reduce(opts, query, fn
-        {:from, %DateTime{} = at}, q -> from([m, _s] in q, where: m.sent_at >= ^at)
-        {:to, %DateTime{} = at}, q -> from([m, _s] in q, where: m.sent_at < ^at)
-        {:keys, keys}, q when is_list(keys) -> from([m, _s] in q, where: m.session_key in ^keys)
-        {:witness, true}, q -> from([_m, s] in q, where: s.private == false or s.shared == true)
-        {:who, kind}, q when is_binary(kind) -> from([m, _s] in q, where: m.actor_kind == ^kind)
-        {:conversations, [_ | _] = kinds}, q -> from([_m, s] in q, where: s.kind in ^kinds)
-        _other, q -> q
+        {:from, %DateTime{} = at}, q ->
+          from([m, _s] in q, where: m.sent_at >= ^at)
+
+        {:to, %DateTime{} = at}, q ->
+          from([m, _s] in q, where: m.sent_at < ^at)
+
+        {:keys, keys}, q when is_list(keys) ->
+          from([m, _s] in q, where: m.session_key in ^keys)
+
+        {:witness, true}, q ->
+          from([_m, s] in q, where: s.private == false or s.shared == true)
+
+        {:who, kind}, q when is_binary(kind) ->
+          from([m, _s] in q, where: m.actor_kind == ^kind)
+
+        # Sent to (kumbukumbu#70): what she says goes to the witness only
+        # in the conversations he takes part in; what anyone else says
+        # goes to her.
+        {:sent_to, "witness"}, q ->
+          from([m, s] in q, where: m.actor_kind == "resident" and s.kind in ^@with_witness)
+
+        {:sent_to, "resident"}, q ->
+          from([m, _s] in q, where: m.actor_kind != "resident")
+
+        {:conversations, [_ | _] = kinds}, q ->
+          from([_m, s] in q, where: s.kind in ^kinds)
+
+        _other, q ->
+          q
       end)
 
     rows = Repo.all(query)

@@ -15,7 +15,11 @@ export interface Filters {
   author: '' | 'resident' | 'witness' | 'platform';
   // Transcripts
   who: '' | 'resident' | 'witness' | 'platform';
+  sentTo: '' | 'resident' | 'witness';
   conversations: string[];
+  // Letters
+  letterFrom: string;
+  letterTo: string;
   // Bookmarks
   pinned: boolean;
   tag: string;
@@ -34,7 +38,10 @@ export const NO_FILTERS: Filters = {
   status: '',
   author: '',
   who: '',
+  sentTo: '',
   conversations: [],
+  letterFrom: '',
+  letterTo: '',
   pinned: false,
   tag: '',
   madeBy: '',
@@ -43,7 +50,7 @@ export const NO_FILTERS: Filters = {
 };
 
 /** The scopes that take filters; everything and as-she-sees-it do not. */
-export const FILTERED = ['records', 'bookmarks', 'scenes', 'words'] as const;
+export const FILTERED = ['records', 'bookmarks', 'scenes', 'words', 'letters'] as const;
 
 export const CONVERSATIONS: Array<[string, string]> = [
   ['main', 'Main chat'],
@@ -58,14 +65,15 @@ export const CONVERSATIONS: Array<[string, string]> = [
 
 /** The orders a scope offers: transcripts are newest or oldest; the rest rank first. */
 export function sorts(scope: string): Sort[] {
-  return scope === 'words' ? ['newest', 'oldest'] : ['relevance', 'newest', 'oldest'];
+  return scope === 'words' || scope === 'letters' ? ['newest', 'oldest'] : ['relevance', 'newest', 'oldest'];
 }
 
 /** How many filters are set for a scope, for the button's count. */
 export function activeCount(scope: string, f: Filters): number {
   const own: Record<string, unknown[]> = {
     records: [f.kinds.length > 0, f.status, f.author],
-    words: [f.who, f.conversations.length > 0],
+    words: [f.who, f.sentTo, f.conversations.length > 0],
+    letters: [f.letterFrom, f.letterTo],
     bookmarks: [f.pinned, f.tag, f.madeBy],
     scenes: [f.mood, f.person],
   };
@@ -85,7 +93,14 @@ export function toParams(scope: string, f: Filters, page = 1): Record<string, st
     out.page = String(page);
     out.sort = sort;
     if (f.who) out.who = f.who;
+    if (f.sentTo) out.sent_to = f.sentTo;
     if (f.conversations.length) out.conversations = f.conversations.join(',');
+    return out;
+  }
+  if (scope === 'letters') {
+    out.sort = sort;
+    if (f.letterFrom) out.written_by = f.letterFrom;
+    if (f.letterTo) out.sent_to = f.letterTo;
     return out;
   }
   if (sort !== 'relevance') out.sort = sort;

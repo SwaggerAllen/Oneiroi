@@ -559,3 +559,17 @@ search has no stable order past its rank; transcripts, matched by
 phrase, page instead (#67). Scenes filter by day because the search
 reads the day's file: matching the file and then its rows keeps one
 embedding per day, and the day is the unit the reader opens.
+
+## #70
+
+One search per workspace keeps a shared workspace no different from a
+resident's own: the same search, opened from inside it, with no rule for
+which of a household's posts a member's search may show. "Written by"
+and "sent to" replace from and to because a record's last writer and a
+letter's sender are the same question, and two words for it confused
+the filter. Letters became their own scope because their words live
+only in the letter store: the transcript holds a note naming the
+letter, never its text, so a sender searched in the transcript would
+find nothing. Sent to in a transcript is derived, not stored: in a
+conversation only the witness and the resident speak, what she says
+goes to him where he takes part, and everything else goes to her.

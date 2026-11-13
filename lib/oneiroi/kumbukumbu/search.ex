@@ -54,6 +54,29 @@ defmodule Oneiroi.Kumbukumbu.Search do
     |> Enum.take(limit)
   end
 
+  @doc "The house letters holding `text` (kumbukumbu#70); see `Oneiroi.Kumbukumbu.search_letters/4`."
+  @spec letters(String.t(), String.t(), pos_integer(), keyword()) :: [map()]
+  def letters(resident_id, text, limit, narrow) do
+    needle = text |> String.trim() |> String.downcase()
+    order = if narrow[:sort] == :oldest, do: :asc, else: :desc
+
+    resident_id
+    |> Memories.letters()
+    |> Enum.filter(&(holds?(&1.text, needle) and letter_kept?(&1, narrow)))
+    |> Enum.sort_by(& &1.number, order)
+    |> Enum.take(limit)
+  end
+
+  defp letter_kept?(l, narrow) do
+    Enum.all?(narrow, fn
+      {:written_by, name} when is_binary(name) -> l.from_name == name
+      {:sent_to, name} when is_binary(name) -> l.to_name == name
+      {:from, %DateTime{} = at} -> DateTime.compare(l.sent_at, at) != :lt
+      {:to, %DateTime{} = at} -> DateTime.compare(l.sent_at, at) == :lt
+      _other -> true
+    end)
+  end
+
   # kumbukumbu#69: pinned only, a tag, who made it (`resident` hers,
   # `witness` from his suggestion), and its moment in a range.
   defp kept?(b, narrow) do

@@ -7,7 +7,7 @@ import { activeCount, CONVERSATIONS, FILTERED, NO_FILTERS, sorts, toParams, type
 import { useShell } from '../state/store';
 import * as css from './search.css';
 
-const SCOPES = ['everything', 'records', 'bookmarks', 'scenes', 'words', 'as-she-sees-it'] as const;
+const SCOPES = ['everything', 'records', 'bookmarks', 'scenes', 'words', 'letters', 'as-she-sees-it'] as const;
 type Scope = (typeof SCOPES)[number];
 const LABEL: Record<Scope, string> = {
   everything: 'Everything',
@@ -15,6 +15,7 @@ const LABEL: Record<Scope, string> = {
   bookmarks: 'Bookmarks',
   scenes: 'Scenes',
   words: 'Transcripts',
+  letters: 'Letters',
   'as-she-sees-it': 'As she sees it',
 };
 
@@ -40,6 +41,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   };
   const filterable = (FILTERED as readonly string[]).includes(scope);
   const kinds = useQuery({ queryKey: ['resident', residentId, 'kinds'], queryFn: () => api.kinds(residentId), enabled: open && showFilters && scope === 'records' });
+  const parties = useQuery({ queryKey: ['resident', residentId, 'letter-parties'], queryFn: () => api.letterParties(residentId), enabled: open && showFilters && scope === 'letters' });
   const tags = useQuery({ queryKey: ['resident', residentId, 'tags'], queryFn: () => api.tags(residentId), enabled: open && showFilters && scope === 'bookmarks' });
 
   useEffect(() => {
@@ -194,6 +196,14 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                         <option value="platform">The platform</option>
                       </select>
                     </label>
+                    <label className={css.filter}>
+                      Sent to
+                      <select className={css.filterInput} value={filters.sentTo} onChange={(e) => set('sentTo', e.target.value as Filters['sentTo'])}>
+                        <option value="">Anyone</option>
+                        <option value="resident">{residentName}</option>
+                        <option value="witness">You</option>
+                      </select>
+                    </label>
                   </div>
                   <fieldset className={css.checks}>
                     <legend className={css.filter}>Conversations</legend>
@@ -209,6 +219,32 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                     ))}
                   </fieldset>
                 </>
+              )}
+              {scope === 'letters' && (
+                <div className={css.filters}>
+                  <label className={css.filter}>
+                    Written by
+                    <select className={css.filterInput} value={filters.letterFrom} onChange={(e) => set('letterFrom', e.target.value)}>
+                      <option value="">Anyone</option>
+                      {(parties.data ?? []).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className={css.filter}>
+                    Sent to
+                    <select className={css.filterInput} value={filters.letterTo} onChange={(e) => set('letterTo', e.target.value)}>
+                      <option value="">Anyone</option>
+                      {(parties.data ?? []).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               )}
               {scope === 'bookmarks' && (
                 <div className={css.filters}>
@@ -284,7 +320,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   );
 }
 
-const KIND: Record<SearchResult['type'], string> = { transcript: 'Transcript', document: 'Record', bookmark: 'Bookmark', scene: 'Scene' };
+const KIND: Record<SearchResult['type'], string> = { transcript: 'Transcript', document: 'Record', bookmark: 'Bookmark', scene: 'Scene', letter: 'Letter' };
 
 /** Where a result lives: a turn in the conversation, a document, a bookmark. */
 function hrefOf(hit: SearchResult): string {
@@ -296,5 +332,8 @@ function hrefOf(hit: SearchResult): string {
     case 'document':
     case 'scene':
       return formatHash({ tab: 'records', path: `doc/${hit.ref.path}` });
+    case 'letter':
+      // Letters live in the chat's Mail view, where the house letters are read.
+      return formatHash({ tab: 'chat', path: 'mail' });
   }
 }

@@ -60,7 +60,9 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   Clear: From and To days (this browser's zone, both included) and an
   order (Best match, Newest, Oldest; transcripts Newest or Oldest);
   records add Updated or Created, Written by, Status and Kinds
-  (her own kinds included); transcripts add Written by and Conversations;
+  (her own kinds included); transcripts add Written by, Sent to and
+  Conversations; Letters (a scope of its own, kumbukumbu#70) add
+  Written by and Sent to over the names her letters carry;
   bookmarks add Pinned only, Tag and Made (by her or from your
   suggestion); scenes add Mood and Person.
 - **ScrollArea.** Edge fades as a mask, shown only while there is more

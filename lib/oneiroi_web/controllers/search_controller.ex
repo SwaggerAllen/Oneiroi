@@ -21,7 +21,7 @@ defmodule OneiroiWeb.SearchController do
 
   plug(:witnessed)
 
-  @scopes ~w(everything records bookmarks scenes words as-she-sees-it)
+  @scopes ~w(everything records bookmarks scenes words letters as-she-sees-it)
   # The interleaving's order, one of each a round.
   @everything [:records, :bookmarks, :scenes, :words]
   @page 50
@@ -184,6 +184,22 @@ defmodule OneiroiWeb.SearchController do
 
   # Records, bookmarks and scenes narrow and sort (kumbukumbu#69); the
   # results stay the scope's nearest or best 50, the sort orders them.
+  defp run(conn, id, q, "letters", params) do
+    with {:ok, narrow} <- narrow("letters", params),
+         {:ok, sort} <- letter_sort(params["sort"]) do
+      {:ok,
+       %{
+         results:
+           id
+           |> Kumbukumbu.search_letters(q, @page, [sort: sort] ++ narrow)
+           |> Enum.map(&letter(&1, q))
+       }}
+    else
+      {:refused, what} ->
+        problem(conn, 422, :search_filter_invalid, :web_search_letters_filter_invalid, what)
+    end
+  end
+
   defp run(conn, id, q, scope, params) when scope in ["records", "bookmarks", "scenes"] do
     with {:ok, narrow} <- narrow(scope, params),
          {:ok, sort} <- sort_of(params["sort"]),
@@ -272,13 +288,14 @@ defmodule OneiroiWeb.SearchController do
 
   defp narrow_of("words", params) do
     with {:ok, who} <- one_of(params["who"], @authors, "who"),
+         {:ok, sent_to} <- one_of(params["sent_to"], @made_by, "sent_to"),
          {:ok, kinds} <-
            some_of(
              params["conversations"],
              Kumbukumbu.Conversation.kinds() ++ ["imported"],
              "conversations"
            ),
-         do: {:ok, who: who, conversations: kinds}
+         do: {:ok, who: who, sent_to: sent_to, conversations: kinds}
   end
 
   defp narrow_of("records", params) do
@@ -298,6 +315,9 @@ defmodule OneiroiWeb.SearchController do
            {:ok,
             pinned: params["pinned"] == "true" || nil, tag: blank(params["tag"]), made_by: made_by}
   end
+
+  defp narrow_of("letters", params),
+    do: {:ok, written_by: blank(params["written_by"]), sent_to: blank(params["sent_to"])}
 
   defp narrow_of("scenes", params),
     do: {:ok, mood: lower(params["mood"]), person: lower(params["person"])}
@@ -339,6 +359,11 @@ defmodule OneiroiWeb.SearchController do
     do: if(String.trim(to_string(raw)) == "", do: nil, else: String.trim(to_string(raw)))
 
   defp lower(raw), do: raw |> blank() |> then(&(&1 && String.downcase(&1)))
+
+  defp letter_sort(nil), do: {:ok, :newest}
+  defp letter_sort("newest"), do: {:ok, :newest}
+  defp letter_sort("oldest"), do: {:ok, :oldest}
+  defp letter_sort(_other), do: {:refused, "sort is newest or oldest"}
 
   defp sort_of(nil), do: {:ok, :relevance}
   defp sort_of("relevance"), do: {:ok, :relevance}
@@ -510,6 +535,16 @@ defmodule OneiroiWeb.SearchController do
       score: similarity(hit.distance)
     }
   end
+
+  defp letter(l, q),
+    do: %{
+      type: "letter",
+      ref: %{number: l.number},
+      title: "##{l.number} · #{l.from_name} → #{l.to_name}",
+      snippet: around(l.text || "", q),
+      at: l.sent_at,
+      score: nil
+    }
 
   defp bookmark(b, score, q),
     do: %{

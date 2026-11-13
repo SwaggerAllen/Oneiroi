@@ -150,7 +150,8 @@ export type SearchResult =
   | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'bookmark'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null }
-  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null };
+  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'letter'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null };
 
 export const api = {
   login: (email: string, password: string) =>
@@ -472,6 +473,8 @@ export const api = {
   askResearch: (residentId: string, question: string, urls: string[]) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/research`, urls.length > 0 ? { question, urls } : { question }),
   letterAddresses: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/addresses`),
+  // Every name a letter was written by or sent to (kumbukumbu#70).
+  letterParties: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/parties`),
   sendLetter: (residentId: string, to: string, text: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),
