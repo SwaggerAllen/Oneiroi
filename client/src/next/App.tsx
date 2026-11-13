@@ -1,3 +1,4 @@
+import { isFailure } from './shell/failures';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
@@ -112,6 +113,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
       residentId={residentId}
       residentName={residentName}
       waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0)}
+      failing={(bell.data ?? []).some(isFailure)}
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>
         tab === 'chat' ? (

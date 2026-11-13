@@ -19,6 +19,7 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
 
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.NeedsYou.Entry
+  alias Oneiroi.Brain.Retry
   alias Oneiroi.Kumbukumbu
 
   # Older open failures are history, not news: they stay readable on the
@@ -44,7 +45,7 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
     kinds = Map.new(Kumbukumbu.sessions(scope), &{&1.key, &1.kind})
     {credits, others} = Enum.split_with(failures, &credits?(&1.reason))
 
-    credit_entry(credits) ++ Enum.map(others, &failed(&1, kinds))
+    credit_entry(credits) ++ Enum.map(others, &failed(resident_id, &1, kinds))
   end
 
   @doc "Whether a failure's reason is the provider refusing for credit."
@@ -67,6 +68,7 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
         screen: "settings",
         about: %{
           what: "OpenRouter refused #{length(all)} turn(s) for credit",
+          retry: "Run them all again",
           reason: last.reason,
           failures:
             Enum.map(
@@ -78,7 +80,8 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
     ]
   end
 
-  defp failed(f, kinds),
+  # What running it again does, for the button beside Dismiss (brain#89).
+  defp failed(resident_id, f, kinds),
     do: %Entry{
       kind: "turn_failed",
       ref: f.turn_ref,
@@ -88,7 +91,11 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
         what: f.reason,
         reason: f.reason,
         session_key: f.session_key,
-        conversation: Map.get(kinds, f.session_key)
+        conversation: Map.get(kinds, f.session_key),
+        retry: resident_id |> Retry.action(f, kinds) |> retry_label()
       }
     }
+
+  defp retry_label({:checkin, _key, label}), do: label
+  defp retry_label({_kind, label}), do: label
 end

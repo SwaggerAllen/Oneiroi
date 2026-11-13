@@ -16,6 +16,7 @@ export interface ShellProps {
   residentId: string;
   residentName: string;
   waiting: number;
+  failing?: boolean;
   onReconnect: () => void;
   /** Renders a tab at the top of its stack; every tab stays mounted. */
   renderTab: (tab: Tab, path: string) => ReactNode;
@@ -53,7 +54,7 @@ function useHashSync() {
   }, [tab, stacks, page]);
 }
 
-export function Shell({ residentId, residentName, waiting, onReconnect, renderTab }: ShellProps) {
+export function Shell({ residentId, residentName, waiting, failing = false, onReconnect, renderTab }: ShellProps) {
   useHashSync();
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
@@ -70,7 +71,7 @@ export function Shell({ residentId, residentName, waiting, onReconnect, renderTa
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
+      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>

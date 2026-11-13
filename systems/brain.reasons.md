@@ -794,3 +794,14 @@ refusals fold into one entry because one act settles all of them, and a
 night of failed turns would otherwise bury the rest of the list. The
 week's window keeps failures from before this existed from arriving as
 a flood of stale news.
+
+## #89
+
+Dismiss alone leaves him knowing something went wrong and nothing to do
+about it; the useful act is almost always "do it again", and what "it"
+was is knowable from where it ran. A one-off slot keeps a retried free
+time or round from being taken for the day's standing slot, which would
+swallow the next one. A check-in's firing is recorded once a day by
+design, so its retry is the wake alone, with the note as it would be
+now, not a second firing. Settling before running makes the click
+idempotent: two clicks, or the bell and the chat at once, start one turn.

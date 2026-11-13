@@ -6,12 +6,14 @@ import * as css from './shell.css';
 export interface HeaderProps {
   name: string;
   waiting: number;
+  /** A turn failed (brain#89): the dot goes red. */
+  failing?: boolean;
   onSubject?: () => void;
   onBell?: () => void;
   onSettings?: () => void;
 }
 
-export function Header({ name, waiting, onSubject, onBell, onSettings }: HeaderProps) {
+export function Header({ name, waiting, failing = false, onSubject, onBell, onSettings }: HeaderProps) {
   const presence = useShell((s) => s.presence);
   const connection = useShell((s) => s.connection);
   const setSearchOpen = useShell((s) => s.setSearchOpen);
@@ -47,11 +49,11 @@ export function Header({ name, waiting, onSubject, onBell, onSettings }: HeaderP
         <button
           type="button"
           className={css.iconButton}
-          aria-label={waiting ? `Waiting on you, ${waiting}` : 'Nothing waiting on you'}
+          aria-label={waiting ? `Waiting on you, ${waiting}${failing ? ', something failed' : ''}` : 'Nothing waiting on you'}
           onClick={onBell}
         >
           <BellIcon />
-          {waiting > 0 && <span className={css.badge}>{waiting}</span>}
+          {waiting > 0 && <span className={failing ? css.badgeFailing : css.badge}>{waiting}</span>}
         </button>
         <button type="button" className={css.iconButton} aria-label="Settings" onClick={onSettings}>
           <GearIcon />

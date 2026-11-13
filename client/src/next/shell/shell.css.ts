@@ -113,6 +113,8 @@ export const badge = style({
   justifyContent: 'center',
   boxShadow: `0 0 10px ${vars.color.witness.glow}`,
 });
+// The dot when a turn failed (brain#89): the signal red, unthemed.
+export const badgeFailing = style([badge, { background: status.error, color: '#1d0b0a', boxShadow: `0 0 0 2px color-mix(in srgb, ${status.error} 35%, transparent)` }]);
 
 export const tabs = style({
   gridArea: 'tabs',

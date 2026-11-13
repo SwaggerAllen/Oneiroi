@@ -403,6 +403,38 @@ defmodule OneiroiWeb.ConversationController do
         "key, how and note are required"
       )
 
+  operation(:retry,
+    summary:
+      "Run a failed turn again (brain#89): free time and a round run now under a one-off slot, a check-in's wake again with its note, any other failure in the main chat a wake saying so; settled as retried at once, the turn started in the background. 202 with what it does",
+    parameters: [id: [in: :path, type: :string], turn_ref: [in: :path, type: :string]],
+    responses: [
+      accepted: {"what it does", "application/json", %Schema{type: :object}},
+      not_found: "no unsettled failed turn has that ref"
+    ]
+  )
+
+  def retry(conn, %{"id" => id, "turn_ref" => turn_ref}) do
+    case Oneiroi.Brain.retry_failure(id, turn_ref, actor(conn)) do
+      {:ok, what} -> conn |> put_status(202) |> json(%{started: what})
+      {:error, %{kind: :brain_no_such_failure} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:retry_credits,
+    summary:
+      "Run every turn the provider refused for credit again, each purpose once (brain#89): after a top-up. 202 with what each does",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [accepted: {"what each does", "application/json", %Schema{type: :object}}]
+  )
+
+  def retry_credits(conn, %{"id" => id}) do
+    case Oneiroi.Brain.retry_credit_failures(id, actor(conn)) do
+      {:ok, started} -> conn |> put_status(202) |> json(%{started: started})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   operation(:injections,
     summary: "What a turn drew on: the 'drew on N things' inspector",
     parameters: [id: [in: :path, type: :string], turn_ref: [in: :path, type: :string]],

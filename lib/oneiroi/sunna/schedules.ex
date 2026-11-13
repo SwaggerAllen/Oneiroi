@@ -493,6 +493,57 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
+  # ---- running again (brain#89) ----
+
+  @doc """
+  The check-in that fired just before `at` (within ten minutes), the
+  one a failed turn in the main chat was, or nil: a failure records its
+  conversation, not its purpose (brain#89).
+  """
+  @spec checkin_fired_before(String.t(), DateTime.t()) :: map() | nil
+  def checkin_fired_before(resident_id, %DateTime{} = at) do
+    from = DateTime.add(at, -600, :second)
+
+    fired =
+      resident_id
+      |> firings(2)
+      |> Enum.filter(&fired_between?(&1, from, at))
+      |> Enum.max_by(& &1.at, DateTime, fn -> nil end)
+
+    fired && Enum.find(checkins(resident_id), &(&1.key == fired.key))
+  end
+
+  defp fired_between?(f, from, to),
+    do:
+      f.outcome == "fired" and f.at != nil and DateTime.compare(f.at, from) != :lt and
+        DateTime.compare(f.at, to) != :gt
+
+  @doc "A check-in's wake again, now, with its note as it would be now: the day's firing is not recorded twice (brain#89)."
+  def retry_checkin(resident_id, key, %Actor{} = actor) do
+    case Enum.find(checkins(resident_id), &(&1.key == key)) do
+      nil -> {:error, Error.new(:sunna_no_such_checkin, :sunna_schedules_retry_checkin_absent)}
+      checkin -> wake_main(resident_id, checkin_note(resident_id, checkin), actor)
+    end
+  end
+
+  @doc "Free time now, under a one-off slot of its own that no standing slot counts (brain#89)."
+  def retry_free_time(resident_id, %Actor{} = actor) do
+    local = local_now(resident_id)
+    run_free_time(resident_id, local_day(local), "retry-" <> stamp(local), actor)
+  end
+
+  @doc "A thinking round now, claimed under a one-off slot of its own (brain#89)."
+  def retry_round(resident_id, %Actor{} = actor) do
+    local = local_now(resident_id)
+    run_round(resident_id, local_day(local), "retry-" <> stamp(local), actor)
+  end
+
+  @doc "The main chat woken now with the core's note (brain#89): a failed wake that was no check-in."
+  def wake_main_now(resident_id, note, %Actor{} = actor), do: wake_main(resident_id, note, actor)
+
+  defp stamp(local),
+    do: local |> DateTime.to_time() |> Time.truncate(:second) |> Time.to_iso8601()
+
   def miss_checkin(resident_id, key, day, %Actor{} = actor) do
     command = %Commands.MissCheckin{
       actor: actor,

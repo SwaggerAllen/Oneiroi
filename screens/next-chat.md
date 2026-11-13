@@ -32,7 +32,8 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   for credit, brain#88). A turn of this conversation that failed with no
   message of his waiting on it (a check-in, a wake) shows as a line in
   the conversation with when and the provider's words, "Add credits"
-  when it was refused for credit, and Dismiss; the failures are read on
+  when it was refused for credit, "Run it again" (or "Topped up? Run it
+  again", brain#89) and Dismiss; the failures are read on
   arrival and every minute, so one that happened while he was away is
   there when he comes back. A message taken and then never heard of again (a
   queue lost to a restart, or a send answered as a duplicate of a claim

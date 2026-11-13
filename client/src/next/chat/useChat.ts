@@ -168,6 +168,15 @@ export function useChat(residentId: string, live: Live) {
     },
     [residentId, key, queries, failuresKey],
   );
+  // Run it again, as what it was (brain#89); the turn arrives on the channel.
+  const retryFailure = useCallback(
+    async (turnRef: string) => {
+      await api.retryFailure(residentId, turnRef).catch(() => undefined);
+      void queries.invalidateQueries({ queryKey: failuresKey });
+      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
+    },
+    [residentId, queries, failuresKey],
+  );
 
   const stop = useCallback(async () => {
     if (key) await api.stopTurn(residentId, key).catch(() => undefined);
@@ -229,6 +238,7 @@ export function useChat(residentId: string, live: Live) {
     discard,
     unanswered,
     dismissFailure,
+    retryFailure,
     stop,
     jumpTo,
     toNewest,

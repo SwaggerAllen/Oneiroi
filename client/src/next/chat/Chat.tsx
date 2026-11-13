@@ -264,6 +264,9 @@ export function Chat({
                     Add credits
                   </a>
                 )}
+                <button type="button" className={css.linkButton} onClick={() => void chat.retryFailure(f.turn_ref)}>
+                  {creditRefusal(f.reason) ? 'Topped up? Run it again' : 'Run it again'}
+                </button>
                 <button type="button" className={css.linkButton} onClick={() => void chat.dismissFailure(f.turn_ref)}>
                   Dismiss
                 </button>

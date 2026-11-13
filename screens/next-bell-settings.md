@@ -31,7 +31,13 @@ header's bell and gear. Built 2026-11-10.
     provider's words, with "Add credits on OpenRouter" and "I topped up —
     dismiss". Any other failed turn (a check-in, free time, a round, a
     reply) is its own entry with the conversation and the reason, and
-    Dismiss. Both look like failures (the witness, 2026-11-13): the
+    Dismiss. Each also has an action that does something (brain#89; the
+    witness, 2026-11-13): run it again as what it was, "Run free time
+    now", "Run a round now", "Run the <label> check-in now" or "Wake her
+    now", and on the credits entry "Topped up? Run them all again".
+    Failures sort above everything else in the bell, the notifications
+    question included, and while one waits the bell's dot is the signal
+    red and its label says something failed. Both look like failures (the witness, 2026-11-13): the
     signal red border and label with ⚠, on a faint red wash, the same
     red on every theme. Dismissing settles the failures (marked lost); the bell's
     push tells his devices of a new one like any entry.

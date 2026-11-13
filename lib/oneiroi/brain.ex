@@ -50,6 +50,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Reactions
+  alias Oneiroi.Brain.Retry
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
@@ -225,6 +226,8 @@ defmodule Oneiroi.Brain do
          "the provider failure is recorded as a capture failure on the session; send the message again"},
       {:brain_no_such_plugin, "no plugin in the catalog has that key",
        remedy: "plugin_list names every plugin and its key"},
+      {:brain_no_such_failure, "no unsettled failed turn has that ref (brain#89)",
+       remedy: "read the capture failures; one already run again or dismissed is settled"},
       {:brain_nothing_running, "no turn is running in that conversation to stop",
        remedy: "nothing to do: the turn had already ended"},
       {:brain_tool_raised, "a tool failed inside the platform; the turn went on without it",
@@ -298,6 +301,20 @@ defmodule Oneiroi.Brain do
       Oneiroi.Brain.Triage
     ]
   end
+
+  @doc "Runs a failed turn again (brain#89): settled as retried, then started on the turn supervisor; `{:ok, what it does}`."
+  @spec retry_failure(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(retry_failure(resident_id, turn_ref, actor),
+    do: Retry.one(resident_id, turn_ref, actor)
+  )
+
+  @doc "Runs every turn the provider refused for credit again, each purpose once (brain#89)."
+  @spec retry_credit_failures(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, [String.t()]} | {:error, term()}
+  defexport(retry_credit_failures(resident_id, actor),
+    do: Retry.credits(resident_id, actor)
+  )
 
   @doc "Free time remembered (brain#53): the latest runs, newest first, with the conversation each ran in, its turns, and the receipts of what it made."
   @spec free_time_history(String.t(), pos_integer()) :: [map()]

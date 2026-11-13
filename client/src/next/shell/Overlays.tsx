@@ -7,6 +7,7 @@ import { turnOn } from '../../app/push';
 import { useSubject } from '../state/resident';
 import type { SettingsSection } from '../state/routes';
 import { useShell } from '../state/store';
+import { isFailure } from './failures';
 import { useNotificationsAsk } from './notifications';
 import * as css from './overlays.css';
 import { ThemeSheet } from './ThemeSheet';
@@ -106,21 +107,18 @@ export function Bell() {
   // The server lists the notifications question too; it shows as its own item.
   const listed = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
   const gone = [...answered.values()].filter((a) => !listed.some((e) => keyOf(e) === keyOf(a.entry))).map((a) => a.entry);
-  const all = [...listed, ...gone].sort((a, b) => a.since.localeCompare(b.since));
+  // Failures first (brain#89): they need him to act; then the rest, oldest first.
+  const all = [...listed, ...gone].sort((a, b) => Number(isFailure(b)) - Number(isFailure(a)) || a.since.localeCompare(b.since));
   const open = listed.filter((e) => !answered.has(keyOf(e)));
   const theirs = hers.data ?? [];
 
   return (
     <div className={css.stack}>
       <h3 className={css.heading}>WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}</h3>
-      {notifications.ask && (
-        <button type="button" className={css.itemDashed} onClick={() => setOverlay('push')}>
-          <span className={css.itemKind}>NOTIFICATIONS · UNANSWERED</span>
-          <span>Should {name} be able to reach you?</span>
-        </button>
-      )}
       {open.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
-      {all.map((e) =>
+      {all.map((e, i) => [
+        // The notifications question follows the failures, which come first (brain#89).
+        i === all.findIndex((x) => !isFailure(x)) && notifications.ask ? <NotificationsAsk key="notifications-ask" name={name} onOpen={() => setOverlay('push')} /> : null,
         answered.has(keyOf(e)) ? (
           <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
         ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
@@ -149,7 +147,8 @@ export function Bell() {
             <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
           </a>
         ),
-      )}
+      ])}
+      {notifications.ask && all.every(isFailure) && <NotificationsAsk name={name} onOpen={() => setOverlay('push')} />}
       <h3 className={css.heading}>
         WAITING ON {name.toUpperCase()} · {theirs.length}
       </h3>
@@ -169,6 +168,16 @@ export function Bell() {
 }
 
 const keyOf = (e: NeedsYouEntry) => `${e.kind}-${e.ref}`;
+
+function NotificationsAsk({ name, onOpen }: { name: string; onOpen: () => void }) {
+  return (
+    <button type="button" className={css.itemDashed} onClick={onOpen}>
+      <span className={css.itemKind}>NOTIFICATIONS · UNANSWERED</span>
+      <span>Should {name} be able to reach you?</span>
+    </button>
+  );
+}
+
 const titleOf = (e: NeedsYouEntry) => e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref);
 
 /** An item answered from the bell: folded to one line, recoloured, saying what was decided and the note. */
@@ -484,13 +493,19 @@ function FailureItem({ residentId, entry, name, onAnswered }: { residentId: stri
   const turns: Array<{ session_key: string; turn_ref: string }> = credits
     ? (entry.about.failures ?? [])
     : [{ session_key: entry.about.session_key ?? '', turn_ref: String(entry.ref) }];
+  const settled = (word: string, note: string) => {
+    onAnswered({ word, yes: true, note });
+    void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
+    void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
+  };
   const dismiss = useMutation({
     mutationFn: () => Promise.all(turns.map((t) => api.resolveFailure(residentId, t.session_key, t.turn_ref, credits ? 'credits topped up' : 'seen in the bell'))),
-    onSuccess: () => {
-      onAnswered({ word: 'DISMISSED', yes: true, note: '' });
-      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
-      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
-    },
+    onSuccess: () => settled('DISMISSED', ''),
+  });
+  // The action besides Dismiss (brain#89): run it again, as what it was.
+  const retry = useMutation({
+    mutationFn: async () => (credits ? (await api.retryCredits(residentId)).started.join(', ') : (await api.retryFailure(residentId, String(entry.ref))).started),
+    onSuccess: (started) => settled('STARTED', started),
   });
   return (
     <div className={css.itemFailed} role="group" aria-label={WORDS[entry.kind]}>
@@ -504,13 +519,19 @@ function FailureItem({ residentId, entry, name, onAnswered }: { residentId: stri
       <span className={css.since}>since {new Date(entry.since).toLocaleString()}</span>
       <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {credits && (
-          <a className={css.primary} href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <a className={css.secondary} href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             Add credits on OpenRouter
           </a>
         )}
-        <button type="button" className={css.secondary} onClick={() => dismiss.mutate()} disabled={dismiss.isPending}>
-          {credits ? 'I topped up — dismiss' : 'Dismiss'}
+        {entry.about.retry && (
+          <button type="button" className={css.primary} onClick={() => retry.mutate()} disabled={retry.isPending || dismiss.isPending}>
+            {credits ? `Topped up? ${entry.about.retry}` : entry.about.retry}
+          </button>
+        )}
+        <button type="button" className={css.secondary} onClick={() => dismiss.mutate()} disabled={dismiss.isPending || retry.isPending}>
+          Dismiss
         </button>
+        {retry.isError && <span className={css.since}>{(retry.error as Error).message}</span>}
       </span>
     </div>
   );

@@ -398,6 +398,34 @@ defmodule Oneiroi.Sunna do
   @spec free_time_once(String.t()) :: [Oneiroi.Sunna.Store.FreeTimeOnce.t()]
   defexport(free_time_once(resident_id), do: Schedules.free_time_once(resident_id))
 
+  @doc "The check-in that fired within ten minutes before `at`, or nil (brain#89)."
+  @spec checkin_fired_before(String.t(), DateTime.t()) :: map() | nil
+  defexport(checkin_fired_before(resident_id, at),
+    do: Schedules.checkin_fired_before(resident_id, at)
+  )
+
+  @doc "A check-in's wake again, now (brain#89)."
+  @spec retry_checkin(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(retry_checkin(resident_id, key, actor),
+    do: Schedules.retry_checkin(resident_id, key, actor)
+  )
+
+  @doc "Free time now, under a one-off slot (brain#89)."
+  @spec retry_free_time(String.t(), Oneiroi.Actor.t()) :: term()
+  defexport(retry_free_time(resident_id, actor),
+    do: Schedules.retry_free_time(resident_id, actor)
+  )
+
+  @doc "A thinking round now, under a one-off slot (brain#89)."
+  @spec retry_round(String.t(), Oneiroi.Actor.t()) :: term()
+  defexport(retry_round(resident_id, actor), do: Schedules.retry_round(resident_id, actor))
+
+  @doc "The main chat woken now with the core's note (brain#89)."
+  @spec wake_main_now(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(wake_main_now(resident_id, note, actor),
+    do: Schedules.wake_main_now(resident_id, note, actor)
+  )
+
   @doc "Records her plan for the next free-time slot (sunna#31), written in the planning turn."
   @spec plan_free_time(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(plan_free_time(resident_id, text, actor),
