@@ -150,7 +150,8 @@ export type SearchResult =
   | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'bookmark'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null }
-  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null };
+  | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'letter'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null };
 
 export const api = {
   login: (email: string, password: string) =>
@@ -409,16 +410,11 @@ export const api = {
       `/v1/residents/${residentId}/days?from=${from}&to=${to}`,
     ),
   // The one search across kinds (kumbukumbu#59, spec F66).
-  // Her words page, sort and take a date range (kumbukumbu#67): `from`
-  // and `to` are instants, `to` exclusive.
-  search: (residentId: string, q: string, scope: string, words?: { page: number; sort: 'newest' | 'oldest'; from?: string; to?: string }) => {
-    const narrow = words
-      ? `&page=${words.page}&sort=${words.sort}${words.from ? `&from=${encodeURIComponent(words.from)}` : ''}${words.to ? `&to=${encodeURIComponent(words.to)}` : ''}`
-      : '';
-    return call<{ q: string; scope: string; results: SearchResult[]; page?: number; more?: boolean }>(
-      'GET',
-      `/v1/residents/${residentId}/search?q=${encodeURIComponent(q)}&scope=${encodeURIComponent(scope)}${narrow}`,
-    );
+  // The one search across kinds (kumbukumbu#59); a scope's filters
+  // (kumbukumbu#67, #69) ride as parameters, only those set.
+  search: (residentId: string, q: string, scope: string, narrow: Record<string, string> = {}) => {
+    const params = new URLSearchParams({ q, scope, ...narrow });
+    return call<{ q: string; scope: string; results: SearchResult[]; page?: number; more?: boolean }>('GET', `/v1/residents/${residentId}/search?${params.toString()}`);
   },
   librarySearch: (residentId: string, q: string) =>
     call<LibraryHit[]>('GET', `/v1/residents/${residentId}/library/search?q=${encodeURIComponent(q)}`),
@@ -477,6 +473,8 @@ export const api = {
   askResearch: (residentId: string, question: string, urls: string[]) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/research`, urls.length > 0 ? { question, urls } : { question }),
   letterAddresses: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/addresses`),
+  // Every name a letter was written by or sent to (kumbukumbu#70).
+  letterParties: (residentId: string) => call<string[]>('GET', `/v1/residents/${residentId}/letters/parties`),
   sendLetter: (residentId: string, to: string, text: string) =>
     call<{ number: number }>('POST', `/v1/residents/${residentId}/letters`, { to, text }),
   letters: (residentId: string) => call<HouseLetter[]>('GET', `/v1/residents/${residentId}/letters`),

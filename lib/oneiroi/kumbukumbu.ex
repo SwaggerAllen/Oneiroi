@@ -694,6 +694,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Search.bookmarks(resident_id, text, limit)
   )
 
+  @doc "The same, narrowed (kumbukumbu#69): `pinned: true`, `tag:`, `made_by:` (`resident` or `witness`), `from:`/`to:` on the moment."
+  @spec search_bookmarks(String.t(), String.t(), pos_integer(), keyword()) :: [map()]
+  defexport(search_bookmarks(resident_id, text, limit, narrow),
+    do: Search.bookmarks(resident_id, text, limit, narrow)
+  )
+
   @doc "What her memory would surface for `text` in the common room: the ranked index's lines with their scores, then the madeleine (kumbukumbu#59)."
   @spec surfaced(String.t(), String.t(), Oneiroi.Actor.t(), boolean(), pos_integer()) :: [map()]
   defexport(surfaced(resident_id, text, actor, ranked?, limit),
@@ -1126,6 +1132,30 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
+
+  @doc """
+  The house letters holding `text`, case aside (kumbukumbu#70): newest
+  first, at most `limit`. `narrow`: `from` and `to` (instants on
+  `sent_at`, `to` exclusive), `written_by` and `sent_to` (a name as the
+  letter carries it), `sort` `:newest` or `:oldest`. The witness reads
+  every letter whole (`letters/1`), and so does this.
+  """
+  @spec search_letters(String.t(), String.t(), pos_integer(), keyword()) :: [map()]
+  defexport(search_letters(resident_id, text, limit, narrow),
+    do: Search.letters(resident_id, text, limit, narrow)
+  )
+
+  @doc "Every name a house letter of hers was written by or sent to, sorted: the search's Written by and Sent to (kumbukumbu#70)."
+  @spec letter_parties(String.t()) :: [String.t()]
+  defexport(letter_parties(resident_id),
+    do:
+      resident_id
+      |> Memories.letters()
+      |> Enum.flat_map(&[&1.from_name, &1.to_name])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+  )
 
   @doc "The house letters for the conversation the key names that it has not read."
   @spec inbox(String.t(), String.t() | nil) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]

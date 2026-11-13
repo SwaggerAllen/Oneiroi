@@ -259,6 +259,217 @@ defmodule OneiroiWeb.SearchTest do
     assert is_float(s) and scene["title"] in ["The heron at dusk", "Scenes of 2026-11-08"]
   end
 
+  defp searched(ctx, params) do
+    ctx.conn |> get("/v1/residents/#{ctx.id}/search", params)
+  end
+
+  defp refs(body, key), do: Enum.map(body["results"], & &1["ref"][key])
+
+  test "transcripts narrow by who said it and the kind of conversation (kumbukumbu#69)", ctx do
+    capture!(ctx, ctx.key, "t-her", "The plover ran along the sand.")
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "t-his",
+        ctx.at,
+        [%{role: :user, content: "Did you see the plover?", sent_at: ctx.at, actor: ctx.actor}],
+        ctx.brain
+      )
+
+    turns = fn params ->
+      searched(ctx, Map.merge(%{q: "plover", scope: "words"}, params))
+      |> json_response(200)
+      |> refs("turn_ref")
+    end
+
+    assert Enum.sort(turns.(%{})) == ["t-her", "t-his"]
+    assert turns.(%{who: "resident"}) == ["t-her"]
+    assert turns.(%{who: "witness"}) == ["t-his"]
+    assert Enum.sort(turns.(%{conversations: "main"})) == ["t-her", "t-his"]
+    assert turns.(%{conversations: "work,round"}) == []
+
+    for bad <- [%{who: "everyone"}, %{conversations: "main,parlour"}] do
+      assert %{"error" => %{"kind" => "search_paging_invalid"}} =
+               searched(ctx, Map.merge(%{q: "plover", scope: "words"}, bad)) |> json_response(422)
+    end
+  end
+
+  test "bookmarks narrow to pinned, a tag, who made them, and their moment; and sort (kumbukumbu#69)",
+       ctx do
+    capture!(ctx, ctx.key, "t1", "a moment")
+    plain = bookmark!(ctx, ctx.key, "t1", "the kestrel, first", nil)
+    tagged = bookmark!(ctx, ctx.key, "t1", "the kestrel, tagged", nil)
+    :ok = Kumbukumbu.create_tag(ctx.id, "birds", ctx.actor)
+    :ok = Kumbukumbu.apply_tag(ctx.id, "birds", "bookmark", tagged, ctx.actor)
+    :ok = Kumbukumbu.pin_bookmark(ctx.id, plain, ctx.brain)
+
+    numbers = fn params ->
+      searched(ctx, Map.merge(%{q: "kestrel", scope: "bookmarks"}, params))
+      |> json_response(200)
+      |> refs("number")
+    end
+
+    assert Enum.sort(numbers.(%{})) == Enum.sort([plain, tagged])
+    assert numbers.(%{pinned: "true"}) == [plain]
+    assert numbers.(%{tag: "birds"}) == [tagged]
+    assert Enum.sort(numbers.(%{made_by: "resident"})) == Enum.sort([plain, tagged])
+    assert numbers.(%{made_by: "witness"}) == []
+    later = DateTime.add(ctx.at, 3600) |> DateTime.to_iso8601()
+    assert numbers.(%{from: later}) == []
+    assert length(numbers.(%{sort: "oldest"})) == 2
+
+    for bad <- [%{made_by: "someone"}, %{sort: "best"}, %{from: "soon"}] do
+      assert %{"error" => %{"kind" => "search_filter_invalid"}} =
+               searched(ctx, Map.merge(%{q: "kestrel", scope: "bookmarks"}, bad))
+               |> json_response(422)
+    end
+  end
+
+  test "records narrow by kind, author and a created or updated range (kumbukumbu#69)",
+       ctx do
+    {:ok, _} =
+      Seshat.write(ctx.id, "writing/heron.md", "# Heron\n\nThe heron on the weir.", ctx.brain)
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "design/weir-notes.md",
+        "# Weir\n\nA heron at the weir again.",
+        ctx.brain
+      )
+
+    paths = fn params ->
+      searched(ctx, Map.merge(%{q: "heron", scope: "records"}, params))
+      |> json_response(200)
+      |> refs("path")
+      |> Enum.sort()
+    end
+
+    assert paths.(%{}) == ["design/weir-notes.md", "writing/heron.md"]
+    assert paths.(%{kinds: "writing"}) == ["writing/heron.md"]
+    assert paths.(%{kinds: "writing,design"}) == ["design/weir-notes.md", "writing/heron.md"]
+    assert paths.(%{author: "resident"}) == ["design/weir-notes.md", "writing/heron.md"]
+    assert paths.(%{author: "witness"}) == []
+    future = DateTime.add(Clock.now(), 86_400) |> DateTime.to_iso8601()
+    assert paths.(%{from: future}) == []
+    assert paths.(%{from: future, date: "created"}) == []
+    assert paths.(%{to: future, date: "created"}) == ["design/weir-notes.md", "writing/heron.md"]
+
+    assert %{"error" => %{"kind" => "search_filter_invalid"}} =
+             searched(ctx, %{q: "heron", scope: "records", date: "someday"}) |> json_response(422)
+  end
+
+  test "letters: the house letters holding the words, by who wrote them and who they went to (kumbukumbu#70)",
+       ctx do
+    {:ok, _} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        nil,
+        %{to: "house", text: "The heron at the weir."},
+        ctx.actor
+      )
+
+    {:ok, _} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        nil,
+        %{to: "Oneiroi chat", text: "Another heron."},
+        ctx.actor
+      )
+
+    {:ok, _} =
+      Kumbukumbu.send_letter(ctx.id, nil, %{to: "house", text: "No birds here."}, ctx.actor)
+
+    numbers = fn params ->
+      searched(ctx, Map.merge(%{q: "heron", scope: "letters"}, params))
+      |> json_response(200)
+      |> refs("number")
+    end
+
+    assert numbers.(%{}) == [2, 1]
+    assert numbers.(%{sort: "oldest"}) == [1, 2]
+    assert numbers.(%{written_by: "witness"}) == [2, 1]
+    assert numbers.(%{written_by: "Iris"}) == []
+    assert numbers.(%{sent_to: "house"}) == [1]
+
+    assert %{
+             "results" => [
+               %{"type" => "letter", "title" => title, "snippet" => "Another heron."} | _
+             ]
+           } =
+             searched(ctx, %{q: "heron", scope: "letters"}) |> json_response(200)
+
+    assert title == "#2 · witness → Oneiroi chat"
+
+    assert ctx.conn |> get("/v1/residents/#{ctx.id}/letters/parties") |> json_response(200) ==
+             ["Oneiroi chat", "house", "witness"]
+
+    assert %{"error" => %{"kind" => "search_filter_invalid"}} =
+             searched(ctx, %{q: "heron", scope: "letters", sort: "best"}) |> json_response(422)
+  end
+
+  test "transcripts narrow by who they were sent to (kumbukumbu#70)", ctx do
+    capture!(ctx, ctx.key, "t-her", "The plover ran along the sand.")
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "t-his",
+        ctx.at,
+        [%{role: :user, content: "Did you see the plover?", sent_at: ctx.at, actor: ctx.actor}],
+        ctx.brain
+      )
+
+    free = private_session!(ctx)
+    :ok = Kumbukumbu.share_session(ctx.id, free, "read it", ctx.brain)
+    capture!(ctx, free, "t-alone", "A plover, to myself.")
+
+    turns = fn params ->
+      searched(ctx, Map.merge(%{q: "plover", scope: "words"}, params))
+      |> json_response(200)
+      |> refs("turn_ref")
+      |> Enum.sort()
+    end
+
+    assert turns.(%{}) == ["t-alone", "t-her", "t-his"]
+    assert turns.(%{sent_to: "witness"}) == ["t-her"]
+    assert turns.(%{sent_to: "resident"}) == ["t-his"]
+  end
+
+  test "scenes narrow by mood and person, by their day (kumbukumbu#69)", ctx do
+    {:ok, _} =
+      Seshat.scene_write(
+        ctx.id,
+        %{
+          "day" => "2026-11-08",
+          "title" => "The heron at dusk",
+          "from_turn" => "t1",
+          "to_turn" => "t1",
+          "summary" => "We watched the heron until dark.",
+          "mood" => "quiet, glad",
+          "people" => ["Andrew"],
+          "register" => "his"
+        },
+        ctx.brain
+      )
+
+    days = fn params ->
+      searched(ctx, Map.merge(%{q: "heron", scope: "scenes"}, params))
+      |> json_response(200)
+      |> refs("day")
+    end
+
+    assert days.(%{}) == ["2026-11-08"]
+    assert days.(%{mood: "glad"}) == ["2026-11-08"]
+    assert days.(%{mood: "furious"}) == []
+    assert days.(%{person: "andrew"}) == ["2026-11-08"]
+    assert days.(%{person: "Iris"}) == []
+    assert days.(%{from: "2026-11-09T00:00:00Z"}) == []
+  end
+
   test "everything interleaves the scopes, one of each a round, records, bookmarks, scenes, words",
        ctx do
     {:ok, _} = Seshat.write(ctx.id, "writing/wren.md", "# Wren\n\nA wren sang.", ctx.brain)

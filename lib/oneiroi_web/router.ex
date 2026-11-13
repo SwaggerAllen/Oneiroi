@@ -176,6 +176,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/letters", MemoryController, :letters)
       post("/residents/:id/letters", MemoryController, :send_letter)
       get("/residents/:id/letters/addresses", MemoryController, :letter_addresses)
+      get("/residents/:id/letters/parties", MemoryController, :letter_parties)
       get("/residents/:id/bookmarks/:number", MemoryController, :bookmark)
       post("/residents/:id/bookmarks/:number/pin", MemoryController, :pin)
       delete("/residents/:id/bookmarks/:number/pin", MemoryController, :unpin)

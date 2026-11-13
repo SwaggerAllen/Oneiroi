@@ -685,11 +685,23 @@ defmodule Oneiroi.Seshat.Store do
   The nearest documents to a vector within a path filter, nearest first:
   `{:prefix, p}` keeps the paths under `p`, `{:except, [p]}` leaves out
   the paths under each `p`. One row a document, its nearest chunk, at
-  most `limit` documents (seshat#53, the one search).
+  most `limit` documents (seshat#53, the one search). A filter may come
+  as `{:narrow, filter, narrow}` (kumbukumbu#69): `narrow` keeps to documents of
+  the `:kinds` listed, of a `:status`, written by an `:author` (the
+  actor kind of the last write), and with the
+  `:date` field (`:created`, registration, or `:updated`, the last
+  write) at or after `:from` and before `:to`.
   """
-  def nearest_documents(vector, limit, filter) do
+  def nearest_documents(vector, limit, {:narrow, filter, narrow}) when is_list(narrow) do
+    nearest(vector, limit, filter, narrow)
+  end
+
+  def nearest_documents(vector, limit, filter), do: nearest(vector, limit, filter, [])
+
+  defp nearest(vector, limit, filter, narrow) do
     from(c in Chunk,
       join: d in Document,
+      as: :doc,
       on: d.resident_id == c.resident_id and d.path == c.path,
       order_by: cosine_distance(c.embedding, ^vector),
       limit: ^(limit * 4),
@@ -700,10 +712,13 @@ defmodule Oneiroi.Seshat.Store do
         kind: d.kind,
         title: d.title,
         written_at: d.written_at,
+        registered_at: d.registered_at,
+        status: d.status,
         distance: cosine_distance(c.embedding, ^vector)
       }
     )
     |> within(filter)
+    |> narrowed(narrow)
     |> Repo.all()
     |> Enum.uniq_by(& &1.path)
     |> Enum.take(limit)
@@ -719,6 +734,30 @@ defmodule Oneiroi.Seshat.Store do
   end
 
   defp like_escape(text), do: String.replace(text, ~r/[%_\\]/, &("\\" <> &1))
+
+  defp narrowed(query, narrow) do
+    field = if narrow[:date] == :created, do: :registered_at, else: :written_at
+
+    Enum.reduce(narrow, query, fn
+      {:kinds, [_ | _] = kinds}, q ->
+        from([doc: d] in q, where: d.kind in ^kinds)
+
+      {:status, s}, q when is_binary(s) ->
+        from([doc: d] in q, where: d.status == ^s)
+
+      {:author, a}, q when is_binary(a) ->
+        from([doc: d] in q, where: d.written_by_kind == ^a)
+
+      {:from, %DateTime{} = at}, q ->
+        from([doc: d] in q, where: field(d, ^field) >= ^at)
+
+      {:to, %DateTime{} = at}, q ->
+        from([doc: d] in q, where: field(d, ^field) < ^at)
+
+      _other, q ->
+        q
+    end)
+  end
 
   # ---- references ----
 

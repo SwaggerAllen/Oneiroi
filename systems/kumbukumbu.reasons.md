@@ -535,3 +535,41 @@ into instants in its own zone (the browser's for the witness, hers for
 the resident), so a day means the day its reader lives in. The
 witness's query keeps #59's privacy in the query itself; hers does not
 need it, her reads being whole.
+
+## #68
+
+A reader who remembers when something was said, and not its words or
+its bookmark, had no way in but paging back. The instant is answered by
+the nearest message on the later side, because a reader asking for
+"Tuesday at 3" wants what was said from then on; past the end it falls
+back to the last message so a time after the session's end still lands
+somewhere rather than refusing. It reuses `around` instead of a new
+route so the client's one window read, its anchor and its paging
+forward and back all hold unchanged.
+
+## #69
+
+Only transcripts narrowed, so the witness could not ask the obvious
+questions of the rest: her drafts last week, the bookmarks she pinned,
+the scenes where she was glad. Records filter inside the vector query,
+not after it, so a narrow filter still returns the nearest matches of
+the documents it allows instead of the few that survived a top-50 cut.
+Sort orders that best 50 rather than paging by date, because a meaning
+search has no stable order past its rank; transcripts, matched by
+phrase, page instead (#67). Scenes filter by day because the search
+reads the day's file: matching the file and then its rows keeps one
+embedding per day, and the day is the unit the reader opens.
+
+## #70
+
+One search per workspace keeps a shared workspace no different from a
+resident's own: the same search, opened from inside it, with no rule for
+which of a household's posts a member's search may show. "Written by"
+and "sent to" replace from and to because a record's last writer and a
+letter's sender are the same question, and two words for it confused
+the filter. Letters became their own scope because their words live
+only in the letter store: the transcript holds a note naming the
+letter, never its text, so a sender searched in the transcript would
+find nothing. Sent to in a transcript is derived, not stored: in a
+conversation only the witness and the resident speak, what she says
+goes to him where he takes part, and everything else goes to her.

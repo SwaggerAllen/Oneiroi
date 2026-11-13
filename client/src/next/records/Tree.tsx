@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { LibraryDocument } from '../../api/types';
 import { ScrollArea } from '../shell/ScrollArea';
+import { leaf, nest, type Nest } from './nest';
 import { folderKey, ORDERS, saveOrder, savedOrder, shownDate, sortDocs, type RecordsOrder } from './sort';
 import * as css from './records.css';
 
@@ -112,19 +113,18 @@ export function Tree({
                   ⚙
                 </button>
               </div>
-              {isOpen &&
-                docs.map((d) => (
-                  <button
-                    key={d.path}
-                    type="button"
-                    className={css.file}
-                    aria-current={current === `doc/${d.path}` ? 'page' : undefined}
-                    onClick={() => onOpen(`doc/${d.path}`)}
-                  >
-                    <span className={css.fileName}>{d.path.split('/').slice(1).join('/') || d.path}</span>
-                    {shownDate(d, order) && <span className={css.fileDate}>{shownDate(d, order)}</span>}
-                  </button>
-                ))}
+              {isOpen && (
+                <Level
+                  node={nest(docs, order)}
+                  depth={0}
+                  scope={k.kind}
+                  current={current}
+                  order={order}
+                  open={open}
+                  setOpen={setOpen}
+                  onOpen={onOpen}
+                />
+              )}
             </div>
           );
         })}
@@ -133,5 +133,70 @@ export function Tree({
         )}
       </div>
     </ScrollArea>
+  );
+}
+
+/**
+ * One level of a kind's folder (the witness, 2026-11-12): its subfolders,
+ * each collapsible and closed unless it holds the open document, then its
+ * files. A research pass, a correspondent's thread or a wiki's pages each
+ * fold into one row.
+ */
+function Level({
+  node,
+  depth,
+  scope,
+  current,
+  order,
+  open,
+  setOpen,
+  onOpen,
+}: {
+  node: Nest;
+  depth: number;
+  scope: string;
+  current: string;
+  order: RecordsOrder;
+  open: Record<string, boolean>;
+  setOpen: (f: (o: Record<string, boolean>) => Record<string, boolean>) => void;
+  onOpen: (path: string) => void;
+}) {
+  const indent = 40 + depth * 16;
+  return (
+    <>
+      {node.folders.map((f) => {
+        const key = `${scope}/${f.path}`;
+        const isOpen = open[key] ?? f.all.some((d) => current === `doc/${d.path}`);
+        return (
+          <div key={key}>
+            <button
+              type="button"
+              className={css.subfolder}
+              style={{ paddingLeft: indent }}
+              aria-expanded={isOpen}
+              onClick={() => setOpen((o) => ({ ...o, [key]: !isOpen }))}
+            >
+              <span aria-hidden>{isOpen ? '▾' : '▸'}</span>
+              <span className={css.fileName}>{f.name}/</span>
+              <span className={css.badge}>{f.all.length}</span>
+            </button>
+            {isOpen && <Level node={f} depth={depth + 1} scope={scope} current={current} order={order} open={open} setOpen={setOpen} onOpen={onOpen} />}
+          </div>
+        );
+      })}
+      {node.files.map((d) => (
+        <button
+          key={d.path}
+          type="button"
+          className={css.file}
+          style={{ paddingLeft: indent }}
+          aria-current={current === `doc/${d.path}` ? 'page' : undefined}
+          onClick={() => onOpen(`doc/${d.path}`)}
+        >
+          <span className={css.fileName}>{leaf(d)}</span>
+          {shownDate(d, order) && <span className={css.fileDate}>{shownDate(d, order)}</span>}
+        </button>
+      ))}
+    </>
   );
 }

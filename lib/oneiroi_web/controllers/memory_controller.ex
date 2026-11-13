@@ -157,6 +157,15 @@ defmodule OneiroiWeb.MemoryController do
 
   def letter_addresses(conn, %{"id" => id}), do: json(conn, Kumbukumbu.letter_addresses(id))
 
+  operation(:letter_parties,
+    summary:
+      "Every name a house letter was written by or sent to, sorted: the search's Written by and Sent to for letters (kumbukumbu#70)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the names", "application/json", %Schema{type: :array}}]
+  )
+
+  def letter_parties(conn, %{"id" => id}), do: json(conn, Kumbukumbu.letter_parties(id))
+
   operation(:letters,
     summary:
       "The house letters (kumbukumbu#44): the work log between the resident's conversations, every letter both ways, oldest first, with who sent it, to whom, in reply to what, the keepsake it gives and the conversations that have read it",

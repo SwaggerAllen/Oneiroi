@@ -129,17 +129,25 @@ export function Chat({
   useLayoutEffect(() => {
     const anchor = jumpTarget.current;
     if (!anchor || !scroller.current) return;
-    const node = scroller.current.querySelector(`[data-turn="${CSS.escape(anchor)}"]`);
+    // The window's own anchor first (a jump by time names no turn), then the turn.
+    const at = chat.windowed?.anchor;
+    const node =
+      (at ? scroller.current.querySelector(`[data-cursor="${CSS.escape(at)}"]`) : null) ??
+      scroller.current.querySelector(`[data-turn="${CSS.escape(anchor)}"]`);
     if (node) {
       node.scrollIntoView({ block: 'center' });
       jumpTarget.current = null;
     }
-  }, [chat.messages]);
+  }, [chat.messages, chat.windowed]);
 
   const jumpTo = (anchor: string) => {
     jumpTarget.current = anchor;
     setAtBottom(false);
-    void chat.jumpTo(anchor);
+    // A place this conversation does not hold (a bookmark made in another
+    // session) stays where the reader is rather than failing loudly.
+    chat.jumpTo(anchor).catch(() => {
+      jumpTarget.current = null;
+    });
   };
 
   const jumpSession = searchJump?.session;
@@ -333,7 +341,7 @@ function MessageView({
     return (
       <>
         {rule}
-        <div className={css.mine} data-turn={m.turn_ref} data-at={m.instant_inferred ? undefined : m.sent_at}>
+        <div className={css.mine} data-turn={m.turn_ref} data-cursor={m.cursor} data-at={m.instant_inferred ? undefined : m.sent_at}>
           {m.content}
         </div>
         <div style={{ alignSelf: 'flex-end' }}>{reacts}</div>
@@ -344,7 +352,7 @@ function MessageView({
     return (
       <>
         {rule}
-        <div className={css.hers} data-turn={m.turn_ref} data-at={m.instant_inferred ? undefined : m.sent_at}>
+        <div className={css.hers} data-turn={m.turn_ref} data-cursor={m.cursor} data-at={m.instant_inferred ? undefined : m.sent_at}>
           <Markdown text={m.content} onCite={onCite} />
           <div className={css.meta}>
             {m.instant_inferred ? 'time unknown' : hhmm(m.sent_at)}
