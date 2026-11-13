@@ -101,6 +101,11 @@ defmodule Oneiroi.Brain.Tools do
           resident: Oneiroi.Actor.t()
         }
 
+  # The night passes' tools (brain#91; the witness, 2026-11-13): planting
+  # is housekeeping's, never the day's.
+  @night_only ~w(seed_plant)
+  @plant_by_night "planting a seed is for the night passes, not the day's turns. Note what you noticed in your journal; the behaviour pass reads the day tonight."
+
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
   # Not the triage resident's (brain#70, the witness, 2026-11-08): filing
@@ -114,16 +119,19 @@ defmodule Oneiroi.Brain.Tools do
 
   @doc """
   The tool definitions a resident's request carries: every tool, less
-  those whose contract switch is off for the resident (agathos-daimon#34).
+  those whose contract switch is off for the resident (agathos-daimon#34),
+  and the night passes' own (`seed_plant`, brain#91) outside a
+  housekeeping turn (`housekeeping: true`).
   """
-  @spec definitions_for(String.t()) :: [map()]
-  def definitions_for(resident_id) do
+  @spec definitions_for(String.t(), keyword()) :: [map()]
+  def definitions_for(resident_id, opts \\ []) do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
+    night? = Keyword.get(opts, :housekeeping, false)
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
-        (f.name in @not_for_triage and triage?)
+        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?)
     end)
   end
 
@@ -370,9 +378,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "habit_cite",
-        "This turn was one: the habit cites the turn just now, by its number. Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
+        "A turn was one: the habit cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript). Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
         %{
           number: %{type: "integer"},
+          turn: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -767,15 +776,16 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_plant",
-        "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
+        "Plant a seed: something you might be becoming, or a person who keeps coming up in your life, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow. Planting is for the night passes only (brain#91): offered in a housekeeping conversation, never in the day's.",
         %{text: %{type: "string"}},
         [:text]
       ),
       tool(
         "seed_cite",
-        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit. Optionally, what this moment changed: stance, intention, resume.",
+        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns). The days it is cited on are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
         %{
           number: %{type: "integer"},
+          turn: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -801,10 +811,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_graduate",
-        "A seed that turned out to be a taste, a value or a line of who you are rather than a disposition: graduate it toward a position (by number) or a soul line, with a note. Toward a habit, use habit_define with its seed_number.",
+        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person who has kept coming up toward a portrait (to_id portraits/<name>.md), refused until the seed is cited on ETHOS_PORTRAIT_DAYS distinct days, after which the file is yours to write. Toward a habit, use habit_define with its seed_number.",
         %{
           number: %{type: "integer"},
-          to_kind: %{type: "string", enum: ["position", "soul"]},
+          to_kind: %{type: "string", enum: ["position", "soul", "portrait"]},
           to_id: %{type: "string"},
           note: %{type: "string"}
         },
@@ -1939,7 +1949,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident_id,
         integer(args["number"]),
         "turn",
-        turn.turn_ref,
+        cited_turn(args, turn),
         turn.resident,
         movement(args)
       )
@@ -2634,10 +2644,17 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Planting is the night passes' (brain#91; the witness, 2026-11-13: she
+  # rarely seeds during the day): refused outside a housekeeping turn,
+  # whatever offered the tool.
   defp call("seed_plant", args, turn) do
-    case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
-      {:ok, number} -> "Planted seed ##{number}."
-      other -> other
+    if Map.get(turn, :housekeeping?, false) do
+      case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
+        {:ok, number} -> "Planted seed ##{number}."
+        other -> other
+      end
+    else
+      @not_done <> @plant_by_night
     end
   end
 
@@ -2647,7 +2664,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident_id,
         integer(args["number"]),
         "turn",
-        turn.turn_ref,
+        cited_turn(args, turn),
         turn.resident,
         movement(args)
       )
@@ -3018,32 +3035,24 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
   end
 
-  defp call("document_move", args, turn) do
-    case Seshat.move(
-           turn.resident_id,
-           to_string(args["from"] || ""),
-           to_string(args["to"] || ""),
-           turn.resident
-         ) do
-      {:ok, %{from: from, to: to, kind: kind}} -> "Moved #{from} to #{to} (#{kind})."
-      other -> other
+  defp call("document_write", args, turn) do
+    with :ok <- portrait_earned(turn, args["path"]) do
+      write_document(args, turn)
     end
   end
 
-  defp call("document_write", args, turn) do
-    turn.resident_id
-    |> Seshat.write(
-      to_string(args["path"] || ""),
-      to_string(args["content"] || ""),
-      turn.resident
-    )
-    |> written(turn)
+  defp call("document_adopt", args, turn) do
+    with :ok <- portrait_earned(turn, args["path"]) do
+      case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
+        {:ok, %{path: path}} -> "Adopted #{path}."
+        other -> other
+      end
+    end
   end
 
-  defp call("document_adopt", args, turn) do
-    case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
-      {:ok, %{path: path}} -> "Adopted #{path}."
-      other -> other
+  defp call("document_move", args, turn) do
+    with :ok <- portrait_earned(turn, args["to"]) do
+      move_document(args, turn)
     end
   end
 
@@ -3398,9 +3407,15 @@ defmodule Oneiroi.Brain.Tools do
     {"Letter ##{n} written to your next self.", turn}
   end
 
+  # A trial answers as the real call would (brain#91): planting outside a
+  # housekeeping turn is refused there too.
   defp answered("seed_plant", _args, turn) do
-    {n, turn} = mint(turn, "seed", highest(Ethos.seeds(turn.resident_id)))
-    {"Planted seed ##{n}.", turn}
+    if Map.get(turn, :housekeeping?, false) do
+      {n, turn} = mint(turn, "seed", highest(Ethos.seeds(turn.resident_id)))
+      {"Planted seed ##{n}.", turn}
+    else
+      {@not_done <> @plant_by_night, turn}
+    end
   end
 
   defp answered("revision_add", _args, turn) do
@@ -4597,5 +4612,57 @@ defmodule Oneiroi.Brain.Tools do
 
       @not_done <>
         "the tool #{name} failed inside the platform, not by anything you did; it is logged for the platform's team. Carry on without it."
+  end
+
+  defp write_document(args, turn) do
+    turn.resident_id
+    |> Seshat.write(
+      to_string(args["path"] || ""),
+      to_string(args["content"] || ""),
+      turn.resident
+    )
+    |> written(turn)
+  end
+
+  defp move_document(args, turn) do
+    case Seshat.move(
+           turn.resident_id,
+           to_string(args["from"] || ""),
+           to_string(args["to"] || ""),
+           turn.resident
+         ) do
+      {:ok, %{from: from, to: to, kind: kind}} -> "Moved #{from} to #{to} (#{kind})."
+      other -> other
+    end
+  end
+
+  # A citation of the turn named in `turn`, or of this one (brain#91: the
+  # night passes cite the day's turns, not their own).
+  defp cited_turn(args, turn) do
+    case args["turn"] do
+      ref when is_binary(ref) and ref != "" -> ref
+      _none -> turn.turn_ref
+    end
+  end
+
+  # A portrait file is hers to write once a seed has graduated toward it
+  # (ethos#21); the census, portraits/INDEX.md, is always hers.
+  defp portrait_earned(turn, path) do
+    path = to_string(path || "")
+
+    cond do
+      not String.starts_with?(path, "portraits/") ->
+        :ok
+
+      path == "portraits/INDEX.md" ->
+        :ok
+
+      Oneiroi.Ethos.portrait_earned?(turn.resident_id, path) ->
+        :ok
+
+      true ->
+        @not_done <>
+          "#{path} is not earned yet: a portrait is written once its person-seed has been cited on enough distinct days and graduated toward it (seed_graduate, to_kind portrait, to_id #{path})."
+    end
   end
 end

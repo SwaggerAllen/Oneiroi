@@ -34,8 +34,9 @@ defmodule Oneiroi.Ethos.Character do
   @targets ~w(turn bookmark)
   # Where a seed may graduate to (P38's fork): a habit, a disposition
   # that needs behavioural citations; a position or a soul line, the
-  # evaluative kinds, which need none.
-  @graduations ~w(habit position soul)
+  # evaluative kinds, which need none; a portrait (ethos#21), a person
+  # who has kept coming up, which needs citations on distinct days.
+  @graduations ~w(habit position soul portrait)
   @name_limit 120
   # A seed is one short becoming, not an essay: the bound is a guess.
   @seed_limit 2_000
@@ -385,7 +386,8 @@ defmodule Oneiroi.Ethos.Character do
         else: {:error, Error.new(:ethos_graduation_invalid, :ethos_graduation_kind_invalid)}
       )
 
-  defp confirmed(seed, %{to_kind: "habit", required: required}) when is_integer(required) do
+  defp confirmed(seed, %{to_kind: kind, required: required})
+       when kind in ["habit", "portrait"] and is_integer(required) do
     if MapSet.size(seed.days) >= required,
       do: :ok,
       else:

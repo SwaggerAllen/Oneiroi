@@ -1,0 +1,1 @@
+The {{pass}} for {{day}} goes on: turn {{turn}}. You stopped because the turn's tool rounds ran out, not because you were done; carry on from where you were. When you are done, end a turn with words and no tool calls, and the night goes on to what follows.

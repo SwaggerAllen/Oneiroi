@@ -16,6 +16,10 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
   def run(%{"resident_id" => id, "turn" => "scene", "day" => day, "slot" => slot} = args),
     do: Schedules.scene_pass(id, day, slot, args["session_key"], args["n"] || 1)
 
+  def run(%{"resident_id" => id, "turn" => pass, "day" => day, "slot" => slot} = args)
+      when pass in ["people", "behaviour"],
+      do: Schedules.night_pass(id, pass, day, slot, args["session_key"], args["n"] || 1)
+
   def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => "plan"}),
     do: Schedules.plan_free_time(resident_id, key)
 
@@ -29,6 +33,22 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
       %{
         "resident_id" => resident_id,
         "turn" => "scene",
+        "day" => day,
+        "slot" => slot,
+        "session_key" => key,
+        "n" => n
+      },
+      unique: [period: :infinity, keys: [:resident_id, :turn, :day, :n]]
+    )
+  end
+
+  @doc "Enqueues turn `n` of a night pass after the scene pass (sunna#57), once a day a turn."
+  def enqueue_night(resident_id, pass, day, slot, key, n) do
+    Jobs.enqueue(
+      __MODULE__,
+      %{
+        "resident_id" => resident_id,
+        "turn" => pass,
         "day" => day,
         "slot" => slot,
         "session_key" => key,

@@ -134,6 +134,7 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/sessions/:key/preview", ConversationController, :preview)
       post("/residents/:id/sessions/:key/stop", ConversationController, :stop)
       get("/residents/:id/transcripts/search", ConversationController, :search)
+      get("/residents/:id/tool-uses", ConversationController, :tool_uses)
       get("/residents/:id/search", SearchController, :search)
       get("/residents/:id/capture-failures", ConversationController, :failures)
 

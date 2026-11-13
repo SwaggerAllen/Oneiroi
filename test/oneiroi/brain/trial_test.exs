@@ -286,7 +286,6 @@ defmodule Oneiroi.Brain.TrialTest do
     {"habit_define", %{name: "counts herons", words: ["herons"], note: "a habit"}},
     {"commitment_make", %{to: "witness", text: "I will count the herons."}},
     {"self_letter_write", %{text: "Look for the heron."}},
-    {"seed_plant", %{text: "Herons might be patient."}},
     {"revision_add",
      %{
        target_kind: "bookmark",
@@ -391,6 +390,8 @@ defmodule Oneiroi.Brain.TrialTest do
   ]
 
   @other [
+    # Planting is the night passes' (brain#91): a day turn, trial or real, is refused.
+    {"seed_plant", %{text: "Herons might be patient."}},
     {"dispute_check", %{claim: "Herons are rare here.", stance: "They are not."}},
     {"bookmark_accept", %{ref: "nope", line: "x", summary: "y"}},
     {"document_adopt", %{path: "writing/stray.md"}},
@@ -442,6 +443,9 @@ defmodule Oneiroi.Brain.TrialTest do
              List.keyfind(answered, "document_move", 0)
 
     assert {"journal_add", "Added note 1 to #{day}."} == List.keyfind(answered, "journal_add", 0)
+
+    assert {_, "Not done: planting a seed is for the night passes" <> _} =
+             List.keyfind(answered, "seed_plant", 0)
 
     assert {"scene_write",
             "Wrote scene 1 of 2026-10-26 into scenes/2026-10-26.md. The day reads as not finished until a call carries final: true."} ==

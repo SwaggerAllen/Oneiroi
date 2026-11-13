@@ -573,6 +573,20 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  @doc "How often she called the tools named since `since`, by day and conversation kind, under a scope (kumbukumbu#71)."
+  def tool_uses(scope, resident_id, names, since),
+    do: Scope.run(scope, fn -> Store.tool_uses(resident_id, names, since) end)
+
+  @doc "A session's kind, or nil when the resident holds no such session."
+  def session_kind(resident_id, key) do
+    Scope.resident(resident_id, fn ->
+      case Store.session(key) do
+        %{kind: kind} -> kind
+        nil -> nil
+      end
+    end)
+  end
+
   def search(scope, text, limit), do: Scope.run(scope, fn -> Store.search(text, limit) end)
 
   @doc "Messages holding `text` within the room of `session_key` (spec §6.3, P23): the sessions of its domain and the common room's."

@@ -272,6 +272,8 @@ defmodule Oneiroi.Brain.Turn do
       # resident's own records carries (`Oneiroi.Brain.Uses`).
       uses: [],
       slug: row.slug,
+      # A night pass's turn (brain#91): its own tools, seed_plant among them.
+      housekeeping?: Kumbukumbu.session_kind(resident_id, session_key) == "housekeeping",
       letters_to_deliver: letters_to_deliver(row, resident_id),
       reacts_through: reacts && elem(reacts, 1),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
@@ -354,7 +356,14 @@ defmodule Oneiroi.Brain.Turn do
   # until the model answers in words or the round bound is reached, when
   # the model's last words stand as the reply.
   defp converse(turn, messages, round) do
-    request = Request.new(turn.model, messages, tools: Tools.definitions_for(turn.resident_id))
+    request =
+      Request.new(turn.model, messages,
+        tools:
+          Tools.definitions_for(turn.resident_id,
+            housekeeping: Map.get(turn, :housekeeping?, false)
+          )
+      )
+
     rounds = rounds(turn)
 
     case ask(turn, request) do
@@ -411,7 +420,10 @@ defmodule Oneiroi.Brain.Turn do
 
     request =
       Request.new(turn.model, messages ++ [nudge],
-        tools: Tools.definitions_for(turn.resident_id),
+        tools:
+          Tools.definitions_for(turn.resident_id,
+            housekeeping: Map.get(turn, :housekeeping?, false)
+          ),
         tool_choice: "none"
       )
 

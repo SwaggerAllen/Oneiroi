@@ -198,6 +198,18 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns the bedtime scene pass may take (sunna#34), a turn carried on when it runs out of tool rounds; a guess, since a day's scenes are many reads"},
+      {:people_turns, "SUNNA_PEOPLE_TURNS",
+       cast: :integer,
+       default: "3",
+       tag: :bound,
+       usage:
+         "how many turns the night's people pass may take (sunna#57, design/portraits.md), a turn carried on when it runs out of tool rounds; it reads scene rows, not the day, so fewer than the scene pass's; a guess"},
+      {:behaviour_turns, "SUNNA_BEHAVIOUR_TURNS",
+       cast: :integer,
+       default: "3",
+       tag: :bound,
+       usage:
+         "how many turns the night's behaviour pass may take (sunna#57; the witness, 2026-11-13: seeding is nightly only), a turn carried on when it runs out of tool rounds; a guess"},
       {:free_time_floor_turns, "SUNNA_FREE_TIME_FLOOR_TURNS",
        cast: :integer,
        default: "2",

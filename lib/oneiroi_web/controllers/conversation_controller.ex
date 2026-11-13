@@ -2,6 +2,7 @@ defmodule OneiroiWeb.ConversationController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Kumbukumbu
   alias OpenApiSpex.Schema
 
@@ -317,6 +318,45 @@ defmodule OneiroiWeb.ConversationController do
       {:error, e} ->
         error(conn, 502, e)
     end
+  end
+
+  operation(:tool_uses,
+    summary:
+      "How often she called the tools named (kumbukumbu#71): `names` comma-separated (default the citation tools, seed_cite, habit_cite and soul_cite), `days` back (default 14, at most 90); each row the tool, the UTC day, the conversation's kind and the count; never the call's arguments or answer",
+    parameters: [
+      id: [in: :path, type: :string],
+      names: [in: :query, type: :string],
+      days: [in: :query, type: :integer]
+    ],
+    responses: [ok: {"the counts", "application/json", %Schema{type: :array}}]
+  )
+
+  @citation_tools ~w(seed_cite habit_cite soul_cite)
+
+  def tool_uses(%{assigns: %{principal: p}} = conn, %{"id" => id} = params) do
+    names =
+      case params["names"] do
+        raw when is_binary(raw) and raw != "" ->
+          raw |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+
+        _none ->
+          @citation_tools
+      end
+
+    days =
+      case Integer.parse(to_string(params["days"] || "")) do
+        {n, ""} when n in 1..90 -> n
+        _default -> 14
+      end
+
+    since = DateTime.add(Clock.now(), -days * 86_400)
+
+    json(
+      conn,
+      {:account, p.account_id}
+      |> Kumbukumbu.tool_uses(id, names, since)
+      |> Enum.map(&%{&1 | day: Date.to_iso8601(&1.day)})
+    )
   end
 
   operation(:search,

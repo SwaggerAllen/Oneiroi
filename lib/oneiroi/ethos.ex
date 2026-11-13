@@ -147,6 +147,12 @@ defmodule Oneiroi.Ethos do
        tag: :bound,
        usage:
          "how many distinct days a seed must have been cited on before it may graduate to a habit (spec §6.17's fork): a recorded if-then contingency is a hypothesis, moderately reliable in the literature (design/research-self-and-character.md §3), and the number is a guess at what counts as repeated"},
+      {:portrait_days, "ETHOS_PORTRAIT_DAYS",
+       cast: :integer,
+       default: "5",
+       tag: :bound,
+       usage:
+         "how many distinct days a person-seed must have been cited on before it may graduate to a portrait (ethos#21; design/portraits.md, the witness's number, 2026-11-13): an acquaintance stays a cheap seed, and only someone who keeps coming up earns a file"},
       {:measure_window_days, "ETHOS_MEASURE_WINDOW_DAYS",
        cast: :integer,
        default: "7",
@@ -321,6 +327,15 @@ defmodule Oneiroi.Ethos do
   @doc "Every seed with its citations and the days it was cited."
   @spec seeds(String.t()) :: [Oneiroi.Ethos.Store.Seed.t()]
   defexport(seeds(resident_id), do: Seeds.seeds(resident_id))
+
+  @doc "Whether a seed has graduated toward the portrait at `path` (ethos#21): the one thing that lets her write it."
+  @spec portrait_earned?(String.t(), String.t()) :: boolean()
+  defexport(portrait_earned?(resident_id, path),
+    do:
+      resident_id
+      |> Seeds.seeds()
+      |> Enum.any?(&(&1.graduated_to_kind == "portrait" and &1.graduated_to_id == path))
+  )
 
   # ---- habits (P38) ----
 

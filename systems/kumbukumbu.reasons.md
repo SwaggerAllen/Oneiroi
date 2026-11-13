@@ -573,3 +573,9 @@ letter, never its text, so a sender searched in the transcript would
 find nothing. Sent to in a transcript is derived, not stored: in a
 conversation only the witness and the resident speak, what she says
 goes to him where he takes part, and everything else goes to her.
+
+## #71
+
+The decision whether citing moves to the night too turns on use, and
+the tool messages already hold the evidence; reading only the name keeps
+the count from becoming a read of what she wrote.

@@ -822,6 +822,39 @@ defmodule Oneiroi.Kumbukumbu.Store do
     {Enum.take(rows, limit), length(rows) > limit}
   end
 
+  @doc """
+  How often she called the tools named, since `since` (kumbukumbu#71;
+  the witness, 2026-11-13: "we'll want to check on how often they're
+  used"): `[%{name, day, kind, count}]`, the day the UTC date of the
+  call, the kind the conversation's. A tool call is captured as a `tool`
+  message whose words open with `name(`; only the name is read, never
+  the arguments or the answer.
+  """
+  @spec tool_uses(String.t(), [String.t()], DateTime.t()) :: [map()]
+  def tool_uses(resident_id, names, %DateTime{} = since) do
+    Repo.all(
+      from(m in Message,
+        join: s in Session,
+        on: s.resident_id == m.resident_id and s.key == m.session_key,
+        where:
+          m.resident_id == ^resident_id and m.role == "tool" and m.sent_at >= ^since and
+            fragment("split_part(?, '(', 1)", m.content) in ^names,
+        group_by: [
+          fragment("split_part(?, '(', 1)", m.content),
+          fragment("date(?)", m.sent_at),
+          s.kind
+        ],
+        order_by: [fragment("date(?)", m.sent_at), fragment("split_part(?, '(', 1)", m.content)],
+        select: %{
+          name: fragment("split_part(?, '(', 1)", m.content),
+          day: fragment("date(?)", m.sent_at),
+          kind: s.kind,
+          count: count()
+        }
+      )
+    )
+  end
+
   defp search_pattern(text), do: "%" <> String.replace(text, ~r/[%_\\]/, &("\\" <> &1)) <> "%"
 
   @doc "The open capture failures the scope sees, oldest first."

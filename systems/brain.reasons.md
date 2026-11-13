@@ -814,3 +814,14 @@ part, and finding it was most of the slowness. A path is the one
 pointer both halves already share: she writes it, the repo resolves
 it, and Records already opens it. A folder link opens the tree rather
 than a listing page, since the tree is the listing.
+
+## #91
+
+She rarely plants a seed mid-day, so the planting tool there was weight
+in every turn's tool list for little use, and the night passes read the
+day whole. Citing stays in the day because a citation is worth most when
+it lands on the turn as it happens, and the lane's exemplars are cited
+turns; whether it moves too is to be read from how often it is used
+(kumbukumbu#71). The passes act rather than propose because they are her
+own turns on her own model: a proposal from her to herself had nowhere
+to wait and no one else to confirm it.

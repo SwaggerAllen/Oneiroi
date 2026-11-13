@@ -581,6 +581,16 @@ defmodule Oneiroi.Kumbukumbu do
   @spec sessions(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.Session.t()]
   defexport(sessions(scope), do: Conversations.sessions(scope))
 
+  @doc "How often she called the tools named since `since` (kumbukumbu#71): `[%{name, day, kind, count}]`, names only, never arguments or answers."
+  @spec tool_uses(term(), String.t(), [String.t()], DateTime.t()) :: [map()]
+  defexport(tool_uses(scope, resident_id, names, since),
+    do: Conversations.tool_uses(scope, resident_id, names, since)
+  )
+
+  @doc "A session's kind (main, free_time, housekeeping, …), or nil when the resident holds no such session."
+  @spec session_kind(String.t(), String.t()) :: String.t() | nil
+  defexport(session_kind(resident_id, key), do: Conversations.session_kind(resident_id, key))
+
   @doc "A session and its messages in order, under a scope."
   @spec transcript(Oneiroi.Scope.t(), String.t()) ::
           {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
