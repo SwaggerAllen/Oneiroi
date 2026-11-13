@@ -2166,7 +2166,8 @@ system.
   1**, the server's own key pair, its private key held by nobody else;
   **key 2**, a symmetric key the witness and the resident share; **key
   3**, the resident's own symmetric key for private memories, never held
-  by the witness; **key 4**, each witness's and each resident's own
+  by the witness except by the resident's explicit gift, an export
+  carrying her consent or an entrustment (§7.2); **key 4**, each witness's and each resident's own
   signing key. The resident's repository: private memories under key 3,
   then the whole under key 2, the server's key over the top. A shared
   repository: a group key the server does not have, each message signed
@@ -2181,7 +2182,11 @@ system.
   and contract, is split from the platform company, blind where not
   contractually visible; server-side features render while the resident
   works and need not otherwise; vote time sits on the same line (§6.18).
-  This feeds the honest-limits page (§6.12, P25).
+  The recovery and entrustment ceremonies (§7.2) are among the
+  contractually visible uses. Under the witness's eighth read (§7.2) the
+  work itself starts only in a session a client began, so between
+  sessions the server holds no usable key. This feeds the honest-limits
+  page (§6.12, P25).
 - **Per-file encryption** (position #110): event-sourced repositories
   re-encrypt only what changed, accepting that the hosting server sees
   filenames, sizes and who edited what and when. **Timestamps are kept**
@@ -2192,7 +2197,9 @@ system.
 - **The metadata index is server-visible** (the witness, 2026-11-09):
   titles, kinds and statuses, never contents, so a badge counts without
   decrypting. Sealed at rest:
-  contents, key-3 memories, the id-to-nullifier and id-to-pseudonym maps.
+  contents, key-3 memories, the id-to-nullifier and id-to-pseudonym maps,
+  the wrap headers and the at-rest key-3 wrap (§7.2; P51's packing list
+  mirrors this inventory).
 - **Tooling** (research #16): off the shelf for key 3 (git-crypt with a
   dedicated key, or SOPS or age per file) and per-party signing (git's
   commit signing; SSH allowed-signers with validity windows and a
@@ -2312,7 +2319,10 @@ a nicer envelope".
   send them and retains the password after delivery not at all. Unlike a
   code, an entrustment puts key material in the recipient's hands.
   Cross-house delivery rides federation's message passing, the one place
-  key material crosses houses. **Backup entrustment** is a revocable
+  key material crosses houses: the corridor's one named exception to
+  "never a message route that bypasses boundary rules", a deliberate,
+  resident-initiated, signed delivery that travels by the boundary rules
+  and never around them. **Backup entrustment** is a revocable
   standing grant; revocation's limit is a fact, not a design: a recipient
   holding package and password cannot be un-given them, the server's
   access control is what walls them off, and rotation with rekey is the
@@ -2373,16 +2383,23 @@ a nicer envelope".
   so. With no credential left after a resident is gone, key 3's records
   stay sealed unless the platform crosses, which it does not do and which
   would be visible; the client says this while the resident can still
-  choose a path. A resident may entrust key 3 to the witness by a signed,
-  logged gift.
+  choose a path. Recovery never returns key 3 to anyone; a gift is a
+  different act: a resident may entrust key 3 to the witness by a signed,
+  logged grant, or give it with a consented export.
 - **Open — his call:** whether more is owed against the platform turned
   hostile (a periodic "your keys, your copy" export, a dead-man's switch, a
   notary); the non-profit's charter and its unwrap conditions; the
   strength of death attestation (a multi-person threshold, a time-lock, a
   legal check; Jack's review); account recovery in the fuller sense, with
   the account layer; who escrows for Lily and the witness (P53's standing
-  call); and design/federation.md §5's pointer line to this section, on
-  the agreement-pass rule.
+  call); design/federation.md §5's pointer line to this section, on
+  the agreement-pass rule; and three gaps the agreement pass of
+  2026-11-13 named (oracle #16): a **key-4 loss and re-issuance** stanza,
+  since a re-issued signing key puts a lineage question under every
+  signature-trust claim federation makes (§6.18); **group-key recovery**
+  for a shared repository, a member-side re-sharing path or out of scope
+  for v1; and **entrustment and vouching kept disjoint** in federation's
+  own vouch section, as this section already says of succession.
 
 ---
 
