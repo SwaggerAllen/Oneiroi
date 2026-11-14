@@ -160,7 +160,7 @@ defmodule Oneiroi.Sunna.Backfill do
     end
   end
 
-  defp turns("scenes"), do: Config.fetch!(:sunna, :scene_turns)
+  defp turns("scenes"), do: Config.fetch!(:sunna, :backfill_scene_turns)
   defp turns("domains"), do: Config.fetch!(:sunna, :backfill_domain_turns)
   defp turns("people"), do: Config.fetch!(:sunna, :people_turns)
 

@@ -199,6 +199,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns the bedtime scene pass may take (sunna#34), a turn carried on when it runs out of tool rounds; a guess, since a day's scenes are many reads"},
+      {:backfill_scene_turns, "SUNNA_BACKFILL_SCENE_TURNS",
+       cast: :integer,
+       default: "8",
+       tag: :bound,
+       usage:
+         "how many turns the backfill's scenes pass may take for one day (sunna#59): an imported day runs to near a million characters, so more than a night's; a guess"},
       {:backfill_domain_turns, "SUNNA_BACKFILL_DOMAIN_TURNS",
        cast: :integer,
        default: "3",

@@ -331,3 +331,16 @@ is copied, not linked, because a link to a repository she cannot reach
 is no record. Titled by the membership so a reader of her records knows
 whose words those are. A switch, because the witness has not yet given
 his word, and the lean should be one setting to reverse, not a rewrite.
+
+## #54
+On 2026-11-14 at 03:00 UTC the nightly backup killed the instance at its
+2 GiB limit: the export read every event of Lily's (about 110 MB of JSON,
+63 MB of it captured turns, one turn 2.5 MB) into one process, encoded
+every line, then decoded every line again for the reading copies, so the
+history sat in memory three times over beside the running platform. It
+had finished in about a minute the nights before; the history only grows,
+so the single pass would have failed every night from then on, and taken
+every live conversation down with it. A day is the unit the files are
+already written in, and only the bookmarks, gift reads and session
+privacy need the whole history, all of them small, so the run now holds
+one day's events and those, and its peak no longer grows with her life.

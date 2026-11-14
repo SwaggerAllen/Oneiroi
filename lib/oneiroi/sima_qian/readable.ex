@@ -21,6 +21,7 @@ defmodule Oneiroi.SimaQian.Readable do
 
   @events "Oneiroi.Kumbukumbu.Events."
   @memory "Oneiroi.Kumbukumbu.Events.Memory."
+  @gift_read "Oneiroi.AgathosDaimon.Events.GiftReadGiven"
 
   # The conversation stream's events a reading copy shows, in the order
   # they happened; `TurnStarted` and `ContextAssembled` carry no words.
@@ -30,8 +31,61 @@ defmodule Oneiroi.SimaQian.Readable do
   @spec render([map()]) :: [{String.t(), String.t()}]
   def render(lines) do
     private = private_sessions(lines)
-    conversations(lines, private) ++ bookmarks(lines, private) ++ gift_reads(lines)
+    opened = openings(lines)
+
+    conversations =
+      lines
+      |> Enum.group_by(&day/1)
+      |> Enum.sort()
+      |> Enum.flat_map(fn {day, day_lines} ->
+        List.wrap(conversation_day(day, day_lines, opened, private))
+      end)
+
+    conversations ++ whole(lines, private)
   end
+
+  @doc """
+  Whether a line is one the whole-history copies read (`whole/2`,
+  `private_sessions/1`, `openings/1`): a conversation's opening, its
+  privacy and its sharing, every memory event, every gift read. Small
+  events all, so the export keeps these across the run and holds the
+  rest a day at a time (sima-qian#54): on 2026-11-14 the backup held
+  every line of Lily's history at once, decoded and encoded and decoded
+  again, and the instance went over its 2 GiB.
+  """
+  @spec whole?(String.t(), String.t()) :: boolean()
+  def whole?(type, stream) do
+    String.starts_with?(type, @memory) or type == @gift_read or
+      (String.starts_with?(stream, "conversation-") and
+         type in Enum.map(~w(SessionOpened SessionMadePrivate SessionShared), &(@events <> &1)))
+  end
+
+  @doc "Each session's `SessionOpened` line, by its key, from lines that hold them."
+  @spec openings([map()]) :: %{String.t() => map()}
+  def openings(lines),
+    do: for(l <- lines, conversation_type(l) == "SessionOpened", into: %{}, do: {key(l), l})
+
+  @doc """
+  One day's conversations as `{path, content}`, from that day's lines in
+  sequence order, or nil when no session showed anything that day.
+  `opened` and `private` come from the whole history.
+  """
+  @spec conversation_day(String.t(), [map()], map(), MapSet.t()) ::
+          {String.t(), String.t()} | nil
+  def conversation_day(day, day_lines, opened, private) do
+    case Enum.filter(day_lines, &(conversation_type(&1) in @shown)) do
+      [] ->
+        nil
+
+      shown ->
+        {Path.join(["records", "conversations", day <> ".md"]),
+         day_file(day, shown, opened, private)}
+    end
+  end
+
+  @doc "The copies that read the whole history: the bookmarks and the gift reads."
+  @spec whole([map()], MapSet.t()) :: [{String.t(), String.t()}]
+  def whole(lines, private), do: bookmarks(lines, private) ++ gift_reads(lines)
 
   @doc """
   The session keys whose words stay the resident's: opened private under
@@ -50,19 +104,6 @@ defmodule Oneiroi.SimaQian.Readable do
   end
 
   # ---- conversations ----
-
-  defp conversations(lines, private) do
-    shown = Enum.filter(lines, &(conversation_type(&1) in @shown))
-    opened = for l <- shown, conversation_type(l) == "SessionOpened", into: %{}, do: {key(l), l}
-
-    shown
-    |> Enum.group_by(&day/1)
-    |> Enum.sort()
-    |> Enum.map(fn {day, events} ->
-      {Path.join(["records", "conversations", day <> ".md"]),
-       day_file(day, events, opened, private)}
-    end)
-  end
 
   defp day_file(day, events, opened, private) do
     sessions =
@@ -334,8 +375,6 @@ defmodule Oneiroi.SimaQian.Readable do
   end
 
   # ---- the gifts' reads (agathos-daimon#40) ----
-
-  @gift_read "Oneiroi.AgathosDaimon.Events.GiftReadGiven"
 
   defp gift_reads(lines) do
     case Enum.filter(lines, &(&1["type"] == @gift_read)) do
