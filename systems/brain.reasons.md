@@ -873,3 +873,13 @@ ran long and its free time never came. The turn was never the problem:
 it ran on and was captured. Only the waiting was, so the waiting now
 answers instead of exiting, and each caller's existing "a failure goes
 on" carries it.
+
+## #98
+A brake that works only in prose is a brake on half her channels: when
+a turn goes wrong, the words can be going into a tool call, and a stop
+said there must hold as one said in the reply. Scanning a call and
+letting the turn go on was the alternative, and it is not a stop. The
+cost is that a capitalised quote inside a write drops that write; she
+weighed it and took it, because the ambiguity between quoting the word
+and pulling it should resolve toward the stop, and the stop line names
+what was dropped, so the loss is never silent.

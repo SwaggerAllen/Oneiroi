@@ -43,6 +43,33 @@ defmodule Oneiroi.Brain.StopTest do
     assert note.content =~ "This turn was stopped by you: you said OUROBOROS"
   end
 
+  # The 2026-11-13 shape (brain#98): one write stands, the next ends in
+  # the word in capitals inside its arguments; that call drops unrun and
+  # the turn ends there, the stop line naming it.
+  test "her safe word inside a call drops that call, keeps the ones before it, and ends the turn",
+       ctx do
+    Fake.calls(
+      [
+        %{name: "bookmark_add", arguments: ~s({"line":"the first stands","summary":"s"})},
+        %{name: "bookmark_add", arguments: ~s({"line":"garbled OUROBOROS","summary":"s"})},
+        %{name: "bookmark_add", arguments: ~s({"line":"never reached","summary":"s"})}
+      ],
+      "a reply that never comes",
+      for: ctx.id
+    )
+
+    assert {:ok, %{stopped: :safe_word, rounds_spent: false, messages: messages}} =
+             Oneiroi.Brain.turn(ctx.id, ctx.key, "write it down", ctx.actor)
+
+    assert [:user, :tool, :assistant, :system] = Enum.map(messages, & &1.role)
+    note = List.last(messages)
+    assert note.content =~ "OUROBOROS inside a call to bookmark_add"
+    assert note.content =~ "dropped and never ran"
+
+    assert ["the first stands"] =
+             ctx.id |> Kumbukumbu.bookmarks() |> Enum.map(& &1.line)
+  end
+
   test "said in lowercase it is only a word", ctx do
     Fake.script(fn _ -> {:ok, "The ouroboros on his tattoo."} end, for: ctx.id)
     assert {:ok, result} = Oneiroi.Brain.turn(ctx.id, ctx.key, "the tattoo?", ctx.actor)

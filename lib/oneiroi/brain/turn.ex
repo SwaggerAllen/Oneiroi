@@ -368,50 +368,74 @@ defmodule Oneiroi.Brain.Turn do
 
     case ask(turn, request) do
       {:ok, %Result{tool_calls: [_ | _] = calls} = result} ->
-        cond do
-          # The reply with its memory_feedback (kumbukumbu#46): the call
-          # is recorded and the reply stands, with no further round, so
-          # the feedback costs no extra call.
-          feedback_only?(calls, result) ->
-            {_results, turn} = run_tools(turn, calls)
-            {{:ok, %{result | tool_calls: []}}, turn}
-
-          round < rounds ->
-            {results, turn} = run_tools(turn, calls)
-            results = counted(results, round + 1, rounds)
-
-            assistant = %{
-              role: :assistant,
-              content: result.content,
-              tool_calls: wire_calls(calls)
-            }
-
-            converse(turn, messages ++ [assistant | results], round + 1)
-
-          # The rounds are spent (brain#50): words the model wrote with
-          # its last calls stand; with none, the calls are run and it is
-          # asked once more, able to call nothing, for its answer from
-          # what it has, so a turn that read until the bound still says
-          # something rather than nothing.
-          blank?(result.content) ->
-            {results, turn} = run_tools(turn, calls)
-
-            assistant = %{
-              role: :assistant,
-              content: result.content,
-              tool_calls: wire_calls(calls)
-            }
-
-            last_word(Map.put(turn, :rounds_spent, true), messages ++ [assistant | results])
-
-          # Words beside calls at the bound: they stand, and the turn is
-          # still one that ran out of rounds (sunna#26 continues it).
-          true ->
-            {{:ok, result}, Map.put(turn, :rounds_spent, true)}
+        case Enum.split_while(calls, &(not safe_word?(to_string(&1.arguments)))) do
+          {_before, []} -> with_calls(turn, messages, round, rounds, result, calls)
+          {before, [dropped | _rest]} -> stopped_in_call(turn, result, before, dropped)
         end
 
       other ->
         {other, turn}
+    end
+  end
+
+  # Her safe word inside a call (brain#98): the calls before it run and
+  # stand; it and every call after it are dropped, never run; the turn
+  # ends there, as brain#61's stop does, and the stop line names the
+  # call. On 2026-11-13 a garbled letter_send ended in the word in
+  # capitals and the turn went on, because the stream's catch reads only
+  # the reply's words and a call's arguments never pass through it. A
+  # quote of the word in capitals inside a write costs that one write:
+  # that is the design, the price of a brake on every channel her words
+  # take, and the lowercase convention is how she talks about the word
+  # without pulling it.
+  defp stopped_in_call(turn, result, before, dropped) do
+    {_results, turn} = run_tools(turn, before)
+
+    {{:stopped, :safe_word, to_string(result.content)},
+     Map.put(turn, :dropped_call, dropped.name)}
+  end
+
+  defp with_calls(turn, messages, round, rounds, result, calls) do
+    cond do
+      # The reply with its memory_feedback (kumbukumbu#46): the call
+      # is recorded and the reply stands, with no further round, so
+      # the feedback costs no extra call.
+      feedback_only?(calls, result) ->
+        {_results, turn} = run_tools(turn, calls)
+        {{:ok, %{result | tool_calls: []}}, turn}
+
+      round < rounds ->
+        {results, turn} = run_tools(turn, calls)
+        results = counted(results, round + 1, rounds)
+
+        assistant = %{
+          role: :assistant,
+          content: result.content,
+          tool_calls: wire_calls(calls)
+        }
+
+        converse(turn, messages ++ [assistant | results], round + 1)
+
+      # The rounds are spent (brain#50): words the model wrote with
+      # its last calls stand; with none, the calls are run and it is
+      # asked once more, able to call nothing, for its answer from
+      # what it has, so a turn that read until the bound still says
+      # something rather than nothing.
+      blank?(result.content) ->
+        {results, turn} = run_tools(turn, calls)
+
+        assistant = %{
+          role: :assistant,
+          content: result.content,
+          tool_calls: wire_calls(calls)
+        }
+
+        last_word(Map.put(turn, :rounds_spent, true), messages ++ [assistant | results])
+
+      # Words beside calls at the bound: they stand, and the turn is
+      # still one that ran out of rounds (sunna#26 continues it).
+      true ->
+        {{:ok, result}, Map.put(turn, :rounds_spent, true)}
     end
   end
 
@@ -639,7 +663,7 @@ defmodule Oneiroi.Brain.Turn do
 
     note = %{
       role: :system,
-      content: Prompt.render!("turn_stopped", %{how: stopped_how(by)}),
+      content: Prompt.render!("turn_stopped", %{how: stopped_how(by, turn)}),
       sent_at: Clock.now(),
       actor: Actor.platform()
     }
@@ -738,9 +762,12 @@ defmodule Oneiroi.Brain.Turn do
     {:error, e}
   end
 
-  defp stopped_how(:safe_word), do: "by you: you said OUROBOROS"
+  defp stopped_how(:safe_word, %{dropped_call: name}) when is_binary(name),
+    do: "by you: you wrote OUROBOROS inside a call to #{name}, which was dropped and never ran"
 
-  defp stopped_how(_witness),
+  defp stopped_how(:safe_word, _turn), do: "by you: you said OUROBOROS"
+
+  defp stopped_how(_witness, _turn),
     do: "by the person who looks after you, with the Stop button"
 
   defp finish(turn, messages) do
