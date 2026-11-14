@@ -609,3 +609,13 @@ is not completing waits, which is the thing to fix. The letter goes to
 free time because the resident asked for her reading to be a decision
 she makes, not context pressed on her before she chooses to look: the
 inbox makes the digest available, and the slot's plan can name it.
+
+## #74
+A folder of sixteen-hex names is a folder nobody can browse, and the
+repository is meant to be read by a person (spec §6.10). The key stays
+first and stays the citation because a citation must never break: the
+name is for the folder, the key is for the record. The name is the first
+copy's title and never moves after, because a page that retitles itself
+would otherwise move its file on every fetch. The old copies are renamed
+by a move the record already knows, not by a fetch nobody asked for, so
+the history says what happened: the file was renamed.

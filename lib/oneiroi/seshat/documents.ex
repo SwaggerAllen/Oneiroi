@@ -459,13 +459,15 @@ defmodule Oneiroi.Seshat.Documents do
   citation of the old path follows to the new one.
   """
   # sobelow_skip ["Traversal.FileModule"]
-  def move(resident_id, from, to, %Actor{} = actor) do
+  def move(resident_id, from, to, %Actor{} = actor, opts \\ []) do
+    core = Keyword.get(opts, :core, false)
+
     with {:ok, from} <- normalize(resident_id, from),
          {:ok, to} <- normalize(resident_id, to),
          :ok <- not_theme(from, false),
          :ok <- not_theme(to, false),
-         {:ok, from_kind} <- movable(resident_id, from, actor),
-         {:ok, to_kind} <- movable(resident_id, to, actor),
+         {:ok, from_kind} <- movable(resident_id, from, actor, core),
+         {:ok, to_kind} <- movable(resident_id, to, actor, core),
          {:ok, dir} <- SimaQian.repository_dir(resident_id),
          :ok <- target_free(to, Path.join(dir, to)),
          {:ok, content} <- source(from, Path.join(dir, from)),
@@ -491,13 +493,15 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   # A kind the mover could write a file into, by `write/4`'s rule.
-  defp movable(resident_id, path, actor) do
+  # `core`, as for write/5: the platform's own kinds (an external copy,
+  # seshat#74) are moved by the platform's hand alone.
+  defp movable(resident_id, path, actor, core) do
     case Kinds.kind_of(resident_id, path) do
       nil ->
         {:error, Error.new(:seshat_path_invalid, :seshat_documents_move_no_kind, path: path)}
 
       _kind ->
-        case writable_kind(resident_id, path, false, actor) do
+        case writable_kind(resident_id, path, core, actor) do
           {:ok, kind} ->
             {:ok, kind}
 
