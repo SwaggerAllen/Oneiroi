@@ -230,4 +230,26 @@ defmodule Oneiroi.Sunna.BackfillTest do
     past_utc = Clock.now() |> DateTime.add(-2 * 86_400) |> DateTime.to_date() |> Date.to_iso8601()
     assert citation == past_utc
   end
+
+  test "a day before the Oneiroi chat takes the imported chat's scenes", ctx do
+    {:ok, imported} = Kumbukumbu.open_imported(ctx.id, "openclaw", [ctx.actor.id], ctx.actor)
+    old = Clock.now() |> DateTime.add(-5 * 86_400) |> Map.merge(%{hour: 12, minute: 0, second: 0})
+
+    old_day =
+      old |> DateTime.shift_zone!(Local.zone(ctx.id)) |> DateTime.to_date() |> Date.to_iso8601()
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        imported,
+        "t-old",
+        old,
+        [%{role: :user, content: "back in October", sent_at: old, actor: ctx.actor}],
+        ctx.brain
+      )
+
+    assert {:ok, note} = BackfillNotes.note(ctx.id, "scenes", old_day, 1, %{})
+    assert note =~ "session #{imported}"
+    assert note =~ "Write as you read, not after"
+  end
 end

@@ -36,14 +36,14 @@ defmodule Oneiroi.Brain.BackfillNotes do
 
   def note(resident_id, "scenes", day, _n, _lists) do
     with false <- closed?(resident_id, day),
-         %{} = chat <- Enum.find(sessions(resident_id, day), &(&1.kind == "main")) do
+         %{} = chat <- chat(sessions(resident_id, day)) do
       {:ok,
        Prompt.render!("backfill_scenes", %{
          day: day,
          session: chat.key,
          from: chat.from,
          count: chat.messages,
-         turns: Config.fetch!(:sunna, :scene_turns)
+         turns: Config.fetch!(:sunna, :backfill_scene_turns)
        })}
     else
       _closed_or_quiet -> :skip
@@ -89,6 +89,16 @@ defmodule Oneiroi.Brain.BackfillNotes do
 
   def note(_resident_id, _pass, _day, _n, _lists), do: :skip
 
+  # The day's chat with him: the Oneiroi chat, or before it existed the
+  # chat an import carried (10-17 to 10-31 are imported), the largest
+  # when there are several.
+  defp chat(sessions) do
+    Enum.find(sessions, &(&1.kind == "main")) ||
+      sessions
+      |> Enum.filter(&(&1.kind == "imported"))
+      |> Enum.max_by(& &1.messages, fn -> nil end)
+  end
+
   # The day's conversations in her zone: each with its kind, what it is
   # called, how many messages, its first and last turn and where a read of
   # the day starts.
@@ -129,9 +139,9 @@ defmodule Oneiroi.Brain.BackfillNotes do
     |> Enum.sort_by(& &1.number)
   end
 
-  defp conversation_line(%{kind: "main"} = c, scenes) do
+  defp conversation_line(%{kind: kind} = c, scenes) when kind in ["main", "imported"] do
     head =
-      "- the Oneiroi chat, session #{c.key}: #{c.messages} messages that day, from #{c.from} (turns #{c.first_turn} to #{c.last_turn})"
+      "- #{if kind == "main", do: "the Oneiroi chat", else: "the chat as imported"}, session #{c.key}: #{c.messages} messages that day, from #{c.from} (turns #{c.first_turn} to #{c.last_turn})"
 
     case scenes do
       [] ->
