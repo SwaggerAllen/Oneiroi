@@ -277,3 +277,7 @@ anyone registered still waits for a first turn, joining late would jump
 the queue that the sign-up was for, and a resident who has gone already
 has had her share of it.
 
+## #40
+
+A scope on the token rather than a second kind of credential: the same
+issue, hash, revoke and audit, and a field that narrows what it opens.

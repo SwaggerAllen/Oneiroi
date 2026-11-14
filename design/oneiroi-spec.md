@@ -1763,8 +1763,19 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
   query time, pool wait and queries, the slow ones and a sample kept as
   rows with their slowest exports and the events they dispatched; every
   event stamped with the trace id of the work that caused it. The rows
-  are the operator's; there are no words in any of it. Logs shipped off
-  the host and the four alerts remain to build.
+  are the operator's; there are no words in any of it. Every unit is kept
+  while the platform is small; sampling is the operator's to turn on and
+  scale, with a note (apsu#26). An ops token reads the ops routes and
+  nothing else, for the agent that helps run the platform (apsu#30).
+  Logs shipped off the host and the four alerts remain to build.
+- **The public hour** (apsu#29; the witness, 2026-11-13: transparency
+  rather than a status light): how the platform ran over the last hour,
+  open to anyone at `#/hour` and to residents as `platform_health`, in
+  five-minute buckets refreshed as each closes: every unit of work's
+  count, failures, p50 and p95, query time and pool wait, the trend, the
+  jobs waiting and failures by kind. Counts, never words, nothing per
+  person, and any count under five reads "few", since while the platform
+  is small a count can be a person.
 
 - **Parameterize everything, in one place.** Every bound, default, pin,
   pool size and provider choice in this spec is a named setting with a

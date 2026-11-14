@@ -16,6 +16,8 @@ import { Theme } from './theme/Theme';
 import { Auth } from './onboarding/Auth';
 import { Creation } from './onboarding/Creation';
 import { Landing } from './onboarding/Landing';
+import { HourPage } from './hour/HourPage';
+import { useHashIs } from './hour/useHashIs';
 import { useShell } from './state/store';
 import { useResidentTheme } from './theme/useResidentTheme';
 import { useSubjectChoice } from './state/subject';
@@ -49,6 +51,8 @@ function Splash() {
 }
 
 function Boot() {
+  // The public hour (apsu#29) is anyone's, signed in or not.
+  const hourOpen = useHashIs('#/hour');
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false });
   const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents, enabled: me.isSuccess });
   const chosen = useSubjectChoice((s) => s.id);
@@ -57,6 +61,7 @@ function Boot() {
   const setWaking = useSubjectChoice((s) => s.setWaking);
   const [door, setDoor] = useState<'landing' | 'new' | 'in'>(() => (window.location.hash === '#/welcome' ? 'in' : 'landing'));
 
+  if (hourOpen) return <HourPage />;
   if (me.isPending) return <Splash />;
   if (me.error instanceof RequestFailed && me.error.status === 401) {
     // Signed out: the landing page, then Welcome in (ui-build.md P6).

@@ -45,6 +45,8 @@ defmodule Oneiroi.Gaia.Store do
     schema "gaia_token" do
       field(:account_id, :binary_id)
       field(:label, :string)
+      # nil, the account's whole reach; "ops", the operator's reads (gaia#40).
+      field(:scope, :string)
       field(:issued_at, :utc_datetime_usec)
       field(:revoked_at, :utc_datetime_usec)
     end
@@ -383,6 +385,23 @@ defmodule Oneiroi.Gaia.Store do
       from(s in Session, where: s.hash == ^hash and is_nil(s.closed_at) and s.expires_at > ^now)
     )
   end
+
+  @doc "An account's tokens, newest first, without the tokens (gaia#40)."
+  def tokens(account_id),
+    do:
+      Repo.all(
+        from(t in Token,
+          where: t.account_id == ^account_id,
+          order_by: [desc: t.issued_at],
+          select: %{
+            hash: t.hash,
+            label: t.label,
+            scope: t.scope,
+            issued_at: t.issued_at,
+            revoked_at: t.revoked_at
+          }
+        )
+      )
 
   @doc "A live token by hash."
   @spec live_token(String.t()) :: Token.t() | nil

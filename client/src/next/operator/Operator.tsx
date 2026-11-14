@@ -7,12 +7,13 @@ import { useSubject } from '../state/resident';
 import { Invites } from './Invites';
 import { SaidLine } from './parts';
 import { Roles } from './Roles';
+import { Spans } from './Spans';
 import { Triage } from './Triage';
 import { useOp } from './useOp';
 import * as css from './operator.css';
 
-type Tab = 'status' | 'door' | 'roles' | 'invites' | 'triage';
-const TABS: Tab[] = ['status', 'door', 'roles', 'invites', 'triage'];
+type Tab = 'status' | 'spans' | 'door' | 'roles' | 'invites' | 'triage';
+const TABS: Tab[] = ['status', 'spans', 'door', 'roles', 'invites', 'triage'];
 
 /**
  * The operator shell (ui-structures.md D: a separate shell at its own
@@ -49,6 +50,7 @@ export function Operator() {
         <ScrollArea label={tab}>
           <div className={css.page}>
             {tab === 'status' && <Status />}
+            {tab === 'spans' && <Spans />}
             {tab === 'door' && <Door />}
             {tab === 'roles' && <Roles />}
             {tab === 'invites' && <Invites />}

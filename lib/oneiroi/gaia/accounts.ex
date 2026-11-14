@@ -11,6 +11,7 @@ defmodule Oneiroi.Gaia.Accounts do
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia.Commands
+  alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Principal
   alias Oneiroi.Gaia.Router
@@ -125,9 +126,9 @@ defmodule Oneiroi.Gaia.Accounts do
 
   def authenticate_token(raw) when is_binary(raw) do
     Scope.platform(fn ->
-      with %{account_id: account_id} <- Store.live_token(hash(raw)),
+      with %{account_id: account_id} = token <- Store.live_token(hash(raw)),
            %{email: email} <- Store.account(account_id) do
-        {:ok, %Principal{account_id: account_id, email: email, via: :token}}
+        {:ok, %Principal{account_id: account_id, email: email, via: :token, scope: token.scope}}
       else
         _ -> :error
       end
@@ -267,19 +268,31 @@ defmodule Oneiroi.Gaia.Accounts do
     end)
   end
 
-  def issue_token(account_id, label, %Actor{} = actor) do
+  def issue_token(account_id, label, %Actor{} = actor, opts \\ []) do
     raw = random()
+    scope = Keyword.get(opts, :scope)
 
     command = %Commands.IssueToken{
       actor: actor,
       at: Clock.now(),
       id: account_id,
       token_hash: hash(raw),
-      label: label
+      label: label,
+      scope: scope
     }
 
-    with {:ok, _} <- dispatch(command), do: {:ok, raw, hash(raw)}
+    # An ops token reads the platform's ops routes (apsu#30): a super
+    # admin's to mint, as the routes are a super admin's to read.
+    if scope == "ops" and not Door.operator?(account_id) do
+      {:error, Error.new(:gaia_token_scope_invalid, :gaia_accounts_ops_token_not_operator)}
+    else
+      with {:ok, _} <- dispatch(command), do: {:ok, raw, hash(raw)}
+    end
   end
+
+  @doc "The account's tokens, newest first, without the tokens themselves (gaia#40)."
+  def tokens(account_id),
+    do: Scope.platform(fn -> Store.tokens(account_id) end)
 
   def revoke_token(account_id, token_hash, %Actor{} = actor) do
     command = %Commands.RevokeToken{

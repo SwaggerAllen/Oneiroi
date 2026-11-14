@@ -73,6 +73,10 @@ it, in the server's own words.
     never shown back);
   - your GitHub read token (gaia#24, UI-configurable by the witness's
     call): store, replace, and revoke on a second tap;
+  - ops tokens (gaia#40, apsu#30), a super admin's alone, the card
+    hidden from everyone else: the live ones by label with revoke on a
+    second tap, and "Make a token" with a label, the token shown once
+    with Copy and "I've saved it";
   - what holds a token for her (xenia#11): connected adapters with their
     role in words, revoke on a second tap; "Connect something new" with
     a name and a role (brain, reader, worker) issues a token shown once

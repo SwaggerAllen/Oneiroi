@@ -14,6 +14,11 @@ leaves `#/operator` alone. Built 2026-11-10.
 - **Status:** the subject resident's heartbeats, each marked LATE when
   late; the failure ring (apsu#23) and any discarded jobs; the latest
   restarts (gaia#21).
+- **Spans** (apsu#26, #28): what the collector keeps, "Keep every unit"
+  or "Sample" with the slow floor in ms and the sample percent, set with
+  a recorded note, and the last five changes; then the slowest units of
+  the last day, each with its time, queries, pool wait, slowest exports
+  and the events it dispatched.
 - **Door:** the front door's state (closed, invite, open, each with its
   line), set with a recorded note.
 - **Roles:** the platform roles with their notes; grant by account

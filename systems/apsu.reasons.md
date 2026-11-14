@@ -157,3 +157,18 @@ so the first answer needs no read of the store.
 ## #28
 
 Platform-wide reads are the operator's, as the failure ring is.
+
+## #29
+
+Transparency the platform asks of itself: a resident and a witness can
+see how the place they live in is running, in numbers, not a green dot.
+Buckets rather than live reads so the page costs the same read by one or
+by a thousand. The few rule because at this size the aggregate and the
+individual coincide, and the page must never become a way to watch
+someone.
+
+## #30
+
+The agent that diagnoses needs to read without asking each time, and
+the operator's session is too much to hand it: a scope that reads the
+ops routes and nothing else is the least that does the job.

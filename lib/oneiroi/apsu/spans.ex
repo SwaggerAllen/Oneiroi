@@ -29,9 +29,11 @@ defmodule Oneiroi.Apsu.Spans do
 
   require Logger
 
+  import Ecto.Query, only: [from: 2]
+
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Error
-  alias Oneiroi.Config
+  alias Oneiroi.Apsu.Health
   alias Oneiroi.Repo
   alias Oneiroi.Scope
 
@@ -49,11 +51,90 @@ defmodule Oneiroi.Apsu.Spans do
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, :ok, name: :apsu_spans)
 
+  # What is kept with no row set: every unit (the witness, 2026-11-13:
+  # "while it's just Lily and maybe a sibling … it'll be much better data").
+  @default_policy %{mode: "all", slow_ms: 250, sample_percent: 1}
+  @modes ~w(all sample)
+  @policy_key {__MODULE__, :policy}
+
   @impl GenServer
   def init(:ok) do
     attach()
+    load_policy()
     Process.send_after(self(), :flush, @flush_ms)
     {:ok, []}
+  end
+
+  @doc """
+  What the collector keeps (apsu#26): `mode` "all", every unit a row; or
+  "sample", a unit of `slow_ms` or more, a failed one, and
+  `sample_percent` of the rest. The newest row the operator set, or every
+  unit when none is.
+  """
+  @spec policy() :: map()
+  def policy, do: :persistent_term.get(@policy_key, @default_policy)
+
+  @doc "Sets what the collector keeps, with a note: a new row, in force at once on this node and within a minute on any other."
+  @spec set_policy(String.t(), integer(), integer(), String.t(), String.t() | nil) ::
+          :ok | {:error, Oneiroi.Error.t()}
+  def set_policy(mode, slow_ms, percent, note, set_by) do
+    if mode in @modes and is_integer(slow_ms) and slow_ms >= 0 and is_integer(percent) and
+         percent in 0..100 and is_binary(note) and String.trim(note) != "" do
+      Scope.platform(fn ->
+        Repo.insert_all("apsu_span_policy", [
+          %{
+            mode: mode,
+            slow_ms: slow_ms,
+            sample_percent: percent,
+            note: String.trim(note),
+            set_by: set_by,
+            set_at: Clock.now()
+          }
+        ])
+      end)
+
+      load_policy()
+    else
+      {:error, Error.new(:apsu_span_policy_invalid, :apsu_spans_policy_invalid)}
+    end
+  end
+
+  @doc "Every policy set, newest first: what was kept when, by whom and why."
+  @spec policies() :: [map()]
+  def policies do
+    Scope.platform(fn ->
+      Repo.all(
+        from(p in "apsu_span_policy",
+          order_by: [desc: p.id],
+          limit: 20,
+          select: %{
+            mode: p.mode,
+            slow_ms: p.slow_ms,
+            sample_percent: p.sample_percent,
+            note: p.note,
+            set_by: p.set_by,
+            set_at: p.set_at
+          }
+        )
+      )
+    end)
+  end
+
+  defp load_policy do
+    newest =
+      case policies() do
+        [p | _] -> Map.take(p, [:mode, :slow_ms, :sample_percent])
+        [] -> @default_policy
+      end
+
+    :persistent_term.put(@policy_key, newest)
+    :ok
+  rescue
+    # Before the table exists (a migration not yet run) the default holds.
+    exception ->
+      e = Error.caught(:apsu_spans_unwritten, :apsu_spans_policy_read_raised, exception)
+      Logger.warning("apsu: the span policy was not read", Oneiroi.Error.metadata(e))
+      :ok
   end
 
   @impl GenServer
@@ -71,6 +152,8 @@ defmodule Oneiroi.Apsu.Spans do
   @impl GenServer
   def handle_info(:flush, rows) do
     Process.send_after(self(), :flush, @flush_ms)
+    # Another node's change reaches this one within a minute.
+    if rem(System.system_time(:second), 60) < div(@flush_ms, 1000), do: load_policy()
     {:noreply, write(rows)}
   end
 
@@ -250,10 +333,14 @@ defmodule Oneiroi.Apsu.Spans do
       %{kind: span.kind, name: span.name}
     )
 
-    slow? = duration_ms >= Config.fetch!(:apsu, :span_slow_ms)
-    sampled? = not slow? and :rand.uniform(100) <= Config.fetch!(:apsu, :span_sample_percent)
+    # Every unit counts to the public hour (apsu#29), kept as a row or not.
+    Health.tick(span, duration_ms, failed?)
 
-    if slow? or sampled? or failed?,
+    %{mode: mode, slow_ms: slow_ms, sample_percent: percent} = policy()
+    slow? = duration_ms >= slow_ms
+    sampled? = mode == "sample" and not slow? and :rand.uniform(100) <= percent
+
+    if mode == "all" or slow? or sampled? or failed?,
       do: GenServer.cast(:apsu_spans, {:row, row(span, duration_ms, failed?, sampled?)})
   rescue
     # Measuring must never fail the work it measures.

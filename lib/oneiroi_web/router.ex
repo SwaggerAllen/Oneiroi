@@ -44,6 +44,8 @@ defmodule OneiroiWeb.Router do
     post("/session", SessionController, :create)
     delete("/session", SessionController, :delete)
     get("/door", DoorController, :show)
+    # The public hour (apsu#29): open to anyone.
+    get("/hour", HourController, :show)
     post("/door/check", DoorController, :check)
     post("/door/sign-up", DoorController, :sign_up)
 
@@ -85,12 +87,14 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/ops/heartbeats", OpsController, :heartbeats)
       get("/platform", OperatorController, :show)
       put("/platform/gate", OperatorController, :set_gate)
+      put("/platform/span-policy", OperatorController, :set_span_policy)
       put("/platform/triage", OperatorController, :set_triage)
       post("/platform/roles", OperatorController, :grant)
       delete("/platform/roles", OperatorController, :revoke)
       get("/platform/invites", OperatorController, :invites)
       post("/platform/invites", OperatorController, :issue_invite)
       delete("/platform/invites/:id", OperatorController, :revoke_invite)
+      get("/tokens", TokenController, :index)
       post("/tokens", TokenController, :create)
       delete("/tokens/:hash", TokenController, :delete)
       resources("/residents", ResidentController, only: [:index, :create, :show])

@@ -22,8 +22,14 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :session_hash]
   end
 
+  # Version 2 adds `scope` (gaia#40): nil, the account's whole reach, as
+  # every version 1 token was; or "ops", the operator's reads alone.
   defmodule TokenIssued do
-    use Oneiroi.Event, version: 1, fields: [:id, :token_hash, :label]
+    use Oneiroi.Event, version: 2, fields: [:id, :token_hash, :label, :scope]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: TokenIssued do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule TokenRevoked do

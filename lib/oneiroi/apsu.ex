@@ -16,7 +16,9 @@ defmodule Oneiroi.Apsu do
 
   alias Ecto.Adapters.SQL
   alias Oneiroi.Apsu.Error
+  alias Oneiroi.Apsu.Health
   alias Oneiroi.Apsu.SpanReads
+  alias Oneiroi.Apsu.Spans
   alias Oneiroi.Apsu.Vault
 
   @impl Oneiroi.Component
@@ -42,19 +44,8 @@ defmodule Oneiroi.Apsu do
        required: false,
        usage:
          "a Grafana service-account token with dashboard write, for the upload (apsu#25); unset, no upload"},
-      # The span collector (apsu#26).
-      {:span_slow_ms, "APSU_SPAN_SLOW_MS",
-       cast: :integer,
-       default: "250",
-       tag: :bound,
-       usage:
-         "a request, job or turn at or past this many milliseconds is kept as a span row (apsu#26); a guess"},
-      {:span_sample_percent, "APSU_SPAN_SAMPLE_PERCENT",
-       cast: :integer,
-       default: "1",
-       tag: :bound,
-       usage:
-         "the share of faster requests, jobs and turns kept as span rows too (apsu#26), so the ordinary is seen beside the slow"},
+      # The span collector (apsu#26); what it keeps is the operator's
+      # setting, a row with history (`Spans.policy/0`), not an env var.
       {:span_retention_days, "APSU_SPAN_RETENTION_DAYS",
        cast: :integer,
        default: "14",
@@ -243,6 +234,9 @@ defmodule Oneiroi.Apsu do
        "a change notice was not sent after a projection committed; the row stands and the client refetches on its next notice or reconnect",
        remedy:
          "the log line carrying this error's site names the exception's class; the notice is a convenience and nothing is lost (apsu#24)"},
+      {:apsu_span_policy_invalid,
+       "a span policy is a mode (all or sample), a slow floor in milliseconds, a sample percent from 0 to 100, and a note",
+       remedy: "send mode, slow_ms, sample_percent and a note saying why"},
       {:apsu_spans_unwritten,
        "a span (apsu#26) was not measured or its rows were not written; the work it measured went on",
        remedy:
@@ -255,7 +249,7 @@ defmodule Oneiroi.Apsu do
 
   @impl Oneiroi.Component
   def processes do
-    [{:apsu_pubsub, :local}, {:apsu_ops, :local}, {:apsu_spans, :local}]
+    [{:apsu_pubsub, :local}, {:apsu_ops, :local}, {:apsu_spans, :local}, {:apsu_health, :local}]
   end
 
   # Change notices (apsu#24): `{resident_id, notice}` after a projection
@@ -310,6 +304,8 @@ defmodule Oneiroi.Apsu do
       # Every export's span re-emitted as one event, and the span
       # collector (apsu#25, #26).
       Oneiroi.Apsu.Spans,
+      # The public hour's buckets (apsu#29).
+      Oneiroi.Apsu.Health,
       Oneiroi.Repo,
       Oneiroi.Commanded,
       {Oban, oban_config()}
@@ -375,4 +371,23 @@ defmodule Oneiroi.Apsu do
   @doc "The span rows summarised by unit of work in a window (apsu#28): count, p50, p95, longest, mean query time, pool wait and queries."
   @spec span_summary(map()) :: [map()]
   defexport(span_summary(filters), do: SpanReads.summary(filters))
+
+  @doc "The last hour, public (apsu#29): units of work by kind and name with counts, failures, p50, p95, mean query time and pool wait; the twelve buckets' trend; pressure and failures by kind; counts under five as \"few\"."
+  @spec hour() :: map()
+  defexport(hour(), do: Health.hour())
+
+  @doc "What the span collector keeps (apsu#26): the newest policy, or every unit when none is set."
+  @spec span_policy() :: map()
+  defexport(span_policy(), do: Spans.policy())
+
+  @doc "The span policies set, newest first, with who and why."
+  @spec span_policies() :: [map()]
+  defexport(span_policies(), do: Spans.policies())
+
+  @doc "Sets what the span collector keeps (apsu#26): mode all or sample, the slow floor, the sample percent, a note, who."
+  @spec set_span_policy(String.t(), integer(), integer(), String.t(), String.t() | nil) ::
+          :ok | {:error, term()}
+  defexport(set_span_policy(mode, slow_ms, percent, note, set_by),
+    do: Spans.set_policy(mode, slow_ms, percent, note, set_by)
+  )
 end

@@ -92,6 +92,7 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
       hash: e.token_hash,
       account_id: e.id,
       label: e.label,
+      scope: Map.get(e, :scope),
       issued_at: e.at
     })
   end)

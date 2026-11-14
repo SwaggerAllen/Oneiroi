@@ -177,7 +177,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.SecondFactorEnrolled, 1},
       {Oneiroi.Gaia.Events.SessionOpened, 1},
       {Oneiroi.Gaia.Events.SessionClosed, 1},
-      {Oneiroi.Gaia.Events.TokenIssued, 1},
+      {Oneiroi.Gaia.Events.TokenIssued, 2},
       {Oneiroi.Gaia.Events.TokenRevoked, 1},
       {Oneiroi.Gaia.Events.KeyStored, 1},
       {Oneiroi.Gaia.Events.KeyRevoked, 1},
@@ -230,6 +230,9 @@ defmodule Oneiroi.Gaia do
       {:gaia_second_factor_required,
        "the account has a second factor and the code was not supplied",
        remedy: "send the code from the authenticator app"},
+      {:gaia_token_scope_invalid,
+       "a token's scope is none (the account's whole reach) or ops (the operator's ops reads, a super admin's to mint)",
+       remedy: "leave the scope out, or ask for ops from a super admin's account"},
       {:gaia_not_a_principal, "the session or token resolves to no live account",
        remedy: "log in again, or issue a new token"},
       {:gaia_key_required, "the key was empty",
@@ -423,11 +426,15 @@ defmodule Oneiroi.Gaia do
   )
 
   @doc "Issues an API token for scripts; the raw token is returned once."
-  @spec issue_token(String.t(), String.t(), Oneiroi.Actor.t()) ::
+  @spec issue_token(String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
           {:ok, String.t(), String.t()} | {:error, term()}
-  defexport(issue_token(account_id, label, actor),
-    do: Accounts.issue_token(account_id, label, actor)
+  defexport(issue_token(account_id, label, actor, opts \\ []),
+    do: Accounts.issue_token(account_id, label, actor, opts)
   )
+
+  @doc "The account's tokens, newest first: label, hash, scope, issued and revoked (gaia#40); never the token."
+  @spec tokens(String.t()) :: [map()]
+  defexport(tokens(account_id), do: Accounts.tokens(account_id))
 
   @doc "Revokes a token by its hash."
   @spec revoke_token(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

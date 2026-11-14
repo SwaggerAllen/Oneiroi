@@ -159,6 +159,15 @@ export const api = {
   logout: () => call<void>('DELETE', '/v1/session'),
   // The front door from outside (gaia#19): its state, and sign-up behind it.
   door: () => call<{ state: GateState }>('GET', '/v1/door'),
+  // The public hour (apsu#29): open to anyone.
+  hour: () => call<Hour>('GET', '/v1/hour'),
+  // What the span collector keeps (apsu#26), the operator's to set.
+  setSpanPolicy: (mode: 'all' | 'sample', slowMs: number, samplePercent: number, note: string) =>
+    call<SpanPolicy>('PUT', '/v1/platform/span-policy', { mode, slow_ms: slowMs, sample_percent: samplePercent, note }),
+  // The account's tokens (gaia#40), and minting one; an ops token reads /v1/ops/* alone.
+  tokens: () => call<ApiToken[]>('GET', '/v1/tokens'),
+  issueToken: (label: string, scope?: 'ops') => call<{ token: string; hash: string; label: string }>('POST', '/v1/tokens', scope ? { label, scope } : { label }),
+  revokeToken: (hash: string) => call<void>('DELETE', `/v1/tokens/${encodeURIComponent(hash)}`),
   signUp: (email: string, password: string, code: string | null) =>
     call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
   me: () =>
@@ -193,6 +202,8 @@ export const api = {
   // The ops read surface (apsu#23): failures as facts, heartbeats as absences.
   opsFailures: () =>
     call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
+  // The slowest units of work in a window (apsu#28), the operator's.
+  opsSpans: (hours = 24) => call<SpanRow[]>('GET', `/v1/ops/spans?hours=${hours}`),
   heartbeats: (residentId: string) =>
     call<Array<{ name: string; last: string | null; every_seconds: number; late?: boolean } & Record<string, unknown>>>(
       'GET',
@@ -629,6 +640,64 @@ export const api = {
 
 export type Api = typeof api;
 
+// "few" stands for a count under five (apsu#29): while the platform is
+// small, a count is a person.
+export type Few = number | 'few';
+
+export interface HourUnit {
+  kind: string;
+  name: string;
+  units: Few;
+  failed: Few;
+  p50_ms: number | null;
+  p95_ms: number | null;
+  mean_db_ms: number | null;
+  mean_pool_wait_ms: number | null;
+}
+
+export interface Hour {
+  window: { from: string; to: string; bucket_minutes: number };
+  updated_at: string;
+  next_at: string;
+  since: string | null;
+  commit: string | null;
+  deployed_at: string | null;
+  few_below: number;
+  trend: { at: string; units: Few; failed: Few; p95_ms: number | null }[];
+  work: HourUnit[];
+  pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
+}
+
+export interface SpanRow {
+  at: string;
+  kind: string;
+  name: string;
+  subject_id: string | null;
+  trace_id: string | null;
+  duration_ms: number;
+  db_count: number;
+  db_ms: number;
+  queue_ms: number;
+  exports: Record<string, { ms: number; count: number }>;
+  events: Record<string, number>;
+  failed: boolean;
+  sampled: boolean;
+}
+
+export interface SpanPolicy {
+  mode: 'all' | 'sample';
+  slow_ms: number;
+  sample_percent: number;
+}
+
+export interface ApiToken {
+  hash: string;
+  label: string;
+  scope: 'ops' | null;
+  issued_at: string;
+  revoked_at: string | null;
+}
+
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
 
@@ -726,6 +795,9 @@ export interface Platform {
   triage?: { slug: string | null; from: 'setting' | 'environment' | null; note: string | null; set_by: string | null; set_at: string | null };
   // The latest restarts (gaia#21), newest first, each as its line.
   restarts?: { number: number; commit: string | null; previous: string | null; changed: boolean; booted_at: string; line: string }[];
+  // What the span collector keeps (apsu#26) and every change to it.
+  span_policy?: SpanPolicy;
+  span_policies?: (SpanPolicy & { note: string; set_by: string | null; set_at: string })[];
 }
 
 // A witness's edit to an identity file after first contact, open until she

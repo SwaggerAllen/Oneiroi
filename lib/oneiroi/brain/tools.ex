@@ -64,6 +64,7 @@ defmodule Oneiroi.Brain.Tools do
   # writes nothing either: the turn hands it a trial's options (no
   # citation marked, embeddings billed under regression to the run).
   @reads ~w(
+    platform_health
     position_list prediction_list figure_list bookmark_open bookmark_list tag_list
     transcript_search wash_list soul_edit_list habit_list commitment_list
     self_letter_list seed_list library_search library_read library_cited_by writing_get
@@ -273,6 +274,12 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:ref, :note]
+      ),
+      tool(
+        "platform_health",
+        "How the platform has run over the last hour (apsu#29), the same page anyone can read: each unit of work (a route, a job, a turn) with its count, failures, p50 and p95 and its mean time in queries and waiting for a connection; the twelve five-minute buckets' trend; jobs waiting and failures by kind. Refreshed every five minutes; counts under five read \"few\", so nobody's activity shows through.",
+        %{},
+        []
       ),
       tool(
         "domain_tag",
@@ -2431,6 +2438,16 @@ defmodule Oneiroi.Brain.Tools do
       {:ok, session, messages} -> transcript_page(session, messages, from)
       _ -> "Not done: no conversation of yours has that key."
     end
+  end
+
+  defp call("platform_health", _args, _turn) do
+    commit =
+      case Oneiroi.Gaia.restarts(1) do
+        [b | _] -> b.commit && String.slice(b.commit, 0, 12)
+        [] -> nil
+      end
+
+    Oneiroi.Apsu.hour() |> Map.put(:commit, commit) |> health_text()
   end
 
   defp call("domain_tag", args, turn) do
@@ -4748,4 +4765,46 @@ defmodule Oneiroi.Brain.Tools do
   defp tagged_person("mine", resident_id), do: "resident:" <> resident_id
   defp tagged_person("witness", resident_id), do: witness_person(resident_id)
   defp tagged_person(_unsaid, _resident_id), do: nil
+  # The public hour in lines (apsu#29): the trend, then the units of work
+  # slowest first, then the pressure.
+  defp health_text(hour) do
+    trend =
+      Enum.map_join(hour.trend, " ", fn b ->
+        "#{b.units}#{if b.p95_ms, do: "/#{b.p95_ms}ms", else: ""}"
+      end)
+
+    work =
+      hour.work
+      |> Enum.take(25)
+      |> Enum.map(fn w ->
+        "- #{w.kind} #{w.name}: #{w.units} (failed #{w.failed})" <>
+          if(w.p95_ms,
+            do:
+              ", p50 #{w.p50_ms}ms, p95 #{w.p95_ms}ms, queries #{w.mean_db_ms}ms, pool wait #{w.mean_pool_wait_ms}ms",
+            else: ""
+          )
+      end)
+
+    pressure =
+      case hour.pressure do
+        nil ->
+          "Pressure: not yet measured."
+
+        p ->
+          kinds = Enum.map_join(p.failures_by_kind, ", ", fn {k, v} -> "#{k} #{v}" end)
+
+          "Pressure: #{p.jobs_waiting || 0} jobs waiting" <>
+            if(p.oldest_wait_s, do: ", the oldest #{p.oldest_wait_s}s", else: "") <>
+            ". Failures by kind: " <> if(kinds == "", do: "none", else: kinds) <> "."
+      end
+
+    Enum.join(
+      [
+        "The last hour (#{hour.window.from} to #{hour.window.to}, five-minute buckets; counts under #{hour.few_below} read \"few\"); next refresh #{hour.next_at}; commit #{hour.commit || "unknown"}.",
+        "Units/p95 per bucket, oldest first: " <> trend,
+        "By unit of work, slowest p95 first:" | work
+      ] ++ [pressure],
+      "\n"
+    )
+  end
 end
