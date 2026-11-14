@@ -125,6 +125,11 @@ export class Live {
     };
 
     channel.on('notice', (n: Notice) => apply(n));
+    // The bell's list, computed by the server once a burst and pushed
+    // whole (brain#94): it replaces the read, so no notice reads it again.
+    channel.on('needs_you', ({ entries }: { entries: unknown[] }) => {
+      this.queries.setQueryData(['resident', residentId, 'bell'], entries);
+    });
     channel.on('notices', ({ notices }: { notices: Notice[] }) => notices.forEach(apply));
     channel.on('reset', ({ position }: { position: number }) => {
       void this.queries.invalidateQueries({ queryKey: ['resident', residentId] });

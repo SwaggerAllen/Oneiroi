@@ -35,6 +35,19 @@ defmodule OneiroiWeb.ResidentChannelTest do
     assert position > head
   end
 
+  test "the bell's list is pushed whole once a burst of changes, and only while watched (brain#94)",
+       ctx do
+    {:ok, _reply, _socket} = join_as(ctx.witness.id, ctx.resident.id)
+    me = Actor.new(:resident, ctx.resident.id, "fake/model")
+    {:ok, n} = Oneiroi.Sunna.work_add(ctx.resident.id, "The brief", "drafted", me)
+    :ok = Oneiroi.Sunna.work_hold(ctx.resident.id, n, "your word on two wordings", nil, me)
+
+    # Several notices, one list, carrying what changed.
+    assert_push "needs_you", %{entries: entries}, 5_000
+    assert Enum.any?(entries, &(&1.kind == "work_held" and &1.ref == n))
+    refute_push "needs_you", _again, 1_500
+  end
+
   test "another account cannot join", ctx do
     other = Fixtures.account!()
     assert {:error, %{reason: "not witnessed"}} = join_as(other.id, ctx.resident.id)

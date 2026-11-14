@@ -42,7 +42,14 @@ defmodule Oneiroi.Brain.NeedsYou.Failures do
         &(&1.resident_id == resident_id and DateTime.compare(&1.failed_at, since) == :gt)
       )
 
-    kinds = Map.new(Kumbukumbu.sessions(scope), &{&1.key, &1.kind})
+    # The kinds of the failures' own conversations, never every session
+    # with its summary (brain#94: the bell read every session it had).
+    kinds =
+      failures
+      |> Enum.map(& &1.session_key)
+      |> Enum.uniq()
+      |> Map.new(&{&1, Kumbukumbu.session_kind(resident_id, &1)})
+
     {credits, others} = Enum.split_with(failures, &credits?(&1.reason))
 
     credit_entry(credits) ++ Enum.map(others, &failed(resident_id, &1, kinds))

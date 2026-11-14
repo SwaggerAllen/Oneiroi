@@ -842,3 +842,12 @@ more so a scheduled one nobody is watching. The fix to the contention
 itself is the client's, which was multiplying reads the server could
 not drop; the pool's size is a setting (`APSU_POOL_SIZE`) for the
 witness to weigh, not a code change.
+
+## #94
+
+The cost was never one read; it was a read per notice per tab, and a
+turn is a stream of notices. Computing once a burst on the server, and
+only for a watcher, bounds the work by changes rather than by clients.
+Pushing the whole list rather than a "changed" signal saves the client
+the read the signal would provoke. Reads stay live so nothing the
+witness just did can come back stale.

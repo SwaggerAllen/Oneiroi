@@ -277,7 +277,13 @@ defmodule Oneiroi.Brain do
 
   @impl Oneiroi.Component
   def processes,
-    do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
+    do: [
+      {:brain_registry, :local},
+      {:brain_sessions, :local},
+      {:brain_turns, :local},
+      {:brain_needs_you_watchers, :local},
+      {:brain_needs_you_live, :local}
+    ]
 
   # The oracle's reads (brain#49): on demand, no cron. The needs-you
   # push (brain#77): each minute, as the schedule's tick is.
@@ -289,7 +295,7 @@ defmodule Oneiroi.Brain do
     ]
 
   @impl Oneiroi.Component
-  def pubsub_topics, do: [:session]
+  def pubsub_topics, do: [:session, :needs_you]
 
   @impl Oneiroi.Component
   def children do
@@ -298,6 +304,10 @@ defmodule Oneiroi.Brain do
       {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
       # The turns a session runs off its own process (brain#45).
       {Task.Supervisor, name: :brain_turns},
+      # The bell pushed (brain#94): who watches it, and the process that
+      # computes it once a burst of notices for them.
+      {Registry, keys: :duplicate, name: :brain_needs_you_watchers},
+      Oneiroi.Brain.NeedsYou.Live,
       # The button to Lily (gaia#20): each platform report a letter.
       Oneiroi.Brain.Triage
     ]
@@ -370,6 +380,10 @@ defmodule Oneiroi.Brain do
   @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
+
+  @doc "Registers the calling process as watching the resident's bell (brain#94): its list is computed once a burst of notices and broadcast on the `needs_you` topic as `{resident_id, entries}`."
+  @spec watch_needs_you(String.t()) :: :ok
+  defexport(watch_needs_you(resident_id), do: NeedsYou.Live.watch(resident_id))
 
   @doc "Everything waiting on the resident, oldest first (brain#76): the witness's proposals she has not answered, his unread letters, the files his lease holds her from; it only shows."
   @spec waiting_on_her(String.t()) :: [map()]
