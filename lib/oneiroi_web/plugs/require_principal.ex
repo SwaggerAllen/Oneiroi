@@ -30,6 +30,8 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   def call(%Plug.Conn{assigns: %{principal: %{scope: "ops"}}} = conn, _opts) do
     case {conn.method, conn.path_info} do
       {"GET", ["v1", "ops" | _]} -> conn
+      # Its one write: raising an item on the operator's queue (apsu#31).
+      {"POST", ["v1", "ops", "queue"]} -> conn
       _other -> refuse(conn)
     end
   end

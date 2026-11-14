@@ -14,6 +14,10 @@ leaves `#/operator` alone. Built 2026-11-10.
 - **Status:** the subject resident's heartbeats, each marked LATE when
   late; the failure ring (apsu#23) and any discarded jobs; the latest
   restarts (gaia#21).
+- **Queue** (apsu#31), the tab it opens on: what waits on you as the
+  operator, oldest first, each with what, why (paths and links open),
+  its links, who raised it and when, and Done or Drop with a required
+  note; "Add one" with what and why; the lately closed with their notes.
 - **Spans** (apsu#26, #28): what the collector keeps, "Keep every unit"
   or "Sample" with the slow floor in ms and the sample percent, set with
   a recorded note, and the last five changes; then the slowest units of

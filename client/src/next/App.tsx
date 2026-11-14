@@ -18,6 +18,7 @@ import { Creation } from './onboarding/Creation';
 import { Landing } from './onboarding/Landing';
 import { HourPage } from './hour/HourPage';
 import { useHashIs } from './hour/useHashIs';
+import { useOperatorQueue } from './shell/operatorQueue';
 import { useShell } from './state/store';
 import { useResidentTheme } from './theme/useResidentTheme';
 import { useSubjectChoice } from './state/subject';
@@ -112,12 +113,14 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
     queryKey: ['resident', residentId, 'bell'],
     queryFn: () => api.needsYou(residentId),
   });
+  // What waits on the operator (apsu#31), counted in for a super admin.
+  const operatorItems = useOperatorQueue();
 
   return (
     <Shell
       residentId={residentId}
       residentName={residentName}
-      waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0)}
+      waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0) + operatorItems.length}
       failing={(bell.data ?? []).some(isFailure)}
       onReconnect={() => void live.reconnect()}
       renderTab={(tab, path) =>

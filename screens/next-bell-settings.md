@@ -14,6 +14,9 @@ header's bell and gear. Built 2026-11-10.
 - **The bell** counts what waits on the witness: the needs-you feed
   (brain#65, #72), plus the notifications question while it is
   unanswered (decided 2026-11-10).
+  For a super admin, the operator's open items (apsu#31) come first under
+  "The platform", each opening the operator shell, and count toward the
+  number.
   - Each entry names what it is, what it concerns, and how long it has
     waited.
   - Asks, reply drafts, replies to send and pieces are answered in

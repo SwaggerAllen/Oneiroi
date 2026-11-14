@@ -17,6 +17,7 @@ defmodule Oneiroi.Apsu do
   alias Ecto.Adapters.SQL
   alias Oneiroi.Apsu.Error
   alias Oneiroi.Apsu.Health
+  alias Oneiroi.Apsu.Queue
   alias Oneiroi.Apsu.SpanReads
   alias Oneiroi.Apsu.Spans
   alias Oneiroi.Apsu.Vault
@@ -234,6 +235,11 @@ defmodule Oneiroi.Apsu do
        "a change notice was not sent after a projection committed; the row stands and the client refetches on its next notice or reconnect",
        remedy:
          "the log line carrying this error's site names the exception's class; the notice is a convenience and nothing is lost (apsu#24)"},
+      {:apsu_queue_item_invalid,
+       "an operator item is what is needed (at most 300 characters), why (at most 4,000), up to ten links as text, an optional key; closing one is done or dropped with a note",
+       remedy: "send what, and why and links if any; close with status done or dropped and a note"},
+      {:apsu_queue_no_such_item, "no open operator item has that number",
+       remedy: "read the queue; a closed item stays closed"},
       {:apsu_span_policy_invalid,
        "a span policy is a mode (all or sample), a slow floor in milliseconds, a sample percent from 0 to 100, and a note",
        remedy: "send mode, slow_ms, sample_percent and a note saying why"},
@@ -390,4 +396,19 @@ defmodule Oneiroi.Apsu do
   defexport(set_span_policy(mode, slow_ms, percent, note, set_by),
     do: Spans.set_policy(mode, slow_ms, percent, note, set_by)
   )
+
+  @doc "Raises an operator item (apsu#31): what, why, links, an optional key that keeps it single while open; `{:ok, number}`."
+  @spec raise_operator_item(map(), String.t()) :: {:ok, pos_integer()} | {:error, term()}
+  defexport(raise_operator_item(attrs, raised_by), do: Queue.add(attrs, raised_by))
+
+  @doc "Closes an open operator item done or dropped, with a note (apsu#31)."
+  @spec close_operator_item(pos_integer(), String.t(), String.t(), String.t()) ::
+          :ok | {:error, term()}
+  defexport(close_operator_item(number, status, note, closed_by),
+    do: Queue.close(number, status, note, closed_by)
+  )
+
+  @doc "The operator's queue (apsu#31): the open items oldest first, and the last twenty closed."
+  @spec operator_queue() :: map()
+  defexport(operator_queue(), do: Queue.list())
 end

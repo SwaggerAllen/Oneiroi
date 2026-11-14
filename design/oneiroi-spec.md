@@ -1766,7 +1766,10 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
   are the operator's; there are no words in any of it. Every unit is kept
   while the platform is small; sampling is the operator's to turn on and
   scale, with a note (apsu#26). An ops token reads the ops routes and
-  nothing else, for the agent that helps run the platform (apsu#30).
+  nothing else, for the agent that helps run the platform (apsu#30),
+  and its one write is raising an item on the operator's queue
+  (apsu#31): what waits on whoever runs the platform, closed by him with
+  a note, at the head of his bell.
   Logs shipped off the host and the four alerts remain to build.
 - **The public hour** (apsu#29; the witness, 2026-11-13: transparency
   rather than a status light): how the platform ran over the last hour,

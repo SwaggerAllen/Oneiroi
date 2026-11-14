@@ -202,6 +202,11 @@ export const api = {
   // The ops read surface (apsu#23): failures as facts, heartbeats as absences.
   opsFailures: () =>
     call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
+  // The operator's queue (apsu#31): what waits on whoever runs the platform.
+  operatorQueue: () => call<{ open: OperatorItem[]; closed: OperatorItem[] }>('GET', '/v1/ops/queue'),
+  raiseOperatorItem: (what: string, why: string, links: string[]) => call<{ number: number }>('POST', '/v1/ops/queue', { what, why, links }),
+  closeOperatorItem: (number: number, status: 'done' | 'dropped', note: string) =>
+    call<void>('POST', `/v1/ops/queue/${number}/close`, { status, note }),
   // The slowest units of work in a window (apsu#28), the operator's.
   opsSpans: (hours = 24) => call<SpanRow[]>('GET', `/v1/ops/spans?hours=${hours}`),
   heartbeats: (residentId: string) =>
@@ -666,6 +671,20 @@ export interface Hour {
   trend: { at: string; units: Few; failed: Few; p95_ms: number | null }[];
   work: HourUnit[];
   pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
+}
+
+export interface OperatorItem {
+  number: number;
+  what: string;
+  why: string | null;
+  raised_by: string;
+  links: string[];
+  key: string | null;
+  status: 'open' | 'done' | 'dropped';
+  note: string | null;
+  raised_at: string;
+  closed_at: string | null;
+  closed_by: string | null;
 }
 
 export interface SpanRow {

@@ -23,7 +23,13 @@ defmodule OneiroiWeb.OpsController do
 
   tags(["ops"])
 
-  plug(:operator when action in [:failures, :spans, :span_summary])
+  plug(
+    :operator
+    when action in [:failures, :spans, :span_summary, :queue, :raise_item, :close_item]
+  )
+
+  # Closing is the operator's own act: an ops token raises, never closes.
+  plug(:by_hand when action in [:close_item])
   plug(:witnessed when action in [:heartbeats])
 
   @hour 3600
@@ -95,6 +101,73 @@ defmodule OneiroiWeb.OpsController do
 
   def span_summary(conn, params),
     do: json(conn, Oneiroi.Apsu.span_summary(%{hours: int(params["hours"])}))
+
+  operation(:queue,
+    summary:
+      "The operator's queue (apsu#31): what waits on the person running the platform, the open items oldest first and the last twenty closed",
+    responses: [ok: {"the queue", "application/json", %Schema{type: :object}}]
+  )
+
+  def queue(conn, _params), do: json(conn, Oneiroi.Apsu.operator_queue())
+
+  operation(:raise_item,
+    summary:
+      "Raise an item on the operator's queue (apsu#31): what is needed, why, links, and an optional key that keeps it single while open; the ops token's one write",
+    request_body:
+      {"the item", "application/json",
+       %Schema{
+         type: :object,
+         required: [:what],
+         properties: %{
+           what: %Schema{type: :string},
+           why: %Schema{type: :string},
+           links: %Schema{type: :array, items: %Schema{type: :string}},
+           key: %Schema{type: :string}
+         }
+       }},
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def raise_item(%{assigns: %{principal: p}} = conn, params) do
+    by = if p.scope == "ops", do: "agent", else: "operator"
+
+    case Oneiroi.Apsu.raise_operator_item(params, by) do
+      {:ok, n} -> conn |> put_status(201) |> json(%{number: n})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:close_item,
+    summary:
+      "Close an operator item done or dropped, with a note (apsu#31); the operator's own act",
+    parameters: [number: [in: :path, type: :integer]],
+    request_body:
+      {"how and why", "application/json",
+       %Schema{
+         type: :object,
+         required: [:status, :note],
+         properties: %{
+           status: %Schema{type: :string, enum: ["done", "dropped"]},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [no_content: "closed"]
+  )
+
+  def close_item(%{assigns: %{principal: p}} = conn, %{"number" => number} = params) do
+    with {n, ""} <- Integer.parse(number),
+         :ok <-
+           Oneiroi.Apsu.close_operator_item(n, params["status"], params["note"], p.account_id) do
+      send_resp(conn, 204, "")
+    else
+      {:error, %{kind: :apsu_queue_no_such_item} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+      _not_a_number -> problem(conn, 404, :not_found, :web_ops_queue_item_absent, "no such item")
+    end
+  end
+
+  defp by_hand(%{assigns: %{principal: %{scope: "ops"}}} = conn, _opts), do: refuse(conn)
+  defp by_hand(conn, _opts), do: conn
 
   defp int(nil), do: nil
 

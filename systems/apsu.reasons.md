@@ -172,3 +172,10 @@ someone.
 The agent that diagnoses needs to read without asking each time, and
 the operator's session is too much to hand it: a scope that reads the
 ops routes and nothing else is the least that does the job.
+
+## #31
+
+What waits on the operator was being carried in chat replies, which is
+where it slipped. One list in the place he already looks, with a raiser
+and a reason on each, keeps it; the agent raising without closing keeps
+the decision his.

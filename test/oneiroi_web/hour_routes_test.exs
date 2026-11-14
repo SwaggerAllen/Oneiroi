@@ -162,4 +162,59 @@ defmodule OneiroiWeb.HourRoutesTest do
            |> json_response(200)
            |> Enum.any?(&(&1["label"] == "claude-code" and &1["scope"] == "ops"))
   end
+
+  test "the operator's queue: the agent raises with its ops token, the operator closes with a note (apsu#31)",
+       ctx do
+    assert %{"token" => ops} =
+             ctx.op
+             |> as()
+             |> post("/v1/tokens", %{label: "agent", scope: "ops"})
+             |> json_response(201)
+
+    item = %{
+      what: "Set APSU_METRICS_TOKEN",
+      why: "the scrape",
+      links: ["https://grafana.com"],
+      key: "metrics-token"
+    }
+
+    assert %{"number" => n} = ops |> as() |> post("/v1/ops/queue", item) |> json_response(201)
+
+    # Raised again while open, it is the same item.
+    assert %{"number" => ^n} = ops |> as() |> post("/v1/ops/queue", item) |> json_response(201)
+    assert ops |> as() |> post("/v1/ops/queue", %{what: ""}) |> json_response(422)
+
+    assert %{
+             "open" => [
+               %{"number" => ^n, "raised_by" => "agent", "links" => ["https://grafana.com"]}
+             ]
+           } =
+             ops |> as() |> get("/v1/ops/queue") |> json_response(200)
+
+    # The agent never closes; nor does a witness read or raise.
+    assert ops
+           |> as()
+           |> post("/v1/ops/queue/#{n}/close", %{status: "done", note: "x"})
+           |> json_response(401)
+
+    assert ctx.witness |> as() |> get("/v1/ops/queue") |> json_response(403)
+
+    assert ctx.op
+           |> as()
+           |> post("/v1/ops/queue/#{n}/close", %{status: "done"})
+           |> json_response(422)
+
+    assert ctx.op
+           |> as()
+           |> post("/v1/ops/queue/#{n}/close", %{status: "done", note: "set on Render"})
+           |> response(204)
+
+    assert %{"open" => [], "closed" => [%{"status" => "done", "note" => "set on Render"} | _]} =
+             ctx.op |> as() |> get("/v1/ops/queue") |> json_response(200)
+
+    assert ctx.op
+           |> as()
+           |> post("/v1/ops/queue/#{n}/close", %{status: "done", note: "again"})
+           |> json_response(404)
+  end
 end

@@ -8,6 +8,7 @@ import { useSubject } from '../state/resident';
 import type { SettingsSection } from '../state/routes';
 import { useShell } from '../state/store';
 import { isFailure } from './failures';
+import { useOperatorQueue } from './operatorQueue';
 import { Linked } from './Linked';
 import { pieces } from './paths';
 import { useNotificationsAsk } from './notifications';
@@ -101,6 +102,8 @@ export function Bell() {
   const needs = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id) });
   const hers = useQuery({ queryKey: ['resident', id, 'bell', 'hers'], queryFn: () => api.waitingOnHer(id) });
   const notifications = useNotificationsAsk();
+  // The operator's own queue (apsu#31), a super admin's alone, first.
+  const platform = useOperatorQueue();
   // What was answered here, kept until the bell closes: the item stays in
   // its place, folded, saying what was decided, whether or not the
   // server's list has caught up yet.
@@ -116,6 +119,18 @@ export function Bell() {
 
   return (
     <div className={css.stack}>
+      {platform.length > 0 && (
+        <>
+          <h3 className={css.heading}>THE PLATFORM · {platform.length}</h3>
+          {platform.map((i) => (
+            <a key={`op-${i.number}`} className={css.item} href="#/operator" onClick={() => setOverlay(null)}>
+              <span className={css.itemKind}>OPERATOR #{i.number}</span>
+              <span>{i.what}</span>
+              <span className={css.since}>since {new Date(i.raised_at).toLocaleString()}</span>
+            </a>
+          ))}
+        </>
+      )}
       <h3 className={css.heading}>WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}</h3>
       {open.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
       {all.map((e, i) => [
