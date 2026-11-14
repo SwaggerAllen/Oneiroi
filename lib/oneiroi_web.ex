@@ -29,7 +29,10 @@ defmodule OneiroiWeb do
       Phoenix.PubSub,
       Phoenix.Socket,
       Phoenix.Token,
-      Plug
+      Plug,
+      # Metrics (apsu#25): the PromEx module and its plugin live here.
+      PromEx,
+      Telemetry.Metrics
     ],
     exports: [Endpoint, UserSocket]
 

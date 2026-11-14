@@ -297,6 +297,10 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session, :needs_you]
 
+  # A turn, timed by the span collector (apsu#26).
+  @impl Oneiroi.Component
+  def telemetry_events, do: [[:oneiroi, :brain, :turn]]
+
   @impl Oneiroi.Component
   def children do
     [

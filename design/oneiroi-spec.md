@@ -1756,6 +1756,16 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
   it is late. No conversation content in either. Metrics with alerts and
   logs shipped off the host follow (design/logging-and-alerting.md).
 
+- **Where the time goes** (apsu#25 to #28; the witness, 2026-11-13):
+  Prometheus metrics at a token-guarded `/metrics`, scraped by a hosted
+  Grafana with Oneiroi's dashboards uploaded on boot; every boundary
+  export's duration in one histogram; each request, job and turn's time,
+  query time, pool wait and queries, the slow ones and a sample kept as
+  rows with their slowest exports and the events they dispatched; every
+  event stamped with the trace id of the work that caused it. The rows
+  are the operator's; there are no words in any of it. Logs shipped off
+  the host and the four alerts remain to build.
+
 - **Parameterize everything, in one place.** Every bound, default, pin,
   pool size and provider choice in this spec is a named setting with a
   sane default, declared in one module that is validated and reported at

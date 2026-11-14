@@ -16,6 +16,7 @@ defmodule Oneiroi.Apsu do
 
   alias Ecto.Adapters.SQL
   alias Oneiroi.Apsu.Error
+  alias Oneiroi.Apsu.SpanReads
   alias Oneiroi.Apsu.Vault
 
   @impl Oneiroi.Component
@@ -24,6 +25,41 @@ defmodule Oneiroi.Apsu do
   @impl Oneiroi.Component
   def config do
     [
+      # Metrics (apsu#25): the scrape's credential, and Grafana for the
+      # dashboards PromEx uploads; all three unset in a build that ships
+      # no metrics, and /metrics then answers 404.
+      {:metrics_token, "APSU_METRICS_TOKEN",
+       secret: true,
+       required: false,
+       usage:
+         "the bearer token a scrape of /metrics must send (apsu#25); unset, /metrics answers 404"},
+      {:grafana_url, "APSU_GRAFANA_URL",
+       required: false,
+       usage:
+         "the hosted Grafana PromEx uploads its dashboards to on boot (apsu#25), e.g. https://<stack>.grafana.net; unset, no upload"},
+      {:grafana_token, "APSU_GRAFANA_TOKEN",
+       secret: true,
+       required: false,
+       usage:
+         "a Grafana service-account token with dashboard write, for the upload (apsu#25); unset, no upload"},
+      # The span collector (apsu#26).
+      {:span_slow_ms, "APSU_SPAN_SLOW_MS",
+       cast: :integer,
+       default: "250",
+       tag: :bound,
+       usage:
+         "a request, job or turn at or past this many milliseconds is kept as a span row (apsu#26); a guess"},
+      {:span_sample_percent, "APSU_SPAN_SAMPLE_PERCENT",
+       cast: :integer,
+       default: "1",
+       tag: :bound,
+       usage:
+         "the share of faster requests, jobs and turns kept as span rows too (apsu#26), so the ordinary is seen beside the slow"},
+      {:span_retention_days, "APSU_SPAN_RETENTION_DAYS",
+       cast: :integer,
+       default: "14",
+       tag: :bound,
+       usage: "how long span rows are kept before the nightly prune (apsu#26)"},
       {:failure_ring, "APSU_FAILURE_RING",
        cast: :integer,
        default: "200",
@@ -207,6 +243,10 @@ defmodule Oneiroi.Apsu do
        "a change notice was not sent after a projection committed; the row stands and the client refetches on its next notice or reconnect",
        remedy:
          "the log line carrying this error's site names the exception's class; the notice is a convenience and nothing is lost (apsu#24)"},
+      {:apsu_spans_unwritten,
+       "a span (apsu#26) was not measured or its rows were not written; the work it measured went on",
+       remedy:
+         "the log line carrying this error's site names the cause's class; measurements are lost, nothing else"},
       {:apsu_enqueue_failed, "a job was not enqueued: Oban refused the insert",
        remedy:
          "the job's args or options were invalid, or the database refused the row; the log line carrying this error's site names the cause's class"}
@@ -215,7 +255,7 @@ defmodule Oneiroi.Apsu do
 
   @impl Oneiroi.Component
   def processes do
-    [{:apsu_pubsub, :local}, {:apsu_ops, :local}]
+    [{:apsu_pubsub, :local}, {:apsu_ops, :local}, {:apsu_spans, :local}]
   end
 
   # Change notices (apsu#24): `{resident_id, notice}` after a projection
@@ -223,9 +263,21 @@ defmodule Oneiroi.Apsu do
   @impl Oneiroi.Component
   def pubsub_topics, do: [:notices]
 
+  # The span rows' nightly prune (apsu#26).
+  @impl Oneiroi.Component
+  def oban_queues, do: [{:apsu_spans, cron: [{"23 4 * * *", Oneiroi.Apsu.SpanPruneWorker}]}]
+
   @impl Oneiroi.Component
   def telemetry_events do
-    [[:oneiroi, :apsu, :repo, :query]]
+    [
+      [:oneiroi, :apsu, :repo, :query],
+      # Every boundary export's duration, one event (apsu#25).
+      [:oneiroi, :apsu, :export],
+      # A request, job or turn finished, with its totals (apsu#26).
+      [:oneiroi, :apsu, :span],
+      # A dispatch's events, by name, told to the span collector (apsu#27).
+      [:oneiroi, :apsu, :dispatch]
+    ]
   end
 
   @impl Oneiroi.Component
@@ -255,6 +307,9 @@ defmodule Oneiroi.Apsu do
       {Phoenix.PubSub, name: :apsu_pubsub},
       # The ops read surface's ring and beats (apsu#23).
       {Oneiroi.Apsu.Ops, component: __MODULE__},
+      # Every export's span re-emitted as one event, and the span
+      # collector (apsu#25, #26).
+      Oneiroi.Apsu.Spans,
       Oneiroi.Repo,
       Oneiroi.Commanded,
       {Oban, oban_config()}
@@ -312,4 +367,12 @@ defmodule Oneiroi.Apsu do
       entries -> [{Oban.Plugins.Cron, crontab: entries}, lifeline]
     end
   end
+
+  @doc "The slowest span rows in a window (apsu#28): `hours`, `name`, `kind`, `subject`, `trace_id`, `min_ms`, `limit`."
+  @spec spans(map()) :: [map()]
+  defexport(spans(filters), do: SpanReads.spans(filters))
+
+  @doc "The span rows summarised by unit of work in a window (apsu#28): count, p50, p95, longest, mean query time, pool wait and queries."
+  @spec span_summary(map()) :: [map()]
+  defexport(span_summary(filters), do: SpanReads.summary(filters))
 end

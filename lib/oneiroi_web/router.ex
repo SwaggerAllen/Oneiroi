@@ -80,6 +80,8 @@ defmodule OneiroiWeb.Router do
       get("/platform/feedback/:number", FeedbackController, :show)
       post("/platform/feedback/:number/status", FeedbackController, :move)
       get("/ops/failures", OpsController, :failures)
+      get("/ops/spans", OpsController, :spans)
+      get("/ops/spans/summary", OpsController, :span_summary)
       get("/residents/:id/ops/heartbeats", OpsController, :heartbeats)
       get("/platform", OperatorController, :show)
       put("/platform/gate", OperatorController, :set_gate)

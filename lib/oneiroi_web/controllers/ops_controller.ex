@@ -23,7 +23,7 @@ defmodule OneiroiWeb.OpsController do
 
   tags(["ops"])
 
-  plug(:operator when action in [:failures])
+  plug(:operator when action in [:failures, :spans, :span_summary])
   plug(:witnessed when action in [:heartbeats])
 
   @hour 3600
@@ -50,6 +50,59 @@ defmodule OneiroiWeb.OpsController do
 
     since = DateTime.add(Clock.now(), -24 * @hour, :second)
     json(conn, %{failures: Ops.failures(filters), discarded_jobs: Ops.discarded_jobs(since)})
+  end
+
+  operation(:spans,
+    summary:
+      "The slowest requests, jobs and turns in a window (apsu#28): each with its time, its time in queries and waiting for a database connection, its slowest exports, the events it dispatched, the resident it served and its trace id; never content",
+    parameters: [
+      hours: [
+        in: :query,
+        type: :integer,
+        description: "the window, 1 to 720 hours back; 24 by default"
+      ],
+      name: [in: :query, type: :string, description: "a phrase of the route, worker or turn"],
+      kind: [in: :query, type: :string, description: "http, job or turn"],
+      subject: [in: :query, type: :string, description: "a resident id"],
+      trace_id: [in: :query, type: :string],
+      min_ms: [in: :query, type: :integer],
+      limit: [in: :query, type: :integer, description: "at most 500; 100 by default"]
+    ],
+    responses: [ok: {"spans", "application/json", %Schema{type: :array}}]
+  )
+
+  def spans(conn, params) do
+    json(
+      conn,
+      Oneiroi.Apsu.spans(%{
+        hours: int(params["hours"]),
+        name: params["name"],
+        kind: params["kind"],
+        subject: params["subject"],
+        trace_id: params["trace_id"],
+        min_ms: int(params["min_ms"]),
+        limit: int(params["limit"])
+      })
+    )
+  end
+
+  operation(:span_summary,
+    summary:
+      "The span rows by unit of work in a window (apsu#28): how many, p50, p95 and longest, mean time in queries, waiting for a connection and queries run, slowest p95 first",
+    parameters: [hours: [in: :query, type: :integer]],
+    responses: [ok: {"summary", "application/json", %Schema{type: :array}}]
+  )
+
+  def span_summary(conn, params),
+    do: json(conn, Oneiroi.Apsu.span_summary(%{hours: int(params["hours"])}))
+
+  defp int(nil), do: nil
+
+  defp int(text) when is_binary(text) do
+    case Integer.parse(text) do
+      {n, ""} -> n
+      _other -> nil
+    end
   end
 
   operation(:heartbeats,
