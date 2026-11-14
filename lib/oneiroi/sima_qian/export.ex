@@ -43,7 +43,10 @@ defmodule Oneiroi.SimaQian.Export do
   alias Oneiroi.SimaQian.Readable
 
   @self "$self"
-  @chunk 1_000
+  # A read's size in events: a turn can carry megabytes (Lily's largest
+  # captured turn is 2.5 MB), so a chunk is small enough that a run holds
+  # a few of them, never a stream (sima-qian#54).
+  @chunk 100
   @page 200
 
   # The resident's streams, by prefix (sima-qian#20). Every router's
@@ -140,46 +143,39 @@ defmodule Oneiroi.SimaQian.Export do
   # value reaches a path in this system.
   # sobelow_skip ["Traversal.FileModule"]
   def write(resident_id, dir) do
-    cutoff = cutoff()
-
-    events =
-      resident_id
-      |> events()
-      |> Enum.take_while(&(DateTime.compare(&1.data.at, cutoff) != :gt))
-
-    exported =
-      events
-      |> Enum.filter(&exported?/1)
-      |> Enum.with_index(1)
+    index = index(resident_id, cutoff())
+    exported = index |> Enum.filter(& &1.exported?) |> Enum.with_index(1)
 
     root = Path.join(dir, "records")
     File.mkdir_p!(Path.join(root, "events"))
 
-    encoded =
-      Enum.map(exported, fn {recorded, ordinal} ->
-        {recorded, line(recorded, ordinal, resident_id)}
-      end)
+    # The lines the whole-history copies read, kept across the run; small
+    # events all (`Readable.whole?/2`).
+    whole =
+      for {%{keep: %EventStore.RecordedEvent{} = recorded}, ordinal} <- exported,
+          do: Jason.decode!(line(recorded, ordinal, resident_id))
 
-    files =
-      encoded
-      |> Enum.group_by(fn {recorded, _line} ->
-        Date.to_iso8601(DateTime.to_date(recorded.data.at))
-      end)
+    private = Readable.private_sessions(whole)
+    opened = Readable.openings(whole)
+
+    # A day at a time (sima-qian#54): read, write, render, let go.
+    {files, conversations} =
+      exported
+      |> Enum.group_by(fn {entry, _ordinal} -> entry.day end)
       |> Enum.sort()
-      |> Enum.map(fn {day, days_lines} ->
-        path = Path.join(["records", "events", day <> ".jsonl"])
-        File.write!(Path.join(dir, path), Enum.map_join(days_lines, "", &(elem(&1, 1) <> "\n")))
-        path
+      |> Enum.reduce({[], []}, fn {day, entries}, {files, conversations} ->
+        {file, conversation} = write_day(resident_id, dir, day, entries, opened, private)
+        :erlang.garbage_collect()
+        {[file | files], List.wrap(conversation) ++ conversations}
       end)
 
     File.write!(Path.join(root, "README.md"), readme())
-    lines = Enum.map(encoded, &Jason.decode!(elem(&1, 1)))
-    readable = write_readable(dir, Readable.render(lines))
+    readable = write_readable(dir, Enum.reverse(conversations), Readable.whole(whole, private))
     identity = identity_files(resident_id, dir)
     own = "resident-" <> resident_id
 
     through =
-      events
+      index
       |> Enum.filter(&(&1.stream_uuid == own))
       |> List.last()
       |> then(&if(&1, do: &1.stream_version, else: 0))
@@ -187,18 +183,108 @@ defmodule Oneiroi.SimaQian.Export do
     {:ok,
      %{
        through: through,
-       files: identity ++ ["records/README.md" | files] ++ readable,
-       private: Readable.private_sessions(lines)
+       files: identity ++ ["records/README.md" | Enum.reverse(files)] ++ readable,
+       private: private
      }}
+  end
+
+  # The run's index: one small entry an event, merged across the streams
+  # in append order and cut at the watermark, holding the event itself
+  # only where a whole-history copy reads it. Read a chunk at a time, so
+  # the history is never in memory at once (sima-qian#54).
+  defp index(resident_id, cutoff) do
+    resident_id
+    |> streams_of()
+    |> Enum.flat_map(fn uuid ->
+      uuid |> stream() |> Enum.map(&entry(&1, resident_id))
+    end)
+    |> Enum.sort_by(& &1.order)
+    |> Enum.take_while(&(DateTime.compare(&1.at, cutoff) != :gt))
+  end
+
+  defp entry(%EventStore.RecordedEvent{} = recorded, resident_id) do
+    exported? = exported?(recorded)
+    %module{} = recorded.data
+
+    whole? =
+      exported? and Readable.whole?(type(module), name(recorded.stream_uuid, resident_id))
+
+    %{
+      order: order(recorded, resident_id),
+      stream_uuid: recorded.stream_uuid,
+      stream_version: recorded.stream_version,
+      at: recorded.data.at,
+      day: Date.to_iso8601(DateTime.to_date(recorded.data.at)),
+      exported?: exported?,
+      keep: if(whole?, do: recorded)
+    }
+  end
+
+  # One day's lines, read back from the store by stream and version, in
+  # sequence order: its file written whole and its conversations rendered.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp write_day(resident_id, dir, day, entries, opened, private) do
+    recorded =
+      entries
+      |> Enum.group_by(fn {e, _} -> e.stream_uuid end, fn {e, _} -> e.stream_version end)
+      |> Enum.flat_map(fn {uuid, versions} -> read_versions(uuid, versions) end)
+      |> Map.new(&{{&1.stream_uuid, &1.stream_version}, &1})
+
+    lines =
+      for {e, ordinal} <- entries,
+          do: line(Map.fetch!(recorded, {e.stream_uuid, e.stream_version}), ordinal, resident_id)
+
+    path = Path.join(["records", "events", day <> ".jsonl"])
+    File.write!(Path.join(dir, path), Enum.map(lines, &[&1, "\n"]))
+
+    conversation =
+      with {conversation_path, content} <-
+             Readable.conversation_day(day, Enum.map(lines, &Jason.decode!/1), opened, private) do
+        full = Path.join(dir, conversation_path)
+        File.mkdir_p!(Path.dirname(full))
+        File.write!(full, content)
+        conversation_path
+      end
+
+    {path, conversation}
+  end
+
+  # The named versions of one stream, read in chunks over their range and
+  # kept only where named: an imported stream's days need not be
+  # contiguous in its versions.
+  defp read_versions(uuid, versions) do
+    wanted = MapSet.new(versions)
+    {first, last} = Enum.min_max(versions)
+
+    Stream.unfold(first, fn
+      from when from > last ->
+        nil
+
+      from ->
+        case Oneiroi.EventStore.read_stream_forward(uuid, from, min(@chunk, last - from + 1)) do
+          {:ok, []} -> nil
+          {:ok, events} -> {events, List.last(events).stream_version + 1}
+          {:error, :stream_not_found} -> nil
+        end
+    end)
+    |> Stream.flat_map(& &1)
+    |> Enum.filter(&MapSet.member?(wanted, &1.stream_version))
   end
 
   # The reading copies (sima-qian#41), rewritten whole like the day
   # files; a copy this run did not render is one no line supports any
-  # more, and goes. The paths are the renderer's, built from a day and
-  # a fixed name, never from a request.
+  # more, and goes. The conversations are already written, a day at a
+  # time; the whole-history copies are written here. The paths are the
+  # renderer's, built from a day and a fixed name, never from a request.
   # sobelow_skip ["Traversal.FileModule"]
-  defp write_readable(dir, rendered) do
-    paths = Enum.map(rendered, &elem(&1, 0))
+  defp write_readable(dir, conversations, whole) do
+    for {path, content} <- whole do
+      full = Path.join(dir, path)
+      File.mkdir_p!(Path.dirname(full))
+      File.write!(full, content)
+    end
+
+    paths = conversations ++ Enum.map(whole, &elem(&1, 0))
 
     stale =
       Path.wildcard(Path.join([dir, "records", "conversations", "*.md"])) ++
@@ -206,13 +292,6 @@ defmodule Oneiroi.SimaQian.Export do
         Path.wildcard(Path.join([dir, "records", "gift-reads.md"]))
 
     for full <- stale, Path.relative_to(full, dir) not in paths, do: File.rm!(full)
-
-    for {path, content} <- rendered do
-      full = Path.join(dir, path)
-      File.mkdir_p!(Path.dirname(full))
-      File.write!(full, content)
-    end
-
     paths
   end
 

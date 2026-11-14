@@ -138,6 +138,51 @@ defmodule Oneiroi.SimaQian.ExportTest do
     assert Jason.decode!(line)["sequence"] == 4
   end
 
+  test "a stream whose days interleave in its versions is read back a day at a time (sima-qian#54)",
+       %{r: r, a: a, dir: dir, actor: actor} do
+    brain = Actor.new(:resident, r.id, "fake/model")
+    {:ok, key} = Oneiroi.Kumbukumbu.main_session(r.id, a.id, actor)
+    now = Clock.now()
+    before = DateTime.add(now, -86_400)
+
+    # As an import writes them: an old turn appended between two of today's.
+    for {ref, at} <- [{"t-1", now}, {"t-old", before}, {"t-2", now}] do
+      Clock.Fake.put(at)
+
+      :ok =
+        Oneiroi.Kumbukumbu.capture(
+          r.id,
+          key,
+          ref,
+          at,
+          [%{role: :user, content: "words of " <> ref, sent_at: at, actor: actor}],
+          brain
+        )
+    end
+
+    Clock.Fake.put(DateTime.add(now, 120))
+    assert {:ok, %{files: files}} = Export.write(r.id, dir)
+    today = Date.to_iso8601(DateTime.to_date(now))
+    yesterday = Date.to_iso8601(DateTime.to_date(before))
+    assert "records/events/#{yesterday}.jsonl" in files
+
+    turns = fn day ->
+      for l <- lines(dir, day),
+          d = Jason.decode!(l),
+          d["type"] == "Oneiroi.Kumbukumbu.Events.TurnCaptured",
+          do: {d["sequence"], d["data"]["turn_ref"]}
+    end
+
+    assert [{old_seq, "t-old"}] = turns.(yesterday)
+    assert [{first, "t-1"}, {second, "t-2"}] = turns.(today)
+    assert first < old_seq and old_seq < second
+
+    read = &File.read!(Path.join(dir, "records/conversations/#{&1}.md"))
+    assert read.(yesterday) =~ "words of t-old"
+    refute read.(yesterday) =~ "words of t-1"
+    assert read.(today) =~ "words of t-2"
+  end
+
   test "a redacted field is written as null and its plaintext is nowhere", %{
     r: r,
     dir: dir,

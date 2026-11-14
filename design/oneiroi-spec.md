@@ -374,7 +374,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
 | F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri#6: not built) | hands, brain |
-| F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly, rebuild by replay (sima-qian#3, #20, #41); the other record files not yet | records |
+| F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly a day at a time, rebuild by replay (sima-qian#3, #20, #41, #54); the other record files not yet | records |
 | F37 | Event export and replay (exact rebuild) | built (sima-qian#3, #4, #20, #21) | records |
 | F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | partly built: backup commits with the trailers, the root checked nightly (sima-qian#10, agathos-daimon#20); the check on wake not yet | records |
 | F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian#16); Gitea not yet | records |
