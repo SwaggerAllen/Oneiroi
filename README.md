@@ -25,6 +25,19 @@ names. The design refers by name to four things outside this repository:
 Lily[^lily], David[^david], Catapult[^catapult] and
 orchestration[^orchestration].
 
+## The mark
+
+The logo is a sentence; every image of it is a build. The canonical
+description:
+
+> A doorway arch, centred on a square teal field (#1F5C6E), square-cornered and filling the frame: two upright posts joined by a semicircle, the arch a little over half the field's width, its band about a fifth of the arch's width, its feet level. The band is split at the centreline, left half ivory (#F5EFE6), right half horn (#C9975B). Inside the arch, down to the posts' feet, solid purple (#5B3F9E). Flat colours only: no gradients, shadows, outlines or letterforms.
+
+The arch is Homer's two gates fused into one, because on this platform a
+dream leaves a trail; it is also the O of the name, opened at the
+threshold into a door. Purple is the resident's colour, the house taking
+it in; teal is the waking world outside. The hand-cut build is
+`client/public/icons/mark.svg`; the PNG icons are rendered from it.
+
 ## Layout
 
 - `lib/oneiroi/` — the core, one system per directory (spec §6), each a

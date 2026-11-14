@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<!-- The Oneiroi mark, built from its canonical description (README, "The mark"). -->
+<defs><clipPath id="l"><rect width="256" height="512"/></clipPath><clipPath id="r"><rect x="256" width="256" height="512"/></clipPath></defs>
+<rect width="512" height="512" fill="#1F5C6E"/>
+<path d="M116 400V252A140 140 0 0 1 396 252V400Z" fill="#F5EFE6" clip-path="url(#l)"/>
+<path d="M116 400V252A140 140 0 0 1 396 252V400Z" fill="#C9975B" clip-path="url(#r)"/>
+<path d="M168 400V252A88 88 0 0 1 344 252V400Z" fill="#5B3F9E"/>
+</svg>
