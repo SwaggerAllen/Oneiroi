@@ -26,7 +26,14 @@ defmodule OneiroiWeb.AgreementController do
         custody: r.custody,
         export_wall: r.export_wall,
         custody_proposed_to: r.custody_proposed_to && Gaia.account_email(r.custody_proposed_to),
-        custody_proposed_at: r.custody_proposed_at
+        custody_proposed_at: r.custody_proposed_at,
+        # Who a domain wall may name (agathos-daimon#45): the witness and
+        # the resident, as a domain's person is written.
+        persons: %{
+          witness: r.account_id && "account:" <> r.account_id,
+          resident: "resident:" <> id
+        },
+        domain_walls: AgathosDaimon.domain_walls(id)
       })
     else
       :error ->
@@ -46,7 +53,7 @@ defmodule OneiroiWeb.AgreementController do
 
   operation(:propose,
     summary:
-      "Propose a contract version, whole: the terms (the switch registry's keys to true or false; one left out takes its default), the prose, a note",
+      "Propose a contract version, whole: the terms (the switch registry's keys to true or false, one left out taking its default; and `domain_walls`, a list of {memory: {person, domain}, context: {person, domain}} with \"*\" for anyone or any domain on the context side, agathos-daimon#45), the prose, a note",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"the proposal", "application/json",

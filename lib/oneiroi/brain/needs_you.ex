@@ -20,13 +20,16 @@ defmodule Oneiroi.Brain.NeedsYou do
   click is his, always).
   """
 
+  require Logger
+
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.NeedsYou.Entry
 
   # The sources, registered once: replies (Xenia), asks and plugin
   # proposals (AgathosDaimon), documents and kind gate proposals
   # (Seshat), work (Sunna), theme proposals (Seshat, brain#80), and the
-  # notifications question (Gaia's answer, brain#76).
+  # notifications question (Gaia's answer, brain#76), and the turns that
+  # failed (Kumbukumbu's capture failures, brain#88).
   @sources [
     Oneiroi.Brain.NeedsYou.Replies,
     Oneiroi.Brain.NeedsYou.Asks,
@@ -35,7 +38,8 @@ defmodule Oneiroi.Brain.NeedsYou do
     Oneiroi.Brain.NeedsYou.Plugins,
     Oneiroi.Brain.NeedsYou.Kinds,
     Oneiroi.Brain.NeedsYou.Theme,
-    Oneiroi.Brain.NeedsYou.Notifications
+    Oneiroi.Brain.NeedsYou.Notifications,
+    Oneiroi.Brain.NeedsYou.Failures
   ]
 
   # Past this an entry is marked as having waited long. A mark only.
@@ -49,13 +53,27 @@ defmodule Oneiroi.Brain.NeedsYou do
   @spec sources() :: [module()]
   def sources, do: @sources
 
+  # A read past this is logged with each source's share (brain#94), so a
+  # slow bell names its slow source from production.
+  @slow_ms 250
+
   @doc "Every entry waiting on the witness, oldest first."
   @spec list(String.t()) :: [map()]
   def list(resident_id) do
     now = Clock.now()
+    started = System.monotonic_time(:millisecond)
 
-    @sources
-    |> Enum.flat_map(&from(&1, resident_id))
+    timed =
+      Enum.map(@sources, fn source ->
+        t = System.monotonic_time(:millisecond)
+        entries = from(source, resident_id)
+        {source, System.monotonic_time(:millisecond) - t, entries}
+      end)
+
+    slow(System.monotonic_time(:millisecond) - started, timed)
+
+    timed
+    |> Enum.flat_map(&elem(&1, 2))
     |> Enum.sort_by(& &1.since, DateTime)
     |> Enum.map(
       &(&1
@@ -63,6 +81,19 @@ defmodule Oneiroi.Brain.NeedsYou do
         |> Map.put(:long, DateTime.diff(now, &1.since, :hour) >= @long_hours))
     )
   end
+
+  defp slow(total, timed) when total >= @slow_ms do
+    shares =
+      timed
+      |> Enum.sort_by(&elem(&1, 1), :desc)
+      |> Enum.map_join(", ", fn {source, ms, _} ->
+        "#{source |> Module.split() |> List.last()} #{ms}ms"
+      end)
+
+    Logger.info("brain: needs_you took #{total}ms: #{shares}", component: "brain")
+  end
+
+  defp slow(_total, _timed), do: :ok
 
   # A source's entries, each of a stage it declared: one that is not is
   # a broken adapter, said at once rather than shown wrong.

@@ -36,12 +36,16 @@ const BY_PREFIX: Record<string, Area[]> = {
   plugins: ['soul', 'bell'],
 };
 
-/** The query-key prefixes a notice should invalidate for this resident. */
+/**
+ * The query-key prefixes a notice should invalidate for this resident.
+ * The bell's own list is pushed by the server (brain#94), never read
+ * again for a notice: the bell area invalidates only what waits on her.
+ */
 export function keysFor(residentId: string, notice: Notice): unknown[][] {
   const prefix = notice.stream.split('-')[0];
   const areas = BY_PREFIX[prefix];
   if (!areas) return [['resident', residentId]];
-  return areas.map((area) => ['resident', residentId, area]);
+  return areas.map((area) => (area === 'bell' ? ['resident', residentId, 'bell', 'hers'] : ['resident', residentId, area]));
 }
 
 /** Notices arrive once per projector that folded the event: keep the first. */

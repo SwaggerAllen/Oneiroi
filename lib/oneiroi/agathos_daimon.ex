@@ -652,6 +652,10 @@ defmodule Oneiroi.AgathosDaimon do
   @spec switch_on?(String.t(), String.t()) :: boolean()
   defexport(switch_on?(id, key), do: Agreements.switch_on?(id, key))
 
+  @doc "The domain walls in force (agathos-daimon#45): each a memory's (person, domain) and the context it is never named into."
+  @spec domain_walls(String.t()) :: [map()]
+  defexport(domain_walls(id), do: Agreements.domain_walls(id))
+
   @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
   @spec switches(String.t()) :: [map()]
   defexport(switches(id), do: Agreements.switches(id))

@@ -5,6 +5,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
+  alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Events
 
   alias Oneiroi.Kumbukumbu.Store.{
@@ -59,8 +60,24 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     # unshared session's messages are keyed to the resident instead, so
     # the account scope's policy answers none of them (kumbukumbu#28).
     multi =
-      Multi.run(multi, :party, fn repo, _changes ->
+      multi
+      |> Multi.run(:party, fn repo, _changes ->
         {:ok, party_of(repo, e.session_key, e.resident_id)}
+      end)
+      # The turn's domain as it lands (kumbukumbu#72): the session's
+      # current one, named by the tag on this turn or carried forward
+      # from the last; the same on a rebuild, which folds in order.
+      |> Multi.run(:domain, fn repo, _changes ->
+        session =
+          repo.one(
+            from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key)
+          )
+
+        {:ok,
+         %{
+           key: Domains.of_session(session, e.resident_id),
+           tagged: session != nil and session.current_turn_ref == e.turn_ref
+         }}
       end)
 
     e.messages
@@ -69,7 +86,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
       Multi.insert(
         multi,
         {:message, i},
-        fn %{party: party} ->
+        fn %{party: party, domain: domain} ->
           %Message{
             resident_id: e.resident_id,
             session_key: e.session_key,
@@ -85,7 +102,10 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
             model: actor_field(m, :model),
             content: field(m, :content),
             refusal: field(m, :refusal) == true,
-            instant_inferred: field(m, :instant_inferred) == true
+            instant_inferred: field(m, :instant_inferred) == true,
+            domain_person: domain.key && domain.key.person,
+            domain: domain.key && domain.key.domain,
+            domain_tagged: domain.tagged
           }
         end,
         on_conflict: :nothing,
@@ -245,6 +265,17 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
 
   # Sharing keys the messages back to the account party, so a private
   # session the resident chose to share reads like any other.
+  # A turn named into a domain (kumbukumbu#72): its messages take it,
+  # and so does every untagged message after it up to the next named
+  # one; when none is named after it, it is the conversation's current
+  # domain, which a turn not yet captured (the composer's tag arrives
+  # first) takes as it lands.
+  fold(%Events.MessageDomainTagged{} = e, _metadata, fn multi ->
+    Multi.run(multi, :domain_tagged, fn repo, _changes ->
+      {:ok, tag_domain(repo, e)}
+    end)
+  end)
+
   fold(%Events.SessionShared{} = e, _metadata, fn multi ->
     multi
     |> Multi.update_all(
@@ -349,6 +380,110 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
   # sessions carry the witness's) would be the resident's alone.
   defp account_party(participants) when is_list(participants), do: List.first(participants)
   defp account_party(_other), do: nil
+
+  defp tag_domain(repo, e) do
+    set = [domain_person: Map.get(e, :person), domain: Map.get(e, :domain)]
+    at = turn_at(repo, e)
+    next = at && next_named(repo, e, at)
+
+    if at do
+      repo.update_all(
+        from(m in Message,
+          where:
+            m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+              m.turn_ref == ^e.turn_ref
+        ),
+        set: set ++ [domain_tagged: true]
+      )
+
+      repo.update_all(carried(e, at, next), set: set)
+    end
+
+    # The latest named domain is the current one: a tag of a turn not
+    # yet captured, or of one with nothing named after it, unless a newer
+    # tag waits on a turn not yet captured (the composer's, in flight).
+    if is_nil(next) and !(at && pending_tag?(repo, e)), do: set_current(repo, e)
+
+    :tagged
+  end
+
+  # Where the turn sits in its session: its last message's place, or nil
+  # for a turn not yet captured.
+  defp turn_at(repo, e),
+    do:
+      repo.one(
+        from(m in Message,
+          where:
+            m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+              m.turn_ref == ^e.turn_ref,
+          select: max(m.sequence)
+        )
+      )
+
+  # The next named turn after it, where the carry stops.
+  defp next_named(repo, e, at),
+    do:
+      repo.one(
+        from(m in Message,
+          where:
+            m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+              m.domain_tagged and m.sequence > ^at and m.turn_ref != ^e.turn_ref,
+          select: min(m.sequence)
+        )
+      )
+
+  # The untagged messages after it, up to the next named turn.
+  defp carried(e, at, nil),
+    do:
+      from(m in Message,
+        where:
+          m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+            m.sequence > ^at and not m.domain_tagged
+      )
+
+  defp carried(e, at, next),
+    do:
+      from(m in Message,
+        where:
+          m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+            m.sequence > ^at and m.sequence < ^next and not m.domain_tagged
+      )
+
+  defp set_current(repo, e),
+    do:
+      repo.update_all(
+        from(s in Session, where: s.resident_id == ^e.resident_id and s.key == ^e.session_key),
+        set: [
+          current_person: Map.get(e, :person),
+          current_domain: Map.get(e, :domain),
+          current_set: true,
+          current_turn_ref: e.turn_ref
+        ]
+      )
+
+  defp pending_tag?(repo, e) do
+    case repo.one(
+           from(s in Session,
+             where: s.resident_id == ^e.resident_id and s.key == ^e.session_key,
+             select: s.current_turn_ref
+           )
+         ) do
+      nil ->
+        false
+
+      ref when ref == e.turn_ref ->
+        false
+
+      ref ->
+        not repo.exists?(
+          from(m in Message,
+            where:
+              m.resident_id == ^e.resident_id and m.session_key == ^e.session_key and
+                m.turn_ref == ^ref
+          )
+        )
+    end
+  end
 
   defp party_of(repo, session_key, resident_id) do
     case repo.one(

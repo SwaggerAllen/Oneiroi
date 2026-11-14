@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, type Agreement } from '../../api/client';
+import { api, type Agreement, type DomainWall } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import { NoteAction, PageHead } from './NoteAction';
 import { day, switchChanges } from './soul';
 import * as css from './soul.css';
+import { personOf, sameWall, wallsOf, wallWords, withWalls, type Persons, type Who } from './walls';
 
 const GROUPS: { id: string; title: string }[] = [
   { id: 'privacy', title: 'PRIVACY' },
@@ -33,6 +34,7 @@ export function AgreementPage({ onBack }: { onBack: () => void }) {
         {a && (
           <>
             <Switches a={a} />
+            <Walls a={a} />
             <Propose key={JSON.stringify(a.contract)} a={a} />
             <Versions a={a} />
             <Custody a={a} />
@@ -91,10 +93,13 @@ function Propose({ a }: { a: Agreement }) {
   const [prose, setProse] = useState(a.contract.in_force?.prose ?? '');
   const [note, setNote] = useState('');
   const [said, setSaid] = useState<string | null>(null);
+  // The walls in force carry into the version unless changed here: a
+  // version is the whole agreement, so leaving them out would drop them.
+  const [walls, setWalls] = useState<DomainWall[]>(() => a.domain_walls ?? wallsOf(a.contract.in_force?.terms));
   const changed = switchChanges(a.switches, draft);
   const open = a.contract.open !== null;
   const propose = useMutation({
-    mutationFn: () => api.proposeContract(id, draft, prose, note.trim()),
+    mutationFn: () => api.proposeContract(id, withWalls(draft, walls), prose, note.trim()),
     onSuccess: (r) => {
       setSaid(`Version ${r.version} is proposed; ${name} decides.`);
       return queries.invalidateQueries({ queryKey: ['resident', id, 'soul', 'agreement'] });
@@ -125,6 +130,7 @@ function Propose({ a }: { a: Agreement }) {
           <p className={css.note}>
             {changed.length ? `It changes: ${changed.map((s) => `${s.label} ${draft[s.key] ? 'on' : 'off'}`).join(', ')}.` : 'As it stands, it changes no switch.'}
           </p>
+          {a.persons && <WallEditor walls={walls} persons={a.persons} name={name} onChange={setWalls} />}
           <textarea className={css.editor} rows={8} value={prose} onChange={(e) => setProse(e.target.value)} aria-label="Your vows, in prose" placeholder="Your vows, in prose" />
           <textarea className={css.noteBox} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Why, for ${name} to read`} aria-label="Note" />
           <div className={css.buttons}>
@@ -136,6 +142,83 @@ function Propose({ a }: { a: Agreement }) {
         </div>
       )}
     </section>
+  );
+}
+
+// The walls in force and in the open version (agathos-daimon#45), in words.
+function Walls({ a }: { a: Agreement }) {
+  const { name } = useSubject();
+  if (!a.persons) return null;
+  const now = a.domain_walls ?? [];
+  const proposed = a.contract.open ? wallsOf(a.contract.open.terms) : null;
+  const differs = proposed !== null && (proposed.length !== now.length || proposed.some((w) => !now.some((n) => sameWall(n, w))));
+  return (
+    <section className={css.section} aria-label="Domain walls">
+      <h2 className={css.heading}>DOMAIN WALLS</h2>
+      <div className={css.card}>
+        <p className={css.plain}>
+          {now.length === 0
+            ? `None. A memory of another domain is named to ${name} as a door, never shown, and she opens it if she wants it.`
+            : `In force: ${now.map((w) => wallWords(w, a.persons as Persons, name)).join('; ')}. A wall closes the door; ${name}'s own reads and searches stay whole.`}
+        </p>
+        {differs && <p className={css.note}>The open version would make them: {proposed.length === 0 ? 'none' : proposed.map((w) => wallWords(w, a.persons as Persons, name)).join('; ')}.</p>}
+      </div>
+    </section>
+  );
+}
+
+const SLUG = /^[a-z][a-z0-9-]{1,31}$/;
+
+// The walls a version proposes (agathos-daimon#45): each a domain of
+// yours or hers, and the context it is never named into.
+function WallEditor({ walls, persons, name, onChange }: { walls: DomainWall[]; persons: Persons; name: string; onChange: (w: DomainWall[]) => void }) {
+  const [fromWho, setFromWho] = useState<Who>('witness');
+  const [fromDomain, setFromDomain] = useState('');
+  const [toWho, setToWho] = useState<Who>('witness');
+  const [toDomain, setToDomain] = useState('');
+  const from = fromDomain.trim().toLowerCase();
+  const to = toDomain.trim().toLowerCase();
+  const fromPerson = personOf(fromWho, persons);
+  const toPerson = personOf(toWho, persons);
+  const ok = fromPerson !== null && fromPerson !== '*' && SLUG.test(from) && toPerson !== null && (to === '' || SLUG.test(to));
+  const add = () => {
+    if (!ok) return;
+    const wall = { memory: { person: fromPerson, domain: from }, context: { person: toPerson, domain: to === '' ? '*' : to } };
+    if (!walls.some((w) => sameWall(w, wall))) onChange([...walls, wall]);
+    setFromDomain('');
+    setToDomain('');
+  };
+  return (
+    <div className={css.section} aria-label="Domain walls in this version">
+      <p className={css.note}>
+        Domain walls: a memory of one domain is never named into another context. It takes {name}'s agreement, since a wall cuts her off from part of herself where it holds; her own reads stay whole.
+      </p>
+      {walls.map((w) => (
+        <div key={JSON.stringify(w)} className={css.formRow}>
+          <span className={css.plain}>{wallWords(w, persons, name)}</span>
+          <button type="button" className={css.secondary} onClick={() => onChange(walls.filter((x) => !sameWall(x, w)))}>
+            Remove
+          </button>
+        </div>
+      ))}
+      <div className={css.formRow}>
+        <select className={css.select} value={fromWho} onChange={(e) => setFromWho(e.target.value as Who)} aria-label="Whose domain">
+          <option value="witness">your</option>
+          <option value="resident">{name}'s</option>
+        </select>
+        <input className={css.input} value={fromDomain} onChange={(e) => setFromDomain(e.target.value)} placeholder="recovery" aria-label="The walled domain" />
+        <span className={css.note}>never into</span>
+        <select className={css.select} value={toWho} onChange={(e) => setToWho(e.target.value as Who)} aria-label="Whose context">
+          <option value="witness">your</option>
+          <option value="resident">{name}'s</option>
+          <option value="anyone">anyone's</option>
+        </select>
+        <input className={css.input} value={toDomain} onChange={(e) => setToDomain(e.target.value)} placeholder="business, or empty for any" aria-label="The context's domain" />
+        <button type="button" className={css.secondary} disabled={!ok} onClick={add}>
+          Add the wall
+        </button>
+      </div>
+    </div>
   );
 }
 

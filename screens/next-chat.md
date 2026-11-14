@@ -27,7 +27,15 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again
-  under the same ref. A message taken and then never heard of again (a
+  under the same ref, the failure's reason after "No reply" (and
+  "No reply: OpenRouter is out of credits" when the provider refused
+  for credit, brain#88). A turn of this conversation that failed with no
+  message of his waiting on it (a check-in, a wake) shows as a line in
+  the conversation with when and the provider's words, "Add credits"
+  when it was refused for credit, "Run it again" (or "Topped up? Run it
+  again", brain#89) and Dismiss; the failures are read on
+  arrival and every minute, so one that happened while he was away is
+  there when he comes back. A message taken and then never heard of again (a
   queue lost to a restart, or a send answered as a duplicate of a claim
   that died with it) is sent again under its ref every half minute once
   it has sat past the server's turn timeout, so the dead claim is taken
@@ -35,6 +43,16 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   sending, failed or unsent message also offers Remove, which takes this
   browser's copy off the screen; a message the server still holds may
   yet run, and lands in the transcript if it does.
+- **The domain (kumbukumbu#72):** above the box, "In <domain>", a chip
+  naming the domain the next message goes in: the conversation's
+  current one (the session's `domain`), or the common room. It opens a
+  picker of the domains this conversation has named, the common room,
+  and a new one as a slug ("Use"); what is picked shows "· next
+  message", rides that message's turn (`domain` on the submit, kept
+  when it is sent again) and clears once sent, the server carrying it
+  forward. A rule, "— <domain> —", is drawn where the transcript moves
+  into another domain, the first message of a page too when it is in
+  one.
 - **Stop** replaces Send while she works and the box is empty.
 - **The box** grows with what is written, up to 180px, then scrolls.
   With a keyboard, Enter sends and Shift+Enter breaks the line; on a
@@ -84,7 +102,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **On her replies:** "What she was given" lists that turn's context,
   part by part, with its size and why it was there (and its words where
   the server shows them); "Suggest a bookmark" proposes a line and why,
-  which she accepts, rewrites or declines in her own words.
+  which she accepts, rewrites or declines in her own words; "Domain:
+  <domain>" moves the turn, and every untagged turn after it up to the
+  next named one, to another domain or the common room (`POST
+  .../turns/:turn_ref/domain`).
 - **Mail**, the third view beside Conversation and Sessions: letters,
   outside mail and blocks (`screens/next-mail.md`).
 

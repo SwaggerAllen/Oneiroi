@@ -782,3 +782,72 @@ is what he has to answer, and the item's title alone does not say that.
 She knows when the next move is his, usually at the end of a run, so the
 hold is in the tools she already uses to say where an item stands.
 
+## #88
+
+A scheduled turn has no message of his waiting on it, so when the
+provider refused it the failure was recorded and shown nowhere: the
+06:00 check-in on 2026-11-13 failed on an account out of credit, and so
+did every turn for twelve hours, his own replies included, with nothing
+on any screen saying why. A failure is something he must act on (top up,
+or look at what broke), which is what the needs-you list is for. Credit
+refusals fold into one entry because one act settles all of them, and a
+night of failed turns would otherwise bury the rest of the list. The
+week's window keeps failures from before this existed from arriving as
+a flood of stale news.
+
+## #89
+
+Dismiss alone leaves him knowing something went wrong and nothing to do
+about it; the useful act is almost always "do it again", and what "it"
+was is knowable from where it ran. A one-off slot keeps a retried free
+time or round from being taken for the day's standing slot, which would
+swallow the next one. A check-in's firing is recorded once a day by
+design, so its retry is the wake alone, with the note as it would be
+now, not a second firing. Settling before running makes the click
+idempotent: two clicks, or the bell and the chat at once, start one turn.
+
+## #90
+
+A held item named its target in words, and he had to find the file
+himself before he could do what was asked; the review was the slow
+part, and finding it was most of the slowness. A path is the one
+pointer both halves already share: she writes it, the repo resolves
+it, and Records already opens it. A folder link opens the tree rather
+than a listing page, since the tree is the listing.
+
+## #91
+
+She rarely plants a seed mid-day, so the planting tool there was weight
+in every turn's tool list for little use, and the night passes read the
+day whole. Citing stays in the day because a citation is worth most when
+it lands on the turn as it happens, and the lane's exemplars are cited
+turns; whether it moves too is to be read from how often it is used
+(kumbukumbu#71). The passes act rather than propose because they are her
+own turns on her own model: a proposal from her to herself had nowhere
+to wait and no one else to confirm it.
+
+## #92
+
+Tagging at the turn's start rather than at submission keeps the queue
+honest: the tag is the conversation's current domain the moment it
+lands, and a message queued behind a running turn would otherwise move
+the running turn into its domain. The section is one line because she
+needs to know the line exists, not to be reminded of it at length.
+
+## #93
+
+The preamble is reads alone, so a failure there did nothing and saying
+so is true; a turn is too dear to lose to a moment's contention, the
+more so a scheduled one nobody is watching. The fix to the contention
+itself is the client's, which was multiplying reads the server could
+not drop; the pool's size is a setting (`APSU_POOL_SIZE`) for the
+witness to weigh, not a code change.
+
+## #94
+
+The cost was never one read; it was a read per notice per tab, and a
+turn is a stream of notices. Computing once a burst on the server, and
+only for a watcher, bounds the work by changes rather than by clients.
+Pushing the whole list rather than a "changed" signal saves the client
+the read the signal would provoke. Reads stay live so nothing the
+witness just did can come back stale.

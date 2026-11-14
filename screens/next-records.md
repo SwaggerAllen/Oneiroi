@@ -27,6 +27,8 @@ at `/client/#/records`. Built 2026-11-10.
     its count, closed unless it holds the open document, nested as deep
     as the paths go. Subfolders come before files at each level, both in
     the chosen order; a file shows its own name.
+  - `#/records/dir/<path>` opens the tree with that folder, and the kind
+    holding it, expanded (brain#90: a held item's ask links a folder).
   - Unshelved files are counted.
   - On a wide screen the tree stays beside the page; on a phone the page
     takes the screen, and Back pops the stack.

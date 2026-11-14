@@ -115,6 +115,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.FailCapture,
       Commands.ResolveCaptureFailure,
       Commands.ShareSession,
+      Commands.TagDomain,
       Events.SessionOpened,
       Events.SessionMadePrivate,
       Events.TurnStarted,
@@ -125,6 +126,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.CaptureFailed,
       Events.CaptureFailureResolved,
       Events.SessionShared,
+      Events.MessageDomainTagged,
       Store,
       Store.Session,
       Store.Message,
@@ -135,6 +137,7 @@ defmodule Oneiroi.Kumbukumbu do
 
   alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Days
+  alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
@@ -314,6 +317,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.CaptureFailed, 1},
       {Oneiroi.Kumbukumbu.Events.CaptureFailureResolved, 1},
       {Oneiroi.Kumbukumbu.Events.SessionShared, 1},
+      {Oneiroi.Kumbukumbu.Events.MessageDomainTagged, 1},
       {Oneiroi.Kumbukumbu.Events.Reacted, 1},
       {Oneiroi.Kumbukumbu.Events.ReactsTold, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.BookmarkAdded, 2},
@@ -357,9 +361,13 @@ defmodule Oneiroi.Kumbukumbu do
        remedy:
          "main, free_time or hands; an adapter's and an import's are opened by their own routes, and a regression session is never captured (spec §6.4)"},
       {:kumbukumbu_domain_invalid,
-       "a session's domain is a slug: a letter, then letters, digits or hyphens, at most 32",
+       "a message's domain is a slug (a letter, then letters, digits or hyphens, at most 32) of a person's life, the person an account or resident by id, on a turn by its ref",
        remedy:
-         "name the room as a slug (intimate, business, family), or leave it for the common room"},
+         "name the domain as a slug (recovery, business, family), or none for the common room"},
+      {:kumbukumbu_domain_per_message,
+       "a conversation has no domain of its own: each message carries one (P23-R1, kumbukumbu#72)",
+       remedy:
+         "open the session without a domain, and tag its messages: the composer's chip, or the tag route on a turn"},
       {:kumbukumbu_empty_turn, "a turn with no messages cannot be captured",
        remedy:
          "send the turn's messages; a turn that produced nothing is a capture failure, not an empty capture"},
@@ -573,13 +581,56 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.messages_between(resident_id, from, to)
   )
 
-  @doc "The room a session is in (spec §6.3, P23): its domain (nil for the common room) and the keys of the sessions retrieval may reach from it."
-  @spec room(String.t(), String.t()) :: %{domain: String.t() | nil, keys: [String.t()]}
-  defexport(room(resident_id, session_key), do: Conversations.room(resident_id, session_key))
+  @doc "The current domain of a conversation (P23-R1, kumbukumbu#72): the last one named in it, as `%{person, domain}`, or nil for the common room."
+  @spec domain_now(String.t(), String.t() | nil) :: map() | nil
+  defexport(domain_now(resident_id, session_key),
+    do: Domains.current(resident_id, session_key)
+  )
+
+  @doc "A session row's current domain (kumbukumbu#72), read off the row: the last one named, or its opening one, or nil."
+  @spec session_domain(map()) :: map() | nil
+  defexport(session_domain(session),
+    do: Domains.of_session(session, session.resident_id)
+  )
+
+  @doc "What a search from a turn in `session_key` reaches (kumbukumbu#72): its domain and the common room, or every domain when `across?`."
+  @spec within(String.t(), String.t() | nil, boolean()) :: :any | {:domain, map() | nil}
+  defexport(within(resident_id, session_key, across?),
+    do: Conversations.within(resident_id, session_key, across?)
+  )
+
+  @doc "Whether the contract walls a memory of `key` from a turn in `current` (agathos-daimon#45); never consulted for her deliberate reach."
+  @spec walled?(String.t(), map() | nil, map() | nil) :: boolean()
+  defexport(walled?(resident_id, key, current),
+    do: Domains.walled?(resident_id, key, current)
+  )
+
+  @doc "Tags a turn's messages into a domain (kumbukumbu#72), by its ref, before or after it is captured; `domain` nil is the common room, `person` nil the conversation's counterpart."
+  @spec tag_domain(
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(tag_domain(resident_id, key, turn_ref, person, domain, actor),
+    do: Conversations.tag_domain(resident_id, key, turn_ref, person, domain, actor)
+  )
 
   @doc "The sessions a scope sees, newest first."
   @spec sessions(Oneiroi.Scope.t()) :: [Oneiroi.Kumbukumbu.Store.Session.t()]
   defexport(sessions(scope), do: Conversations.sessions(scope))
+
+  @doc "How often she called the tools named since `since` (kumbukumbu#71): `[%{name, day, kind, count}]`, names only, never arguments or answers."
+  @spec tool_uses(term(), String.t(), [String.t()], DateTime.t()) :: [map()]
+  defexport(tool_uses(scope, resident_id, names, since),
+    do: Conversations.tool_uses(scope, resident_id, names, since)
+  )
+
+  @doc "A session's kind (main, free_time, housekeeping, …), or nil when the resident holds no such session."
+  @spec session_kind(String.t(), String.t()) :: String.t() | nil
+  defexport(session_kind(resident_id, key), do: Conversations.session_kind(resident_id, key))
 
   @doc "A session and its messages in order, under a scope."
   @spec transcript(Oneiroi.Scope.t(), String.t()) ::
@@ -681,7 +732,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Search.words(scope, resident_id, text, limit)
   )
 
-  @doc "One page of a resident's messages holding `text` under `scope`, with a date range and either order (kumbukumbu#67): `{[{message, session}], more?}`; `witness: true` leaves private, unshared sessions out, `keys:` keeps to a room."
+  @doc "One page of a resident's messages holding `text` under `scope`, with a date range and either order (kumbukumbu#67): `{[{message, session}], more?}`; `witness: true` leaves private, unshared sessions out, `within:` keeps to a domain and the common room (kumbukumbu#72)."
   @spec search_words_page(term(), String.t(), String.t(), keyword()) ::
           {[{map(), map()}], boolean()}
   defexport(search_words_page(scope, resident_id, text, opts),
@@ -706,7 +757,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Search.surfaced(resident_id, text, actor, ranked?, limit)
   )
 
-  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @doc "The same within the current domain of `session_key` and the common room (kumbukumbu#72)."
   @spec search(Oneiroi.Scope.t(), String.t(), pos_integer(), String.t(), String.t()) :: [
           Oneiroi.Kumbukumbu.Store.Message.t()
         ]
@@ -1014,7 +1065,7 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.madeleine(resident_id, text, actor)
   )
 
-  @doc "The same within the room of `session_key` (spec §6.3, P23)."
+  @doc "The same strictly within the current domain of `session_key` and the common room (kumbukumbu#72)."
   @spec madeleine(String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
           Oneiroi.Kumbukumbu.Madeleine.recall() | nil
   defexport(madeleine(resident_id, text, actor, session_key),
@@ -1037,7 +1088,7 @@ defmodule Oneiroi.Kumbukumbu do
   @spec index(String.t()) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id), do: Memories.index(resident_id))
 
-  @doc "The index within the room of `session_key` (spec §6.3, P23), a bookmark of another domain that ranked in named among the near-misses as held behind the domain line; nil, or a key no session has, is the common room."
+  @doc "The index in the current domain of `session_key` (kumbukumbu#72): another domain's bookmark that ranked in named as a door, by number and domain, unless the contract walls it; nil, or a key no session has, is the common room."
   @spec index(String.t(), String.t() | nil) :: Oneiroi.Kumbukumbu.Index.built()
   defexport(index(resident_id, session_key), do: Memories.index(resident_id, session_key))
 
@@ -1047,11 +1098,18 @@ defmodule Oneiroi.Kumbukumbu do
     do: Passages.refresh(resident_id, actor)
   )
 
-  @doc "The transcript passages nearest `text` in meaning, within the room of `session_key` (kumbukumbu#49)."
-  @spec search_meaning(String.t(), String.t() | nil, String.t(), pos_integer(), Oneiroi.Actor.t()) ::
+  @doc "The transcript passages nearest `text` in meaning, within the current domain of `session_key` and the common room, or every domain with `across_domains: true` (kumbukumbu#49, #72)."
+  @spec search_meaning(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          pos_integer(),
+          Oneiroi.Actor.t(),
+          keyword()
+        ) ::
           {:ok, [map()]} | {:error, term()}
-  defexport(search_meaning(resident_id, session_key, text, limit, actor),
-    do: Passages.search(resident_id, session_key, text, limit, actor)
+  defexport(search_meaning(resident_id, session_key, text, limit, actor, opts \\ []),
+    do: Passages.search(resident_id, session_key, text, limit, actor, opts)
   )
 
   @doc "The turn's words embedded once (kumbukumbu#46): the vector the ranked index and the madeleine share, or nil; refreshes the bookmarks' vectors first."
@@ -1060,20 +1118,20 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.memory_query(resident_id, text, actor, opts)
   )
 
-  @doc "The madeleine for a vector already embedded, within the room of `session_key` (kumbukumbu#46)."
+  @doc "The madeleine for a vector already embedded, within the current domain of `session_key` (kumbukumbu#46)."
   @spec madeleine_near(String.t(), [float()] | nil, String.t() | nil, [pos_integer()]) ::
           map() | nil
   defexport(madeleine_near(resident_id, vector, session_key, exclude),
     do: Memories.madeleine_near(resident_id, vector, session_key, exclude)
   )
 
-  @doc "The ranked index for this turn's vector within the room of `session_key` (kumbukumbu#46); by recency without one."
+  @doc "The ranked index for this turn's vector within the current domain of `session_key` (kumbukumbu#46); by recency without one."
   @spec ranked_index(String.t(), String.t() | nil, [float()] | nil) :: map()
   defexport(ranked_index(resident_id, session_key, vector),
     do: Memories.ranked_index(resident_id, session_key, vector)
   )
 
-  @doc "The pins within the room of `session_key`, oldest first: the stable prefix's, never the ranked index's (kumbukumbu#45)."
+  @doc "The pins within the current domain of `session_key`, oldest first: the stable prefix's, never the ranked index's (kumbukumbu#45)."
   @spec pins(String.t(), String.t() | nil) :: [map()]
   defexport(pins(resident_id, session_key), do: Memories.pins(resident_id, session_key))
 
@@ -1081,7 +1139,7 @@ defmodule Oneiroi.Kumbukumbu do
   @spec index_now(String.t()) :: map()
   defexport(index_now(resident_id), do: Memories.index_now(resident_id))
 
-  @doc "A page of the bookmarks within the room of `session_key`, newest first (kumbukumbu#39): `before:`, `pinned:`, `tag:`, `text:`, `from:`, `to:`; the rows and how many more match further back."
+  @doc "A page of the bookmarks within the current domain of `session_key`, newest first (kumbukumbu#39): `before:`, `pinned:`, `tag:`, `text:`, `from:`, `to:`; the rows and how many more match further back."
   @spec bookmark_page(String.t(), String.t() | nil, keyword()) :: %{
           rows: [map()],
           further: non_neg_integer()

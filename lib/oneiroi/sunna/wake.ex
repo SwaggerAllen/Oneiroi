@@ -28,5 +28,19 @@ defmodule Oneiroi.Sunna.Wake do
   """
   @callback checkin_part(resident_id :: String.t(), key :: String.t()) :: String.t() | nil
 
-  @optional_callbacks checkin_part: 2
+  @doc """
+  The note for turn `n` of a night pass after the scene pass (sunna#57):
+  `pass` is `people` or `behaviour`, `day` the ISO day. `{:ok, note}`, or
+  `:skip` when the day gives the pass nothing to do (no names in the
+  scene rows, no scenes at all). The scene rows are the library's, which
+  the brain reads and this system does not.
+  """
+  @callback night_pass_note(
+              resident_id :: String.t(),
+              pass :: String.t(),
+              day :: String.t(),
+              n :: pos_integer()
+            ) :: {:ok, String.t()} | :skip
+
+  @optional_callbacks checkin_part: 2, night_pass_note: 4
 end

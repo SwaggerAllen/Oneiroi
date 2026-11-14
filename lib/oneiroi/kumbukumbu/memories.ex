@@ -21,7 +21,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Conversation
-  alias Oneiroi.Kumbukumbu.Conversations
+  alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.Index
@@ -401,15 +401,16 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   @doc """
   The madeleine for a turn's words: the vectors refreshed (embedding what
-  changed), then one adjacent, unheard bookmark or nil; within the room of
-  `session_key` when given (spec §6.3, P23). `refresh: false` reads the
+  changed), then one adjacent, unheard bookmark or nil; strictly within
+  the current domain of `session_key` when given (P23-R1 §2: the most
+  uninvited surface never crosses a line). `refresh: false` reads the
   vectors as they stand and `purpose:` bills the query elsewhere than
   `embeddings`: a regression trial's turn passes both (eunomia#10).
   """
   def madeleine(resident_id, text, %Actor{} = actor, session_key \\ nil, opts \\ []) do
     if Keyword.get(opts, :refresh, true), do: _ = Madeleine.refresh(resident_id, actor)
-    keys = session_key && Conversations.room(resident_id, session_key).keys
-    Madeleine.recall(resident_id, text, actor, keys, Keyword.get(opts, :purpose, :embeddings))
+    allowed = session_key && in_domain_numbers(resident_id, session_key)
+    Madeleine.recall(resident_id, text, actor, allowed, Keyword.get(opts, :purpose, :embeddings))
   end
 
   @doc "The turn's words embedded once, after refreshing the bookmarks' vectors (kumbukumbu#46)."
@@ -418,10 +419,70 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     Madeleine.query(resident_id, text, actor, Keyword.get(opts, :purpose, :embeddings))
   end
 
-  @doc "The madeleine for a vector already embedded, within the room of `session_key`, past what the index returned."
+  @doc "The madeleine for a vector already embedded, within the current domain of `session_key`, past what the index returned."
   def madeleine_near(resident_id, vector, session_key, exclude \\ []) do
-    keys = session_key && Conversations.room(resident_id, session_key).keys
-    Madeleine.recall_near(resident_id, vector, keys, exclude)
+    allowed = session_key && in_domain_numbers(resident_id, session_key)
+    Madeleine.recall_near(resident_id, vector, allowed, exclude)
+  end
+
+  # The numbers of the bookmarks a turn in the current domain of
+  # `session_key` may be put in front of (kumbukumbu#72).
+  defp in_domain_numbers(resident_id, session_key) do
+    current = Domains.current(resident_id, session_key)
+
+    resident_id
+    |> with_domains()
+    |> Enum.filter(&Domains.in_domain?(&1.domain_key, current))
+    |> MapSet.new(& &1.number)
+  end
+
+  @doc "Every bookmark with its domain (`Domains.attach/2`): the one its anchor turn carries."
+  @spec with_domains(String.t()) :: [map()]
+  def with_domains(resident_id), do: Domains.attach(resident_id, bookmarks(resident_id))
+
+  # The current domain of `session_key` and the bookmarks split by it:
+  # those that may be put in front of a turn there, and the others.
+  defp split(resident_id, session_key, bookmarks) do
+    current = Domains.current(resident_id, session_key)
+    {in_domain, other} = Enum.split_with(bookmarks, &Domains.in_domain?(&1.domain_key, current))
+    {current, in_domain, other}
+  end
+
+  # The doors (P23-R1 §2): another domain's bookmarks that ranked in,
+  # named by number and domain and never shown, less those a wall in
+  # the contract closes (agathos-daimon#45). The near-miss row records
+  # the door for the audit; the index text tells her.
+  defp doors(resident_id, current, ranked_in) do
+    walls = Domains.walls(resident_id)
+    Enum.reject(ranked_in, &Domains.walled_by?(walls, &1.domain_key, current))
+  end
+
+  defp door_misses(doors),
+    do:
+      Enum.map(doors, fn b ->
+        door = Domains.door("bookmark", b.number, b.domain_key)
+        %{number: b.number, line: door, reason: door}
+      end)
+
+  # The doors' line under the index (P23-R1 §2): numbers and domains,
+  # never words; nothing when there is none.
+  defp with_doors(built, []), do: Map.put(built, :doors, [])
+
+  defp with_doors(built, doors) do
+    line =
+      "Nearby in another domain: " <>
+        Enum.map_join(doors, ", ", &"##{&1.number} (#{Domains.name(&1.domain_key)})") <>
+        ". bookmark_open(number) opens one if you want it."
+
+    text = if built.text == "", do: line, else: built.text <> "\n" <> line
+
+    %{
+      built
+      | text: text,
+        tokens: Index.tokens(text),
+        near_misses: built.near_misses ++ door_misses(doors)
+    }
+    |> Map.put(:doors, Enum.map(doors, & &1.number))
   end
 
   @doc "The index the brain is shown this turn, under `KUMBUKUMBU_INDEX_TOKENS`, over every bookmark."
@@ -432,44 +493,30 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   @doc """
-  The index within the room of `session_key` (spec §6.3, P23): built
-  over the bookmarks of the room's sessions alone, and a bookmark of
-  another domain that would have ranked in is named among the
-  near-misses as held behind the domain line, so the audit shows the
-  line approached and not crossed. A `session_key` no session has, nil
-  included, is the common room (`Conversations.room/2`).
+  The index in the current domain of `session_key` (P23-R1, kumbukumbu
+  #72): built over the bookmarks of that domain and the common room's,
+  and a bookmark of another domain that would have ranked in is named
+  as a door, by its number and domain, under the index and among the
+  near-misses, unless the contract walls it (agathos-daimon#45). A
+  `session_key` no session has, nil included, is the common room.
   """
   @spec index(String.t(), String.t() | nil) :: Index.built()
   def index(resident_id, session_key) do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
-    %{keys: keys} = Conversations.room(resident_id, session_key)
     # The pins are in the stable prefix (`pins/2`, kumbukumbu#45): they
     # are decisions, not measurements, and are never ranked here.
-    all = resident_id |> bookmarks() |> Enum.reject(& &1.pinned_at)
-    {in_room, held} = Enum.split_with(all, &(&1.session_key in keys))
+    all = resident_id |> with_domains() |> Enum.reject(& &1.pinned_at)
+    {current, in_domain, other} = split(resident_id, session_key, all)
     zone = Local.zone(resident_id)
-    built = Index.build(in_room, budget, zone)
+    built = Index.build(in_domain, budget, zone)
     would = all |> Index.build(budget, zone) |> Map.fetch!(:included)
-    sessions = Scope.resident(resident_id, fn -> Map.new(Store.sessions(), &{&1.key, &1}) end)
 
-    approached =
-      held
-      |> Enum.filter(&(&1.number in would))
-      |> Enum.map(fn b ->
-        %{
-          number: b.number,
-          line: b.line,
-          reason:
-            "held behind the domain line: a bookmark of #{domain_name(sessions[b.session_key])} ranked in and was not crossed"
-        }
-      end)
-
-    %{built | near_misses: built.near_misses ++ approached}
+    with_doors(built, doors(resident_id, current, Enum.filter(other, &(&1.number in would))))
   end
 
   @doc """
   The ranked index (kumbukumbu#46): the bookmarks nearest `vector` in
-  the room, ranked with the learned edges out of the seed, a fifth of
+  the current domain, ranked with the learned edges out of the seed, a fifth of
   the lines drawn at random from outside the ranked set, fresh each
   call; or, with no vector (blank words, nothing embedded, the provider
   down, a preview), the index by recency as before. The built index
@@ -484,10 +531,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       |> Map.merge(%{seeds: [], explored: [], considered: nil, exploration: "", scores: %{}})
 
   def ranked_index(resident_id, session_key, vector) do
-    %{keys: keys} = Conversations.room(resident_id, session_key)
-
-    unpinned = resident_id |> bookmarks() |> Enum.reject(& &1.pinned_at)
-    {in_room, held} = Enum.split_with(unpinned, &(&1.session_key in keys))
+    unpinned = resident_id |> with_domains() |> Enum.reject(& &1.pinned_at)
+    {current, in_room, held} = split(resident_id, session_key, unpinned)
     by_number = Map.new(in_room, &{&1.number, &1})
     held_by_number = Map.new(held, &{&1.number, &1})
     considered = Config.fetch!(:kumbukumbu, :index_considered)
@@ -504,9 +549,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
           |> Enum.take(considered)
           |> Enum.map(&%{bookmark: by_number[&1.number], distance: &1.distance})
 
-        # Another domain's bookmark that would have ranked in, had the
-        # room not held it, is named and never crossed (spec §6.3, P23):
-        # the line approached.
+        # Another domain's bookmark that would have ranked in is a door
+        # (P23-R1 §2): named, never shown.
         approached =
           nearest
           |> Enum.take(lines)
@@ -539,20 +583,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         draw: draw
       )
 
-    sessions = Scope.resident(resident_id, fn -> Map.new(Store.sessions(), &{&1.key, &1}) end)
-
-    held_misses =
-      Enum.map(approached, fn b ->
-        %{
-          number: b.number,
-          line: b.line,
-          reason:
-            "held behind the domain line: a bookmark of #{domain_name(sessions[b.session_key])} ranked in and was not crossed"
-        }
-      end)
-
-    built = ranked_index_built(ranking, length(in_room), Local.zone(resident_id))
-    %{built | near_misses: built.near_misses ++ held_misses}
+    ranking
+    |> ranked_index_built(length(in_room), Local.zone(resident_id))
+    |> with_doors(doors(resident_id, current, approached))
   end
 
   defp ranked_index_built(ranking, in_room, zone) do
@@ -607,23 +640,18 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp round3(x), do: x
 
   @doc """
-  The pins within the room of `session_key`, oldest first (kumbukumbu
+  The pins in the current domain of `session_key` and the common room's, oldest first (kumbukumbu
   #46): the resident's decisions, kept in the stable prefix rather than
   the ranked index, so they are cached with the identity files and never
   crowd the index or are measured against it.
   """
   @spec pins(String.t(), String.t() | nil) :: [map()]
   def pins(resident_id, session_key) do
-    %{keys: keys} = Conversations.room(resident_id, session_key)
+    {_current, in_domain, _other} =
+      split(resident_id, session_key, Enum.filter(with_domains(resident_id), & &1.pinned_at))
 
-    resident_id
-    |> bookmarks()
-    |> Enum.filter(&(&1.pinned_at && &1.session_key in keys))
-    |> Enum.sort_by(& &1.number)
+    Enum.sort_by(in_domain, & &1.number)
   end
-
-  defp domain_name(%{domain: domain}) when is_binary(domain), do: "the #{domain} domain"
-  defp domain_name(_session), do: "the common room"
 
   @doc """
   What the index holds now in the common room, for the witness's Memory
@@ -647,9 +675,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     budget = Config.fetch!(:kumbukumbu, :index_tokens)
     pins = pins(resident_id, nil)
     locked = locked_sessions(resident_id)
-    %{keys: keys} = Conversations.room(resident_id, nil)
-    all = bookmarks(resident_id)
-    ranked = Enum.count(all, &(is_nil(&1.pinned_at) and &1.session_key in keys))
+    all = with_domains(resident_id)
+    ranked = Enum.count(all, &(is_nil(&1.pinned_at) and is_nil(&1.domain_key)))
     elsewhere = length(all) - length(pins) - ranked
     lines = Config.fetch!(:kumbukumbu, :index_lines)
 
@@ -666,7 +693,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
           "The other #{ranked} are ranked against each turn's words: up to #{lines} a turn under a budget of #{budget} tokens (a bound), a fifth of them drawn at random." <>
           if(elsewhere > 0,
             do:
-              " #{count(elsewhere, "bookmark")} made in a named room #{if elsewhere == 1, do: "is", else: "are"} ranked only in that room's conversations.",
+              " #{count(elsewhere, "bookmark")} in a named domain #{if elsewhere == 1, do: "is", else: "are"} ranked only where the conversation is in that domain, and named as a door elsewhere.",
             else: ""
           )
     }
@@ -683,8 +710,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   (every one, the ones the index's half could not fit included), `tag:`
   a tag the bookmark carries, `text:` a phrase in its line, `from:` and
   `to:` days its anchor falls between, all combined; at most `KUMBUKUMBU_PAGE_BOOKMARKS` rows, and
-  `further`, how many more match beyond the page. The room is
-  `index/2`'s: a bookmark of another domain is never listed.
+  `further`, how many more match beyond the page. Within the current
+  domain and the common room, as `index/2` reads them, unless
+  `across_domains: true`, her deliberate cross (P23-R1 §2).
   """
   @spec page(String.t(), String.t() | nil, keyword()) :: %{
           rows: [map()],
@@ -692,12 +720,15 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         }
   def page(resident_id, session_key, opts \\ []) do
     size = Config.fetch!(:kumbukumbu, :page_bookmarks)
-    %{keys: keys} = Conversations.room(resident_id, session_key)
+    current = Domains.current(resident_id, session_key)
+    across? = Keyword.get(opts, :across_domains) == true
 
     matching =
       resident_id
-      |> bookmarks()
-      |> Enum.filter(&(&1.session_key in keys and page_match?(&1, opts)))
+      |> with_domains()
+      |> Enum.filter(
+        &((across? or Domains.in_domain?(&1.domain_key, current)) and page_match?(&1, opts))
+      )
       |> Enum.sort_by(& &1.number, :desc)
 
     {rows, rest} = Enum.split(matching, size)
@@ -712,6 +743,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       {:text, text} when is_binary(text) and text != "" -> contains?(b.line, text)
       {:from, %Date{} = day} -> Date.compare(DateTime.to_date(b.anchor_at), day) != :lt
       {:to, %Date{} = day} -> Date.compare(DateTime.to_date(b.anchor_at), day) != :gt
+      {:across_domains, _any} -> true
       {_unset, _value} -> true
     end)
   end

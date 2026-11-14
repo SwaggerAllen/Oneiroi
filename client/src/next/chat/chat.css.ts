@@ -194,3 +194,89 @@ export const stopButton = style([
 ]);
 
 export const stopSquare = style({ width: 13, height: 13, borderRadius: 3, background: vars.color.witness.accent });
+
+// A turn that failed with no message of his waiting on it (a check-in,
+// free time), or one he can do something about (brain#88).
+export const failedTurn = style({
+  alignSelf: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  maxWidth: 'min(560px, 100%)',
+  minWidth: 0,
+  padding: '10px 14px',
+  borderRadius: 12,
+  border: `1px solid ${status.error}`,
+  font: `500 12px ${font.mono}`,
+  color: status.error,
+  overflowWrap: 'anywhere',
+});
+export const failedReason = style({ font: `13px ${font.ui}`, color: vars.color.text, lineHeight: '19px' });
+
+// Domains (kumbukumbu#72): the bar above the composer naming the domain
+// the next message goes in, its picker, and the rule where a stretch of
+// the transcript changes domain.
+export const domainBar = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 6,
+  padding: '0 16px',
+  font: `500 11px ${font.mono}`,
+  color: vars.color.textFaint,
+});
+
+export const domainChip = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  padding: '3px 10px',
+  borderRadius: 999,
+  border: `1px solid ${vars.color.border}`,
+  background: 'transparent',
+  color: vars.color.text,
+  font: `500 11px ${font.mono}`,
+  cursor: 'pointer',
+  selectors: { '&[aria-expanded="true"]': { borderColor: vars.color.witness.accent } },
+});
+
+export const domainChipNamed = style({
+  borderColor: vars.color.witness.accent,
+  color: vars.color.witness.accent,
+});
+
+export const domainPicker = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 6,
+  width: '100%',
+  paddingTop: 6,
+});
+
+export const domainOption = style([
+  domainChip,
+  { selectors: { '&[aria-pressed="true"]': { borderColor: vars.color.witness.accent, color: vars.color.witness.accent } } },
+]);
+
+export const domainInput = style({
+  minWidth: 0,
+  width: 140,
+  padding: '3px 10px',
+  borderRadius: 999,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.ground,
+  color: vars.color.text,
+  font: `500 11px ${font.mono}`,
+});
+
+export const domainRule = style({
+  alignSelf: 'center',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  font: `500 10px ${font.mono}`,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: vars.color.textFaint,
+});

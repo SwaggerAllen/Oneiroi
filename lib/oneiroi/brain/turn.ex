@@ -272,6 +272,8 @@ defmodule Oneiroi.Brain.Turn do
       # resident's own records carries (`Oneiroi.Brain.Uses`).
       uses: [],
       slug: row.slug,
+      # A night pass's turn (brain#91): its own tools, seed_plant among them.
+      housekeeping?: Kumbukumbu.session_kind(resident_id, session_key) == "housekeeping",
       letters_to_deliver: letters_to_deliver(row, resident_id),
       reacts_through: reacts && elem(reacts, 1),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
@@ -354,7 +356,14 @@ defmodule Oneiroi.Brain.Turn do
   # until the model answers in words or the round bound is reached, when
   # the model's last words stand as the reply.
   defp converse(turn, messages, round) do
-    request = Request.new(turn.model, messages, tools: Tools.definitions_for(turn.resident_id))
+    request =
+      Request.new(turn.model, messages,
+        tools:
+          Tools.definitions_for(turn.resident_id,
+            housekeeping: Map.get(turn, :housekeeping?, false)
+          )
+      )
+
     rounds = rounds(turn)
 
     case ask(turn, request) do
@@ -411,7 +420,10 @@ defmodule Oneiroi.Brain.Turn do
 
     request =
       Request.new(turn.model, messages ++ [nudge],
-        tools: Tools.definitions_for(turn.resident_id),
+        tools:
+          Tools.definitions_for(turn.resident_id,
+            housekeeping: Map.get(turn, :housekeeping?, false)
+          ),
         tool_choice: "none"
       )
 
@@ -1222,7 +1234,7 @@ defmodule Oneiroi.Brain.Turn do
       |> Plugins.active(turn)
       |> Enum.flat_map(fn
         :where ->
-          where_section(turn, session)
+          where_section(turn, session) ++ domain_section(turn, session)
 
         :summary ->
           section(
@@ -1237,6 +1249,38 @@ defmodule Oneiroi.Brain.Turn do
 
     {sections, index}
   end
+
+  # The domain this conversation is in now (P23-R1, kumbukumbu#72), so
+  # she never answers inside a line she cannot see: named while it is
+  # one, silent in the common room.
+  defp domain_section(%{trial?: true}, _session), do: []
+  defp domain_section(%{oracle?: true}, _session), do: []
+  defp domain_section(_turn, nil), do: []
+
+  defp domain_section(turn, session) do
+    case Kumbukumbu.domain_now(turn.resident_id, session.key) do
+      nil ->
+        []
+
+      %{person: person, domain: domain} ->
+        section(
+          "domain",
+          Prompt.render!("domain_now", %{domain: domain, whose: whose(turn, person)}),
+          "the domain this conversation is in now (kumbukumbu#72): #{domain}, as last named"
+        )
+    end
+  end
+
+  defp whose(turn, "resident:" <> id) when id == turn.resident_id, do: "your own life"
+
+  defp whose(turn, "account:" <> id) do
+    case Oneiroi.AgathosDaimon.fetch(turn.resident_id) do
+      {:ok, %{account_id: ^id}} -> "your witness's life"
+      _other -> "another person's life"
+    end
+  end
+
+  defp whose(_turn, _person), do: "another's life"
 
   defp where_section(%{trial?: true}, _session), do: []
   defp where_section(%{oracle?: true}, _session), do: []

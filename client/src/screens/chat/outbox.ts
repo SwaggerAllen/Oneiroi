@@ -32,6 +32,9 @@ export interface Outgoing {
   since?: number;
   // When it was last sent to the server, for the stuck check below.
   triedAt?: number;
+  // The domain it was sent in (kumbukumbu#72), sent again with it: a
+  // slug, null for the common room, absent for the conversation's own.
+  domain?: string | null;
 }
 
 // The states a turn is under way in: taken and not yet answered.
@@ -66,6 +69,19 @@ export function failedFrom(items: Outgoing[], failures: { turn_ref: string; reas
     const reason = by.get(i.ref) ?? (i.into !== undefined ? by.get(i.into) : undefined);
     return reason !== undefined && i.state !== 'failed' ? update(out, i.ref, { state: 'failed', error: reason }, now) : out;
   }, items);
+}
+
+// A failure the provider refused for credit (brain#88): it needs him to
+// top up the account, not to send again.
+export function creditRefusal(reason: string | null | undefined): boolean {
+  return !!reason && reason.includes('402') && reason.toLowerCase().includes('credit');
+}
+
+// What a failure says in the chat: the provider's own words, with the
+// status code and error kind trimmed off the front.
+export function failureWords(reason: string | null | undefined): string {
+  if (!reason) return 'the turn failed';
+  return reason.replace(/^nisaba_[a-z_]+:\s*/, '').replace(/^\d{3}\s+/, '');
 }
 
 // How long, said short: 42s, 3m 05s, 1h 02m.

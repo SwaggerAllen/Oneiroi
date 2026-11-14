@@ -82,7 +82,7 @@ defmodule Oneiroi.Ethos.Seeds do
     end
   end
 
-  @doc "Graduates an open seed toward a habit (confirmed across `ETHOS_PROMOTION_CONFIRMATIONS` days) or an evaluative kind, with a note."
+  @doc "Graduates an open seed toward a habit (confirmed across `ETHOS_PROMOTION_CONFIRMATIONS` days), a portrait (across `ETHOS_PORTRAIT_DAYS`, ethos#21) or an evaluative kind, with a note."
   def graduate(resident_id, number, to_kind, to_id, note, %Actor{} = actor) do
     with :ok <- resident_only(actor),
          :ok <- graduation_target(resident_id, to_kind, to_id) do
@@ -94,7 +94,7 @@ defmodule Oneiroi.Ethos.Seeds do
         number: number,
         to_kind: to_kind,
         to_id: to_string(to_id),
-        required: Config.fetch!(:ethos, :promotion_confirmations)
+        required: required(to_kind)
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok
@@ -143,7 +143,25 @@ defmodule Oneiroi.Ethos.Seeds do
   defp graduation_target(resident_id, "soul", to_id),
     do: Edge.target_exists(resident_id, "soul", to_id)
 
+  # Toward a portrait the target is its file (ethos#21): one file under
+  # portraits/, named for the person, never the census.
+  defp graduation_target(_resident_id, "portrait", to_id) do
+    if is_binary(to_id) and Regex.match?(~r{\Aportraits/[A-Za-z0-9][A-Za-z0-9._-]*\.md\z}, to_id) and
+         to_id != "portraits/INDEX.md",
+       do: :ok,
+       else:
+         {:error,
+          Error.new(:ethos_target_invalid, :ethos_seeds_portrait_path_invalid,
+            kind: "portrait",
+            id: to_id
+          )}
+  end
+
   defp graduation_target(_resident_id, _to_kind, _to_id), do: :ok
+
+  # The days a graduation asks: a portrait's own number, the habit's for the rest.
+  defp required("portrait"), do: Config.fetch!(:ethos, :portrait_days)
+  defp required(_kind), do: Config.fetch!(:ethos, :promotion_confirmations)
 
   defp resident_only(%Actor{kind: :resident}), do: :ok
 

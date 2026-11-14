@@ -385,3 +385,26 @@ The wrap is where she knows what is left; when what is left is his word,
 wrapping it open would have the loop start it again with nothing to do,
 and wrapping it blocked was what #42 ruled out.
 
+## #57
+
+Separate passes, not one conversation in phases, because a long people
+night must never starve the behaviour pass or free time, and a failure
+in one must stay in it: the scene pass already promised that free time
+never pays for its failure, and the chain keeps the promise for every
+link. The brain writes the notes because the scene rows are the
+library's, and the library depends on this system; the port keeps the
+edge one way. Chaining rather than scheduling each pass keeps the night
+one thing to move when scheduled work goes to the client.
+
+## #58
+
+The witness judges whether a long item wants his review, and a count of
+runs said nothing of how long: four runs can be twenty minutes or a
+day. Time over all runs, not only the current one, because the stale
+bound (#37) cuts a single run at three hours, so an item that will not
+finish shows as many runs, never as one long one. Folded rather than
+summed on the read because the runs' starts are on the stream and the
+read is a row; kept from now rather than backfilled because the
+projection has no replay to backfill from, and an empty field said
+plainly is better than a guessed one. The mark is the screen's and a
+guess so it can move without touching the loop.

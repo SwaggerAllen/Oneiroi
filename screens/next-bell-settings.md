@@ -24,7 +24,28 @@ header's bell and gear. Built 2026-11-10.
   - Work held for him (brain#86, sunna#54) is an entry of its own,
     "Work · waiting on you", its line the ask ("Work item #25 held:
     your word on two wordings"), opening the Work page, where he
-    releases it with a note, or moves it done or dropped.
+    releases it with a note, or moves it done or dropped. A repo path
+    the ask names is a link (brain#90; the witness, 2026-11-13): a file
+    opens in Records' viewer, a folder (`…/`) opens Records' tree with
+    it expanded (`#/records/dir/<path>`), a web address (a GitHub URL for
+    a file outside her tree) opens in a new tab, and the card's "Open in Work ›"
+    opens the Work page. The Work page's held line links the same way.
+  - **A turn that failed** (brain#88; the witness, 2026-11-13): every
+    turn the provider refused for credit folds into one "OpenRouter is
+    out of credits" entry, saying how many turns it refused and the
+    provider's words, with "Add credits on OpenRouter" and "I topped up —
+    dismiss". Any other failed turn (a check-in, free time, a round, a
+    reply) is its own entry with the conversation and the reason, and
+    Dismiss. Each also has an action that does something (brain#89; the
+    witness, 2026-11-13): run it again as what it was, "Run free time
+    now", "Run a round now", "Run the <label> check-in now" or "Wake her
+    now", and on the credits entry "Topped up? Run them all again".
+    Failures sort above everything else in the bell, the notifications
+    question included, and while one waits the bell's dot is the signal
+    red and its label says something failed. Both look like failures (the witness, 2026-11-13): the
+    signal red border and label with ⚠, on a faint red wash, the same
+    red on every theme. Dismissing settles the failures (marked lost); the bell's
+    push tells his devices of a new one like any entry.
   - An item answered here stays in its place until the bell closes,
     folded to its title and recoloured: green with ✓ and what was
     decided (approved, approved to send, marked sent, noted, accepted),

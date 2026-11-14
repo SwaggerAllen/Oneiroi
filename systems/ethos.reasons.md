@@ -145,3 +145,15 @@ its column is `varchar(255)`. A stored event has to project, so the
 limit sits on the command, which can still refuse; the 2026-11-03
 outage was a projection meeting a value its column could not hold
 (conventions §6). 120 is a guess at a label, not a measure.
+
+## #21
+
+A person met once stays a cheap seed; a portrait is earned by someone
+who keeps coming up, and the count of distinct cited days is the
+evidence the habit ladder already trusts. The target is the file so the
+graduation and the write meet on one name.
+
+## #22
+
+The lane's exemplars are an uninvited surface like the index, so they
+take the same rule: named, not shown, and her reach to the turn intact.

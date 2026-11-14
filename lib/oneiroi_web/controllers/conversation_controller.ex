@@ -2,6 +2,7 @@ defmodule OneiroiWeb.ConversationController do
   use OneiroiWeb, :controller
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Kumbukumbu
   alias OpenApiSpex.Schema
 
@@ -56,7 +57,7 @@ defmodule OneiroiWeb.ConversationController do
            domain: %Schema{
              type: :string,
              description:
-               "the room (spec §6.3, P23): a slug such as intimate, business or family; absent for the common room"
+               "refused (P23-R1, kumbukumbu#72): a conversation has no domain; each message carries one, named on the turn or by the tag route"
            },
            label: %Schema{
              type: :string,
@@ -234,6 +235,12 @@ defmodule OneiroiWeb.ConversationController do
            client_ref: %Schema{
              type: :string,
              description: "the client's id for this message: 8 to 64 of A–Z a–z 0–9 _ -"
+           },
+           domain: %Schema{
+             type: :string,
+             nullable: true,
+             description:
+               "with client_ref: the domain the message's turn is in (kumbukumbu#72), a slug, or null for the common room; left out, it takes the conversation's current domain"
            }
          }
        }},
@@ -249,13 +256,21 @@ defmodule OneiroiWeb.ConversationController do
     case {read_only(p, key), conn.params["client_ref"]} do
       {%{} = s, _ref} -> read_only_problem(conn, s)
       {nil, nil} -> run_turn(conn, id, key, text)
-      {nil, ref} -> submit_turn(conn, id, key, text, ref)
+      {nil, ref} -> submit_turn(conn, id, key, text, ref, domain_opts(conn.params))
     end
   end
 
   def turn(conn, _params),
     do:
       problem(conn, 422, :text_required, :web_conversation_turn_text_required, "text is required")
+
+  # The composer's domain (kumbukumbu#72): sent, the turn is named into
+  # it as it starts (a slug, or null or "" for the common room); left
+  # out, the turn takes the conversation's current domain.
+  defp domain_opts(%{"domain" => domain}) when is_binary(domain) or is_nil(domain),
+    do: [domain: if(domain in [nil, ""], do: nil, else: domain)]
+
+  defp domain_opts(_params), do: []
 
   # A conversation the witness replies in elsewhere (kumbukumbu#40): the
   # platform's brain answering in it would put the Oneiroi chat's turn in
@@ -282,9 +297,9 @@ defmodule OneiroiWeb.ConversationController do
   # Brain #45: the message is taken at once under the client's ref.
   @client_ref ~r/\A[A-Za-z0-9_-]{8,64}\z/
 
-  defp submit_turn(conn, id, key, text, ref) do
+  defp submit_turn(conn, id, key, text, ref, opts) do
     with true <- is_binary(ref) and Regex.match?(@client_ref, ref),
-         {:ok, taken} <- Oneiroi.Brain.submit(id, key, text, actor(conn), ref) do
+         {:ok, taken} <- Oneiroi.Brain.submit(id, key, text, actor(conn), ref, opts) do
       conn |> put_status(202) |> json(taken)
     else
       false ->
@@ -317,6 +332,45 @@ defmodule OneiroiWeb.ConversationController do
       {:error, e} ->
         error(conn, 502, e)
     end
+  end
+
+  operation(:tool_uses,
+    summary:
+      "How often she called the tools named (kumbukumbu#71): `names` comma-separated (default the citation tools, seed_cite, habit_cite and soul_cite), `days` back (default 14, at most 90); each row the tool, the UTC day, the conversation's kind and the count; never the call's arguments or answer",
+    parameters: [
+      id: [in: :path, type: :string],
+      names: [in: :query, type: :string],
+      days: [in: :query, type: :integer]
+    ],
+    responses: [ok: {"the counts", "application/json", %Schema{type: :array}}]
+  )
+
+  @citation_tools ~w(seed_cite habit_cite soul_cite)
+
+  def tool_uses(%{assigns: %{principal: p}} = conn, %{"id" => id} = params) do
+    names =
+      case params["names"] do
+        raw when is_binary(raw) and raw != "" ->
+          raw |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+
+        _none ->
+          @citation_tools
+      end
+
+    days =
+      case Integer.parse(to_string(params["days"] || "")) do
+        {n, ""} when n in 1..90 -> n
+        _default -> 14
+      end
+
+    since = DateTime.add(Clock.now(), -days * 86_400)
+
+    json(
+      conn,
+      {:account, p.account_id}
+      |> Kumbukumbu.tool_uses(id, names, since)
+      |> Enum.map(&%{&1 | day: Date.to_iso8601(&1.day)})
+    )
   end
 
   operation(:search,
@@ -355,6 +409,45 @@ defmodule OneiroiWeb.ConversationController do
       {:account, p.account_id} |> Kumbukumbu.failures() |> Enum.filter(&(&1.resident_id == id))
 
     json(conn, Enum.map(rows, &failure/1))
+  end
+
+  operation(:tag_domain,
+    summary:
+      "Name the domain a turn is in (P23-R1, kumbukumbu#72): its messages, and every untagged one after it until another is named",
+    parameters: [
+      id: [in: :path, type: :string],
+      key: [in: :path, type: :string],
+      turn_ref: [in: :path, type: :string]
+    ],
+    request_body:
+      {"the domain", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           domain: %Schema{
+             type: :string,
+             nullable: true,
+             description: "a slug, or null for the common room"
+           },
+           person: %Schema{
+             type: :string,
+             description:
+               "whose life, account:<id> or resident:<id>; left out, the conversation's counterpart"
+           }
+         }
+       }},
+    responses: [no_content: "tagged"]
+  )
+
+  def tag_domain(conn, %{"id" => id, "key" => key, "turn_ref" => turn_ref} = params) do
+    domain = Map.get(params, "domain")
+    domain = if domain in [nil, ""], do: nil, else: domain
+
+    case Kumbukumbu.tag_domain(id, key, turn_ref, params["person"], domain, actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, %{kind: :kumbukumbu_no_such_session} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
   end
 
   operation(:resolve,
@@ -402,6 +495,38 @@ defmodule OneiroiWeb.ConversationController do
         :web_conversation_resolve_fields_required,
         "key, how and note are required"
       )
+
+  operation(:retry,
+    summary:
+      "Run a failed turn again (brain#89): free time and a round run now under a one-off slot, a check-in's wake again with its note, any other failure in the main chat a wake saying so; settled as retried at once, the turn started in the background. 202 with what it does",
+    parameters: [id: [in: :path, type: :string], turn_ref: [in: :path, type: :string]],
+    responses: [
+      accepted: {"what it does", "application/json", %Schema{type: :object}},
+      not_found: "no unsettled failed turn has that ref"
+    ]
+  )
+
+  def retry(conn, %{"id" => id, "turn_ref" => turn_ref}) do
+    case Oneiroi.Brain.retry_failure(id, turn_ref, actor(conn)) do
+      {:ok, what} -> conn |> put_status(202) |> json(%{started: what})
+      {:error, %{kind: :brain_no_such_failure} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:retry_credits,
+    summary:
+      "Run every turn the provider refused for credit again, each purpose once (brain#89): after a top-up. 202 with what each does",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [accepted: {"what each does", "application/json", %Schema{type: :object}}]
+  )
+
+  def retry_credits(conn, %{"id" => id}) do
+    case Oneiroi.Brain.retry_credit_failures(id, actor(conn)) do
+      {:ok, started} -> conn |> put_status(202) |> json(%{started: started})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
 
   operation(:injections,
     summary: "What a turn drew on: the 'drew on N things' inspector",
@@ -807,7 +932,9 @@ defmodule OneiroiWeb.ConversationController do
       place: s.label,
       writable: Kumbukumbu.Conversation.writable?(s.kind),
       participants: s.participants,
-      domain: s.domain,
+      # The conversation's current domain (kumbukumbu#72): the last one
+      # named in it, carried to every message after, or null.
+      domain: s |> Kumbukumbu.session_domain() |> domain_json(s),
       shared: s.shared,
       opened_at: s.opened_at,
       last_turn_at: s.last_turn_at,
@@ -841,8 +968,25 @@ defmodule OneiroiWeb.ConversationController do
       sent_at: m.sent_at,
       actor: %{kind: m.actor_kind, id: m.actor_id, model: m.model},
       refusal: m.refusal,
-      instant_inferred: m.instant_inferred
+      instant_inferred: m.instant_inferred,
+      domain: m.domain && %{slug: m.domain, person: m.domain_person},
+      domain_tagged: m.domain_tagged
     }
+  end
+
+  # A domain as the client reads it: its slug, whose life (the
+  # conversation's witness, the resident, or another), and the person.
+  defp domain_json(nil, _session), do: nil
+
+  defp domain_json(%{person: person, domain: slug}, s) do
+    whose =
+      cond do
+        person == "resident:" <> s.resident_id -> "resident"
+        is_binary(s.account_id) and person == "account:" <> s.account_id -> "witness"
+        true -> "other"
+      end
+
+    %{slug: slug, person: person, whose: whose}
   end
 
   defp failure(f),

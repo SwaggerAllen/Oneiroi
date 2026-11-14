@@ -36,6 +36,9 @@ function storeCursor(residentId: string, position: number) {
   }
 }
 
+// How long a burst of notices is gathered before what it touched is read again.
+const COALESCE_MS = 750;
+
 export class Live {
   private socket: Socket | null = null;
   private token = '';
@@ -98,14 +101,35 @@ export class Live {
       () => (since === null ? {} : { since: useShell.getState().cursor ?? since }),
     );
 
+    // A burst of notices (a turn's every write folds a projection) is
+    // coalesced into one invalidation per key, a moment after the burst,
+    // and a read already in flight is kept rather than started again:
+    // each abandoned read still runs on the server, and on 2026-11-13 a
+    // dozen of them held the connection pool while her free time needed
+    // it (brain_turn_crashed at 22:31Z).
+    const pending = new Map<string, unknown[]>();
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const invalidate = () => {
+      flush = null;
+      const keys = [...pending.values()];
+      pending.clear();
+      for (const queryKey of keys) void this.queries.invalidateQueries({ queryKey }, { cancelRefetch: false });
+    };
+
     const apply = (notice: Notice) => {
       if (!fresh(this.seen, notice)) return;
-      for (const queryKey of keysFor(residentId, notice)) void this.queries.invalidateQueries({ queryKey });
+      for (const queryKey of keysFor(residentId, notice)) pending.set(JSON.stringify(queryKey), queryKey);
+      if (flush === null) flush = setTimeout(invalidate, COALESCE_MS);
       useShell.getState().setCursor(notice.position);
       storeCursor(residentId, notice.position);
     };
 
     channel.on('notice', (n: Notice) => apply(n));
+    // The bell's list, computed by the server once a burst and pushed
+    // whole (brain#94): it replaces the read, so no notice reads it again.
+    channel.on('needs_you', ({ entries }: { entries: unknown[] }) => {
+      this.queries.setQueryData(['resident', residentId, 'bell'], entries);
+    });
     channel.on('notices', ({ notices }: { notices: Notice[] }) => notices.forEach(apply));
     channel.on('reset', ({ position }: { position: number }) => {
       void this.queries.invalidateQueries({ queryKey: ['resident', residentId] });

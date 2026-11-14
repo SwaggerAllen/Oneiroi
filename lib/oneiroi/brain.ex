@@ -47,9 +47,11 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
+  alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Reactions
+  alias Oneiroi.Brain.Retry
   alias Oneiroi.Brain.Session
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
@@ -225,6 +227,8 @@ defmodule Oneiroi.Brain do
          "the provider failure is recorded as a capture failure on the session; send the message again"},
       {:brain_no_such_plugin, "no plugin in the catalog has that key",
        remedy: "plugin_list names every plugin and its key"},
+      {:brain_no_such_failure, "no unsettled failed turn has that ref (brain#89)",
+       remedy: "read the capture failures; one already run again or dismissed is settled"},
       {:brain_nothing_running, "no turn is running in that conversation to stop",
        remedy: "nothing to do: the turn had already ended"},
       {:brain_tool_raised, "a tool failed inside the platform; the turn went on without it",
@@ -273,7 +277,13 @@ defmodule Oneiroi.Brain do
 
   @impl Oneiroi.Component
   def processes,
-    do: [{:brain_registry, :local}, {:brain_sessions, :local}, {:brain_turns, :local}]
+    do: [
+      {:brain_registry, :local},
+      {:brain_sessions, :local},
+      {:brain_turns, :local},
+      {:brain_needs_you_watchers, :local},
+      {:brain_needs_you_live, :local}
+    ]
 
   # The oracle's reads (brain#49): on demand, no cron. The needs-you
   # push (brain#77): each minute, as the schedule's tick is.
@@ -285,7 +295,7 @@ defmodule Oneiroi.Brain do
     ]
 
   @impl Oneiroi.Component
-  def pubsub_topics, do: [:session]
+  def pubsub_topics, do: [:session, :needs_you]
 
   @impl Oneiroi.Component
   def children do
@@ -294,10 +304,28 @@ defmodule Oneiroi.Brain do
       {DynamicSupervisor, name: :brain_sessions, strategy: :one_for_one},
       # The turns a session runs off its own process (brain#45).
       {Task.Supervisor, name: :brain_turns},
+      # The bell pushed (brain#94): who watches it, and the process that
+      # computes it once a burst of notices for them.
+      {Registry, keys: :duplicate, name: :brain_needs_you_watchers},
+      Oneiroi.Brain.NeedsYou.Live,
       # The button to Lily (gaia#20): each platform report a letter.
       Oneiroi.Brain.Triage
     ]
   end
+
+  @doc "Runs a failed turn again (brain#89): settled as retried, then started on the turn supervisor; `{:ok, what it does}`."
+  @spec retry_failure(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(retry_failure(resident_id, turn_ref, actor),
+    do: Retry.one(resident_id, turn_ref, actor)
+  )
+
+  @doc "Runs every turn the provider refused for credit again, each purpose once (brain#89)."
+  @spec retry_credit_failures(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, [String.t()]} | {:error, term()}
+  defexport(retry_credit_failures(resident_id, actor),
+    do: Retry.credits(resident_id, actor)
+  )
 
   @doc "Free time remembered (brain#53): the latest runs, newest first, with the conversation each ran in, its turns, and the receipts of what it made."
   @spec free_time_history(String.t(), pos_integer()) :: [map()]
@@ -315,12 +343,13 @@ defmodule Oneiroi.Brain do
   Takes the witness's message under the client's ref and answers at once
   (brain#45): `running`, `queued` with how many wait ahead, or
   `duplicate` when that ref was taken before. The turn's outcome arrives
-  on the session topic.
+  on the session topic. `domain:` (a slug, or nil for the common
+  room) names the domain its turn is in (kumbukumbu#72).
   """
-  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t()) ::
+  @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
-  defexport(submit(resident_id, session_key, text, actor, ref),
-    do: Session.submit(resident_id, session_key, text, actor, ref)
+  defexport(submit(resident_id, session_key, text, actor, ref, opts \\ []),
+    do: Session.submit(resident_id, session_key, text, actor, ref, opts)
   )
 
   @doc "The plugin catalog with the resident's state and every proposal (brain#68)."
@@ -352,6 +381,10 @@ defmodule Oneiroi.Brain do
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
 
+  @doc "Registers the calling process as watching the resident's bell (brain#94): its list is computed once a burst of notices and broadcast on the `needs_you` topic as `{resident_id, entries}`."
+  @spec watch_needs_you(String.t()) :: :ok
+  defexport(watch_needs_you(resident_id), do: NeedsYou.Live.watch(resident_id))
+
   @doc "Everything waiting on the resident, oldest first (brain#76): the witness's proposals she has not answered, his unread letters, the files his lease holds her from; it only shows."
   @spec waiting_on_her(String.t()) :: [map()]
   defexport(waiting_on_her(resident_id), do: WaitingOnHer.list(resident_id))
@@ -377,6 +410,12 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."
   defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
+
+  @impl Oneiroi.Sunna.Wake
+  @doc "The note for a night pass after the scene pass (sunna#57, brain#91): the people or behaviour pass, from the day's scene rows; :skip when the day gives it nothing."
+  defexport(night_pass_note(resident_id, pass, day, n),
+    do: NightPasses.note(resident_id, pass, day, n)
+  )
 
   @doc "Answers a regression trial (spec §6.4, eunomia#10): the prompt as a turn in a fresh session, with the resident's memory and every tool, the reads real and the writes answered and never recorded; nothing captured, billed under regression. The reply comes back with the trace of the loop's tool calls, for the witness's card alone (eunomia#31)."
   @spec trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

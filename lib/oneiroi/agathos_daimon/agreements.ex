@@ -119,6 +119,36 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     Map.get(switches, key, false)
   end
 
+  @doc """
+  The domain walls in force (agathos-daimon#45, P23-R1 §3): each a
+  memory's domain and the context it is walled from, as
+  `%{memory: %{person, domain}, context: %{person, domain}}`, either side
+  of the context possibly `"*"`. A term of the version in force alone:
+  set by one party's proposal and the other's agreement, never by one,
+  since a wall cuts her off from part of herself. Empty with none.
+  """
+  @spec domain_walls(String.t()) :: [map()]
+  def domain_walls(resident_id) do
+    in_force =
+      Scope.resident(resident_id, fn ->
+        Enum.find(Store.contracts(), &(&1.state == "agreed"))
+      end)
+
+    walls_of(in_force && in_force.terms)
+  end
+
+  @doc "A version's walls, from its terms."
+  def walls_of(%{"domain_walls" => walls}) when is_list(walls),
+    do:
+      Enum.map(walls, fn w ->
+        %{
+          memory: %{person: w["memory"]["person"], domain: w["memory"]["domain"]},
+          context: %{person: w["context"]["person"], domain: w["context"]["domain"]}
+        }
+      end)
+
+  def walls_of(_terms), do: []
+
   @doc "Moves a switch to its declared safe value, either party alone, with a note (agathos-daimon#38); `{:ok, :already}` when it is there."
   def move_to_safety(resident_id, key, note, %Actor{} = actor) do
     safe = Switches.safe(to_string(key))
@@ -314,8 +344,30 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
 
     solo <>
       " " <>
-      preview_words(Map.get(terms || %{}, "preview_withholds_words")) <> features_words(terms)
+      preview_words(Map.get(terms || %{}, "preview_withholds_words")) <>
+      features_words(terms) <> walls_words(walls_of(terms))
   end
+
+  # The walls in words (agathos-daimon#45): what is never named into
+  # which context, and that her own reach stays whole.
+  defp walls_words([]), do: ""
+
+  defp walls_words(walls) do
+    " Domain walls: " <>
+      Enum.map_join(walls, "; ", fn w ->
+        "#{w.memory.domain} (#{who(w.memory.person)}) is never named into #{context_words(w.context)}"
+      end) <>
+      ". A wall closes the door retrieval would name; your own reads and searches across domains stay whole."
+  end
+
+  defp context_words(%{person: "*", domain: "*"}), do: "any other context"
+  defp context_words(%{person: "*", domain: d}), do: "anyone's #{d}"
+  defp context_words(%{person: p, domain: "*"}), do: "anything of #{who(p)}"
+  defp context_words(%{person: p, domain: d}), do: "#{d} (#{who(p)})"
+
+  defp who("resident:" <> _id), do: "a resident's"
+  defp who("account:" <> _id), do: "an account's"
+  defp who(other), do: other
 
   # The registry's feature switches in a line: which are on and which off,
   # so a version that turns one off says so where the resident reads it.

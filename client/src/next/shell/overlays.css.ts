@@ -58,6 +58,14 @@ const itemBase = {
 } as const;
 export const item = style({ ...itemBase, border: `1px solid ${vars.color.border}` });
 export const itemDashed = style({ ...itemBase, border: `1px dashed ${vars.color.witness.border}` });
+// A failure (brain#88): the signal red, unthemed, so it reads as wrong on every theme.
+export const itemFailed = style({
+  ...itemBase,
+  cursor: 'default',
+  border: `1px solid ${status.error}`,
+  background: `color-mix(in srgb, ${status.error} 10%, ${vars.color.surface})`,
+});
+export const itemKindFailed = style({ font: `600 11px ${font.mono}`, letterSpacing: '0.04em', textTransform: 'uppercase', color: status.error });
 // An item answered here stays, folded and recoloured, until the bell
 // closes: the list's refresh can lag the answer, and a card that simply
 // vanished (or simply stayed) said nothing about what was done.

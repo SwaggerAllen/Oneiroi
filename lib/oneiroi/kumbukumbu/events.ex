@@ -71,6 +71,20 @@ defmodule Oneiroi.Kumbukumbu.Events do
       instants: [:started_at]
   end
 
+  defmodule MessageDomainTagged do
+    # A turn's messages named into a domain (P23-R1, kumbukumbu#72): the
+    # incoming message and her reply to it, by the turn's ref, as
+    # `(person, domain)`, `person` "account:<id>" or "resident:<id>",
+    # whose life it is; `domain` a slug, or nil for the common room. The
+    # latest named domain is the conversation's current one, carried to
+    # every untagged message after it. Either party, any time, before or
+    # after the turn is captured; a tag is never a boundary (the contract
+    # sets those, agathos-daimon#45).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :person, :domain]
+  end
+
   defmodule ContextAssembled do
     # What the memory agent put in front of the brain for a turn, each
     # blob with its reason (spec §5, F12): label, tokens, reason.

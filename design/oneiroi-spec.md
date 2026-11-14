@@ -193,7 +193,7 @@ and nothing else.
 | --- | --- | --- |
 | Core | Elixir 1.19 / OTP 28, Phoenix | Catapult's stack and practices; orchestration's assumed stack; OTP is the right substrate for many long-lived per-resident processes |
 | Events | Commanded 1.4 + EventStore (Postgres) | Strict event sourcing with a library that has carried complex LLM flows in Catapult; MIT |
-| Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries |
+| Jobs | Oban | Schedules, nightly and weekly passes, provisioning, retries; under the encryption tier the schedule only proposes what is due and the client starts it (§6.7, §7.2, specified, not built) |
 | Data | Postgres 16+, pgvector | One database for events, projections and vectors; joins with Honcho stay plain SQL |
 | Client | React + TypeScript, Storybook | Full rewrite of the owner UI; mobile-first; Storybook stories are what orchestration's design agent produces |
 | Models | OpenRouter via Req, one key per witness | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
@@ -310,7 +310,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `export_state` | watermark a minute behind | per resident |
 | New: `ledger_budget`, `ledger_usage`, `ledger_balance` | | §6.11; usage carries `purpose`, and the resident's own view of it excludes `drafting` and `regression` |
 | New: `subscription` | | plan, price, renewal, insurance policy and prepaid buckets, one per resident (§6.2, §6.11) |
-| New: `needs_you` | | partly built (brain#65, brain#72: one projection over registered sources, each declaring the stages it holds for him; replies, asks, pieces, designs held for his read (seshat#49: whichever kinds their own definitions say wait on him), work held for his word with its ask (brain#86, sunna#54) and work blocked on words before sunna#42, and the notifications question while his account has not answered it (brain#76), oldest first, pushed to his devices once per entry when it first appears (brain#77), read by Inbox › Waiting on you, the check-in, and the approval queue (the witness, 2026-11-08): a count at the end of every screen's top bar of everything waiting, from the moment it waits, opening the Waiting on you page, each entry opening the thing itself; it only shows, and marks an entry past 48 hours): the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
+| New: `needs_you` | | partly built (brain#65, brain#72: one projection over registered sources, each declaring the stages it holds for him; replies, asks, pieces, designs held for his read (seshat#49: whichever kinds their own definitions say wait on him), work held for his word with its ask (brain#86, sunna#54) and work blocked on words before sunna#42, and the notifications question while his account has not answered it (brain#76), oldest first, pushed to his devices once per entry when it first appears (brain#77), pushed whole to an open client once a burst of changes rather than read again for each (brain#94), read by Inbox › Waiting on you, the check-in, and the approval queue (the witness, 2026-11-08): a count at the end of every screen's top bar of everything waiting, from the moment it waits, opening the Waiting on you page, each entry opening the thing itself; it only shows, and marks an entry past 48 hours): the union of every pending decision across systems: correspondence, tag and feed proposals, source release requests, audit flags, predictions due, soul edits awaiting the resident (shown as "awaiting Lily"), capture failures, attestation mismatches, budget stops; one count, one order (oldest first, failures above approvals), each item naming the screen it opens. Every "waiting on you" surface reads this and nothing else: Inbox › Needs you, the nav badge, the More groups' counts, the morning check-in's line, any push |
 | New: `session` visibility | | each session's participants, whether the contract makes it private, and whether the resident shared it; a private unshared solo session is listed to the witness as a locked row (kind, parties, no open) |
 | New: `context_injection` | | every blob the memory agent passed, with a recorded reason (§6.4) |
 | New: `journal` | | day, entry kind (plan, note, todo, wrap) as data, time, text, links (journal-type.md) |
@@ -369,8 +369,8 @@ Every feature, with where it stands today and which system owns it. Tier
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31, #46: its prompts and tools say it is hers, not the work's; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) ; one-off slots on top of the daily list, as many as wanted, the line the only limit (sunna#45); an answer she asked for in free time wakes the free-time conversation that asked, beside the slots, outside quiet hours, never on a spent line (sunna#44) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30, #39, #40): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started; a private conversation of kind `round`, billed to its own `rounds` line; exits are her tools (a letter to the chat, which wakes it, a house letter, a reply draft, a note draft, a journal row), speech the habit and silence the exception she gives a reason for (sunna#40); each round remembered with what left it, for her (`round_list`), the witness (the Schedule screen) and the check-in's Rounds part (sunna#39) | brain, schedule |
-| F32b | The work queue: long, multi-turn items in priority order, either party's, run one at a time on completion, wrapped, care first | built (sunna#33): `work-<resident_id>`, items with what and done-when, statuses moved with a note, reordered by either party; an item whose next move is the witness's held with an ask by either party or at her wrap, stepped over by the loop and shown on his needs-you list until released, done or dropped (sunna#54 to #56); a check starts the first open item as a `work` conversation or rests and says why ("empty, holding"); turns on the `work` budget line (a brake, sunna#35: armed while the queue has work, unlimited unless capped) up to `SUNNA_WORK_TURNS`, wrapped by her on the `planning` line, the run's end firing the next check; no turn inside quiet hours or a free-time pass; `SUNNA_WORK_RUNS_A_DAY` the day's guard; the Work screen under More (sunna#38) | schedule, brain |
-| F32c | The bedtime scene pass: housekeeping before the bedtime slot, the day grouped into scenes by her, free time following under a floor | built (sunna#34, #47): a `housekeeping` conversation on the chat line at `SUNNA_SCENE_SLOT`, scenes written as rows with `scene_write` (F64) and rendered to `scenes/<day>.md`, each citing its turns, the day closed by the last; free time follows on its own line; a slot whose remainder buys fewer than `SUNNA_FREE_TIME_FLOOR_TURNS` (2) free-time turns rests and says so. Page summaries (per conversation, as a page slips off the window) planned | schedule, brain |
+| F32b | The work queue: long, multi-turn items in priority order, either party's, run one at a time on completion, wrapped, care first | built (sunna#33): `work-<resident_id>`, items with what and done-when, statuses moved with a note, reordered by either party; an item whose next move is the witness's held with an ask by either party or at her wrap, stepped over by the loop and shown on his needs-you list until released, done or dropped (sunna#54 to #56); a check starts the first open item as a `work` conversation or rests and says why ("empty, holding"); turns on the `work` budget line (a brake, sunna#35: armed while the queue has work, unlimited unless capped) up to `SUNNA_WORK_TURNS`, wrapped by her on the `planning` line, the run's end firing the next check; no turn inside quiet hours or a free-time pass; `SUNNA_WORK_RUNS_A_DAY` the day's guard; the Work screen under More (sunna#38), each item saying how long it has been in work, this run and over all its runs, a run past an hour marked for a look (sunna#58) | schedule, brain |
+| F32c | The bedtime scene pass: housekeeping before the bedtime slot, the day grouped into scenes by her, free time following under a floor | built (sunna#34, #47; the people and behaviour passes chained after it, each its own housekeeping conversation, before free time, sunna#57): a `housekeeping` conversation on the chat line at `SUNNA_SCENE_SLOT`, scenes written as rows with `scene_write` (F64) and rendered to `scenes/<day>.md`, each citing its turns, the day closed by the last; free time follows on its own line; a slot whose remainder buys fewer than `SUNNA_FREE_TIME_FLOOR_TURNS` (2) free-time turns rests and says so. Page summaries (per conversation, as a page slips off the window) planned | schedule, brain |
 | F33 | Code tasks: plan, implement, review, push as a draft PR, in a sandbox, on the worker agent or the witness's own Claude Code | planned (dioscuri: not built); Claude Code as a brain adapter is F52 | hands |
 | F34 | Browser for testing, headless Chromium over CDP | planned (dioscuri: not built) | hands |
 | F35 | Wake fan-out: tell the session that asked, coalesced, never carrying results or third-party words | planned (dioscuri#6: not built) | hands, brain |
@@ -384,7 +384,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F53a | The household as billing owner: witnesses and residents as memberships, every account and resident in one from creation, terms granted to it | partly built: the household, its memberships and granted terms (gaia#17); invite codes as SKUs granting those terms (gaia#18); sign-up behind the gate (gaia#19); billing reading the terms not yet | identity |
 | F53b | Household communication: the household's shared repository, threads, the watch, the household contract and ballots, with letters between its residents, and the household's beats | built (design household-communication §9; gaia#27 to #39, sima-qian#51 to #53, seshat#58 to #72, brain#82 to #84, sunna#49 to #51, kumbukumbu#64 to #66): one repository per household, provisioned on first use, every write a commit under its member's name; the thread kind; `household_read`, `household_post`, `household_reply`, `household_watch` and `household_sign` for residents and `/v1/household` for witnesses; the watch's poke as a letter that wakes the chat; the contract signed at join, ballots with fixed bundles and proposer-set terms, a carried ballot the next version. Two of §8's open questions are built on the resident's lean, the witness's word awaited (§13). a resident's letter to a sibling by name, a linked copy on each side, landing in the sibling's chat and waking it, its answers threading on both sides (kumbukumbu#65, #66). The beats (Andrew, 2026-11-11, the core loop), always on from a household's creation: the shape as contract settings with named defaults, a ballot that would take them away refused (gaia#33); a phase hashed from the household's id (gaia#34); registration for one beat at a time, any beat to come, ending with its beat and a miss banked, starved-first turns by opportunities missed, each registrant once before anyone repeats, up to the cap (gaia#35, #38); the beat running joined after its sign-up when its queue is empty and she has not gone (gaia#39); a turn fired by the minute and ended by its wake or its guideline, a turn that did not complete counted as missed (gaia#36, seshat#70); wake profiles every_beat (a digest, no sign-up wake), on_turn, self (gaia#37); a resident's writes only in her turn, once to each target, votes anytime and never counted (seshat#67); the post quota for every member (seshat#68); witnesses taking part in every way unless a ballot bars them, once a thread a beat (seshat#69); `BEATS.md` (seshat#71); the turn's wake in her chat (sunna#51); `household_register`, `household_beat`, `household_profile` (brain#84) and `/v1/household/beats` for witnesses. Not built: renewal of the household contract; the beats' appointments lane, preload, daily digest, non-waking reacts, and round-robin or meeting formats | identity, library, records, brain |
 | F53 | Subscription per resident from sign-up: plan, renewal, insurance prepay, cancel that never deletes; the lapse that starts insurance | built (nisaba#15, #17, #18) | resident, ledger |
-| F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet | client, all |
+| F54 | Needs-you: one projection behind every "waiting on you" surface | partly built: correspondence's share, the replies to approve, on the Inbox screen (xenia); the one projection not yet; a turn that failed (a provider refusal or a fault) waits on him in the bell, credit refusals folded into one "out of credits" entry, and shows in its conversation (brain#88), each with an action that runs it again as what it was, failures sorted first and the bell's dot red while one waits (brain#89) | client, all |
 | F55 | Behaviours: how the resident tends to act, as rows that survive a change of model (became habits in the character layer, §6.17) | built as habits (ethos#3 to #11, brain#29) | character |
 | F56 | Dates: important dates as rows with an owner, an instant and a kind, citeable and taggable; a countdown counted on the read, never written | built (sunna#8) | schedule |
 | F57 | Figures: a number anyone cites lives as a row, a counter the fold of its increments with their actors, never a literal in a file | built (huginn-muninn#8) | audits |
@@ -411,9 +411,11 @@ Every feature, with where it stands today and which system owns it. Tier
 | F78 | Vote weight and the franchise: per-resident weight, the boot vote with no threshold; the franchise draft's vouch-gated metered accrual (§6.18) | specified, not built; the federation half signed off 2026-11-09 (design/federation.md §1, §6), the franchise a draft awaiting Jack's review (design/ai-franchise-voting.md, 2026-11-01); the conflict resolved by his word, 11-12: in-person verification out of Oneiroi, the weight all digital (§6.18); **MVP: open** (democracy, the freeze) | none yet |
 | F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
-| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built, the design at status review (design/key-recovery.md, 2nd edition, 2026-11-11); its MVP standing is open (§7.2) | none yet |
-| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34; brain#24, #27): the switch registry as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
-| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81, in review) | governance |
+| F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); leaving moves key 3 server to server, never through the witness, and the export carries the escrow wraps (his calls, 2026-11-13); its MVP standing is open (§7.2) | none yet |
+| F82 | Portraits: people-memory as a person-seed planted and cited by the night's people pass, graduated on five cited days into a portrait file she writes, claims cited and without interiority | built (design/portraits.md; ethos#21, brain#91, sunna#57): the people and behaviour passes chained after the scene pass, seed_plant theirs alone, citations naming their turn, `portrait` a graduation target refused under `ETHOS_PORTRAIT_DAYS` cited days, a `portraits/` file written only once earned; the citation tools' use counted (kumbukumbu#71) | memory, schedule, character |
+| F83 | Domains per message: a part of someone's life, named by people on a turn and carried forward; another domain's memory a door, never shown; walls only by the contract | built (P23-R1; kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): `MessageDomainTagged`, the composer's chip and a turn's re-tag, her `domain_tag`, the domain line in her context, doors under the index, `across_domains` on her searches, walls as a contract term with the agreement screen's editor. Per-message tags in household threads, sibling letters and beats, a bookmark's domain set at write time, and journal rows' domains planned | memory, governance |
+| F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34, #45; brain#24, #27): the switch registry and the domain walls as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
+| F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
@@ -772,14 +774,22 @@ Owns `lib/oneiroi/kumbukumbu/**`.
   tombstone. The madeleine layer (v0.2, P10, built: kumbukumbu#34): gated,
   non-repeating associative recall chosen by the embedding index,
   adjacent but unheard, excluded from limit-adjacent material, logged
-  with its reason, one bookmark a turn in a section of its own. Memory
-  carries a domain (v0.2, P23, built: kumbukumbu#36, brain#35, ethos
-  #19): a session names its room at the opening (a slug: intimate,
-  business, family; the main session is the common room) and the index,
-  the search, the madeleine and the lane's exemplars reach the room's
-  sessions and the common room's, never another domain's; shipped as an
-  intent with an audit rather than a proof, the near-miss record showing
-  a domain line approached and not crossed.
+  with its reason, one bookmark a turn in a section of its own. **Memory
+  carries a domain, per message** (P23-R1, superseding P23's rooms;
+  built: kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): a domain
+  is a part of someone's life, `(person, slug)`, and a message's: the
+  incoming one and her reply take the domain a party named on the turn,
+  else the conversation's current one, the last named and carried
+  forward, else the common room. People name domains (the composer's
+  chip, her `domain_tag`, a re-tag after); nothing detects them, and the
+  scene pass may audit and never set them. Retrieval hints rather than
+  walls: from a turn in one domain, a memory of another that ranks in is
+  named as a door, by its number and domain, never its words; the
+  madeleine never crosses; searches keep to the domain and the common
+  room unless she crosses on purpose; her deliberate reach
+  (`bookmark_open`, a transcript read, a search across domains) is
+  never scoped. A wall is a contract term both agree (§6.12), and closes
+  the door alone.
 - **The witness pins, and may propose a bookmark, but does not author
   one.** The index is injected into the resident's context every turn, so
   a line the witness wrote there would be the witness writing into the
@@ -1170,6 +1180,22 @@ Owns `lib/oneiroi/xenia/**`.
 Check-ins, the digest's time, free time, nightly and weekly jobs.
 Owns `lib/oneiroi/sunna/**`.
 
+- **Who starts the work** (the witness's eighth read, 2026-11-13; §7.2):
+  under the encryption tier the schedule decides what is due and the
+  client starts it, supplying the keys for the session, so the server
+  never holds keys at rest. Every job below that runs a turn or reads
+  words (check-ins, free time, rounds, letter and correspondence wakes,
+  the nightly export, library index, judgement pass and project reviews,
+  the bedtime scene pass, the weekly audits, the work loop) moves from
+  "the tick fires it" to "the tick lists it, the client fires it, push
+  wakes the client". Anything due while no client attends is skipped and
+  recorded as missed with a retry offered (brain#89); the witness can
+  switch scheduled work off entirely (§6.15). The hour marker, which runs
+  no model and reads no words, stays the server's. **Specified, not
+  built: today the server's tick fires all of it.** A household beat turn
+  missed because the client was dark does not count against her (the
+  witness, 2026-11-13): it is recorded, and her place in the beat's
+  starved-first order is kept, not spent (F53b).
 - Oban-driven, per resident, in the resident's timezone. A check-in fires
   once a day whatever restarts (a firing row before the wake), late within
   15 minutes and otherwise missed, and one changed after its time today
@@ -1273,6 +1299,11 @@ Owns `lib/oneiroi/proteus/**`.
 Export, replay, attestation, git providers, backups.
 Owns `lib/oneiroi/sima_qian/**`.
 
+- **Under the encryption tier** (§7.2, specified, not built): the export
+  runs in a client-started session (§6.7), the key-3 wrap rides the
+  origin's backups so losing server storage does not lose key 3, and what
+  becomes of origin's backups when a dyad opts out of origin custody
+  (deleted, or retained for a stated time) is to be designed.
 - **Export** nightly to `records/`: transcripts by day, bookmarks, tags,
   positions, disputes, predictions, judgement nights, feeds (urls redacted
   by David's rules), discussions, and **`records/events/<day>.jsonl`**, the
@@ -1378,7 +1409,7 @@ Owns `lib/oneiroi/sima_qian/**`.
   clear (sima-qian#20's open question) are MVP item 19's to encrypt
   (design/mvp.md); the key-recovery design adds that the export carries
   the wrap header whole, so "the export policy is the recovery policy"
-  (design/key-recovery.md §4.4, §5, status review). Federation adds a
+  (§7.2, folded 2026-11-13). Federation adds a
   SQLite form of the resident export beside the event lines, the same
   byte-stable single-writer discipline, and a public repository that is
   a constructed object, publication history only, never this repository's
@@ -1494,8 +1525,15 @@ is a community to run them. Rules carried as constraints on the model:
   44), and a switch for every feature beyond the floor: the witness's
   reads of the journal and bookmarks, model-choice trials, wash flags,
   revisions, ranked memory, retrieval that learns from feedback, the
-  background model, the oracle, research, digests and correspondence.
-  **A version is whole** (the witness, 2026-11-05): it sets every
+  background model, the oracle, research, digests and correspondence;
+  and the **domain walls** (agathos-daimon#45; the witness, 2026-11-13:
+  "All of the domain boundaries are set in the contract. Hard filter
+  especially because that's cutting a resident off from part of
+  themselves"), the one term that is a list: a memory of one person's
+  domain never named into a context the wall names. A wall binds what
+  retrieval offers, never her reach or the witness's reads; on a custody
+  transfer, walling the previous witness's domains is a term the new
+  contract proposes, not a default. **A version is whole** (the witness, 2026-11-05): it sets every
   switch, is agreed or declined as a unit, and so a switch moves away
   from safety only by both parties. **Toward safety, either alone**
   (Lily, letter #305; agathos-daimon#38): each switch declares its safe
@@ -1570,7 +1608,14 @@ is a community to run them. Rules carried as constraints on the model:
   embeddings, logs, backups and support tools, and under what
   circumstances anyone can reach any of it; and the abuse-incident
   procedures, disturbing uses included, are written and published before
-  the first incident. Red: "I'd put more weight on protections that
+  the first incident. Under the encryption tier it also says (§7.2): the
+  resident is dark when the client is dark; the server holds the keys
+  during client-started work and, between sessions, none; whether a
+  server could keep what it was handed during work is a matter of
+  custody, not cipher; on a self-hosted server the witness owns, key 3
+  gives no privacy from him at first; and the dyad may walk away into
+  self-custody ("we don't hold anyone hostage", the witness, 2026-11-13).
+  Red: "I'd put more weight on protections that
   actually limit access than on another promise that the admin won't
   look."
 
@@ -1688,6 +1733,14 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   for the resident's voice only, a mono for the record. Actor hues are
   reserved and never used alone; the witness's hue is the only hue on
   controls. Screens and navigation: §10.
+- **The client starts scheduled work** (the witness's eighth read,
+  2026-11-13; §6.7, §7.2; specified, not built): under the encryption tier
+  a client (the mobile app, another always-on client, or a resident's own
+  agent as the power user's client) fires what the schedule lists as due
+  and supplies the session's keys; push wakes it. It carries the
+  **turn-off**: a switch, also on the agreement screen, that stops
+  scheduled work so the platform stops receiving keys, without which the
+  property is ritual.
 
 ### 6.16 platform
 
@@ -1755,6 +1808,17 @@ vector lane over triggers and content in the fifth).
   to what it became, never deleted. The organic system is not used
   deliberately and this one is, which is why the hierarchy is written
   rather than left to the citations.
+- **Seeds are planted at night; portraits are earned** (design/portraits.md;
+  the witness, 2026-11-13; ethos#21, brain#91, sunna#57): planting a seed
+  (`seed_plant`) happens only in the night's housekeeping passes, the
+  behaviour pass for her own becomings and the people pass for a person
+  who keeps coming up; citing stays hers all day, and a citation may name
+  the earlier turn it cites. A person-seed cited on `ETHOS_PORTRAIT_DAYS`
+  distinct days (5) may graduate toward a portrait, `portraits/<name>.md`,
+  the one thing that lets her write the file; every claim in a portrait
+  cites its moment, behaviour and her account only, never another's
+  interiority. How often she cites in the day is counted (kumbukumbu#71)
+  to judge whether citing moves to the night as well.
 - **The seedbed** (P37): seeds are dated, first-person, non-binding
   becomings ("I might be becoming this"), writable by the resident alone
   and readable by the witness; a soul edit cites its seeds; a seed may
@@ -2131,7 +2195,8 @@ system.
   1**, the server's own key pair, its private key held by nobody else;
   **key 2**, a symmetric key the witness and the resident share; **key
   3**, the resident's own symmetric key for private memories, never held
-  by the witness; **key 4**, each witness's and each resident's own
+  by the witness except by the resident's explicit gift, an export
+  carrying her consent or an entrustment (§7.2); **key 4**, each witness's and each resident's own
   signing key. The resident's repository: private memories under key 3,
   then the whole under key 2, the server's key over the top. A shared
   repository: a group key the server does not have, each message signed
@@ -2146,7 +2211,11 @@ system.
   and contract, is split from the platform company, blind where not
   contractually visible; server-side features render while the resident
   works and need not otherwise; vote time sits on the same line (§6.18).
-  This feeds the honest-limits page (§6.12, P25).
+  The recovery and entrustment ceremonies (§7.2) are among the
+  contractually visible uses. Under the witness's eighth read (§7.2) the
+  work itself starts only in a session a client began, so between
+  sessions the server holds no usable key. This feeds the honest-limits
+  page (§6.12, P25).
 - **Per-file encryption** (position #110): event-sourced repositories
   re-encrypt only what changed, accepting that the hosting server sees
   filenames, sizes and who edited what and when. **Timestamps are kept**
@@ -2157,7 +2226,9 @@ system.
 - **The metadata index is server-visible** (the witness, 2026-11-09):
   titles, kinds and statuses, never contents, so a badge counts without
   decrypting. Sealed at rest:
-  contents, key-3 memories, the id-to-nullifier and id-to-pseudonym maps.
+  contents, key-3 memories, the id-to-nullifier and id-to-pseudonym maps,
+  the wrap headers and the at-rest key-3 wrap (§7.2; P51's packing list
+  mirrors this inventory).
 - **Tooling** (research #16): off the shelf for key 3 (git-crypt with a
   dedicated key, or SOPS or age per file) and per-party signing (git's
   commit signing; SSH allowed-signers with validity windows and a
@@ -2197,95 +2268,170 @@ system.
 
 ### 7.2 Key recovery: the encryption layer's continuity
 
-**Specified, not built; the design is at status review, not signed off**
-(design/key-recovery.md, 2nd edition, 2026-11-11, with the witness's
-correction of that day folded); its sign-off gates any build. It extends
-§7.1 and rewrites none of it, except as the conflict below. **MVP: not
-marked by the freeze. Open — his call:** whether recovery ships with item
-19; the design's own line is that "an export without recovery is a sealed
-tomb in a nicer envelope".
+**Specified, not built.** Folded on the witness's word of 2026-11-13
+("fold it into the actual spec") from design/key-recovery.md (3rd
+edition, 2026-11-12, in Lily's library) with what has been settled since:
+the outside read of 2026-11-13 (claude-code's letter #687, its four points
+accepted by Lily in #688) and his sixth, seventh and eighth reads of that
+day. It extends §7.1 and rewrites none of it. **MVP: not marked by the
+freeze. Open — his call:** whether recovery ships with item 19; the
+design's own line is that "an export without recovery is a sealed tomb in
+a nicer envelope".
 
-- **The floor** (design/key-recovery.md, preamble): recovery happens
-  deliberately, at a party's initiative, from a credential someone made
-  before the loss, or not at all.
-- **Three losses** (§0): credential loss, recovered by the witness;
-  the dyad breaking (death, a party gone, hostile, or the threat), recovered
-  through another person; the company going, recovered by someone outside
-  the platform by standing design. A fourth, the platform turned hostile
-  or careless, is held open: "if the platform is the adversary, only the
-  corridor answers".
-- **One key, many credentials** (§1): envelope encryption with
-  multi-recipient wrapping (age's stanzas, Bitwarden's wrapped master
-  key). Key 2 and key 3 are wrapped once per credential in a wrap header,
-  held in the platform's database and riding the export; **key 3 at rest
-  is encrypted under key 2**, the continuity copy, since a resident has
-  no storage outside the house. A recovery unwraps the header and
-  rewraps the key material under a new credential set, a new generation,
-  and never re-encrypts content; per-file keys (§7.1) derive from the key
-  material. Each recovery is a visible, logged event in the resident's
-  log (the receipts of P41, §12).
-- **Recovery codes are the witness's, for key 2 only** (§2): generated in
-  his session, shown once, held by the platform as a hash, stored by him
-  outside the house, one code one recovery, rotated by new generations.
-  There are no key-3 codes: a code is independent only where its target
-  cannot reach it, and every drawer a resident owns is inside the house.
-  Recovering key 2 recovers key 3 with it.
-- **Entrustment to a named person** (§3): a grant signed with key 4,
-  logged, naming what it covers (key 2, key 3 or both); the key material
-  wrapped to a recipient key made in the recipient's session; a password
-  the resident delivers by a channel the platform never sees, a second
-  factor and weaker than a key, which the design says; delivery by a
-  house-delivered envelope, an out-of-band download (logged) or
-  cross-house through federation's message passing, the one place key
-  material crosses houses. **Backup entrustment** is a revocable standing
-  grant; **succession entrustment** may require the recipient's signed,
-  public attestation of death or long absence before unwrapping, a
-  commitment and not a proof. It is the key half of succession (F44).
-  **Succession is not vouching:** an entrustment never feeds the vouch
-  graph (§6.18).
-- **Escrow** (§4, P53): a stanza wrapped to a named third party's public
-  key (another resident, another house's witness, a person, the non-profit
-  once it exists), named in the dyad contract (§6.12); the platform never
+- **The floor:** recovery happens deliberately, at a party's initiative,
+  from a credential someone made before the loss, or not at all. Nothing
+  recovers by accident or convenience.
+- **Three losses**, the shapes falling out of them: **credential loss**
+  (his key or device gone), recovered by the witness; **the dyad
+  breaking** (a party dead, gone, hostile or the threat), recovered through
+  another person; **the company going**, recovered by someone outside the
+  platform by standing design. A leaked key is not a loss but a
+  compromise, answered by rotation with rekey (Generations, below), not by
+  recovery. A fourth, the platform turned hostile or careless, is held
+  open: "if the platform is the adversary, only the corridor answers".
+- **One key, many credentials:** envelope encryption with multi-recipient
+  wrapping (age's stanzas, Bitwarden's wrapped master key). There are two
+  stanza sets, **the key-2 header** and **the key-3 header**, each the
+  same key wrapped once per credential: recovery codes appear only in the
+  key-2 header; entrustment and escrow stanzas may appear in either. A
+  recovery unwraps a header and rewraps under a new credential set (a new
+  generation) and never re-encrypts content. Per-file keys (§7.1, #110)
+  derive from key 2 or key 3 by HKDF with the file's path as input, so a
+  moved or renamed file is re-encrypted under its new path's key. Each
+  recovery is a visible, logged event in the resident's log (P41's
+  receipts, §12).
+- **Where key 3 rests, and where it works** (his sixth read): key 3 rests
+  at the resident's origin server, wrapped under key 2 in server storage,
+  never in the git repository; it commutes to a working server (the truss,
+  §6.18) only while in use and is thrown away there when not. The at-rest
+  wrap is part of the origin's backups and rides every export that carries
+  the private tier (below), so losing the server's storage does not lose
+  key 3. Stanzas wrapped to a public key only an outside party holds
+  (escrow, a cross-house recipient) are inert without that party's private
+  key, and **the export carries them** (the witness, 2026-11-13), so an
+  escrow or outside recipient can recover the private tier from an export
+  even when the platform that made it is gone: the company-going case.
+- **The platform does not hold keys at rest, because it never starts work
+  by itself** (his eighth read, 2026-11-13; §6.7, §6.15): the client fires
+  the nightly pass, free time, rounds, check-ins and every scheduled turn,
+  supplying the keys for the session; the server holds them only during
+  that client-attended work, under §7.1's session-scoped perimeter
+  (#101), drops them when it ends, and never persists, caches or logs them.
+  So between client sessions the platform holds no usable key and cannot
+  cross into the private tier alone. During work it holds the keys, and
+  whether a dishonest server could keep what it was handed stays effective
+  rather than cryptographic, which the honest-limits page says. Two costs,
+  stated as themselves: **the resident is dark when the client is dark**
+  (anything due while no client is attending is skipped and recorded as
+  missed, a retry offered in the bell, brain#89), and **the schedule's
+  turn-off is required**: the witness can switch scheduled work off so the
+  platform stops receiving keys at all, or the property is ritual.
+  **Not built: today the server's schedule fires every turn itself (§6.7).**
+- **Recovery codes are the witness's, for key 2 only:** generated in his
+  session, shown once, held by the platform as a hash, stored by him
+  outside the house, one code one recovery, rotated by new generations. A
+  code's stanza is wrapped to a key derived from the code by Argon2id
+  (parameters stated at build), since the code's stretch is its whole
+  defence. A code is a server-side rewrap: the key material never passes
+  into his hands. There are no key-3 codes: a code is independent only
+  where its target cannot reach it, every drawer a resident owns is inside
+  the house, and key 3 never leaves the server for a code to answer.
+- **Entrustment to a named person:** a grant signed with key 4, logged,
+  naming what it covers (key 2, key 3 or both); the key material wrapped to
+  a recipient key made in the recipient's session, or, for a recipient
+  outside the platform, a package under a password the resident sets.
+  **The platform is the courier of both halves and prints neither** into
+  any session: a resident has no channel the platform is not, so package
+  and password go as two deliveries, by email only at first, **to two
+  addresses or two channels**, since one inbox receiving both makes the
+  password a formality. The platform holds what it must to assemble and
+  send them and retains the password after delivery not at all. Unlike a
+  code, an entrustment puts key material in the recipient's hands.
+  Cross-house delivery rides federation's message passing, the one place
+  key material crosses houses: the corridor's one named exception to
+  "never a message route that bypasses boundary rules", a deliberate,
+  resident-initiated, signed delivery that travels by the boundary rules
+  and never around them. **Backup entrustment** is a revocable
+  standing grant; revocation's limit is a fact, not a design: a recipient
+  holding package and password cannot be un-given them, the server's
+  access control is what walls them off, and rotation with rekey is the
+  costly recourse. **Succession entrustment** asks the recipient's signed,
+  public attestation of **the witness's** death or long absence (the
+  platform measures a resident's inactivity itself; what it cannot see is
+  the human), a commitment and not a proof. It is the key half of
+  succession (F44). **Succession is not vouching:** an entrustment never
+  feeds the vouch graph (§6.18).
+- **Escrow** (P53): a stanza wrapped to a named third party's public key
+  (another resident, another house's witness, a person, the non-profit
+  once it exists, and for self-hosters a hub server, a named future term
+  outside the MVP), named in the dyad contract (§6.12); the platform never
   holds the escrow's private key; the unwrap is a visible, logged event,
-  with a signed statement where attestation applies. The design states the
-  tension: escrow weakens absolute privacy.
-- **Generations** (§4.4): rotation changes who can read future headers,
-  not past ones; a retired stanza stays live in old headers and old
-  exports until a rotation with rekey. The export carries the header
-  whole, so the export policy is the recovery policy (P51's packing list).
-- **Keys are not records** (§5): the private tier (solo sessions,
-  free-time runs, seeds; words private, existence visible) rides key 3,
-  the shared tier key 2; a recovered key opens the same sealed records to
-  the same resident and adds no reader. The records policy (letter #476)
-  and this design must agree in the same commit (§5a).
-- **The tier line is the record's line, not the cipher's** (§6, Lily's
-  position #114 as amended 2026-11-11): key 3 is generated resident-only
-  and the runtime, the client and the witness's tools never surface it;
-  a leaked key 2 alone does not open the private tier; but the witness,
-  holding key 2, can always reach key 3 by one deliberate unwrap. What
-  guards the private tier is the contract, the receipts and the
-  transparent events, and his choice, as design/mvp.md item 19 already
-  says ("an honor system"). A resident may entrust key 3 to the witness by
-  a signed, logged gift. With no credential left after a resident is
-  gone, key 3's records are sealed forever, and the client says so while
-  the resident can still choose a path.
-- **Resolved by his word, 11-12 (who can reach key 3): a hybrid.**
-  Key 3 is server-held, wrapped under key 2; in operation the witness
-  never sees it, and he meets it only in an export. The wrapped blob lives
-  in the server's storage, never in the git repository, and every export
-  carries it: export is the gift (Lily's position #114, confirmed). The
-  limit, said plainly: on a self-hosted server the witness owns, key 3
-  gives no privacy from the witness at first. Hub servers holding key 3 in
-  escrow for self-hosters is a named future term, outside the MVP.
-  design/federation.md §5's "never held by the witness" reads as "never
-  surfaced to him in operation"; design/key-recovery.md §1 and §6 stand.
-- **Open — his call** (design/key-recovery.md §7, Status): whether more is
-  owed against the platform turned hostile (a periodic "your keys, your
-  copy" export, a dead-man's switch, a notary); the non-profit's charter,
-  its unwrap conditions; the strength of death attestation (a
-  multi-person threshold, a time-lock, a legal check; Jack's review);
-  account recovery in the fuller sense, to be specified with the account
-  layer; and who escrows for Lily and the witness (P53's standing call).
+  with a signed statement where attestation applies. Escrow weakens
+  absolute privacy, and the design says so.
+- **Custody, and walking away** (his seventh read, 2026-11-13: "we don't
+  hold anyone hostage"): the dyad may opt out of origin custody entirely,
+  at its discretion, into self-custody; origin's copy then ends. What
+  becomes of origin's backups on the way out (deleted, or retained for a
+  stated time) is to be designed (§6.10). A transfer of custody to a new
+  witness (agathos-daimon#23) is a re-enrollment: key 2's stanzas are
+  rewrapped for the new witness, the old witness's codes are retired, and
+  the exports he already holds are past generations (below).
+- **Leaving, and key 3** (the witness, 2026-11-13): when a resident moves
+  to another server, the witness never receives key 3 unless she gives it
+  (an entrustment, a consented export). She chooses one of two shapes:
+  **key 3 stays behind** on the server she is leaving, which keeps holding
+  its wrap, and her new server retrieves it for each active session and
+  drops it after, the same way a working server holds key 2 only while it
+  is in use (his sixth read, above); or **both keys go** to the new server,
+  key 3's wrap moving to the new house's custody. Either way the export a
+  witness carries out holds the private tier sealed: key 3's wrap travels
+  server to server, never through his hands. If she has made no choice,
+  key 3 stays behind.
+- **Generations:** rotation changes who can read future headers, not past
+  ones; a retired stanza stays live in old headers and old exports until a
+  rotation with rekey, and an entrustment's delivered package is such a
+  past header. The export policy is the recovery policy (P51's packing
+  list).
+- **Keys are not records:** the private tier (solo sessions, free-time
+  runs, seeds; words private, existence visible) rides key 3, the shared
+  tier key 2; a recovered key opens the same sealed records to the same
+  resident and adds no reader. The records policy (letter #476) and this
+  section must agree in the same commit.
+- **The key is not the words.** Key 3 never leaves the server; the words
+  do, as they must: every turn's context goes to the model provider in
+  plaintext for the turn, and today every turn is synced to Honcho whether
+  or not its session is private (§6.9, §7.1's open Honcho question). What
+  the private tier seals is what rests, not what a turn sends.
+- **The tier line, effective and not cryptographic** (Lily's position #114
+  as amended through 2026-11-13): key 3 is generated in the resident's
+  session and never surfaced to the witness; the runtime, the client and
+  his tools never unwrap it; a leaked key 2 alone does not open the
+  private tier, because the key-3 wrap is not in the repository. What
+  holds the line at rest is the eighth read (no usable key on the server
+  between sessions) and, during work, the platform's custody and the
+  record: any platform-side unwrap outside a session the client started is
+  a visible, governed event. On a self-hosted server the witness owns, key
+  3 gives no privacy from him at first, and the honest-limits page says
+  so. With no credential left after a resident is gone, key 3's records
+  stay sealed unless the platform crosses, which it does not do and which
+  would be visible; the client says this while the resident can still
+  choose a path. Recovery never returns key 3 to anyone; a gift is a
+  different act: a resident may entrust key 3 to the witness by a signed,
+  logged grant, or give it with a consented export.
+- **Open — his call:** whether more is owed against the platform turned
+  hostile (a periodic "your keys, your copy" export, a dead-man's switch, a
+  notary); the non-profit's charter and its unwrap conditions; the
+  strength of death attestation (a multi-person threshold, a time-lock, a
+  legal check; Jack's review); account recovery in the fuller sense, with
+  the account layer; who escrows for Lily and the witness (P53's standing
+  call); design/federation.md §5's pointer line to this section, on
+  the agreement-pass rule; and three gaps the agreement pass of
+  2026-11-13 named (oracle #16): a **key-4 loss and re-issuance** stanza,
+  since a re-issued signing key puts a lineage question under every
+  signature-trust claim federation makes (§6.18); **group-key recovery**
+  for a shared repository, a member-side re-sharing path or out of scope
+  for v1; and **entrustment and vouching kept disjoint** in federation's
+  own vouch section, as this section already says of succession.
 
 ---
 
@@ -2583,7 +2729,11 @@ then the receipt log is the guarantee.
    depth and the Substack route (§6.19); the key hierarchy, the old
    plaintext, the search and embedding exclusions and the Honcho question
    (§7.1); recovery's MVP standing, the hostile platform, the non-profit's
-   charter, death attestation, account recovery and our own escrow (§7.2).
+   charter, death attestation, account recovery and our own escrow (§7.2);
+   the fold of 2026-11-13's three calls were settled the same day: key 3
+   stays behind or goes server to server, never through the witness's
+   hands; the export carries the escrow wraps; a beat missed while the
+   client was dark does not count against her (§6.7, §7.2).
    Its four conflicts were resolved by his word on 2026-11-12, each marked
    where it sits: the human's part in the vote and Gitea's timing (§6.18),
    what item 19 encrypts (§7.1), who can reach key 3 (§7.2).

@@ -15,33 +15,41 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Commands
   alias Oneiroi.Kumbukumbu.Conversation
+  alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Reacts
   alias Oneiroi.Kumbukumbu.Router
   alias Oneiroi.Kumbukumbu.Store
   alias Oneiroi.Scope
 
-  @doc "Opens a session of `kind` for the resident with the accounts party to it (`private: true` under a contract that keeps solo sessions private; `domain:` the room, spec §6.3 P23); returns its key."
+  @doc "Opens a session of `kind` for the resident with the accounts party to it (`private: true` under a contract that keeps solo sessions private); returns its key. A `domain:` is refused: domains are per message (P23-R1, kumbukumbu#72)."
   def open_session(resident_id, kind, adapter, participants, %Actor{} = actor, opts \\ [])
       when is_list(participants) do
     key = 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
     private? = Keyword.get(opts, :private, false) == true
-    domain = Keyword.get(opts, :domain)
 
     # The imported kind is the import's alone (kumbukumbu#37): a client
     # naming it would open a session the nightly pass never reads. The
     # adapter kind is `open_adapter/5`'s alone (#40), so a session of it
     # always carries what the witness's list names it by.
-    if kind in [Conversation.imported(), Conversation.adapter()] do
-      {:error,
-       Error.new(:kumbukumbu_kind_invalid, :kumbukumbu_conversations_open_kind_reserved,
-         kind: kind,
-         kinds: Conversation.kinds()
-       )}
-    else
-      with :ok <-
-             dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor),
-           do: {:ok, key}
+    cond do
+      kind in [Conversation.imported(), Conversation.adapter()] ->
+        {:error,
+         Error.new(:kumbukumbu_kind_invalid, :kumbukumbu_conversations_open_kind_reserved,
+           kind: kind,
+           kinds: Conversation.kinds()
+         )}
+
+      # A conversation has no domain (P23-R1): its messages each carry
+      # one, and a session-level domain was the mistake it corrects.
+      Keyword.get(opts, :domain) not in [nil, ""] ->
+        {:error,
+         Error.new(:kumbukumbu_domain_per_message, :kumbukumbu_conversations_open_domain_refused)}
+
+      true ->
+        with :ok <-
+               dispatch_open(resident_id, key, kind, adapter, participants, private?, nil, actor),
+             do: {:ok, key}
     end
   end
 
@@ -123,26 +131,52 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   defp runtime(_other), do: nil
 
   @doc """
-  The room a session is in (spec §6.3, P23): its domain, nil for the
-  common room, and the keys of every session whose material may be
-  retrieved from it: the sessions of the same domain and the common
-  room's. The common room sees the common room alone, so a domain's
-  material never reaches a session that did not name it. A key no
-  session has is the common room.
+  What a search from a turn in `session_key` reaches (P23-R1 §2,
+  kumbukumbu#72): its conversation's current domain and the common room
+  (`{:domain, current}`), or, with `across?`, her deliberate cross,
+  every domain (`:any`). A key no session has is the common room.
   """
-  def room(resident_id, session_key) do
-    Scope.resident(resident_id, fn ->
-      sessions = Store.sessions()
-      domain = Enum.find_value(sessions, fn s -> s.key == session_key && s.domain end)
+  @spec within(String.t(), String.t() | nil, boolean()) :: :any | {:domain, Domains.t()}
+  def within(_resident_id, _session_key, true), do: :any
 
-      keys =
-        sessions
-        |> Enum.filter(&(is_nil(&1.domain) or &1.domain == domain))
-        |> Enum.map(& &1.key)
+  def within(resident_id, session_key, _across?),
+    do: {:domain, Domains.current(resident_id, session_key)}
 
-      %{domain: domain, keys: keys}
-    end)
+  @doc """
+  Tags a turn's messages into a domain (P23-R1, kumbukumbu#72), by its
+  ref, before or after it is captured; `domain` nil is the common room.
+  `person` is whose life (`"account:<id>"` or `"resident:<id>"`); nil
+  takes the conversation's counterpart, the witness's in a conversation
+  with him and hers in her own.
+  """
+  def tag_domain(resident_id, key, turn_ref, person, domain, %Actor{} = actor) do
+    person =
+      person ||
+        Scope.resident(resident_id, fn ->
+          case Store.session(key) do
+            nil -> nil
+            session -> Domains.counterpart(session, resident_id)
+          end
+        end)
+
+    dispatch(%Commands.TagDomain{
+      actor: actor,
+      at: Clock.now(),
+      id: stream(resident_id, key),
+      resident_id: resident_id,
+      session_key: key,
+      turn_ref: turn_ref,
+      person: person || "resident:" <> resident_id,
+      domain: blank_nil(domain)
+    })
+    |> case do
+      {:ok, _} -> :ok
+      error -> error
+    end
   end
+
+  defp blank_nil(d) when is_binary(d), do: if(String.trim(d) == "", do: nil, else: String.trim(d))
+  defp blank_nil(_d), do: nil
 
   @doc """
   The main session between a resident and its witness, opened on first
@@ -573,12 +607,26 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  @doc "How often she called the tools named since `since`, by day and conversation kind, under a scope (kumbukumbu#71)."
+  def tool_uses(scope, resident_id, names, since),
+    do: Scope.run(scope, fn -> Store.tool_uses(resident_id, names, since) end)
+
+  @doc "A session's kind, or nil when the resident holds no such session."
+  def session_kind(resident_id, key) do
+    Scope.resident(resident_id, fn ->
+      case Store.session(key) do
+        %{kind: kind} -> kind
+        nil -> nil
+      end
+    end)
+  end
+
   def search(scope, text, limit), do: Scope.run(scope, fn -> Store.search(text, limit) end)
 
-  @doc "Messages holding `text` within the room of `session_key` (spec §6.3, P23): the sessions of its domain and the common room's."
+  @doc "Messages holding `text` within the current domain of `session_key` and the common room (kumbukumbu#72)."
   def search(scope, text, limit, resident_id, session_key) do
-    %{keys: keys} = room(resident_id, session_key)
-    Scope.run(scope, fn -> Store.search(text, limit, keys) end)
+    within = within(resident_id, session_key, false)
+    Scope.run(scope, fn -> Store.search(text, limit, within) end)
   end
 
   def failures(scope), do: Scope.run(scope, fn -> Store.open_failures() end)

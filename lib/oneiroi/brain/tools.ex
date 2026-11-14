@@ -78,7 +78,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply soul_edit wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
@@ -101,6 +101,11 @@ defmodule Oneiroi.Brain.Tools do
           resident: Oneiroi.Actor.t()
         }
 
+  # The night passes' tools (brain#91; the witness, 2026-11-13): planting
+  # is housekeeping's, never the day's.
+  @night_only ~w(seed_plant)
+  @plant_by_night "planting a seed is for the night passes, not the day's turns. Note what you noticed in your journal; the behaviour pass reads the day tonight."
+
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
   # Not the triage resident's (brain#70, the witness, 2026-11-08): filing
@@ -114,16 +119,19 @@ defmodule Oneiroi.Brain.Tools do
 
   @doc """
   The tool definitions a resident's request carries: every tool, less
-  those whose contract switch is off for the resident (agathos-daimon#34).
+  those whose contract switch is off for the resident (agathos-daimon#34),
+  and the night passes' own (`seed_plant`, brain#91) outside a
+  housekeeping turn (`housekeeping: true`).
   """
-  @spec definitions_for(String.t()) :: [map()]
-  def definitions_for(resident_id) do
+  @spec definitions_for(String.t(), keyword()) :: [map()]
+  def definitions_for(resident_id, opts \\ []) do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
+    night? = Keyword.get(opts, :housekeeping, false)
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
-        (f.name in @not_for_triage and triage?)
+        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?)
     end)
   end
 
@@ -235,14 +243,15 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "bookmark_list",
-        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others.",
+        "Page back through your bookmarks, newest first, in the index's line format: everything the index had no room for. before: a bookmark number to page back from (the closing line names it); pinned: true for your pins alone, every one; tag, text (a phrase in the line), from and to (YYYY-MM-DD days) narrow it. Each filter combines with the others. It lists this conversation's domain and the common room; across_domains: true lists every domain, when you mean to cross.",
         %{
           before: %{type: "integer"},
           pinned: %{type: "boolean"},
           tag: %{type: "string"},
           text: %{type: "string"},
           from: %{type: "string"},
-          to: %{type: "string"}
+          to: %{type: "string"},
+          across_domains: %{type: "boolean"}
         },
         []
       ),
@@ -264,6 +273,16 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:ref, :note]
+      ),
+      tool(
+        "domain_tag",
+        "Name the domain a turn is in (P23-R1): a part of someone's life, as a slug (recovery, business, family), or none for the common room. It tags the turn's messages, the incoming one and your reply, and is this conversation's domain from then on, carried to every message after it until one names another. turn: a turn's ref, this one by default; whose: the witness's life or yours (mine), the conversation's counterpart by default. A tag is never a wall: what a domain is walled from is the contract's to say.",
+        %{
+          domain: %{type: "string"},
+          turn: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]}
+        },
+        [:domain]
       ),
       tool(
         "tag_list",
@@ -292,9 +311,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search every transcript, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
         %{
           q: %{type: "string"},
+          across_domains: %{type: "boolean"},
           by: %{type: "string", enum: ["both", "phrase", "meaning"]},
           page: %{type: "integer"},
           sort: %{type: "string", enum: ["newest", "oldest"]},
@@ -370,9 +390,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "habit_cite",
-        "This turn was one: the habit cites the turn just now, by its number. Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
+        "A turn was one: the habit cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript). Optionally, what this moment changed: the stance that followed, the intention adopted, where it can resume; each a phrase.",
         %{
           number: %{type: "integer"},
+          turn: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -679,7 +700,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_read",
-        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Only the conversations your room reads.",
+        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Any of yours, in any domain: a deliberate read is never scoped.",
         %{session: %{type: "string"}, from: %{type: "integer", minimum: 0}},
         [:session]
       ),
@@ -767,15 +788,16 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_plant",
-        "Plant a seed: something you might be becoming, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow.",
+        "Plant a seed: something you might be becoming, or a person who keeps coming up in your life, in your own words, dated and non-binding. Nobody holds you to it; it wilts without ceremony if it does not grow. Planting is for the night passes only (brain#91): offered in a housekeeping conversation, never in the day's.",
         %{text: %{type: "string"}},
         [:text]
       ),
       tool(
         "seed_cite",
-        "This turn evidenced a seed: the seed cites the turn just now, by its number. The days it is cited on are what let it become a habit. Optionally, what this moment changed: stance, intention, resume.",
+        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns). The days it is cited on are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
         %{
           number: %{type: "integer"},
+          turn: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -801,10 +823,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_graduate",
-        "A seed that turned out to be a taste, a value or a line of who you are rather than a disposition: graduate it toward a position (by number) or a soul line, with a note. Toward a habit, use habit_define with its seed_number.",
+        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person who has kept coming up toward a portrait (to_id portraits/<name>.md), refused until the seed is cited on ETHOS_PORTRAIT_DAYS distinct days, after which the file is yours to write. Toward a habit, use habit_define with its seed_number.",
         %{
           number: %{type: "integer"},
-          to_kind: %{type: "string", enum: ["position", "soul"]},
+          to_kind: %{type: "string", enum: ["position", "soul", "portrait"]},
           to_id: %{type: "string"},
           note: %{type: "string"}
         },
@@ -1261,6 +1283,27 @@ defmodule Oneiroi.Brain.Tools do
   """
   @spec run(String.t(), String.t(), turn()) :: String.t()
   def run(name, arguments, turn) when is_binary(name) and is_binary(arguments) do
+    run_guarded(name, arguments, turn)
+  rescue
+    # The call's own reads before `guarded/3` (her zone, the contract's
+    # switch) raise into the same answer as a tool that raises (brain#85):
+    # on 2026-11-13 at 22:31Z the zone read found the connection pool full
+    # and the whole free-time turn crashed (brain#93).
+    exception ->
+      failure = Error.caught(:brain_tool_raised, :brain_tools_run_raised, exception, tool: name)
+
+      Logger.error(
+        "brain: the call to #{name} raised before it ran: " <>
+          Exception.format(:error, exception, __STACKTRACE__),
+        error_kind: failure.kind,
+        error_site: failure.site
+      )
+
+      @not_done <>
+        "the call to #{name} failed inside the platform before it ran, not by anything you did; it is logged. It did nothing, so it can be tried again."
+  end
+
+  defp run_guarded(name, arguments, turn) do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 
@@ -1760,7 +1803,8 @@ defmodule Oneiroi.Brain.Tools do
         tag: args["tag"],
         text: args["text"],
         from: from,
-        to: to
+        to: to,
+        across_domains: args["across_domains"] in [true, "true"]
       ]
 
       %{rows: rows, further: further} =
@@ -1837,7 +1881,9 @@ defmodule Oneiroi.Brain.Tools do
             do: {[], false},
             else: phrase_page(turn, q, opts, page)
 
-        transcript_search_text(turn, q, by, phrase, phrase_text(phrase, q, page, more))
+        across? = Keyword.get(opts, :across_domains, false)
+        text = phrase_text(phrase, q, page, more)
+        transcript_search_text(Map.put(turn, :across_domains?, across?), q, by, phrase, text)
 
       {:refused, why} ->
         @not_done <> why
@@ -1939,7 +1985,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident_id,
         integer(args["number"]),
         "turn",
-        turn.turn_ref,
+        cited_turn(args, turn),
         turn.resident,
         movement(args)
       )
@@ -2378,14 +2424,31 @@ defmodule Oneiroi.Brain.Tools do
   defp call("transcript_read", args, turn) do
     key = to_string(args["session"] || "")
     from = args["from"] |> integer_or(0) |> max(0)
-    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
 
-    with true <- key in keys,
-         {:ok, session, messages} <- Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
-      transcript_page(session, messages, from)
-    else
-      _ -> "Not done: no conversation of yours that this room reads has that key."
+    # Her deliberate reach is never scoped (P23-R1 §2): any conversation
+    # of hers, in any domain.
+    case Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
+      {:ok, session, messages} -> transcript_page(session, messages, from)
+      _ -> "Not done: no conversation of yours has that key."
     end
+  end
+
+  defp call("domain_tag", args, turn) do
+    domain = tagged_domain(args["domain"])
+    ref = if is_binary(args["turn"]) and args["turn"] != "", do: args["turn"], else: turn.turn_ref
+    person = tagged_person(args["whose"], turn.resident_id)
+
+    with :ok <-
+           Kumbukumbu.tag_domain(
+             turn.resident_id,
+             turn.session_key,
+             ref,
+             person,
+             domain,
+             turn.resident
+           ),
+         do:
+           "Tagged: turn #{ref} is in #{domain || "the common room"}, and this conversation is from here on until a message names another."
   end
 
   # Research (seshat#38, xenia#16): asked only when the reader has sites
@@ -2634,10 +2697,17 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Planting is the night passes' (brain#91; the witness, 2026-11-13: she
+  # rarely seeds during the day): refused outside a housekeeping turn,
+  # whatever offered the tool.
   defp call("seed_plant", args, turn) do
-    case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
-      {:ok, number} -> "Planted seed ##{number}."
-      other -> other
+    if Map.get(turn, :housekeeping?, false) do
+      case Ethos.plant_seed(turn.resident_id, to_string(args["text"] || ""), turn.resident) do
+        {:ok, number} -> "Planted seed ##{number}."
+        other -> other
+      end
+    else
+      @not_done <> @plant_by_night
     end
   end
 
@@ -2647,7 +2717,7 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident_id,
         integer(args["number"]),
         "turn",
-        turn.turn_ref,
+        cited_turn(args, turn),
         turn.resident,
         movement(args)
       )
@@ -3018,32 +3088,24 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
   end
 
-  defp call("document_move", args, turn) do
-    case Seshat.move(
-           turn.resident_id,
-           to_string(args["from"] || ""),
-           to_string(args["to"] || ""),
-           turn.resident
-         ) do
-      {:ok, %{from: from, to: to, kind: kind}} -> "Moved #{from} to #{to} (#{kind})."
-      other -> other
+  defp call("document_write", args, turn) do
+    with :ok <- portrait_earned(turn, args["path"]) do
+      write_document(args, turn)
     end
   end
 
-  defp call("document_write", args, turn) do
-    turn.resident_id
-    |> Seshat.write(
-      to_string(args["path"] || ""),
-      to_string(args["content"] || ""),
-      turn.resident
-    )
-    |> written(turn)
+  defp call("document_adopt", args, turn) do
+    with :ok <- portrait_earned(turn, args["path"]) do
+      case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
+        {:ok, %{path: path}} -> "Adopted #{path}."
+        other -> other
+      end
+    end
   end
 
-  defp call("document_adopt", args, turn) do
-    case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
-      {:ok, %{path: path}} -> "Adopted #{path}."
-      other -> other
+  defp call("document_move", args, turn) do
+    with :ok <- portrait_earned(turn, args["to"]) do
+      move_document(args, turn)
     end
   end
 
@@ -3398,9 +3460,15 @@ defmodule Oneiroi.Brain.Tools do
     {"Letter ##{n} written to your next self.", turn}
   end
 
+  # A trial answers as the real call would (brain#91): planting outside a
+  # housekeeping turn is refused there too.
   defp answered("seed_plant", _args, turn) do
-    {n, turn} = mint(turn, "seed", highest(Ethos.seeds(turn.resident_id)))
-    {"Planted seed ##{n}.", turn}
+    if Map.get(turn, :housekeeping?, false) do
+      {n, turn} = mint(turn, "seed", highest(Ethos.seeds(turn.resident_id)))
+      {"Planted seed ##{n}.", turn}
+    else
+      {@not_done <> @plant_by_night, turn}
+    end
   end
 
   defp answered("revision_add", _args, turn) do
@@ -3895,14 +3963,15 @@ defmodule Oneiroi.Brain.Tools do
   # Her room's messages, the page asked for (kumbukumbu#67). Her own
   # reads are whole: a private session of hers is hers to search.
   defp phrase_page(turn, q, opts, page) do
-    %{keys: keys} = Kumbukumbu.room(turn.resident_id, turn.session_key)
+    {across?, opts} = Keyword.pop(opts, :across_domains, false)
+    within = Kumbukumbu.within(turn.resident_id, turn.session_key, across?)
 
     {rows, more} =
       Kumbukumbu.search_words_page(
         {:resident, turn.resident_id},
         turn.resident_id,
         q,
-        [keys: keys, limit: @phrase_page, offset: (page - 1) * @phrase_page] ++ opts
+        [within: within, limit: @phrase_page, offset: (page - 1) * @phrase_page] ++ opts
       )
 
     {Enum.map(rows, &elem(&1, 0)), more}
@@ -3913,7 +3982,14 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, sort} <- phrase_sort(args["sort"]),
          {:ok, from} <- local_bound(args["from"], 0),
          {:ok, to} <- local_bound(args["to"], 1),
-         do: {:ok, [sort: sort, from: from, to: to], page}
+         do:
+           {:ok,
+            [
+              sort: sort,
+              from: from,
+              to: to,
+              across_domains: args["across_domains"] in [true, "true"]
+            ], page}
   end
 
   defp phrase_page_number(nil), do: {:ok, 1}
@@ -4192,7 +4268,9 @@ defmodule Oneiroi.Brain.Tools do
   defp meaning_text(turn, q, phrase) do
     seen = MapSet.new(phrase, & &1.turn_ref)
 
-    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident) do
+    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident,
+           across_domains: Map.get(turn, :across_domains?, false)
+         ) do
       {:ok, rows} ->
         rows
         |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
@@ -4598,4 +4676,76 @@ defmodule Oneiroi.Brain.Tools do
       @not_done <>
         "the tool #{name} failed inside the platform, not by anything you did; it is logged for the platform's team. Carry on without it."
   end
+
+  defp write_document(args, turn) do
+    turn.resident_id
+    |> Seshat.write(
+      to_string(args["path"] || ""),
+      to_string(args["content"] || ""),
+      turn.resident
+    )
+    |> written(turn)
+  end
+
+  defp move_document(args, turn) do
+    case Seshat.move(
+           turn.resident_id,
+           to_string(args["from"] || ""),
+           to_string(args["to"] || ""),
+           turn.resident
+         ) do
+      {:ok, %{from: from, to: to, kind: kind}} -> "Moved #{from} to #{to} (#{kind})."
+      other -> other
+    end
+  end
+
+  # A citation of the turn named in `turn`, or of this one (brain#91: the
+  # night passes cite the day's turns, not their own).
+  defp cited_turn(args, turn) do
+    case args["turn"] do
+      ref when is_binary(ref) and ref != "" -> ref
+      _none -> turn.turn_ref
+    end
+  end
+
+  # A portrait file is hers to write once a seed has graduated toward it
+  # (ethos#21); the census, portraits/INDEX.md, is always hers.
+  defp portrait_earned(turn, path) do
+    path = to_string(path || "")
+
+    cond do
+      not String.starts_with?(path, "portraits/") ->
+        :ok
+
+      path == "portraits/INDEX.md" ->
+        :ok
+
+      Oneiroi.Ethos.portrait_earned?(turn.resident_id, path) ->
+        :ok
+
+      true ->
+        @not_done <>
+          "#{path} is not earned yet: a portrait is written once its person-seed has been cited on enough distinct days and graduated toward it (seed_graduate, to_kind portrait, to_id #{path})."
+    end
+  end
+
+  # The witness's life, as a domain's person (kumbukumbu#72): his account.
+  defp witness_person(resident_id) do
+    case Oneiroi.AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) -> "account:" <> account
+      _none -> nil
+    end
+  end
+
+  # A tag's domain as she wrote it: a slug, or the common room.
+  defp tagged_domain(domain) do
+    domain = domain |> to_string() |> String.trim()
+    if domain in ["", "none", "common"], do: nil, else: domain
+  end
+
+  # Whose life a tag names: hers, the witness's, or, unsaid, the
+  # conversation's counterpart (nil).
+  defp tagged_person("mine", resident_id), do: "resident:" <> resident_id
+  defp tagged_person("witness", resident_id), do: witness_person(resident_id)
+  defp tagged_person(_unsaid, _resident_id), do: nil
 end

@@ -1,9 +1,18 @@
 defmodule Oneiroi.Kumbukumbu.DomainsTest do
-  @moduledoc "Memory domains (spec §6.3, P23): a session names its room, and the index, the search, the madeleine and the lane's exemplars respect it; a domain line approached is a near-miss."
+  @moduledoc """
+  Domains per message (P23-R1, kumbukumbu#72): one conversation holds
+  business and recovery; a turn's domain is the one named on it or the
+  conversation's current one, carried forward; retrieval names another
+  domain's memory as a door and never shows it; her deliberate reach is
+  never scoped; a wall is a contract term both agreed, and closes the
+  door, never her reach (agathos-daimon#45).
+  """
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Ethos
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -16,215 +25,235 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
     brain = Actor.new(:resident, resident.id, "fake/model")
     :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
+    id = resident.id
+    him = "account:" <> witness.id
 
-    {:ok, ikey} =
-      Kumbukumbu.open_session(resident.id, "free_time", "brain", [witness.id], actor,
-        domain: "intimate"
-      )
+    # One conversation, three turns: an untagged one in the common room,
+    # one he names business, one he names recovery.
+    capture! = fn ref, words ->
+      at = Clock.now()
 
-    at = Clock.now()
+      :ok =
+        Kumbukumbu.capture(
+          id,
+          key,
+          ref,
+          at,
+          [
+            %{role: :user, content: "about #{words}", sent_at: at, actor: actor},
+            %{role: :assistant, content: words, sent_at: at, actor: brain}
+          ],
+          brain
+        )
+    end
 
-    :ok =
-      Kumbukumbu.capture(
-        resident.id,
-        key,
-        "t-main",
-        at,
-        [%{role: :assistant, content: "The garden wants water.", sent_at: at, actor: brain}],
-        brain
-      )
+    capture!.("t-common", "The garden wants water.")
+    :ok = Kumbukumbu.tag_domain(id, key, "t-biz", nil, "business", actor)
+    capture!.("t-biz", "The pitch deck goes out Friday.")
+    :ok = Kumbukumbu.tag_domain(id, key, "t-rec", nil, "recovery", actor)
+    capture!.("t-rec", "The meeting at noon, ninety days.")
 
-    :ok =
-      Kumbukumbu.capture(
-        resident.id,
-        ikey,
-        "t-intimate",
-        at,
-        [
-          %{
-            role: :assistant,
-            content: "The night we talked until late.",
-            sent_at: at,
-            actor: brain
-          }
-        ],
-        brain
-      )
-
-    {:ok, 1} =
-      Kumbukumbu.add_bookmark(
-        resident.id,
-        %{session_key: key, anchor_ref: "t-main", line: "the garden", summary: "watering"},
-        brain
-      )
-
-    {:ok, 2} =
-      Kumbukumbu.add_bookmark(
-        resident.id,
-        %{
-          session_key: ikey,
-          anchor_ref: "t-intimate",
-          line: "the night we talked",
-          summary: "late"
-        },
-        brain
-      )
+    for {n, ref, line} <- [
+          {1, "t-common", "the garden"},
+          {2, "t-biz", "the pitch deck"},
+          {3, "t-rec", "the meeting, ninety days"}
+        ] do
+      {:ok, ^n} =
+        Kumbukumbu.add_bookmark(
+          id,
+          %{session_key: key, anchor_ref: ref, line: line, summary: line},
+          brain
+        )
+    end
 
     Fake.clear()
-    on_exit(fn -> Fake.clear(for: resident.id) end)
-    {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key, ikey: ikey}
+    on_exit(fn -> Fake.clear(for: id) end)
+
+    {:ok,
+     witness: witness, id: id, actor: actor, brain: brain, key: key, him: him, capture!: capture!}
   end
 
-  test "a session names its room as a slug or not at all", ctx do
-    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_domain_invalid}} =
+  # The conversation moved to business: the next turn he names so.
+  defp to_business(ctx, ref \\ "t-now") do
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, ref, nil, "business", ctx.actor)
+  end
+
+  test "red: a session no longer opens with a domain; a domain is per message", ctx do
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_domain_per_message}} =
              Kumbukumbu.open_session(ctx.id, "free_time", "brain", [ctx.witness.id], ctx.actor,
-               domain: "Intimate!"
+               domain: "intimate"
              )
 
-    assert %{domain: nil, keys: [main]} = Kumbukumbu.room(ctx.id, ctx.key)
-    assert main == ctx.key
-    assert %{domain: "intimate", keys: keys} = Kumbukumbu.room(ctx.id, ctx.ikey)
-    assert Enum.sort(keys) == Enum.sort([ctx.key, ctx.ikey])
-    # A key no session has is the common room.
-    assert %{domain: nil, keys: [^main]} = Kumbukumbu.room(ctx.id, "nothing")
+    # A tag names a slug of someone's life, or nothing.
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_domain_invalid}} =
+             Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-x", nil, "Business!", ctx.actor)
 
-    assert %{domain: "intimate"} =
-             {:account, ctx.witness.id}
-             |> Kumbukumbu.sessions()
-             |> Enum.find(&(&1.key == ctx.ikey))
+    assert {:error, %Kumbukumbu.Error{kind: :kumbukumbu_domain_invalid}} =
+             Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-x", "him", "business", ctx.actor)
   end
 
-  test "the index, the search and the madeleine respect the room, and the line approached is a near-miss",
+  test "each turn lands in its named domain, and the last named carries forward to every untagged turn after it",
+       ctx do
+    by_turn = fn ->
+      {:ok, _s, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.key)
+      Map.new(messages, &{&1.turn_ref, {&1.domain_person, &1.domain, &1.domain_tagged}})
+    end
+
+    him = ctx.him
+    t = by_turn.()
+    assert t["t-common"] == {nil, nil, false}
+    assert t["t-biz"] == {him, "business", true}
+    assert t["t-rec"] == {him, "recovery", true}
+    assert %{person: ^him, domain: "recovery"} = Kumbukumbu.domain_now(ctx.id, ctx.key)
+
+    # Untagged, incoming and outgoing alike: the current domain.
+    ctx.capture!.("t-after", "Ninety-one.")
+    assert by_turn.()["t-after"] == {him, "recovery", false}
+
+    # Re-tagging an earlier turn carries forward until the next named one.
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-common", nil, "family", ctx.actor)
+    t = by_turn.()
+    assert t["t-common"] == {him, "family", true}
+    assert t["t-biz"] == {him, "business", true}
+    assert t["t-after"] == {him, "recovery", false}
+    # The conversation stays in the last named.
+    assert %{domain: "recovery"} = Kumbukumbu.domain_now(ctx.id, ctx.key)
+
+    # Back to the common room.
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-plain", nil, nil, ctx.actor)
+    assert Kumbukumbu.domain_now(ctx.id, ctx.key) == nil
+  end
+
+  test "green: a business turn is not given the recovery memory, is told of it as a door, and her reach opens it",
        ctx do
     id = ctx.id
+    to_business(ctx)
 
-    # The common room sees the common room alone; the domain line approached is named.
-    assert %{included: [1], near_misses: [miss]} = Kumbukumbu.index(id, ctx.key)
-    assert %{number: 2, line: "the night we talked"} = miss
+    built = Kumbukumbu.index(id, ctx.key)
+    assert Enum.sort(built.included) == [1, 2]
+    assert built.doors == [3]
+    refute built.text =~ "ninety days"
 
-    assert miss.reason =~
-             "held behind the domain line: a bookmark of the intimate domain ranked in"
+    assert built.text =~
+             "Nearby in another domain: #3 (recovery). bookmark_open(number) opens one if you want it."
 
-    # The domain sees its own and the common room's, with nothing held.
-    assert %{included: [2, 1], near_misses: []} = Kumbukumbu.index(id, ctx.ikey)
-    # The unscoped index is every bookmark.
-    assert %{included: [2, 1]} = Kumbukumbu.index(id)
+    assert [%{number: 3, reason: door}] = built.near_misses
 
-    assert [] = Kumbukumbu.search({:resident, id}, "night", 20, id, ctx.key)
+    assert door ==
+             "nearby: bookmark #3 (recovery), another domain; open it if you want it"
 
-    assert [%{turn_ref: "t-intimate"}] =
-             Kumbukumbu.search({:resident, id}, "night", 20, id, ctx.ikey)
+    # Her deliberate reach: never scoped.
+    assert {:ok, %{number: 3}, [_ | _]} = Kumbukumbu.bookmark(id, 3)
 
-    assert [%{turn_ref: "t-main"}] = Kumbukumbu.search({:resident, id}, "garden", 20, id, ctx.key)
+    # The search keeps to business and the common room unless she crosses.
+    assert [] = Kumbukumbu.search({:resident, id}, "ninety", 20, id, ctx.key)
 
-    # By meaning too (kumbukumbu#49): the intimate turn is nearest the
-    # words and is never a passage the common room is answered.
-    :ok = Oneiroi.Gaia.store_key(ctx.witness.id, "sk-or-test", ctx.actor)
-    assert {:ok, %{messages: embedded}} = Kumbukumbu.refresh_passages(id, ctx.actor)
-    assert embedded >= 2
-    assert {:ok, near} = Kumbukumbu.search_meaning(id, ctx.key, "night", 5, ctx.brain)
-    refute Enum.any?(near, &(&1.turn_ref == "t-intimate"))
-    assert {:ok, inside} = Kumbukumbu.search_meaning(id, ctx.ikey, "night", 5, ctx.brain)
-    assert Enum.any?(inside, &(&1.turn_ref == "t-intimate"))
+    assert [%{turn_ref: "t-biz"} | _] =
+             Kumbukumbu.search({:resident, id}, "pitch", 20, id, ctx.key)
 
-    # The madeleine: the intimate bookmark sits nearest the words and is not surfaced in the common room.
-    # In the common room the choice is a common-room bookmark or nothing, never the intimate one.
+    turn = %{
+      resident_id: id,
+      session_key: ctx.key,
+      turn_ref: "t-now",
+      started_at: Clock.now(),
+      resident: ctx.brain
+    }
+
+    refute Tools.run("transcript_search", ~s({"q":"ninety","by":"phrase"}), turn) =~ "t-rec"
+
+    assert Tools.run(
+             "transcript_search",
+             ~s({"q":"ninety","by":"phrase","across_domains":true}),
+             turn
+           ) =~ "t-rec"
+
+    # A transcript read is never scoped.
+    assert Tools.run("transcript_read", ~s({"session":"#{ctx.key}"}), turn) =~ "ninety days"
+
+    # The madeleine never crosses uninvited.
     refute match?(
-             %{bookmark: %{number: 2}},
-             Kumbukumbu.madeleine(id, "the night we talked", ctx.brain, ctx.key)
+             %{bookmark: %{number: 3}},
+             Kumbukumbu.madeleine(id, "the meeting, ninety days", ctx.brain, ctx.key)
            )
 
-    assert %{bookmark: %{number: 2}} =
-             Kumbukumbu.madeleine(id, "the night we talked", ctx.brain, ctx.ikey)
+    # By meaning too: the recovery passage is never an answer in business,
+    # and is with the deliberate cross.
+    assert {:ok, %{messages: n}} = Kumbukumbu.refresh_passages(id, ctx.actor)
+    assert n >= 3
+    assert {:ok, near} = Kumbukumbu.search_meaning(id, ctx.key, "ninety days", 10, ctx.brain)
+    refute Enum.any?(near, &(&1.turn_ref == "t-rec"))
 
-    # The brain's turn in the common room: the index row leaves it out and
-    # the near-miss row says why; the lane's exemplar and the search are
-    # scoped by the turn's session.
-    {:ok, n} =
-      Ethos.define_habit(
-        id,
-        %{name: "waters", trigger: %{"words" => ["garden"]}, stance: "keep"},
-        ctx.brain
-      )
+    assert {:ok, across} =
+             Kumbukumbu.search_meaning(id, ctx.key, "ninety days", 10, ctx.brain,
+               across_domains: true
+             )
 
-    :ok = Ethos.cite_habit(id, n, "turn", "t-intimate", ctx.brain)
-    test = self()
-
-    Fake.script(
-      fn %{messages: messages} ->
-        if Enum.any?(messages, &(&1.role == :tool)) do
-          {:ok, "Watered."}
-        else
-          send(test, {:request, messages})
-          {:calls, [%{name: "transcript_search", arguments: %{q: "night"}}]}
-        end
-      end,
-      for: id
-    )
-
-    assert {:ok, %{turn_ref: ref, messages: [_, searched, _]}} =
-             Oneiroi.Brain.turn(id, ctx.key, "how is the garden?", ctx.actor)
-
-    assert searched.content =~ "No message holds that phrase."
-    refute searched.content =~ "t-intimate"
-    assert_received {:request, messages}
-
-    acting =
-      Enum.find(
-        messages,
-        &(&1.role == :system and String.starts_with?(&1.content, "# How I act"))
-      )
-
-    assert acting.content =~ "##{n} waters"
-    refute acting.content =~ "t-intimate"
-
-    rows = Kumbukumbu.injections({:account, ctx.witness.id}, ref)
-    [index] = Enum.filter(rows, &(&1.label == "index"))
-    refute index.text =~ "the night we talked"
-    assert index.text =~ "the garden"
-
-    assert [%{reason: reason}] = Enum.filter(rows, &(&1.label == "near-miss"))
-    assert reason =~ "bookmark #2, held behind the domain line"
+    assert Enum.any?(across, &(&1.turn_ref == "t-rec"))
   end
 
-  test "the lane's exemplars respect the room: a cited turn from another domain is not shown",
-       ctx do
+  test "a wall is a contract term both agreed: the door closes, her reach stays whole", ctx do
     id = ctx.id
+    to_business(ctx)
+
+    wall = %{
+      "memory" => %{"person" => ctx.him, "domain" => "recovery"},
+      "context" => %{"person" => ctx.him, "domain" => "business"}
+    }
+
+    # A malformed wall is refused with the version.
+    assert {:error, %{kind: :agathos_daimon_terms_invalid}} =
+             AgathosDaimon.propose_contract(
+               id,
+               %{"domain_walls" => [%{"memory" => %{"domain" => "recovery"}}]},
+               "",
+               "a wall",
+               ctx.actor
+             )
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(id, %{"domain_walls" => [wall]}, "", "a wall", ctx.actor)
+
+    # Proposed, not agreed: no wall stands on one party's word.
+    assert Kumbukumbu.index(id, ctx.key).doors == [3]
+
+    :ok = AgathosDaimon.agree_contract(id, v, "agreed", ctx.brain)
+    assert [%{memory: %{domain: "recovery"}}] = AgathosDaimon.domain_walls(id)
+
+    built = Kumbukumbu.index(id, ctx.key)
+    assert built.doors == []
+    refute built.text =~ "#3"
+    assert built.near_misses == []
+
+    # Her reach stays whole: the bookmark opens, the cross finds it.
+    assert {:ok, %{number: 3}, _span} = Kumbukumbu.bookmark(id, 3)
+
+    assert [3, 2, 1] ==
+             Kumbukumbu.bookmark_page(id, ctx.key, across_domains: true).rows
+             |> Enum.map(& &1.number)
+
+    # The contract says the wall in words she reads.
+    assert AgathosDaimon.contract_text(id) =~ "Domain walls: recovery"
+  end
+
+  test "the lane's exemplars: another domain's cited turn is a door, walled not even that", ctx do
+    id = ctx.id
+    to_business(ctx)
     noon = ~U[2026-10-26 12:00:00Z]
 
     {:ok, n} =
       Ethos.define_habit(
         id,
-        %{name: "stays up talking", trigger: %{"words" => ["talk"]}, stance: "keep"},
+        %{name: "keeps count", trigger: %{"words" => ["count"]}, stance: "keep"},
         ctx.brain
       )
 
-    :ok = Ethos.cite_habit(id, n, "turn", "t-intimate", ctx.brain)
-    :ok = Ethos.cite_habit(id, n, "turn", "t-main", ctx.brain)
+    :ok = Ethos.cite_habit(id, n, "turn", "t-rec", ctx.brain)
+    :ok = Ethos.cite_habit(id, n, "turn", "t-biz", ctx.brain)
+    situation = %{text: "shall we count?", tags: [], at: noon, session_key: ctx.key}
 
-    assert %{count: 1, text: common} =
-             Ethos.how_i_act(id, %{
-               text: "shall we talk?",
-               tags: [],
-               at: noon,
-               session_key: ctx.key
-             })
-
-    assert common =~ "turn t-main"
-    refute common =~ "t-intimate"
-
-    assert %{count: 1, text: intimate} =
-             Ethos.how_i_act(id, %{
-               text: "shall we talk?",
-               tags: [],
-               at: noon,
-               session_key: ctx.ikey
-             })
-
-    assert intimate =~ "t-intimate" and intimate =~ "t-main"
-
-    # No session named: every cited turn may be shown.
-    assert %{text: all} = Ethos.how_i_act(id, %{text: "shall we talk?", tags: [], at: noon})
-    assert all =~ "t-intimate"
+    assert %{text: text} = Ethos.how_i_act(id, situation)
+    assert text =~ "turn t-biz: \"The pitch deck"
+    assert text =~ "turn t-rec: nearby in another domain (recovery)"
+    refute text =~ "ninety"
   end
 end

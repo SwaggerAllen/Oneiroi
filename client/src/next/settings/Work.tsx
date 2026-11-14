@@ -1,12 +1,14 @@
+import { Linked } from '../shell/Linked';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { WorkItem } from '../../api/types';
+import type { WorkItem, WorkQueue } from '../../api/types';
 import { useSubject } from '../state/resident';
 import { Card, Field, Said, Select } from './common';
 import * as css from './settings.css';
 import { useAct } from './useAct';
-import { blockedLine, isLive, loopLine, movedUp, settingsKey } from './logic';
+import { useNow } from '../shell/presence';
+import { blockedLine, isLive, LONG_RUN_SECONDS, loopLine, movedUp, runSeconds, settingsKey, timeLine } from './logic';
 
 type Move = (n: number, status: string, blockedOn: string | null, note: string) => void;
 type Hold = (n: number, ask: string) => void;
@@ -41,7 +43,7 @@ export function Work() {
   return (
     <>
       <Card title="The work line" witness>
-        <p className={css.text}>{loopLine(name, q)}</p>
+        <LoopLine name={name} q={q} />
         {!q.armed && live.some((i) => i.status === 'open') && (
           <div>
             <button type="button" className={css.primary} disabled={act.busy} onClick={() => run(() => api.armWork(id).then(() => 'Armed.'))}>
@@ -95,6 +97,7 @@ export function Work() {
               key={item.number}
               item={item}
               items={q.items}
+              q={q}
               busy={act.busy}
               onUp={
                 i === 0
@@ -153,7 +156,30 @@ export function Work() {
   );
 }
 
-function Item({ item, items, busy, onUp, onMove, onHold }: { item: WorkItem; items: WorkItem[]; busy: boolean; onUp?: () => void; onMove: Move; onHold: Hold }) {
+// The loop's line, ticking while an item runs so its time stays true.
+function LoopLine({ name, q }: { name: string; q: WorkQueue }) {
+  const now = useNow(q.running !== null);
+  return <p className={css.text}>{loopLine(name, q, now)}</p>;
+}
+
+/**
+ * How long an item has been in work (sunna#58), ticking while it runs;
+ * a run past an hour is marked for a look, the line the witness reads to
+ * judge whether it wants review.
+ */
+function TimeLine({ item, q }: { item: WorkItem; q: WorkQueue }) {
+  const now = useNow(q.running === item.number);
+  const run = runSeconds(q, item.number, now);
+  const long = run !== null && run >= LONG_RUN_SECONDS;
+  return (
+    <span className={long ? `${css.note} ${css.warn}` : css.note}>
+      {timeLine(item, q, now)}
+      {long ? ' · running long: worth a look' : ''}
+    </span>
+  );
+}
+
+function Item({ item, items, q, busy, onUp, onMove, onHold }: { item: WorkItem; items: WorkItem[]; q: WorkQueue; busy: boolean; onUp?: () => void; onMove: Move; onHold: Hold }) {
   const [note, setNote] = useState('');
   const [blockedOn, setBlockedOn] = useState('');
   const [holding, setHolding] = useState(false);
@@ -173,8 +199,9 @@ function Item({ item, items, busy, onUp, onMove, onHold }: { item: WorkItem; ite
       </strong>
       <span className={css.note}>
         {item.status === 'blocked' ? blockedLine(item.blocked_on, items) : item.status === 'in_work' ? 'running now' : held ? 'held for you' : 'open'} · added by{' '}
-        {item.added_by === 'witness' ? 'you' : 'her'} · {item.runs} runs
+        {item.added_by === 'witness' ? 'you' : 'her'}
       </span>
+      {item.runs > 0 && <TimeLine item={item} q={q} />}
       <span className={css.note}>Done when: {item.done_when}</span>
       {item.wrapped_at && (
         <span className={css.note}>
@@ -184,7 +211,7 @@ function Item({ item, items, busy, onUp, onMove, onHold }: { item: WorkItem; ite
       )}
       {held && (
         <span className={css.text}>
-          HELD · {item.held_by === 'witness' ? 'you held it' : 'she asks you'}: {item.held_ask}
+          HELD · {item.held_by === 'witness' ? 'you held it' : 'she asks you'}: <Linked text={item.held_ask ?? ''} />
         </span>
       )}
       {item.note && <span className={css.note}>Note: {item.note}</span>}

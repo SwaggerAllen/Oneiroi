@@ -89,7 +89,9 @@ export function Tree({
         {shelf.map((k) => {
           const docs = sortDocs(byKind.get(k.kind) ?? [], order);
           const entry = entries.get(k.kind);
-          const isOpen = open[k.kind] ?? docs.some((d) => current === `doc/${d.path}`);
+          // A document open, or a folder linked to (`dir/<path>`, brain#90), opens its kind.
+          const dir = current.startsWith('dir/') ? current.slice(4).replace(/\/?$/, '/') : null;
+          const isOpen = open[k.kind] ?? docs.some((d) => current === `doc/${d.path}` || (dir !== null && d.path.startsWith(dir)));
           const hers = entry?.created_by === 'resident';
           return (
             <div key={k.kind}>
@@ -166,7 +168,9 @@ function Level({
     <>
       {node.folders.map((f) => {
         const key = `${scope}/${f.path}`;
-        const isOpen = open[key] ?? f.all.some((d) => current === `doc/${d.path}`);
+        const top = f.all[0]?.path.split('/')[0] ?? '';
+        const linked = current.startsWith('dir/') && `${current.slice(4).replace(/\/$/, '')}/`.startsWith(`${top}/${f.path}/`);
+        const isOpen = open[key] ?? (linked || f.all.some((d) => current === `doc/${d.path}`));
         return (
           <div key={key}>
             <button

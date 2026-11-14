@@ -258,10 +258,8 @@ defmodule Oneiroi.Brain.ToolsTest do
       resident: brain
     }
 
-    {:ok, ikey} =
-      Kumbukumbu.open_session(id, "free_time", "brain", [ctx.witness.id], ctx.actor,
-        domain: "intimate"
-      )
+    {:ok, ikey} = Kumbukumbu.open_session(id, "free_time", "brain", [ctx.witness.id], ctx.actor)
+    :ok = Kumbukumbu.tag_domain(id, ikey, "t-elsewhere", nil, "intimate", ctx.actor)
 
     total = size + 3
 
@@ -323,6 +321,9 @@ defmodule Oneiroi.Brain.ToolsTest do
     # From the intimate room it reaches its own and the common room's.
     elsewhere = Tools.run("bookmark_list", ~s({"before": 4}), %{turn | session_key: ikey})
     assert elsewhere =~ "kept to the room"
+    # And across domains when she means to cross (P23-R1 §2).
+    assert Tools.run("bookmark_list", ~s({"before": 4, "across_domains": true}), turn) =~
+             "kept to the room"
   end
 
   # Fixture runs of 10-31: `commitment_list(null)` refused, then the

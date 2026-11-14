@@ -1,0 +1,1 @@
+This conversation is in the {{domain}} domain, a part of {{whose}}, as last named. Your memories of other domains are not brought here: one that is near is named under your index as a door, by its number alone, and bookmark_open opens it if you want it. domain_tag names another domain, or none for the common room, when the talk moves.

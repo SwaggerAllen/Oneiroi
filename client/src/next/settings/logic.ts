@@ -115,7 +115,41 @@ const dollars = (nano: number) => `$${(nano / 1e9).toFixed(2)}`;
  * a run, and it goes off when the queue clears; it steps over blocked
  * items to the next open one (sunna#42).
  */
-export function loopLine(name: string, q: WorkQueue): string {
+/** A span in the largest two units that say it: "45m", "2h 10m", "3d 4h"; under a minute is "under a minute". */
+export function span(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  if (m < 1) return 'under a minute';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
+  return h % 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${Math.floor(h / 24)}d`;
+}
+
+// A run past this is marked for a look (sunna#58): a guess, not a
+// measure; the loop itself ends a run only once it is stale (sunna#37).
+export const LONG_RUN_SECONDS = 60 * 60;
+
+/** The running item's run so far, in seconds, or null when it is not the one running. */
+export function runSeconds(q: Pick<WorkQueue, 'running' | 'running_since'>, n: number, nowMs: number): number | null {
+  if (q.running !== n || !q.running_since) return null;
+  return Math.max(0, Math.floor((nowMs - Date.parse(q.running_since)) / 1000));
+}
+
+/**
+ * How long an item has been in work (sunna#58): this run so far when it
+ * is the one running, and its time over all its runs since its first
+ * started. An item that ran before the time was kept says only its runs.
+ */
+export function timeLine(item: WorkItem, q: Pick<WorkQueue, 'running' | 'running_since'>, nowMs: number): string {
+  const run = runSeconds(q, item.number, nowMs);
+  const runs = plural(item.runs, 'run');
+  const now = run === null ? '' : `running ${span(run)} this run · `;
+  if (!item.first_started_at) return `${now}${runs}`;
+  const total = (item.worked_seconds ?? 0) + (run ?? 0);
+  return `${now}${span(total)} in work over ${runs} since ${day(item.first_started_at)}`;
+}
+
+export function loopLine(name: string, q: WorkQueue, nowMs: number = Date.now()): string {
   const cap = q.budget ? `${dollars(q.budget.left)} left of ${dollars(q.budget.cap)} a ${q.budget.period}` : 'no cap';
   const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
   const by = q.armed_by === 'witness' ? ' by you' : q.armed_by === 'resident' ? ` by ${name}` : '';
@@ -124,7 +158,10 @@ export function loopLine(name: string, q: WorkQueue): string {
   const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);
   const held = q.items.filter((i) => i.status === 'held').map((i) => `#${i.number}`);
   const skips = (blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '') + (held.length > 0 ? ` Stepping over ${held.join(', ')}, held for you.` : '');
-  if (q.running !== null) return `Running item #${q.running} now.${skips} ${runs} ${line}`;
+  if (q.running !== null) {
+    const run = runSeconds(q, q.running, nowMs);
+    return `Running item #${q.running} now${run === null ? '' : `, for ${span(run)}`}.${skips} ${runs} ${line}`;
+  }
   if (q.rested) return `Resting: ${q.rested}. ${runs} ${line}`;
   return `${name}'s loop has not run yet. ${line}`;
 }

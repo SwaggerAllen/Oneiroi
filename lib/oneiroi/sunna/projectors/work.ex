@@ -102,7 +102,11 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     multi
     |> Multi.update_all(
       :started,
-      from(w in WorkItem, where: w.resident_id == ^e.id and w.number == ^e.number),
+      from(w in WorkItem,
+        where: w.resident_id == ^e.id and w.number == ^e.number,
+        # The first run's start stays the item's (sunna#58).
+        update: [set: [first_started_at: coalesce(w.first_started_at, ^e.at)]]
+      ),
       set: [status: "in_work", blocked_on: nil, session_key: e.session_key] ++ @unheld,
       inc: [runs: 1]
     )
@@ -125,6 +129,7 @@ defmodule Oneiroi.Sunna.Projectors.Work do
 
   fold(%Events.WorkRunEnded{} = e, _metadata, fn multi ->
     multi
+    |> Multi.run(:worked, fn repo, _ -> worked(repo, e) end)
     |> item(e.id, e.number, status: e.status)
     |> queue(
       e.id,
@@ -157,6 +162,25 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   fold(%Events.WorkRested{} = e, _metadata, fn multi ->
     queue(multi, e.id, rested_reason: e.reason, rested_at: e.at)
   end)
+
+  # The run's seconds added to its item (sunna#58), read off the loop's
+  # record of when it started before the end clears it; a run the record
+  # does not name (orphaned, sunna#41) adds nothing.
+  defp worked(repo, e) do
+    case repo.one(from(q in WorkQueue, where: q.resident_id == ^e.id)) do
+      %{running: n, running_since: %DateTime{} = since} when n == e.number ->
+        seconds = max(DateTime.diff(e.at, since, :second), 0)
+
+        {:ok,
+         repo.update_all(
+           from(w in WorkItem, where: w.resident_id == ^e.id and w.number == ^e.number),
+           inc: [worked_seconds: seconds]
+         )}
+
+      _other ->
+        {:ok, :none}
+    end
+  end
 
   defp item(multi, resident_id, number, set),
     do:

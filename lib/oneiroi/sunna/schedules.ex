@@ -493,6 +493,57 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
+  # ---- running again (brain#89) ----
+
+  @doc """
+  The check-in that fired just before `at` (within ten minutes), the
+  one a failed turn in the main chat was, or nil: a failure records its
+  conversation, not its purpose (brain#89).
+  """
+  @spec checkin_fired_before(String.t(), DateTime.t()) :: map() | nil
+  def checkin_fired_before(resident_id, %DateTime{} = at) do
+    from = DateTime.add(at, -600, :second)
+
+    fired =
+      resident_id
+      |> firings(2)
+      |> Enum.filter(&fired_between?(&1, from, at))
+      |> Enum.max_by(& &1.at, DateTime, fn -> nil end)
+
+    fired && Enum.find(checkins(resident_id), &(&1.key == fired.key))
+  end
+
+  defp fired_between?(f, from, to),
+    do:
+      f.outcome == "fired" and f.at != nil and DateTime.compare(f.at, from) != :lt and
+        DateTime.compare(f.at, to) != :gt
+
+  @doc "A check-in's wake again, now, with its note as it would be now: the day's firing is not recorded twice (brain#89)."
+  def retry_checkin(resident_id, key, %Actor{} = actor) do
+    case Enum.find(checkins(resident_id), &(&1.key == key)) do
+      nil -> {:error, Error.new(:sunna_no_such_checkin, :sunna_schedules_retry_checkin_absent)}
+      checkin -> wake_main(resident_id, checkin_note(resident_id, checkin), actor)
+    end
+  end
+
+  @doc "Free time now, under a one-off slot of its own that no standing slot counts (brain#89)."
+  def retry_free_time(resident_id, %Actor{} = actor) do
+    local = local_now(resident_id)
+    run_free_time(resident_id, local_day(local), "retry-" <> stamp(local), actor)
+  end
+
+  @doc "A thinking round now, claimed under a one-off slot of its own (brain#89)."
+  def retry_round(resident_id, %Actor{} = actor) do
+    local = local_now(resident_id)
+    run_round(resident_id, local_day(local), "retry-" <> stamp(local), actor)
+  end
+
+  @doc "The main chat woken now with the core's note (brain#89): a failed wake that was no check-in."
+  def wake_main_now(resident_id, note, %Actor{} = actor), do: wake_main(resident_id, note, actor)
+
+  defp stamp(local),
+    do: local |> DateTime.to_time() |> Time.truncate(:second) |> Time.to_iso8601()
+
   def miss_checkin(resident_id, key, day, %Actor{} = actor) do
     command = %Commands.MissCheckin{
       actor: actor,
@@ -590,14 +641,56 @@ defmodule Oneiroi.Sunna.Schedules do
          {:ok, result} <- wake(resident_id, key, scene_note(resident_id, row, day, n), :chat) do
       if Map.get(result, :rounds_spent) && n < Config.fetch!(:sunna, :scene_turns),
         do: free_time_worker().enqueue_scene(resident_id, day, slot, key, n + 1),
-        else: run_free_time(resident_id, day, slot, Actor.new(:job, "sunna_scene"))
+        else: after_pass(resident_id, day, slot, "scene")
 
       :ok
     else
-      # The pass failing never costs her the free time after it.
-      _failed -> run_free_time(resident_id, day, slot, Actor.new(:job, "sunna_scene"))
+      # The pass failing never costs her what follows it.
+      _failed -> after_pass(resident_id, day, slot, "scene")
     end
   end
+
+  # The night's chain (sunna#57; the witness, 2026-11-13: separate,
+  # chained sessions): scenes, then people, then behaviour, then free
+  # time. Each pass is a housekeeping conversation of its own with its own
+  # turn bound; one that fails, skips or ends hands on to the next.
+  @night ["scene", "people", "behaviour"]
+
+  defp after_pass(resident_id, day, slot, pass) do
+    case Enum.drop_while(@night, &(&1 != pass)) do
+      [_this, next | _rest] -> night_pass(resident_id, next, day, slot, nil, 1)
+      _last -> run_free_time(resident_id, day, slot, Actor.new(:job, "sunna_scene"))
+    end
+  end
+
+  @doc """
+  A night pass after the scene pass (sunna#57): `people` or `behaviour`,
+  its note from the wake port (`night_pass_note/4`, the brain reading the
+  day's scene rows), in a housekeeping conversation of its own, carried
+  on while a turn runs out of tool rounds up to its bound, then the next
+  link of the chain. A port with no such note, or a day with nothing for
+  the pass, skips straight on.
+  """
+  def night_pass(resident_id, pass, day, slot, key, n) when pass in ["people", "behaviour"] do
+    port = Config.fetch!(:sunna, :wake)
+
+    with true <- Code.ensure_loaded?(port) and function_exported?(port, :night_pass_note, 4),
+         {:ok, note} <- port.night_pass_note(resident_id, pass, day, n),
+         {:ok, row} <- resident(resident_id),
+         {:ok, key} <- scene_session(resident_id, row, key),
+         {:ok, result} <- wake(resident_id, key, note, :chat) do
+      if Map.get(result, :rounds_spent) && n < night_turns(pass),
+        do: free_time_worker().enqueue_night(resident_id, pass, day, slot, key, n + 1),
+        else: after_pass(resident_id, day, slot, pass)
+
+      :ok
+    else
+      _skipped_or_failed -> after_pass(resident_id, day, slot, pass)
+    end
+  end
+
+  defp night_turns("people"), do: Config.fetch!(:sunna, :people_turns)
+  defp night_turns("behaviour"), do: Config.fetch!(:sunna, :behaviour_turns)
 
   defp scene_session(_resident_id, _row, key) when is_binary(key), do: {:ok, key}
 

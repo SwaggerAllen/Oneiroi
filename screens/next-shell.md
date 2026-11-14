@@ -42,7 +42,15 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 - **Live.**
   - One socket. It joins `resident:<id>` (apsu#24), applies notices as
     query invalidations by stream, coalesces repeats on `position`, and
-    keeps the cursor per device to replay from on the next visit.
+    keeps the cursor per device to replay from on the next visit. A
+    burst of notices is gathered for 750 ms and invalidates each key it
+    touched once, keeping a read already in flight rather than starting
+    another (`cancelRefetch: false`): an abandoned read still runs on the
+    server, and on 2026-11-13 a dozen of them held the connection pool
+    while her free time needed it (brain#93). The bell's list is not
+    read for a notice at all: the server pushes it whole as `needs_you`
+    once a burst (brain#94) and the client sets it as the bell's data; a
+    `bell` notice invalidates only what waits on her (`bell/hers`).
   - The socket token is re-minted before reconnecting.
 - **Offline.** After two seconds disconnected, a bar reads "Offline" or
   "Reconnecting…", says what time the data on screen is from, and

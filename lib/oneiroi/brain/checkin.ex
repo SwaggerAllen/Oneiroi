@@ -160,6 +160,8 @@ defmodule Oneiroi.Brain.Checkin do
     end
   end
 
+  defp waiting_label("provider_credits"), do: "OpenRouter top-up (turns refused for credit)"
+  defp waiting_label("turn_failed"), do: "failed turn(s) to look at"
   defp waiting_label("reply_to_approve"), do: "reply draft(s) to approve"
   defp waiting_label("reply_to_send"), do: "approved reply(s) to send"
   defp waiting_label("ask"), do: "ask(s) to answer"
