@@ -118,6 +118,7 @@ defmodule Oneiroi.Sunna do
     ]
 
   alias Oneiroi.Scope
+  alias Oneiroi.Sunna.Backfill
   alias Oneiroi.Sunna.Calendar
   alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Schedules
@@ -198,6 +199,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns the bedtime scene pass may take (sunna#34), a turn carried on when it runs out of tool rounds; a guess, since a day's scenes are many reads"},
+      {:backfill_domain_turns, "SUNNA_BACKFILL_DOMAIN_TURNS",
+       cast: :integer,
+       default: "3",
+       tag: :bound,
+       usage:
+         "how many turns the backfill's domains pass may take for one day (sunna#59), a turn carried on when it runs out of tool rounds; a guess"},
       {:people_turns, "SUNNA_PEOPLE_TURNS",
        cast: :integer,
        default: "3",
@@ -254,7 +261,9 @@ defmodule Oneiroi.Sunna do
     [
       {:sunna_tick, cron: [{"* * * * *", Oneiroi.Sunna.TickWorker}]},
       {:sunna_free_time, []},
-      {:sunna_work, []}
+      {:sunna_work, []},
+      # The memory backfill, one pass of one day a job (sunna#59).
+      {:sunna_backfill, []}
     ]
   end
 
@@ -330,6 +339,10 @@ defmodule Oneiroi.Sunna do
       {:sunna_range_invalid,
        "a calendar range is two ISO dates, `from` no later than `to`, spanning at most SUNNA_DAYS_SPAN days (sunna#48)",
        remedy: "give both bounds as YYYY-MM-DD, in order, and read a longer stretch in pieces"},
+      {:sunna_backfill_invalid,
+       "a backfill runs over a range of ISO days, the first not after the last and the last before today, with each domain list at most thirty slugs",
+       remedy:
+         "send from and to as YYYY-MM-DD, to before today, and his and hers as lists of slugs"},
       {:sunna_no_such_resident, "the schedule woke a resident the registry does not hold",
        remedy: "the tick reads the registry first; one that vanished between is a bug to report"},
       {:sunna_household_wake_declined,
@@ -610,4 +623,19 @@ defmodule Oneiroi.Sunna do
   @doc "The newest marked hour, or nil."
   @spec last_hour(String.t()) :: Oneiroi.Sunna.Store.Hour.t() | nil
   defexport(last_hour(resident_id), do: Schedules.last_hour(resident_id))
+
+  @doc "Starts the memory backfill over `from..to` with the witness's and her domain slugs (sunna#59); `{:ok, days}`."
+  @spec backfill_start(String.t(), String.t(), String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  defexport(backfill_start(resident_id, from, to, lists, actor),
+    do: Backfill.start(resident_id, from, to, lists, actor)
+  )
+
+  @doc "Stops the memory backfill (sunna#59)."
+  @spec backfill_stop(String.t()) :: :ok
+  defexport(backfill_stop(resident_id), do: Backfill.stop(resident_id))
+
+  @doc "Where the memory backfill is (sunna#59): the day and pass, the last day, the lists; nil when none runs."
+  @spec backfill_status(String.t()) :: map() | nil
+  defexport(backfill_status(resident_id), do: Backfill.status(resident_id))
 end

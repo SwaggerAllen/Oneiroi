@@ -153,7 +153,8 @@ defmodule Oneiroi.Ethos.Projectors.Character do
         target_kind: e.target_kind,
         target_id: to_string(e.target_id),
         at: e.at,
-        movement: e.movement
+        movement: e.movement,
+        moment_day: Map.get(e, :moment_day)
       },
       on_conflict: :nothing,
       conflict_target: [:resident_id, :kind, :number, :target_kind, :target_id]

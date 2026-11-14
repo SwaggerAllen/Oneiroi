@@ -856,3 +856,8 @@ witness just did can come back stale.
 
 The house's health is hers to know as much as anyone's, and the cached
 hour makes asking free.
+
+## #96
+
+The notes carry the day's shape and none of its words: she reads what
+she needs with the tools she already has.

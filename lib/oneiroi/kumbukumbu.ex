@@ -715,6 +715,12 @@ defmodule Oneiroi.Kumbukumbu do
   @spec counts(String.t(), String.t(), DateTime.t()) :: {non_neg_integer(), non_neg_integer()}
   defexport(counts(resident_id, key, at), do: Conversations.counts(resident_id, key, at))
 
+  @doc "The conversations with messages in `[from, to)` (kumbukumbu#73): key, kind, label, messages, first and last turn refs, and where a transcript read of the span starts."
+  @spec day_sessions(String.t(), DateTime.t(), DateTime.t()) :: [map()]
+  defexport(day_sessions(resident_id, from_at, to_at),
+    do: Conversations.day_sessions(resident_id, from_at, to_at)
+  )
+
   @doc "The last `count` messages of a session whatever any compaction covered, and how many it holds in all (brain#60)."
   @spec latest(String.t(), String.t(), pos_integer()) ::
           {[Oneiroi.Kumbukumbu.Store.Message.t()], non_neg_integer()}

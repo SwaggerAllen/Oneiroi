@@ -408,3 +408,12 @@ read is a row; kept from now rather than backfilled because the
 projection has no replay to backfill from, and an empty field said
 plainly is better than a guessed one. The mark is the screen's and a
 guess so it can move without touching the loop.
+
+## #59
+
+The work is hers, as each night's is, and the night's own machinery does
+it a day at a time: the passes exist, so the backfill is their chain
+pointed at the past rather than a new kind of job. Scenes first because
+the domains are named by scene; people last because they read the
+scenes. One day after another, a minute apart, keeps the cost visible and
+stoppable, and the job queue is the progress, so nothing new holds it.

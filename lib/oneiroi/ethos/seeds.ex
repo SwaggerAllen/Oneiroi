@@ -17,6 +17,7 @@ defmodule Oneiroi.Ethos.Seeds do
   alias Oneiroi.Ethos.Edge
   alias Oneiroi.Ethos.Error
   alias Oneiroi.Ethos.Store
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
 
   @doc "Plants a seed in the resident's words; returns its number."
@@ -113,7 +114,8 @@ defmodule Oneiroi.Ethos.Seeds do
         number: number,
         target_kind: kind,
         target_id: to_string(target_id),
-        movement: movement
+        movement: movement,
+        moment_day: moment_day(resident_id, kind, target_id)
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok
@@ -132,7 +134,7 @@ defmodule Oneiroi.Ethos.Seeds do
         %{
           s
           | citations: length(mine),
-            days: mine |> Enum.map(&DateTime.to_date(&1.at)) |> Enum.uniq() |> length()
+            days: mine |> Enum.map(&cited_day/1) |> Enum.uniq() |> length()
         }
       end)
     end)
@@ -158,6 +160,32 @@ defmodule Oneiroi.Ethos.Seeds do
   end
 
   defp graduation_target(_resident_id, _to_kind, _to_id), do: :ok
+
+  # A confirmation counts toward the day of the moment it cites (ethos#23),
+  # so citing a past day (the backfill, sunna#59) counts that day; a
+  # citation from before counts by its own instant.
+  defp cited_day(%{moment_day: day}) when is_binary(day), do: day
+  defp cited_day(%{at: at}), do: Date.to_iso8601(DateTime.to_date(at))
+
+  # The day of the cited moment, in UTC as citations always counted: a
+  # turn's first message, a bookmark's anchor; nil when it cannot be read.
+  defp moment_day(resident_id, "turn", ref) do
+    case Kumbukumbu.turn_messages(resident_id, to_string(ref)) do
+      [%{sent_at: %DateTime{} = at} | _] -> Date.to_iso8601(DateTime.to_date(at))
+      _none -> nil
+    end
+  end
+
+  defp moment_day(resident_id, "bookmark", number) do
+    with {n, ""} <- Integer.parse(to_string(number)),
+         {:ok, %{anchor_at: %DateTime{} = at}, _span} <- Kumbukumbu.bookmark(resident_id, n) do
+      Date.to_iso8601(DateTime.to_date(at))
+    else
+      _none -> nil
+    end
+  end
+
+  defp moment_day(_resident_id, _kind, _target), do: nil
 
   # The days a graduation asks: a portrait's own number, the habit's for the rest.
   defp required("portrait"), do: Config.fetch!(:ethos, :portrait_days)

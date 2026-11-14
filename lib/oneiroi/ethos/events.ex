@@ -36,10 +36,12 @@ defmodule Oneiroi.Ethos.Events do
     # Version 2 adds `movement` (spec §6.17, P34 under P38): what the
     # cited moment changed, `stance`, `intention` and `resume` as a
     # string-keyed map, or nil; the store restarts for v0.2, so the
-    # upcaster is identity.
+    # upcaster is identity. Version 3 adds `moment_day` (ethos#23): the
+    # ISO day of the cited moment, which the confirmation counts toward;
+    # nil on version 2, which counts by its own instant, as it did.
     use Oneiroi.Event,
-      version: 2,
-      fields: [:id, :number, :target_kind, :target_id, :movement]
+      version: 3,
+      fields: [:id, :number, :target_kind, :target_id, :movement, :moment_day]
   end
 
   defimpl Commanded.Event.Upcaster, for: SeedCited do

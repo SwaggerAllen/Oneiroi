@@ -283,10 +283,11 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "domain_tag",
-        "Name the domain a turn is in (P23-R1): a part of someone's life, as a slug (recovery, business, family), or none for the common room. It tags the turn's messages, the incoming one and your reply, and is this conversation's domain from then on, carried to every message after it until one names another. turn: a turn's ref, this one by default; whose: the witness's life or yours (mine), the conversation's counterpart by default. A tag is never a wall: what a domain is walled from is the contract's to say.",
+        "Name the domain a turn is in (P23-R1): a part of someone's life, as a slug (recovery, business, family), or none for the common room. It tags the turn's messages, the incoming one and your reply, and is this conversation's domain from then on, carried to every message after it until one names another. turn: a turn's ref, this one by default; session: the conversation the turn is in, this one by default (any of yours, for naming the domains of past days); whose: the witness's life or yours (mine), the conversation's counterpart by default. A tag is never a wall: what a domain is walled from is the contract's to say.",
         %{
           domain: %{type: "string"},
           turn: %{type: "string"},
+          session: %{type: "string"},
           whose: %{type: "string", enum: ["witness", "mine"]}
         },
         [:domain]
@@ -2455,10 +2456,15 @@ defmodule Oneiroi.Brain.Tools do
     ref = if is_binary(args["turn"]) and args["turn"] != "", do: args["turn"], else: turn.turn_ref
     person = tagged_person(args["whose"], turn.resident_id)
 
+    session =
+      if is_binary(args["session"]) and args["session"] != "",
+        do: args["session"],
+        else: turn.session_key
+
     with :ok <-
            Kumbukumbu.tag_domain(
              turn.resident_id,
-             turn.session_key,
+             session,
              ref,
              person,
              domain,

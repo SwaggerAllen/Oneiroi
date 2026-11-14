@@ -119,7 +119,8 @@ defmodule Oneiroi.Ethos.Character do
           number: c.number,
           target_kind: c.target_kind,
           target_id: to_string(c.target_id),
-          movement: c.movement
+          movement: c.movement,
+          moment_day: c.moment_day
         }
     end
   end
@@ -322,7 +323,8 @@ defmodule Oneiroi.Ethos.Character do
   # the field: the first version assigned that struct to `seeds` and lost
   # every citation, which the pure test caught on the second cite.
   def apply(%__MODULE__{} = s, %Events.SeedCited{} = e) do
-    day = Date.to_iso8601(DateTime.to_date(e.at))
+    # The cited moment's day (ethos#23), else the citation's own.
+    day = Map.get(e, :moment_day) || Date.to_iso8601(DateTime.to_date(e.at))
     s = update_in(s.seeds[e.number].days, &MapSet.put(&1, day))
     %{s | citations: MapSet.put(s.citations, citation_key(:seed, e))}
   end

@@ -42,5 +42,20 @@ defmodule Oneiroi.Sunna.Wake do
               n :: pos_integer()
             ) :: {:ok, String.t()} | :skip
 
-  @optional_callbacks checkin_part: 2, night_pass_note: 4
+  @doc """
+  The note for turn `n` of a backfill pass (sunna#59): `pass` is
+  `scenes`, `domains` or `people`, `day` the ISO day, `lists` the
+  witness's (`"his"`) and her (`"hers"`) domain slugs. `{:ok, note}`, or
+  `:skip` when the day gives the pass nothing (a day already closed, no
+  conversations, no scenes).
+  """
+  @callback backfill_note(
+              resident_id :: String.t(),
+              pass :: String.t(),
+              day :: String.t(),
+              n :: pos_integer(),
+              lists :: map()
+            ) :: {:ok, String.t()} | :skip
+
+  @optional_callbacks checkin_part: 2, night_pass_note: 4, backfill_note: 5
 end

@@ -202,6 +202,11 @@ export const api = {
   // The ops read surface (apsu#23): failures as facts, heartbeats as absences.
   opsFailures: () =>
     call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
+  // The memory backfill (sunna#59): scenes, domains and people for past days, by her.
+  backfill: (residentId: string) => call<BackfillStatus | null>('GET', `/v1/residents/${residentId}/backfill`),
+  startBackfill: (residentId: string, from: string, to: string, his: string[], hers: string[]) =>
+    call<{ days: number }>('POST', `/v1/residents/${residentId}/backfill`, { from, to, his, hers }),
+  stopBackfill: (residentId: string) => call<void>('DELETE', `/v1/residents/${residentId}/backfill`),
   // The operator's queue (apsu#31): what waits on whoever runs the platform.
   operatorQueue: () => call<{ open: OperatorItem[]; closed: OperatorItem[] }>('GET', '/v1/ops/queue'),
   raiseOperatorItem: (what: string, why: string, links: string[]) => call<{ number: number }>('POST', '/v1/ops/queue', { what, why, links }),
@@ -671,6 +676,15 @@ export interface Hour {
   trend: { at: string; units: Few; failed: Few; p95_ms: number | null }[];
   work: HourUnit[];
   pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
+}
+
+export interface BackfillStatus {
+  day: string;
+  pass: 'scenes' | 'domains' | 'people';
+  turn: number;
+  to: string;
+  his: string[];
+  hers: string[];
 }
 
 export interface OperatorItem {

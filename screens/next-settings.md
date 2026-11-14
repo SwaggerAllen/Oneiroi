@@ -133,6 +133,12 @@ it, in the server's own words.
     reads, moves it open again (sunna#54, #55); the line says it steps
     over what is held;
   - add work (what, done when); the last five finished.
+- **Memory backfill** (sunna#59), under the work queue: while one runs,
+  what it is doing (writing the scenes, naming the domains or the people
+  pass), for which day and turn, through which day, and "Stop the
+  backfill"; otherwise what it does in words and a form: from and to
+  (YYYY-MM-DD, to before today), your domains and hers as slugs, comma-
+  or space-separated, "Start the backfill".
 
 ## The current client's actions, each covered
 
