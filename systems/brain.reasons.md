@@ -851,3 +851,13 @@ only for a watcher, bounds the work by changes rather than by clients.
 Pushing the whole list rather than a "changed" signal saves the client
 the read the signal would provoke. Reads stay live so nothing the
 witness just did can come back stale.
+
+## #95
+
+The house's health is hers to know as much as anyone's, and the cached
+hour makes asking free.
+
+## #96
+
+The notes carry the day's shape and none of its words: she reads what
+she needs with the tools she already has.

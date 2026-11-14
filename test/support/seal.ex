@@ -28,7 +28,9 @@ defmodule Oneiroi.Seal do
   @billed ~w(nisaba_usage projection_versions)
   # What a run records of itself, on its own stream (eunomia#9).
   @run ~w(eunomia_regression_answer eunomia_regression_run eunomia_regression_test oban_jobs oban_peers)
-  @never ~w(schema_migrations)
+  # The platform's measurements of its own work (apsu#26): a span row
+  # says how long something took, never what anyone said or did.
+  @never ~w(schema_migrations apsu_span)
 
   @type t :: %{
           events: non_neg_integer(),

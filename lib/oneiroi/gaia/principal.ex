@@ -7,9 +7,16 @@ defmodule Oneiroi.Gaia.Principal do
   """
 
   @enforce_keys [:account_id, :via]
-  defstruct [:account_id, :email, :via]
+  defstruct [:account_id, :email, :via, :scope]
 
-  @type t :: %__MODULE__{account_id: String.t(), email: String.t() | nil, via: :session | :token}
+  # `scope` (gaia#40): nil, the account's whole reach; "ops", a token that
+  # reads the operator's ops routes and nothing else (apsu#30).
+  @type t :: %__MODULE__{
+          account_id: String.t(),
+          email: String.t() | nil,
+          via: :session | :token,
+          scope: nil | String.t()
+        }
 
   @doc "The actor a principal acts as: the witness, by account id."
   @spec actor(t()) :: Oneiroi.Actor.t()

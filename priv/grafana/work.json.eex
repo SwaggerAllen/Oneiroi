@@ -1,0 +1,269 @@
+{
+ "title": "Oneiroi \u00b7 where the time goes",
+ "uid": "oneiroi-work",
+ "tags": [
+  "oneiroi"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "refresh": "30s",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "timeseries",
+   "title": "Slowest units of work (p95, requests \u00b7 jobs \u00b7 turns)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, histogram_quantile(0.95, sum by (le, kind, name) (rate(oneiroi_span_duration_milliseconds_bucket[5m]))))",
+     "legendFormat": "{{kind}} {{name}}",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "timeseries",
+   "title": "Pool wait (p95): time spent waiting for a database connection",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, histogram_quantile(0.95, sum by (le, kind, name) (rate(oneiroi_span_pool_wait_milliseconds_bucket[5m]))))",
+     "legendFormat": "{{kind}} {{name}}",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "timeseries",
+   "title": "Slowest exports (p95, by system and function)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 9,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, histogram_quantile(0.95, sum by (le, component, function) (rate(oneiroi_export_duration_milliseconds_bucket[5m]))))",
+     "legendFormat": "{{component}}.{{function}}",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "timeseries",
+   "title": "Time in queries (p95)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 9,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, histogram_quantile(0.95, sum by (le, kind, name) (rate(oneiroi_span_db_milliseconds_bucket[5m]))))",
+     "legendFormat": "{{kind}} {{name}}",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "timeseries",
+   "title": "Units of work per minute",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 18,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, sum by (kind, name) (rate(oneiroi_span_duration_milliseconds_count[5m])) * 60)",
+     "legendFormat": "{{kind}} {{name}}",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "timeseries",
+   "title": "Queries per minute",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "<%= @datasource_id %>"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 18,
+    "w": 12,
+    "h": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "max",
+      "mean"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "<%= @datasource_id %>"
+     },
+     "expr": "topk(10, sum by (kind, name) (rate(oneiroi_span_db_queries[5m])) * 60)",
+     "legendFormat": "{{kind}} {{name}}",
+     "refId": "A"
+    }
+   ]
+  }
+ ],
+ "description": "apsu#25, #26: units of work, pool wait, exports. A slow row's trace id joins it to its events (apsu#27)."
+}

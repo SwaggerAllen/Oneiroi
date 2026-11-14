@@ -115,6 +115,24 @@ check the service's Disks tab shows it mounted.
    `POST /v1/residents/:id/honcho/replay` with a witness's token
    (proteus#19).
 
+### Metrics and Grafana (apsu#25)
+
+1. On grafana.com, a free Grafana Cloud stack. Under Connections, add
+   the **Metrics Endpoint** integration: scrape URL
+   `https://<service>.onrender.com/metrics`, authentication **Bearer**,
+   with a long random token. Set the same token on the Render service as
+   `APSU_METRICS_TOKEN`. Until it is set, `/metrics` answers 404.
+2. For the dashboards: in the stack, a service account with the Editor
+   role and a token for it. Set `APSU_GRAFANA_URL`
+   (`https://<stack>.grafana.net`) and `APSU_GRAFANA_TOKEN` on the
+   service; the next boot uploads PromEx's dashboards and "Oneiroi ·
+   where the time goes" to an Oneiroi folder and marks each deploy. The
+   dashboards ask for a Prometheus datasource with the uid `prometheus`;
+   if the stack's has another, change it in the dashboard settings once.
+3. The slow calls themselves, with what they spent their time on and the
+   events they dispatched: `GET /v1/ops/spans` and
+   `GET /v1/ops/spans/summary` as a super admin (apsu#28).
+
 ## 2. Orchestration's court
 
 - Merge the `PROJECTS` entry for this repo into the metronome Worker's

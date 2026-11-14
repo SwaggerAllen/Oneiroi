@@ -13,6 +13,7 @@ defmodule OneiroiWeb.Endpoint do
   # Aliases only; the calls below are runtime references, which is what
   # keeps the compile-connected count at zero (systems/apsu.md #5).
   alias Oneiroi.Apsu.HealthPlug
+  alias OneiroiWeb.MetricsPlug
   alias OneiroiWeb.Router
 
   # `__Host-`, Secure, HttpOnly, Strict (spec §6.1): the cookie carries
@@ -59,9 +60,13 @@ defmodule OneiroiWeb.Endpoint do
   # (the ratchet, `Oneiroi.Router` has the reasoning).
   plug OpenApiSpex.Plug.PutApiSpec, module: Module.concat([OneiroiWeb, ApiSpec])
   plug :health
+  plug :metrics
   plug :router
 
   defp health(conn, _opts), do: HealthPlug.call(conn, HealthPlug.init([]))
+
+  # The Prometheus scrape (apsu#25), bearer-guarded, ahead of the router.
+  defp metrics(conn, _opts), do: MetricsPlug.call(conn, MetricsPlug.init([]))
 
   defp router(conn, _opts), do: Router.call(conn, Router.init([]))
 end

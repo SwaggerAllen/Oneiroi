@@ -32,6 +32,7 @@ export function Connections() {
     <>
       <ModelKey />
       <GithubToken />
+      <OpsTokens />
       <Adapters />
       <Profiles />
       <Reader />
@@ -110,6 +111,80 @@ function GithubToken() {
       </form>
       <Said said={act.said} />
     </Card>
+  );
+}
+
+// An ops token (gaia#40, apsu#30; the witness, 2026-11-13): reads the
+// platform's ops routes and nothing else, for the agent that helps run it.
+// A super admin's alone; nobody else sees the card.
+function OpsTokens() {
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const operator = (me.data?.roles ?? []).includes('super_admin');
+  const tokens = useQuery({ queryKey: ['me', 'tokens'], queryFn: api.tokens, enabled: operator });
+  const [label, setLabel] = useState('');
+  const [issued, setIssued] = useState<{ label: string; token: string } | null>(null);
+  const act = useAct();
+  if (!operator) return null;
+  const ops = (tokens.data ?? []).filter((t) => t.scope === 'ops' && !t.revoked_at);
+  return (
+    <>
+      {issued && (
+        <Card title={`The ops token “${issued.label}”`} witness>
+          <p className={css.text}>Copy it now: it is shown this once. Give it to the agent as an environment variable; never paste it into a chat or a repository.</p>
+          <code aria-label="Token" className={css.token}>
+            {issued.token}
+          </code>
+          <div className={css.row}>
+            <button type="button" className={css.secondary} onClick={() => void navigator.clipboard?.writeText(issued.token)}>
+              Copy
+            </button>
+            <button type="button" className={css.quiet} onClick={() => setIssued(null)}>
+              I've saved it
+            </button>
+          </div>
+        </Card>
+      )}
+      <Card title="Ops tokens">
+        <p className={css.note}>
+          A token that reads the platform's ops routes (failures, heartbeats, the slowest calls and their summary) and nothing else: no resident, no words, no
+          writes. For the agent that helps you run the platform.
+        </p>
+        <ul className={css.list} aria-label="Ops tokens">
+          {ops.map((t) => (
+            <li key={t.hash} className={css.item}>
+              <span className={css.text}>
+                {t.label} · since {day(t.issued_at)}
+              </span>
+              <Confirm label="Revoke" confirm={`Revoke ${t.label}`} disabled={act.busy} onConfirm={() => void act.run(() => api.revokeToken(t.hash).then(() => `Revoked ${t.label}.`), ['me', 'tokens'])} />
+            </li>
+          ))}
+        </ul>
+        <form
+          aria-label="New ops token"
+          className={css.row}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const l = label.trim();
+            if (!l) return;
+            void act.run(
+              () =>
+                api.issueToken(l, 'ops').then((r) => {
+                  setIssued({ label: r.label, token: r.token });
+                  setLabel('');
+                  return `Made ${r.label}.`;
+                }),
+              ['me', 'tokens'],
+            );
+          }}
+        >
+          <Field label="Label (who holds it)" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <button type="submit" className={css.primary} disabled={label.trim() === '' || act.busy}>
+            Make a token
+          </button>
+        </form>
+        <Said said={act.said} />
+      </Card>
+    </>
   );
 }
 

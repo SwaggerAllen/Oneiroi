@@ -19,7 +19,7 @@ defmodule Oneiroi.Gaia.Commands do
 
   defmodule IssueToken do
     use Oneiroi.Command,
-      fields: [:id, :token_hash, :label],
+      fields: [:id, :token_hash, :label, :scope],
       bounds: [label: 120]
   end
 

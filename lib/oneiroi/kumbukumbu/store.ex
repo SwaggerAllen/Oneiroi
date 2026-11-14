@@ -643,6 +643,49 @@ defmodule Oneiroi.Kumbukumbu.Store do
     |> Enum.reverse()
   end
 
+  @doc """
+  The conversations with messages in `[from, to)` (kumbukumbu#73, the
+  backfill's day): each session's key, kind and label, how many messages
+  it had then, the first and last turn refs, and how many came before
+  (the `from` a transcript read starts at). Tool lines are not counted.
+  """
+  def day_sessions(from_at, to_at) do
+    rows =
+      Repo.all(
+        from(m in Message,
+          join: s in Session,
+          on: s.resident_id == m.resident_id and s.key == m.session_key,
+          where: m.sent_at >= ^from_at and m.sent_at < ^to_at and m.role != "tool",
+          group_by: [m.session_key, s.kind, s.label],
+          order_by: [asc: min(m.sent_at)],
+          select: %{
+            key: m.session_key,
+            kind: s.kind,
+            label: s.label,
+            messages: count(m.hash),
+            first_at: min(m.sent_at)
+          }
+        )
+      )
+
+    for r <- rows do
+      refs =
+        Repo.all(
+          from(m in Message,
+            where: m.session_key == ^r.key and m.sent_at >= ^from_at and m.sent_at < ^to_at,
+            order_by: [asc: m.sequence, asc: m.position],
+            select: m.turn_ref
+          )
+        )
+
+      Map.merge(r, %{
+        first_turn: List.first(refs),
+        last_turn: List.last(refs),
+        from: count_before(r.key, from_at)
+      })
+    end
+  end
+
   @doc "How many of a session's messages were said before `at`: where a day begins, as transcript_read's `from`."
   @spec count_before(String.t(), DateTime.t()) :: non_neg_integer()
   def count_before(key, at),

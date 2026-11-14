@@ -478,6 +478,10 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   def turns_since(resident_id, kind, at),
     do: Scope.resident(resident_id, fn -> Store.turns_since(kind, at) end)
 
+  @doc "The conversations with messages in `[from, to)` (kumbukumbu#73)."
+  def day_sessions(resident_id, from_at, to_at),
+    do: Scope.resident(resident_id, fn -> Store.day_sessions(from_at, to_at) end)
+
   @doc "How many of a session's messages came before `at`, and how many it holds in all."
   def counts(resident_id, key, at),
     do:

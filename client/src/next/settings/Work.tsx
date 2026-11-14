@@ -152,7 +152,74 @@ export function Work() {
           </ul>
         </Card>
       )}
+      <Backfill />
     </>
+  );
+}
+
+const slugList = (text: string) =>
+  text
+    .split(/[,\s]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+/**
+ * The memory backfill (sunna#59): {name} writes the scenes, names the
+ * domains (from your list and hers) and runs the people pass for each past
+ * day in a range, oldest first, a day at a time, in housekeeping
+ * conversations of her own. Started and stopped here; where it is, read
+ * off its queued job.
+ */
+function Backfill() {
+  const { id, name } = useSubject();
+  const status = useQuery({ queryKey: settingsKey(id, 'backfill'), queryFn: () => api.backfill(id), refetchInterval: 30_000 });
+  const [from, setFrom] = useState('2026-10-17');
+  const [to, setTo] = useState('');
+  const [his, setHis] = useState('');
+  const [hers, setHers] = useState('');
+  const act = useAct();
+  const s = status.data;
+  const PASS = { scenes: 'writing the scenes', domains: 'naming the domains', people: 'the people pass' } as const;
+  return (
+    <Card title="Memory backfill" witness>
+      <p className={css.text}>
+        {s
+          ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}.`
+          : `For each past day in a range, oldest first: ${name} writes its scenes where they are missing, names the domains of every conversation that day from your list and hers, and runs the people pass, whose seeds become portraits. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
+      </p>
+      {s ? (
+        <div className={css.row}>
+          <button type="button" className={css.secondary} disabled={act.busy} onClick={() => void act.run(() => api.stopBackfill(id).then(() => 'Stopped; a turn already running finishes.'), settingsKey(id, 'backfill'))}>
+            Stop the backfill
+          </button>
+        </div>
+      ) : (
+        <form
+          className={css.column}
+          aria-label="Start the backfill"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void act.run(
+              () => api.startBackfill(id, from, to, slugList(his), slugList(hers)).then((r) => `Started: ${r.days} days.`),
+              settingsKey(id, 'backfill'),
+            );
+          }}
+        >
+          <div className={css.row}>
+            <Field label="From (YYYY-MM-DD)" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Field label="To, before today" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <Field label="Your domains (slugs, comma-separated)" value={his} onChange={(e) => setHis(e.target.value)} />
+          <Field label={`${name}'s domains`} value={hers} onChange={(e) => setHers(e.target.value)} />
+          <div className={css.row}>
+            <button type="submit" className={css.primary} disabled={act.busy || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)}>
+              Start the backfill
+            </button>
+          </div>
+        </form>
+      )}
+      <Said said={act.said} />
+    </Card>
   );
 }
 

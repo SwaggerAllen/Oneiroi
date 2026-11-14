@@ -73,6 +73,10 @@ it, in the server's own words.
     never shown back);
   - your GitHub read token (gaia#24, UI-configurable by the witness's
     call): store, replace, and revoke on a second tap;
+  - ops tokens (gaia#40, apsu#30), a super admin's alone, the card
+    hidden from everyone else: the live ones by label with revoke on a
+    second tap, and "Make a token" with a label, the token shown once
+    with Copy and "I've saved it";
   - what holds a token for her (xenia#11): connected adapters with their
     role in words, revoke on a second tap; "Connect something new" with
     a name and a role (brain, reader, worker) issues a token shown once
@@ -129,6 +133,12 @@ it, in the server's own words.
     reads, moves it open again (sunna#54, #55); the line says it steps
     over what is held;
   - add work (what, done when); the last five finished.
+- **Memory backfill** (sunna#59), under the work queue: while one runs,
+  what it is doing (writing the scenes, naming the domains or the people
+  pass), for which day and turn, through which day, and "Stop the
+  backfill"; otherwise what it does in words and a form: from and to
+  (YYYY-MM-DD, to before today), your domains and hers as slugs, comma-
+  or space-separated, "Start the backfill".
 
 ## The current client's actions, each covered
 

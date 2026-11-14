@@ -130,3 +130,52 @@ every stream shares. The replay is bounded and says `reset` past its
 bounds, because a client away for a week is cheaper to refetch than to
 replay.
 
+## #25
+
+The question on 2026-11-13 was which calls are slow and why, and the
+answer needed numbers that were already emitted and collected nowhere.
+PromEx turns the telemetry the app already has into Prometheus text with
+no new instrumentation, and a hosted Grafana keeps the history and the
+alerts off the host whose failure they are meant to catch. One event for
+every export, rather than a metric per export, because the exports are
+hundreds and grow with every system; a list would drift from the code.
+
+## #26
+
+A histogram says a route is slow; it cannot say what that call spent its
+time on. The row does: its queries, its pool wait (2026-11-13's crash
+was a pool wait nobody could see), its exports and its events. Kept for
+the slow and a sample, because every row of every request would be a
+write per request on the pool the rows are meant to protect.
+
+## #27
+
+"Map them to sets of events" is the witness's ask; the trace id on the
+event is the general join, and the names on the row the immediate one,
+so the first answer needs no read of the store.
+
+## #28
+
+Platform-wide reads are the operator's, as the failure ring is.
+
+## #29
+
+Transparency the platform asks of itself: a resident and a witness can
+see how the place they live in is running, in numbers, not a green dot.
+Buckets rather than live reads so the page costs the same read by one or
+by a thousand. The few rule because at this size the aggregate and the
+individual coincide, and the page must never become a way to watch
+someone.
+
+## #30
+
+The agent that diagnoses needs to read without asking each time, and
+the operator's session is too much to hand it: a scope that reads the
+ops routes and nothing else is the least that does the job.
+
+## #31
+
+What waits on the operator was being carried in chat replies, which is
+where it slipped. One list in the place he already looks, with a raiser
+and a reason on each, keeps it; the agent raising without closing keeps
+the decision his.

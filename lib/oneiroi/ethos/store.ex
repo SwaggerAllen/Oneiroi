@@ -64,6 +64,8 @@ defmodule Oneiroi.Ethos.Store do
       field(:target_id, :string, primary_key: true)
       field(:at, :utc_datetime_usec)
       field(:movement, :map)
+      # The cited moment's day (ethos#23), nil before it.
+      field(:moment_day, :string)
     end
 
     @type t :: %__MODULE__{}

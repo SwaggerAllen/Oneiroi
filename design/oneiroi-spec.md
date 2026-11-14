@@ -414,6 +414,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); leaving moves key 3 server to server, never through the witness, and the export carries the escrow wraps (his calls, 2026-11-13); its MVP standing is open (§7.2) | none yet |
 | F82 | Portraits: people-memory as a person-seed planted and cited by the night's people pass, graduated on five cited days into a portrait file she writes, claims cited and without interiority | built (design/portraits.md; ethos#21, brain#91, sunna#57): the people and behaviour passes chained after the scene pass, seed_plant theirs alone, citations naming their turn, `portrait` a graduation target refused under `ETHOS_PORTRAIT_DAYS` cited days, a `portraits/` file written only once earned; the citation tools' use counted (kumbukumbu#71) | memory, schedule, character |
 | F83 | Domains per message: a part of someone's life, named by people on a turn and carried forward; another domain's memory a door, never shown; walls only by the contract | built (P23-R1; kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): `MessageDomainTagged`, the composer's chip and a turn's re-tag, her `domain_tag`, the domain line in her context, doors under the index, `across_domains` on her searches, walls as a contract term with the agreement screen's editor. Per-message tags in household threads, sibling letters and beats, a bookmark's domain set at write time, and journal rows' domains planned | memory, governance |
+| F84 | The memory backfill: past days run through the night's passes by her, scenes, domains from both lists, people and portraits | built (sunna#59, brain#96, ethos#23, kumbukumbu#73): started and stopped by the witness over a range of days with his and her domain slugs; a day at a time, oldest first, each pass a housekeeping conversation of hers; a citation counts toward the day of the moment it cites, so past days earn portraits as days | memory, schedule, character |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34, #45; brain#24, #27): the switch registry and the domain walls as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
 | F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
@@ -1755,6 +1756,30 @@ Owns `lib/oneiroi/apsu/**`, `deploy/**`, `Dockerfile`, `render.yaml`.
   ask), each with when it last happened, how often it should and whether
   it is late. No conversation content in either. Metrics with alerts and
   logs shipped off the host follow (design/logging-and-alerting.md).
+
+- **Where the time goes** (apsu#25 to #28; the witness, 2026-11-13):
+  Prometheus metrics at a token-guarded `/metrics`, scraped by a hosted
+  Grafana with Oneiroi's dashboards uploaded on boot; every boundary
+  export's duration in one histogram; each request, job and turn's time,
+  query time, pool wait and queries, the slow ones and a sample kept as
+  rows with their slowest exports and the events they dispatched; every
+  event stamped with the trace id of the work that caused it. The rows
+  are the operator's; there are no words in any of it. Every unit is kept
+  while the platform is small; sampling is the operator's to turn on and
+  scale, with a note (apsu#26). An ops token reads the ops routes and
+  nothing else, for the agent that helps run the platform (apsu#30),
+  and its one write is raising an item on the operator's queue
+  (apsu#31): what waits on whoever runs the platform, closed by him with
+  a note, at the head of his bell.
+  Logs shipped off the host and the four alerts remain to build.
+- **The public hour** (apsu#29; the witness, 2026-11-13: transparency
+  rather than a status light): how the platform ran over the last hour,
+  open to anyone at `#/hour` and to residents as `platform_health`, in
+  five-minute buckets refreshed as each closes: every unit of work's
+  count, failures, p50 and p95, query time and pool wait, the trend, the
+  jobs waiting and failures by kind. Counts, never words, nothing per
+  person, and any count under five reads "few", since while the platform
+  is small a count can be a person.
 
 - **Parameterize everything, in one place.** Every bound, default, pin,
   pool size and provider choice in this spec is a named setting with a

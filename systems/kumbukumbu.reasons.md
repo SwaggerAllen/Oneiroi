@@ -596,3 +596,8 @@ Domains are named by people because a model's guess per message costs
 a turn and errs where it matters most. Her deliberate reach is never
 scoped, so no setting cuts her off from her own memory; that floor is
 why a wall lives in the contract and closes only the door.
+
+## #73
+
+A day's shape without its words, so a note can point her at what to
+read rather than carry it.

@@ -26,6 +26,16 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
     if adapter_path?(conn.method, conn.path_info), do: conn, else: refuse(conn)
   end
 
+  # An ops token (gaia#40, apsu#30) reads the ops routes and nothing else.
+  def call(%Plug.Conn{assigns: %{principal: %{scope: "ops"}}} = conn, _opts) do
+    case {conn.method, conn.path_info} do
+      {"GET", ["v1", "ops" | _]} -> conn
+      # Its one write: raising an item on the operator's queue (apsu#31).
+      {"POST", ["v1", "ops", "queue"]} -> conn
+      _other -> refuse(conn)
+    end
+  end
+
   def call(%Plug.Conn{assigns: %{principal: %{}}} = conn, _opts), do: conn
   def call(conn, _opts), do: refuse(conn)
 

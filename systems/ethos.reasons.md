@@ -157,3 +157,9 @@ graduation and the write meet on one name.
 
 The lane's exemplars are an uninvited surface like the index, so they
 take the same rule: named, not shown, and her reach to the turn intact.
+
+## #23
+
+The confirmation was always about the days the pattern showed, and
+citing on the day was how that was measured; a backfill separates the
+two, and the moment's day is the one that means something.

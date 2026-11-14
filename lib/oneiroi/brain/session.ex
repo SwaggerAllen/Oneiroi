@@ -184,8 +184,7 @@ defmodule Oneiroi.Brain.Session do
 
         task =
           Task.Supervisor.async_nolink(@tasks, fn ->
-            tag_domain(id, key, item.ref, domain)
-            Turn.run(id, key, last.text, last.actor, opts)
+            timed_turn(id, key, item, last, opts, domain)
           end)
 
         running = item |> Map.put(:task, task) |> Map.put(:batch, batch)
@@ -194,6 +193,18 @@ defmodule Oneiroi.Brain.Session do
       {:empty, _queue} ->
         %{state | running: nil}
     end
+  end
+
+  # A turn is a unit of work the span collector times (apsu#26).
+  defp timed_turn(id, key, item, last, opts, domain) do
+    :telemetry.span(
+      [:oneiroi, :brain, :turn],
+      %{resident_id: id, kind: Keyword.get(item.opts, :purpose, :chat)},
+      fn ->
+        tag_domain(id, key, item.ref, domain)
+        {Turn.run(id, key, last.text, last.actor, opts), %{resident_id: id}}
+      end
+    )
   end
 
   # The turn named into the domain its message carried, before it runs,

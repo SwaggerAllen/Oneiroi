@@ -42,6 +42,7 @@ defmodule Oneiroi.Brain do
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun, DevSeed]
 
   alias Oneiroi.Brain.Adapter
+  alias Oneiroi.Brain.BackfillNotes
   alias Oneiroi.Brain.Checkin
   alias Oneiroi.Brain.Creation
   alias Oneiroi.Brain.Drafting
@@ -297,6 +298,10 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def pubsub_topics, do: [:session, :needs_you]
 
+  # A turn, timed by the span collector (apsu#26).
+  @impl Oneiroi.Component
+  def telemetry_events, do: [[:oneiroi, :brain, :turn]]
+
   @impl Oneiroi.Component
   def children do
     [
@@ -410,6 +415,12 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."
   defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
+
+  @impl Oneiroi.Sunna.Wake
+  @doc "The note for a pass of the memory backfill (sunna#59, brain#96): scenes, domains or people for a past day, from its transcripts' shape and scene rows; :skip when the day gives it nothing."
+  defexport(backfill_note(resident_id, pass, day, n, lists),
+    do: BackfillNotes.note(resident_id, pass, day, n, lists)
+  )
 
   @impl Oneiroi.Sunna.Wake
   @doc "The note for a night pass after the scene pass (sunna#57, brain#91): the people or behaviour pass, from the day's scene rows; :skip when the day gives it nothing."

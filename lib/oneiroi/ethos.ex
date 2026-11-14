@@ -113,7 +113,7 @@ defmodule Oneiroi.Ethos do
       {Oneiroi.Ethos.Events.SeedPlanted, 1},
       {Oneiroi.Ethos.Events.SeedWilted, 1},
       {Oneiroi.Ethos.Events.SeedGraduated, 1},
-      {Oneiroi.Ethos.Events.SeedCited, 2},
+      {Oneiroi.Ethos.Events.SeedCited, 3},
       {Oneiroi.Ethos.Events.HabitDefined, 1},
       {Oneiroi.Ethos.Events.HabitChanged, 1},
       {Oneiroi.Ethos.Events.HabitAffirmed, 1},

@@ -11,13 +11,15 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
   """
   @behaviour Commanded.Middleware
 
+  require Logger
+
   alias Commanded.Middleware.Pipeline
   import Pipeline
 
   @impl Commanded.Middleware
   def before_dispatch(%Pipeline{command: command} = pipeline) do
     case problems(command) do
-      [] -> pipeline
+      [] -> traced(pipeline)
       # The pipeline's response, not an error leaving a boundary: every
       # system's dispatch wraps it once with caught/4 at its own site.
       # oneiroi:allow error_site
@@ -25,8 +27,39 @@ defmodule Oneiroi.Commanded.Middleware.Actor do
     end
   end
 
+  # Every event carries the trace id of the request, job or turn that
+  # dispatched it (apsu#27), the same one a span row and every log line
+  # of that work carry: the join from a slow call to the events it caused.
+  defp traced(pipeline) do
+    case Keyword.get(Logger.metadata(), :trace_id) do
+      nil -> pipeline
+      trace -> assign_metadata(pipeline, "trace_id", to_string(trace))
+    end
+  end
+
+  # The events a dispatch wrote, told to the span collector (apsu#27), so
+  # a unit of work's row names the set of events it caused; the event
+  # store is read through its API alone (conventions §12), so the join
+  # is made as the events are written, not queried after.
   @impl Commanded.Middleware
+  def after_dispatch(%Pipeline{assigns: assigns} = pipeline) do
+    case Map.get(assigns, :events) do
+      [_ | _] = events ->
+        :telemetry.execute([:oneiroi, :apsu, :dispatch], %{count: length(events)}, %{
+          events: Enum.map(events, &event_name/1)
+        })
+
+      _none ->
+        :ok
+    end
+
+    pipeline
+  end
+
   def after_dispatch(pipeline), do: pipeline
+
+  defp event_name(%module{}), do: module |> Module.split() |> List.last()
+  defp event_name(_event), do: "?"
 
   @impl Commanded.Middleware
   def after_failure(pipeline), do: pipeline

@@ -36,9 +36,56 @@ defmodule OneiroiWeb.OperatorController do
       gate: Gaia.gate(),
       roles: roles,
       restarts: Gaia.restarts(10),
-      triage: Gaia.triage_desk()
+      triage: Gaia.triage_desk(),
+      # What the span collector keeps (apsu#26), and its history.
+      span_policy: Oneiroi.Apsu.span_policy(),
+      span_policies: Oneiroi.Apsu.span_policies()
     })
   end
+
+  operation(:set_span_policy,
+    summary:
+      "Set what the span collector keeps (apsu#26): mode all (every request, job and turn a row) or sample (the slow, the failed and a share of the rest), the slow floor in milliseconds, the sample percent, with a note",
+    request_body:
+      {"the policy", "application/json",
+       %Schema{
+         type: :object,
+         required: [:mode, :note],
+         properties: %{
+           mode: %Schema{type: :string, enum: ["all", "sample"]},
+           slow_ms: %Schema{type: :integer},
+           sample_percent: %Schema{type: :integer},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [ok: {"the policy now", "application/json", %Schema{type: :object}}]
+  )
+
+  def set_span_policy(conn, params) do
+    current = Oneiroi.Apsu.span_policy()
+
+    case Oneiroi.Apsu.set_span_policy(
+           params["mode"],
+           int(params["slow_ms"], current.slow_ms),
+           int(params["sample_percent"], current.sample_percent),
+           params["note"],
+           conn.assigns.principal.account_id
+         ) do
+      :ok -> json(conn, Oneiroi.Apsu.span_policy())
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  defp int(n, _default) when is_integer(n), do: n
+
+  defp int(text, default) when is_binary(text) do
+    case Integer.parse(text) do
+      {n, ""} -> n
+      _other -> default
+    end
+  end
+
+  defp int(_none, default), do: default
 
   operation(:set_triage,
     summary:

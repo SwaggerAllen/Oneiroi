@@ -19,7 +19,7 @@ defmodule Oneiroi.Ethos.Commands do
   # A citation may carry its movement (P34 under P38): what the cited
   # moment changed, as `stance`, `intention` and `resume`, string-keyed.
   defmodule CiteSeed do
-    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id, :movement]
+    use Oneiroi.Command, fields: [:id, :number, :target_kind, :target_id, :movement, :moment_day]
   end
 
   defmodule DefineHabit do

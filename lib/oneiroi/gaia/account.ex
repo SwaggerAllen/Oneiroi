@@ -71,13 +71,18 @@ defmodule Oneiroi.Gaia.Account do
       else: {:error, Error.new(:gaia_not_a_principal, :gaia_account_close_session_absent)}
   end
 
+  def execute(%__MODULE__{}, %Commands.IssueToken{scope: scope})
+      when scope not in [nil, "ops"],
+      do: {:error, Error.new(:gaia_token_scope_invalid, :gaia_account_issue_token_scope_invalid)}
+
   def execute(%__MODULE__{}, %Commands.IssueToken{} = c) do
     %Events.TokenIssued{
       actor: c.actor,
       at: c.at,
       id: c.id,
       token_hash: c.token_hash,
-      label: c.label
+      label: c.label,
+      scope: c.scope
     }
   end
 

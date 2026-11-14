@@ -85,6 +85,9 @@ export function Landing({ onInvite, onSignIn }: { onInvite: () => void; onSignIn
           <figcaption className={css.signoff}>{SIGN_OFF}</figcaption>
         </figure>
         <footer className={css.footer}>
+          <a className={css.link} href="#/hour">
+            The last hour
+          </a>
           <a className={css.link} href="https://github.com/SwaggerAllen/Oneiroi" target="_blank" rel="noreferrer">
             Source
           </a>

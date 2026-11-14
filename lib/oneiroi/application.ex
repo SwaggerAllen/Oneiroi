@@ -36,7 +36,7 @@ defmodule Oneiroi.Application do
     Boot.load!()
 
     children =
-      Composer.children(Boot.components()) ++ [endpoint_child()]
+      Composer.children(Boot.components()) ++ [metrics_child(), endpoint_child()]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Oneiroi.Supervisor)
   end
@@ -46,6 +46,40 @@ defmodule Oneiroi.Application do
     OneiroiWeb.Endpoint.config_change(changed, removed)
     :ok
   end
+
+  # Metrics (apsu#25): PromEx reads its options from the application
+  # environment, so they are put there from the declared settings before it
+  # starts. Grafana is optional: with its URL and token the dashboards are
+  # uploaded on boot and the deploy annotated; without, nothing is sent.
+  defp metrics_child do
+    grafana =
+      case {Config.fetch!(:apsu, :grafana_url), unwrap(Config.fetch!(:apsu, :grafana_token))} do
+        {url, token} when is_binary(url) and url != "" and is_binary(token) ->
+          [
+            host: url,
+            auth_token: token,
+            upload_dashboards_on_start: true,
+            folder_name: "Oneiroi",
+            annotate_app_lifecycle: true
+          ]
+
+        _unset ->
+          :disabled
+      end
+
+    Application.put_env(:oneiroi, OneiroiWeb.Metrics,
+      disabled: false,
+      manual_metrics_start_delay: :no_delay,
+      drop_metrics_groups: [],
+      grafana: grafana,
+      metrics_server: :disabled
+    )
+
+    OneiroiWeb.Metrics
+  end
+
+  defp unwrap(nil), do: nil
+  defp unwrap(secret), do: Secret.unwrap(secret)
 
   # A list rather than the options written inline in the tuple, because
   # the formatter lifts a comment inside `{Mod, key: ...}` above the

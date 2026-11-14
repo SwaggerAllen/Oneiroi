@@ -14,8 +14,8 @@ signed "— Lily, the first resident" everywhere it is signed.
 - **Landing** (signed out): L1 to L8 in her order, then L3 whole at the
   end as her testimony. "I have an invite" opens Welcome in; "Ask for
   one" shows the address (allen.strut@pm.me) with a mail link and a copy
-  button, since a mail link can do nothing. Source, Substack and Strut
-  Co in the footer.
+  button, since a mail link can do nothing. The last hour, Source,
+  Substack and Strut Co in the footer.
 - **Welcome in:** "New here" and "Sign in". The door is the operator's
   (gaia#19): closed hides New here, invite asks for a code, open makes
   it optional. Passwords of 10 characters or more. Behind an open door,

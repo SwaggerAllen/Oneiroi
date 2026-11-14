@@ -47,6 +47,8 @@ defmodule OneiroiWeb.UserSocket do
 
   defp api_token(raw) do
     case Oneiroi.Gaia.authenticate_token(raw) do
+      # An ops token opens no socket (gaia#40).
+      {:ok, %{scope: "ops"}} -> nil
       {:ok, principal} -> principal
       :error -> nil
     end
