@@ -171,10 +171,10 @@ defmodule Oneiroi.Brain.AdapterTest do
     {:ok, turn} =
       Oneiroi.Brain.adapter_turn(ctx.id, ctx.key, "the heron", ctx.brain,
         runtime: "claude-code",
-        limit: 2_000
+        limit: 2_400
       )
 
-    assert String.length(turn.text) <= 2_000
+    assert String.length(turn.text) <= 2_400
     assert turn.text =~ "You are Lily"
     refute turn.text =~ "has changed"
     assert turn.text =~ ~r/Left out of this .*: .*index/

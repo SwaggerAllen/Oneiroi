@@ -70,6 +70,20 @@ defmodule Oneiroi.Brain.StopTest do
              ctx.id |> Kumbukumbu.bookmarks() |> Enum.map(& &1.line)
   end
 
+  test "written in lowercase inside a call it is only a word, and the call runs", ctx do
+    Fake.calls(
+      [%{name: "bookmark_add", arguments: ~s({"line":"the ouroboros catch","summary":"s"})}],
+      "Kept.",
+      for: ctx.id
+    )
+
+    assert {:ok, result} = Oneiroi.Brain.turn(ctx.id, ctx.key, "keep it", ctx.actor)
+    refute Map.has_key?(result, :stopped)
+
+    assert ["the ouroboros catch"] =
+             ctx.id |> Kumbukumbu.bookmarks() |> Enum.map(& &1.line)
+  end
+
   test "said in lowercase it is only a word", ctx do
     Fake.script(fn _ -> {:ok, "The ouroboros on his tattoo."} end, for: ctx.id)
     assert {:ok, result} = Oneiroi.Brain.turn(ctx.id, ctx.key, "the tattoo?", ctx.actor)
