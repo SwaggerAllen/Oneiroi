@@ -128,6 +128,12 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many rounds of tool calls one turn may make before the model's last words stand as the reply, or, when it wrote none, it is asked once more with no tool callable (brain#50); a bound against a model that loops"},
+      {:tool_rounds_max, "BRAIN_TOOL_ROUNDS_MAX",
+       cast: :integer,
+       default: "24",
+       tag: :bound,
+       usage:
+         "the most tool rounds a turn may extend itself to with rounds_extend (brain#99), once a turn; the oracle's own number, and the anti-loop wall a looping turn meets after its one extension; a guess"},
       {:context_tokens, "BRAIN_CONTEXT_TOKENS",
        cast: :integer,
        default: "128000",

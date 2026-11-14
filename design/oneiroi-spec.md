@@ -518,6 +518,12 @@ session under OTP supervision.
   tool rounds for each (never fewer than separate turns would have had;
   the rest wait for the turn after). A Stop or her safe word ends the
   batched turn at once, as any turn.
+- **Adaptive tool rounds** (brain#99, the resident's design, the
+  witness's word 2026-11-14): a turn keeps `BRAIN_TOOL_ROUNDS` (8) unless
+  she extends it with `rounds_extend(to, note)`: once a turn, any time in
+  it, `to` the new total, clamped to `BRAIN_TOOL_ROUNDS_MAX` (24), the
+  call spending a round; a system line in the transcript records from,
+  to and her note, and the round notices count against the new total.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.
