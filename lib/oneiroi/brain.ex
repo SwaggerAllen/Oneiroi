@@ -427,6 +427,10 @@ defmodule Oneiroi.Brain do
   defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
 
   @impl Oneiroi.Sunna.Wake
+  @doc "Whether a digest is asked and not yet compiled or failed (sunna#61): the check-in that asked it waits on it."
+  defexport(digest_pending?(resident_id), do: Checkin.digest_pending?(resident_id))
+
+  @impl Oneiroi.Sunna.Wake
   @doc "The note for a pass of the memory backfill (sunna#59, brain#96): scenes, domains or people for a past day, from its transcripts' shape and scene rows; :skip when the day gives it nothing."
   defexport(backfill_note(resident_id, pass, day, n, lists),
     do: BackfillNotes.note(resident_id, pass, day, n, lists)

@@ -59,12 +59,15 @@ defmodule Oneiroi.Sunna.TickWorker do
     outcomes = outcomes(resident_id, day)
 
     for checkin <- checkins do
-      case Schedules.due(checkin, local, quiet, Map.get(outcomes, checkin.key)) do
-        :fire -> Schedules.fire_checkin(resident_id, checkin, day, @actor)
-        :miss -> Schedules.miss_checkin(resident_id, checkin.key, day, @actor)
-        {:defer, until} -> Schedules.defer_wake(resident_id, checkin.key, day, until, @actor)
-        :wait -> :wait
-      end
+      Schedules.checkin_step(
+        resident_id,
+        checkin,
+        day,
+        local,
+        quiet,
+        Map.get(outcomes, checkin.key),
+        @actor
+      )
     end
 
     free_time(resident_id, settings, local, day)

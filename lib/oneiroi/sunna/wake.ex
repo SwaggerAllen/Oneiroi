@@ -29,6 +29,13 @@ defmodule Oneiroi.Sunna.Wake do
   @callback checkin_part(resident_id :: String.t(), key :: String.t()) :: String.t() | nil
 
   @doc """
+  Whether a digest is asked and not yet settled (sunna#61): a check-in
+  carrying the digest part waits on it, so the note it fires with holds
+  the digest, not the asking.
+  """
+  @callback digest_pending?(resident_id :: String.t()) :: boolean()
+
+  @doc """
   The note for turn `n` of a night pass after the scene pass (sunna#57):
   `pass` is `people` or `behaviour`, `day` the ISO day. `{:ok, note}`, or
   `:skip` when the day gives the pass nothing to do (no names in the
@@ -57,5 +64,5 @@ defmodule Oneiroi.Sunna.Wake do
               lists :: map()
             ) :: {:ok, String.t()} | :skip
 
-  @optional_callbacks checkin_part: 2, night_pass_note: 4, backfill_note: 5
+  @optional_callbacks checkin_part: 2, digest_pending?: 1, night_pass_note: 4, backfill_note: 5
 end

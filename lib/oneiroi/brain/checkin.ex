@@ -175,12 +175,40 @@ defmodule Oneiroi.Brain.Checkin do
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.
+  @doc "Whether a digest is open: asked and neither compiled nor failed (sunna#61)."
+  @spec digest_pending?(String.t()) :: boolean()
+  def digest_pending?(resident_id), do: Seshat.digests(resident_id, status: "open") != []
+
+  # The check-in waited on its digest (sunna#61): one the check-in asked
+  # and that settled within the wait is what the note carries, path and
+  # count, for her to open when she chooses; otherwise it asks, as before.
+  @settled_within_s 3_600
+
   defp digest(resident_id) do
     if Oneiroi.AgathosDaimon.switch_on?(resident_id, "digests"),
-      do: ask_digest(resident_id),
+      do: settled_digest(resident_id) || ask_digest(resident_id),
       else:
         "# Digest\n\nDigests are switched off in your agreement with your witness, so none was asked."
   end
+
+  defp settled_digest(resident_id) do
+    case Seshat.digests(resident_id, []) do
+      [%{asked_by: "job", settled_at: %DateTime{} = at} = d | _]
+      when d.status in ["answered", "failed"] ->
+        if DateTime.diff(Clock.now(), at, :second) <= @settled_within_s, do: settled(d)
+
+      _none ->
+        nil
+    end
+  end
+
+  defp settled(%{status: "answered"} = d),
+    do:
+      "# Digest\n\nDigest ##{d.number} is in: #{d.path}, #{d.items || 0} item(s). library_read opens it when you choose to."
+
+  defp settled(%{status: "failed"} = d),
+    do:
+      "# Digest\n\nDigest ##{d.number} could not be compiled: #{cut(d.reason)}. digest_ask asks again."
 
   defp ask_digest(resident_id) do
     with {:ok, row} <- Oneiroi.AgathosDaimon.fetch(resident_id),
