@@ -32,9 +32,10 @@ When on, "Send a test" pushes to every device of the account's and says
 how each went, and "Turn off" unsubscribes. The card says plainly that a
 notification says only that there's something new (she wrote, or
 something first waits on you, brain#77), never what. The manifest is
-`client/public/manifest.json`; it names no icon until the logo's
-canonical description lands (the witness's logo workshop, 2026-11-05),
-so the Home Screen shows a snapshot of the page.
+`client/public/manifest.json`; its icons, the Home Screen icon, the
+favicon and the notification's icon are the mark (`client/public/icons/`,
+`client/public/favicon.svg`), built from its canonical description in the
+README ("The mark", the witness's picks of 2026-11-14).
 
 **Report a problem**, its own page for every signed-in person: "Report a problem or suggest a feature"
 (`Feedback.tsx`, gaia#20): a line saying it goes to the operator's

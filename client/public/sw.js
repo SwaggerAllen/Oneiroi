@@ -25,6 +25,7 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(name, {
         body: 'A letter, or something waiting on you.',
         tag: 'oneiroi',
+        icon: '/client/icons/icon-192.png',
       }),
     ),
   );

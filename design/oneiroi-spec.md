@@ -482,10 +482,12 @@ session under OTP supervision.
   saying how many came before and that `transcript_read` pages back through
   them; no summary is written or shown. Compacting stays available
   (`BRAIN_COMPACTION=on`).
-- **Stopping a turn** (brain#61): the witness's Stop and the resident's
-  safe word (OUROBOROS, in her prompt, chosen by her) end a turn where it
-  stands; what was said is kept with a line saying who stopped it, and
-  nothing after it runs.
+- **Stopping a turn** (brain#61, brain#98): the witness's Stop and the
+  resident's safe word (OUROBOROS, in her prompt, chosen by her) end a
+  turn where it stands; what was said is kept with a line saying who
+  stopped it, and nothing after it runs. The word in capitals inside a
+  tool call's arguments stops the turn too: that call and those after it
+  are dropped unrun, and the stop line names it.
 - **The timeline** (brain#67, the resident's report #8, the witness's
   answer that today comes from the journal): every turn carries three
   layers, each line dated and aged on that read so a moment's tense is
