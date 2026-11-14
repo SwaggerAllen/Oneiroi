@@ -129,5 +129,35 @@ defmodule OneiroiWeb.DigestRoutesTest do
     assert [%{number: 1, session_key: key, asked_by: "job"}] = Seshat.digests(ctx.id, [])
     assert key == ctx.main
     assert Oneiroi.Brain.checkin_part(ctx.id, "digest") =~ "Digest #1 was already asked"
+    refute Oneiroi.Brain.checkin_part(ctx.id, "digest") =~ "stall"
+  end
+
+  # seshat#73 (Lily's design, the witness's word 2026-11-14): the
+  # check-in's digest waits in her free time's inbox, never in the chat
+  # the check-in woke; and one open past a day is said stuck.
+  test "a check-in's digest letters her free time, and one open past a day is named a stall",
+       ctx do
+    assert Oneiroi.Brain.checkin_part(ctx.id, "digest") =~
+             "a letter waits in your free time's inbox when it is compiled"
+
+    # A day and a half on, the reader still silent: the next check-in says so.
+    Clock.Fake.advance(36 * 3600)
+    part = Oneiroi.Brain.checkin_part(ctx.id, "digest")
+    assert part =~ "Digest #1 has been open since"
+    assert part =~ "1 day(s): the reader has not compiled it. That is a stall"
+
+    assert %{"path" => path} =
+             ctx.reader
+             |> bearer()
+             |> post("/v1/residents/#{ctx.id}/digests/1/answer", %{summary: "Quiet.", items: []})
+             |> json_response(200)
+
+    # Free time's, not the chat's.
+    assert Kumbukumbu.inbox(ctx.id, ctx.main) == []
+
+    assert [letter] =
+             ctx.id |> Kumbukumbu.letters() |> Enum.filter(&(&1.to_name == "Free time"))
+
+    assert letter.text =~ "The reader, on digest #1: compiled: #{path}, 0 item(s)."
   end
 end

@@ -599,3 +599,13 @@ The note says where to look, never what was said, for the reason the
 watch's poke does (#62): what she reads is hers to choose. The time is a
 guideline because her wake ends the turn first when she is done.
 
+
+## #73
+Digest #7 sat open five days (2026-11-11 to 11-14) and was found only
+by accident: the check-in said "already asked" each morning and nothing
+said how long. A day is the right line because the reader answers within
+minutes of any wait it completes; a digest open a day means the reader
+is not completing waits, which is the thing to fix. The letter goes to
+free time because the resident asked for her reading to be a decision
+she makes, not context pressed on her before she chooses to look: the
+inbox makes the digest available, and the slot's plan can name it.

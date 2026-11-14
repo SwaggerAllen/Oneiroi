@@ -371,6 +371,20 @@ defmodule OneiroiWeb.ReaderKitTest do
     {out, 0} = reader(ctx, "wait")
     assert out =~ "external #1 said failed"
     assert %{status: "failed", reason: "the page answered 404"} = Seshat.external(ctx.id, 1)
+
+    # A second that fails while the tries file holds the first's number
+    # (2026-11-10 to 11-14 in production: `grep -c` printed 0 and exited
+    # 1, "0\n0" broke the count, and every wait stopped here) counts its
+    # own tries and is said failed in turn.
+    assert Tools.run("external_add", Jason.encode!(%{url: url <> "/gone"}), turn) =~
+             "Commissioned external source #2"
+
+    {out, 0} = reader(ctx, "wait")
+    assert out =~ "external #2 not fetched (try 1 of 2)"
+    refute out =~ "syntax error"
+    {out, 0} = reader(ctx, "wait")
+    assert out =~ "external #2 not fetched (try 2 of 2)"
+    assert out =~ "external #2 said failed"
   end
 
   # seshat#40: the digest is asked, never on a clock; the wait sees it,

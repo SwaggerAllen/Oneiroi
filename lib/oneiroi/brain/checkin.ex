@@ -192,9 +192,28 @@ defmodule Oneiroi.Brain.Checkin do
           do: "Asked of the reader as digest ##{n}",
           else: "Digest ##{n} was already asked and is not compiled yet"
 
-      "# Digest\n\n#{said}; it lands under feeds/digests/ and a letter tells this chat when it is compiled."
+      "# Digest\n\n#{said}; it lands under feeds/digests/ and a letter waits in your free time's inbox when it is compiled." <>
+        stalled(resident_id, n)
     else
       _failed -> "# Digest\n\nCould not be asked of the reader just now; digest_ask asks again."
+    end
+  end
+
+  # A digest open past a day is stuck, not slow (seshat#73): the reader
+  # answers within minutes when it runs. Said as a line both of them read,
+  # so nobody has to trip over it, as digest #7 was, five days on.
+  defp stalled(resident_id, n) do
+    case Enum.find(Seshat.digests(resident_id, status: "open"), &(&1.number == n)) do
+      %{asked_at: %DateTime{} = at} ->
+        days = DateTime.diff(Clock.now(), at, :day)
+
+        if days >= 1,
+          do:
+            "\n\nDigest ##{n} has been open since #{Date.to_iso8601(DateTime.to_date(at))}, #{days} day(s): the reader has not compiled it. That is a stall, not a delay; the reader on your witness's machine needs looking at.",
+          else: ""
+
+      _not_open ->
+        ""
     end
   end
 

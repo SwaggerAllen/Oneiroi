@@ -53,6 +53,14 @@ ATTEMPTS="${ONEIROI_READER_ATTEMPTS:-3}"
 
 say() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) reader $*"; }
 
+# How many times `$1` is written in the tries file `$2`: 0 when the file is
+# missing or holds others. `grep -c` prints 0 AND exits 1 on no match, so
+# the old `$(grep -c … || echo 0)` read "0\n0" once a file held another
+# number, and the arithmetic failed: from 2026-11-10 an external that kept
+# failing beside one tried before stopped every wait at the fetch step,
+# and digest #7 sat unanswered behind it for four days.
+tries_of() { local n; n="$(grep -cx "$1" "$2" 2>/dev/null)"; echo "${n:-0}"; }
+
 setup() {
   [ -r "$CONFIG/reader.conf" ] || { say "no $CONFIG/reader.conf; run install.sh"; exit 0; }
   # shellcheck disable=SC1091
@@ -202,7 +210,7 @@ route() {
       rm -f "$OUT.body"
       say "route run #$number landed; Oneiroi answered $status"
     else
-      tries="$(( $(grep -c "^$number\$" "$STATE/route-tries" 2>/dev/null || echo 0) + 1 ))"
+      tries="$(( $(tries_of "$number" "$STATE/route-tries") + 1 ))"
       echo "$number" >> "$STATE/route-tries"
       say "route run #$number wrote nothing (try $tries of 2)"
       if [ "$tries" -ge 2 ]; then
@@ -244,7 +252,7 @@ digest() {
     rm -f "$OUT.body"
     say "digest #$number compiled; Oneiroi answered $status"
   else
-    tries="$(( $(grep -c "^$number\$" "$STATE/digest-tries" 2>/dev/null || echo 0) + 1 ))"
+    tries="$(( $(tries_of "$number" "$STATE/digest-tries") + 1 ))"
     echo "$number" >> "$STATE/digest-tries"
     say "digest #$number not compiled (try $tries of 2)"
     if [ "$tries" -ge 2 ]; then
@@ -285,7 +293,7 @@ research() {
       say "research #$number answered; Oneiroi answered $status"
       rm -f "$OUT.body"
     else
-      tries="$(( $(grep -c "^$number\$" "$STATE/research-tries" 2>/dev/null || echo 0) + 1 ))"
+      tries="$(( $(tries_of "$number" "$STATE/research-tries") + 1 ))"
       echo "$number" >> "$STATE/research-tries"
       say "research #$number not answered (try $tries of 2)"
       if [ "$tries" -ge 2 ]; then
@@ -335,7 +343,7 @@ fetch() {
       [ "$status" = 200 ] && continue
       reason="Oneiroi refused the copy ($status): $(jq -r '.error.message // .error // empty' "$OUT" 2>/dev/null | head -c 300)"
     fi
-    tries="$(( $(grep -c "^$number\$" "$STATE/fetch-tries" 2>/dev/null || echo 0) + 1 ))"
+    tries="$(( $(tries_of "$number" "$STATE/fetch-tries") + 1 ))"
     echo "$number" >> "$STATE/fetch-tries"
     say "external #$number not fetched (try $tries of 2): $reason"
     if [ "$tries" -ge 2 ]; then
@@ -426,7 +434,7 @@ send() {
       say "reply #$number sent; Oneiroi answered $status"
       rm -f "$OUT.body"
     else
-      tries="$(( $(grep -c "^$number\$" "$STATE/tries" 2>/dev/null || echo 0) + 1 ))"
+      tries="$(( $(tries_of "$number" "$STATE/tries") + 1 ))"
       echo "$number" >> "$STATE/tries"
       say "reply #$number not sent (try $tries of $ATTEMPTS)"
       [ "$tries" -lt "$ATTEMPTS" ] || { echo "$number" >> "$STATE/given-up"; say "reply #$number left for the witness"; }
