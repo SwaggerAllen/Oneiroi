@@ -234,6 +234,10 @@ defmodule Oneiroi.Brain do
        remedy: "nothing to do: the turn had already ended"},
       {:brain_tool_raised, "a tool failed inside the platform; the turn went on without it",
        remedy: "nothing for her to do; the log line carries the cause for the platform's team"},
+      {:brain_wake_outlasted,
+       "the wake's turn ran past the wait (BRAIN_TURN_TIMEOUT_MS) and is still running in its session",
+       remedy:
+         "nothing to do: the turn finishes and is captured as any other; what waited on it went on"},
       {:brain_turn_crashed, "the turn's process stopped before it answered",
        remedy: "send the message again; the session's next message still runs"},
       {:brain_budget_stopped,
