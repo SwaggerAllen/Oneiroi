@@ -861,3 +861,15 @@ hour makes asking free.
 
 The notes carry the day's shape and none of its words: she reads what
 she needs with the tools she already has.
+
+## #97
+A wake waits on a GenServer call with a timeout, and a call that times
+out exits its caller. Every caller of a wake is a job: the backfill, the
+night's chain, the work loop. The exit crashed the job, and a job that
+chains its successor on success ended the chain with it. On 2026-11-14
+the backfill's people pass wrote portraits past five minutes and the
+backfill stopped after its first day; on 2026-11-12 a night's scene pass
+ran long and its free time never came. The turn was never the problem:
+it ran on and was captured. Only the waiting was, so the waiting now
+answers instead of exiting, and each caller's existing "a failure goes
+on" carries it.

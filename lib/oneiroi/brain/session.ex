@@ -81,7 +81,22 @@ defmodule Oneiroi.Brain.Session do
   def wake(resident_id, session_key, note, purpose) do
     with {:ok, pid} <- ensure(resident_id, session_key) do
       item = %{ref: nil, text: note, actor: Actor.platform(), opts: [as: :note, purpose: purpose]}
-      GenServer.call(pid, {:run, item}, Config.fetch!(:brain, :turn_timeout_ms))
+
+      # A wake that outlasts the wait is still her turn, running on in its
+      # session (brain#97): the caller hears so and goes on. On 2026-11-14
+      # the backfill's people pass wrote portraits for longer than five
+      # minutes, the exit crashed its job, and the backfill stopped after
+      # its first day; a night's scene pass had ended its free time the
+      # same way on 2026-11-12.
+      try do
+        GenServer.call(pid, {:run, item}, Config.fetch!(:brain, :turn_timeout_ms))
+      catch
+        :exit, {:timeout, _call} ->
+          {:error,
+           Error.new(:brain_wake_outlasted, :brain_session_wake_outlasted,
+             session_key: session_key
+           )}
+      end
     end
   end
 

@@ -417,3 +417,10 @@ pointed at the past rather than a new kind of job. Scenes first because
 the domains are named by scene; people last because they read the
 scenes. One day after another, a minute apart, keeps the cost visible and
 stoppable, and the job queue is the progress, so nothing new holds it.
+
+## #60
+Going on at once would start the next pass while the last still writes:
+domains reads the scenes, people reads the scenes, and a pass that reads
+half a day's rows does half a pass. Ten minutes is a guess past the
+longest pass seen (just over five), and a pass that runs longer still
+only means the next one reads a little early, never that the chain ends.

@@ -41,6 +41,11 @@ defmodule Oneiroi.Sunna.Backfill do
   @worker "Oneiroi.Sunna.BackfillWorker"
   @actor Actor.new(:job, "sunna_backfill")
   @between_days_s 60
+  @waiting ["available", "scheduled", "retryable"]
+  # How long a pass whose turn outlasted the wake's wait is given to
+  # finish before the next begins (sunna#60): a guess, ten minutes, the
+  # longest pass seen so far having run past five.
+  @outlasted_s 600
   @slugs 30
 
   @doc """
@@ -89,7 +94,14 @@ defmodule Oneiroi.Sunna.Backfill do
   def status(resident_id) do
     case Scope.platform(fn ->
            Repo.one(
-             from(j in pending(resident_id), order_by: [desc: j.id], limit: 1, select: j.args)
+             # The running pass too (sunna#60): a pass runs for minutes,
+             # and read off the waiting jobs alone the card said nothing
+             # was under way the whole time it was.
+             from(j in jobs(resident_id, ["executing" | @waiting]),
+               order_by: [desc: j.id],
+               limit: 1,
+               select: j.args
+             )
            )
          end) do
       nil ->
@@ -107,11 +119,13 @@ defmodule Oneiroi.Sunna.Backfill do
     end
   end
 
-  defp pending(resident_id),
+  defp pending(resident_id), do: jobs(resident_id, @waiting)
+
+  defp jobs(resident_id, states),
     do:
       from(j in Oban.Job,
         where:
-          j.worker == @worker and j.state in ["available", "scheduled", "retryable"] and
+          j.worker == @worker and j.state in ^states and
             fragment("? @> ?", j.args, ^%{"resident_id" => resident_id})
       )
 
@@ -128,17 +142,24 @@ defmodule Oneiroi.Sunna.Backfill do
         do: enqueue(%{args | "n" => n + 1, "session_key" => key}),
         else: next(args)
     else
+      # Her turn ran past the wait and runs on (brain#97): the chain goes
+      # on once it has had time to finish, never crashing on it
+      # (sunna#60).
+      {:error, %{kind: :brain_wake_outlasted}} ->
+        next(args, schedule_in: @outlasted_s)
+
       # Nothing to do, or a failure: the chain goes on, as at night.
-      _skipped_or_failed -> next(args)
+      _skipped_or_failed ->
+        next(args)
     end
 
     :ok
   end
 
-  defp next(%{"pass" => pass, "day" => day, "to" => to} = args) do
+  defp next(%{"pass" => pass, "day" => day, "to" => to} = args, opts \\ []) do
     case Enum.drop_while(@passes, &(&1 != pass)) do
       [_this, following | _] ->
-        enqueue(%{args | "pass" => following, "n" => 1, "session_key" => nil})
+        enqueue(%{args | "pass" => following, "n" => 1, "session_key" => nil}, opts)
 
       _last ->
         tomorrow = day |> Date.from_iso8601!() |> Date.add(1)
@@ -152,7 +173,7 @@ defmodule Oneiroi.Sunna.Backfill do
                 "n" => 1,
                 "session_key" => nil
             },
-            schedule_in: @between_days_s
+            schedule_in: max(@between_days_s, Keyword.get(opts, :schedule_in, 0))
           )
         else
           {:ok, :done}

@@ -231,6 +231,70 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert citation == past_utc
   end
 
+  test "a pass whose turn outlasts the wait goes on later, never crashing the chain (brain#97, sunna#60)",
+       ctx do
+    values = :persistent_term.get({Oneiroi.Config, :values})
+    on_exit(fn -> :persistent_term.put({Oneiroi.Config, :values}, values) end)
+
+    :persistent_term.put(
+      {Oneiroi.Config, :values},
+      Map.put(values, {:brain, :turn_timeout_ms}, 200)
+    )
+
+    test = self()
+
+    Fake.script(
+      fn _request ->
+        Process.sleep(600)
+        send(test, :finished)
+        {:ok, "Done for now."}
+      end,
+      for: ctx.id
+    )
+
+    assert {:ok, 1} = Sunna.backfill_start(ctx.id, ctx.day, ctx.day, %{}, ctx.actor)
+    assert %{"pass" => "scenes"} = run_next(ctx.id)
+
+    # The domains pass waits for the turn still running, ten minutes out.
+    [{args, at}] =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.worker == "Oneiroi.Sunna.BackfillWorker" and j.state == "scheduled" and
+                fragment("? @> ?", j.args, ^%{"resident_id" => ctx.id}),
+            select: {j.args, j.scheduled_at}
+          )
+        )
+      end)
+
+    assert args["pass"] == "domains"
+    assert DateTime.diff(at, DateTime.utc_now()) > 500
+
+    # The turn itself ran on to its end, and is captured as any other.
+    assert_receive :finished, 2_000
+    assert captured?(ctx.id, 40)
+  end
+
+  defp captured?(_id, 0), do: false
+
+  defp captured?(id, tries) do
+    housekeeping =
+      Kumbukumbu.sessions({:resident, id}) |> Enum.filter(&(&1.kind == "housekeeping"))
+
+    replied =
+      Enum.any?(housekeeping, fn s ->
+        {:ok, _s, messages} = Kumbukumbu.transcript({:resident, id}, s.key)
+        Enum.any?(messages, &(to_string(&1.role) == "assistant"))
+      end)
+
+    replied or
+      (
+        Process.sleep(50)
+        captured?(id, tries - 1)
+      )
+  end
+
   test "a day before the Oneiroi chat takes the imported chat's scenes", ctx do
     {:ok, imported} = Kumbukumbu.open_imported(ctx.id, "openclaw", [ctx.actor.id], ctx.actor)
     old = Clock.now() |> DateTime.add(-5 * 86_400) |> Map.merge(%{hour: 12, minute: 0, second: 0})
