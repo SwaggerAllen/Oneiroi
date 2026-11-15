@@ -221,6 +221,26 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert List.last(all).content =~ "##{held} from Claude Code · Oneiroi."
   end
 
+  # sunna#62: the platform's answer to what the chat asked (research, the
+  # oracle, an external copy), addressed back to its session, wakes it as
+  # a conversation's letter does; on 2026-11-15 research #35's sat unread.
+  test "the platform's answer addressed back to the chat wakes it", ctx do
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
+
+    {:ok, %{from: "the oracle"}} =
+      Kumbukumbu.letter_to_session(
+        ctx.id,
+        main,
+        "The reader, on research #1: answered.",
+        Actor.platform()
+      )
+
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note, _reply] = transcript(ctx, main)
+    assert note.content =~ "letters came for you here"
+    assert note.content =~ "from the oracle"
+  end
+
   test "a letter waits out quiet hours and wakes the chat when they end", ctx do
     :ok = Sunna.set_quiet_hours(ctx.id, "07:00", "09:00", ctx.actor)
     {main, letter, _send, _code, _lily} = letters_setup(ctx)
