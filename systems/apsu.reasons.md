@@ -179,3 +179,12 @@ What waits on the operator was being carried in chat replies, which is
 where it slipped. One list in the place he already looks, with a raiser
 and a reason on each, keeps it; the agent raising without closing keeps
 the decision his.
+
+## #32
+Set only at runtime, the prefix was invisible to anything that reads
+configuration before the Repo starts, and PromEx's Ecto plugin is such a
+reader: it attached to a default event that never fires, and the pool
+wait and query time, the very numbers the metrics were built to show
+(the 14:30 pile-ups), reached Grafana as nothing, silently. One place,
+read by both, is the fix; the test is what keeps a later move from
+silencing it again.

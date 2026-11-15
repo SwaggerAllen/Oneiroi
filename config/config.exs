@@ -36,6 +36,13 @@ config :oneiroi, Oneiroi.Commanded,
 # connects as the application role and never migrates (conventions §12).
 config :oneiroi, ecto_repos: [Oneiroi.Repo.Migrator]
 
+# The Repo's query events on the slug spine (`[:oneiroi, :apsu, …]`, the
+# audit's telemetry rule). Here and not in `Oneiroi.Repo.init/2`: PromEx's
+# Ecto plugin reads the prefix from the application's config, and set at
+# runtime alone it listened on `[:oneiroi, :repo]`, which never fires, so
+# no `oneiroi_prom_ex_ecto_*` metric reached Grafana (apsu#32).
+config :oneiroi, Oneiroi.Repo, telemetry_prefix: [:oneiroi, :apsu, :repo]
+
 # Build-shape endpoint config: the port, the secret and the public URL
 # are instance shape and come from Apsu's `config/0` at boot instead
 # (`Oneiroi.Application`), so this file names no value a deployment
