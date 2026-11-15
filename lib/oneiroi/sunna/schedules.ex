@@ -1194,11 +1194,17 @@ defmodule Oneiroi.Sunna.Schedules do
   # household watch's poke (sunna#49): the resident asked for it, for a
   # term it set, so a reply in that thread reaches her as one from her
   # own conversations does. A sibling's letter wakes it too (sunna#50):
-  # waking is what a letter is for, where a thread mostly does not.
+  # waking is what a letter is for, where a thread mostly does not. And so
+  # does the platform's answer to what a conversation asked (sunna#62):
+  # research, the oracle, an external copy, a digest the chat asked, each
+  # addressed back to its session (`to_session`), as free time's wake
+  # already reads them (#44). Before, only a conversation's letter woke
+  # the chat, and research #35's answer (2026-11-15) sat unread until the
+  # witness asked.
   defp wakes?(letter),
     do:
-      is_binary(letter.from_session) or letter.from_name == Kumbukumbu.household_sender() or
-        Kumbukumbu.from_sibling?(letter)
+      is_binary(letter.from_session) or is_binary(letter.to_session) or
+        letter.from_name == Kumbukumbu.household_sender() or Kumbukumbu.from_sibling?(letter)
 
   defp letters_note(letters, numbers) do
     listed =

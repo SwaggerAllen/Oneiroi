@@ -434,3 +434,11 @@ at it. The wait reuses quiet hours' deferral, so a restart mid-wait
 fires at the bound rather than never, and the bound keeps a silent
 reader from holding the morning hostage: thirty minutes is many waits of
 a reader that runs every five, a guess.
+
+## #62
+An answer is what a question waits for: research, an oracle reading or
+a fetched page was asked from a conversation, and its arriving is the
+moment that conversation should hear it, not the next time the witness
+happens to write. The free-time wake learned this on 2026-11-09 and the
+chat's never did, so the work landed on time and was read late. The
+hourly cap and quiet hours that bound every letter's wake bound these.

@@ -120,6 +120,11 @@ defmodule Oneiroi.Apsu.SpansTest do
     assert text =~
              ~s(oneiroi_export_duration_milliseconds_bucket{component="brain",function="needs_you")
 
+    # The Repo's queries reach PromEx's Ecto plugin under the slug-spine
+    # prefix (apsu#32): Grafana saw no oneiroi_prom_ex_ecto_* series while
+    # the prefix was set at runtime only.
+    assert text =~ "oneiroi_prom_ex_ecto_repo_query_total_time_milliseconds_bucket"
+
     assert conn |> get("/metrics") |> response(404)
   end
 end

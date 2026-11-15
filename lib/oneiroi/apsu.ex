@@ -40,6 +40,14 @@ defmodule Oneiroi.Apsu do
        required: false,
        usage:
          "the hosted Grafana PromEx uploads its dashboards to on boot (apsu#25), e.g. https://<stack>.grafana.net; unset, no upload"},
+      {:grafana_datasource, "APSU_GRAFANA_DATASOURCE",
+       default: "grafanacloud-prom",
+       usage:
+         "the uid (not the display name) of the Prometheus datasource the uploaded dashboards query (apsu#33); grafanacloud-prom is every Grafana Cloud stack's"},
+      {:grafana_interval, "APSU_GRAFANA_INTERVAL",
+       default: "4m",
+       usage:
+         "the dashboards' shortest rate interval (apsu#33): at least twice the scrape's period, so a rate window holds two samples; the hosted scrape runs every 2m"},
       {:grafana_token, "APSU_GRAFANA_TOKEN",
        secret: true,
        required: false,

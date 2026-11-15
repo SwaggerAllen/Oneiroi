@@ -126,9 +126,14 @@ check the service's Disks tab shows it mounted.
    role and a token for it. Set `APSU_GRAFANA_URL`
    (`https://<stack>.grafana.net`) and `APSU_GRAFANA_TOKEN` on the
    service; the next boot uploads PromEx's dashboards and "Oneiroi ·
-   where the time goes" to an Oneiroi folder and marks each deploy. The
-   dashboards ask for a Prometheus datasource with the uid `prometheus`;
-   if the stack's has another, change it in the dashboard settings once.
+   where the time goes" to an Oneiroi folder and marks each deploy. Each
+   boot overwrites them, so a fix made by hand in Grafana does not last:
+   the upload carries the hosted stack's (apsu#33). The datasource is
+   named by uid, `APSU_GRAFANA_DATASOURCE` (default `grafanacloud-prom`,
+   every Grafana Cloud stack's; its display name, like
+   `grafanacloud-<stack>-prom`, will not do), and the shortest rate
+   interval is `APSU_GRAFANA_INTERVAL` (default `4m`, twice the Metrics
+   Endpoint's 2-minute scrape; change both together).
 3. The slow calls themselves, with what they spent their time on and the
    events they dispatched: `GET /v1/ops/spans` and
    `GET /v1/ops/spans/summary` as a super admin (apsu#28).
