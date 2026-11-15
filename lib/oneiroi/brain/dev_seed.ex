@@ -47,9 +47,15 @@ defmodule Oneiroi.Brain.DevSeed do
   @doc "Seeds the household for `email`/`password`; `{:ok, resident_id}`, or `:exists` when the account is already there and nothing was written."
   @spec run(String.t(), String.t()) :: {:ok, String.t()} | :exists
   def run(email, password) do
-    case Gaia.create_account(email, password, Actor.platform()) do
-      {:ok, account} -> seed(account)
-      {:error, _exists} -> :exists
+    # Looked up first: an account is keyed by a fresh id, so creating one
+    # for an email already taken is not refused by the command, and the
+    # seed went on to fail on Wren's slug (`bin/dev up` on a seeded
+    # database, 2026-11-15).
+    with nil <- Gaia.account_id_for(email),
+         {:ok, account} <- Gaia.create_account(email, password, Actor.platform()) do
+      seed(account)
+    else
+      _exists -> :exists
     end
   end
 
