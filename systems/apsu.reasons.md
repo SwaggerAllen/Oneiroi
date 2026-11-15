@@ -188,3 +188,13 @@ wait and query time, the very numbers the metrics were built to show
 (the 14:30 pile-ups), reached Grafana as nothing, silently. One place,
 read by both, is the fix; the test is what keeps a later move from
 silencing it again.
+
+## #33
+The dashboards are code, re-uploaded with overwrite on every boot, so a
+fix made in Grafana's editor lasts until the next deploy and then
+silently disappears; only fixes in the upload stay. Applied to the
+decoded dashboard rather than kept in copies of PromEx's templates, so
+a PromEx upgrade brings its new panels and keeps the fixes. Each fix is
+a fact about the hosted scrape (no instance label, a two-minute period,
+a datasource named by uid), which is why two of them are settings: a
+different scrape changes them, not the code.

@@ -15,6 +15,7 @@ defmodule OneiroiWeb.Metrics do
   """
   use PromEx, otp_app: :oneiroi
 
+  alias OneiroiWeb.Metrics.Grafana
   alias PromEx.Plugins
 
   @impl true
@@ -35,17 +36,26 @@ defmodule OneiroiWeb.Metrics do
   end
 
   @impl true
-  def dashboard_assigns, do: [datasource_id: "prometheus", default_selected_interval: "30s"]
+  def dashboard_assigns,
+    do: [
+      datasource_id: Oneiroi.Config.fetch!(:apsu, :grafana_datasource),
+      default_selected_interval: Oneiroi.Config.fetch!(:apsu, :grafana_interval)
+    ]
 
   @impl true
   def dashboards do
     [
-      {:prom_ex, "application.json"},
-      {:prom_ex, "beam.json"},
-      {:prom_ex, "phoenix.json"},
-      {:prom_ex, "ecto.json"},
-      {:prom_ex, "oban.json"},
+      {:prom_ex, "application.json", apply_function: &fixup/1},
+      {:prom_ex, "beam.json", apply_function: &fixup/1},
+      {:prom_ex, "phoenix.json", apply_function: &fixup/1},
+      {:prom_ex, "ecto.json", apply_function: &fixup/1},
+      {:prom_ex, "oban.json", apply_function: &fixup/1},
       {:oneiroi, "grafana/work.json"}
     ]
   end
+
+  # The hosted Grafana's fixes (apsu#33), applied to each PromEx dashboard
+  # before it is uploaded.
+  defp fixup(dashboard),
+    do: Grafana.fixup(dashboard, Oneiroi.Config.fetch!(:apsu, :grafana_interval))
 end
