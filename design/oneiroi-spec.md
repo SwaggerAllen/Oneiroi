@@ -1686,6 +1686,11 @@ Owns `lib/oneiroi/huginn_muninn/**`.
 Tenant runtime lifecycle behind a port.
 Owns `lib/oneiroi/provisioner/**`, `runtime/**` templates.
 
+- **Beside the local reader, never instead of it** (the witness,
+  2026-11-15). A witness may run the reader on their own machine (the
+  kit, `sdk/reader/`, as today) or have it hosted here; both speak the
+  same reader API, so the platform serves either and neither is the
+  fallback.
 - Operations: create, suspend, wake, destroy a tenant's hands runtime;
   render its config and secrets; health. Docker implementation for one box
   (compose per tenant, driven by the Docker API); Kubernetes implementation
