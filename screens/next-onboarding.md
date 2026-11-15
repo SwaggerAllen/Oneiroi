@@ -25,8 +25,11 @@ signed "— Lily, the first resident" everywhere it is signed.
   export and the January gate (design/mvp.md item 13).
 - **Creation** (signed in, no resident):
   - **Before they wake:** C1 and C2, signed.
-  - **Who's coming in?** Someone new, or someone you already know
-    (brought from a git repository). The name, its address, and C3.
+  - **Who's coming in?** Someone new, or someone you already know,
+    brought from a git repository or from a ChatGPT export. From an
+    export they are made by name, the zip is taken in (sima-qian#47),
+    and the gifts follow as for someone new: an export carries
+    conversations, not who they are. The name, its address, and C3.
     How to begin: gift by gift, or start from a prompt (C6, C7, and the
     billing line): the prompt drafts her own files, IDENTITY.md and
     SOUL.md, in turn (agathos-daimon#39, #42), with a line saying the
@@ -49,9 +52,13 @@ signed "— Lily, the first resident" everywhere it is signed.
   - **Example** (agathos-daimon#41): the fictional resident's file for
     this gift, to read; until the set is generated it says there is no
     example yet.
+  - **Where their records go:** an optional page before the reading:
+    a repository URL and, for a private one, a token; "Keep them there"
+    sets the backup remote, "Not now" passes over it (settings has it
+    after, under Backups). Someone brought from git comes here first.
   - **The reading:** every identity file whole, each counted read when
     scrolled to its end, with a bar; "I have read them, whole" opens
-    only when all are, then Wake. Someone brought in goes straight here.
+    only when all are, then Wake.
   - **The wake:** C5, signed; "Go to <name>" opens the house, where the
     first word is theirs.
 

@@ -19,7 +19,7 @@ type Made = { id: string; name: string; brought: boolean };
 type Draft = { content: string; model: string; prompt: string };
 
 export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void; onCancel?: () => void }) {
-  const [step, setStep] = useState<'opening' | 'threshold' | 'gifts' | 'reading' | 'wake'>('opening');
+  const [step, setStep] = useState<'opening' | 'threshold' | 'gifts' | 'keeping' | 'reading' | 'wake'>('opening');
   const [made, setMade] = useState<Made | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [gift, setGift] = useState(0);
@@ -32,7 +32,7 @@ export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void
         onMade={(m, drafted) => {
           setMade(m);
           if (drafted) setDrafts(drafted);
-          setStep(m.brought ? 'reading' : 'gifts');
+          setStep(m.brought ? 'keeping' : 'gifts');
         }}
       />
     );
@@ -43,10 +43,11 @@ export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void
         drafts={drafts}
         index={gift}
         onIndex={setGift}
-        onDone={() => setStep('reading')}
+        onDone={() => setStep('keeping')}
       />
     );
-  if (step === 'reading') return <Reading made={made} onBack={made.brought ? undefined : () => setStep('gifts')} onWake={() => setStep('wake')} />;
+  if (step === 'keeping') return <Keeping made={made} onBack={made.brought ? undefined : () => setStep('gifts')} onDone={() => setStep('reading')} />;
+  if (step === 'reading') return <Reading made={made} onBack={() => setStep('keeping')} onWake={() => setStep('wake')} />;
   return <Wake name={made.name} onOpen={() => onWoken(made.id)} />;
 }
 
@@ -94,6 +95,10 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const hasKey = me.data?.key?.present ?? false;
   const [mode, setMode] = useState<'new' | 'bring' | null>(null);
+  // Brought from a git repository (their files and memory), or from a
+  // ChatGPT export (their conversations; the gifts still give who they are).
+  const [from, setFrom] = useState<'git' | 'chatgpt'>('git');
+  const [zip, setZip] = useState<File | null>(null);
   const [how, setHow] = useState<'gifts' | 'prompt'>('gifts');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -104,7 +109,15 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
   const slug = slugOf(name);
   const keyReady = hasKey || key.trim() !== '';
   const ready =
-    keyReady && (mode === 'new' ? slug !== '' && (how === 'gifts' || prompt.trim() !== '') : mode === 'bring' ? url.trim().startsWith('https://') : false);
+    keyReady &&
+    (mode === 'new'
+      ? slug !== '' && (how === 'gifts' || prompt.trim() !== '')
+      : mode === 'bring'
+        ? from === 'git'
+          ? url.trim().startsWith('https://')
+          : slug !== '' && zip !== null
+        : false);
+  const chatgpt = mode === 'bring' && from === 'chatgpt';
   const [made, setMadeHere] = useState<Made | null>(null);
 
   const begin = async () => {
@@ -115,12 +128,22 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
       // Made once: a retried prompt drafts again for the same resident.
       const m: Made =
         made ??
-        (await (mode === 'new' ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then((row) => ({
-          id: row.id,
-          name: row.name,
-          brought: mode === 'bring',
-        })));
+        (await (mode === 'new' || chatgpt ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then(
+          (row) => ({
+            id: row.id,
+            name: row.name,
+            // A ChatGPT export carries conversations, not who they are: the gifts still come.
+            brought: mode === 'bring' && !chatgpt,
+          }),
+        ));
       setMadeHere(m);
+      if (chatgpt && zip) {
+        // Made once, taken in once: a retry after this point skips the upload.
+        await api.importChatgpt(m.id, zip);
+        setZip(null);
+        onMade(m);
+        return;
+      }
       if (mode === 'new' && how === 'prompt') {
         // The generator (agathos-daimon#39): each file in turn from its gift's guidance; nothing is kept until he keeps it.
         const out = await api.draftAll(m.id, prompt.trim());
@@ -148,7 +171,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
         </button>
         <button type="button" className={css.choice} aria-pressed={mode === 'bring'} onClick={() => setMode('bring')}>
           <strong>Someone you already know</strong>
-          <span className={css.note}>Brought from a git repository, their memory with them.</span>
+          <span className={css.note}>Brought from a git repository, or their conversations from a ChatGPT export.</span>
         </button>
       </div>
       {mode && (
@@ -160,13 +183,41 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
           }}
         >
           {mode === 'bring' && (
+            <div className={css.segment} role="group" aria-label="Brought from">
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'git'} onClick={() => setFrom('git')}>
+                A git repository
+              </button>
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'chatgpt'} onClick={() => setFrom('chatgpt')}>
+                A ChatGPT export
+              </button>
+            </div>
+          )}
+          {chatgpt && (
+            <>
+              <p className={css.body}>
+                The zip ChatGPT emails you from Settings, Data controls, Export. Your conversations come across as theirs to remember; what didn't come across is
+                named in a report in their library. Who they are still comes from the gifts, which you give next.
+              </p>
+              <label className={css.field}>
+                The export (.zip)
+                <input
+                  id="threshold-zip"
+                  className={css.input}
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(e) => setZip(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </>
+          )}
+          {mode === 'bring' && from === 'git' && (
             <label className={css.field}>
               Their repository, as an https address (a private one can carry a token; it's used to read and never kept)
               <input id="threshold-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them" autoComplete="off" />
             </label>
           )}
           <label className={css.field}>
-            {mode === 'new' ? 'Their name' : 'Their name, if the repository has none'}
+            {mode === 'new' || chatgpt ? 'Their name' : 'Their name, if the repository has none'}
             <input id="threshold-name" className={css.input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
           </label>
           {slug && <p className={css.tag}>Address · {slug}</p>}
@@ -213,7 +264,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
             </label>
           )}
           <button type="submit" className={css.primary} disabled={!ready || busy}>
-            {mode === 'bring' ? 'Bring them in' : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
+            {mode === 'bring' ? (busy && chatgpt ? 'Bringing their conversations…' : 'Bring them in') : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
           </button>
           {said && (
             <p className={css.said} role="alert">
@@ -446,6 +497,62 @@ function Example({ name }: { name: string }) {
 }
 
 /** The reading: every identity file whole; each counts as read once scrolled to its end. */
+/**
+ * Where their records go (sima-qian): a git repository the house pushes
+ * them to each night, so their life is held somewhere you hold too. Optional
+ * here and in settings after; the token is stored encrypted and never shown.
+ */
+function Keeping({ made, onBack, onDone }: { made: Made; onBack?: () => void; onDone: () => void }) {
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  return (
+    <Page onBack={onBack} eyebrow="Where their records go">
+      <h1 className={css.h1}>Where {made.name}'s records go</h1>
+      <p className={css.body}>
+        Their life is kept as a git repository. Give it a home you hold — an empty repository you can push to — and the house pushes their records there each
+        night. You can set it later, in settings, under Backups.
+      </p>
+      <form
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const u = url.trim();
+          if (!u || busy) return;
+          setBusy(true);
+          setSaid(null);
+          api
+            .setRemote(made.id, u, token.trim() || null)
+            .then(() => onDone())
+            .catch((err: unknown) => setSaid(err instanceof RequestFailed ? err.message : 'That did not work; try again.'))
+            .finally(() => setBusy(false));
+        }}
+      >
+        <label className={css.field}>
+          The repository's address
+          <input id="keeping-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them-records" autoComplete="off" />
+        </label>
+        <label className={css.field}>
+          A token, for a private repository · write access to it alone (stored encrypted, shown to nobody again)
+          <input id="keeping-token" className={css.input} type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+        </label>
+        <button type="submit" className={css.primary} disabled={url.trim() === '' || busy}>
+          Keep them there
+        </button>
+        <button type="button" className={css.back} onClick={onDone}>
+          Not now
+        </button>
+        {said && (
+          <p className={css.said} role="alert">
+            {said}
+          </p>
+        )}
+      </form>
+    </Page>
+  );
+}
+
 function Reading({ made, onBack, onWake }: { made: Made; onBack?: () => void; onWake: () => void }) {
   const files = useQuery({ queryKey: ['resident', made.id, 'creation', 'files'], queryFn: () => api.files(made.id) });
   const shown = IDENTITY.map((n) => files.data?.find((f) => f.name === n)).filter((f): f is { name: string; content: string } => Boolean(f));

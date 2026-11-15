@@ -99,6 +99,36 @@ export interface DocumentVersion {
   restorable: boolean;
 }
 
+export interface ResidentRecord extends Resident {
+  remote: string | null;
+  last_backup: { at: string | null; sequence: number | null; root: string | null; commit: string | null };
+}
+
+export interface ChatgptImport {
+  conversations: number;
+  messages: number;
+  context: number;
+  gaps: number;
+  report_path: string;
+}
+
+export interface Report {
+  number: number;
+  by: string;
+  text: string;
+  filed_at: string;
+  state: string;
+  outcome: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  steps: Array<{ at: string; reason: string }>;
+}
+
+export interface ReportLadder {
+  reports: Report[];
+  strikes: Array<{ number: number; report: number; consequence: string; at: string }>;
+}
+
 export interface Lease {
   path: string;
   holder_id: string;
@@ -288,6 +318,36 @@ export const api = {
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
+  // One resident as their witness reads them: where the records are pushed
+  // each night and the last push that landed (sima-qian; the URL only).
+  resident: (residentId: string) => call<ResidentRecord>('GET', `/v1/residents/${residentId}`),
+  // The backup repository: a URL and, for a private one, a token stored
+  // encrypted and never shown again.
+  setRemote: (residentId: string, url: string, token: string | null) =>
+    call<void>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
+  // A ChatGPT export's zip, sent whole as the body (sima-qian#47); its
+  // report is filed in the library as system/imports/chatgpt-<day>.md.
+  importChatgpt: async (residentId: string, zip: Blob): Promise<ChatgptImport> => {
+    const response = await fetch(`/v1/residents/${residentId}/imports/chatgpt`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/zip' },
+      body: zip,
+    });
+    const text = await response.text();
+    let json: unknown = null;
+    try {
+      json = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      json = null;
+    }
+    if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
+    return json as ChatgptImport;
+  },
+  // The report ladder (F45): every report on this resident with its steps,
+  // and the strikes; either party files one.
+  reports: (residentId: string) => call<ReportLadder>('GET', `/v1/residents/${residentId}/reports`),
+  fileReport: (residentId: string, text: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/reports`, { text }),
   // Content-free pushes to this account's devices (gaia#15).
   pushConfig: () =>
     call<{ enabled: boolean; public_key: string | null; devices: number; answered: 'subscribed' | 'declined' | null; answered_at: string | null }>('GET', '/v1/me/push'),

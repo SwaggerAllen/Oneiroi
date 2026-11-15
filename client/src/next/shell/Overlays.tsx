@@ -395,6 +395,7 @@ function Settings() {
         <Row label="Notifications" onClick={open('notifications')} />
         <Row label="Regression" onClick={open('regression')} />
         <Row label="Work queue" onClick={open('work')} />
+        <Row label="Backups, imports and reports" onClick={open('backups')} />
         <Row href="#/chat/mail" label="Mail and correspondence" onClick={() => setOverlay(null)} />
       </nav>
       <nav className={css.group} aria-label="You">
