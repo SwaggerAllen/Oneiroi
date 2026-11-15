@@ -76,13 +76,41 @@ defmodule Oneiroi.Seshat.Externals do
   def web_key(url),
     do: :sha256 |> :crypto.hash(url) |> Base.encode16(case: :lower) |> binary_part(0, 16)
 
-  @doc "Where a source's copy is kept in the library."
-  @spec copy_path(map()) :: String.t()
-  def copy_path(%{kind: "web", key: key}), do: "external/web/#{key}.md"
+  @doc """
+  Where a source's copy is kept in the library. A web page's file is its
+  key and a slug of its title (seshat#74; the witness, 2026-11-14: the
+  folder should read), `external/web/<key>-<slug>.md`, the title the one
+  its first copy carried, so a later copy never moves it; with no title,
+  the key alone. The citation stays the key: the path is read off the
+  source's row, never rebuilt from a citation.
+  """
+  @spec copy_path(map(), String.t() | nil) :: String.t()
+  def copy_path(x, title \\ nil)
 
-  def copy_path(%{kind: "doc", key: key}),
+  def copy_path(%{kind: "web", key: key}, title) do
+    case title_slug(title) do
+      "" -> "external/web/#{key}.md"
+      slug -> "external/web/#{key}-#{slug}.md"
+    end
+  end
+
+  def copy_path(%{kind: "doc", key: key}, _title),
     do:
       if(String.ends_with?(key, ".md"), do: "external/doc/#{key}", else: "external/doc/#{key}.md")
+
+  @slug_chars 60
+
+  defp title_slug(nil), do: ""
+
+  defp title_slug(title) do
+    title
+    |> to_string()
+    |> ExternalCopy.slugify()
+    |> String.replace(~r/[^a-z0-9-]/, "")
+    |> String.replace(~r/-+/, "-")
+    |> String.slice(0, @slug_chars)
+    |> String.trim("-")
+  end
 
   @doc "A source's citation, for the resident's slug."
   @spec citation(String.t(), map()) :: String.t()
@@ -141,7 +169,8 @@ defmodule Oneiroi.Seshat.Externals do
          :ok <- copy_ok(text),
          digest = "sha256:" <> Base.encode16(:crypto.hash(:sha256, text), case: :lower),
          commit = commit(field(copy, :commit)),
-         path = copy_path(row),
+         path = named_path(row, title),
+         :ok <- moved(resident_id, row, path, actor),
          now = Clock.now(),
          {:ok, _} <-
            Documents.write(
@@ -169,6 +198,45 @@ defmodule Oneiroi.Seshat.Externals do
       %Store.External{} -> {:ok, :not_asked}
       other -> other
     end
+  end
+
+  # The file's name is settled by its first copy's title: a copy already
+  # named keeps its path; one kept under the key alone (before seshat#74)
+  # takes its name now.
+  defp named_path(%{kind: "web", path: path} = row, title) do
+    if is_binary(path) and path != copy_path(row), do: path, else: copy_path(row, title)
+  end
+
+  defp named_path(row, _title), do: copy_path(row)
+
+  # A copy kept under its key alone moves to its named path before the
+  # new copy is written over it, so the repository's history follows one
+  # file and the old name leaves no stray behind.
+  defp moved(resident_id, %{path: from}, to, actor) when is_binary(from) and from != to do
+    case Documents.move(resident_id, from, to, actor, core: true) do
+      {:ok, _moved} -> :ok
+      # Nothing there to move (a copy never written, or gone): the write lands it.
+      {:error, %{site: :seshat_documents_move_absent}} -> :ok
+      other -> other
+    end
+  end
+
+  defp moved(_resident_id, _row, _to, _actor), do: :ok
+
+  @doc """
+  Names every copy still kept under its key alone (seshat#74): each web
+  source with a copy and a title is moved to `<key>-<slug>.md`, its row
+  following the move. Idempotent, run by the nightly pass, so the copies
+  kept before the names came are named without a fetch. The moved paths.
+  """
+  def name_copies(resident_id, %Actor{} = actor) do
+    for x <- Scope.resident(resident_id, fn -> Store.externals([]) end),
+        # A copy fetched with no title records its URL as the title: no name.
+        x.kind == "web" and is_binary(x.path) and x.path == copy_path(x) and x.title != x.url,
+        to = copy_path(x, x.title),
+        to != x.path,
+        match?(:ok, moved(resident_id, x, to, actor)),
+        do: to
   end
 
   @doc "Records that the reader could not fetch source `number`, and tells the conversation that asked."

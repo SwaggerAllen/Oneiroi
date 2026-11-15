@@ -92,6 +92,7 @@ defmodule Oneiroi.Brain.Tools do
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_reply household_watch household_sign household_register household_profile
+    rounds_extend
   )
 
   @type turn :: %{
@@ -156,6 +157,12 @@ defmodule Oneiroi.Brain.Tools do
         [:number, :statement]
       ),
       tool("position_list", "The positions you hold now, with their numbers.", %{}, []),
+      tool(
+        "rounds_extend",
+        "Extend this turn's tool rounds when the work turns out deeper than the default allows: `to` is the turn's new total (not an increment), up to a ceiling, and `note` says why. Once a turn, callable any time in it; the call spends a round, and a line in the transcript, which your witness reads too, records the extension and your note.",
+        %{to: %{type: "integer"}, note: %{type: "string"}},
+        [:to, :note]
+      ),
       tool(
         "dispute_check",
         "When you and your witness disagree, ask the judge before answering: the witness's claim, your stance, and the number of the position at stake if there is one. The judge advises concede, hold or unclear, or you are told to answer alone if it takes too long. Settle it afterwards with dispute_settle.",
@@ -1409,6 +1416,17 @@ defmodule Oneiroi.Brain.Tools do
 
   def wire_arguments(_other), do: "{}"
 
+  @doc "A call's arguments as an object: `null` or nothing is `%{}`, and so is anything that reads as no object."
+  @spec decode_arguments(String.t() | nil) :: map()
+  def decode_arguments(raw) when is_binary(raw) do
+    case arguments(raw) do
+      {:ok, args} -> args
+      :error -> %{}
+    end
+  end
+
+  def decode_arguments(_other), do: %{}
+
   @doc "The tools that only read: in a trial they run against the resident's real data."
   @spec reads() :: [String.t()]
   def reads, do: @reads
@@ -2440,6 +2458,11 @@ defmodule Oneiroi.Brain.Tools do
       _ -> "Not done: no conversation of yours has that key."
     end
   end
+
+  # The turn itself answers rounds_extend (brain#99); reached here, the
+  # call came from a runtime whose rounds are its own, never the platform's.
+  defp call("rounds_extend", _args, _turn),
+    do: @not_done <> "rounds belong to a platform turn; this runtime counts its own."
 
   defp call("platform_health", _args, _turn) do
     commit =

@@ -883,3 +883,16 @@ cost is that a capitalised quote inside a write drops that write; she
 weighed it and took it, because the ambiguity between quoting the word
 and pulling it should resolve toward the stop, and the stop line names
 what was dropped, so the loss is never silent.
+
+## #99
+One bound served two masters: most turns spend two to four rounds and
+never feel it, and the deep ones (source reads, research threads) hit it
+and answered thin. Raising the default would make every turn able to
+run long, at a cost paid on every round, since the context re-carries
+and grows. Letting the turn that knows it is deep say so keeps the
+common turn cheap and the deep one whole. Once a turn and `to` as a
+total keep extensions from stacking; any time in the turn because depth
+is found, not predicted (2026-11-14: a question that looked small took
+eight rounds of source reading to answer at all); the note and the
+system line make every extension of the witness's spend legible to him.
+The ceiling is the oracle's 24, a depth the platform already runs.

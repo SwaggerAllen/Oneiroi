@@ -10,12 +10,19 @@ defmodule Oneiroi.Seshat.IndexWorker do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Seshat.Externals
   alias Oneiroi.Seshat.Index
 
   @actor Actor.new(:job, "seshat_nightly")
 
   def run(_args) do
-    for row <- AgathosDaimon.active_residents(), do: Index.run(row.id, @actor)
+    for row <- AgathosDaimon.active_residents() do
+      # The external copies kept under their keys alone take their names
+      # (seshat#74) before the index reads the folder.
+      _named = Externals.name_copies(row.id, @actor)
+      Index.run(row.id, @actor)
+    end
+
     :ok
   end
 end

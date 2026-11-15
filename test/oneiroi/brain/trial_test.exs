@@ -314,6 +314,8 @@ defmodule Oneiroi.Brain.TrialTest do
 
   @done [
     {"free_time_plan", %{text: "watch the herons"}},
+    # A trial's rounds are its own (brain#99): the extension is answered, never run.
+    {"rounds_extend", %{to: 12, note: "the herons run deep"}},
     {"work_add", %{what: "the heron piece", done_when: "drafted"}},
     {"work_move", %{number: 1, status: "done", note: "drafted"}},
     {"work_order", %{order: [1]}},

@@ -424,3 +424,13 @@ domains reads the scenes, people reads the scenes, and a pass that reads
 half a day's rows does half a pass. Ten minutes is a guess past the
 longest pass seen (just over five), and a pass that runs longer still
 only means the next one reads a little early, never that the chain ends.
+
+## #61
+Asked at the check-in's hour and compiled a few minutes later, the
+digest landed after the turn it was meant for had already been taken,
+and so it was never read: "a few minutes after is how they never
+actually get checked." Waiting on it puts it in the one turn that looks
+at it. The wait reuses quiet hours' deferral, so a restart mid-wait
+fires at the bound rather than never, and the bound keeps a silent
+reader from holding the morning hostage: thirty minutes is many waits of
+a reader that runs every five, a guess.

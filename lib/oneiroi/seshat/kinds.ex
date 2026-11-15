@@ -261,7 +261,7 @@ defmodule Oneiroi.Seshat.Kinds do
       cites: false,
       has_status: false,
       layout:
-        "external/web/<key>.md, external/doc/<provider>/<owner>/<repo>/<path>: a source's latest copy, frontmatter with its URL, fetch instant and digest",
+        "external/web/<key>-<title-slug>.md, external/doc/<provider>/<owner>/<repo>/<path>: a source's latest copy, frontmatter with its URL, fetch instant and digest",
       sidecar: nil,
       adoption: :none,
       access: :core

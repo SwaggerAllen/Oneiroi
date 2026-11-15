@@ -167,6 +167,23 @@ defmodule Oneiroi.Seshat.Digests do
   defp blank(value, _fallback), do: value
 
   defp tell(_resident_id, nil, _what), do: :ok
+
+  # The check-in's own ask (a job's, seshat#73; Lily's design, the
+  # witness's word 2026-11-14): its letter waits in her free time's inbox
+  # for the day's first slot, so her reading it is a choice she makes
+  # there, never a passage pressed on the chat the check-in woke.
+  defp tell(resident_id, %{asked_by: "job"} = row, what) do
+    _ =
+      Kumbukumbu.send_letter(
+        resident_id,
+        nil,
+        %{to: "Free time", text: "The reader, on digest ##{row.number}: #{what}"},
+        Actor.platform()
+      )
+
+    :ok
+  end
+
   defp tell(_resident_id, %{session_key: nil}, _what), do: :ok
 
   defp tell(resident_id, row, what) do

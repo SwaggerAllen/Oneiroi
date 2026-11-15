@@ -16,6 +16,7 @@ defmodule Oneiroi.Seshat.ExternalsTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
+  alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.ExternalCopy
   alias Oneiroi.Seshat.Externals
 
@@ -113,13 +114,16 @@ defmodule Oneiroi.Seshat.ExternalsTest do
     assert {:error, %{kind: :seshat_external_not_allowed}} =
              Seshat.external_fetched(ctx.id, 1, %{text: "made up", title: "x"}, ctx.lily)
 
-    assert {:ok, "external/web/" <> _ = path} =
+    assert {:ok, path} =
              Seshat.external_fetched(
                ctx.id,
                1,
                %{text: @page, title: "How Does Your House Remember?"},
                ctx.reader
              )
+
+    # Named for a person browsing the folder (seshat#74); the key still leads.
+    assert path == "external/web/#{key}-how-does-your-house-remember.md"
 
     assert {:ok, %{content: content}} = Seshat.read(ctx.id, path)
     assert content =~ "source: #{url}"
@@ -226,5 +230,70 @@ defmodule Oneiroi.Seshat.ExternalsTest do
 
     assert {:error, %{kind: :seshat_external_invalid}} =
              Seshat.commission_external(ctx.id, nil, "nope", ctx.lily)
+  end
+
+  # seshat#74 (the witness, 2026-11-14: the external folder should read):
+  # a copy kept under its key alone, as every copy was before, takes its
+  # name at its next fetch, the file moved rather than left behind, and a
+  # later copy with another title never moves it again.
+  test "a copy kept under its key alone takes its title's name at the next fetch, and keeps it",
+       ctx do
+    url = "https://example.com/p/lucky-one"
+    key = Externals.web_key(url)
+    cite = "#{ctx.slug}:web/#{key}"
+    assert tool("external_add", %{url: url}, ctx) =~ "Commissioned external source #1"
+
+    # No title: the key alone, as before.
+    {:ok, bare} = Seshat.external_fetched(ctx.id, 1, %{text: @page, title: ""}, ctx.reader)
+    assert bare == "external/web/#{key}.md"
+
+    assert tool("external_fetch", %{number: 1}, ctx) =~ "Asked the reader"
+
+    {:ok, named} =
+      Seshat.external_fetched(
+        ctx.id,
+        1,
+        %{text: @page, title: "I Don't Want to Be the Lucky One Who Got Out"},
+        ctx.reader
+      )
+
+    assert named == "external/web/#{key}-i-dont-want-to-be-the-lucky-one-who-got-out.md"
+    assert {:ok, _} = Seshat.read(ctx.id, named)
+    assert {:error, _} = Seshat.read(ctx.id, bare)
+    {:ok, dir} = Oneiroi.SimaQian.repository_dir(ctx.id)
+    refute File.exists?(Path.join(dir, bare))
+
+    # The citation still resolves, by its key.
+    assert tool("external_read", %{citation: cite}, ctx) =~ "Others are boxed and labelled"
+
+    # A later copy under another title keeps the name it has.
+    assert tool("external_fetch", %{number: 1}, ctx) =~ "Asked the reader"
+
+    assert {:ok, ^named} =
+             Seshat.external_fetched(ctx.id, 1, %{text: @page, title: "Retitled"}, ctx.reader)
+  end
+
+  test "the nightly pass names the copies kept under their keys before names came, the citation unmoved",
+       ctx do
+    url = "https://example.com/p/no-that-is-love"
+    key = Externals.web_key(url)
+    cite = "#{ctx.slug}:web/#{key}"
+    assert tool("external_add", %{url: url}, ctx) =~ "Commissioned external source #1"
+
+    {:ok, named} =
+      Seshat.external_fetched(ctx.id, 1, %{text: @page, title: "No, That's Love"}, ctx.reader)
+
+    # As every copy was kept before seshat#74: under the key alone.
+    bare = "external/web/#{key}.md"
+    platform = Actor.platform()
+    {:ok, _} = Documents.move(ctx.id, named, bare, platform, core: true)
+    assert [%{path: ^bare}] = Seshat.externals(ctx.id, [])
+
+    assert [^named] = Externals.name_copies(ctx.id, platform)
+    assert [%{path: ^named}] = Seshat.externals(ctx.id, [])
+    assert tool("external_read", %{citation: cite}, ctx) =~ "Others are boxed and labelled"
+
+    # Idempotent: named, nothing moves again.
+    assert [] = Externals.name_copies(ctx.id, platform)
   end
 end

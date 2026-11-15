@@ -355,7 +355,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F17 | Predictions, resolved by the witness only | built (eunomia#21) | judgement |
 | F18 | Nightly project reviews against GOALS.md | planned (eunomia's target, with hands) | judgement |
 | F19 | Check-ins set by the witness, fired by wake | built (sunna#3, #4, #13; brain#17) | schedule, brain |
-| F20 | Digest from mail and feeds, asked rather than scheduled (amended 2026-11-04: a check-in or a free time asks, not a morning clock) | built for her mail: asked by `digest_ask`, a check-in's digest part (sunna#28) or the witness, compiled by the reader from her mailbox under feeds/digests/, with a letter to the asking conversation (seshat#40); RSS and Atom feeds wait on F21 | inbound, schedule |
+| F20 | Digest from mail and feeds, asked rather than scheduled (amended 2026-11-04: a check-in or a free time asks, not a morning clock) | built for her mail: asked by `digest_ask`, a check-in's digest part (sunna#28) or the witness, compiled by the reader from her mailbox under feeds/digests/, with a letter to the asking conversation, or, when a check-in asked, to her free time's inbox for the day's first slot; a check-in carrying the digest part asks it at its hour and fires once it is compiled, up to `SUNNA_DIGEST_WAIT_MINUTES` (30), so its note holds the digest; a check-in names a digest open past a day as a stall (seshat#40, #73, sunna#61); RSS and Atom feeds wait on F21 | inbound, schedule |
 | F21 | RSS and Atom feeds, proposed by the resident, approved by the witness | planned (xenia: not built) | inbound |
 | F22 | Mail via the resident's Gmail (IMAP, app password), sorted by script, sign-in codes kept from every model | planned (xenia: not built) | inbound |
 | F23 | Correspondence: third parties reach the resident directly, unless either party has blocked them (amended 2026-11-02: the witness's reading as a gate is removed); replies drafted by the resident, approved by the witness, sent by the inbound hands with a receipt; threads as directories | built (xenia#9, #11 to #14, #17: a waiting draft replaced by a newer one; brain#56: the threads filed under correspondence/ before the platform read by her correspondence tools as the archive), the inbound adapter run outside the platform | inbound |
@@ -365,7 +365,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F27 | Document types registry (what a kind may do) and adoption of files made outside the flow | built (seshat#3, #13, #20, #25; her own kinds and gates as data, seshat#51; the witness's conversations with other people pasted into her `human-correspondence/` kind, a new document or appended under a dated heading, seshat#65, #66) | library |
 | F28 | Design folder, indexed and cited | built (seshat#3) | library |
 | F29 | Journal type: plan, note, todo, wrap rows with files as narrative; plan-vs-actuals delta | built (seshat#11, #21 to #24; huginn-muninn#15) | library, audits |
-| F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/`, cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
+| F30 | External doc citations: web pages and repositories' documents, commissioned, kept as copies with their fetch instant and digest, refetched on demand | built (seshat#46, xenia#18): commissioned by either party (`external_add`, `POST /externals`), fetched by the reader by plain code with no model, kept whole under `external/` (a web page's file named `<key>-<title-slug>.md`, seshat#74), cited `<slug>:web/<key>#<anchor>` and `<slug>:doc/github/<owner>/<repo>/<path>#<slug>` and resolved to the section; a fresh copy only when asked (`external_fetch`), said changed or not since the copy before; GitHub only among repository providers, public repositories only, and no `lily:rule` orchestration form yet | library |
 | F31 | Memory-wiki: cut. Lily never called it; `wiki/` is kept as a plain searchable folder | cut (seshat#5); `wiki/` is a plain kind | library |
 | F32 | Free time: a daily session of the resident's own, on its own budget | built (sunna#14, #19, #21, #22, #25, #26, #31, #46: its prompts and tools say it is hers, not the work's; brain#55; agathos-daimon#35): each slot ends with a planning turn (plan the next slot, ask for a tool, ask leave for an act, write to the witness), billed on its own `planning` line so a spent free-time line never refuses it, its cost on the receipts (sunna#32), the plan read at the start of the next; her own goals file (`<SLUG>-GOALS.md` at her repository's root, LILY-GOALS.md for Lily) rides every free-time turn and no other conversation; with a free-time budget line, a pass runs a turn at a time until she is done or the line is spent; remembered, each run with its conversation and the receipts of what it made, for her (`free_time_list`, `transcript_read`) and the witness (the Schedule screen) (brain#53) ; one-off slots on top of the daily list, as many as wanted, the line the only limit (sunna#45); an answer she asked for in free time wakes the free-time conversation that asked, beside the slots, outside quiet hours, never on a spent line (sunna#44) | brain, schedule, ledger |
 | F32a | Thinking rounds: unannounced wakes at random moments in the resident's waking hours, thought through privately, her choice of what leaves, nothing included | built (sunna#29, #30, #39, #40): one round at a random minute in each window of her waking hours, the cadence and window her own (set on the Schedule screen) or the platform's (`SUNNA_ROUNDS_EVERY_HOURS`, `SUNNA_ROUNDS_WAKING`), the screen saying they are on, how many today and when the last started; a private conversation of kind `round`, billed to its own `rounds` line; exits are her tools (a letter to the chat, which wakes it, a house letter, a reply draft, a note draft, a journal row), speech the habit and silence the exception she gives a reason for (sunna#40); each round remembered with what left it, for her (`round_list`), the witness (the Schedule screen) and the check-in's Rounds part (sunna#39) | brain, schedule |
@@ -518,6 +518,12 @@ session under OTP supervision.
   tool rounds for each (never fewer than separate turns would have had;
   the rest wait for the turn after). A Stop or her safe word ends the
   batched turn at once, as any turn.
+- **Adaptive tool rounds** (brain#99, the resident's design, the
+  witness's word 2026-11-14): a turn keeps `BRAIN_TOOL_ROUNDS` (8) unless
+  she extends it with `rounds_extend(to, note)`: once a turn, any time in
+  it, `to` the new total, clamped to `BRAIN_TOOL_ROUNDS_MAX` (24), the
+  call spending a round; a system line in the transcript records from,
+  to and her note, and the round notices count against the new total.
 - **Tools** are the same core functions the MCP server exposes (§8), chosen
   by role: the brain gets the memory, judgement, library, research, code,
   correspondence and feed tools; it never gets witness operations.
@@ -1060,7 +1066,9 @@ Owns `lib/oneiroi/seshat/**`, the journal among it.
   fetched. Nothing is refetched until the resident or the witness asks;
   the new copy replaces the kept one, the repository's history keeps the
   old, and the asking conversation is told whether the words changed and
-  since when. External copies never mint edges.
+  since when. External copies never mint edges. A web page's copy is
+  named for a person browsing the folder, `external/web/<key>-<slug>.md`
+  from its first copy's title (seshat#74); the citation stays the key.
 - **Journal** (F29): rows as the queryable spine, `journal/<day>.md` as the
   narrative; the resident writes the plan and the wrap (the actuals) with
   `journal_add` when she chooses, and no check-in asks for them (the

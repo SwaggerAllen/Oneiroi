@@ -137,6 +137,12 @@ defmodule Oneiroi.Sunna do
        default: "14:30,22:30",
        usage:
          "free time's slots, comma-separated HH:MMs in the resident's zone, until anyone moves them (sunna#21, #22): free time is part of the standard of care, on from the first day and never removed; 22:30 is the hour the first resident's free time ran, 14:30 the second slot the witness chose on 2026-11-02"},
+      {:digest_wait_minutes, "SUNNA_DIGEST_WAIT_MINUTES",
+       cast: :integer,
+       default: "30",
+       tag: :bound,
+       usage:
+         "how long a check-in carrying the digest part waits on the digest it asked before firing without it (sunna#61); the reader answers within minutes when it runs, so this is the bound for a reader that does not; a guess"},
       {:late_minutes, "SUNNA_LATE_MINUTES",
        cast: :integer,
        default: "15",

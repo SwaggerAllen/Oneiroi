@@ -100,6 +100,13 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.from),
       set: [path: e.to, kind: Kinds.released(e.to_kind)]
     )
+    # An external source's copy moved under its name (seshat#74): the
+    # source's row reads the path its citation resolves to.
+    |> Multi.update_all(
+      :external_path,
+      from(x in External, where: x.resident_id == ^e.id and x.path == ^e.from),
+      set: [path: e.to]
+    )
     |> Multi.update_all(
       :chunks,
       from(c in Chunk, where: c.resident_id == ^e.id and c.path == ^e.from),

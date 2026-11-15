@@ -476,6 +476,60 @@ defmodule Oneiroi.Sunna.Schedules do
 
   # ---- firing ----
 
+  @doc """
+  A check-in's step at this tick (sunna#61; the witness, 2026-11-14:
+  "we want the checkin to fire after the digest is available"). One that
+  carries the digest part asks for it at its hour and waits, deferred, up
+  to `SUNNA_DIGEST_WAIT_MINUTES`, firing the moment the digest settles, so
+  its note holds the digest and not the asking. A digest still open at
+  the bound is fired past, and the note names the stall (seshat#73).
+  """
+  def checkin_step(resident_id, checkin, day, local, quiet, outcome, %Actor{} = actor) do
+    case due(checkin, local, quiet, outcome) do
+      :fire -> fire_after_digest(resident_id, checkin, day, local, outcome, actor)
+      :miss -> miss_checkin(resident_id, checkin.key, day, actor)
+      {:defer, until} -> defer_wake(resident_id, checkin.key, day, until, actor)
+      :wait -> digest_settled_early(resident_id, checkin, day, local, quiet, outcome, actor)
+    end
+  end
+
+  defp fire_after_digest(resident_id, checkin, day, local, nil, actor) do
+    if digest?(checkin) and asked_and_pending?(resident_id) do
+      until = DateTime.add(local, Config.fetch!(:sunna, :digest_wait_minutes) * 60, :second)
+      defer_wake(resident_id, checkin.key, day, until, actor)
+    else
+      fire_checkin(resident_id, checkin, day, actor)
+    end
+  end
+
+  defp fire_after_digest(resident_id, checkin, day, _local, _deferred, actor),
+    do: fire_checkin(resident_id, checkin, day, actor)
+
+  # Waiting on its digest, it fires the moment the digest settles; a wait
+  # for quiet hours stays one.
+  defp digest_settled_early(resident_id, checkin, day, local, quiet, {:deferred, _}, actor) do
+    if digest?(checkin) and not quiet?(local, quiet) and not pending?(resident_id),
+      do: fire_checkin(resident_id, checkin, day, actor),
+      else: :wait
+  end
+
+  defp digest_settled_early(_resident_id, _checkin, _day, _local, _quiet, _outcome, _actor),
+    do: :wait
+
+  defp digest?(checkin), do: "digest" in (checkin.parts || [])
+
+  # Asks through the part itself (its words are read again at the fire),
+  # then reads whether the reader has it yet.
+  defp asked_and_pending?(resident_id) do
+    _asked = part_text(resident_id, "digest")
+    pending?(resident_id)
+  end
+
+  defp pending?(resident_id) do
+    wake = Config.fetch!(:sunna, :wake)
+    function_exported?(wake, :digest_pending?, 1) and wake.digest_pending?(resident_id)
+  end
+
   @doc "Fires a check-in: the firing row first, then the wake in the main session with the core's note."
   def fire_checkin(resident_id, checkin, day, %Actor{} = actor) do
     command = %Commands.FireCheckin{

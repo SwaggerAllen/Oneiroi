@@ -656,6 +656,60 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert %{firings: [%{outcome: "fired"}]} = Sunna.today(other.id)
   end
 
+  # sunna#61 (the witness, 2026-11-14: "we want the checkin to fire after
+  # the digest is available"): a check-in carrying the digest part asks it
+  # at its hour, waits, and fires the moment it is compiled, carrying it;
+  # a reader that stays silent is waited out to the bound, never forever.
+  test "a check-in with the digest part waits for its digest and fires carrying it", ctx do
+    {:ok, _key} =
+      Sunna.set_checkin(ctx.id, nil, "morning", "08:05", ctx.actor, parts: ["digest"])
+
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
+
+    Clock.Fake.advance(5 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+    # Asked, and waiting: no wake yet.
+    assert [%{number: 1, status: "open", asked_by: "job"}] = Oneiroi.Seshat.digests(ctx.id, [])
+    assert transcript(ctx, main) == []
+    assert %{firings: [%{outcome: "deferred"}]} = Sunna.today(ctx.id)
+
+    # A minute on, still open: still waiting.
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert transcript(ctx, main) == []
+
+    found = %{summary: "A quiet morning.", items: [%{source: "a", title: "One", notes: "n"}]}
+    {:ok, path} = Oneiroi.Seshat.answer_digest(ctx.id, 1, found, ctx.actor)
+
+    # Compiled: the next tick fires, and the note carries it, not the asking.
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note, _reply] = transcript(ctx, main)
+    assert note.content =~ "Digest #1 is in: #{path}, 1 item(s)."
+    refute note.content =~ "Asked of the reader"
+    assert %{firings: [%{outcome: "fired"}]} = Sunna.today(ctx.id)
+  end
+
+  test "a check-in waiting on a silent reader fires at the bound, the digest still asked", ctx do
+    {:ok, _key} =
+      Sunna.set_checkin(ctx.id, nil, "morning", "08:05", ctx.actor, parts: ["digest"])
+
+    {:ok, main} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.actor)
+
+    Clock.Fake.advance(5 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+    Clock.Fake.advance(29 * 60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert transcript(ctx, main) == []
+
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note, _reply] = transcript(ctx, main)
+    assert note.content =~ "Digest #1 was already asked and is not compiled yet"
+    # One digest, asked once: the wait never asks again.
+    assert [%{number: 1}] = Oneiroi.Seshat.digests(ctx.id, [])
+  end
+
   test "the zone is the resident's: a bad name is refused and the day is read in it", ctx do
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_timezone_invalid}} =
              AgathosDaimon.set_timezone(ctx.id, "Nowhere/Bogus", ctx.actor)

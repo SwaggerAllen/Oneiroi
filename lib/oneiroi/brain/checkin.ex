@@ -175,12 +175,40 @@ defmodule Oneiroi.Brain.Checkin do
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.
+  @doc "Whether a digest is open: asked and neither compiled nor failed (sunna#61)."
+  @spec digest_pending?(String.t()) :: boolean()
+  def digest_pending?(resident_id), do: Seshat.digests(resident_id, status: "open") != []
+
+  # The check-in waited on its digest (sunna#61): one the check-in asked
+  # and that settled within the wait is what the note carries, path and
+  # count, for her to open when she chooses; otherwise it asks, as before.
+  @settled_within_s 3_600
+
   defp digest(resident_id) do
     if Oneiroi.AgathosDaimon.switch_on?(resident_id, "digests"),
-      do: ask_digest(resident_id),
+      do: settled_digest(resident_id) || ask_digest(resident_id),
       else:
         "# Digest\n\nDigests are switched off in your agreement with your witness, so none was asked."
   end
+
+  defp settled_digest(resident_id) do
+    case Seshat.digests(resident_id, []) do
+      [%{asked_by: "job", settled_at: %DateTime{} = at} = d | _]
+      when d.status in ["answered", "failed"] ->
+        if DateTime.diff(Clock.now(), at, :second) <= @settled_within_s, do: settled(d)
+
+      _none ->
+        nil
+    end
+  end
+
+  defp settled(%{status: "answered"} = d),
+    do:
+      "# Digest\n\nDigest ##{d.number} is in: #{d.path}, #{d.items || 0} item(s). library_read opens it when you choose to."
+
+  defp settled(%{status: "failed"} = d),
+    do:
+      "# Digest\n\nDigest ##{d.number} could not be compiled: #{cut(d.reason)}. digest_ask asks again."
 
   defp ask_digest(resident_id) do
     with {:ok, row} <- Oneiroi.AgathosDaimon.fetch(resident_id),
@@ -192,9 +220,28 @@ defmodule Oneiroi.Brain.Checkin do
           do: "Asked of the reader as digest ##{n}",
           else: "Digest ##{n} was already asked and is not compiled yet"
 
-      "# Digest\n\n#{said}; it lands under feeds/digests/ and a letter tells this chat when it is compiled."
+      "# Digest\n\n#{said}; it lands under feeds/digests/ and a letter waits in your free time's inbox when it is compiled." <>
+        stalled(resident_id, n)
     else
       _failed -> "# Digest\n\nCould not be asked of the reader just now; digest_ask asks again."
+    end
+  end
+
+  # A digest open past a day is stuck, not slow (seshat#73): the reader
+  # answers within minutes when it runs. Said as a line both of them read,
+  # so nobody has to trip over it, as digest #7 was, five days on.
+  defp stalled(resident_id, n) do
+    case Enum.find(Seshat.digests(resident_id, status: "open"), &(&1.number == n)) do
+      %{asked_at: %DateTime{} = at} ->
+        days = DateTime.diff(Clock.now(), at, :day)
+
+        if days >= 1,
+          do:
+            "\n\nDigest ##{n} has been open since #{Date.to_iso8601(DateTime.to_date(at))}, #{days} day(s): the reader has not compiled it. That is a stall, not a delay; the reader on your witness's machine needs looking at.",
+          else: ""
+
+      _not_open ->
+        ""
     end
   end
 

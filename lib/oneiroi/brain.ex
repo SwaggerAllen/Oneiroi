@@ -128,6 +128,12 @@ defmodule Oneiroi.Brain do
        tag: :bound,
        usage:
          "how many rounds of tool calls one turn may make before the model's last words stand as the reply, or, when it wrote none, it is asked once more with no tool callable (brain#50); a bound against a model that loops"},
+      {:tool_rounds_max, "BRAIN_TOOL_ROUNDS_MAX",
+       cast: :integer,
+       default: "24",
+       tag: :bound,
+       usage:
+         "the most tool rounds a turn may extend itself to with rounds_extend (brain#99), once a turn; the oracle's own number, and the anti-loop wall a looping turn meets after its one extension; a guess"},
       {:context_tokens, "BRAIN_CONTEXT_TOKENS",
        cast: :integer,
        default: "128000",
@@ -419,6 +425,10 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."
   defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
+
+  @impl Oneiroi.Sunna.Wake
+  @doc "Whether a digest is asked and not yet compiled or failed (sunna#61): the check-in that asked it waits on it."
+  defexport(digest_pending?(resident_id), do: Checkin.digest_pending?(resident_id))
 
   @impl Oneiroi.Sunna.Wake
   @doc "The note for a pass of the memory backfill (sunna#59, brain#96): scenes, domains or people for a past day, from its transcripts' shape and scene rows; :skip when the day gives it nothing."

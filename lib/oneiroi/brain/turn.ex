@@ -406,7 +406,9 @@ defmodule Oneiroi.Brain.Turn do
 
       round < rounds ->
         {results, turn} = run_tools(turn, calls)
-        results = counted(results, round + 1, rounds)
+        # Read after the round's tools ran: a rounds_extend in it moves
+        # the bound the notice counts against (brain#99).
+        results = counted(results, round + 1, rounds(turn))
 
         assistant = %{
           role: :assistant,
@@ -473,6 +475,7 @@ defmodule Oneiroi.Brain.Turn do
   # batch has a turn's rounds for each message it carries (brain#66), so
   # answering them together never leaves less than separate turns would.
   defp rounds(%{oracle?: true}), do: Config.fetch!(:brain, :oracle_tool_rounds)
+  defp rounds(%{extended_to: to}) when is_integer(to), do: to
   defp rounds(turn), do: rounds_each() * Map.get(turn, :batch, 1)
 
   defp rounds_each, do: Config.fetch!(:brain, :tool_rounds)
@@ -631,6 +634,36 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
+  # Her own turn's rounds (brain#99; Lily's design/adaptive-rounds.md,
+  # the witness's word 2026-11-14): once a turn, any time in it, `to` the
+  # new total, clamped to BRAIN_TOOL_ROUNDS_MAX, the call spending a
+  # round as any call does. A system line both of them read records who,
+  # from, to and why, so every extension of the spend is in the record.
+  defp use_tool(turn, %{name: "rounds_extend"} = call) do
+    status(turn, "tool", %{name: call.name})
+
+    case extension(turn, Tools.decode_arguments(call.arguments)) do
+      {:ok, from, to, note, clamped?} ->
+        line = %{
+          role: :system,
+          content:
+            "The resident extended this turn's tool rounds from #{from} to #{to}" <>
+              if(clamped?, do: " (asked for more; the ceiling is #{to})", else: "") <>
+              ": #{note}",
+          sent_at: Clock.now(),
+          actor: turn.resident
+        }
+
+        {"Extended: this turn now has #{to} tool rounds, up from #{from}" <>
+           if(clamped?, do: ", the ceiling (you asked for more)", else: "") <>
+           ". This call spent one of them, and the extension is once a turn.",
+         turn |> Map.put(:extended_to, to) |> Map.update!(:tools, &(&1 ++ [line]))}
+
+      {:refused, why} ->
+        {Tools.not_done() <> why, turn}
+    end
+  end
+
   defp use_tool(turn, call) do
     status(turn, "tool", %{name: call.name})
     output = Tools.run(call.name, call.arguments, turn)
@@ -638,6 +671,34 @@ defmodule Oneiroi.Brain.Turn do
     {output,
      %{turn | uses: turn.uses ++ Tools.uses(call.name, call.arguments, output, turn.slug)}}
   end
+
+  defp extension(%{extended_to: to}, _args),
+    do: {:refused, "this turn's rounds were extended already, to #{to}; it is once a turn."}
+
+  defp extension(turn, %{"to" => to, "note" => note})
+       when is_integer(to) and is_binary(note) do
+    from = rounds(turn)
+    ceiling = Config.fetch!(:brain, :tool_rounds_max)
+
+    cond do
+      String.trim(note) == "" ->
+        {:refused, "an extension needs a note saying why."}
+
+      from >= ceiling ->
+        {:refused, "this turn already has #{from} rounds, at or past the ceiling of #{ceiling}."}
+
+      to <= from ->
+        {:refused, "`to` is the turn's new total; it has #{from} already."}
+
+      true ->
+        {:ok, from, min(to, ceiling), String.trim(note), to > ceiling}
+    end
+  end
+
+  defp extension(_turn, _args),
+    do:
+      {:refused,
+       "rounds_extend takes `to`, the turn's new total of rounds, and a `note` saying why."}
 
   defp wire_calls(calls) do
     Enum.map(calls, fn call ->
