@@ -32,6 +32,20 @@ defmodule Oneiroi.Ethos.Edge do
 
   def target_exists(_resident_id, "turn", target_id) when is_binary(target_id), do: :ok
 
+  # A journal row, `<day>/<n>` (ethos#24), is checked for its form alone,
+  # as a turn ref is: the journal is the library's, which reads this
+  # system, so the row itself cannot be looked up from here.
+  def target_exists(_resident_id, "journal", target_id) do
+    if journal_day(target_id),
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:ethos_target_invalid, :ethos_edge_journal_ref_invalid,
+           kind: "journal",
+           id: target_id
+         )}
+  end
+
   # A graduation toward a soul line names a live line of the soul file
   # (agathos-daimon#27); a position cannot be checked the same way, since
   # judgement reads this system and not the reverse.
@@ -56,6 +70,19 @@ defmodule Oneiroi.Ethos.Edge do
          kind: kind,
          id: target_id
        )}
+
+  @doc "The day of a journal ref, `<day>/<n>`, or nil when it is not one."
+  @spec journal_day(term()) :: String.t() | nil
+  def journal_day(ref) do
+    with ref when is_binary(ref) <- ref,
+         [day, n] <- String.split(ref, "/"),
+         {:ok, _date} <- Date.from_iso8601(day),
+         {number, ""} when number > 0 <- Integer.parse(n) do
+      day
+    else
+      _not_a_ref -> nil
+    end
+  end
 
   @movement_fields ~w(stance intention resume)
   # A phrase, not a paragraph: the movement rides an exemplar line in

@@ -13,7 +13,12 @@ defmodule Oneiroi.Ethos.Commands do
     # `required` is how many distinct days of citations a seed needs
     # before it may become a habit, read from the setting at the command
     # edge so the aggregate stays pure.
-    use Oneiroi.Command, decision: true, fields: [:id, :number, :to_kind, :to_id, :required]
+    # `door` is a portrait's way in (ethos#24): `days`, `conversation_for`
+    # or `witness`; the last two are checked at the edge against the turn
+    # they cite, and the aggregate lets them past the day count.
+    use Oneiroi.Command,
+      decision: true,
+      fields: [:id, :number, :to_kind, :to_id, :required, :door]
   end
 
   # A citation may carry its movement (P34 under P38): what the cited

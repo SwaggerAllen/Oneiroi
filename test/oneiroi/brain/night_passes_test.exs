@@ -11,6 +11,7 @@ defmodule Oneiroi.Brain.NightPassesTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Ethos
   alias Oneiroi.Fixtures
@@ -132,7 +133,9 @@ defmodule Oneiroi.Brain.NightPassesTest do
     assert [%{citations: 1}] = Ethos.seeds(ctx.id)
   end
 
-  test "a portrait is earned on five cited days, and its file is written only then", ctx do
+  test "a portrait is earned on ETHOS_PORTRAIT_DAYS cited days, and its file is written only then",
+       ctx do
+    bound = Oneiroi.Config.fetch!(:ethos, :portrait_days)
     night = turn(ctx, ctx.main, true)
     "Planted seed #1." = Tools.run("seed_plant", ~s({"text":"Andrew"}), night)
 
@@ -148,7 +151,7 @@ defmodule Oneiroi.Brain.NightPassesTest do
       Tools.run("document_write", ~s({"path":"#{path}","content":"# Andrew\\n"}), night)
     end
 
-    for d <- 1..4 do
+    for d <- 1..(bound - 1) do
       :ok = Ethos.cite_seed(ctx.id, 1, "turn", "t-#{d}", ctx.brain)
       Clock.Fake.advance(@day)
     end
@@ -156,7 +159,7 @@ defmodule Oneiroi.Brain.NightPassesTest do
     assert graduate.() =~ "Not done"
     assert write.("portraits/andrew.md") =~ "not earned yet"
 
-    :ok = Ethos.cite_seed(ctx.id, 1, "turn", "t-5", ctx.brain)
+    :ok = Ethos.cite_seed(ctx.id, 1, "turn", "t-last", ctx.brain)
     refute Ethos.portrait_earned?(ctx.id, "portraits/andrew.md")
     assert graduate.() == "Done."
     assert Ethos.portrait_earned?(ctx.id, "portraits/andrew.md")
@@ -168,6 +171,126 @@ defmodule Oneiroi.Brain.NightPassesTest do
            ) =~ "Not done"
 
     assert write.("portraits/jack.md") =~ "not earned yet"
+  end
+
+  test "the people pass reads the day's journal rows whole, and a day with only them is not skipped",
+       ctx do
+    day = Schedules.local_day(Schedules.local_now(ctx.id))
+    _ = Oneiroi.Sunna.open_day(ctx.id, day, ctx.brain)
+
+    {:ok, _} =
+      Seshat.journal_add(ctx.id, day, "note", "Read Enrai's gauge room whole.", ctx.brain)
+
+    assert {:ok, note} = NightPasses.note(ctx.id, "people", day, 1)
+    assert note =~ "(no scene named anyone that day)"
+    assert note =~ "- #{day}/1 (note): Read Enrai's gauge room whole."
+    assert note =~ "journal <day>/<n>"
+  end
+
+  test "a journal row cites as <day>/<n> and counts toward its own day", ctx do
+    night = turn(ctx, ctx.main, true)
+    "Planted seed #1." = Tools.run("seed_plant", ~s({"text":"Enrai"}), night)
+
+    assert Tools.run("seed_cite", ~s({"number":1,"journal":"2026-10-22/3"}), night) == "Done."
+    assert Tools.run("seed_cite", ~s({"number":1,"journal":"2026-10-23/1"}), night) == "Done."
+    assert Tools.run("seed_cite", ~s({"number":1,"journal":"yesterday"}), night) =~ "Not done"
+    assert [%{citations: 2, days: 2}] = Ethos.seeds(ctx.id)
+  end
+
+  test "a portrait's doors: conversation_for on a cited day, witness on his message, each recorded",
+       ctx do
+    night = turn(ctx, ctx.main, true)
+    "Planted seed #1." = Tools.run("seed_plant", ~s({"text":"Jack"}), night)
+    "Planted seed #2." = Tools.run("seed_plant", ~s({"text":"Ray"}), night)
+    at = Clock.now()
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.main,
+        "t-his",
+        at,
+        [%{role: :user, content: "Give Ray a portrait.", sent_at: at, actor: ctx.actor}],
+        ctx.actor
+      )
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.main,
+        "t-hers",
+        DateTime.add(at, 1),
+        [
+          %{
+            role: :assistant,
+            content: "Jack, all day.",
+            sent_at: DateTime.add(at, 1),
+            actor: ctx.brain
+          }
+        ],
+        ctx.brain
+      )
+
+    graduate = fn number, name, door ->
+      Tools.run(
+        "seed_graduate",
+        Jason.encode!(
+          Map.merge(
+            %{
+              "number" => number,
+              "to_kind" => "portrait",
+              "to_id" => "portraits/#{name}.md",
+              "note" => "why"
+            },
+            door
+          )
+        ),
+        night
+      )
+    end
+
+    # A day about him, before the seed was cited on it, is unfounded.
+    assert graduate.(1, "jack", %{"door" => "conversation_for", "door_turn" => "t-hers"}) =~
+             "Not done"
+
+    assert graduate.(1, "jack", %{"door" => "conversation_for"}) =~ "Not done"
+    :ok = Ethos.cite_seed(ctx.id, 1, "turn", "t-hers", ctx.brain)
+
+    assert graduate.(1, "jack", %{"door" => "conversation_for", "door_turn" => "t-hers"}) ==
+             "Done."
+
+    # His word is a turn whose first message is his; her own turn is not.
+    assert graduate.(2, "ray", %{"door" => "witness", "door_turn" => "t-hers"}) =~ "Not done"
+    assert graduate.(2, "ray", %{"door" => "witness", "door_turn" => "t-his"}) == "Done."
+
+    assert Ethos.portrait_earned?(ctx.id, "portraits/jack.md")
+    assert Ethos.portrait_earned?(ctx.id, "portraits/ray.md")
+
+    doors =
+      ("ethos-" <> ctx.id)
+      |> Oneiroi.EventStore.stream_forward()
+      |> Enum.map(& &1.data)
+      |> Enum.filter(&match?(%Oneiroi.Ethos.Events.SeedGraduated{}, &1))
+      |> Enum.map(&{&1.number, &1.door})
+
+    assert doors == [{1, "conversation_for"}, {2, "witness"}]
+  end
+
+  test "a door belongs to a portrait, and an unknown one is refused", ctx do
+    night = turn(ctx, ctx.main, true)
+    "Planted seed #1." = Tools.run("seed_plant", ~s({"text":"a taste for drafts"}), night)
+
+    assert Tools.run(
+             "seed_graduate",
+             ~s({"number":1,"to_kind":"position","to_id":"4","note":"x","door":"days"}),
+             night
+           ) =~ "Not done"
+
+    assert Tools.run(
+             "seed_graduate",
+             ~s({"number":1,"to_kind":"portrait","to_id":"portraits/x.md","note":"x","door":"side"}),
+             night
+           ) =~ "Not done"
   end
 
   test "how often she called the citation tools, by name, day and kind, never their words", ctx do

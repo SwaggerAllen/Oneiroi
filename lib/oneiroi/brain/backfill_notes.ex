@@ -13,11 +13,14 @@ defmodule Oneiroi.Brain.BackfillNotes do
     every other by its turns) named into domains with `domain_tag`, from
     his list and hers; skipped when nothing was said that day.
   - **people**: the night's people pass for that day, citing each
-    moment by its turn, so a portrait's days are the days the moments
-    happened (ethos#23).
+    moment by its turn or journal row, so a portrait's days are the days
+    the moments happened (ethos#23); it reads that day's journal rows
+    whole as the nightly pass does (ethos#24), and is skipped only when
+    the scenes name no one and the day has no journal rows.
   """
 
   alias Oneiroi.AgathosDaimon.Local
+  alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Prompt
@@ -72,15 +75,16 @@ defmodule Oneiroi.Brain.BackfillNotes do
   def note(resident_id, "people", day, _n, _lists) do
     rows = scenes(resident_id, day)
 
-    case rows |> Enum.flat_map(&(&1.people || [])) |> Enum.uniq() do
-      [] ->
+    case {NightPasses.people(rows), NightPasses.journal(resident_id, day)} do
+      {[], []} ->
         :skip
 
-      names ->
+      {names, entries} ->
         {:ok,
          Prompt.render!("backfill_people", %{
            day: day,
-           people: Enum.map_join(names, "\n", &person_line(&1, rows)),
+           people: NightPasses.people_lines(names, rows),
+           journal: NightPasses.journal_lines(entries, day),
            days: Config.fetch!(:ethos, :portrait_days),
            turns: Config.fetch!(:sunna, :people_turns)
          })}
@@ -171,16 +175,4 @@ defmodule Oneiroi.Brain.BackfillNotes do
   defp words([]), do: "none named yet; name them as you go"
   defp words(nil), do: "none named yet; name them as you go"
   defp words(list), do: Enum.join(list, ", ")
-
-  defp person_line(name, rows) do
-    in_scenes =
-      rows
-      |> Enum.filter(&(name in (&1.people || [])))
-      |> Enum.map_join(
-        "; ",
-        &"scene #{&1.number} \"#{&1.title}\" (turns #{&1.from_turn} to #{&1.to_turn})"
-      )
-
-    "- #{name}: #{in_scenes}"
-  end
 end

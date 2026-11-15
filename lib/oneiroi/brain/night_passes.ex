@@ -8,9 +8,13 @@ defmodule Oneiroi.Brain.NightPasses do
   both act as her (they plant and cite, never propose); seed_plant is
   theirs alone.
 
-  A day gives a pass nothing when its rows name no one (people) or there
-  are no scenes at all (behaviour), and the pass is skipped: the chain
-  goes on to what follows.
+  The people pass also reads the day's journal rows whole (ethos#24,
+  portraits v2): they carry no people column, so it finds the names in
+  them itself and cites a row as `<day>/<n>`.
+
+  A day gives a pass nothing when its scenes name no one and it has no
+  journal rows (people) or there are no scenes at all (behaviour), and
+  the pass is skipped: the chain goes on to what follows.
   """
 
   alias Oneiroi.Config
@@ -25,15 +29,16 @@ defmodule Oneiroi.Brain.NightPasses do
   def note(resident_id, "people", day, _n) do
     rows = scenes(resident_id, day)
 
-    case people(rows) do
-      [] ->
+    case {people(rows), journal(resident_id, day)} do
+      {[], []} ->
         :skip
 
-      names ->
+      {names, entries} ->
         {:ok,
          Prompt.render!("people_pass", %{
            day: day,
-           people: Enum.map_join(names, "\n", &person_line(&1, rows)),
+           people: people_lines(names, rows),
+           journal: journal_lines(entries, day),
            days: Config.fetch!(:ethos, :portrait_days),
            turns: Config.fetch!(:sunna, :people_turns)
          })}
@@ -71,7 +76,30 @@ defmodule Oneiroi.Brain.NightPasses do
     |> Enum.sort_by(& &1.number)
   end
 
-  defp people(rows), do: rows |> Enum.flat_map(&(&1.people || [])) |> Enum.uniq()
+  @doc "The day's journal rows, in order (ethos#24): none when the day was never opened."
+  @spec journal(String.t(), String.t()) :: [map()]
+  def journal(resident_id, day) do
+    case Seshat.journal_day(resident_id, day) do
+      %{entries: entries} -> Enum.sort_by(entries, & &1.number)
+      nil -> []
+    end
+  end
+
+  @doc "Journal rows as the people passes read them, each with its `<day>/<n>` ref."
+  @spec journal_lines([map()], String.t()) :: String.t()
+  def journal_lines([], _day), do: "(no journal rows that day)"
+
+  def journal_lines(entries, day),
+    do: Enum.map_join(entries, "\n", &"- #{day}/#{&1.number} (#{&1.kind}): #{&1.text}")
+
+  @doc "The scenes' people as the people passes read them, each with the scenes and turns it is in."
+  @spec people_lines([String.t()], [map()]) :: String.t()
+  def people_lines([], _rows), do: "(no scene named anyone that day)"
+  def people_lines(names, rows), do: Enum.map_join(names, "\n", &person_line(&1, rows))
+
+  @doc "The people the day's scene rows name, once each."
+  @spec people([map()]) :: [String.t()]
+  def people(rows), do: rows |> Enum.flat_map(&(&1.people || [])) |> Enum.uniq()
 
   defp person_line(name, rows) do
     in_scenes =

@@ -809,10 +809,11 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_cite",
-        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns). The days it is cited on are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
+        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns), or a journal row you name in `journal` as <day>/<n> (the row's day and its number in the day). The days it is cited on, each the cited moment's own day, are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
         %{
           number: %{type: "integer"},
           turn: %{type: "string"},
+          journal: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -838,12 +839,14 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_graduate",
-        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person who has kept coming up toward a portrait (to_id portraits/<name>.md), refused until the seed is cited on ETHOS_PORTRAIT_DAYS distinct days, after which the file is yours to write. Toward a habit, use habit_define with its seed_number.",
+        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person or a group who has kept coming up toward a portrait (to_id portraits/<name>.md), after which the file is yours to write. A portrait opens by a door, recorded on the event: `days` (the default) once the seed is cited on ETHOS_PORTRAIT_DAYS distinct days; `conversation_for` when a day was substantially about them, with `door_turn` a turn ref on a day the seed was cited; `witness` on his word, with `door_turn` the turn where his message gives it. The note says why. Toward a habit, use habit_define with its seed_number.",
         %{
           number: %{type: "integer"},
           to_kind: %{type: "string", enum: ["position", "soul", "portrait"]},
           to_id: %{type: "string"},
-          note: %{type: "string"}
+          note: %{type: "string"},
+          door: %{type: "string", enum: ["days", "conversation_for", "witness"]},
+          door_turn: %{type: "string"}
         },
         [:number, :to_kind, :to_id, :note]
       ),
@@ -2757,6 +2760,18 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # A journal row named (ethos#24) is cited as itself; otherwise a turn.
+  defp call("seed_cite", %{"journal" => row} = args, turn) when is_binary(row) and row != "",
+    do:
+      Ethos.cite_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        "journal",
+        row,
+        turn.resident,
+        movement(args)
+      )
+
   defp call("seed_cite", args, turn),
     do:
       Ethos.cite_seed(
@@ -2790,7 +2805,8 @@ defmodule Oneiroi.Brain.Tools do
         to_string(args["to_kind"] || ""),
         to_string(args["to_id"] || ""),
         args["note"],
-        turn.resident
+        turn.resident,
+        %{door: blank(args["door"]), turn: blank(args["door_turn"])}
       )
 
   defp call("seed_list", _args, turn) do

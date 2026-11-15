@@ -84,9 +84,10 @@ defmodule Oneiroi.Ethos.Seeds do
   end
 
   @doc "Graduates an open seed toward a habit (confirmed across `ETHOS_PROMOTION_CONFIRMATIONS` days), a portrait (across `ETHOS_PORTRAIT_DAYS`, ethos#21) or an evaluative kind, with a note."
-  def graduate(resident_id, number, to_kind, to_id, note, %Actor{} = actor) do
+  def graduate(resident_id, number, to_kind, to_id, note, %Actor{} = actor, door \\ %{}) do
     with :ok <- resident_only(actor),
-         :ok <- graduation_target(resident_id, to_kind, to_id) do
+         :ok <- graduation_target(resident_id, to_kind, to_id),
+         :ok <- door_ok(resident_id, number, door[:door], door[:turn]) do
       command = %Commands.GraduateSeed{
         actor: actor,
         at: Clock.now(),
@@ -95,7 +96,8 @@ defmodule Oneiroi.Ethos.Seeds do
         number: number,
         to_kind: to_kind,
         to_id: to_string(to_id),
-        required: required(to_kind)
+        required: required(to_kind),
+        door: door[:door]
       }
 
       with {:ok, _} <- Edge.dispatch(command), do: :ok
@@ -185,7 +187,58 @@ defmodule Oneiroi.Ethos.Seeds do
     end
   end
 
+  defp moment_day(_resident_id, "journal", ref), do: Edge.journal_day(to_string(ref))
+
   defp moment_day(_resident_id, _kind, _target), do: nil
+
+  # A door past the day count cites the turn that opens it (ethos#24):
+  # his word is a turn whose first message is the witness's; a day about
+  # them is a turn on a day the seed was cited, by the same clock the
+  # count keeps (ethos#23). Recorded, and now checked; never prose.
+  defp door_ok(_resident_id, _number, door, _turn) when door in [nil, "days"], do: :ok
+
+  defp door_ok(resident_id, _number, "witness", turn) when is_binary(turn) do
+    case Kumbukumbu.turn_messages(resident_id, turn) do
+      [%{actor_kind: "witness"} | _] ->
+        :ok
+
+      _other ->
+        {:error, Error.new(:ethos_door_unfounded, :ethos_seeds_witness_door_turn, turn: turn)}
+    end
+  end
+
+  defp door_ok(resident_id, number, "conversation_for", turn) when is_binary(turn) do
+    day = moment_day(resident_id, "turn", turn)
+    seed = Enum.find(seeds_with_days(resident_id), &(&1.number == number))
+
+    if day && seed && day in seed.cited_days,
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:ethos_door_unfounded, :ethos_seeds_conversation_door_turn,
+           turn: turn,
+           day: day
+         )}
+  end
+
+  defp door_ok(_resident_id, _number, door, _turn) when door in ["witness", "conversation_for"],
+    do: {:error, Error.new(:ethos_door_unfounded, :ethos_seeds_door_turn_missing, door: door)}
+
+  # An unknown door goes on to the aggregate, which names it.
+  defp door_ok(_resident_id, _number, _door, _turn), do: :ok
+
+  defp seeds_with_days(resident_id) do
+    Scope.resident(resident_id, fn ->
+      citations = Enum.group_by(Store.citations("seed"), & &1.number)
+
+      Enum.map(Store.seeds(), fn s ->
+        %{
+          number: s.number,
+          cited_days: citations |> Map.get(s.number, []) |> Enum.map(&cited_day/1)
+        }
+      end)
+    end)
+  end
 
   # The days a graduation asks: a portrait's own number, the habit's for the rest.
   defp required("portrait"), do: Config.fetch!(:ethos, :portrait_days)

@@ -163,3 +163,15 @@ take the same rule: named, not shown, and her reach to the turn intact.
 The confirmation was always about the days the pattern showed, and
 citing on the day was how that was measured; a backfill separates the
 two, and the moment's day is the one that means something.
+
+## #24
+
+Five days held a person out until the file was nearly redundant, and a
+day spent wholly on someone, or his saying so, is better evidence than a
+count; a door names which evidence opened the file, so nothing gets past
+the count unseen. A door checked against the turn it cites makes the
+attestation readable by the machine as well as by him, at the cost of an
+event version, which the upcaster pays. The journal carries names the
+scene rows do not, so the night's pass needs to cite where it found
+them; the form check is all this system can do without reading the
+library, the same trust a turn ref already has.

@@ -189,6 +189,18 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert Sunna.backfill_status(ctx.id) == nil
   end
 
+  test "a past day with journal rows and no named scene people still gets its people pass", ctx do
+    _ = Sunna.open_day(ctx.id, ctx.day, ctx.brain)
+
+    {:ok, _} =
+      Seshat.journal_add(ctx.id, ctx.day, "note", "Ray called after the meeting.", ctx.brain)
+
+    assert {:ok, note} = BackfillNotes.note(ctx.id, "people", ctx.day, 1, %{})
+    assert note =~ "memory backfill's people pass for #{ctx.day}"
+    assert note =~ "(no scene named anyone that day)"
+    assert note =~ "- #{ctx.day}/1 (note): Ray called after the meeting."
+  end
+
   test "domain_tag names a turn in another of her conversations, by its key", ctx do
     turn = %{
       resident_id: ctx.id,

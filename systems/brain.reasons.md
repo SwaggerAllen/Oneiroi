@@ -896,3 +896,12 @@ is found, not predicted (2026-11-14: a question that looked small took
 eight rounds of source reading to answer at all); the note and the
 system line make every extension of the witness's spend legible to him.
 The ceiling is the oracle's 24, a depth the platform already runs.
+
+## #100
+
+The founding cases starved on scene rows alone: people who came up in the
+journal, in research or in letters were never in play, so never planted
+or cited. The journal is the day written a second way, and reading it
+whole costs one note; finding names is the pass's work because the rows
+are hers and the pass is her. The never-list shrank to what is his: the
+pass writes as she would, correctable from the main thread.
