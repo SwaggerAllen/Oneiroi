@@ -1,0 +1,28 @@
+import { useEffect } from 'react';
+import { Shell } from '../shell/Shell';
+import { useShell } from '../state/store';
+import { DEFAULT_SEEDS } from '../theme/derive';
+import { Charter } from './Charter';
+import { HouseRecords } from './HouseRecords';
+import { HouseTime } from './HouseTime';
+import { Threads } from './Threads';
+
+/**
+ * The house as a subject (screen:next-house; the witness, 2026-11-16):
+ * chosen from the residents' dropdown, the same shell and tabs, the soul
+ * tab its charter. The house's own theme, nobody's in particular.
+ */
+export function HouseHome() {
+  const setSeeds = useShell((s) => s.setSeeds);
+  useEffect(() => setSeeds(DEFAULT_SEEDS), [setSeeds]);
+  return (
+    <Shell
+      house
+      residentId="house"
+      residentName="The house"
+      waiting={0}
+      onReconnect={() => undefined}
+      renderTab={(tab) => (tab === 'chat' ? <Threads /> : tab === 'time' ? <HouseTime /> : tab === 'records' ? <HouseRecords /> : <Charter />)}
+    />
+  );
+}

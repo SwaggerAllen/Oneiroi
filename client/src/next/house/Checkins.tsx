@@ -1,33 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, type HouseCheckin } from '../../api/client';
-import { Card, Field, Said, TextArea } from './common';
-import * as css from './settings.css';
-import { useAct } from './useAct';
-
-const KEY = ['household', 'checkins'];
+import { Card, Field, Said } from '../settings/common';
+import * as css from '../settings/settings.css';
+import { useAct } from '../settings/useAct';
+import { CHECKINS as KEY } from './keys';
 
 /**
- * The house (gaia#41, seshat#75; screens/next-settings.md): the shared
- * workspace's own clock, the check-ins the whole house answers at once,
- * and the latest one's thread with your reply, which wakes everyone.
- * Each resident's own words for a check-in are set on her Rhythm page.
+ * The house's clock and its check-ins (gaia#41, seshat#75), on the house's
+ * Time tab (screen:next-house). Each resident's own words for a check-in
+ * are set on her Rhythm page.
  */
-export function House() {
-  const house = useQuery({ queryKey: KEY, queryFn: api.houseCheckins, retry: false });
-  if (house.isError) return <p className={css.note}>No household here yet: a house check-in needs one.</p>;
-  if (!house.data) return <p className={css.note}>Reading the house…</p>;
-  const latest = [...house.data.checkins].filter((c) => c.last_thread).sort((a, b) => (b.last_fired_at ?? '').localeCompare(a.last_fired_at ?? ''))[0];
-  return (
-    <>
-      <Clock zone={house.data.zone ?? 'Etc/UTC'} />
-      <Checkins checkins={house.data.checkins} zone={house.data.zone ?? 'Etc/UTC'} />
-      {latest && <Thread checkin={latest} />}
-    </>
-  );
-}
-
-function Clock({ zone }: { zone: string }) {
+export function Clock({ zone }: { zone: string }) {
   const [value, setValue] = useState(zone);
   const act = useAct();
   return (
@@ -51,7 +34,7 @@ function Clock({ zone }: { zone: string }) {
   );
 }
 
-function Checkins({ checkins, zone }: { checkins: HouseCheckin[]; zone: string }) {
+export function Checkins({ checkins, zone }: { checkins: HouseCheckin[]; zone: string }) {
   const [label, setLabel] = useState('');
   const [time, setTime] = useState('');
   const act = useAct();
@@ -123,41 +106,5 @@ function Row({ c }: { c: HouseCheckin }) {
       </form>
       <Said said={act.said} />
     </li>
-  );
-}
-
-/** The latest check-in's thread, whole, and your reply, which wakes the house. */
-function Thread({ checkin }: { checkin: HouseCheckin }) {
-  const path = checkin.last_thread ?? '';
-  const thread = useQuery({ queryKey: [...KEY, 'thread', path], queryFn: () => api.householdRead(path) });
-  const [text, setText] = useState('');
-  const act = useAct();
-  return (
-    <Card title={`${checkin.label}, ${checkin.last_day}`}>
-      {thread.data ? <pre className={css.pre}>{thread.data.content}</pre> : <p className={css.note}>{thread.isError ? 'The thread could not be read.' : 'Reading the thread…'}</p>}
-      <form
-        aria-label="Reply to the house"
-        className={css.column}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void act.run(
-            () =>
-              api.householdReply(path, text.trim()).then(() => {
-                setText('');
-                return 'Replied: the whole house wakes to read it.';
-              }),
-            [...KEY, 'thread', path],
-          );
-        }}
-      >
-        <TextArea label="Your reply (wakes every resident)" value={text} onChange={(e) => setText(e.target.value)} />
-        <div className={css.row}>
-          <button type="submit" className={css.primary} disabled={act.busy || !text.trim()}>
-            Reply to the house
-          </button>
-        </div>
-      </form>
-      <Said said={act.said} />
-    </Card>
   );
 }

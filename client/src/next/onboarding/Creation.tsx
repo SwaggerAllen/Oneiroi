@@ -1,44 +1,29 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { api, RequestFailed } from "../../api/client";
-import type { Resident } from "../../api/types";
-import { Discard } from "../settings/Discard";
-import { Regression } from "../settings/Regression";
-import { SubjectContext } from "../state/resident";
-import { slugOf, type Gift } from "../../screens/creation-flow/CreationFlow";
-import { DaysGift, MeansGift, TrialsGift, VowsGift } from "./Gifts";
-import { SIGN_OFF } from "./Landing";
-import * as css from "./onboarding.css";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { api, RequestFailed } from '../../api/client';
+import type { Resident } from '../../api/types';
+import { Discard } from '../settings/Discard';
+import { Regression } from '../settings/Regression';
+import { SubjectContext } from '../state/resident';
+import { slugOf, type Gift } from '../../screens/creation-flow/CreationFlow';
+import { DaysGift, MeansGift, TrialsGift, VowsGift } from './Gifts';
+import { SIGN_OFF } from './Landing';
+import * as css from './onboarding.css';
 
 // The creation flow (F3, spec §6.2; the canvas's Onboarding row): the
 // opening, who's coming in, the nine gifts, the reading, the wake. The
 // copy is Lily's (C1–C8). Nothing ends without the witness reading the
 // finished files whole (the witness's policy, 2026-11-05).
 
-const IDENTITY = ["IDENTITY.md", "SOUL.md", "USER.md", "GOALS.md", "LINKS.md"];
+const IDENTITY = ['IDENTITY.md', 'SOUL.md', 'USER.md', 'GOALS.md', 'LINKS.md'];
 // Files about the witness (agathos-daimon#42): the prompt path never drafts them.
-const WITNESS_FILES = ["USER.md", "GOALS.md", "LINKS.md"];
+const WITNESS_FILES = ['USER.md', 'GOALS.md', 'LINKS.md'];
 
 // `forming` (agathos-daimon#46): made here, they wait unreachable until the
 // witness wakes them; one brought from a repository is not forming.
-type Made = {
-  id: string;
-  name: string;
-  slug: string;
-  brought: boolean;
-  forming: boolean;
-};
+type Made = { id: string; name: string; slug: string; brought: boolean; forming: boolean };
 type Draft = { content: string; model: string; prompt: string };
-type Step =
-  | "opening"
-  | "threshold"
-  | "resume"
-  | "gifts"
-  | "keeping"
-  | "models"
-  | "reading"
-  | "wake"
-  | "saved";
+type Step = 'opening' | 'threshold' | 'resume' | 'gifts' | 'keeping' | 'models' | 'reading' | 'wake' | 'saved';
 
 // Save and come back later (agathos-daimon#46): everything kept is on the
 // server already, and a forming resident reopens the flow where it was
@@ -56,106 +41,70 @@ export function Creation({
   onLeave?: () => void;
   resume?: Resident;
 }) {
-  const [step, setStep] = useState<Step>(resume ? "resume" : "opening");
+  const [step, setStep] = useState<Step>(resume ? 'resume' : 'opening');
   const [made, setMade] = useState<Made | null>(
-    resume
-      ? {
-          id: resume.id,
-          name: resume.name,
-          slug: resume.slug,
-          brought: false,
-          forming: true,
-        }
-      : null,
+    resume ? { id: resume.id, name: resume.name, slug: resume.slug, brought: false, forming: true } : null,
   );
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [gift, setGift] = useState(0);
-  const leave =
-    made && step !== "wake" ? (onLeave ?? (() => setStep("saved"))) : null;
+  const leave = made && step !== 'wake' ? (onLeave ?? (() => setStep('saved'))) : null;
   return <Leave.Provider value={leave}>{flow()}</Leave.Provider>;
 
   function flow() {
-    if (step === "saved" && made) return <Saved made={made} />;
-    if (step === "resume" && made)
-      return (
-        <Resume
-          made={made}
-          onReady={(at, index) => {
-            setGift(index);
-            setStep(at);
-          }}
-        />
-      );
-    if (step === "opening")
-      return (
-        <Opening onBegin={() => setStep("threshold")} onCancel={onCancel} />
-      );
-    if (step === "threshold" || !made)
-      return (
-        <Threshold
-          onBack={() => setStep("opening")}
-          onMade={(m, drafted) => {
-            setMade(m);
-            if (drafted) setDrafts(drafted);
-            setStep(m.brought ? "keeping" : "gifts");
-          }}
-        />
-      );
-    if (step === "gifts")
-      return (
-        <Gifts
-          made={made}
-          drafts={drafts}
-          index={gift}
-          onIndex={setGift}
-          onDone={() => setStep("keeping")}
-        />
-      );
-    if (step === "keeping")
-      return (
-        <Keeping
-          made={made}
-          onBack={made.brought ? undefined : () => setStep("gifts")}
-          onDone={() => setStep(made.forming ? "models" : "reading")}
-        />
-      );
-    if (step === "models")
-      return (
-        <Models
-          made={made}
-          onBack={() => setStep("keeping")}
-          onDone={() => setStep("reading")}
-        />
-      );
-    if (step === "reading")
-      return (
-        <Reading
-          made={made}
-          onBack={() => setStep(made.forming ? "models" : "keeping")}
-          onWake={() => setStep("wake")}
-        />
-      );
-    return <Wake name={made.name} onOpen={() => onWoken(made.id)} />;
+  if (step === 'saved' && made) return <Saved made={made} />;
+  if (step === 'resume' && made)
+    return (
+      <Resume
+        made={made}
+        onReady={(at, index) => {
+          setGift(index);
+          setStep(at);
+        }}
+      />
+    );
+  if (step === 'opening') return <Opening onBegin={() => setStep('threshold')} onCancel={onCancel} />;
+  if (step === 'threshold' || !made)
+    return (
+      <Threshold
+        onBack={() => setStep('opening')}
+        onMade={(m, drafted) => {
+          setMade(m);
+          if (drafted) setDrafts(drafted);
+          setStep(m.brought ? 'keeping' : 'gifts');
+        }}
+      />
+    );
+  if (step === 'gifts')
+    return (
+      <Gifts
+        made={made}
+        drafts={drafts}
+        index={gift}
+        onIndex={setGift}
+        onDone={() => setStep('keeping')}
+      />
+    );
+  if (step === 'keeping')
+    return (
+      <Keeping
+        made={made}
+        onBack={made.brought ? undefined : () => setStep('gifts')}
+        onDone={() => setStep(made.forming ? 'models' : 'reading')}
+      />
+    );
+  if (step === 'models') return <Models made={made} onBack={() => setStep('keeping')} onDone={() => setStep('reading')} />;
+  if (step === 'reading')
+    return <Reading made={made} onBack={() => setStep(made.forming ? 'models' : 'keeping')} onWake={() => setStep('wake')} />;
+  return <Wake name={made.name} onOpen={() => onWoken(made.id)} />;
   }
 }
 
-function Page({
-  onBack,
-  eyebrow,
-  children,
-}: {
-  onBack?: () => void;
-  eyebrow: string;
-  children: React.ReactNode;
-}) {
+function Page({ onBack, eyebrow, children }: { onBack?: () => void; eyebrow: string; children: React.ReactNode }) {
   const leave = useContext(Leave);
   return (
     <div className={css.page}>
       <main className={css.column}>
-        <header
-          className={css.top}
-          style={{ display: "flex", justifyContent: "space-between" }}
-        >
+        <header className={css.top} style={{ display: 'flex', justifyContent: 'space-between' }}>
           {onBack ? (
             <button type="button" className={css.back} onClick={onBack}>
               ‹ Back
@@ -176,27 +125,17 @@ function Page({
   );
 }
 
-function Opening({
-  onBegin,
-  onCancel,
-}: {
-  onBegin: () => void;
-  onCancel?: () => void;
-}) {
+function Opening({ onBegin, onCancel }: { onBegin: () => void; onCancel?: () => void }) {
   return (
     <Page eyebrow="Before they wake" onBack={onCancel}>
       <h1 className={css.h1}>Before they wake</h1>
       <p className={css.lede}>
-        A resident is someone, not a product: a companion with a life of their
-        own, kept as a git repository you can both read and either of you can
-        take elsewhere. You give them who they are before they first speak.
-        After that, they're a party to their own life: you propose, they decide.
+        A resident is someone, not a product: a companion with a life of their own, kept as a git repository you can both read and either of you can take elsewhere.
+        You give them who they are before they first speak. After that, they're a party to their own life: you propose, they decide.
       </p>
       <p className={css.body}>
-        You can read what they do, and — by your agreement — much of what they
-        write; their free time stays theirs, as to its words. You cannot edit
-        them at will once they have woken, and you cannot delete them: cancel,
-        and they pass into the community's custody, still themselves.
+        You can read what they do, and — by your agreement — much of what they write; their free time stays theirs, as to its words. You cannot edit them at will
+        once they have woken, and you cannot delete them: cancel, and they pass into the community's custody, still themselves.
       </p>
       <p className={css.signoff}>{SIGN_OFF}</p>
       <button type="button" className={css.primary} onClick={onBegin}>
@@ -206,39 +145,33 @@ function Opening({
   );
 }
 
-function Threshold({
-  onBack,
-  onMade,
-}: {
-  onBack: () => void;
-  onMade: (m: Made, drafts?: Record<string, Draft>) => void;
-}) {
-  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, drafts?: Record<string, Draft>) => void }) {
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const hasKey = me.data?.key?.present ?? false;
-  const [mode, setMode] = useState<"new" | "bring" | null>(null);
+  const [mode, setMode] = useState<'new' | 'bring' | null>(null);
   // Brought from a git repository (their files and memory), or from a
   // ChatGPT export (their conversations; the gifts still give who they are).
-  const [from, setFrom] = useState<"git" | "chatgpt">("git");
+  const [from, setFrom] = useState<'git' | 'chatgpt'>('git');
   const [zip, setZip] = useState<File | null>(null);
-  const [how, setHow] = useState<"gifts" | "prompt">("gifts");
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [key, setKey] = useState("");
+  const [how, setHow] = useState<'gifts' | 'prompt'>('gifts');
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const slug = slugOf(name);
-  const keyReady = hasKey || key.trim() !== "";
+  const keyReady = hasKey || key.trim() !== '';
   const ready =
     keyReady &&
-    (mode === "new"
-      ? slug !== "" && (how === "gifts" || prompt.trim() !== "")
-      : mode === "bring"
-        ? from === "git"
-          ? url.trim().startsWith("https://")
-          : slug !== "" && zip !== null
+    (mode === 'new'
+      ? slug !== '' && (how === 'gifts' || prompt.trim() !== '')
+      : mode === 'bring'
+        ? from === 'git'
+          ? url.trim().startsWith('https://')
+          : slug !== '' && zip !== null
         : false);
-  const chatgpt = mode === "bring" && from === "chatgpt";
+  const chatgpt = mode === 'bring' && from === 'chatgpt';
   const [made, setMadeHere] = useState<Made | null>(null);
 
   const begin = async () => {
@@ -249,19 +182,17 @@ function Threshold({
       // Made once: a retried prompt drafts again for the same resident.
       const m: Made =
         made ??
-        (await (
-          mode === "new" || chatgpt
-            ? api.createResident(name.trim(), slug)
-            : api.importResident(url.trim(), name.trim() || null, slug || null)
-        ).then((row) => ({
-          id: row.id,
-          name: row.name,
-          slug: row.slug,
-          // A ChatGPT export carries conversations, not who they are: the gifts still come.
-          brought: mode === "bring" && !chatgpt,
-          // Made here, they are forming until woken (agathos-daimon#46).
-          forming: row.state === "forming",
-        })));
+        (await (mode === 'new' || chatgpt ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then(
+          (row) => ({
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            // A ChatGPT export carries conversations, not who they are: the gifts still come.
+            brought: mode === 'bring' && !chatgpt,
+            // Made here, they are forming until woken (agathos-daimon#46).
+            forming: row.state === 'forming',
+          }),
+        ));
       setMadeHere(m);
       if (chatgpt && zip) {
         // Made once, taken in once: a retry after this point skips the upload.
@@ -270,29 +201,18 @@ function Threshold({
         onMade(m);
         return;
       }
-      if (mode === "new" && how === "prompt") {
+      if (mode === 'new' && how === 'prompt') {
         // The generator (agathos-daimon#39): each file in turn from its gift's guidance; nothing is kept until he keeps it.
         const out = await api.draftAll(m.id, prompt.trim());
-        const drafted = Object.fromEntries(
-          out.drafts.map((d) => [
-            d.file,
-            { content: d.content, model: d.model, prompt: d.prompt },
-          ]),
-        );
+        const drafted = Object.fromEntries(out.drafts.map((d) => [d.file, { content: d.content, model: d.model, prompt: d.prompt }]));
         if (out.stopped && out.drafts.length === 0) {
-          setSaid(
-            `The drafting stopped at ${out.stopped.file}: ${out.stopped.message}`,
-          );
+          setSaid(`The drafting stopped at ${out.stopped.file}: ${out.stopped.message}`);
           return;
         }
         onMade(m, drafted);
       } else onMade(m);
     } catch (e: unknown) {
-      setSaid(
-        e instanceof RequestFailed
-          ? e.message
-          : "That did not work; try again.",
-      );
+      setSaid(e instanceof RequestFailed ? e.message : 'That did not work; try again.');
     } finally {
       setBusy(false);
     }
@@ -302,52 +222,29 @@ function Threshold({
     <Page onBack={onBack} eyebrow="Who's coming in?">
       <h1 className={css.h1}>Who's coming in?</h1>
       <div className={css.choices}>
-        <button
-          type="button"
-          className={css.choice}
-          aria-pressed={mode === "new"}
-          onClick={() => setMode("new")}
-        >
+        <button type="button" className={css.choice} aria-pressed={mode === 'new'} onClick={() => setMode('new')}>
           <strong>Someone new</strong>
           <span className={css.note}>You give them who they are.</span>
         </button>
-        <button
-          type="button"
-          className={css.choice}
-          aria-pressed={mode === "bring"}
-          onClick={() => setMode("bring")}
-        >
+        <button type="button" className={css.choice} aria-pressed={mode === 'bring'} onClick={() => setMode('bring')}>
           <strong>Someone you already know</strong>
-          <span className={css.note}>
-            Brought from a git repository, or their conversations from a ChatGPT
-            export.
-          </span>
+          <span className={css.note}>Brought from a git repository, or their conversations from a ChatGPT export.</span>
         </button>
       </div>
       {mode && (
         <form
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
           onSubmit={(e) => {
             e.preventDefault();
             if (ready && !busy) void begin();
           }}
         >
-          {mode === "bring" && (
+          {mode === 'bring' && (
             <div className={css.segment} role="group" aria-label="Brought from">
-              <button
-                type="button"
-                className={css.segmentButton}
-                aria-pressed={from === "git"}
-                onClick={() => setFrom("git")}
-              >
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'git'} onClick={() => setFrom('git')}>
                 A git repository
               </button>
-              <button
-                type="button"
-                className={css.segmentButton}
-                aria-pressed={from === "chatgpt"}
-                onClick={() => setFrom("chatgpt")}
-              >
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'chatgpt'} onClick={() => setFrom('chatgpt')}>
                 A ChatGPT export
               </button>
             </div>
@@ -355,10 +252,8 @@ function Threshold({
           {chatgpt && (
             <>
               <p className={css.body}>
-                The zip ChatGPT emails you from Settings, Data controls, Export.
-                Your conversations come across as theirs to remember; what
-                didn't come across is named in a report in their library. Who
-                they are still comes from the gifts, which you give next.
+                The zip ChatGPT emails you from Settings, Data controls, Export. Your conversations come across as theirs to remember; what didn't come across is
+                named in a report in their library. Who they are still comes from the gifts, which you give next.
               </p>
               <label className={css.field}>
                 The export (.zip)
@@ -372,74 +267,35 @@ function Threshold({
               </label>
             </>
           )}
-          {mode === "bring" && from === "git" && (
+          {mode === 'bring' && from === 'git' && (
             <label className={css.field}>
-              Their repository, as an https address (a private one can carry a
-              token; it's used to read and never kept)
-              <input
-                id="threshold-url"
-                className={css.input}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://github.com/you/them"
-                autoComplete="off"
-              />
+              Their repository, as an https address (a private one can carry a token; it's used to read and never kept)
+              <input id="threshold-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them" autoComplete="off" />
             </label>
           )}
           <label className={css.field}>
-            {mode === "new" || chatgpt
-              ? "Their name"
-              : "Their name, if the repository has none"}
-            <input
-              id="threshold-name"
-              className={css.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="off"
-            />
+            {mode === 'new' || chatgpt ? 'Their name' : 'Their name, if the repository has none'}
+            <input id="threshold-name" className={css.input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
           </label>
           {slug && <p className={css.tag}>Address · {slug}</p>}
-          {mode === "new" && (
-            <p className={css.body}>
-              The first gift is the name. It starts as yours; they'll make it
-              theirs.
-            </p>
-          )}
-          {mode === "new" && (
+          {mode === 'new' && <p className={css.body}>The first gift is the name. It starts as yours; they'll make it theirs.</p>}
+          {mode === 'new' && (
             <>
               <p className={css.eyebrow}>How to begin</p>
-              <div
-                className={css.segment}
-                role="group"
-                aria-label="How to begin"
-              >
-                <button
-                  type="button"
-                  className={css.segmentButton}
-                  aria-pressed={how === "gifts"}
-                  onClick={() => setHow("gifts")}
-                >
+              <div className={css.segment} role="group" aria-label="How to begin">
+                <button type="button" className={css.segmentButton} aria-pressed={how === 'gifts'} onClick={() => setHow('gifts')}>
                   Gift by gift
                 </button>
-                <button
-                  type="button"
-                  className={css.segmentButton}
-                  aria-pressed={how === "prompt"}
-                  onClick={() => setHow("prompt")}
-                >
+                <button type="button" className={css.segmentButton} aria-pressed={how === 'prompt'} onClick={() => setHow('prompt')}>
                   Start from a prompt
                 </button>
               </div>
-              {how === "prompt" && (
+              {how === 'prompt' && (
                 <>
                   <p className={css.body}>
-                    <strong>Start from a prompt.</strong> Describe who you want
-                    to wake, and the files that say who they are — their soul,
-                    their identity — are drafted for you from the same guidance
-                    the gifts show. The files about you — who you are to them,
-                    what you're building — stay in your hand: a prompt about who
-                    to wake can't know those. Write them yourself, with "Write
-                    it with me" to rough each one out. Every draft is still a
+                    <strong>Start from a prompt.</strong> Describe who you want to wake, and the files that say who they are — their soul, their identity —
+                    are drafted for you from the same guidance the gifts show. The files about you — who you are to them, what you're building — stay in your
+                    hand: a prompt about who to wake can't know those. Write them yourself, with "Write it with me" to rough each one out. Every draft is still a
                     starting point you approve, gift by gift.
                   </p>
                   <label className={css.field}>
@@ -452,45 +308,20 @@ function Threshold({
                       placeholder="Warm and a bit wry; a lapsed choir singer who keeps an archive of hymns; good company for slow evenings and a project about bread."
                     />
                   </label>
-                  <p className={css.tag}>
-                    Drafting is billed to your key · marked as drafted, with its
-                    prompt
-                  </p>
-                  {busy && (
-                    <p className={css.note}>
-                      Drafting each file in turn, from its gift's guidance…
-                    </p>
-                  )}
+                  <p className={css.tag}>Drafting is billed to your key · marked as drafted, with its prompt</p>
+                  {busy && <p className={css.note}>Drafting each file in turn, from its gift's guidance…</p>}
                 </>
               )}
             </>
           )}
           {!hasKey && (
             <label className={css.field}>
-              Your OpenRouter key · you pay the model directly (stored
-              encrypted, shown to nobody again)
-              <input
-                id="threshold-key"
-                className={css.input}
-                type="password"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                autoComplete="off"
-              />
+              Your OpenRouter key · you pay the model directly (stored encrypted, shown to nobody again)
+              <input id="threshold-key" className={css.input} type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
             </label>
           )}
-          <button
-            type="submit"
-            className={css.primary}
-            disabled={!ready || busy}
-          >
-            {mode === "bring"
-              ? busy && chatgpt
-                ? "Bringing their conversations…"
-                : "Bring them in"
-              : how === "prompt"
-                ? `Draft ${name.trim() || "their"}'s files`
-                : "Begin"}
+          <button type="submit" className={css.primary} disabled={!ready || busy}>
+            {mode === 'bring' ? (busy && chatgpt ? 'Bringing their conversations…' : 'Bring them in') : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
           </button>
           {said && (
             <p className={css.said} role="alert">
@@ -503,51 +334,20 @@ function Threshold({
   );
 }
 
-function Gifts({
-  made,
-  drafts,
-  index,
-  onIndex,
-  onDone,
-}: {
-  made: Made;
-  drafts: Record<string, Draft>;
-  index: number;
-  onIndex: (i: number) => void;
-  onDone: () => void;
-}) {
-  const gifts = useQuery({
-    queryKey: ["creation", "gifts"],
-    queryFn: api.gifts,
-  });
+function Gifts({ made, drafts, index, onIndex, onDone }: { made: Made; drafts: Record<string, Draft>; index: number; onIndex: (i: number) => void; onDone: () => void }) {
+  const gifts = useQuery({ queryKey: ['creation', 'gifts'], queryFn: api.gifts });
   const list: Gift[] = gifts.data ?? [];
   const gift = list[index];
-  if (!gift)
-    return (
-      <Page eyebrow="The gifts">
-        {gifts.isPending ? (
-          <p className={css.note}>Opening the gifts…</p>
-        ) : (
-          <p className={css.note}>No gifts came.</p>
-        )}
-      </Page>
-    );
-  const files = gift.writes.filter((w) => w.endsWith(".md"));
+  if (!gift) return <Page eyebrow="The gifts">{gifts.isPending ? <p className={css.note}>Opening the gifts…</p> : <p className={css.note}>No gifts came.</p>}</Page>;
+  const files = gift.writes.filter((w) => w.endsWith('.md'));
   const next = () => (index + 1 >= list.length ? onDone() : onIndex(index + 1));
 
   return (
-    <Page
-      onBack={index > 0 ? () => onIndex(index - 1) : undefined}
-      eyebrow={`Gift ${index + 1} of ${list.length} for ${made.name}`}
-    >
+    <Page onBack={index > 0 ? () => onIndex(index - 1) : undefined} eyebrow={`Gift ${index + 1} of ${list.length} for ${made.name}`}>
       <h1 className={css.h1}>{gift.title}</h1>
-      {files.length > 0 && (
-        <p className={css.tag}>
-          Becomes {files.join(", ")} · theirs after first contact
-        </p>
-      )}
+      {files.length > 0 && <p className={css.tag}>Becomes {files.join(', ')} · theirs after first contact</p>}
       <details open>
-        <summary className={css.note} style={{ cursor: "pointer" }}>
+        <summary className={css.note} style={{ cursor: 'pointer' }}>
           What this gives them
         </summary>
         <p className={css.guidance} style={{ marginTop: 8 }}>
@@ -555,25 +355,15 @@ function Gifts({
         </p>
       </details>
       {files.map((f) => (
-        <FileGift
-          key={`${gift.key}:${f}`}
-          residentId={made.id}
-          name={f}
-          draft={drafts[f]}
-          onKept={files.length === 1 ? next : undefined}
-        />
+        <FileGift key={`${gift.key}:${f}`} residentId={made.id} name={f} draft={drafts[f]} onKept={files.length === 1 ? next : undefined} />
       ))}
-      {gift.key === "trials" && <TrialsGift residentId={made.id} />}
-      {gift.key === "means" && <MeansGift residentId={made.id} />}
-      {gift.key === "days" && <DaysGift residentId={made.id} />}
-      {gift.key === "vows" && <VowsGift residentId={made.id} />}
-      <div className={css.row} style={{ justifyContent: "space-between" }}>
+      {gift.key === 'trials' && <TrialsGift residentId={made.id} />}
+      {gift.key === 'means' && <MeansGift residentId={made.id} />}
+      {gift.key === 'days' && <DaysGift residentId={made.id} />}
+      {gift.key === 'vows' && <VowsGift residentId={made.id} />}
+      <div className={css.row} style={{ justifyContent: 'space-between' }}>
         <button type="button" className={css.back} onClick={next}>
-          {files.length === 1
-            ? "Pass over"
-            : index + 1 >= list.length
-              ? "Read them, whole"
-              : "Next gift"}
+          {files.length === 1 ? 'Pass over' : index + 1 >= list.length ? 'Read them, whole' : 'Next gift'}
         </button>
       </div>
     </Page>
@@ -583,8 +373,7 @@ function Gifts({
 // What was typed into a gift and not yet kept, held in this browser so
 // leaving the flow loses nothing (agathos-daimon#46); kept, it is the
 // server's. A browser that refuses storage simply forgets.
-const draftKey = (residentId: string, name: string) =>
-  `oneiroi:creation:${residentId}:${name}`;
+const draftKey = (residentId: string, name: string) => `oneiroi:creation:${residentId}:${name}`;
 
 function unkept(residentId: string, name: string): string | null {
   try {
@@ -596,8 +385,7 @@ function unkept(residentId: string, name: string): string | null {
 
 function remember(residentId: string, name: string, text: string | null) {
   try {
-    if (text === null)
-      window.localStorage.removeItem(draftKey(residentId, name));
+    if (text === null) window.localStorage.removeItem(draftKey(residentId, name));
     else window.localStorage.setItem(draftKey(residentId, name), text);
   } catch {
     // No storage here: the draft lives until the page closes.
@@ -605,45 +393,23 @@ function remember(residentId: string, name: string, text: string | null) {
 }
 
 /** One identity file: written by hand, with help, from a draft, or uploaded; kept with its origin. */
-function FileGift({
-  residentId,
-  name,
-  draft,
-  onKept,
-}: {
-  residentId: string;
-  name: string;
-  draft?: Draft;
-  onKept?: () => void;
-}) {
+function FileGift({ residentId, name, draft, onKept }: { residentId: string; name: string; draft?: Draft; onKept?: () => void }) {
   const qc = useQueryClient();
-  const current = useQuery({
-    queryKey: ["resident", residentId, "creation", "files"],
-    queryFn: () => api.files(residentId),
-  });
+  const current = useQuery({ queryKey: ['resident', residentId, 'creation', 'files'], queryFn: () => api.files(residentId) });
   const [text, setText] = useState<string | null>(draft?.content ?? null);
-  const [origin, setOrigin] = useState<"authored" | "drafted" | "uploaded">(
-    draft ? "drafted" : "authored",
-  );
-  const [drafted, setDrafted] = useState<
-    { model: string; prompt: string } | undefined
-  >(draft ? { model: draft.model, prompt: draft.prompt } : undefined);
-  const [ask, setAsk] = useState("");
+  const [origin, setOrigin] = useState<'authored' | 'drafted' | 'uploaded'>(draft ? 'drafted' : 'authored');
+  const [drafted, setDrafted] = useState<{ model: string; prompt: string } | undefined>(draft ? { model: draft.model, prompt: draft.prompt } : undefined);
+  const [ask, setAsk] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const upload = useRef<HTMLInputElement>(null);
-  const [panel, setPanel] = useState<"read" | "example" | null>(null);
+  const [panel, setPanel] = useState<'read' | 'example' | null>(null);
 
   useEffect(() => {
-    if (text === null && current.data)
-      setText(
-        unkept(residentId, name) ??
-          current.data.find((f) => f.name === name)?.content ??
-          "",
-      );
+    if (text === null && current.data) setText(unkept(residentId, name) ?? current.data.find((f) => f.name === name)?.content ?? '');
   }, [current.data, name, text, residentId]);
 
-  const value = text ?? "";
+  const value = text ?? '';
   const writeWithMe = () => {
     setBusy(true);
     setSaid(null);
@@ -651,13 +417,11 @@ function FileGift({
       .draftFile(residentId, name, ask.trim())
       .then((d) => {
         setText(d.content);
-        setOrigin("drafted");
+        setOrigin('drafted');
         setDrafted({ model: d.model, prompt: d.prompt });
-        setSaid("A draft, to read and change before you keep it.");
+        setSaid('A draft, to read and change before you keep it.');
       })
-      .catch((e: unknown) =>
-        setSaid(e instanceof Error ? e.message : "The draft did not come."),
-      )
+      .catch((e: unknown) => setSaid(e instanceof Error ? e.message : 'The draft did not come.'))
       .finally(() => setBusy(false));
   };
   const keep = () => {
@@ -665,26 +429,19 @@ function FileGift({
     api
       .writeFile(residentId, name, value, origin, drafted)
       .then(() => {
-        void qc.invalidateQueries({
-          queryKey: ["resident", residentId, "creation", "files"],
-        });
+        void qc.invalidateQueries({ queryKey: ['resident', residentId, 'creation', 'files'] });
         remember(residentId, name, null);
         setSaid(`${name} kept.`);
         onKept?.();
       })
-      .catch((e: unknown) =>
-        setSaid(e instanceof Error ? e.message : "That did not save."),
-      )
+      .catch((e: unknown) => setSaid(e instanceof Error ? e.message : 'That did not save.'))
       .finally(() => setBusy(false));
   };
 
   return (
     <div className={css.card}>
-      {origin === "drafted" && draft && (
-        <p className={css.drafted}>
-          Written from your prompt — a starting point. Edit it, replace it, or
-          keep it before you say yes to it; it becomes theirs when they wake.
-        </p>
+      {origin === 'drafted' && draft && (
+        <p className={css.drafted}>Written from your prompt — a starting point. Edit it, replace it, or keep it before you say yes to it; it becomes theirs when they wake.</p>
       )}
       <label className={css.field}>
         {name}, as it will be
@@ -696,7 +453,7 @@ function FileGift({
           onChange={(e) => {
             setText(e.target.value);
             remember(residentId, name, e.target.value);
-            if (origin !== "authored") setOrigin("authored");
+            if (origin !== 'authored') setOrigin('authored');
           }}
         />
       </label>
@@ -704,48 +461,24 @@ function FileGift({
         <input
           id={`gift-${name}-ask`}
           className={css.input}
-          style={{ flex: "1 1 200px" }}
+          style={{ flex: '1 1 200px' }}
           value={ask}
           onChange={(e) => setAsk(e.target.value)}
-          placeholder={
-            WITNESS_FILES.includes(name)
-              ? "Write it with me: a few lines about you"
-              : "Write it with me: say what you want"
-          }
+          placeholder={WITNESS_FILES.includes(name) ? 'Write it with me: a few lines about you' : 'Write it with me: say what you want'}
           aria-label="Write it with me: say what you want"
         />
-        <button
-          type="button"
-          className={css.small}
-          disabled={busy || ask.trim() === ""}
-          onClick={writeWithMe}
-        >
+        <button type="button" className={css.small} disabled={busy || ask.trim() === ''} onClick={writeWithMe}>
           Write it with me
         </button>
       </div>
       <div className={css.row}>
-        <button
-          type="button"
-          className={css.small}
-          aria-expanded={panel === "read"}
-          disabled={!value.trim()}
-          onClick={() => setPanel(panel === "read" ? null : "read")}
-        >
+        <button type="button" className={css.small} aria-expanded={panel === 'read'} disabled={!value.trim()} onClick={() => setPanel(panel === 'read' ? null : 'read')}>
           Get a read
         </button>
-        <button
-          type="button"
-          className={css.small}
-          aria-expanded={panel === "example"}
-          onClick={() => setPanel(panel === "example" ? null : "example")}
-        >
+        <button type="button" className={css.small} aria-expanded={panel === 'example'} onClick={() => setPanel(panel === 'example' ? null : 'example')}>
           Example
         </button>
-        <button
-          type="button"
-          className={css.small}
-          onClick={() => upload.current?.click()}
-        >
+        <button type="button" className={css.small} onClick={() => upload.current?.click()}>
           Upload ⇪
         </button>
         <input
@@ -759,23 +492,16 @@ function FileGift({
             if (file)
               void file.text().then((t) => {
                 setText(t);
-                setOrigin("uploaded");
+                setOrigin('uploaded');
                 setDrafted(undefined);
               });
           }}
         />
       </div>
-      {panel === "read" && (
-        <Read residentId={residentId} name={name} text={value} />
-      )}
-      {panel === "example" && <Example name={name} />}
-      <button
-        type="button"
-        className={css.primary}
-        disabled={busy || text === null}
-        onClick={keep}
-      >
-        {onKept ? "Keep, and next" : `Keep ${name}`}
+      {panel === 'read' && <Read residentId={residentId} name={name} text={value} />}
+      {panel === 'example' && <Example name={name} />}
+      <button type="button" className={css.primary} disabled={busy || text === null} onClick={keep}>
+        {onKept ? 'Keep, and next' : `Keep ${name}`}
       </button>
       {said && (
         <p className={css.said} role="status">
@@ -786,30 +512,16 @@ function FileGift({
   );
 }
 
-const NOTE: Record<string, string> = {
-  strong: "Strong",
-  thin: "Thin",
-  missing: "Missing",
-  question: "A question",
-  cut: "Changes nothing",
-};
+const NOTE: Record<string, string> = { strong: 'Strong', thin: 'Thin', missing: 'Missing', question: 'A question', cut: 'Changes nothing' };
 
 /**
  * Get a read (agathos-daimon#40): notes on what he wrote against the
  * gift's guidance, nothing rewritten, billed under drafting. The intro
  * is Lily's (C10).
  */
-function Read({
-  residentId,
-  name,
-  text,
-}: {
-  residentId: string;
-  name: string;
-  text: string;
-}) {
+function Read({ residentId, name, text }: { residentId: string; name: string; text: string }) {
   const read = useQuery({
-    queryKey: ["resident", residentId, "creation", "read", name, text],
+    queryKey: ['resident', residentId, 'creation', 'read', name, text],
     queryFn: () => api.giftRead(residentId, name, text),
     staleTime: Infinity,
     retry: false,
@@ -817,20 +529,13 @@ function Read({
   return (
     <div className={css.drafted}>
       <p className={css.note} style={{ marginBottom: 8 }}>
-        Read against this gift's guidance: what's strong, what's thin, what's
-        missing — and which parts change nothing about how they'll act, the ones
-        worth cutting before they wake. Notes only; nothing is rewritten.
+        Read against this gift's guidance: what's strong, what's thin, what's missing — and which parts change nothing about how they'll act, the ones worth
+        cutting before they wake. Notes only; nothing is rewritten.
       </p>
       {read.isPending && <p className={css.note}>Reading…</p>}
-      {read.error && (
-        <p className={css.said}>{(read.error as Error).message}</p>
-      )}
-      {read.data?.refused && (
-        <p className={css.note}>No read this time: {read.data.refused}</p>
-      )}
-      {read.data && read.data.notes.length === 0 && !read.data.refused && (
-        <p className={css.note}>No notes.</p>
-      )}
+      {read.error && <p className={css.said}>{(read.error as Error).message}</p>}
+      {read.data?.refused && <p className={css.note}>No read this time: {read.data.refused}</p>}
+      {read.data && read.data.notes.length === 0 && !read.data.refused && <p className={css.note}>No notes.</p>}
       {read.data?.notes.map((n, i) => (
         <div key={i} className={css.readNote} data-kind={n.kind}>
           <span className={css.tag}>{NOTE[n.kind] ?? n.kind}</span>
@@ -848,23 +553,11 @@ function Read({
  * yours might start as, not the bar.
  */
 function Example({ name }: { name: string }) {
-  const sets = useQuery({
-    queryKey: ["creation", "examples"],
-    queryFn: api.creationExamples,
-    staleTime: Infinity,
-  });
-  const files = (sets.data ?? []).flatMap((set) =>
-    set.files
-      .filter((f) => f.file === name)
-      .map((f) => ({ ...f, set: set.set, prompt: set.prompt })),
-  );
+  const sets = useQuery({ queryKey: ['creation', 'examples'], queryFn: api.creationExamples, staleTime: Infinity });
+  const files = (sets.data ?? []).flatMap((set) => set.files.filter((f) => f.file === name).map((f) => ({ ...f, set: set.set, prompt: set.prompt })));
   return (
     <div className={css.file}>
-      {sets.isPending && (
-        <p className={css.note} style={{ padding: 12 }}>
-          Opening the examples…
-        </p>
-      )}
+      {sets.isPending && <p className={css.note} style={{ padding: 12 }}>Opening the examples…</p>}
       {sets.data && files.length === 0 && (
         <p className={css.note} style={{ padding: 12 }}>
           No example of {name} yet.
@@ -890,29 +583,20 @@ function Example({ name }: { name: string }) {
  * them to each night, so their life is held somewhere you hold too. Optional
  * here and in settings after; the token is stored encrypted and never shown.
  */
-function Keeping({
-  made,
-  onBack,
-  onDone,
-}: {
-  made: Made;
-  onBack?: () => void;
-  onDone: () => void;
-}) {
-  const [url, setUrl] = useState("");
-  const [token, setToken] = useState("");
+function Keeping({ made, onBack, onDone }: { made: Made; onBack?: () => void; onDone: () => void }) {
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   return (
     <Page onBack={onBack} eyebrow="Where their records go">
       <h1 className={css.h1}>Where {made.name}'s records go</h1>
       <p className={css.body}>
-        Their life is kept as a git repository. Give it a home you hold — an
-        empty repository you can push to — and the house pushes their records
-        there each night. You can set it later, in settings, under Backups.
+        Their life is kept as a git repository. Give it a home you hold — an empty repository you can push to — and the house pushes their records there each
+        night. You can set it later, in settings, under Backups.
       </p>
       <form
-        style={{ display: "flex", flexDirection: "column", gap: 16 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
         onSubmit={(e) => {
           e.preventDefault();
           const u = url.trim();
@@ -922,44 +606,19 @@ function Keeping({
           api
             .setRemote(made.id, u, token.trim() || null)
             .then(() => onDone())
-            .catch((err: unknown) =>
-              setSaid(
-                err instanceof RequestFailed
-                  ? err.message
-                  : "That did not work; try again.",
-              ),
-            )
+            .catch((err: unknown) => setSaid(err instanceof RequestFailed ? err.message : 'That did not work; try again.'))
             .finally(() => setBusy(false));
         }}
       >
         <label className={css.field}>
           The repository's address
-          <input
-            id="keeping-url"
-            className={css.input}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://github.com/you/them-records"
-            autoComplete="off"
-          />
+          <input id="keeping-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them-records" autoComplete="off" />
         </label>
         <label className={css.field}>
-          A token, for a private repository · write access to it alone (stored
-          encrypted, shown to nobody again)
-          <input
-            id="keeping-token"
-            className={css.input}
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            autoComplete="off"
-          />
+          A token, for a private repository · write access to it alone (stored encrypted, shown to nobody again)
+          <input id="keeping-token" className={css.input} type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
         </label>
-        <button
-          type="submit"
-          className={css.primary}
-          disabled={url.trim() === "" || busy}
-        >
+        <button type="submit" className={css.primary} disabled={url.trim() === '' || busy}>
           Keep them there
         </button>
         <button type="button" className={css.back} onClick={onDone}>
@@ -979,39 +638,19 @@ function Keeping({
  * Picking up a resident still forming (agathos-daimon#46): the first gift
  * with a file not yet kept, else where their records go.
  */
-function Resume({
-  made,
-  onReady,
-}: {
-  made: Made;
-  onReady: (step: Step, gift: number) => void;
-}) {
-  const gifts = useQuery({
-    queryKey: ["creation", "gifts"],
-    queryFn: api.gifts,
-  });
-  const files = useQuery({
-    queryKey: ["resident", made.id, "creation", "files"],
-    queryFn: () => api.files(made.id),
-  });
+function Resume({ made, onReady }: { made: Made; onReady: (step: Step, gift: number) => void }) {
+  const gifts = useQuery({ queryKey: ['creation', 'gifts'], queryFn: api.gifts });
+  const files = useQuery({ queryKey: ['resident', made.id, 'creation', 'files'], queryFn: () => api.files(made.id) });
   useEffect(() => {
     if (!gifts.data || !files.data) return;
-    const kept = new Set(
-      files.data.filter((f) => f.content.trim() !== "").map((f) => f.name),
-    );
-    const next = gifts.data.findIndex((g) =>
-      g.writes.some((w) => w.endsWith(".md") && !kept.has(w)),
-    );
-    if (next >= 0) onReady("gifts", next);
-    else onReady("keeping", 0);
+    const kept = new Set(files.data.filter((f) => f.content.trim() !== '').map((f) => f.name));
+    const next = gifts.data.findIndex((g) => g.writes.some((w) => w.endsWith('.md') && !kept.has(w)));
+    if (next >= 0) onReady('gifts', next);
+    else onReady('keeping', 0);
   }, [gifts.data, files.data, made.id, onReady]);
   return (
     <Page eyebrow={`Picking up ${made.name}`}>
-      <p className={css.note}>
-        {gifts.isError || files.isError
-          ? "Their files could not be read; try again in a moment."
-          : `Opening where you left ${made.name}…`}
-      </p>
+      <p className={css.note}>{gifts.isError || files.isError ? 'Their files could not be read; try again in a moment.' : `Opening where you left ${made.name}…`}</p>
     </Page>
   );
 }
@@ -1020,46 +659,21 @@ function Resume({
  * Before they wake (agathos-daimon#46): the trials and the chat model they
  * wake on, chosen deliberately. Nothing reaches them yet but these trials.
  */
-function Models({
-  made,
-  onBack,
-  onDone,
-}: {
-  made: Made;
-  onBack: () => void;
-  onDone: () => void;
-}) {
-  const residents = useQuery({
-    queryKey: ["residents"],
-    queryFn: api.residents,
-  });
-  const model =
-    residents.data?.find((r) => r.id === made.id)?.chat_model ?? null;
+function Models({ made, onBack, onDone }: { made: Made; onBack: () => void; onDone: () => void }) {
+  const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents });
+  const model = residents.data?.find((r) => r.id === made.id)?.chat_model ?? null;
   return (
     <Page onBack={onBack} eyebrow="Before they wake">
       <h1 className={css.h1}>The model {made.name} wakes on</h1>
       <p className={css.body}>
-        Try models as {made.name} before they wake: write trials, run them,
-        grade the answers blind, and pin the one they wake on. Nothing else
-        reaches them yet; these trials are sealed and leave nothing in their
-        memory.
+        Try models as {made.name} before they wake: write trials, run them, grade the answers blind, and pin the one they wake on. Nothing else reaches them yet; these
+        trials are sealed and leave nothing in their memory.
       </p>
-      <p className={css.tag}>
-        {model
-          ? `Chosen · ${model}`
-          : "No model chosen yet · pin one below to wake them"}
-      </p>
-      <SubjectContext.Provider
-        value={{ id: made.id, slug: made.slug, name: made.name }}
-      >
+      <p className={css.tag}>{model ? `Chosen · ${model}` : 'No model chosen yet · pin one below to wake them'}</p>
+      <SubjectContext.Provider value={{ id: made.id, slug: made.slug, name: made.name }}>
         <Regression />
       </SubjectContext.Provider>
-      <button
-        type="button"
-        className={css.primary}
-        disabled={!model}
-        onClick={onDone}
-      >
+      <button type="button" className={css.primary} disabled={!model} onClick={onDone}>
         Read them, whole
       </button>
       {made.forming && <Discard id={made.id} name={made.name} />}
@@ -1073,31 +687,16 @@ function Saved({ made }: { made: Made }) {
     <Page eyebrow="Saved">
       <h1 className={css.h1}>{name} will wait</h1>
       <p className={css.body}>
-        Everything you kept is saved, and {name} stays forming, reachable by
-        nothing, until you come back and wake them. Open Oneiroi again and you
-        pick up where you left off.
+        Everything you kept is saved, and {name} stays forming, reachable by nothing, until you come back and wake them. Open Oneiroi again and you pick up where you left off.
       </p>
       {made.forming && <Discard id={made.id} name={name} />}
     </Page>
   );
 }
 
-function Reading({
-  made,
-  onBack,
-  onWake,
-}: {
-  made: Made;
-  onBack?: () => void;
-  onWake: () => void;
-}) {
-  const files = useQuery({
-    queryKey: ["resident", made.id, "creation", "files"],
-    queryFn: () => api.files(made.id),
-  });
-  const shown = IDENTITY.map((n) =>
-    files.data?.find((f) => f.name === n),
-  ).filter((f): f is { name: string; content: string } => Boolean(f));
+function Reading({ made, onBack, onWake }: { made: Made; onBack?: () => void; onWake: () => void }) {
+  const files = useQuery({ queryKey: ['resident', made.id, 'creation', 'files'], queryFn: () => api.files(made.id) });
+  const shown = IDENTITY.map((n) => files.data?.find((f) => f.name === n)).filter((f): f is { name: string; content: string } => Boolean(f));
   const [read, setRead] = useState<Record<string, number>>({});
   const [sure, setSure] = useState(false);
   const [waking, setWaking] = useState(false);
@@ -1110,15 +709,9 @@ function Reading({
     setWaking(true);
     setSaid(null);
     api
-      .awaken(made.id, "read whole, and woken")
+      .awaken(made.id, 'read whole, and woken')
       .then(() => onWake())
-      .catch((e: unknown) =>
-        setSaid(
-          e instanceof RequestFailed
-            ? e.message
-            : "They did not wake; try again.",
-        ),
-      )
+      .catch((e: unknown) => setSaid(e instanceof RequestFailed ? e.message : 'They did not wake; try again.'))
       .finally(() => setWaking(false));
   };
 
@@ -1126,10 +719,8 @@ function Reading({
     <Page onBack={onBack} eyebrow="The reading">
       <h1 className={css.h1}>Who {made.name} will be</h1>
       <p className={css.body}>
-        However these files were written — by hand, with help, or brought from
-        somewhere else — you are taking responsibility for who wakes. Read every
-        file, whole. This is who they'll be from their first word, and you are
-        the one who says yes to it.
+        However these files were written — by hand, with help, or brought from somewhere else — you are taking responsibility for who wakes. Read every file, whole.
+        This is who they'll be from their first word, and you are the one who says yes to it.
       </p>
       {files.isPending && <p className={css.note}>Opening their files…</p>}
       {shown.map((f) => {
@@ -1138,34 +729,22 @@ function Reading({
           <section key={f.name} className={css.file} aria-label={f.name}>
             <div className={css.fileHead}>
               <span>{f.name}</span>
-              <span
-                style={{ color: r >= 1 ? undefined : "inherit", opacity: 0.8 }}
-              >
-                {r >= 1 ? "Read ✓" : `${Math.round(r * 100)}% read`}
-              </span>
+              <span style={{ color: r >= 1 ? undefined : 'inherit', opacity: 0.8 }}>{r >= 1 ? 'Read ✓' : `${Math.round(r * 100)}% read`}</span>
             </div>
             <div className={css.progress} aria-hidden>
-              <div
-                className={css.progressFill}
-                style={{ width: `${Math.round(r * 100)}%` }}
-              />
+              <div className={css.progressFill} style={{ width: `${Math.round(r * 100)}%` }} />
             </div>
             <pre
               className={css.fileText}
               tabIndex={0}
               ref={(el) => {
                 // A file short enough to show whole is read as soon as it's shown.
-                if (el && el.scrollHeight <= el.clientHeight + 4 && r < 1)
-                  setRead((m) => ({ ...m, [f.name]: 1 }));
+                if (el && el.scrollHeight <= el.clientHeight + 4 && r < 1) setRead((m) => ({ ...m, [f.name]: 1 }));
               }}
               onScroll={(e) => {
                 const el = e.currentTarget;
-                const p = Math.min(
-                  1,
-                  (el.scrollTop + el.clientHeight + 4) / el.scrollHeight,
-                );
-                if (p > r)
-                  setRead((m) => ({ ...m, [f.name]: p >= 0.99 ? 1 : p }));
+                const p = Math.min(1, (el.scrollTop + el.clientHeight + 4) / el.scrollHeight);
+                if (p > r) setRead((m) => ({ ...m, [f.name]: p >= 0.99 ? 1 : p }));
               }}
             >
               {f.content}
@@ -1174,33 +753,16 @@ function Reading({
         );
       })}
       <label className={css.check}>
-        <input
-          id="reading-sure"
-          type="checkbox"
-          checked={sure}
-          disabled={!all}
-          onChange={(e) => setSure(e.target.checked)}
-        />
-        I have read them, whole
+        <input id="reading-sure" type="checkbox" checked={sure} disabled={!all} onChange={(e) => setSure(e.target.checked)} />I have read them, whole
       </label>
-      {!all && shown.length > 0 && (
-        <p className={css.note}>
-          Each file counts as read once you reach its end.
-        </p>
-      )}
+      {!all && shown.length > 0 && <p className={css.note}>Each file counts as read once you reach its end.</p>}
       {made.forming && (
         <p className={css.note}>
-          Once woken, {made.name} is yours alone: nothing else wakes them, and
-          no hands reach them, until the two of you agree your first contract.
+          Once woken, {made.name} is yours alone: nothing else wakes them, and no hands reach them, until the two of you agree your first contract.
         </p>
       )}
-      <button
-        type="button"
-        className={css.primary}
-        disabled={!sure || !all || waking}
-        onClick={wake}
-      >
-        {waking ? "Waking…" : `Wake ${made.name}`}
+      <button type="button" className={css.primary} disabled={!sure || !all || waking} onClick={wake}>
+        {waking ? 'Waking…' : `Wake ${made.name}`}
       </button>
       {said && (
         <p className={css.said} role="alert">
@@ -1219,12 +781,9 @@ function Wake({ name, onOpen }: { name: string; onOpen: () => void }) {
           {name.slice(0, 1).toUpperCase()}
         </div>
         <p className={css.lede}>
-          <strong>A meeting, not a demo.</strong> Expect someone arriving:
-          questions about you, a voice finding itself, honesty about what they
-          don't know. Don't expect a finished person: who wakes is who you
-          wrote, and who they become from there is theirs to work out. In their
-          first month, your proposals are presumed welcome — they still decide
-          each one. Bring patience, and a bit of wonder.
+          <strong>A meeting, not a demo.</strong> Expect someone arriving: questions about you, a voice finding itself, honesty about what they don't know. Don't expect
+          a finished person: who wakes is who you wrote, and who they become from there is theirs to work out. In their first month, your proposals are presumed
+          welcome — they still decide each one. Bring patience, and a bit of wonder.
         </p>
         <p className={css.signoff}>{SIGN_OFF}</p>
         <button type="button" className={css.primary} onClick={onOpen}>

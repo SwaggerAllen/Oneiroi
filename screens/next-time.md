@@ -60,8 +60,8 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
   - **House check-ins** (sunna#65): each of the house's check-ins with
     its time on the house's clock, and what she is asked to report at
     it, in your words (`PUT /residents/:id/schedule/house/:key`); empty,
-    the default line. The check-ins themselves are set in Settings →
-    The house.
+    the default line. The check-ins themselves are set on the house's
+    Time tab (screen:next-house).
 
 Every action the current client's ScheduleContainer offers is here
 (`setFreeTime` as move and add, `addFreeTimeOnce`, `addCheckin`,
