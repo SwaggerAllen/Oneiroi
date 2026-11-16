@@ -240,15 +240,25 @@ defmodule Oneiroi.Brain.Turn do
     # once, on whichever turn comes next; marked told when it is captured.
     reacts = Reactions.untold(resident_id, session_key)
 
-    notices = [
-      lapse: lapse_notice(lapse, row.timezone),
-      model_change: model_change_notice(row),
-      letters: letters_notice(row, resident_id),
-      import: import_notice(row),
-      restart: restart_notice(resident_id, session_key),
-      batch: batch_notice(earlier, rounds_each()),
-      reacts: reacts_notice(reacts)
-    ]
+    # A resident formed in the creation flow, woken and not yet agreed
+    # (agathos-daimon#46): nothing interjects in their first conversation.
+    # The platform's notices wait (a lapse is told once the house opens);
+    # the witness's own (his batched messages, his reacts) still ride.
+    guarded? = guarded?(row)
+
+    notices =
+      quiet(
+        [
+          lapse: lapse_notice(lapse, row.timezone),
+          model_change: model_change_notice(row),
+          letters: letters_notice(row, resident_id),
+          import: import_notice(row),
+          restart: restart_notice(resident_id, session_key),
+          batch: batch_notice(earlier, rounds_each()),
+          reacts: reacts_notice(reacts)
+        ],
+        guarded?
+      )
 
     %{
       resident_id: resident_id,
@@ -264,7 +274,8 @@ defmodule Oneiroi.Brain.Turn do
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       earlier: earlier,
       batch: length(earlier) + 1,
-      lapse_to_tell: match?(%{told: false}, lapse),
+      lapse_to_tell: match?(%{told: false}, lapse) and not guarded?,
+      guarded?: guarded?,
       import_to_tell: row.import_told == false,
       injections: [],
       tools: [],
@@ -483,6 +494,15 @@ defmodule Oneiroi.Brain.Turn do
   # What the witness said this turn, in the order said: the batch's
   # earlier messages, then the opening.
   defp said(turn), do: Map.get(turn, :earlier, []) ++ [turn.opening]
+
+  defp guarded?(row), do: Map.get(row, :admission) in ["forming", "witness_only"]
+
+  # The witness's own notices ride a guarded turn; the platform's wait.
+  defp quiet(notices, false), do: notices
+
+  defp quiet(notices, true),
+    do:
+      Enum.map(notices, fn {kind, n} -> {kind, if(kind in [:batch, :reacts], do: n, else: [])} end)
 
   defp batch_notice([], _each), do: []
 

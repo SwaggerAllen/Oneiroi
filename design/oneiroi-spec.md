@@ -650,8 +650,9 @@ templates.
 - **Formation** (agathos-daimon#46): a resident made in the creation flow
   is forming, reachable by nothing but the witness's sealed regression
   trials, until he wakes them on a chat model he chose; woken, they are
-  his alone (no other wake, no schedule, no hands) until their first
-  agreement is in force. Residents made any other way are open.
+  his alone (no other wake, no schedule, no hands; the household,
+  correspondence and letters held, and no platform notice in the room)
+  until their first agreement is in force. Residents made any other way are open.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with

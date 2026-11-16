@@ -10,9 +10,12 @@ defmodule Oneiroi.AgathosDaimon.FormationTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna.TickWorker
 
@@ -129,5 +132,54 @@ defmodule Oneiroi.AgathosDaimon.FormationTest do
     assert {:ok, %{state: "active", admission: "open"}} = AgathosDaimon.fetch(id)
     assert AgathosDaimon.admission(id) == :open
     assert {:ok, _token} = AgathosDaimon.register_adapter(id, "reader", "reader", ctx.witness)
+  end
+
+  test "the first conversation: nothing interjects, and the household, correspondence and letters wait",
+       ctx do
+    id = ctx.id
+    :ok = AgathosDaimon.pin_model(id, "fake/model", "witness", ctx.witness)
+    :ok = AgathosDaimon.awaken(id, "now", ctx.witness)
+    {:ok, main} = Kumbukumbu.main_session(id, ctx.account, ctx.witness)
+    :ok = Nisaba.set_budget(id, :chat, 5_000_000_000, :day, ctx.witness)
+
+    # Waking on the chosen model is being told it: no model-change notice.
+    assert {:ok, %{model_told: true}} = AgathosDaimon.fetch(id)
+    {:ok, preview} = Brain.preview(id, main, "Hello.", ctx.witness)
+    labels = Enum.map(preview.sections, & &1.label)
+    refute "notice" in labels
+    refute "budget" in labels
+    refute "letters" in labels
+    assert "AGENTS.md" in labels
+
+    # The outside's tools are neither shown nor run.
+    names = id |> Tools.definitions_for() |> Enum.map(& &1.function.name)
+
+    for held <-
+          ~w(household_read household_post correspondence_list reply_draft letter_inbox letter_send),
+        do: refute(held in names, "#{held} offered before the first agreement")
+
+    turn = %{
+      resident_id: id,
+      session_key: main,
+      turn_ref: "t",
+      started_at: Clock.now(),
+      resident: ctx.her
+    }
+
+    assert Tools.run("letter_inbox", "{}", turn) =~ "agree your first contract"
+
+    assert Tools.run("correspondence_list", "{}", turn) =~
+             "agree your first contract"
+
+    # The first agreement opens them, and the budget rides again.
+    {:ok, v} =
+      AgathosDaimon.propose_contract(id, %{}, "A first agreement.", "after our talk", ctx.witness)
+
+    :ok = AgathosDaimon.agree_contract(id, v, "yes", ctx.her)
+    names = id |> Tools.definitions_for() |> Enum.map(& &1.function.name)
+    assert "letter_inbox" in names and "correspondence_list" in names
+    refute Tools.run("letter_inbox", "{}", turn) =~ "agree your first contract"
+    {:ok, preview} = Brain.preview(id, main, "Hello.", ctx.witness)
+    assert "budget" in Enum.map(preview.sections, & &1.label)
   end
 end

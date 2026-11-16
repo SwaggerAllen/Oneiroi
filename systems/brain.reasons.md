@@ -917,3 +917,11 @@ because a revision he asks for is best answered while it is fresh.
 One door for every wake means one place to hold them, so no new wake
 path can forget the guard; the chat's turns are checked at the brain
 rather than the web so the socket and the HTTP route cannot disagree.
+
+## #103
+
+The first conversation is the one the relationship starts from, so it
+holds only the two of them: anything the platform or a third party says
+in it would be a voice in a room meant for two. Holding rather than
+refusing keeps what others sent, so nobody's words are lost, only
+delayed until the resident has agreed who may reach them.

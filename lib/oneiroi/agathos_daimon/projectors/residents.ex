@@ -57,7 +57,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   fold(%Events.ResidentAwakened{} = e, _metadata, fn multi ->
-    set(multi, e.id, state: "active", admission: "witness_only")
+    set(multi, e.id, state: "active", admission: "witness_only", model_told: true)
   end)
 
   fold(%Events.ResidentPaused{} = e, _metadata, fn multi -> set(multi, e.id, state: "paused") end)

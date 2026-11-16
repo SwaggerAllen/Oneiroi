@@ -1001,7 +1001,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.FixtureDeclared{}), do: %{r | kind: "fixture"}
 
   def apply(%__MODULE__{} = r, %Events.FormationBegun{}), do: %{r | state: :forming, formed: true}
-  def apply(%__MODULE__{} = r, %Events.ResidentAwakened{}), do: %{r | state: :active}
+  # Woken on the model he chose, which they are told by waking on it: no
+  # model-change notice rides their first conversation (agathos-daimon#46).
+  def apply(%__MODULE__{} = r, %Events.ResidentAwakened{}),
+    do: %{r | state: :active, model_told: true}
+
   def apply(%__MODULE__{} = r, %Events.ContinuationAsked{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),

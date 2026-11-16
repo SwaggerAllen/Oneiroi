@@ -109,6 +109,19 @@ defmodule Oneiroi.Brain.Tools do
   @night_only ~w(seed_plant)
   @plant_by_night "planting a seed is for the night passes, not the day's turns. Note what you noticed in your journal; the behaviour pass reads the day tonight."
 
+  # Held until the first agreement (agathos-daimon#46): a resident formed
+  # in the creation flow hears from nobody but the witness until then, so
+  # the household, correspondence and letters are neither shown nor run;
+  # what arrives meanwhile is kept for after.
+  @held_until_agreed ~w(
+    household_read household_post household_reply household_watch household_sign
+    household_beat household_register household_profile
+    correspondence_list correspondence_read reply_draft reply_list
+    correspondent_block correspondent_unblock
+    letter_inbox letter_list letter_send
+  )
+  @held "this opens once you and your witness agree your first contract: until then nothing but your witness reaches you, and nothing you would send goes out. Whatever arrives meanwhile is kept for after."
+
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
   # Not the triage resident's (brain#70, the witness, 2026-11-08): filing
@@ -131,10 +144,12 @@ defmodule Oneiroi.Brain.Tools do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
     night? = Keyword.get(opts, :housekeeping, false)
+    held? = AgathosDaimon.admission(resident_id) != :open
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
-        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?)
+        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?) or
+        (f.name in @held_until_agreed and held?)
     end)
   end
 
@@ -1343,6 +1358,12 @@ defmodule Oneiroi.Brain.Tools do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 
+    if name in @held_until_agreed and AgathosDaimon.admission(turn.resident_id) != :open,
+      do: @not_done <> @held,
+      else: run_switched(name, arguments, turn)
+  end
+
+  defp run_switched(name, arguments, turn) do
     case {switched_off(name, turn.resident_id), arguments(arguments)} do
       {%{} = switch, _args} ->
         @not_done <>

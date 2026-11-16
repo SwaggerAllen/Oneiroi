@@ -76,6 +76,8 @@ defmodule Oneiroi.Brain.Plugins do
   # The memory slots that existed before plugins (brain#68), recorded as
   # carried over the first time a resident's plugins are read. Fixed: a
   # slot added after it is not carried over, and waits for both parties.
+  @quiet_until_agreed ~w(budget letters)
+
   @carried ~w(pins state budget timeline free_time_plan goals_between letters index exploration character promised self-conversation movement madeleine dates figures journal honcho)
 
   @doc "The keys carried over from before plugins."
@@ -96,9 +98,14 @@ defmodule Oneiroi.Brain.Plugins do
         do: MapSet.new(Oneiroi.AgathosDaimon.plugins_on_read(turn.resident_id, @carried)),
         else: MapSet.new(Oneiroi.AgathosDaimon.plugins_on(turn.resident_id, @carried))
 
+    # Nothing interjects while a formed resident awaits their first
+    # agreement (agathos-daimon#46): the platform's budget and the house's
+    # letters wait; their own memory rides as ever.
+    quiet = if Map.get(turn, :guarded?, false), do: @quiet_until_agreed, else: []
+
     Enum.filter(plugins, fn
       sealed when sealed in [:where, :summary] -> true
-      plugin -> MapSet.member?(on, manifest(plugin).key)
+      plugin -> MapSet.member?(on, manifest(plugin).key) and manifest(plugin).key not in quiet
     end)
   end
 end
