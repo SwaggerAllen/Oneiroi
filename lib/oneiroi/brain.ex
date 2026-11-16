@@ -41,11 +41,13 @@ defmodule Oneiroi.Brain do
     ],
     exports: [Error, Session, Turn, Tools, Compaction, Drafting, FixtureRun, DevSeed]
 
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Brain.Adapter
   alias Oneiroi.Brain.BackfillNotes
   alias Oneiroi.Brain.Checkin
   alias Oneiroi.Brain.Creation
   alias Oneiroi.Brain.Drafting
+  alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.NightPasses
@@ -57,6 +59,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Brain.WaitingOnHer
+  alias Oneiroi.Kumbukumbu
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -240,6 +243,10 @@ defmodule Oneiroi.Brain do
        remedy: "nothing to do: the turn had already ended"},
       {:brain_tool_raised, "a tool failed inside the platform; the turn went on without it",
        remedy: "nothing for her to do; the log line carries the cause for the platform's team"},
+      {:brain_resident_guarded,
+       "the resident is still forming, or woken and not yet in their first agreement: nothing but the witness reaches them (and, while forming, only his regression trials)",
+       remedy:
+         "wake them when the trials and the model are settled; agree your first contract, and the rest of the house opens"},
       {:brain_wake_outlasted,
        "the wake's turn ran past the wait (BRAIN_TURN_TIMEOUT_MS) and is still running in its session",
        remedy:
@@ -364,7 +371,11 @@ defmodule Oneiroi.Brain do
   @spec submit(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   defexport(submit(resident_id, session_key, text, actor, ref, opts \\ []),
-    do: Session.submit(resident_id, session_key, text, actor, ref, opts)
+    do:
+      with(
+        :ok <- admitted(resident_id, session_key, actor),
+        do: Session.submit(resident_id, session_key, text, actor, ref, opts)
+      )
   )
 
   @doc "The plugin catalog with the resident's state and every proposal (brain#68)."
@@ -412,15 +423,56 @@ defmodule Oneiroi.Brain do
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
   defexport(turn(resident_id, session_key, text, actor),
-    do: Session.turn(resident_id, session_key, text, actor)
+    do: turn_admitted(resident_id, session_key, text, actor)
   )
+
+  # A forming resident speaks only in the witness's regression sessions
+  # (agathos-daimon#46); woken, the witness's own turns reach them.
+  defp turn_admitted(resident_id, session_key, text, actor) do
+    with :ok <- admitted(resident_id, session_key, actor),
+         do: Session.turn(resident_id, session_key, text, actor)
+  end
+
+  # Whether a turn may run (agathos-daimon#46), by the chat's queue or
+  # straight: open, anyone the route admits; woken but not yet agreed,
+  # the witness alone; forming, the witness in a regression session alone.
+  defp admitted(resident_id, session_key, actor) do
+    case {AgathosDaimon.admission(resident_id), actor} do
+      {:open, _actor} ->
+        :ok
+
+      {:witness_only, %{kind: :witness}} ->
+        :ok
+
+      {:forming, %{kind: :witness}} ->
+        if Kumbukumbu.session_kind(resident_id, session_key) == "regression",
+          do: :ok,
+          else: {:error, Error.new(:brain_resident_guarded, :brain_turn_forming)}
+
+      {admission, _actor} ->
+        {:error, Error.new(:brain_resident_guarded, :brain_turn_guarded, admission: admission)}
+    end
+  end
 
   @doc "Wakes the resident in a session with the core's note (spec §6.7, §8): a turn answered under the purpose given, the note captured as a system message ahead of the reply."
   @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
   @impl Oneiroi.Sunna.Wake
   defexport(wake(resident_id, session_key, note, purpose),
-    do: Session.wake(resident_id, session_key, note, purpose)
+    do: wake_admitted(resident_id, session_key, note, purpose)
   )
+
+  # Every wake the platform makes passes here (agathos-daimon#46): a
+  # resident formed through the creation flow is woken by nothing but
+  # the witness's own words until their first agreement is in force.
+  defp wake_admitted(resident_id, session_key, note, purpose) do
+    case AgathosDaimon.admission(resident_id) do
+      :open ->
+        Session.wake(resident_id, session_key, note, purpose)
+
+      admission ->
+        {:error, Error.new(:brain_resident_guarded, :brain_wake_guarded, admission: admission)}
+    end
+  end
 
   @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."

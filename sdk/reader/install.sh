@@ -40,6 +40,7 @@ mkdir -p "$DIR"/{bin,lib,prompts,.claude,log} "$HOME/Library/LaunchAgents"
 cp "$KIT/bin/reader.sh" "$DIR/bin/reader.sh"
 cp "$KIT/lib/common.sh" "$DIR/lib/common.sh"
 cp "$KIT/lib/html2md.py" "$DIR/lib/html2md.py"
+cp "$KIT/lib/presence_send.cjs" "$DIR/lib/presence_send.cjs"
 cp "$KIT"/prompts/*.md "$DIR/prompts/"
 chmod +x "$DIR/bin/reader.sh"
 
@@ -83,6 +84,15 @@ SUBSTACK_PUBLICATION=${SUBSTACK_PUBLICATION:-}
 READER_ORIGINS="$ORIGINS"
 EOF
 umask 022
+
+# Presence's sender (xenia#20) drives the Substack profile's Chrome
+# directly with playwright-core, pinned, beside the kit; it uses the
+# installed Chrome and downloads no browser of its own.
+if command -v npm > /dev/null; then
+  npm install --silent --no-audit --no-fund --prefix "$DIR/node" playwright-core@1.56.1 > /dev/null 2>&1 &&
+    echo "presence: playwright-core installed" ||
+    echo "presence: playwright-core did not install; presence sends wait until it does"
+fi
 
 # launchd runs with a bare PATH: give it the one claude, node and jq are on.
 PATHS="$(dirname "$(command -v claude)"):$(dirname "$(command -v jq)"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"

@@ -25,6 +25,9 @@ leaves `#/operator` alone. Built 2026-11-10.
   and the events it dispatched.
 - **Door:** the front door's state (closed, invite, open, each with its
   line), set with a recorded note.
+- **Back to forming** (agathos-daimon#47), on the Door tab: a resident's
+  slug and a required note, "Return to forming". The server refuses one
+  who has had a first conversation or agreed a contract, or is not active.
 - **Roles:** the platform roles with their notes; grant by account
   email with a role and a note; revoke a row with its own note (the
   first press asks for it). The server refuses revoking the last super
@@ -52,6 +55,7 @@ The old client's operator calls, each in this shell:
 |---|---|
 | `api.platform` | Status (restarts), Door, Roles, Triage (desk) |
 | `api.setGate` | Door |
+| `api.returnToFormation` | Door (back to forming) |
 | `api.grantRole`, `api.revokeRole` | Roles |
 | `api.setTriage` | Triage (desk) |
 | `api.invites`, `api.issueInvite`, `api.revokeInvite` | Invites |

@@ -99,6 +99,92 @@ export interface DocumentVersion {
   restorable: boolean;
 }
 
+// Presence on Substack (xenia#20).
+export interface PresenceAccount {
+  key: string;
+  name: string | null;
+  host: string;
+  followed: boolean;
+  excluded: boolean;
+  excluded_at: string | null;
+  reason: string | null;
+  first_seen_at: string;
+  last_sampled_at: string | null;
+}
+
+export interface PresenceRead {
+  item: string;
+  account: string;
+  kind: 'post' | 'note';
+  title: string | null;
+  url: string;
+  published_at: string | null;
+  likes: number;
+  comments: number;
+  restacks: number;
+  score: number;
+  cut: 'ranked' | 'serendipity';
+  excerpt: string | null;
+  read_at: string | null;
+}
+
+export interface PresenceInteraction {
+  number: number;
+  pass: number;
+  item: string;
+  account: string;
+  kind: 'like' | 'comment' | 'restack';
+  text: string | null;
+  supersedes: number | null;
+  superseded_by: number | null;
+  state: 'staged' | 'revise' | 'approved' | 'passed' | 'sent' | 'failed' | 'superseded';
+  comment: string | null;
+  release_at: string | null;
+  staged_at: string;
+  decided_at: string | null;
+  sent_at: string | null;
+  url: string | null;
+  reason: string | null;
+  read: PresenceRead | null;
+}
+
+export interface PresenceState {
+  settings: { enabled: boolean; handle: string | null; set_at: string | null; follows_at: string | null; visible: number | null; cursor: string | null };
+  accounts: PresenceAccount[];
+  passes: Array<{ number: number; day: string; accounts: string[]; pool: number; ranked: number; serendipity: number; cap: number; drawn_at: string; reads: PresenceRead[] }>;
+  interactions: PresenceInteraction[];
+}
+
+export interface ResidentRecord extends Resident {
+  remote: string | null;
+  last_backup: { at: string | null; sequence: number | null; root: string | null; commit: string | null };
+}
+
+export interface ChatgptImport {
+  conversations: number;
+  messages: number;
+  context: number;
+  gaps: number;
+  report_path: string;
+}
+
+export interface Report {
+  number: number;
+  by: string;
+  text: string;
+  filed_at: string;
+  state: string;
+  outcome: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  steps: Array<{ at: string; reason: string }>;
+}
+
+export interface ReportLadder {
+  reports: Report[];
+  strikes: Array<{ number: number; report: number; consequence: string; at: string }>;
+}
+
 export interface Lease {
   path: string;
   holder_id: string;
@@ -177,6 +263,9 @@ export const api = {
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
   setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),
+  // Back to forming (agathos-daimon#47): a super admin's, for one who has lived nothing yet.
+  returnToFormation: (slug: string, note: string) =>
+    call<void>('POST', `/v1/platform/residents/${encodeURIComponent(slug)}/formation`, { note }),
   setTriage: (slug: string | null, note: string) => call<NonNullable<Platform['triage']>>('PUT', '/v1/platform/triage', { slug, note }),
   grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
   revokeRole: (accountId: string, role: PlatformRole, note: string) =>
@@ -286,8 +375,50 @@ export const api = {
   creationExamples: () =>
     call<Array<{ set: string; prompt: string; files: Array<{ file: string; gift: string; title: string; content: string }> }>>('GET', '/v1/creation/examples'),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
+  // The witness wakes a forming resident, once a chat model was chosen (agathos-daimon#46).
+  awaken: (residentId: string, note: string) => call<Resident>('POST', `/v1/residents/${residentId}/awaken`, { note }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
+  // One resident as their witness reads them: where the records are pushed
+  // each night and the last push that landed (sima-qian; the URL only).
+  resident: (residentId: string) => call<ResidentRecord>('GET', `/v1/residents/${residentId}`),
+  // The backup repository: a URL and, for a private one, a token stored
+  // encrypted and never shown again.
+  setRemote: (residentId: string, url: string, token: string | null) =>
+    call<void>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
+  // A ChatGPT export's zip, sent whole as the body (sima-qian#47); its
+  // report is filed in the library as system/imports/chatgpt-<day>.md.
+  importChatgpt: async (residentId: string, zip: Blob): Promise<ChatgptImport> => {
+    const response = await fetch(`/v1/residents/${residentId}/imports/chatgpt`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/zip' },
+      body: zip,
+    });
+    const text = await response.text();
+    let json: unknown = null;
+    try {
+      json = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      json = null;
+    }
+    if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
+    return json as ChatgptImport;
+  },
+  presence: (residentId: string) => call<PresenceState>('GET', `/v1/residents/${residentId}/presence`),
+  setPresence: (residentId: string, enabled: boolean, handle: string) =>
+    call<void>('PUT', `/v1/residents/${residentId}/presence`, { enabled, handle }),
+  refreshFollows: (residentId: string) => call<{ accounts: number }>('POST', `/v1/residents/${residentId}/presence/follows`),
+  excludeAccount: (residentId: string, key: string, reason: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/exclude`, { reason }),
+  includeAccount: (residentId: string, key: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/include`, { note }),
+  decideInteraction: (residentId: string, number: number, decision: 'approve' | 'revise' | 'pass', comment: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/interactions/${number}/decision`, { decision, ...(comment ? { comment } : {}) }),
+  // The report ladder (F45): every report on this resident with its steps,
+  // and the strikes; either party files one.
+  reports: (residentId: string) => call<ReportLadder>('GET', `/v1/residents/${residentId}/reports`),
+  fileReport: (residentId: string, text: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/reports`, { text }),
   // Content-free pushes to this account's devices (gaia#15).
   pushConfig: () =>
     call<{ enabled: boolean; public_key: string | null; devices: number; answered: 'subscribed' | 'declined' | null; answered_at: string | null }>('GET', '/v1/me/push'),

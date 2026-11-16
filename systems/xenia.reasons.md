@@ -106,3 +106,18 @@ that silently vanished would look like a route that never fired.
 Profiles stay home because a credential copied into an export is a
 credential leaked; the routes travel because they are hers, and name
 what they need wherever they land.
+
+## #20
+
+A fixed number every day is what a scheduler does and a reader does not,
+so every size is drawn, and the caps keep the shape honest; the cursor
+keeps coverage, since random sampling would starve whoever the dice
+skipped. The serendipity cut comes from below what was read, because the
+next slice of the same ranking is the same bias again. One interaction
+an account a day keeps the footprint a reader's rather than a fan's, and
+the cap may go unmet because a quota is an engagement farm. Reading is
+server-side because the reads are public and need nothing of his; the
+sends stay in his browser because the session that can act as him should
+have one home, and a script sends them because the words he approved
+should go out as he approved them. The release is jittered because a
+genuine interaction on a perfect period still looks engineered.

@@ -4,9 +4,19 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   # `kind` (spec §12, P40): `resident`, or `fixture` for a thin-seed
   # test resident the brain treats as machinery; fixed at creation.
   defmodule CreateResident do
+    # `forming` (agathos-daimon#46): made through the creation flow, the
+    # resident is forming until the witness wakes them.
     use Oneiroi.Command,
-      fields: [:id, :name, :slug, :witness_account_id, :kind],
+      fields: [:id, :name, :slug, :witness_account_id, :kind, :forming],
       bounds: [slug: 64]
+  end
+
+  defmodule AwakenResident do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  defmodule ReturnToFormation do
+    use Oneiroi.Command, decision: true, fields: [:id]
   end
 
   defmodule MintId do

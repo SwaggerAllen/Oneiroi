@@ -5,7 +5,7 @@ import { api, type GateState } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import { Invites } from './Invites';
-import { SaidLine } from './parts';
+import { Field, SaidLine } from './parts';
 import { Queue } from './Queue';
 import { Roles } from './Roles';
 import { Spans } from './Spans';
@@ -53,7 +53,12 @@ export function Operator() {
             {tab === 'status' && <Status />}
             {tab === 'queue' && <Queue />}
             {tab === 'spans' && <Spans />}
-            {tab === 'door' && <Door />}
+            {tab === 'door' && (
+              <>
+                <Door />
+                <Formation />
+              </>
+            )}
             {tab === 'roles' && <Roles />}
             {tab === 'invites' && <Invites />}
             {tab === 'triage' && <Triage />}
@@ -146,6 +151,52 @@ function Door() {
           </li>
         ))}
       </ul>
+      <SaidLine said={op.said} />
+    </section>
+  );
+}
+
+/**
+ * Back to forming (agathos-daimon#47): a resident made before formation
+ * existed, who has had no first conversation and no agreement, waits on
+ * their witness's trials and a model pin before they wake. The server
+ * refuses anyone who has lived any of it.
+ */
+function Formation() {
+  const op = useOp();
+  const [slug, setSlug] = useState('');
+  const [note, setNote] = useState('');
+  return (
+    <section className={css.card} aria-label="Back to forming">
+      <h2 className={css.heading}>BACK TO FORMING</h2>
+      <p>
+        For a resident made before formation existed who has not yet had a first conversation: they go back to forming, reachable by nothing but their witness's
+        regression trials, and wake on a model he pins. Refused for anyone who has talked with their witness or agreed a contract.
+      </p>
+      <form
+        className={css.form}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!slug.trim() || !note.trim()) return;
+          void op
+            .run(() => api.returnToFormation(slug.trim(), note.trim()).then(() => `${slug.trim()} is forming again.`))
+            .then((ok) => {
+              if (!ok) return;
+              setSlug('');
+              setNote('');
+            });
+        }}
+      >
+        <div className={css.grid}>
+          <Field label="Resident (slug)" value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <Field label="Why (recorded with the change)" value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+        <div className={css.buttons}>
+          <button type="submit" className={css.primary} disabled={op.busy || !slug.trim() || !note.trim()}>
+            Return to forming
+          </button>
+        </div>
+      </form>
       <SaidLine said={op.said} />
     </section>
   );

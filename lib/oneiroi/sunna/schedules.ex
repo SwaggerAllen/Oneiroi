@@ -708,7 +708,7 @@ defmodule Oneiroi.Sunna.Schedules do
   # chained sessions): scenes, then people, then behaviour, then free
   # time. Each pass is a housekeeping conversation of its own with its own
   # turn bound; one that fails, skips or ends hands on to the next.
-  @night ["scene", "people", "behaviour"]
+  @night ["scene", "people", "behaviour", "presence"]
 
   defp after_pass(resident_id, day, slot, pass) do
     case Enum.drop_while(@night, &(&1 != pass)) do
@@ -725,7 +725,8 @@ defmodule Oneiroi.Sunna.Schedules do
   link of the chain. A port with no such note, or a day with nothing for
   the pass, skips straight on.
   """
-  def night_pass(resident_id, pass, day, slot, key, n) when pass in ["people", "behaviour"] do
+  def night_pass(resident_id, pass, day, slot, key, n)
+      when pass in ["people", "behaviour", "presence"] do
     port = Config.fetch!(:sunna, :wake)
 
     with true <- Code.ensure_loaded?(port) and function_exported?(port, :night_pass_note, 4),
@@ -745,6 +746,7 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp night_turns("people"), do: Config.fetch!(:sunna, :people_turns)
   defp night_turns("behaviour"), do: Config.fetch!(:sunna, :behaviour_turns)
+  defp night_turns("presence"), do: Config.fetch!(:sunna, :presence_turns)
 
   defp scene_session(_resident_id, _row, key) when is_binary(key), do: {:ok, key}
 
@@ -1227,7 +1229,8 @@ defmodule Oneiroi.Sunna.Schedules do
   when the wake's turn is done.
   """
   def wake_for_household(resident_id, note, %Actor{} = actor) do
-    with {:ok, %{state: "active"}} <- resident(resident_id),
+    with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
+           resident(resident_id),
          false <- quiet?(local_now(resident_id), household_quiet(resident_id)),
          :ok <- wake_main(resident_id, note, actor) do
       {:ok, :woken}

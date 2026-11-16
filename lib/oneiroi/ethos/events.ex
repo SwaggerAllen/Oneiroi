@@ -26,7 +26,20 @@ defmodule Oneiroi.Ethos.Events do
     # confirm it across days) or toward an evaluative kind (a position, a
     # soul line) that needs no behavioural evidence. The seed's row stays,
     # with its state and the citation to what it became.
-    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :to_kind, :to_id]
+    # Version 2 adds `door` (ethos#24, portraits v2): which way a portrait
+    # opened, `days` (the bound counted), `conversation_for` (a day
+    # substantially about them) or `witness` (his word); nil toward any
+    # other kind. A version 1 portrait graduation upcasts to `days`, the
+    # only door there was.
+    use Oneiroi.Event,
+      version: 2,
+      decision: true,
+      fields: [:id, :number, :to_kind, :to_id, :door]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: SeedGraduated do
+    def upcast(%{to_kind: "portrait", door: nil} = event, _metadata), do: %{event | door: "days"}
+    def upcast(event, _metadata), do: event
   end
 
   defmodule SeedCited do

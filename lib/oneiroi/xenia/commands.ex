@@ -89,4 +89,48 @@ defmodule Oneiroi.Xenia.Commands do
   defmodule RestoreProfile do
     use Oneiroi.Command, decision: true, fields: [:id, :key]
   end
+
+  # Presence (xenia#20): the witness's switch and the account read from;
+  # the follow list fetched; the mask; a day's pass drawn; an item read;
+  # an interaction staged, decided, sent or failed.
+  defmodule SetPresence do
+    use Oneiroi.Command, fields: [:id, :enabled, :handle]
+  end
+
+  defmodule RecordFollows do
+    use Oneiroi.Command, fields: [:id, :accounts, :visible]
+  end
+
+  defmodule ExcludeAccount do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
+
+  defmodule IncludeAccount do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
+
+  defmodule DrawPass do
+    use Oneiroi.Command,
+      fields: [:id, :day, :accounts, :pool, :ranked, :serendipity, :cap, :reads]
+  end
+
+  defmodule ReadItem do
+    use Oneiroi.Command, fields: [:id, :pass, :item]
+  end
+
+  defmodule StageInteraction do
+    use Oneiroi.Command, fields: [:id, :item, :kind, :text, :supersedes]
+  end
+
+  defmodule DecideInteraction do
+    use Oneiroi.Command, fields: [:id, :number, :decision, :comment, :release_at]
+  end
+
+  defmodule MarkInteractionSent do
+    use Oneiroi.Command, fields: [:id, :number, :url]
+  end
+
+  defmodule FailInteraction do
+    use Oneiroi.Command, fields: [:id, :number, :reason]
+  end
 end

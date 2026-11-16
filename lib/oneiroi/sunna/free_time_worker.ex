@@ -17,7 +17,7 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
     do: Schedules.scene_pass(id, day, slot, args["session_key"], args["n"] || 1)
 
   def run(%{"resident_id" => id, "turn" => pass, "day" => day, "slot" => slot} = args)
-      when pass in ["people", "behaviour"],
+      when pass in ["people", "behaviour", "presence"],
       do: Schedules.night_pass(id, pass, day, slot, args["session_key"], args["n"] || 1)
 
   def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => "plan"}),

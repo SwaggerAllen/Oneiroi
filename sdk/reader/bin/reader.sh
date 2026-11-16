@@ -171,6 +171,11 @@ wait_for_work() {
     digest
     rmdir "$STATE/lock" 2>/dev/null
   fi
+  if [ "$(jq -r '(.presence // []) | length' "$OUT" 2>/dev/null || echo 0)" -gt 0 ]; then
+    say "presence interactions due"
+    presence
+    rmdir "$STATE/lock" 2>/dev/null
+  fi
   status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/waiting" "" "$OUT")"
   touch "$STATE/route-given-up"
   if [ "$(jq -r --rawfile gone "$STATE/route-given-up" \
@@ -442,6 +447,47 @@ send() {
   done
 }
 
+# Presence (xenia#20): the likes, comments and restacks the witness
+# approved, each once its jittered release has come, sent from his own
+# signed-in profile by lib/presence_send.cjs, from the origin that owns
+# each, exactly as Oneiroi handed it: no model touches the words. What
+# Substack refuses is failed with its answer; what never reached it is
+# tried again, up to ATTEMPTS times.
+presence() {
+  local status number reason url tries
+  lock
+  status="$(oneiroi_api GET "/v1/residents/$ONEIROI_RESIDENT/reader/presence" "" "$WORK/presence.json")"
+  [ "$status" = 200 ] || { say "Oneiroi answered $status to presence"; return 0; }
+  [ "$(jq length "$WORK/presence.json")" -gt 0 ] || return 0
+  [ -d "$READER/node/node_modules/playwright-core" ] ||
+    { say "presence needs playwright-core: run install.sh again"; return 0; }
+  node "$KIT/lib/presence_send.cjs" "$WORK/presence.json" "$READER/browser-profile" > "$WORK/presence-sent.json" ||
+    { say "the presence send ended badly"; return 0; }
+
+  for number in $(jq -r '.[].number' "$WORK/presence-sent.json"); do
+    if jq -e --argjson n "$number" 'any(.[]; .number == $n and .ok)' "$WORK/presence-sent.json" > /dev/null; then
+      url="$(jq -r --argjson n "$number" '[.[] | select(.number == $n)][0].url // empty' "$WORK/presence-sent.json")"
+      jq -n --arg url "$url" 'if $url == "" then {} else {url: $url} end' > "$OUT.body"
+      status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/reader/presence/$number/sent" "$OUT.body" "$OUT")"
+      say "interaction #$number sent; Oneiroi answered $status"
+    else
+      reason="$(jq -r --argjson n "$number" '[.[] | select(.number == $n)][0].reason // "not sent"' "$WORK/presence-sent.json")"
+      tries="$(( $(tries_of "p$number" "$STATE/presence-tries") + 1 ))"
+      echo "p$number" >> "$STATE/presence-tries"
+      # Substack's own refusal is final; a send that never reached it is tried again.
+      if jq -e --argjson n "$number" 'any(.[]; .number == $n and .status != null)' "$WORK/presence-sent.json" > /dev/null ||
+         [ "$tries" -ge "$ATTEMPTS" ]; then
+        jq -n --arg r "$reason" '{reason: $r}' > "$OUT.body"
+        status="$(oneiroi_api POST "/v1/residents/$ONEIROI_RESIDENT/reader/presence/$number/failed" "$OUT.body" "$OUT")"
+        say "interaction #$number failed ($reason); Oneiroi answered $status"
+      else
+        say "interaction #$number not sent (try $tries of $ATTEMPTS): $reason"
+      fi
+    fi
+    rm -f "$OUT.body"
+  done
+}
+
 # The writing gate (seshat#42): a piece her witness approved is typed into
 # a new Substack post and left a draft; he presses Publish himself. A
 # drafted piece is watched until it is live, and its public URL goes back
@@ -569,5 +615,6 @@ case "${1:-}" in
   digest) setup && sites && digest ;;
   publish) setup && sites && publish ;;
   route) setup && route ;;
-  *) echo "usage: reader.sh wait|send|scrape|research|fetch|digest|publish|route|login [profile]" >&2; exit 2 ;;
+  presence) setup && presence ;;
+  *) echo "usage: reader.sh wait|send|scrape|research|fetch|digest|publish|route|presence|login [profile]" >&2; exit 2 ;;
 esac

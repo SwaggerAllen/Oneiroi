@@ -31,7 +31,9 @@ defmodule Oneiroi.Xenia do
       Ecto.Multi,
       Ecto.Query,
       Ecto.Schema,
-      Jason
+      Jason,
+      # Presence's reads of Substack's public endpoints (xenia#20).
+      Req
     ],
     exports: [
       Error,
@@ -55,6 +57,16 @@ defmodule Oneiroi.Xenia do
       Commands.SetProfile,
       Commands.RevokeProfile,
       Commands.RestoreProfile,
+      Commands.SetPresence,
+      Commands.RecordFollows,
+      Commands.ExcludeAccount,
+      Commands.IncludeAccount,
+      Commands.DrawPass,
+      Commands.ReadItem,
+      Commands.StageInteraction,
+      Commands.DecideInteraction,
+      Commands.MarkInteractionSent,
+      Commands.FailInteraction,
       Events.CorrespondenceReceived,
       Events.CorrespondenceMarked,
       Events.CorrespondentBlocked,
@@ -73,6 +85,19 @@ defmodule Oneiroi.Xenia do
       Events.ProfileSet,
       Events.ProfileRevoked,
       Events.ProfileRestored,
+      Events.PresenceSet,
+      Events.FollowsRecorded,
+      Events.AccountExcluded,
+      Events.AccountIncluded,
+      Events.PassDrawn,
+      Events.ItemRead,
+      Events.InteractionStaged,
+      Events.InteractionDecided,
+      Events.InteractionSent,
+      Events.InteractionFailed,
+      PresenceRouter,
+      Substack,
+      Substack.Fake,
       Store,
       Store.Message,
       Store.Block,
@@ -80,17 +105,76 @@ defmodule Oneiroi.Xenia do
       Store.ReaderSites,
       Store.Route,
       Store.RouteRun,
-      Store.Profile
+      Store.Profile,
+      Store.Presence,
+      Store.PresenceAccount,
+      Store.PresencePass,
+      Store.PresenceRead,
+      Store.PresenceInteraction
     ]
 
   alias Oneiroi.Xenia.Inbox
+  alias Oneiroi.Xenia.Presence
   alias Oneiroi.Xenia.Routing
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
 
+  # Presence's reads of Substack's public endpoints (xenia#20); its
+  # writes never leave the witness's machine.
   @impl Oneiroi.Component
-  def config, do: []
+  def feature_flags, do: [:xenia_substack_off]
+
+  @impl Oneiroi.Component
+  def externals do
+    [
+      {:substack,
+       adapter: Oneiroi.Xenia.Substack.Http,
+       fake: Oneiroi.Xenia.Substack.Fake,
+       kill_switch: :xenia_substack_off,
+       classification: :operational}
+    ]
+  end
+
+  @impl Oneiroi.Component
+  def config,
+    do: [
+      {:substack_client, "XENIA_SUBSTACK_CLIENT",
+       cast: &__MODULE__.cast_substack_client/1,
+       default: "http",
+       usage:
+         "which Substack port presence reads through (xenia#20): http in every real build, fake in test (conventions §9)"},
+      {:presence_accounts_max, "XENIA_PRESENCE_ACCOUNTS_MAX",
+       cast: :integer,
+       default: "50",
+       tag: :bound,
+       usage:
+         "the most accounts a day's presence pass samples from the cursor (xenia#20); the count is drawn at random up to this, the witness's cap"},
+      {:presence_cut_max, "XENIA_PRESENCE_CUT_MAX",
+       cast: :integer,
+       default: "50",
+       tag: :bound,
+       usage:
+         "the most items each read cut takes, and the most interactions a pass may stage (xenia#20): each is drawn at random up to 10% of what it cuts from or this, whichever is lower"},
+      {:presence_lookback_days, "XENIA_PRESENCE_LOOKBACK_DAYS",
+       cast: :integer,
+       default: "7",
+       tag: :bound,
+       usage:
+         "how far back an account's first sample reaches, in days (xenia#20); after it, each sample collects everything since the last"},
+      {:presence_release_minutes, "XENIA_PRESENCE_RELEASE_MINUTES",
+       cast: :integer,
+       default: "360",
+       tag: :bound,
+       usage:
+         "the window an approved interaction is released within, at a random instant at least five minutes after approval (xenia#20): staggered so the day's interactions read as a reader's, not a scheduler's"}
+    ]
+
+  @doc false
+  def cast_substack_client("http"), do: {:ok, :"Elixir.Oneiroi.Xenia.Substack.Http"}
+  def cast_substack_client("fake"), do: {:ok, :"Elixir.Oneiroi.Xenia.Substack.Fake"}
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_substack_client(other), do: {:error, "is #{inspect(other)}, expected http or fake"}
 
   @impl Oneiroi.Component
   def events do
@@ -112,7 +196,17 @@ defmodule Oneiroi.Xenia do
       {Oneiroi.Xenia.Events.RouteFailed, 1},
       {Oneiroi.Xenia.Events.ProfileSet, 1},
       {Oneiroi.Xenia.Events.ProfileRevoked, 1},
-      {Oneiroi.Xenia.Events.ProfileRestored, 1}
+      {Oneiroi.Xenia.Events.ProfileRestored, 1},
+      {Oneiroi.Xenia.Events.PresenceSet, 1},
+      {Oneiroi.Xenia.Events.FollowsRecorded, 1},
+      {Oneiroi.Xenia.Events.AccountExcluded, 1},
+      {Oneiroi.Xenia.Events.AccountIncluded, 1},
+      {Oneiroi.Xenia.Events.PassDrawn, 1},
+      {Oneiroi.Xenia.Events.ItemRead, 1},
+      {Oneiroi.Xenia.Events.InteractionStaged, 1},
+      {Oneiroi.Xenia.Events.InteractionDecided, 1},
+      {Oneiroi.Xenia.Events.InteractionSent, 1},
+      {Oneiroi.Xenia.Events.InteractionFailed, 1}
     ]
   end
 
@@ -161,6 +255,31 @@ defmodule Oneiroi.Xenia do
       {:xenia_profile_invalid,
        "a profile is a key of 2 to 40 lowercase letters, digits or -, and exactly one origin (https://host)",
        remedy: "name one origin; a profile never spans two"},
+      {:xenia_presence_invalid,
+       "presence takes a Substack handle (lowercase letters, digits, _ or -); an interaction is a like, a restack or a comment with its words; a decision is approve, revise (with the comment that says how) or pass",
+       remedy: "name the handle, the kind, or the decision as asked"},
+      {:xenia_presence_unverified,
+       "the follow list did not match the count the profile claims, so it was not recorded",
+       remedy: "fetch it again later; the last list that verified stands meanwhile"},
+      {:xenia_substack_failed, "Substack did not answer the read",
+       remedy: "it is retried on the next pass; nothing was recorded from it"},
+      {:xenia_no_such_account, "no account on the follow list has that key",
+       remedy: "read the follow list"},
+      {:xenia_presence_drawn, "today's pass was drawn already", remedy: "read it"},
+      {:xenia_presence_not_drawn, "that item is in no pass of hers, or no pass has been drawn",
+       remedy: "read today's pass for what it holds"},
+      {:xenia_presence_unread,
+       "every interaction is earned by a read: that item was not read whole this pass",
+       remedy: "read it with presence_read first"},
+      {:xenia_presence_account_today,
+       "one interaction per account per day: that account has one already",
+       remedy:
+         "choose the one piece that earned it, revising the staged one if it is still waiting"},
+      {:xenia_presence_cap, "this pass has staged as many interactions as it may",
+       remedy: "the cap may go unmet but not over; revise one still waiting instead"},
+      {:xenia_no_such_interaction, "no interaction has that number", remedy: "read the queue"},
+      {:xenia_presence_not_approved, "only an approved interaction is sent",
+       remedy: "the witness approves it first"},
       {:xenia_dispatch_failed,
        "the command was not recorded: the command bus refused it or failed before the inbox decided",
        remedy:
@@ -169,7 +288,12 @@ defmodule Oneiroi.Xenia do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Xenia.Projectors.Correspondence, Oneiroi.Xenia.Projectors.Routes]
+  def children,
+    do: [
+      Oneiroi.Xenia.Projectors.Correspondence,
+      Oneiroi.Xenia.Projectors.Routes,
+      Oneiroi.Xenia.Projectors.Presence
+    ]
 
   @doc "Receives a delivery of messages; each answers `{:ok, number}` or `{:ok, :duplicate}` or its refusal."
   @spec receive_messages(String.t(), [map()], Oneiroi.Actor.t()) ::
@@ -319,5 +443,99 @@ defmodule Oneiroi.Xenia do
           :ok | {:error, term()}
   defexport(restore_profile(resident_id, key, note, actor),
     do: Routing.restore_profile(resident_id, key, note, actor)
+  )
+
+  # ---- presence (xenia#20) ----
+
+  @doc "Presence's switch and handle, and the follow list's last fetch."
+  @spec presence(String.t()) :: map()
+  defexport(presence(resident_id), do: Presence.settings(resident_id))
+
+  @doc "The witness turns presence on or off and names the Substack handle it reads from."
+  @spec set_presence(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_presence(resident_id, enabled, handle, actor),
+    do: Presence.set(resident_id, enabled, handle, actor)
+  )
+
+  @doc "Fetches the follow list again, verified against the profile's own count."
+  @spec refresh_follows(String.t(), Oneiroi.Actor.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  defexport(refresh_follows(resident_id, actor), do: Presence.refresh_follows(resident_id, actor))
+
+  @doc "The follow list with its mask and last samples."
+  @spec presence_accounts(String.t()) :: [Oneiroi.Xenia.Store.PresenceAccount.t()]
+  defexport(presence_accounts(resident_id), do: Presence.accounts(resident_id))
+
+  @doc "The witness masks an account, with its reason."
+  @spec exclude_account(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(exclude_account(resident_id, key, reason, actor),
+    do: Presence.exclude(resident_id, key, reason, actor)
+  )
+
+  @doc "The witness lifts a mask, with a note."
+  @spec include_account(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(include_account(resident_id, key, note, actor),
+    do: Presence.include(resident_id, key, note, actor)
+  )
+
+  @doc "Draws the day's pass once a day: `{:ok, pass}`, `:off` or `:empty`."
+  @spec draw_presence(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | :off | :empty | {:error, term()}
+  defexport(draw_presence(resident_id, day, actor), do: Presence.draw(resident_id, day, actor))
+
+  @doc "The resident reads an item of today's pass whole."
+  @spec presence_read(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(presence_read(resident_id, item, actor), do: Presence.read(resident_id, item, actor))
+
+  @doc "The resident stages an interaction for an item read; returns its number."
+  @spec stage_interaction(String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(stage_interaction(resident_id, attrs, actor),
+    do: Presence.stage(resident_id, attrs, actor)
+  )
+
+  @doc "The witness approves, asks a revision of, or passes over an interaction."
+  @spec decide_interaction(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(decide_interaction(resident_id, number, decision, comment, actor),
+    do: Presence.decide(resident_id, number, decision, comment, actor)
+  )
+
+  @doc "Interactions by state, newest first, each with the item it answers."
+  @spec presence_interactions(String.t(), [String.t()] | nil) :: [map()]
+  defexport(presence_interactions(resident_id, states),
+    do: Presence.interactions(resident_id, states)
+  )
+
+  @doc "The latest passes with their reads."
+  @spec presence_passes(String.t(), pos_integer()) :: [map()]
+  defexport(presence_passes(resident_id, limit), do: Presence.passes(resident_id, limit))
+
+  @doc "Approved interactions whose release has come, for the reader."
+  @spec presence_due(String.t()) :: [map()]
+  defexport(presence_due(resident_id), do: Presence.due(resident_id))
+
+  @doc "An interaction went out."
+  @spec interaction_sent(String.t(), pos_integer(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(interaction_sent(resident_id, number, url, actor),
+    do: Presence.mark_sent(resident_id, number, url, actor)
+  )
+
+  @doc "An interaction could not go out."
+  @spec interaction_failed(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(interaction_failed(resident_id, number, reason, actor),
+    do: Presence.fail(resident_id, number, reason, actor)
   )
 end

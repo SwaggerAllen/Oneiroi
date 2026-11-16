@@ -56,10 +56,15 @@ the witness's laptop.
 
 ### P5, hands and inbound
 
-7. **Off the witness's laptop.** The reader and Substack run as a local
-   job and correspondence through his browser profile; all of it moves
-   server-side, per resident: the provisioner (Docker) with suspend and
-   wake, the OpenClaw hands runtime with the reader.
+7. **A hosted reader, beside the local one.** The reader and Substack run
+   as a local job and correspondence through his browser profile. That
+   setup stays, and is supported (the witness, 2026-11-15: "we aren't
+   moving the reader off my laptop, we're adding a cloud reader as a
+   second option"). The hosted option runs server-side, per resident:
+   the provisioner (Docker) with suspend and wake, the OpenClaw hands
+   runtime with the reader. A resident's reader is one or the other,
+   speaking the same reader API (`/waiting` and the answer routes), so
+   the platform does not care which ran it.
 8. **Wake fan-out**, and with it the oracle's wake-on-complete (the
    witness's note on brain#49).
 9. **Research with source release**; the fetch, search and browser pool

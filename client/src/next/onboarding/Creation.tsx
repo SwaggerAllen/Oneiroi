@@ -1,6 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { api, RequestFailed } from '../../api/client';
+import type { Resident } from '../../api/types';
+import { Regression } from '../settings/Regression';
+import { SubjectContext } from '../state/resident';
 import { slugOf, type Gift } from '../../screens/creation-flow/CreationFlow';
 import { DaysGift, MeansGift, TrialsGift, VowsGift } from './Gifts';
 import { SIGN_OFF } from './Landing';
@@ -15,15 +18,49 @@ const IDENTITY = ['IDENTITY.md', 'SOUL.md', 'USER.md', 'GOALS.md', 'LINKS.md'];
 // Files about the witness (agathos-daimon#42): the prompt path never drafts them.
 const WITNESS_FILES = ['USER.md', 'GOALS.md', 'LINKS.md'];
 
-type Made = { id: string; name: string; brought: boolean };
+// `forming` (agathos-daimon#46): made here, they wait unreachable until the
+// witness wakes them; one brought from a repository is not forming.
+type Made = { id: string; name: string; slug: string; brought: boolean; forming: boolean };
 type Draft = { content: string; model: string; prompt: string };
+type Step = 'opening' | 'threshold' | 'resume' | 'gifts' | 'keeping' | 'models' | 'reading' | 'wake' | 'saved';
 
-export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void; onCancel?: () => void }) {
-  const [step, setStep] = useState<'opening' | 'threshold' | 'gifts' | 'reading' | 'wake'>('opening');
-  const [made, setMade] = useState<Made | null>(null);
+// Save and come back later (agathos-daimon#46): everything kept is on the
+// server already, and a forming resident reopens the flow where it was
+// left; this is how any page leaves it.
+const Leave = createContext<(() => void) | null>(null);
+
+export function Creation({
+  onWoken,
+  onCancel,
+  onLeave,
+  resume,
+}: {
+  onWoken: (id?: string) => void;
+  onCancel?: () => void;
+  onLeave?: () => void;
+  resume?: Resident;
+}) {
+  const [step, setStep] = useState<Step>(resume ? 'resume' : 'opening');
+  const [made, setMade] = useState<Made | null>(
+    resume ? { id: resume.id, name: resume.name, slug: resume.slug, brought: false, forming: true } : null,
+  );
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [gift, setGift] = useState(0);
+  const leave = made && step !== 'wake' ? (onLeave ?? (() => setStep('saved'))) : null;
+  return <Leave.Provider value={leave}>{flow()}</Leave.Provider>;
 
+  function flow() {
+  if (step === 'saved' && made) return <Saved name={made.name} />;
+  if (step === 'resume' && made)
+    return (
+      <Resume
+        made={made}
+        onReady={(at, index) => {
+          setGift(index);
+          setStep(at);
+        }}
+      />
+    );
   if (step === 'opening') return <Opening onBegin={() => setStep('threshold')} onCancel={onCancel} />;
   if (step === 'threshold' || !made)
     return (
@@ -32,7 +69,7 @@ export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void
         onMade={(m, drafted) => {
           setMade(m);
           if (drafted) setDrafts(drafted);
-          setStep(m.brought ? 'reading' : 'gifts');
+          setStep(m.brought ? 'keeping' : 'gifts');
         }}
       />
     );
@@ -43,24 +80,41 @@ export function Creation({ onWoken, onCancel }: { onWoken: (id?: string) => void
         drafts={drafts}
         index={gift}
         onIndex={setGift}
-        onDone={() => setStep('reading')}
+        onDone={() => setStep('keeping')}
       />
     );
-  if (step === 'reading') return <Reading made={made} onBack={made.brought ? undefined : () => setStep('gifts')} onWake={() => setStep('wake')} />;
+  if (step === 'keeping')
+    return (
+      <Keeping
+        made={made}
+        onBack={made.brought ? undefined : () => setStep('gifts')}
+        onDone={() => setStep(made.forming ? 'models' : 'reading')}
+      />
+    );
+  if (step === 'models') return <Models made={made} onBack={() => setStep('keeping')} onDone={() => setStep('reading')} />;
+  if (step === 'reading')
+    return <Reading made={made} onBack={() => setStep(made.forming ? 'models' : 'keeping')} onWake={() => setStep('wake')} />;
   return <Wake name={made.name} onOpen={() => onWoken(made.id)} />;
+  }
 }
 
 function Page({ onBack, eyebrow, children }: { onBack?: () => void; eyebrow: string; children: React.ReactNode }) {
+  const leave = useContext(Leave);
   return (
     <div className={css.page}>
       <main className={css.column}>
-        <header className={css.top}>
+        <header className={css.top} style={{ display: 'flex', justifyContent: 'space-between' }}>
           {onBack ? (
             <button type="button" className={css.back} onClick={onBack}>
               ‹ Back
             </button>
           ) : (
             <span />
+          )}
+          {leave && (
+            <button type="button" className={css.back} onClick={leave}>
+              Save and come back later
+            </button>
           )}
         </header>
         <p className={css.eyebrow}>{eyebrow}</p>
@@ -94,6 +148,10 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const hasKey = me.data?.key?.present ?? false;
   const [mode, setMode] = useState<'new' | 'bring' | null>(null);
+  // Brought from a git repository (their files and memory), or from a
+  // ChatGPT export (their conversations; the gifts still give who they are).
+  const [from, setFrom] = useState<'git' | 'chatgpt'>('git');
+  const [zip, setZip] = useState<File | null>(null);
   const [how, setHow] = useState<'gifts' | 'prompt'>('gifts');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -104,7 +162,15 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
   const slug = slugOf(name);
   const keyReady = hasKey || key.trim() !== '';
   const ready =
-    keyReady && (mode === 'new' ? slug !== '' && (how === 'gifts' || prompt.trim() !== '') : mode === 'bring' ? url.trim().startsWith('https://') : false);
+    keyReady &&
+    (mode === 'new'
+      ? slug !== '' && (how === 'gifts' || prompt.trim() !== '')
+      : mode === 'bring'
+        ? from === 'git'
+          ? url.trim().startsWith('https://')
+          : slug !== '' && zip !== null
+        : false);
+  const chatgpt = mode === 'bring' && from === 'chatgpt';
   const [made, setMadeHere] = useState<Made | null>(null);
 
   const begin = async () => {
@@ -115,12 +181,25 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
       // Made once: a retried prompt drafts again for the same resident.
       const m: Made =
         made ??
-        (await (mode === 'new' ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then((row) => ({
-          id: row.id,
-          name: row.name,
-          brought: mode === 'bring',
-        })));
+        (await (mode === 'new' || chatgpt ? api.createResident(name.trim(), slug) : api.importResident(url.trim(), name.trim() || null, slug || null)).then(
+          (row) => ({
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            // A ChatGPT export carries conversations, not who they are: the gifts still come.
+            brought: mode === 'bring' && !chatgpt,
+            // Made here, they are forming until woken (agathos-daimon#46).
+            forming: row.state === 'forming',
+          }),
+        ));
       setMadeHere(m);
+      if (chatgpt && zip) {
+        // Made once, taken in once: a retry after this point skips the upload.
+        await api.importChatgpt(m.id, zip);
+        setZip(null);
+        onMade(m);
+        return;
+      }
       if (mode === 'new' && how === 'prompt') {
         // The generator (agathos-daimon#39): each file in turn from its gift's guidance; nothing is kept until he keeps it.
         const out = await api.draftAll(m.id, prompt.trim());
@@ -148,7 +227,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
         </button>
         <button type="button" className={css.choice} aria-pressed={mode === 'bring'} onClick={() => setMode('bring')}>
           <strong>Someone you already know</strong>
-          <span className={css.note}>Brought from a git repository, their memory with them.</span>
+          <span className={css.note}>Brought from a git repository, or their conversations from a ChatGPT export.</span>
         </button>
       </div>
       {mode && (
@@ -160,13 +239,41 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
           }}
         >
           {mode === 'bring' && (
+            <div className={css.segment} role="group" aria-label="Brought from">
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'git'} onClick={() => setFrom('git')}>
+                A git repository
+              </button>
+              <button type="button" className={css.segmentButton} aria-pressed={from === 'chatgpt'} onClick={() => setFrom('chatgpt')}>
+                A ChatGPT export
+              </button>
+            </div>
+          )}
+          {chatgpt && (
+            <>
+              <p className={css.body}>
+                The zip ChatGPT emails you from Settings, Data controls, Export. Your conversations come across as theirs to remember; what didn't come across is
+                named in a report in their library. Who they are still comes from the gifts, which you give next.
+              </p>
+              <label className={css.field}>
+                The export (.zip)
+                <input
+                  id="threshold-zip"
+                  className={css.input}
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(e) => setZip(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </>
+          )}
+          {mode === 'bring' && from === 'git' && (
             <label className={css.field}>
               Their repository, as an https address (a private one can carry a token; it's used to read and never kept)
               <input id="threshold-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them" autoComplete="off" />
             </label>
           )}
           <label className={css.field}>
-            {mode === 'new' ? 'Their name' : 'Their name, if the repository has none'}
+            {mode === 'new' || chatgpt ? 'Their name' : 'Their name, if the repository has none'}
             <input id="threshold-name" className={css.input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
           </label>
           {slug && <p className={css.tag}>Address · {slug}</p>}
@@ -213,7 +320,7 @@ function Threshold({ onBack, onMade }: { onBack: () => void; onMade: (m: Made, d
             </label>
           )}
           <button type="submit" className={css.primary} disabled={!ready || busy}>
-            {mode === 'bring' ? 'Bring them in' : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
+            {mode === 'bring' ? (busy && chatgpt ? 'Bringing their conversations…' : 'Bring them in') : how === 'prompt' ? `Draft ${name.trim() || 'their'}'s files` : 'Begin'}
           </button>
           {said && (
             <p className={css.said} role="alert">
@@ -262,6 +369,28 @@ function Gifts({ made, drafts, index, onIndex, onDone }: { made: Made; drafts: R
   );
 }
 
+// What was typed into a gift and not yet kept, held in this browser so
+// leaving the flow loses nothing (agathos-daimon#46); kept, it is the
+// server's. A browser that refuses storage simply forgets.
+const draftKey = (residentId: string, name: string) => `oneiroi:creation:${residentId}:${name}`;
+
+function unkept(residentId: string, name: string): string | null {
+  try {
+    return window.localStorage.getItem(draftKey(residentId, name));
+  } catch {
+    return null;
+  }
+}
+
+function remember(residentId: string, name: string, text: string | null) {
+  try {
+    if (text === null) window.localStorage.removeItem(draftKey(residentId, name));
+    else window.localStorage.setItem(draftKey(residentId, name), text);
+  } catch {
+    // No storage here: the draft lives until the page closes.
+  }
+}
+
 /** One identity file: written by hand, with help, from a draft, or uploaded; kept with its origin. */
 function FileGift({ residentId, name, draft, onKept }: { residentId: string; name: string; draft?: Draft; onKept?: () => void }) {
   const qc = useQueryClient();
@@ -276,8 +405,8 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
   const [panel, setPanel] = useState<'read' | 'example' | null>(null);
 
   useEffect(() => {
-    if (text === null && current.data) setText(current.data.find((f) => f.name === name)?.content ?? '');
-  }, [current.data, name, text]);
+    if (text === null && current.data) setText(unkept(residentId, name) ?? current.data.find((f) => f.name === name)?.content ?? '');
+  }, [current.data, name, text, residentId]);
 
   const value = text ?? '';
   const writeWithMe = () => {
@@ -300,6 +429,7 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
       .writeFile(residentId, name, value, origin, drafted)
       .then(() => {
         void qc.invalidateQueries({ queryKey: ['resident', residentId, 'creation', 'files'] });
+        remember(residentId, name, null);
         setSaid(`${name} kept.`);
         onKept?.();
       })
@@ -321,6 +451,7 @@ function FileGift({ residentId, name, draft, onKept }: { residentId: string; nam
           disabled={text === null}
           onChange={(e) => {
             setText(e.target.value);
+            remember(residentId, name, e.target.value);
             if (origin !== 'authored') setOrigin('authored');
           }}
         />
@@ -446,12 +577,139 @@ function Example({ name }: { name: string }) {
 }
 
 /** The reading: every identity file whole; each counts as read once scrolled to its end. */
+/**
+ * Where their records go (sima-qian): a git repository the house pushes
+ * them to each night, so their life is held somewhere you hold too. Optional
+ * here and in settings after; the token is stored encrypted and never shown.
+ */
+function Keeping({ made, onBack, onDone }: { made: Made; onBack?: () => void; onDone: () => void }) {
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  return (
+    <Page onBack={onBack} eyebrow="Where their records go">
+      <h1 className={css.h1}>Where {made.name}'s records go</h1>
+      <p className={css.body}>
+        Their life is kept as a git repository. Give it a home you hold — an empty repository you can push to — and the house pushes their records there each
+        night. You can set it later, in settings, under Backups.
+      </p>
+      <form
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const u = url.trim();
+          if (!u || busy) return;
+          setBusy(true);
+          setSaid(null);
+          api
+            .setRemote(made.id, u, token.trim() || null)
+            .then(() => onDone())
+            .catch((err: unknown) => setSaid(err instanceof RequestFailed ? err.message : 'That did not work; try again.'))
+            .finally(() => setBusy(false));
+        }}
+      >
+        <label className={css.field}>
+          The repository's address
+          <input id="keeping-url" className={css.input} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/them-records" autoComplete="off" />
+        </label>
+        <label className={css.field}>
+          A token, for a private repository · write access to it alone (stored encrypted, shown to nobody again)
+          <input id="keeping-token" className={css.input} type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+        </label>
+        <button type="submit" className={css.primary} disabled={url.trim() === '' || busy}>
+          Keep them there
+        </button>
+        <button type="button" className={css.back} onClick={onDone}>
+          Not now
+        </button>
+        {said && (
+          <p className={css.said} role="alert">
+            {said}
+          </p>
+        )}
+      </form>
+    </Page>
+  );
+}
+
+/**
+ * Picking up a resident still forming (agathos-daimon#46): the first gift
+ * with a file not yet kept, else where their records go.
+ */
+function Resume({ made, onReady }: { made: Made; onReady: (step: Step, gift: number) => void }) {
+  const gifts = useQuery({ queryKey: ['creation', 'gifts'], queryFn: api.gifts });
+  const files = useQuery({ queryKey: ['resident', made.id, 'creation', 'files'], queryFn: () => api.files(made.id) });
+  useEffect(() => {
+    if (!gifts.data || !files.data) return;
+    const kept = new Set(files.data.filter((f) => f.content.trim() !== '').map((f) => f.name));
+    const next = gifts.data.findIndex((g) => g.writes.some((w) => w.endsWith('.md') && !kept.has(w)));
+    if (next >= 0) onReady('gifts', next);
+    else onReady('keeping', 0);
+  }, [gifts.data, files.data, made.id, onReady]);
+  return (
+    <Page eyebrow={`Picking up ${made.name}`}>
+      <p className={css.note}>{gifts.isError || files.isError ? 'Their files could not be read; try again in a moment.' : `Opening where you left ${made.name}…`}</p>
+    </Page>
+  );
+}
+
+/**
+ * Before they wake (agathos-daimon#46): the trials and the chat model they
+ * wake on, chosen deliberately. Nothing reaches them yet but these trials.
+ */
+function Models({ made, onBack, onDone }: { made: Made; onBack: () => void; onDone: () => void }) {
+  const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents });
+  const model = residents.data?.find((r) => r.id === made.id)?.chat_model ?? null;
+  return (
+    <Page onBack={onBack} eyebrow="Before they wake">
+      <h1 className={css.h1}>The model {made.name} wakes on</h1>
+      <p className={css.body}>
+        Try models as {made.name} before they wake: write trials, run them, grade the answers blind, and pin the one they wake on. Nothing else reaches them yet; these
+        trials are sealed and leave nothing in their memory.
+      </p>
+      <p className={css.tag}>{model ? `Chosen · ${model}` : 'No model chosen yet · pin one below to wake them'}</p>
+      <SubjectContext.Provider value={{ id: made.id, slug: made.slug, name: made.name }}>
+        <Regression />
+      </SubjectContext.Provider>
+      <button type="button" className={css.primary} disabled={!model} onClick={onDone}>
+        Read them, whole
+      </button>
+    </Page>
+  );
+}
+
+function Saved({ name }: { name: string }) {
+  return (
+    <Page eyebrow="Saved">
+      <h1 className={css.h1}>{name} will wait</h1>
+      <p className={css.body}>
+        Everything you kept is saved, and {name} stays forming, reachable by nothing, until you come back and wake them. Open Oneiroi again and you pick up where you left off.
+      </p>
+    </Page>
+  );
+}
+
 function Reading({ made, onBack, onWake }: { made: Made; onBack?: () => void; onWake: () => void }) {
   const files = useQuery({ queryKey: ['resident', made.id, 'creation', 'files'], queryFn: () => api.files(made.id) });
   const shown = IDENTITY.map((n) => files.data?.find((f) => f.name === n)).filter((f): f is { name: string; content: string } => Boolean(f));
   const [read, setRead] = useState<Record<string, number>>({});
   const [sure, setSure] = useState(false);
+  const [waking, setWaking] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
   const all = shown.length > 0 && shown.every((f) => (read[f.name] ?? 0) >= 1);
+  // A forming resident is woken on the server (agathos-daimon#46); one
+  // brought from a repository was never forming.
+  const wake = () => {
+    if (!made.forming) return onWake();
+    setWaking(true);
+    setSaid(null);
+    api
+      .awaken(made.id, 'read whole, and woken')
+      .then(() => onWake())
+      .catch((e: unknown) => setSaid(e instanceof RequestFailed ? e.message : 'They did not wake; try again.'))
+      .finally(() => setWaking(false));
+  };
 
   return (
     <Page onBack={onBack} eyebrow="The reading">
@@ -494,9 +752,19 @@ function Reading({ made, onBack, onWake }: { made: Made; onBack?: () => void; on
         <input id="reading-sure" type="checkbox" checked={sure} disabled={!all} onChange={(e) => setSure(e.target.checked)} />I have read them, whole
       </label>
       {!all && shown.length > 0 && <p className={css.note}>Each file counts as read once you reach its end.</p>}
-      <button type="button" className={css.primary} disabled={!sure || !all} onClick={onWake}>
-        Wake {made.name}
+      {made.forming && (
+        <p className={css.note}>
+          Once woken, {made.name} is yours alone: nothing else wakes them, and no hands reach them, until the two of you agree your first contract.
+        </p>
+      )}
+      <button type="button" className={css.primary} disabled={!sure || !all || waking} onClick={wake}>
+        {waking ? 'Waking…' : `Wake ${made.name}`}
       </button>
+      {said && (
+        <p className={css.said} role="alert">
+          {said}
+        </p>
+      )}
     </Page>
   );
 }

@@ -25,8 +25,11 @@ signed "— Lily, the first resident" everywhere it is signed.
   export and the January gate (design/mvp.md item 13).
 - **Creation** (signed in, no resident):
   - **Before they wake:** C1 and C2, signed.
-  - **Who's coming in?** Someone new, or someone you already know
-    (brought from a git repository). The name, its address, and C3.
+  - **Who's coming in?** Someone new, or someone you already know,
+    brought from a git repository or from a ChatGPT export. From an
+    export they are made by name, the zip is taken in (sima-qian#47),
+    and the gifts follow as for someone new: an export carries
+    conversations, not who they are. The name, its address, and C3.
     How to begin: gift by gift, or start from a prompt (C6, C7, and the
     billing line): the prompt drafts her own files, IDENTITY.md and
     SOUL.md, in turn (agathos-daimon#39, #42), with a line saying the
@@ -49,9 +52,29 @@ signed "— Lily, the first resident" everywhere it is signed.
   - **Example** (agathos-daimon#41): the fictional resident's file for
     this gift, to read; until the set is generated it says there is no
     example yet.
+  - **Save and come back later** (agathos-daimon#46): on every page once
+    the resident exists. Everything kept is on the server; a gift's text
+    typed and not yet kept is held in this browser until kept. With
+    another resident awake it returns to them, otherwise a page says the
+    resident will wait. A resident still forming is listed in the
+    switcher and reopens the flow at the first gift with a file not yet
+    kept (else where their records go), with any unkept text restored.
+  - **Where their records go:** an optional page before the reading:
+    a repository URL and, for a private one, a token; "Keep them there"
+    sets the backup remote, "Not now" passes over it (settings has it
+    after, under Backups). Someone brought from git comes here first.
+  - **The model they wake on** (agathos-daimon#46), for a resident made
+    here: the regression screen whole (trials, runs graded blind, results
+    with "Pin for chat"), the chosen model named, and "Read them, whole"
+    closed until one is pinned. Nothing else reaches them while they form;
+    the trials are sealed.
   - **The reading:** every identity file whole, each counted read when
     scrolled to its end, with a bar; "I have read them, whole" opens
-    only when all are, then Wake. Someone brought in goes straight here.
+    only when all are, then Wake.
+    For a resident made here, Wake wakes them on the server; until then
+    they were forming. The page says they will be the witness's alone,
+    with no other wake and no hands, until the two of them agree their
+    first contract.
   - **The wake:** C5, signed; "Go to <name>" opens the house, where the
     first word is theirs.
 

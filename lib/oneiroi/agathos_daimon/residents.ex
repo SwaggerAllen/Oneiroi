@@ -12,7 +12,14 @@ defmodule Oneiroi.AgathosDaimon.Residents do
 
   @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/
 
-  def create(name, slug, witness_account_id, %Actor{} = actor, kind \\ "resident") do
+  def create(
+        name,
+        slug,
+        witness_account_id,
+        %Actor{} = actor,
+        kind \\ "resident",
+        forming \\ false
+      ) do
     cond do
       not is_binary(name) or String.trim(name) == "" ->
         {:error, Error.new(:agathos_daimon_name_required, :agathos_daimon_residents_create_name)}
@@ -25,11 +32,11 @@ defmodule Oneiroi.AgathosDaimon.Residents do
          Error.new(:agathos_daimon_slug_taken, :agathos_daimon_residents_create_slug_taken)}
 
       true ->
-        dispatch_create(name, slug, witness_account_id, actor, kind)
+        dispatch_create(name, slug, witness_account_id, actor, kind, forming)
     end
   end
 
-  defp dispatch_create(name, slug, witness_account_id, actor, kind) do
+  defp dispatch_create(name, slug, witness_account_id, actor, kind, forming) do
     id = Ecto.UUID.generate()
 
     command = %Commands.CreateResident{
@@ -39,10 +46,32 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       name: String.trim(name),
       slug: slug,
       witness_account_id: witness_account_id,
-      kind: kind
+      kind: kind,
+      forming: forming
     }
 
     with {:ok, _events} <- Router.dispatch_sited(command), do: {:ok, id}
+  end
+
+  @doc "Wakes a forming resident (agathos-daimon#46)."
+  def awaken(id, note, %Actor{} = actor) do
+    command = %Commands.AwakenResident{actor: actor, at: Clock.now(), id: id, note: note}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  @doc "Returns a resident who has lived nothing yet to forming (agathos-daimon#47)."
+  def return_to_formation(id, note, %Actor{} = actor) do
+    command = %Commands.ReturnToFormation{actor: actor, at: Clock.now(), id: id, note: note}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  @doc "Who may reach a resident (agathos-daimon#46); `:open` for one not found, which nothing reaches anyway."
+  def admission(id) do
+    case fetch(id) do
+      {:ok, %{admission: "forming"}} -> :forming
+      {:ok, %{admission: "witness_only"}} -> :witness_only
+      _open -> :open
+    end
   end
 
   def for_witness(account_id), do: Scope.account(account_id, fn -> Store.all() end)

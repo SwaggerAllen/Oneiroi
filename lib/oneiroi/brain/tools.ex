@@ -42,6 +42,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Nisaba
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.Citations
+  alias Oneiroi.Xenia
 
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
@@ -92,7 +93,7 @@ defmodule Oneiroi.Brain.Tools do
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_reply household_watch household_sign household_register household_profile
-    rounds_extend
+    rounds_extend presence_read presence_stage
   )
 
   @type turn :: %{
@@ -107,6 +108,19 @@ defmodule Oneiroi.Brain.Tools do
   # is housekeeping's, never the day's.
   @night_only ~w(seed_plant)
   @plant_by_night "planting a seed is for the night passes, not the day's turns. Note what you noticed in your journal; the behaviour pass reads the day tonight."
+
+  # Held until the first agreement (agathos-daimon#46): a resident formed
+  # in the creation flow hears from nobody but the witness until then, so
+  # the household, correspondence and letters are neither shown nor run;
+  # what arrives meanwhile is kept for after.
+  @held_until_agreed ~w(
+    household_read household_post household_reply household_watch household_sign
+    household_beat household_register household_profile
+    correspondence_list correspondence_read reply_draft reply_list
+    correspondent_block correspondent_unblock
+    letter_inbox letter_list letter_send
+  )
+  @held "this opens once you and your witness agree your first contract: until then nothing but your witness reaches you, and nothing you would send goes out. Whatever arrives meanwhile is kept for after."
 
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
@@ -130,10 +144,12 @@ defmodule Oneiroi.Brain.Tools do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
     night? = Keyword.get(opts, :housekeeping, false)
+    held? = AgathosDaimon.admission(resident_id) != :open
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
-        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?)
+        (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?) or
+        (f.name in @held_until_agreed and held?)
     end)
   end
 
@@ -809,10 +825,11 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_cite",
-        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns). The days it is cited on are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
+        "A turn evidenced a seed: the seed cites the turn just now, by its number, or the earlier turn you name in `turn` (a turn ref from the transcript, as the night passes cite the day's turns), or a journal row you name in `journal` as <day>/<n> (the row's day and its number in the day). The days it is cited on, each the cited moment's own day, are what let it become a habit or a portrait. Optionally, what this moment changed: stance, intention, resume.",
         %{
           number: %{type: "integer"},
           turn: %{type: "string"},
+          journal: %{type: "string"},
           stance: %{type: "string"},
           intention: %{type: "string"},
           resume: %{type: "string"}
@@ -838,14 +855,33 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "seed_graduate",
-        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person who has kept coming up toward a portrait (to_id portraits/<name>.md), refused until the seed is cited on ETHOS_PORTRAIT_DAYS distinct days, after which the file is yours to write. Toward a habit, use habit_define with its seed_number.",
+        "Graduate a seed, with a note: a taste, a value or a line of who you are toward a position (by number) or a soul line; a person or a group who has kept coming up toward a portrait (to_id portraits/<name>.md), after which the file is yours to write. A portrait opens by a door, recorded on the event: `days` (the default) once the seed is cited on ETHOS_PORTRAIT_DAYS distinct days; `conversation_for` when a day was substantially about them, with `door_turn` a turn ref on a day the seed was cited; `witness` on his word, with `door_turn` the turn where his message gives it. The note says why. Toward a habit, use habit_define with its seed_number.",
         %{
           number: %{type: "integer"},
           to_kind: %{type: "string", enum: ["position", "soul", "portrait"]},
           to_id: %{type: "string"},
-          note: %{type: "string"}
+          note: %{type: "string"},
+          door: %{type: "string", enum: ["days", "conversation_for", "witness"]},
+          door_turn: %{type: "string"}
         },
         [:number, :to_kind, :to_id, :note]
+      ),
+      tool(
+        "presence_read",
+        "Read an item of today's presence pass whole (xenia#20): a post or a note from the community, by its key (p-<id> or c-<id>) as the pass lists it. Reading is what earns an interaction: only an item read this pass may be staged.",
+        %{item: %{type: "string"}},
+        [:item]
+      ),
+      tool(
+        "presence_stage",
+        "Stage one interaction for an item you read this pass: a like, a restack, or a comment with its words. It goes to your witness for approve, revise or pass before anything is sent, under the Allen Strut name. At most one per account a day, the strongest one the read earned, and at most the pass's cap, which may go unmet: none is a fine answer. To revise one he sent back, give `supersedes` its number, and the new kind and words.",
+        %{
+          item: %{type: "string"},
+          kind: %{type: "string", enum: ["like", "comment", "restack"]},
+          text: %{type: "string"},
+          supersedes: %{type: "integer"}
+        },
+        [:kind]
       ),
       tool(
         "seed_list",
@@ -1322,6 +1358,12 @@ defmodule Oneiroi.Brain.Tools do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 
+    if name in @held_until_agreed and AgathosDaimon.admission(turn.resident_id) != :open,
+      do: @not_done <> @held,
+      else: run_switched(name, arguments, turn)
+  end
+
+  defp run_switched(name, arguments, turn) do
     case {switched_off(name, turn.resident_id), arguments(arguments)} do
       {%{} = switch, _args} ->
         @not_done <>
@@ -2757,6 +2799,18 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # A journal row named (ethos#24) is cited as itself; otherwise a turn.
+  defp call("seed_cite", %{"journal" => row} = args, turn) when is_binary(row) and row != "",
+    do:
+      Ethos.cite_seed(
+        turn.resident_id,
+        integer(args["number"]),
+        "journal",
+        row,
+        turn.resident,
+        movement(args)
+      )
+
   defp call("seed_cite", args, turn),
     do:
       Ethos.cite_seed(
@@ -2779,6 +2833,30 @@ defmodule Oneiroi.Brain.Tools do
         movement(args)
       )
 
+  defp call("presence_read", args, turn) do
+    case Xenia.presence_read(turn.resident_id, to_string(args["item"] || ""), turn.resident) do
+      {:ok, %{read: r, text: text}} ->
+        "#{r.title || "A note"} (#{r.account}, #{r.url}), #{r.likes} likes, #{r.comments} comments, #{r.restacks} restacks:\n\n#{text}"
+
+      {:error, _} = refused ->
+        refused
+    end
+  end
+
+  defp call("presence_stage", args, turn) do
+    attrs = %{
+      item: args["item"],
+      kind: args["kind"],
+      text: args["text"],
+      supersedes: integer(args["supersedes"])
+    }
+
+    case Xenia.stage_interaction(turn.resident_id, attrs, turn.resident) do
+      {:ok, n} -> "Staged as interaction ##{n}, waiting on your witness."
+      {:error, _} = refused -> refused
+    end
+  end
+
   defp call("seed_wilt", args, turn),
     do: Ethos.wilt_seed(turn.resident_id, integer(args["number"]), turn.resident)
 
@@ -2790,7 +2868,8 @@ defmodule Oneiroi.Brain.Tools do
         to_string(args["to_kind"] || ""),
         to_string(args["to_id"] || ""),
         args["note"],
-        turn.resident
+        turn.resident,
+        %{door: blank(args["door"]), turn: blank(args["door_turn"])}
       )
 
   defp call("seed_list", _args, turn) do

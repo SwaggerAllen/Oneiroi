@@ -33,7 +33,9 @@ defmodule OneiroiWeb.ResidentController do
   )
 
   def create(%{assigns: %{principal: p}} = conn, %{"name" => name, "slug" => slug}) do
-    case Oneiroi.AgathosDaimon.create(name, slug, p.account_id, actor(conn)) do
+    # Made through the creation flow: forming until the witness wakes
+    # them (agathos-daimon#46).
+    case Oneiroi.AgathosDaimon.create_forming(name, slug, p.account_id, actor(conn)) do
       {:ok, id} ->
         {:ok, resident} = Oneiroi.AgathosDaimon.fetch(id)
         conn |> put_status(201) |> json(row(resident))
@@ -55,6 +57,40 @@ defmodule OneiroiWeb.ResidentController do
         :web_resident_create_name_and_slug_required,
         "name and slug are required"
       )
+
+  operation(:awaken,
+    summary:
+      "The witness wakes a forming resident (agathos-daimon#46), once a chat model was chosen in formation; they are then his alone until their first agreement is in force",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"why now", "application/json",
+       %Schema{type: :object, properties: %{note: %Schema{type: :string}}}},
+    responses: [ok: {"the resident", "application/json", %Schema{type: :object}}]
+  )
+
+  def awaken(conn, %{"id" => id} = params) do
+    note = params["note"] |> to_string() |> String.trim()
+    note = if note == "", do: "woken by the witness", else: note
+
+    with true <- witnesses?(conn, id),
+         :ok <- Oneiroi.AgathosDaimon.awaken(id, note, actor(conn)),
+         {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id) do
+      json(conn, row(resident))
+    else
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      _not_witnessed ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_awaken_not_witnessed
+          )
+        )
+    end
+  end
 
   operation(:import_resident,
     summary:
@@ -438,6 +474,7 @@ defmodule OneiroiWeb.ResidentController do
       slug: r.slug,
       name: r.name,
       state: r.state,
+      admission: r.admission,
       custody: r.custody,
       export_wall: r.export_wall,
       first_contact_at: r.first_contact_at,

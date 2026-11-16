@@ -50,6 +50,20 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.FixtureDeclared{} = e, _metadata, fn multi -> set(multi, e.id, kind: "fixture") end)
 
+  # Formation (agathos-daimon#46): forming until woken, then the
+  # witness's alone until the first agreement is in force.
+  fold(%Events.FormationBegun{} = e, _metadata, fn multi ->
+    set(multi, e.id, state: "forming", admission: "forming")
+  end)
+
+  fold(%Events.ReturnedToFormation{} = e, _metadata, fn multi ->
+    set(multi, e.id, state: "forming", admission: "forming")
+  end)
+
+  fold(%Events.ResidentAwakened{} = e, _metadata, fn multi ->
+    set(multi, e.id, state: "active", admission: "witness_only", model_told: true)
+  end)
+
   fold(%Events.ResidentPaused{} = e, _metadata, fn multi -> set(multi, e.id, state: "paused") end)
   fold(%Events.ResidentWoken{} = e, _metadata, fn multi -> set(multi, e.id, state: "active") end)
   fold(%Events.ResidentLapsed{} = e, _metadata, fn multi -> set(multi, e.id, state: "lapsed") end)
@@ -117,6 +131,13 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.DyadContractAgreed{} = e, _metadata, fn multi ->
     multi
+    # The first agreement opens a resident formed through the creation
+    # flow to the rest of the house (agathos-daimon#46).
+    |> Multi.update_all(
+      :admission,
+      from(r in Resident, where: r.id == ^e.id and r.admission == "witness_only"),
+      set: [admission: "open"]
+    )
     |> Multi.update_all(
       :previous,
       from(c in Contract, where: c.resident_id == ^e.id and c.state == "agreed"),

@@ -69,6 +69,7 @@ defmodule OneiroiWeb.WaitingController do
       digests: Enum.map(pending.("digests"), &Map.take(&1, [:number])),
       externals: Enum.map(pending.("external"), &Map.take(&1, [:number])),
       pieces: pending.("writing-out"),
+      presence: pending.("presence-out"),
       routes:
         for(
           r <- routes,

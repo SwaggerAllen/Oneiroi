@@ -1,10 +1,12 @@
 import { ScrollArea } from '../shell/ScrollArea';
 import type { SettingsSection } from '../state/routes';
 import { useSubject } from '../state/resident';
+import { Backups } from './Backups';
 import { Connections } from './Connections';
 import { Kinds } from './Kinds';
 import { Ledger } from './Ledger';
 import { Notifications } from './Notifications';
+import { Presence } from './Presence';
 import { Regression } from './Regression';
 import * as css from './settings.css';
 import { Work } from './Work';
@@ -16,6 +18,8 @@ const TITLES: Record<SettingsSection, string> = {
   notifications: 'Notifications',
   regression: 'Regression',
   work: 'Work queue',
+  backups: 'Backups, imports and reports',
+  presence: 'Substack presence',
 };
 
 /**
@@ -32,6 +36,8 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     notifications: `Whether ${name} can reach you on this device.`,
     regression: `Trying models as ${name}: trials, runs graded blind, and the chat model.`,
     work: `${name}'s queue: underway, next, and waiting on you.`,
+    backups: `Where ${name}'s records are pushed each night, conversations brought from ChatGPT, and the report ladder.`,
+    presence: `${name} reading the community you follow, and what that earned, waiting on your word before it goes out as Allen Strut.`,
   };
   return (
     <ScrollArea label={TITLES[section]}>
@@ -47,6 +53,8 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
         {section === 'notifications' && <Notifications />}
         {section === 'regression' && <Regression />}
         {section === 'work' && <Work />}
+        {section === 'backups' && <Backups />}
+        {section === 'presence' && <Presence />}
       </div>
     </ScrollArea>
   );

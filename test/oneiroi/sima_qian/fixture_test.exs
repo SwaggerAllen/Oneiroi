@@ -14,11 +14,13 @@ defmodule Oneiroi.SimaQian.FixtureTest do
   `ExportWallSet` have no command edge yet, and `ExportWritten` and
   `BackupCommitted` are `export: false` by design.
 
-  Beside them, an event frozen at an older version than today's, so the
-  replay goes through its upcaster: a `SceneWritten` of version 1, from
-  before a scene named its people (seshat#57). It re-exports at today's
-  version with the upcaster's value, which `@upcast` states; every other
-  line re-exports byte for byte.
+  Beside them, events frozen at an older version than today's, so the
+  replay goes through their upcasters: a `SceneWritten` of version 1,
+  from before a scene named its people (seshat#57), and a portrait's
+  `SeedGraduated` of version 1, from before a portrait named its door
+  (ethos#24), after the `SeedPlanted` it closes. Each re-exports at
+  today's version with the upcaster's value, which `@upcast` states;
+  every other line re-exports byte for byte.
   """
   use Oneiroi.DataCase, async: false
 
@@ -34,7 +36,8 @@ defmodule Oneiroi.SimaQian.FixtureTest do
   # A line frozen at an older version: its type and version, and the
   # version and data fields the replay re-exports it with.
   @upcast %{
-    {"Oneiroi.Seshat.Events.SceneWritten", 1} => {2, %{"people" => []}}
+    {"Oneiroi.Seshat.Events.SceneWritten", 1} => {2, %{"people" => []}},
+    {"Oneiroi.Ethos.Events.SeedGraduated", 1} => {2, %{"door" => "days"}}
   }
 
   defp declared do
@@ -123,7 +126,7 @@ defmodule Oneiroi.SimaQian.FixtureTest do
     b = Fixtures.account!()
     importer = Actor.new(:witness, b.id)
 
-    assert {:ok, %{id: id, attestation: :none, events: 9}} =
+    assert {:ok, %{id: id, attestation: :none, events: 11}} =
              Oneiroi.SimaQian.rebuild(repo, b.id, importer)
 
     on_exit(fn -> Enum.each([repo, out, Backup.dir(id)], &File.rm_rf!/1) end)

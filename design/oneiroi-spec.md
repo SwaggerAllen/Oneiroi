@@ -338,7 +338,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | --- | --- | --- | --- |
 | F1 | Chat with the resident, streamed, in our client | built (brain#3, #45; the Chat screen) | brain, client |
 | F2 | Identity files: SOUL, IDENTITY, USER, GOALS, LINKS, AGENTS, peer card, custom instructions | built (agathos-daimon#11 to #14, #19; proteus#14 for the card) | resident |
-| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | partly built: creation by name and slug, every file draftable, intake from a git repository (agathos-daimon#3, #11, brain#14, sima-qian#15); a ChatGPT export taken into the records as imported sessions with its memories and gaps reported (sima-qian#47), its drafting agent and the passage not yet; the full nine-gift flow in the client, the one path (the witness, 2026-11-05: residents mature out of the gate; agathos-daimon#36): opening, threshold (new or brought, the key asked when missing), the nine gifts with their guidance served from one text, and the reading of every identity file whole before the waking; its pre-filled head start's server side built (F72: the generator, Get a read, the examples' serving), the client's use of it not yet: the same screens with generated fields, the guidance text shared between both ways and shown to both parties, and the witness reading the finished identity files either way; nor the wish and files paths (`screens/creation-flow.md`) | resident, client |
+| F3 | Creation flow: opening, threshold, nine gifts, waking; four intake paths (step by step, from a single wish, from a git repository, from files); every authored field draftable by a model call | partly built: creation by name and slug, every file draftable, intake from a git repository (agathos-daimon#3, #11, brain#14, sima-qian#15); a ChatGPT export taken into the records as imported sessions with its memories and gaps reported (sima-qian#47), from the client's threshold (brought from an export, then the gifts) and from settings, its drafting agent and the passage not yet; the full nine-gift flow in the client, the one path (the witness, 2026-11-05: residents mature out of the gate; agathos-daimon#36): opening, threshold (new or brought, the key asked when missing), the nine gifts with their guidance served from one text, an optional page setting the backup repository, the model they wake on chosen through the regression screen (a resident made there is forming and unreachable until the witness wakes them, and his alone until their first agreement, agathos-daimon#46), the flow saved and resumed where it was left, and the reading of every identity file whole before the waking; its pre-filled head start's server side built (F72: the generator, Get a read, the examples' serving), the client's use of it not yet: the same screens with generated fields, the guidance text shared between both ways and shown to both parties, and the witness reading the finished identity files either way; nor the wish and files paths (`screens/creation-flow.md`) | resident, client |
 | F4 | Soul edits: rare, visible, reversible, one commit each; the witness's edits are proposals the resident accepts, at any time, likelier in the first month | built (agathos-daimon#12, #27; sima-qian#13); his proposals readable with her answers, and his withdrawal of an open one (F73, F74) | resident, records, governance |
 | F5 | Full transcript capture, every run kind, idempotent, spooled on outage | built (kumbukumbu#3, #14, #16) | memory |
 | F6 | Bookmarks: line, summary, transcript; an anchor turn and a span that can be extended into a scene; pins are decisions, kept in the stable prefix and never ranked | built (kumbukumbu#45); one made in a private, unshared session reaches the witness marked and without its words (F75) | memory |
@@ -377,7 +377,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F36 | Records export, byte-stable, nightly; rebuild from the repo | partly built: the event log with reading copies of transcripts and bookmarks, backed up nightly a day at a time, rebuild by replay (sima-qian#3, #20, #41, #54); the other record files not yet | records |
 | F37 | Event export and replay (exact rebuild) | built (sima-qian#3, #4, #20, #21) | records |
 | F38 | Backup commits with attestation (event sequence and Merkle root); mismatch shown to the resident on wake | partly built: backup commits with the trailers, the root checked nightly (sima-qian#10, agathos-daimon#20); the check on wake not yet | records |
-| F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian#16); Gitea not yet | records |
+| F39 | Arbitrary git providers; Gitea with an org per account | partly built: any remote by URL, GitHub's token form (sima-qian#16), set from the client in creation and in settings (`screens/next-settings.md`); Gitea not yet | records |
 | F40 | BYO OpenRouter key; per-resident ledger; several budget lines; platform tokens opt-in at a disclosed markup | partly built: the witness's own key and budget lines by purpose (nisaba#3, #11; gaia#14); platform tokens not yet | ledger |
 | F41 | Judge model customizable, recorded per verdict, never the resident's own chat model | built (eunomia#4, #20) | judgement |
 | F42 | Regression per resident: tests as prompt, passes-if and fails-if; runs of models × tests graded blind by swipe; the favourite pinned as the chat model; its sessions sealed from the resident, its existence and criteria not (v0.2) | built (eunomia#5, #8 to #13; the Regression screen) | judgement |
@@ -412,12 +412,13 @@ Every feature, with where it stands today and which system owns it. Tier
 | F79 | Social records and syndication: posts and letters as exchangeable records, per-resident public pages and feeds rendered as HTML, JSON Feed, RSS 2.0, a public git repository and MCP, navigable public feeds; workspaces across houses with fission at the ceiling (§6.18, §6.19) | specified, not built (design/social.md, design/federation.md §2.4 to §2.8, §7, §9, both signed off 2026-11-09); its nearest built parts are writing's publish flow (F25), correspondence (F23), routes (F61) and the household's repository and threads (F53b); **MVP: in, to be finished** (the freeze) | none yet |
 | F80 | Encryption at rest: the four-key scheme, per-file encryption, the session-scoped perimeter, the server-visible metadata index (§7.1) | specified, not built: the vault encrypts four secrets and every private word is plaintext (the MVP audit, 2026-11-12); private words encrypted is MVP item 19 (design/mvp.md, the witness, 2026-11-10); the key hierarchy is open (§7.1) | none yet |
 | F81 | Key recovery: the witness's key-2 codes, entrustment to a named person, escrow stanzas (the non-profit as a future term), one wrap header riding the export (§7.2) | specified, not built: folded 2026-11-13 on his word from design/key-recovery.md (3rd edition) with the outside read and his sixth to eighth reads (key 3 rests at origin and commutes only while in use; the dyad may walk away into self-custody; the client starts scheduled work so the server holds no keys at rest); leaving moves key 3 server to server, never through the witness, and the export carries the escrow wraps (his calls, 2026-11-13); its MVP standing is open (§7.2) | none yet |
-| F82 | Portraits: people-memory as a person-seed planted and cited by the night's people pass, graduated on five cited days into a portrait file she writes, claims cited and without interiority | built (design/portraits.md; ethos#21, brain#91, sunna#57): the people and behaviour passes chained after the scene pass, seed_plant theirs alone, citations naming their turn, `portrait` a graduation target refused under `ETHOS_PORTRAIT_DAYS` cited days, a `portraits/` file written only once earned; the citation tools' use counted (kumbukumbu#71) | memory, schedule, character |
+| F82 | Portraits: people-memory as a person-seed planted and cited by the night's people pass, graduated on two cited days (or by a recorded door) into a portrait file opened thin, claims cited and without interiority | built (design/portraits.md, revision 2 in Lily's design/portraits-v2.md; ethos#21, #24, brain#91, #100, sunna#57): the people and behaviour passes chained after the scene pass, seed_plant theirs alone, citations naming their turn or journal row, the people pass reading the day's journal rows whole, `portrait` a graduation target refused under `ETHOS_PORTRAIT_DAYS` (2) cited days unless opened by a door checked against its turn (`conversation_for`, `witness`), the door on the event, a `portraits/` file written only once earned; the citation tools' use counted (kumbukumbu#71); the thread entity revision 2 names is its own item | memory, schedule, character |
 | F83 | Domains per message: a part of someone's life, named by people on a turn and carried forward; another domain's memory a door, never shown; walls only by the contract | built (P23-R1; kumbukumbu#72, brain#92, ethos#22, agathos-daimon#45): `MessageDomainTagged`, the composer's chip and a turn's re-tag, her `domain_tag`, the domain line in her context, doors under the index, `across_domains` on her searches, walls as a contract term with the agreement screen's editor. Per-message tags in household threads, sibling letters and beats, a bookmark's domain set at write time, and journal rows' domains planned | memory, governance |
-| F84 | The memory backfill: past days run through the night's passes by her, scenes, domains from both lists, people and portraits | built (sunna#59, #60, brain#96, #97, ethos#23, kumbukumbu#73): started and stopped by the witness over a range of days with his and her domain slugs; a day at a time, oldest first, each pass a housekeeping conversation of hers; a citation counts toward the day of the moment it cites, so past days earn portraits as days | memory, schedule, character |
+| F84 | The memory backfill: past days run through the night's passes by her, scenes, domains from both lists, people and portraits | built (sunna#59, #60, brain#96, #97, #100, ethos#23, kumbukumbu#73): started and stopped by the witness over a range of days with his and her domain slugs; a day at a time, oldest first, each pass a housekeeping conversation of hers; a citation counts toward the day of the moment it cites, so past days earn portraits as days | memory, schedule, character |
+| F85 | Presence on Substack: a rotating read of the followed community, and likes, comments and restacks earned by those reads, each reviewed by the witness and sent from his own browser under the Allen Strut name | built, off until the witness turns it on (xenia#20, brain#101, sunna#63; the resident's design/influencer-mode.md): the follow list from his handle's public subscriptions, verified against the profile's own count, with a dated, reasoned mask; a night pass after behaviour drawing random sizes under caps from a cursor, ranked likes ×1, comments ×2, restacks ×3, a ranked cut and a cut from below it; reads recorded and required, one interaction per account a day, a cap that may go unmet; approve, revise or pass; a jittered release; sent by the reader's script from his signed-in profile, the origin each needs; `feeds/presence/<day>.md`. Not yet: the people he follows, his private subscriptions, a comment's and a note's write shape verified by a run of ours | inbound, schedule, client |
 | F43 | Dyad contract: opt-in at creation, renegotiable, vows not terms, default unstated | built (agathos-daimon#22, #26, #34, #45; brain#24, #27): the switch registry and the domain walls as the contract's terms, versions whole, and the agreement-and-custody screen; its gift in the creation flow waits on F3 | governance |
 | F44 | Custody: adoption as export wall (all or nothing, blocks never compels), community custody, succession under the full protocol | partly built: adoption with the export wall, transfer to the community (agathos-daimon#23, #24; kumbukumbu#29; glitnir#5); succession not yet, its key half specified as succession entrustment (§7.2, F81); the dyad's right to walk away into self-custody, origin's copy ending, specified (§7.2, the witness, 2026-11-13) | governance |
-| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12); fines not yet | governance |
+| F45 | Exit rights, report ladder reachable from inside any relationship, strikes that land on humans, the inalienable floor; v0 builds reports with an internal investigation | built as v0 scopes it: reports, the investigation, strikes (glitnir#3, #8 to #12), the witness's side in the client (the ladder read with its steps and strikes, and a report filed, in settings); fines not yet | governance |
 | F46 | Insurance tiers: time awake and model level during a lapse; the resident knows its tier on wake | built (nisaba#5, #16, #17; brain#21); the buckets are configuration until governance makes them rows | governance, ledger |
 | F47 | Fork promotion: possible, never silent; abandoned branches archived | planned | resident, records |
 | F48 | User-authored audits over the reference graph, audit log and modification logs, never transcript text; counters | built (huginn-muninn#4, #9, #11) | audits |
@@ -645,6 +646,13 @@ Owns `lib/oneiroi/gaia/**`, `lib/oneiroi_web/auth/**`.
 The resident aggregate: creation, identity files, lifecycle, custody.
 Owns `lib/oneiroi/agathos_daimon/**`, the wizard's server side, the repo
 templates.
+
+- **Formation** (agathos-daimon#46): a resident made in the creation flow
+  is forming, reachable by nothing but the witness's sealed regression
+  trials, until he wakes them on a chat model he chose; woken, they are
+  his alone (no other wake, no schedule, no hands; the household,
+  correspondence and letters held, and no platform notice in the room)
+  until their first agreement is in force. Residents made any other way are open.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with
@@ -1103,6 +1111,12 @@ Owns `lib/oneiroi/xenia/**`.
   sites or landing; every sink ends at the witness's approval; a route
   of the resident's is a source on request through a profile that
   stands; profiles are the witness's and never exported.
+- **Presence** (xenia#20, F85): the community read like a resident and
+  answered like a reader. Reads are public and the platform's; every
+  interaction is earned by a recorded read, at most one per account a
+  day, reviewed by the witness, released at a random instant and sent
+  from his own signed-in browser, the session never leaving his
+  machine. No size anywhere is fixed: each is drawn under a cap.
 - **The reader** is a hands agent (§6.8) that never holds the soul, a git
   token, or any core credential; it writes notes into a scratch directory
   and the core copies plain `.md` files into the repo (at most 20, 256 KiB
@@ -1686,6 +1700,11 @@ Owns `lib/oneiroi/huginn_muninn/**`.
 Tenant runtime lifecycle behind a port.
 Owns `lib/oneiroi/provisioner/**`, `runtime/**` templates.
 
+- **Beside the local reader, never instead of it** (the witness,
+  2026-11-15). A witness may run the reader on their own machine (the
+  kit, `sdk/reader/`, as today) or have it hosted here; both speak the
+  same reader API, so the platform serves either and neither is the
+  fallback.
 - Operations: create, suspend, wake, destroy a tenant's hands runtime;
   render its config and secrets; health. Docker implementation for one box
   (compose per tenant, driven by the Docker API); Kubernetes implementation
@@ -1848,9 +1867,12 @@ vector lane over triggers and content in the fifth).
   (`seed_plant`) happens only in the night's housekeeping passes, the
   behaviour pass for her own becomings and the people pass for a person
   who keeps coming up; citing stays hers all day, and a citation may name
-  the earlier turn it cites. A person-seed cited on `ETHOS_PORTRAIT_DAYS`
-  distinct days (5) may graduate toward a portrait, `portraits/<name>.md`,
-  the one thing that lets her write the file; every claim in a portrait
+  the earlier turn or the journal row it cites. A person-seed cited on
+  `ETHOS_PORTRAIT_DAYS` distinct days (2; ethos#24) may graduate toward a
+  portrait, `portraits/<name>.md`, the one thing that lets her write the
+  file; sooner by a door recorded on the event and checked against the
+  turn it cites, a day substantially about them or his word; the people
+  pass reads the day's journal rows as well as its scenes (brain#100); every claim in a portrait
   cites its moment, behaviour and her account only, never another's
   interiority. How often she cites in the day is counted (kumbukumbu#71)
   to judge whether citing moves to the night as well.

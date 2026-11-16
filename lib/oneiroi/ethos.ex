@@ -112,7 +112,7 @@ defmodule Oneiroi.Ethos do
     [
       {Oneiroi.Ethos.Events.SeedPlanted, 1},
       {Oneiroi.Ethos.Events.SeedWilted, 1},
-      {Oneiroi.Ethos.Events.SeedGraduated, 1},
+      {Oneiroi.Ethos.Events.SeedGraduated, 2},
       {Oneiroi.Ethos.Events.SeedCited, 3},
       {Oneiroi.Ethos.Events.HabitDefined, 1},
       {Oneiroi.Ethos.Events.HabitChanged, 1},
@@ -149,10 +149,10 @@ defmodule Oneiroi.Ethos do
          "how many distinct days a seed must have been cited on before it may graduate to a habit (spec §6.17's fork): a recorded if-then contingency is a hypothesis, moderately reliable in the literature (design/research-self-and-character.md §3), and the number is a guess at what counts as repeated"},
       {:portrait_days, "ETHOS_PORTRAIT_DAYS",
        cast: :integer,
-       default: "5",
+       default: "2",
        tag: :bound,
        usage:
-         "how many distinct days a person-seed must have been cited on before it may graduate to a portrait (ethos#21; design/portraits.md, the witness's number, 2026-11-13): an acquaintance stays a cheap seed, and only someone who keeps coming up earns a file"},
+         "how many distinct days a seed must have been cited on before it may graduate to a portrait by the `days` door (ethos#21, #24; portraits v2, proposed at 2 on 2026-11-15 and his to set anywhere in 2 to 3, raised from v1's 5): the portrait opens thin, and the thin file with its cited claims does the guarding the count used to; an acquaintance seen once still stays a cheap seed"},
       {:measure_window_days, "ETHOS_MEASURE_WINDOW_DAYS",
        cast: :integer,
        default: "7",
@@ -225,8 +225,13 @@ defmodule Oneiroi.Ethos do
        "a seed becomes a habit only once it has been cited on enough distinct days",
        remedy:
          "cite the moments that evidence it as they happen, or graduate it toward a position or a soul line instead"},
-      {:ethos_graduation_invalid, "a seed graduates toward a habit, a position or a soul line",
-       remedy: "name one of the three"},
+      {:ethos_graduation_invalid,
+       "a seed graduates toward a habit, a position, a soul line or a portrait; a portrait's door is days, conversation_for or witness, and no other kind has one",
+       remedy: "name one of the four, and a door only toward a portrait"},
+      {:ethos_door_unfounded,
+       "a portrait opened past the day count cites the turn that opens it: his word is a turn whose first message is the witness's, a day about them a turn on a day the seed was cited",
+       remedy:
+         "give the turn ref that founds the door, or graduate by days once the seed has been cited on enough of them"},
       {:ethos_no_such_habit, "no habit has that number", remedy: "read the list"},
       {:ethos_name_invalid, "a habit's name is one line of at most 120 characters",
        remedy: "say it shorter"},
@@ -235,8 +240,8 @@ defmodule Oneiroi.Ethos do
        "a trigger names words, tags or times (morning, afternoon, evening, night), at least one",
        remedy: "give the situation that calls for it in one of those three"},
       {:ethos_target_invalid,
-       "a citation targets a turn by ref or a bookmark by number that exists",
-       remedy: "cite the turn in flight, or a bookmark's number"},
+       "a citation targets a turn by ref, a bookmark by number that exists, or a journal row as <day>/<n>",
+       remedy: "cite the turn in flight, a bookmark's number, or a journal row's day and number"},
       {:ethos_not_a_party,
        "a soul line's evidence is cited by the resident or its witness, as a tagging is",
        remedy: "one of the two parties cites it"},
@@ -295,6 +300,26 @@ defmodule Oneiroi.Ethos do
           :ok | {:error, term()}
   defexport(graduate_seed(resident_id, number, to_kind, to_id, note, actor),
     do: Seeds.graduate(resident_id, number, to_kind, to_id, note, actor)
+  )
+
+  @doc """
+  Graduates a seed toward a portrait through a door (ethos#24): `days`
+  (the bound counted), `conversation_for` with a turn ref on a day the
+  seed was cited, or `witness` with a turn ref whose message is the
+  witness's. The door is recorded on the event.
+  """
+  @spec graduate_seed(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | pos_integer(),
+          String.t(),
+          Oneiroi.Actor.t(),
+          %{door: String.t() | nil, turn: String.t() | nil}
+        ) ::
+          :ok | {:error, term()}
+  defexport(graduate_seed(resident_id, number, to_kind, to_id, note, actor, door),
+    do: Seeds.graduate(resident_id, number, to_kind, to_id, note, actor, door)
   )
 
   @doc "The seed cites a moment that evidenced it: a turn by ref, or a bookmark by number."

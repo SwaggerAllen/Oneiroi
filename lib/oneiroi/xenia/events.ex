@@ -121,4 +121,68 @@ defmodule Oneiroi.Xenia.Events do
   defmodule ProfileRestored do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
   end
+
+  # ---- presence (xenia#20), on `presence-<resident_id>` ----
+
+  defmodule PresenceSet do
+    # The witness's switch, and the Substack handle whose public
+    # subscriptions the rotation reads.
+    use Oneiroi.Event, version: 1, fields: [:id, :enabled, :handle]
+  end
+
+  defmodule FollowsRecorded do
+    # The follow list as fetched: each account's key (its subdomain),
+    # name, host, publication and author ids; `visible` the count the
+    # profile claims, which the list was checked against.
+    use Oneiroi.Event, version: 1, fields: [:id, :accounts, :visible]
+  end
+
+  defmodule AccountExcluded do
+    # A mask, not a deletion: the follow stays; the rotation passes over
+    # it. The note is the one-line reason, dated by the event.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
+  end
+
+  defmodule AccountIncluded do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
+  end
+
+  defmodule PassDrawn do
+    # A day's pass: the accounts sampled from the cursor, how many items
+    # their pool held, the two read cuts' sizes, the outbound cap, and the
+    # items to read, each with its account, kind, url, counts and cut.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :day, :accounts, :pool, :ranked, :serendipity, :cap, :reads]
+  end
+
+  defmodule ItemRead do
+    # Read whole by the resident: what earns an interaction.
+    use Oneiroi.Event, version: 1, fields: [:id, :pass, :item]
+  end
+
+  defmodule InteractionStaged do
+    # A like, a comment or a restack, for an item read this pass; `text`
+    # is a comment's words; `supersedes` the one it revises.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :number, :pass, :item, :account, :kind, :text, :supersedes]
+  end
+
+  defmodule InteractionDecided do
+    # The witness's call: `approve` (with the instant it may go out,
+    # jittered), `revise` or `pass`, with his comment if he gave one.
+    use Oneiroi.Event,
+      version: 1,
+      instants: [:release_at],
+      fields: [:id, :number, :decision, :comment, :release_at]
+  end
+
+  defmodule InteractionSent do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :url]
+  end
+
+  defmodule InteractionFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
+  end
 end

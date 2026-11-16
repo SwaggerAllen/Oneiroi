@@ -31,7 +31,9 @@ defmodule Oneiroi.Ethos.Character do
   # change here.
   @trigger_keys ~w(words tags times)
   @times ~w(morning afternoon evening night)
-  @targets ~w(turn bookmark)
+  # A journal row is cited as `<day>/<n>` (ethos#24): it has no turn of
+  # its own, and the people pass reads names out of it.
+  @targets ~w(turn bookmark journal)
   # Where a seed may graduate to (P38's fork): a habit, a disposition
   # that needs behavioural citations; a position or a soul line, the
   # evaluative kinds, which need none; a portrait (ethos#21), a person
@@ -94,7 +96,8 @@ defmodule Oneiroi.Ethos.Character do
   def execute(%__MODULE__{seeds: seeds}, %Commands.GraduateSeed{} = c) do
     with {:ok, seed} <- open_seed(seeds, c.number),
          :ok <- graduation_ok(c.to_kind),
-         :ok <- confirmed(seed, c) do
+         {:ok, door} <- door(c),
+         :ok <- confirmed(seed, %{c | door: door}) do
       %Events.SeedGraduated{
         actor: c.actor,
         at: c.at,
@@ -102,7 +105,8 @@ defmodule Oneiroi.Ethos.Character do
         id: c.id,
         number: c.number,
         to_kind: c.to_kind,
-        to_id: to_string(c.to_id)
+        to_id: to_string(c.to_id),
+        door: door
       }
     end
   end
@@ -388,6 +392,13 @@ defmodule Oneiroi.Ethos.Character do
         else: {:error, Error.new(:ethos_graduation_invalid, :ethos_graduation_kind_invalid)}
       )
 
+  # A portrait opened by a day about them or by his word (ethos#24) is
+  # past the count: the edge checked the turn each cites, and the door is
+  # on the event for anyone to read.
+  defp confirmed(_seed, %{to_kind: "portrait", door: door})
+       when door in ["conversation_for", "witness"],
+       do: :ok
+
   defp confirmed(seed, %{to_kind: kind, required: required})
        when kind in ["habit", "portrait"] and is_integer(required) do
     if MapSet.size(seed.days) >= required,
@@ -401,6 +412,16 @@ defmodule Oneiroi.Ethos.Character do
   end
 
   defp confirmed(_seed, _c), do: :ok
+
+  @doors ~w(days conversation_for witness)
+
+  # A portrait's door, `days` when none is named; no other kind has one.
+  defp door(%{to_kind: "portrait", door: nil}), do: {:ok, "days"}
+  defp door(%{to_kind: "portrait", door: door}) when door in @doors, do: {:ok, door}
+  defp door(%{door: nil}), do: {:ok, nil}
+
+  defp door(%{door: door}),
+    do: {:error, Error.new(:ethos_graduation_invalid, :ethos_graduate_door_invalid, door: door)}
 
   defp target_ok(%{target_kind: kind}) when kind in @targets, do: :ok
 
