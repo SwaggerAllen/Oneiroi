@@ -35,6 +35,19 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     SwitchOverride
   }
 
+  @discarded [
+    Adapter,
+    Contract,
+    GiftRead,
+    IdentityFile,
+    SelfLetter,
+    SelfLetterReceipt,
+    SoulEdit,
+    SoulLine,
+    StateLine,
+    SwitchOverride
+  ]
+
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
     Multi.insert(multi, :resident, %Resident{
       id: e.id,
@@ -58,6 +71,22 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
 
   fold(%Events.ReturnedToFormation{} = e, _metadata, fn multi ->
     set(multi, e.id, state: "forming", admission: "forming")
+  end)
+
+  # A tombstone (agathos-daimon#49): every row of theirs goes, the slug is
+  # free again, and the event in the log is what remains.
+  fold(%Events.ResidentDiscarded{} = e, _metadata, fn multi ->
+    id = e.id
+
+    @discarded
+    |> Enum.reduce(multi, fn schema, multi ->
+      Multi.delete_all(
+        multi,
+        {:discarded, schema},
+        from(x in schema, where: x.resident_id == ^id)
+      )
+    end)
+    |> Multi.delete_all(:discarded, from(r in Resident, where: r.id == ^id))
   end)
 
   fold(%Events.ResidentAwakened{} = e, _metadata, fn multi ->

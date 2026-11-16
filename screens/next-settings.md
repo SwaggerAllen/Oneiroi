@@ -15,7 +15,8 @@ links to.
 
 A section is a full page over the tabs, inside the house shell, at
 `#/settings/<section>`: `ledger`, `kinds`, `connections`,
-`notifications`, `regression`, `work`, `backups`, `presence`, `house`.
+`notifications`, `regression`, `work`, `backups`, `presence`, `house`,
+`delete`.
 
 - The Settings sheet's row closes the sheet and opens the page.
 - The header and the tab bar stay; the four tabs stay mounted under it,
@@ -186,6 +187,11 @@ it, in the server's own words.
     wakes every resident. Each resident's words for a check-in are set
     on her Rhythm page (screen:next-time).
 
+- **Delete this resident** (`delete`, agathos-daimon#49): in the sheet as
+  "Delete <name>" only until their first conversation with you; a note
+  and "Delete", confirmed once in place ("Delete <name> for good"), then
+  back.
+
 ## The current client's actions, each covered
 
 | Old screen | Call | Here |
@@ -206,6 +212,7 @@ it, in the server's own words.
 | (new) | `holdWork` | Work queue |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
 | (new) | `houseCheckins`, `setHouseClock`, `setHouseCheckin`, `removeHouseCheckin`, `householdRead`, `householdReply` | The house |
+| (new) | `discardResident` | Delete this resident |
 | (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |
 
 Not built:

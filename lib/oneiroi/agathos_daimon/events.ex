@@ -386,4 +386,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # no agreement, so nothing they have lived is undone; the note says why.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
+
+  defmodule ResidentDiscarded do
+    # The witness discards a resident who has had no first conversation
+    # (agathos-daimon#49): a tombstone, never a deletion of the log. The
+    # projections drop the resident and its slug is free again; this
+    # event, with its note, is what remains.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :slug]
+  end
 end

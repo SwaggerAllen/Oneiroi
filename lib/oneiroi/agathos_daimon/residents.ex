@@ -59,6 +59,12 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc "Deletes a resident who has had no first conversation (agathos-daimon#49)."
+  def discard(id, note, %Actor{} = actor) do
+    command = %Commands.DiscardResident{actor: actor, at: Clock.now(), id: id, note: note}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
   @doc "Returns a resident who has lived nothing yet to forming (agathos-daimon#47)."
   def return_to_formation(id, note, %Actor{} = actor) do
     command = %Commands.ReturnToFormation{actor: actor, at: Clock.now(), id: id, note: note}

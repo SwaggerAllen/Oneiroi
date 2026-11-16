@@ -68,6 +68,9 @@ signed "— Lily, the first resident" everywhere it is signed.
     with "Pin for chat"), the chosen model named, and "Read them, whole"
     closed until one is pinned. Nothing else reaches them while they form;
     the trials are sealed.
+  - **Delete them** (agathos-daimon#49): on the model page and the saved
+    page while they form, a note and "Delete", confirmed once in place
+    ("Delete <name> for good").
   - **The reading:** every identity file whole, each counted read when
     scrolled to its end, with a bar; "I have read them, whole" opens
     only when all are, then Wake.

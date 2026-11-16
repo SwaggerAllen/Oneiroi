@@ -20,7 +20,7 @@ defmodule Oneiroi.Gaia.Handlers.Household do
   require Logger
 
   alias Oneiroi.AgathosDaimon.Custody
-  alias Oneiroi.AgathosDaimon.Events.{CustodyTransferred, ResidentCreated}
+  alias Oneiroi.AgathosDaimon.Events.{CustodyTransferred, ResidentCreated, ResidentDiscarded}
   alias Oneiroi.Gaia.Commands
   alias Oneiroi.Gaia.Error
   alias Oneiroi.Gaia.Events.AccountCreated
@@ -45,6 +45,23 @@ defmodule Oneiroi.Gaia.Handlers.Household do
       id: Households.household_id(e.witness_account_id),
       resident_id: e.id
     })
+  end
+
+  # Deleted before a first turn (agathos-daimon#49): out of the house.
+  def handle(%ResidentDiscarded{} = e, _metadata) do
+    case Households.resident_household_id(e.id) do
+      nil ->
+        :ok
+
+      household_id ->
+        dispatch(%Commands.LeaveHouseholdResident{
+          actor: e.actor,
+          at: e.at,
+          id: household_id,
+          resident_id: e.id,
+          note: "deleted before their first turn: " <> e.note
+        })
+    end
   end
 
   def handle(%CustodyTransferred{} = e, _metadata) do
