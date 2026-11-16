@@ -143,6 +143,16 @@ defmodule Oneiroi.Xenia.Routes do
       thread_key: "path",
       cadence: "on_approval",
       runner: "publish"
+    },
+    %{
+      key: "presence-out",
+      label: "Substack likes, comments and restacks out",
+      direction: "sink",
+      profile: "substack",
+      kind: "feeds",
+      thread_key: "interaction:<n>",
+      cadence: "on_approval",
+      runner: "presence"
     }
   ]
 

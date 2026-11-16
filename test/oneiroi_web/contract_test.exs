@@ -205,6 +205,9 @@ defmodule OneiroiWeb.ContractTest do
     {"GET", "/v1/residents/:id/reader/pieces"},
     {"POST", "/v1/residents/:id/reader/pieces/drafted"},
     {"POST", "/v1/residents/:id/reader/pieces/published"},
+    {"GET", "/v1/residents/:id/reader/presence"},
+    {"POST", "/v1/residents/:id/reader/presence/:number/sent"},
+    {"POST", "/v1/residents/:id/reader/presence/:number/failed"},
     # The route registry (xenia#19), held to the reader role.
     {"GET", "/v1/residents/:id/reader/routes"},
     {"POST", "/v1/residents/:id/reader/routes/runs/:number/landed"},

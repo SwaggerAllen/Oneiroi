@@ -52,6 +52,14 @@ defmodule OneiroiWeb.Plugs.RequirePrincipal do
   # the lists and the open questions, answer or fail one; the controller
   # holds them to the `reader` role.
   def adapter_path?("GET", ["v1", "residents", _id, "reader"]), do: true
+  # Presence (xenia#20): what is due to go out, and that it went or
+  # failed; the controller holds them to the `reader` role.
+  def adapter_path?("GET", ["v1", "residents", _id, "reader", "presence"]), do: true
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "presence", _n, "sent"]), do: true
+
+  def adapter_path?("POST", ["v1", "residents", _id, "reader", "presence", _n, "failed"]),
+    do: true
+
   def adapter_path?("GET", ["v1", "residents", _id, "research"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "answer"]), do: true
   def adapter_path?("POST", ["v1", "residents", _id, "research", _n, "failed"]), do: true

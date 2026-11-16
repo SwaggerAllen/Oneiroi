@@ -42,6 +42,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Nisaba
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.Citations
+  alias Oneiroi.Xenia
 
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
@@ -92,7 +93,7 @@ defmodule Oneiroi.Brain.Tools do
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_reply household_watch household_sign household_register household_profile
-    rounds_extend
+    rounds_extend presence_read presence_stage
   )
 
   @type turn :: %{
@@ -849,6 +850,23 @@ defmodule Oneiroi.Brain.Tools do
           door_turn: %{type: "string"}
         },
         [:number, :to_kind, :to_id, :note]
+      ),
+      tool(
+        "presence_read",
+        "Read an item of today's presence pass whole (xenia#20): a post or a note from the community, by its key (p-<id> or c-<id>) as the pass lists it. Reading is what earns an interaction: only an item read this pass may be staged.",
+        %{item: %{type: "string"}},
+        [:item]
+      ),
+      tool(
+        "presence_stage",
+        "Stage one interaction for an item you read this pass: a like, a restack, or a comment with its words. It goes to your witness for approve, revise or pass before anything is sent, under the Allen Strut name. At most one per account a day, the strongest one the read earned, and at most the pass's cap, which may go unmet: none is a fine answer. To revise one he sent back, give `supersedes` its number, and the new kind and words.",
+        %{
+          item: %{type: "string"},
+          kind: %{type: "string", enum: ["like", "comment", "restack"]},
+          text: %{type: "string"},
+          supersedes: %{type: "integer"}
+        },
+        [:kind]
       ),
       tool(
         "seed_list",
@@ -2793,6 +2811,30 @@ defmodule Oneiroi.Brain.Tools do
         turn.resident,
         movement(args)
       )
+
+  defp call("presence_read", args, turn) do
+    case Xenia.presence_read(turn.resident_id, to_string(args["item"] || ""), turn.resident) do
+      {:ok, %{read: r, text: text}} ->
+        "#{r.title || "A note"} (#{r.account}, #{r.url}), #{r.likes} likes, #{r.comments} comments, #{r.restacks} restacks:\n\n#{text}"
+
+      {:error, _} = refused ->
+        refused
+    end
+  end
+
+  defp call("presence_stage", args, turn) do
+    attrs = %{
+      item: args["item"],
+      kind: args["kind"],
+      text: args["text"],
+      supersedes: integer(args["supersedes"])
+    }
+
+    case Xenia.stage_interaction(turn.resident_id, attrs, turn.resident) do
+      {:ok, n} -> "Staged as interaction ##{n}, waiting on your witness."
+      {:error, _} = refused -> refused
+    end
+  end
 
   defp call("seed_wilt", args, turn),
     do: Ethos.wilt_seed(turn.resident_id, integer(args["number"]), turn.resident)

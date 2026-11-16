@@ -17,9 +17,11 @@ defmodule Oneiroi.Brain.NightPasses do
   the pass is skipped: the chain goes on to what follows.
   """
 
+  alias Oneiroi.Actor
   alias Oneiroi.Config
   alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Seshat
+  alias Oneiroi.Xenia
 
   @doc "The note for turn `n` of `pass` on `day`, or `:skip` when the day gives it nothing."
   @spec note(String.t(), String.t(), String.t(), pos_integer()) :: {:ok, String.t()} | :skip
@@ -60,9 +62,40 @@ defmodule Oneiroi.Brain.NightPasses do
     end
   end
 
+  # The day's presence pass (xenia#20): drawn here, once a day, and
+  # skipped while presence is off or the sample held nothing to read.
+  def note(resident_id, "presence", day, _n) do
+    case Xenia.draw_presence(resident_id, day, Actor.new(:job, "xenia_presence")) do
+      {:ok, %{pass: pass, reads: [_ | _] = reads}} ->
+        waiting =
+          for %{interaction: i, read: r} <- Xenia.presence_interactions(resident_id, ["revise"]),
+              do: "- ##{i.number} #{i.kind} on #{(r && r.title) || i.item}: he asks: #{i.comment}"
+
+        {:ok,
+         Prompt.render!("presence_pass", %{
+           day: day,
+           pass: pass.number,
+           cap: pass.cap,
+           items: Enum.map_join(reads, "\n", &presence_line/1),
+           revisions: if(waiting == [], do: "(none)", else: Enum.join(waiting, "\n")),
+           turns: Config.fetch!(:sunna, :presence_turns)
+         })}
+
+      _off_or_empty ->
+        :skip
+    end
+  end
+
   def note(_resident_id, _pass, _day, _n), do: :skip
 
+  defp presence_line(r) do
+    what = if r.title, do: "\"#{r.title}\"", else: "a note"
+
+    "- #{r.item} (#{r.cut}): #{what} from #{r.account}, #{r.likes} likes, #{r.comments} comments, #{r.restacks} restacks — #{r.excerpt}"
+  end
+
   defp label("people"), do: "people pass"
+  defp label("presence"), do: "presence pass"
   defp label("behaviour"), do: "behaviour pass"
   defp label(other), do: other
 

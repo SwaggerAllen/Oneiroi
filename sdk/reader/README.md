@@ -83,6 +83,19 @@ Inside the reader, the same line again:
   Publish. The witness publishes it on Substack; the next run sees it
   live and gives Oneiroi the URL, which goes into the piece.
 
+- **Presence, when approved and due** (xenia#20). The likes, comments
+  and restacks the witness approved on the presence review each go out
+  at a random instant after approval. The five-minute check sees the ones
+  whose time has come, and `reader.sh presence` sends them with
+  `lib/presence_send.cjs`: plain code driving the Substack profile's
+  Chrome headless with playwright-core, no model, the words exactly as
+  approved. A post's like and comment are sent from the publication's own
+  page, a note's and every restack from substack.com, because the browser
+  refuses the calls from anywhere else. What Substack refuses is reported
+  failed with its answer; what never reached it is tried again, up to
+  three times. `install.sh` installs playwright-core beside the kit
+  (`node/`); it uses the installed Chrome and downloads no browser.
+
 A reply the run could not send is tried three times, then left for the
 witness, who sees it still approved and unsent. A research question
 with no notes after two runs is recorded as failed, with the reason.
@@ -126,6 +139,12 @@ A reinstall keeps an allowlist you have edited. Logs are in
 `reader.sh scrape` and `reader.sh research` run a job by hand.
 
 ## Not yet checked against the real thing
+
+- **Presence's comment and note shapes.** A post's like and a restack
+  were verified on the witness's own post on 2026-11-15 (each undone).
+  A post's comment, a note's like and a reply to a note use the shapes a
+  maintained client uses; the first one sent is the check, and a refusal
+  comes back failed with Substack's answer.
 
 - **Substack's pages.** The prompts send the browser to Substack's inbox
   and let the run read what is there, rather than calling endpoints

@@ -223,6 +223,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns the night's people pass may take (sunna#57, design/portraits.md), a turn carried on when it runs out of tool rounds; it reads scene rows, not the day, so fewer than the scene pass's; a guess"},
+      {:presence_turns, "SUNNA_PRESENCE_TURNS",
+       cast: :integer,
+       default: "4",
+       tag: :bound,
+       usage:
+         "how many turns the night's presence pass may take (xenia#20), after the behaviour pass and before free time, while presence is on: reading the pass's items whole and staging what they earned; a guess"},
       {:behaviour_turns, "SUNNA_BEHAVIOUR_TURNS",
        cast: :integer,
        default: "3",

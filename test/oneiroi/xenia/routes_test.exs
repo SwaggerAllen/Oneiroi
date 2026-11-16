@@ -81,7 +81,8 @@ defmodule Oneiroi.Xenia.RoutesTest do
              {"digests", "source", "digest", "gmail"},
              {"research", "source", "research", "research"},
              {"external", "source", "fetch", "open-web"},
-             {"writing-out", "sink", "publish", "substack"}
+             {"writing-out", "sink", "publish", "substack"},
+             {"presence-out", "sink", "presence", "substack"}
            ]
 
     assert Enum.all?(Xenia.routes(ctx.id), &(&1.state == "ready"))

@@ -442,3 +442,10 @@ moment that conversation should hear it, not the next time the witness
 happens to write. The free-time wake learned this on 2026-11-09 and the
 chat's never did, so the work landed on time and was read late. The
 hourly cap and quiet hours that bound every letter's wake bound these.
+
+## #63
+
+The pass needs the day's quiet end and a turn of its own, which is what
+the chain already gives every night pass; putting it before free time
+keeps her own hours last, and skipping when presence is off means the
+chain costs nothing to a resident who does not use it.

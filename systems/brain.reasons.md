@@ -905,3 +905,9 @@ or cited. The journal is the day written a second way, and reading it
 whole costs one note; finding names is the pass's work because the rows
 are hers and the pass is her. The never-list shrank to what is his: the
 pass writes as she would, correctable from the main thread.
+
+## #101
+
+Reading is the act that earns an interaction, so it is a tool call the
+record keeps rather than a claim; both tools stay open in the day
+because a revision he asks for is best answered while it is fresh.

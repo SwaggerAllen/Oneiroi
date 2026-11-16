@@ -22,6 +22,7 @@ defmodule Oneiroi.Xenia.Routing do
   alias Oneiroi.Xenia.Commands
   alias Oneiroi.Xenia.Error
   alias Oneiroi.Xenia.Inbox
+  alias Oneiroi.Xenia.Presence
   alias Oneiroi.Xenia.ProfilesRouter
   alias Oneiroi.Xenia.Routes
   alias Oneiroi.Xenia.RoutesRouter
@@ -431,6 +432,10 @@ defmodule Oneiroi.Xenia.Routing do
     Enum.map(draft, &%{path: &1.path, step: "draft"}) ++
       Enum.map(watch, &%{path: &1.path, step: "watch"})
   end
+
+  # Approved interactions whose jittered release has come (xenia#20).
+  defp pending(id, %{key: "presence-out"}, _p),
+    do: for(i <- Presence.due(id), do: %{number: i.number})
 
   defp pending(id, %{built_in: false, key: key, prompt: prompt, profile: profile}, by_key) do
     p = by_key[profile]

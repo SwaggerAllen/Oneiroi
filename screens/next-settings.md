@@ -15,7 +15,7 @@ links to.
 
 A section is a full page over the tabs, inside the house shell, at
 `#/settings/<section>`: `ledger`, `kinds`, `connections`,
-`notifications`, `regression`, `work`, `backups`.
+`notifications`, `regression`, `work`, `backups`, `presence`.
 
 - The Settings sheet's row closes the sheet and opens the page.
 - The header and the tab bar stay; the four tabs stay mounted under it,
@@ -155,6 +155,22 @@ it, in the server's own words.
     resolution note; and "File a report", in your words. Recording a
     step and resolving stay with the investigators, outside the client.
 
+- **Substack presence** (`presence`, xenia#20):
+  - the switch and the Substack handle, the last pass in a line (accounts,
+    pool, the two cuts, the cap), and the reminder to check what the
+    StrutCo About page says about Allen Strut before the first send;
+  - to review: each staged interaction with the item that earned it (its
+    title and link, its counts, whether it was read off the top or from
+    below, its excerpt), a comment's words, and Approve, Ask for a
+    revision (needs a comment) and Hard pass, with an optional comment;
+    what was sent back for revision, by number;
+  - decided: approved (with the time after which it goes out), sent (with
+    where it is), failed (with why), passed over;
+  - the follow list: how many accounts, when fetched and matched against
+    the profile's count, how many masked, where the cursor stands, "Fetch
+    the list now"; each account with when it was last read, or its mask's
+    date and reason, and Mask or Unmask with a one-line reason.
+
 ## The current client's actions, each covered
 
 | Old screen | Call | Here |
@@ -174,6 +190,7 @@ it, in the server's own words.
 | Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
 | (new) | `holdWork` | Work queue |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
+| (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |
 
 Not built:
 - Correspondence (the Mail view replaces it);

@@ -99,6 +99,62 @@ export interface DocumentVersion {
   restorable: boolean;
 }
 
+// Presence on Substack (xenia#20).
+export interface PresenceAccount {
+  key: string;
+  name: string | null;
+  host: string;
+  followed: boolean;
+  excluded: boolean;
+  excluded_at: string | null;
+  reason: string | null;
+  first_seen_at: string;
+  last_sampled_at: string | null;
+}
+
+export interface PresenceRead {
+  item: string;
+  account: string;
+  kind: 'post' | 'note';
+  title: string | null;
+  url: string;
+  published_at: string | null;
+  likes: number;
+  comments: number;
+  restacks: number;
+  score: number;
+  cut: 'ranked' | 'serendipity';
+  excerpt: string | null;
+  read_at: string | null;
+}
+
+export interface PresenceInteraction {
+  number: number;
+  pass: number;
+  item: string;
+  account: string;
+  kind: 'like' | 'comment' | 'restack';
+  text: string | null;
+  supersedes: number | null;
+  superseded_by: number | null;
+  state: 'staged' | 'revise' | 'approved' | 'passed' | 'sent' | 'failed' | 'superseded';
+  comment: string | null;
+  release_at: string | null;
+  staged_at: string;
+  decided_at: string | null;
+  sent_at: string | null;
+  url: string | null;
+  reason: string | null;
+  read: PresenceRead | null;
+}
+
+export interface PresenceState {
+  settings: { enabled: boolean; handle: string | null; set_at: string | null; follows_at: string | null; visible: number | null; cursor: string | null };
+  accounts: PresenceAccount[];
+  passes: Array<{ number: number; day: string; accounts: string[]; pool: number; ranked: number; serendipity: number; cap: number; drawn_at: string; reads: PresenceRead[] }>;
+  interactions: PresenceInteraction[];
+}
+
 export interface ResidentRecord extends Resident {
   remote: string | null;
   last_backup: { at: string | null; sequence: number | null; root: string | null; commit: string | null };
@@ -344,6 +400,16 @@ export const api = {
     if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
     return json as ChatgptImport;
   },
+  presence: (residentId: string) => call<PresenceState>('GET', `/v1/residents/${residentId}/presence`),
+  setPresence: (residentId: string, enabled: boolean, handle: string) =>
+    call<void>('PUT', `/v1/residents/${residentId}/presence`, { enabled, handle }),
+  refreshFollows: (residentId: string) => call<{ accounts: number }>('POST', `/v1/residents/${residentId}/presence/follows`),
+  excludeAccount: (residentId: string, key: string, reason: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/exclude`, { reason }),
+  includeAccount: (residentId: string, key: string, note: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/include`, { note }),
+  decideInteraction: (residentId: string, number: number, decision: 'approve' | 'revise' | 'pass', comment: string | null) =>
+    call<void>('POST', `/v1/residents/${residentId}/presence/interactions/${number}/decision`, { decision, ...(comment ? { comment } : {}) }),
   // The report ladder (F45): every report on this resident with its steps,
   // and the strikes; either party files one.
   reports: (residentId: string) => call<ReportLadder>('GET', `/v1/residents/${residentId}/reports`),
