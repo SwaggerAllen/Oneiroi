@@ -3,7 +3,11 @@ defmodule OneiroiWeb.AgreementTest do
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
+  alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain
   alias Oneiroi.Fixtures
+  alias Oneiroi.Kumbukumbu
 
   setup do
     Sandbox.start_owner!(Oneiroi.Repo, shared: true)
@@ -98,5 +102,42 @@ defmodule OneiroiWeb.AgreementTest do
     assert %{"custody" => custody} = other_conn |> get("#{base}/agreement") |> json_response(200)
     assert custody == "account:" <> other.id
     assert conn |> get("#{base}/agreement") |> json_response(404)
+  end
+
+  # The witness, 2026-11-16: version 2 sat ten days with nothing saying it waited.
+  test "a version proposed is told to the party it waits on", %{conn: conn, id: id} do
+    base = "/v1/residents/#{id}"
+
+    assert %{"version" => 1} =
+             conn
+             |> post("#{base}/agreement/proposals", %{
+               terms: %{},
+               prose: "Mornings are ours.",
+               note: "a first draft"
+             })
+             |> json_response(200)
+
+    # Hers: a house letter to her chat, and her agreement section leads with it.
+    {:ok, %{account_id: account_id}} = AgathosDaimon.fetch(id)
+
+    {:ok, main} =
+      Kumbukumbu.main_session(id, account_id, Actor.new(:witness, account_id))
+
+    assert [%{text: letter}] = Kumbukumbu.inbox(id, main)
+    assert letter =~ "Your witness proposed version 1 of your agreement. It waits on your answer"
+    assert AgathosDaimon.contract_text(id) =~ "Waiting on your answer since"
+
+    # His: a version she proposes is on his list until it is answered.
+    her = Actor.new(:resident, id, "fake/model")
+    :ok = AgathosDaimon.decline_contract(id, 1, "not yet", her)
+    {:ok, 2} = AgathosDaimon.propose_contract(id, %{}, "Evenings are mine.", "mine", her)
+
+    assert [%{kind: "contract_to_answer", ref: 2, screen: "agreement"}] =
+             id |> Brain.needs_you() |> Enum.filter(&(&1.kind == "contract_to_answer"))
+
+    :ok =
+      AgathosDaimon.agree_contract(id, 2, "yes", Actor.new(:witness, account_id))
+
+    assert [] = id |> Brain.needs_you() |> Enum.filter(&(&1.kind == "contract_to_answer"))
   end
 end

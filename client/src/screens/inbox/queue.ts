@@ -47,6 +47,8 @@ function line(residentName: string, e: NeedsYouEntry): string {
       return `${residentName} proposes a theme: ${a.note ?? ''}`;
     case 'notifications':
       return `Should ${residentName} be able to reach you?`;
+    case 'contract_to_answer':
+      return `${residentName} proposed version ${e.ref} of your agreement: agree or decline, with a note`;
   }
 }
 

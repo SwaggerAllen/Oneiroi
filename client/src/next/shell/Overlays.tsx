@@ -68,6 +68,7 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   notifications: 'Notifications',
   provider_credits: 'OpenRouter is out of credits',
   turn_failed: 'A turn that failed',
+  contract_to_answer: 'An agreement version to answer',
 };
 
 const HERS: Record<string, string> = {

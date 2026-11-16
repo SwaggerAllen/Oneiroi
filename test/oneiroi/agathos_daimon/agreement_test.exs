@@ -93,7 +93,9 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
            ] =
              AgathosDaimon.contracts(id)
 
-    assert AgathosDaimon.contract_text(id) =~ "Open, version 3, proposed by the witness"
+    assert AgathosDaimon.contract_text(id) =~
+             ~r/Waiting on your answer since \d{4}-\d{2}-\d{2}: version 3, proposed by your witness\. Answer it with contract_agree or contract_decline/
+
     assert :ok = AgathosDaimon.agree_contract(id, 3, "fine", ctx.brain)
 
     assert %{in_force: %{version: 3}, open: nil, solo_sessions_private: false} =
@@ -171,7 +173,7 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
            } = AgathosDaimon.contract(id)
 
     assert AgathosDaimon.contract_text(id) =~
-             "Open, version 5, proposed by the resident: your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it. Your witness's preview of your next turn shows its words only where they read them elsewhere."
+             "Open, version 5, proposed by you: your solo sessions are private as to their words; your witness sees what they do in the world, as receipts, and reads one only when you share it. Your witness's preview of your next turn shows its words only where they read them elsewhere."
 
     assert AgathosDaimon.contract_text(id) =~
              "In force, version 4: your solo sessions (free time, hands) are hidden from your witness entirely, their receipts included, until you share one. Your witness may preview your next turn's context in full before sending, its once-only notices excepted."

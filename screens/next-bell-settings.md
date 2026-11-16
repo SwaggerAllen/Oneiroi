@@ -62,6 +62,9 @@ header's bell and gear. Built 2026-11-10.
     answered or read, with how long: his agreement proposals, soul
     edits, bookmark proposals, revisions, plugin proposals, unread
     letters, and a file she waits to write while his editor holds it.
+  An agreement version the resident proposed waits there too, "An
+  agreement version to answer", decided on the agreement page
+  (agathos-daimon#48).
 - **Notifications** explain themselves before the browser asks (the
   canvas's Push board):
   - Lily's line (C11) and her sign-off;

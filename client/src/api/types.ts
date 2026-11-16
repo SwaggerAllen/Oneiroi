@@ -542,7 +542,8 @@ export interface NeedsYouEntry {
     | 'theme_proposal'
     | 'notifications'
     | 'provider_credits'
-    | 'turn_failed';
+    | 'turn_failed'
+    | 'contract_to_answer';
   ref: number | string;
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
