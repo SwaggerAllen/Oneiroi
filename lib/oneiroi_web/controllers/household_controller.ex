@@ -28,6 +28,19 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:files,
+    summary:
+      "The household's repository as the Records view lists it (seshat#76): CONTRACT.md and BEATS.md, each thread, each household document, in the library's shape",
+    responses: [ok: {"the files", "application/json", %Schema{type: :object}}]
+  )
+
+  def files(conn, _params) do
+    case Seshat.household_files(actor(conn)) do
+      {:ok, files} -> json(conn, files)
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
   operation(:read,
     summary:
       "One thread whole (its trunk and every reply), a document, or CONTRACT.md, by its path on the shelf",

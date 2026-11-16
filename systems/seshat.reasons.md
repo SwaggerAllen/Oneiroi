@@ -630,3 +630,13 @@ the gate to talk; the talk that follows goes back through the beats,
 which is where sign-up already lives. The witness's reply is the signal
 that the house has something to discuss, so it is the thing that wakes
 everyone again.
+
+## #76
+
+The client's records tree reads one shape, the library index; giving the
+household's repository that shape lets the same tree list it, so the
+two views stay one view and a change to one is a change to both. A
+thread is one entry rather than a folder of a trunk and replies because
+it is read whole everywhere else, and its replies are not documents of
+their own. Unpaged because a household's repository is small and a tree
+with a page break in it is not a tree.

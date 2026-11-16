@@ -587,6 +587,10 @@ defmodule Oneiroi.Seshat do
   @spec household_shelf(Oneiroi.Actor.t(), non_neg_integer()) :: {:ok, map()} | {:error, term()}
   defexport(household_shelf(actor, from), do: Household.shelf(actor, from))
 
+  @doc "The household's repository as Records lists it (seshat#76): every file a member may read, in the library's shape."
+  @spec household_files(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_files(actor), do: Household.files(actor))
+
   @doc "One thread with every reply, a document, or the contract, whole (seshat#61)."
   @spec household_read(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_read(actor, path), do: Household.read(actor, path))

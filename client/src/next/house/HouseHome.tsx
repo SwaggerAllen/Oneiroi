@@ -22,7 +22,7 @@ export function HouseHome() {
       residentName="The house"
       waiting={0}
       onReconnect={() => undefined}
-      renderTab={(tab) => (tab === 'chat' ? <Threads /> : tab === 'time' ? <HouseTime /> : tab === 'records' ? <HouseRecords /> : <Charter />)}
+      renderTab={(tab, path) => (tab === 'chat' ? <Threads /> : tab === 'time' ? <HouseTime /> : tab === 'records' ? <HouseRecords path={path} /> : <Charter />)}
     />
   );
 }

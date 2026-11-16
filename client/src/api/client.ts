@@ -590,6 +590,7 @@ export const api = {
   // The house as its own subject (screen:next-house): the shelf, the
   // charter (the household contract), the beats, and posting in it.
   householdShelf: (from = 0) => call<HouseShelf>('GET', `/v1/household?from=${from}`),
+  householdFiles: () => call<LibraryIndex>('GET', '/v1/household/files'),
   householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
   householdProposeCharter: (prose: string, note: string) => call<HouseContract>('POST', '/v1/household/contract', { prose, note }),

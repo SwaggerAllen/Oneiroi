@@ -58,7 +58,7 @@ function Failed({ error }: { error: Error | null }) {
 /**
  * The house's check-ins (gaia#41, sunna#65): when the whole house checks
  * in, what this resident reports, in your words for her. The check-ins
- * themselves are kept in Settings, The house.
+ * themselves are kept on the house's Time tab.
  */
 function HouseCheckins() {
   const { id, name } = useSubject();

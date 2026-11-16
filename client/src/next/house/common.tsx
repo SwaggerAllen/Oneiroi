@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { ScrollArea } from '../shell/ScrollArea';
 import * as css from '../settings/settings.css';
+import { ScrollArea } from '../shell/ScrollArea';
 
-/** A house tab's page: the same column the settings pages use. */
+/** A house tab's page in the settings pages' column: the Charter's. */
 export function HousePage({ label, title, lede, children }: { label: string; title: string; lede: string; children: ReactNode }) {
   return (
     <ScrollArea label={label}>

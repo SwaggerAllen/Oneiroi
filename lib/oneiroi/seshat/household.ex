@@ -283,6 +283,84 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   @doc """
+  The household's repository as the Records view lists it (seshat#76):
+  every file a member may read, in the library's shape, folder by kind.
+  The house's own (`CONTRACT.md`, `BEATS.md`) under `house`; each thread
+  one entry under `thread`, read whole; each household document under
+  its kind. Unpaged: a household's repository is small, and the tree
+  wants all of it.
+  """
+  def files(%Actor{} = actor) do
+    with {:ok, household_id} <- household(actor),
+         {:ok, dir} <- provision(household_id) do
+      ballots = Map.new(Gaia.household_contract(household_id).ballots, &{&1.thread, &1})
+
+      own =
+        for {path, title} <- [
+              {@contract, "The household contract"},
+              {@beats, "The household's beats"}
+            ],
+            File.regular?(Path.join(dir, path)),
+            do: file_row("house", path, title, nil, nil)
+
+      threads =
+        dir
+        |> thread_ids()
+        |> Enum.map(&thread_summary(dir, &1, ballots))
+        |> Enum.filter(&visible?(actor, household_id, &1.ids))
+        |> Enum.map(
+          &file_row("thread", &1.path, &1.title, &1.last_reply_at || &1.posted_at, &1.by,
+            created_at: &1.posted_at,
+            versions: &1.replies + 1
+          )
+        )
+
+      documents =
+        dir
+        |> documents()
+        |> Enum.filter(&visible?(actor, household_id, [&1.by_id]))
+        |> Enum.map(&file_row(&1.kind, &1.path, &1.title, &1.posted_at, &1.by))
+
+      rows = own ++ threads ++ documents
+      present = rows |> Enum.map(& &1.kind) |> MapSet.new()
+
+      kinds =
+        ([%{kind: "house", label: "The house"}] ++
+           for(
+             k <- Kinds.shelf(),
+             Map.get(k, :household, false),
+             do: %{kind: k.kind, label: k.label}
+           ))
+        |> Enum.with_index()
+        |> Enum.map(fn {k, i} -> Map.put(k, :position, i) end)
+
+      {:ok,
+       %{
+         household_id: household_id,
+         kinds: Enum.filter(kinds, &MapSet.member?(present, &1.kind)),
+         documents: rows,
+         unadopted: []
+       }}
+    end
+  end
+
+  defp file_row(kind, path, title, at, by, extra \\ []) do
+    %{
+      kind: kind,
+      path: path,
+      title: title,
+      status: nil,
+      bytes: nil,
+      versions: Keyword.get(extra, :versions, 1),
+      written_at: at,
+      created_at: Keyword.get(extra, :created_at, at),
+      written_by: by,
+      missing_at: nil,
+      note: nil
+    }
+  end
+
+  @doc """
   One thing on the shelf, whole: a thread (by `threads/<id>`, its trunk's
   path, or its id alone) with every reply in order, a document by its
   path, or `CONTRACT.md`. Answers `%{path, kind, title, content}`, with a

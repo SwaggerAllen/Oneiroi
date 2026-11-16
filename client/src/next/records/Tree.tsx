@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { LibraryDocument } from '../../api/types';
+import type { LibraryDocument, LibraryIndex } from '../../api/types';
 import { ScrollArea } from '../shell/ScrollArea';
 import { leaf, nest, type Nest } from './nest';
 import { folderKey, ORDERS, saveOrder, savedOrder, shownDate, sortDocs, type RecordsOrder } from './sort';
@@ -11,7 +11,9 @@ import * as css from './records.css';
  * The folder tree (ui-structures.md D): each top-level folder is a kind,
  * marked hers or the witness's and whether it waits on him; its settings
  * open from the gear. The database-backed folders join once their
- * readable copies exist (records-in-repo.md).
+ * readable copies exist (records-in-repo.md). Given a `source`, it lists
+ * another repository the same way (the house's, screen:next-house), with
+ * no folder settings.
  */
 export function Tree({
   residentId,
@@ -20,16 +22,18 @@ export function Tree({
   onSettings,
   onAdd,
   onPaste,
+  source,
 }: {
   residentId: string;
   current: string;
   onOpen: (path: string) => void;
-  onSettings: (kind: string) => void;
+  onSettings?: (kind: string) => void;
   onAdd?: () => void;
   onPaste?: () => void;
+  source?: { key: readonly unknown[]; load: () => Promise<LibraryIndex> };
 }) {
-  const library = useQuery({ queryKey: ['resident', residentId, 'records', 'library'], queryFn: () => api.library(residentId) });
-  const kinds = useQuery({ queryKey: ['resident', residentId, 'records', 'kinds'], queryFn: () => api.kinds(residentId) });
+  const library = useQuery({ queryKey: source?.key ?? ['resident', residentId, 'records', 'library'], queryFn: source?.load ?? (() => api.library(residentId)) });
+  const kinds = useQuery({ queryKey: ['resident', residentId, 'records', 'kinds'], queryFn: () => api.kinds(residentId), enabled: !source });
   const [open, setOpen] = useState<Record<string, boolean>>({});
   // Last written first, unless this device chose otherwise (the witness, 2026-11-11).
   const [order, setOrder] = useState<RecordsOrder>(savedOrder);
@@ -111,9 +115,11 @@ export function Tree({
                     {docs.length}
                   </span>
                 </button>
-                <button type="button" className={css.settings} aria-label={`${k.label || k.kind} folder settings`} onClick={() => onSettings(k.kind)}>
-                  ⚙
-                </button>
+                {onSettings && (
+                  <button type="button" className={css.settings} aria-label={`${k.label || k.kind} folder settings`} onClick={() => onSettings(k.kind)}>
+                    ⚙
+                  </button>
+                )}
               </div>
               {isOpen && (
                 <Level
