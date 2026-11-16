@@ -35,11 +35,17 @@ done
   { echo "save the reader's token to ~/.config/oneiroi/reader.json first (README.md)" >&2; exit 2; }
 command -v claude > /dev/null || { echo "claude is not on PATH" >&2; exit 2; }
 command -v jq > /dev/null || { echo "jq is not on PATH" >&2; exit 2; }
+# PDFs (seshat#77): read without these, a PDF is said unreadable and nothing else stops.
+for tool in pdftotext pdfinfo ocrmypdf tesseract; do
+  command -v "$tool" > /dev/null ||
+    echo "note: $tool is not on PATH, so PDFs will not be read; brew install poppler tesseract ocrmypdf" >&2
+done
 
 mkdir -p "$DIR"/{bin,lib,prompts,.claude,log} "$HOME/Library/LaunchAgents"
 cp "$KIT/bin/reader.sh" "$DIR/bin/reader.sh"
 cp "$KIT/lib/common.sh" "$DIR/lib/common.sh"
 cp "$KIT/lib/html2md.py" "$DIR/lib/html2md.py"
+cp "$KIT/lib/pdf2md.py" "$DIR/lib/pdf2md.py"
 cp "$KIT/lib/presence_send.cjs" "$DIR/lib/presence_send.cjs"
 cp "$KIT"/prompts/*.md "$DIR/prompts/"
 chmod +x "$DIR/bin/reader.sh"

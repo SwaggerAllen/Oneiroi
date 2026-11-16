@@ -57,11 +57,24 @@ Inside the reader, the same line again:
   `external_fetch`; the witness can do both (seshat#46). The same
   five-minute check sees it, and `reader.sh fetch` gets it with plain
   code and no model: curl as a visitor signed in nowhere, HTML turned to
-  markdown by `lib/html2md.py`, a GitHub file read raw at the commit its
-  ref names (xenia#18). Oneiroi keeps the copy whole under `external/`
+  markdown by `lib/html2md.py`, a PDF page by page by `lib/pdf2md.py`
+  (seshat#77), a GitHub file read raw at the commit its ref names
+  (xenia#18). Oneiroi keeps the copy whole under `external/`
   with when it was fetched and its digest, and writes to the
   conversation that asked. It needs `python3` and `git`, which the Mac's
   command line tools provide.
+- **PDFs, scanned ones included** (seshat#77). Each page is a heading of
+  its own, `## Page 7 {#p7}`, so a citation can name the page
+  (`web/<key>#p7`). A page with a text layer is read from it; a page
+  with none, a scan, is read by OCR on this Mac (ocrmypdf over
+  tesseract, deskewed and rotated), and the copy's first line names the
+  pages read that way, so names and figures there get checked against
+  the page. Nothing leaves the machine and no model reads the file. It
+  needs `brew install poppler tesseract ocrmypdf`; without them a PDF is
+  said unreadable and nothing else stops. Expect body text from a clean
+  typed scan to read well; tables come out as a run of words, forms lose
+  their boxes, and faint or skewed scans read worse. A cloud reader for
+  what tesseract gets wrong comes with the hands' move to the platform.
 
 - **A digest, when asked.** Not on a clock (seshat#40): the resident asks
   with `digest_ask` (free time included), a check-in asks when its note

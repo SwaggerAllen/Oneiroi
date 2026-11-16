@@ -16,6 +16,7 @@ defmodule OneiroiWeb.ReaderKitTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
+  alias Oneiroi.Seshat.ExternalCopy
   alias Oneiroi.Xenia
 
   @kit Path.expand("../../sdk/reader", __DIR__)
@@ -307,6 +308,7 @@ defmodule OneiroiWeb.ReaderKitTest do
     def call(conn, _opts) do
       case :persistent_term.get({__MODULE__, :page}, nil) do
         nil -> send_resp(conn, 404, "gone")
+        {type, body} -> conn |> put_resp_content_type(type, nil) |> send_resp(200, body)
         html -> conn |> put_resp_content_type("text/html") |> send_resp(200, html)
       end
     end
@@ -385,6 +387,52 @@ defmodule OneiroiWeb.ReaderKitTest do
     {out, 0} = reader(ctx, "wait")
     assert out =~ "external #2 not fetched (try 2 of 2)"
     assert out =~ "external #2 said failed"
+  end
+
+  # seshat#77: a PDF, page by page, its text layer where it has one and
+  # OCR on this machine where it has none, each page a heading a
+  # citation can name. Runs where poppler, tesseract and ocrmypdf are
+  # installed (the witness's Mac, where the reader runs); CI's image has
+  # none of them, and the test says so and stops.
+  @pdf Path.expand("../fixtures/reader/scanned.pdf", __DIR__)
+
+  test "a PDF is kept page by page, a scanned page read by OCR, each page citable", ctx do
+    if System.find_executable("pdftotext") && System.find_executable("ocrmypdf") do
+      page = start_supervised!({Bandit, plug: Page, ip: {127, 0, 0, 1}, port: 0}, id: :pdf)
+      {:ok, {_ip, port}} = ThousandIsland.listener_info(page)
+      on_exit(fn -> :persistent_term.erase({Page, :page}) end)
+      :persistent_term.put({Page, :page}, {"application/pdf", File.read!(@pdf)})
+
+      {:ok, key} = Kumbukumbu.main_session(ctx.id, ctx.witness.id, ctx.witness)
+      turn = %{resident_id: ctx.id, session_key: key, turn_ref: "t-x", resident: ctx.lily}
+      url = "http://127.0.0.1:#{port}/method.pdf"
+      assert Tools.run("external_add", Jason.encode!(%{url: url}), turn) =~ "Commissioned"
+
+      {out, 0} = reader(ctx, "wait")
+      assert out =~ "external #1 fetched; Oneiroi answered 200"
+      assert calls(ctx) == []
+
+      assert %{status: "fetched", path: path, key: source} = Seshat.external(ctx.id, 1)
+      assert {:ok, %{content: copy}} = Seshat.read(ctx.id, path)
+      assert copy =~ "From a PDF of 2 pages; read by OCR (tesseract)"
+      assert copy =~ "page 2"
+      assert copy =~ "## Page 1 {#p1}"
+      assert copy =~ "Rules in use"
+      assert copy =~ "## Page 2 {#p2}"
+      # The scanned page, read by OCR: its words, give or take a letter.
+      assert copy =~ ~r/irrigation/i
+
+      # A citation names the page.
+      assert {:ok, %{found: :heading, text: two}} =
+               ExternalCopy.read(ctx.id, "web", source <> "#p2")
+
+      assert two =~ ~r/irrigation/i
+      refute two =~ "Rules in use"
+    else
+      IO.puts(
+        "skipped: poppler and ocrmypdf are not installed here (brew install poppler tesseract ocrmypdf)"
+      )
+    end
   end
 
   # seshat#40: the digest is asked, never on a clock; the wait sees it,

@@ -640,3 +640,16 @@ thread is one entry rather than a folder of a trunk and replies because
 it is read whole everywhere else, and its replies are not documents of
 their own. Unpaged because a household's repository is small and a tree
 with a page break in it is not a tree.
+
+## #77
+
+A scanned paper located and unread is a wall in the middle of a reading
+thread, and the commons' literature is mostly scans. Page headings
+because a citation has to point back into a source, and a page is the
+unit a scan's reader checks against; the anchor grammar already
+resolved headings, so the page came free. OCR on the witness's machine
+because it costs nothing, sends nothing anywhere, and keeps the fetch's
+rule that no model reads a stranger's file. Only pages with no words are
+OCR'd, because a text layer is what the author's tools wrote and is
+better than a guess at it. The copy says which pages were machine-read
+so a quotation from one is checked before it is trusted.
