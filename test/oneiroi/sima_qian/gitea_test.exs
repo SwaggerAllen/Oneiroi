@@ -67,16 +67,15 @@ defmodule Oneiroi.SimaQian.GiteaTest do
              SimaQian.gitea_set_password(ctx.witness.id, ctx.witness.email, "a long password!")
   end
 
-  test "a household's writes: one job, then its organization, its repository, its witnesses and the push",
+  test "the migration sends a household's whole history: its organization, its repository, its witnesses",
        ctx do
-    on(ctx.values)
     household = Gaia.household_id(ctx.witness.id)
 
     {:ok, _} =
       Seshat.household_post(ctx.andrew, %{"title" => "Plans", "content" => "For the week."})
 
     {:ok, _} = Seshat.household_post(ctx.andrew, %{"title" => "Dinner", "content" => "Sundays."})
-    assert jobs() == [%{"household_id" => household}]
+    on(ctx.values)
 
     assert :ok = perform_job(GiteaWorker, %{"household_id" => household})
     org = Gitea.org(household)

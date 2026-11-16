@@ -38,6 +38,7 @@ defmodule Oneiroi.SimaQian.Repos do
   @callback blob(repo(), String.t()) :: {:ok, binary()} | {:error, term()}
 
   alias Oneiroi.Config
+  alias Oneiroi.SimaQian.Repos.Cache
 
   @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
 
@@ -79,8 +80,44 @@ defmodule Oneiroi.SimaQian.Repos do
   @doc "The commits that changed `path`, newest first: `%{commit, at, subject, blob}`."
   def history(repo, path, limit), do: client().history(repo, path, limit)
 
-  @doc "A blob's bytes by its sha."
-  def blob(repo, sha), do: client().blob(repo, sha)
+  @doc "A blob's bytes by its sha, from the cache when it has them (a blob never changes)."
+  def blob(repo, sha) do
+    case Cache.get(sha) do
+      nil ->
+        with {:ok, bytes} <- client().blob(repo, sha) do
+          Cache.put(sha, bytes)
+          {:ok, bytes}
+        end
+
+      bytes ->
+        {:ok, bytes}
+    end
+  end
+
+  @doc "The repository at its head, `%{path => sha}`: one call, then `at/3` reads from it."
+  def snapshot(repo) do
+    with {:ok, files} <- tree(repo), do: {:ok, Map.new(files, &{&1.path, &1.sha})}
+  end
+
+  @doc "A file's bytes in a snapshot, through the cache; nil when the snapshot has no such file."
+  def at(repo, snapshot, path) do
+    case Map.get(snapshot, path) do
+      nil ->
+        nil
+
+      sha ->
+        case blob(repo, sha) do
+          {:ok, bytes} -> bytes
+          _failed -> nil
+        end
+    end
+  end
+
+  @doc "The paths in a snapshot under `prefix`, sorted."
+  def under(snapshot, prefix) do
+    p = String.trim_trailing(prefix, "/") <> "/"
+    snapshot |> Map.keys() |> Enum.filter(&String.starts_with?(&1, p)) |> Enum.sort()
+  end
 
   defp client, do: Config.fetch!(:sima_qian, :repos_client)
 end

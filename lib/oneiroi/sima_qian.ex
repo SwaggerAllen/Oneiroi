@@ -53,6 +53,7 @@ defmodule Oneiroi.SimaQian do
       Repos,
       Repos.Local,
       Repos.Gitea,
+      Repos.Cache,
       DryRun,
       Error,
       Export,
@@ -73,6 +74,7 @@ defmodule Oneiroi.SimaQian do
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
+  alias Oneiroi.SimaQian.Repos
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -204,6 +206,12 @@ defmodule Oneiroi.SimaQian do
 
   @impl Oneiroi.Component
   def feature_flags, do: [:sima_qian_gitea_off]
+
+  @impl Oneiroi.Component
+  def processes, do: [{:sima_qian_blobs, :local}]
+
+  @impl Oneiroi.Component
+  def children, do: [Oneiroi.SimaQian.Repos.Cache]
 
   @impl Oneiroi.Component
   def oban_queues do
@@ -409,7 +417,7 @@ defmodule Oneiroi.SimaQian do
   @spec household_log(String.t(), String.t() | nil, pos_integer()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(household_log(household_id, path, limit),
-    do: Household.log(household_id, path, limit)
+    do: Repos.log({:household, household_id}, path, limit)
   )
 
   @doc "Recomputes the root over a resident's export and compares it with the last backup's."

@@ -17,7 +17,7 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   def read(repo, path) do
     dir = dir(repo)
 
-    with true <- Git.head?(dir) || :absent,
+    with true <- made?(dir) || :absent,
          {:ok, sha} <- Git.run("git", dir, ["rev-parse", "-q", "--verify", "HEAD:" <> path]),
          {:ok, bytes} <- Git.blob(dir, String.trim(sha)) do
       {:ok, bytes, String.trim(sha)}
@@ -32,7 +32,7 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   def tree(repo) do
     dir = dir(repo)
 
-    if Git.head?(dir) do
+    if made?(dir) do
       with {:ok, entries} <- Git.tree(dir, "HEAD"),
            do: {:ok, for(%{type: "blob"} = e <- entries, do: %{path: e.path, sha: e.blob})}
     else
@@ -58,10 +58,16 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   end
 
   @impl true
-  def log(repo, path, limit), do: Git.log(dir(repo), path, limit)
+  def log(repo, path, limit) do
+    dir = dir(repo)
+    if made?(dir), do: Git.log(dir, path, limit), else: {:ok, []}
+  end
 
   @impl true
-  def history(repo, path, limit), do: Git.history(dir(repo), path, limit)
+  def history(repo, path, limit) do
+    dir = dir(repo)
+    if made?(dir), do: Git.history(dir, path, limit), else: {:ok, []}
+  end
 
   @impl true
   def blob(repo, sha), do: Git.blob(dir(repo), sha)
@@ -71,6 +77,10 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   def dir({:household, id}), do: Path.join([root(), "households", id])
 
   defp root, do: Config.fetch!(:sima_qian, :root)
+
+  # A repository made and committed to; one not made yet is empty, and
+  # git is never started in a directory that is not there.
+  defp made?(dir), do: File.dir?(Path.join(dir, ".git")) and Git.head?(dir)
 
   defp shas(repo) do
     with {:ok, files} <- tree(repo), do: {:ok, Map.new(files, &{&1.path, &1.sha})}

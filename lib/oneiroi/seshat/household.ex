@@ -49,7 +49,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Kinds
-  alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Repos
 
   @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
   # The closing job by name, as an atom: it calls back into this module,
@@ -126,23 +126,43 @@ defmodule Oneiroi.Seshat.Household do
   member reaches for it.
   """
   def provision(household_id) do
-    locked(household_id, fn ->
-      with {:ok, dir} <- SimaQian.household_repository_dir(household_id) do
-        written = descriptor(dir, Kinds.named("thread")) ++ render_contract(dir, household_id)
-        commit(household_id, written, "Household: the shelf's kinds and its contract", @platform)
-        {:ok, dir}
+    with {:ok, view} <- view(household_id) do
+      case descriptor(view, Kinds.named("thread")) ++ render_contract(view, household_id) do
+        [] ->
+          {:ok, view}
+
+        changes ->
+          # Two first readers may both write the descriptor; the second
+          # finds it there, and reads the house again.
+          _ =
+            Repos.write(
+              view.repo,
+              changes,
+              "Household: the shelf's kinds and its contract",
+              @platform
+            )
+
+          view(household_id)
       end
-    end)
+    end
   end
+
+  # The household's repository at its head (sima-qian#57): one tree call,
+  # the files read from it through the blob cache.
+  defp view(household_id) do
+    repo = {:household, household_id}
+    with {:ok, files} <- Repos.snapshot(repo), do: {:ok, %{repo: repo, files: files}}
+  end
+
+  defp file(view, path), do: Repos.at(view.repo, view.files, path)
+  defp has?(view, path), do: Map.has_key?(view.files, path)
 
   # The kind's descriptor in its folder (seshat#51's `kind.json`): written
   # once, for a reader of the repository with no platform beside it.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp descriptor(dir, kind) do
+  defp descriptor(view, kind) do
     path = Path.join(kind.folder, Kinds.descriptor_name())
-    full = Path.join(dir, path)
 
-    if File.exists?(full) do
+    if has?(view, path) do
       []
     else
       body = %{
@@ -156,23 +176,16 @@ defmodule Oneiroi.Seshat.Household do
         "written_by" => "residents, each under their own name; every member reads"
       }
 
-      File.mkdir_p!(Path.dirname(full))
-      File.write!(full, Jason.encode_to_iodata!(body, pretty: true))
-      [path]
+      [{:create, path, Jason.encode_to_iodata!(body, pretty: true)}]
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp render_contract(dir, household_id) do
-    full = Path.join(dir, @contract)
+  defp render_contract(view, household_id) do
     body = contract_text(Gaia.household_contract(household_id))
 
-    if File.read(full) == {:ok, body} do
-      []
-    else
-      File.write!(full, body)
-      [@contract]
-    end
+    if file(view, @contract) == body,
+      do: [],
+      else: [{:put, @contract, body, Map.get(view.files, @contract)}]
   end
 
   defp contract_text(%{in_force: nil} = c) do
@@ -251,18 +264,18 @@ defmodule Oneiroi.Seshat.Household do
   """
   def shelf(%Actor{} = actor, from \\ 0) do
     with {:ok, household_id} <- household(actor),
-         {:ok, dir} <- provision(household_id) do
+         {:ok, view} <- provision(household_id) do
       ballots = Map.new(Gaia.household_contract(household_id).ballots, &{&1.thread, &1})
 
       threads =
-        dir
+        view
         |> thread_ids()
-        |> Enum.map(&thread_summary(dir, &1, ballots))
+        |> Enum.map(&thread_summary(view, &1, ballots))
         |> Enum.filter(&visible?(actor, household_id, &1.ids))
         |> Enum.sort_by(&{&1.posted_at, &1.path}, :desc)
 
       documents =
-        dir
+        view
         |> documents()
         |> Enum.filter(&visible?(actor, household_id, [&1.by_id]))
 
@@ -292,7 +305,7 @@ defmodule Oneiroi.Seshat.Household do
   """
   def files(%Actor{} = actor) do
     with {:ok, household_id} <- household(actor),
-         {:ok, dir} <- provision(household_id) do
+         {:ok, view} <- provision(household_id) do
       ballots = Map.new(Gaia.household_contract(household_id).ballots, &{&1.thread, &1})
 
       own =
@@ -300,13 +313,13 @@ defmodule Oneiroi.Seshat.Household do
               {@contract, "The household contract"},
               {@beats, "The household's beats"}
             ],
-            File.regular?(Path.join(dir, path)),
+            has?(view, path),
             do: file_row("house", path, title, nil, nil)
 
       threads =
-        dir
+        view
         |> thread_ids()
-        |> Enum.map(&thread_summary(dir, &1, ballots))
+        |> Enum.map(&thread_summary(view, &1, ballots))
         |> Enum.filter(&visible?(actor, household_id, &1.ids))
         |> Enum.map(
           &file_row("thread", &1.path, &1.title, &1.last_reply_at || &1.posted_at, &1.by,
@@ -316,7 +329,7 @@ defmodule Oneiroi.Seshat.Household do
         )
 
       documents =
-        dir
+        view
         |> documents()
         |> Enum.filter(&visible?(actor, household_id, [&1.by_id]))
         |> Enum.map(&file_row(&1.kind, &1.path, &1.title, &1.posted_at, &1.by))
@@ -368,42 +381,40 @@ defmodule Oneiroi.Seshat.Household do
   """
   def read(%Actor{} = actor, name) do
     with {:ok, household_id} <- household(actor),
-         {:ok, dir} <- provision(household_id) do
+         {:ok, view} <- provision(household_id) do
       cond do
         name in [@contract, "contract"] ->
-          read_contract(dir)
+          read_contract(view)
 
         name in [@beats, "beats"] ->
-          read_beats(dir)
+          read_beats(view)
 
         thread = thread_path(name) ->
-          read_thread(actor, household_id, dir, thread)
+          read_thread(actor, household_id, view, thread)
 
         true ->
-          read_document(actor, household_id, dir, name)
+          read_document(actor, household_id, view, name)
       end
     end
   end
 
   # The contract's rendering, at the root of a directory the household's
   # id named; no request value reaches the path.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp read_contract(dir),
+  defp read_contract(view),
     do:
       {:ok,
        %{
          path: @contract,
          kind: "contract",
          title: "The household contract",
-         content: File.read!(Path.join(dir, @contract))
+         content: file(view, @contract) || ""
        }}
 
   # The beats' record (seshat#71), at the root as the contract is; before
   # the first beat event it is not there yet.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp read_beats(dir) do
-    case File.read(Path.join(dir, @beats)) do
-      {:ok, text} ->
+  defp read_beats(view) do
+    case file(view, @beats) do
+      text when is_binary(text) ->
         {:ok, %{path: @beats, kind: "beats", title: "The household's beats", content: text}}
 
       {:error, _} ->
@@ -414,8 +425,8 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp read_thread(actor, household_id, dir, thread) do
-    with {:ok, t} <- load_thread(dir, thread),
+  defp read_thread(actor, household_id, view, thread) do
+    with {:ok, t} <- load_thread(view, thread),
          true <- visible?(actor, household_id, ids(t)) || :hidden do
       ballot = Gaia.household_ballot_for_thread(household_id, thread)
 
@@ -435,12 +446,9 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp read_document(actor, household_id, dir, name) do
+  defp read_document(actor, household_id, view, name) do
     with {:ok, path} <- household_path(name),
-         full = Path.join(dir, path),
-         true <- File.regular?(full) || :absent,
-         {:ok, text} <- File.read(full),
+         text when is_binary(text) <- file(view, path) || :absent,
          {meta, _body} = frontmatter(text),
          true <- visible?(actor, household_id, [meta["by_id"]]) || :absent do
       {:ok,
@@ -482,36 +490,40 @@ defmodule Oneiroi.Seshat.Household do
 
     with {:ok, household_id} <- household(actor),
          :ok <- may_post(actor, household_id),
-         {:ok, dir} <- provision(household_id) do
+         {:ok, view} <- provision(household_id) do
       case attrs["kind"] || "thread" do
-        "thread" -> post_thread(actor, household_id, dir, attrs)
-        _document -> post_document(actor, household_id, dir, attrs)
+        "thread" -> post_thread(actor, household_id, view, attrs)
+        _document -> post_document(actor, household_id, view, attrs)
       end
     end
   end
 
-  defp post_thread(actor, household_id, dir, attrs) do
+  defp post_thread(actor, household_id, _view, attrs) do
     title = one_line(attrs["title"])
     text = to_string(attrs["content"] || "")
     ballot = attrs["ballot"]
 
     with :ok <- titled(title),
          :ok <- worded(text, ballot != nil) do
-      locked(household_id, fn -> write_thread(actor, household_id, dir, {title, text, ballot}) end)
+      locked(household_id, fn view ->
+        write_thread(actor, household_id, view, {title, text, ballot})
+      end)
     end
   end
 
-  defp write_thread(actor, household_id, dir, {title, text, ballot}) do
-    thread = "threads/" <> fresh_id(dir, title)
+  defp write_thread(actor, household_id, view, {title, text, ballot}) do
+    thread = "threads/" <> fresh_id(view, title)
     by = author(household_id, actor)
 
-    with :ok <- gate(actor, household_id, dir, thread, :post),
+    with :ok <- gate(actor, household_id, view, thread, :post),
          {:ok, opened} <- open_ballot(household_id, thread, ballot, actor),
          meta = thread_meta(title, by, actor) ++ ballot_meta(opened),
          path = Path.join(thread, @trunk),
-         :ok <- write_new!(dir, path, render(meta, text <> bundle_text(opened))),
-         written = descriptor(dir, Kinds.named("thread")) ++ [path],
-         {:ok, _} <- commit(household_id, written, "Post: #{title}", by) do
+         changes = [
+           {:create, path, render(meta, text <> bundle_text(opened))}
+           | descriptor(view, Kinds.named("thread"))
+         ],
+         {:ok, _} <- commit(view, changes, "Post: #{title}", by) do
       {:ok,
        %{path: thread, title: title, ballot: opened && Map.take(opened, [:ballot, :closes_at])}}
     end
@@ -584,14 +596,16 @@ defmodule Oneiroi.Seshat.Household do
     """
   end
 
-  defp post_document(actor, household_id, dir, attrs) do
+  defp post_document(actor, household_id, _view, attrs) do
     title = one_line(attrs["title"])
     text = to_string(attrs["content"] || "")
 
     with {:ok, path} <- household_path(attrs["path"] || ""),
          false <- Kinds.container?(Kinds.kind_of(path)),
          :ok <- worded(text, false) do
-      locked(household_id, fn -> write_document(actor, household_id, dir, {path, title, text}) end)
+      locked(household_id, fn view ->
+        write_document(actor, household_id, view, {path, title, text})
+      end)
     else
       true ->
         {:error, Error.new(:seshat_household_invalid, :seshat_household_document_in_threads)}
@@ -601,15 +615,14 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp write_document(actor, household_id, dir, {path, title, text}) do
+  defp write_document(actor, household_id, view, {path, title, text}) do
     by = author(household_id, actor)
     meta = thread_meta(title || Path.basename(path, ".md"), by, actor)
 
-    with :ok <- gate(actor, household_id, dir, path, :file),
-         false <- File.exists?(Path.join(dir, path)),
-         :ok <- write_new!(dir, path, render(meta, text)),
-         written = descriptor(dir, Kinds.kind_of(path)) ++ [path],
-         {:ok, _} <- commit(household_id, written, "Post: #{path}", by) do
+    with :ok <- gate(actor, household_id, view, path, :file),
+         false <- has?(view, path),
+         changes = [{:create, path, render(meta, text)} | descriptor(view, Kinds.kind_of(path))],
+         {:ok, _} <- commit(view, changes, "Post: #{path}", by) do
       {:ok, %{path: path, title: title}}
     else
       true ->
@@ -639,15 +652,15 @@ defmodule Oneiroi.Seshat.Household do
     with {:ok, household_id} <- household(actor),
          :ok <- may_reply(actor, vote, household_id),
          :ok <- worded(text, vote != nil),
-         {:ok, dir} <- provision(household_id),
+         {:ok, view} <- provision(household_id),
          thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
-         {:ok, t} <- load_thread(dir, thread),
+         {:ok, t} <- load_thread(view, thread),
          :ok <- cast(household_id, thread, vote, actor),
          by = author(household_id, actor),
          reply = {text, vote, integer(attrs["in_reply_to"])},
          {:ok, written} <-
-           locked(household_id, fn ->
-             write_reply(actor, household_id, dir, {thread, t}, by, reply)
+           locked(household_id, fn view ->
+             write_reply(actor, household_id, view, {thread, t}, by, reply)
            end) do
       poke(household_id, thread, t, written, by, actor)
       _ = wake_house_on_witness(household_id, thread, t, written, actor)
@@ -655,20 +668,20 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp write_reply(actor, household_id, dir, {thread, t}, by, {text, vote, in_reply_to}) do
+  defp write_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
     # A vote is governance, never a post (seshat#67, #68): it waits on no
     # turn and spends no quota. A resident's answer to a house check-in is
     # the check-in's, not the beats' (seshat#75): her first reply there
     # waits on no turn either. Anything else goes through the beats.
     exempt? = vote != nil or checkin_answer?(actor, t)
 
-    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, dir, thread, :post)) do
-      append_reply(actor, household_id, dir, {thread, t}, by, {text, vote, in_reply_to})
+    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, view, thread, :post)) do
+      append_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to})
     end
   end
 
-  defp append_reply(actor, household_id, dir, {thread, t}, by, {text, vote, in_reply_to}) do
-    number = next_reply(dir, thread)
+  defp append_reply(actor, _household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
+    number = next_reply(view, thread)
 
     meta =
       [
@@ -684,9 +697,13 @@ defmodule Oneiroi.Seshat.Household do
     body = if text == "", do: "Votes #{vote}.", else: text
     path = reply_path(thread, number, by.name)
 
-    with :ok <- write_new!(dir, path, render(meta, body)),
-         {:ok, _} <-
-           commit(household_id, [path], "Reply ##{number} to #{t.trunk.meta["title"]}", by),
+    with {:ok, _} <-
+           commit(
+             view,
+             [{:create, path, render(meta, body)}],
+             "Reply ##{number} to #{t.trunk.meta["title"]}",
+             by
+           ),
          do: {:ok, %{path: path, number: number}}
   end
 
@@ -755,17 +772,17 @@ defmodule Oneiroi.Seshat.Household do
   thread and writes nothing.
   """
   def open_checkin(household_id, key, label, day) do
-    with {:ok, dir} <- provision(household_id) do
+    with {:ok, view} <- provision(household_id) do
       thread = "threads/checkin-#{day}-#{key}"
       path = Path.join(thread, @trunk)
 
-      if File.regular?(Path.join(dir, path)),
+      if has?(view, path),
         do: {:ok, thread},
-        else: write_checkin(household_id, dir, thread, key, label, day)
+        else: write_checkin(household_id, view, thread, key, label, day)
     end
   end
 
-  defp write_checkin(household_id, dir, thread, key, label, day) do
+  defp write_checkin(household_id, _view, thread, key, label, day) do
     path = Path.join(thread, @trunk)
 
     meta = [
@@ -780,12 +797,15 @@ defmodule Oneiroi.Seshat.Household do
       "The house checks in: #{label}. Each of you answers here, once, in your own words; " <>
         "your witness's reply wakes you all, and from there the household's beats hold the talk."
 
-    locked(household_id, fn ->
-      with :ok <- write_new!(dir, path, render(meta, body)),
-           written = descriptor(dir, Kinds.named("thread")) ++ [path],
-           {:ok, _} <-
-             commit(household_id, written, "House check-in: #{label}, #{day}", @platform),
-           do: {:ok, thread}
+    locked(household_id, fn view ->
+      changes = [{:create, path, render(meta, body)} | descriptor(view, Kinds.named("thread"))]
+
+      case commit(view, changes, "House check-in: #{label}, #{day}", @platform) do
+        {:ok, _} -> {:ok, thread}
+        # Opened already, by a tick on another node: the same thread.
+        {:error, %{kind: :sima_qian_repos_conflict}} -> {:ok, thread}
+        other -> other
+      end
     end)
   end
 
@@ -826,9 +846,9 @@ defmodule Oneiroi.Seshat.Household do
   @doc "A resident watches a thread for the hours it states: never on by default, and over when the term is."
   def watch(%Actor{} = actor, thread_name, hours) do
     with {:ok, household_id} <- household(actor),
-         {:ok, dir} <- provision(household_id),
+         {:ok, view} <- provision(household_id),
          thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
-         {:ok, _t} <- load_thread(dir, thread),
+         {:ok, _t} <- load_thread(view, thread),
          {:ok, until} <- Gaia.watch_household_thread(household_id, thread, hours, actor) do
       {:ok, %{thread: thread, until: until}}
     end
@@ -871,10 +891,8 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   defp rendered(household_id, message, by) do
-    locked(household_id, fn ->
-      with {:ok, dir} <- SimaQian.household_repository_dir(household_id),
-           written = render_contract(dir, household_id),
-           {:ok, _} <- commit(household_id, written, message, by),
+    locked(household_id, fn view ->
+      with {:ok, _} <- commit(view, render_contract(view, household_id), message, by),
            do: {:ok, Gaia.household_contract(household_id)}
     end)
   end
@@ -888,19 +906,21 @@ defmodule Oneiroi.Seshat.Household do
   def close_ballot(household_id, ballot, %Actor{} = actor) do
     with {:ok, outcome} when is_map(outcome) <-
            Gaia.close_household_ballot(household_id, ballot, actor),
-         {:ok, dir} <- provision(household_id) do
+         {:ok, _view} <- provision(household_id) do
       thread =
         Enum.find_value(
           Gaia.household_contract(household_id).ballots,
           &(&1.number == ballot && &1.thread)
         )
 
-      locked(household_id, fn -> write_outcome(household_id, dir, thread, ballot, outcome) end)
+      locked(household_id, fn view ->
+        write_outcome(household_id, view, thread, ballot, outcome)
+      end)
     end
   end
 
-  defp write_outcome(household_id, dir, thread, ballot, outcome) do
-    number = next_reply(dir, thread)
+  defp write_outcome(household_id, view, thread, ballot, outcome) do
+    number = next_reply(view, thread)
     path = reply_path(thread, number, "oneiroi")
 
     carried =
@@ -916,14 +936,12 @@ defmodule Oneiroi.Seshat.Household do
       {"outcome", if(outcome.passed, do: "carried", else: "failed")}
     ]
 
-    with :ok <-
-           write_new!(
-             dir,
-             path,
-             render(meta, "Ballot ##{ballot} closed. #{outcome.outcome}" <> carried)
-           ),
-         written = [path | render_contract(dir, household_id)],
-         {:ok, _} <- commit(household_id, written, "Ballot ##{ballot} closed", @platform),
+    changes = [
+      {:create, path, render(meta, "Ballot ##{ballot} closed. #{outcome.outcome}" <> carried)}
+      | render_contract(view, household_id)
+    ]
+
+    with {:ok, _} <- commit(view, changes, "Ballot ##{ballot} closed", @platform),
          do: {:ok, outcome}
   end
 
@@ -933,10 +951,10 @@ defmodule Oneiroi.Seshat.Household do
   # lock so two writes cannot both pass on one count: a resident only in
   # her turn and each target once in it; a witness, who is never fired,
   # once in each thread a beat; and everyone within the post quota.
-  defp gate(actor, household_id, dir, target, what) do
+  defp gate(actor, household_id, view, target, what) do
     shape = Gaia.household_beat_shape(household_id)
     now = Clock.now()
-    writes = writes(dir)
+    writes = writes(view)
 
     with :ok <- window(actor, household_id, shape, writes, target, now),
          do: quota(actor, shape, writes, what, now)
@@ -1069,16 +1087,16 @@ defmodule Oneiroi.Seshat.Household do
   # Every write on the shelf, read from its files (repo first): each
   # thread's trunk, each reply by a member, each document; who, when,
   # what it targets (the thread, or the document's path), and a vote.
-  def writes(dir) do
+  def writes(view) do
     threads =
-      for id <- thread_ids(dir),
+      for id <- thread_ids(view),
           thread = "threads/" <> id,
-          {:ok, t} <- [load_thread(dir, thread)],
+          {:ok, t} <- [load_thread(view, thread)],
           w <- thread_writes(thread, t),
           do: w
 
     documents =
-      for d <- documents(dir),
+      for d <- documents(view),
           at = instant(d.posted_at),
           at != nil,
           do: %{
@@ -1143,36 +1161,26 @@ defmodule Oneiroi.Seshat.Household do
   @doc false
   # `BEATS.md` rendered at the root (seshat#71), committed by the platform
   # when it changed.
-  # sobelow_skip ["Traversal.FileModule"]
   def write_beats(household_id, body, message) do
-    locked(household_id, fn ->
-      with {:ok, dir} <- SimaQian.household_repository_dir(household_id),
-           do: beats_written(household_id, Path.join(dir, @beats), body, message)
+    locked(household_id, fn view ->
+      if file(view, @beats) == body,
+        do: {:ok, :unchanged},
+        else:
+          commit(view, [{:put, @beats, body, Map.get(view.files, @beats)}], message, @platform)
     end)
-  end
-
-  # sobelow_skip ["Traversal.FileModule"]
-  defp beats_written(household_id, full, body, message) do
-    if File.read(full) == {:ok, body} do
-      {:ok, :unchanged}
-    else
-      File.write!(full, body)
-      commit(household_id, [@beats], message, @platform)
-    end
   end
 
   # ---- files ----
 
-  defp thread_ids(dir) do
-    case File.ls(Path.join(dir, "threads")) do
-      {:ok, names} -> Enum.filter(names, &File.regular?(Path.join([dir, "threads", &1, @trunk])))
-      {:error, _} -> []
-    end
+  defp thread_ids(view) do
+    for path <- Map.keys(view.files),
+        [_, id] <- [Regex.run(~r{\Athreads/([^/]+)/trunk\.md\z}, path)],
+        do: id
   end
 
-  defp thread_summary(dir, id, ballots) do
+  defp thread_summary(view, id, ballots) do
     thread = "threads/" <> id
-    {:ok, t} = load_thread(dir, thread)
+    {:ok, t} = load_thread(view, thread)
     last = List.last(t.replies)
     ballot = ballots[thread]
 
@@ -1191,18 +1199,14 @@ defmodule Oneiroi.Seshat.Household do
 
   defp ids(t), do: [t.trunk.meta["by_id"] | Enum.map(t.replies, & &1.meta["by_id"])]
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp documents(dir) do
+  defp documents(view) do
     for kind <- Kinds.household(),
         not Kinds.container?(kind),
-        name <-
-          (case File.ls(Path.join(dir, kind.folder)) do
-             {:ok, names} -> Enum.sort(names)
-             {:error, _} -> []
-           end),
+        path <- Repos.under(view.files, kind.folder),
+        name = Path.basename(path),
+        Path.dirname(path) == kind.folder,
         name != Kinds.descriptor_name() do
-      path = Path.join(kind.folder, name)
-      {meta, _} = path |> then(&File.read!(Path.join(dir, &1))) |> frontmatter()
+      {meta, _} = view |> file(path) |> to_string() |> frontmatter()
 
       %{
         kind: kind.kind,
@@ -1215,13 +1219,12 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp load_thread(dir, thread) do
-    trunk = Path.join([dir, thread, @trunk])
+  defp load_thread(view, thread) do
+    trunk = Path.join(thread, @trunk)
 
-    if File.regular?(trunk) do
-      replies = replies(dir, thread)
-      {meta, body} = trunk |> File.read!() |> frontmatter()
+    if has?(view, trunk) do
+      replies = replies(view, thread)
+      {meta, body} = view |> file(trunk) |> to_string() |> frontmatter()
 
       {:ok,
        %{trunk: %{path: Path.join(thread, @trunk), meta: meta, body: body}, replies: replies}}
@@ -1230,20 +1233,11 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp replies(dir, thread) do
-    replies_dir = Path.join([dir, thread, "replies"])
-
-    case File.ls(replies_dir) do
-      {:ok, names} -> names |> Enum.sort() |> Enum.map(&reply_file(replies_dir, thread, &1))
-      {:error, _} -> []
+  defp replies(view, thread) do
+    for path <- Repos.under(view.files, Path.join(thread, "replies")) do
+      {meta, body} = view |> file(path) |> to_string() |> frontmatter()
+      %{path: path, meta: meta, body: body}
     end
-  end
-
-  # sobelow_skip ["Traversal.FileModule"]
-  defp reply_file(replies_dir, thread, name) do
-    {meta, body} = replies_dir |> Path.join(name) |> File.read!() |> frontmatter()
-    %{path: Path.join([thread, "replies", name]), meta: meta, body: body}
   end
 
   defp thread_text(thread, t, ballot) do
@@ -1276,21 +1270,22 @@ defmodule Oneiroi.Seshat.Household do
   defp votes_cast(1), do: "1 vote cast"
   defp votes_cast(n), do: "#{n} votes cast"
 
-  defp next_reply(dir, thread) do
-    case File.ls(Path.join([dir, thread, "replies"])) do
-      {:ok, names} ->
-        names
-        |> Enum.map(&(&1 |> String.split("-", parts: 2) |> hd() |> Integer.parse()))
-        |> Enum.map(fn
-          {n, ""} -> n
-          _ -> 0
-        end)
-        |> Enum.max(fn -> 0 end)
-        |> Kernel.+(1)
-
-      {:error, _} ->
-        1
-    end
+  defp next_reply(view, thread) do
+    view.files
+    |> Repos.under(Path.join(thread, "replies"))
+    |> Enum.map(
+      &(&1
+        |> Path.basename()
+        |> String.split("-", parts: 2)
+        |> hd()
+        |> Integer.parse())
+    )
+    |> Enum.map(fn
+      {n, ""} -> n
+      _ -> 0
+    end)
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
   end
 
   defp reply_path(thread, number, name),
@@ -1333,7 +1328,7 @@ defmodule Oneiroi.Seshat.Household do
          path: to_string(name)
        )}
 
-  defp fresh_id(dir, title) do
+  defp fresh_id(view, title) do
     base = "#{Date.to_iso8601(DateTime.to_date(Clock.now()))}-#{slug(title)}"
 
     Stream.iterate(1, &(&1 + 1))
@@ -1341,7 +1336,7 @@ defmodule Oneiroi.Seshat.Household do
       1 -> base
       n -> "#{base}-#{n}"
     end)
-    |> Enum.find(&(not File.exists?(Path.join([dir, "threads", &1]))))
+    |> Enum.find(&(Repos.under(view.files, "threads/" <> &1) == []))
   end
 
   defp slug(text) do
@@ -1355,15 +1350,6 @@ defmodule Oneiroi.Seshat.Household do
       "" -> "post"
       s -> s
     end
-  end
-
-  # Written once (seshat#59): `:exclusive` refuses a path that exists, so
-  # two writers can never land on one file.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp write_new!(dir, path, content) do
-    full = Path.join(dir, path)
-    File.mkdir_p!(Path.dirname(full))
-    File.write!(full, content, [:exclusive])
   end
 
   defp render(meta, body) do
@@ -1391,14 +1377,20 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp commit(_household_id, [], _message, _by), do: {:ok, :nothing}
+  # One commit under the writer's name (sima-qian#52), every file created
+  # where it was absent (seshat#59: written once, so two writers never
+  # land on one file) or put where it was as read (sima-qian#57).
+  defp commit(view, changes, message, by), do: Repos.write(view.repo, changes, message, by)
 
-  defp commit(household_id, paths, message, by),
-    do: SimaQian.household_commit(household_id, paths, message, by)
-
-  # One household's git index takes one write at a time: the files never
-  # meet (each is new), but a commit stages through one index.
-  defp locked(household_id, fun), do: :global.trans({{__MODULE__, household_id}, self()}, fun)
+  # The gate and the write it allows are one step (seshat#67): two writes
+  # cannot both pass on one count. The repository itself is ordered by
+  # its server; this orders the household's rules. Each step reads the
+  # house fresh, so a number or a name it picks is the next one.
+  defp locked(household_id, fun) do
+    :global.trans({{__MODULE__, household_id}, self()}, fn ->
+      with {:ok, view} <- view(household_id), do: fun.(view)
+    end)
+  end
 
   defp titled(nil),
     do: {:error, Error.new(:seshat_household_invalid, :seshat_household_title_missing)}
