@@ -306,9 +306,9 @@ defmodule Oneiroi.Gaia do
       {:gaia_beats_invalid,
        "the beats are always on (gaia#33): a ballot changes their shape within bounds, never takes them away; a wake profile is every_beat, on_turn or self, and a witness's is self; a resident who is never woken does not register; a turn ends completed, declined, failed or timed_out",
        remedy:
-         "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12, post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
+         "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12 or \"many\", post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
       {:gaia_beat_closed,
-       "a registration is for one beat to come, or for the beat running only while its sign-up is open, or after it when she has not gone in it, nobody registered for it waits for a first turn and its cap has room (gaia#35, #39)",
+       "a registration is for one beat to come, or for the beat running only while its sign-up is open, or after it while she is under her share in it and a slot is left once every registrant owed a first turn has hers (gaia#35, #39, #42)",
        remedy: "register for the next beat, or a later one by its top"},
       {:gaia_turn_open, "a household turn is open; one runs at a time",
        remedy: "let it end; the next fires as it does"},

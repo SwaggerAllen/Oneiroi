@@ -3841,7 +3841,7 @@ defmodule Oneiroi.Brain.Tools do
       end)
 
     """
-    Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{s.share} each before anyone repeats, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
+    Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{share_words(s.share)}, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
     The beat now began #{local_stamp(b.beat.top)}; sign-up closes #{local_stamp(b.beat.signup_closes)}; it ends #{local_stamp(b.beat.ends)}. #{b.beat.turns_fired} of #{s.cap} turns fired. #{open}
     The queue of the beat now:
     #{queue}
@@ -4915,4 +4915,12 @@ defmodule Oneiroi.Brain.Tools do
       "\n"
     )
   end
+
+  # How many turns a member takes in a beat (gaia#35, #42).
+  defp share_words(1), do: "one each"
+
+  defp share_words("many"),
+    do: "as many as the beat holds, everyone once before anyone repeats, never twice in a row"
+
+  defp share_words(n), do: "#{n} each, everyone once before anyone repeats, never twice in a row"
 end

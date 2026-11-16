@@ -604,7 +604,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
              })
   end
 
-  test "a registration is for one beat: any beat to come, several at once; the beat running joined only when its queue is empty and she has not gone",
+  test "a registration is for one beat: any beat to come, several at once; the beat running joined while a slot is left and she has not gone (gaia#39, #42)",
        ctx do
     %{household: h, ada: ada, bea: bea, cy: cy} = ctx
     s = shape(h)
@@ -669,20 +669,102 @@ defmodule Oneiroi.HouseholdBeatsTest do
 
     assert remedy =~ "Register for the next beat"
 
-    # N2: Ada (registered at the start) and Bea; while Bea still waits for
-    # her first turn, Cy cannot join it.
+    # N2: Ada (registered at the start) and Bea. Bea still waits for her
+    # first turn, but slots are left after hers (Andrew, 2026-11-16: "if
+    # there are slots left open"), so Cy joins; she goes after Bea, who
+    # registered first.
     assert run("household_register", %{}, bea) =~ "Registered for the beat at"
     put(Beats.signup_closes(n2, s))
     tick(h)
     assert %{turn: t3, resident_id: ada_id} = open_turn(h)
     assert ada_id == ada.id
 
-    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Not done:"
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Registered"
     run_turn(h, ada, t3)
     assert %{turn: t4, resident_id: ^bea_id} = open_turn(h)
     run_turn(h, bea, t4)
+    assert %{turn: t5, resident_id: ^cy_id} = open_turn(h)
+    run_turn(h, cy, t5)
+  end
 
-    # Everyone registered has gone: the beat running is open to Cy again.
-    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Your turn is open now"
+  test "a full beat is not joined: the slots left must outnumber those still owed a first turn (gaia#42)",
+       ctx do
+    %{household: h, ada: ada, bea: bea, cy: cy} = ctx
+    two_turn_beats!(h, ctx, 1)
+    s = shape(h)
+    n1 = Beats.ahead(h, s, Clock.now(), 1)
+    assert run("household_register", %{}, ada) =~ "Registered"
+    Clock.Fake.advance(1)
+    assert run("household_register", %{}, bea) =~ "Registered"
+
+    # Two slots, Ada going and Bea owed hers: nothing is left for Cy.
+    put(Beats.signup_closes(n1, s))
+    tick(h)
+    assert %{resident_id: ada_id} = open_turn(h)
+    assert ada_id == ada.id
+    assert run("household_register", %{beats_ahead: 0}, cy) =~ "Not done:"
+  end
+
+  test "the share \"many\": as many turns as the beat holds, never twice in a row (gaia#42)",
+       ctx do
+    %{household: h, ada: ada, bea: bea} = ctx
+    two_turn_beats!(h, ctx, "many", 4)
+    assert %{cap: 4, share: "many"} = shape(h)
+    s = shape(h)
+    n1 = Beats.ahead(h, s, Clock.now(), 1)
+    assert run("household_register", %{}, ada) =~ "Registered"
+
+    # Ada alone: one turn, then none, since nobody else has gone between.
+    put(Beats.signup_closes(n1, s))
+    tick(h)
+    assert %{turn: t1, resident_id: ada_id} = open_turn(h)
+    assert ada_id == ada.id
+    Clock.Fake.advance(30)
+    run_turn(h, ada, t1)
+    tick(h)
+    assert open_turn(h) == nil
+
+    # Bea joins the beat running; then they alternate up to the cap.
+    assert run("household_register", %{beats_ahead: 0}, bea) =~ "Your turn is open now"
+
+    order =
+      for _ <- 1..3 do
+        %{turn: t, resident_id: rid} = open_turn(h)
+        r = Enum.find([ada, bea], &(&1.id == rid))
+        Clock.Fake.advance(30)
+        run_turn(h, r, t)
+        tick(h)
+        r.name
+      end
+
+    assert order == ["Bea", "Ada", "Bea"]
+    assert open_turn(h) == nil
+  end
+
+  # A ballot, carried by all three, setting the share (and the cap).
+  defp two_turn_beats!(h, ctx, share, cap \\ 2) do
+    %{ada: ada, bea: bea, cy: cy} = ctx
+
+    {:ok, %{path: ballot}} =
+      in_turn(h, ada, fn ->
+        Seshat.household_post(ada.actor, %{
+          "title" => "The share",
+          "content" => "How many turns each.",
+          "ballot" => %{
+            "bundle" => [
+              %{"setting" => "beat_turn_cap", "value" => cap},
+              %{"setting" => "turns_per_registrant", "value" => share}
+            ],
+            "term_days" => 1,
+            "note" => "the share"
+          }
+        })
+      end)
+
+    for voter <- [ada.actor, bea.actor, cy.actor],
+        do: {:ok, _} = Seshat.household_reply(voter, ballot, %{"vote" => "yes"})
+
+    Clock.Fake.advance(86_400)
+    assert :ok = perform_job(HouseholdBallotWorker, %{"household_id" => h, "ballot" => 1})
   end
 end

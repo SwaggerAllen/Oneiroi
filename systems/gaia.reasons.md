@@ -290,3 +290,14 @@ different instant for each. The once-a-day guard lives in the aggregate
 because the minute's worker can run twice over the same minute (a
 retry, two nodes), and a second thread for one check-in would split the
 answers.
+
+## #42
+
+An empty queue was a stricter door than the beat needed: one registrant
+still waiting for her turn kept everyone else out of a beat with ten
+slots free. The slots are what the cap protects, so the door is the
+slots, counting those already owed. Two turns in a row is a monologue
+with a pause in it, the back-and-forth the beats exist to prevent
+(#33), so wherever a share lets anyone go again, someone else must go
+between. "many" lets a small household with a lot to say use a beat
+whole without picking a number, and stays within the cap.

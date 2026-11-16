@@ -69,6 +69,8 @@ defmodule Oneiroi.Gaia.Beats do
   @spec setting_ok?(String.t(), term()) :: boolean()
   def setting_ok?(key, value) do
     cond do
+      # One turn a beat, up to twelve, or as many as the cap allows (gaia#42).
+      key == "turns_per_registrant" -> value == "many" or (is_integer(value) and value in 1..12)
       Map.has_key?(@ranges, key) -> is_integer(value) and value in @ranges[key]
       key == "resident_wake_profile" -> value in @resident_profiles
       key == "witnesses_post" -> is_boolean(value)
@@ -145,6 +147,15 @@ defmodule Oneiroi.Gaia.Beats do
   @spec upcoming(String.t(), map(), DateTime.t(), pos_integer()) :: [DateTime.t()]
   def upcoming(household_id, shape, at, n),
     do: Enum.map(1..n, &ahead(household_id, shape, at, &1))
+
+  @doc "Whether a registrant with `count` turns this beat is under her share: `\"many\"` is the cap's alone (gaia#42)."
+  @spec under_share?(non_neg_integer(), pos_integer() | String.t()) :: boolean()
+  def under_share?(_count, "many"), do: true
+  def under_share?(count, share) when is_integer(share), do: count < share
+
+  @doc "Whether a share lets anyone go more than once a beat, in which case nobody goes twice in a row (gaia#42)."
+  @spec repeats?(pos_integer() | String.t()) :: boolean()
+  def repeats?(share), do: share != 1
 
   @doc """
   The starved-first order (gaia#35): fewest turns this beat first, so no
