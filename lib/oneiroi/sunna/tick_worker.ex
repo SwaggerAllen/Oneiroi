@@ -41,9 +41,14 @@ defmodule Oneiroi.Sunna.TickWorker do
   @doc "One resident's tick; public so a test can drive one minute by hand."
   def tick(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
-      {:ok, %{state: "active"}} -> tick_active(resident_id)
+      # A resident formed through the creation flow schedules nothing
+      # until their first agreement is in force (agathos-daimon#46).
+      {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] ->
+        tick_active(resident_id)
+
       # Suspended residents schedule nothing (spec §6.7).
-      _other -> :skipped
+      _other ->
+        :skipped
     end
   end
 

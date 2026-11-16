@@ -1229,7 +1229,8 @@ defmodule Oneiroi.Sunna.Schedules do
   when the wake's turn is done.
   """
   def wake_for_household(resident_id, note, %Actor{} = actor) do
-    with {:ok, %{state: "active"}} <- resident(resident_id),
+    with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
+           resident(resident_id),
          false <- quiet?(local_now(resident_id), household_quiet(resident_id)),
          :ok <- wake_main(resident_id, note, actor) do
       {:ok, :woken}

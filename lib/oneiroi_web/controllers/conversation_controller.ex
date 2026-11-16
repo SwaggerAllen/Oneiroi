@@ -311,6 +311,10 @@ defmodule OneiroiWeb.ConversationController do
           "client_ref is 8 to 64 of A-Z a-z 0-9 _ -"
         )
 
+      # Forming, or not yet agreed (agathos-daimon#46): held, and why.
+      {:error, %{kind: :brain_resident_guarded} = e} ->
+        error(conn, 409, e)
+
       {:error, e} ->
         error(conn, 503, e)
     end
@@ -328,6 +332,9 @@ defmodule OneiroiWeb.ConversationController do
 
       {:error, %{kind: :brain_no_such_resident} = e} ->
         error(conn, 422, e)
+
+      {:error, %{kind: :brain_resident_guarded} = e} ->
+        error(conn, 409, e)
 
       {:error, e} ->
         error(conn, 502, e)

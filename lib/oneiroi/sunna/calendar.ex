@@ -189,7 +189,9 @@ defmodule Oneiroi.Sunna.Calendar do
 
   defp active?(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
-      {:ok, %{state: "active"}} -> true
+      # A resident formed through the creation flow is the witness's
+      # alone until their first agreement is in force (agathos-daimon#46).
+      {:ok, %{state: "active", admission: admission}} -> admission in ["open", nil]
       _other -> false
     end
   end

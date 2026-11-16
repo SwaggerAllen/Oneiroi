@@ -911,3 +911,9 @@ pass writes as she would, correctable from the main thread.
 Reading is the act that earns an interaction, so it is a tool call the
 record keeps rather than a claim; both tools stay open in the day
 because a revision he asks for is best answered while it is fresh.
+
+## #102
+
+One door for every wake means one place to hold them, so no new wake
+path can forget the guard; the chat's turns are checked at the brain
+rather than the web so the socket and the HTTP route cannot disagree.

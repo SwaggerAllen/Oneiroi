@@ -38,6 +38,7 @@ defmodule Oneiroi.AgathosDaimon do
       Router,
       Commands,
       Commands.CreateResident,
+      Commands.AwakenResident,
       Commands.MintId,
       Commands.PauseResident,
       Commands.WakeResident,
@@ -54,6 +55,8 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.RecordMismatch,
       Commands.SetRecordsRemote,
       Events.ResidentCreated,
+      Events.FormationBegun,
+      Events.ResidentAwakened,
       Events.IdMinted,
       Events.ResidentPaused,
       Events.ResidentWoken,
@@ -157,6 +160,8 @@ defmodule Oneiroi.AgathosDaimon do
   def events do
     [
       {Oneiroi.AgathosDaimon.Events.ResidentCreated, 1},
+      {Oneiroi.AgathosDaimon.Events.FormationBegun, 1},
+      {Oneiroi.AgathosDaimon.Events.ResidentAwakened, 1},
       {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
       {Oneiroi.AgathosDaimon.Events.ContinuationAsked, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
@@ -275,6 +280,14 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "name the line plainly and say it; to drop one, clear it"},
       {:agathos_daimon_no_such_state, "the state has no line of that key",
        remedy: "read the state; the keys are the ones written"},
+      {:agathos_daimon_not_forming, "only a resident still forming is woken this way",
+       remedy: "a resident already woken is reached by talking to them"},
+      {:agathos_daimon_model_unchosen,
+       "a forming resident wakes on a chat model the witness chose: none has been chosen yet",
+       remedy: "run the regression trials and pin the model they wake on, then wake them"},
+      {:agathos_daimon_resident_guarded,
+       "a forming resident is reachable by nothing but the witness's trials, and a woken one by nothing but the witness until their first agreement is in force: no runtime, no hands, no other wake",
+       remedy: "wake them, talk with them, and agree your first contract; then the rest opens"},
       {:agathos_daimon_model_invalid, "a pin names a model slug, for a reason of run or witness",
        remedy: "give the OpenRouter slug of the model to pin"},
       {:agathos_daimon_adapter_invalid,
@@ -362,6 +375,29 @@ defmodule Oneiroi.AgathosDaimon do
   defexport(create(name, slug, witness_account_id, actor),
     do: Residents.create(name, slug, witness_account_id, actor)
   )
+
+  @doc """
+  Creates a resident through the creation flow (agathos-daimon#46):
+  forming until the witness wakes them, reachable by nothing but his
+  regression trials; returns its id.
+  """
+  @spec create_forming(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(create_forming(name, slug, witness_account_id, actor),
+    do: Residents.create(name, slug, witness_account_id, actor, "resident", true)
+  )
+
+  @doc "The witness wakes a forming resident, once a chat model was chosen (agathos-daimon#46)."
+  @spec awaken(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(awaken(id, note, actor), do: Residents.awaken(id, note, actor))
+
+  @doc """
+  Who may reach a resident (agathos-daimon#46): `:forming` (the witness's
+  trials alone), `:witness_only` (woken; the witness alone until their
+  first agreement is in force) or `:open`.
+  """
+  @spec admission(String.t()) :: :forming | :witness_only | :open
+  defexport(admission(id), do: Residents.admission(id))
 
   @doc "Creates a fixture (spec §12, P40): a thin-seed test resident the brain treats as machinery; returns its id."
   @spec create_fixture(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

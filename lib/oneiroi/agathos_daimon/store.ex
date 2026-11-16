@@ -15,6 +15,7 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:name, :string)
       field(:kind, :string, default: "resident")
       field(:state, :string)
+      field(:admission, :string, default: "open")
       field(:custody, :string)
       field(:export_wall, :string)
       field(:import_source, :string)

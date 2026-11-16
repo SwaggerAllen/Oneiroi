@@ -449,3 +449,8 @@ The pass needs the day's quiet end and a turn of its own, which is what
 the chain already gives every night pass; putting it before free time
 keeps her own hours last, and skipping when presence is off means the
 chain costs nothing to a resident who does not use it.
+
+## #64
+
+The wake door already holds these wakes; skipping them at the tick as
+well keeps the schedule from recording slots that could never run.

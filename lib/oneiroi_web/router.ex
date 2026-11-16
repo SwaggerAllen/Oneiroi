@@ -101,6 +101,7 @@ defmodule OneiroiWeb.Router do
       post("/tokens", TokenController, :create)
       delete("/tokens/:hash", TokenController, :delete)
       resources("/residents", ResidentController, only: [:index, :create, :show])
+      post("/residents/:id/awaken", ResidentController, :awaken)
       post("/residents/import", ResidentController, :import_resident)
       post("/residents/:id/imports/chatgpt", ImportController, :chatgpt)
       put("/residents/:id/remote", ResidentController, :remote)

@@ -41,6 +41,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     adapters: %{},
     timezone: "Etc/UTC",
     contract: %{version: 0, in_force: nil, open: nil},
+    # Formation (agathos-daimon#46): whether the creation flow made them,
+    # and whether the witness has chosen a chat model since.
+    formed: false,
+    model_chosen: false,
     custody_proposal: nil,
     # The letters to the next self (spec §12, P41): number => :undelivered | :delivered.
     letters: %{},
@@ -95,7 +99,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
     case c.kind || "resident" do
       "resident" ->
-        created
+        if c.forming == true,
+          do: [created, %Events.FormationBegun{actor: c.actor, at: c.at, id: c.id}],
+          else: created
 
       "fixture" ->
         [created, %Events.FixtureDeclared{actor: c.actor, at: c.at, id: c.id}]
@@ -659,6 +665,33 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # A pin to the model already pinned is no change; a change after first
   # contact is told to the resident on its next turn, so `model_told`
   # drops until then.
+  # Waking a forming resident (agathos-daimon#46): the witness's alone,
+  # once he has chosen the model they wake on.
+  def execute(%__MODULE__{state: :forming} = r, %Commands.AwakenResident{} = c) do
+    cond do
+      actor_kind(c.actor) != "witness" ->
+        {:error, Error.new(:agathos_daimon_not_witnessed, :agathos_daimon_resident_awaken_party)}
+
+      not r.model_chosen ->
+        {:error,
+         Error.new(:agathos_daimon_model_unchosen, :agathos_daimon_resident_awaken_unchosen)}
+
+      true ->
+        %Events.ResidentAwakened{
+          actor: c.actor,
+          at: c.at,
+          note: c.note,
+          id: c.id,
+          model: r.chat_model
+        }
+    end
+  end
+
+  def execute(%__MODULE__{}, %Commands.AwakenResident{}),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_not_forming, :agathos_daimon_resident_awaken_not_forming)}
+
   def execute(%__MODULE__{} = r, %Commands.PinModel{} = c) do
     cond do
       not (is_binary(c.model) and String.trim(c.model) != "") ->
@@ -673,7 +706,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
            reason: c.reason
          )}
 
-      r.chat_model == c.model ->
+      # A choice made in formation is recorded even when it keeps the
+      # default: choosing is the point (agathos-daimon#46).
+      r.chat_model == c.model and not (r.state == :forming and not r.model_chosen) ->
         []
 
       true ->
@@ -693,8 +728,25 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %Events.ModelChangeTold{actor: c.actor, at: c.at, id: c.id, model: model}
 
   # Registering again rotates the token: the old hash stops matching.
-  def execute(%__MODULE__{}, %Commands.RegisterAdapter{} = c) do
+  def execute(%__MODULE__{} = r, %Commands.RegisterAdapter{} = c) do
     cond do
+      # Formation (agathos-daimon#46): no runtime reaches a forming
+      # resident, and no hands until the first agreement is in force.
+      r.state == :forming ->
+        {:error,
+         Error.new(
+           :agathos_daimon_resident_guarded,
+           :agathos_daimon_resident_register_adapter_forming
+         )}
+
+      r.formed and r.contract.in_force == nil and c.role in ~w(reader worker) ->
+        {:error,
+         Error.new(
+           :agathos_daimon_resident_guarded,
+           :agathos_daimon_resident_register_adapter_no_contract,
+           role: c.role
+         )}
+
       not (is_binary(c.adapter) and Regex.match?(@adapter_name, c.adapter)) ->
         {:error,
          Error.new(
@@ -947,6 +999,9 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def apply(%__MODULE__{} = r, %Events.FixtureDeclared{}), do: %{r | kind: "fixture"}
+
+  def apply(%__MODULE__{} = r, %Events.FormationBegun{}), do: %{r | state: :forming, formed: true}
+  def apply(%__MODULE__{} = r, %Events.ResidentAwakened{}), do: %{r | state: :active}
   def apply(%__MODULE__{} = r, %Events.ContinuationAsked{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.IdMinted{} = e),
@@ -1076,7 +1131,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   end
 
   def apply(%__MODULE__{} = r, %Events.ModelPinChanged{} = e),
-    do: %{r | chat_model: e.model, model_told: not first_contact?(r)}
+    do: %{
+      r
+      | chat_model: e.model,
+        model_told: not first_contact?(r),
+        model_chosen: r.model_chosen or r.state == :forming
+    }
 
   def apply(%__MODULE__{} = r, %Events.ModelChangeTold{}), do: %{r | model_told: true}
 

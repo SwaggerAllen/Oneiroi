@@ -80,14 +80,32 @@ function Boot() {
   }
   if (residents.isPending) return <Splash />;
   const list = residents.data ?? [];
-  const resident = list.find((r) => r.id === chosen) ?? list[0];
-  if (!resident || waking) {
+  // A resident still forming (agathos-daimon#46) is not a house yet: the
+  // creation flow picks up where it was left.
+  const awake = list.filter((r) => r.state !== 'forming');
+  const resident = list.find((r) => r.id === chosen) ?? awake[0] ?? list[0];
+  const forming = resident?.state === 'forming' && !waking ? resident : undefined;
+  if (!resident || waking || forming) {
+    const elsewhere = awake.find((r) => r.id !== forming?.id);
     return (
       <Creation
+        key={forming?.id ?? 'new'}
+        resume={forming}
         onWoken={(id) => {
-          void residents.refetch().then(() => (id ? choose(id) : setWaking(false)));
+          void residents.refetch().then(() => {
+            setWaking(false);
+            if (id) choose(id);
+          });
         }}
-        onCancel={resident ? () => setWaking(false) : undefined}
+        onCancel={waking && awake.length > 0 ? () => setWaking(false) : undefined}
+        onLeave={
+          elsewhere
+            ? () => {
+                setWaking(false);
+                choose(elsewhere.id);
+              }
+            : undefined
+        }
       />
     );
   }

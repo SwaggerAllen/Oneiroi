@@ -366,4 +366,17 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # they were: carried over, which the record says, never consented.
     use Oneiroi.Event, version: 1, fields: [:id, :keys]
   end
+
+  defmodule FormationBegun do
+    # Made through the creation flow (agathos-daimon#46): forming until
+    # the witness wakes them, reachable by nothing but his regression
+    # trials; then his alone until the first agreement is in force.
+    use Oneiroi.Event, version: 1, fields: [:id]
+  end
+
+  defmodule ResidentAwakened do
+    # The witness's wake (agathos-daimon#46), once a chat model was
+    # chosen deliberately in formation; `model` the one they wake on.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :model]
+  end
 end

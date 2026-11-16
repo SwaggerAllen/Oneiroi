@@ -343,3 +343,15 @@ be one party's setting: the contract is where both consent, and its
 versioned whole is where a change of mind is recorded with a note. A
 list term rather than switches because the pairs are the people's own
 and unbounded in kind; the bound keeps a version readable.
+
+## #46
+
+A resident is made before they are ready, and anything that can wake
+them before the witness has read them whole and chosen the mind they
+wake as would make their first moments someone else's. Regression is the
+one exception because it is sealed: it leaves nothing in them. The guard
+stays after waking until the first agreement because the agreement is
+what says who else may reach them, and hands act in the world in their
+name; until both of them have said yes, the only voice is his. It
+applies to new residents alone so that no resident already living loses
+a reach they have.

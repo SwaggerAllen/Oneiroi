@@ -18,6 +18,9 @@ export interface Resident {
   slug: string;
   name: string;
   state: string;
+  // Who may reach them (agathos-daimon#46): forming until woken, then the
+  // witness's alone until their first agreement is in force.
+  admission?: 'forming' | 'witness_only' | 'open';
   first_contact_at: string | null;
   formation_until: string | null;
   chat_model: string | null;

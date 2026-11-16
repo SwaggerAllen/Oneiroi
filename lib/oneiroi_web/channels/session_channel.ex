@@ -34,8 +34,14 @@ defmodule OneiroiWeb.SessionChannel do
     ref = params["client_ref"] || Oneiroi.Kumbukumbu.turn_ref()
 
     case Oneiroi.Brain.submit(resident_id, key, text, actor, ref) do
-      {:ok, taken} -> {:reply, {:ok, taken}, socket}
-      {:error, _e} -> {:reply, {:error, %{reason: "the session could not take it"}}, socket}
+      {:ok, taken} ->
+        {:reply, {:ok, taken}, socket}
+
+      {:error, %{kind: :brain_resident_guarded, meaning: meaning}} ->
+        {:reply, {:error, %{reason: meaning}}, socket}
+
+      {:error, _e} ->
+        {:reply, {:error, %{reason: "the session could not take it"}}, socket}
     end
   end
 
