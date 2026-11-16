@@ -45,7 +45,9 @@ set -uo pipefail
 # once installed; apart only for the kit's test.
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 READER="${ONEIROI_READER_DIR:-$KIT}"
-CONFIG="${ONEIROI_READER_CONFIG:-$HOME/.config/oneiroi}"
+# Its own settings: named by the job, else by the install (one reader
+# per resident, each with its own), else the first install's place.
+CONFIG="${ONEIROI_READER_CONFIG:-$(cat "$READER/.config-dir" 2>/dev/null || echo "$HOME/.config/oneiroi")}"
 . "$KIT/lib/common.sh"
 
 # How many times a reply is tried before it is left for the witness.

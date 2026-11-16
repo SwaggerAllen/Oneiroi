@@ -147,6 +147,19 @@ signed in once with `reader.sh login <its name>`. This needs the
 reader reinstalled (`install.sh` again) after the server has routes; an
 older reader keeps working, without them.
 
+**A second resident on the same Mac (seshat#78).** Each resident has a
+reader of her own, so neither waits on the other's lock or reads through
+the other's browser. Issue the token on her Connections, save it under
+her slug, and install with `--name`:
+```bash
+mkdir -p ~/.config/oneiroi/readers/scarlett && umask 077 && pbpaste | jq -R '{token: .}' > ~/.config/oneiroi/readers/scarlett/reader.json
+sdk/reader/install.sh --name scarlett --url https://oneiroi.onrender.com --resident <her id> \
+  --substack <her handle> --email <her address>
+~/.oneiroi/readers/scarlett/bin/reader.sh login
+```
+then load the two `io.oneiroi.reader.scarlett.*` jobs it prints. An
+install without `--name` is the first reader's, where it always was.
+
 A reinstall keeps an allowlist you have edited. Logs are in
 `~/.oneiroi/reader/log/`. `reader.sh send`,
 `reader.sh scrape` and `reader.sh research` run a job by hand.

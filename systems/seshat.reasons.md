@@ -653,3 +653,12 @@ rule that no model reads a stranger's file. Only pages with no words are
 OCR'd, because a text layer is what the author's tools wrote and is
 better than a guess at it. The copy says which pages were machine-read
 so a quotation from one is checked before it is trusted.
+
+## #78
+
+The lock exists because one Chrome profile can serve one run at a time;
+a second resident on the same lock would wait behind every one of the
+first's runs, and on the same profile would read through the first's
+sign-ins. Named by slug because the slug is already the resident's
+platform-wide name; the unnamed default stays where it was so the
+install that works today is not moved.
