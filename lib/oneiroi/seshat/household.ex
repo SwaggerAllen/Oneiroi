@@ -572,14 +572,19 @@ defmodule Oneiroi.Seshat.Household do
              write_reply(actor, household_id, dir, {thread, t}, by, reply)
            end) do
       poke(household_id, thread, t, written, by, actor)
+      _ = wake_house_on_witness(household_id, thread, t, written, actor)
       {:ok, Map.merge(written, %{thread: thread, vote: vote})}
     end
   end
 
   defp write_reply(actor, household_id, dir, {thread, t}, by, {text, vote, in_reply_to}) do
     # A vote is governance, never a post (seshat#67, #68): it waits on no
-    # turn and spends no quota. Anything else goes through the beats.
-    with :ok <- if(vote, do: :ok, else: gate(actor, household_id, dir, thread, :post)) do
+    # turn and spends no quota. A resident's answer to a house check-in is
+    # the check-in's, not the beats' (seshat#75): her first reply there
+    # waits on no turn either. Anything else goes through the beats.
+    exempt? = vote != nil or checkin_answer?(actor, t)
+
+    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, dir, thread, :post)) do
       append_reply(actor, household_id, dir, {thread, t}, by, {text, vote, in_reply_to})
     end
   end
@@ -655,6 +660,88 @@ defmodule Oneiroi.Seshat.Household do
 
     :ok
   end
+
+  # ---- house check-ins (gaia#41, seshat#75) ----
+
+  @house_wake_worker :"Elixir.Oneiroi.Seshat.HouseholdTurnWorker"
+
+  defp checkin_answer?(%Actor{kind: :resident, id: id}, %{trunk: %{meta: meta}, replies: replies}),
+       do: is_binary(meta["checkin"]) and not Enum.any?(replies, &(&1.meta["by_id"] == id))
+
+  defp checkin_answer?(_actor, _thread), do: false
+
+  @doc """
+  Opens a house check-in's thread for a day (seshat#75): written by the
+  platform under `threads/checkin-<day>-<key>`, its trunk naming the
+  check-in; one a day, so a second call for the day answers the same
+  thread and writes nothing.
+  """
+  def open_checkin(household_id, key, label, day) do
+    with {:ok, dir} <- provision(household_id) do
+      thread = "threads/checkin-#{day}-#{key}"
+      path = Path.join(thread, @trunk)
+
+      if File.regular?(Path.join(dir, path)),
+        do: {:ok, thread},
+        else: write_checkin(household_id, dir, thread, key, label, day)
+    end
+  end
+
+  defp write_checkin(household_id, dir, thread, key, label, day) do
+    path = Path.join(thread, @trunk)
+
+    meta = [
+      {"title", "#{label}, #{day}"},
+      {"by", @platform.name},
+      {"by_kind", "platform"},
+      {"posted_at", iso(Clock.now())},
+      {"checkin", key}
+    ]
+
+    body =
+      "The house checks in: #{label}. Each of you answers here, once, in your own words; " <>
+        "your witness's reply wakes you all, and from there the household's beats hold the talk."
+
+    locked(household_id, fn ->
+      with :ok <- write_new!(dir, path, render(meta, body)),
+           written = descriptor(dir, Kinds.named("thread")) ++ [path],
+           {:ok, _} <-
+             commit(household_id, written, "House check-in: #{label}, #{day}", @platform),
+           do: {:ok, thread}
+    end)
+  end
+
+  @doc "Wakes every resident of the house open to it with a note of their own, each its own job, so all go at once (seshat#75)."
+  def wake_house(household_id, note_for) do
+    for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
+        AgathosDaimon.admission(id) == :open do
+      Jobs.enqueue(@house_wake_worker, %{
+        "household_id" => household_id,
+        "house_wake" => id,
+        "note" => note_for.(id)
+      })
+    end
+  end
+
+  # The witness's reply in a check-in thread wakes the whole house; after
+  # it the beats and the watch hold the talk (the witness, 2026-11-16).
+  defp wake_house_on_witness(
+         household_id,
+         thread,
+         %{trunk: %{meta: %{"checkin" => _}}} = t,
+         written,
+         %Actor{kind: :witness}
+       ) do
+    title = t.trunk.meta["title"]
+
+    wake_house(household_id, fn _id ->
+      "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
+        "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
+        "or watch the thread (household_watch): the beats hold the talk from here."
+    end)
+  end
+
+  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
 
   # ---- the watch (gaia#32, seshat#62) ----
 

@@ -205,4 +205,22 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule MoveFeedback do
     use Oneiroi.Command, fields: [:id, :number, :status, :note]
   end
+
+  # House check-ins (gaia#41, the witness 2026-11-16): the workspace's own
+  # clock, the check-ins it keeps, and each day's firing.
+  defmodule SetHouseholdClock do
+    use Oneiroi.Command, fields: [:id, :zone]
+  end
+
+  defmodule SetHouseCheckin do
+    use Oneiroi.Command, fields: [:id, :key, :label, :time]
+  end
+
+  defmodule RemoveHouseCheckin do
+    use Oneiroi.Command, decision: true, fields: [:id, :key]
+  end
+
+  defmodule RecordHouseCheckinFired do
+    use Oneiroi.Command, fields: [:id, :key, :day, :thread]
+  end
 end

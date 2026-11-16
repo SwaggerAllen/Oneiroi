@@ -143,7 +143,26 @@ defmodule Oneiroi.Gaia.Store do
       field(:terms_until, :utc_datetime_usec)
       field(:terms_source, :string)
       field(:terms_note, :string)
+      # The workspace's own clock (gaia#41).
+      field(:zone, :string, default: "Etc/UTC")
     end
+  end
+
+  defmodule HouseCheckin do
+    @moduledoc "A check-in for the whole house (gaia#41): its label, its time on the household's clock, and the day and thread it last opened."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_house_checkin" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:label, :string)
+      field(:time, :string)
+      field(:last_day, :string)
+      field(:last_thread, :string)
+      field(:last_fired_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
   end
 
   defmodule HouseholdWitness do

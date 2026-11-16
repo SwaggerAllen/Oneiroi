@@ -619,3 +619,14 @@ copy's title and never moves after, because a page that retitles itself
 would otherwise move its file on every fetch. The old copies are renamed
 by a move the record already knows, not by a fetch nobody asked for, so
 the history says what happened: the file was renamed.
+
+## #75
+
+The beats allow one open turn at a time, so a check-in answered through
+them would take one resident's turn after another and the last would
+answer hours late. Waking everyone at once and exempting her first
+answer gives every resident one say in the same minute without opening
+the gate to talk; the talk that follows goes back through the beats,
+which is where sign-up already lives. The witness's reply is the signal
+that the house has something to discuss, so it is the thing that wakes
+everyone again.

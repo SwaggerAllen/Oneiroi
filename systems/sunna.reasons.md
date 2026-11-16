@@ -454,3 +454,13 @@ chain costs nothing to a resident who does not use it.
 
 The wake door already holds these wakes; skipping them at the tick as
 well keeps the schedule from recording slots that could never run.
+
+## #65
+
+The residents carry different responsibilities, so one prompt for the
+house would ask each the wrong question. The words live with the
+resident's rhythm because that is where the witness already sets what
+wakes her and when. Quiet hours were made to keep messages from
+reaching the witness at the wrong hour; a check-in in the shared
+workspace reaches no one but the residents, so holding it would delay
+the work and protect nobody.

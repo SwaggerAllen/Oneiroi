@@ -57,6 +57,11 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
     (`PUT /schedule/quiet-hours`).
   - **Time zone:** every zone the browser knows, and "Use <device
     zone>" when the device is elsewhere (`PUT /timezone`).
+  - **House check-ins** (sunna#65): each of the house's check-ins with
+    its time on the house's clock, and what she is asked to report at
+    it, in your words (`PUT /residents/:id/schedule/house/:key`); empty,
+    the default line. The check-ins themselves are set in Settings →
+    The house.
 
 Every action the current client's ScheduleContainer offers is here
 (`setFreeTime` as move and add, `addFreeTimeOnce`, `addCheckin`,

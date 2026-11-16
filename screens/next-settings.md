@@ -15,7 +15,7 @@ links to.
 
 A section is a full page over the tabs, inside the house shell, at
 `#/settings/<section>`: `ledger`, `kinds`, `connections`,
-`notifications`, `regression`, `work`, `backups`, `presence`.
+`notifications`, `regression`, `work`, `backups`, `presence`, `house`.
 
 - The Settings sheet's row closes the sheet and opens the page.
 - The header and the tab bar stay; the four tabs stay mounted under it,
@@ -176,6 +176,16 @@ it, in the server's own words.
     the list now"; each account with when it was last read, or its mask's
     date and reason, and Mask or Unmask with a one-line reason.
 
+- **The house** (`house`, gaia#41, seshat#75):
+  - the house's clock: its zone, set by name; check-ins keep it, and
+    quiet hours do not hold them;
+  - the house check-ins, each with its label, time and the day it last
+    ran; **Add** (label and time, the key made from the label) and
+    **Remove** with a note;
+  - the latest check-in's thread, whole, and "Reply to the house", which
+    wakes every resident. Each resident's words for a check-in are set
+    on her Rhythm page (screen:next-time).
+
 ## The current client's actions, each covered
 
 | Old screen | Call | Here |
@@ -195,6 +205,7 @@ it, in the server's own words.
 | Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
 | (new) | `holdWork` | Work queue |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
+| (new) | `houseCheckins`, `setHouseClock`, `setHouseCheckin`, `removeHouseCheckin`, `householdRead`, `householdReply` | The house |
 | (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |
 
 Not built:

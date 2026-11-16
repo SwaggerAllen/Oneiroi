@@ -9,7 +9,12 @@ defmodule Oneiroi.Seshat.HouseholdBeatWorker do
   """
   use Oneiroi.Worker, queue: :seshat_household_beats, unique: [period: 30]
 
+  alias Oneiroi.Seshat.HouseCheckins
   alias Oneiroi.Seshat.HouseholdBeats
 
-  def run(_args), do: HouseholdBeats.tick_all()
+  # The house check-ins keep the same minute (seshat#75).
+  def run(_args) do
+    HouseholdBeats.tick_all()
+    HouseCheckins.tick_all()
+  end
 end

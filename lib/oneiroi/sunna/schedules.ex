@@ -51,6 +51,29 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, _} <- dispatch(command), do: {:ok, key}
   end
 
+  @doc "A resident's words for a house check-in (sunna#65), or nil."
+  def house_prompt(resident_id, key) do
+    Scope.resident(resident_id, fn -> Store.house_prompt(key) end)
+  end
+
+  @doc "Every house prompt of a resident, key to words."
+  def house_prompts(resident_id) do
+    resident_id |> Scope.resident(fn -> Store.house_prompts() end) |> Map.new()
+  end
+
+  @doc "The witness sets a resident's words for a house check-in; blank clears."
+  def set_house_prompt(resident_id, key, prompt, %Actor{} = actor) do
+    command = %Commands.SetHousePrompt{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      key: to_string(key),
+      prompt: blank_nil(prompt)
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
   def delete_checkin(resident_id, key, %Actor{} = actor) do
     command = %Commands.DeleteCheckin{actor: actor, at: Clock.now(), id: resident_id, key: key}
     with {:ok, _} <- dispatch(command), do: :ok
@@ -1247,6 +1270,29 @@ defmodule Oneiroi.Sunna.Schedules do
       _not_active ->
         {:error,
          Error.new(:sunna_household_wake_declined, :sunna_household_wake_inactive,
+           resident_id: resident_id
+         )}
+    end
+  end
+
+  @doc """
+  Wakes a resident's Oneiroi chat for a house check-in (sunna#65): the
+  shared workspace's, so her quiet hours, which keep what reaches her
+  witness, do not hold it (the witness, 2026-11-16). Declined only for a
+  resident not active, or not yet open to the house (agathos-daimon#46).
+  """
+  def wake_for_house(resident_id, note, %Actor{} = actor) do
+    with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
+           resident(resident_id),
+         :ok <- wake_main(resident_id, note, actor) do
+      {:ok, :woken}
+    else
+      {:error, _} = failed ->
+        failed
+
+      _not_active ->
+        {:error,
+         Error.new(:sunna_household_wake_declined, :sunna_house_wake_inactive,
            resident_id: resident_id
          )}
     end

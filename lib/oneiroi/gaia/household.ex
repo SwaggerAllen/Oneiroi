@@ -48,7 +48,12 @@ defmodule Oneiroi.Gaia.Household do
     open_turn: nil,
     next_turn: 1,
     beats: %{},
-    closed_through: nil
+    closed_through: nil,
+    # House check-ins (gaia#41): the workspace's clock, its check-ins by
+    # key, and each {key, day} fired.
+    zone: "Etc/UTC",
+    checkins: %{},
+    fired: MapSet.new()
   ]
 
   @plan_limit 60
@@ -296,6 +301,37 @@ defmodule Oneiroi.Gaia.Household do
           resident_id: c.actor.id,
           thread: c.thread,
           until: DateTime.add(c.at, c.hours * 3600, :second)
+        }
+    end
+  end
+
+  # ---- house check-ins (gaia#41): the witness's to keep ----
+
+  def execute(%__MODULE__{} = h, %{actor: actor} = c)
+      when is_struct(c, Commands.SetHouseholdClock) or is_struct(c, Commands.SetHouseCheckin) or
+             is_struct(c, Commands.RemoveHouseCheckin) do
+    case member(h, actor) do
+      {"witness", _} -> house_checkin(h, c)
+      _other -> {:error, Error.new(:gaia_not_a_member, :gaia_household_checkin_not_witness)}
+    end
+  end
+
+  def execute(%__MODULE__{} = h, %Commands.RecordHouseCheckinFired{} = c) do
+    cond do
+      not match?(%{kind: k} when k in [:platform, :job], c.actor) ->
+        {:error, Error.new(:gaia_beats_invalid, :gaia_household_checkin_fired_party)}
+
+      MapSet.member?(h.fired, {c.key, c.day}) ->
+        []
+
+      true ->
+        %Events.HouseCheckinFired{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          key: c.key,
+          day: c.day,
+          thread: c.thread
         }
     end
   end
@@ -690,6 +726,48 @@ defmodule Oneiroi.Gaia.Household do
 
   defp member(_h, _actor), do: nil
 
+  @checkin_key ~r/\A[a-z][a-z0-9-]{0,39}\z/
+  @checkin_time ~r/\A([01]\d|2[0-3]):[0-5]\d\z/
+
+  defp house_checkin(%{zone: zone}, %Commands.SetHouseholdClock{zone: zone}), do: []
+
+  defp house_checkin(_h, %Commands.SetHouseholdClock{} = c),
+    do: %Events.HouseholdClockSet{actor: c.actor, at: c.at, id: c.id, zone: c.zone}
+
+  defp house_checkin(h, %Commands.SetHouseCheckin{} = c) do
+    cond do
+      not (is_binary(c.key) and Regex.match?(@checkin_key, c.key)) or
+        not (is_binary(c.time) and Regex.match?(@checkin_time, c.time)) or
+          not (is_binary(c.label) and String.trim(c.label) != "") ->
+        {:error, Error.new(:gaia_checkin_invalid, :gaia_household_checkin_invalid)}
+
+      Map.get(h.checkins, c.key) == %{label: String.trim(c.label), time: c.time} ->
+        []
+
+      true ->
+        %Events.HouseCheckinSet{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          key: c.key,
+          label: String.trim(c.label),
+          time: c.time
+        }
+    end
+  end
+
+  defp house_checkin(h, %Commands.RemoveHouseCheckin{} = c) do
+    if Map.has_key?(h.checkins, c.key),
+      do: %Events.HouseCheckinRemoved{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        key: c.key,
+        note: c.note
+      },
+      else: {:error, Error.new(:gaia_checkin_invalid, :gaia_household_checkin_none)}
+  end
+
   defp members(h),
     do: Enum.map(h.witnesses, &{"witness", &1}) ++ Enum.map(h.residents, &{"resident", &1})
 
@@ -785,6 +863,17 @@ defmodule Oneiroi.Gaia.Household do
 
   def apply(%__MODULE__{} = h, %Events.HouseholdTermsGranted{} = e),
     do: %{h | terms: {e.plan, e.price_nanos, e.terms_until}}
+
+  def apply(%__MODULE__{} = h, %Events.HouseholdClockSet{} = e), do: %{h | zone: e.zone}
+
+  def apply(%__MODULE__{} = h, %Events.HouseCheckinSet{} = e),
+    do: %{h | checkins: Map.put(h.checkins, e.key, %{label: e.label, time: e.time})}
+
+  def apply(%__MODULE__{} = h, %Events.HouseCheckinRemoved{} = e),
+    do: %{h | checkins: Map.delete(h.checkins, e.key)}
+
+  def apply(%__MODULE__{} = h, %Events.HouseCheckinFired{} = e),
+    do: %{h | fired: MapSet.put(h.fired, {e.key, e.day})}
 
   def apply(%__MODULE__{} = h, %Events.HouseholdWakeProfileSet{} = e),
     do: %{h | profiles: Map.put(h.profiles, {e.member_kind, e.member_id}, e.profile)}

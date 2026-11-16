@@ -138,6 +138,44 @@ defmodule OneiroiWeb.ScheduleController do
     end
   end
 
+  operation(:house,
+    summary:
+      "The house check-ins of the witness's household (seshat#75), each with this resident's own words for it, which the witness sets on her Rhythm page (sunna#65)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
+  )
+
+  def house(conn, %{"id" => id}) do
+    prompts = Sunna.house_prompts(id)
+
+    case Oneiroi.Seshat.house_checkins(actor(conn)) do
+      {:ok, %{zone: zone, checkins: checkins}} ->
+        json(conn, %{
+          zone: zone,
+          checkins: Enum.map(checkins, &Map.put(&1, :prompt, Map.get(prompts, &1.key)))
+        })
+
+      {:error, _not_a_member} ->
+        json(conn, %{zone: nil, checkins: []})
+    end
+  end
+
+  operation(:set_house_prompt,
+    summary: "Set this resident's own words for a house check-in (sunna#65); empty clears",
+    parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
+    request_body:
+      {"the words", "application/json",
+       %Schema{type: :object, properties: %{prompt: %Schema{type: :string}}}},
+    responses: [no_content: "set"]
+  )
+
+  def set_house_prompt(conn, %{"id" => id, "key" => key} = params) do
+    case Sunna.set_house_prompt(id, key, params["prompt"], actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:change_checkin,
     summary: "Change a check-in; one changed after its time today waits for tomorrow",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],

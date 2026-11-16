@@ -527,6 +527,76 @@ defmodule Oneiroi.Gaia.Households do
     Beats.shape(settings)
   end
 
+  # ---- house check-ins (gaia#41) ----
+
+  @doc "The household's clock and its check-ins, each with the day and thread it last opened."
+  def house_checkins(household_id) do
+    Scope.platform(fn ->
+      zone = Repo.one(from(h in Store.Household, where: h.id == ^household_id, select: h.zone))
+
+      checkins =
+        Repo.all(
+          from(c in Store.HouseCheckin,
+            where: c.household_id == ^household_id,
+            order_by: [c.time, c.key]
+          )
+        )
+
+      %{zone: zone || "Etc/UTC", checkins: checkins}
+    end)
+  end
+
+  @doc "A witness sets the workspace's own clock, a zone name."
+  def set_clock(household_id, zone, %Actor{} = actor) do
+    case DateTime.now(to_string(zone)) do
+      {:ok, _now} ->
+        dispatch(%Commands.SetHouseholdClock{
+          actor: actor,
+          at: Clock.now(),
+          id: household_id,
+          zone: zone
+        })
+
+      {:error, _} ->
+        {:error, Error.new(:gaia_checkin_invalid, :gaia_households_clock_zone)}
+    end
+  end
+
+  @doc "A witness sets a house check-in: its key, label and time (HH:MM) on the household's clock."
+  def set_house_checkin(household_id, key, label, time, %Actor{} = actor),
+    do:
+      dispatch(%Commands.SetHouseCheckin{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        key: key,
+        label: label,
+        time: time
+      })
+
+  @doc "A witness removes a house check-in, with a note."
+  def remove_house_checkin(household_id, key, note, %Actor{} = actor),
+    do:
+      dispatch(%Commands.RemoveHouseCheckin{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        key: key,
+        note: note
+      })
+
+  @doc "Records a house check-in fired for a day, with the thread it opened; once a day."
+  def house_checkin_fired(household_id, key, day, thread, %Actor{} = actor),
+    do:
+      dispatch(%Commands.RecordHouseCheckinFired{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        key: key,
+        day: day,
+        thread: thread
+      })
+
   @doc "A member sets her own wake profile, with a note (gaia#37)."
   def set_wake_profile(household_id, profile, note, %Actor{} = actor) do
     dispatch(%Commands.SetHouseholdWakeProfile{

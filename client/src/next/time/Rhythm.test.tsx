@@ -71,4 +71,20 @@ describe('Rhythm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set rounds' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith('r1', 6, '08:00-22:00'));
   });
+
+  // The witness, 2026-11-16: the house checks in at once, each with her own words.
+  it("keeps this resident's words for a house check-in", async () => {
+    vi.spyOn(api, 'schedule').mockResolvedValue(today);
+    vi.spyOn(api, 'houseForResident').mockResolvedValue({
+      zone: 'America/Los_Angeles',
+      checkins: [{ key: 'morning', label: 'Morning', time: '07:30', last_day: null, last_thread: null, last_fired_at: null, prompt: null }],
+    });
+    const set = vi.spyOn(api, 'setHousePrompt').mockResolvedValue(undefined);
+    mount();
+    expect(await screen.findByText('HOUSE CHECK-INS')).toBeTruthy();
+    expect(screen.getByText(/On the house's clock \(America\/Los_Angeles\)/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('What Mira reports'), { target: { value: 'The trials she ran.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('r1', 'morning', 'The trials she ran.'));
+  });
 });

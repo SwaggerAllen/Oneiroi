@@ -47,6 +47,13 @@ defmodule Oneiroi.Sunna.Schedule do
 
   # ---- check-ins ----
 
+  # Her words for a house check-in (sunna#65): the witness's to set.
+  def execute(%__MODULE__{}, %Commands.SetHousePrompt{actor: %{kind: k}}) when k != :witness,
+    do: {:error, Error.new(:sunna_not_allowed, :sunna_house_prompt_party)}
+
+  def execute(%__MODULE__{}, %Commands.SetHousePrompt{} = c),
+    do: %Events.HousePromptSet{actor: c.actor, at: c.at, id: c.id, key: c.key, prompt: c.prompt}
+
   def execute(%__MODULE__{checkins: checkins}, %Commands.SetCheckin{} = c) do
     # A command that says nothing of its parts carries the dates, the
     # note every check-in had before sunna#28.
@@ -432,6 +439,8 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   # ---- apply ----
+
+  def apply(%__MODULE__{} = s, %Events.HousePromptSet{}), do: s
 
   def apply(%__MODULE__{} = s, %Events.CheckinSet{} = e),
     do: %{

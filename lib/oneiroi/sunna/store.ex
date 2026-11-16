@@ -4,6 +4,20 @@ defmodule Oneiroi.Sunna.Store do
 
   alias Oneiroi.Repo
 
+  defmodule HousePrompt do
+    @moduledoc "What a resident reports when the house checks in (sunna#65), by the house check-in's key."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_house_prompt" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:prompt, :string)
+      field(:set_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Checkin do
     @moduledoc "A check-in: its label, its time of day in the resident's zone, and its last outcome."
     use Ecto.Schema
@@ -311,4 +325,12 @@ defmodule Oneiroi.Sunna.Store do
     free = from(s in Settings, where: not is_nil(s.free_time), select: s.resident_id)
     Repo.all(checkins) |> Kernel.++(Repo.all(free)) |> Enum.uniq()
   end
+
+  @doc "A house prompt's words, by the house check-in's key (sunna#65)."
+  def house_prompt(key),
+    do: Repo.one(from(p in HousePrompt, where: p.key == ^key, select: p.prompt))
+
+  @doc "Every house prompt set, as {key, words}."
+  def house_prompts,
+    do: Repo.all(from(p in HousePrompt, where: not is_nil(p.prompt), select: {p.key, p.prompt}))
 end

@@ -86,6 +86,11 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdContractAmended,
       Events.HouseholdThreadWatched,
       Events.HouseholdWakeProfileSet,
+      Events.HouseholdClockSet,
+      Events.HouseCheckinSet,
+      Events.HouseCheckinRemoved,
+      Events.HouseCheckinFired,
+      Store.HouseCheckin,
       Events.HouseholdBeatRegistered,
       Events.HouseholdTurnFired,
       Events.HouseholdTurnEnded,
@@ -207,6 +212,10 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
+      {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
+      {Oneiroi.Gaia.Events.HouseCheckinSet, 1},
+      {Oneiroi.Gaia.Events.HouseCheckinRemoved, 1},
+      {Oneiroi.Gaia.Events.HouseCheckinFired, 1},
       {Oneiroi.Gaia.Events.HouseholdBeatRegistered, 1},
       {Oneiroi.Gaia.Events.HouseholdTurnFired, 1},
       {Oneiroi.Gaia.Events.HouseholdTurnEnded, 1},
@@ -291,6 +300,9 @@ defmodule Oneiroi.Gaia do
       {:gaia_watch_invalid,
        "a watch is a thread of the household and a term of 1 to 168 hours, stated every time",
        remedy: "name the thread and how many hours; a day is 24"},
+      {:gaia_checkin_invalid,
+       "a house check-in has a key (lowercase letters, digits or -), a label and a time HH:MM on the household's clock, which is a zone name; one removed must exist",
+       remedy: "name the key, the label and the time, or a zone such as America/Los_Angeles"},
       {:gaia_beats_invalid,
        "the beats are always on (gaia#33): a ballot changes their shape within bounds, never takes them away; a wake profile is every_beat, on_turn or self, and a witness's is self; a resident who is never woken does not register; a turn ends completed, declined, failed or timed_out",
        remedy:
@@ -710,6 +722,40 @@ defmodule Oneiroi.Gaia do
   @doc "The household's beats as its members read them at an instant (gaia#33 to #38)."
   @spec household_beats(String.t(), DateTime.t()) :: map()
   defexport(household_beats(household_id, at), do: Households.beats(household_id, at))
+
+  @doc "The household's clock and its check-ins (gaia#41)."
+  @spec house_checkins(String.t()) :: %{
+          zone: String.t(),
+          checkins: [Oneiroi.Gaia.Store.HouseCheckin.t()]
+        }
+  defexport(house_checkins(household_id), do: Households.house_checkins(household_id))
+
+  @doc "A witness sets the workspace's own clock (gaia#41)."
+  @spec set_household_clock(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(set_household_clock(household_id, zone, actor),
+    do: Households.set_clock(household_id, zone, actor)
+  )
+
+  @doc "A witness sets a house check-in (gaia#41)."
+  @spec set_house_checkin(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_house_checkin(household_id, key, label, time, actor),
+    do: Households.set_house_checkin(household_id, key, label, time, actor)
+  )
+
+  @doc "A witness removes a house check-in, with a note (gaia#41)."
+  @spec remove_house_checkin(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(remove_house_checkin(household_id, key, note, actor),
+    do: Households.remove_house_checkin(household_id, key, note, actor)
+  )
+
+  @doc "Records a house check-in fired for a day, once (gaia#41)."
+  @spec house_checkin_fired(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(house_checkin_fired(household_id, key, day, thread, actor),
+    do: Households.house_checkin_fired(household_id, key, day, thread, actor)
+  )
 
   @doc "A member's wake profile, her own or the default (gaia#37)."
   @spec household_wake_profile(String.t(), String.t(), String.t()) :: String.t()

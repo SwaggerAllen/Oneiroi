@@ -149,4 +149,9 @@ defmodule Oneiroi.Sunna.Commands do
   defmodule RestWork do
     use Oneiroi.Command, fields: [:id, :reason]
   end
+
+  # Her own words for a house check-in (sunna#65), by its key.
+  defmodule SetHousePrompt do
+    use Oneiroi.Command, fields: [:id, :key, :prompt], bounds: [key: 64, prompt: 4_000]
+  end
 end

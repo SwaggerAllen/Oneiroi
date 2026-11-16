@@ -8,6 +8,7 @@ defmodule Oneiroi.Gaia.Projectors.Household do
   alias Oneiroi.Gaia.Events
 
   alias Oneiroi.Gaia.Store.{
+    HouseCheckin,
     Household,
     HouseholdBallot,
     HouseholdBeat,
@@ -216,6 +217,43 @@ defmodule Oneiroi.Gaia.Projectors.Household do
       until: e.until,
       watched_at: e.at
     })
+  end)
+
+  # ---- house check-ins (gaia#41) ----
+
+  fold(%Events.HouseholdClockSet{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :clock, from(h in Household, where: h.id == ^e.id),
+      set: [zone: e.zone]
+    )
+  end)
+
+  fold(%Events.HouseCheckinSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :checkin,
+      %HouseCheckin{household_id: e.id, key: e.key, label: e.label, time: e.time},
+      on_conflict: [set: [label: e.label, time: e.time]],
+      conflict_target: [:household_id, :key]
+    )
+  end)
+
+  fold(%Events.HouseCheckinRemoved{} = e, _metadata, fn multi ->
+    Multi.delete_all(
+      multi,
+      :checkin,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and a check-in's key is within it
+      from(c in HouseCheckin, where: c.household_id == ^e.id and c.key == ^e.key)
+    )
+  end)
+
+  fold(%Events.HouseCheckinFired{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :fired,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and a check-in's key is within it
+      from(c in HouseCheckin, where: c.household_id == ^e.id and c.key == ^e.key),
+      set: [last_day: e.day, last_thread: e.thread, last_fired_at: e.at]
+    )
   end)
 
   # ---- the beats (gaia#33 to #38) ----
