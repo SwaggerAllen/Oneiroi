@@ -364,3 +364,10 @@ row by hand would change one table of several and vanish at the next
 rebuild, and leave no record of who did it. The conditions make the
 command unable to touch anyone who has met their witness, so it can
 only repair the gap it exists for.
+
+## #48
+
+A proposal is a question, and a question nobody is told about is a
+silence. The section that named it rode every turn and still read as a
+fact rather than an ask, so the ask now comes first, and each side is
+told in the place that side already looks: her chat, his list.

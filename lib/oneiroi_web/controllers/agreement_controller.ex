@@ -79,6 +79,7 @@ defmodule OneiroiWeb.AgreementController do
              params["note"],
              actor(conn)
            ) do
+      tell(conn, id, version)
       json(conn, %{version: version})
     else
       other -> respond(conn, other)
@@ -332,4 +333,22 @@ defmodule OneiroiWeb.AgreementController do
 
   defp respond(conn, _other),
     do: problem(conn, 422, :refused, :web_agreement_respond_refused_2, "not understood")
+
+  # A version of his is told to her, as a house letter to her chat that
+  # wakes it (the witness, 2026-11-16: version 2 sat ten days with nothing
+  # saying it waited). A letter that cannot be sent leaves the proposal
+  # standing; her agreement section says it waits either way.
+  defp tell(conn, id, version) do
+    account = conn.assigns.principal.account_id
+
+    with {:ok, key} <- Oneiroi.Kumbukumbu.main_session(id, account, actor(conn)) do
+      Oneiroi.Kumbukumbu.letter_to_session(
+        id,
+        key,
+        "Your witness proposed version #{version} of your agreement. It waits on your answer: " <>
+          "read it in your agreement section, then answer with contract_agree or contract_decline, with a note.",
+        Oneiroi.Actor.platform()
+      )
+    end
+  end
 end

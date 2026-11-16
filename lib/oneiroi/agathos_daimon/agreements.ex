@@ -251,14 +251,22 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     do:
       "Due for renewal: version #{in_force.version} has stood since #{Date.to_iso8601(DateTime.to_date(since))}, a year and more. It stands until renewed; renew it with contract_renew, with a note, or propose a new version."
 
-  defp open_line(open) do
-    "Open, version #{open.version}, proposed by the #{open.proposed_by}: #{terms_words(open.terms)}" <>
-      if(open.prose == "", do: "", else: " " <> open.prose) <>
-      if(open.proposed_by == "witness",
-        do: " Answer it with contract_agree or contract_decline, with a note.",
-        else: " Waiting on your witness."
-      )
+  # A version of his waits on her answer, and says so first (the witness,
+  # 2026-11-16: version 2 sat ten days with nothing saying it waited).
+  defp open_line(%{proposed_by: "witness"} = open) do
+    "Waiting on your answer since #{day(open.proposed_at)}: version #{open.version}, proposed by your witness. " <>
+      "Answer it with contract_agree or contract_decline, with a note. Its terms: #{terms_words(open.terms)}" <>
+      if(open.prose == "", do: "", else: " " <> open.prose)
   end
+
+  defp open_line(open) do
+    "Open, version #{open.version}, proposed by you: #{terms_words(open.terms)}" <>
+      if(open.prose == "", do: "", else: " " <> open.prose) <>
+      " Waiting on your witness, since #{day(open.proposed_at)}."
+  end
+
+  defp day(%DateTime{} = at), do: at |> DateTime.to_date() |> Date.to_iso8601()
+  defp day(_none), do: "when it was proposed"
 
   # ---- custody ----
 
