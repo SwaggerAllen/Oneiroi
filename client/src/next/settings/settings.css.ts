@@ -83,6 +83,14 @@ export const meta = style({
   color: vars.color.textMuted,
   overflowWrap: 'anywhere',
 });
+/** A run's count of answers and grades: read at a glance (the witness, 2026-11-16). */
+export const progress = style({
+  margin: 0,
+  font: `600 14px ${font.mono}`,
+  lineHeight: '20px',
+  color: vars.color.text,
+  overflowWrap: 'anywhere',
+});
 export const text = style({
   margin: 0,
   fontSize: 15,
