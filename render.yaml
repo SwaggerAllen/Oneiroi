@@ -89,6 +89,64 @@ services:
           name: honcho-api
           type: pserv
           envVarKey: AUTH_JWT_SECRET
+      # The repositories' server (sima-qian#55): Gitea's public URL and
+      # an admin token, typed in the dashboard once the admin exists
+      # (SETUP.md, Gitea). Unset, nothing is sent to Gitea.
+      - key: SIMA_QIAN_GITEA_URL
+        sync: false
+      - key: SIMA_QIAN_GITEA_TOKEN
+        sync: false
+
+  # Gitea, the repositories' server (sima-qian#55; the witness,
+  # 2026-11-16: "a separate render service with its own disk"). Every
+  # household's and resident's repository, pushed by the core; witnesses
+  # sign in to read their own. The official image at a pinned version, so
+  # an upgrade is a commit here; SQLite on its own disk, so it needs no
+  # database of its own and survives every deploy. Sign-up is off and
+  # every page wants a signed-in user: the core makes the users.
+  - type: web
+    name: oneiroi-git
+    runtime: image
+    image:
+      url: docker.io/gitea/gitea:1.22.6
+    plan: 0.5c-512mb
+    region: oregon
+    healthCheckPath: /api/healthz
+    autoDeployTrigger: "off"
+    disk:
+      name: oneiroi-git
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: GITEA__server__HTTP_PORT
+        value: "3000"
+      # Its own address, as the browser sees it: set in the dashboard to
+      # the service's onrender.com URL (or a domain), with a trailing /.
+      - key: GITEA__server__ROOT_URL
+        sync: false
+      # Render serves HTTPS only; git goes over it with a token.
+      - key: GITEA__server__DISABLE_SSH
+        value: "true"
+      - key: GITEA__database__DB_TYPE
+        value: sqlite3
+      - key: GITEA__database__PATH
+        value: /data/gitea/gitea.db
+      - key: GITEA__security__INSTALL_LOCK
+        value: "true"
+      - key: GITEA__security__SECRET_KEY
+        generateValue: true
+      - key: GITEA__security__INTERNAL_TOKEN
+        generateValue: true
+      - key: GITEA__service__DISABLE_REGISTRATION
+        value: "true"
+      - key: GITEA__service__REQUIRE_SIGNIN_VIEW
+        value: "true"
+      - key: GITEA__repository__DEFAULT_BRANCH
+        value: main
+      - key: GITEA__repository__DEFAULT_PRIVATE
+        value: private
 
   # Honcho (spec §6.9), from its upstream repository, built from its own
   # Dockerfile, on Oneiroi's database (proteus#17). The deploy is never

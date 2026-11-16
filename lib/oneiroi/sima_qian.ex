@@ -38,10 +38,18 @@ defmodule Oneiroi.SimaQian do
       Ecto.Query,
       EventStore,
       Jason,
-      Oban
+      Oban,
+      # Gitea's API (sima-qian#55).
+      Req,
+      Req.Response
     ],
     exports: [
       Backup,
+      Gitea,
+      Gitea.HTTP,
+      Gitea.Fake,
+      GiteaQueue,
+      GiteaWorker,
       DryRun,
       Error,
       Export,
@@ -57,6 +65,7 @@ defmodule Oneiroi.SimaQian do
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
@@ -94,6 +103,22 @@ defmodule Oneiroi.SimaQian do
        default: "on",
        usage:
          "whether a resident's backup carries a copy of its household's repository under household/, titled by the membership (sima-qian#53): on is the resident's lean on the open question of export travel (design household-communication §8), off makes no copy and leaves one already committed as it was"},
+      # The repositories' server (sima-qian#55): Gitea on its own service
+      # and disk; unset, nothing is sent and the records disk is all.
+      {:gitea_client, "SIMA_QIAN_GITEA_CLIENT",
+       cast: &__MODULE__.cast_gitea_client/1,
+       default: "http",
+       usage:
+         "which repositories' port implementation answers: http (Gitea's API) in every real build, fake in test"},
+      {:gitea_url, "SIMA_QIAN_GITEA_URL",
+       required: false,
+       usage:
+         "the Gitea service's base URL, e.g. https://oneiroi-git.onrender.com (sima-qian#55): where repositories are pushed and witnesses sign in"},
+      {:gitea_token, "SIMA_QIAN_GITEA_TOKEN",
+       secret: true,
+       required: false,
+       usage:
+         "an admin user's Gitea token with every scope the admin API needs (sima-qian#55); unset, nothing is sent to Gitea"},
       {:library, "SIMA_QIAN_LIBRARY",
        cast: &__MODULE__.cast_library/1,
        default: "seshat",
@@ -139,9 +164,34 @@ defmodule Oneiroi.SimaQian do
     {:error, "is #{inspect(other)}, expected \"seshat\""}
   end
 
+  @doc false
+  def cast_gitea_client("http"), do: {:ok, :"Elixir.Oneiroi.SimaQian.Gitea.HTTP"}
+  def cast_gitea_client("fake"), do: {:ok, :"Elixir.Oneiroi.SimaQian.Gitea.Fake"}
+
+  def cast_gitea_client(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected \"http\" or \"fake\""}
+  end
+
+  @impl Oneiroi.Component
+  def externals do
+    [
+      {:gitea,
+       adapter: Oneiroi.SimaQian.Gitea.HTTP,
+       fake: Oneiroi.SimaQian.Gitea.Fake,
+       kill_switch: :sima_qian_gitea_off,
+       classification: :customer_content}
+    ]
+  end
+
+  @impl Oneiroi.Component
+  def feature_flags, do: [:sima_qian_gitea_off]
+
   @impl Oneiroi.Component
   def oban_queues do
     [
+      # One repository at a time to Gitea (sima-qian#56).
+      {:sima_qian_gitea, []},
       {:sima_qian_nightly,
        cron: [
          {"0 3 * * *", Oneiroi.SimaQian.BackupWorker},
@@ -216,6 +266,12 @@ defmodule Oneiroi.SimaQian do
        "a copied file's git blob sha is not the source tree's, so nothing was adopted and this run's copies were removed",
        remedy:
          "the paths are named; check the disk under SIMA_QIAN_ROOT, then run the import again at the same commit"},
+      {:sima_qian_gitea_off, "the repositories' server is not set up on this platform",
+       remedy: "an operator sets SIMA_QIAN_GITEA_URL and SIMA_QIAN_GITEA_TOKEN"},
+      {:sima_qian_gitea_failed, "Gitea did not answer, or refused the request",
+       remedy: "the push is retried by its queue; if it keeps failing, read Gitea's log"},
+      {:sima_qian_gitea_invalid, "a Gitea password is at least twelve characters",
+       remedy: "choose a longer one"},
       {:sima_qian_household_invalid, "a household's repository is named by the household's id",
        remedy: "read the id off the household; it is the founding account's"},
       {:sima_qian_append_failed, "the event store refused the repository's records",
@@ -305,6 +361,16 @@ defmodule Oneiroi.SimaQian do
   @doc "The household's working repository on disk, made one on first use (sima-qian#51): where the household's shelf lives."
   @spec household_repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
   defexport(household_repository_dir(household_id), do: Household.repository_dir(household_id))
+
+  @doc "Where a witness reaches Gitea (sima-qian#55): the server, the user and the repositories they read, or nil when it is not set up."
+  @spec gitea_access(String.t()) :: map() | nil
+  defexport(gitea_access(account_id), do: Gitea.access(account_id))
+
+  @doc "Sets the witness's Gitea password, making the user if there is none (sima-qian#55)."
+  @spec gitea_set_password(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
+  defexport(gitea_set_password(account_id, email, password),
+    do: Gitea.set_password(account_id, email, password)
+  )
 
   @doc "Commits paths of the household's repository under a member's name (sima-qian#52)."
   @spec household_commit(String.t(), [String.t()], String.t(), map()) ::

@@ -29,6 +29,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.GiteaQueue
   alias Oneiroi.SimaQian.HonchoMemory
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Merkle
@@ -108,6 +109,9 @@ defmodule Oneiroi.SimaQian.Backup do
       :telemetry.execute([:oneiroi, :sima_qian, :backup], %{through: export.through}, %{
         resident_id: resident_id
       })
+
+      # The committed records to the repositories' server (sima-qian#56).
+      _ = GiteaQueue.later(:resident, resident_id)
 
       # The card comes from git, always (spec §6.9): set after the soul
       # commit; a bridge not yet provisioned, or a Honcho that is down,

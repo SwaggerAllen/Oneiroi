@@ -163,6 +163,28 @@ refused; nothing else changes.
 
 Live mode is the same three steps with the live key and a live endpoint.
 
+### Gitea, the repositories' server (sima-qian#55)
+
+The Blueprint makes `oneiroi-git`: Gitea's official image, SQLite on its
+own 10 GB disk, sign-up off. The core pushes every repository to it once
+it has a URL and an admin's token; until then nothing is sent.
+
+1. On `oneiroi-git` in the dashboard, set `GITEA__server__ROOT_URL` to
+   its own URL with a trailing slash (`https://oneiroi-git.onrender.com/`,
+   or the name Render gave it) and deploy it once.
+2. The admin, from the service's Shell tab:
+   `su git -c "gitea admin user create --admin --username oneiroi-admin --email admin@oneiroi.invalid --random-password --must-change-password=false"`
+   (keep the password it prints, in your password manager), then its
+   token:
+   `su git -c "gitea admin user generate-access-token --username oneiroi-admin --token-name oneiroi --scopes all --raw"`.
+3. On the `oneiroi` service: `SIMA_QIAN_GITEA_URL` to the same URL
+   without the trailing slash, and `SIMA_QIAN_GITEA_TOKEN` to the token.
+   The next write to any household, and each resident's next backup,
+   pushes; an organization `h-…` per household appears in Gitea.
+4. In the client, Settings → Backups, imports and reports → "Your
+   repositories on Gitea": set a password, then sign in to Gitea as the
+   `w-…` user it names.
+
 ## 2. Orchestration's court
 
 - Merge the `PROJECTS` entry for this repo into the metronome Worker's

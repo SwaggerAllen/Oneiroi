@@ -22,6 +22,7 @@ defmodule Oneiroi.SimaQian.Household do
   alias Oneiroi.Gaia
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.GiteaQueue
 
   @folder "household"
 
@@ -48,7 +49,11 @@ defmodule Oneiroi.SimaQian.Household do
           {:ok, String.t() | :nothing} | {:error, Error.t()}
   def commit(household_id, paths, message, author) do
     with {:ok, dir} <- repository_dir(household_id),
-         do: Git.commit_as(dir, paths, message, author)
+         {:ok, sha} <- Git.commit_as(dir, paths, message, author) do
+      # To the repositories' server within seconds (sima-qian#56).
+      if is_binary(sha), do: GiteaQueue.later(:household, household_id)
+      {:ok, sha}
+    end
   end
 
   @doc "The household repository's history, or one path's, newest first."

@@ -344,3 +344,25 @@ every live conversation down with it. A day is the unit the files are
 already written in, and only the bookmarks, gift reads and session
 privacy need the whole history, all of them small, so the run now holds
 one day's events and those, and its peak no longer grows with her life.
+
+## #55
+
+A repository is the record's own form (spec §6.10), and a server that
+speaks git is where a person reads one: history, diffs, blame, a clone,
+without the platform's client between them and their records. One
+organization per household because the household is where membership
+and the contract live, and one repository per resident inside it keeps
+each resident's records hers while the house's stay shared. Read, not
+write, for witnesses in this part: the platform's lock is still what
+orders writes, and a write arriving from outside needs the fold-back
+the second part builds, or it would sit in Gitea unseen by the index.
+The witness's own address never goes to Gitea because nothing there
+needs it, and every copy of an address is one more place it can leak.
+
+## #56
+
+Pushing inside the write would make every household post wait on a
+second service and fail when it is down; a job after the write keeps the
+write the platform's and lets the queue retry. Unique per repository
+while one waits, because twenty posts in a beat are one push, and a
+later write still gets a push of its own once the waiting one has run.

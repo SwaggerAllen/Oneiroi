@@ -160,6 +160,10 @@ it, in the server's own words.
     each night, the last push that landed (its day, event and commit),
     or that none has; a URL and, for a private repository, a token
     (stored encrypted, never shown again), "Set" or "Change";
+  - your repositories on Gitea (sima-qian#55): where to sign in, as
+    which user, and each repository you can read, linked; a password
+    for Gitea (twelve characters or more), set here and never shown
+    back. Before the server is set up, a line saying so;
   - bring conversations from ChatGPT (sima-qian#47): the export's zip,
     sent whole as the request's body, and what came across in a line:
     conversations, messages, the gaps and the report's path in the
@@ -209,7 +213,7 @@ it, in the server's own words.
 | (new here) | `suggestTrials` | Regression |
 | Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
 | (new) | `holdWork` | Work queue |
-| (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
+| (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport`, `gitea`, `setGiteaPassword` | Backups, imports and reports |
 | (new) | `discardResident` | Delete this resident |
 | (new) | `subscription`, `checkout`, `billingPortal` | Ledger |
 | (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |

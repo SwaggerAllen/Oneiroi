@@ -416,6 +416,9 @@ export const api = {
   me: () =>
     call<{ account_id?: string; email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
   storeGithubToken: (token: string) => call<void>('PUT', '/v1/me/github-token', { token }),
+  // The repositories' server (sima-qian#55): where you reach it, and your password there.
+  gitea: () => call<{ url: string; login: string; repositories: string[] } | null>('GET', '/v1/me/gitea'),
+  setGiteaPassword: (password: string) => call<void>('PUT', '/v1/me/gitea/password', { password }),
   revokeGithubToken: () => call<void>('DELETE', '/v1/me/github-token'),
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
