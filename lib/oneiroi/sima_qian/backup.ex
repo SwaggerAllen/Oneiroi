@@ -230,6 +230,13 @@ defmodule Oneiroi.SimaQian.Backup do
   @doc "The resident's working repository."
   def dir(resident_id), do: Path.join(Config.fetch!(:sima_qian, :root), resident_id)
 
+  @doc "Removes the working repository of a resident deleted before their first turn (agathos-daimon#49)."
+  def discard(resident_id) do
+    {:ok, id} = Ecto.UUID.cast(resident_id)
+    File.rm_rf!(dir(id))
+    :ok
+  end
+
   @doc "The working repository, made one if it is not yet: the library writes its files there between backups."
   def repository_dir(resident_id) do
     dir = dir(resident_id)

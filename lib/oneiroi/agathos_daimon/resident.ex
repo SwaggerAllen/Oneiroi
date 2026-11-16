@@ -133,6 +133,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
+  # Deleted before a first turn (agathos-daimon#49): nothing reaches them.
+  def execute(%__MODULE__{state: :discarded}, %command{}),
+    do:
+      {:error,
+       Error.new(:agathos_daimon_discarded, :agathos_daimon_resident_discarded, command: command)}
+
   def execute(%__MODULE__{state: :absent}, %command{}),
     do:
       {:error,
@@ -707,6 +713,27 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # The witness deletes one who has had no first conversation and no
+  # agreement (agathos-daimon#49): woken or not, trials and gift reads
+  # are runs of a model on a seed, not a turn of their life.
+  def execute(%__MODULE__{} = r, %Commands.DiscardResident{} = c) do
+    cond do
+      not witness?(r, c.actor) ->
+        {:error, Error.new(:agathos_daimon_not_witnessed, :agathos_daimon_resident_discard_party)}
+
+      first_contact?(r) ->
+        {:error,
+         Error.new(:agathos_daimon_not_discardable, :agathos_daimon_resident_discard_contact)}
+
+      r.contract.in_force != nil ->
+        {:error,
+         Error.new(:agathos_daimon_not_discardable, :agathos_daimon_resident_discard_agreed)}
+
+      true ->
+        %Events.ResidentDiscarded{actor: c.actor, at: c.at, note: c.note, id: c.id, slug: r.slug}
+    end
+  end
+
   def execute(%__MODULE__{}, %Commands.AwakenResident{}),
     do:
       {:error,
@@ -1023,6 +1050,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.FormationBegun{}), do: %{r | state: :forming, formed: true}
 
   # Back to forming chooses the model afresh: Wake waits on a new pin.
+  def apply(%__MODULE__{} = r, %Events.ResidentDiscarded{}), do: %{r | state: :discarded}
+
   def apply(%__MODULE__{} = r, %Events.ReturnedToFormation{}),
     do: %{r | state: :forming, formed: true, model_chosen: false}
 

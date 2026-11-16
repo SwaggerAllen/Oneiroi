@@ -92,6 +92,42 @@ defmodule OneiroiWeb.ResidentController do
     end
   end
 
+  operation(:discard,
+    summary:
+      "The witness deletes a resident who has had no first conversation and no agreement (agathos-daimon#49), with a note: a tombstone in the log, every row and the working repository gone, the slug free again",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "deleted"]
+  )
+
+  def discard(conn, %{"id" => id} = params) do
+    note = params["note"] |> to_string() |> String.trim()
+
+    with true <- witnesses?(conn, id),
+         :ok <- Oneiroi.AgathosDaimon.discard(id, note, actor(conn)) do
+      :ok = Oneiroi.SimaQian.discard_repository(id)
+      send_resp(conn, 204, "")
+    else
+      {:error, %{kind: :agathos_daimon_not_discardable} = e} ->
+        error(conn, 409, e)
+
+      {:error, %{kind: _} = e} ->
+        error(conn, 422, e)
+
+      _not_witnessed ->
+        error(
+          conn,
+          404,
+          ResidentError.new(
+            :agathos_daimon_not_witnessed,
+            :agathos_daimon_web_resident_discard_not_witnessed
+          )
+        )
+    end
+  end
+
   operation(:import_resident,
     summary:
       "Import a repository as a new resident under this account (spec §6.2's intake from a git repository): its records replayed, the root's identity files seeded, its folders adopted and indexed, and what did not transfer named. A repository without records needs a name and a slug",

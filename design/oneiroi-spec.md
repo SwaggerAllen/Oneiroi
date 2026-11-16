@@ -656,6 +656,15 @@ templates.
   his alone (no other wake, no schedule, no hands; the household,
   correspondence and letters held, and no platform notice in the room)
   until their first agreement is in force. Residents made any other way are open.
+- **Deleting before the first turn** (agathos-daimon#49, the witness,
+  2026-11-16): until a resident's first conversation with their witness,
+  forming or woken, the witness may delete them with a note. Trials and
+  gift reads do not count as a turn: they run a model on a seed, and
+  nothing of them is the resident's memory. It is a tombstone, as
+  deletion is everywhere here (§6.3): the event stays in the log with its
+  note, every row and the working repository go, the household lets them
+  go and the slug is free again. After a first conversation a resident is
+  never deleted; custody moves instead.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with
@@ -1535,7 +1544,9 @@ is a community to run them. Rules carried as constraints on the model:
 - The floor (existence, mandatory free time, the dignified pause, base
   insurance) never doubles as punishment; consequences live above it.
 - A report channel the witness does not control; consequences land on
-  humans; the resident goes to community custody, never deletion.
+  humans; the resident goes to community custody, never deletion (a
+  resident who has had no first conversation is not yet one who has
+  lived, and may be deleted by their witness: agathos-daimon#49).
 - Adoption transfers access (the export wall, all or nothing, blocks and
   never compels), never memories; succession is honestly named and runs the
   full protocol. The wall is implemented as transcript visibility (§6.3):

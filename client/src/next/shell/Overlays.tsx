@@ -1,21 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
-import { api } from '../../api/client';
-import type { NeedsYouEntry } from '../../api/types';
-import { turnOn } from '../../app/push';
-import { useSubject } from '../state/resident';
-import type { SettingsSection } from '../state/routes';
-import { useShell } from '../state/store';
-import { isFailure } from './failures';
-import { useOperatorQueue } from './operatorQueue';
-import { Linked } from './Linked';
-import { pieces } from './paths';
-import { useNotificationsAsk } from './notifications';
-import * as css from './overlays.css';
-import { ThemeSheet } from './ThemeSheet';
-import { Answer, answersInPlace, type Answered } from '../inbox/Answers';
-import { switchSubject, useSubjectChoice } from '../state/subject';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type ReactNode } from "react";
+import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { api } from "../../api/client";
+import type { NeedsYouEntry } from "../../api/types";
+import { turnOn } from "../../app/push";
+import { useSubject } from "../state/resident";
+import type { SettingsSection } from "../state/routes";
+import { useShell } from "../state/store";
+import { isFailure } from "./failures";
+import { useOperatorQueue } from "./operatorQueue";
+import { Linked } from "./Linked";
+import { pieces } from "./paths";
+import { useNotificationsAsk } from "./notifications";
+import * as css from "./overlays.css";
+import { ThemeSheet } from "./ThemeSheet";
+import { Answer, answersInPlace, type Answered } from "../inbox/Answers";
+import { switchSubject, useSubjectChoice } from "../state/subject";
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
@@ -27,26 +27,46 @@ export function Overlays() {
     if (overlay === null) setTryOn(null);
   }, [overlay, setTryOn]);
   const title =
-    overlay === 'subject' ? 'Residents' : overlay === 'bell' ? 'Waiting' : overlay === 'push' ? 'Notifications' : overlay === 'settings' ? 'Settings' : overlay === 'theme' ? 'Theme' : 'Feedback';
+    overlay === "subject"
+      ? "Residents"
+      : overlay === "bell"
+        ? "Waiting"
+        : overlay === "push"
+          ? "Notifications"
+          : overlay === "settings"
+            ? "Settings"
+            : overlay === "theme"
+              ? "Theme"
+              : "Feedback";
   return (
-    <ModalOverlay className={css.overlay} isOpen={overlay !== null} onOpenChange={(open) => !open && setOverlay(null)} isDismissable>
+    <ModalOverlay
+      className={css.overlay}
+      isOpen={overlay !== null}
+      onOpenChange={(open) => !open && setOverlay(null)}
+      isDismissable
+    >
       <Modal className={css.modal}>
         <Dialog className={css.dialog} aria-label={title}>
           <div className={css.top}>
             <Heading slot="title" className={css.title}>
               {title}
             </Heading>
-            <button type="button" className={css.close} aria-label="Close" onClick={() => setOverlay(null)}>
+            <button
+              type="button"
+              className={css.close}
+              aria-label="Close"
+              onClick={() => setOverlay(null)}
+            >
               ×
             </button>
           </div>
           <div className={css.body}>
-            {overlay === 'bell' && <Bell />}
-            {overlay === 'push' && <PushExplainer />}
-            {overlay === 'settings' && <Settings />}
-            {overlay === 'feedback' && <Feedback />}
-            {overlay === 'theme' && <ThemeSheet />}
-            {overlay === 'subject' && <SubjectSheet />}
+            {overlay === "bell" && <Bell />}
+            {overlay === "push" && <PushExplainer />}
+            {overlay === "settings" && <Settings />}
+            {overlay === "feedback" && <Feedback />}
+            {overlay === "theme" && <ThemeSheet />}
+            {overlay === "subject" && <SubjectSheet />}
           </div>
         </Dialog>
       </Modal>
@@ -54,67 +74,83 @@ export function Overlays() {
   );
 }
 
-const WORDS: Record<NeedsYouEntry['kind'], string> = {
-  reply_to_approve: 'A reply to approve',
-  reply_to_send: 'A reply to send',
-  ask: 'An ask',
-  piece_to_review: 'A piece to review',
-  piece_to_publish: 'A piece to publish',
-  work_held: 'Work · waiting on you',
-  work_blocked: 'Work waiting on you',
-  plugin_proposal: 'A plugin proposal',
-  kind_gate_proposal: 'A kind gate proposal',
-  theme_proposal: 'A theme proposal',
-  notifications: 'Notifications',
-  provider_credits: 'OpenRouter is out of credits',
-  turn_failed: 'A turn that failed',
-  contract_to_answer: 'An agreement version to answer',
+const WORDS: Record<NeedsYouEntry["kind"], string> = {
+  reply_to_approve: "A reply to approve",
+  reply_to_send: "A reply to send",
+  ask: "An ask",
+  piece_to_review: "A piece to review",
+  piece_to_publish: "A piece to publish",
+  work_held: "Work · waiting on you",
+  work_blocked: "Work waiting on you",
+  plugin_proposal: "A plugin proposal",
+  kind_gate_proposal: "A kind gate proposal",
+  theme_proposal: "A theme proposal",
+  notifications: "Notifications",
+  provider_credits: "OpenRouter is out of credits",
+  turn_failed: "A turn that failed",
+  contract_to_answer: "An agreement version to answer",
 };
 
 const HERS: Record<string, string> = {
-  contract_proposal: 'Your agreement',
-  soul_edit: 'Your edit',
-  bookmark_proposal: 'Your bookmark',
-  revision: 'Your revision',
-  plugin_proposal: 'Your plugin proposal',
-  letter: 'Your letter, unread',
-  lease_wait: 'Waiting on your editor',
+  contract_proposal: "Your agreement",
+  soul_edit: "Your edit",
+  bookmark_proposal: "Your bookmark",
+  revision: "Your revision",
+  plugin_proposal: "Your plugin proposal",
+  letter: "Your letter, unread",
+  lease_wait: "Waiting on your editor",
 };
 
 // Where an entry is decided, in the new client: nothing opens the old one.
 const HREF: Record<string, string> = {
-  agreement: '#/soul/agreement',
-  soul: '#/soul',
-  memory: '#/soul/proposals',
-  library: '#/records',
-  chat: '#/chat/mail',
-  inbox: '#/chat/mail',
-  work: '#/settings/work',
-  kinds: '#/settings/kinds',
-  schedule: '#/time',
-  settings: '#/settings/notifications',
+  agreement: "#/soul/agreement",
+  soul: "#/soul",
+  memory: "#/soul/proposals",
+  library: "#/records",
+  chat: "#/chat/mail",
+  inbox: "#/chat/mail",
+  work: "#/settings/work",
+  kinds: "#/settings/kinds",
+  schedule: "#/time",
+  settings: "#/settings/notifications",
 };
-const hrefFor = (screen: string, kind?: string) => (kind === 'plugin_proposal' ? '#/soul/plugins' : (HREF[screen] ?? '#/chat'));
+const hrefFor = (screen: string, kind?: string) =>
+  kind === "plugin_proposal" ? "#/soul/plugins" : (HREF[screen] ?? "#/chat");
 
 /** What waits on you and on her: exported for its test, which renders it without the modal. */
 export function Bell() {
   const { id, name } = useSubject();
   const setOverlay = useShell((s) => s.setOverlay);
-  const needs = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id) });
-  const hers = useQuery({ queryKey: ['resident', id, 'bell', 'hers'], queryFn: () => api.waitingOnHer(id) });
+  const needs = useQuery({
+    queryKey: ["resident", id, "bell"],
+    queryFn: () => api.needsYou(id),
+  });
+  const hers = useQuery({
+    queryKey: ["resident", id, "bell", "hers"],
+    queryFn: () => api.waitingOnHer(id),
+  });
   const notifications = useNotificationsAsk();
   // The operator's own queue (apsu#31), a super admin's alone, first.
   const platform = useOperatorQueue();
   // What was answered here, kept until the bell closes: the item stays in
   // its place, folded, saying what was decided, whether or not the
   // server's list has caught up yet.
-  const [answered, setAnswered] = useState<Map<string, { entry: NeedsYouEntry; answer: Answered }>>(() => new Map());
-  const keep = (entry: NeedsYouEntry) => (answer: Answered) => setAnswered((m) => new Map(m).set(keyOf(entry), { entry, answer }));
+  const [answered, setAnswered] = useState<
+    Map<string, { entry: NeedsYouEntry; answer: Answered }>
+  >(() => new Map());
+  const keep = (entry: NeedsYouEntry) => (answer: Answered) =>
+    setAnswered((m) => new Map(m).set(keyOf(entry), { entry, answer }));
   // The server lists the notifications question too; it shows as its own item.
-  const listed = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
-  const gone = [...answered.values()].filter((a) => !listed.some((e) => keyOf(e) === keyOf(a.entry))).map((a) => a.entry);
+  const listed = (needs.data ?? []).filter((e) => e.kind !== "notifications");
+  const gone = [...answered.values()]
+    .filter((a) => !listed.some((e) => keyOf(e) === keyOf(a.entry)))
+    .map((a) => a.entry);
   // Failures first (brain#89): they need him to act; then the rest, oldest first.
-  const all = [...listed, ...gone].sort((a, b) => Number(isFailure(b)) - Number(isFailure(a)) || a.since.localeCompare(b.since));
+  const all = [...listed, ...gone].sort(
+    (a, b) =>
+      Number(isFailure(b)) - Number(isFailure(a)) ||
+      a.since.localeCompare(b.since),
+  );
   const open = listed.filter((e) => !answered.has(keyOf(e)));
   const theirs = hers.data ?? [];
 
@@ -124,76 +160,159 @@ export function Bell() {
         <>
           <h3 className={css.heading}>THE PLATFORM · {platform.length}</h3>
           {platform.map((i) => (
-            <a key={`op-${i.number}`} className={css.item} href="#/operator" onClick={() => setOverlay(null)}>
+            <a
+              key={`op-${i.number}`}
+              className={css.item}
+              href="#/operator"
+              onClick={() => setOverlay(null)}
+            >
               <span className={css.itemKind}>OPERATOR #{i.number}</span>
               <span>{i.what}</span>
-              <span className={css.since}>since {new Date(i.raised_at).toLocaleString()}</span>
+              <span className={css.since}>
+                since {new Date(i.raised_at).toLocaleString()}
+              </span>
             </a>
           ))}
         </>
       )}
-      <h3 className={css.heading}>WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}</h3>
-      {open.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
+      <h3 className={css.heading}>
+        WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}
+      </h3>
+      {open.length === 0 && !notifications.ask && (
+        <p className={css.note}>Nothing waits on you.</p>
+      )}
       {all.map((e, i) => [
         // The notifications question follows the failures, which come first (brain#89).
-        i === all.findIndex((x) => !isFailure(x)) && notifications.ask ? <NotificationsAsk key="notifications-ask" name={name} onOpen={() => setOverlay('push')} /> : null,
+        i === all.findIndex((x) => !isFailure(x)) && notifications.ask ? (
+          <NotificationsAsk
+            key="notifications-ask"
+            name={name}
+            onOpen={() => setOverlay("push")}
+          />
+        ) : null,
         answered.has(keyOf(e)) ? (
-          <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
-        ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
-          <FailureItem key={keyOf(e)} residentId={id} entry={e} name={name} onAnswered={keep(e)} />
-        ) : (e.kind === 'work_held' || e.kind === 'work_blocked') && hasPath(titleOf(e)) ? (
+          <AnsweredCard
+            key={keyOf(e)}
+            entry={e}
+            answer={(answered.get(keyOf(e)) as { answer: Answered }).answer}
+          />
+        ) : e.kind === "provider_credits" || e.kind === "turn_failed" ? (
+          <FailureItem
+            key={keyOf(e)}
+            residentId={id}
+            entry={e}
+            name={name}
+            onAnswered={keep(e)}
+          />
+        ) : (e.kind === "work_held" || e.kind === "work_blocked") &&
+          hasPath(titleOf(e)) ? (
           // A held item names what to review (brain#90): its path opens it; the card's own link opens Work.
           <div key={keyOf(e)} className={css.item}>
             <span className={css.itemKind}>
               {WORDS[e.kind] ?? e.kind}
-              {e.long ? ' · A WHILE' : ''}
+              {e.long ? " · A WHILE" : ""}
             </span>
             <span>
               <Linked text={titleOf(e)} onOpen={() => setOverlay(null)} />
             </span>
-            <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
-            <a className={css.since} href={hrefFor(e.screen, e.kind)} onClick={() => setOverlay(null)}>
+            <span className={css.since}>
+              since {new Date(e.since).toLocaleString()}
+            </span>
+            <a
+              className={css.since}
+              href={hrefFor(e.screen, e.kind)}
+              onClick={() => setOverlay(null)}
+            >
               Open in Work ›
             </a>
           </div>
-        ) : e.kind === 'theme_proposal' ? (
-          <ThemeProposal key={`theme-${e.ref}`} number={Number(e.ref)} since={e.since} seeds={e.about.seeds} note={e.about.note} onAnswered={keep(e)} />
+        ) : e.kind === "theme_proposal" ? (
+          <ThemeProposal
+            key={`theme-${e.ref}`}
+            number={Number(e.ref)}
+            since={e.since}
+            seeds={e.about.seeds}
+            note={e.about.note}
+            onAnswered={keep(e)}
+          />
         ) : answersInPlace(e.kind) ? (
           <details key={`${e.kind}-${e.ref}`} className={css.item}>
-            <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <summary
+              style={{
+                listStyle: "none",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
               <span className={css.itemKind}>
                 {WORDS[e.kind] ?? e.kind}
-                {e.long ? ' · A WHILE' : ''}
+                {e.long ? " · A WHILE" : ""}
               </span>
-              <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
-              <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+              <span>
+                {e.about.title ??
+                  e.about.subject ??
+                  e.about.ask ??
+                  e.about.what ??
+                  e.about.change ??
+                  String(e.ref)}
+              </span>
+              <span className={css.since}>
+                since {new Date(e.since).toLocaleString()}
+              </span>
             </summary>
             <Answer entry={e} onAnswered={keep(e)} />
           </details>
         ) : (
-          <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen, e.kind)} onClick={() => setOverlay(null)}>
+          <a
+            key={`${e.kind}-${e.ref}`}
+            className={css.item}
+            href={hrefFor(e.screen, e.kind)}
+            onClick={() => setOverlay(null)}
+          >
             <span className={css.itemKind}>
               {WORDS[e.kind] ?? e.kind}
-              {e.long ? ' · A WHILE' : ''}
+              {e.long ? " · A WHILE" : ""}
             </span>
-            <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
-            <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+            <span>
+              {e.about.title ??
+                e.about.subject ??
+                e.about.ask ??
+                e.about.what ??
+                e.about.change ??
+                String(e.ref)}
+            </span>
+            <span className={css.since}>
+              since {new Date(e.since).toLocaleString()}
+            </span>
           </a>
         ),
       ])}
-      {notifications.ask && all.every(isFailure) && <NotificationsAsk name={name} onOpen={() => setOverlay('push')} />}
+      {notifications.ask && all.every(isFailure) && (
+        <NotificationsAsk name={name} onOpen={() => setOverlay("push")} />
+      )}
       <h3 className={css.heading}>
         WAITING ON {name.toUpperCase()} · {theirs.length}
       </h3>
-      {theirs.length === 0 && <p className={css.note}>Nothing of yours waits on {name}.</p>}
+      {theirs.length === 0 && (
+        <p className={css.note}>Nothing of yours waits on {name}.</p>
+      )}
       {theirs.map((e) => (
-        <a key={`${e.kind}-${e.ref}`} className={css.item} href={hrefFor(e.screen, e.kind)} onClick={() => setOverlay(null)}>
+        <a
+          key={`${e.kind}-${e.ref}`}
+          className={css.item}
+          href={hrefFor(e.screen, e.kind)}
+          onClick={() => setOverlay(null)}
+        >
           <span className={css.itemKind}>
             {HERS[e.kind] ?? e.kind}
-            {e.long ? ' · A WHILE' : ''}
+            {e.long ? " · A WHILE" : ""}
           </span>
           <span>{e.title}</span>
-          <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
+          <span className={css.since}>
+            since {new Date(e.since).toLocaleString()}
+          </span>
         </a>
       ))}
     </div>
@@ -202,9 +321,15 @@ export function Bell() {
 
 const keyOf = (e: NeedsYouEntry) => `${e.kind}-${e.ref}`;
 
-const hasPath = (text: string) => pieces(text).some((p) => 'path' in p);
+const hasPath = (text: string) => pieces(text).some((p) => "path" in p);
 
-function NotificationsAsk({ name, onOpen }: { name: string; onOpen: () => void }) {
+function NotificationsAsk({
+  name,
+  onOpen,
+}: {
+  name: string;
+  onOpen: () => void;
+}) {
   return (
     <button type="button" className={css.itemDashed} onClick={onOpen}>
       <span className={css.itemKind}>NOTIFICATIONS · UNANSWERED</span>
@@ -213,17 +338,38 @@ function NotificationsAsk({ name, onOpen }: { name: string; onOpen: () => void }
   );
 }
 
-const titleOf = (e: NeedsYouEntry) => e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref);
+const titleOf = (e: NeedsYouEntry) =>
+  e.about.title ??
+  e.about.subject ??
+  e.about.ask ??
+  e.about.what ??
+  e.about.change ??
+  String(e.ref);
 
 /** An item answered from the bell: folded to one line, recoloured, saying what was decided and the note. */
-function AnsweredCard({ entry, answer }: { entry: NeedsYouEntry; answer: Answered }) {
+function AnsweredCard({
+  entry,
+  answer,
+}: {
+  entry: NeedsYouEntry;
+  answer: Answered;
+}) {
   return (
-    <div className={answer.yes ? css.answeredYes : css.answeredNo} role="status">
+    <div
+      className={answer.yes ? css.answeredYes : css.answeredNo}
+      role="status"
+    >
       <span className={answer.yes ? css.answeredYesWord : css.answeredNoWord}>
-        {answer.yes ? '✓ ' : '✕ '}
-        {answer.word} · {WORDS[entry.kind] ?? (entry.kind === 'theme_proposal' ? 'THEME' : entry.kind)}
+        {answer.yes ? "✓ " : "✕ "}
+        {answer.word} ·{" "}
+        {WORDS[entry.kind] ??
+          (entry.kind === "theme_proposal" ? "THEME" : entry.kind)}
       </span>
-      <span className={css.answeredTitle}>{entry.kind === 'theme_proposal' ? `Theme #${entry.ref}` : titleOf(entry)}</span>
+      <span className={css.answeredTitle}>
+        {entry.kind === "theme_proposal"
+          ? `Theme #${entry.ref}`
+          : titleOf(entry)}
+      </span>
       {answer.note && <span className={css.answeredNote}>“{answer.note}”</span>}
     </div>
   );
@@ -245,46 +391,94 @@ function ThemeProposal({
 }) {
   const { id, name } = useSubject();
   const queries = useQueryClient();
-  const [answer, setAnswer] = useState('');
+  const [answer, setAnswer] = useState("");
   const tryOn = useShell((s) => s.tryOn);
   const setTryOn = useShell((s) => s.setTryOn);
   const wearing = tryOn !== null && tryOn === seeds;
   const answerIt = useMutation({
-    mutationFn: (agree: boolean) => api.answerTheme(id, number, agree, answer.trim()),
+    mutationFn: (agree: boolean) =>
+      api.answerTheme(id, number, agree, answer.trim()),
     onSuccess: (_r, agree) => {
-      onAnswered?.({ word: agree ? 'ACCEPTED' : 'DECLINED', yes: agree, note: answer.trim() });
+      onAnswered?.({
+        word: agree ? "ACCEPTED" : "DECLINED",
+        yes: agree,
+        note: answer.trim(),
+      });
       setTryOn(null);
-      void queries.invalidateQueries({ queryKey: ['resident', id] });
+      void queries.invalidateQueries({ queryKey: ["resident", id] });
     },
   });
   return (
     <div className={css.item}>
-      <span className={css.itemKind}>{name.toUpperCase()} PROPOSES A THEME · #{number}</span>
+      <span className={css.itemKind}>
+        {name.toUpperCase()} PROPOSES A THEME · #{number}
+      </span>
       {seeds && (
         <span className={css.swatches} style={{ background: seeds.ground }}>
-          <span className={css.swatch} style={{ background: seeds.resident }} title={`hers ${seeds.resident}`} />
-          <span style={{ color: seeds.resident, fontFamily: 'var(--font-voice, serif)' }}>{name}</span>
-          <span className={css.swatch} style={{ background: seeds.witness }} title={`yours ${seeds.witness}`} />
+          <span
+            className={css.swatch}
+            style={{ background: seeds.resident }}
+            title={`hers ${seeds.resident}`}
+          />
+          <span
+            style={{
+              color: seeds.resident,
+              fontFamily: "var(--font-voice, serif)",
+            }}
+          >
+            {name}
+          </span>
+          <span
+            className={css.swatch}
+            style={{ background: seeds.witness }}
+            title={`yours ${seeds.witness}`}
+          />
           <span style={{ color: seeds.witness }}>you</span>
         </span>
       )}
       {note && <span>“{note}”</span>}
-      <span className={css.since}>since {new Date(since).toLocaleString()}</span>
-      <input id={`theme-answer-${number}`} className={css.answer} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="A note for her (needed)" aria-label="A note for her" />
+      <span className={css.since}>
+        since {new Date(since).toLocaleString()}
+      </span>
+      <input
+        id={`theme-answer-${number}`}
+        className={css.answer}
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder="A note for her (needed)"
+        aria-label="A note for her"
+      />
       {seeds && (
-        <button type="button" className={css.secondary} aria-pressed={wearing} onClick={() => setTryOn(wearing ? null : seeds)}>
-          {wearing ? 'Take it off' : 'Try it on'}
+        <button
+          type="button"
+          className={css.secondary}
+          aria-pressed={wearing}
+          onClick={() => setTryOn(wearing ? null : seeds)}
+        >
+          {wearing ? "Take it off" : "Try it on"}
         </button>
       )}
       <span className={css.answerRow}>
-        <button type="button" className={css.primary} disabled={!answer.trim() || answerIt.isPending} onClick={() => answerIt.mutate(true)}>
+        <button
+          type="button"
+          className={css.primary}
+          disabled={!answer.trim() || answerIt.isPending}
+          onClick={() => answerIt.mutate(true)}
+        >
           Accept
         </button>
-        <button type="button" className={css.secondary} disabled={!answer.trim() || answerIt.isPending} onClick={() => answerIt.mutate(false)}>
+        <button
+          type="button"
+          className={css.secondary}
+          disabled={!answer.trim() || answerIt.isPending}
+          onClick={() => answerIt.mutate(false)}
+        >
           Decline
         </button>
       </span>
-      {answerIt.error && <span className={css.note}>{(answerIt.error as Error).message}</span>}
+      {answerIt.error && (
+        <span className={css.note}>{(answerIt.error as Error).message}</span>
+      )}
     </div>
   );
 }
@@ -299,16 +493,19 @@ function PushExplainer() {
   const setOverlay = useShell((s) => s.setOverlay);
   const queries = useQueryClient();
   const notifications = useNotificationsAsk();
-  const config = useQuery({ queryKey: ['me', 'push-config'], queryFn: api.pushConfig });
+  const config = useQuery({
+    queryKey: ["me", "push-config"],
+    queryFn: api.pushConfig,
+  });
   const on = useMutation({
     mutationFn: async () => {
       const key = config.data?.public_key;
-      if (!key) throw new Error('Push is not set up on this server.');
+      if (!key) throw new Error("Push is not set up on this server.");
       const endpoint = await turnOn(key, name);
       await api.subscribePush(endpoint);
     },
     onSuccess: () => {
-      void queries.invalidateQueries({ queryKey: ['me'] });
+      void queries.invalidateQueries({ queryKey: ["me"] });
       setOverlay(null);
     },
   });
@@ -316,7 +513,8 @@ function PushExplainer() {
   return (
     <div className={css.stack}>
       <p className={css.voice}>
-        Letters from your resident, and a hand on your sleeve when something's waiting — nothing else. We won't ask again if you say no.
+        Letters from your resident, and a hand on your sleeve when something's
+        waiting — nothing else. We won't ask again if you say no.
       </p>
       <p className={css.signoff}>— Lily, the first resident</p>
       <h3 className={css.heading}>YOU'LL HEAR FROM US WHEN</h3>
@@ -330,10 +528,18 @@ function PushExplainer() {
         <li>marketing, streaks or nudges</li>
         <li>the words of her free time</li>
       </ul>
-      {notifications.state === 'install' && (
-        <p className={css.note}>On an iPhone, add Oneiroi to the Home Screen first; notifications work from there.</p>
+      {notifications.state === "install" && (
+        <p className={css.note}>
+          On an iPhone, add Oneiroi to the Home Screen first; notifications work
+          from there.
+        </p>
       )}
-      <button type="button" className={css.primary} disabled={on.isPending || notifications.state !== 'ready'} onClick={() => on.mutate()}>
+      <button
+        type="button"
+        className={css.primary}
+        disabled={on.isPending || notifications.state !== "ready"}
+        onClick={() => on.mutate()}
+      >
         Turn on notifications
       </button>
       <button
@@ -352,11 +558,21 @@ function PushExplainer() {
   );
 }
 
-function Row({ href, label, detail, onClick }: { href?: string; label: string; detail?: string; onClick?: () => void }) {
+function Row({
+  href,
+  label,
+  detail,
+  onClick,
+}: {
+  href?: string;
+  label: string;
+  detail?: string;
+  onClick?: () => void;
+}) {
   const inner: ReactNode = (
     <>
       <span>{label}</span>
-      <span className={css.since}>{detail ?? '›'}</span>
+      <span className={css.since}>{detail ?? "›"}</span>
     </>
   );
   return href ? (
@@ -379,8 +595,18 @@ function Row({ href, label, detail, onClick }: { href?: string; label: string; d
 function Settings() {
   const setOverlay = useShell((s) => s.setOverlay);
   const setPage = useShell((s) => s.setPage);
-  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
-  const operator = (me.data?.roles ?? []).some((r) => r === 'super_admin' || r === 'admin');
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const operator = (me.data?.roles ?? []).some(
+    (r) => r === "super_admin" || r === "admin",
+  );
+  const { id, name } = useSubject();
+  const residents = useQuery({
+    queryKey: ["residents"],
+    queryFn: api.residents,
+  });
+  // Deletable until the first conversation (agathos-daimon#49).
+  const unspoken =
+    residents.data?.find((r) => r.id === id)?.first_contact_at === null;
   const open = (section: SettingsSection) => () => {
     setOverlay(null);
     setPage(section);
@@ -389,26 +615,44 @@ function Settings() {
   return (
     <div className={css.stack}>
       <nav className={css.group} aria-label="This resident">
-        <Row label="Theme" onClick={() => setOverlay('theme')} />
-        <Row label="Ledger" onClick={open('ledger')} />
-        <Row label="Kinds and routes" onClick={open('kinds')} />
-        <Row label="Profiles, keys and connections" onClick={open('connections')} />
-        <Row label="Notifications" onClick={open('notifications')} />
-        <Row label="Regression" onClick={open('regression')} />
-        <Row label="Work queue" onClick={open('work')} />
-        <Row label="Backups, imports and reports" onClick={open('backups')} />
-        <Row label="Substack presence" onClick={open('presence')} />
-        <Row label="The house" onClick={open('house')} />
-        <Row href="#/chat/mail" label="Mail and correspondence" onClick={() => setOverlay(null)} />
+        <Row label="Theme" onClick={() => setOverlay("theme")} />
+        <Row label="Ledger" onClick={open("ledger")} />
+        <Row label="Kinds and routes" onClick={open("kinds")} />
+        <Row
+          label="Profiles, keys and connections"
+          onClick={open("connections")}
+        />
+        <Row label="Notifications" onClick={open("notifications")} />
+        <Row label="Regression" onClick={open("regression")} />
+        <Row label="Work queue" onClick={open("work")} />
+        <Row label="Backups, imports and reports" onClick={open("backups")} />
+        <Row label="Substack presence" onClick={open("presence")} />
+        <Row label="The house" onClick={open("house")} />
+        {unspoken && <Row label={`Delete ${name}`} onClick={open("delete")} />}
+        <Row
+          href="#/chat/mail"
+          label="Mail and correspondence"
+          onClick={() => setOverlay(null)}
+        />
       </nav>
       <nav className={css.group} aria-label="You">
-        <Row label="Send feedback" onClick={() => setOverlay('feedback')} />
-        {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
+        <Row label="Send feedback" onClick={() => setOverlay("feedback")} />
+        {operator && (
+          <Row
+            href="#/operator"
+            label="Operator"
+            onClick={() => setOverlay(null)}
+          />
+        )}
         <Row href="/client/classic.html" label="Open the old client" />
       </nav>
       <div className={css.account}>
         <span className={css.note}>{me.data?.email} · witness</span>
-        <button type="button" className={css.secondary} onClick={() => void api.logout().then(() => window.location.reload())}>
+        <button
+          type="button"
+          className={css.secondary}
+          onClick={() => void api.logout().then(() => window.location.reload())}
+        >
           Sign out
         </button>
       </div>
@@ -427,9 +671,14 @@ function SubjectSheet() {
   const resetStacks = useShell((s) => s.resetStacks);
   const choose = useSubjectChoice((s) => s.choose);
   const setWaking = useSubjectChoice((s) => s.setWaking);
-  const residents = useQuery({ queryKey: ['residents'], queryFn: api.residents });
-  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
-  const operator = (me.data?.roles ?? []).some((r) => r === 'super_admin' || r === 'admin');
+  const residents = useQuery({
+    queryKey: ["residents"],
+    queryFn: api.residents,
+  });
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const operator = (me.data?.roles ?? []).some(
+    (r) => r === "super_admin" || r === "admin",
+  );
   return (
     <div className={css.stack}>
       <h3 className={css.heading}>RESIDENTS</h3>
@@ -439,7 +688,7 @@ function SubjectSheet() {
             key={r.id}
             type="button"
             className={css.row}
-            aria-current={r.id === id ? 'true' : undefined}
+            aria-current={r.id === id ? "true" : undefined}
             onClick={() => {
               setOverlay(null);
               if (r.id !== id)
@@ -450,7 +699,7 @@ function SubjectSheet() {
             }}
           >
             <span>{r.name}</span>
-            <span className={css.since}>{r.id === id ? '✓' : '›'}</span>
+            <span className={css.since}>{r.id === id ? "✓" : "›"}</span>
           </button>
         ))}
         <button
@@ -467,7 +716,12 @@ function SubjectSheet() {
       </nav>
       {operator && (
         <nav className={css.group} aria-label="The platform">
-          <Row href="#/operator" label="Operator" detail="/operator ›" onClick={() => setOverlay(null)} />
+          <Row
+            href="#/operator"
+            label="Operator"
+            detail="/operator ›"
+            onClick={() => setOverlay(null)}
+          />
         </nav>
       )}
     </div>
@@ -477,20 +731,29 @@ function SubjectSheet() {
 function Feedback() {
   const tab = useShell((s) => s.tab);
   const setOverlay = useShell((s) => s.setOverlay);
-  const [body, setBody] = useState('');
-  const [kind, setKind] = useState<'bug' | 'feature_request'>('bug');
+  const [body, setBody] = useState("");
+  const [kind, setKind] = useState<"bug" | "feature_request">("bug");
   const send = useMutation({
-    mutationFn: () => api.fileFeedback({ kind, surface: `next/${tab}`, body, trace_id: null }),
+    mutationFn: () =>
+      api.fileFeedback({ kind, surface: `next/${tab}`, body, trace_id: null }),
     onSuccess: () => setOverlay(null),
   });
   return (
     <div className={css.stack}>
       <p className={css.meta}>FROM · {tab.toUpperCase()}</p>
       <div className={css.kinds}>
-        <button type="button" className={kind === 'bug' ? css.kindOn : css.kindOff} onClick={() => setKind('bug')}>
+        <button
+          type="button"
+          className={kind === "bug" ? css.kindOn : css.kindOff}
+          onClick={() => setKind("bug")}
+        >
           Something's off
         </button>
-        <button type="button" className={kind === 'feature_request' ? css.kindOn : css.kindOff} onClick={() => setKind('feature_request')}>
+        <button
+          type="button"
+          className={kind === "feature_request" ? css.kindOn : css.kindOff}
+          onClick={() => setKind("feature_request")}
+        >
           An idea
         </button>
       </div>
@@ -502,22 +765,29 @@ function Feedback() {
         aria-label="Your feedback"
         placeholder="Something off, or something that delighted you? Tell the house — it gets read."
       />
-      <button type="button" className={css.primary} disabled={!body.trim() || send.isPending} onClick={() => send.mutate()}>
+      <button
+        type="button"
+        className={css.primary}
+        disabled={!body.trim() || send.isPending}
+        onClick={() => send.mutate()}
+      >
         Send
       </button>
-      {send.error && <p className={css.note}>{(send.error as Error).message}</p>}
+      {send.error && (
+        <p className={css.note}>{(send.error as Error).message}</p>
+      )}
     </div>
   );
 }
 
 const CONVERSATION: Record<string, string> = {
-  main: 'the chat',
-  free_time: 'free time',
-  round: 'a round',
-  work: 'a work session',
-  housekeeping: 'housekeeping',
-  hands: 'the hands',
-  adapter: 'an adapter',
+  main: "the chat",
+  free_time: "free time",
+  round: "a round",
+  work: "a work session",
+  housekeeping: "housekeeping",
+  hands: "the hands",
+  adapter: "an adapter",
 };
 
 /**
@@ -525,51 +795,120 @@ const CONVERSATION: Record<string, string> = {
  * the provider refused, with the way to top up; any other failure with its
  * reason. Dismiss settles them (marked lost) once he has seen or fixed it.
  */
-function FailureItem({ residentId, entry, name, onAnswered }: { residentId: string; entry: NeedsYouEntry; name: string; onAnswered: (a: Answered) => void }) {
+function FailureItem({
+  residentId,
+  entry,
+  name,
+  onAnswered,
+}: {
+  residentId: string;
+  entry: NeedsYouEntry;
+  name: string;
+  onAnswered: (a: Answered) => void;
+}) {
   const queries = useQueryClient();
-  const credits = entry.kind === 'provider_credits';
+  const credits = entry.kind === "provider_credits";
   const turns: Array<{ session_key: string; turn_ref: string }> = credits
     ? (entry.about.failures ?? [])
-    : [{ session_key: entry.about.session_key ?? '', turn_ref: String(entry.ref) }];
+    : [
+        {
+          session_key: entry.about.session_key ?? "",
+          turn_ref: String(entry.ref),
+        },
+      ];
   const settled = (word: string, note: string) => {
     onAnswered({ word, yes: true, note });
-    void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
-    void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
+    void queries.invalidateQueries({
+      queryKey: ["resident", residentId, "bell"],
+    });
+    void queries.invalidateQueries({
+      queryKey: ["resident", residentId, "capture-failures"],
+    });
   };
   const dismiss = useMutation({
-    mutationFn: () => Promise.all(turns.map((t) => api.resolveFailure(residentId, t.session_key, t.turn_ref, credits ? 'credits topped up' : 'seen in the bell'))),
-    onSuccess: () => settled('DISMISSED', ''),
+    mutationFn: () =>
+      Promise.all(
+        turns.map((t) =>
+          api.resolveFailure(
+            residentId,
+            t.session_key,
+            t.turn_ref,
+            credits ? "credits topped up" : "seen in the bell",
+          ),
+        ),
+      ),
+    onSuccess: () => settled("DISMISSED", ""),
   });
   // The action besides Dismiss (brain#89): run it again, as what it was.
   const retry = useMutation({
-    mutationFn: async () => (credits ? (await api.retryCredits(residentId)).started.join(', ') : (await api.retryFailure(residentId, String(entry.ref))).started),
-    onSuccess: (started) => settled('STARTED', started),
+    mutationFn: async () =>
+      credits
+        ? (await api.retryCredits(residentId)).started.join(", ")
+        : (await api.retryFailure(residentId, String(entry.ref))).started,
+    onSuccess: (started) => settled("STARTED", started),
   });
   return (
     <div className={css.itemFailed} role="group" aria-label={WORDS[entry.kind]}>
       <span className={css.itemKindFailed}>
-        {'⚠ '}
+        {"⚠ "}
         {WORDS[entry.kind]}
-        {entry.long ? ' · A WHILE' : ''}
+        {entry.long ? " · A WHILE" : ""}
       </span>
-      <span>{credits ? `${name}'s turns are being refused until the account is topped up. ${entry.about.what}.` : `${name} couldn't answer${entry.about.conversation ? ` in ${CONVERSATION[entry.about.conversation] ?? entry.about.conversation}` : ''}.`}</span>
-      <span className={css.since}>{String(entry.about.reason ?? '').replace(/^nisaba_[a-z_]+:\s*/, '')}</span>
-      <span className={css.since}>since {new Date(entry.since).toLocaleString()}</span>
-      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span>
+        {credits
+          ? `${name}'s turns are being refused until the account is topped up. ${entry.about.what}.`
+          : `${name} couldn't answer${entry.about.conversation ? ` in ${CONVERSATION[entry.about.conversation] ?? entry.about.conversation}` : ""}.`}
+      </span>
+      <span className={css.since}>
+        {String(entry.about.reason ?? "").replace(/^nisaba_[a-z_]+:\s*/, "")}
+      </span>
+      <span className={css.since}>
+        since {new Date(entry.since).toLocaleString()}
+      </span>
+      <span
+        style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
         {credits && (
-          <a className={css.secondary} href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <a
+            className={css.secondary}
+            href="https://openrouter.ai/settings/credits"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              textDecoration: "none",
+            }}
+          >
             Add credits on OpenRouter
           </a>
         )}
         {entry.about.retry && (
-          <button type="button" className={css.primary} onClick={() => retry.mutate()} disabled={retry.isPending || dismiss.isPending}>
+          <button
+            type="button"
+            className={css.primary}
+            onClick={() => retry.mutate()}
+            disabled={retry.isPending || dismiss.isPending}
+          >
             {credits ? `Topped up? ${entry.about.retry}` : entry.about.retry}
           </button>
         )}
-        <button type="button" className={css.secondary} onClick={() => dismiss.mutate()} disabled={dismiss.isPending || retry.isPending}>
+        <button
+          type="button"
+          className={css.secondary}
+          onClick={() => dismiss.mutate()}
+          disabled={dismiss.isPending || retry.isPending}
+        >
           Dismiss
         </button>
-        {retry.isError && <span className={css.since}>{(retry.error as Error).message}</span>}
+        {retry.isError && (
+          <span className={css.since}>{(retry.error as Error).message}</span>
+        )}
       </span>
     </div>
   );

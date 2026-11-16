@@ -33,4 +33,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Asks do
       set: [decision: e.decision, note: e.note, answered_at: e.at]
     )
   end)
+
+  # A tombstone (agathos-daimon#49): their rows go with them.
+  fold(%Events.ResidentDiscarded{id: id}, _metadata, fn multi ->
+    multi
+    |> Multi.delete_all({:discarded, Ask}, from(x in Ask, where: x.resident_id == ^id))
+  end)
 end

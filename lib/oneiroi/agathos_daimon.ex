@@ -40,6 +40,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.CreateResident,
       Commands.AwakenResident,
       Commands.ReturnToFormation,
+      Commands.DiscardResident,
       Commands.MintId,
       Commands.PauseResident,
       Commands.WakeResident,
@@ -59,6 +60,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.FormationBegun,
       Events.ResidentAwakened,
       Events.ReturnedToFormation,
+      Events.ResidentDiscarded,
       Events.IdMinted,
       Events.ResidentPaused,
       Events.ResidentWoken,
@@ -165,6 +167,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.FormationBegun, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentAwakened, 1},
       {Oneiroi.AgathosDaimon.Events.ReturnedToFormation, 1},
+      {Oneiroi.AgathosDaimon.Events.ResidentDiscarded, 1},
       {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
       {Oneiroi.AgathosDaimon.Events.ContinuationAsked, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
@@ -288,6 +291,12 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_model_unchosen,
        "a forming resident wakes on a chat model the witness chose: none has been chosen yet",
        remedy: "run the regression trials and pin the model they wake on, then wake them"},
+      {:agathos_daimon_not_discardable,
+       "only a resident who has had no first conversation with their witness, and no agreement, can be deleted",
+       remedy:
+         "a resident who has lived a turn is never deleted (spec §6.2); custody moves instead"},
+      {:agathos_daimon_discarded, "this resident was deleted before their first turn",
+       remedy: "nothing reaches a deleted resident; make a new one"},
       {:agathos_daimon_not_returnable,
        "only an active resident who has had no first conversation and no agreement goes back to forming",
        remedy: "a resident who has lived any of it keeps it; talk with them instead"},
@@ -396,6 +405,10 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The witness wakes a forming resident, once a chat model was chosen (agathos-daimon#46)."
   @spec awaken(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(awaken(id, note, actor), do: Residents.awaken(id, note, actor))
+
+  @doc "Deletes a resident who has had no first conversation (agathos-daimon#49): the witness's, a tombstone with its note."
+  @spec discard(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(discard(id, note, actor), do: Residents.discard(id, note, actor))
 
   @doc "The operator returns a resident who has lived nothing yet to forming (agathos-daimon#47), with a note."
   @spec return_to_formation(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

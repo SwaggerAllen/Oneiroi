@@ -243,6 +243,10 @@ defmodule Oneiroi.SimaQian do
   @spec backup(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(backup(resident_id, actor), do: Backup.run(resident_id, actor))
 
+  @doc "Removes the working repository of a resident deleted before their first turn (agathos-daimon#49); the log keeps the tombstone."
+  @spec discard_repository(String.t()) :: :ok
+  defexport(discard_repository(resident_id), do: Backup.discard(resident_id))
+
   @doc "Rebuilds a repository into a fresh store as a new resident under `witness_account_id`."
   @spec rebuild(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(rebuild(url, witness_account_id, actor),

@@ -84,4 +84,14 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Plugins do
 
   defp by(%{kind: kind}), do: to_string(kind)
   defp by(%{"kind" => kind}), do: kind
+
+  # A tombstone (agathos-daimon#49): their rows go with them.
+  fold(%Events.ResidentDiscarded{id: id}, _metadata, fn multi ->
+    multi
+    |> Multi.delete_all({:discarded, Plugin}, from(x in Plugin, where: x.resident_id == ^id))
+    |> Multi.delete_all(
+      {:discarded, PluginProposal},
+      from(x in PluginProposal, where: x.resident_id == ^id)
+    )
+  end)
 end
