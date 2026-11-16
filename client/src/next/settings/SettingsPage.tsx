@@ -5,6 +5,7 @@ import { Backups } from './Backups';
 import { Connections } from './Connections';
 import { Kinds } from './Kinds';
 import { Ledger } from './Ledger';
+import { House } from './House';
 import { Notifications } from './Notifications';
 import { Presence } from './Presence';
 import { Regression } from './Regression';
@@ -20,6 +21,7 @@ const TITLES: Record<SettingsSection, string> = {
   work: 'Work queue',
   backups: 'Backups, imports and reports',
   presence: 'Substack presence',
+  house: 'The house',
 };
 
 /**
@@ -38,6 +40,7 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     work: `${name}'s queue: underway, next, and waiting on you.`,
     backups: `Where ${name}'s records are pushed each night, conversations brought from ChatGPT, and the report ladder.`,
     presence: `${name} reading the community you follow, and what that earned, waiting on your word before it goes out as Allen Strut.`,
+    house: 'The shared workspace: its own clock, the check-ins the whole house answers at once, and the latest one.',
   };
   return (
     <ScrollArea label={TITLES[section]}>
@@ -55,6 +58,7 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
         {section === 'work' && <Work />}
         {section === 'backups' && <Backups />}
         {section === 'presence' && <Presence />}
+        {section === 'house' && <House />}
       </div>
     </ScrollArea>
   );

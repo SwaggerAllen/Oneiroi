@@ -31,6 +31,7 @@ export function Rhythm() {
               Every time here is {name}'s, in {s.timezone}.
             </p>
             <Checkins s={s} refresh={refresh} />
+            <HouseCheckins />
             <FreeTime s={s} refresh={refresh} />
             {s.rounds && <Rounds rounds={s.rounds} refresh={refresh} />}
             <Quiet quiet={s.quiet} refresh={refresh} />
@@ -52,6 +53,69 @@ function useWrite<T>(fn: (v: T) => Promise<unknown>, refresh: Refresh) {
 
 function Failed({ error }: { error: Error | null }) {
   return error ? <p className={css.note}>That didn't go through: {error.message}</p> : null;
+}
+
+/**
+ * The house's check-ins (gaia#41, sunna#65): when the whole house checks
+ * in, what this resident reports, in your words for her. The check-ins
+ * themselves are kept in Settings, The house.
+ */
+function HouseCheckins() {
+  const { id, name } = useSubject();
+  const house = useQuery({ queryKey: ['resident', id, 'time', 'house'], queryFn: () => api.houseForResident(id) });
+  if (!house.data || house.data.checkins.length === 0) return null;
+  return (
+    <section className={css.section} aria-label="House check-ins">
+      <h2 className={css.headingWitness}>HOUSE CHECK-INS</h2>
+      <p className={css.note}>
+        On the house's clock ({house.data.zone}). What {name} reports when the whole house checks in:
+      </p>
+      {house.data.checkins.map((c) => (
+        <HousePrompt key={c.key} keyName={c.key} label={c.label} time={c.time} prompt={c.prompt ?? ''} />
+      ))}
+    </section>
+  );
+}
+
+function HousePrompt({ keyName, label, time, prompt }: { keyName: string; label: string; time: string; prompt: string }) {
+  const { id, name } = useSubject();
+  const queries = useQueryClient();
+  const [text, setText] = useState(prompt);
+  const save = useMutation({
+    mutationFn: () => api.setHousePrompt(id, keyName, text),
+    onSuccess: () => queries.invalidateQueries({ queryKey: ['resident', id, 'time', 'house'] }),
+  });
+  return (
+    <div className={css.card}>
+      <div className={css.cardHead}>
+        <span>{label}</span>
+        <span className={css.meta}>{time}</span>
+      </div>
+      <form
+        className={css.form}
+        aria-label={`${name}'s part in ${label}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <textarea
+          className={css.text}
+          rows={3}
+          maxLength={4000}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          aria-label={`What ${name} reports`}
+          placeholder={`What ${name} reports: her part of the work, in your words`}
+        />
+        <button type="submit" className={css.addButton} disabled={save.isPending || text === prompt}>
+          Keep
+        </button>
+      </form>
+      {save.isSuccess && text === prompt && <p className={css.note}>Kept.</p>}
+      <Failed error={save.error} />
+    </div>
+  );
 }
 
 function Checkins({ s, refresh }: { s: ScheduleToday; refresh: Refresh }) {

@@ -158,6 +158,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Externals
+  alias Oneiroi.Seshat.HouseCheckins
   alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.Index
@@ -632,6 +633,30 @@ defmodule Oneiroi.Seshat do
   defexport(household_profile(actor, profile, note),
     do: HouseholdBeats.set_profile(actor, profile, note)
   )
+
+  @doc "The caller's household's clock and house check-ins (seshat#75)."
+  @spec house_checkins(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(house_checkins(actor), do: HouseCheckins.list(actor))
+
+  @doc "The witness sets the shared workspace's own clock (seshat#75)."
+  @spec set_house_clock(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(set_house_clock(actor, zone), do: HouseCheckins.set_clock(actor, zone))
+
+  @doc "The witness sets a house check-in (seshat#75)."
+  @spec set_house_checkin(Oneiroi.Actor.t(), String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(set_house_checkin(actor, key, label, time),
+    do: HouseCheckins.set(actor, key, label, time)
+  )
+
+  @doc "The witness removes a house check-in, with a note (seshat#75)."
+  @spec remove_house_checkin(Oneiroi.Actor.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(remove_house_checkin(actor, key, note), do: HouseCheckins.remove(actor, key, note))
+
+  @doc "The house check-ins' minute for one household (seshat#75)."
+  @spec tick_house_checkins(String.t()) :: :ok
+  defexport(tick_house_checkins(household_id), do: HouseCheckins.tick(household_id))
 
   @doc "The household beats' minute for one household (seshat#70)."
   @spec tick_household_beats(String.t()) :: :ok | {:error, term()}

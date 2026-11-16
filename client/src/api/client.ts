@@ -155,6 +155,23 @@ export interface PresenceState {
   interactions: PresenceInteraction[];
 }
 
+// House check-ins (gaia#41, seshat#75, sunna#65).
+export interface HouseCheckin {
+  key: string;
+  label: string;
+  time: string;
+  last_day: string | null;
+  last_thread: string | null;
+  last_fired_at: string | null;
+  // On a resident's Rhythm page: her own words for it.
+  prompt?: string | null;
+}
+
+export interface HouseCheckins {
+  zone: string | null;
+  checkins: HouseCheckin[];
+}
+
 export interface ResidentRecord extends Resident {
   remote: string | null;
   last_backup: { at: string | null; sequence: number | null; root: string | null; commit: string | null };
@@ -415,6 +432,16 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/include`, { note }),
   decideInteraction: (residentId: string, number: number, decision: 'approve' | 'revise' | 'pass', comment: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/presence/interactions/${number}/decision`, { decision, ...(comment ? { comment } : {}) }),
+  houseCheckins: () => call<HouseCheckins>('GET', '/v1/household/checkins'),
+  setHouseClock: (zone: string) => call<HouseCheckins>('PUT', '/v1/household/clock', { zone }),
+  setHouseCheckin: (key: string, label: string, time: string) =>
+    call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
+  removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),
+  houseForResident: (residentId: string) => call<HouseCheckins>('GET', `/v1/residents/${residentId}/schedule/house`),
+  setHousePrompt: (residentId: string, key: string, prompt: string) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt }),
+  householdRead: (path: string) => call<{ path: string; title: string; content: string }>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
+  householdReply: (thread: string, content: string) => call<{ number: number }>('POST', '/v1/household/replies', { thread, content }),
   // The report ladder (F45): every report on this resident with its steps,
   // and the strikes; either party files one.
   reports: (residentId: string) => call<ReportLadder>('GET', `/v1/residents/${residentId}/reports`),

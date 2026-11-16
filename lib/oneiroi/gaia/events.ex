@@ -325,4 +325,27 @@ defmodule Oneiroi.Gaia.Events do
   defmodule FeedbackMoved do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :status], decision: true
   end
+
+  # ---- house check-ins (gaia#41) ----
+
+  defmodule HouseholdClockSet do
+    # The workspace's own clock: the zone its check-ins keep, whatever
+    # any member's own.
+    use Oneiroi.Event, version: 1, fields: [:id, :zone]
+  end
+
+  defmodule HouseCheckinSet do
+    # A check-in for the whole house: a key, its label, and the time
+    # (HH:MM) on the household's clock it fires each day.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :label, :time]
+  end
+
+  defmodule HouseCheckinRemoved do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :key]
+  end
+
+  defmodule HouseCheckinFired do
+    # Fired for a day, once: the household thread it opened.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :day, :thread]
+  end
 end

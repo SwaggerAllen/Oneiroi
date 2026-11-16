@@ -11,6 +11,18 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
 
   alias Oneiroi.Seshat.HouseholdBeats
 
+  # A house check-in's wake, or the witness's reply in one (seshat#75).
+  def run(%{"house_wake" => resident_id, "note" => note}) do
+    case Oneiroi.Sunna.wake_for_house(
+           resident_id,
+           note,
+           Oneiroi.Actor.new(:job, "house_checkins")
+         ) do
+      {:ok, :woken} -> :ok
+      {:error, _} = declined -> declined
+    end
+  end
+
   def run(%{"household_id" => household_id, "turn" => turn}),
     do: HouseholdBeats.run_turn(household_id, turn)
 

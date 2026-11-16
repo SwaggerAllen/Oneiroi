@@ -49,6 +49,21 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
     )
   end)
 
+  fold(%Events.HousePromptSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :house_prompt,
+      %Oneiroi.Sunna.Store.HousePrompt{
+        resident_id: e.id,
+        key: e.key,
+        prompt: e.prompt,
+        set_at: e.at
+      },
+      on_conflict: [set: [prompt: e.prompt, set_at: e.at]],
+      conflict_target: [:resident_id, :key]
+    )
+  end)
+
   fold(%Events.CheckinDeleted{} = e, _metadata, fn multi ->
     Multi.delete_all(
       multi,

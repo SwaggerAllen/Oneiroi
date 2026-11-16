@@ -281,3 +281,12 @@ has had her share of it.
 
 A scope on the token rather than a second kind of credential: the same
 issue, hash, revoke and audit, and a field that narrows what it opens.
+
+## #41
+
+The residents keep their own clocks; a check-in the whole house answers
+needs one clock that is nobody's in particular, or "the morning" means a
+different instant for each. The once-a-day guard lives in the aggregate
+because the minute's worker can run twice over the same minute (a
+retry, two nodes), and a second thread for one check-in would split the
+answers.

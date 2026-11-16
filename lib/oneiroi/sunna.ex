@@ -82,6 +82,7 @@ defmodule Oneiroi.Sunna do
       Events.WorkRunsReset,
       Events.LettersWoke,
       Events.CheckinSet,
+      Events.HousePromptSet,
       Events.CheckinChanged,
       Events.CheckinDeleted,
       Events.CheckinFired,
@@ -289,6 +290,7 @@ defmodule Oneiroi.Sunna do
   def events do
     [
       {Oneiroi.Sunna.Events.CheckinSet, 2},
+      {Oneiroi.Sunna.Events.HousePromptSet, 1},
       {Oneiroi.Sunna.Events.CheckinChanged, 2},
       {Oneiroi.Sunna.Events.CheckinDeleted, 1},
       {Oneiroi.Sunna.Events.CheckinFired, 1},
@@ -352,6 +354,8 @@ defmodule Oneiroi.Sunna do
       {:sunna_kind_invalid, "a date's kind is deadline, anniversary, window or recurring",
        remedy: "say which"},
       {:sunna_no_such_checkin, "no check-in has that key", remedy: "read the schedule"},
+      {:sunna_not_allowed, "a resident's words for a house check-in are her witness's to set",
+       remedy: "the witness sets them on her Rhythm page"},
       {:sunna_no_such_date, "no date has that number", remedy: "read the dates"},
       {:sunna_day_invalid, "a day is an ISO date", remedy: "name the day as YYYY-MM-DD"},
       {:sunna_range_invalid,
@@ -395,6 +399,21 @@ defmodule Oneiroi.Sunna do
 
   @impl Oneiroi.Component
   def children, do: [Oneiroi.Sunna.Projectors.Schedules, Oneiroi.Sunna.Projectors.Work]
+
+  @doc "What a resident reports when the house checks in (sunna#65), by the house check-in's key; nil when not set."
+  @spec house_prompt(String.t(), String.t()) :: String.t() | nil
+  defexport(house_prompt(resident_id, key), do: Schedules.house_prompt(resident_id, key))
+
+  @doc "Every house prompt a resident has, key to words (sunna#65)."
+  @spec house_prompts(String.t()) :: %{String.t() => String.t()}
+  defexport(house_prompts(resident_id), do: Schedules.house_prompts(resident_id))
+
+  @doc "The witness sets a resident's words for a house check-in (sunna#65); blank clears."
+  @spec set_house_prompt(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_house_prompt(resident_id, key, prompt, actor),
+    do: Schedules.set_house_prompt(resident_id, key, prompt, actor)
+  )
 
   @doc "Sets a check-in (a fresh key when nil): label and HH:MM in the resident's zone; returns the key."
   @spec set_checkin(String.t(), String.t() | nil, String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -632,6 +651,13 @@ defmodule Oneiroi.Sunna do
           {:ok, :woken} | {:error, term()}
   defexport(wake_for_household(resident_id, note, actor),
     do: Schedules.wake_for_household(resident_id, note, actor)
+  )
+
+  @doc "Wakes a resident's chat for a house check-in, quiet hours aside (sunna#65)."
+  @spec wake_for_house(String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, :woken} | {:error, term()}
+  defexport(wake_for_house(resident_id, note, actor),
+    do: Schedules.wake_for_house(resident_id, note, actor)
   )
 
   @doc "The marked hours, newest first (spec §6.7, P20 as amended): the pulse, one row per local hour the tick reached."

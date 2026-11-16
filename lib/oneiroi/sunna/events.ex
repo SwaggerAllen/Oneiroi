@@ -251,4 +251,10 @@ defmodule Oneiroi.Sunna.Events do
     # The loop resting, and why: "empty, holding" is a state, not a failure.
     use Oneiroi.Event, version: 1, fields: [:id, :reason]
   end
+
+  defmodule HousePromptSet do
+    # What this resident reports when the house checks in (sunna#65):
+    # the witness's words for her, by the house check-in's key; nil clears.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :prompt]
+  end
 end

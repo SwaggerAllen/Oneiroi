@@ -127,6 +127,57 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:checkins,
+    summary:
+      "The shared workspace's own clock and its house check-ins, each with the day and thread it last opened (seshat#75)",
+    responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
+  )
+
+  def checkins(conn, _params), do: house(conn, Seshat.house_checkins(actor(conn)))
+
+  operation(:clock,
+    summary: "Set the shared workspace's own clock, a zone name (gaia#41)",
+    request_body:
+      {"the zone", "application/json",
+       %Schema{type: :object, required: [:zone], properties: %{zone: %Schema{type: :string}}}},
+    responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
+  )
+
+  def clock(conn, params), do: house(conn, Seshat.set_house_clock(actor(conn), params["zone"]))
+
+  operation(:set_checkin,
+    summary:
+      "Set a house check-in: its label and its time HH:MM on the workspace's clock (gaia#41)",
+    parameters: [key: [in: :path, type: :string]],
+    request_body:
+      {"the check-in", "application/json",
+       %Schema{
+         type: :object,
+         required: [:label, :time],
+         properties: %{label: %Schema{type: :string}, time: %Schema{type: :string}}
+       }},
+    responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
+  )
+
+  def set_checkin(conn, %{"key" => key} = params),
+    do: house(conn, Seshat.set_house_checkin(actor(conn), key, params["label"], params["time"]))
+
+  operation(:remove_checkin,
+    summary: "Remove a house check-in, with a note (gaia#41)",
+    parameters: [key: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
+  )
+
+  def remove_checkin(conn, %{"key" => key} = params),
+    do: house(conn, Seshat.remove_house_checkin(actor(conn), key, params["note"]))
+
+  defp house(conn, {:ok, h}), do: json(conn, h)
+  defp house(conn, {:error, %{kind: :seshat_household_not_member} = e}), do: error(conn, 404, e)
+  defp house(conn, {:error, e}), do: error(conn, 422, e)
+
   operation(:profile,
     summary:
       "Set this witness's own wake profile in the household's beats, with a note: a witness is never woken, so self is the one it takes (gaia#37)",
