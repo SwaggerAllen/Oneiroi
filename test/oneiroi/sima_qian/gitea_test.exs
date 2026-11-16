@@ -98,7 +98,6 @@ defmodule Oneiroi.SimaQian.GiteaTest do
     household = Gaia.household_id(ctx.witness.id)
     org = Gitea.org(household)
     {:ok, _} = SimaQian.backup(ctx.wren, Actor.platform())
-    assert %{"resident_id" => ctx.wren} in jobs()
 
     assert :ok = perform_job(GiteaWorker, %{"resident_id" => ctx.wren})
     assert "#{org}/#{ctx.slug}" in Fake.state().repos

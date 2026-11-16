@@ -23,6 +23,7 @@ defmodule Oneiroi.SimaQian.Household do
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.GiteaQueue
+  alias Oneiroi.SimaQian.Repos
 
   @folder "household"
 
@@ -76,26 +77,21 @@ defmodule Oneiroi.SimaQian.Household do
   and one an earlier backup committed stays as it was until removed.
   """
   @spec travel(String.t(), Path.t()) :: :ok
-  # Every path is under the records root: the household's directory is
-  # made from an id the platform minted, and the files copied are the
-  # ones git tracks there.
+  # The target is the run's staging directory (sima-qian#57); the paths
+  # are the household repository's own, read through the repositories'
+  # port, under the folder this module names.
   # sobelow_skip ["Traversal.FileModule"]
   def travel(resident_id, resident_dir) do
     target = Path.join(resident_dir, @folder)
 
     with true <- Config.fetch!(:sima_qian, :household_travels),
          %{} = household <- Gaia.resident_household(resident_id),
-         source = dir(household.id),
-         true <- File.dir?(Path.join(source, ".git")),
-         {:ok, files} <- tracked(source) do
-      # Rewritten whole, so a copy no file of the household's supports
-      # any more is gone (its removal committed with the class).
-      File.rm_rf!(target)
-
-      for path <- files do
+         repo = {:household, household.id},
+         {:ok, files} when map_size(files) > 0 <- Repos.snapshot(repo) do
+      for path <- Map.keys(files) do
         to = Path.join(target, path)
         File.mkdir_p!(Path.dirname(to))
-        File.cp!(Path.join(source, path), to)
+        File.write!(to, Repos.at(repo, files, path))
       end
 
       File.mkdir_p!(target)
@@ -103,13 +99,6 @@ defmodule Oneiroi.SimaQian.Household do
     end
 
     :ok
-  end
-
-  defp tracked(dir) do
-    case Git.run(Git.binary(), dir, ["ls-files", "-z"], false) do
-      {:ok, out} -> {:ok, String.split(out, <<0>>, trim: true)}
-      {:error, _} = failed -> failed
-    end
   end
 
   # The title the copy travels under: who the household is, by the names

@@ -237,9 +237,6 @@ defmodule Oneiroi.SimaQian do
          "each failed resident is logged with its error's kind and site; run POST /v1/residents/:id/backup for the error itself"},
       {:sima_qian_attestation_failed, "a nightly attestation failed for one or more residents",
        remedy: "each failed resident is logged with its error's kind and site"},
-      {:sima_qian_stray_files, "something wrote outside the paths the backup commits",
-       remedy:
-         "read the listed paths; the rest of the backup landed and the run failed after it, on purpose"},
       {:sima_qian_honcho_unreadable,
        "Honcho did not answer every read of the resident's workspace, so its memory was not exported this run",
        remedy:
@@ -358,6 +355,23 @@ defmodule Oneiroi.SimaQian do
   @doc "The resident's working repository on disk, made a repository if it is not one: where the library's files live (spec §6.5)."
   @spec repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
   defexport(repository_dir(resident_id), do: Backup.repository_dir(resident_id))
+
+  @doc "Puts a file in the resident's repository through the repositories' port (sima-qian#57): one commit under the actor's name, over whatever is there."
+  @spec repository_put(String.t(), String.t(), iodata(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, String.t() | :nothing} | {:error, term()}
+  defexport(repository_put(resident_id, path, content, message, actor),
+    do:
+      Repos.write(
+        {:resident, resident_id},
+        [{:put, path, content, :any}],
+        message,
+        Repos.author(actor)
+      )
+  )
+
+  @doc "The resident's repository at its head, `%{path => sha}` (sima-qian#57)."
+  @spec repository_files(String.t()) :: {:ok, %{String.t() => String.t()}} | {:error, term()}
+  defexport(repository_files(resident_id), do: Repos.snapshot({:resident, resident_id}))
 
   @doc "A file of the resident's repository through the repositories' port (sima-qian#57): its bytes, or nil."
   @spec repository_text(String.t(), String.t()) :: binary() | nil

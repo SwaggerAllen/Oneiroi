@@ -206,7 +206,8 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert File.regular?(Path.join(dir, "SOUL.md"))
     assert File.read!(Path.join(dir, "pocket-andrew.md")) == "# Pocket Andrew\n"
     for name <- Map.keys(reasons), do: refute(File.exists?(Path.join(dir, name)), name)
-    refute Git.head?(dir)
+    # One commit of what the import assembled, the first of its own (sima-qian#57).
+    assert git!(dir, ["log", "--format=%s"]) =~ ~r/\AImport: /
 
     # The same repository again is refused: an import is never a fork.
     assert {:error, %Oneiroi.SimaQian.Error{kind: :sima_qian_already_imported}} =
@@ -241,13 +242,17 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert {:ok, %{messages: [%{role: :user}, %{role: :assistant}]}} =
              Oneiroi.Brain.turn(id, key, "still here", ctx.actor)
 
-    # The first backup starts the history, class by class, and strays on nothing.
+    # The import's history is its own (sima-qian#57): one commit of what
+    # it assembled, never the source's; the first backup commits the
+    # export on top, class by class.
     Clock.Fake.advance(120)
     assert {:ok, %{commits: commits}} = SimaQian.backup(id, ctx.actor)
-    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "keepsake", "writing", "machine"]
+    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "machine"]
     log = git!(dir, ["log", "--format=%s"])
     refute log =~ "Lily's repository"
-    assert log |> String.split("\n") |> Enum.all?(&String.starts_with?(&1, "Records: "))
+    [first | rest] = log |> String.split("\n") |> Enum.reverse()
+    assert first =~ "Import: "
+    assert Enum.all?(rest, &String.starts_with?(&1, "Records: "))
   end
 
   test "a resident imported whole before the records started fresh is made fresh once, at its first backup",
@@ -267,7 +272,11 @@ defmodule Oneiroi.SimaQian.ImportTest do
     # Lily's shape on 2026-11-01: the source's commit and a file it had
     # named as left behind, and on top of them the commit her first
     # backup made before its push was refused, carrying our trailer.
+    # Imports then made no commit of their own (sima-qian#57 added it),
+    # so the source's commit was the root: rebuild that history.
     dir = Backup.dir(id)
+    File.rm_rf!(Path.join(dir, ".git"))
+    git!(dir, ["init", "-q", "-b", "main"])
     File.write!(Path.join(dir, "README.md"), "Lily's readme\n")
     git!(dir, ["add", "-A"])
     git!(dir, ["commit", "-q", "-m", "Lily's repository"])
@@ -365,7 +374,9 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.write!(Path.join(dir, "stray.bin"), "left by hand\n")
     Clock.Fake.advance(120)
 
-    assert {:error, %{kind: :sima_qian_stray_files}} = SimaQian.backup(id, ctx.actor)
+    # Nothing is reset from the repository above, and a file left by
+    # hand stays where it is (sima-qian#57: the backup commits its own).
+    assert {:ok, _} = SimaQian.backup(id, ctx.actor)
     assert File.exists?(Path.join(dir, "stray.bin"))
   end
 

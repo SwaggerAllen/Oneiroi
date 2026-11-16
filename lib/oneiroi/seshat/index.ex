@@ -26,18 +26,20 @@ defmodule Oneiroi.Seshat.Index do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Store
   alias Oneiroi.Seshat.Store.IndexRun
-  alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Repos
 
   @doc "Runs the index for a resident; returns the run's figures or the failure, recorded either way."
-  # sobelow_skip ["Traversal.FileModule"]
   def run(resident_id, %Actor{} = actor) do
     model = Config.fetch!(:seshat, :embedding_model)
+    repo = {:resident, resident_id}
 
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+    # One tree call, then each file through the blob cache (sima-qian#57):
+    # a document unchanged since the last run costs no read.
+    with {:ok, files} <- Repos.snapshot(repo) do
       plan =
         resident_id
         |> Scope.resident(fn -> Store.documents() end)
-        |> Enum.map(&plan(&1, dir, model))
+        |> Enum.map(&plan(&1, Repos.at(repo, files, &1.path), model))
 
       changed = for {:changed, doc, content} <- plan, do: {doc, content}
       texts = Enum.flat_map(changed, fn {doc, content} -> chunks_of(doc, content) end)
@@ -156,13 +158,12 @@ defmodule Oneiroi.Seshat.Index do
 
   # ---- the plan ----
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp plan(doc, dir, model) do
-    case File.read(Path.join(dir, doc.path)) do
-      {:error, _} ->
+  defp plan(doc, content, model) do
+    case content do
+      nil ->
         {:missing, doc}
 
-      {:ok, content} ->
+      content ->
         hash = :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
 
         if hash == doc.hash and doc.embedded_with == model and not is_nil(doc.indexed_at),

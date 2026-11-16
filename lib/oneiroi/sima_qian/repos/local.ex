@@ -10,7 +10,7 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   The test suite's adapter, development's, and a self-hoster's without
   Gitea.
   """
-  @behaviour Oneiroi.SimaQian.Repos
+  @behaviour Oneiroi.SimaQian.Repos.Adapter
 
   alias Oneiroi.Config
   alias Oneiroi.SimaQian.Error
@@ -55,12 +55,18 @@ defmodule Oneiroi.SimaQian.Repos.Local do
     dir = dir(repo)
     :ok = Git.ensure_repo(dir)
 
-    :global.trans({{__MODULE__, dir}, self()}, fn ->
-      with :ok <- conditions(repo, changes) do
-        Enum.each(changes, &apply_change(dir, &1))
-        Git.commit_as(dir, Enum.map(changes, &elem(&1, 1)), message, author)
-      end
-    end)
+    :global.trans({{__MODULE__, dir}, self()}, fn -> held(repo, dir, changes, message, author) end)
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp held(repo, dir, changes, message, author) do
+    with :ok <- conditions(repo, changes) do
+      # A removal git never tracked (a file only on disk) is no change
+      # to stage; git would refuse its path.
+      paths = for c <- changes, staged?(dir, c), do: elem(c, 1)
+      Enum.each(changes, &apply_change(dir, &1))
+      commit(dir, paths, message, author)
+    end
   end
 
   @impl true
@@ -111,6 +117,14 @@ defmodule Oneiroi.SimaQian.Repos.Local do
       do: Git.blob(dir, sha),
       else: {:error, Error.new(:sima_qian_repos_absent, :sima_qian_repos_local_unmade, sha: sha)}
   end
+
+  defp staged?(dir, {:delete, path, _base}),
+    do: match?({:ok, out} when out != "", Git.run("git", dir, ["ls-files", "--", path]))
+
+  defp staged?(_dir, _change), do: true
+
+  defp commit(_dir, [], _message, _author), do: {:ok, :nothing}
+  defp commit(dir, paths, message, author), do: Git.commit_as(dir, paths, message, author)
 
   defp made?(dir), do: File.dir?(Path.join(dir, ".git")) and Git.head?(dir)
 

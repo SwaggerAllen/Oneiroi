@@ -86,68 +86,49 @@ defmodule Oneiroi.SimaQian.BackupTest do
     assert %{last_backup_commit: ^sha} = row(r.id)
   end
 
-  test "a stray file fails the run after the backup has landed", %{
+  # sima-qian#57: a file dropped in the directory by hand is not the
+  # backup's to refuse or to commit: the backup commits its own export
+  # alone, and the run lands.
+  test "a file put in the directory by hand is neither refused nor committed by the backup", %{
     r: r,
     actor: actor,
     bare: bare,
     working: working
   } do
     :ok = Git.ensure_repo(working)
-    # Not text, so no keepsake (seshat#29): a root text file would be one.
     File.write!(Path.join(working, "notes.bin"), "by hand\n")
 
-    assert {:error,
-            %Oneiroi.SimaQian.Error{kind: :sima_qian_stray_files, details: [paths: ["notes.bin"]]}} =
-             Oneiroi.SimaQian.backup(r.id, actor)
-
-    assert git!(bare, ["log", "-1", "--format=%s", "main"]) ==
-             "Records: machine through sequence 3"
-
+    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert git!(bare, ["log", "--format=%s", "main", "--", "notes.bin"]) == ""
     assert %{last_backup_sequence: 3} = row(r.id)
   end
 
-  # sima-qian#48: every folder the library keeps is committed as the
-  # library's, a kind of hers among them (seshat#51); scratch/ and the
-  # others had been strays since they were added.
-  test "every kind's folder, hers among them, is committed as the library's and none is a stray",
+  # sima-qian#57: every library write is its own commit, under its
+  # author, so the library's folders and the keepsakes are committed when
+  # written; the backup commits the export, and the remote holds both.
+  test "the library's files are committed when written, and travel with the backup's push",
        %{r: r, actor: actor, bare: bare, working: working} do
     :ok = Git.ensure_repo(working)
 
     {:ok, "field-notes"} =
       Oneiroi.Seshat.define_kind(r.id, %{"kind" => "field-notes"}, nil, actor)
 
-    for folder <- ~w(scratch human plugins external archive field-notes) do
-      File.mkdir_p!(Path.join(working, folder))
-      File.write!(Path.join([working, folder, "a.md"]), "# A\n")
-    end
+    for folder <- ~w(scratch human field-notes),
+        do: {:ok, _} = Oneiroi.Seshat.write(r.id, "#{folder}/a.md", "# A\n", actor)
+
+    {:ok, _} = Oneiroi.Seshat.write(r.id, "pocket-andrew.md", "# Pocket Andrew\n", actor)
 
     assert {:ok, %{commits: commits}} = Oneiroi.SimaQian.backup(r.id, actor)
-    assert {"library", library} = List.last(commits)
+    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "machine"]
 
-    assert git!(bare, ["show", "--name-only", "--format=", library]) |> String.split("\n") ==
-             ~w(archive/a.md external/a.md field-notes/a.md field-notes/kind.json human/a.md plugins/a.md scratch/a.md)
-  end
+    held = git!(bare, ["ls-tree", "-r", "--name-only", "main"]) |> String.split("\n")
 
-  # Seshat #29: a keepsake is a root file named by itself, not by a
-  # folder, so its class is the root's keepsakes as they stand.
-  test "keepsakes at the root are committed in a class of their own after the soul, and are no strays",
-       %{r: r, actor: actor, bare: bare, working: working} do
-    :ok = Git.ensure_repo(working)
-    File.write!(Path.join(working, "pocket-andrew.md"), "# Pocket Andrew\n")
-    File.write!(Path.join(working, "ledger.txt"), "kept\n")
+    for path <-
+          ~w(scratch/a.md human/a.md field-notes/a.md field-notes/kind.json pocket-andrew.md),
+        do: assert(path in held, path)
 
-    assert {:ok, %{commits: [{"soul", _}, {"keepsake", keepsake}, {"machine", _}]}} =
-             Oneiroi.SimaQian.backup(r.id, actor)
-
-    assert git!(bare, ["show", "--name-only", "--format=%s", keepsake]) ==
-             "Records: keepsake through sequence 3\n\nledger.txt\npocket-andrew.md"
-
-    # A reserved name at the root is still a stray, whatever it holds.
-    File.write!(Path.join(working, "README.md"), "by hand\n")
-
-    assert {:error,
-            %Oneiroi.SimaQian.Error{kind: :sima_qian_stray_files, details: [paths: ["README.md"]]}} =
-             Oneiroi.SimaQian.backup(r.id, actor)
+    assert git!(bare, ["log", "-1", "--format=%s", "main", "--", "pocket-andrew.md"]) ==
+             "Write: pocket-andrew.md"
   end
 
   test "a resident without a remote is backed up locally and the nightly job skips it", %{

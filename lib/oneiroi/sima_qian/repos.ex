@@ -29,14 +29,6 @@ defmodule Oneiroi.SimaQian.Repos do
           | {:delete, String.t(), String.t() | :any}
   @type author :: %{name: String.t(), email: String.t()}
 
-  @callback read(repo(), String.t()) :: {:ok, binary(), String.t()} | {:error, term()}
-  @callback tree(repo()) :: {:ok, [%{path: String.t(), sha: String.t()}]} | {:error, term()}
-  @callback write(repo(), [change()], String.t(), author()) ::
-              {:ok, String.t() | :nothing} | {:error, term()}
-  @callback log(repo(), String.t() | nil, pos_integer()) :: {:ok, [map()]} | {:error, term()}
-  @callback history(repo(), String.t(), pos_integer()) :: {:ok, [map()]} | {:error, term()}
-  @callback blob(repo(), String.t()) :: {:ok, binary()} | {:error, term()}
-
   alias Oneiroi.Config
   alias Oneiroi.SimaQian.Repos.Cache
 
@@ -137,5 +129,30 @@ defmodule Oneiroi.SimaQian.Repos do
     snapshot |> Map.keys() |> Enum.filter(&String.starts_with?(&1, p)) |> Enum.sort()
   end
 
-  defp client, do: Config.fetch!(:sima_qian, :repos_client)
+  @doc """
+  Runs `fun` with this process's repository reads and writes on the disk
+  (`Repos.Local`), whatever the platform's adapter: an import assembles a
+  resident's repository in a working directory of its own (the clone,
+  the seeds, the library's adoption, the fresh history), then commits it
+  and sends it to Gitea whole (sima-qian#57). Nothing else uses it.
+  """
+  def locally(fun) do
+    previous = Process.put({__MODULE__, :local}, true)
+
+    try do
+      fun.()
+    after
+      if previous, do: :ok, else: Process.delete({__MODULE__, :local})
+    end
+  end
+
+  @doc "Whether this process is assembling a repository on the disk (`locally/1`)."
+  def local?,
+    do: Process.get({__MODULE__, :local}) == true or client() == Oneiroi.SimaQian.Repos.Local
+
+  defp client do
+    if Process.get({__MODULE__, :local}) == true,
+      do: Oneiroi.SimaQian.Repos.Local,
+      else: Config.fetch!(:sima_qian, :repos_client)
+  end
 end

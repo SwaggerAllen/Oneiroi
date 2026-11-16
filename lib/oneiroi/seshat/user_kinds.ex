@@ -22,7 +22,7 @@ defmodule Oneiroi.Seshat.UserKinds do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.KindsRouter
   alias Oneiroi.Seshat.Store
-  alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Repos
 
   @doc "Her kinds as both parties read them: every kind with its label and gate, which are hers, and the open and recent gate proposals."
   def list(resident_id) do
@@ -131,14 +131,17 @@ defmodule Oneiroi.Seshat.UserKinds do
   documents under a refused descriptor are never touched.
   """
   def load(resident_id, %Actor{} = actor) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+    repo = {:resident, resident_id}
+
+    with {:ok, files} <- Repos.snapshot(repo) do
       owned = Map.new(Scope.resident(resident_id, fn -> Store.user_kinds() end), &{&1.kind, &1})
+      descriptor = Kinds.descriptor_name()
 
       results =
-        for path <- Path.wildcard(Path.join([dir, "*", Kinds.descriptor_name()])),
-            folder = path |> Path.dirname() |> Path.basename(),
+        for path <- Map.keys(files),
+            [folder, ^descriptor] <- [String.split(path, "/")],
             is_nil(Kinds.kind_of(folder <> "/x.md")),
-            do: {folder, load_one(resident_id, path, owned, actor)}
+            do: {folder, load_one(resident_id, folder, Repos.at(repo, files, path), owned, actor)}
 
       {:ok,
        %{
@@ -148,13 +151,8 @@ defmodule Oneiroi.Seshat.UserKinds do
     end
   end
 
-  # The path is one `Path.wildcard/1` found under her repository's root,
-  # never one a caller named.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp load_one(resident_id, path, owned, actor) do
-    folder = path |> Path.dirname() |> Path.basename()
-
-    with {:ok, text} <- File.read(path),
+  defp load_one(resident_id, folder, text, owned, actor) do
+    with text when is_binary(text) <- text,
          {:ok, %{} = attrs} <- Jason.decode(text),
          :ok <- in_its_folder(attrs, folder),
          taken = Map.keys(owned) -- [attrs["kind"]],
@@ -189,25 +187,23 @@ defmodule Oneiroi.Seshat.UserKinds do
   # and when (seshat#51): the file is what travels.
   # The folder is the kind's name, held to `[a-z][a-z0-9-]` by the safe
   # subset before it gets here, so it cannot climb out of the root.
-  # sobelow_skip ["Traversal.FileModule"]
   defp write_descriptor(resident_id, descriptor, actor) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
-      folder = Path.join(dir, descriptor["folder"])
-      File.mkdir_p!(folder)
+    file =
+      Map.merge(descriptor, %{
+        "updated_by" => to_string(actor.kind),
+        "updated_at" => DateTime.to_iso8601(Clock.now())
+      })
 
-      file =
-        Map.merge(descriptor, %{
-          "updated_by" => to_string(actor.kind),
-          "updated_at" => DateTime.to_iso8601(Clock.now())
-        })
+    path = Path.join(descriptor["folder"], Kinds.descriptor_name())
 
-      File.write!(
-        Path.join(folder, Kinds.descriptor_name()),
-        Jason.encode!(file, pretty: true) <> "\n"
-      )
-
-      :ok
-    end
+    with {:ok, _} <-
+           Repos.write(
+             {:resident, resident_id},
+             [{:put, path, Jason.encode!(file, pretty: true) <> "\n", :any}],
+             "Kind: #{descriptor["folder"]}",
+             Repos.author(actor)
+           ),
+         do: :ok
   end
 
   defp dispatch(command) do

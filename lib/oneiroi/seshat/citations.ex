@@ -494,17 +494,10 @@ defmodule Oneiroi.Seshat.Citations do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
   defp read(resident_id, path) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
-      case File.read(Path.join(dir, path)) do
-        {:ok, content} ->
-          {:ok, content}
-
-        {:error, reason} ->
-          {:error,
-           Error.caught(:seshat_no_such_file, :seshat_citations_read_file, reason, path: path)}
-      end
+    case SimaQian.repository_text(resident_id, path) do
+      nil -> {:error, Error.new(:seshat_no_such_file, :seshat_citations_read_file, path: path)}
+      content -> {:ok, content}
     end
   end
 end

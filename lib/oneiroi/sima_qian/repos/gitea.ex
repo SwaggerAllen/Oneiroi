@@ -12,7 +12,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   witness, 2026-11-16). A repository missing on its first write is made
   (its organization, its readers) and the write tried once more.
   """
-  @behaviour Oneiroi.SimaQian.Repos
+  @behaviour Oneiroi.SimaQian.Repos.Adapter
 
   alias Oneiroi.Config
   alias Oneiroi.SimaQian.Error
@@ -226,6 +226,42 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
         {:ok, 200, %{"content" => b64}} -> {:ok, Base.decode64!(b64, ignore: :whitespace)}
         other -> failed(other)
       end
+    end
+  end
+
+  @doc """
+  Her own remote as Gitea's push mirror (sima-qian#16, #57): Gitea pushes
+  every commit there itself. Made when missing, remade when the address
+  changed; the token is the remote's password and never logged.
+  """
+  def mirror(repo, url, token) do
+    with {:ok, {org, name}} <- Gitea.locate(repo),
+         {:ok, 200, mirrors} when is_list(mirrors) <-
+           get("/repos/#{org}/#{name}/push_mirrors", []) do
+      if Enum.any?(mirrors, &(&1["remote_address"] == url)),
+        do: :ok,
+        else: remirror(org, name, mirrors, url, token)
+    else
+      other -> failed(other)
+    end
+  end
+
+  defp remirror(org, name, mirrors, url, token) do
+    for m <- mirrors,
+        do: request(:delete, "/repos/#{org}/#{name}/push_mirrors/#{m["remote_name"]}", nil, [])
+
+    body =
+      %{remote_address: url, interval: "8h0m0s", sync_on_commit: true}
+      |> then(
+        &if(token,
+          do: Map.merge(&1, %{remote_username: "oauth2", remote_password: token}),
+          else: &1
+        )
+      )
+
+    case post("/repos/#{org}/#{name}/push_mirrors", body) do
+      {:ok, status, _} when status in 200..201 -> :ok
+      other -> failed(other)
     end
   end
 

@@ -22,7 +22,6 @@ defmodule Oneiroi.SimaQian.Gitea do
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia
-  alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.GiteaQueue
@@ -107,7 +106,7 @@ defmodule Oneiroi.SimaQian.Gitea do
          :ok <- client().ensure_org(org),
          :ok <- client().ensure_repo(org, resident.slug),
          :ok <- grant(org, resident.slug, resident.account_id),
-         {:ok, dir} <- Backup.repository_dir(resident_id) do
+         {:ok, dir} <- working_dir(resident_id) do
       push(dir, client().remote(org, resident.slug))
     else
       :error -> {:ok, :gone}
@@ -188,6 +187,13 @@ defmodule Oneiroi.SimaQian.Gitea do
 
   @doc false
   def secret_token, do: GiteaQueue.token()
+
+  # The resident's working directory: what the migration sends. Its own
+  # path here, so the push never depends on the backup (a cycle).
+  defp working_dir(resident_id) do
+    dir = Path.join(Config.fetch!(:sima_qian, :root), resident_id)
+    with :ok <- Git.ensure_repo(dir), do: {:ok, dir}
+  end
 
   defp public_url, do: Config.fetch!(:sima_qian, :gitea_url)
 

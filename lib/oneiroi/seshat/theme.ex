@@ -251,13 +251,10 @@ defmodule Oneiroi.Seshat.Theme do
   end
 
   # The name is this module's constant, never a caller's.
-  # sobelow_skip ["Traversal.FileModule"]
   defp seeds_on_disk(resident_id) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, content} <- File.read(Path.join(dir, @file_name)) do
-      parse(content)
-    else
-      _absent -> :none
+    case SimaQian.repository_text(resident_id, @file_name) do
+      nil -> :none
+      content -> parse(content)
     end
   end
 

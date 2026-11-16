@@ -41,7 +41,9 @@ defmodule Oneiroi.Brain.Introspection do
   @doc "The root a scope reads: the source the platform runs from, or the resident's repository."
   @spec root(scope()) :: {:ok, Path.t()} | {:error, term()}
   def root(:source), do: {:ok, Path.expand(Config.fetch!(:brain, :source_dir))}
-  def root({:repo, resident_id}), do: SimaQian.repository_dir(resident_id)
+
+  def root({:repo, _resident_id}),
+    do: {:error, Error.new(:brain_path_invalid, :brain_introspection_repo_has_no_root)}
 
   @doc "Whether a source path is sealed: witness-only by the explicit list."
   @spec sealed?(scope(), String.t()) :: boolean()
@@ -50,6 +52,29 @@ defmodule Oneiroi.Brain.Introspection do
 
   @doc "A directory's entries, folders first, each `%{name, dir?, sealed?}`; `nil` or `\"\"` is the root."
   @spec list(scope(), String.t() | nil) :: {:ok, [map()]} | {:error, Error.t()}
+  # Her repository is read through the repositories' port (sima-qian#57):
+  # its folders are the paths its files are under.
+  def list({:repo, resident_id}, path) do
+    with {:ok, rel} <- relative(path || ""),
+         {:ok, files} <- SimaQian.repository_files(resident_id) do
+      prefix = if rel == "", do: "", else: rel <> "/"
+
+      entries =
+        for f <- Map.keys(files),
+            String.starts_with?(f, prefix),
+            [name | rest] = String.split(String.replace_prefix(f, prefix, ""), "/"),
+            not skipped?(name),
+            uniq: true,
+            do: %{name: name, path: join(rel, name), dir?: rest != [], sealed?: false}
+
+      if entries == [] and rel != "",
+        do:
+          {:error,
+           Error.new(:brain_path_absent, :brain_introspection_list_repo_absent, path: rel)},
+        else: {:ok, Enum.sort_by(entries, &{not &1.dir?, &1.name})}
+    end
+  end
+
   def list(scope, path) do
     with {:ok, rel} <- relative(path || ""),
          {:ok, root} <- root(scope),
@@ -94,8 +119,7 @@ defmodule Oneiroi.Brain.Introspection do
          false <-
            sealed?(scope, rel) &&
              {:error, Error.new(:brain_path_sealed, :brain_introspection_read_sealed, path: rel)},
-         {:ok, root} <- root(scope),
-         {:ok, content} <- text(Path.join(root, rel)) do
+         {:ok, content} <- content(scope, rel) do
       total = String.length(content)
       from = max(from, 0)
       slice = String.slice(content, from, page)
@@ -112,10 +136,7 @@ defmodule Oneiroi.Brain.Introspection do
     if needle == "" do
       {:error, Error.new(:brain_path_invalid, :brain_introspection_search_empty)}
     else
-      with {:ok, root} <- root(scope) do
-        {:ok,
-         root |> walk("", scope) |> Stream.flat_map(&hits(root, &1, needle)) |> Enum.take(@hits)}
-      end
+      searched(scope, needle)
     end
   end
 
@@ -150,6 +171,52 @@ defmodule Oneiroi.Brain.Introspection do
 
   defp relative(_path),
     do: {:error, Error.new(:brain_path_invalid, :brain_introspection_path_not_text)}
+
+  defp searched({:repo, resident_id}, needle) do
+    with {:ok, files} <- SimaQian.repository_files(resident_id) do
+      {:ok,
+       files
+       |> Map.keys()
+       |> Enum.sort()
+       |> Stream.flat_map(fn path ->
+         case SimaQian.repository_text(resident_id, path) do
+           text when is_binary(text) -> lines(path, text, needle)
+           nil -> []
+         end
+       end)
+       |> Enum.take(@hits)}
+    end
+  end
+
+  defp searched(scope, needle) do
+    with {:ok, root} <- root(scope) do
+      {:ok,
+       root |> walk("", scope) |> Stream.flat_map(&hits(root, &1, needle)) |> Enum.take(@hits)}
+    end
+  end
+
+  # A file's words: her repository's through the port, the source's from disk.
+  defp content({:repo, resident_id}, rel) do
+    case SimaQian.repository_text(resident_id, rel) do
+      nil ->
+        if match?({:ok, [_ | _]}, list({:repo, resident_id}, rel)),
+          do: {:error, Error.new(:brain_path_invalid, :brain_introspection_read_repo_folder)},
+          else: {:error, Error.new(:brain_path_absent, :brain_introspection_read_repo_absent)}
+
+      bytes ->
+        valid_text(bytes)
+    end
+  end
+
+  defp content(scope, rel) do
+    with {:ok, root} <- root(scope), do: text(Path.join(root, rel))
+  end
+
+  defp valid_text(bytes) do
+    if String.valid?(bytes) and not String.contains?(bytes, <<0>>),
+      do: {:ok, bytes},
+      else: {:error, Error.new(:brain_path_binary, :brain_introspection_read_repo_binary)}
+  end
 
   # sobelow_skip ["Traversal.FileModule"]
   defp text(full) do
@@ -200,16 +267,20 @@ defmodule Oneiroi.Brain.Introspection do
 
     with %{size: size} when size <= @file_bytes <- File.stat!(full),
          {:ok, content} <- text(full) do
-      content
-      |> String.split("\n")
-      |> Enum.with_index(1)
-      |> Enum.filter(fn {line, _n} -> String.contains?(String.downcase(line), needle) end)
-      |> Enum.map(fn {line, n} ->
-        %{path: rel, line: n, text: String.slice(String.trim(line), 0, 200)}
-      end)
+      lines(rel, content, needle)
     else
       _ -> []
     end
+  end
+
+  defp lines(rel, content, needle) do
+    content
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Enum.filter(fn {line, _n} -> String.contains?(String.downcase(line), needle) end)
+    |> Enum.map(fn {line, n} ->
+      %{path: rel, line: n, text: String.slice(String.trim(line), 0, 200)}
+    end)
   end
 
   defp skipped?(name), do: name in @skipped or String.starts_with?(name, "_build")
