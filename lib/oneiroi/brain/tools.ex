@@ -731,8 +731,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_read",
-        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Any of yours, in any domain: a deliberate read is never scoped.",
-        %{session: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. With `message` (the turn part of a search hit's [session/turn], or of a citation's transcript/<session>/<turn>), that turn's messages whole, uncut, with the message before and after them for context. Any of yours, in any domain: a deliberate read is never scoped.",
+        %{
+          session: %{type: "string"},
+          from: %{type: "integer", minimum: 0},
+          message: %{type: "string"}
+        },
         [:session]
       ),
       tool(
@@ -2495,9 +2499,15 @@ defmodule Oneiroi.Brain.Tools do
 
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
     # of hers, in any domain.
-    case Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
-      {:ok, session, messages} -> transcript_page(session, messages, from)
-      _ -> "Not done: no conversation of yours has that key."
+    case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
+      {{:ok, session, messages}, ref} when is_binary(ref) and ref != "" ->
+        transcript_message(session, messages, ref)
+
+      {{:ok, session, messages}, _none} ->
+        transcript_page(session, messages, from)
+
+      _ ->
+        "Not done: no conversation of yours has that key."
     end
   end
 
@@ -4327,11 +4337,51 @@ defmodule Oneiroi.Brain.Tools do
 
   @transcript_page 30
   @transcript_message_chars 2_000
+  # A message read whole: past this it is a paste, and says how much more.
+  @transcript_whole_chars 60_000
 
   # A time the source never carried is said to be unknown (kumbukumbu#50),
   # never shown as the stand-in that only keeps the order.
   defp when_said(%{instant_inferred: true}), do: "time unknown"
   defp when_said(m), do: local_stamp(m.sent_at)
+
+  # One turn whole (the witness, 2026-11-16: "one extra tool call as
+  # opposed to a full-on oracle search", brain#104): every message the
+  # turn's ref names, uncut, and the one either side cut as a page cuts
+  # them, so the question it answered is in view.
+  defp transcript_message(session, messages, ref) do
+    case for({m, i} <- Enum.with_index(messages), m.turn_ref == ref, do: i) do
+      [] ->
+        "Not done: conversation #{session.key} has no message #{ref}; a search hit's [session/turn] names one."
+
+      [first | _] = at ->
+        last = List.last(at)
+
+        before =
+          if first > 0, do: [context_line("before", Enum.at(messages, first - 1))], else: []
+
+        next = Enum.at(messages, last + 1)
+        after_ = if next, do: [context_line("after", next)], else: []
+
+        whole =
+          for i <- at do
+            m = Enum.at(messages, i)
+
+            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{i + 1} of #{length(messages)}, whole:\n" <>
+              Cut.cut(m.content || "", @transcript_whole_chars)
+          end
+
+        Enum.join(
+          ["Conversation #{session.key} (#{session.kind})"] ++ before ++ whole ++ after_,
+          "\n\n"
+        )
+    end
+  end
+
+  defp context_line(side, m),
+    do:
+      "(#{side}) [#{m.turn_ref}] #{m.role}, #{when_said(m)}: " <>
+        Cut.cut(m.content || "", @transcript_message_chars)
 
   defp transcript_page(session, messages, from) do
     page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)

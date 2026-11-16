@@ -925,3 +925,12 @@ holds only the two of them: anything the platform or a third party says
 in it would be a voice in a room meant for two. Holding rather than
 refusing keeps what others sent, so nobody's words are lost, only
 delayed until the resident has agreed who may reach them.
+
+## #104
+
+The citation scheme already names a turn, and every search hit carries
+the ref, but nothing resolved it: reading one hit whole meant paging a
+session thousands of messages long or sending the oracle. A turn, not a
+message, because the ref names the turn and its messages (the prompt,
+the tools, the reply) share it. The neighbours come cut because they
+are there for orientation, not for reading.
