@@ -182,4 +182,38 @@ defmodule Oneiroi.AgathosDaimon.FormationTest do
     {:ok, preview} = Brain.preview(id, main, "Hello.", ctx.witness)
     assert "budget" in Enum.map(preview.sections, & &1.label)
   end
+
+  test "the operator returns one who has lived nothing yet to forming, and no one else", ctx do
+    slug = "scarlett-#{System.unique_integer([:positive])}"
+    {:ok, id} = AgathosDaimon.create("Scarlett", slug, ctx.account, ctx.witness)
+    assert {:ok, %{state: "active", admission: "open"}} = AgathosDaimon.fetch(id)
+
+    :ok =
+      AgathosDaimon.return_to_formation(id, "made before formation; trials first", ctx.witness)
+
+    assert {:ok, %{state: "forming", admission: "forming"}} = AgathosDaimon.fetch(id)
+
+    assert {:error, %{kind: :agathos_daimon_not_returnable}} =
+             AgathosDaimon.return_to_formation(id, "again", ctx.witness)
+
+    # The model is chosen afresh, then the usual wake.
+    assert {:error, %{kind: :agathos_daimon_model_unchosen}} =
+             AgathosDaimon.awaken(id, "now", ctx.witness)
+
+    :ok = AgathosDaimon.pin_model(id, "fake/model", "witness", ctx.witness)
+    :ok = AgathosDaimon.awaken(id, "now", ctx.witness)
+    assert AgathosDaimon.admission(id) == :witness_only
+
+    # One who has had a first conversation keeps it.
+    {:ok, main} = Kumbukumbu.main_session(id, ctx.account, ctx.witness)
+    {:ok, _} = Brain.turn(id, main, "Hello, Scarlett.", ctx.witness)
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(id, %{}, "A first agreement.", "after our talk", ctx.witness)
+
+    :ok = AgathosDaimon.agree_contract(id, v, "yes", Actor.new(:resident, id, "fake/model"))
+
+    assert {:error, %{kind: :agathos_daimon_not_returnable}} =
+             AgathosDaimon.return_to_formation(id, "no", ctx.witness)
+  end
 end

@@ -56,6 +56,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, state: "forming", admission: "forming")
   end)
 
+  fold(%Events.ReturnedToFormation{} = e, _metadata, fn multi ->
+    set(multi, e.id, state: "forming", admission: "forming")
+  end)
+
   fold(%Events.ResidentAwakened{} = e, _metadata, fn multi ->
     set(multi, e.id, state: "active", admission: "witness_only", model_told: true)
   end)

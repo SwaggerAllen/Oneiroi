@@ -15,6 +15,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id]
   end
 
+  defmodule ReturnToFormation do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
   defmodule MintId do
     use Oneiroi.Command, fields: [:id, :kind]
   end

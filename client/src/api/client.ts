@@ -263,6 +263,9 @@ export const api = {
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
   setGate: (state: GateState, note: string) => call<Platform['gate']>('PUT', '/v1/platform/gate', { state, note }),
+  // Back to forming (agathos-daimon#47): a super admin's, for one who has lived nothing yet.
+  returnToFormation: (slug: string, note: string) =>
+    call<void>('POST', `/v1/platform/residents/${encodeURIComponent(slug)}/formation`, { note }),
   setTriage: (slug: string | null, note: string) => call<NonNullable<Platform['triage']>>('PUT', '/v1/platform/triage', { slug, note }),
   grantRole: (email: string, role: PlatformRole, note: string) => call<void>('POST', '/v1/platform/roles', { email, role, note }),
   revokeRole: (accountId: string, role: PlatformRole, note: string) =>

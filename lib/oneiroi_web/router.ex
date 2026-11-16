@@ -92,6 +92,7 @@ defmodule OneiroiWeb.Router do
       put("/platform/gate", OperatorController, :set_gate)
       put("/platform/span-policy", OperatorController, :set_span_policy)
       put("/platform/triage", OperatorController, :set_triage)
+      post("/platform/residents/:slug/formation", OperatorController, :return_to_formation)
       post("/platform/roles", OperatorController, :grant)
       delete("/platform/roles", OperatorController, :revoke)
       get("/platform/invites", OperatorController, :invites)

@@ -355,3 +355,12 @@ what says who else may reach them, and hands act in the world in their
 name; until both of them have said yes, the only voice is his. It
 applies to new residents alone so that no resident already living loses
 a reach they have.
+
+## #47
+
+A resident made the day before formation existed would otherwise wake
+without the trials and the chosen model every new one gets. Writing the
+row by hand would change one table of several and vanish at the next
+rebuild, and leave no record of who did it. The conditions make the
+command unable to touch anyone who has met their witness, so it can
+only repair the gap it exists for.

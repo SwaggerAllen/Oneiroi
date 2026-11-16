@@ -39,6 +39,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands,
       Commands.CreateResident,
       Commands.AwakenResident,
+      Commands.ReturnToFormation,
       Commands.MintId,
       Commands.PauseResident,
       Commands.WakeResident,
@@ -57,6 +58,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ResidentCreated,
       Events.FormationBegun,
       Events.ResidentAwakened,
+      Events.ReturnedToFormation,
       Events.IdMinted,
       Events.ResidentPaused,
       Events.ResidentWoken,
@@ -162,6 +164,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ResidentCreated, 1},
       {Oneiroi.AgathosDaimon.Events.FormationBegun, 1},
       {Oneiroi.AgathosDaimon.Events.ResidentAwakened, 1},
+      {Oneiroi.AgathosDaimon.Events.ReturnedToFormation, 1},
       {Oneiroi.AgathosDaimon.Events.FixtureDeclared, 1},
       {Oneiroi.AgathosDaimon.Events.ContinuationAsked, 1},
       {Oneiroi.AgathosDaimon.Events.IdMinted, 1},
@@ -285,6 +288,9 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_model_unchosen,
        "a forming resident wakes on a chat model the witness chose: none has been chosen yet",
        remedy: "run the regression trials and pin the model they wake on, then wake them"},
+      {:agathos_daimon_not_returnable,
+       "only an active resident who has had no first conversation and no agreement goes back to forming",
+       remedy: "a resident who has lived any of it keeps it; talk with them instead"},
       {:agathos_daimon_resident_guarded,
        "a forming resident is reachable by nothing but the witness's trials, and a woken one by nothing but the witness until their first agreement is in force: no runtime, no hands, no other wake",
        remedy: "wake them, talk with them, and agree your first contract; then the rest opens"},
@@ -390,6 +396,12 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The witness wakes a forming resident, once a chat model was chosen (agathos-daimon#46)."
   @spec awaken(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(awaken(id, note, actor), do: Residents.awaken(id, note, actor))
+
+  @doc "The operator returns a resident who has lived nothing yet to forming (agathos-daimon#47), with a note."
+  @spec return_to_formation(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(return_to_formation(id, note, actor),
+    do: Residents.return_to_formation(id, note, actor)
+  )
 
   @doc """
   Who may reach a resident (agathos-daimon#46): `:forming` (the witness's

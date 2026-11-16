@@ -687,6 +687,26 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # The operator's (agathos-daimon#47; the web holds it to a super admin):
+  # back to forming, only for one who has lived nothing yet.
+  def execute(%__MODULE__{} = r, %Commands.ReturnToFormation{} = c) do
+    cond do
+      r.state != :active ->
+        {:error, Error.new(:agathos_daimon_not_returnable, :agathos_daimon_resident_return_state)}
+
+      first_contact?(r) ->
+        {:error,
+         Error.new(:agathos_daimon_not_returnable, :agathos_daimon_resident_return_contact)}
+
+      r.contract.in_force != nil ->
+        {:error,
+         Error.new(:agathos_daimon_not_returnable, :agathos_daimon_resident_return_agreed)}
+
+      true ->
+        %Events.ReturnedToFormation{actor: c.actor, at: c.at, note: c.note, id: c.id}
+    end
+  end
+
   def execute(%__MODULE__{}, %Commands.AwakenResident{}),
     do:
       {:error,
@@ -1001,6 +1021,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.FixtureDeclared{}), do: %{r | kind: "fixture"}
 
   def apply(%__MODULE__{} = r, %Events.FormationBegun{}), do: %{r | state: :forming, formed: true}
+
+  # Back to forming chooses the model afresh: Wake waits on a new pin.
+  def apply(%__MODULE__{} = r, %Events.ReturnedToFormation{}),
+    do: %{r | state: :forming, formed: true, model_chosen: false}
+
   # Woken on the model he chose, which they are told by waking on it: no
   # model-change notice rides their first conversation (agathos-daimon#46).
   def apply(%__MODULE__{} = r, %Events.ResidentAwakened{}),

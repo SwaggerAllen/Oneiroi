@@ -107,6 +107,35 @@ defmodule OneiroiWeb.OperatorController do
     end
   end
 
+  operation(:return_to_formation,
+    summary:
+      "The operator returns a resident, by slug, who has had no first conversation and no agreement to forming (agathos-daimon#47), with a note: their witness's trials and a model pin come before they wake",
+    parameters: [slug: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "forming"]
+  )
+
+  def return_to_formation(conn, %{"slug" => slug} = params) do
+    with %{id: id} <- Enum.find(Oneiroi.AgathosDaimon.residents(), &(&1.slug == slug)),
+         :ok <- Oneiroi.AgathosDaimon.return_to_formation(id, params["note"], actor(conn)) do
+      send_resp(conn, 204, "")
+    else
+      nil ->
+        problem(
+          conn,
+          404,
+          :no_such_resident,
+          :web_operator_formation_no_resident,
+          "no resident has that slug"
+        )
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
   operation(:set_gate,
     summary: "Set the front door: closed, invite (the alpha) or open, with a note",
     request_body:

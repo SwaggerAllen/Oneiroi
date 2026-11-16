@@ -59,6 +59,12 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc "Returns a resident who has lived nothing yet to forming (agathos-daimon#47)."
+  def return_to_formation(id, note, %Actor{} = actor) do
+    command = %Commands.ReturnToFormation{actor: actor, at: Clock.now(), id: id, note: note}
+    with {:ok, _events} <- Router.dispatch_sited(command), do: :ok
+  end
+
   @doc "Who may reach a resident (agathos-daimon#46); `:open` for one not found, which nothing reaches anyway."
   def admission(id) do
     case fetch(id) do

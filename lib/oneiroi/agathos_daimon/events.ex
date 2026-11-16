@@ -379,4 +379,11 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # chosen deliberately in formation; `model` the one they wake on.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :model]
   end
+
+  defmodule ReturnedToFormation do
+    # The operator returns a resident made before formation existed to it
+    # (agathos-daimon#47): only one who has had no first conversation and
+    # no agreement, so nothing they have lived is undone; the note says why.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
+  end
 end
