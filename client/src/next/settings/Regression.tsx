@@ -354,6 +354,7 @@ function RunView({ runRef, tests, onClose }: { runRef: string; tests: Regression
     queryFn: () => api.regressionRun(id, runRef),
   });
   const act = useAct();
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const running = detail.data?.run.state === 'running';
 
   // A run still answering is watched on its channel (eunomia#30): each
@@ -408,6 +409,13 @@ function RunView({ runRef, tests, onClose }: { runRef: string; tests: Regression
         : `Finished: ${plural(cards.length, 'answer')}, ${graded} graded`;
   const grade = (card: string, g: Grade) => void act.run(() => api.grade(id, runRef, card, g));
   const favourite = (card: string) => void act.run(() => api.favourite(id, runRef, card));
+  // Every answer graded, every model named: one model's answers may be
+  // read alone, one trial at a time (the witness, 2026-11-16).
+  const allGraded = run.state !== 'running' && cards.length > 0 && cards.every((c) => c.grade !== null && c.model !== null);
+
+  if (reviewing && allGraded) {
+    return <Review model={reviewing} cards={cards} prompts={prompts} name={name} onBack={() => setReviewing(null)} />;
+  }
 
   return (
     <>
@@ -420,7 +428,7 @@ function RunView({ runRef, tests, onClose }: { runRef: string; tests: Regression
         {run.state === 'failed' && run.failure ? ` · ${run.failure}` : ''}
       </p>
       <Said said={act.said} />
-      {results.length > 0 && <Results results={results} />}
+      {results.length > 0 && <Results results={results} onReview={allGraded ? setReviewing : undefined} />}
       {cards.length === 0 && <p className={css.note}>{run.state === 'running' ? 'The first answers are on their way.' : 'This run recorded no answers.'}</p>}
       {byTrial(cards).map(({ key: k, label, cards: deck }) => {
         const prompt = deck[0].test_number !== null ? prompts.get(deck[0].test_number) : undefined;
@@ -517,7 +525,69 @@ function Trace({ name, trace }: { name: string; trace: TraceStep[] }) {
   );
 }
 
-function Results({ results }: { results: RegressionResult[] }) {
+/**
+ * One model's answers, alone (the witness, 2026-11-16): for review once
+ * every answer is graded, so no other candidate's words are on the screen
+ * to shape the reading. One trial at a time, previous and next between.
+ */
+function Review({
+  model,
+  cards,
+  prompts,
+  name,
+  onBack,
+}: {
+  model: string;
+  cards: RegressionCard[];
+  prompts: Map<number, string>;
+  name: string;
+  onBack: () => void;
+}) {
+  const trials = byTrial(cards)
+    .map(({ key, label, cards: deck }) => ({ key, label, card: deck.find((c) => c.model === model) }))
+    .filter((t): t is { key: string; label: string; card: RegressionCard } => Boolean(t.card));
+  const [at, setAt] = useState(0);
+  const t = trials[Math.min(at, trials.length - 1)];
+  const passed = trials.filter((x) => x.card.grade === 'pass').length;
+  return (
+    <>
+      <button type="button" className={css.back} onClick={onBack}>
+        ‹ The run
+      </button>
+      <h2 className={css.subheading}>
+        <span className={css.mono}>{model}</span> alone
+      </h2>
+      <p className={css.meta}>
+        Passed {passed} of {trials.length} · trial {trials.length === 0 ? 0 : Math.min(at, trials.length - 1) + 1} of {trials.length}
+      </p>
+      {t ? (
+        <Card title={t.label.replace('Test', 'Trial')}>
+          {t.card.test_number !== null && prompts.get(t.card.test_number) && <p className={css.note}>You said: {prompts.get(t.card.test_number)}</p>}
+          <article className={css.answer} aria-label={`${model}'s answer`}>
+            <Answer card={t.card} />
+            <Trace name={name} trace={t.card.trace} />
+            <p className={css.meta}>
+              Graded {t.card.grade === 'pass' ? 'passes' : 'fails'}
+              {t.card.favourite ? ' · ★ a favourite' : ''}
+            </p>
+          </article>
+        </Card>
+      ) : (
+        <p className={css.note}>This model answered no trial in this run.</p>
+      )}
+      <div className={css.row}>
+        <button type="button" className={css.secondary} disabled={at <= 0} onClick={() => setAt(at - 1)}>
+          ‹ Previous trial
+        </button>
+        <button type="button" className={css.secondary} disabled={at >= trials.length - 1} onClick={() => setAt(at + 1)}>
+          Next trial ›
+        </button>
+      </div>
+    </>
+  );
+}
+
+function Results({ results, onReview }: { results: RegressionResult[]; onReview?: (model: string) => void }) {
   const { id } = useSubject();
   const residents = useQuery({
     queryKey: ['residents'],
@@ -537,6 +607,7 @@ function Results({ results }: { results: RegressionResult[] }) {
               <th className={css.th}>passed</th>
               <th className={css.th}>favourites</th>
               <th className={css.th} />
+              <th className={css.th} />
             </tr>
           </thead>
           <tbody>
@@ -552,6 +623,13 @@ function Results({ results }: { results: RegressionResult[] }) {
                   </span>
                 </td>
                 <td className={`${css.td} ${css.mono}`}>{r.favourites}</td>
+                <td className={css.td}>
+                  {onReview && (
+                    <button type="button" className={css.quiet} onClick={() => onReview(r.model)}>
+                      Review its answers
+                    </button>
+                  )}
+                </td>
                 <td className={css.td} style={{ textAlign: 'right' }}>
                   {r.model === chatModel ? (
                     <span className={css.note}>✓ The chat model now</span>
