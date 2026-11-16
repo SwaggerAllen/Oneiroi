@@ -29,7 +29,8 @@ defmodule Oneiroi.Seshat.VersionsLeasesTest do
     identity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
     {_, 0} = System.cmd("git", ["add", "-A"], cd: dir, stderr_to_stdout: true)
 
-    {_, 0} =
+    # Nothing to commit is fine: every write commits itself (sima-qian#57).
+    {_, _} =
       System.cmd("git", identity ++ ["commit", "-q", "-m", message],
         cd: dir,
         stderr_to_stdout: true
@@ -42,28 +43,27 @@ defmodule Oneiroi.Seshat.VersionsLeasesTest do
   defp run(name, args, ctx), do: Tools.run(name, Jason.encode!(args), turn(ctx))
   defp hash(words), do: Seshat.Documents.hash(words)
 
-  test "versions join the repository's commits to who wrote each, and an uncommitted overwrite is listed, not restorable",
+  test "versions join the repository's commits to who wrote each; every write is a commit, so every version restores (sima-qian#57)",
        ctx do
     path = "writing/essay.md"
     {:ok, _} = Seshat.write(ctx.id, path, "one\ntwo\n", ctx.witness, note: "the first draft")
-    commit!(ctx.dir, "writing")
     Clock.Fake.advance(60)
     {:ok, _} = Seshat.write(ctx.id, path, "one\nTWO\nthree\n", ctx.lily)
     Clock.Fake.advance(60)
-    # Overwritten before any backup: its words are gone from everywhere.
-    {:ok, _} = Seshat.write(ctx.id, path, "lost\n", ctx.lily)
+    # Overwritten a minute later: its words are still a commit.
+    {:ok, _} = Seshat.write(ctx.id, path, "kept\n", ctx.lily)
     Clock.Fake.advance(60)
     {:ok, _} = Seshat.write(ctx.id, path, "one\nTWO\nfour\n", ctx.lily)
 
-    assert {:ok, %{path: ^path, current: current, versions: [now, lost, second, first]}} =
+    assert {:ok, %{path: ^path, current: current, versions: [now, kept, second, first]}} =
              Seshat.versions(ctx.id, path)
 
     assert current == hash("one\nTWO\nfour\n")
-    assert %{act: "written", current: true, restorable: true, commit: nil} = now
-    assert %{version: lost_hash, restorable: false} = lost
-    assert lost_hash == hash("lost\n")
-    assert second.actor == %{kind: "resident", id: ctx.id}
-    refute second.restorable
+    assert %{act: "written", current: true, restorable: true} = now
+    assert %{version: kept_hash, restorable: true} = kept
+    assert kept_hash == hash("kept\n")
+    assert %{actor: %{kind: "resident", id: lily}, restorable: true} = second
+    assert lily == ctx.id
 
     assert %{
              note: "the first draft",
@@ -74,16 +74,14 @@ defmodule Oneiroi.Seshat.VersionsLeasesTest do
 
     assert is_binary(sha) and byte_size(sha) == 40
 
-    # The records system's port: the commits of one path with their blobs.
-    assert {:ok, [%{commit: ^sha, blob: blob, subject: "writing"}]} =
+    # The records system's port: the commits of one path with their blobs,
+    # each write one, under its author.
+    assert {:ok, [_, _, _, %{commit: ^sha, blob: blob, subject: "Write: writing/essay.md"}]} =
              Oneiroi.SimaQian.repository_history(ctx.id, path, 10)
 
     assert {:ok, "one\ntwo\n"} = Oneiroi.SimaQian.repository_blob(ctx.id, blob)
-
     assert {:ok, "one\ntwo\n"} = Seshat.version(ctx.id, path, first.version)
-
-    assert {:error, %Seshat.Error{kind: :seshat_no_such_version}} =
-             Seshat.version(ctx.id, path, lost.version)
+    assert {:ok, "kept\n"} = Seshat.version(ctx.id, path, kept.version)
 
     assert {:ok, %{added: 2, removed: 1, runs: runs, to: ^current}} =
              Seshat.version_diff(ctx.id, path, first.version, nil)

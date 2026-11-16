@@ -28,7 +28,7 @@ defmodule Oneiroi.Seshat.Documents do
   alias Oneiroi.Seshat.Router
   alias Oneiroi.Seshat.Store
   alias Oneiroi.Seshat.UserKinds
-  alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Repos
 
   # Sobelow reads a `File` call on a built path as a traversal; every
   # path here is the repository root (sima-qian's setting under a
@@ -36,15 +36,16 @@ defmodule Oneiroi.Seshat.Documents do
   # accepted: plain segments under a registered folder, no `..`, no
   # leading slash. A request value reaches the filesystem only through
   # that check.
-  # sobelow_skip ["Traversal.FileModule"]
+
   @doc "Writes a file through the flow (`core: true` for a kind the platform writes, `note:` for what the writer says of this version, seshat#54); returns the path, the kind, whether anything changed, and whether the index ran clean."
   def write(resident_id, path, content, %Actor{} = actor, opts \\ []) when is_binary(content) do
     with {:ok, path} <- normalize(resident_id, path),
          :ok <- not_theme(path, Keyword.get(opts, :theme, false)),
          {:ok, kind} <- writable_kind(resident_id, path, Keyword.get(opts, :core, false), actor),
          :ok <- size_ok(content),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         :ok <- not_kept(kind, path, Path.join(dir, path), content, resident_id),
+         {:ok, files} <- Repos.snapshot(repo(resident_id)),
+         current = Repos.at(repo(resident_id), files, path),
+         :ok <- not_kept(kind, path, current, content, resident_id),
          {:ok, events} <-
            dispatch(%Commands.WriteDocument{
              actor: actor,
@@ -56,28 +57,32 @@ defmodule Oneiroi.Seshat.Documents do
              bytes: byte_size(content),
              note: note(Keyword.get(opts, :note))
            }) do
-      full = Path.join(dir, path)
-      File.mkdir_p!(Path.dirname(full))
-      File.write!(full, content)
-      index = Index.run(resident_id, actor)
-
-      {:ok,
-       %{
-         path: path,
-         kind: kind.kind,
-         changed: events != [],
-         indexed: match?({:ok, _}, index)
-       }}
+      # The record first, as the aggregate may refuse; then the file,
+      # through the repositories' port (sima-qian#57).
+      with {:ok, _} <- put(resident_id, path, content, current, Map.get(files, path), actor) do
+        written(resident_id, path, kind, events, actor)
+      end
     end
   end
 
+  defp written(resident_id, path, kind, events, actor) do
+    index = Index.run(resident_id, actor)
+
+    {:ok,
+     %{
+       path: path,
+       kind: kind.kind,
+       changed: events != [],
+       indexed: match?({:ok, _}, index)
+     }}
+  end
+
   @doc "Adopts a file found in the repository under a kind's folder, as it is; the index runs."
-  # sobelow_skip ["Traversal.FileModule"]
+
   def adopt(resident_id, path, %Actor{} = actor) do
     with {:ok, path} <- normalize(resident_id, path),
          :ok <- not_originals(path),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, content} <- read_file(Path.join(dir, path)),
+         {:ok, content} <- read_file(resident_id, path),
          kind = Kinds.kind_of(resident_id, path),
          {:ok, events} <-
            dispatch(%Commands.AdoptDocument{
@@ -113,11 +118,11 @@ defmodule Oneiroi.Seshat.Documents do
     # adoptable on the same pass.
     _ = UserKinds.load(resident_id, actor)
 
-    with paths when is_list(paths) <- unadopted(resident_id),
-         paths = Enum.reject(paths, &Kinds.decided?/1),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+    with paths when is_list(paths) <- unadopted(resident_id) do
+      paths = Enum.reject(paths, &Kinds.decided?/1)
+
       {adopted, skipped} =
-        Enum.split_with(paths, &(register(resident_id, dir, &1, actor) == :ok))
+        Enum.split_with(paths, &(register(resident_id, &1, actor) == :ok))
 
       indexed = adopted == [] or match?({:ok, _}, Index.run(resident_id, actor))
       {:ok, %{adopted: adopted, skipped: skipped, indexed: indexed}}
@@ -132,20 +137,19 @@ defmodule Oneiroi.Seshat.Documents do
   changes nothing. The records system copied and verified the bytes;
   this only registers what is there.
   """
-  # sobelow_skip ["Traversal.FileModule"]
+
   def adopt_originals(resident_id, files, %Actor{} = actor) when is_list(files) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, adopted} <- register_originals(resident_id, dir, files, actor) do
+    with {:ok, adopted} <- register_originals(resident_id, files, actor) do
       indexed = adopted == [] or match?({:ok, _}, Index.run(resident_id, actor))
       {:ok, %{adopted: adopted, indexed: indexed}}
     end
   end
 
-  defp register_originals(resident_id, dir, files, actor) do
+  defp register_originals(resident_id, files, actor) do
     Enum.reduce_while(files, {:ok, []}, fn %{path: path, provenance: provenance}, {:ok, acc} ->
       with {:ok, path} <- normalize(resident_id, path),
            true <- Kinds.originals?(path) || refused_original(path),
-           {:ok, content} <- read_file(Path.join(dir, path)),
+           {:ok, content} <- read_file(resident_id, path),
            {:ok, events} <-
              dispatch(%Commands.AdoptDocument{
                actor: actor,
@@ -178,10 +182,9 @@ defmodule Oneiroi.Seshat.Documents do
       else: :ok
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp register(resident_id, dir, path, actor) do
+  defp register(resident_id, path, actor) do
     with {:ok, path} <- normalize(resident_id, path),
-         {:ok, content} <- read_file(Path.join(dir, path)),
+         {:ok, content} <- read_file(resident_id, path),
          {:ok, _events} <-
            dispatch(%Commands.AdoptDocument{
              actor: actor,
@@ -199,47 +202,27 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   @doc "Files under a kind's folder, and keepsakes at the root, that no document registers, sorted; what the Library screen offers to adopt."
-  # sobelow_skip ["Traversal.FileModule"]
+
   def unadopted(resident_id) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+    with {:ok, files} <- Repos.snapshot(repo(resident_id)) do
       registered = resident_id |> list() |> MapSet.new(& &1.path)
 
       resident_id
       |> Kinds.all()
       |> Enum.reject(&(&1.adoption == :originals or is_nil(&1.folder)))
-      |> Enum.flat_map(fn kind -> files_under(dir, kind.folder) end)
-      |> Enum.concat(keepsakes_at(dir))
+      |> Enum.flat_map(fn kind -> Repos.under(files, kind.folder) end)
+      |> Enum.concat(keepsakes_at(files))
       |> Enum.reject(&MapSet.member?(registered, &1))
       |> Enum.sort()
     end
   end
 
   # The keepsakes' files at the root, registered or not (seshat#29).
-  # sobelow_skip ["Traversal.FileModule"]
-  defp keepsakes_at(dir) do
-    case File.ls(dir) do
-      {:ok, names} ->
-        names
-        |> Enum.filter(&(Kinds.keepsake_name?(&1) and File.regular?(Path.join(dir, &1))))
-        |> Enum.sort()
-
-      {:error, _absent} ->
-        []
-    end
-  end
-
-  # sobelow_skip ["Traversal.FileModule"]
-  defp files_under(dir, folder) do
-    root = Path.join(dir, folder)
-
-    if File.dir?(root),
-      do:
-        root
-        |> Path.join("**")
-        |> Path.wildcard()
-        |> Enum.filter(&File.regular?/1)
-        |> Enum.map(&Path.relative_to(&1, dir)),
-      else: []
+  defp keepsakes_at(files) do
+    files
+    |> Map.keys()
+    |> Enum.filter(&(not String.contains?(&1, "/") and Kinds.keepsake_name?(&1)))
+    |> Enum.sort()
   end
 
   @doc "The registered documents, by kind then path."
@@ -254,12 +237,12 @@ defmodule Oneiroi.Seshat.Documents do
   whose file is gone is `seshat_document_missing`, never "no such
   document", because the registry holding it is the fact that matters.
   """
-  # sobelow_skip ["Traversal.FileModule"]
+
   def fetch(resident_id, path) do
     with {:ok, path} <- normalize(resident_id, path),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, row} <- registered(resident_id, path, Path.join(dir, path)),
-         {:ok, content} <- present(row, Path.join(dir, path)) do
+         current = Repos.text(repo(resident_id), path),
+         {:ok, row} <- registered(resident_id, path, current),
+         {:ok, content} <- present(row, current) do
       {:ok, %{document: row, content: content, discussions: discussions(resident_id, path)}}
     end
   end
@@ -359,15 +342,14 @@ defmodule Oneiroi.Seshat.Documents do
   the old path naming where it went and why, so a citation of it still
   resolves; both out of the index. Nothing is deleted. Either party.
   """
-  # sobelow_skip ["Traversal.FileModule"]
+
   def archive(resident_id, path, why, %Actor{} = actor) do
     to = "archive/" <> to_string(path)
     when_ = Clock.now() |> DateTime.to_date() |> Date.to_iso8601()
     who = Atom.to_string(actor.kind)
 
     with {:ok, path} <- normalize(resident_id, path),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, content} <- read_file(Path.join(dir, path)) do
+         {:ok, content, sha} <- read_with_sha(resident_id, path) do
       archived =
         "---\narchived_from: #{path}\narchived_by: #{who}\narchived_at: #{when_}\nwhy: #{inspect(to_string(why))}\n---\n" <>
           content
@@ -388,11 +370,14 @@ defmodule Oneiroi.Seshat.Documents do
         tombstone_bytes: byte_size(tombstone)
       }
 
-      with {:ok, _} <- dispatch(command) do
-        full = Path.join(dir, to)
-        File.mkdir_p!(Path.dirname(full))
-        File.write!(full, archived)
-        File.write!(Path.join(dir, path), tombstone)
+      with {:ok, _} <- dispatch(command),
+           {:ok, _} <-
+             Repos.write(
+               repo(resident_id),
+               [{:put, to, archived, :any}, {:put, path, tombstone, sha}],
+               "Archive: #{path}",
+               Repos.author(actor)
+             ) do
         _ = Index.run(resident_id, actor)
         {:ok, %{from: path, to: to}}
       end
@@ -458,7 +443,7 @@ defmodule Oneiroi.Seshat.Documents do
   in the repository, the index re-keyed without an embedding, and a
   citation of the old path follows to the new one.
   """
-  # sobelow_skip ["Traversal.FileModule"]
+
   def move(resident_id, from, to, %Actor{} = actor, opts \\ []) do
     core = Keyword.get(opts, :core, false)
 
@@ -468,9 +453,8 @@ defmodule Oneiroi.Seshat.Documents do
          :ok <- not_theme(to, false),
          {:ok, from_kind} <- movable(resident_id, from, actor, core),
          {:ok, to_kind} <- movable(resident_id, to, actor, core),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         :ok <- target_free(to, Path.join(dir, to)),
-         {:ok, content} <- source(from, Path.join(dir, from)),
+         :ok <- target_free(to, Repos.exists?(repo(resident_id), to)),
+         {:ok, content, sha} <- source(resident_id, from),
          {:ok, _events} <-
            dispatch(%Commands.MoveDocument{
              actor: actor,
@@ -481,10 +465,14 @@ defmodule Oneiroi.Seshat.Documents do
              from_kind: from_kind.kind,
              to_kind: to_kind.kind,
              hash: hash(content)
-           }) do
-      full = Path.join(dir, to)
-      File.mkdir_p!(Path.dirname(full))
-      File.rename!(Path.join(dir, from), full)
+           }),
+         {:ok, _} <-
+           Repos.write(
+             repo(resident_id),
+             [{:create, to, content}, {:delete, from, sha}],
+             "Move: #{from} to #{to}",
+             Repos.author(actor)
+           ) do
       # The citations moved with the file: memory hears them under the
       # new path and drops the old (kumbukumbu#53).
       Index.cite(resident_id, actor)
@@ -515,18 +503,16 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp target_free(to, full) do
-    if File.exists?(full),
+  defp target_free(to, taken?) do
+    if taken?,
       do: {:error, Error.new(:seshat_move_target_taken, :seshat_documents_move_taken, path: to)},
       else: :ok
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp source(from, full) do
-    case File.read(full) do
-      {:ok, content} ->
-        {:ok, content}
+  defp source(resident_id, from) do
+    case Repos.read(repo(resident_id), from) do
+      {:ok, content, sha} ->
+        {:ok, content, sha}
 
       {:error, _absent} ->
         {:error, Error.new(:seshat_no_such_document, :seshat_documents_move_absent, path: from)}
@@ -539,12 +525,12 @@ defmodule Oneiroi.Seshat.Documents do
   forgets its chunks. A scratch document is either party's to remove; a
   human one only the witness's, as only the witness writes it.
   """
-  # sobelow_skip ["Traversal.FileModule"]
+
   def remove(resident_id, path, %Actor{} = actor) do
     with {:ok, path} <- normalize(resident_id, path),
          kind when not is_nil(kind) <- Kinds.kind_of(resident_id, path),
          :ok <- removable(kind, actor),
-         {:ok, dir} <- SimaQian.repository_dir(resident_id),
+         {:ok, _} <- unwrite(resident_id, path, actor),
          {:ok, _events} <-
            dispatch(%Commands.RemoveDocument{
              actor: actor,
@@ -553,7 +539,6 @@ defmodule Oneiroi.Seshat.Documents do
              path: path,
              kind: kind.kind
            }) do
-      _ = File.rm(Path.join(dir, path))
       Index.run(resident_id, actor)
       # A removed document's citations are taken back (kumbukumbu#53).
       Index.cite(resident_id, actor)
@@ -655,17 +640,16 @@ defmodule Oneiroi.Seshat.Documents do
   # hash for a registered one too; this also covers a gift put at the
   # root by hand and not yet adopted, which a write would otherwise
   # replace with nothing recorded of what it was.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp not_kept(%{access: :keepsake}, path, full, content, _resident_id) do
-    case File.read(full) do
-      {:ok, ^content} ->
+  defp not_kept(%{access: :keepsake}, path, current, content, _resident_id) do
+    case current do
+      nil ->
         :ok
 
-      {:ok, _other} ->
+      ^content ->
+        :ok
+
+      _other ->
         {:error, Error.new(:seshat_keepsake_kept, :seshat_documents_keepsake_kept, path: path)}
-
-      {:error, _absent} ->
-        :ok
     end
   end
 
@@ -673,24 +657,23 @@ defmodule Oneiroi.Seshat.Documents do
   # written over: it is adopted first, so nothing it was is lost
   # unrecorded. Once registered, it is free to write until registered as
   # a keepsake.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp not_kept(%{kind: "root"}, path, full, content, resident_id) do
-    case File.read(full) do
-      {:ok, ^content} ->
+  defp not_kept(%{kind: "root"}, path, current, content, resident_id) do
+    case current do
+      nil ->
         :ok
 
-      {:ok, _other} ->
+      ^content ->
+        :ok
+
+      _other ->
         if Enum.any?(list(resident_id), &(&1.path == path)),
           do: :ok,
           else:
             {:error, Error.new(:seshat_not_adopted, :seshat_documents_root_unadopted, path: path)}
-
-      {:error, _absent} ->
-        :ok
     end
   end
 
-  defp not_kept(_kind, _path, _full, _content, _resident_id), do: :ok
+  defp not_kept(_kind, _path, _current, _content, _resident_id), do: :ok
 
   defp size_ok(content) do
     bound = Config.fetch!(:seshat, :document_bytes)
@@ -707,11 +690,10 @@ defmodule Oneiroi.Seshat.Documents do
 
   # The registry is read under the resident's scope alone: another
   # resident's row for the same path is not this resident's document.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp registered(resident_id, path, full) do
+  defp registered(resident_id, path, current) do
     case Scope.resident(resident_id, fn -> Store.document(path) end) do
       nil ->
-        if File.regular?(full),
+        if is_binary(current),
           do: {:error, Error.new(:seshat_not_adopted, :seshat_documents_not_adopted, path: path)},
           else:
             {:error,
@@ -725,37 +707,62 @@ defmodule Oneiroi.Seshat.Documents do
   # A registered document's file read as it is on disk; gone is the
   # registry outliving the file (the index marks it `missing_at`), said
   # as that, with the instant the index first found it gone when it has.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp present(row, full) do
-    case File.read(full) do
-      {:ok, content} ->
-        {:ok, content}
+  defp present(row, nil),
+    do:
+      {:error,
+       Error.new(:seshat_document_missing, :seshat_documents_file_missing,
+         path: row.path,
+         missing_at: row.missing_at
+       )}
 
-      {:error, reason} when reason in [:enoent, :enotdir] ->
-        {:error,
-         Error.caught(:seshat_document_missing, :seshat_documents_file_missing, reason,
-           path: row.path,
-           missing_at: row.missing_at
-         )}
+  defp present(_row, content), do: {:ok, content}
 
-      {:error, reason} ->
-        {:error,
-         Error.caught(:seshat_no_such_file, :seshat_documents_present_read, reason,
-           path: row.path
-         )}
+  defp read_file(resident_id, path) do
+    case Repos.read(repo(resident_id), path) do
+      {:ok, content, _sha} -> {:ok, content}
+      {:error, %{kind: :sima_qian_repos_absent}} -> no_file(path)
+      {:error, _unavailable} = failed -> failed
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp read_file(full) do
-    case File.read(full) do
-      {:ok, content} ->
-        {:ok, content}
-
-      {:error, reason} ->
-        {:error,
-         Error.caught(:seshat_no_such_file, :seshat_documents_read_file, reason, path: full)}
+  defp read_with_sha(resident_id, path) do
+    case Repos.read(repo(resident_id), path) do
+      {:ok, _content, _sha} = found -> found
+      {:error, %{kind: :sima_qian_repos_absent}} -> no_file(path)
+      {:error, _unavailable} = failed -> failed
     end
+  end
+
+  defp no_file(path),
+    do: {:error, Error.new(:seshat_no_such_file, :seshat_documents_read_file, path: path)}
+
+  # A resident's repository (sima-qian#57).
+  defp repo(resident_id), do: {:resident, resident_id}
+
+  # The file, through the repositories' port: unchanged bytes are no
+  # commit; changed ones are put where the file was as read.
+  defp put(_resident_id, _path, content, content, _sha, _actor), do: {:ok, :nothing}
+
+  defp put(resident_id, path, content, _current, sha, actor),
+    do:
+      Repos.write(
+        repo(resident_id),
+        [{:put, path, content, sha}],
+        "Write: #{path}",
+        Repos.author(actor)
+      )
+
+  # The file out of the repository, when it is there.
+  defp unwrite(resident_id, path, actor) do
+    if Repos.exists?(repo(resident_id), path),
+      do:
+        Repos.write(
+          repo(resident_id),
+          [{:delete, path, :any}],
+          "Remove: #{path}",
+          Repos.author(actor)
+        ),
+      else: {:ok, :nothing}
   end
 
   # The aggregate's refusals are sited already and pass; anything else

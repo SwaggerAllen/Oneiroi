@@ -28,7 +28,8 @@ defmodule OneiroiWeb.LibraryVersionsTest do
   defp commit!(dir) do
     identity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
     {_, 0} = System.cmd("git", ["add", "-A"], cd: dir, stderr_to_stdout: true)
-    {_, 0} = System.cmd("git", identity ++ ["commit", "-q", "-m", "writing"], cd: dir)
+    # Nothing to commit is fine: every write commits itself (sima-qian#57).
+    {_, _} = System.cmd("git", identity ++ ["commit", "-q", "-m", "writing"], cd: dir)
     Clock.Fake.advance(60)
   end
 

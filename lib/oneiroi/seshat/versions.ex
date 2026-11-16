@@ -5,15 +5,15 @@ defmodule Oneiroi.Seshat.Versions do
 
   The words of a version are the repository's: the commits that changed
   the path (`Oneiroi.SimaQian.repository_history/3`) and the file on
-  disk now. Who made each version, when and with what note is the
+  repository now. Who made each version, when and with what note is the
   library stream's (`Projectors.Versions`). The two are joined by the
   content's SHA-256, the hash every document event already carries, so
   a version is named by that hash: the same words written twice are one
   version with two acts, and any commit holding them gives them back.
 
-  A recorded act whose words no commit holds and the file no longer has
-  (written and overwritten between two nightly backups) is listed, not
-  restorable. A commit no act explains (an identity file, a file written
+  Every write is a commit (sima-qian#57), so every recorded act's words
+  are held; one whose words no commit holds (written before writes were
+  committed one by one) is listed, not restorable. A commit no act explains (an identity file, a file written
   before the library recorded it) is listed with no actor and the
   commit's subject as its note.
 
@@ -256,13 +256,10 @@ defmodule Oneiroi.Seshat.Versions do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
   defp read_current(resident_id, path) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
-      case File.read(Path.join(dir, path)) do
-        {:ok, words} -> {:ok, words}
-        {:error, _absent} -> :none
-      end
+    case SimaQian.repository_text(resident_id, path) do
+      nil -> :none
+      words -> {:ok, words}
     end
   end
 

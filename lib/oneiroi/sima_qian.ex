@@ -68,7 +68,6 @@ defmodule Oneiroi.SimaQian do
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
-  alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Import
@@ -360,37 +359,27 @@ defmodule Oneiroi.SimaQian do
   @spec repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
   defexport(repository_dir(resident_id), do: Backup.repository_dir(resident_id))
 
+  @doc "A file of the resident's repository through the repositories' port (sima-qian#57): its bytes, or nil."
+  @spec repository_text(String.t(), String.t()) :: binary() | nil
+  defexport(repository_text(resident_id, path), do: Repos.text({:resident, resident_id}, path))
+
   @doc "The history of the resident's repository, or of one path in it, newest first (brain#46)."
   @spec repository_log(String.t(), String.t() | nil, pos_integer()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(repository_log(resident_id, path, limit),
-    do:
-      with(
-        {:ok, dir} <- Backup.repository_dir(resident_id),
-        do: Git.log(dir, path, limit)
-      )
+    do: Repos.log({:resident, resident_id}, path, limit)
   )
 
   @doc "The commits that changed one path of the resident's repository, newest first, each with the blob the path held after it (sima-qian#49, for seshat#54)."
   @spec repository_history(String.t(), String.t(), pos_integer()) ::
           {:ok, [map()]} | {:error, term()}
   defexport(repository_history(resident_id, path, limit),
-    do:
-      with(
-        {:ok, dir} <- Backup.repository_dir(resident_id),
-        do: Git.history(dir, path, limit)
-      )
+    do: Repos.history({:resident, resident_id}, path, limit)
   )
 
   @doc "One blob's bytes from the resident's repository, by the sha `repository_history/3` named."
   @spec repository_blob(String.t(), String.t()) :: {:ok, binary()} | {:error, term()}
-  defexport(repository_blob(resident_id, blob),
-    do:
-      with(
-        {:ok, dir} <- Backup.repository_dir(resident_id),
-        do: Git.blob(dir, blob)
-      )
-  )
+  defexport(repository_blob(resident_id, blob), do: Repos.blob({:resident, resident_id}, blob))
 
   @doc "The household's working repository on disk, made one on first use (sima-qian#51): where the household's shelf lives."
   @spec household_repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}

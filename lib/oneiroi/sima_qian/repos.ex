@@ -45,6 +45,24 @@ defmodule Oneiroi.SimaQian.Repos do
   @doc "The platform's own authorship, for what no member wrote."
   def platform, do: @platform
 
+  @doc """
+  Who a commit in a resident's repository is by (sima-qian#52, #57): the
+  resident under her name, her witness as her witness, anything else the
+  platform. Addresses are placeholders under the platform's name, never
+  a person's own.
+  """
+  def author(%Oneiroi.Actor{kind: :resident, id: id}) do
+    case Oneiroi.AgathosDaimon.fetch(id) do
+      {:ok, r} -> %{name: r.name, email: "#{r.slug}@residents.oneiroi.invalid"}
+      _gone -> @platform
+    end
+  end
+
+  def author(%Oneiroi.Actor{kind: :witness, id: id}),
+    do: %{name: "her witness", email: "#{id}@witnesses.oneiroi.invalid"}
+
+  def author(_actor), do: @platform
+
   @doc "A file's bytes and its blob, or `sima_qian_repos_absent`."
   def read(repo, path), do: client().read(repo, path)
 

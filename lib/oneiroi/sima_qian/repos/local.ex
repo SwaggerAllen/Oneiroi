@@ -1,11 +1,14 @@
 defmodule Oneiroi.SimaQian.Repos.Local do
   @moduledoc """
-  The repositories' port on disk (sima-qian#57): a git repository per
-  resident and per household under the records root, read at `HEAD` (what
-  is committed, never what lies in the working tree), written one commit
-  at a time under a lock per repository, each change held to the same
-  condition Gitea's API holds it to. The test suite's adapter, and a
-  self-hoster's without Gitea.
+  The repositories' port on disk (sima-qian#57): a directory per
+  resident and per household under the records root, its files the
+  repository's, each write committed to git there under its author.
+  A file that appears in the directory by any other hand is read as
+  Gitea reads a push from outside: part of the repository from then on.
+  Each change is held to the same condition Gitea's API holds it to,
+  against the file's blob as it stands, under a lock per repository.
+  The test suite's adapter, development's, and a self-hoster's without
+  Gitea.
   """
   @behaviour Oneiroi.SimaQian.Repos
 
@@ -14,43 +17,46 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   alias Oneiroi.SimaQian.Git
 
   @impl true
+  # Every path is under the records root, in a repository named by an id
+  # the platform minted; the paths come from the library's own layout.
+  # sobelow_skip ["Traversal.FileModule"]
   def read(repo, path) do
-    dir = dir(repo)
+    case File.read(Path.join(dir(repo), path)) do
+      {:ok, bytes} ->
+        {:ok, bytes, sha(bytes)}
 
-    with true <- made?(dir) || :absent,
-         {:ok, sha} <- Git.run("git", dir, ["rev-parse", "-q", "--verify", "HEAD:" <> path]),
-         {:ok, bytes} <- Git.blob(dir, String.trim(sha)) do
-      {:ok, bytes, String.trim(sha)}
-    else
-      _absent ->
+      {:error, _absent} ->
         {:error,
          Error.new(:sima_qian_repos_absent, :sima_qian_repos_local_read_absent, path: path)}
     end
   end
 
   @impl true
+  # sobelow_skip ["Traversal.FileModule"]
   def tree(repo) do
     dir = dir(repo)
 
-    if made?(dir) do
-      with {:ok, entries} <- Git.tree(dir, "HEAD"),
-           do: {:ok, for(%{type: "blob"} = e <- entries, do: %{path: e.path, sha: e.blob})}
-    else
-      {:ok, []}
-    end
+    {:ok,
+     if File.dir?(dir) do
+       for full <- Path.wildcard(Path.join(dir, "**"), match_dot: true),
+           rel = Path.relative_to(full, dir),
+           not String.starts_with?(rel, ".git/"),
+           rel != ".git",
+           File.regular?(full),
+           do: %{path: rel, sha: sha(File.read!(full))}
+     else
+       []
+     end}
   end
 
   @impl true
-  # Every path is under the records root, in a repository named by an id
-  # the platform minted; the paths come from the library's own layout.
   # sobelow_skip ["Traversal.FileModule"]
   def write(repo, changes, message, author) do
     dir = dir(repo)
     :ok = Git.ensure_repo(dir)
 
     :global.trans({{__MODULE__, dir}, self()}, fn ->
-      with {:ok, head} <- shas(repo),
-           :ok <- conditions(changes, head) do
+      with :ok <- conditions(repo, changes) do
         Enum.each(changes, &apply_change(dir, &1))
         Git.commit_as(dir, Enum.map(changes, &elem(&1, 1)), message, author)
       end
@@ -70,7 +76,23 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   end
 
   @impl true
-  def blob(repo, sha), do: Git.blob(dir(repo), sha)
+  # A blob committed is in git; one only on disk is found by its sha.
+  def blob(repo, sha) do
+    dir = dir(repo)
+
+    with {:error, _} <- committed_blob(dir, sha),
+         {:ok, files} <- tree(repo),
+         %{path: path} <- Enum.find(files, &(&1.sha == sha)),
+         {:ok, bytes, _} <- read(repo, path) do
+      {:ok, bytes}
+    else
+      {:ok, bytes} when is_binary(bytes) ->
+        {:ok, bytes}
+
+      _none ->
+        {:error, Error.new(:sima_qian_repos_absent, :sima_qian_repos_local_blob_absent, sha: sha)}
+    end
+  end
 
   @doc "The repository's directory under the records root, as the backup and the household name it."
   def dir({:resident, id}), do: Path.join(root(), id)
@@ -78,25 +100,38 @@ defmodule Oneiroi.SimaQian.Repos.Local do
 
   defp root, do: Config.fetch!(:sima_qian, :root)
 
-  # A repository made and committed to; one not made yet is empty, and
-  # git is never started in a directory that is not there.
-  defp made?(dir), do: File.dir?(Path.join(dir, ".git")) and Git.head?(dir)
+  @doc "A git blob's sha for these bytes, as git and Gitea name it."
+  def sha(bytes),
+    do:
+      :crypto.hash(:sha, ["blob ", Integer.to_string(byte_size(bytes)), <<0>>, bytes])
+      |> Base.encode16(case: :lower)
 
-  defp shas(repo) do
-    with {:ok, files} <- tree(repo), do: {:ok, Map.new(files, &{&1.path, &1.sha})}
+  defp committed_blob(dir, sha) do
+    if made?(dir),
+      do: Git.blob(dir, sha),
+      else: {:error, Error.new(:sima_qian_repos_absent, :sima_qian_repos_local_unmade, sha: sha)}
   end
 
-  defp conditions(changes, head) do
-    if Enum.all?(changes, &holds?(&1, head)),
+  defp made?(dir), do: File.dir?(Path.join(dir, ".git")) and Git.head?(dir)
+
+  defp conditions(repo, changes) do
+    if Enum.all?(changes, &holds?(repo, &1)),
       do: :ok,
       else: {:error, Error.new(:sima_qian_repos_conflict, :sima_qian_repos_local_condition)}
   end
 
-  defp holds?({:create, path, _content}, head), do: not Map.has_key?(head, path)
-  defp holds?({:put, _path, _content, :any}, _head), do: true
-  defp holds?({:put, path, _content, base}, head), do: Map.get(head, path) == base
-  defp holds?({:delete, path, :any}, head), do: Map.has_key?(head, path)
-  defp holds?({:delete, path, base}, head), do: Map.get(head, path) == base
+  defp holds?(repo, {:create, path, _content}), do: current(repo, path) == nil
+  defp holds?(_repo, {:put, _path, _content, :any}), do: true
+  defp holds?(repo, {:put, path, _content, base}), do: current(repo, path) == base
+  defp holds?(repo, {:delete, path, :any}), do: current(repo, path) != nil
+  defp holds?(repo, {:delete, path, base}), do: current(repo, path) == base
+
+  defp current(repo, path) do
+    case read(repo, path) do
+      {:ok, _bytes, sha} -> sha
+      _absent -> nil
+    end
+  end
 
   # sobelow_skip ["Traversal.FileModule"]
   defp apply_change(dir, {:delete, path, _base}), do: File.rm(Path.join(dir, path))
