@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RequestFailed } from '../../api/client';
 import type { RegressionCard, RegressionRunDetail, RoutesData, WorkItem, WorkQueue } from '../../api/types';
-import { answerLine, argumentsText, blockedLine, capLine, lines, loopLine, movedUp, routeOk, saidOf, span, timeLine, withCard } from './logic';
+import { answerLine, argumentsText, blockedLine, capLine, lines, loopLine, movedUp, routeOk, saidOf, setupCommand, span, timeLine, withCard } from './logic';
 
 const item = (number: number, status = 'open', extra: Partial<WorkItem> = {}): WorkItem => ({
   number,
@@ -150,5 +150,19 @@ describe('a run', () => {
     expect(argumentsText('{}')).toBe('with nothing');
     expect(argumentsText('null')).toBe('with nothing');
     expect(argumentsText('not json')).toBe('not json');
+  });
+});
+
+describe('setupCommand (dioscuri#8)', () => {
+  it('is the same command for any resident, slug and id in it, never a token', () => {
+    expect(setupCommand('https://o.example/', 'writer', 'scarlett', 'r2')).toBe('bash <(curl -fsSL https://o.example/setup.sh) writer --slug scarlett --resident r2');
+    expect(setupCommand('https://o.example', 'writer', 'lily', 'r1')).toBe('bash <(curl -fsSL https://o.example/setup.sh) writer --slug lily --resident r1');
+  });
+
+  it("adds a reader's handle and address, quoted, and only for the reader", () => {
+    expect(setupCommand('https://o.example', 'reader', 'wren', 'r3', { substack: 'wren', email: "o'k@x.test" })).toBe(
+      "bash <(curl -fsSL https://o.example/setup.sh) reader --slug wren --resident r3 --substack 'wren' --email 'o'\\''k@x.test'",
+    );
+    expect(setupCommand('https://o.example', 'writer', 'wren', 'r3', { substack: 'wren' })).not.toContain('--substack');
   });
 });

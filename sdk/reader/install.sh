@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Installs Oneiroi's reader on a Mac (see README.md):
+# Installs Oneiroi's reader on a Mac for one resident (see README.md);
+# Oneiroi's setup.sh runs it for you (Connections, "On your Mac"):
 #
-#   install.sh --url https://oneiroi.onrender.com --resident <id> \
-#     --substack <her Substack handle> --email <her address> [--dir <folder>]
+#   install.sh --name <her slug> --url https://oneiroi.onrender.com --resident <id> \
+#     [--substack <her Substack handle>] [--email <her address>] [--dir <folder>]
 #
-# The token is the reader adapter's, issued on Connections (name `scrape`,
-# role `reader`) and saved to ~/.config/oneiroi/reader.json first (with
-# --name, ~/.config/oneiroi/readers/<name>/reader.json). This
-# writes the reader's folder, its settings (the Oneiroi plugin off, so it
-# never runs with the resident's brain token), its browser's MCP config,
-# ~/.config/oneiroi/reader.conf, and two launch agents, which it does not
-# load: the last lines it prints are the commands that do.
+# The token is her reader adapter's, issued on Connections, asked for
+# without echo (or ONEIROI_TOKEN) and kept in
+# ~/.config/oneiroi/readers/<name>/reader.json. This writes the reader's
+# folder (~/.oneiroi/readers/<name>), its settings (the Oneiroi plugin
+# off, so it never runs with the resident's brain token), its browser's
+# MCP config, its reader.conf beside the token, and two launch agents,
+# which it does not load: the last lines it prints are the commands that do.
 set -euo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,26 +35,31 @@ done
 
 [ -n "$URL" ] && [ -n "$RESIDENT" ] || { echo "--url and --resident are required" >&2; exit 2; }
 
-# One reader per resident on a Mac (the witness, 2026-11-16: Scarlett's
-# "so she doesn't fight with Lily over them"). Unnamed, the first
-# install's places, as they always were; named (the resident's slug),
-# a folder, settings, token, browser profiles, lock and jobs of its own.
-if [ -n "$NAME" ]; then
-  printf '%s' "$NAME" | grep -Eq '^[a-z][a-z0-9-]{1,39}$' ||
-    { echo "--name is the resident's slug: lowercase letters, digits and hyphens" >&2; exit 2; }
-  DIR="${DIR:-$HOME/.oneiroi/readers/$NAME}"
-  CFG="$HOME/.config/oneiroi/readers/$NAME"
-  LABEL="io.oneiroi.reader.$NAME"
-else
-  DIR="${DIR:-$HOME/.oneiroi/reader}"
-  CFG="$HOME/.config/oneiroi"
-  LABEL="io.oneiroi.reader"
-fi
-
-[ -s "$CFG/reader.json" ] ||
-  { echo "save the reader's token to $CFG/reader.json first (README.md)" >&2; exit 2; }
-command -v claude > /dev/null || { echo "claude is not on PATH" >&2; exit 2; }
+# One reader per resident on a Mac, named by her slug, the same for the
+# first as for the second (seshat#78; the witness, 2026-11-16): a folder,
+# settings, token, browser profiles, lock and jobs of her own.
+[ -n "$NAME" ] || { echo "--name is required: the resident's slug" >&2; exit 2; }
+printf '%s' "$NAME" | grep -Eq '^[a-z][a-z0-9-]{1,39}$' ||
+  { echo "--name is the resident's slug: lowercase letters, digits and hyphens" >&2; exit 2; }
+DIR="${DIR:-$HOME/.oneiroi/readers/$NAME}"
+CFG="$HOME/.config/oneiroi/readers/$NAME"
+LABEL="io.oneiroi.reader.$NAME"
 command -v jq > /dev/null || { echo "jq is not on PATH" >&2; exit 2; }
+
+# The token: kept from an install before, or taken now (ONEIROI_TOKEN, or
+# asked for without echo), and written where only you can read it.
+if [ ! -s "$CFG/reader.json" ]; then
+  token="${ONEIROI_TOKEN:-}"
+  if [ -z "$token" ]; then
+    [ -t 0 ] || { echo "no token: set ONEIROI_TOKEN or run this in a terminal" >&2; exit 2; }
+    read -r -s -p "Her reader's token (shown once on Connections): " token
+    echo
+  fi
+  [ -n "$token" ] || { echo "no token given" >&2; exit 2; }
+  mkdir -p "$CFG"
+  (umask 077 && printf '%s' "$token" | jq -R '{token: .}' > "$CFG/reader.json")
+fi
+command -v claude > /dev/null || { echo "claude is not on PATH" >&2; exit 2; }
 # PDFs (seshat#77): read without these, a PDF is said unreadable and nothing else stops.
 for tool in pdftotext pdfinfo ocrmypdf tesseract; do
   command -v "$tool" > /dev/null ||

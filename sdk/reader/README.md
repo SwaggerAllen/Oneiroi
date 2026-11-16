@@ -115,22 +115,31 @@ with no notes after two runs is recorded as failed, with the reason.
 
 ## Install
 
-1. **Issue the reader's token.** On Connections, use the name `scrape` and
-   the role `reader`. Copy it, then save it from the clipboard (it never
-   goes into a chat):
-   ```bash
-   mkdir -p ~/.config/oneiroi && umask 077 && pbpaste | jq -R '{token: .}' > ~/.config/oneiroi/reader.json
-   ```
-2. **Install the reader folder and jobs:**
-   ```bash
-   sdk/reader/install.sh --url https://oneiroi.onrender.com --resident <id> \
-     --substack <her Substack handle> --email <her address>
-   ```
-3. **Sign in to Substack as the resident, once.** Run
-   `~/.oneiroi/reader/bin/reader.sh login`, sign in in the Chrome
-   window it opens, then quit that Chrome (Cmd-Q).
-4. **Load the two jobs.** Run the `launchctl load -w …` lines `install.sh`
-   printed.
+From the client: Settings → Profiles, keys and connections → **On your
+Mac** → **Set up the reader** (dioscuri#8). It shows her reader's token
+once and one command; run the command in Terminal and paste the token
+when it asks. It is the same for every resident:
+
+```bash
+bash <(curl -fsSL https://oneiroi.onrender.com/setup.sh) reader --slug <her slug> --resident <her id> \
+  [--substack <her handle>] [--email <her address>]
+```
+
+It downloads the kit from Oneiroi and runs `install.sh --name <her slug>`:
+her folder `~/.oneiroi/readers/<slug>`, her settings and token under
+`~/.config/oneiroi/readers/<slug>/`, her jobs `io.oneiroi.reader.<slug>.*`.
+Then, as it prints: sign in to Substack as her once
+(`~/.oneiroi/readers/<slug>/bin/reader.sh login`, then quit that Chrome
+with Cmd-Q), and load the two jobs with the `launchctl load -w` lines.
+
+**A reader installed before 2026-11-16, unnamed** (`~/.oneiroi/reader`,
+`io.oneiroi.reader.wait`), keeps running until it is moved: set her
+reader up again as above, then unload and remove the old jobs
+(`launchctl unload -w ~/Library/LaunchAgents/io.oneiroi.reader.wait.plist`,
+the same for `.scrape`, then delete the two plists). Copying
+`~/.oneiroi/reader/browser-profile` and `research-profile` into her new
+folder before the first run keeps their sign-ins; an edited allowlist in
+the old `~/.config/oneiroi/reader.conf` is copied into the new one by hand.
 
 Email is read through the witness's claude.ai Gmail connector. It has to
 be connected to the resident's mailbox for the email half to find
@@ -147,18 +156,8 @@ signed in once with `reader.sh login <its name>`. This needs the
 reader reinstalled (`install.sh` again) after the server has routes; an
 older reader keeps working, without them.
 
-**A second resident on the same Mac (seshat#78).** Each resident has a
-reader of her own, so neither waits on the other's lock or reads through
-the other's browser. Issue the token on her Connections, save it under
-her slug, and install with `--name`:
-```bash
-mkdir -p ~/.config/oneiroi/readers/scarlett && umask 077 && pbpaste | jq -R '{token: .}' > ~/.config/oneiroi/readers/scarlett/reader.json
-sdk/reader/install.sh --name scarlett --url https://oneiroi.onrender.com --resident <her id> \
-  --substack <her handle> --email <her address>
-~/.oneiroi/readers/scarlett/bin/reader.sh login
-```
-then load the two `io.oneiroi.reader.scarlett.*` jobs it prints. An
-install without `--name` is the first reader's, where it always was.
+**Each resident her own (seshat#78).** Every reader is installed under
+its resident's slug, so two never share a lock, a browser or a token.
 
 A reinstall keeps an allowlist you have edited. Logs are in
 `~/.oneiroi/reader/log/`. `reader.sh send`,

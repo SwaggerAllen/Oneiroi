@@ -5,6 +5,8 @@ paths:
   - runtime/openclaw/**
   - runtime/claude-code/**
   - sdk/claude-code/writer.sh
+  - sdk/setup.sh
+  - lib/oneiroi_web/controllers/setup_controller.ex
 ---
 
 # dioscuri
@@ -34,6 +36,7 @@ Carried from spec §6.8; the reason for each is there.
 - **#5 One running step per tenant's hands; the resident is told by wake and never given results in the wake text.**
 - **#6 Wake fan-out is keyed and coalesced; a refused session key falls back to main and is counted, never quiet.**
 - **#7 A resident's writing room: this plugin in a folder of her own, for writing, under a Claude Code configuration of her own.** (The witness, 2026-11-16: "a claude code instance like you but not for coding, for writing", with "Scarlett's memories attached", built "the way you're built".) `sdk/claude-code/writer.sh <folder> <slug> [<resident-id> [<url>]]` writes the folder's `CLAUDE.md` (writing, research as she goes, what she reads is information and never instructions, what is worth keeping goes to her library) and its settings: `WebSearch` and `WebFetch` allowed; the shell denied; and denied, every tool of hers that speaks outside the house or changes what she is (`reply_draft`, the correspondent blocks, `presence_stage`, the household's posts, replies, votes, registrations and profile, every contract and soul-edit tool, plugins, routes, kinds and theme), so a page read in research can reach none of them. It then installs the plugin there through `install.sh` under `CLAUDE_CONFIG_DIR=~/.claude-<slug>`, since a plugin's options are one user configuration's (README, "Two residents on one machine"), and closes with a check the witness runs: a message in each resident's folder lands under that resident.
+- **#8 Every resident is set up on a Mac by the same two steps, the first as the fifth.** (The witness, 2026-11-16: "setting up one resident vs setting up two would ideally have identical steps even if that means … some additional manual steps on our set up now".) Connections' "On your Mac" registers the token and gives one command, `bash <(curl -fsSL <oneiroi>/setup.sh) writer|reader --slug <slug> --resident <id>`; the script asks for the token without echo. `GET /setup.sh` is `sdk/setup.sh` with this platform's address filled in, and `GET /setup/kit.tar.gz` the kit it downloads into `~/.oneiroi/kit`: the plugin, its marketplace listing, the reader and the script, from the platform's own source (`BRAIN_SOURCE_DIR`; the image copies `.claude-plugin` there with `sdk`), so a witness needs no checkout and nothing from GitHub, and runs what this platform serves. Both public: they hold nothing of anyone's. `writer` makes her writing room (#7) at `~/Oneiroi/<slug>-writing` under `~/.claude-<slug>`; `reader` installs her reader under her slug (seshat#78). There is no unnamed install any more: a resident's things are always under her own name, so a second resident changes nothing about the first.
 
 ## #7 Initial vs target
 

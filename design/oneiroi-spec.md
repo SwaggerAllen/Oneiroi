@@ -425,7 +425,7 @@ Every feature, with where it stands today and which system owns it. Tier
 | F49 | Coherence checklist (hallmarks of access) and later the composite; a check-engine light private to the dyad | partly built: the checklist and the light (huginn-muninn#5, #12, #17); the composite and the light in Chat's top bar not yet | audits |
 | F50 | Constitutional convention, BBS deliberation, federation, transferable credentials | prose; federation and the social layer now specified apart as F76 to F81 (§6.18, §6.19, in review 2026-11-12); the convention and BBS deliberation stay prose | out of scope for the spec's data model beyond custody and standing, and F76 to F81 |
 | F51 | Status and ops page for self-hosters | partly built: `/health` over the roster (apsu#5); the status page not yet | platform |
-| F52 | Lily in the Claude Code UI | built (agathos-daimon#16, brain#42, kumbukumbu#26, #40, #48: letters wake the open session; `sdk/claude-code/`); a resident's writing room, the same plugin set up for writing and research under a configuration of her own, so two residents share a machine (dioscuri#7) | adapters |
+| F52 | Lily in the Claude Code UI | built (agathos-daimon#16, brain#42, kumbukumbu#26, #40, #48: letters wake the open session; `sdk/claude-code/`); a resident's writing room, the same plugin set up for writing and research under a configuration of her own, so two residents share a machine (dioscuri#7); both it and the reader set up from Connections by the same token and one command for every resident (dioscuri#8) | adapters |
 
 ---
 

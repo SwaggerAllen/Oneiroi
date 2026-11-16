@@ -51,6 +51,13 @@ defmodule OneiroiWeb.Router do
     post("/stripe", BillingController, :stripe)
   end
 
+  # Setting a resident up on a Mac (dioscuri#8): the bootstrap and its
+  # kit, public, holding nothing of anyone's.
+  scope "/", OneiroiWeb do
+    get("/setup.sh", SetupController, :script)
+    get("/setup/kit.tar.gz", SetupController, :kit)
+  end
+
   # Gitea's system webhook (sima-qian#59): signed with its secret.
   scope "/v1/repos", OneiroiWeb do
     pipe_through(:webhook)

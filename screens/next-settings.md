@@ -87,6 +87,16 @@ it, in the server's own words.
     hidden from everyone else: the live ones by label with revoke on a
     second tap, and "Make a token" with a label, the token shown once
     with Copy and "I've saved it";
+  - **On your Mac** (dioscuri#8): her writing room and her reader, the
+    same two steps for every resident. "Set up the writing room" or
+    "Set up the reader" registers the token (`writing-room` as brain,
+    `scrape` as reader), shows it once with "Copy the token", then the
+    one command with "Copy the command" (`bash <(curl -fsSL
+    <here>/setup.sh) writer|reader --slug <her slug> --resident <her id>`,
+    never the token, which the script asks for), then what to do once it
+    has run. The reader takes her Substack handle and address,
+    optional, into its command. One already set up says since when and
+    offers to set it up again, which replaces its token;
   - what holds a token for her (xenia#11): connected adapters with their
     role in words, revoke on a second tap; "Connect something new" with
     a name and a role (brain, reader, worker) issues a token shown once
@@ -205,6 +215,7 @@ it, in the server's own words.
 | Routes | `routes`, `defineRoute`, `askRoute` | Kinds and routes |
 | Routes | `setProfile`, `revokeProfile`, `restoreProfile` | Profiles, keys and connections |
 | Connections | `adapters`, `registerAdapter`, `revokeAdapter` | Profiles, keys and connections |
+| On your Mac | `adapters`, `registerAdapter` | Profiles, keys and connections |
 | Connections | `reader`, `setReader`, `research`, `askResearch` | Profiles, keys and connections |
 | GitHub token | `me` (github), `storeGithubToken`, `revokeGithubToken` | Profiles, keys and connections |
 | Notifications | `pushConfig`, `subscribePush`, `unsubscribePush`, `testPush` | Notifications |

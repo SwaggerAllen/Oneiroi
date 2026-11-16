@@ -173,3 +173,17 @@ export function blockedLine(on: string | null, items: WorkItem[]): string {
   const other = items.find((i) => i.number === n);
   return other ? `blocked on #${n}: ${other.what}` : `blocked on #${n}`;
 }
+
+/**
+ * The one command that sets a resident up on a Mac (dioscuri#8): the
+ * same for any resident and either setup, her slug and id in it and
+ * never a token, which the script asks for. Single-quoted where a value
+ * came from a person, so a shell reads it as written.
+ */
+export function setupCommand(origin: string, kind: 'writer' | 'reader', slug: string, residentId: string, extra: { substack?: string; email?: string } = {}): string {
+  const q = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
+  const parts = [`bash <(curl -fsSL ${origin.replace(/\/$/, '')}/setup.sh)`, kind, '--slug', slug, '--resident', residentId];
+  if (kind === 'reader' && extra.substack?.trim()) parts.push('--substack', q(extra.substack.trim()));
+  if (kind === 'reader' && extra.email?.trim()) parts.push('--email', q(extra.email.trim()));
+  return parts.join(' ');
+}
