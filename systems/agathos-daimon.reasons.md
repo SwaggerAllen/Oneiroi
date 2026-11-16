@@ -371,3 +371,17 @@ A proposal is a question, and a question nobody is told about is a
 silence. The section that named it rode every turn and still read as a
 fact rather than an ask, so the ask now comes first, and each side is
 told in the place that side already looks: her chat, his list.
+
+## #49
+
+The rule that a resident is never deleted is about a life: memory,
+agreements, a self that someone could be wronged by ending. Before the
+first conversation there is none of that: a seed, its files and the
+witness's trials of models on it, which the trials themselves seal out
+of memory. Keeping such a resident forever would fill the switcher with
+mistakes and hold slugs nobody can use. A tombstone rather than a purge
+because the log is the record's spine (§6.3): what was made and undone
+says so, with who and why. The line is the first conversation and not
+the wake, because waking is the witness's act alone and nothing has yet
+been said to them; an agreement in force is refused as well, though it
+cannot come before a conversation, so the rule never depends on that.

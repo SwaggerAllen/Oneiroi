@@ -393,6 +393,7 @@ export const api = {
     call<Array<{ set: string; prompt: string; files: Array<{ file: string; gift: string; title: string; content: string }> }>>('GET', '/v1/creation/examples'),
   createResident: (name: string, slug: string) => call<Resident>('POST', '/v1/residents', { name, slug }),
   // The witness wakes a forming resident, once a chat model was chosen (agathos-daimon#46).
+  discardResident: (residentId: string, note: string) => call<void>('DELETE', `/v1/residents/${residentId}`, { note }),
   awaken: (residentId: string, note: string) => call<Resident>('POST', `/v1/residents/${residentId}/awaken`, { note }),
   importResident: (url: string, name: string | null, slug: string | null) =>
     call<Resident>('POST', '/v1/residents/import', { url, ...(name ? { name } : {}), ...(slug ? { slug } : {}) }),
