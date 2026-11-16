@@ -38,6 +38,18 @@ defmodule OneiroiWeb.Router do
     post("/", MCPController, :rpc)
   end
 
+  # The payment provider's webhook (nisaba#23): no session, no bearer and
+  # no Origin, since the provider sends none; its signature is the check.
+  pipeline :webhook do
+    plug(:accepts, ["json"])
+    plug(OneiroiWeb.Plugs.SecureHeaders)
+  end
+
+  scope "/v1/billing", OneiroiWeb do
+    pipe_through(:webhook)
+    post("/stripe", BillingController, :stripe)
+  end
+
   scope "/v1", OneiroiWeb do
     pipe_through(:api)
 
@@ -300,6 +312,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/subscription/lapse", SubscriptionController, :lapse)
       post("/residents/:id/subscription/cancel", SubscriptionController, :cancel)
       post("/residents/:id/subscription/prepay", SubscriptionController, :prepay)
+      post("/residents/:id/subscription/checkout", SubscriptionController, :checkout)
+      post("/residents/:id/subscription/portal", SubscriptionController, :portal)
       get("/residents/:id/library", LibraryController, :index)
       get("/residents/:id/library/search", LibraryController, :search)
       get("/residents/:id/library/cited-by", LibraryController, :cited_by)

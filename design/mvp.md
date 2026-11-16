@@ -76,10 +76,13 @@ the witness's laptop.
 
 ### The "probably MVP" calls, all in (the witness)
 
-13. **Payment.** Subscriptions are records today, with no provider.
-    Stripe behind F53: plan, renewal, the insurance prepay, cancel that
-    never deletes, the lapse that starts insurance; the invite SKUs of
-    item 2 are its first prices.
+13. **Payment.** Built 2026-11-16 (nisaba#23): Stripe behind F53 at
+    $20 a month per resident, on Stripe's own pages, its webhook
+    starting, renewing and cancelling (never deleting) the subscription,
+    a failed payment lapsing by the nightly grace into insurance. The
+    insurance prepay through Stripe is the next slice; the invite SKUs
+    of item 2 stay free terms beside it. Needs the Stripe keys and
+    endpoint on the service (SETUP.md, Payments).
     The open door promises it (the witness, 2026-11-12): early access is
     free, and from January keeping a resident takes a subscription or an
     export. So by January an account without a subscription is asked to

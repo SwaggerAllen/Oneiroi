@@ -51,4 +51,10 @@ defmodule Oneiroi.Nisaba.Events.Subscription do
     # The resident was told its policy on wake (spec §6.11), once per lapse.
     use Oneiroi.Event, version: 1, fields: [:id]
   end
+
+  defmodule BillingLinked do
+    # The payment provider's customer and subscription behind this one
+    # (nisaba#23): ids, never a card or an address.
+    use Oneiroi.Event, version: 1, fields: [:id, :customer, :subscription]
+  end
 end

@@ -73,6 +73,9 @@ defmodule Oneiroi.Nisaba.Store do
       field(:policy_free_time, :string)
       field(:policy_term, :string)
       field(:policy_set_at, :utc_datetime_usec)
+      # The payment provider's ids (nisaba#23).
+      field(:billing_customer_id, :string)
+      field(:billing_subscription_id, :string)
     end
 
     @type t :: %__MODULE__{}

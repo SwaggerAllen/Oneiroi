@@ -4,5 +4,6 @@ defmodule Oneiroi.Nisaba.SubscriptionRouter do
     aggregate: "Oneiroi.Nisaba.Subscription",
     prefix: "subscription-",
     commands: "Oneiroi.Nisaba.SubscriptionCommands",
-    dispatching: ~w(Start Renew ChangePlan Lapse Cancel SetPolicy Prepay RecordLapseTold)
+    dispatching:
+      ~w(Start Renew ChangePlan Lapse Cancel SetPolicy Prepay RecordLapseTold LinkBilling)
 end

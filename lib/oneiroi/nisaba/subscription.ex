@@ -11,7 +11,7 @@ defmodule Oneiroi.Nisaba.Subscription do
   alias Oneiroi.Nisaba.Events.Subscription, as: Events
   alias Oneiroi.Nisaba.SubscriptionCommands, as: Commands
 
-  defstruct [:id, :state, :plan, policy: nil, lapse_told: true]
+  defstruct [:id, :state, :plan, policy: nil, lapse_told: true, billing: nil]
 
   @plan_limit 60
 
@@ -115,6 +115,26 @@ defmodule Oneiroi.Nisaba.Subscription do
 
   def execute(%__MODULE__{}, %Commands.RecordLapseTold{} = c), do: told(c)
 
+  # The provider's ids (nisaba#23); the same pair again is no change.
+  def execute(%__MODULE__{billing: billing}, %Commands.LinkBilling{} = c) do
+    cond do
+      billing == {c.customer, c.subscription} ->
+        []
+
+      is_binary(c.customer) and is_binary(c.subscription) ->
+        %Events.BillingLinked{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          customer: c.customer,
+          subscription: c.subscription
+        }
+
+      true ->
+        {:error, Error.new(:nisaba_billing_failed, :nisaba_link_billing_ids)}
+    end
+  end
+
   # ---- apply ----
 
   def apply(%__MODULE__{} = s, %Events.Started{} = e),
@@ -135,6 +155,9 @@ defmodule Oneiroi.Nisaba.Subscription do
     do: %{s | policy: Map.put(s.policy || %{}, String.to_existing_atom(e.axis), e.bucket)}
 
   def apply(%__MODULE__{} = s, %Events.LapseTold{}), do: %{s | lapse_told: true}
+
+  def apply(%__MODULE__{} = s, %Events.BillingLinked{} = e),
+    do: %{s | billing: {e.customer, e.subscription}}
 
   # ---- helpers ----
 

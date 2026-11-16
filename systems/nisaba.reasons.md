@@ -96,3 +96,19 @@ pieces concatenated as the format says; the repetition is CoreWeave's.
 Ending a call by killing the process that runs it loses the words and
 the ledger row together; asking the collector to halt keeps both, at
 the cost of an estimated price for the words that were sent.
+
+## #23
+
+Stripe's own pages because the platform should never hold a card: no
+card field, no PCI scope, and the cancelling the spec requires to be
+easy is the provider's own button. The price is given inline rather
+than as a product made in the dashboard, so the setting is the price
+and nothing has to be kept in step by hand. The webhook is the only
+way a payment becomes a fact here, so it is checked over the bytes
+before anything is believed, and each event maps onto a command the
+subscription already had (start, renew, cancel): the provider is a new
+caller of the old rules, not a second set of rules. A failed payment is
+left to the grace the nightly pass already applies, because a card's
+retries are the provider's business and a lapse is ours. The
+resident's id rides the provider's metadata so no webhook needs a
+lookup across tenants to know whom it is about.

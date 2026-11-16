@@ -138,6 +138,31 @@ check the service's Disks tab shows it mounted.
    events they dispatched: `GET /v1/ops/spans` and
    `GET /v1/ops/spans/summary` as a super admin (apsu#28).
 
+### Payments: Stripe (nisaba#23)
+
+$20 a month per resident, paid on Stripe's own pages. Unset, checkout
+and the card page answer "payments are not set up" and every webhook is
+refused; nothing else changes.
+
+1. In the Stripe dashboard (test mode first), Developers → API keys:
+   the secret key (`sk_test_…`) as `NISABA_STRIPE_SECRET_KEY` on the
+   service. No product or price to make: checkout gives the price inline
+   (`NISABA_PLAN_PRICE_CENTS`, 2000 by default).
+2. Developers → Webhooks → Add endpoint:
+   `https://<the service>/v1/billing/stripe`, with the events
+   **checkout.session.completed**, **invoice.paid** and
+   **customer.subscription.deleted** (others are answered and ignored).
+   Its signing secret (`whsec_…`) as `NISABA_STRIPE_WEBHOOK_SECRET`.
+3. Settings → Billing → Customer portal: turn it on, allowing the card
+   to be updated, invoices to be seen, and the subscription to be
+   cancelled. Without it the client's "Card, invoices and cancelling"
+   link is refused by Stripe.
+4. A test card (4242 4242 4242 4242) on Settings → Ledger → Subscribe
+   should end with the subscription active and paid; the event appears
+   under the endpoint in the dashboard with a 200.
+
+Live mode is the same three steps with the live key and a live endpoint.
+
 ## 2. Orchestration's court
 
 - Merge the `PROJECTS` entry for this repo into the metronome Worker's

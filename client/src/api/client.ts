@@ -156,6 +156,22 @@ export interface PresenceState {
 }
 
 // House check-ins (gaia#41, seshat#75, sunna#65).
+/** A resident's subscription (spec F53, nisaba#23); `started: false` before the first. */
+export type SubscriptionState =
+  | { started: false }
+  | {
+      started: true;
+      plan: string;
+      price: string;
+      period_days: number;
+      state: 'active' | 'lapsed' | 'cancelled';
+      renews_at: string | null;
+      lapsed_at: string | null;
+      cancelled_at: string | null;
+      custody_due_at: string | null;
+      paying: boolean;
+    };
+
 /** A ballot's bundle: a rule in words, or a setting with its value (gaia#29). */
 export type BallotItem = { rule: string } | { setting: string; value: string | number | boolean };
 
@@ -557,6 +573,10 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/include`, { note }),
   decideInteraction: (residentId: string, number: number, decision: 'approve' | 'revise' | 'pass', comment: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/presence/interactions/${number}/decision`, { decision, ...(comment ? { comment } : {}) }),
+  // Paying for a resident (nisaba#23): the subscription, and Stripe's own pages.
+  subscription: (residentId: string) => call<SubscriptionState>('GET', `/v1/residents/${residentId}/subscription`),
+  checkout: (residentId: string) => call<{ url: string }>('POST', `/v1/residents/${residentId}/subscription/checkout`),
+  billingPortal: (residentId: string) => call<{ url: string }>('POST', `/v1/residents/${residentId}/subscription/portal`),
   houseCheckins: () => call<HouseCheckins>('GET', '/v1/household/checkins'),
   setHouseClock: (zone: string) => call<HouseCheckins>('PUT', '/v1/household/clock', { zone }),
   setHouseCheckin: (key: string, label: string, time: string) =>

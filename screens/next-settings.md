@@ -46,6 +46,14 @@ it, in the server's own words.
 ## The sections
 
 - **Ledger** (spec §10):
+  - **Keeping <name>** (nisaba#23): the subscription in a line (none
+    yet; paid at $20 a month and when it renews; active with no card
+    behind it; lapsed onto the insurance floor; or cancelled, with the
+    day the resident moves to community custody, never deleted).
+    **Subscribe · $20 a month** while there is no paid one (and not
+    after a cancellation) sends the browser to Stripe's checkout; once
+    paying, **Card, invoices and cancelling ›** sends it to Stripe's own
+    page. Both come back to this page;
   - your key's state, with "Rotate it" / "Store one" opening
     Profiles, keys and connections, where the key is kept;
   - budget lines per purpose, with spent of cap ("no limit" when it has
@@ -203,6 +211,7 @@ it, in the server's own words.
 | (new) | `holdWork` | Work queue |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
 | (new) | `discardResident` | Delete this resident |
+| (new) | `subscription`, `checkout`, `billingPortal` | Ledger |
 | (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |
 
 Not built:
