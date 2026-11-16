@@ -83,6 +83,14 @@ export const meta = style({
   color: vars.color.textMuted,
   overflowWrap: 'anywhere',
 });
+/** A run's count of answers and grades: read at a glance (the witness, 2026-11-16). */
+export const progress = style({
+  margin: 0,
+  font: `600 14px ${font.mono}`,
+  lineHeight: '20px',
+  color: vars.color.text,
+  overflowWrap: 'anywhere',
+});
 export const text = style({
   margin: 0,
   fontSize: 15,
@@ -211,6 +219,21 @@ export const link = style({
   color: vars.color.witness.accent,
   fontSize: 14,
   textDecoration: 'none',
+});
+/** A link-looking button: a title that opens what it names. */
+export const linkButton = style({
+  appearance: 'none',
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  margin: 0,
+  font: 'inherit',
+  fontSize: 15,
+  textAlign: 'left',
+  color: vars.color.witness.accent,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+  selectors: { '&:hover': { textDecoration: 'underline' } },
 });
 
 export const field = style({

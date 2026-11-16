@@ -11,7 +11,10 @@ const ITEMS: { tab: Tab; label: string; icon: ReactNode }[] = [
 ];
 
 /** The four tabs: a bar at the bottom of a phone, a rail down the left of a wide screen. */
-export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }) {
+/** The house's tabs are a resident's, its soul its charter (screen:next-house). */
+const HOUSE_LABELS: Partial<Record<Tab, string>> = { soul: 'Charter' };
+
+export function TabBar({ active, onSelect, house = false }: { active: Tab; onSelect: (tab: Tab) => void; house?: boolean }) {
   return (
     <nav className={css.tabs} aria-label="Sections">
       {ITEMS.map(({ tab, label, icon }) => (
@@ -23,7 +26,7 @@ export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab)
           onClick={() => onSelect(tab)}
         >
           {icon}
-          {label}
+          {(house && HOUSE_LABELS[tab]) || label}
         </button>
       ))}
     </nav>

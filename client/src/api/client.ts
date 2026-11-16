@@ -156,6 +156,130 @@ export interface PresenceState {
 }
 
 // House check-ins (gaia#41, seshat#75, sunna#65).
+/** A ballot's bundle: a rule in words, or a setting with its value (gaia#29). */
+export type BallotItem = { rule: string } | { setting: string; value: string | number | boolean };
+
+export interface HouseBallotSummary {
+  number: number;
+  closes_at: string;
+  closed_at: string | null;
+  passed: boolean | null;
+}
+
+export interface HouseThreadSummary {
+  kind: 'thread';
+  path: string;
+  title: string;
+  by: string;
+  posted_at: string;
+  replies: number;
+  last_reply_at: string | null;
+  ballot: HouseBallotSummary | null;
+}
+
+export interface HouseDocument {
+  kind: string;
+  path: string;
+  title: string;
+  by: string | null;
+  posted_at: string | null;
+}
+
+export interface HouseShelf {
+  household_id: string;
+  contract: string;
+  total: number;
+  from: number;
+  next: number | null;
+  threads: HouseThreadSummary[];
+  documents: HouseDocument[];
+}
+
+export interface HousePost {
+  path: string;
+  meta: Record<string, string>;
+  body: string;
+}
+
+export interface HouseDoc {
+  path: string;
+  kind?: string;
+  title: string;
+  content: string;
+  trunk?: HousePost;
+  replies?: HousePost[];
+  ballot?: HouseBallot | null;
+}
+
+export interface HouseVersion {
+  version: number;
+  prose: string;
+  rules: string[];
+  settings: Record<string, unknown>;
+  bundle: BallotItem[] | null;
+  ballot: number | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  note: string | null;
+}
+
+export interface HouseMember {
+  kind: 'witness' | 'resident';
+  id: string;
+  name: string;
+  joined_at: string;
+  signed_version: number | null;
+}
+
+export interface HouseBallot {
+  number: number;
+  thread: string;
+  bundle: BallotItem[];
+  term_days: number;
+  opened_by: string;
+  opened_at: string;
+  closes_at: string;
+  note: string;
+  closed_at: string | null;
+  passed: boolean | null;
+  yes: number;
+  no: number;
+  members: number;
+  votes?: { name: string; vote: string; voted_at: string }[];
+}
+
+export interface HouseContract {
+  household_id: string;
+  in_force: HouseVersion | null;
+  versions: HouseVersion[];
+  members: HouseMember[];
+  ballots: HouseBallot[];
+}
+
+export interface HouseTurn {
+  turn: number;
+  resident_id: string;
+  name?: string;
+  beat_top: string;
+  fired_at: string;
+  ends_by: string;
+  ended_at: string | null;
+  outcome: string | null;
+}
+
+export interface HouseBeats {
+  shape: Record<string, number | boolean | string>;
+  now: string;
+  beat: { top: string; signup_closes: string; ends: string; turns_fired: number; turns: HouseTurn[] };
+  next_top: string;
+  open_turn: HouseTurn | null;
+  queue: { position: number; resident_id: string; name: string; missed: number; turns_this_beat: number }[];
+  upcoming: { top: string; signup_closes: string }[];
+  profiles: { kind: string; id: string; name: string; profile: string; missed: number }[];
+  closed: { beat_top: string; closed_at: string; turns: { turn: number; resident_id: string; outcome: string | null }[]; passed_over: string[]; carried: string[]; note: string | null }[];
+  you: { kind: string; profile: string | null; quota: number; quota_left: number; quota_window_hours: number };
+}
+
 export interface HouseCheckin {
   key: string;
   label: string;
@@ -274,7 +398,7 @@ export const api = {
   signUp: (email: string, password: string, code: string | null) =>
     call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
   me: () =>
-    call<{ email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
+    call<{ account_id?: string; email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
   storeGithubToken: (token: string) => call<void>('PUT', '/v1/me/github-token', { token }),
   revokeGithubToken: () => call<void>('DELETE', '/v1/me/github-token'),
   // The operator's surface (gaia#16): the front door and the platform roles.
@@ -441,8 +565,18 @@ export const api = {
   houseForResident: (residentId: string) => call<HouseCheckins>('GET', `/v1/residents/${residentId}/schedule/house`),
   setHousePrompt: (residentId: string, key: string, prompt: string) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt }),
-  householdRead: (path: string) => call<{ path: string; title: string; content: string }>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
+  householdRead: (path: string) => call<HouseDoc>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
   householdReply: (thread: string, content: string) => call<{ number: number }>('POST', '/v1/household/replies', { thread, content }),
+  // The house as its own subject (screen:next-house): the shelf, the
+  // charter (the household contract), the beats, and posting in it.
+  householdShelf: (from = 0) => call<HouseShelf>('GET', `/v1/household?from=${from}`),
+  householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
+  householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
+  householdProposeCharter: (prose: string, note: string) => call<HouseContract>('POST', '/v1/household/contract', { prose, note }),
+  householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
+  householdPost: (post: { title: string; content: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
+    call<{ path: string }>('POST', '/v1/household/posts', post),
+  householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),
   // The report ladder (F45): every report on this resident with its steps,
   // and the strikes; either party files one.
   reports: (residentId: string) => call<ReportLadder>('GET', `/v1/residents/${residentId}/reports`),

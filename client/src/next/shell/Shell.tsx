@@ -20,6 +20,8 @@ export interface ShellProps {
   onReconnect: () => void;
   /** Renders a tab at the top of its stack; every tab stays mounted. */
   renderTab: (tab: Tab, path: string) => ReactNode;
+  /** The house's shell (screen:next-house): its own tab names, no search. */
+  house?: boolean;
 }
 
 /**
@@ -54,7 +56,7 @@ function useHashSync() {
   }, [tab, stacks, page]);
 }
 
-export function Shell({ residentId, residentName, waiting, failing = false, onReconnect, renderTab }: ShellProps) {
+export function Shell({ residentId, residentName, waiting, failing = false, onReconnect, renderTab, house = false }: ShellProps) {
   useHashSync();
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
@@ -71,7 +73,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
+      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} search={!house} />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>
@@ -98,8 +100,8 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
           </section>
         )}
       </main>
-      <TabBar active={tab} onSelect={setTab} />
-      <SearchSheet residentId={residentId} residentName={residentName} />
+      <TabBar active={tab} onSelect={setTab} house={house} />
+      {!house && <SearchSheet residentId={residentId} residentName={residentName} />}
       <Overlays />
     </div>
   );

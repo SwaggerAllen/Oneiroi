@@ -11,9 +11,11 @@ export interface HeaderProps {
   onSubject?: () => void;
   onBell?: () => void;
   onSettings?: () => void;
+  /** Search is a resident's records; the house has none to search (screen:next-house). */
+  search?: boolean;
 }
 
-export function Header({ name, waiting, failing = false, onSubject, onBell, onSettings }: HeaderProps) {
+export function Header({ name, waiting, failing = false, onSubject, onBell, onSettings, search = true }: HeaderProps) {
   const presence = useShell((s) => s.presence);
   const connection = useShell((s) => s.connection);
   const setSearchOpen = useShell((s) => s.setSearchOpen);
@@ -43,9 +45,11 @@ export function Header({ name, waiting, failing = false, onSubject, onBell, onSe
         </span>
       </button>
       <div style={{ display: 'flex' }}>
-        <button type="button" className={css.iconButton} aria-label="Search everything" onClick={() => setSearchOpen(true)}>
-          <SearchIcon />
-        </button>
+        {search && (
+          <button type="button" className={css.iconButton} aria-label="Search everything" onClick={() => setSearchOpen(true)}>
+            <SearchIcon />
+          </button>
+        )}
         <button
           type="button"
           className={css.iconButton}

@@ -423,7 +423,7 @@ function RunView({ runRef, tests, onClose }: { runRef: string; tests: Regression
         ‹ All runs
       </button>
       <h2 className={css.subheading}>Run of {stamp(run.started_at)}</h2>
-      <p aria-live="polite" className={run.state === 'failed' ? `${css.meta} ${css.warn}` : css.meta}>
+      <p aria-live="polite" className={run.state === 'failed' ? `${css.progress} ${css.warn}` : css.progress}>
         {progress}
         {run.state === 'failed' && run.failure ? ` · ${run.failure}` : ''}
       </p>

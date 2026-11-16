@@ -11,7 +11,8 @@ import { SoulTab } from './soul/SoulTab';
 import { TimeTab } from './time/TimeTab';
 import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
-import { SubjectContext } from './state/resident';
+import { HOUSE_SUBJECT, SubjectContext } from './state/resident';
+import { HouseHome } from './house/HouseHome';
 import { Theme } from './theme/Theme';
 import { Auth } from './onboarding/Auth';
 import { Creation } from './onboarding/Creation';
@@ -85,6 +86,17 @@ function Boot() {
   const awake = list.filter((r) => r.state !== 'forming');
   const resident = list.find((r) => r.id === chosen) ?? awake[0] ?? list[0];
   const forming = resident?.state === 'forming' && !waking ? resident : undefined;
+  // The house (screen:next-house) is chosen from the same dropdown, once
+  // someone lives in it.
+  if (chosen === HOUSE_SUBJECT && awake.length > 0 && !waking) {
+    return (
+      <SubjectContext.Provider value={{ id: HOUSE_SUBJECT, slug: HOUSE_SUBJECT, name: 'The house', kind: 'house' }}>
+        <OperatorOr>
+          <HouseHome />
+        </OperatorOr>
+      </SubjectContext.Provider>
+    );
+  }
   if (!resident || waking || forming) {
     const elsewhere = awake.find((r) => r.id !== forming?.id);
     return (
