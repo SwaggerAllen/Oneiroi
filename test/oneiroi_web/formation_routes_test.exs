@@ -17,6 +17,10 @@ defmodule OneiroiWeb.FormationRoutesTest do
 
     Process.put(Oneiroi.Gaia.Door, "platform-test-#{System.unique_integer([:positive])}")
     founder = Fixtures.account!()
+    # The founder is the oldest account, granted on the door's first ask;
+    # asked now, before the guest exists, so two accounts made in the
+    # same instant cannot swap who is operator (a CI flake, 2026-11-16).
+    assert "super_admin" in Oneiroi.Gaia.roles_of(founder.id)
     guest = Fixtures.account!()
     {:ok, op, _} = Oneiroi.Gaia.issue_token(founder.id, "t", Actor.new(:witness, founder.id))
     {:ok, other, _} = Oneiroi.Gaia.issue_token(guest.id, "t", Actor.new(:witness, guest.id))
