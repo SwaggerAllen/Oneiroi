@@ -52,6 +52,40 @@ defmodule Oneiroi.SimaQian.Gitea do
   @doc "Asks for a repository to be sent (sima-qian#56)."
   defdelegate later(kind, id), to: GiteaQueue
 
+  @doc """
+  Where a repository lives on Gitea: `{org, name}` (sima-qian#57). A
+  household's is its organization's `house`; a resident's is her
+  household's organization, under her slug.
+  """
+  def locate({:household, household_id}), do: {:ok, {org(household_id), @house}}
+
+  def locate({:resident, resident_id}) do
+    with {:ok, resident} <- AgathosDaimon.fetch(resident_id),
+         household_id when is_binary(household_id) <-
+           Gaia.resident_household(resident_id) |> id_of() do
+      {:ok, {org(household_id), resident.slug}}
+    else
+      _none -> {:error, Error.new(:sima_qian_gitea_failed, :sima_qian_gitea_unlocated)}
+    end
+  end
+
+  @doc "Makes a repository on Gitea if it is missing: its organization, the repository, its readers."
+  def ensure({:household, household_id}) do
+    org = org(household_id)
+
+    with :ok <- client().ensure_org(org),
+         :ok <- client().ensure_repo(org, @house),
+         do: grant_witnesses(org, @house, household_id)
+  end
+
+  def ensure({:resident, resident_id} = repo) do
+    with {:ok, {org, name}} <- locate(repo),
+         {:ok, resident} <- AgathosDaimon.fetch(resident_id),
+         :ok <- client().ensure_org(org),
+         :ok <- client().ensure_repo(org, name),
+         do: grant(org, name, resident.account_id)
+  end
+
   @doc "Sends the household's repository: its organization, its `house`, its witnesses' read, then the push."
   def sync_household(household_id) do
     org = org(household_id)

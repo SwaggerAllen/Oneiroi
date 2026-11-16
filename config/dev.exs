@@ -25,7 +25,10 @@ config :oneiroi,
           # the client spends nothing, and `bin/dev up --live` leaves this
           # default (SETUP.md, "A local app server").
           "NISABA_PROVIDER" => System.get_env("ONEIROI_DEV_PROVIDER", "openrouter"),
-          "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev"
+          "SIMA_QIAN_ROOT" => "tmp/sima_qian_dev",
+          # Repositories on the dev disk unless a local Gitea is named
+          # (sima-qian#57).
+          "SIMA_QIAN_REPOS" => System.get_env("ONEIROI_DEV_REPOS", "local")
         }}
 
 config :oneiroi, serve: true

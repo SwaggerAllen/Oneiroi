@@ -66,6 +66,8 @@ config :oneiroi,
           "NISABA_BILLING_CLIENT" => "fake",
           # The in-memory repositories' server, on (sima-qian#55).
           "SIMA_QIAN_GITEA_CLIENT" => "fake",
+          # Every repository on the records disk, in test (sima-qian#57).
+          "SIMA_QIAN_REPOS" => "local",
           "NISABA_STRIPE_WEBHOOK_SECRET" => "whsec_test_suite",
           "GAIA_VAPID_PRIVATE_KEY" => "PqvkdKHPz6XqjjvJw34EwXC230cSVIj4OGJPDEWp9x8",
           # Where the HTTP port's own tests stand up a Honcho of their own,

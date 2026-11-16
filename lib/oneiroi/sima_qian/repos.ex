@@ -1,0 +1,86 @@
+defmodule Oneiroi.SimaQian.Repos do
+  @moduledoc """
+  Every repository, read and written through one port (sima-qian#57; the
+  witness, 2026-11-16: Gitea the source of truth, its API the only way
+  in). A repository is a resident's (`{:resident, id}`) or a household's
+  (`{:household, id}`).
+
+  A write is one commit of several file changes under its author, each
+  change carrying the condition it holds under, the compare-and-swap
+  Gitea itself enforces:
+
+  - `{:create, path, content}`: only if the path is absent (an append,
+    such as a thread's reply, can never overwrite another's);
+  - `{:put, path, content, base}`: only if the path's blob is still
+    `base` (`nil` for absent), or whatever it is with `:any`;
+  - `{:delete, path, base}`: likewise.
+
+  A condition that no longer holds is `sima_qian_repos_conflict`, and the
+  caller reads again and retries or refuses; nothing is half-written.
+  Two adapters: `Repos.Gitea` in every real build, `Repos.Local` (a git
+  repository on disk per repository, the same conditions) in test and
+  for a self-hoster without Gitea.
+  """
+
+  @type repo :: {:resident, String.t()} | {:household, String.t()}
+  @type change ::
+          {:create, String.t(), iodata()}
+          | {:put, String.t(), iodata(), String.t() | nil | :any}
+          | {:delete, String.t(), String.t() | :any}
+  @type author :: %{name: String.t(), email: String.t()}
+
+  @callback read(repo(), String.t()) :: {:ok, binary(), String.t()} | {:error, term()}
+  @callback tree(repo()) :: {:ok, [%{path: String.t(), sha: String.t()}]} | {:error, term()}
+  @callback write(repo(), [change()], String.t(), author()) ::
+              {:ok, String.t() | :nothing} | {:error, term()}
+  @callback log(repo(), String.t() | nil, pos_integer()) :: {:ok, [map()]} | {:error, term()}
+  @callback history(repo(), String.t(), pos_integer()) :: {:ok, [map()]} | {:error, term()}
+  @callback blob(repo(), String.t()) :: {:ok, binary()} | {:error, term()}
+
+  alias Oneiroi.Config
+
+  @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
+
+  @doc "The platform's own authorship, for what no member wrote."
+  def platform, do: @platform
+
+  @doc "A file's bytes and its blob, or `sima_qian_repos_absent`."
+  def read(repo, path), do: client().read(repo, path)
+
+  @doc "A file's bytes, or nil when it is absent."
+  def text(repo, path) do
+    case read(repo, path) do
+      {:ok, content, _sha} -> content
+      _absent -> nil
+    end
+  end
+
+  @doc "Whether a path holds a file."
+  def exists?(repo, path), do: match?({:ok, _, _}, read(repo, path))
+
+  @doc "Every file of the repository at its head: `%{path, sha}`."
+  def tree(repo), do: client().tree(repo)
+
+  @doc "The files under `prefix` (a folder, no trailing slash needed), at the head."
+  def list(repo, prefix) do
+    p = String.trim_trailing(prefix, "/") <> "/"
+
+    with {:ok, files} <- tree(repo),
+         do: {:ok, Enum.filter(files, &String.starts_with?(&1.path, p))}
+  end
+
+  @doc "One commit of `changes` under `author`; `sima_qian_repos_conflict` when a condition no longer holds."
+  def write(_repo, [], _message, _author), do: {:ok, :nothing}
+  def write(repo, changes, message, author), do: client().write(repo, changes, message, author)
+
+  @doc "The repository's history, or a path's, newest first: `%{sha, at, author, subject}`."
+  def log(repo, path, limit), do: client().log(repo, path, limit)
+
+  @doc "The commits that changed `path`, newest first: `%{commit, at, subject, blob}`."
+  def history(repo, path, limit), do: client().history(repo, path, limit)
+
+  @doc "A blob's bytes by its sha."
+  def blob(repo, sha), do: client().blob(repo, sha)
+
+  defp client, do: Config.fetch!(:sima_qian, :repos_client)
+end

@@ -50,6 +50,9 @@ defmodule Oneiroi.SimaQian do
       Gitea.Fake,
       GiteaQueue,
       GiteaWorker,
+      Repos,
+      Repos.Local,
+      Repos.Gitea,
       DryRun,
       Error,
       Export,
@@ -105,6 +108,12 @@ defmodule Oneiroi.SimaQian do
          "whether a resident's backup carries a copy of its household's repository under household/, titled by the membership (sima-qian#53): on is the resident's lean on the open question of export travel (design household-communication §8), off makes no copy and leaves one already committed as it was"},
       # The repositories' server (sima-qian#55): Gitea on its own service
       # and disk; unset, nothing is sent and the records disk is all.
+      # Where every repository is read and written (sima-qian#57).
+      {:repos_client, "SIMA_QIAN_REPOS",
+       cast: &__MODULE__.cast_repos_client/1,
+       default: "gitea",
+       usage:
+         "which repositories' port answers every read and write: gitea (the source of truth) in every real build, local (a git repository per resident and household on the records disk) in test, development and for a self-hoster without Gitea"},
       {:gitea_client, "SIMA_QIAN_GITEA_CLIENT",
        cast: &__MODULE__.cast_gitea_client/1,
        default: "http",
@@ -162,6 +171,15 @@ defmodule Oneiroi.SimaQian do
   def cast_library(other) do
     # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
     {:error, "is #{inspect(other)}, expected \"seshat\""}
+  end
+
+  @doc false
+  def cast_repos_client("gitea"), do: {:ok, :"Elixir.Oneiroi.SimaQian.Repos.Gitea"}
+  def cast_repos_client("local"), do: {:ok, :"Elixir.Oneiroi.SimaQian.Repos.Local"}
+
+  def cast_repos_client(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected \"gitea\" or \"local\""}
   end
 
   @doc false
@@ -268,6 +286,14 @@ defmodule Oneiroi.SimaQian do
          "the paths are named; check the disk under SIMA_QIAN_ROOT, then run the import again at the same commit"},
       {:sima_qian_gitea_off, "the repositories' server is not set up on this platform",
        remedy: "an operator sets SIMA_QIAN_GITEA_URL and SIMA_QIAN_GITEA_TOKEN"},
+      {:sima_qian_repos_absent, "no file at that path in the repository",
+       remedy: "read the tree for what is there"},
+      {:sima_qian_repos_conflict,
+       "the file changed, or appeared, since it was read: nothing of the write landed (sima-qian#57)",
+       remedy: "read it again and write on what is there now"},
+      {:sima_qian_gitea_unavailable,
+       "the repositories' server did not answer, so the write was refused (sima-qian#57)",
+       remedy: "nothing was written; try again once Gitea is back"},
       {:sima_qian_gitea_failed, "Gitea did not answer, or refused the request",
        remedy: "the push is retried by its queue; if it keeps failing, read Gitea's log"},
       {:sima_qian_gitea_invalid, "a Gitea password is at least twelve characters",
