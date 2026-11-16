@@ -77,6 +77,20 @@ defmodule OneiroiWeb.HourRoutesTest do
             "oldest_wait_s" => 30,
             "failures" => %{"brain_turn_crashed" => 1}
           }
+        },
+        # An older pressure bucket: the newest is the one read, compared
+        # as read back schemaless, naive (2026-11-16, platform_health).
+        %{
+          bucket_at: DateTime.add(bucket, -300),
+          kind: "pressure",
+          name: "platform",
+          n: 0,
+          failed: 0,
+          sum_ms: 0,
+          db_ms: 0,
+          queue_ms: 0,
+          hist: %{},
+          extra: %{"jobs_waiting" => 9, "oldest_wait_s" => 600, "failures" => %{}}
         }
       ])
     end)

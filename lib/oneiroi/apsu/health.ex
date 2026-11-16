@@ -288,7 +288,9 @@ defmodule Oneiroi.Apsu.Health do
   defp latest_pressure([]), do: nil
 
   defp latest_pressure(rows) do
-    newest = Enum.max_by(rows, & &1.bucket_at, DateTime)
+    # Read schemaless, the bucket comes back naive (2026-11-16: the
+    # platform_health tool raised on it twice from inside a turn).
+    newest = Enum.max_by(rows, &to_utc(&1.bucket_at), DateTime)
 
     failures =
       rows

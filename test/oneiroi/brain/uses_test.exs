@@ -252,5 +252,24 @@ defmodule Oneiroi.Brain.UsesTest do
       assert [%{target: "bookmark/7", used: 1, returned: 0}] =
                Kumbukumbu.retrieval({:resident, id}, [])
     end
+
+    # 2026-11-16: three were parked for a target longer than varchar(255).
+    test "a target of any length is recorded", ctx do
+      id = ctx.resident.id
+      long = "library/research/" <> String.duplicate("a-long-path-segment/", 20) <> "notes.md"
+      assert String.length(long) > 255
+      turn_ref = Kumbukumbu.turn_ref()
+
+      :ok =
+        Kumbukumbu.record_retrieval(
+          id,
+          ctx.key,
+          turn_ref,
+          [%{target: long, stage: "used", via: "library_read"}],
+          Actor.new(:resident, id)
+        )
+
+      assert [%{target: ^long, used: 1}] = Kumbukumbu.retrieval({:resident, id}, [])
+    end
   end
 end
