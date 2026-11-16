@@ -2,10 +2,11 @@ defmodule OneiroiWeb.RawBody do
   @moduledoc """
   Keeps the body as it arrived for the one route whose signature is over
   the bytes, not the parsed JSON: the payment provider's webhook
-  (nisaba#23). Every other request is read as before, and nothing is kept.
+  (nisaba#23), and Gitea's push webhook (sima-qian#59). Every other
+  request is read as before, and nothing is kept.
   """
 
-  @signed ["/v1/billing/stripe"]
+  @signed ["/v1/billing/stripe", "/v1/repos/gitea"]
 
   def read_body(%Plug.Conn{request_path: path} = conn, opts) when path in @signed do
     with {:ok, body, conn} <- Plug.Conn.read_body(conn, opts) do

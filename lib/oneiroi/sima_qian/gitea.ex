@@ -11,11 +11,12 @@ defmodule Oneiroi.SimaQian.Gitea do
   household's repository and to their own residents', no one else's; the
   password is the witness's to set from the client (`set_password/2`).
 
-  A household's commit reaches Gitea within seconds of its write
-  (`later/2`, one job per repository however many writes, sima-qian#56);
-  a resident's at each backup, when its records are committed. Unset
-  (`SIMA_QIAN_GITEA_TOKEN`), nothing is sent and nothing fails: the
-  repositories stay on the records disk as before.
+  Every read and write goes to Gitea through the repositories' port
+  (`Repos.Gitea`, sima-qian#57). `sync_household/1` and `sync_resident/1`
+  send a working repository whole, history and all: the one move from
+  the records disk (`GiteaMigration`, sima-qian#58) and an import's
+  assembled repository. Unset (`SIMA_QIAN_GITEA_TOKEN`), nothing is
+  sent.
   """
 
   alias Oneiroi.AgathosDaimon
@@ -27,13 +28,22 @@ defmodule Oneiroi.SimaQian.Gitea do
   alias Oneiroi.SimaQian.GiteaQueue
   alias Oneiroi.SimaQian.Household
 
-  @callback ensure_org(org :: String.t()) :: :ok | {:error, term()}
-  @callback ensure_repo(org :: String.t(), repo :: String.t()) :: :ok | {:error, term()}
-  @callback ensure_user(login :: String.t(), email :: String.t()) :: :ok | {:error, term()}
-  @callback grant_read(org :: String.t(), repo :: String.t(), login :: String.t()) ::
+  # Each call names the instance it goes to (sima-qian#60).
+  @callback ensure_org(inst :: String.t(), org :: String.t()) :: :ok | {:error, term()}
+  @callback ensure_repo(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
               :ok | {:error, term()}
-  @callback set_password(login :: String.t(), password :: String.t()) :: :ok | {:error, term()}
-  @callback remote(org :: String.t(), repo :: String.t()) :: String.t() | Secret.t()
+  @callback ensure_user(inst :: String.t(), login :: String.t(), email :: String.t()) ::
+              :ok | {:error, term()}
+  @callback grant_read(
+              inst :: String.t(),
+              org :: String.t(),
+              repo :: String.t(),
+              login :: String.t()
+            ) :: :ok | {:error, term()}
+  @callback set_password(inst :: String.t(), login :: String.t(), password :: String.t()) ::
+              :ok | {:error, term()}
+  @callback remote(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
+              {:ok, String.t() | Secret.t()} | {:error, term()}
 
   @house "house"
 
@@ -48,21 +58,29 @@ defmodule Oneiroi.SimaQian.Gitea do
 
   defp short(uuid), do: uuid |> String.replace("-", "") |> String.slice(0, 12)
 
-  @doc "Asks for a repository to be sent (sima-qian#56)."
-  defdelegate later(kind, id), to: GiteaQueue
+  @doc """
+  The instance a household's repositories are on (sima-qian#60): its own
+  routing when it has one, else the primary. Sharded by household, so a
+  household's repositories and its witnesses' users are on one server.
+  """
+  def instance(nil), do: GiteaQueue.primary()
+
+  def instance(household_id),
+    do: Gaia.household_gitea_instance(household_id) || GiteaQueue.primary()
 
   @doc """
-  Where a repository lives on Gitea: `{org, name}` (sima-qian#57). A
-  household's is its organization's `house`; a resident's is her
+  Where a repository lives on Gitea: `{instance, org, name}` (sima-qian#57,
+  #60). A household's is its organization's `house`; a resident's is her
   household's organization, under her slug.
   """
-  def locate({:household, household_id}), do: {:ok, {org(household_id), @house}}
+  def locate({:household, household_id}),
+    do: {:ok, {instance(household_id), org(household_id), @house}}
 
   def locate({:resident, resident_id}) do
     with {:ok, resident} <- AgathosDaimon.fetch(resident_id),
          household_id when is_binary(household_id) <-
            Gaia.resident_household(resident_id) |> id_of() do
-      {:ok, {org(household_id), resident.slug}}
+      {:ok, {instance(household_id), org(household_id), resident.slug}}
     else
       _none -> {:error, Error.new(:sima_qian_gitea_failed, :sima_qian_gitea_unlocated)}
     end
@@ -70,30 +88,31 @@ defmodule Oneiroi.SimaQian.Gitea do
 
   @doc "Makes a repository on Gitea if it is missing: its organization, the repository, its readers."
   def ensure({:household, household_id}) do
-    org = org(household_id)
+    {inst, org} = {instance(household_id), org(household_id)}
 
-    with :ok <- client().ensure_org(org),
-         :ok <- client().ensure_repo(org, @house),
-         do: grant_witnesses(org, @house, household_id)
+    with :ok <- client().ensure_org(inst, org),
+         :ok <- client().ensure_repo(inst, org, @house),
+         do: grant_witnesses(inst, org, @house, household_id)
   end
 
   def ensure({:resident, resident_id} = repo) do
-    with {:ok, {org, name}} <- locate(repo),
+    with {:ok, {inst, org, name}} <- locate(repo),
          {:ok, resident} <- AgathosDaimon.fetch(resident_id),
-         :ok <- client().ensure_org(org),
-         :ok <- client().ensure_repo(org, name),
-         do: grant(org, name, resident.account_id)
+         :ok <- client().ensure_org(inst, org),
+         :ok <- client().ensure_repo(inst, org, name),
+         do: grant(inst, org, name, resident.account_id)
   end
 
   @doc "Sends the household's repository: its organization, its `house`, its witnesses' read, then the push."
   def sync_household(household_id) do
-    org = org(household_id)
+    {inst, org} = {instance(household_id), org(household_id)}
 
-    with :ok <- client().ensure_org(org),
-         :ok <- client().ensure_repo(org, @house),
-         :ok <- grant_witnesses(org, @house, household_id),
-         {:ok, dir} <- Household.repository_dir(household_id) do
-      push(dir, client().remote(org, @house))
+    with :ok <- client().ensure_org(inst, org),
+         :ok <- client().ensure_repo(inst, org, @house),
+         :ok <- grant_witnesses(inst, org, @house, household_id),
+         {:ok, dir} <- Household.repository_dir(household_id),
+         {:ok, remote} <- client().remote(inst, org, @house) do
+      push(dir, remote)
     end
   end
 
@@ -102,12 +121,13 @@ defmodule Oneiroi.SimaQian.Gitea do
     with {:ok, resident} <- AgathosDaimon.fetch(resident_id),
          household_id when is_binary(household_id) <-
            Gaia.resident_household(resident_id) |> id_of(),
-         org = org(household_id),
-         :ok <- client().ensure_org(org),
-         :ok <- client().ensure_repo(org, resident.slug),
-         :ok <- grant(org, resident.slug, resident.account_id),
-         {:ok, dir} <- working_dir(resident_id) do
-      push(dir, client().remote(org, resident.slug))
+         {inst, org} = {instance(household_id), org(household_id)},
+         :ok <- client().ensure_org(inst, org),
+         :ok <- client().ensure_repo(inst, org, resident.slug),
+         :ok <- grant(inst, org, resident.slug, resident.account_id),
+         {:ok, dir} <- working_dir(resident_id),
+         {:ok, remote} <- client().remote(inst, org, resident.slug) do
+      push(dir, remote)
     else
       :error -> {:ok, :gone}
       nil -> {:ok, :no_household}
@@ -123,7 +143,7 @@ defmodule Oneiroi.SimaQian.Gitea do
       residents = for r <- AgathosDaimon.for_witness(account_id), do: "#{org}/#{r.slug}"
 
       %{
-        url: public_url(),
+        url: public_url(instance(household_id)),
         login: login(account_id),
         repositories: ["#{org}/#{@house}" | residents]
       }
@@ -142,34 +162,34 @@ defmodule Oneiroi.SimaQian.Gitea do
         {:error, Error.new(:sima_qian_gitea_invalid, :sima_qian_gitea_password_short)}
 
       true ->
-        login = login(account_id)
+        {login, inst} = {login(account_id), instance(Gaia.household_id(account_id))}
 
-        with :ok <- client().ensure_user(login, email),
-             do: client().set_password(login, password)
+        with :ok <- client().ensure_user(inst, login, email),
+             do: client().set_password(inst, login, password)
     end
   end
 
   # ---- the parts ----
 
-  defp grant_witnesses(org, repo, household_id) do
+  defp grant_witnesses(inst, org, repo, household_id) do
     household_id
     |> Gaia.household_members()
     |> Enum.filter(&(&1.kind == "witness"))
     |> Enum.reduce_while(:ok, fn m, :ok ->
-      case grant(org, repo, m.id) do
+      case grant(inst, org, repo, m.id) do
         :ok -> {:cont, :ok}
         failed -> {:halt, failed}
       end
     end)
   end
 
-  defp grant(_org, _repo, nil), do: :ok
+  defp grant(_inst, _org, _repo, nil), do: :ok
 
-  defp grant(org, repo, account_id) do
+  defp grant(inst, org, repo, account_id) do
     login = login(account_id)
 
-    with :ok <- client().ensure_user(login, email_of(account_id)),
-         do: client().grant_read(org, repo, login)
+    with :ok <- client().ensure_user(inst, login, email_of(account_id)),
+         do: client().grant_read(inst, org, repo, login)
   end
 
   # Gitea wants an address; the witness's own never leaves the platform
@@ -185,8 +205,71 @@ defmodule Oneiroi.SimaQian.Gitea do
   defp id_of(%{id: id}), do: id
   defp id_of(_none), do: nil
 
-  @doc false
-  def secret_token, do: GiteaQueue.token()
+  @doc """
+  A push Gitea's system webhook reports (sima-qian#59): checked against
+  the secret (`X-Gitea-Signature`, hex HMAC-SHA256 of the body), then
+  read for whose repository it was. The core's own writes come from its
+  admin and are ignored, as are other branches and the household's
+  repository, which no index reads.
+  """
+  def pushed(raw, signature) do
+    with {:ok, secret} <- webhook_secret(),
+         :ok <- signed(raw, signature, secret),
+         {:ok, event} <- decode(raw) do
+      {:ok, whose(event)}
+    end
+  end
+
+  defp webhook_secret do
+    case Config.fetch!(:sima_qian, :gitea_webhook_secret) do
+      nil -> {:error, Error.new(:sima_qian_gitea_off, :sima_qian_gitea_webhook_off)}
+      secret -> {:ok, Secret.unwrap(secret)}
+    end
+  end
+
+  defp signed(raw, signature, secret) when is_binary(signature) and is_binary(secret) do
+    expected = :crypto.mac(:hmac, :sha256, secret, raw) |> Base.encode16(case: :lower)
+
+    if byte_size(signature) == byte_size(expected) and
+         :crypto.hash_equals(String.downcase(signature), expected),
+       do: :ok,
+       else: {:error, Error.new(:sima_qian_gitea_unsigned, :sima_qian_gitea_webhook_signature)}
+  end
+
+  defp signed(_raw, _signature, _secret),
+    do: {:error, Error.new(:sima_qian_gitea_unsigned, :sima_qian_gitea_webhook_unsigned)}
+
+  defp decode(raw) do
+    case Jason.decode(raw) do
+      {:ok, %{} = event} -> {:ok, event}
+      _not_json -> {:error, Error.new(:sima_qian_gitea_unsigned, :sima_qian_gitea_webhook_body)}
+    end
+  end
+
+  defp whose(
+         %{"ref" => "refs/heads/main", "repository" => %{"name" => name, "owner" => owner}} = e
+       ) do
+    org = owner["login"] || owner["username"]
+
+    cond do
+      get_in(e, ["pusher", "login"]) == Config.fetch!(:sima_qian, :gitea_admin) -> :ignored
+      name == @house -> :ignored
+      true -> resident(org, name)
+    end
+  end
+
+  defp whose(_other_branch_or_event), do: :ignored
+
+  # The resident under that slug, if her household's organization is the
+  # one pushed to: a slug is the platform's, the organization the check.
+  defp resident(org, slug) do
+    with %{id: id} <- Enum.find(AgathosDaimon.residents(), &(&1.slug == slug)),
+         {:ok, {_inst, ^org, ^slug}} <- locate({:resident, id}) do
+      {:resident, id}
+    else
+      _none -> :ignored
+    end
+  end
 
   # The resident's working directory: what the migration sends. Its own
   # path here, so the push never depends on the backup (a cycle).
@@ -195,7 +278,12 @@ defmodule Oneiroi.SimaQian.Gitea do
     with :ok <- Git.ensure_repo(dir), do: {:ok, dir}
   end
 
-  defp public_url, do: Config.fetch!(:sima_qian, :gitea_url)
+  defp public_url(inst) do
+    case GiteaQueue.endpoint(inst) do
+      {:ok, %{url: url}} -> url
+      _unrouted -> nil
+    end
+  end
 
   defp client, do: Config.fetch!(:sima_qian, :gitea_client)
 end

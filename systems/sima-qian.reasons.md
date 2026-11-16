@@ -361,8 +361,51 @@ needs it, and every copy of an address is one more place it can leak.
 
 ## #56
 
-Pushing inside the write would make every household post wait on a
+Superseded by #57 and #58: with Gitea the source of truth there is no
+copy to push after a write. The reason it held: pushing inside the write would make every household post wait on a
 second service and fail when it is down; a job after the write keeps the
 write the platform's and lets the queue retry. Unique per repository
 while one waits, because twenty posts in a beat are one push, and a
 later write still gets a push of its own once the waiting one has run.
+
+## #57
+
+A copy of every repository on the app's own disk forced the app onto
+one instance with stop-first deploys, kept every resident's words in
+plaintext at rest beside the service, and made the platform's lock the
+only thing ordering writes, which a second instance would break. With
+Gitea the source of truth the app holds nothing between requests, and
+the compare-and-swap is Gitea's own: a write names what it saw, so two
+writers cannot both win and neither loses silently. Refusing a write
+while Gitea is down is the honest answer at this scale; a queue would
+need its own ordering and its own failure story, and is the work for
+when there is more than one instance. Blobs by sha never change, so a
+cache of them needs no invalidation, and a read of an unchanged library
+costs one tree call.
+
+## #58
+
+Moving the repositories in one boot, with writes held until it ends,
+is the only way to avoid two sources of truth: a write landing on Gitea
+before a repository's push would make the repository and leave the push
+no history to join. A marker per repository makes the move resumable
+without a table of its own, and lives inside the thing it describes.
+
+## #59
+
+Gitea gives witnesses a place to read their records, and its admin can
+push; anything that changes a repository outside the core would
+otherwise leave the library's index describing files that are no longer
+there. The core's own pushes are ignored because the write that made
+them already ran its index; the signature is checked over the raw
+bytes because the parsed body is not what was signed.
+
+## #60
+
+One Gitea will run out before the platform does, and the answer to that
+is more instances of the same small server, not a bigger git service
+(the witness: "if the scale of one repo has to go up the answer is to
+stop using our git+sqlite solution"). Sharding by household keeps a
+household's repositories and its witnesses' users together, so a grant
+never spans two servers. Built now, while there is one instance, so the
+second is configuration and a move, not a rewrite.

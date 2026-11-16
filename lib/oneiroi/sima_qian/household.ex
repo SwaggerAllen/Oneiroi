@@ -22,7 +22,6 @@ defmodule Oneiroi.SimaQian.Household do
   alias Oneiroi.Gaia
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
-  alias Oneiroi.SimaQian.GiteaQueue
   alias Oneiroi.SimaQian.Repos
 
   @folder "household"
@@ -43,24 +42,6 @@ defmodule Oneiroi.SimaQian.Household do
       :error ->
         {:error, Error.new(:sima_qian_household_invalid, :sima_qian_household_id_invalid)}
     end
-  end
-
-  @doc "Commits `paths` under the member's name (sima-qian#52); `{:ok, :nothing}` when nothing changed."
-  @spec commit(String.t(), [String.t()], String.t(), %{name: String.t(), email: String.t()}) ::
-          {:ok, String.t() | :nothing} | {:error, Error.t()}
-  def commit(household_id, paths, message, author) do
-    with {:ok, dir} <- repository_dir(household_id),
-         {:ok, sha} <- Git.commit_as(dir, paths, message, author) do
-      # To the repositories' server within seconds (sima-qian#56).
-      if is_binary(sha), do: GiteaQueue.later(:household, household_id)
-      {:ok, sha}
-    end
-  end
-
-  @doc "The household repository's history, or one path's, newest first."
-  @spec log(String.t(), String.t() | nil, pos_integer()) :: {:ok, [map()]} | {:error, Error.t()}
-  def log(household_id, path, limit) do
-    with {:ok, dir} <- repository_dir(household_id), do: Git.log(dir, path, limit)
   end
 
   @doc "The folder a resident's records carry the household's copy in (sima-qian#53)."

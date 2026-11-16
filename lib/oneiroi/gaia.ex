@@ -626,6 +626,12 @@ defmodule Oneiroi.Gaia do
   @spec resident_household(String.t()) :: map() | nil
   defexport(resident_household(resident_id), do: Households.resident_household(resident_id))
 
+  @doc "The Gitea instance a household's repositories are on (gaia#43, sima-qian#60), or nil for the primary."
+  @spec household_gitea_instance(String.t()) :: String.t() | nil
+  defexport(household_gitea_instance(household_id),
+    do: Households.gitea_instance(household_id)
+  )
+
   @doc "The household's members by the names the house uses, each with what it signed (gaia#28)."
   @spec household_members(String.t()) :: [map()]
   defexport(household_members(household_id), do: Households.members(household_id))

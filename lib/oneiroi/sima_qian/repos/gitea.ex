@@ -14,7 +14,6 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   """
   @behaviour Oneiroi.SimaQian.Repos.Adapter
 
-  alias Oneiroi.Config
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.GiteaQueue
@@ -24,8 +23,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def read(repo, path) do
-    with {:ok, {org, name}} <- Gitea.locate(repo) do
-      case get("/repos/#{org}/#{name}/contents/#{enc(path)}", ref: @branch) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case get(inst, "/repos/#{org}/#{name}/contents/#{enc(path)}", ref: @branch) do
         {:ok, 200, %{"type" => "file", "content" => b64, "sha" => sha}} ->
           {:ok, Base.decode64!(b64, ignore: :whitespace), sha}
 
@@ -41,11 +40,11 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def tree(repo) do
-    with {:ok, {org, name}} <- Gitea.locate(repo), do: tree_pages(org, name, 1, [])
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo), do: tree_pages(inst, org, name, 1, [])
   end
 
-  defp tree_pages(org, name, page, acc) do
-    case get("/repos/#{org}/#{name}/git/trees/#{@branch}",
+  defp tree_pages(inst, org, name, page, acc) do
+    case get(inst, "/repos/#{org}/#{name}/git/trees/#{@branch}",
            recursive: true,
            per_page: @tree_page,
            page: page
@@ -57,7 +56,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
         acc = acc ++ files
 
         if body["truncated"] == true and entries != [],
-          do: tree_pages(org, name, page + 1, acc),
+          do: tree_pages(inst, org, name, page + 1, acc),
           else: {:ok, acc}
 
       # An empty repository, or one not made yet: no files.
@@ -71,7 +70,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def write(repo, changes, message, author) do
-    with {:ok, {org, name}} <- Gitea.locate(repo),
+    with :ok <- moved(),
+         {:ok, {inst, org, name}} <- Gitea.locate(repo),
          {:ok, files} <- files(repo, changes) do
       body = %{
         branch: @branch,
@@ -81,17 +81,25 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
         files: files
       }
 
-      case committed(post("/repos/#{org}/#{name}/contents", body)) do
+      case committed(post(inst, "/repos/#{org}/#{name}/contents", body)) do
         # Not made yet: made, then the write once more.
-        :missing -> again(repo, org, name, body)
+        :missing -> again(repo, inst, org, name, body)
         result -> result
       end
     end
   end
 
-  defp again(repo, org, name, body) do
+  # While the records disk is still being sent (sima-qian#58), no write:
+  # one landing first would leave the push no history to join.
+  defp moved do
+    if GiteaQueue.moving?(),
+      do: {:error, Error.new(:sima_qian_gitea_unavailable, :sima_qian_repos_gitea_moving)},
+      else: :ok
+  end
+
+  defp again(repo, inst, org, name, body) do
     with :ok <- Gitea.ensure(repo) do
-      case committed(post("/repos/#{org}/#{name}/contents", body)) do
+      case committed(post(inst, "/repos/#{org}/#{name}/contents", body)) do
         :missing -> failed(:missing)
         result -> result
       end
@@ -166,8 +174,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def log(repo, path, limit) do
-    with {:ok, {org, name}} <- Gitea.locate(repo) do
-      case get("/repos/#{org}/#{name}/commits", commits_query(path, limit)) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case get(inst, "/repos/#{org}/#{name}/commits", commits_query(path, limit)) do
         {:ok, 200, commits} when is_list(commits) ->
           {:ok,
            for c <- commits do
@@ -190,8 +198,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def history(repo, path, limit) do
-    with {:ok, {org, name}} <- Gitea.locate(repo) do
-      case get("/repos/#{org}/#{name}/commits", commits_query(path, limit)) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case get(inst, "/repos/#{org}/#{name}/commits", commits_query(path, limit)) do
         {:ok, 200, commits} when is_list(commits) ->
           {:ok,
            for c <- commits do
@@ -199,7 +207,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
                commit: c["sha"],
                at: get_in(c, ["commit", "author", "date"]),
                subject: subject(c),
-               blob: blob_at(org, name, path, c["sha"])
+               blob: blob_at(inst, org, name, path, c["sha"])
              }
            end}
 
@@ -212,8 +220,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
     end
   end
 
-  defp blob_at(org, name, path, commit) do
-    case get("/repos/#{org}/#{name}/contents/#{enc(path)}", ref: commit) do
+  defp blob_at(inst, org, name, path, commit) do
+    case get(inst, "/repos/#{org}/#{name}/contents/#{enc(path)}", ref: commit) do
       {:ok, 200, %{"sha" => sha}} -> sha
       _removed -> nil
     end
@@ -221,8 +229,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def blob(repo, sha) do
-    with {:ok, {org, name}} <- Gitea.locate(repo) do
-      case get("/repos/#{org}/#{name}/git/blobs/#{sha}", []) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case get(inst, "/repos/#{org}/#{name}/git/blobs/#{sha}", []) do
         {:ok, 200, %{"content" => b64}} -> {:ok, Base.decode64!(b64, ignore: :whitespace)}
         other -> failed(other)
       end
@@ -235,20 +243,27 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   changed; the token is the remote's password and never logged.
   """
   def mirror(repo, url, token) do
-    with {:ok, {org, name}} <- Gitea.locate(repo),
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo),
          {:ok, 200, mirrors} when is_list(mirrors) <-
-           get("/repos/#{org}/#{name}/push_mirrors", []) do
+           get(inst, "/repos/#{org}/#{name}/push_mirrors", []) do
       if Enum.any?(mirrors, &(&1["remote_address"] == url)),
         do: :ok,
-        else: remirror(org, name, mirrors, url, token)
+        else: remirror(inst, org, name, mirrors, url, token)
     else
       other -> failed(other)
     end
   end
 
-  defp remirror(org, name, mirrors, url, token) do
+  defp remirror(inst, org, name, mirrors, url, token) do
     for m <- mirrors,
-        do: request(:delete, "/repos/#{org}/#{name}/push_mirrors/#{m["remote_name"]}", nil, [])
+        do:
+          request(
+            inst,
+            :delete,
+            "/repos/#{org}/#{name}/push_mirrors/#{m["remote_name"]}",
+            nil,
+            []
+          )
 
     body =
       %{remote_address: url, interval: "8h0m0s", sync_on_commit: true}
@@ -259,7 +274,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
         )
       )
 
-    case post("/repos/#{org}/#{name}/push_mirrors", body) do
+    case post(inst, "/repos/#{org}/#{name}/push_mirrors", body) do
       {:ok, status, _} when status in 200..201 -> :ok
       other -> failed(other)
     end
@@ -290,19 +305,26 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
          reason: inspect(other, limit: 5)
        )}
 
-  defp get(path, query), do: request(:get, path, nil, query)
-  defp post(path, body), do: request(:post, path, body, [])
+  defp get(inst, path, query), do: request(inst, :get, path, nil, query)
+  defp post(inst, path, body), do: request(inst, :post, path, body, [])
 
-  defp request(method, path, body, query) do
+  # To the instance the repository's household is routed to (sima-qian#60).
+  defp request(inst, method, path, body, query) do
+    with {:ok, %{url: url, token: token}} <- GiteaQueue.endpoint(inst) do
+      send_request(url, token, method, path, body, query)
+    end
+  end
+
+  defp send_request(url, token, method, path, body, query) do
     # A repository server, not a model provider: the repositories' port
     # (sima-qian#57), registered in the externals with its local adapter.
     # oneiroi:allow model_port
     case Req.request(
            method: method,
-           url: Config.fetch!(:sima_qian, :gitea_url) <> "/api/v1" <> path,
+           url: url <> "/api/v1" <> path,
            params: query,
            json: body,
-           headers: [{"authorization", "token " <> (GiteaQueue.token() || "")}],
+           headers: [{"authorization", "token " <> (token || "")}],
            retry: false,
            receive_timeout: 15_000
          ) do

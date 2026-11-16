@@ -301,3 +301,11 @@ with a pause in it, the back-and-forth the beats exist to prevent
 (#33), so wherever a share lets anyone go again, someone else must go
 between. "many" lets a small household with a lot to say use a beat
 whole without picking a number, and stays within the cap.
+
+## #43
+
+The household is where the repositories' readers and its contract
+live, so it is the unit a server holds whole; the field is on the
+household because the household is what moves. Null rather than a
+backfilled name, because there is no second instance to tell apart from
+and no event yet that chose one.

@@ -48,8 +48,8 @@ defmodule Oneiroi.SimaQian do
       Gitea,
       Gitea.HTTP,
       Gitea.Fake,
+      GiteaMigration,
       GiteaQueue,
-      GiteaWorker,
       Repos,
       Repos.Local,
       Repos.Gitea,
@@ -69,7 +69,6 @@ defmodule Oneiroi.SimaQian do
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
   alias Oneiroi.SimaQian.Gitea
-  alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
@@ -107,14 +106,15 @@ defmodule Oneiroi.SimaQian do
        default: "on",
        usage:
          "whether a resident's backup carries a copy of its household's repository under household/, titled by the membership (sima-qian#53): on is the resident's lean on the open question of export travel (design household-communication §8), off makes no copy and leaves one already committed as it was"},
-      # The repositories' server (sima-qian#55): Gitea on its own service
-      # and disk; unset, nothing is sent and the records disk is all.
-      # Where every repository is read and written (sima-qian#57).
+      # Where every repository is read and written (sima-qian#57). Local
+      # until an operator turns Gitea on, once its admin token is set: the
+      # boot after that moves the records disk over (sima-qian#58), so
+      # there is never a build reading a Gitea it cannot reach.
       {:repos_client, "SIMA_QIAN_REPOS",
        cast: &__MODULE__.cast_repos_client/1,
-       default: "gitea",
+       default: "local",
        usage:
-         "which repositories' port answers every read and write: gitea (the source of truth) in every real build, local (a git repository per resident and household on the records disk) in test, development and for a self-hoster without Gitea"},
+         "which repositories' port answers every read and write: gitea (the source of truth, once SIMA_QIAN_GITEA_URL and SIMA_QIAN_GITEA_TOKEN are set; the boot after the switch moves the records disk over) or local (a git repository per resident and household on the records disk: test, development, a self-hoster without Gitea, and production until the switch)"},
       {:gitea_client, "SIMA_QIAN_GITEA_CLIENT",
        cast: &__MODULE__.cast_gitea_client/1,
        default: "http",
@@ -129,6 +129,15 @@ defmodule Oneiroi.SimaQian do
        required: false,
        usage:
          "an admin user's Gitea token with every scope the admin API needs (sima-qian#55); unset, nothing is sent to Gitea"},
+      {:gitea_admin, "SIMA_QIAN_GITEA_ADMIN",
+       default: "oneiroi-admin",
+       usage:
+         "the login of the Gitea admin whose token the core writes with (sima-qian#59): a push by it is the core's own write, never one from outside"},
+      {:gitea_webhook_secret, "SIMA_QIAN_GITEA_WEBHOOK_SECRET",
+       secret: true,
+       required: false,
+       usage:
+         "the secret of Gitea's system webhook (sima-qian#59), which signs each push so a push from outside re-indexes its resident's library; unset, the webhook is refused"},
       {:library, "SIMA_QIAN_LIBRARY",
        cast: &__MODULE__.cast_library/1,
        default: "seshat",
@@ -210,13 +219,11 @@ defmodule Oneiroi.SimaQian do
   def processes, do: [{:sima_qian_blobs, :local}]
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.SimaQian.Repos.Cache]
+  def children, do: [Oneiroi.SimaQian.Repos.Cache, Oneiroi.SimaQian.GiteaMigration]
 
   @impl Oneiroi.Component
   def oban_queues do
     [
-      # One repository at a time to Gitea (sima-qian#56).
-      {:sima_qian_gitea, []},
       {:sima_qian_nightly,
        cron: [
          {"0 3 * * *", Oneiroi.SimaQian.BackupWorker},
@@ -288,6 +295,10 @@ defmodule Oneiroi.SimaQian do
        "a copied file's git blob sha is not the source tree's, so nothing was adopted and this run's copies were removed",
        remedy:
          "the paths are named; check the disk under SIMA_QIAN_ROOT, then run the import again at the same commit"},
+      {:sima_qian_gitea_unrouted,
+       "the household is routed to a Gitea instance this build does not know (sima-qian#60)",
+       remedy:
+         "set the household's gitea_instance to one the build is configured for, or configure that instance"},
       {:sima_qian_gitea_off, "the repositories' server is not set up on this platform",
        remedy: "an operator sets SIMA_QIAN_GITEA_URL and SIMA_QIAN_GITEA_TOKEN"},
       {:sima_qian_repos_absent, "no file at that path in the repository",
@@ -300,6 +311,9 @@ defmodule Oneiroi.SimaQian do
        remedy: "nothing was written; try again once Gitea is back"},
       {:sima_qian_gitea_failed, "Gitea did not answer, or refused the request",
        remedy: "the push is retried by its queue; if it keeps failing, read Gitea's log"},
+      {:sima_qian_gitea_unsigned,
+       "the push's signature is missing or is not the webhook secret's (sima-qian#59)",
+       remedy: "give Gitea's system webhook the secret SIMA_QIAN_GITEA_WEBHOOK_SECRET holds"},
       {:sima_qian_gitea_invalid, "a Gitea password is at least twelve characters",
        remedy: "choose a longer one"},
       {:sima_qian_household_invalid, "a household's repository is named by the household's id",
@@ -395,9 +409,16 @@ defmodule Oneiroi.SimaQian do
   @spec repository_blob(String.t(), String.t()) :: {:ok, binary()} | {:error, term()}
   defexport(repository_blob(resident_id, blob), do: Repos.blob({:resident, resident_id}, blob))
 
-  @doc "The household's working repository on disk, made one on first use (sima-qian#51): where the household's shelf lives."
-  @spec household_repository_dir(String.t()) :: {:ok, Path.t()} | {:error, term()}
-  defexport(household_repository_dir(household_id), do: Household.repository_dir(household_id))
+  @doc """
+  A push Gitea reports (sima-qian#59), its signature checked over the
+  bytes as they arrived: `{:ok, {:resident, id}}` when it came from
+  outside into a resident's repository, `{:ok, :ignored}` for the core's
+  own writes, the household's repository, another branch or a repository
+  no resident has.
+  """
+  @spec gitea_pushed(binary(), String.t() | nil) ::
+          {:ok, {:resident, String.t()} | :ignored} | {:error, term()}
+  defexport(gitea_pushed(raw, signature), do: Gitea.pushed(raw, signature))
 
   @doc "Where a witness reaches Gitea (sima-qian#55): the server, the user and the repositories they read, or nil when it is not set up."
   @spec gitea_access(String.t()) :: map() | nil
@@ -407,13 +428,6 @@ defmodule Oneiroi.SimaQian do
   @spec gitea_set_password(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
   defexport(gitea_set_password(account_id, email, password),
     do: Gitea.set_password(account_id, email, password)
-  )
-
-  @doc "Commits paths of the household's repository under a member's name (sima-qian#52)."
-  @spec household_commit(String.t(), [String.t()], String.t(), map()) ::
-          {:ok, String.t() | :nothing} | {:error, term()}
-  defexport(household_commit(household_id, paths, message, author),
-    do: Household.commit(household_id, paths, message, author)
   )
 
   @doc "The history of the household's repository, or one path in it, newest first, each commit with its author."

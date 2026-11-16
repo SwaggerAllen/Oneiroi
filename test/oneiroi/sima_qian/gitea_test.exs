@@ -1,25 +1,30 @@
 defmodule Oneiroi.SimaQian.GiteaTest do
   @moduledoc """
-  The repositories' server (sima-qian#55, #56; the witness, 2026-11-16):
+  The repositories' server (sima-qian#55, #58; the witness, 2026-11-16):
   each household an organization holding `house` and a repository per
   resident; each witness a user reading their household's and their own
-  residents', nobody else's; a household's write pushed within seconds,
-  one job per repository; a resident's at its backup; nothing at all
-  while the server is not set up.
+  residents', nobody else's; the records disk moved over once, history
+  and all, each repository marked as it goes and writes refused until
+  it is done; nothing at all while the server is not set up.
   """
   use Oneiroi.DataCase, async: false
-  use Oban.Testing, repo: Oneiroi.Repo
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Config.Secret
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
+  alias Oneiroi.Repo
+  alias Oneiroi.Scope
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Gitea.Fake
-  alias Oneiroi.SimaQian.GiteaWorker
+  alias Oneiroi.SimaQian.GiteaMigration
+  alias Oneiroi.SimaQian.GiteaQueue
+  alias Oneiroi.SimaQian.Repos
+
+  import Ecto.Query
 
   @store {Oneiroi.Config, :values}
 
@@ -50,17 +55,18 @@ defmodule Oneiroi.SimaQian.GiteaTest do
         @store,
         Map.merge(values, %{
           {:sima_qian, :gitea_token} => Secret.wrap("token"),
-          {:sima_qian, :gitea_url} => "https://git.example.test"
+          {:sima_qian, :gitea_url} => "https://git.example.test",
+          {:sima_qian, :repos_client} => Repos.Gitea
         })
       )
 
-  defp jobs, do: for(j <- all_enqueued(worker: GiteaWorker), do: Map.delete(j.args, "trace_id"))
+  defp pending(kind, id), do: Enum.find(GiteaMigration.pending(), &match?({^kind, ^id, _}, &1))
 
   test "unset: nothing is sent, nothing fails", ctx do
     {:ok, _} =
       Seshat.household_post(ctx.andrew, %{"title" => "Plans", "content" => "For the week."})
 
-    assert jobs() == []
+    assert GiteaMigration.pending() == []
     assert SimaQian.gitea_access(ctx.witness.id) == nil
 
     assert {:error, %{kind: :sima_qian_gitea_off}} =
@@ -77,7 +83,10 @@ defmodule Oneiroi.SimaQian.GiteaTest do
     {:ok, _} = Seshat.household_post(ctx.andrew, %{"title" => "Dinner", "content" => "Sundays."})
     on(ctx.values)
 
-    assert :ok = perform_job(GiteaWorker, %{"household_id" => household})
+    assert {:household, ^household, _} = moving = pending(:household, household)
+    assert :ok = GiteaMigration.run([moving])
+    # Marked: the next boot sends nothing again.
+    assert pending(:household, household) == nil
     org = Gitea.org(household)
     login = Gitea.login(ctx.witness.id)
     state = Fake.state()
@@ -94,12 +103,12 @@ defmodule Oneiroi.SimaQian.GiteaTest do
 
   test "a resident's repository at its backup, read by its witness alone; the witness's access and password",
        ctx do
-    on(ctx.values)
     household = Gaia.household_id(ctx.witness.id)
     org = Gitea.org(household)
     {:ok, _} = SimaQian.backup(ctx.wren, Actor.platform())
+    on(ctx.values)
 
-    assert :ok = perform_job(GiteaWorker, %{"resident_id" => ctx.wren})
+    assert :ok = GiteaMigration.run([pending(:resident, ctx.wren)])
     assert "#{org}/#{ctx.slug}" in Fake.state().repos
     assert {"#{org}/#{ctx.slug}", Gitea.login(ctx.witness.id)} in Fake.state().grants
 
@@ -125,5 +134,45 @@ defmodule Oneiroi.SimaQian.GiteaTest do
 
     :ok = SimaQian.gitea_set_password(ctx.witness.id, ctx.witness.email, "a long password!")
     assert {login, "a long password!"} in Fake.state().passwords
+  end
+
+  test "while the disk is moving, a write to Gitea is refused and nothing is sent", ctx do
+    on(ctx.values)
+    GiteaQueue.moving(true)
+    on_exit(fn -> GiteaQueue.moving(false) end)
+
+    assert {:error, %{kind: :sima_qian_gitea_unavailable}} =
+             Repos.Gitea.write(
+               {:resident, ctx.wren},
+               [{:create, "a.md", "a"}],
+               "A",
+               Repos.platform()
+             )
+
+    refute Enum.any?(Map.get(Fake.state(), :repos, []), &String.ends_with?(&1, "/#{ctx.slug}"))
+  end
+
+  test "a household is on the instance its routing names; one this build does not know is refused",
+       ctx do
+    on(ctx.values)
+    household = Gaia.household_id(ctx.witness.id)
+    assert {:ok, {"primary", _org, "house"}} = Gitea.locate({:household, household})
+
+    Scope.platform(fn ->
+      Repo.update_all(
+        from(h in "gaia_household", where: h.id == type(^household, :binary_id)),
+        set: [gitea_instance: "second"]
+      )
+    end)
+
+    assert {:ok, {"second", _org, "house"}} = Gitea.locate({:household, household})
+
+    assert {:error, %{kind: :sima_qian_gitea_unrouted}} =
+             Repos.Gitea.write(
+               {:household, household},
+               [{:create, "a.md", "a"}],
+               "A",
+               Repos.platform()
+             )
   end
 end

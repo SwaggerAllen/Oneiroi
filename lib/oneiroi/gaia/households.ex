@@ -527,6 +527,13 @@ defmodule Oneiroi.Gaia.Households do
     Beats.shape(settings)
   end
 
+  @doc "The Gitea instance the household's repositories are on (gaia#43), or nil for the primary."
+  def gitea_instance(household_id) do
+    Scope.platform(fn ->
+      Repo.one(from(h in Store.Household, where: h.id == ^household_id, select: h.gitea_instance))
+    end)
+  end
+
   # ---- house check-ins (gaia#41) ----
 
   @doc "The household's clock and its check-ins, each with the day and thread it last opened."

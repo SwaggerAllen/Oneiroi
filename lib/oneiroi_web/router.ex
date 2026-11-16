@@ -38,8 +38,9 @@ defmodule OneiroiWeb.Router do
     post("/", MCPController, :rpc)
   end
 
-  # The payment provider's webhook (nisaba#23): no session, no bearer and
-  # no Origin, since the provider sends none; its signature is the check.
+  # The payment provider's webhook (nisaba#23) and Gitea's (sima-qian#59):
+  # no session, no bearer and no Origin, since neither sends one; the
+  # signature is the check.
   pipeline :webhook do
     plug(:accepts, ["json"])
     plug(OneiroiWeb.Plugs.SecureHeaders)
@@ -48,6 +49,12 @@ defmodule OneiroiWeb.Router do
   scope "/v1/billing", OneiroiWeb do
     pipe_through(:webhook)
     post("/stripe", BillingController, :stripe)
+  end
+
+  # Gitea's system webhook (sima-qian#59): signed with its secret.
+  scope "/v1/repos", OneiroiWeb do
+    pipe_through(:webhook)
+    post("/gitea", ReposController, :gitea)
   end
 
   scope "/v1", OneiroiWeb do

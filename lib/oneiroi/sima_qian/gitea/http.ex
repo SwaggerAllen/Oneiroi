@@ -8,22 +8,25 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
   """
   @behaviour Oneiroi.SimaQian.Gitea
 
-  alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.SimaQian.Error
-  alias Oneiroi.SimaQian.Gitea
+  alias Oneiroi.SimaQian.GiteaQueue
 
   @impl true
-  def ensure_org(org) do
-    exists(get("/orgs/#{org}"), fn ->
-      post("/orgs", %{username: org, visibility: "private", repo_admin_change_team_access: false})
+  def ensure_org(inst, org) do
+    exists(get(inst, "/orgs/#{org}"), fn ->
+      post(inst, "/orgs", %{
+        username: org,
+        visibility: "private",
+        repo_admin_change_team_access: false
+      })
     end)
   end
 
   @impl true
-  def ensure_repo(org, repo) do
-    exists(get("/repos/#{org}/#{repo}"), fn ->
-      post("/orgs/#{org}/repos", %{
+  def ensure_repo(inst, org, repo) do
+    exists(get(inst, "/repos/#{org}/#{repo}"), fn ->
+      post(inst, "/orgs/#{org}/repos", %{
         name: repo,
         private: true,
         auto_init: false,
@@ -33,9 +36,9 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
   end
 
   @impl true
-  def ensure_user(login, email) do
-    exists(get("/users/#{login}"), fn ->
-      post("/admin/users", %{
+  def ensure_user(inst, login, email) do
+    exists(get(inst, "/users/#{login}"), fn ->
+      post(inst, "/admin/users", %{
         username: login,
         email: email,
         # Nobody's until the witness sets one (`Gitea.set_password/3`).
@@ -47,14 +50,17 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
   end
 
   @impl true
-  def grant_read(org, repo, login),
-    do: done(request(:put, "/repos/#{org}/#{repo}/collaborators/#{login}", %{permission: "read"}))
-
-  @impl true
-  def set_password(login, password),
+  def grant_read(inst, org, repo, login),
     do:
       done(
-        request(:patch, "/admin/users/#{login}", %{
+        request(inst, :put, "/repos/#{org}/#{repo}/collaborators/#{login}", %{permission: "read"})
+      )
+
+  @impl true
+  def set_password(inst, login, password),
+    do:
+      done(
+        request(inst, :patch, "/admin/users/#{login}", %{
           login_name: login,
           source_id: 0,
           password: password,
@@ -63,16 +69,19 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
       )
 
   @impl true
-  def remote(org, repo) do
-    uri = URI.parse(Config.fetch!(:sima_qian, :gitea_url))
+  def remote(inst, org, repo) do
+    with {:ok, %{url: url, token: token}} <- GiteaQueue.endpoint(inst) do
+      uri = URI.parse(url)
 
-    Secret.wrap(
-      URI.to_string(%{
-        uri
-        | userinfo: "oneiroi:" <> Gitea.secret_token(),
-          path: "/#{org}/#{repo}.git"
-      })
-    )
+      {:ok,
+       Secret.wrap(
+         URI.to_string(%{
+           uri
+           | userinfo: "oneiroi:" <> (token || ""),
+             path: "/#{org}/#{repo}.git"
+         })
+       )}
+    end
   end
 
   defp exists({:ok, 200}, _make), do: :ok
@@ -86,18 +95,23 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
 
   defp done({:error, _} = failed), do: failed
 
-  defp get(path), do: request(:get, path, nil)
-  defp post(path, body), do: request(:post, path, body)
+  defp get(inst, path), do: request(inst, :get, path, nil)
+  defp post(inst, path, body), do: request(inst, :post, path, body)
 
-  defp request(method, path, body) do
+  defp request(inst, method, path, body) do
+    with {:ok, %{url: url, token: token}} <- GiteaQueue.endpoint(inst),
+         do: send_request(url, token, method, path, body)
+  end
+
+  defp send_request(url, token, method, path, body) do
     # A repository server, not a model provider: the repositories' port
     # (sima-qian#55), registered in the externals with its fake.
     # oneiroi:allow model_port
     case Req.request(
            method: method,
-           url: Config.fetch!(:sima_qian, :gitea_url) <> "/api/v1" <> path,
+           url: url <> "/api/v1" <> path,
            json: body,
-           headers: [{"authorization", "token " <> Gitea.secret_token()}],
+           headers: [{"authorization", "token " <> (token || "")}],
            retry: false,
            receive_timeout: 15_000
          ) do

@@ -69,6 +69,7 @@ config :oneiroi,
           # Every repository on the records disk, in test (sima-qian#57).
           "SIMA_QIAN_REPOS" => "local",
           "NISABA_STRIPE_WEBHOOK_SECRET" => "whsec_test_suite",
+          "SIMA_QIAN_GITEA_WEBHOOK_SECRET" => "gitea_test_suite",
           "GAIA_VAPID_PRIVATE_KEY" => "PqvkdKHPz6XqjjvJw34EwXC230cSVIj4OGJPDEWp9x8",
           # Where the HTTP port's own tests stand up a Honcho of their own,
           # on the loopback (proteus#18); nothing else calls it, since

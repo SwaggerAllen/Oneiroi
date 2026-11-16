@@ -154,6 +154,7 @@ defmodule Oneiroi.Seshat do
       Events.ScenesClosed
     ]
 
+  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
@@ -162,6 +163,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.Index
+  alias Oneiroi.Seshat.IndexWorker
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Leases
@@ -1104,6 +1106,12 @@ defmodule Oneiroi.Seshat do
   @doc "Runs the index: every registered file, re-embedded only when its hash or the model changed; three statements and no model call when nothing did."
   @spec index(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(index(resident_id, actor), do: Index.run(resident_id, actor))
+
+  @doc "Asks for one resident's index run within seconds (sima-qian#59): her repository changed from outside."
+  @spec index_soon(String.t()) :: {:ok, term()} | {:error, term()}
+  defexport(index_soon(resident_id),
+    do: Jobs.enqueue(IndexWorker, %{"resident_id" => resident_id}, schedule_in: 5)
+  )
 
   @doc "The latest index runs."
   @spec index_runs(String.t(), pos_integer()) :: [Oneiroi.Seshat.Store.IndexRun.t()]

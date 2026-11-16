@@ -1,16 +1,33 @@
 defmodule Oneiroi.SimaQian.GiteaQueue do
   @moduledoc """
-  Asking for a repository to reach Gitea (sima-qian#56), apart from the
-  sending: the household's commit and the resident's backup call this,
-  and the sending (`Oneiroi.SimaQian.Gitea`) reads their repositories, so
-  keeping the two apart keeps the calls one way.
+  Whether Gitea is set up here, its token, and where each instance
+  answers (sima-qian#55, #60): apart from
+  `Oneiroi.SimaQian.Gitea`, so the port's adapter and the sending can
+  both read it without calling each other.
   """
 
-  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
+  alias Oneiroi.SimaQian.Error
 
-  @worker :"Elixir.Oneiroi.SimaQian.GiteaWorker"
+  @primary "primary"
+
+  @doc "The instance a household with no routing of its own is on (sima-qian#60)."
+  def primary, do: @primary
+
+  @doc """
+  Where an instance answers (sima-qian#60): its URL and admin token. One
+  instance today, `primary`, set by SIMA_QIAN_GITEA_URL and
+  SIMA_QIAN_GITEA_TOKEN; a household routed to a name this build does
+  not know is refused, never sent to the wrong server.
+  """
+  def endpoint(@primary),
+    do: {:ok, %{url: Config.fetch!(:sima_qian, :gitea_url), token: token()}}
+
+  def endpoint(other),
+    do:
+      {:error,
+       Error.new(:sima_qian_gitea_unrouted, :sima_qian_gitea_instance_unknown, instance: other)}
 
   @doc "Whether the server is set up here: a token to send with."
   @spec configured?() :: boolean()
@@ -30,10 +47,13 @@ defmodule Oneiroi.SimaQian.GiteaQueue do
     end
   end
 
-  @doc "Asks for a repository to be sent: one job per repository while one waits, so a burst of writes is one push."
-  def later(kind, id) when kind in [:household, :resident] do
-    if configured?(),
-      do: Jobs.enqueue(@worker, %{(Atom.to_string(kind) <> "_id") => id}, schedule_in: 5),
-      else: {:ok, :off}
-  end
+  @moving {__MODULE__, :moving}
+
+  @doc "Whether the records disk is being moved to Gitea (sima-qian#58), so writes wait for it."
+  @spec moving?() :: boolean()
+  def moving?, do: :persistent_term.get(@moving, false)
+
+  @doc "Marks the move under way, or over."
+  def moving(true), do: :persistent_term.put(@moving, true)
+  def moving(false), do: :persistent_term.erase(@moving)
 end
