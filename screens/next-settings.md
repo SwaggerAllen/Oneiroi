@@ -114,6 +114,11 @@ it, in the server's own words.
     mocked steps); Passes, Fails, Favourite;
   - results by pass rate, with "Pin for chat" asked twice and the chat
     model marked.
+  - once every answer in a run is graded, "Review its answers" on each
+    result opens that model alone (the witness, 2026-11-16): its answer to
+    one trial at a time with the trial's words, its grade, whether it is a
+    favourite and how it got there, "‹ Previous trial" and "Next trial ›"
+    between, and no other model's words on the screen; "‹ The run" returns.
 - **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55, #58):
   - the line in words: running, resting, runs today, armed by whom and
     what is left of its cap; "Arm the work line" when it is off and
