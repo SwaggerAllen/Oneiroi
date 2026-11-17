@@ -32,6 +32,14 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
           {:error,
            Error.new(:sima_qian_repos_absent, :sima_qian_repos_gitea_read_absent, path: path)}
 
+        # A listing, not a file: a folder by that name, or a repository
+        # Gitea still counts as empty just after a push into it
+        # (sima-qian#62), which lists nothing for every path. Either way,
+        # no file there.
+        {:ok, 200, listing} when is_list(listing) ->
+          {:error,
+           Error.new(:sima_qian_repos_absent, :sima_qian_repos_gitea_read_listing, path: path)}
+
         other ->
           failed(other)
       end
@@ -74,20 +82,29 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
     end
   end
 
-  defp tree_pages(inst, org, name, ref, page, acc) do
+  # Gitea pages a recursive tree and says `truncated: true` on its last
+  # real page too, then answers the page after with `"tree": null`
+  # (measured 2026-11-17 on 1.22.6: 1,500 entries, pages of 1,000, 500,
+  # then null). That null crashed every listing of a repository past one
+  # page, the resident's own among them (sima-qian#63). A page with no
+  # entries, or `total_count` reached, ends the walk.
+  defp tree_pages(inst, org, name, ref, page, acc, seen \\ 0) do
     case get(inst, "/repos/#{org}/#{name}/git/trees/#{ref}",
            recursive: true,
            per_page: @tree_page,
            page: page
          ) do
-      {:ok, 200, %{"tree" => entries} = body} ->
+      {:ok, 200, %{} = body} ->
+        entries = body["tree"] || []
+
         files =
           for %{"type" => "blob", "path" => p, "sha" => s} <- entries, do: %{path: p, sha: s}
 
         acc = acc ++ files
+        seen = seen + length(entries)
 
-        if body["truncated"] == true and entries != [],
-          do: tree_pages(inst, org, name, ref, page + 1, acc),
+        if more?(body, entries, seen),
+          do: tree_pages(inst, org, name, ref, page + 1, acc, seen),
           else: {:ok, acc}
 
       # An empty repository, or one not made yet: no files.
@@ -97,6 +114,13 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
       other ->
         failed(other)
     end
+  end
+
+  defp more?(_body, [], _seen), do: false
+
+  defp more?(body, _entries, seen) do
+    body["truncated"] == true and
+      not (is_integer(body["total_count"]) and seen >= body["total_count"])
   end
 
   @impl true

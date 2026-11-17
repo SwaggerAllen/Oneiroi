@@ -24,6 +24,25 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
   end
 
   @impl true
+  def settled(inst, org, repo), do: settled(inst, org, repo, 30)
+
+  defp settled(_inst, org, repo, 0),
+    do:
+      {:error,
+       Error.new(:sima_qian_gitea_failed, :sima_qian_gitea_never_settled, repo: "#{org}/#{repo}")}
+
+  defp settled(inst, org, repo, tries) do
+    case request_body(inst, :get, "/repos/#{org}/#{repo}") do
+      {:ok, 200, %{"empty" => false}} ->
+        :ok
+
+      _not_yet ->
+        Process.sleep(1_000)
+        settled(inst, org, repo, tries - 1)
+    end
+  end
+
+  @impl true
   def ensure_repo(inst, org, repo) do
     exists(get(inst, "/repos/#{org}/#{repo}"), fn ->
       post(inst, "/orgs/#{org}/repos", %{
@@ -99,6 +118,10 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
   defp post(inst, path, body), do: request(inst, :post, path, body)
 
   defp request(inst, method, path, body) do
+    with {:ok, status, _body} <- request_body(inst, method, path, body), do: {:ok, status}
+  end
+
+  defp request_body(inst, method, path, body \\ nil) do
     with {:ok, %{url: url, token: token}} <- GiteaQueue.endpoint(inst),
          do: send_request(url, token, method, path, body)
   end
@@ -115,8 +138,8 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
            retry: false,
            receive_timeout: 15_000
          ) do
-      {:ok, %Req.Response{status: status}} ->
-        {:ok, status}
+      {:ok, %Req.Response{status: status, body: body}} ->
+        {:ok, status, body}
 
       {:error, exception} ->
         {:error, Error.caught(:sima_qian_gitea_failed, :sima_qian_gitea_transport, exception)}

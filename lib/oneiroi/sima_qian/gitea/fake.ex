@@ -32,6 +32,9 @@ defmodule Oneiroi.SimaQian.Gitea.Fake do
   @impl true
   def remote(_inst, org, repo), do: {:ok, bare(org, repo)}
 
+  @impl true
+  def settled(_inst, _org, _repo), do: :ok
+
   @doc "The bare repository a push to `org/repo` lands in."
   def bare(org, repo),
     do: Path.join([System.tmp_dir!(), "oneiroi-gitea-fake", org, repo <> ".git"])
