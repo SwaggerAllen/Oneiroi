@@ -22,6 +22,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     than widening the conversation.
   - Tool calls collapse to one line.
   - The turn streams in under its step (thinking, the tool's name,
+  - It streams in its own place, under the message it answers, and
+    stays there when it is captured (2026-11-17; it streamed above the
+    message, then moved below it). A wake, which answers no message,
+    streams at the end.
     writing) and a timer. The same status events drive the header's
     presence line.
 - **Sending** uses the current client's outbox (brain#45): each message
@@ -59,8 +63,12 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   touch screen (`pointer: coarse`) Enter breaks the line and the arrow
   sends, and the keyboard's key says so.
 - **Unread:** the conversation opens on the first unread reply, under a
-  "New since HH:MM" rule. The read mark advances whenever the reader is
-  at the bottom. "↓ n new" jumps to the rule, or to the bottom.
+  "New since HH:MM" rule, which stays where the visit began. What has
+  been read moves on as the reader does: a reply counts once its top
+  has been on screen, scrolled past or in view, and the count and the
+  mark kept for the next visit follow it (2026-11-17; it used to move
+  only at the bottom, and the count never re-read it). "↓ n new" jumps to
+  the first reply not yet seen, or to the bottom.
 - **Reacts (kumbukumbu#56):** his reacts show on her replies, hers on
   his messages. The React menu lists each emoji with its meaning, from
   the reacts vocabulary.
