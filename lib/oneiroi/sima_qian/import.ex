@@ -30,7 +30,9 @@ defmodule Oneiroi.SimaQian.Import do
   alias Oneiroi.SimaQian.David
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Rebuild
+  alias Oneiroi.SimaQian.Repos
 
   @doc "Imports the repository at `url` as a new resident under `witness_account_id`."
   # The clone is this function's own under the temp dir; the working
@@ -47,54 +49,85 @@ defmodule Oneiroi.SimaQian.Import do
     source = record_url(url)
 
     try do
-      with :ok <- scheme_ok(url),
-           :ok <- Git.clone(remote, clone),
-           {attestation, root, sequence} <- Rebuild.attestation(clone),
-           :ok <- Rebuild.refuse_if_imported(source, root),
-           {:ok, lines} <- Rebuild.read_lines(clone),
-           {:ok, id, how} <- resident(lines, attrs, witness_account_id, actor),
-           {:ok, _} <- Rebuild.import_event(id, source, attestation, root, sequence, actor),
-           :ok <- custody(how, id, witness_account_id, actor),
-           :ok <- place(clone, id),
-           {:ok, seeds} <- seeds(id, clone, actor),
-           {:ok, translated} <- translate(how, id, witness_account_id, actor),
-           {:ok, adopted} <- library().adopt_all(id, actor),
-           ledger = account(clone, translated, seeds, adopted),
-           :ok <- verify(clone, Backup.dir(id), ledger.library),
-           :ok <- Backup.start_fresh(Backup.dir(id), Enum.map(ledger.left_behind, &elem(&1, 0))),
-           :ok <-
-             AgathosDaimon.complete_import(
-               id,
-               seeds.seeded,
-               length(adopted.adopted),
-               ledger.left_behind,
-               translated && Map.take(translated, [:source, :counts]),
-               actor
-             ) do
-        :telemetry.execute(
-          [:oneiroi, :sima_qian, :import],
-          %{events: length(lines), adopted: length(adopted.adopted)},
-          %{resident_id: id}
-        )
-
-        {:ok,
-         %{
-           id: id,
-           attestation: attestation,
-           root: root,
-           events: length(lines),
-           seeded: seeds.seeded,
-           proposed: seeds.proposed,
-           adopted: length(adopted.adopted),
-           indexed: adopted.indexed,
-           translated: translated && Map.take(translated, [:source, :counts]),
-           not_transferred: Enum.map(ledger.left_behind, &elem(&1, 0)),
-           reasons: Map.new(ledger.left_behind),
-           unaccounted: ledger.unaccounted
-         }}
-      end
+      # Assembled on the disk, then committed and sent to Gitea whole
+      # (sima-qian#57): the import reads and writes the repository it is
+      # making, which is not on the platform's server until it is done.
+      Repos.locally(fn ->
+        assemble(remote, clone, url, source, attrs, witness_account_id, actor)
+      end)
     after
       File.rm_rf(clone)
+    end
+  end
+
+  defp assemble(remote, clone, url, source, attrs, witness_account_id, actor) do
+    with :ok <- scheme_ok(url),
+         :ok <- Git.clone(remote, clone),
+         {attestation, root, sequence} <- Rebuild.attestation(clone),
+         :ok <- Rebuild.refuse_if_imported(source, root),
+         {:ok, lines} <- Rebuild.read_lines(clone),
+         {:ok, id, how} <- resident(lines, attrs, witness_account_id, actor),
+         {:ok, _} <- Rebuild.import_event(id, source, attestation, root, sequence, actor),
+         :ok <- custody(how, id, witness_account_id, actor),
+         :ok <- place(clone, id),
+         {:ok, seeds} <- seeds(id, clone, actor),
+         {:ok, translated} <- translate(how, id, witness_account_id, actor),
+         {:ok, adopted} <- library().adopt_all(id, actor),
+         ledger = account(clone, translated, seeds, adopted),
+         :ok <- verify(clone, Backup.dir(id), ledger.library),
+         :ok <- Backup.start_fresh(Backup.dir(id), Enum.map(ledger.left_behind, &elem(&1, 0))),
+         :ok <- commit_and_send(id, source),
+         :ok <-
+           AgathosDaimon.complete_import(
+             id,
+             seeds.seeded,
+             length(adopted.adopted),
+             ledger.left_behind,
+             translated && Map.take(translated, [:source, :counts]),
+             actor
+           ) do
+      :telemetry.execute(
+        [:oneiroi, :sima_qian, :import],
+        %{events: length(lines), adopted: length(adopted.adopted)},
+        %{resident_id: id}
+      )
+
+      {:ok,
+       %{
+         id: id,
+         attestation: attestation,
+         root: root,
+         events: length(lines),
+         seeded: seeds.seeded,
+         proposed: seeds.proposed,
+         adopted: length(adopted.adopted),
+         indexed: adopted.indexed,
+         translated: translated && Map.take(translated, [:source, :counts]),
+         not_transferred: Enum.map(ledger.left_behind, &elem(&1, 0)),
+         reasons: Map.new(ledger.left_behind),
+         unaccounted: ledger.unaccounted
+       }}
+    end
+  end
+
+  # The repository assembled: every file it holds as one commit, the
+  # first of a history of its own, then (on Gitea) sent whole and the
+  # working directory let go (sima-qian#57).
+  defp commit_and_send(id, source) do
+    dir = Backup.dir(id)
+
+    with {:ok, _} <- Git.commit(dir, ["."], "Import: #{source}\n\nOneiroi-Import: #{source}\n") do
+      if Config.fetch!(:sima_qian, :repos_client) == Repos.Gitea,
+        do: send_whole(id, dir),
+        else: :ok
+    end
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp send_whole(id, dir) do
+    with {:ok, _} <- Gitea.sync_resident(id) do
+      File.rm_rf!(dir)
+      :ok
     end
   end
 

@@ -86,21 +86,6 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
-  @doc "Paths changed or untracked outside `pathspecs`: what a backup refuses to commit."
-  @spec stray(Path.t(), [String.t()]) :: [String.t()]
-  def stray(dir, prefixes) do
-    case git(dir, ["status", "--porcelain", "--untracked-files=all"]) do
-      {:ok, out} ->
-        out
-        |> String.split("\n", trim: true)
-        |> Enum.map(&String.slice(&1, 3..-1//1))
-        |> Enum.reject(fn path -> Enum.any?(prefixes, &String.starts_with?(path, &1)) end)
-
-      {:error, _} ->
-        []
-    end
-  end
-
   @doc "Pushes `main` to `remote`."
   @spec push(Path.t(), String.t() | Secret.t()) :: :ok | {:error, Error.t()}
   def push(dir, remote) do
@@ -320,6 +305,15 @@ defmodule Oneiroi.SimaQian.Git do
   @doc "Whether `dir` has a commit at `HEAD`."
   @spec head?(Path.t()) :: boolean()
   def head?(dir), do: match?({:ok, _}, git(dir, ["rev-parse", "--verify", "-q", "HEAD"]))
+
+  @doc "The commit `HEAD` names, or nil in a repository with none yet."
+  @spec head(Path.t()) :: String.t() | nil
+  def head(dir) do
+    case git(dir, ["rev-parse", "--verify", "-q", "HEAD"]) do
+      {:ok, sha} -> String.trim(sha)
+      _none -> nil
+    end
+  end
 
   @doc """
   The trailers on the history's first commit: where the repository began,

@@ -328,6 +328,13 @@ defmodule Oneiroi.Gaia.Events do
 
   # ---- house check-ins (gaia#41) ----
 
+  defmodule HouseholdNamed do
+    # The house's slug (gaia#44): what a citation of its threads and
+    # documents names it by (`house/<slug>:thread/<id>`), set once and
+    # never changed, so no citation of it ever stops resolving.
+    use Oneiroi.Event, version: 1, fields: [:id, :slug]
+  end
+
   defmodule HouseholdClockSet do
     # The workspace's own clock: the zone its check-ins keep, whatever
     # any member's own.

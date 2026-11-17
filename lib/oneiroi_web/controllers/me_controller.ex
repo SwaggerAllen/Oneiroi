@@ -100,6 +100,36 @@ defmodule OneiroiWeb.MeController do
         "token is required"
       )
 
+  operation(:gitea,
+    summary:
+      "Where this witness reaches the repositories' server (sima-qian#55): Gitea's URL, the user, the repositories they read; null when it is not set up",
+    responses: [ok: {"access", "application/json", %Schema{type: :object}}]
+  )
+
+  def gitea(%{assigns: %{principal: p}} = conn, _params),
+    do: json(conn, Oneiroi.SimaQian.gitea_access(p.account_id))
+
+  operation(:set_gitea_password,
+    summary:
+      "Set this witness's Gitea password, at least twelve characters (sima-qian#55); the user is made if there is none",
+    request_body:
+      {"the password", "application/json",
+       %Schema{
+         type: :object,
+         required: [:password],
+         properties: %{password: %Schema{type: :string}}
+       }},
+    responses: [no_content: "set"]
+  )
+
+  def set_gitea_password(%{assigns: %{principal: p}} = conn, params) do
+    case Oneiroi.SimaQian.gitea_set_password(p.account_id, p.email, params["password"]) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, %{kind: :sima_qian_gitea_off} = e} -> error(conn, 503, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   operation(:revoke_github_token,
     summary: "Revoke the stored GitHub read token; reads go anonymous",
     responses: [no_content: "revoked"]

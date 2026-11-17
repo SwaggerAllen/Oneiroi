@@ -5,6 +5,7 @@ import type { Adapter, ReaderSites, ResearchQuestion } from '../../api/types';
 import { useSubject } from '../state/resident';
 import { Card, Confirm, Field, Said, TextArea } from './common';
 import { ADAPTER, day, lines, NAME, ORIGIN, profileLine, settingsKey } from './logic';
+import { OnYourMac } from './OnYourMac';
 import * as css from './settings.css';
 import { useAct } from './useAct';
 
@@ -33,6 +34,7 @@ export function Connections() {
       <ModelKey />
       <GithubToken />
       <OpsTokens />
+      <OnYourMac />
       <Adapters />
       <Profiles />
       <Reader />

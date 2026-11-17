@@ -46,6 +46,14 @@ it, in the server's own words.
 ## The sections
 
 - **Ledger** (spec §10):
+  - **Keeping <name>** (nisaba#23): the subscription in a line (none
+    yet; paid at $20 a month and when it renews; active with no card
+    behind it; lapsed onto the insurance floor; or cancelled, with the
+    day the resident moves to community custody, never deleted).
+    **Subscribe · $20 a month** while there is no paid one (and not
+    after a cancellation) sends the browser to Stripe's checkout; once
+    paying, **Card, invoices and cancelling ›** sends it to Stripe's own
+    page. Both come back to this page;
   - your key's state, with "Rotate it" / "Store one" opening
     Profiles, keys and connections, where the key is kept;
   - budget lines per purpose, with spent of cap ("no limit" when it has
@@ -79,6 +87,16 @@ it, in the server's own words.
     hidden from everyone else: the live ones by label with revoke on a
     second tap, and "Make a token" with a label, the token shown once
     with Copy and "I've saved it";
+  - **On your Mac** (dioscuri#8): her writing room and her reader, the
+    same two steps for every resident. "Set up the writing room" or
+    "Set up the reader" registers the token (`writing-room` as brain,
+    `scrape` as reader), shows it once with "Copy the token", then the
+    one command with "Copy the command" (`bash <(curl -fsSL
+    <here>/setup.sh) writer|reader --slug <her slug> --resident <her id>`,
+    never the token, which the script asks for), then what to do once it
+    has run. The reader takes her Substack handle and address,
+    optional, into its command. One already set up says since when and
+    offers to set it up again, which replaces its token;
   - what holds a token for her (xenia#11): connected adapters with their
     role in words, revoke on a second tap; "Connect something new" with
     a name and a role (brain, reader, worker) issues a token shown once
@@ -152,6 +170,10 @@ it, in the server's own words.
     each night, the last push that landed (its day, event and commit),
     or that none has; a URL and, for a private repository, a token
     (stored encrypted, never shown again), "Set" or "Change";
+  - your repositories on Gitea (sima-qian#55): where to sign in, as
+    which user, and each repository you can read, linked; a password
+    for Gitea (twelve characters or more), set here and never shown
+    back. Before the server is set up, a line saying so;
   - bring conversations from ChatGPT (sima-qian#47): the export's zip,
     sent whole as the request's body, and what came across in a line:
     conversations, messages, the gaps and the report's path in the
@@ -193,6 +215,7 @@ it, in the server's own words.
 | Routes | `routes`, `defineRoute`, `askRoute` | Kinds and routes |
 | Routes | `setProfile`, `revokeProfile`, `restoreProfile` | Profiles, keys and connections |
 | Connections | `adapters`, `registerAdapter`, `revokeAdapter` | Profiles, keys and connections |
+| On your Mac | `adapters`, `registerAdapter` | Profiles, keys and connections |
 | Connections | `reader`, `setReader`, `research`, `askResearch` | Profiles, keys and connections |
 | GitHub token | `me` (github), `storeGithubToken`, `revokeGithubToken` | Profiles, keys and connections |
 | Notifications | `pushConfig`, `subscribePush`, `unsubscribePush`, `testPush` | Notifications |
@@ -201,8 +224,9 @@ it, in the server's own words.
 | (new here) | `suggestTrials` | Regression |
 | Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
 | (new) | `holdWork` | Work queue |
-| (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport` | Backups, imports and reports |
+| (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport`, `gitea`, `setGiteaPassword` | Backups, imports and reports |
 | (new) | `discardResident` | Delete this resident |
+| (new) | `subscription`, `checkout`, `billingPortal` | Ledger |
 | (new) | `presence`, `setPresence`, `refreshFollows`, `excludeAccount`, `includeAccount`, `decideInteraction` | Substack presence |
 
 Not built:

@@ -78,6 +78,8 @@ defmodule Oneiroi.AgathosDaimon do
       Events.RootMismatchDetected,
       Events.RecordsRemoteSet,
       Events.SeedFileWritten,
+      Events.IdentityFileRetired,
+      Events.IdentityFileRestored,
       Events.GiftReadGiven,
       Commands.RecordGiftRead,
       Store.GiftRead,
@@ -186,6 +188,8 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.RootMismatchDetected, 1},
       {Oneiroi.AgathosDaimon.Events.RecordsRemoteSet, 1},
       {Oneiroi.AgathosDaimon.Events.SeedFileWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.IdentityFileRetired, 1},
+      {Oneiroi.AgathosDaimon.Events.IdentityFileRestored, 1},
       {Oneiroi.AgathosDaimon.Events.GiftReadGiven, 1},
       {Oneiroi.AgathosDaimon.Events.FirstContact, 1},
       {Oneiroi.AgathosDaimon.Events.SoulEditProposed, 1},
@@ -252,6 +256,9 @@ defmodule Oneiroi.AgathosDaimon do
          "choose another slug; a slug is the prefix every citation carries and cannot be shared"},
       {:agathos_daimon_not_witnessed, "the account does not witness that resident",
        remedy: "only the current witness acts on a resident"},
+      {:agathos_daimon_not_yours,
+       "only the resident takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50)",
+       remedy: "she does it from her own turn, with identity_file_retire"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
        remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
@@ -372,7 +379,7 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_dispatch_failed,
        "the command was not recorded: the command bus refused it or failed before the resident decided",
        remedy:
-         "the cause names the class: refused is a command without its actor, instant or note, a bug in the caller; anything else is the event store's, and the site names the call"}
+         "the cause names the class: refused is a command without its actor, instant or note, or with a field past its bound (`text_too_long` and its kin name the field; a state line is at most 2,000 characters), a bug in the caller or an over-long value; anything else is the event store's, and the site names the call"}
     ]
   end
 
@@ -506,6 +513,13 @@ defmodule Oneiroi.AgathosDaimon do
 
   @doc "The soul file's live lines in order, each with its number, its words and the seeds it cites (spec §6.17)."
   defexport(soul_lines(id), do: Files.soul_lines(id))
+
+  @doc "She takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50), with a note."
+  @spec retire_identity_file(String.t(), String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(retire_identity_file(id, file, retire?, note, actor),
+    do: Files.retire(id, file, retire?, note, actor)
+  )
 
   @doc "The identity files a witness may write."
   @spec identity_files() :: [String.t()]

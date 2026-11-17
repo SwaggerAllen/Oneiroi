@@ -28,10 +28,10 @@ defmodule Oneiroi.SimaQian.Originals do
   alias Oneiroi.Actor
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
-  alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Import
+  alias Oneiroi.SimaQian.Repos
 
   @default_paths ["memory/*.md", "memory/dreaming/**", "MEMORY.md", "DREAMS.md"]
   @folder "memory/"
@@ -58,17 +58,22 @@ defmodule Oneiroi.SimaQian.Originals do
   # sobelow_skip ["Traversal.FileModule"]
   def run(resident_id, request, %Actor{kind: :witness} = actor, write) do
     tmp = Path.join(System.tmp_dir!(), "oneiroi-originals-#{System.unique_integer([:positive])}")
+    # The files are placed and verified here, then committed through the
+    # repositories' port in one commit (sima-qian#57).
+    dir = tmp <> "-placed"
+    repo = {:resident, resident_id}
 
     try do
       with {:ok, source, commit, patterns} <- request(request),
            :ok <- Import.scheme_ok(source),
            :ok <- Git.fetch_commit(remote(source, request[:token]), commit, tmp),
            {:ok, tree} <- Git.tree(tmp, commit),
-           {:ok, dir} <- Backup.repository_dir(resident_id) do
+           {:ok, head} <- Repos.snapshot(repo) do
         {chosen, skipped} = choose(tree, patterns)
-        {placed, refused} = place(tmp, dir, chosen, write)
+        {placed, refused} = place(tmp, dir, head, chosen, write)
 
         with :ok <- verify(tmp, dir, placed),
+             {:ok, _} <- commit_placed(repo, dir, placed, source, commit, actor),
              provenance = provenance(Git.public_url(source), commit),
              files = Enum.map(placed, &%{path: &1.dest, provenance: provenance.(&1)}),
              {:ok, adopted} <- library().adopt_originals(resident_id, files, actor) do
@@ -88,11 +93,25 @@ defmodule Oneiroi.SimaQian.Originals do
       end
     after
       File.rm_rf(tmp)
+      File.rm_rf(dir)
     end
   end
 
   def run(_resident_id, _request, %Actor{}, _write),
     do: {:error, Error.new(:sima_qian_not_the_witness, :sima_qian_originals_witness_only)}
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp commit_placed(repo, dir, placed, source, commit, actor) do
+    changes =
+      for p <- placed, p.written, do: {:create, p.dest, File.read!(Path.join(dir, p.dest))}
+
+    Repos.write(
+      repo,
+      changes,
+      "Originals: #{Git.public_url(source)} at #{String.slice(commit, 0, 12)}",
+      Repos.author(actor)
+    )
+  end
 
   defp request(request) do
     source = request[:source]
@@ -185,15 +204,15 @@ defmodule Oneiroi.SimaQian.Originals do
   # same bytes stand (a re-run changes nothing), other bytes are refused
   # and never overwritten.
   # sobelow_skip ["Traversal.FileModule"]
-  defp place(tmp, dir, chosen, write) do
+  defp place(tmp, dir, head, chosen, write) do
     Enum.reduce(chosen, {[], []}, fn entry, {placed, refused} ->
       full = Path.join(dir, entry.dest)
 
       cond do
-        File.exists?(full) and Git.blob_sha(tmp, full) == {:ok, entry.blob} ->
+        Map.get(head, entry.dest) == entry.blob ->
           {placed ++ [Map.put(entry, :written, false)], refused}
 
-        File.exists?(full) ->
+        Map.has_key?(head, entry.dest) ->
           {placed,
            refused ++
              [{entry.dest, "in the repository already with other bytes; not overwritten"}]}
@@ -213,7 +232,10 @@ defmodule Oneiroi.SimaQian.Originals do
   # sobelow_skip ["Traversal.FileModule"]
   defp verify(tmp, dir, placed) do
     mismatched =
-      for p <- placed, Git.blob_sha(tmp, Path.join(dir, p.dest)) != {:ok, p.blob}, do: p.dest
+      for p <- placed,
+          p.written,
+          Git.blob_sha(tmp, Path.join(dir, p.dest)) != {:ok, p.blob},
+          do: p.dest
 
     if mismatched == [] do
       :ok

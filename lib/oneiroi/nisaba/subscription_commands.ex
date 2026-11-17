@@ -29,6 +29,10 @@ defmodule Oneiroi.Nisaba.SubscriptionCommands do
     use Oneiroi.Command, fields: [:id, :axis, :bucket]
   end
 
+  defmodule LinkBilling do
+    use Oneiroi.Command, fields: [:id, :customer, :subscription]
+  end
+
   defmodule RecordLapseTold do
     use Oneiroi.Command, fields: [:id]
   end

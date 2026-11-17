@@ -140,13 +140,61 @@ defmodule OneiroiWeb.SubscriptionController do
 
   # ---- shapes ----
 
+  # The provider's ids stay on the server; the client is told only
+  # whether a payment stands behind the subscription (nisaba#23).
   defp subscription(s) do
     s
+    |> Map.drop([:billing_customer_id, :billing_subscription_id])
     |> Map.put(:started, true)
     |> Map.put(:price, Money.to_usd(s.price_nanos))
+    |> Map.put(:paying, is_binary(s.billing_subscription_id))
   end
 
   # Every route here but the buckets is a resident's, read or written by its witness.
+  operation(:checkout,
+    summary:
+      "The payment provider's checkout page for this resident's subscription (nisaba#23): $20 a month, Stripe-hosted; its URL, to send the browser to",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the page", "application/json", %Schema{type: :object}}]
+  )
+
+  def checkout(%{assigns: %{principal: p}} = conn, %{"id" => id}) do
+    with {:ok, resident} <- Oneiroi.AgathosDaimon.fetch(id),
+         {:ok, url} <-
+           Nisaba.billing_checkout(
+             id,
+             resident.name,
+             %{account_id: p.account_id, email: p.email},
+             back(conn)
+           ) do
+      json(conn, %{url: url})
+    else
+      {:error, %{kind: :nisaba_billing_off} = e} -> error(conn, 503, e)
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:portal,
+    summary:
+      "The payment provider's own page for this resident's card, invoices and cancelling (nisaba#23); its URL",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the page", "application/json", %Schema{type: :object}}]
+  )
+
+  def portal(conn, %{"id" => id}) do
+    case Nisaba.billing_portal(id, back(conn)) do
+      {:ok, url} -> json(conn, %{url: url})
+      {:error, %{kind: :nisaba_billing_off} = e} -> error(conn, 503, e)
+      {:error, %{kind: _} = e} -> error(conn, 422, e)
+    end
+  end
+
+  # Back to the Ledger page the witness left from. The endpoint is read
+  # off the conn: naming it here would close a compile cycle through the
+  # router.
+  defp back(conn),
+    do: endpoint_module(conn).url() <> "/client/index.html#/settings/ledger"
+
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,

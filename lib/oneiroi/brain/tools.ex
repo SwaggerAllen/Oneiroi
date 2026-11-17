@@ -80,7 +80,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
@@ -353,6 +353,16 @@ defmodule Oneiroi.Brain.Tools do
           to: %{type: "string"}
         },
         [:q]
+      ),
+      tool(
+        "identity_file_retire",
+        "Take one of your identity files (USER.md, GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
+        %{
+          file: %{type: "string", enum: ["USER.md", "GOALS.md", "LINKS.md"]},
+          note: %{type: "string"},
+          restore: %{type: "boolean"}
+        },
+        [:file, :note]
       ),
       tool(
         "soul_edit",
@@ -731,8 +741,12 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_read",
-        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. Any of yours, in any domain: a deliberate read is never scoped.",
-        %{session: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        "Read one of your conversations by its key (a free-time run's, a search hit's [session/turn], a citation's transcript/<session>), oldest first, a page at a time; `from` is where the next page starts, as the page says. With `message` (the turn part of a search hit's [session/turn], or of a citation's transcript/<session>/<turn>), that turn's messages whole, uncut, with the message before and after them for context. Any of yours, in any domain: a deliberate read is never scoped.",
+        %{
+          session: %{type: "string"},
+          from: %{type: "integer", minimum: 0},
+          message: %{type: "string"}
+        },
         [:session]
       ),
       tool(
@@ -941,8 +955,8 @@ defmodule Oneiroi.Brain.Tools do
       # pointed at the repository the household shares.
       tool(
         "household_read",
-        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Your own memory stays in your own repository; the household holds what its members make together.",
-        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}, at: %{type: "string"}},
         []
       ),
       tool(
@@ -1958,6 +1972,22 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("identity_file_retire", args, turn) do
+    file = to_string(args["file"])
+    restore? = args["restore"] == true
+
+    case Oneiroi.AgathosDaimon.retire_identity_file(
+           turn.resident_id,
+           file,
+           not restore?,
+           to_string(args["note"] || ""),
+           turn.resident
+         ) do
+      :ok -> retired_text(file, restore?)
+      other -> other
+    end
+  end
+
   defp call("soul_edit", args, turn) do
     with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.write_file(
@@ -2495,9 +2525,15 @@ defmodule Oneiroi.Brain.Tools do
 
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
     # of hers, in any domain.
-    case Kumbukumbu.transcript({:resident, turn.resident_id}, key) do
-      {:ok, session, messages} -> transcript_page(session, messages, from)
-      _ -> "Not done: no conversation of yours has that key."
+    case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
+      {{:ok, session, messages}, ref} when is_binary(ref) and ref != "" ->
+        transcript_message(session, messages, ref)
+
+      {{:ok, session, messages}, _none} ->
+        transcript_page(session, messages, from)
+
+      _ ->
+        "Not done: no conversation of yours has that key."
     end
   end
 
@@ -2714,14 +2750,23 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("state_set", args, turn) do
-    case AgathosDaimon.set_state_line(
-           turn.resident_id,
-           to_string(args["key"] || ""),
-           args["text"],
-           turn.resident
-         ) do
-      :ok -> "The #{args["key"]} line is written, verified now."
-      other -> other
+    text = args["text"]
+
+    # The bound is the command's (2,000 characters), said here in words:
+    # the command bus's refusal names only its class, which read as a
+    # missing actor (letter #1011, 2026-11-16).
+    if is_binary(text) and String.length(text) > 2000 do
+      "#{@not_done}a state line is at most 2,000 characters, and this one is #{String.length(text)}; shorten it and write it again."
+    else
+      case AgathosDaimon.set_state_line(
+             turn.resident_id,
+             to_string(args["key"] || ""),
+             text,
+             turn.resident
+           ) do
+        :ok -> "The #{args["key"]} line is written, verified now."
+        other -> other
+      end
     end
   end
 
@@ -3032,7 +3077,9 @@ defmodule Oneiroi.Brain.Tools do
     path = blank(args["path"])
 
     with {:ok, from} <- offset(args["from"]) do
-      if path, do: household_page(turn, path, from), else: household_shelf(turn, from)
+      if path,
+        do: household_page(turn, path, blank(args["at"]), from),
+        else: household_shelf(turn, from)
     end
   end
 
@@ -3536,6 +3583,9 @@ defmodule Oneiroi.Brain.Tools do
   # have minted already. Nothing is run. The tools whose success is `:ok`
   # answer "Done.", as `text/1` renders it.
 
+  defp answered("identity_file_retire", args, turn),
+    do: {retired_text(to_string(args["file"]), args["restore"] == true), turn}
+
   defp answered("position_take", _args, turn) do
     {n, turn} = mint(turn, "position", highest(Eunomia.positions(turn.resident_id)))
     {"Position ##{n} taken.", turn}
@@ -3729,6 +3779,12 @@ defmodule Oneiroi.Brain.Tools do
   defp seed_number(n) when is_integer(n) and n > 0, do: n
   defp seed_number(_none), do: nil
 
+  defp retired_text(file, true), do: "#{file} is given every turn again, from your next turn."
+
+  defp retired_text(file, false),
+    do:
+      "#{file} is out of what you are given every turn, from your next turn; it stays in your repository, and restore: true puts it back."
+
   defp text(:ok), do: "Done."
   defp text(text) when is_binary(text), do: text
   # Meaning and remedy as two sentences: joined by a space they read as
@@ -3841,7 +3897,7 @@ defmodule Oneiroi.Brain.Tools do
       end)
 
     """
-    Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{s.share} each before anyone repeats, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
+    Your household's beats. Each is #{s.beat} minutes, beginning #{b.phase_minutes} minutes past each #{s.beat}-minute mark; sign-up runs #{s.signup} minutes from the top, then turns fire one after another, the most starved first, #{share_words(s.share)}, at most #{s.cap} a beat; a turn's guideline is #{s.turn} minutes. Post quota: #{s.quota} posts (threads and replies; never a vote, never a document) in any #{s.window} hours, for every member.
     The beat now began #{local_stamp(b.beat.top)}; sign-up closes #{local_stamp(b.beat.signup_closes)}; it ends #{local_stamp(b.beat.ends)}. #{b.beat.turns_fired} of #{s.cap} turns fired. #{open}
     The queue of the beat now:
     #{queue}
@@ -3882,8 +3938,14 @@ defmodule Oneiroi.Brain.Tools do
   defp ballot_word(b), do: ", ballot ##{b.number} failed"
 
   # One thing on the household's shelf, paged as a library document is.
-  defp household_page(turn, path, from) do
-    with {:ok, doc} <- Seshat.household_read(turn.resident, path) do
+  defp household_page(turn, path, at, from) do
+    read =
+      case Seshat.house_citation(path) do
+        {:ok, cite} -> Seshat.household_read_cited(turn.resident, cite)
+        :error -> Seshat.household_read(turn.resident, path, at: at)
+      end
+
+    with {:ok, doc} <- read do
       total = String.length(doc.content)
 
       if from > 0 and from >= total,
@@ -3903,8 +3965,17 @@ defmodule Oneiroi.Brain.Tools do
         else:
           "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; household_read with this path and from: #{from + size} reads the next page."
 
-    head <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
+    head <> cite_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
   end
+
+  # How to cite what was read (gaia#44, sima-qian#61), and what changed
+  # since a pinned read; nothing to cite until the house is named.
+  defp cite_line(%{cited_as: nil}),
+    do: " (A witness names the house before its threads can be cited.)"
+
+  defp cite_line(%{cited_as: cite, since: nil}), do: " Cite as #{cite}."
+  defp cite_line(%{cited_as: cite, since: since}), do: " Cite as #{cite}; #{since}."
+  defp cite_line(_doc), do: ""
 
   # A page of a document: a header naming the path, the kind, the bytes
   # and which characters these are, with the call that reads the next;
@@ -4327,11 +4398,51 @@ defmodule Oneiroi.Brain.Tools do
 
   @transcript_page 30
   @transcript_message_chars 2_000
+  # A message read whole: past this it is a paste, and says how much more.
+  @transcript_whole_chars 60_000
 
   # A time the source never carried is said to be unknown (kumbukumbu#50),
   # never shown as the stand-in that only keeps the order.
   defp when_said(%{instant_inferred: true}), do: "time unknown"
   defp when_said(m), do: local_stamp(m.sent_at)
+
+  # One turn whole (the witness, 2026-11-16: "one extra tool call as
+  # opposed to a full-on oracle search", brain#104): every message the
+  # turn's ref names, uncut, and the one either side cut as a page cuts
+  # them, so the question it answered is in view.
+  defp transcript_message(session, messages, ref) do
+    case for({m, i} <- Enum.with_index(messages), m.turn_ref == ref, do: i) do
+      [] ->
+        "Not done: conversation #{session.key} has no message #{ref}; a search hit's [session/turn] names one."
+
+      [first | _] = at ->
+        last = List.last(at)
+
+        before =
+          if first > 0, do: [context_line("before", Enum.at(messages, first - 1))], else: []
+
+        next = Enum.at(messages, last + 1)
+        after_ = if next, do: [context_line("after", next)], else: []
+
+        whole =
+          for i <- at do
+            m = Enum.at(messages, i)
+
+            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{i + 1} of #{length(messages)}, whole:\n" <>
+              Cut.cut(m.content || "", @transcript_whole_chars)
+          end
+
+        Enum.join(
+          ["Conversation #{session.key} (#{session.kind})"] ++ before ++ whole ++ after_,
+          "\n\n"
+        )
+    end
+  end
+
+  defp context_line(side, m),
+    do:
+      "(#{side}) [#{m.turn_ref}] #{m.role}, #{when_said(m)}: " <>
+        Cut.cut(m.content || "", @transcript_message_chars)
 
   defp transcript_page(session, messages, from) do
     page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)
@@ -4915,4 +5026,12 @@ defmodule Oneiroi.Brain.Tools do
       "\n"
     )
   end
+
+  # How many turns a member takes in a beat (gaia#35, #42).
+  defp share_words(1), do: "one each"
+
+  defp share_words("many"),
+    do: "as many as the beat holds, everyone once before anyone repeats, never twice in a row"
+
+  defp share_words(n), do: "#{n} each, everyone once before anyone repeats, never twice in a row"
 end

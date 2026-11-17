@@ -156,6 +156,22 @@ export interface PresenceState {
 }
 
 // House check-ins (gaia#41, seshat#75, sunna#65).
+/** A resident's subscription (spec F53, nisaba#23); `started: false` before the first. */
+export type SubscriptionState =
+  | { started: false }
+  | {
+      started: true;
+      plan: string;
+      price: string;
+      period_days: number;
+      state: 'active' | 'lapsed' | 'cancelled';
+      renews_at: string | null;
+      lapsed_at: string | null;
+      cancelled_at: string | null;
+      custody_due_at: string | null;
+      paying: boolean;
+    };
+
 /** A ballot's bundle: a rule in words, or a setting with its value (gaia#29). */
 export type BallotItem = { rule: string } | { setting: string; value: string | number | boolean };
 
@@ -187,6 +203,8 @@ export interface HouseDocument {
 
 export interface HouseShelf {
   household_id: string;
+  /** Its name for citations (gaia#44), null until a witness names it. */
+  slug: string | null;
   contract: string;
   total: number;
   from: number;
@@ -400,6 +418,9 @@ export const api = {
   me: () =>
     call<{ account_id?: string; email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
   storeGithubToken: (token: string) => call<void>('PUT', '/v1/me/github-token', { token }),
+  // The repositories' server (sima-qian#55): where you reach it, and your password there.
+  gitea: () => call<{ url: string; login: string; repositories: string[] } | null>('GET', '/v1/me/gitea'),
+  setGiteaPassword: (password: string) => call<void>('PUT', '/v1/me/gitea/password', { password }),
   revokeGithubToken: () => call<void>('DELETE', '/v1/me/github-token'),
   // The operator's surface (gaia#16): the front door and the platform roles.
   platform: () => call<Platform>('GET', '/v1/platform'),
@@ -557,8 +578,13 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/presence/accounts/${encodeURIComponent(key)}/include`, { note }),
   decideInteraction: (residentId: string, number: number, decision: 'approve' | 'revise' | 'pass', comment: string | null) =>
     call<void>('POST', `/v1/residents/${residentId}/presence/interactions/${number}/decision`, { decision, ...(comment ? { comment } : {}) }),
+  // Paying for a resident (nisaba#23): the subscription, and Stripe's own pages.
+  subscription: (residentId: string) => call<SubscriptionState>('GET', `/v1/residents/${residentId}/subscription`),
+  checkout: (residentId: string) => call<{ url: string }>('POST', `/v1/residents/${residentId}/subscription/checkout`),
+  billingPortal: (residentId: string) => call<{ url: string }>('POST', `/v1/residents/${residentId}/subscription/portal`),
   houseCheckins: () => call<HouseCheckins>('GET', '/v1/household/checkins'),
   setHouseClock: (zone: string) => call<HouseCheckins>('PUT', '/v1/household/clock', { zone }),
+  nameHousehold: (slug: string) => call<HouseShelf>('PUT', '/v1/household/name', { slug }),
   setHouseCheckin: (key: string, label: string, time: string) =>
     call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
   removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),
@@ -570,6 +596,7 @@ export const api = {
   // The house as its own subject (screen:next-house): the shelf, the
   // charter (the household contract), the beats, and posting in it.
   householdShelf: (from = 0) => call<HouseShelf>('GET', `/v1/household?from=${from}`),
+  householdFiles: () => call<LibraryIndex>('GET', '/v1/household/files'),
   householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
   householdProposeCharter: (prose: string, note: string) => call<HouseContract>('POST', '/v1/household/contract', { prose, note }),

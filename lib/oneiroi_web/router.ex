@@ -38,6 +38,32 @@ defmodule OneiroiWeb.Router do
     post("/", MCPController, :rpc)
   end
 
+  # The payment provider's webhook (nisaba#23) and Gitea's (sima-qian#59):
+  # no session, no bearer and no Origin, since neither sends one; the
+  # signature is the check.
+  pipeline :webhook do
+    plug(:accepts, ["json"])
+    plug(OneiroiWeb.Plugs.SecureHeaders)
+  end
+
+  scope "/v1/billing", OneiroiWeb do
+    pipe_through(:webhook)
+    post("/stripe", BillingController, :stripe)
+  end
+
+  # Setting a resident up on a Mac (dioscuri#8): the bootstrap and its
+  # kit, public, holding nothing of anyone's.
+  scope "/", OneiroiWeb do
+    get("/setup.sh", SetupController, :script)
+    get("/setup/kit.tar.gz", SetupController, :kit)
+  end
+
+  # Gitea's system webhook (sima-qian#59): signed with its secret.
+  scope "/v1/repos", OneiroiWeb do
+    pipe_through(:webhook)
+    post("/gitea", ReposController, :gitea)
+  end
+
   scope "/v1", OneiroiWeb do
     pipe_through(:api)
 
@@ -58,6 +84,8 @@ defmodule OneiroiWeb.Router do
       delete("/me/key", MeController, :revoke_key)
       put("/me/github-token", MeController, :store_github_token)
       delete("/me/github-token", MeController, :revoke_github_token)
+      get("/me/gitea", MeController, :gitea)
+      put("/me/gitea/password", MeController, :set_gitea_password)
       get("/me/push", MeController, :push)
       post("/me/push", MeController, :subscribe_push)
       delete("/me/push", MeController, :unsubscribe_push)
@@ -66,6 +94,7 @@ defmodule OneiroiWeb.Router do
       post("/me/invite", MeController, :redeem_invite)
       get("/household", HouseholdController, :shelf)
       get("/household/read", HouseholdController, :read)
+      get("/household/files", HouseholdController, :files)
       get("/household/contract", HouseholdController, :contract)
       post("/household/contract", HouseholdController, :propose)
       post("/household/contract/signature", HouseholdController, :sign)
@@ -76,6 +105,7 @@ defmodule OneiroiWeb.Router do
       put("/household/beats/profile", HouseholdController, :profile)
       get("/household/checkins", HouseholdController, :checkins)
       put("/household/clock", HouseholdController, :clock)
+      put("/household/name", HouseholdController, :name)
       put("/household/checkins/:key", HouseholdController, :set_checkin)
       delete("/household/checkins/:key", HouseholdController, :remove_checkin)
       get("/creation/gifts", CreationController, :gifts)
@@ -300,6 +330,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/subscription/lapse", SubscriptionController, :lapse)
       post("/residents/:id/subscription/cancel", SubscriptionController, :cancel)
       post("/residents/:id/subscription/prepay", SubscriptionController, :prepay)
+      post("/residents/:id/subscription/checkout", SubscriptionController, :checkout)
+      post("/residents/:id/subscription/portal", SubscriptionController, :portal)
       get("/residents/:id/library", LibraryController, :index)
       get("/residents/:id/library/search", LibraryController, :search)
       get("/residents/:id/library/cited-by", LibraryController, :cited_by)

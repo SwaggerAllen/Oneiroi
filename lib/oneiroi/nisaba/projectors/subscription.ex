@@ -61,6 +61,10 @@ defmodule Oneiroi.Nisaba.Projectors.Subscription do
 
   fold(%Events.LapseTold{} = e, _metadata, fn multi -> set(multi, e.id, lapse_told: true) end)
 
+  fold(%Events.BillingLinked{} = e, _metadata, fn multi ->
+    set(multi, e.id, billing_customer_id: e.customer, billing_subscription_id: e.subscription)
+  end)
+
   defp set(multi, id, fields) do
     Multi.update_all(multi, {:set, fields}, from(s in Subscription, where: s.resident_id == ^id),
       set: fields

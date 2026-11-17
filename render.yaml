@@ -89,6 +89,95 @@ services:
           name: honcho-api
           type: pserv
           envVarKey: AUTH_JWT_SECRET
+      # The repositories' server (sima-qian#55): Gitea's public URL and
+      # an admin token, typed in the dashboard once the admin exists
+      # (SETUP.md, Gitea). Unset, nothing is sent to Gitea.
+      - key: SIMA_QIAN_GITEA_URL
+        sync: false
+      - key: SIMA_QIAN_GITEA_TOKEN
+        sync: false
+      # `gitea` once the two above are set (SETUP.md, Gitea): the next
+      # boot moves every repository on the records disk to Gitea, history
+      # and all, and from then Gitea is the source of truth (sima-qian#57,
+      # #58). Unset, the records disk is.
+      - key: SIMA_QIAN_REPOS
+        sync: false
+
+  # Gitea, the repositories' server (sima-qian#55, #57; the witness,
+  # 2026-11-16: "a separate render service with its own disk", "use
+  # Postgres from the get go"). The source of truth for every household's
+  # and resident's repository: the core reads and writes through its API.
+  # Witnesses sign in to read their own. The official image at a pinned
+  # version, so an upgrade is a commit here. Its records (users, orgs,
+  # tokens) are on Oneiroi's database, in the `gitea` schema as the role
+  # `oneiroi_gitea` (the migration of 11-16 makes both, as Honcho's does);
+  # the git objects are on its own disk. Sign-up is off and every page
+  # wants a signed-in user: the core makes the users.
+  - type: web
+    name: oneiroi-git
+    runtime: image
+    image:
+      url: docker.io/gitea/gitea:1.22.6
+    plan: 0.5c-512mb
+    region: oregon
+    healthCheckPath: /api/healthz
+    autoDeployTrigger: "off"
+    # The URL split by the shell (user, password, host, database), the
+    # role taken through PGOPTIONS, then the image's own entrypoint and
+    # command. Unquoted after `-c`, for the reason on honcho-api's.
+    # Measured locally on 11-16 with this script and image: healthy, its
+    # tables in `gitea`, its state kept across a new container.
+    dockerCommand: >-
+      /bin/sh -c u="${DATABASE_URL#*://}"; c="${u%%@*}"; r="${u#*@}"; d="${r#*/}";
+      export GITEA__database__DB_TYPE=postgres GITEA__database__USER="${c%%:*}"
+      GITEA__database__PASSWD="${c#*:}" GITEA__database__HOST="${r%%/*}"
+      GITEA__database__NAME="${d%%\?*}" GITEA__database__SSL_MODE=disable
+      PGOPTIONS="-c role=oneiroi_gitea";
+      exec /usr/bin/entrypoint /bin/s6-svscan /etc/s6
+    disk:
+      name: oneiroi-git
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: GITEA__server__HTTP_PORT
+        value: "3000"
+      # Its own address, as the browser sees it: set in the dashboard to
+      # the service's onrender.com URL (or a domain), with a trailing /.
+      - key: GITEA__server__ROOT_URL
+        sync: false
+      # Render serves HTTPS only; git goes over it with a token.
+      - key: GITEA__server__DISABLE_SSH
+        value: "true"
+      # The database's URL split into Gitea's settings (it takes no URL),
+      # in the start command above.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oneiroi-db
+          property: connectionString
+      - key: GITEA__database__SCHEMA
+        value: gitea
+      # Its share of the database's connections; the core's pool and
+      # Honcho's take the rest.
+      - key: GITEA__database__MAX_OPEN_CONNS
+        value: "5"
+      - key: GITEA__database__MAX_IDLE_CONNS
+        value: "2"
+      - key: GITEA__security__INSTALL_LOCK
+        value: "true"
+      - key: GITEA__security__SECRET_KEY
+        generateValue: true
+      - key: GITEA__security__INTERNAL_TOKEN
+        generateValue: true
+      - key: GITEA__service__DISABLE_REGISTRATION
+        value: "true"
+      - key: GITEA__service__REQUIRE_SIGNIN_VIEW
+        value: "true"
+      - key: GITEA__repository__DEFAULT_BRANCH
+        value: main
+      - key: GITEA__repository__DEFAULT_PRIVATE
+        value: private
 
   # Honcho (spec §6.9), from its upstream repository, built from its own
   # Dockerfile, on Oneiroi's database (proteus#17). The deploy is never

@@ -23,7 +23,7 @@ defmodule Oneiroi.Seshat.Scenes do
   alias Oneiroi.Seshat.SceneCommands, as: Commands
   alias Oneiroi.Seshat.SceneRouter, as: Router
   alias Oneiroi.Seshat.Store
-  alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Repos
   alias Oneiroi.Sunna
 
   @writing ~w(title from_turn to_turn from_time to_time summary mood rounds_ran_out register people)
@@ -404,12 +404,12 @@ defmodule Oneiroi.Seshat.Scenes do
   def backfill(resident_id, %Actor{} = actor, opts \\ []) do
     zone = Local.zone(resident_id)
 
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
+    with {:ok, files} <- Repos.snapshot({:resident, resident_id}) do
       had = resident_id |> days(nil, nil) |> MapSet.new(& &1.day)
 
       result =
-        dir
-        |> files()
+        resident_id
+        |> files(files)
         |> Enum.reduce(%{rows: [], prose: [], skipped: []}, fn {day, file}, acc ->
           backfill_day(resident_id, day, file, zone, had, actor, opts, acc)
         end)
@@ -418,10 +418,9 @@ defmodule Oneiroi.Seshat.Scenes do
     end
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp backfill_day(resident_id, day, file, zone, had, actor, opts, acc) do
+  defp backfill_day(resident_id, day, text, zone, had, actor, opts, acc) do
     with false <- MapSet.member?(had, day),
-         {:ok, scenes} <- parse(day, File.read!(file), zone) do
+         {:ok, scenes} <- parse(day, text, zone) do
       if opts[:dry_run] != true, do: :ok = write_parsed(resident_id, day, scenes, actor)
       %{acc | rows: [{day, length(scenes)} | acc.rows]}
     else
@@ -454,20 +453,14 @@ defmodule Oneiroi.Seshat.Scenes do
     with :ok <- close(resident_id, day, actor), do: render_day(resident_id, day, actor)
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp files(dir) do
-    folder = Path.join(dir, "scenes")
+  # Each day's scenes file in the repository (sima-qian#57), with its words.
+  defp files(resident_id, files) do
+    repo = {:resident, resident_id}
 
-    case File.ls(folder) do
-      {:ok, names} ->
-        for name <- Enum.sort(names),
-            [_, day] <- [Regex.run(~r/\A(\d{4}-\d{2}-\d{2})\.md\z/, name)],
-            match?({:ok, _}, Date.from_iso8601(day)),
-            do: {day, Path.join(folder, name)}
-
-      {:error, _absent} ->
-        []
-    end
+    for path <- Repos.under(files, "scenes"),
+        [_, day] <- [Regex.run(~r/\Ascenes\/(\d{4}-\d{2}-\d{2})\.md\z/, path)],
+        match?({:ok, _}, Date.from_iso8601(day)),
+        do: {day, Repos.at(repo, files, path)}
   end
 
   @ref ~r/[\[`]([A-Za-z0-9_-]{16})[\]`]/

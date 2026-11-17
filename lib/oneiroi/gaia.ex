@@ -87,6 +87,7 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdThreadWatched,
       Events.HouseholdWakeProfileSet,
       Events.HouseholdClockSet,
+      Events.HouseholdNamed,
       Events.HouseCheckinSet,
       Events.HouseCheckinRemoved,
       Events.HouseCheckinFired,
@@ -213,6 +214,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
       {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
+      {Oneiroi.Gaia.Events.HouseholdNamed, 1},
       {Oneiroi.Gaia.Events.HouseCheckinSet, 1},
       {Oneiroi.Gaia.Events.HouseCheckinRemoved, 1},
       {Oneiroi.Gaia.Events.HouseCheckinFired, 1},
@@ -300,15 +302,24 @@ defmodule Oneiroi.Gaia do
       {:gaia_watch_invalid,
        "a watch is a thread of the household and a term of 1 to 168 hours, stated every time",
        remedy: "name the thread and how many hours; a day is 24"},
+      {:gaia_household_name_invalid,
+       "a house's name for citations is 2 to 40 lowercase letters, digits and hyphens, starting with a letter (gaia#44)",
+       remedy: "choose one like rookery or the-long-table"},
+      {:gaia_household_named,
+       "a house's name for citations is set once and never changes (gaia#44)",
+       remedy:
+         "every citation of the house names it; its display words can change, its slug cannot"},
+      {:gaia_household_name_taken, "another house already has that name (gaia#44)",
+       remedy: "choose another; a citation must name one house"},
       {:gaia_checkin_invalid,
        "a house check-in has a key (lowercase letters, digits or -), a label and a time HH:MM on the household's clock, which is a zone name; one removed must exist",
        remedy: "name the key, the label and the time, or a zone such as America/Los_Angeles"},
       {:gaia_beats_invalid,
        "the beats are always on (gaia#33): a ballot changes their shape within bounds, never takes them away; a wake profile is every_beat, on_turn or self, and a witness's is self; a resident who is never woken does not register; a turn ends completed, declined, failed or timed_out",
        remedy:
-         "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12, post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
+         "beat_minutes 10 to 1440, turn_minutes 1 to 240 and no longer than the beat, beat_turn_cap 1 to 100, signup_minutes shorter than the beat, turns_per_registrant 1 to 12 or \"many\", post_quota 1 to 1000, post_quota_window_hours 1 to 168; to register, set household_profile to on_turn or every_beat first"},
       {:gaia_beat_closed,
-       "a registration is for one beat to come, or for the beat running only while its sign-up is open, or after it when she has not gone in it, nobody registered for it waits for a first turn and its cap has room (gaia#35, #39)",
+       "a registration is for one beat to come, or for the beat running only while its sign-up is open, or after it while she is under her share in it and a slot is left once every registrant owed a first turn has hers (gaia#35, #39, #42)",
        remedy: "register for the next beat, or a later one by its top"},
       {:gaia_turn_open, "a household turn is open; one runs at a time",
        remedy: "let it end; the next fires as it does"},
@@ -626,6 +637,12 @@ defmodule Oneiroi.Gaia do
   @spec resident_household(String.t()) :: map() | nil
   defexport(resident_household(resident_id), do: Households.resident_household(resident_id))
 
+  @doc "The Gitea instance a household's repositories are on (gaia#43, sima-qian#60), or nil for the primary."
+  @spec household_gitea_instance(String.t()) :: String.t() | nil
+  defexport(household_gitea_instance(household_id),
+    do: Households.gitea_instance(household_id)
+  )
+
   @doc "The household's members by the names the house uses, each with what it signed (gaia#28)."
   @spec household_members(String.t()) :: [map()]
   defexport(household_members(household_id), do: Households.members(household_id))
@@ -729,6 +746,20 @@ defmodule Oneiroi.Gaia do
           checkins: [Oneiroi.Gaia.Store.HouseCheckin.t()]
         }
   defexport(house_checkins(household_id), do: Households.house_checkins(household_id))
+
+  @doc "A witness names the house for citations (gaia#44): a slug, set once, unique among houses."
+  @spec name_household(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(name_household(household_id, slug, actor),
+    do: Households.name(household_id, slug, actor)
+  )
+
+  @doc "The house's slug for citations (gaia#44), or nil while it is unnamed."
+  @spec household_slug(String.t()) :: String.t() | nil
+  defexport(household_slug(household_id), do: Households.slug(household_id))
+
+  @doc "The house a citation's slug names (gaia#44), or nil."
+  @spec household_by_slug(String.t()) :: String.t() | nil
+  defexport(household_by_slug(slug), do: Households.by_slug(slug))
 
   @doc "A witness sets the workspace's own clock (gaia#41)."
   @spec set_household_clock(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

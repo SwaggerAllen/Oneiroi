@@ -28,7 +28,8 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Starts the subscription with the floor policy; the witness's, once."
   def start(resident_id, %{plan: plan, price_nanos: price, period_days: days}, %Actor{} = actor) do
-    with :ok <- witness_only(actor),
+    # The witness's, or the payment provider's checkout on her behalf (nisaba#23).
+    with :ok <- witness_or_job(actor),
          now = Clock.now(),
          {:ok, _} <-
            dispatch(%Commands.Start{
@@ -107,7 +108,8 @@ defmodule Oneiroi.Nisaba.Subscriptions do
 
   @doc "Cancels, with a note: community custody at the end of the policy's term, never a deletion."
   def cancel(resident_id, note, %Actor{} = actor) do
-    with :ok <- witness_only(actor),
+    # The witness's, or the provider's when the subscription ends there (nisaba#23).
+    with :ok <- witness_or_job(actor),
          %{} = row <- subscription_row(resident_id) do
       term = Insurance.resolve(policy_of(row)).term_days
       due = DateTime.add(Clock.now(), term * @day, :second)
@@ -157,6 +159,19 @@ defmodule Oneiroi.Nisaba.Subscriptions do
     end
   end
 
+  @doc "Links the payment provider's customer and subscription to this one (nisaba#23)."
+  def link_billing(resident_id, customer, subscription, %Actor{} = actor) do
+    command = %Commands.LinkBilling{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      customer: customer,
+      subscription: subscription
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
   @doc "Records that the resident was told its policy on wake; once per lapse."
   def lapse_told(resident_id, %Actor{} = actor) do
     with {:ok, _} <-
@@ -185,6 +200,8 @@ defmodule Oneiroi.Nisaba.Subscriptions do
           lapsed_at: row.lapsed_at,
           cancelled_at: row.cancelled_at,
           custody_due_at: row.custody_due_at,
+          billing_customer_id: row.billing_customer_id,
+          billing_subscription_id: row.billing_subscription_id,
           policy: policy,
           policy_values: Insurance.resolve(policy),
           floor: Insurance.floor_policy(),

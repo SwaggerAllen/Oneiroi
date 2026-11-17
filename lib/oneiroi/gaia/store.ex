@@ -145,6 +145,11 @@ defmodule Oneiroi.Gaia.Store do
       field(:terms_note, :string)
       # The workspace's own clock (gaia#41).
       field(:zone, :string, default: "Etc/UTC")
+      # The Gitea instance its repositories are on (gaia#43); nil is the
+      # primary.
+      field(:gitea_instance, :string)
+      # Its name for citations (gaia#44), once set; unique.
+      field(:slug, :string)
     end
   end
 

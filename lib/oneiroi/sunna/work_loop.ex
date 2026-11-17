@@ -299,17 +299,32 @@ defmodule Oneiroi.Sunna.WorkLoop do
   are not spent; then the wrap. Put off while care comes first.
   """
   def turn(resident_id, key, number, n) do
-    with true <- running?(resident_id, number),
+    with true <- running?(resident_id, number, key),
          nil <- care_wait(resident_id),
          {:ok, left} <- allowance(resident_id),
          true <- n <= Config.fetch!(:sunna, :work_turns),
          {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
       carry_on(resident_id, key, number, n, result)
     else
-      false -> :ok
-      wait when is_integer(wait) -> {:snooze, wait}
-      {:error, _} = failed -> close(resident_id, key, number, failed)
-      _spent -> worker().enqueue_wrap(resident_id, key, number)
+      false ->
+        :ok
+
+      wait when is_integer(wait) ->
+        {:snooze, wait}
+
+      # A turn past the wait is still her turn, running in this run's
+      # conversation (brain#97), never a failure (sunna#67): the run goes
+      # on, its next turn queued behind it in the same session. Ending it
+      # here started the item again in a new conversation while this one
+      # still worked it (2026-11-17, item #55 in several at once).
+      {:error, %{kind: :brain_wake_outlasted}} ->
+        carry_on(resident_id, key, number, n, %{rounds_spent: true})
+
+      {:error, _} = failed ->
+        close(resident_id, key, number, failed)
+
+      _spent ->
+        worker().enqueue_wrap(resident_id, key, number)
     end
   end
 
@@ -349,12 +364,18 @@ defmodule Oneiroi.Sunna.WorkLoop do
   buys the next check.
   """
   def wrap_turn(resident_id, key, number) do
-    case running?(resident_id, number) && care_wait(resident_id) do
+    case running?(resident_id, number, key) && care_wait(resident_id) do
       false ->
         :ok
 
       nil ->
-        result = wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning)
+        result =
+          case wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning) do
+            # Outlasted, the wrap still runs on and records itself (sunna#67).
+            {:error, %{kind: :brain_wake_outlasted}} -> {:ok, :outlasted}
+            other -> other
+          end
+
         close(resident_id, key, number, result)
 
       wait ->
@@ -369,13 +390,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
     # A run that ended in an error waits before the next check (sunna#52):
     # the same item would start again at once, fail the same way, and a
     # day's runs went in eight minutes of empty conversations (2026-11-11).
-    case result do
-      {:error, _} ->
-        worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds))
-
-      _ok ->
-        worker().enqueue_check(resident_id)
-    end
+    # A wrap still running (sunna#67) waits the same, so the next check
+    # never finds its item open again before the wrap records it.
+    if waits?(result),
+      do: worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds)),
+      else: worker().enqueue_check(resident_id)
 
     case {result, ended} do
       {{:error, _} = failed, _} -> failed
@@ -383,6 +402,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
       {_ok, failed} -> failed
     end
   end
+
+  defp waits?({:error, _}), do: true
+  defp waits?({:ok, :outlasted}), do: true
+  defp waits?(_ok), do: false
 
   @doc "Whether the tick should ask for a check: the line armed, work open, nothing running."
   def due?(resident_id) do
@@ -439,10 +462,15 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  # Whether item `number` is still the one running: a turn or wrap of a
-  # run that has ended (moved by hand, or stalled and ended) does nothing.
-  defp running?(resident_id, number) do
-    match?(%{running: ^number}, Scope.resident(resident_id, fn -> Store.work_queue() end))
+  # Whether this run is still the one running: item `number`, in the
+  # conversation `key`. A turn or wrap of a run that has ended (moved by
+  # hand, stalled and ended) does nothing, and so does one of an earlier
+  # run of the same item, whose conversation is not the run's (sunna#67).
+  defp running?(resident_id, number, key) do
+    match?(
+      %{running: ^number, running_key: ^key},
+      Scope.resident(resident_id, fn -> Store.work_queue() end)
+    )
   end
 
   # ---- the note ----

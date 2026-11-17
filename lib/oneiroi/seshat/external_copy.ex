@@ -132,17 +132,10 @@ defmodule Oneiroi.Seshat.ExternalCopy do
 
   # The copy's file, read from the resident's repository at the path the
   # library registered for it; the path is the store's, never a caller's.
-  # sobelow_skip ["Traversal.FileModule"]
   defp file(resident_id, path) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
-      case File.read(Path.join(dir, path)) do
-        {:ok, content} ->
-          {:ok, content}
-
-        {:error, reason} ->
-          {:error,
-           Error.caught(:seshat_no_such_file, :seshat_external_copy_read, reason, path: path)}
-      end
+    case SimaQian.repository_text(resident_id, path) do
+      nil -> {:error, Error.new(:seshat_no_such_file, :seshat_external_copy_read, path: path)}
+      content -> {:ok, content}
     end
   end
 

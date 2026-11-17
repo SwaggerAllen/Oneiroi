@@ -7,6 +7,7 @@ import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { Card, Field, Said, Select } from './common';
 import * as css from './settings.css';
+import { Subscription } from './Subscription';
 import { useAct } from './useAct';
 
 /**
@@ -38,6 +39,7 @@ export function Ledger() {
 
   return (
     <>
+      <Subscription />
       <Card title="Your key">
         <p className={css.text}>{data.key.present ? `Stored since ${day(data.key.stored_at)}.` : 'No key stored: nothing can be asked of a model until one is.'}</p>
         <div>

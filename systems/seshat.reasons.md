@@ -630,3 +630,46 @@ the gate to talk; the talk that follows goes back through the beats,
 which is where sign-up already lives. The witness's reply is the signal
 that the house has something to discuss, so it is the thing that wakes
 everyone again.
+
+## #76
+
+The client's records tree reads one shape, the library index; giving the
+household's repository that shape lets the same tree list it, so the
+two views stay one view and a change to one is a change to both. A
+thread is one entry rather than a folder of a trunk and replies because
+it is read whole everywhere else, and its replies are not documents of
+their own. Unpaged because a household's repository is small and a tree
+with a page break in it is not a tree.
+
+## #77
+
+A scanned paper located and unread is a wall in the middle of a reading
+thread, and the commons' literature is mostly scans. Page headings
+because a citation has to point back into a source, and a page is the
+unit a scan's reader checks against; the anchor grammar already
+resolved headings, so the page came free. OCR on the witness's machine
+because it costs nothing, sends nothing anywhere, and keeps the fetch's
+rule that no model reads a stranger's file. Only pages with no words are
+OCR'd, because a text layer is what the author's tools wrote and is
+better than a guess at it. The copy says which pages were machine-read
+so a quotation from one is checked before it is trusted.
+
+## #78
+
+The lock exists because one Chrome profile can serve one run at a time;
+a second resident on the same lock would wait behind every one of the
+first's runs, and on the same profile would read through the first's
+sign-ins. Named by slug because the slug is already the resident's
+platform-wide name; the unnamed default stays where it was so the
+install that works today is not moved.
+
+## #79
+
+A house changes under the memory that cites it, and the honest answer is
+the one git already keeps: name the version, read it as it stood, and say
+what came since. Copying a document per citation, or per member, would
+build a second history beside git's, at every write and for every member
+(the witness: at a hundred members, a hundred copies of each write). The
+marked form keeps houses and residents in names that cannot collide, and
+names the house rather than "the house I'm in" so a resident who moves
+keeps citations that still say where they point.

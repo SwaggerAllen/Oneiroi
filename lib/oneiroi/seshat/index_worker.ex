@@ -5,8 +5,14 @@ defmodule Oneiroi.Seshat.IndexWorker do
   platform scope, named here (seshat#17); the roster is the resident
   system's platform-scoped export. A resident whose run fails is
   recorded on its own run row and the pass goes on.
+
+  With a `resident_id`, one resident's run, soon (sima-qian#59): a push
+  from outside changed her repository, and the run re-embeds only the
+  files whose hash moved. One job per resident while one waits.
   """
-  use Oneiroi.Worker, queue: :seshat_nightly
+  use Oneiroi.Worker,
+    queue: :seshat_nightly,
+    unique: [period: 300, keys: [:resident_id], states: [:available, :scheduled]]
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
@@ -14,6 +20,10 @@ defmodule Oneiroi.Seshat.IndexWorker do
   alias Oneiroi.Seshat.Index
 
   @actor Actor.new(:job, "seshat_nightly")
+
+  def run(%{"resident_id" => id}) do
+    with {:ok, _} <- Index.run(id, @actor), do: :ok
+  end
 
   def run(_args) do
     for row <- AgathosDaimon.active_residents() do

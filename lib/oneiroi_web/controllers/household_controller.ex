@@ -28,6 +28,19 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:files,
+    summary:
+      "The household's repository as the Records view lists it (seshat#76): CONTRACT.md and BEATS.md, each thread, each household document, in the library's shape",
+    responses: [ok: {"the files", "application/json", %Schema{type: :object}}]
+  )
+
+  def files(conn, _params) do
+    case Seshat.household_files(actor(conn)) do
+      {:ok, files} -> json(conn, files)
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
   operation(:read,
     summary:
       "One thread whole (its trunk and every reply), a document, or CONTRACT.md, by its path on the shelf",
@@ -134,6 +147,17 @@ defmodule OneiroiWeb.HouseholdController do
   )
 
   def checkins(conn, _params), do: house(conn, Seshat.house_checkins(actor(conn)))
+
+  operation(:name,
+    summary:
+      "Name the house for citations (gaia#44): a slug, lowercase, 2 to 40 characters, set once and never changed, unique among houses; a witness's. Answers the shelf, its slug in it",
+    request_body:
+      {"the name", "application/json",
+       %Schema{type: :object, required: [:slug], properties: %{slug: %Schema{type: :string}}}},
+    responses: [ok: {"the shelf", "application/json", %Schema{type: :object}}]
+  )
+
+  def name(conn, params), do: house(conn, Seshat.household_name(actor(conn), params["slug"]))
 
   operation(:clock,
     summary: "Set the shared workspace's own clock, a zone name (gaia#41)",

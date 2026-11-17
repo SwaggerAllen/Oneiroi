@@ -138,6 +138,75 @@ check the service's Disks tab shows it mounted.
    events they dispatched: `GET /v1/ops/spans` and
    `GET /v1/ops/spans/summary` as a super admin (apsu#28).
 
+### Payments: Stripe (nisaba#23)
+
+$20 a month per resident, paid on Stripe's own pages. Unset, checkout
+and the card page answer "payments are not set up" and every webhook is
+refused; nothing else changes.
+
+1. In the Stripe dashboard (test mode first), Developers → API keys:
+   the secret key (`sk_test_…`) as `NISABA_STRIPE_SECRET_KEY` on the
+   service. No product or price to make: checkout gives the price inline
+   (`NISABA_PLAN_PRICE_CENTS`, 2000 by default).
+2. Developers → Webhooks → Add endpoint:
+   `https://<the service>/v1/billing/stripe`, with the events
+   **checkout.session.completed**, **invoice.paid** and
+   **customer.subscription.deleted** (others are answered and ignored).
+   Its signing secret (`whsec_…`) as `NISABA_STRIPE_WEBHOOK_SECRET`.
+3. Settings → Billing → Customer portal: turn it on, allowing the card
+   to be updated, invoices to be seen, and the subscription to be
+   cancelled. Without it the client's "Card, invoices and cancelling"
+   link is refused by Stripe.
+4. A test card (4242 4242 4242 4242) on Settings → Ledger → Subscribe
+   should end with the subscription active and paid; the event appears
+   under the endpoint in the dashboard with a 200.
+
+Live mode is the same three steps with the live key and a live endpoint.
+
+### Gitea, the repositories' server (sima-qian#55, #57 to #60)
+
+The Blueprint makes `oneiroi-git`: Gitea's official image, its records on
+Oneiroi's database (the `gitea` schema as the role `oneiroi_gitea`, which
+the migrations make), its git objects on its own 10 GB disk, sign-up off.
+Once switched on, Gitea is the source of truth for every repository: the
+core reads and writes through its API and refuses writes while it does
+not answer. Until the switch (step 4) the core keeps using the records
+disk, so nothing is half-moved.
+
+1. On `oneiroi-git` in the dashboard, set `GITEA__server__ROOT_URL` to
+   its own URL with a trailing slash (`https://oneiroi-git.onrender.com/`,
+   or the name Render gave it) and deploy it once. `/api/healthz` should
+   pass.
+2. The admin, from the service's Shell tab (the login must be
+   `oneiroi-admin`, or set `SIMA_QIAN_GITEA_ADMIN` to the one you use):
+   `su git -c "gitea admin user create --admin --username oneiroi-admin --email admin@oneiroi.invalid --random-password --must-change-password=false"`
+   (keep the password it prints, in your password manager), then its
+   token:
+   `su git -c "gitea admin user generate-access-token --username oneiroi-admin --token-name oneiroi --scopes all --raw"`.
+3. The push webhook (sima-qian#59), signed in to Gitea as the admin:
+   Site Administration → Integrations → System Webhooks → Add Webhook →
+   Gitea. Target URL `https://<the oneiroi service>/v1/repos/gitea`,
+   method POST, content type `application/json`, a long random secret,
+   trigger on push events, branch filter `main`. The same secret goes in
+   `SIMA_QIAN_GITEA_WEBHOOK_SECRET` below.
+4. On the `oneiroi` service, all at once: `SIMA_QIAN_GITEA_URL` to the
+   same URL without the trailing slash, `SIMA_QIAN_GITEA_TOKEN` to the
+   token, `SIMA_QIAN_GITEA_WEBHOOK_SECRET` to the webhook's secret, and
+   `SIMA_QIAN_REPOS` to `gitea`. The deploy that follows moves every
+   repository on the records disk to Gitea, history and all, before
+   taking a write (sima-qian#58); its log says `gitea: moved N of N`. An
+   organization `h-…` per household appears in Gitea, holding `house`
+   and each resident's repository by slug.
+5. Check one resident's history on Gitea against the records disk
+   (`git log` in the service's Shell under `/var/lib/oneiroi/sima_qian/<id>`);
+   once every repository is there, the `oneiroi-records` disk can be
+   removed from `render.yaml` in a commit of its own, which lets the app
+   run as more than one instance. Until then a restart sends only what
+   was not sent.
+6. In the client, Settings → Backups, imports and reports → "Your
+   repositories on Gitea": set a password, then sign in to Gitea as the
+   `w-…` user it names.
+
 ## 2. Orchestration's court
 
 - Merge the `PROJECTS` entry for this repo into the metronome Worker's

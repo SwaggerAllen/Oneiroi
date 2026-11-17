@@ -111,7 +111,7 @@ defmodule Oneiroi.Sunna.TickWorker do
       # free time follows its end; every other slot runs here.
       if time == Oneiroi.Config.fetch!(:sunna, :scene_slot),
         do: FreeTimeWorker.enqueue_scene(resident_id, day, time, nil, 1),
-        else: Schedules.run_free_time(resident_id, day, time, @actor)
+        else: once_held(resident_id, day, time, &standing_ran?(resident_id, slot, &1))
     end
 
     once(resident_id, ran, local, day, late)
@@ -127,8 +127,41 @@ defmodule Oneiroi.Sunna.TickWorker do
         not Map.has_key?(ran, label),
         since = DateTime.diff(local, Schedules.at_time(local, o.time), :second),
         since >= 0 and since <= late do
-      Schedules.run_free_time(resident_id, day, label, @actor)
+      once_held(resident_id, day, label, &once_ran?(resident_id, day, &1))
     end
+  end
+
+  defp once_ran?(resident_id, day, label),
+    do:
+      resident_id
+      |> Scope.resident(fn -> Schedules.free_time_ran(nil, day) end)
+      |> Map.has_key?(label)
+
+  # One slot fired by one tick at a time (sunna#66). A wake can hold its
+  # tick for the turn timeout (five minutes) before the slot is recorded,
+  # and the next minute's tick runs beside it (two a queue), so it saw no
+  # record and opened a second free time: 2026-11-15 and -17, two
+  # "failed" runs that were in fact running. The lock is taken without
+  # waiting (another tick holding it is running the slot), and the slot is
+  # read again under it, since the holder may have just recorded it.
+  defp once_held(resident_id, day, slot, ran?) do
+    lock = {{:sunna_free_time_slot, resident_id, day, slot}, self()}
+
+    if :global.set_lock(lock, [node()], 0) do
+      try do
+        if ran?.(slot), do: :ran, else: Schedules.run_free_time(resident_id, day, slot, @actor)
+      after
+        :global.del_lock(lock, [node()])
+      end
+    else
+      :running
+    end
+  end
+
+  defp standing_ran?(resident_id, instant, _slot) do
+    resident_id
+    |> Scope.resident(fn -> Store.free_time_history(8) end)
+    |> Enum.any?(&(Schedules.standing?(&1.slot) and DateTime.compare(&1.at, instant) != :lt))
   end
 
   # The day's thinking rounds (sunna#29), each run once when its drawn

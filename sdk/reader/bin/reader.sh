@@ -45,7 +45,9 @@ set -uo pipefail
 # once installed; apart only for the kit's test.
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 READER="${ONEIROI_READER_DIR:-$KIT}"
-CONFIG="${ONEIROI_READER_CONFIG:-$HOME/.config/oneiroi}"
+# Its own settings: named by the job, else by the install (one reader
+# per resident, each with its own), else the first install's place.
+CONFIG="${ONEIROI_READER_CONFIG:-$(cat "$READER/.config-dir" 2>/dev/null || echo "$HOME/.config/oneiroi")}"
 . "$KIT/lib/common.sh"
 
 # How many times a reply is tried before it is left for the witness.
@@ -316,11 +318,13 @@ research() {
 # fetched by plain code with no model and no browser, so nothing on a
 # page can instruct anything. A web page is fetched signed in nowhere
 # (a paywall gives what a visitor sees) and converted to markdown by
-# lib/html2md.py; a GitHub document is read raw at the commit its ref
+# lib/html2md.py, a PDF page by page by lib/pdf2md.py (its text layer,
+# else OCR on this machine, seshat#77); a GitHub document is read raw at the commit its ref
 # names now, which the copy records. Commissioning names the exact URL,
 # so the research allowlist is not consulted: no browser goes anywhere.
 # A source that cannot be fetched is tried twice, then said failed.
-FETCH_BYTES="${ONEIROI_READER_FETCH_BYTES:-5000000}"
+# Scanned PDFs run large; thirty megabytes holds a long papers scan.
+FETCH_BYTES="${ONEIROI_READER_FETCH_BYTES:-30000000}"
 
 fetch() {
   local status number kind url ref key tries reason
@@ -370,6 +374,16 @@ fetch_web() {
   type="${code#* }"
   code="${code%% *}"
   [ "$code" = 200 ] || { echo "the page answered $code"; return 0; }
+  # A PDF by its type, or by its first bytes when a server calls it a stream.
+  if [ "${type#application/pdf}" != "$type" ] || [ "$(head -c 4 "$WORK/page.raw")" = "%PDF" ]; then
+    command -v pdftotext > /dev/null ||
+      { echo "a PDF, and poppler is not installed here (brew install poppler tesseract ocrmypdf)"; return 0; }
+    python3 -I "$KIT/lib/pdf2md.py" "$WORK/page.raw" > "$WORK/page.json" 2>/dev/null ||
+      { echo "the PDF could not be read"; return 0; }
+    jq --arg url "$url" '{title: (if .title == "" then $url else .title end), text}' "$WORK/page.json" > "$WORK/copy.json"
+    [ "$(jq -r '.text | length' "$WORK/copy.json")" -gt 0 ] || { rm -f "$WORK/copy.json"; echo "the PDF had no words to keep"; }
+    return 0
+  fi
   case "$type" in
     text/html*|application/xhtml*)
       python3 -I "$KIT/lib/html2md.py" "$WORK/page.raw" > "$WORK/page.json" 2>/dev/null ||

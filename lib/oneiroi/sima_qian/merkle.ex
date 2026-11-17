@@ -20,6 +20,19 @@ defmodule Oneiroi.SimaQian.Merkle do
     |> Base.encode16(case: :lower)
   end
 
+  @doc "The same root over `{relative path, bytes}` pairs, read from wherever they live (sima-qian#57)."
+  @spec root_of([{String.t(), binary()}]) :: String.t()
+  def root_of(files) do
+    files
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.map(fn {rel, bytes} -> {rel, hash(rel <> <<0>> <> bytes)} end)
+    |> case do
+      [] -> hash("")
+      leaves -> reduce(leaves)
+    end
+    |> Base.encode16(case: :lower)
+  end
+
   @doc "The leaves, in path order: `{relative path, leaf hash}`."
   @spec leaves(Path.t()) :: [{String.t(), binary()}]
   # Sobelow reads a `File` call on a built path as a traversal; every path

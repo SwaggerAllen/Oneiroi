@@ -70,5 +70,13 @@ defmodule Oneiroi.Brain.FreeTimeTest do
     refute inspect(Brain.free_time_history(ctx.id, 10)) =~ "Done for tonight."
 
     assert Tools.run("transcript_read", ~s({"session":"no-such"}), ctx.turn) =~ "Not done"
+
+    # A turn whole, by the ref a search hit names (brain#104).
+    [_, ref] = Regex.run(~r/\[([^\]]+)\] [a-z_]+, [^\n]*Done for tonight\./, read)
+    one = Tools.run("transcript_read", Jason.encode!(%{session: key, message: ref}), ctx.turn)
+    assert one =~ "[#{ref}]" and one =~ ", whole:\nDone for tonight."
+
+    assert Tools.run("transcript_read", Jason.encode!(%{session: key, message: "nope"}), ctx.turn) =~
+             "has no message nope"
   end
 end

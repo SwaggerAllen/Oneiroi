@@ -464,3 +464,21 @@ wakes her and when. Quiet hours were made to keep messages from
 reaching the witness at the wrong hour; a check-in in the shared
 workspace reaches no one but the residents, so holding it would delay
 the work and protect nobody.
+
+## #66
+
+A free-time run costs the resident's own budget line, so a duplicate is
+money she did not choose to spend and a turn she did not choose to take,
+and a run recorded as failed while it ran misleads the one reading her
+receipts. The lock is taken without waiting because a waiting tick holds
+a queue slot every other resident's check-ins need; the slot is read
+again under it because the holder may have recorded it a moment before.
+
+## #67
+
+A run's conversation is where its work is: two conversations on one item
+each saw the other's work as someone else's, and spent the line twice to
+learn nothing. An outlasted turn is the likeliest kind of turn for a
+long survey, so treating it as a failure guaranteed the crossing exactly
+when the work was heaviest. Matching the conversation as well as the item
+closes the last way an earlier run can act inside a later one.

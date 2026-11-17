@@ -245,15 +245,7 @@ defmodule Oneiroi.Seshat.Leases do
     Path.join(["human", "drafts", Path.rootname(path) <> "-" <> stamp <> ext])
   end
 
-  # sobelow_skip ["Traversal.FileModule"]
-  defp on_disk(resident_id, path) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id),
-         {:ok, words} <- File.read(Path.join(dir, path)) do
-      words
-    else
-      _absent -> nil
-    end
-  end
+  defp on_disk(resident_id, path), do: SimaQian.repository_text(resident_id, path)
 
   defp renew_on_write(resident_id, path, %Actor{id: holder}) do
     Scope.resident(resident_id, fn ->

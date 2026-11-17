@@ -40,6 +40,9 @@ defmodule Oneiroi.Nisaba do
       Oban
     ],
     exports: [
+      Billing,
+      Billing.Stripe,
+      Billing.Fake,
       Insurance,
       Subscription,
       Subscriptions,
@@ -53,6 +56,7 @@ defmodule Oneiroi.Nisaba do
       SubscriptionCommands.SetPolicy,
       SubscriptionCommands.Prepay,
       SubscriptionCommands.RecordLapseTold,
+      SubscriptionCommands.LinkBilling,
       Events.Subscription.Started,
       Events.Subscription.Renewed,
       Events.Subscription.PlanChanged,
@@ -61,6 +65,7 @@ defmodule Oneiroi.Nisaba do
       Events.Subscription.PolicySet,
       Events.Subscription.Prepaid,
       Events.Subscription.LapseTold,
+      Events.Subscription.BillingLinked,
       Store.Subscription,
       Error,
       Ledgers,
@@ -88,6 +93,7 @@ defmodule Oneiroi.Nisaba do
       Policies.Prompts
     ]
 
+  alias Oneiroi.Nisaba.Billing
   alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Ledgers
@@ -152,6 +158,32 @@ defmodule Oneiroi.Nisaba do
        default: "false",
        usage:
          "whether a streamed reply's tool-call pieces are logged as they arrive, and each call as assembled; for the fixture run only, never where a person's words pass"},
+      # Paying for a resident (nisaba#23): Stripe, its keys unset in a
+      # build that takes no payments, where checkout answers billing-off.
+      {:billing_client, "NISABA_BILLING_CLIENT",
+       cast: &__MODULE__.cast_billing_client/1,
+       default: "stripe",
+       usage:
+         "which payment port implementation answers: stripe in every real build, fake in test"},
+      {:stripe_url, "NISABA_STRIPE_URL",
+       default: "https://api.stripe.com/v1",
+       usage: "the Stripe API base the billing port posts to (Oneiroi.Nisaba.Billing.Stripe)"},
+      {:stripe_secret_key, "NISABA_STRIPE_SECRET_KEY",
+       secret: true,
+       required: false,
+       usage:
+         "Stripe's secret key (sk_test_… or sk_live_…) the billing port calls with (nisaba#23); unset, checkout and the portal answer billing-off"},
+      {:stripe_webhook_secret, "NISABA_STRIPE_WEBHOOK_SECRET",
+       secret: true,
+       required: false,
+       usage:
+         "the signing secret (whsec_…) of the Stripe webhook endpoint at /v1/billing/stripe (nisaba#23); unset, every webhook is refused"},
+      {:plan_price_cents, "NISABA_PLAN_PRICE_CENTS",
+       cast: :integer,
+       default: "2000",
+       tag: :bound,
+       usage:
+         "a resident's monthly price in US cents at checkout (nisaba#23; the witness, 2026-11-16: $20 a month per resident)"},
       {:request_timeout_ms, "NISABA_REQUEST_TIMEOUT_MS",
        cast: :integer,
        default: "120000",
@@ -162,7 +194,7 @@ defmodule Oneiroi.Nisaba do
   end
 
   @impl Oneiroi.Component
-  def feature_flags, do: [:nisaba_openrouter_off]
+  def feature_flags, do: [:nisaba_openrouter_off, :nisaba_stripe_off]
 
   @impl Oneiroi.Component
   def externals do
@@ -171,7 +203,12 @@ defmodule Oneiroi.Nisaba do
        adapter: Oneiroi.Nisaba.Provider.OpenRouter,
        fake: Oneiroi.Nisaba.Provider.Fake,
        kill_switch: :nisaba_openrouter_off,
-       classification: :customer_content}
+       classification: :customer_content},
+      {:stripe,
+       adapter: Oneiroi.Nisaba.Billing.Stripe,
+       fake: Oneiroi.Nisaba.Billing.Fake,
+       kill_switch: :nisaba_stripe_off,
+       classification: :personal}
     ]
   end
 
@@ -191,6 +228,7 @@ defmodule Oneiroi.Nisaba do
       {Oneiroi.Nisaba.Events.Subscription.PolicySet, 1},
       {Oneiroi.Nisaba.Events.Subscription.Prepaid, 1},
       {Oneiroi.Nisaba.Events.Subscription.LapseTold, 1},
+      {Oneiroi.Nisaba.Events.Subscription.BillingLinked, 1},
       {Oneiroi.Nisaba.Events.BudgetSet, 1},
       {Oneiroi.Nisaba.Events.ModelCallRecorded, 1},
       {Oneiroi.Nisaba.Events.BudgetExceeded, 1}
@@ -234,6 +272,13 @@ defmodule Oneiroi.Nisaba do
        remedy: "name one of the three"},
       {:nisaba_cap_invalid, "a budget line's cap is nano-dollars, zero or more, or none",
        remedy: "give it in dollars, or no cap for no limit"},
+      {:nisaba_billing_failed, "the payment provider did not answer, or refused the request",
+       remedy: "retry; if it persists, read the provider's words in the error and its dashboard"},
+      {:nisaba_billing_off, "payments are not set up on this platform",
+       remedy: "an operator sets NISABA_STRIPE_SECRET_KEY and NISABA_STRIPE_WEBHOOK_SECRET"},
+      {:nisaba_billing_unsigned,
+       "a payment webhook whose signature does not verify against the endpoint's secret",
+       remedy: "only the provider's own webhooks are acted on; check the endpoint's secret"},
       {:nisaba_dispatch_failed,
        "the command did not reach the ledger or the subscription: the command middleware or the event store refused it",
        remedy:
@@ -266,6 +311,32 @@ defmodule Oneiroi.Nisaba do
   def cast_provider(other),
     # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
     do: {:error, "is #{inspect(other)}, expected \"openrouter\" or \"fake\""}
+
+  @doc "Casts the billing setting to the module that implements the payment port (nisaba#23)."
+  @spec cast_billing_client(String.t()) :: {:ok, module()} | {:error, String.t()}
+  def cast_billing_client("stripe"), do: {:ok, :"Elixir.Oneiroi.Nisaba.Billing.Stripe"}
+  def cast_billing_client("fake"), do: {:ok, :"Elixir.Oneiroi.Nisaba.Billing.Fake"}
+
+  def cast_billing_client(other),
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
+    do: {:error, "is #{inspect(other)}, expected \"stripe\" or \"fake\""}
+
+  @doc "The payment provider's checkout page for a resident's subscription (nisaba#23): its URL."
+  @spec billing_checkout(String.t(), String.t(), map(), String.t()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(billing_checkout(resident_id, resident_name, payer, return_url),
+    do: Billing.checkout(resident_id, resident_name, payer, return_url)
+  )
+
+  @doc "The payment provider's own page for the card and cancelling (nisaba#23): its URL."
+  @spec billing_portal(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(billing_portal(resident_id, return_url),
+    do: Billing.portal(resident_id, return_url)
+  )
+
+  @doc "A payment provider's webhook, verified by its signature and acted on (nisaba#23)."
+  @spec billing_webhook(binary(), String.t() | nil) :: :ok | {:error, term()}
+  defexport(billing_webhook(raw, signature), do: Billing.webhook(raw, signature))
 
   @doc "Sets a budget line: a cap in nano-dollars (nil for no limit) per period."
   @spec set_budget(String.t(), atom(), non_neg_integer() | nil, atom(), Oneiroi.Actor.t()) ::

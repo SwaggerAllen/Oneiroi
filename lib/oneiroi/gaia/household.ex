@@ -52,6 +52,8 @@ defmodule Oneiroi.Gaia.Household do
     # House check-ins (gaia#41): the workspace's clock, its check-ins by
     # key, and each {key, day} fired.
     zone: "Etc/UTC",
+    # Its name for citations (gaia#44), once set.
+    slug: nil,
     checkins: %{},
     fired: MapSet.new()
   ]
@@ -305,6 +307,29 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
+  # ---- the house's name (gaia#44): a witness's, once ----
+
+  @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/
+
+  def execute(%__MODULE__{} = h, %Commands.NameHousehold{} = c) do
+    cond do
+      not match?({"witness", _}, member(h, c.actor)) ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_name_not_witness)}
+
+      not (is_binary(c.slug) and Regex.match?(@slug, c.slug)) ->
+        {:error, Error.new(:gaia_household_name_invalid, :gaia_household_name_shape)}
+
+      h.slug == c.slug ->
+        []
+
+      not is_nil(h.slug) ->
+        {:error, Error.new(:gaia_household_named, :gaia_household_name_set, slug: h.slug)}
+
+      true ->
+        %Events.HouseholdNamed{actor: c.actor, at: c.at, id: c.id, slug: c.slug}
+    end
+  end
+
   # ---- house check-ins (gaia#41): the witness's to keep ----
 
   def execute(%__MODULE__{} = h, %{actor: actor} = c)
@@ -478,13 +503,15 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
-  # The beat running, joined after its sign-up: she has not gone in it,
-  # nobody registered for it waits for a first turn, the cap has room.
+  # The beat running, joined after its sign-up (gaia#39, amended by
+  # #42): she is under her share in it, and a slot is left open once
+  # every registrant still owed a first turn has hers.
   defp joinable?(h, shape, top, rid) do
     beat = beat(h, top)
+    owed = Enum.count(queue(h, top), &(Map.get(beat.counts, &1, 0) == 0))
 
-    Map.get(beat.counts, rid, 0) == 0 and beat.fired < shape.cap and
-      not Enum.any?(queue(h, top), &(Map.get(beat.counts, &1, 0) == 0))
+    Beats.under_share?(Map.get(beat.counts, rid, 0), shape.share) and
+      beat.fired + owed < shape.cap
   end
 
   defp key(top), do: DateTime.to_unix(top, :microsecond)
@@ -603,8 +630,9 @@ defmodule Oneiroi.Gaia.Household do
 
   # The next turn, when one is due: no turn open, the beat's sign-up
   # closed and the beat not ended, its cap not reached, and a registrant
-  # in its queue with fewer turns this beat than her share (gaia#35). By
-  # the platform's hand, the resident named, now.
+  # in its queue under her share this beat (gaia#35), never the one who
+  # just went when the share lets anyone repeat (gaia#42). By the
+  # platform's hand, the resident named, now.
   defp fire(%__MODULE__{open_turn: nil} = h, c, shape, "schedule", nil) do
     top = Beats.top(h.id, shape, c.at)
     beat = beat(h, top)
@@ -614,8 +642,11 @@ defmodule Oneiroi.Gaia.Household do
          [first | _] <-
            h
            |> queue(top)
-           |> Enum.filter(&(Map.get(beat.counts, &1, 0) < shape.share))
-           |> Enum.reject(&(profile(h, {"resident", &1}) == "self"))
+           |> Enum.filter(&Beats.under_share?(Map.get(beat.counts, &1, 0), shape.share))
+           |> Enum.reject(
+             &((Beats.repeats?(shape.share) and &1 == last_speaker(beat)) or
+                 profile(h, {"resident", &1}) == "self")
+           )
            |> Enum.map(
              &%{
                resident_id: &1,
@@ -635,6 +666,9 @@ defmodule Oneiroi.Gaia.Household do
     do: fired(h, c, shape, Beats.top(h.id, shape, c.at), resident_id, "hand")
 
   defp fire(%__MODULE__{}, _c, _shape, _by, _resident_id), do: nil
+
+  defp last_speaker(%{turns: []}), do: nil
+  defp last_speaker(%{turns: turns}), do: List.last(turns)["resident_id"]
 
   defp fired(h, c, shape, top, resident_id, by),
     do: %Events.HouseholdTurnFired{
@@ -865,6 +899,7 @@ defmodule Oneiroi.Gaia.Household do
     do: %{h | terms: {e.plan, e.price_nanos, e.terms_until}}
 
   def apply(%__MODULE__{} = h, %Events.HouseholdClockSet{} = e), do: %{h | zone: e.zone}
+  def apply(%__MODULE__{} = h, %Events.HouseholdNamed{} = e), do: %{h | slug: e.slug}
 
   def apply(%__MODULE__{} = h, %Events.HouseCheckinSet{} = e),
     do: %{h | checkins: Map.put(h.checkins, e.key, %{label: e.label, time: e.time})}

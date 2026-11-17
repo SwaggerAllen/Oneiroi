@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Installs Oneiroi's reader on a Mac (see README.md):
+# Installs Oneiroi's reader on a Mac for one resident (see README.md);
+# Oneiroi's setup.sh runs it for you (Connections, "On your Mac"):
 #
-#   install.sh --url https://oneiroi.onrender.com --resident <id> \
-#     --substack <her Substack handle> --email <her address> [--dir <folder>]
+#   install.sh --name <her slug> --url https://oneiroi.onrender.com --resident <id> \
+#     [--substack <her Substack handle>] [--email <her address>] [--dir <folder>]
 #
-# The token is the reader adapter's, issued on Connections (name `scrape`,
-# role `reader`) and saved to ~/.config/oneiroi/reader.json first. This
-# writes the reader's folder, its settings (the Oneiroi plugin off, so it
-# never runs with the resident's brain token), its browser's MCP config,
-# ~/.config/oneiroi/reader.conf, and two launch agents, which it does not
-# load: the last lines it prints are the commands that do.
+# The token is her reader adapter's, issued on Connections, asked for
+# without echo (or ONEIROI_TOKEN) and kept in
+# ~/.config/oneiroi/readers/<name>/reader.json. This writes the reader's
+# folder (~/.oneiroi/readers/<name>), its settings (the Oneiroi plugin
+# off, so it never runs with the resident's brain token), its browser's
+# MCP config, its reader.conf beside the token, and two launch agents,
+# which it does not load: the last lines it prints are the commands that do.
 set -euo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Not under ~/Documents, ~/Desktop or ~/Downloads: macOS keeps those from
 # a launchd job, and the jobs' bash is refused with "Operation not
 # permitted" (2026-11-04, the first install, in ~/Documents/Lily/reader).
-DIR="$HOME/.oneiroi/reader"
+DIR="" NAME=""
 URL="" RESIDENT="" SUBSTACK="" EMAIL=""
 
 while [ $# -gt 0 ]; do
@@ -26,23 +28,55 @@ while [ $# -gt 0 ]; do
     --substack) SUBSTACK="$2"; shift 2 ;;
     --email) EMAIL="$2"; shift 2 ;;
     --dir) DIR="$2"; shift 2 ;;
+    --name) NAME="$2"; shift 2 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
 
 [ -n "$URL" ] && [ -n "$RESIDENT" ] || { echo "--url and --resident are required" >&2; exit 2; }
-[ -s "$HOME/.config/oneiroi/reader.json" ] ||
-  { echo "save the reader's token to ~/.config/oneiroi/reader.json first (README.md)" >&2; exit 2; }
-command -v claude > /dev/null || { echo "claude is not on PATH" >&2; exit 2; }
+
+# One reader per resident on a Mac, named by her slug, the same for the
+# first as for the second (seshat#78; the witness, 2026-11-16): a folder,
+# settings, token, browser profiles, lock and jobs of her own.
+[ -n "$NAME" ] || { echo "--name is required: the resident's slug" >&2; exit 2; }
+printf '%s' "$NAME" | grep -Eq '^[a-z][a-z0-9-]{1,39}$' ||
+  { echo "--name is the resident's slug: lowercase letters, digits and hyphens" >&2; exit 2; }
+DIR="${DIR:-$HOME/.oneiroi/readers/$NAME}"
+CFG="$HOME/.config/oneiroi/readers/$NAME"
+LABEL="io.oneiroi.reader.$NAME"
 command -v jq > /dev/null || { echo "jq is not on PATH" >&2; exit 2; }
+
+# The token: kept from an install before, or taken now (ONEIROI_TOKEN, or
+# asked for without echo), and written where only you can read it.
+if [ ! -s "$CFG/reader.json" ]; then
+  token="${ONEIROI_TOKEN:-}"
+  if [ -z "$token" ]; then
+    [ -t 0 ] || { echo "no token: set ONEIROI_TOKEN or run this in a terminal" >&2; exit 2; }
+    read -r -s -p "Her reader's token (shown once on Connections): " token
+    echo
+  fi
+  [ -n "$token" ] || { echo "no token given" >&2; exit 2; }
+  mkdir -p "$CFG"
+  (umask 077 && printf '%s' "$token" | jq -R '{token: .}' > "$CFG/reader.json")
+fi
+command -v claude > /dev/null || { echo "claude is not on PATH" >&2; exit 2; }
+# PDFs (seshat#77): read without these, a PDF is said unreadable and nothing else stops.
+for tool in pdftotext pdfinfo ocrmypdf tesseract; do
+  command -v "$tool" > /dev/null ||
+    echo "note: $tool is not on PATH, so PDFs will not be read; brew install poppler tesseract ocrmypdf" >&2
+done
 
 mkdir -p "$DIR"/{bin,lib,prompts,.claude,log} "$HOME/Library/LaunchAgents"
 cp "$KIT/bin/reader.sh" "$DIR/bin/reader.sh"
 cp "$KIT/lib/common.sh" "$DIR/lib/common.sh"
 cp "$KIT/lib/html2md.py" "$DIR/lib/html2md.py"
+cp "$KIT/lib/pdf2md.py" "$DIR/lib/pdf2md.py"
 cp "$KIT/lib/presence_send.cjs" "$DIR/lib/presence_send.cjs"
 cp "$KIT"/prompts/*.md "$DIR/prompts/"
 chmod +x "$DIR/bin/reader.sh"
+# Where this reader's settings and token are, so a run by hand
+# (`reader.sh login`) finds its own and never another resident's.
+printf '%s\n' "$CFG" > "$DIR/.config-dir"
 
 # The reader's own settings: never the resident's plugin, never a shell.
 # Writing is not denied here: Claude Code matches every file-writing tool
@@ -64,13 +98,13 @@ EOF
 
 # An allowlist already edited survives a reinstall.
 ORIGINS="https://substack.com;https://www.substack.com"
-if [ -r "$HOME/.config/oneiroi/reader.conf" ]; then
-  kept="$(sed -n 's/^READER_ORIGINS="\(.*\)"$/\1/p' "$HOME/.config/oneiroi/reader.conf")"
+if [ -r "$CFG/reader.conf" ]; then
+  kept="$(sed -n 's/^READER_ORIGINS="\(.*\)"$/\1/p' "$CFG/reader.conf")"
   [ -n "$kept" ] && ORIGINS="$kept"
 fi
 
 umask 077
-cat > "$HOME/.config/oneiroi/reader.conf" <<EOF
+cat > "$CFG/reader.conf" <<EOF
 ONEIROI_URL=$URL
 ONEIROI_RESIDENT=$RESIDENT
 SUBSTACK_ACCOUNT=$SUBSTACK
@@ -108,7 +142,7 @@ plist() {
   <key>ProgramArguments</key>
   <array><string>/bin/bash</string><string>$DIR/bin/reader.sh</string><string>$mode</string></array>
   <key>EnvironmentVariables</key>
-  <dict><key>PATH</key><string>$PATHS</string><key>HOME</key><string>$HOME</string></dict>
+  <dict><key>PATH</key><string>$PATHS</string><key>HOME</key><string>$HOME</string><key>ONEIROI_READER_CONFIG</key><string>$CFG</string></dict>
   $when
   <key>StandardOutPath</key><string>$DIR/log/$mode.log</string>
   <key>StandardErrorPath</key><string>$DIR/log/$mode.log</string>
@@ -120,10 +154,10 @@ EOF
 # What waits for the reader, every five minutes: one request, and a run
 # only when something waits for it (kumbukumbu#48); once at load too, so a
 # fresh install is checked now, not five minutes from now.
-plist io.oneiroi.reader.wait wait "<key>StartInterval</key><integer>300</integer>
+plist "$LABEL.wait" wait "<key>StartInterval</key><integer>300</integer>
   <key>RunAtLoad</key><true/>"
 # The reading, twice a day; launchd runs a missed one when the Mac wakes.
-plist io.oneiroi.reader.scrape scrape "<key>StartCalendarInterval</key>
+plist "$LABEL.scrape" scrape "<key>StartCalendarInterval</key>
   <array>
     <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>30</integer></dict>
     <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>30</integer></dict>
@@ -132,5 +166,5 @@ plist io.oneiroi.reader.scrape scrape "<key>StartCalendarInterval</key>
 echo "Installed the reader in $DIR."
 echo "Next: sign in to Substack as the resident once:  $DIR/bin/reader.sh login"
 echo "Then load the two jobs:"
-echo "  launchctl load -w $HOME/Library/LaunchAgents/io.oneiroi.reader.wait.plist"
-echo "  launchctl load -w $HOME/Library/LaunchAgents/io.oneiroi.reader.scrape.plist"
+echo "  launchctl load -w $HOME/Library/LaunchAgents/$LABEL.wait.plist"
+echo "  launchctl load -w $HOME/Library/LaunchAgents/$LABEL.scrape.plist"

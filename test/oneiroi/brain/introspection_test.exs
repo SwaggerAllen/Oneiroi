@@ -7,7 +7,6 @@ defmodule Oneiroi.Brain.IntrospectionTest do
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Seshat
-  alias Oneiroi.SimaQian.Git
 
   setup do
     witness = Fixtures.account!()
@@ -80,13 +79,9 @@ defmodule Oneiroi.Brain.IntrospectionTest do
     {:ok, _} = Seshat.write(ctx.id, "design/plan.md", "# Plan\n\nThe house.", ctx.lily)
     assert run("repo_list", %{}, ctx) =~ "design/"
     assert run("repo_read", %{path: "design/plan.md"}, ctx) =~ "The house."
-    assert run("repo_log", %{}, ctx) == "No history there yet."
-
-    :ok = Git.ensure_repo(ctx.dir)
-    {:ok, _} = Git.commit(ctx.dir, ["design"], "The plan, first draft")
-
+    # Every write is a commit under its author (sima-qian#57).
     assert run("repo_log", %{path: "design/plan.md"}, ctx) =~
-             ~r/^[0-9a-f]{7,} \d{4}-\d\d-\d\dT.* .*: The plan, first draft$/
+             ~r/^[0-9a-f]{7,} \d{4}-\d\d-\d\dT.* Lily: Write: design\/plan\.md$/
 
     assert run("repo_read", %{path: "../../etc/passwd"}, ctx) =~ "Not done"
     assert run("repo_read", %{path: ".git/HEAD"}, ctx) =~ "Not done"

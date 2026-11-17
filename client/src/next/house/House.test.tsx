@@ -5,11 +5,13 @@ import { api, type HouseBeats, type HouseContract, type HouseShelf } from '../..
 import { HOUSE_SUBJECT, SubjectContext } from '../state/resident';
 import { Charter } from './Charter';
 import { TabBar } from '../shell/TabBar';
+import { HouseRecords } from './HouseRecords';
 import { HouseTime } from './HouseTime';
 import { Threads } from './Threads';
 
 const shelf: HouseShelf = {
   household_id: 'h1',
+  slug: null,
   contract: 'CONTRACT.md',
   total: 1,
   from: 0,
@@ -99,32 +101,36 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(within(tabs).getByRole('button', { name: /Chat/ })).toBeTruthy();
   });
 
-  it('lists the threads, opens one whole, and replies', async () => {
+  it('lists threads as the chat does, opens one in place, and the composer replies in it', async () => {
     vi.spyOn(api, 'householdRead').mockResolvedValue({
       path: 'threads/checkin-2026-11-16-morning',
       kind: 'thread',
       title: 'Morning, 2026-11-16',
       content: '',
       trunk: { path: 't', meta: { by: 'the platform', posted_at: '2026-11-16T15:30:00Z' }, body: 'The house checks in: Morning.' },
-      replies: [{ path: 'r', meta: { reply: '1', by: 'Lily', at: '2026-11-16T15:40:00Z' }, body: 'The writing moved.' }],
+      replies: [{ path: 'r', meta: { reply: '1', by: 'Lily', by_kind: 'resident', by_id: 'r1', at: '2026-11-16T15:40:00Z' }, body: 'The writing moved.' }],
       ballot: null,
     });
     const reply = vi.spyOn(api, 'householdReply').mockResolvedValue({ number: 2 });
     mount(<Threads />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Morning, 2026-11-16' }));
+    // No thread open: a title and words start one.
+    expect(await screen.findByPlaceholderText("A new thread's title")).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: /Morning, 2026-11-16/ }));
     expect(await screen.findByText('The writing moved.')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Reply'), { target: { value: 'Good work.' } });
+    // One open: the title field is gone, and the words reply in it.
+    expect(screen.queryByPlaceholderText("A new thread's title")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText('Reply in “Morning, 2026-11-16”'), { target: { value: 'Good work.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(reply).toHaveBeenCalledWith('threads/checkin-2026-11-16-morning', 'Good work.'));
   });
 
-  it('posts a new thread', async () => {
+  it('posts a new thread from the composer', async () => {
     const post = vi.spyOn(api, 'householdPost').mockResolvedValue({ path: 'threads/plans' });
     vi.spyOn(api, 'householdRead').mockResolvedValue({ path: 'threads/plans', title: 'Plans', content: 'x' });
     mount(<Threads />);
-    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Plans' } });
-    fireEvent.change(screen.getByLabelText('Your words'), { target: { value: 'For the week.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+    fireEvent.change(await screen.findByPlaceholderText("A new thread's title"), { target: { value: 'Plans' } });
+    fireEvent.change(screen.getByPlaceholderText('Its first words, for the whole house'), { target: { value: 'For the week.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Post the thread' }));
     await waitFor(() => expect(post).toHaveBeenCalledWith({ title: 'Plans', content: 'For the week.' }));
   });
 
@@ -136,6 +142,26 @@ describe('the house as a subject (2026-11-16)', () => {
     const ballot = screen.getByRole('article', { name: 'Ballot #2' });
     fireEvent.click(within(ballot).getByRole('button', { name: 'Yes' }));
     await waitFor(() => expect(vote).toHaveBeenCalledWith('threads/quiet-mornings', 'yes', ''));
+  });
+
+  it('names the house once for citations, and then shows how its threads are cited', async () => {
+    const name = vi.spyOn(api, 'nameHousehold').mockResolvedValue({ ...shelf, slug: 'rookery' });
+    mount(<Charter />);
+    const card = await screen.findByRole('region', { name: "The house's name" });
+    const field = within(card).getByLabelText('Name (lowercase letters, digits and hyphens)');
+    fireEvent.change(field, { target: { value: 'Rook House' } });
+    expect((within(card).getByRole('button', { name: 'Name the house' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(field, { target: { value: 'rookery' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Name the house' }));
+    await waitFor(() => expect(name).toHaveBeenCalledWith('rookery'));
+  });
+
+  it('a named house says how its threads are cited, with nothing to change', async () => {
+    vi.spyOn(api, 'householdShelf').mockResolvedValue({ ...shelf, slug: 'rookery' });
+    mount(<Charter />);
+    const card = await screen.findByRole('region', { name: "The house's name" });
+    expect(within(card).getByText('house/rookery:thread/…')).toBeTruthy();
+    expect(within(card).queryByRole('button', { name: 'Name the house' })).toBeNull();
   });
 
   it('proposes a change as a ballot', async () => {
@@ -158,13 +184,39 @@ describe('the house as a subject (2026-11-16)', () => {
     );
   });
 
-  it('keeps time: the turn open, the clock and its check-ins', async () => {
+  it('keeps time as Rhythm does: the turn open, check-ins, and the zone from a list', async () => {
     const set = vi.spyOn(api, 'setHouseCheckin').mockResolvedValue({ zone: 'America/Los_Angeles', checkins: [] });
+    const clock = vi.spyOn(api, 'setHouseClock').mockResolvedValue({ zone: 'Europe/London', checkins: [] });
     mount(<HouseTime />);
     expect(await screen.findByText(/Lily holds the turn/)).toBeTruthy();
-    fireEvent.change(await screen.findByLabelText('Label'), { target: { value: 'Evening wrap' } });
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Evening wrap' } });
     fireEvent.change(screen.getByLabelText('Time', { selector: 'input' }), { target: { value: '21:00' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a check-in' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith('evening-wrap', 'Evening wrap', '21:00'));
+    const zone = screen.getByRole('combobox', { name: 'Zone' }) as HTMLSelectElement;
+    expect(zone.value).toBe('America/Los_Angeles');
+    fireEvent.change(zone, { target: { value: 'Europe/London' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set the zone' }));
+    await waitFor(() => expect(clock).toHaveBeenCalledWith('Europe/London'));
+  });
+
+  it("records: the house's repository in the residents' tree", async () => {
+    vi.spyOn(api, 'householdFiles').mockResolvedValue({
+      kinds: [
+        { kind: 'house', label: 'The house', position: 0 },
+        { kind: 'thread', label: 'Threads', position: 1 },
+      ],
+      documents: [
+        { kind: 'house', path: 'CONTRACT.md', title: 'The household contract', status: null, bytes: null, versions: 1, written_at: null, written_by: null, missing_at: null, note: null },
+        { kind: 'thread', path: 'threads/plans', title: 'Plans', status: null, bytes: null, versions: 2, written_at: '2026-11-16T10:00:00Z', written_by: 'Lily', missing_at: null, note: null },
+      ],
+      unadopted: [],
+    });
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    mount(<HouseRecords path="" />);
+    expect((await screen.findAllByRole('button', { name: /The house/ })).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Threads/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /folder settings/ })).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

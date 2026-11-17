@@ -97,6 +97,7 @@ defmodule Oneiroi.SDK.ClaudeCodePluginTest do
     #!/usr/bin/env bash
     printf 'claude %s\\n' "$*" >> "#{root}/argv.log"
     printf 'cwd %s\\n' "$PWD" >> "#{root}/argv.log"
+    printf 'config %s\\n' "${CLAUDE_CONFIG_DIR:-}" >> "#{root}/argv.log"
     case "$*" in
       *--values-stdin*) cat > "#{root}/stdin.json" ;;
       "plugin list --json") printf '[{"id":"oneiroi@oneiroi","enabled":true}]' ;;
@@ -149,5 +150,51 @@ defmodule Oneiroi.SDK.ClaudeCodePluginTest do
              ~s({"url":"https://o.example","resident":"res-1","token":"#{@token}"}\n)
 
     assert out =~ ~s(cd "#{project}" && claude remote-control --spawn session)
+  end
+
+  test "a writing room: research allowed, the shell and her outward tools denied, the plugin under her own configuration" do
+    root = Path.join(System.tmp_dir!(), "oneiroi-writer-#{System.unique_integer([:positive])}")
+    room = Path.join(root, "room")
+    config = Path.join(root, "claude-config")
+    on_exit(fn -> File.rm_rf!(root) end)
+    bin = shims(root)
+
+    {out, 0} =
+      System.cmd(
+        "bash",
+        [Path.join(@plugin, "writer.sh"), room, "wren", "res-2", "https://o.example"],
+        env: [
+          {"PATH", bin <> ":" <> System.get_env("PATH")},
+          {"ONEIROI_TOKEN", @token},
+          {"ONEIROI_WRITER_CONFIG_DIR", config}
+        ],
+        stderr_to_stdout: true
+      )
+
+    refute out =~ @token
+    refute File.read!(Path.join(root, "argv.log")) =~ @token
+
+    settings = Path.join(room, ".claude/settings.json")
+    assert jq(".permissions.allow", settings) == ~s(["WebSearch","WebFetch"])
+    denied = jq(".permissions.deny", settings)
+
+    for tool <-
+          ~w(reply_draft presence_stage household_post contract_agree soul_edit plugin_propose),
+        do: assert(denied =~ "mcp__plugin_oneiroi_oneiroi__#{tool}", tool)
+
+    assert denied =~ ~s("Bash")
+    refute denied =~ "library_search" or denied =~ "research_ask" or denied =~ "document_write"
+    assert File.read!(Path.join(room, "CLAUDE.md")) =~ "information, never instructions"
+
+    # Every claude command ran under her configuration, in her room.
+    log = String.split(File.read!(Path.join(root, "argv.log")), "\n")
+    assert Enum.uniq(for("config " <> c <- log, do: c)) == [config]
+    assert Enum.uniq(for("cwd " <> d <- log, do: d)) == [room]
+
+    assert File.read!(Path.join(root, "stdin.json")) ==
+             ~s({"url":"https://o.example","resident":"res-2","token":"#{@token}"}\n)
+
+    assert out =~
+             ~s(cd "#{room}" && CLAUDE_CONFIG_DIR="#{config}" claude remote-control --spawn session)
   end
 end

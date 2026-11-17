@@ -226,25 +226,23 @@ defmodule Oneiroi.Xenia.Routing do
   # principle, applied to routes): beside nothing of the platform's.
   # The file is the route's key, held to `[a-z][a-z0-9-]` by the safe
   # subset before it gets here, under the fixed routes/ folder.
-  # sobelow_skip ["Traversal.FileModule"]
   defp write_file(resident_id, descriptor, actor) do
-    with {:ok, dir} <- SimaQian.repository_dir(resident_id) do
-      folder = Path.join(dir, @folder)
-      File.mkdir_p!(folder)
+    file =
+      Map.merge(descriptor, %{
+        "updated_by" => to_string(actor.kind),
+        "updated_at" => DateTime.to_iso8601(Clock.now())
+      })
 
-      file =
-        Map.merge(descriptor, %{
-          "updated_by" => to_string(actor.kind),
-          "updated_at" => DateTime.to_iso8601(Clock.now())
-        })
-
-      File.write!(
-        Path.join(folder, descriptor["key"] <> ".json"),
-        Jason.encode!(file, pretty: true) <> "\n"
-      )
-
-      :ok
-    end
+    # Through the repositories' port (sima-qian#57), one commit.
+    with {:ok, _} <-
+           SimaQian.repository_put(
+             resident_id,
+             Path.join(@folder, descriptor["key"] <> ".json"),
+             Jason.encode!(file, pretty: true) <> "\n",
+             "Route: #{descriptor["key"]}",
+             actor
+           ),
+         do: :ok
   end
 
   @doc "Asks a run of a route of hers (xenia#19), either party; a route that cannot fire is refused, with why."

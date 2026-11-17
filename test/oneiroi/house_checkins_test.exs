@@ -150,4 +150,23 @@ defmodule Oneiroi.HouseCheckinsTest do
 
     assert Enum.sort(woken) == Enum.sort([ctx.lily.id, ctx.scarlett.id])
   end
+
+  test "the house's Records: its repository in the library's shape (seshat#76)", ctx do
+    {:ok, _} = Seshat.set_house_checkin(ctx.andrew, "morning", "Morning check-in", "15:00")
+    :ok = Seshat.tick_house_checkins(ctx.household)
+
+    assert {:ok, %{kinds: kinds, documents: docs}} = Seshat.household_files(ctx.andrew)
+    assert Enum.map(kinds, & &1.kind) == ["house", "thread"]
+
+    assert %{title: "The household contract"} = Enum.find(docs, &(&1.path == "CONTRACT.md"))
+
+    assert %{kind: "thread", title: "Morning check-in, 2026-11-16", versions: 1} =
+             Enum.find(docs, &(&1.path == "threads/checkin-2026-11-16-morning"))
+
+    # Each opens whole by its path.
+    assert {:ok, %{content: content}} =
+             Seshat.household_read(ctx.andrew, "threads/checkin-2026-11-16-morning")
+
+    assert content =~ "The house checks in"
+  end
 end

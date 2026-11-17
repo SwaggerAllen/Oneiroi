@@ -31,6 +31,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     exported_through: 0,
     last_backup: nil,
     files: %{},
+    # Identity files she has taken out of her prefix (agathos-daimon#50).
+    retired: MapSet.new(),
     # The live soul lines in the file's order, `{number, text}`: what a
     # write of `SOUL.md` is diffed against (spec §6.17, P39).
     soul: [],
@@ -537,6 +539,43 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # `SOUL.md` is stored as its words, markers stripped, and the same
   # dispatch diffs its paragraphs against the live lines (`soul_events/4`):
   # a rendered file written back unchanged is no event at all.
+  # Her prefix is hers to shape (agathos-daimon#50): only she retires or
+  # restores one of her files, and never SOUL.md or IDENTITY.md, which are
+  # who she is to every turn. A file never written has nothing to retire.
+  @retirable ~w(USER.md GOALS.md LINKS.md)
+
+  def execute(%__MODULE__{} = r, %{actor: actor, file: file} = c)
+      when is_struct(c, Commands.RetireIdentityFile) or is_struct(c, Commands.RestoreIdentityFile) do
+    retire? = is_struct(c, Commands.RetireIdentityFile)
+
+    cond do
+      not match?(%{kind: :resident, id: id} when id == r.id, actor) ->
+        {:error, Error.new(:agathos_daimon_not_yours, :agathos_daimon_resident_retire_not_hers)}
+
+      file not in @retirable ->
+        {:error,
+         Error.new(:agathos_daimon_file_unknown, :agathos_daimon_resident_retire_file,
+           file: file,
+           files: @retirable
+         )}
+
+      not Map.has_key?(r.files, file) ->
+        {:error,
+         Error.new(:agathos_daimon_file_unknown, :agathos_daimon_resident_retire_unwritten,
+           file: file
+         )}
+
+      MapSet.member?(r.retired, file) == retire? ->
+        []
+
+      retire? ->
+        %Events.IdentityFileRetired{actor: actor, at: c.at, id: r.id, file: file, note: c.note}
+
+      true ->
+        %Events.IdentityFileRestored{actor: actor, at: c.at, id: r.id, file: file, note: c.note}
+    end
+  end
+
   def execute(%__MODULE__{} = r, %Commands.WriteFile{} = c) do
     with :ok <- write_ok(c), do: write_file(r, c, soul_content(c.file, c.content))
   end
@@ -1151,6 +1190,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.BackupCommitted{} = e),
     do: %{r | last_backup: %{sequence: e.sequence, root: e.root, commit: e.commit}}
+
+  def apply(%__MODULE__{} = r, %Events.IdentityFileRetired{} = e),
+    do: %{r | retired: MapSet.put(r.retired, e.file)}
+
+  def apply(%__MODULE__{} = r, %Events.IdentityFileRestored{} = e),
+    do: %{r | retired: MapSet.delete(r.retired, e.file)}
 
   def apply(%__MODULE__{} = r, %Events.SeedFileWritten{} = e),
     do: %{r | files: Map.put(r.files, e.file, e.content)}

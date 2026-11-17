@@ -808,6 +808,12 @@ defmodule Oneiroi.Sunna.Schedules do
     })
   end
 
+  # A wake that outlasted the wait is her free time running on in its
+  # session (brain#97), not a failure (sunna#66): recorded as run, and its
+  # carrying on is the turn's own; nil in place of a result says so.
+  defp ran_on({:error, %{kind: :brain_wake_outlasted}}), do: {:ok, nil}
+  defp ran_on(other), do: other
+
   defp open_free_time(resident_id, day, slot, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <-
@@ -824,14 +830,16 @@ defmodule Oneiroi.Sunna.Schedules do
              private: true
            ),
          {:ok, result} <-
-           wake(
-             resident_id,
-             key,
-             Prompt.render!("free_time", %{name: row.name, budget: budget_words(resident_id)}),
-             :free_time
+           ran_on(
+             wake(
+               resident_id,
+               key,
+               Prompt.render!("free_time", %{name: row.name, budget: budget_words(resident_id)}),
+               :free_time
+             )
            ) do
       recorded = record_free_time(resident_id, {day, slot}, key, nil, actor)
-      carry_on(resident_id, key, result, 2)
+      if result, do: carry_on(resident_id, key, result, 2)
       recorded
     else
       {:error, %{site: _} = e} ->

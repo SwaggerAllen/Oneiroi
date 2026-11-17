@@ -22,7 +22,7 @@ COPY . .
 # .dockerignore keeps those out of the context too).
 RUN mkdir -p /source && \
     cp -r --parents lib systems design screens config test priv/prompts priv/repo \
-      sdk components client/src mix.exs README.md CLAUDE.md /source/
+      sdk components client/src .claude-plugin mix.exs README.md CLAUDE.md /source/
 
 RUN mix deps.get --only prod
 

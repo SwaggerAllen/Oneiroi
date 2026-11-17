@@ -1,68 +1,61 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { api } from '../../api/client';
-import { Card } from '../settings/common';
-import * as css from '../settings/settings.css';
-import { HousePage } from './common';
-import { SHELF, thread as docKey, when } from './keys';
+import { api, RequestFailed } from '../../api/client';
+import { Markdown } from '../chat/Markdown';
+import * as css from '../records/records.css';
+import { Tree } from '../records/Tree';
+import { ScrollArea } from '../shell/ScrollArea';
+import { useWide } from '../shell/useWide';
+import { useShell } from '../state/store';
+import { HOUSE, thread as docKey } from './keys';
+
+const FILES = [...HOUSE, 'files'];
 
 /**
- * The house's records (screen:next-house): its repository's documents
- * (sima-qian#51), BEATS.md and CONTRACT.md, each read whole. The threads
- * are on Chat; the charter's history is on Charter.
+ * The house's Records (screen:next-house; the witness, 2026-11-16: "almost
+ * identical to the residents records view, just pointed at a different
+ * repo"): the same tree and page, over the household's repository
+ * (seshat#76). A thread is one file, read whole. Reading only: what is
+ * written here is written in the threads and the charter.
  */
-export function HouseRecords() {
-  const [open, setOpen] = useState<string | null>(null);
-  const shelf = useQuery({ queryKey: [...SHELF, 0], queryFn: () => api.householdShelf(0) });
-  if (open) return <Doc path={open} onBack={() => setOpen(null)} />;
-  const docs = shelf.data?.documents ?? [];
+export function HouseRecords({ path }: { path: string }) {
+  const push = useShell((s) => s.push);
+  const back = useShell((s) => s.back);
+  const wide = useWide();
+  const tree = <Tree residentId="house" current={path} onOpen={push} source={{ key: FILES, load: api.householdFiles }} />;
+  const empty = <div className={css.emptyPage}>Choose a record from the tree.</div>;
+  const page = path.startsWith('doc/') ? <HouseDoc path={path.slice(4)} onBack={back} /> : wide ? empty : tree;
   return (
-    <HousePage label="Records" title="Records" lede="The house's repository: its documents, the beats' record and the contract as written, every one a commit under its writer's name.">
-      <Card title="The house's own">
-        <ul className={css.list} aria-label="The house's files">
-          {[
-            { path: 'CONTRACT.md', title: 'CONTRACT.md · the charter as written' },
-            { path: 'BEATS.md', title: "BEATS.md · the beats' record" },
-          ].map((d) => (
-            <li key={d.path} className={css.item}>
-              <button type="button" className={css.linkButton} onClick={() => setOpen(d.path)}>
-                {d.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Card>
-      <Card title="Documents">
-        {shelf.isError && <p className={css.note}>The house could not be read.</p>}
-        {shelf.data && docs.length === 0 && <p className={css.note}>No documents yet: what the house writes down lands here.</p>}
-        <ul className={css.list} aria-label="Documents">
-          {docs.map((d) => (
-            <li key={d.path} className={css.item}>
-              <button type="button" className={css.linkButton} onClick={() => setOpen(d.path)}>
-                {d.title}
-              </button>
-              <p className={css.meta}>
-                {d.kind} · {d.path}
-                {d.by ? ` · ${d.by}` : ''}
-                {d.posted_at ? ` · ${when(d.posted_at)}` : ''}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </HousePage>
+    <div className={css.tab}>
+      <div className={css.treeColumn}>{tree}</div>
+      <div className={css.page}>{page}</div>
+    </div>
   );
 }
 
-function Doc({ path, onBack }: { path: string; onBack: () => void }) {
-  const doc = useQuery({ queryKey: docKey(path), queryFn: () => api.householdRead(path) });
+function HouseDoc({ path, onBack }: { path: string; onBack: () => void }) {
+  const read = useQuery({
+    queryKey: docKey(path),
+    queryFn: () => api.householdRead(path),
+    retry: (n, e) => n < 2 && !(e instanceof RequestFailed && e.status === 404),
+  });
+  const folder = path.includes('/') ? path.split('/')[0] : 'the house';
   return (
-    <HousePage label="Record" title={doc.data?.title ?? path} lede={path}>
-      <button type="button" className={css.back} onClick={onBack}>
-        ‹ Records
-      </button>
-      {doc.isError && <p className={css.note}>It could not be read.</p>}
-      {doc.data && <pre className={css.pre}>{doc.data.content}</pre>}
-    </HousePage>
+    <ScrollArea label={path}>
+      <div className={css.viewer}>
+        <button type="button" className={css.back} onClick={onBack}>
+          ‹ {folder}
+        </button>
+        <div className={css.meta}>{path}</div>
+        <h1 className={css.title}>{read.data?.title ?? path.split('/').pop()?.replace(/\.md$/, '')}</h1>
+        {read.isPending && <p className={css.note}>Reading…</p>}
+        {read.error && <p className={css.note}>This record couldn't be read.</p>}
+        {read.data && <Markdown text={strip(read.data.content)} onCite={() => undefined} breaks={path.startsWith('threads/')} />}
+      </div>
+    </ScrollArea>
   );
+}
+
+/** A document's front matter is the record's bookkeeping, not its words. */
+function strip(text: string): string {
+  return text.startsWith('---\n') ? text.replace(/^---\n[\s\S]*?\n---\n?/, '') : text;
 }

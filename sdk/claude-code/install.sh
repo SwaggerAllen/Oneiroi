@@ -70,7 +70,7 @@ cat << EOF
 The oneiroi plugin is enabled in $project, for you only.
 Start Claude Code there and open it from the Claude app:
 
-  cd "$project" && claude remote-control --spawn session
+  cd "$project" && ${CLAUDE_CONFIG_DIR:+CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" }claude remote-control --spawn session
 
 The README says how to check it worked.
 EOF

@@ -18,7 +18,9 @@ defmodule Oneiroi.StatementBudget do
     :telemetry.attach(
       id,
       @event,
-      fn _event, _measurements, _metadata, _config -> send(parent, {id, :statement}) end,
+      fn _event, _measurements, _metadata, _config ->
+        if ours?(parent), do: send(parent, {id, :statement})
+      end,
       nil
     )
 
@@ -44,7 +46,9 @@ defmodule Oneiroi.StatementBudget do
     :telemetry.attach(
       id,
       @event,
-      fn _event, _measurements, %{query: query}, _config -> send(parent, {id, query}) end,
+      fn _event, _measurements, %{query: query}, _config ->
+        if ours?(parent), do: send(parent, {id, query})
+      end,
       nil
     )
 
@@ -59,6 +63,15 @@ defmodule Oneiroi.StatementBudget do
       :telemetry.detach(id)
     end
   end
+
+  # A telemetry handler runs in the process that ran the query, and the
+  # handler is global: without this, every statement anywhere in the
+  # node while `fun` ran was counted, a projector's, a job's, another
+  # test's, and the budgets flaked by a statement or two under load
+  # (three on 2026-11-16). The caller's own, and its tasks' ($callers).
+  @doc false
+  def ours?(parent),
+    do: self() == parent or parent in (Process.get(:"$callers") || [])
 
   @doc "Asserts `fun` issues at most `max` statements, naming the count when it does not."
   @spec assert_statements(non_neg_integer(), (-> result)) :: result when result: term()

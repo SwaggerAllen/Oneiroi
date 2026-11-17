@@ -17,9 +17,68 @@ export function Backups() {
   return (
     <>
       <BackupRepo />
+      <Gitea />
       <ChatgptImport />
       <Reports />
     </>
+  );
+}
+
+/**
+ * The repositories' server (sima-qian#55): every household's and
+ * resident's repository on Gitea, yours to read there under a user of
+ * your own, with a password you set here.
+ */
+function Gitea() {
+  const access = useQuery({ queryKey: ['me', 'gitea'], queryFn: api.gitea });
+  const [password, setPassword] = useState('');
+  const act = useAct();
+  if (access.isPending) return null;
+  const a = access.data;
+  return (
+    <Card title="Your repositories on Gitea">
+      {!a ? (
+        <p className={css.note}>The repositories' server is not set up on this platform yet.</p>
+      ) : (
+        <>
+          <p className={css.text}>
+            Every write in the house reaches Gitea within seconds, and each resident's records at their backup. Sign in at{' '}
+            <a className={css.link} href={a.url} target="_blank" rel="noreferrer">
+              {a.url}
+            </a>{' '}
+            as <span className={css.mono}>{a.login}</span> to browse, diff and clone them; you can read these and no one else's:
+          </p>
+          <ul className={css.list} aria-label="Your repositories">
+            {a.repositories.map((r) => (
+              <li key={r} className={css.mono}>
+                <a className={css.link} href={`${a.url}/${r}`} target="_blank" rel="noreferrer">
+                  {r}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <form
+            aria-label="Set your Gitea password"
+            className={css.row}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void act.run(() =>
+                api.setGiteaPassword(password).then(() => {
+                  setPassword('');
+                  return 'Set. Sign in with it on Gitea.';
+                }),
+              );
+            }}
+          >
+            <Field label="A password for Gitea (twelve characters or more)" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="submit" className={css.primary} disabled={act.busy || password.length < 12}>
+              Set
+            </button>
+          </form>
+          <Said said={act.said} />
+        </>
+      )}
+    </Card>
   );
 }
 

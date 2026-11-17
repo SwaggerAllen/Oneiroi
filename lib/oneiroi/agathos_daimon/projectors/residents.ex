@@ -394,6 +394,24 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     )
   end)
 
+  fold(%Events.IdentityFileRetired{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :retired,
+      from(f in IdentityFile, where: f.resident_id == ^e.id and f.name == ^e.file),
+      set: [retired_at: e.at]
+    )
+  end)
+
+  fold(%Events.IdentityFileRestored{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :restored,
+      from(f in IdentityFile, where: f.resident_id == ^e.id and f.name == ^e.file),
+      set: [retired_at: nil]
+    )
+  end)
+
   fold(%Events.SeedFileWritten{} = e, _metadata, fn multi ->
     put_file(multi, e, e.origin, e.model, e.prompt)
   end)

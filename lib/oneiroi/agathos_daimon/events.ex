@@ -162,6 +162,18 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :expected_root, :actual_root, :commit]
   end
 
+  defmodule IdentityFileRetired do
+    # One of her identity files out of her prefix (agathos-daimon#50):
+    # what it held has a home elsewhere in her records, so it is no longer
+    # given every turn. The file stays as written, in her repository and
+    # its history; editing it still works.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :file]
+  end
+
+  defmodule IdentityFileRestored do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :file]
+  end
+
   defmodule SeedFileWritten do
     # A seed file given before first contact (spec §6.2, F2): the file's
     # name, its whole content, and its origin: `authored`, `drafted` (with

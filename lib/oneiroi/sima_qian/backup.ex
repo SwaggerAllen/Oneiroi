@@ -3,16 +3,17 @@ defmodule Oneiroi.SimaQian.Backup do
   The nightly unit (spec §6.10): export, root, commit by class with the
   trailers, push, and record both facts on the resident's stream.
 
-  Commits by class as David's backup does: the soul alone, writing and
-  research apart, machine state together; anything else uncommitted fails
-  the run after the rest has landed, so a stray write is loud and the
-  backup is still taken. In P0 the only class with files is the machine
-  one, `records/`; the table is here so the others arrive as rows.
+  The export is built in a directory of the run's own and committed
+  through the repositories' port (sima-qian#57), class by class as
+  David's backup does (the soul alone, machine state together), each
+  class only what changed; what a run's export no longer writes is
+  removed. The library's files are not the backup's: each was committed
+  when it was written.
 
   Before the commit, Honcho's memory of the resident is written under
   `honcho/` (sima-qian#42), in the soul class; a Honcho that cannot
   answer leaves the last of it in place and is the run's error after
-  the rest has landed, as a stray file is.
+  the rest has landed.
   """
 
   require Logger
@@ -32,6 +33,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.HonchoMemory
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Merkle
+  alias Oneiroi.SimaQian.Repos
 
   @classes [
     # The soul alone (David's rule), and the identity files with it: they
@@ -85,73 +87,121 @@ defmodule Oneiroi.SimaQian.Backup do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  # The staging directory is this run's own under the temp dir.
+  # sobelow_skip ["Traversal.FileModule"]
   def run(resident_id, %Actor{} = actor) do
-    dir = dir(resident_id)
     row = Scope.resident(resident_id, fn -> Store.get(resident_id) end)
+    repo = {:resident, resident_id}
+    staging = staging_dir(resident_id)
 
-    with :ok <- fresh_if_foreign(resident_id, dir, row),
-         :ok <- Git.ensure_repo(dir),
-         {:ok, export} <- Export.write(resident_id, dir),
-         # Honcho's memory of her, before the commit that carries it
-         # (sima-qian#42); a failure is returned after the rest lands.
-         honcho = HonchoMemory.write(resident_id, dir, export.private),
-         export = %{export | files: export.files ++ honcho_files(honcho)},
-         {:ok, _} <- record_export(resident_id, export, actor),
-         # The letters the export carried for the first time get their
-         # receipt (agathos-daimon#28): the words left the house.
-         :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
-         root = Merkle.root(Path.join(dir, "records")),
-         :ok <- Household.travel(resident_id, dir),
-         {:ok, commits} <- commit_classes(dir, export.through, root),
-         :ok <- push(dir, row),
-         {:ok, _} <- record_backup(resident_id, export.through, root, commits, actor) do
-      :telemetry.execute([:oneiroi, :sima_qian, :backup], %{through: export.through}, %{
-        resident_id: resident_id
-      })
+    try do
+      with :ok <- fresh_if_foreign(resident_id, dir(resident_id), row),
+           {:ok, export} <- Export.write(resident_id, staging),
+           # Honcho's memory of her, before the commit that carries it
+           # (sima-qian#42); a failure is returned after the rest lands.
+           honcho = HonchoMemory.write(resident_id, staging, export.private),
+           export = %{export | files: export.files ++ honcho_files(honcho)},
+           {:ok, _} <- record_export(resident_id, export, actor),
+           # The letters the export carried for the first time get their
+           # receipt (agathos-daimon#28): the words left the house.
+           :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
+           root = Merkle.root(Path.join(staging, "records")),
+           :ok <- Household.travel(resident_id, staging),
+           {:ok, commits} <- commit_staged(repo, staging, owned(honcho), export.through, root),
+           :ok <- push(repo, row),
+           {:ok, _} <- record_backup(resident_id, export.through, root, commits, actor) do
+        :telemetry.execute([:oneiroi, :sima_qian, :backup], %{through: export.through}, %{
+          resident_id: resident_id
+        })
 
-      # The card comes from git, always (spec §6.9): set after the soul
-      # commit; a bridge not yet provisioned, or a Honcho that is down,
-      # is the bridge's to record and never the backup's to fail on.
-      if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
-        do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
+        # The card comes from git, always (spec §6.9): set after the soul
+        # commit; a bridge not yet provisioned, or a Honcho that is down,
+        # is the bridge's to record and never the backup's to fail on.
+        if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
+          do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
 
-      case {Git.stray(dir, held(dir)), honcho} do
-        {[], {:ok, _written}} ->
-          {:ok, %{through: export.through, root: root, commits: commits}}
-
-        {[], {:error, _unreadable_or_empty} = failed} ->
-          failed
-
-        {stray, _honcho} ->
-          {:error, Error.new(:sima_qian_stray_files, :sima_qian_backup_stray, paths: stray)}
+        case honcho do
+          {:ok, _written} -> {:ok, %{through: export.through, root: root, commits: commits}}
+          {:error, _unreadable_or_empty} = failed -> failed
+        end
       end
+    after
+      File.rm_rf(staging)
+    end
+  end
+
+  # The export is built in a directory of its own for the run alone
+  # (sima-qian#57): the repository is Gitea's, and this node keeps
+  # nothing of it between runs.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp staging_dir(resident_id) do
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "oneiroi-export-#{resident_id}-#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(dir)
+    dir
+  end
+
+  # What a run's export rewrites whole, so a file it no longer writes is
+  # removed: the records, the identity files and the state, the household's
+  # copy when it travelled, and Honcho's files when Honcho answered.
+  defp owned(honcho) do
+    always = [
+      ~r{\Arecords/},
+      ~r{\A(SOUL|IDENTITY|USER|GOALS|LINKS|STATE)\.md\z},
+      ~r{\Ahoncho/custom-instructions\.md\z}
+    ]
+
+    case honcho do
+      {:ok, _} ->
+        always ++ [~r{\Ahoncho/[^/]+/(card|conclusions)\.md\z}, ~r{\Ahoncho/summaries\.md\z}]
+
+      _failed ->
+        always
     end
   end
 
   def attest(resident_id, %Actor{} = actor) do
-    dir = dir(resident_id)
     row = Scope.resident(resident_id, fn -> Store.get(resident_id) end)
 
-    cond do
-      is_nil(row) or is_nil(row.last_backup_root) ->
-        {:ok, :none}
+    with false <- is_nil(row) or is_nil(row.last_backup_root),
+         {:ok, actual} <- records_root(resident_id) do
+      compare(resident_id, row, actual, actor)
+    else
+      true -> {:ok, :none}
+      other -> other
+    end
+  end
 
-      Merkle.root(Path.join(dir, "records")) == row.last_backup_root ->
-        {:ok, :held}
+  defp compare(_resident_id, %{last_backup_root: root}, root, _actor), do: {:ok, :held}
 
-      true ->
-        actual = Merkle.root(Path.join(dir, "records"))
+  defp compare(resident_id, row, actual, actor) do
+    command = %Commands.RecordMismatch{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      expected_root: row.last_backup_root,
+      actual_root: actual,
+      commit: row.last_backup_commit
+    }
 
-        command = %Commands.RecordMismatch{
-          actor: actor,
-          at: Clock.now(),
-          id: resident_id,
-          expected_root: row.last_backup_root,
-          actual_root: actual,
-          commit: row.last_backup_commit
-        }
+    with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, :mismatch}
+  end
 
-        with {:ok, _} <- Router.dispatch_sited(command), do: {:ok, :mismatch}
+  # The Merkle root over the repository's `records/` as it stands
+  # (sima-qian#57), its files through the blob cache.
+  defp records_root(resident_id) do
+    repo = {:resident, resident_id}
+
+    with {:ok, files} <- Repos.snapshot(repo) do
+      {:ok,
+       files
+       |> Repos.under("records")
+       |> Enum.map(&{String.replace_prefix(&1, "records/", ""), Repos.at(repo, files, &1)})
+       |> Merkle.root_of()}
     end
   end
 
@@ -201,8 +251,7 @@ defmodule Oneiroi.SimaQian.Backup do
        when is_binary(source) do
     # Its own `.git` first: git walks up from a directory without one, and
     # a records root inside another repository would read that one's head.
-    if File.dir?(Path.join(dir, ".git")) and Git.head?(dir) and
-         not Map.has_key?(Git.root_trailers(dir), "Oneiroi-Sequence") do
+    if File.dir?(Path.join(dir, ".git")) and Git.head?(dir) and not ours?(Git.root_trailers(dir)) do
       Logger.info("records history started fresh for imported resident #{resident_id}")
       left = Enum.uniq(Map.keys(row.import_reasons || %{}) ++ (row.import_not_transferred || []))
       start_fresh(dir, left)
@@ -212,6 +261,11 @@ defmodule Oneiroi.SimaQian.Backup do
   end
 
   defp fresh_if_foreign(_resident_id, _dir, _row), do: :ok
+
+  # A history that began as ours: a backup's first commit, or the
+  # import's own (sima-qian#57), never the source's.
+  defp ours?(trailers),
+    do: Map.has_key?(trailers, "Oneiroi-Sequence") or Map.has_key?(trailers, "Oneiroi-Import")
 
   # Every file under `dir`, hidden ones included, but its `.git`.
   # sobelow_skip ["Traversal.FileModule"]
@@ -293,39 +347,87 @@ defmodule Oneiroi.SimaQian.Backup do
 
   defp library, do: Config.fetch!(:sima_qian, :library)
 
-  defp commit_classes(dir, through, root) do
+  # The staged export committed through the repositories' port
+  # (sima-qian#57), class by class with the run's trailers, each class
+  # only what changed: a file whose blob is the repository's already is
+  # no change, and an owned file the run no longer wrote is removed. The
+  # household's copy is owned when it travelled this run.
+  defp commit_staged(repo, staging, owned, through, root) do
     message = fn class ->
       "Records: #{class} through sequence #{through}\n\nOneiroi-Sequence: #{through}\nOneiroi-Root: #{root}\n"
     end
 
-    Enum.reduce_while(classes(dir), {:ok, []}, fn {class, paths}, {:ok, acc} ->
-      case commit_class(
-             dir,
-             Enum.filter(paths, &File.exists?(Path.join(dir, &1))),
-             message.(class)
-           ) do
-        {:ok, :nothing} -> {:cont, {:ok, acc}}
-        {:ok, sha} -> {:cont, {:ok, acc ++ [{class, sha}]}}
-        {:error, _git} = failed -> {:halt, failed}
-      end
+    with {:ok, head} <- Repos.snapshot(repo) do
+      staged = staged(staging)
+
+      owned =
+        if File.dir?(Path.join(staging, "household")), do: [~r{\Ahousehold/} | owned], else: owned
+
+      puts =
+        for {path, bytes} <- staged,
+            Map.get(head, path) != Repos.Local.sha(bytes),
+            do: {:put, path, bytes, :any}
+
+      deletes =
+        for path <- Map.keys(head),
+            not Map.has_key?(staged, path),
+            Enum.any?(owned, &Regex.match?(&1, path)),
+            do: {:delete, path, Map.fetch!(head, path)}
+
+      (puts ++ deletes)
+      |> Enum.group_by(&class_of(elem(&1, 1)))
+      |> Enum.sort_by(fn {class, _} -> Enum.find_index(class_order(), &(&1 == class)) end)
+      |> Enum.reduce_while({:ok, []}, &commit_class(repo, message, &1, &2))
+    end
+  end
+
+  defp commit_class(repo, message, {class, changes}, {:ok, acc}) do
+    case Repos.write(repo, changes, message.(class), Repos.platform()) do
+      {:ok, :nothing} -> {:cont, {:ok, acc}}
+      {:ok, sha} -> {:cont, {:ok, acc ++ [{class, sha}]}}
+      {:error, _} = failed -> {:halt, failed}
+    end
+  end
+
+  defp class_order, do: Enum.map(@classes, &elem(&1, 0)) ++ ["other"]
+
+  defp class_of(path) do
+    Enum.find_value(@classes, "other", fn {class, prefixes} ->
+      if Enum.any?(prefixes, &String.starts_with?(path, &1)), do: class
     end)
   end
 
-  defp commit_class(_dir, [], _message), do: {:ok, :nothing}
-  defp commit_class(dir, present, message), do: Git.commit(dir, present, message)
+  # Every file the run staged, with its bytes.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp staged(staging) do
+    for path <- files(staging), into: %{}, do: {path, File.read!(Path.join(staging, path))}
+  end
 
-  defp push(_dir, %{remote_url: nil}), do: :ok
-  defp push(_dir, nil), do: :ok
+  defp push(_repo, %{remote_url: nil}), do: :ok
+  defp push(_repo, nil), do: :ok
 
-  defp push(dir, %{remote_url: url, remote_token: token}) do
-    remote =
-      case {token && Vault.decrypt(token), url} do
-        {{:ok, ""}, _} -> url
-        {{:ok, plain}, "https://github.com/" <> _} -> Git.github_url(url, plain)
-        _ -> url
+  # Her own remote (sima-qian#16): on Gitea, its push mirror, which Gitea
+  # keeps in step on every commit (made or corrected here, idempotent); on
+  # the disk, a push from the repository.
+  defp push(repo, %{remote_url: url, remote_token: token}) do
+    plain =
+      case token && Vault.decrypt(token) do
+        {:ok, p} when p != "" -> p
+        _none -> nil
       end
 
-    Git.push(dir, remote)
+    if Config.fetch!(:sima_qian, :repos_client) == Repos.Gitea do
+      Repos.Gitea.mirror(repo, url, plain)
+    else
+      remote =
+        case {plain, url} do
+          {nil, _} -> url
+          {p, "https://github.com/" <> _} -> Git.github_url(url, p)
+          _ -> url
+        end
+
+      Git.push(Repos.Local.dir(repo), remote)
+    end
   end
 
   defp record_backup(_resident_id, _through, _root, [], _actor), do: {:ok, []}
