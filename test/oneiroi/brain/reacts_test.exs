@@ -48,6 +48,13 @@ defmodule Oneiroi.Brain.ReactsTest do
 
   test "a react wakes nothing, rides her next turn glossed through the vocabulary, and is told once",
        ctx do
+    :ok =
+      Brain.set_react_vocabulary(
+        ctx.id,
+        [{"🔀", "merged"}, {"👁", "seen"}, {"⚜️", "warm"}, {"❤️", "loved"}],
+        ctx.witness
+      )
+
     {ref, _} = told(ctx, "hello")
     {:ok, _scope, before} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.key)
 
@@ -133,13 +140,8 @@ defmodule Oneiroi.Brain.ReactsTest do
     assert {:error, %{site: :kumbukumbu_reacts_emoji}} =
              Kumbukumbu.react(ctx.id, target, "approved", ctx.witness)
 
-    # The seed stands until the file exists.
-    assert Brain.react_vocabulary(ctx.id) == [
-             {"🔀", "merged"},
-             {"👁", "seen"},
-             {"⚜️", "warm"},
-             {"❤️", "loved"}
-           ]
+    # The plain seed stands until the file exists: no other dyad's words (brain#105).
+    assert Brain.react_vocabulary(ctx.id) == [{"👁", "seen"}, {"👍", "agreed"}, {"❤️", "loved"}]
   end
 
   # Her side (the witness's call, 2026-11-09: two-way, inline, no tool
