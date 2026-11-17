@@ -44,6 +44,10 @@ defmodule Oneiroi.SimaQian.Gitea do
               :ok | {:error, term()}
   @callback remote(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
               {:ok, String.t() | Secret.t()} | {:error, term()}
+  # Waits until Gitea no longer counts a just-pushed repository as empty
+  # (sima-qian#62): until then its API lists nothing for every path.
+  @callback settled(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
+              :ok | {:error, term()}
 
   @house "house"
 
@@ -111,8 +115,10 @@ defmodule Oneiroi.SimaQian.Gitea do
          :ok <- client().ensure_repo(inst, org, @house),
          :ok <- grant_witnesses(inst, org, @house, household_id),
          {:ok, dir} <- Household.repository_dir(household_id),
-         {:ok, remote} <- client().remote(inst, org, @house) do
-      push(dir, remote)
+         {:ok, remote} <- client().remote(inst, org, @house),
+         {:ok, pushed} <- push(dir, remote),
+         :ok <- settled(pushed, inst, org, @house) do
+      {:ok, pushed}
     end
   end
 
@@ -126,8 +132,10 @@ defmodule Oneiroi.SimaQian.Gitea do
          :ok <- client().ensure_repo(inst, org, resident.slug),
          :ok <- grant(inst, org, resident.slug, resident.account_id),
          {:ok, dir} <- working_dir(resident_id),
-         {:ok, remote} <- client().remote(inst, org, resident.slug) do
-      push(dir, remote)
+         {:ok, remote} <- client().remote(inst, org, resident.slug),
+         {:ok, pushed} <- push(dir, remote),
+         :ok <- settled(pushed, inst, org, resident.slug) do
+      {:ok, pushed}
     else
       :error -> {:ok, :gone}
       nil -> {:ok, :no_household}
@@ -195,6 +203,9 @@ defmodule Oneiroi.SimaQian.Gitea do
   # Gitea wants an address; the witness's own never leaves the platform
   # for it, so the user carries one under the platform's name.
   defp email_of(account_id), do: login(account_id) <> "@users.oneiroi.invalid"
+
+  defp settled(:sent, inst, org, name), do: client().settled(inst, org, name)
+  defp settled(_empty, _inst, _org, _name), do: :ok
 
   defp push(dir, remote) do
     if Git.head?(dir),

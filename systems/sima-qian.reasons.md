@@ -416,3 +416,19 @@ A citation that names a version needs the version to stay readable;
 git keeps every one, so the port only has to name a commit and read the
 tree it had. Reading through the same blob cache keeps a pinned read as
 cheap as a current one.
+
+## #62
+
+A move that sends history assumes everything worth keeping is in it,
+and the old build kept up to a day of writes outside it. The disk was
+the only copy, so the recovery never overwrites anything Gitea gained
+since: a person or a resident may have written there already, and their
+write is newer than the disk's. Waiting for Gitea to settle costs
+seconds at a move and saves every read in the window from failing.
+
+## #63
+
+The contract test wrote a handful of files, so the port was proven on
+one page and the second never ran until production. The test now holds
+a repository past a page, on the real server, because the server's
+paging is the server's, and only it says where the end is.

@@ -45,6 +45,11 @@ it, in the server's own words.
 
 ## The sections
 
+Every copy button (a token, a command, an invite code, the landing's
+address) says "Copied" for two seconds once the text is on the
+clipboard, or "Couldn't copy; select it" when the browser refuses
+(`CopyButton`, 2026-11-17).
+
 - **Ledger** (spec §10):
   - **Keeping <name>** (nisaba#23): the subscription in a line (none
     yet; paid at $20 a month and when it renews; active with no card

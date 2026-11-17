@@ -13,6 +13,8 @@ defmodule Oneiroi.SimaQian.ReposTest do
   alias Oneiroi.Config.Secret
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
+  alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Repos
 
   @store {Oneiroi.Config, :values}
@@ -130,6 +132,25 @@ defmodule Oneiroi.SimaQian.ReposTest do
     if System.get_env("ONEIROI_GITEA_TEST_URL") do
       on_gitea(ctx.values)
       contract({:household, ctx.household})
+    else
+      IO.puts("skipped: no Gitea named (ONEIROI_GITEA_TEST_URL, ONEIROI_GITEA_TEST_TOKEN)")
+    end
+  end
+
+  test "Gitea: a tree past one page is listed whole, its last page's null ending the walk (sima-qian#63)",
+       ctx do
+    if System.get_env("ONEIROI_GITEA_TEST_URL") do
+      repo = {:household, ctx.household}
+      dir = Repos.Local.dir(repo)
+      File.mkdir_p!(Path.join(dir, "many"))
+      for i <- 1..1500, do: File.write!(Path.join([dir, "many", "#{i}.md"]), "#{i}\n")
+      {:ok, _} = Git.commit(dir, ["."], "Many")
+
+      on_gitea(ctx.values)
+      assert {:ok, :sent} = Gitea.sync_household(ctx.household)
+
+      assert {:ok, files} = Repos.tree(repo)
+      assert Enum.count(files, &String.starts_with?(&1.path, "many/")) == 1500
     else
       IO.puts("skipped: no Gitea named (ONEIROI_GITEA_TEST_URL, ONEIROI_GITEA_TEST_TOKEN)")
     end

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { CopyButton } from '../CopyButton';
 import { useSubject } from '../state/resident';
 import { Card, Field, Said } from './common';
 import { day, settingsKey, setupCommand } from './logic';
@@ -68,18 +69,14 @@ export function OnYourMac() {
                   {issued.token}
                 </code>
                 <div className={css.row}>
-                  <button type="button" className={css.secondary} onClick={() => void navigator.clipboard?.writeText(issued.token)}>
-                    Copy the token
-                  </button>
+                  <CopyButton className={css.secondary} text={issued.token} label="Copy the token" />
                 </div>
                 <p className={css.text}>2. Run this in Terminal on your Mac, and paste the token when it asks:</p>
                 <code aria-label={`${s.title} command`} className={css.token}>
                   {command}
                 </code>
                 <div className={css.row}>
-                  <button type="button" className={css.secondary} onClick={() => void navigator.clipboard?.writeText(command)}>
-                    Copy the command
-                  </button>
+                  <CopyButton className={css.secondary} text={command} label="Copy the command" />
                   <button type="button" className={css.quiet} onClick={() => setIssued(null)}>
                     Done
                   </button>

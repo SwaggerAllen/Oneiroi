@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, type InviteDefaults, type InviteRequest } from '../../api/client';
+import { CopyButton } from '../CopyButton';
 import { draftOf, skuOf, standing, termsLine, type InviteDraft } from './logic';
 import { Card, Field, RevokeWithNote, SaidLine } from './parts';
 import { useOp } from './useOp';
@@ -18,7 +19,6 @@ export function Invites() {
   const invites = useQuery({ queryKey: KEY, queryFn: api.invites });
   const op = useOp();
   const [issued, setIssued] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const list = invites.data?.invites ?? [];
   return (
     <>
@@ -31,7 +31,6 @@ export function Invites() {
             op.run(async () => {
               const r = await api.issueInvite(sku);
               setIssued(r.code);
-              setCopied(false);
               return 'Issued.';
             }, KEY)
           }
@@ -43,18 +42,7 @@ export function Invites() {
           <p className={css.code}>{issued}</p>
           <p className={css.note}>Copy it now; it isn't shown again.</p>
           <div className={css.buttons}>
-            <button
-              type="button"
-              className={css.button}
-              onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(issued)
-                  .then(() => setCopied(true))
-                  .catch(() => undefined)
-              }
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </button>
+            <CopyButton className={css.button} text={issued} />
             <button type="button" className={css.button} onClick={() => setIssued(null)}>
               Done
             </button>

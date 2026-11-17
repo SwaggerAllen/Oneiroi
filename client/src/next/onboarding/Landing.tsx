@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CopyButton } from '../CopyButton';
 import * as css from './onboarding.css';
 
 // The landing page (ui-build.md P6; the canvas's Landing board). Every
@@ -114,9 +115,7 @@ function AskFor() {
         <a className={css.small} style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} href={`mailto:${ASK}?subject=An%20invite%20to%20Oneiroi`}>
           Open my mail
         </a>
-        <button type="button" className={css.small} onClick={() => void navigator.clipboard?.writeText(ASK).catch(() => undefined)}>
-          Copy the address
-        </button>
+        <CopyButton className={css.small} text={ASK} label="Copy the address" />
       </div>
     </div>
   );

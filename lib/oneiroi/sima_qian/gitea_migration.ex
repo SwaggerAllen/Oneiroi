@@ -20,6 +20,7 @@ defmodule Oneiroi.SimaQian.GiteaMigration do
   require Logger
 
   alias Oneiroi.Config
+  alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.GiteaQueue
   alias Oneiroi.SimaQian.Repos
@@ -78,8 +79,99 @@ defmodule Oneiroi.SimaQian.GiteaMigration do
     GiteaQueue.moving(false)
   end
 
-  defp move(:household, id), do: Gitea.sync_household(id)
-  defp move(:resident, id), do: Gitea.sync_resident(id)
+  # What was on the disk is committed first (sima-qian#62): before #95 a
+  # library write reached the disk at once and git only at the nightly
+  # backup, and the push sends history, so the first move (2026-11-17)
+  # left behind everything written since the night's backup.
+  defp move(kind, id) do
+    dir = dir_of(kind, id)
+
+    with {:ok, _} <- before_the_move(dir) do
+      case kind do
+        :household -> Gitea.sync_household(id)
+        :resident -> Gitea.sync_resident(id)
+      end
+    end
+  end
+
+  defp before_the_move(dir) do
+    if repo?(dir),
+      do: Git.commit(dir, ["."], "Before the move: what was on the disk"),
+      else: {:ok, :nothing}
+  end
+
+  defp dir_of(:household, id), do: Path.join([Config.fetch!(:sima_qian, :root), "households", id])
+  defp dir_of(:resident, id), do: Path.join(Config.fetch!(:sima_qian, :root), id)
+
+  @doc """
+  Writes into Gitea what the first move left on the disk (sima-qian#62):
+  for each repository already sent, every file on the disk that its last
+  commit did not carry, new or changed. Nothing is overwritten that was
+  written since the move: a file Gitea does not have is created, one
+  Gitea still holds as the move sent it is replaced, and one Gitea has
+  since changed, or deleted, is left alone and named. One commit per
+  repository, the platform's. Run once, from the release:
+  `Oneiroi.SimaQian.GiteaMigration.recover()`; it answers what it did.
+  """
+  def recover do
+    for {kind, id, dir} <- on_disk(), sent?(dir) do
+      {kind, id, recover_one({kind, id}, dir)}
+    end
+  end
+
+  defp recover_one(repo, dir) do
+    with {:ok, sent} <- sent_tree(dir),
+         {:ok, now} <- Repos.snapshot(repo) do
+      {changes, left} =
+        dir
+        |> disk_files()
+        |> Enum.reject(fn {path, sha, _bytes} -> Map.get(sent, path) == sha end)
+        |> Enum.reduce({[], []}, &sort_out(&1, &2, sent, now))
+
+      with {:ok, commit} <-
+             Repos.write(
+               repo,
+               Enum.reverse(changes),
+               "Recovered: written on the disk before the move to Gitea",
+               Repos.platform()
+             ) do
+        %{written: Enum.map(changes, &elem(&1, 1)), left: Enum.reverse(left), commit: commit}
+      end
+    end
+  end
+
+  defp sort_out({path, sha, bytes}, {changes, left}, sent, now) do
+    case recovered(path, sha, bytes, Map.get(sent, path), Map.get(now, path)) do
+      nil -> {changes, left}
+      :left -> {changes, [path | left]}
+      change -> {[change | changes], left}
+    end
+  end
+
+  # The disk's copy (`sha`), what the move sent (`sent`), what Gitea holds now (`now`).
+  defp recovered(_path, sha, _bytes, _sent, sha), do: nil
+  defp recovered(path, _sha, bytes, nil, nil), do: {:create, path, bytes}
+
+  defp recovered(path, _sha, bytes, sent, sent) when is_binary(sent),
+    do: {:put, path, bytes, sent}
+
+  defp recovered(_path, _sha, _bytes, _sent, _now), do: :left
+
+  defp sent_tree(dir) do
+    with {:ok, entries} <- Git.tree(dir, "HEAD"),
+         do: {:ok, for(%{type: "blob", path: p, blob: b} <- entries, into: %{}, do: {p, b})}
+  end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp disk_files(dir) do
+    for full <- Path.wildcard(Path.join(dir, "**"), match_dot: true),
+        File.regular?(full),
+        rel = Path.relative_to(full, dir),
+        rel != ".git" and not String.starts_with?(rel, ".git/") do
+      bytes = File.read!(full)
+      {rel, Repos.Local.sha(bytes), bytes}
+    end
+  end
 
   # sobelow_skip ["Traversal.FileModule"]
   defp on_disk do
