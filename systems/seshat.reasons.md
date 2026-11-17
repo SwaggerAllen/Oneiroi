@@ -673,3 +673,11 @@ build a second history beside git's, at every write and for every member
 marked form keeps houses and residents in names that cannot collide, and
 names the house rather than "the house I'm in" so a resident who moves
 keeps citations that still say where they point.
+
+## #80
+
+A house is read by everyone in it, so finding a thread again is as
+ordinary as finding a record of one's own, and the same sheet keeps one
+gesture for both. Plain matching over the files is enough while a house
+is a few hundred threads; an index would be one more thing to keep
+consistent with Gitea for no gain at that size.

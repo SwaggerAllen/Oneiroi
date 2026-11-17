@@ -74,14 +74,16 @@ export function useChat(residentId: string, live: Live) {
   const refreshNewest = useCallback(() => queries.invalidateQueries({ queryKey: newestKey }), [queries, newestKey]);
 
   // The live stream: presence for the header, the reply as it streams,
-  // the outbox's states, and a re-read when a turn lands.
+  // the outbox's states, and a re-read when a turn lands. Leaving her
+  // chat closes it, and her indicator with it: nothing would end it
+  // after (2026-11-17, Lily's "Thinking…" over Scarlett's screen).
   useEffect(() => {
     if (!key) return;
-    return live.session(residentId, key, {
+    const close = live.session(residentId, key, {
       joined: () => void refreshNewest(),
       started: (ref) => {
         setOutbox((o) => update(o, ref, { state: 'running' }));
-        setPresence({ state: 'thinking', since: Date.now() });
+        setPresence({ residentId, state: 'thinking', since: Date.now() });
       },
       status: (ref, state, detail) => {
         if (state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
@@ -90,26 +92,30 @@ export function useChat(residentId: string, live: Live) {
           setOutbox((o) => update(o, ref, { state, detail: detail?.name }));
           const current = useShell.getState().presence;
           const sameStep = current.state === state && current.detail === detail?.name;
-          setPresence({ state, detail: detail?.name, since: sameStep ? current.since : Date.now() });
+          setPresence({ residentId, state, detail: detail?.name, since: sameStep ? current.since : Date.now() });
         }
       },
       delta: (ref, text) => {
         setStream((s) => (s && s.turnRef === ref ? { turnRef: ref, text: s.text + text } : { turnRef: ref, text }));
         const current = useShell.getState().presence;
-        if (current.state !== 'writing') setPresence({ state: 'writing', since: Date.now() });
+        if (current.state !== 'writing') setPresence({ residentId, state: 'writing', since: Date.now() });
         setOutbox((o) => update(o, ref, { state: 'writing' }));
       },
       turn: () => {
         void refreshNewest().then(() => setStream(null));
-        setPresence({ state: 'idle', lastReply: new Date().toISOString() });
+        setPresence({ residentId, state: 'idle', lastReply: new Date().toISOString() });
       },
       failed: (ref, reason) => {
         void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
         setStream(null);
         setOutbox((o) => update(o, ref, { state: 'failed', error: reason }));
-        setPresence({ state: 'idle' });
+        setPresence({ residentId, state: 'idle' });
       },
     });
+    return () => {
+      close?.();
+      if (useShell.getState().presence.residentId === residentId) setPresence({ residentId, state: 'idle' });
+    };
   }, [live, residentId, key, refreshNewest, setPresence, queries]);
 
   const send = useCallback(

@@ -10,6 +10,8 @@ export type Overlay = 'bell' | 'push' | 'settings' | 'feedback' | 'theme' | 'sub
 
 export interface Presence {
   state: 'idle' | 'queued' | 'thinking' | 'writing' | 'tool';
+  /** Whose turn this is: the indicator shows only on her own screens (2026-11-17). */
+  residentId?: string;
   detail?: string; // the tool's name
   since?: number; // ms epoch, for the timer
   lastReply?: string; // ISO instant

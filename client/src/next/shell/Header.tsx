@@ -1,6 +1,6 @@
 import { useShell } from '../state/store';
 import { BellIcon, ChevronIcon, GearIcon, SearchIcon } from './icons';
-import { presenceLine, useNow } from './presence';
+import { presenceLine, useNow, usePresence } from './presence';
 import * as css from './shell.css';
 
 export interface HeaderProps {
@@ -11,12 +11,12 @@ export interface HeaderProps {
   onSubject?: () => void;
   onBell?: () => void;
   onSettings?: () => void;
-  /** Search is a resident's records; the house has none to search (screen:next-house). */
+  /** Search: a resident's life, or the house's threads, records and charter (seshat#80). */
   search?: boolean;
 }
 
 export function Header({ name, waiting, failing = false, onSubject, onBell, onSettings, search = true }: HeaderProps) {
-  const presence = useShell((s) => s.presence);
+  const presence = usePresence();
   const connection = useShell((s) => s.connection);
   const setSearchOpen = useShell((s) => s.setSearchOpen);
   const working = presence.state !== 'idle';

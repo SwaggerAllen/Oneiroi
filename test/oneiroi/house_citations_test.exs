@@ -27,6 +27,7 @@ defmodule Oneiroi.HouseCitationsTest do
     {:ok, _} = Seshat.household_propose_contract(andrew, "We share this house.", "founding")
     slug = "wren-#{System.unique_integer([:positive])}"
     {:ok, id} = AgathosDaimon.create("Wren", slug, witness.id, andrew)
+    Fixtures.agreed!(id, witness.id)
     {:ok, chat} = Kumbukumbu.main_session(id, witness.id, andrew)
     wren = %{id: id, slug: slug, actor: Actor.new(:resident, id), chat: chat}
 
@@ -188,5 +189,32 @@ defmodule Oneiroi.HouseCitationsTest do
           "house/rook:thread/x@zz"
         ],
         do: assert(Citations.house(not_one) == :error, not_one)
+  end
+
+  test "the house is searched: threads with their replies, records and the charter, every term (seshat#80)",
+       ctx do
+    {:ok, plans} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "Plans",
+        "content" => "The heron walk is Sunday."
+      })
+
+    Clock.Fake.advance(86_400)
+
+    {:ok, _} =
+      Seshat.household_reply(ctx.andrew, plans.path, %{"content" => "Bring the long lens."})
+
+    {:ok, %{results: [hit]}} = Seshat.household_search(ctx.wren.actor, "heron LENS", "everything")
+    assert %{type: "thread", path: path, title: "Plans", snippet: snippet} = hit
+    assert path == plans.path
+    assert snippet =~ "heron walk"
+
+    {:ok, %{results: charter}} =
+      Seshat.household_search(ctx.wren.actor, "share this house", "charter")
+
+    assert [%{type: "charter", path: "CONTRACT.md"}] = charter
+
+    assert {:ok, %{results: []}} = Seshat.household_search(ctx.wren.actor, "heron", "charter")
+    assert {:ok, %{results: []}} = Seshat.household_search(ctx.wren.actor, "otters", "everything")
   end
 end

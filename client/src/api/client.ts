@@ -201,6 +201,15 @@ export interface HouseDocument {
   posted_at: string | null;
 }
 
+/** A hit in the house's search (seshat#80): Records opens its path. */
+export interface HouseHit {
+  type: 'thread' | 'document' | 'charter';
+  path: string;
+  title: string | null;
+  at: string | null;
+  snippet: string;
+}
+
 export interface HouseShelf {
   household_id: string;
   /** Its name for citations (gaia#44), null until a witness names it. */
@@ -596,6 +605,8 @@ export const api = {
   // The house as its own subject (screen:next-house): the shelf, the
   // charter (the household contract), the beats, and posting in it.
   householdShelf: (from = 0) => call<HouseShelf>('GET', `/v1/household?from=${from}`),
+  householdSearch: (q: string, scope: string) =>
+    call<{ q: string; scope: string; results: HouseHit[] }>('GET', `/v1/household/search?${new URLSearchParams({ q, scope }).toString()}`),
   householdFiles: () => call<LibraryIndex>('GET', '/v1/household/files'),
   householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),

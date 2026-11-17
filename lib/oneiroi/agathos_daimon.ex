@@ -431,6 +431,14 @@ defmodule Oneiroi.AgathosDaimon do
   @spec admission(String.t()) :: :forming | :witness_only | :open
   defexport(admission(id), do: Residents.admission(id))
 
+  @doc """
+  Whether the resident is held from her household, its letters and
+  correspondence (agathos-daimon#51): still forming or woken and not
+  agreed (#46), or, however she was made, with no agreement in force.
+  """
+  @spec held?(String.t()) :: boolean()
+  defexport(held?(id), do: admission(id) != :open or is_nil(contract(id).in_force))
+
   @doc "Creates a fixture (spec §12, P40): a thin-seed test resident the brain treats as machinery; returns its id."
   @spec create_fixture(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}

@@ -685,6 +685,10 @@ templates.
   put it back, with a note; hers alone. The file stays as written, in her
   repository and its history, and still edits. SOUL.md and IDENTITY.md
   are always given. AGENTS.md names only the files she is given.
+- **The house waits on the first agreement** (agathos-daimon#51, the
+  witness, 2026-11-17): a resident with no agreement in force, however
+  she was made, does not reach her household (its tools, its shelf, a
+  housemate's letter, its wakes) until her first agreement is in force.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with

@@ -113,14 +113,20 @@ defmodule Oneiroi.Brain.Tools do
   # in the creation flow hears from nobody but the witness until then, so
   # the household, correspondence and letters are neither shown nor run;
   # what arrives meanwhile is kept for after.
-  @held_until_agreed ~w(
+  # The house (agathos-daimon#51): any resident with no agreement in force.
+  @held_from_house ~w(
     household_read household_post household_reply household_watch household_sign
     household_beat household_register household_profile
+  )
+  @held_until_agreed @held_from_house ++
+                       ~w(
     correspondence_list correspondence_read reply_draft reply_list
     correspondent_block correspondent_unblock
     letter_inbox letter_list letter_send
   )
   @held "this opens once you and your witness agree your first contract: until then nothing but your witness reaches you, and nothing you would send goes out. Whatever arrives meanwhile is kept for after."
+
+  @held_house "your household opens once you and your witness agree your first contract: until then its shelf, its threads and its beats are not yours to reach, and nothing you would post goes there."
 
   # The triage station's tools (gaia#20), shown only to the triage resident.
   @triage ~w(triage_list triage_move)
@@ -144,13 +150,24 @@ defmodule Oneiroi.Brain.Tools do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
     night? = Keyword.get(opts, :housekeeping, false)
-    held? = AgathosDaimon.admission(resident_id) != :open
+    held = held_tools(resident_id)
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
         (f.name in @not_for_triage and triage?) or (f.name in @night_only and not night?) or
-        (f.name in @held_until_agreed and held?)
+        f.name in held
     end)
+  end
+
+  # What a hold keeps from her: before admission, the house and her
+  # letters; admitted with no agreement in force, the house alone
+  # (agathos-daimon#51).
+  defp held_tools(resident_id) do
+    cond do
+      AgathosDaimon.admission(resident_id) != :open -> @held_until_agreed
+      AgathosDaimon.held?(resident_id) -> @held_from_house
+      true -> []
+    end
   end
 
   defp off_switches(resident_id),
@@ -1372,9 +1389,16 @@ defmodule Oneiroi.Brain.Tools do
     # Her zone for this call's times (agathos-daimon#33), read once.
     Process.put(@zone_key, Local.zone(turn.resident_id))
 
-    if name in @held_until_agreed and AgathosDaimon.admission(turn.resident_id) != :open,
-      do: @not_done <> @held,
-      else: run_switched(name, arguments, turn)
+    cond do
+      name in @held_until_agreed and AgathosDaimon.admission(turn.resident_id) != :open ->
+        @not_done <> @held
+
+      name in @held_from_house and AgathosDaimon.held?(turn.resident_id) ->
+        @not_done <> @held_house
+
+      true ->
+        run_switched(name, arguments, turn)
+    end
   end
 
   defp run_switched(name, arguments, turn) do
@@ -4882,7 +4906,9 @@ defmodule Oneiroi.Brain.Tools do
     with false <- name == "" or name in own,
          %{members: members} <- Oneiroi.Gaia.resident_household(resident_id),
          %{} = me <- Enum.find(members, &resident?(&1, resident_id)),
-         %{} = sibling <- Enum.find(members, &sibling?(&1, resident_id, name)) do
+         %{} = sibling <- Enum.find(members, &sibling?(&1, resident_id, name)),
+         # One not yet in the house (agathos-daimon#51) gets no letter from it.
+         false <- AgathosDaimon.held?(sibling.id) do
       {sibling, me}
     else
       _none -> nil

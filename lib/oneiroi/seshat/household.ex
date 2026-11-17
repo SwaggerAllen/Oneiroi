@@ -67,7 +67,10 @@ defmodule Oneiroi.Seshat.Household do
 
   defp household(%Actor{} = actor) do
     with id when is_binary(id) <- Gaia.household_of(actor),
-         true <- Gaia.household_member?(id, actor) do
+         true <- Gaia.household_member?(id, actor),
+         # A resident with no agreement in force is not in the house yet
+         # (agathos-daimon#51): no read, no write.
+         false <- actor.kind == :resident and AgathosDaimon.held?(actor.id) do
       {:ok, id}
     else
       _none -> {:error, Error.new(:seshat_household_not_member, :seshat_household_no_membership)}
@@ -294,6 +297,108 @@ defmodule Oneiroi.Seshat.Household do
          threads: Enum.filter(page, &(&1.kind == "thread")) |> Enum.map(&Map.delete(&1, :ids)),
          documents: Enum.filter(page, &(&1.kind != "thread"))
        }}
+    end
+  end
+
+  @doc """
+  The house searched (seshat#80; the witness, 2026-11-17: "the same
+  search functionality/ui as resident workspaces"): every term of `q`,
+  case aside, in a thread (its trunk and every reply), a household
+  document, or the charter and the beats; `scope` narrows to `threads`,
+  `records` or `charter`. Only what this member may read is searched.
+  Each hit names its path (what Records opens), its title, when, and the
+  words around the first match; best match first, then newest.
+  """
+  def search(%Actor{} = actor, q, scope \\ "everything") do
+    terms = q |> to_string() |> String.downcase() |> String.split(~r/\s+/, trim: true)
+
+    with {:ok, household_id} <- household(actor),
+         {:ok, view} <- provision(household_id) do
+      hits =
+        actor
+        |> searchable(household_id, view, scope)
+        |> Enum.map(&hit(&1, terms))
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(&{&1.score, &1.at || ""}, :desc)
+        |> Enum.take(50)
+        |> Enum.map(&Map.delete(&1, :score))
+
+      {:ok, %{q: q, scope: scope, results: hits}}
+    end
+  end
+
+  defp searchable(actor, household_id, view, scope) do
+    threads =
+      if scope in ["everything", "threads"] do
+        for id <- thread_ids(view),
+            {:ok, t} = load_thread(view, "threads/" <> id),
+            visible?(actor, household_id, ids(t)) do
+          %{
+            type: "thread",
+            path: "threads/" <> id,
+            title: t.trunk.meta["title"],
+            at: (List.last(t.replies) || t.trunk).meta["at"] || t.trunk.meta["posted_at"],
+            text: Enum.map_join([t.trunk | t.replies], "\n\n", & &1.body)
+          }
+        end
+      else
+        []
+      end
+
+    documents =
+      if scope in ["everything", "records"] do
+        for d <- documents(view), visible?(actor, household_id, [d.by_id]) do
+          {_meta, body} = view |> file(d.path) |> to_string() |> frontmatter()
+          %{type: "document", path: d.path, title: d.title, at: d.posted_at, text: body}
+        end
+      else
+        []
+      end
+
+    charter =
+      if scope in ["everything", "charter"] do
+        for {path, title} <- [
+              {@contract, "The household contract"},
+              {@beats, "The household's beats"}
+            ],
+            text = file(view, path),
+            is_binary(text),
+            do: %{type: "charter", path: path, title: title, at: nil, text: text}
+      else
+        []
+      end
+
+    threads ++ documents ++ charter
+  end
+
+  # Every term somewhere in its title or words; the score counts them.
+  defp hit(_item, []), do: nil
+
+  defp hit(item, terms) do
+    haystack = String.downcase("#{item.title}\n#{item.text}")
+
+    if Enum.all?(terms, &String.contains?(haystack, &1)) do
+      score = Enum.sum(Enum.map(terms, &(length(String.split(haystack, &1)) - 1)))
+
+      item
+      |> Map.take([:type, :path, :title, :at])
+      |> Map.put(:snippet, snippet(item.text, hd(terms)))
+      |> Map.put(:score, score)
+    end
+  end
+
+  # About 160 characters around the first match, on one line.
+  defp snippet(text, term) do
+    flat = String.replace(text, ~r/\s+/, " ")
+
+    case :binary.match(String.downcase(flat), term) do
+      {at, _} ->
+        from = max(at - 60, 0)
+        piece = flat |> binary_slice(from, 160) |> String.trim()
+        if from > 0, do: "…" <> piece <> "…", else: piece <> "…"
+
+      :nomatch ->
+        flat |> binary_slice(0, 160) |> String.trim()
     end
   end
 
@@ -914,7 +1019,7 @@ defmodule Oneiroi.Seshat.Household do
   @doc "Wakes every resident of the house open to it with a note of their own, each its own job, so all go at once (seshat#75)."
   def wake_house(household_id, note_for) do
     for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
-        AgathosDaimon.admission(id) == :open do
+        not AgathosDaimon.held?(id) do
       Jobs.enqueue(@house_wake_worker, %{
         "household_id" => household_id,
         "house_wake" => id,

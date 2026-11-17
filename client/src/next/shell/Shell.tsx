@@ -7,6 +7,7 @@ import { Header } from './Header';
 import { usePushSlide, useTabDissolve } from './motion';
 import { OfflineBar } from './OfflineBar';
 import { Overlays } from './Overlays';
+import { HouseSearchSheet } from './HouseSearchSheet';
 import { SearchSheet } from './SearchSheet';
 import * as css from './shell.css';
 import { TabBar } from './TabBar';
@@ -20,7 +21,7 @@ export interface ShellProps {
   onReconnect: () => void;
   /** Renders a tab at the top of its stack; every tab stays mounted. */
   renderTab: (tab: Tab, path: string) => ReactNode;
-  /** The house's shell (screen:next-house): its own tab names, no search. */
+  /** The house's shell (screen:next-house): its own tab names, its own search (seshat#80). */
   house?: boolean;
 }
 
@@ -73,7 +74,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} search={!house} />
+      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>
@@ -101,7 +102,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
         )}
       </main>
       <TabBar active={tab} onSelect={setTab} house={house} />
-      {!house && <SearchSheet residentId={residentId} residentName={residentName} />}
+      {house ? <HouseSearchSheet /> : <SearchSheet residentId={residentId} residentName={residentName} />}
       <Overlays />
     </div>
   );

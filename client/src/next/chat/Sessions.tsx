@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { Session } from '../../api/types';
 import { ScrollArea } from '../shell/ScrollArea';
-import { useNow } from '../shell/presence';
-import { useShell } from '../state/store';
+import { useNow, usePresence } from '../shell/presence';
 import * as css from './sessions.css';
 
 function sameDay(iso: string | null, day: string): boolean {
@@ -23,7 +22,7 @@ function hhmm(iso: string): string {
 export function Sessions({ residentId, onConversation }: { residentId: string; onConversation: () => void }) {
   const sessions = useQuery({ queryKey: ['resident', residentId, 'sessions', 'list'], queryFn: () => api.sessions(residentId) });
   const schedule = useQuery({ queryKey: ['resident', residentId, 'sessions', 'schedule'], queryFn: () => api.schedule(residentId) });
-  const presence = useShell((s) => s.presence);
+  const presence = usePresence();
   const nowMs = useNow(false);
 
   const day = schedule.data?.day ?? new Date(nowMs).toISOString().slice(0, 10);

@@ -3,8 +3,7 @@ import type { Message } from '../../api/types';
 import { toolSummary } from '../../screens/chat/page';
 import type { Live } from '../live/live';
 import { ScrollArea, type Edges } from '../shell/ScrollArea';
-import { elapsed, useNow } from '../shell/presence';
-import { useShell } from '../state/store';
+import { elapsed, useNow, usePresence } from '../shell/presence';
 import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
@@ -57,7 +56,7 @@ export function Chat({
 }) {
   const chat = useChat(residentId, live);
   const reacts = useReacts(residentId, chat.key);
-  const presence = useShell((s) => s.presence);
+  const presence = usePresence();
   const scroller = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [atTop, setAtTop] = useState(false);
