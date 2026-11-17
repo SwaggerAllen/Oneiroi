@@ -87,6 +87,8 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:written_by_kind, :string)
       field(:written_by_id, :string)
       field(:written_at, :utc_datetime_usec)
+      # Out of her prefix since (agathos-daimon#50), nil while given.
+      field(:retired_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

@@ -80,7 +80,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
@@ -353,6 +353,16 @@ defmodule Oneiroi.Brain.Tools do
           to: %{type: "string"}
         },
         [:q]
+      ),
+      tool(
+        "identity_file_retire",
+        "Take one of your identity files (USER.md, GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
+        %{
+          file: %{type: "string", enum: ["USER.md", "GOALS.md", "LINKS.md"]},
+          note: %{type: "string"},
+          restore: %{type: "boolean"}
+        },
+        [:file, :note]
       ),
       tool(
         "soul_edit",
@@ -1962,6 +1972,22 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp call("identity_file_retire", args, turn) do
+    file = to_string(args["file"])
+    restore? = args["restore"] == true
+
+    case Oneiroi.AgathosDaimon.retire_identity_file(
+           turn.resident_id,
+           file,
+           not restore?,
+           to_string(args["note"] || ""),
+           turn.resident
+         ) do
+      :ok -> retired_text(file, restore?)
+      other -> other
+    end
+  end
+
   defp call("soul_edit", args, turn) do
     with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
       Oneiroi.AgathosDaimon.write_file(
@@ -2724,14 +2750,23 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("state_set", args, turn) do
-    case AgathosDaimon.set_state_line(
-           turn.resident_id,
-           to_string(args["key"] || ""),
-           args["text"],
-           turn.resident
-         ) do
-      :ok -> "The #{args["key"]} line is written, verified now."
-      other -> other
+    text = args["text"]
+
+    # The bound is the command's (2,000 characters), said here in words:
+    # the command bus's refusal names only its class, which read as a
+    # missing actor (letter #1011, 2026-11-16).
+    if is_binary(text) and String.length(text) > 2000 do
+      "#{@not_done}a state line is at most 2,000 characters, and this one is #{String.length(text)}; shorten it and write it again."
+    else
+      case AgathosDaimon.set_state_line(
+             turn.resident_id,
+             to_string(args["key"] || ""),
+             text,
+             turn.resident
+           ) do
+        :ok -> "The #{args["key"]} line is written, verified now."
+        other -> other
+      end
     end
   end
 
@@ -3548,6 +3583,9 @@ defmodule Oneiroi.Brain.Tools do
   # have minted already. Nothing is run. The tools whose success is `:ok`
   # answer "Done.", as `text/1` renders it.
 
+  defp answered("identity_file_retire", args, turn),
+    do: {retired_text(to_string(args["file"]), args["restore"] == true), turn}
+
   defp answered("position_take", _args, turn) do
     {n, turn} = mint(turn, "position", highest(Eunomia.positions(turn.resident_id)))
     {"Position ##{n} taken.", turn}
@@ -3740,6 +3778,12 @@ defmodule Oneiroi.Brain.Tools do
   # names none and the habit is defined without graduating anything.
   defp seed_number(n) when is_integer(n) and n > 0, do: n
   defp seed_number(_none), do: nil
+
+  defp retired_text(file, true), do: "#{file} is given every turn again, from your next turn."
+
+  defp retired_text(file, false),
+    do:
+      "#{file} is out of what you are given every turn, from your next turn; it stays in your repository, and restore: true puts it back."
 
   defp text(:ok), do: "Done."
   defp text(text) when is_binary(text), do: text

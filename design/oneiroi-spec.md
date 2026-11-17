@@ -678,6 +678,13 @@ templates.
   note, every row and the working repository go, the household lets them
   go and the slug is free again. After a first conversation a resident is
   never deleted; custody moves instead.
+- **Retiring an identity file from the prefix** (agathos-daimon#50, the
+  resident's USER.md migration on the witness's go, 2026-11-16): a
+  resident may take USER.md, GOALS.md or LINKS.md out of what she is given
+  every turn once what it held has a home elsewhere in her records, and
+  put it back, with a note; hers alone. The file stays as written, in her
+  repository and its history, and still edits. SOUL.md and IDENTITY.md
+  are always given. AGENTS.md names only the files she is given.
 
 - **Who creates a resident** (resolved by his word, 11-12): residents are
   created by their witnesses. Corporate customers may contract with

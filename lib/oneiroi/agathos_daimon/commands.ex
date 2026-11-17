@@ -23,6 +23,16 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id]
   end
 
+  # A resident takes one of her identity files out of her prefix, or puts
+  # it back (agathos-daimon#50): hers alone, with a note.
+  defmodule RetireIdentityFile do
+    use Oneiroi.Command, decision: true, fields: [:id, :file]
+  end
+
+  defmodule RestoreIdentityFile do
+    use Oneiroi.Command, decision: true, fields: [:id, :file]
+  end
+
   defmodule MintId do
     use Oneiroi.Command, fields: [:id, :kind]
   end

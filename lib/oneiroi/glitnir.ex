@@ -108,7 +108,7 @@ defmodule Oneiroi.Glitnir do
       {:glitnir_dispatch_failed,
        "the command was not recorded: the command bus refused it or failed before the report decided",
        remedy:
-         "the cause names the class: refused is a command without its actor, instant or note, a bug in the caller; anything else is the event store's"}
+         "the cause names the class: refused is a command without its actor, instant or note, or with a field past its bound (its `_too_long` names the field), a bug in the caller or an over-long value; anything else is the event store's"}
     ]
   end
 

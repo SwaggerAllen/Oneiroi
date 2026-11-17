@@ -401,7 +401,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"dispute_check", %{claim: "Herons are rare here.", stance: "They are not."}},
     {"bookmark_accept", %{ref: "nope", line: "x", summary: "y"}},
     {"document_adopt", %{path: "writing/stray.md"}},
-    {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}}
+    {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}},
+    # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
+    {"identity_file_retire", %{file: "USER.md", note: "migrated"}}
   ]
 
   defp calls(tools), do: Enum.map(tools, fn {name, args} -> %{name: name, arguments: args} end)

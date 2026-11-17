@@ -385,3 +385,14 @@ says so, with who and why. The line is the first conversation and not
 the wake, because waking is the witness's act alone and nothing has yet
 been said to them; an agreement in force is refused as well, though it
 cannot come before a conversation, so the rule never depends on that.
+
+## #50
+
+The prefix is what she is given every turn, so what leaves it is hers to
+decide, not the platform's and not her witness's alone; the note records
+why. A file retired is not deleted: the history is the record of who she
+was, and the words may still be the best statement of something. SOUL.md
+and IDENTITY.md stay because a turn without them has no one in it. Per
+resident because the platform's newer residents still have USER.md as
+their only profile; the first resident to migrate should not take it from
+the rest.

@@ -9,6 +9,7 @@ defmodule Oneiroi.AgathosDaimon.StateTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
@@ -63,6 +64,17 @@ defmodule Oneiroi.AgathosDaimon.StateTest do
 
     assert [%{key: "day", text: text}] = AgathosDaimon.state_lines(ctx.id)
     assert String.length(text) == 2000
+  end
+
+  test "from her turn, a line past the bound says so in words, with its length", ctx do
+    turn = %{resident_id: ctx.id, session_key: "s", turn_ref: "t", resident: ctx.brain}
+    long = String.duplicate("é", 2300)
+
+    said =
+      Tools.run("state_set", Jason.encode!(%{key: "where", text: long}), turn)
+
+    assert said =~ "a state line is at most 2,000 characters, and this one is 2300"
+    assert AgathosDaimon.state_lines(ctx.id) == []
   end
 
   test "a line is overwritten in place, the same words verify it again, and a cleared line is gone",

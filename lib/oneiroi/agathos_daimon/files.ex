@@ -43,6 +43,21 @@ defmodule Oneiroi.AgathosDaimon.Files do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc """
+  She takes one of her identity files out of her prefix, or puts it back
+  (agathos-daimon#50): USER.md, GOALS.md or LINKS.md, with a note. The
+  file stays as written and still edits; only whether it is given every
+  turn changes.
+  """
+  def retire(resident_id, file, retire?, note, %Actor{} = actor) do
+    module = if retire?, do: Commands.RetireIdentityFile, else: Commands.RestoreIdentityFile
+
+    command =
+      struct(module, actor: actor, at: Clock.now(), id: resident_id, file: file, note: note)
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
   @doc "Records a read of a gift's draft (agathos-daimon#40); returns its ref."
   @spec record_read(String.t(), map(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
   def record_read(resident_id, read, %Actor{} = actor) when is_map(read) do
@@ -178,12 +193,14 @@ defmodule Oneiroi.AgathosDaimon.Files do
         []
 
       {row, files} ->
-        written = Map.new(files, &{&1.name, &1.content})
+        # A file she retired is not given (agathos-daimon#50).
+        written = for f <- files, is_nil(f.retired_at), into: %{}, do: {f.name, f.content}
 
         ordered =
           for name <- Resident.files(), content = Map.get(written, name), do: {name, content}
 
-        ordered ++ [{"AGENTS.md", agents_md(row)}]
+        given = for {name, _} <- ordered, do: name
+        ordered ++ [{"AGENTS.md", agents_md(row, given)}]
     end
   end
 
@@ -214,8 +231,10 @@ defmodule Oneiroi.AgathosDaimon.Files do
            file: "AGENTS.md"
          )}
 
-      row ->
-        {:ok, %{name: "AGENTS.md", content: agents_md(row), origin: "build", version: 0}}
+      _row ->
+        # The same rendering the prefix gives her.
+        content = resident_id |> context() |> List.keyfind("AGENTS.md", 0) |> elem(1)
+        {:ok, %{name: "AGENTS.md", content: content, origin: "build", version: 0}}
     end
   end
 
@@ -259,15 +278,18 @@ defmodule Oneiroi.AgathosDaimon.Files do
   with the name and slug filled in: read-only in the client, rendered
   rather than stored so a template change reaches every resident.
   """
-  @spec agents_md(map()) :: String.t()
+  @spec agents_md(map(), [String.t()]) :: String.t()
   # The template is a file this repository ships, named by code.
   # sobelow_skip ["Traversal.FileModule"]
-  def agents_md(%{name: name, slug: slug}) do
+  def agents_md(%{name: name, slug: slug}, given \\ Resident.files()) do
     :oneiroi
     |> :code.priv_dir()
     |> Path.join(@agents_template)
     |> File.read!()
     |> String.replace("{{name}}", name)
     |> String.replace("{{slug}}", slug)
+    # The files she is given, so one she retired (agathos-daimon#50) is
+    # not named as if it were.
+    |> String.replace("{{files}}", Enum.join(given, ", "))
   end
 end
