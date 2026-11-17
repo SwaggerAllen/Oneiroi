@@ -40,11 +40,42 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
 
   @impl true
   def tree(repo) do
-    with {:ok, {inst, org, name}} <- Gitea.locate(repo), do: tree_pages(inst, org, name, 1, [])
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo),
+         do: tree_pages(inst, org, name, @branch, 1, [])
   end
 
-  defp tree_pages(inst, org, name, page, acc) do
-    case get(inst, "/repos/#{org}/#{name}/git/trees/#{@branch}",
+  @impl true
+  def tree_at(repo, commit) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case tree_pages(inst, org, name, commit, 1, []) do
+        # Gitea answers an unknown commit 400, a missing repository 404;
+        # the tree of a commit that exists is never empty of its commit.
+        {:ok, []} -> absent_commit(commit)
+        {:error, %{kind: :sima_qian_gitea_failed}} -> absent_commit(commit)
+        other -> other
+      end
+    end
+  end
+
+  defp absent_commit(commit),
+    do:
+      {:error,
+       Error.new(:sima_qian_repos_absent, :sima_qian_repos_gitea_commit_absent, commit: commit)}
+
+  @impl true
+  def head(repo) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case get(inst, "/repos/#{org}/#{name}/branches/#{@branch}", []) do
+        {:ok, 200, %{"commit" => %{"id" => id}}} -> {:ok, id}
+        # No commit yet, or no repository yet: nothing to pin.
+        {:ok, 404, _} -> {:ok, nil}
+        other -> failed(other)
+      end
+    end
+  end
+
+  defp tree_pages(inst, org, name, ref, page, acc) do
+    case get(inst, "/repos/#{org}/#{name}/git/trees/#{ref}",
            recursive: true,
            per_page: @tree_page,
            page: page
@@ -56,7 +87,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
         acc = acc ++ files
 
         if body["truncated"] == true and entries != [],
-          do: tree_pages(inst, org, name, page + 1, acc),
+          do: tree_pages(inst, org, name, ref, page + 1, acc),
           else: {:ok, acc}
 
       # An empty repository, or one not made yet: no files.

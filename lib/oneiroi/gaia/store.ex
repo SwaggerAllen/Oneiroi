@@ -148,6 +148,8 @@ defmodule Oneiroi.Gaia.Store do
       # The Gitea instance its repositories are on (gaia#43); nil is the
       # primary.
       field(:gitea_instance, :string)
+      # Its name for citations (gaia#44), once set; unique.
+      field(:slug, :string)
     end
   end
 

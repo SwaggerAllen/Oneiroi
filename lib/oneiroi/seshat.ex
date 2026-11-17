@@ -594,8 +594,21 @@ defmodule Oneiroi.Seshat do
   defexport(household_files(actor), do: Household.files(actor))
 
   @doc "One thread with every reply, a document, or the contract, whole (seshat#61)."
-  @spec household_read(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  defexport(household_read(actor, path), do: Household.read(actor, path))
+  @spec household_read(Oneiroi.Actor.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_read(actor, path, opts \\ []), do: Household.read(actor, path, opts))
+
+  @doc "A witness names the house for citations (gaia#44), once; answers the shelf."
+  @spec household_name(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_name(actor, slug), do: Household.name(actor, slug))
+
+  @doc "A house citation's parts (gaia#44, sima-qian#61), or :error for anything else."
+  @spec house_citation(String.t()) :: {:ok, map()} | :error
+  defexport(house_citation(text), do: Citations.house(text))
+
+  @doc "What a house citation names, as it stood at its commit, for a member of that house."
+  @spec household_read_cited(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_read_cited(actor, cite), do: Household.read_cited(actor, cite))
 
   @doc "A resident posts a thread, a ballot's thread, or a document of a household kind (seshat#59, #63)."
   @spec household_post(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}

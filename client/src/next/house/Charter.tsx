@@ -22,6 +22,7 @@ export function Charter() {
     <HousePage label="Charter" title="Charter" lede="The house's rules and settings: the contract in force, who signed it, and the ballots that change it. Every member has one vote.">
       {contract.isError && <p className={css.note}>The charter could not be read.</p>}
       {c && !c.in_force && <Found />}
+      <Name />
       {c?.in_force && <InForce v={c.in_force} />}
       {c && <Members c={c} accountId={me.data?.account_id ?? undefined} />}
       {c && <Ballots ballots={c.ballots} />}
@@ -231,6 +232,44 @@ function Propose() {
           </button>
         </div>
       </form>
+      <Said said={act.said} />
+    </Card>
+  );
+}
+
+/**
+ * The house's name for citations (gaia#44): a witness sets it once, and
+ * every citation of its threads names it (`house/<name>:thread/<id>`), so
+ * it never changes. Until then nothing in the house can be cited.
+ */
+function Name() {
+  // Its own key: the Threads tab pages the shelf under SHELF.
+  const shelf = useQuery({ queryKey: [...HOUSE, 'name'], queryFn: () => api.householdShelf(0) });
+  const [slug, setSlug] = useState('');
+  const act = useAct();
+  const named = shelf.data?.slug;
+  if (shelf.isPending || shelf.isError) return null;
+  const valid = /^[a-z][a-z0-9-]{1,39}$/.test(slug);
+  return (
+    <Card title="The house's name" witness={!named}>
+      {named ? (
+        <p className={css.text}>
+          Its threads are cited as <code>house/{named}:thread/…</code>. The name is set once and never changes, so every citation of the house keeps working.
+        </p>
+      ) : (
+        <>
+          <p className={css.text}>
+            Name the house so its threads and documents can be cited from memory, as <code>house/&lt;name&gt;:thread/…</code>. It is set once and never changes; choose
+            one you will keep.
+          </p>
+          <Field label="Name (lowercase letters, digits and hyphens)" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} />
+          <div className={css.row}>
+            <button type="button" className={css.primary} disabled={act.busy || !valid} onClick={() => void act.run(() => api.nameHousehold(slug).then(() => `Named ${slug}.`), [...HOUSE])}>
+              Name the house
+            </button>
+          </div>
+        </>
+      )}
       <Said said={act.said} />
     </Card>
   );

@@ -553,6 +553,43 @@ defmodule Oneiroi.Gaia.Households do
     end)
   end
 
+  @doc """
+  A witness names the house for citations (gaia#44): a slug, lowercase,
+  2 to 40 characters, set once. Unique among houses, checked here across
+  all of them (the aggregate sees only its own) and held by the index.
+  """
+  def name(household_id, slug, %Actor{} = actor) do
+    taken =
+      Scope.platform(fn ->
+        Repo.exists?(from(h in Store.Household, where: h.slug == ^slug and h.id != ^household_id))
+      end)
+
+    if taken,
+      do:
+        {:error, Error.new(:gaia_household_name_taken, :gaia_households_name_taken, slug: slug)},
+      else:
+        dispatch(%Commands.NameHousehold{
+          actor: actor,
+          at: Clock.now(),
+          id: household_id,
+          slug: slug
+        })
+  end
+
+  @doc "The house's slug, or nil while it is unnamed."
+  def slug(household_id) do
+    Scope.platform(fn ->
+      Repo.one(from(h in Store.Household, where: h.id == ^household_id, select: h.slug))
+    end)
+  end
+
+  @doc "The house a slug names, or nil."
+  def by_slug(slug) when is_binary(slug) do
+    Scope.platform(fn ->
+      Repo.one(from(h in Store.Household, where: h.slug == ^slug, select: h.id))
+    end)
+  end
+
   @doc "A witness sets the workspace's own clock, a zone name."
   def set_clock(household_id, zone, %Actor{} = actor) do
     case DateTime.now(to_string(zone)) do

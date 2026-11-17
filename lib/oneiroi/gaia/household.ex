@@ -52,6 +52,8 @@ defmodule Oneiroi.Gaia.Household do
     # House check-ins (gaia#41): the workspace's clock, its check-ins by
     # key, and each {key, day} fired.
     zone: "Etc/UTC",
+    # Its name for citations (gaia#44), once set.
+    slug: nil,
     checkins: %{},
     fired: MapSet.new()
   ]
@@ -302,6 +304,29 @@ defmodule Oneiroi.Gaia.Household do
           thread: c.thread,
           until: DateTime.add(c.at, c.hours * 3600, :second)
         }
+    end
+  end
+
+  # ---- the house's name (gaia#44): a witness's, once ----
+
+  @slug ~r/\A[a-z][a-z0-9-]{1,39}\z/
+
+  def execute(%__MODULE__{} = h, %Commands.NameHousehold{} = c) do
+    cond do
+      not match?({"witness", _}, member(h, c.actor)) ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_name_not_witness)}
+
+      not (is_binary(c.slug) and Regex.match?(@slug, c.slug)) ->
+        {:error, Error.new(:gaia_household_name_invalid, :gaia_household_name_shape)}
+
+      h.slug == c.slug ->
+        []
+
+      not is_nil(h.slug) ->
+        {:error, Error.new(:gaia_household_named, :gaia_household_name_set, slug: h.slug)}
+
+      true ->
+        %Events.HouseholdNamed{actor: c.actor, at: c.at, id: c.id, slug: c.slug}
     end
   end
 
@@ -874,6 +899,7 @@ defmodule Oneiroi.Gaia.Household do
     do: %{h | terms: {e.plan, e.price_nanos, e.terms_until}}
 
   def apply(%__MODULE__{} = h, %Events.HouseholdClockSet{} = e), do: %{h | zone: e.zone}
+  def apply(%__MODULE__{} = h, %Events.HouseholdNamed{} = e), do: %{h | slug: e.slug}
 
   def apply(%__MODULE__{} = h, %Events.HouseCheckinSet{} = e),
     do: %{h | checkins: Map.put(h.checkins, e.key, %{label: e.label, time: e.time})}

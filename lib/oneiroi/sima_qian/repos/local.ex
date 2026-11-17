@@ -50,6 +50,26 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   end
 
   @impl true
+  def head(repo) do
+    dir = dir(repo)
+    {:ok, if(made?(dir), do: Git.head(dir))}
+  end
+
+  @impl true
+  def tree_at(repo, commit) do
+    dir = dir(repo)
+
+    with true <- made?(dir),
+         {:ok, entries} <- Git.tree(dir, commit) do
+      {:ok, for(%{type: "blob", path: p, blob: b} <- entries, do: %{path: p, sha: b})}
+    else
+      _unknown ->
+        {:error,
+         Error.new(:sima_qian_repos_absent, :sima_qian_repos_local_commit_absent, commit: commit)}
+    end
+  end
+
+  @impl true
   # sobelow_skip ["Traversal.FileModule"]
   def write(repo, changes, message, author) do
     dir = dir(repo)

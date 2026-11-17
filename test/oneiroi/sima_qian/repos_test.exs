@@ -57,6 +57,7 @@ defmodule Oneiroi.SimaQian.ReposTest do
              )
 
     assert is_binary(first)
+    assert {:ok, ^first} = Repos.head(repo)
     assert {:ok, "For the week.", sha} = Repos.read(repo, "threads/plans/trunk.md")
     assert {:error, %{kind: :sima_qian_repos_absent}} = Repos.read(repo, "threads/nothing.md")
 
@@ -106,6 +107,19 @@ defmodule Oneiroi.SimaQian.ReposTest do
 
     assert {:ok, _} = Repos.write(repo, [{:delete, "notes.md", :any}], "Gone", @lily)
     assert {:error, %{kind: :sima_qian_repos_absent}} = Repos.read(repo, "notes.md")
+
+    # A commit pins what stood then (sima-qian#61), by its full sha or a
+    # short one: the first commit had the week, not the month, and no notes.
+    for pin <- [first, String.slice(first, 0, 12)] do
+      assert {:ok, then} = Repos.snapshot_at(repo, pin)
+      assert Repos.at(repo, then, "threads/plans/trunk.md") == "For the week."
+      refute Map.has_key?(then, "notes.md")
+    end
+
+    assert {:ok, head} = Repos.head(repo)
+    refute head == first
+    assert {:error, %{kind: :sima_qian_repos_absent}} = Repos.snapshot_at(repo, "deadbeefdead")
+    assert {:error, %{kind: :sima_qian_repos_absent}} = Repos.snapshot_at(repo, "not a sha")
   end
 
   test "the local adapter holds every condition", ctx do

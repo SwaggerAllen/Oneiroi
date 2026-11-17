@@ -12,6 +12,7 @@ defmodule Oneiroi.Seshat.Citations do
   through the figures port (`Oneiroi.Seshat.Figures`).
   """
 
+  alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
@@ -21,6 +22,7 @@ defmodule Oneiroi.Seshat.Citations do
   alias Oneiroi.Scope
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.ExternalCopy
+  alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Store
   alias Oneiroi.SimaQian
@@ -38,6 +40,17 @@ defmodule Oneiroi.Seshat.Citations do
   # added there is citable the day it lands. `human`, `oracle` and
   # `scratch` were not, because this list was written out by hand: found
   # when the resident cited the witness's posts by sentence (letter #26).
+  # A house citation (gaia#44): `house/<slug>:thread|doc/<ref>`, with
+  # `@<commit>` when pinned (sima-qian#61). Its ref stops before `@` and
+  # never takes a `:`, so the commit is its own group.
+  @house_ref "([A-Za-z0-9_-](?:[A-Za-z0-9_.\\/#-]*[A-Za-z0-9_-])?)(?:@([0-9a-f]{7,40}))?"
+  @house_citation Regex.compile!(
+                    "(?<![\\w\\/:])house\\/([a-z][a-z0-9-]{1,39}):(thread|doc)\\/" <> @house_ref
+                  )
+  @house_whole Regex.compile!(
+                 "\\Ahouse\\/([a-z][a-z0-9-]{1,39}):(thread|doc)\\/" <> @house_ref <> "\\z"
+               )
+
   @record_kinds ~w(bookmark position prediction date figure transcript habit seed soul commitment web doc)
   # A ref opens and closes on a letter, a digit, `-` or `_`, so the full
   # stop closing a sentence stays with the sentence; `-` and `_` because a
@@ -76,15 +89,62 @@ defmodule Oneiroi.Seshat.Citations do
   @doc "Every citation in a text, in order of first appearance, each once: slug, kind, ref and the target as written."
   @spec extract(String.t()) :: [map()]
   def extract(text) when is_binary(text) do
-    citation()
-    |> Regex.scan(text)
-    |> Enum.map(fn [_whole, slug, kind, ref] ->
-      %{slug: slug, kind: kind, ref: ref, target: "#{slug}:#{kind}/#{ref}"}
-    end)
+    own =
+      for [{at, _}, slug, kind, ref] <- scan(citation(), text),
+          do: {at, %{slug: slug, kind: kind, ref: ref, target: "#{slug}:#{kind}/#{ref}"}}
+
+    # A house's threads and documents (gaia#44, sima-qian#61), marked
+    # `house/` so a house never shares a name with a resident: the slug
+    # is `house/<name>`, the ref carries its pinned commit.
+    # An unpinned one has no commit group at all: a trailing group that
+    # took no part is left out of the match, not given as "".
+    houses =
+      for [{at, _}, house, kind, ref | pin] <- scan(@house_citation, text) do
+        ref = if pin in [[], [""]], do: ref, else: ref <> "@" <> hd(pin)
+
+        {at,
+         %{slug: "house/" <> house, kind: kind, ref: ref, target: "house/#{house}:#{kind}/#{ref}"}}
+      end
+
+    (own ++ houses)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.map(&elem(&1, 1))
     |> Enum.uniq_by(& &1.target)
     |> Enum.with_index(1)
     |> Enum.map(fn {c, i} -> Map.put(c, :ordinal, i) end)
   end
+
+  # The match's offset, then its groups as text, an unmatched one "".
+  defp scan(regex, text) do
+    for [whole | parts] <- Regex.scan(regex, text, return: :index),
+        do: [whole | Enum.map(parts, &group(text, &1))]
+  end
+
+  defp group(_text, {s, _l}) when s < 0, do: ""
+  defp group(text, {s, l}), do: binary_part(text, s, l)
+
+  @doc """
+  A house citation's parts (gaia#44, sima-qian#61):
+  `house/<slug>:thread/<id>` or `house/<slug>:doc/<path>`, either with
+  `@<commit>`, as `{:ok, %{house, kind, ref, path, at}}`; `:error` for
+  anything else. `path` is what `household_read` takes.
+  """
+  @spec house(String.t()) :: {:ok, map()} | :error
+  def house(text) when is_binary(text) do
+    case Regex.run(@house_whole, String.trim(text)) do
+      [_, house, kind, ref | pin] ->
+        at = Enum.at(pin, 0, "")
+        path = if kind == "thread", do: "threads/" <> ref, else: ref
+
+        {:ok,
+         %{house: house, kind: kind, ref: ref, path: path, at: if(at == "", do: nil, else: at)}}
+
+      nil ->
+        :error
+    end
+  end
+
+  def house(_other), do: :error
 
   @doc "The text with every citation removed: the copy for publishing (F25)."
   @spec strip(String.t()) :: String.t()
@@ -254,6 +314,31 @@ defmodule Oneiroi.Seshat.Citations do
   # ---- resolving ----
 
   @doc "Resolves one citation for the resident now: `{:ok, label}` or `{:unresolved, reason}`."
+  def resolve(%{id: resident_id}, %{slug: "house/" <> house, kind: kind, ref: ref}) do
+    with {:ok, cite} <- house("house/#{house}:#{kind}/#{ref}"),
+         {:ok, doc} <- Household.read_cited(Actor.new(:resident, resident_id), cite) do
+      pin = if doc.commit, do: ", at #{String.slice(doc.commit, 0, 12)}", else: ""
+      since = if doc.since, do: "; #{doc.since}", else: ""
+      {:ok, "#{doc.title || doc.path} (house #{house}, #{doc.kind}#{pin}#{since})"}
+    else
+      :error ->
+        {:unresolved, "not a house citation: house/<name>:thread/<id> or :doc/<path>"}
+
+      {:error, %{site: :seshat_household_cited_house_not_mine}} ->
+        {:unresolved,
+         "house #{house} is not yours; a house you have left opens from your clone of it, which is not built yet"}
+
+      {:error, %{site: :seshat_household_cited_house_unknown}} ->
+        {:unresolved, "no house is named #{house}"}
+
+      {:error, %{kind: :sima_qian_repos_absent}} ->
+        {:unresolved, "house #{house} never had that commit"}
+
+      {:error, %{meaning: why}} ->
+        {:unresolved, why}
+    end
+  end
+
   def resolve(%{id: resident_id, slug: slug}, %{slug: cited, kind: kind, ref: ref}) do
     if cited == slug,
       do: resolve_kind(resident_id, kind, ref),

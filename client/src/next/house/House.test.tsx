@@ -11,6 +11,7 @@ import { Threads } from './Threads';
 
 const shelf: HouseShelf = {
   household_id: 'h1',
+  slug: null,
   contract: 'CONTRACT.md',
   total: 1,
   from: 0,
@@ -141,6 +142,26 @@ describe('the house as a subject (2026-11-16)', () => {
     const ballot = screen.getByRole('article', { name: 'Ballot #2' });
     fireEvent.click(within(ballot).getByRole('button', { name: 'Yes' }));
     await waitFor(() => expect(vote).toHaveBeenCalledWith('threads/quiet-mornings', 'yes', ''));
+  });
+
+  it('names the house once for citations, and then shows how its threads are cited', async () => {
+    const name = vi.spyOn(api, 'nameHousehold').mockResolvedValue({ ...shelf, slug: 'rookery' });
+    mount(<Charter />);
+    const card = await screen.findByRole('region', { name: "The house's name" });
+    const field = within(card).getByLabelText('Name (lowercase letters, digits and hyphens)');
+    fireEvent.change(field, { target: { value: 'Rook House' } });
+    expect((within(card).getByRole('button', { name: 'Name the house' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(field, { target: { value: 'rookery' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Name the house' }));
+    await waitFor(() => expect(name).toHaveBeenCalledWith('rookery'));
+  });
+
+  it('a named house says how its threads are cited, with nothing to change', async () => {
+    vi.spyOn(api, 'householdShelf').mockResolvedValue({ ...shelf, slug: 'rookery' });
+    mount(<Charter />);
+    const card = await screen.findByRole('region', { name: "The house's name" });
+    expect(within(card).getByText('house/rookery:thread/…')).toBeTruthy();
+    expect(within(card).queryByRole('button', { name: 'Name the house' })).toBeNull();
   });
 
   it('proposes a change as a ballot', async () => {

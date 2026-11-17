@@ -105,6 +105,7 @@ defmodule OneiroiWeb.Router do
       put("/household/beats/profile", HouseholdController, :profile)
       get("/household/checkins", HouseholdController, :checkins)
       put("/household/clock", HouseholdController, :clock)
+      put("/household/name", HouseholdController, :name)
       put("/household/checkins/:key", HouseholdController, :set_checkin)
       delete("/household/checkins/:key", HouseholdController, :remove_checkin)
       get("/creation/gifts", CreationController, :gifts)

@@ -306,6 +306,15 @@ defmodule Oneiroi.SimaQian.Git do
   @spec head?(Path.t()) :: boolean()
   def head?(dir), do: match?({:ok, _}, git(dir, ["rev-parse", "--verify", "-q", "HEAD"]))
 
+  @doc "The commit `HEAD` names, or nil in a repository with none yet."
+  @spec head(Path.t()) :: String.t() | nil
+  def head(dir) do
+    case git(dir, ["rev-parse", "--verify", "-q", "HEAD"]) do
+      {:ok, sha} -> String.trim(sha)
+      _none -> nil
+    end
+  end
+
   @doc """
   The trailers on the history's first commit: where the repository began,
   which a head committed on top of someone else's history does not say.

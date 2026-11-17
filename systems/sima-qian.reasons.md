@@ -409,3 +409,10 @@ stop using our git+sqlite solution"). Sharding by household keeps a
 household's repositories and its witnesses' users together, so a grant
 never spans two servers. Built now, while there is one instance, so the
 second is configuration and a move, not a rewrite.
+
+## #61
+
+A citation that names a version needs the version to stay readable;
+git keeps every one, so the port only has to name a commit and read the
+tree it had. Reading through the same blob cache keeps a pinned read as
+cheap as a current one.

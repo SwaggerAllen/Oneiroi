@@ -65,6 +65,10 @@ server.
   on a wide screen and over it on a phone, its front matter left off;
   a thread reads whole.
 - **Charter: the household contract** (gaia#27 to #31).
+  - **The house's name** (gaia#44): unnamed, a field (lowercase letters,
+    digits and hyphens) and **Name the house**, which is set once and
+    never changes; named, how its threads are cited,
+    `house/<name>:thread/…`, and nothing to change.
   - In force: its prose, its rules, its settings (or "at its default"),
     and the ballot that made it.
   - Members: each with when they joined and the version signed; **Sign

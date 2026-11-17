@@ -309,3 +309,13 @@ live, so it is the unit a server holds whole; the field is on the
 household because the household is what moves. Null rather than a
 backfilled name, because there is no second instance to tell apart from
 and no event yet that chose one.
+
+## #44
+
+Every citation of a house names it, so a name that could change would
+break them all; display words are free to change because nothing points
+at them. A witness names it because naming is the house's own business
+and witnesses keep the house's settings (#41); once, because the first
+citation makes it load-bearing. Unique among houses only: the marked form
+keeps houses and residents apart, so a house called what a resident is
+called collides with nothing.

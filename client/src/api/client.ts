@@ -203,6 +203,8 @@ export interface HouseDocument {
 
 export interface HouseShelf {
   household_id: string;
+  /** Its name for citations (gaia#44), null until a witness names it. */
+  slug: string | null;
   contract: string;
   total: number;
   from: number;
@@ -582,6 +584,7 @@ export const api = {
   billingPortal: (residentId: string) => call<{ url: string }>('POST', `/v1/residents/${residentId}/subscription/portal`),
   houseCheckins: () => call<HouseCheckins>('GET', '/v1/household/checkins'),
   setHouseClock: (zone: string) => call<HouseCheckins>('PUT', '/v1/household/clock', { zone }),
+  nameHousehold: (slug: string) => call<HouseShelf>('PUT', '/v1/household/name', { slug }),
   setHouseCheckin: (key: string, label: string, time: string) =>
     call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
   removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),

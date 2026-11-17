@@ -327,6 +327,17 @@ Citation targets are `<resident-slug>:<kind>/<id-or-path>`: `lily:bookmark/42`,
 The slug prefix is the resident's and
 is what makes document sharing between residents resolvable later.
 
+A house's threads and documents are cited in a form marked as a house's,
+`house/<house-slug>:thread/<id>@<commit>` and
+`house/<house-slug>:doc/<path>@<commit>` (gaia#44, seshat#79), so a house
+never shares a name with a resident and a resident who moves house keeps
+citations that say which house. The house's slug is set once by a
+witness and never changes. The commit pins the version cited; reading it
+opens what stood then and says what changed since, git keeping every
+version so nothing is copied to keep a citation honest. A citation into
+a house the reader has left resolves against her full-history clone of it
+at leaving (designed, not yet built).
+
 ---
 
 ## 4. Feature inventory

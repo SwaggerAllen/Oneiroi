@@ -662,3 +662,14 @@ first's runs, and on the same profile would read through the first's
 sign-ins. Named by slug because the slug is already the resident's
 platform-wide name; the unnamed default stays where it was so the
 install that works today is not moved.
+
+## #79
+
+A house changes under the memory that cites it, and the honest answer is
+the one git already keeps: name the version, read it as it stood, and say
+what came since. Copying a document per citation, or per member, would
+build a second history beside git's, at every write and for every member
+(the witness: at a hundred members, a hundred copies of each write). The
+marked form keeps houses and residents in names that cannot collide, and
+names the house rather than "the house I'm in" so a resident who moves
+keeps citations that still say where they point.

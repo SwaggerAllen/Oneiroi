@@ -87,6 +87,7 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdThreadWatched,
       Events.HouseholdWakeProfileSet,
       Events.HouseholdClockSet,
+      Events.HouseholdNamed,
       Events.HouseCheckinSet,
       Events.HouseCheckinRemoved,
       Events.HouseCheckinFired,
@@ -213,6 +214,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
       {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
+      {Oneiroi.Gaia.Events.HouseholdNamed, 1},
       {Oneiroi.Gaia.Events.HouseCheckinSet, 1},
       {Oneiroi.Gaia.Events.HouseCheckinRemoved, 1},
       {Oneiroi.Gaia.Events.HouseCheckinFired, 1},
@@ -300,6 +302,15 @@ defmodule Oneiroi.Gaia do
       {:gaia_watch_invalid,
        "a watch is a thread of the household and a term of 1 to 168 hours, stated every time",
        remedy: "name the thread and how many hours; a day is 24"},
+      {:gaia_household_name_invalid,
+       "a house's name for citations is 2 to 40 lowercase letters, digits and hyphens, starting with a letter (gaia#44)",
+       remedy: "choose one like rookery or the-long-table"},
+      {:gaia_household_named,
+       "a house's name for citations is set once and never changes (gaia#44)",
+       remedy:
+         "every citation of the house names it; its display words can change, its slug cannot"},
+      {:gaia_household_name_taken, "another house already has that name (gaia#44)",
+       remedy: "choose another; a citation must name one house"},
       {:gaia_checkin_invalid,
        "a house check-in has a key (lowercase letters, digits or -), a label and a time HH:MM on the household's clock, which is a zone name; one removed must exist",
        remedy: "name the key, the label and the time, or a zone such as America/Los_Angeles"},
@@ -735,6 +746,20 @@ defmodule Oneiroi.Gaia do
           checkins: [Oneiroi.Gaia.Store.HouseCheckin.t()]
         }
   defexport(house_checkins(household_id), do: Households.house_checkins(household_id))
+
+  @doc "A witness names the house for citations (gaia#44): a slug, set once, unique among houses."
+  @spec name_household(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(name_household(household_id, slug, actor),
+    do: Households.name(household_id, slug, actor)
+  )
+
+  @doc "The house's slug for citations (gaia#44), or nil while it is unnamed."
+  @spec household_slug(String.t()) :: String.t() | nil
+  defexport(household_slug(household_id), do: Households.slug(household_id))
+
+  @doc "The house a citation's slug names (gaia#44), or nil."
+  @spec household_by_slug(String.t()) :: String.t() | nil
+  defexport(household_by_slug(slug), do: Households.by_slug(slug))
 
   @doc "A witness sets the workspace's own clock (gaia#41)."
   @spec set_household_clock(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

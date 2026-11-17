@@ -15,4 +15,10 @@ defmodule Oneiroi.SimaQian.Repos.Adapter do
               {:ok, [map()]} | {:error, term()}
   @callback history(Repos.repo(), String.t(), pos_integer()) :: {:ok, [map()]} | {:error, term()}
   @callback blob(Repos.repo(), String.t()) :: {:ok, binary()} | {:error, term()}
+  # The commit `main` is at, nil before the first (sima-qian#61).
+  @callback head(Repos.repo()) :: {:ok, String.t() | nil} | {:error, term()}
+  # The tree as it stood at a commit, full or short: `sima_qian_repos_absent`
+  # for one the repository never had.
+  @callback tree_at(Repos.repo(), String.t()) ::
+              {:ok, [%{path: String.t(), sha: String.t()}]} | {:error, term()}
 end

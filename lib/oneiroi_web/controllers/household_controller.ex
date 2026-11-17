@@ -148,6 +148,17 @@ defmodule OneiroiWeb.HouseholdController do
 
   def checkins(conn, _params), do: house(conn, Seshat.house_checkins(actor(conn)))
 
+  operation(:name,
+    summary:
+      "Name the house for citations (gaia#44): a slug, lowercase, 2 to 40 characters, set once and never changed, unique among houses; a witness's. Answers the shelf, its slug in it",
+    request_body:
+      {"the name", "application/json",
+       %Schema{type: :object, required: [:slug], properties: %{slug: %Schema{type: :string}}}},
+    responses: [ok: {"the shelf", "application/json", %Schema{type: :object}}]
+  )
+
+  def name(conn, params), do: house(conn, Seshat.household_name(actor(conn), params["slug"]))
+
   operation(:clock,
     summary: "Set the shared workspace's own clock, a zone name (gaia#41)",
     request_body:

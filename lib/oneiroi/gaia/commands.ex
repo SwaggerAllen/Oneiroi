@@ -208,6 +208,11 @@ defmodule Oneiroi.Gaia.Commands do
 
   # House check-ins (gaia#41, the witness 2026-11-16): the workspace's own
   # clock, the check-ins it keeps, and each day's firing.
+  # A house's name for citations (gaia#44): set once, by a witness.
+  defmodule NameHousehold do
+    use Oneiroi.Command, fields: [:id, :slug]
+  end
+
   defmodule SetHouseholdClock do
     use Oneiroi.Command, fields: [:id, :zone]
   end

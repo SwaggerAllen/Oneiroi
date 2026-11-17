@@ -221,6 +221,12 @@ defmodule Oneiroi.Gaia.Projectors.Household do
 
   # ---- house check-ins (gaia#41) ----
 
+  fold(%Events.HouseholdNamed{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :named, from(h in Household, where: h.id == ^e.id),
+      set: [slug: e.slug]
+    )
+  end)
+
   fold(%Events.HouseholdClockSet{} = e, _metadata, fn multi ->
     Multi.update_all(multi, :clock, from(h in Household, where: h.id == ^e.id),
       set: [zone: e.zone]

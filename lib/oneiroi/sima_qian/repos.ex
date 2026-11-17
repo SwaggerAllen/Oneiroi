@@ -30,6 +30,7 @@ defmodule Oneiroi.SimaQian.Repos do
   @type author :: %{name: String.t(), email: String.t()}
 
   alias Oneiroi.Config
+  alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Repos.Cache
 
   @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
@@ -107,6 +108,24 @@ defmodule Oneiroi.SimaQian.Repos do
   @doc "The repository at its head, `%{path => sha}`: one call, then `at/3` reads from it."
   def snapshot(repo) do
     with {:ok, files} <- tree(repo), do: {:ok, Map.new(files, &{&1.path, &1.sha})}
+  end
+
+  @doc "The commit `main` is at, nil before the first (sima-qian#61): what a citation pins."
+  def head(repo), do: client().head(repo)
+
+  @doc """
+  The snapshot as it stood at `commit`, full or short (sima-qian#61): a
+  pinned citation reads through it as through `snapshot/1`, the blobs
+  from the same cache, since a blob's sha names its bytes at any commit.
+  """
+  def snapshot_at(repo, commit) do
+    if is_binary(commit) and Regex.match?(~r/\A[0-9a-f]{7,40}\z/, commit),
+      do:
+        with(
+          {:ok, files} <- client().tree_at(repo, commit),
+          do: {:ok, Map.new(files, &{&1.path, &1.sha})}
+        ),
+      else: {:error, Error.new(:sima_qian_repos_absent, :sima_qian_repos_commit_invalid)}
   end
 
   @doc "A file's bytes in a snapshot, through the cache; nil when the snapshot has no such file."

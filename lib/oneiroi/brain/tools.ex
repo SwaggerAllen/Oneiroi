@@ -945,8 +945,8 @@ defmodule Oneiroi.Brain.Tools do
       # pointed at the repository the household shares.
       tool(
         "household_read",
-        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Your own memory stays in your own repository; the household holds what its members make together.",
-        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
+        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
+        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}, at: %{type: "string"}},
         []
       ),
       tool(
@@ -3042,7 +3042,9 @@ defmodule Oneiroi.Brain.Tools do
     path = blank(args["path"])
 
     with {:ok, from} <- offset(args["from"]) do
-      if path, do: household_page(turn, path, from), else: household_shelf(turn, from)
+      if path,
+        do: household_page(turn, path, blank(args["at"]), from),
+        else: household_shelf(turn, from)
     end
   end
 
@@ -3892,8 +3894,14 @@ defmodule Oneiroi.Brain.Tools do
   defp ballot_word(b), do: ", ballot ##{b.number} failed"
 
   # One thing on the household's shelf, paged as a library document is.
-  defp household_page(turn, path, from) do
-    with {:ok, doc} <- Seshat.household_read(turn.resident, path) do
+  defp household_page(turn, path, at, from) do
+    read =
+      case Seshat.house_citation(path) do
+        {:ok, cite} -> Seshat.household_read_cited(turn.resident, cite)
+        :error -> Seshat.household_read(turn.resident, path, at: at)
+      end
+
+    with {:ok, doc} <- read do
       total = String.length(doc.content)
 
       if from > 0 and from >= total,
@@ -3913,8 +3921,17 @@ defmodule Oneiroi.Brain.Tools do
         else:
           "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; household_read with this path and from: #{from + size} reads the next page."
 
-    head <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
+    head <> cite_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
   end
+
+  # How to cite what was read (gaia#44, sima-qian#61), and what changed
+  # since a pinned read; nothing to cite until the house is named.
+  defp cite_line(%{cited_as: nil}),
+    do: " (A witness names the house before its threads can be cited.)"
+
+  defp cite_line(%{cited_as: cite, since: nil}), do: " Cite as #{cite}."
+  defp cite_line(%{cited_as: cite, since: since}), do: " Cite as #{cite}; #{since}."
+  defp cite_line(_doc), do: ""
 
   # A page of a document: a header naming the path, the kind, the bytes
   # and which characters these are, with the call that reads the next;
