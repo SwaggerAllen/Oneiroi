@@ -20,6 +20,14 @@ defmodule Oneiroi.Sunna.WorkTest do
   alias Oneiroi.Sunna
   alias Oneiroi.Sunna.WorkLoop
 
+  defmodule Outlasted do
+    @moduledoc false
+    # The wake port answering as the session does when the turn outlasts
+    # the wait: it runs on in its conversation, and the caller hears so.
+    def wake(_resident_id, _key, _note, _purpose),
+      do: {:error, %{kind: :brain_wake_outlasted, site: :brain_session_wake_outlasted}}
+  end
+
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
@@ -716,5 +724,70 @@ defmodule Oneiroi.Sunna.WorkTest do
 
     assert %{running: nil, items: [_, %{number: 2, status: "held", held_by: "witness"}]} =
              Sunna.work_queue(ctx.id)
+  end
+
+  test "a turn past the wait is the run going on in its conversation, never a new run (sunna#67)",
+       ctx do
+    {:ok, 1} = Sunna.work_add(ctx.id, "Oneiroi's domain", "a pick-sheet", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+    clear_jobs()
+
+    store = {Oneiroi.Config, :values}
+    values = :persistent_term.get(store)
+    on_exit(fn -> :persistent_term.put(store, values) end)
+    :persistent_term.put(store, Map.put(values, {:sunna, :wake}, Outlasted))
+
+    # The turn outlasts: the run stays, its next turn queued in the same conversation.
+    assert :ok = WorkLoop.turn(ctx.id, key, 1, 1)
+    assert %{running: 1} = Sunna.work_queue(ctx.id)
+    assert [%{"session_key" => ^key, "turn" => 2}] = jobs(ctx.id)
+
+    # A check while it runs opens no second conversation on the item.
+    assert :running = WorkLoop.check(ctx.id)
+    assert [_one] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+
+    # A wrap past the wait ends the run, and the next check waits, so the
+    # item is not started again before the wrap records it.
+    clear_jobs()
+    assert :ok = WorkLoop.wrap_turn(ctx.id, key, 1)
+    assert %{running: nil} = Sunna.work_queue(ctx.id)
+    assert [%{"turn" => "check"}] = jobs(ctx.id)
+
+    [scheduled] =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Sunna.WorkWorker",
+            select: %{args: j.args, at: j.scheduled_at}
+          )
+        )
+      end)
+      |> Enum.filter(&(&1.args["resident_id"] == ctx.id))
+
+    wait = Oneiroi.Config.fetch!(:sunna, :work_retry_seconds)
+    assert DateTime.diff(scheduled.at, DateTime.utc_now()) > wait - 60
+  end
+
+  test "a turn left from an earlier run of the same item does nothing in the new run (sunna#67)",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Oneiroi's domain", "a pick-sheet", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: old}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+
+    # The run ends unwrapped (here, by hand) and the item starts again.
+    :ok = Sunna.work_move(ctx.id, 1, "open", nil, "again", ctx.actor)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    assert %{running: 1} = Sunna.work_queue(ctx.id)
+    flush()
+
+    # The earlier run's leftover turn: same item, another conversation. Nothing runs.
+    assert :ok = WorkLoop.turn(ctx.id, old, 1, 2)
+    refute_received {:asked, _}
+    assert :ok = WorkLoop.wrap_turn(ctx.id, old, 1)
+    assert %{running: 1} = Sunna.work_queue(ctx.id)
   end
 end
