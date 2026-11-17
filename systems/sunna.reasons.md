@@ -464,3 +464,12 @@ wakes her and when. Quiet hours were made to keep messages from
 reaching the witness at the wrong hour; a check-in in the shared
 workspace reaches no one but the residents, so holding it would delay
 the work and protect nobody.
+
+## #66
+
+A free-time run costs the resident's own budget line, so a duplicate is
+money she did not choose to spend and a turn she did not choose to take,
+and a run recorded as failed while it ran misleads the one reading her
+receipts. The lock is taken without waiting because a waiting tick holds
+a queue slot every other resident's check-ins need; the slot is read
+again under it because the holder may have recorded it a moment before.
