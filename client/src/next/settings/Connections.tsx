@@ -6,6 +6,7 @@ import { useSubject } from '../state/resident';
 import { Card, Confirm, Field, Said, TextArea } from './common';
 import { ADAPTER, day, lines, NAME, ORIGIN, profileLine, settingsKey } from './logic';
 import { OnYourMac } from './OnYourMac';
+import { CopyButton } from '../CopyButton';
 import * as css from './settings.css';
 import { useAct } from './useAct';
 
@@ -137,9 +138,7 @@ function OpsTokens() {
             {issued.token}
           </code>
           <div className={css.row}>
-            <button type="button" className={css.secondary} onClick={() => void navigator.clipboard?.writeText(issued.token)}>
-              Copy
-            </button>
+            <CopyButton className={css.secondary} text={issued.token} />
             <button type="button" className={css.quiet} onClick={() => setIssued(null)}>
               I've saved it
             </button>
@@ -216,9 +215,7 @@ function Adapters() {
             {issued.token}
           </code>
           <div className={css.row}>
-            <button type="button" className={css.secondary} onClick={() => void navigator.clipboard?.writeText(issued.token)}>
-              Copy
-            </button>
+            <CopyButton className={css.secondary} text={issued.token} />
             <button type="button" className={css.quiet} onClick={() => setIssued(null)}>
               I've saved it
             </button>
