@@ -96,9 +96,25 @@ function Opened({ path, accountId }: { path: string; accountId?: string }) {
 function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId?: string }) {
   const b = doc.ballot;
   const mine = (p: HousePost) => p.meta.by_kind === 'witness' && p.meta.by_id === accountId;
+  const posted = doc.doc ?? null;
+  const drafts = (doc.replies ?? []).filter((r) => r.meta.draft === 'changed');
+  const latest = drafts[drafts.length - 1];
+  // A reply on a document post says when it answers an earlier draft (seshat#83).
+  const earlier = (r: HousePost) => !!posted?.commit && !!r.meta.doc_commit && r.meta.doc_commit !== posted.commit;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {doc.trunk && <Words body={doc.trunk.body} />}
+      {posted && <PostedDoc doc={posted} />}
+      {latest && (
+        <button
+          type="button"
+          className={chat.linkButton}
+          style={{ alignSelf: 'flex-start' }}
+          onClick={() => document.getElementById(anchor(latest.path))?.scrollIntoView?.({ block: 'start' })}
+        >
+          Skip to the latest draft's discussion
+        </button>
+      )}
       {b && (
         <p className={chat.system}>
           Ballot #{b.number}: {b.closed_at ? `${b.passed ? 'carried' : 'failed'} ${when(b.closed_at)}` : `open until ${when(b.closes_at)}`} · {b.yes} yes, {b.no} no of {b.members}
@@ -106,7 +122,11 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
       )}
       {b && !b.closed_at && <Vote path={path} />}
       {(doc.replies ?? []).map((r) =>
-        mine(r) ? (
+        r.meta.draft === 'changed' ? (
+          <p key={r.path} id={anchor(r.path)} className={chat.system}>
+            {r.body.trim()}
+          </p>
+        ) : mine(r) ? (
           <div key={r.path} className={chat.mine}>
             {r.body.trim()}
           </div>
@@ -117,6 +137,7 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
               <span>{when(r.meta.at)}</span>
               {r.meta.vote && <span>votes {r.meta.vote}</span>}
               {r.meta.in_reply_to && <span>answering #{r.meta.in_reply_to}</span>}
+              {earlier(r) && <span>on an earlier draft</span>}
             </span>
             <Words body={r.body} />
           </div>
@@ -125,6 +146,23 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
     </div>
   );
 }
+
+/** The document a document post is on, at its latest draft (seshat#83). */
+function PostedDoc({ doc }: { doc: NonNullable<HouseDoc['doc']> }) {
+  const [open, setOpen] = useState(true);
+  if (!doc.present) return <p className={chat.system}>{doc.path} is no longer in the house.</p>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '2px solid currentColor', paddingLeft: 12 }}>
+      <button type="button" className={chat.linkButton} style={{ alignSelf: 'flex-start' }} onClick={() => setOpen(!open)} aria-expanded={open}>
+        {open ? '▾' : '▸'} {doc.path}
+        {doc.commit ? `, draft ${doc.commit.slice(0, 12)}` : ''}
+      </button>
+      {open && <Words body={doc.content} />}
+    </div>
+  );
+}
+
+const anchor = (path: string) => `draft-${path.replace(/[^a-z0-9]+/gi, '-')}`;
 
 function Words({ body }: { body: string }) {
   return (

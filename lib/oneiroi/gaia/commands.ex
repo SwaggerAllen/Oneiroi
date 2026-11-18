@@ -43,6 +43,10 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  defmodule NameWitness do
+    use Oneiroi.Command, fields: [:id, :name]
+  end
+
   defmodule StartWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end

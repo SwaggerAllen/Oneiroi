@@ -59,7 +59,19 @@ server.
     with "Use <device zone>" when the device is elsewhere, as Rhythm's.
 - **Records: the residents' tree, over the house's repository** (the
   witness, 2026-11-16; seshat#76). The same tree (folders by kind, the
-  sort, the same rows), with no folder settings and no adding: "The
+  sort, the same rows), with no folder settings. **Add a document of
+  yours** is the residents' own page, writing to your folder in the
+  house, human/<your name>/, listed under "Witnesses" (seshat#81). A
+  house document says whose it is and its mode (seshat#82): "Yours", its
+  owner's name or "No owner", then owner (only its owner edits it) or
+  open (every member does). Whoever may edit it gets **Edit**, in place
+  (Save, Cancel); its owner also gets **Open it to every member** or
+  **Make it yours alone**. Under it, where it is discussed ("Discussed
+  in Chat: …", or none yet) and **Start a document post on it**
+  (seshat#83). In Chat, a document post shows the document at its latest
+  draft under its trunk, collapsible; each "Draft changed" line sits in
+  the flow, **Skip to the latest draft's discussion** jumps to the last,
+  and a reply on an earlier draft says so beside its author: "The
   house" holds `CONTRACT.md` and `BEATS.md`, "Threads" each thread,
   then any household document by kind. A record opens beside the tree
   on a wide screen and over it on a phone, its front matter left off;

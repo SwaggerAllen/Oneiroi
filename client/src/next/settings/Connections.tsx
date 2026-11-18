@@ -32,6 +32,7 @@ const ROLES: Array<{ id: string; words: (name: string) => string }> = [
 export function Connections() {
   return (
     <>
+      <YourName />
       <ModelKey />
       <GithubToken />
       <OpsTokens />
@@ -41,6 +42,38 @@ export function Connections() {
       <Reader />
       <Research />
     </>
+  );
+}
+
+// The name the witness goes by in the records (gaia#45): the household
+// calls them by it, and their documents go in a folder named for it.
+function YourName() {
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const [name, setName] = useState('');
+  const act = useAct();
+  const now = me.data?.name ?? null;
+  return (
+    <Card title="Your name">
+      <p className={css.text}>{now ? `You go by ${now}; your documents go in human/${me.data?.folder}/.` : 'No name yet: the household calls you by who you witness.'}</p>
+      <p className={css.note}>A changed name keeps the documents you already added where they are; new ones go in the new name's folder.</p>
+      <form
+        aria-label="Your name"
+        className={css.row}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const n = name.trim();
+          if (!n) return;
+          setName('');
+          void act.run(() => api.nameWitness(n).then(() => 'Saved.'), ['me']);
+        }}
+      >
+        <Field label={now ? 'Change your name' : 'The name you go by'} value={name} onChange={(e) => setName(e.target.value)} />
+        <button type="submit" className={css.primary} disabled={name.trim() === '' || act.busy}>
+          Save
+        </button>
+      </form>
+      <Said said={act.said} />
+    </Card>
   );
 }
 

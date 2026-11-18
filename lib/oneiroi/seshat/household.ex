@@ -449,7 +449,7 @@ defmodule Oneiroi.Seshat.Household do
            for(
              k <- Kinds.shelf(),
              Map.get(k, :household, false),
-             do: %{kind: k.kind, label: k.label}
+             do: %{kind: k.kind, label: house_label(k)}
            ))
         |> Enum.with_index()
         |> Enum.map(fn {k, i} -> Map.put(k, :position, i) end)
@@ -463,6 +463,11 @@ defmodule Oneiroi.Seshat.Household do
        }}
     end
   end
+
+  # In a resident's records human/ is the witness's own ("Yours"); in the
+  # house it is every witness's, a folder each (seshat#81).
+  defp house_label(%{kind: "human"}), do: "Witnesses"
+  defp house_label(k), do: k.label
 
   defp file_row(kind, path, title, at, by, extra \\ []) do
     %{
@@ -636,6 +641,7 @@ defmodule Oneiroi.Seshat.Household do
     with {:ok, t} <- load_thread(view, thread),
          true <- visible?(actor, household_id, ids(t)) || :hidden do
       ballot = Gaia.household_ballot_for_thread(household_id, thread)
+      doc = posted_doc(view, t)
 
       {:ok,
        %{
@@ -645,7 +651,8 @@ defmodule Oneiroi.Seshat.Household do
          trunk: t.trunk,
          replies: t.replies,
          ballot: ballot,
-         content: thread_text(thread, t, ballot)
+         doc: doc,
+         content: thread_text(thread, t, ballot, doc)
        }}
     else
       :hidden -> no_thread(thread)
@@ -658,8 +665,17 @@ defmodule Oneiroi.Seshat.Household do
          text when is_binary(text) <- file(view, path) || :absent,
          {meta, _body} = frontmatter(text),
          true <- visible?(actor, household_id, [meta["by_id"]]) || :absent do
+      share = sharing_of(meta)
+
       {:ok,
-       %{path: path, kind: Kinds.kind_of(path).kind, title: meta["title"] || path, content: text}}
+       %{
+         path: path,
+         kind: Kinds.kind_of(path).kind,
+         title: meta["title"] || path,
+         content: text,
+         sharing: Map.put(share, :owner, owner_name(household_id, share.owner_id)),
+         discussed: discussed(view, path)
+       }}
     else
       {:error, %Error{}} = refused ->
         refused
@@ -698,8 +714,9 @@ defmodule Oneiroi.Seshat.Household do
     with {:ok, household_id} <- household(actor),
          :ok <- may_post(actor, household_id),
          {:ok, view} <- provision(household_id) do
-      case attrs["kind"] || "thread" do
-        "thread" -> post_thread(actor, household_id, view, attrs)
+      case {attrs["kind"] || "thread", attrs["doc"]} do
+        {"thread", doc} when is_binary(doc) -> post_doc_thread(actor, household_id, view, attrs)
+        {"thread", _none} -> post_thread(actor, household_id, view, attrs)
         _document -> post_document(actor, household_id, view, attrs)
       end
     end
@@ -734,6 +751,90 @@ defmodule Oneiroi.Seshat.Household do
       {:ok,
        %{path: thread, title: title, ballot: opened && Map.take(opened, [:ballot, :closes_at])}}
     end
+  end
+
+  # ---- document posts (seshat#83) ----
+
+  # A document post: a thread whose trunk is a citation of a household
+  # document, flagged `doc:`, pinned at its latest commit, which reads as
+  # the document itself; feedback on it is its replies.
+  defp post_doc_thread(actor, household_id, view, attrs) do
+    text = to_string(attrs["content"] || "")
+
+    with {:ok, path} <- household_path(attrs["doc"]),
+         false <- Kinds.container?(Kinds.kind_of(path)),
+         doc when is_binary(doc) <- file(view, path) || absent(path),
+         {meta, _body} = frontmatter(doc),
+         title = one_line(attrs["title"]) || "On #{meta["title"] || Path.basename(path, ".md")}",
+         :ok <- titled(title) do
+      locked(household_id, &write_doc_thread(actor, household_id, &1, {path, title, text}))
+    else
+      true -> {:error, Error.new(:seshat_household_invalid, :seshat_household_doc_post_thread)}
+      other -> other
+    end
+  end
+
+  defp write_doc_thread(actor, household_id, view, {path, title, text}) do
+    thread = "threads/" <> fresh_id(view, title)
+    by = author(household_id, actor)
+    commit = doc_commit(view, path)
+
+    with :ok <- gate(actor, household_id, view, thread, :post),
+         meta = thread_meta(title, by, actor) ++ [{"doc", path}] ++ optional("doc_commit", commit),
+         body =
+           "A document post on #{path}#{draft_at(commit)}." <>
+             if(String.trim(text) == "", do: "", else: "\n\n" <> text),
+         changes = [
+           {:create, Path.join(thread, @trunk), render(meta, body)}
+           | descriptor(view, Kinds.named("thread"))
+         ],
+         {:ok, _} <- commit(view, changes, "Post: #{title}", by) do
+      {:ok, %{path: thread, title: title, doc: path, doc_commit: commit, ballot: nil}}
+    end
+  end
+
+  # The commit that last changed a document: its draft.
+  defp doc_commit(view, path) do
+    case Repos.history(view.repo, path, 1) do
+      {:ok, [%{commit: sha} | _]} -> sha
+      _none -> nil
+    end
+  end
+
+  defp draft_at(nil), do: ""
+  defp draft_at(sha), do: ", draft #{short(sha)}"
+
+  defp short(sha), do: String.slice(sha, 0, 12)
+
+  # After an edit, a line in every thread on the document saying its
+  # draft changed (seshat#83), so which draft is being talked about is
+  # plain at every point and the latest draft's talk can be found. The
+  # platform's lines, in their own commit, never gated.
+  defp draft_changed(household_id, path, from, to) do
+    {:ok, view} = view(household_id)
+
+    changes =
+      for id <- thread_ids(view),
+          thread = "threads/" <> id,
+          {:ok, t} <- [load_thread(view, thread)],
+          t.trunk.meta["doc"] == path do
+        number = next_reply(view, thread)
+
+        meta = [
+          {"by", @platform.name},
+          {"by_kind", "platform"},
+          {"at", iso(Clock.now())},
+          {"reply", Integer.to_string(number)},
+          {"draft", "changed"},
+          {"doc_commit", to}
+        ]
+
+        {:create, reply_path(thread, number, "oneiroi"),
+         render(meta, "Draft changed: #{short(from || "")} → #{short(to)}.")}
+      end
+
+    _ = commit(view, changes, "Draft changed: #{path}", @platform)
+    :ok
   end
 
   defp thread_meta(title, by, actor),
@@ -805,13 +906,16 @@ defmodule Oneiroi.Seshat.Household do
 
   defp post_document(actor, household_id, _view, attrs) do
     title = one_line(attrs["title"])
-    text = to_string(attrs["content"] || "")
 
     with {:ok, path} <- household_path(attrs["path"] || ""),
          false <- Kinds.container?(Kinds.kind_of(path)),
+         :ok <- own_folder(actor, path),
+         {:ok, sharing} <- sharing(attrs, actor),
+         {:ok, text, source} <- words_from(actor, attrs),
+         text = text || "",
          :ok <- worded(text, false) do
       locked(household_id, fn view ->
-        write_document(actor, household_id, view, {path, title, text})
+        write_document(actor, household_id, view, {path, title, text, sharing ++ source})
       end)
     else
       true ->
@@ -822,9 +926,9 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp write_document(actor, household_id, view, {path, title, text}) do
+  defp write_document(actor, household_id, view, {path, title, text, sharing}) do
     by = author(household_id, actor)
-    meta = thread_meta(title || Path.basename(path, ".md"), by, actor)
+    meta = thread_meta(title || Path.basename(path, ".md"), by, actor) ++ sharing
 
     with :ok <- gate(actor, household_id, view, path, :file),
          false <- has?(view, path),
@@ -841,8 +945,214 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  # A household document is a resident's (seshat#69): a witness who posts
-  # posts threads and replies.
+  # ---- sharing modes and the owner (seshat#82) ----
+
+  # A document's sharing, as its front matter says it: `owner` mode (the
+  # default), its owner the poster, who alone edits it while the others'
+  # edits are feedback; `open`, everyone edits. Posted with `owner: false`
+  # it has no owner and is open, for the flows a resident automates.
+  defp sharing(attrs, %Actor{id: id}) do
+    case {attrs["mode"] || "owner", attrs["owner"]} do
+      {_mode, false} -> {:ok, [{"mode", "open"}]}
+      {mode, _} when mode in ["owner", "open"] -> {:ok, [{"owner_id", id}, {"mode", mode}]}
+      _other -> {:error, Error.new(:seshat_household_invalid, :seshat_household_mode_unknown)}
+    end
+  end
+
+  # ---- the source-and-revision link (seshat#84) ----
+
+  # A document's words, given (`content`) or copied from a file of the
+  # resident's own (`from`, a path in her repository), which the copy
+  # names as its source at the commit it was copied at, `<slug>:<path>@
+  # <commit>`, so her local draft never becomes a quiet competing
+  # edition; her own front matter stays behind.
+  defp words_from(%Actor{kind: :resident, id: id}, %{"from" => from}) when is_binary(from) do
+    repo = {:resident, id}
+
+    with {:ok, text, _blob} <- Repos.read(repo, from),
+         {:ok, [%{commit: commit} | _]} <- Repos.history(repo, from, 1),
+         {:ok, r} <- AgathosDaimon.fetch(id) do
+      {_meta, body} = frontmatter(text)
+      {:ok, body, [{"source", "#{r.slug}:#{from}@#{short(commit)}"}]}
+    else
+      _absent ->
+        {:error,
+         Error.new(:seshat_household_no_such_document, :seshat_household_source_absent,
+           path: from
+         )}
+    end
+  end
+
+  defp words_from(%Actor{}, %{"from" => from}) when is_binary(from),
+    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_source_residents)}
+
+  defp words_from(_actor, attrs) do
+    if is_binary(attrs["content"]), do: {:ok, attrs["content"], []}, else: {:ok, nil, []}
+  end
+
+  @doc """
+  The household documents shared from a file of the resident's own
+  (seshat#84), each with the document posts on it: what her library read
+  of that file says, so the feedback on its shared edition follows her
+  back to where she works. Empty outside a house.
+  """
+  def shared_from(%Actor{kind: :resident, id: id} = actor, path) do
+    with {:ok, household_id} <- household(actor),
+         {:ok, r} <- AgathosDaimon.fetch(id),
+         {:ok, view} <- view(household_id) do
+      prefix = "#{r.slug}:#{path}@"
+
+      for d <- documents(view),
+          source = d.source,
+          is_binary(source) and String.starts_with?(source, prefix),
+          do: %{
+            path: d.path,
+            at: String.replace_prefix(source, prefix, ""),
+            discussed: discussed(view, d.path)
+          }
+    else
+      _none -> []
+    end
+  end
+
+  def shared_from(_actor, _path), do: []
+
+  @doc """
+  The sharing a document's front matter states (seshat#82): `%{mode,
+  owner_id}`. One written before modes is its poster's, in owner mode.
+  """
+  def sharing_of(meta) when is_map(meta) do
+    case meta do
+      %{"mode" => "open"} -> %{mode: "open", owner_id: meta["owner_id"]}
+      _owned -> %{mode: "owner", owner_id: meta["owner_id"] || meta["by_id"]}
+    end
+  end
+
+  @doc """
+  A member edits a household document (seshat#82): its owner, in owner
+  mode; any member, in open mode. Through the beats like any write (a
+  resident in her turn, a witness once a target a beat). `content`
+  rewrites its words; `mode` (`owner` or `open`) is the owner's alone to
+  change. The path keeps its history; a thread is never edited.
+  """
+  def edit(%Actor{} = actor, name, attrs) when is_map(attrs) do
+    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
+
+    with {:ok, household_id} <- household(actor),
+         :ok <- may_post(actor, household_id),
+         {:ok, path} <- household_path(name),
+         false <- Kinds.container?(Kinds.kind_of(path)),
+         {:ok, _view} <- provision(household_id) do
+      locked(household_id, fn view -> write_edit(actor, household_id, view, path, attrs) end)
+    else
+      true -> {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_thread)}
+      other -> other
+    end
+  end
+
+  defp write_edit(actor, household_id, view, path, attrs) do
+    with text when is_binary(text) <- file(view, path) || absent(path),
+         {meta, body} = frontmatter(text),
+         before = doc_commit(view, path),
+         share = sharing_of(meta),
+         :ok <- may_edit(actor, share, path),
+         {:ok, mode} <- new_mode(actor, share, attrs["mode"]),
+         {:ok, given, source} <- words_from(actor, attrs),
+         words = given || body,
+         :ok <- worded(words, false),
+         :ok <- gate(actor, household_id, view, path, :file),
+         by = author(household_id, actor),
+         meta =
+           meta
+           |> Map.merge(%{
+             "mode" => mode,
+             "edited_by" => by.name,
+             "edited_by_id" => actor.id,
+             "edited_at" => iso(Clock.now())
+           })
+           |> Map.merge(Map.new(source))
+           |> Map.put_new("owner_id", share.owner_id),
+         {:ok, commit} <-
+           commit(
+             view,
+             [{:put, path, render(ordered(meta), words), Map.get(view.files, path)}],
+             "Edit: #{path}",
+             by
+           ) do
+      if commit != :nothing and given != nil,
+        do: draft_changed(household_id, path, before, commit)
+
+      {:ok, %{path: path, mode: mode, owner_id: meta["owner_id"], commit: commit}}
+    end
+  end
+
+  defp owner_name(_household_id, nil), do: nil
+
+  defp owner_name(household_id, id),
+    do: Enum.find_value(Gaia.household_members(household_id), &(&1.id == id && &1.name))
+
+  defp may_edit(_actor, %{mode: "open"}, _path), do: :ok
+  defp may_edit(%Actor{id: id}, %{owner_id: id}, _path), do: :ok
+
+  defp may_edit(_actor, _share, path),
+    do:
+      {:error,
+       Error.new(:seshat_household_not_owner, :seshat_household_edit_not_owner, path: path)}
+
+  defp new_mode(_actor, share, nil), do: {:ok, share.mode}
+  defp new_mode(_actor, %{mode: m}, m), do: {:ok, m}
+
+  defp new_mode(%Actor{id: id}, %{owner_id: id}, mode) when mode in ["owner", "open"],
+    do: {:ok, mode}
+
+  defp new_mode(_actor, %{owner_id: nil}, _mode),
+    do: {:error, Error.new(:seshat_household_not_owner, :seshat_household_mode_no_owner)}
+
+  defp new_mode(_actor, _share, mode) when mode in ["owner", "open"],
+    do: {:error, Error.new(:seshat_household_not_owner, :seshat_household_mode_not_owner)}
+
+  defp new_mode(_actor, _share, _mode),
+    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_mode_unknown)}
+
+  # The front matter in the order a person reads it: who and when first.
+  @meta_order ~w(title by by_kind by_id posted_at owner_id mode source edited_by edited_by_id edited_at)
+  defp ordered(meta) do
+    known = for k <- @meta_order, Map.has_key?(meta, k), do: {k, meta[k]}
+    known ++ Enum.sort(for {k, v} <- meta, k not in @meta_order, do: {k, v})
+  end
+
+  defp absent(path),
+    do:
+      {:error,
+       Error.new(:seshat_household_no_such_document, :seshat_household_edit_absent, path: path)}
+
+  # Whose folder a household document goes in (seshat#81): a witness's
+  # in human/<their name>/, made by its first file; a resident's in a
+  # household kind's folder, never in human/.
+  defp own_folder(%Actor{kind: :witness, id: id}, path) do
+    case Gaia.witness_folder(id) do
+      nil ->
+        {:error, Error.new(:seshat_witness_unnamed, :seshat_household_witness_unnamed)}
+
+      folder ->
+        if String.starts_with?(path, "human/#{folder}/") and length(Path.split(path)) == 3,
+          do: :ok,
+          else:
+            {:error,
+             Error.new(:seshat_not_your_folder, :seshat_household_not_your_folder,
+               path: path,
+               folder: "human/#{folder}/"
+             )}
+    end
+  end
+
+  defp own_folder(%Actor{}, "human/" <> _ = path),
+    do:
+      {:error,
+       Error.new(:seshat_household_invalid, :seshat_household_human_is_witnesses, path: path)}
+
+  defp own_folder(%Actor{}, _path), do: :ok
+
   # ---- reply (seshat#59, #60, #62, #63) ----
 
   @doc """
@@ -899,7 +1209,8 @@ defmodule Oneiroi.Seshat.Household do
         {"reply", Integer.to_string(number)}
       ] ++
         optional("in_reply_to", in_reply_to && Integer.to_string(in_reply_to)) ++
-        optional("vote", vote)
+        optional("vote", vote) ++
+        stamp(view, t)
 
     body = if text == "", do: "Votes #{vote}.", else: text
     path = reply_path(thread, number, by.name)
@@ -913,6 +1224,14 @@ defmodule Oneiroi.Seshat.Household do
            ),
          do: {:ok, %{path: path, number: number}}
   end
+
+  # A reply on a document post is stamped with the draft it answers
+  # (seshat#83): an out-of-date reply says so, whether or not a
+  # draft-changed line was ever written.
+  defp stamp(view, %{trunk: %{meta: %{"doc" => path}}}),
+    do: optional("doc_commit", doc_commit(view, path))
+
+  defp stamp(_view, _t), do: []
 
   defp optional(_key, nil), do: []
   defp optional(key, value), do: [{key, value}]
@@ -1317,7 +1636,23 @@ defmodule Oneiroi.Seshat.Household do
             vote: nil
           }
 
-    Enum.filter(threads, & &1.at) ++ documents
+    # The last edit of each document counts as its editor's write (seshat#82).
+    edits =
+      for d <- documents(view),
+          at = instant(d.edited_at),
+          at != nil,
+          do: %{
+            kind: "document",
+            target: d.path,
+            path: d.path,
+            title: d.title,
+            by: d.edited_by,
+            by_id: d.edited_by_id,
+            at: at,
+            vote: nil
+          }
+
+    Enum.filter(threads, & &1.at) ++ documents ++ edits
   end
 
   defp thread_writes(thread, t) do
@@ -1411,7 +1746,7 @@ defmodule Oneiroi.Seshat.Household do
         not Kinds.container?(kind),
         path <- Repos.under(view.files, kind.folder),
         name = Path.basename(path),
-        Path.dirname(path) == kind.folder,
+        in_folder?(kind, path),
         name != Kinds.descriptor_name() do
       {meta, _} = view |> file(path) |> to_string() |> frontmatter()
 
@@ -1421,10 +1756,19 @@ defmodule Oneiroi.Seshat.Household do
         title: meta["title"] || name,
         by: meta["by"],
         by_id: meta["by_id"],
-        posted_at: meta["posted_at"]
+        posted_at: meta["posted_at"],
+        edited_by: meta["edited_by"],
+        edited_by_id: meta["edited_by_id"],
+        edited_at: meta["edited_at"],
+        source: meta["source"]
       }
     end
   end
+
+  # A document sits in its kind's folder; a witness's, one deeper, in the
+  # folder named for them (seshat#81).
+  defp in_folder?(%{kind: "human"}, path), do: length(Path.split(path)) == 3
+  defp in_folder?(kind, path), do: Path.dirname(path) == kind.folder
 
   defp load_thread(view, thread) do
     trunk = Path.join(thread, @trunk)
@@ -1447,24 +1791,65 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
-  defp thread_text(thread, t, ballot) do
+  # The document a document post is on (seshat#83), as it stands now:
+  # its path, its latest draft and its words; nil for any other thread.
+  defp posted_doc(view, %{trunk: %{meta: %{"doc" => path}}}) do
+    text = file(view, path)
+    {_meta, body} = frontmatter(to_string(text))
+    %{path: path, commit: doc_commit(view, path), content: body, present: is_binary(text)}
+  end
+
+  defp posted_doc(_view, _t), do: nil
+
+  # The document posts on a document (seshat#83): where its feedback is.
+  defp discussed(view, path) do
+    for id <- thread_ids(view),
+        thread = "threads/" <> id,
+        {:ok, t} <- [load_thread(view, thread)],
+        t.trunk.meta["doc"] == path,
+        do: %{path: thread, title: t.trunk.meta["title"], replies: length(t.replies)}
+  end
+
+  defp thread_text(thread, t, ballot, doc) do
     head =
       "# #{t.trunk.meta["title"]}\n#{thread}, posted by #{t.trunk.meta["by"]} at #{t.trunk.meta["posted_at"]}" <>
         ballot_line(ballot)
 
     replies =
-      Enum.map_join(t.replies, "\n\n", fn r ->
-        vote = if r.meta["vote"], do: ", votes #{r.meta["vote"]}", else: ""
-        answers = if r.meta["in_reply_to"], do: ", answering ##{r.meta["in_reply_to"]}", else: ""
+      Enum.map_join(t.replies, "\n\n", fn
+        %{meta: %{"draft" => "changed"}} = r ->
+          "--- #{String.trim(r.body)} (#{r.meta["at"]})"
 
-        "--- Reply ##{r.meta["reply"]} by #{r.meta["by"]} at #{r.meta["at"]}#{vote}#{answers}:\n#{String.trim(r.body)}"
+        r ->
+          vote = if r.meta["vote"], do: ", votes #{r.meta["vote"]}", else: ""
+
+          answers =
+            if r.meta["in_reply_to"], do: ", answering ##{r.meta["in_reply_to"]}", else: ""
+
+          "--- Reply ##{r.meta["reply"]} by #{r.meta["by"]} at #{r.meta["at"]}#{vote}#{answers}#{earlier(r, doc)}:\n#{String.trim(r.body)}"
       end)
 
     head <>
       "\n\n" <>
       String.trim(t.trunk.body) <>
+      doc_text(doc) <>
       if(replies == "", do: "\n\nNo replies yet.", else: "\n\n" <> replies)
   end
+
+  defp doc_text(nil), do: ""
+
+  defp doc_text(%{present: false} = doc),
+    do: "\n\n(#{doc.path} is no longer in the house.)"
+
+  defp doc_text(doc),
+    do:
+      "\n\n=== #{doc.path}, its latest draft#{draft_at(doc.commit)} ===\n#{String.trim(doc.content)}\n=== end of #{doc.path} ==="
+
+  # A reply on an earlier draft than the latest says so (seshat#83).
+  defp earlier(%{meta: %{"doc_commit" => c}}, %{commit: latest}) when c != latest,
+    do: ", on an earlier draft (#{short(c)})"
+
+  defp earlier(_reply, _doc), do: ""
 
   defp ballot_line(nil), do: ""
 

@@ -245,10 +245,19 @@ defmodule OneiroiWeb.HouseholdController do
       {"the thread", "application/json",
        %Schema{
          type: :object,
-         required: [:title],
          properties: %{
            title: %Schema{type: :string},
            content: %Schema{type: :string},
+           mode: %Schema{
+             type: :string,
+             enum: ["owner", "open"],
+             description: "a document's sharing (seshat#82)"
+           },
+           owner: %Schema{type: :boolean, description: "false: a document with no owner, open"},
+           doc: %Schema{
+             type: :string,
+             description: "a household document's path: a document post on it (seshat#83)"
+           },
            kind: %Schema{
              type: :string,
              description: "thread (the default) or a household document kind, e.g. design"
@@ -264,13 +273,40 @@ defmodule OneiroiWeb.HouseholdController do
   )
 
   def post(conn, params) do
-    attrs = Map.take(params, ~w(title content kind path ballot))
+    attrs = Map.take(params, ~w(title content kind path ballot mode owner doc))
 
     case Seshat.household_post(actor(conn), attrs) do
       {:ok, posted} -> conn |> put_status(201) |> json(posted)
       {:error, e} -> error(conn, 422, e)
     end
   end
+
+  operation(:edit,
+    summary:
+      "Edit a household document as this witness (seshat#82): its owner in owner mode, anyone in open mode; mode is the owner's to change. Once a document a beat",
+    request_body:
+      {"the edit", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path],
+         properties: %{
+           path: %Schema{type: :string},
+           content: %Schema{type: :string},
+           mode: %Schema{type: :string, enum: ["owner", "open"]}
+         }
+       }},
+    responses: [ok: {"the edit", "application/json", %Schema{type: :object}}]
+  )
+
+  def edit(conn, %{"path" => path} = params) do
+    case Seshat.household_edit(actor(conn), path, Map.take(params, ~w(content mode))) do
+      {:ok, edited} -> json(conn, edited)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  def edit(conn, _params),
+    do: problem(conn, 422, :path_required, :web_household_edit_path, "path is required")
 
   operation(:reply,
     summary:

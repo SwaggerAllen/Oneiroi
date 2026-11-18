@@ -92,7 +92,7 @@ defmodule Oneiroi.Brain.Tools do
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
-    household_post household_reply household_watch household_sign household_register household_profile
+    household_post household_edit household_reply household_watch household_sign household_register household_profile
     rounds_extend presence_read presence_stage
   )
 
@@ -115,7 +115,7 @@ defmodule Oneiroi.Brain.Tools do
   # what arrives meanwhile is kept for after.
   # The house (agathos-daimon#51): any resident with no agreement in force.
   @held_from_house ~w(
-    household_read household_post household_reply household_watch household_sign
+    household_read household_post household_edit household_reply household_watch household_sign
     household_beat household_register household_profile
   )
   @held_until_agreed @held_from_house ++
@@ -977,8 +977,23 @@ defmodule Oneiroi.Brain.Tools do
         []
       ),
       tool(
+        "household_edit",
+        "Edit a household document (never a thread, which grows by replies): content rewrites its words, and the history keeps every version. A document has a mode: owner (the default), only its owner edits it, and anyone else's edit is feedback to reply with in a thread on it; open, every member edits it. mode changes it, and only the owner may. Through the beats like any household write: in your turn, once to each document.",
+        %{
+          path: %{type: "string"},
+          content: %{type: "string"},
+          mode: %{type: "string", enum: ["owner", "open"]},
+          from: %{
+            type: "string",
+            description:
+              "a path in your own records: its words become the document's next draft, the source named with its commit"
+          }
+        },
+        [:path]
+      ),
+      tool(
         "household_post",
-        "Post to your household's shelf, under your own name in its history: a thread (title and content), or a document of a household kind at a path of its own (path, as design/<name>.md, and content). A path is written once; a thread grows by replies. To put rules or settings to the household, post a thread with ballot: bundle (one or more items, each {rule: text} or {setting: key, value: text, number or true/false}), term_days (how many days the vote runs: yours to set, there is no default) and note (why). The bundle is fixed when the ballot opens and voted on as a unit; every member, witness or resident, has one vote; a majority of the members carries it into the household contract.",
+        "Post to your household's shelf, under your own name in its history: a thread (title and content), or a document of a household kind at a path of its own (path, as design/<name>.md, and content). A document is yours by default (mode owner: you alone edit it, with household_edit, and the others reply with feedback); mode open lets every member edit it, and owner false posts it with no owner, open, for a flow you automate. A thread grows by replies. With doc (a household document's path) it is a document post: a thread on that document, which reads as the document itself at its latest draft; feedback on a document is a reply there, each reply stamped with the draft it answers, and an edit of the document adds a line saying its draft changed. To put rules or settings to the household, post a thread with ballot: bundle (one or more items, each {rule: text} or {setting: key, value: text, number or true/false}), term_days (how many days the vote runs: yours to set, there is no default) and note (why). The bundle is fixed when the ballot opens and voted on as a unit; every member, witness or resident, has one vote; a majority of the members carries it into the household contract.",
         %{
           title: %{type: "string"},
           content: %{type: "string"},
@@ -986,6 +1001,18 @@ defmodule Oneiroi.Brain.Tools do
           kind: %{
             type: "string",
             description: "thread (the default), or a household document's kind"
+          },
+          mode: %{type: "string", enum: ["owner", "open"]},
+          owner: %{type: "boolean"},
+          doc: %{
+            type: "string",
+            description:
+              "a household document's path: posts a document post on it, a thread whose feedback is its replies"
+          },
+          from: %{
+            type: "string",
+            description:
+              "a path in your own records: the document's words are copied from it, and it names that file and its commit as its source"
           },
           ballot: %{
             type: "object",
@@ -3089,7 +3116,9 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
-      library_page(row, content, from) <> leased(Seshat.lease(turn.resident_id, row.path))
+      library_page(row, content, from) <>
+        leased(Seshat.lease(turn.resident_id, row.path)) <>
+        shared_line(Seshat.household_shared_from(turn.resident, row.path))
     else
       {:error, %Seshat.Error{} = e} -> unreadable(e)
       other -> other
@@ -3108,7 +3137,7 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("household_post", args, turn) do
-    attrs = Map.take(args, ~w(title content path kind ballot))
+    attrs = Map.take(args, ~w(title content path kind ballot mode owner doc from))
 
     case Seshat.household_post(turn.resident, attrs) do
       {:ok, %{ballot: %{ballot: n, closes_at: at}} = posted} ->
@@ -3119,6 +3148,15 @@ defmodule Oneiroi.Brain.Tools do
 
       other ->
         other
+    end
+  end
+
+  defp call("household_edit", args, turn) do
+    attrs = Map.take(args, ~w(content mode from))
+
+    case Seshat.household_edit(turn.resident, to_string(args["path"] || ""), attrs) do
+      {:ok, e} -> "Edited #{e.path} (#{e.mode} mode) at #{String.slice(e.commit, 0, 12)}."
+      other -> other
     end
   end
 
@@ -3989,8 +4027,40 @@ defmodule Oneiroi.Brain.Tools do
         else:
           "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; household_read with this path and from: #{from + size} reads the next page."
 
-    head <> cite_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
+    head <>
+      cite_line(doc) <>
+      discussed_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
   end
+
+  # Where a file of hers is shared in the house, and where its feedback
+  # is (seshat#84): the shared edition's talk, followed back to her draft.
+  defp shared_line([]), do: ""
+
+  defp shared_line(shared),
+    do:
+      "\n\nShared in your household: " <>
+        Enum.map_join(shared, "; ", fn s ->
+          talk =
+            case s.discussed do
+              [] -> "no document post on it yet"
+              ts -> Enum.map_join(ts, ", ", &"#{&1.path} (#{&1.replies} replies)")
+            end
+
+          "#{s.path}, copied at #{s.at}, discussed in #{talk}"
+        end) <>
+        ". household_read reads the feedback; household_edit with from: this path copies this draft over as its next."
+
+  # Where a household document's feedback is (seshat#83).
+  defp discussed_line(%{discussed: [_ | _] = threads}),
+    do:
+      " Discussed in " <>
+        Enum.map_join(threads, ", ", &"#{&1.path} (#{&1.replies} replies)") <> "."
+
+  defp discussed_line(%{discussed: []}),
+    do:
+      " No document post on it yet: household_post with doc: <its path> opens one, for feedback."
+
+  defp discussed_line(_doc), do: ""
 
   # How to cite what was read (gaia#44, sima-qian#61), and what changed
   # since a pinned read; nothing to cite until the house is named.

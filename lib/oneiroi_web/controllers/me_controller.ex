@@ -15,6 +15,8 @@ defmodule OneiroiWeb.MeController do
     json(conn, %{
       account_id: p.account_id,
       email: p.email,
+      name: Oneiroi.Gaia.witness_name(p.account_id),
+      folder: Oneiroi.Gaia.witness_folder(p.account_id),
       via: Atom.to_string(p.via),
       residents: Oneiroi.Gaia.witnessed_residents(p.account_id),
       key: Oneiroi.Gaia.key_status(p.account_id),
@@ -23,6 +25,31 @@ defmodule OneiroiWeb.MeController do
       household: Oneiroi.Gaia.household(p.account_id)
     })
   end
+
+  operation(:name,
+    summary:
+      "Set the name you go by in the records (gaia#45): the household calls you by it, and your documents go in a folder named for it",
+    request_body:
+      {"the name", "application/json",
+       %Schema{type: :object, required: [:name], properties: %{name: %Schema{type: :string}}}},
+    responses: [ok: {"the name and its folder", "application/json", %Schema{type: :object}}]
+  )
+
+  def name(%{assigns: %{principal: p}} = conn, %{"name" => name}) do
+    case Oneiroi.Gaia.name_witness(p.account_id, name, actor(conn)) do
+      :ok ->
+        json(conn, %{
+          name: Oneiroi.Gaia.witness_name(p.account_id),
+          folder: Oneiroi.Gaia.witness_folder(p.account_id)
+        })
+
+      {:error, e} ->
+        error(conn, 422, e)
+    end
+  end
+
+  def name(conn, _params),
+    do: problem(conn, 422, :name_required, :web_me_name_required, "name is required")
 
   operation(:socket_token,
     summary: "A short-lived token the client opens the socket with",

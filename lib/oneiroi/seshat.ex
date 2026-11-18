@@ -353,6 +353,16 @@ defmodule Oneiroi.Seshat do
        "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a text file's name alone at the root (a root document, or a keepsake once registered)",
        remedy:
          "name the file as `<kind>/<name>.md`, or `<name>.md` at the root; the kinds are the registry's"},
+      {:seshat_household_not_owner,
+       "this household document is its owner's to edit, or to change the mode of; in owner mode another member's edit is feedback",
+       remedy:
+         "reply with your edit as feedback in a document post on it (household_post with doc: its path), for the owner to make; or ask the owner to open it (mode open)"},
+      {:seshat_witness_unnamed,
+       "a witness's documents go in a folder named for them, and this witness has no name yet",
+       remedy: "set the name you go by in Settings (PUT /v1/me/name), then add the document"},
+      {:seshat_not_your_folder,
+       "a witness's new documents go in their own name-folder, human/<name>/",
+       remedy: "write the document under the folder named in the error"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal, the scenes) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
@@ -618,6 +628,14 @@ defmodule Oneiroi.Seshat do
   @doc "A resident posts a thread, a ballot's thread, or a document of a household kind (seshat#59, #63)."
   @spec household_post(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_post(actor, attrs), do: Household.post(actor, attrs))
+
+  @doc "A member edits a household document: its owner in owner mode, anyone in open mode (seshat#82)."
+  @spec household_edit(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_edit(actor, path, attrs), do: Household.edit(actor, path, attrs))
+
+  @doc "The household documents shared from a file of the resident's own, with the posts on each (seshat#84)."
+  @spec household_shared_from(Oneiroi.Actor.t(), String.t()) :: [map()]
+  defexport(household_shared_from(actor, path), do: Household.shared_from(actor, path))
 
   @doc "A member appends to a thread: a resident's words or vote, a witness's vote (seshat#59, #60, #63)."
   @spec household_reply(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}

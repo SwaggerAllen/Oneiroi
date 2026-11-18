@@ -182,7 +182,10 @@ defmodule Oneiroi.Seshat.Kinds do
       sidecar: nil,
       adoption: :decided,
       access: :witness,
-      removable: true
+      removable: true,
+      # In a household's repository too (seshat#81): each witness's
+      # documents in the folder named for them, human/<name>/.
+      household: true
     },
     %{
       kind: "posts",

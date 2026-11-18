@@ -31,6 +31,7 @@ defmodule Oneiroi.Seshat.Leases do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Gaia
   alias Oneiroi.Scope
   alias Oneiroi.Seshat.Documents
   alias Oneiroi.Seshat.Error
@@ -221,7 +222,7 @@ defmodule Oneiroi.Seshat.Leases do
     if lease.draft == on_disk(resident_id, lease.path) do
       {:ok, nil}
     else
-      kept = drafts_path(lease.path, now)
+      kept = drafts_path(lease.path, now, lease.holder_id)
 
       with {:ok, _} <-
              Documents.write(
@@ -230,19 +231,25 @@ defmodule Oneiroi.Seshat.Leases do
                lease.draft,
                Actor.new(:witness, lease.holder_id),
                note:
-                 "his unsaved draft of #{lease.path}, kept when her write took his idle lease (seshat#55)"
+                 "his unsaved draft of #{lease.path}, kept when her write took his idle lease (seshat#55)",
+               kept_draft: true
              ),
            do: {:ok, kept}
     end
   end
 
-  # `human/drafts/<dir>/<name>-<stamp><ext>`: his folder, the path it was
+  # `human/<his name-folder>/drafts/<dir>/<name>-<stamp><ext>` (seshat#81;
+  # `human/drafts/...` before he has a name): his folder, the path it was
   # a draft of, and when it was kept, so a second kept draft never
   # overwrites the first.
-  defp drafts_path(path, now) do
+  defp drafts_path(path, now, holder_id) do
     ext = Path.extname(path)
     stamp = Calendar.strftime(now, "%Y%m%d%H%M%S")
-    Path.join(["human", "drafts", Path.rootname(path) <> "-" <> stamp <> ext])
+    mine = Gaia.witness_folder(holder_id)
+
+    Path.join(
+      ["human" | List.wrap(mine)] ++ ["drafts", Path.rootname(path) <> "-" <> stamp <> ext]
+    )
   end
 
   defp on_disk(resident_id, path), do: SimaQian.repository_text(resident_id, path)

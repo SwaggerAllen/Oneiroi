@@ -224,6 +224,54 @@ defmodule Oneiroi.Gaia.Accounts do
     end
   end
 
+  @doc """
+  Names the witness (gaia#45): one line, 1 to 60 characters, with a
+  letter or digit in it. The household calls the witness by it, and
+  the witness's documents go in a folder named for it.
+  """
+  def name_witness(account_id, raw, %Actor{} = actor) do
+    name = if is_binary(raw), do: raw |> String.split() |> Enum.join(" "), else: ""
+
+    if String.length(name) in 1..60 and folder_of(name) != nil do
+      command = %Commands.NameWitness{actor: actor, at: Clock.now(), id: account_id, name: name}
+      with {:ok, _} <- dispatch(command), do: :ok
+    else
+      {:error, Error.new(:gaia_witness_name_invalid, :gaia_name_witness_shape)}
+    end
+  end
+
+  @doc "The witness's name, or nil before one is given."
+  def witness_name(account_id) do
+    Scope.account(account_id, fn ->
+      case Store.account(account_id) do
+        %{name: name} -> name
+        _none -> nil
+      end
+    end)
+  end
+
+  @doc "The witness's name-folder segment: the name lowered, its runs of anything else one hyphen."
+  def witness_folder(account_id), do: account_id |> witness_name() |> folder_of()
+
+  @doc false
+  def folder_of(nil), do: nil
+
+  def folder_of(name) do
+    case name
+         |> String.downcase()
+         |> String.replace(~r/[^\p{L}\p{N}]+/u, "-")
+         |> String.trim("-") do
+      "" ->
+        nil
+
+      folder ->
+        folder |> String.normalize(:nfd) |> String.replace(~r/[^a-z0-9-]/u, "") |> nonblank()
+    end
+  end
+
+  defp nonblank(""), do: nil
+  defp nonblank(s), do: s
+
   def revoke_github_token(account_id, %Actor{} = actor) do
     command = %Commands.RevokeGithubToken{actor: actor, at: Clock.now(), id: account_id}
     with {:ok, _} <- dispatch(command), do: :ok

@@ -84,6 +84,8 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
     for, a standing profile, a landing kind). "Profiles ›" goes to the
     profiles.
 - **Profiles, keys and connections:**
+  - your name (gaia#45): what you go by, the folder your documents go
+    in, and set or changed here;
   - your OpenRouter key: stored since, store or rotate (password field,
     never shown back);
   - your GitHub read token (gaia#24, UI-configurable by the witness's
@@ -222,6 +224,7 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
 | Connections | `adapters`, `registerAdapter`, `revokeAdapter` | Profiles, keys and connections |
 | On your Mac | `adapters`, `registerAdapter` | Profiles, keys and connections |
 | Connections | `reader`, `setReader`, `research`, `askResearch` | Profiles, keys and connections |
+| Your name | `me` (name, folder), `nameWitness` | Profiles, keys and connections |
 | GitHub token | `me` (github), `storeGithubToken`, `revokeGithubToken` | Profiles, keys and connections |
 | Notifications | `pushConfig`, `subscribePush`, `unsubscribePush`, `testPush` | Notifications |
 | (new) | `declinePush` | Notifications |

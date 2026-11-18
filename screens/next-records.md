@@ -81,7 +81,9 @@ at `/client/#/records`. Built 2026-11-10.
   only shows on scratch and human documents (seshat#33), and returns to
   the tree.
 - **Add a document of yours** (`new`, top of the tree): a name and its
-  words, written under human/, which she reads and never edits. A record
+  words, written in your folder, human/<your name>/ (seshat#81), which
+  she reads and never edits. The first time, it asks the name you go by
+  (gaia#45) before anything else. A record
   just written or moved is read again for a moment until it is
   registered.
 - **Paste a conversation** (`paste`, under Add a document, seshat#65,

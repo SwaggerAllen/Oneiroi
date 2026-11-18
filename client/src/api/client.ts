@@ -236,6 +236,12 @@ export interface HouseDoc {
   trunk?: HousePost;
   replies?: HousePost[];
   ballot?: HouseBallot | null;
+  /** A document's sharing (seshat#82): owner mode, its owner alone edits; open, everyone. */
+  sharing?: { mode: 'owner' | 'open'; owner_id: string | null; owner: string | null };
+  /** A document's document posts, where its feedback is (seshat#83). */
+  discussed?: { path: string; title: string; replies: number }[];
+  /** A document post's document, at its latest draft (seshat#83). */
+  doc?: { path: string; commit: string | null; content: string; present: boolean } | null;
 }
 
 export interface HouseVersion {
@@ -425,7 +431,8 @@ export const api = {
   signUp: (email: string, password: string, code: string | null) =>
     call<{ account_id: string; email: string }>('POST', '/v1/door/sign-up', { email, password, ...(code ? { code } : {}) }),
   me: () =>
-    call<{ account_id?: string; email: string; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
+    call<{ account_id?: string; email: string; name?: string | null; folder?: string | null; residents: string[]; roles?: string[]; key?: { present: boolean }; github?: { present: boolean; stored_at: string | null } }>('GET', '/v1/me'),
+  nameWitness: (name: string) => call<{ name: string; folder: string }>('PUT', '/v1/me/name', { name }),
   storeGithubToken: (token: string) => call<void>('PUT', '/v1/me/github-token', { token }),
   // The repositories' server (sima-qian#55): where you reach it, and your password there.
   gitea: () => call<{ url: string; login: string; repositories: string[] } | null>('GET', '/v1/me/gitea'),
@@ -601,6 +608,8 @@ export const api = {
   setHousePrompt: (residentId: string, key: string, prompt: string) =>
     call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt }),
   householdRead: (path: string) => call<HouseDoc>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
+  householdEdit: (path: string, edit: { content?: string; mode?: 'owner' | 'open' }) =>
+    call<{ path: string; mode: string; commit: string }>('PUT', '/v1/household/documents', { path, ...edit }),
   householdReply: (thread: string, content: string) => call<{ number: number }>('POST', '/v1/household/replies', { thread, content }),
   // The house as its own subject (screen:next-house): the shelf, the
   // charter (the household contract), the beats, and posting in it.
@@ -612,7 +621,7 @@ export const api = {
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
   householdProposeCharter: (prose: string, note: string) => call<HouseContract>('POST', '/v1/household/contract', { prose, note }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
-  householdPost: (post: { title: string; content: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
+  householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),
   householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),
   // The report ladder (F45): every report on this resident with its steps,

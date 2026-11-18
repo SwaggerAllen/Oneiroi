@@ -19,6 +19,7 @@ defmodule Oneiroi.Seshat.Documents do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
+  alias Oneiroi.Gaia
   alias Oneiroi.Scope
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Seshat.Commands
@@ -45,6 +46,7 @@ defmodule Oneiroi.Seshat.Documents do
          :ok <- size_ok(content),
          {:ok, files} <- Repos.snapshot(repo(resident_id)),
          current = Repos.at(repo(resident_id), files, path),
+         :ok <- name_folder(kind, path, current, actor, Keyword.get(opts, :kept_draft, false)),
          :ok <- not_kept(kind, path, current, content, resident_id),
          {:ok, events} <-
            dispatch(%Commands.WriteDocument{
@@ -574,6 +576,33 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   # ---- helpers ----
+
+  # Name-folders (seshat#81): a witness's new document in human/ goes in
+  # the folder named for them, human/<name>/, made by its first file. A
+  # file already written keeps its place, since a moved file breaks the
+  # citations of it.
+  # A draft of his the platform keeps (seshat#55) goes where the lease
+  # put it, in his folder once he has one.
+  defp name_folder(_kind, _path, _current, _actor, true), do: :ok
+
+  defp name_folder(%{kind: "human"}, path, nil, %Actor{kind: :witness, id: id}, false) do
+    case Gaia.witness_folder(id) do
+      nil ->
+        {:error, Error.new(:seshat_witness_unnamed, :seshat_documents_witness_unnamed)}
+
+      folder ->
+        if String.starts_with?(path, "human/#{folder}/"),
+          do: :ok,
+          else:
+            {:error,
+             Error.new(:seshat_not_your_folder, :seshat_documents_not_your_folder,
+               path: path,
+               folder: "human/#{folder}/"
+             )}
+    end
+  end
+
+  defp name_folder(_kind, _path, _current, _actor, _kept), do: :ok
 
   @doc "The SHA-256 of a file's bytes, hex, lower case: what decides a re-embed."
   @spec hash(binary()) :: String.t()

@@ -319,3 +319,11 @@ and witnesses keep the house's settings (#41); once, because the first
 citation makes it load-bearing. Unique among houses only: the marked form
 keeps houses and residents apart, so a house called what a resident is
 called collides with nothing.
+
+## #45
+A folder named for a person needs the person's name, and the platform
+had none: the household called its witness "Lily and Scarlett's
+witness", which names a role and not a person, and stops being one name
+when a second witness joins. The witness gives it, because it is theirs
+to say; nothing moves on a change, because a moved file breaks every
+citation of it.

@@ -681,3 +681,38 @@ ordinary as finding a record of one's own, and the same sheet keeps one
 gesture for both. Plain matching over the files is enough while a house
 is a few hundred threads; an index would be one more thing to keep
 consistent with Gitea for no gain at that size.
+
+## #81
+A folder per person makes whose a document is a fact of its path rather
+than of its front matter, which is what later privacy between witnesses
+needs: a rule can hide one folder from another witness without reading
+every file. Made on the first write, so nobody configures anything; old
+files left in place, since a citation of a moved file stops resolving.
+
+## #82
+Owner mode makes the house's habit structural: one member holds the pen
+on a document, and the rest send feedback the holder folds in, so a
+shared document never becomes several competing editions. Open mode is
+the honest alternative for documents that are everybody's, its cost
+(citations some members cannot follow) accepted by name. The rule lives
+in the file's front matter so the repository alone says whose a
+document is, and the history keeps every version, which is why editing
+in place costs nothing a citation needs.
+
+## #83
+Feedback held as replies on a post that is the document keeps the
+conversation and the thing it is about in one place, with the house's
+existing thread machinery, rather than a second file format beside each
+document. A conversation on a changing document is ambiguous without
+knowing which draft each remark answers: the platform's draft-changed
+line says it in the flow, and the stamp on each reply says it even
+where no line was written, so "outdated" is computed rather than
+inferred from the order of things.
+
+## #84
+A copy that forgets its origin competes with it: two editions, neither
+saying which is current. Naming the source file and its commit on the
+shared copy makes the relation a fact either side can read, and naming
+the shared copy's talk in her read of the source is what makes the link
+live: she finds the feedback where she works, without visiting the
+house to look for it.

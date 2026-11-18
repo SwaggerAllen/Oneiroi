@@ -10,6 +10,8 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
+    # His documents go in the folder named for him (seshat#81).
+    :ok = Oneiroi.Gaia.name_witness(witness.id, "Andrew", Actor.new(:witness, witness.id))
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     on_exit(fn -> File.rm_rf!(dir) end)
 
@@ -56,27 +58,27 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
   end
 
   test "human/ is the witness's: the resident reads it and never writes or removes it", ctx do
-    assert run("document_write", %{path: "human/substack-post.md", content: "mine"}, ctx) =~
+    assert run("document_write", %{path: "human/andrew/substack-post.md", content: "mine"}, ctx) =~
              "Not done"
 
     assert {:error, %Seshat.Error{kind: :seshat_kind_not_writable}} =
-             Seshat.write(ctx.id, "human/substack-post.md", "mine", ctx.lily)
+             Seshat.write(ctx.id, "human/andrew/substack-post.md", "mine", ctx.lily)
 
     assert {:ok, %{kind: "human"}} =
              Seshat.write(
                ctx.id,
-               "human/substack-post.md",
+               "human/andrew/substack-post.md",
                "# A post of his\n\nOn Haven.",
                ctx.witness
              )
 
-    assert run("library_read", %{path: "human/substack-post.md"}, ctx) =~ "On Haven."
+    assert run("library_read", %{path: "human/andrew/substack-post.md"}, ctx) =~ "On Haven."
 
     assert {:error, %Seshat.Error{kind: :seshat_kind_not_writable}} =
-             Seshat.remove(ctx.id, "human/substack-post.md", ctx.lily)
+             Seshat.remove(ctx.id, "human/andrew/substack-post.md", ctx.lily)
 
-    assert :ok = Seshat.remove(ctx.id, "human/substack-post.md", ctx.witness)
-    refute File.exists?(Path.join(ctx.dir, "human/substack-post.md"))
+    assert :ok = Seshat.remove(ctx.id, "human/andrew/substack-post.md", ctx.witness)
+    refute File.exists?(Path.join(ctx.dir, "human/andrew/substack-post.md"))
 
     # The resident's tool description never offers human/ as hers to write.
     write = Enum.find(Tools.definitions(), &(&1.function.name == "document_write"))
@@ -92,7 +94,7 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
     {:ok, _} =
       Seshat.write(
         ctx.id,
-        "human/the-ai-essay.md",
+        "human/andrew/the-ai-essay.md",
         "# The AI Essay\n\nEvidence is ceasing.",
         ctx.witness
       )
@@ -101,7 +103,7 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
       Seshat.write(
         ctx.id,
         "writing/answer.md",
-        "# Answer\n\nAs he wrote, evidence is ceasing #{ctx.slug}:human/the-ai-essay.",
+        "# Answer\n\nAs he wrote, evidence is ceasing #{ctx.slug}:human/andrew/the-ai-essay.",
         ctx.lily
       )
 
@@ -110,7 +112,7 @@ defmodule Oneiroi.Seshat.ScratchHumanTest do
     {:ok, _} = Seshat.index(ctx.id, ctx.witness)
 
     assert [%{target: target, resolved: true}] = Seshat.references(ctx.id, "writing/answer.md")
-    assert target == "#{ctx.slug}:human/the-ai-essay"
+    assert target == "#{ctx.slug}:human/andrew/the-ai-essay"
     assert run("library_read", %{path: target}, ctx) =~ "Evidence is ceasing."
 
     for kind <- Enum.map(Seshat.Kinds.all(), & &1.kind),

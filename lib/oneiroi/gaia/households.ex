@@ -233,6 +233,14 @@ defmodule Oneiroi.Gaia.Households do
   end
 
   defp witness_name(account_id, named) do
+    # The name the witness gave (gaia#45), else who they witness.
+    case Accounts.witness_name(account_id) do
+      nil -> witness_of(account_id, named)
+      name -> name
+    end
+  end
+
+  defp witness_of(account_id, named) do
     case account_id
          |> Accounts.witnessed_residents()
          |> Enum.map(&named[&1])
