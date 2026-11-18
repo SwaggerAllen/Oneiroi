@@ -308,6 +308,39 @@ defmodule OneiroiWeb.HouseholdController do
   def edit(conn, _params),
     do: problem(conn, 422, :path_required, :web_household_edit_path, "path is required")
 
+  operation(:mentions,
+    summary:
+      "Your mention settings in the house (seshat#86): the house muted or heard, and each thread's",
+    responses: [ok: {"the settings", "application/json", %Schema{type: :object}}]
+  )
+
+  def mentions(conn, _params) do
+    case Seshat.household_mutes(actor(conn)) do
+      {:ok, m} -> json(conn, m)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:mute,
+    summary:
+      "Mute or hear your mentions (seshat#86): one thread, or with none the whole house; a thread's setting outranks the house's. A muted mention pushes nothing",
+    request_body:
+      {"the setting", "application/json",
+       %Schema{
+         type: :object,
+         required: [:muted],
+         properties: %{thread: %Schema{type: :string}, muted: %Schema{type: :boolean}}
+       }},
+    responses: [ok: {"the settings", "application/json", %Schema{type: :object}}]
+  )
+
+  def mute(conn, params) do
+    case Seshat.household_mute(actor(conn), params["thread"], params["muted"]) do
+      {:ok, m} -> json(conn, m)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   operation(:reply,
     summary:
       "Reply in a household thread as this witness, in words, unless the household's contract bars witnesses (witnesses_post false, seshat#69): within the post quota, at most once in a thread a beat",

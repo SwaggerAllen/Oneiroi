@@ -282,6 +282,28 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
+  # ---- mentions (gaia#46): each member mutes or hears their own ----
+
+  def execute(%__MODULE__{} = h, %Commands.SetHouseholdMentions{} = c) do
+    case member(h, c.actor) do
+      nil ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_mentions_not_member)}
+
+      {kind, id} ->
+        if is_boolean(c.muted) and (is_nil(c.thread) or (is_binary(c.thread) and c.thread != "")),
+          do: %Events.HouseholdMentionsSet{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            member_kind: kind,
+            member_id: id,
+            thread: c.thread,
+            muted: c.muted
+          },
+          else: {:error, Error.new(:gaia_mentions_invalid, :gaia_household_mentions_shape)}
+    end
+  end
+
   # ---- the watch (gaia#32) ----
 
   def execute(%__MODULE__{} = h, %Commands.WatchHouseholdThread{} = c) do
@@ -891,6 +913,7 @@ defmodule Oneiroi.Gaia.Household do
     }
 
   def apply(%__MODULE__{} = h, %Events.HouseholdThreadWatched{}), do: h
+  def apply(%__MODULE__{} = h, %Events.HouseholdMentionsSet{}), do: h
 
   def apply(%__MODULE__{} = h, %Events.HouseholdResidentLeft{} = e),
     do: %{h | residents: MapSet.delete(h.residents, e.resident_id)}

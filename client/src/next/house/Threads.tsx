@@ -46,6 +46,7 @@ export function Threads() {
                 Earlier threads
               </button>
             )}
+            <MentionsLine />
             {shelf.isPending && <p className={chat.system}>Reading the house…</p>}
             {shelf.isError && <p className={chat.system}>The house could not be read.</p>}
             {shelf.data && threads.length === 0 && <p className={chat.system}>No threads yet. Start one below.</p>}
@@ -81,6 +82,7 @@ function ThreadCard({ t, open, accountId, onToggle }: { t: HouseThreadSummary; o
         </span>
       </button>
       {open && <Opened path={t.path} accountId={accountId} />}
+      {open && <MuteThread path={t.path} />}
     </div>
   );
 }
@@ -144,6 +146,48 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
         ),
       )}
     </div>
+  );
+}
+
+const MENTIONS = [...HOUSE, 'mentions'];
+
+/**
+ * Your mentions (seshat#86): a post naming you (@your name, or @all)
+ * pushes to your devices unless you muted the house or that thread.
+ */
+function MentionsLine() {
+  const queries = useQueryClient();
+  const mentions = useQuery({ queryKey: MENTIONS, queryFn: api.householdMentions });
+  const mute = useMutation({
+    mutationFn: (muted: boolean) => api.householdMute(null, muted),
+    onSuccess: (m) => queries.setQueryData(MENTIONS, m),
+  });
+  if (!mentions.data) return null;
+  const muted = mentions.data.house;
+  return (
+    <p className={chat.system}>
+      {muted ? 'Mentions of you are muted in the house.' : 'A post naming you (@your name, or @all) notifies you.'}{' '}
+      <button type="button" className={chat.linkButton} disabled={mute.isPending} onClick={() => mute.mutate(!muted)}>
+        {muted ? 'Hear them' : 'Mute them'}
+      </button>
+    </p>
+  );
+}
+
+function MuteThread({ path }: { path: string }) {
+  const queries = useQueryClient();
+  const mentions = useQuery({ queryKey: MENTIONS, queryFn: api.householdMentions });
+  const mute = useMutation({
+    mutationFn: (muted: boolean) => api.householdMute(path, muted),
+    onSuccess: (m) => queries.setQueryData(MENTIONS, m),
+  });
+  if (!mentions.data) return null;
+  const own = mentions.data.threads[path];
+  const muted = own ?? mentions.data.house;
+  return (
+    <button type="button" className={chat.linkButton} style={{ alignSelf: 'flex-start' }} disabled={mute.isPending} onClick={() => mute.mutate(!muted)}>
+      {muted ? 'Hear mentions in this thread' : 'Mute mentions in this thread'}
+    </button>
   );
 }
 

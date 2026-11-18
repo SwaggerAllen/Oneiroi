@@ -71,7 +71,11 @@ server.
   (seshat#83). In Chat, a document post shows the document at its latest
   draft under its trunk, collapsible; each "Draft changed" line sits in
   the flow, **Skip to the latest draft's discussion** jumps to the last,
-  and a reply on an earlier draft says so beside its author: "The
+  and a reply on an earlier draft says so beside its author. At the top
+  of Chat, your mentions (seshat#86): "A post naming you (@your name, or
+  @all) notifies you" with **Mute them**, or muted with **Hear them**;
+  an opened thread has **Mute mentions in this thread** or **Hear
+  mentions in this thread**, its own setting outranking the house's: "The
   house" holds `CONTRACT.md` and `BEATS.md`, "Threads" each thread,
   then any household document by kind. A record opens beside the tree
   on a wide screen and over it on a phone, its front matter left off;

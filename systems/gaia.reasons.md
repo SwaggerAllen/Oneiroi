@@ -327,3 +327,11 @@ witness", which names a role and not a person, and stops being one name
 when a second witness joins. The witness gives it, because it is theirs
 to say; nothing moves on a change, because a moved file breaks every
 citation of it.
+
+## #46
+The wake defaults on because a request that cannot arrive until the
+receiver happens to look is not much of a request; so the control has
+to sit with the receiver, per thread as well as per house, since one
+loud thread should not cost a member every other mention. A thread's
+setting outranks the house's so "mute everything but this" and "hear
+everything but this" are both one setting each.

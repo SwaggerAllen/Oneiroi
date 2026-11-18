@@ -265,6 +265,20 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule HouseholdMute do
+    @moduledoc "A member's mentions in the house, muted or heard (gaia#46): `thread` \"\" for the whole house; the latest set wins."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_mute" do
+      field(:household_id, :binary_id)
+      field(:member_id, :binary_id)
+      field(:member_kind, :string)
+      field(:thread, :string)
+      field(:muted, :boolean)
+      field(:set_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule HouseholdBeatMember do
     @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile and the opportunities she has missed."
     use Ecto.Schema

@@ -667,6 +667,15 @@ defmodule Oneiroi.Seshat do
   @spec housemate_cite?(term()) :: boolean()
   defexport(housemate_cite?(cite), do: Household.housemate_cite?(cite))
 
+  @doc "A member mutes or hears their mentions in the house, one thread or all of it (seshat#86)."
+  @spec household_mute(Oneiroi.Actor.t(), String.t() | nil, boolean()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_mute(actor, thread, muted), do: Household.mute(actor, thread, muted))
+
+  @doc "A member's mention settings in the house (seshat#86)."
+  @spec household_mutes(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_mutes(actor), do: Household.mutes(actor))
+
   @doc "Every draft published in the resident's repository, oldest first (seshat#85)."
   @spec published(String.t()) :: [map()]
   defexport(published(resident_id), do: Published.all(resident_id))

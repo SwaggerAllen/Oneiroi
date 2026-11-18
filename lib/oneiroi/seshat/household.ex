@@ -716,9 +716,16 @@ defmodule Oneiroi.Seshat.Household do
          :ok <- may_post(actor, household_id),
          {:ok, view} <- provision(household_id) do
       case {attrs["kind"] || "thread", attrs["doc"]} do
-        {"thread", doc} when is_binary(doc) -> post_doc_thread(actor, household_id, view, attrs)
-        {"thread", _none} -> post_thread(actor, household_id, view, attrs)
-        _document -> post_document(actor, household_id, view, attrs)
+        {"thread", doc} when is_binary(doc) ->
+          post_doc_thread(actor, household_id, view, attrs)
+          |> mentioned(household_id, actor, attrs, nil)
+
+        {"thread", _none} ->
+          post_thread(actor, household_id, view, attrs)
+          |> mentioned(household_id, actor, attrs, nil)
+
+        _document ->
+          post_document(actor, household_id, view, attrs)
       end
     end
   end
@@ -1266,6 +1273,16 @@ defmodule Oneiroi.Seshat.Household do
            end) do
       poke(household_id, thread, t, written, by, actor)
       _ = wake_house_on_witness(household_id, thread, t, written, actor)
+
+      _ =
+        mentioned(
+          {:ok, %{path: thread, title: t.trunk.meta["title"]}},
+          household_id,
+          actor,
+          attrs,
+          written.number
+        )
+
       {:ok, Map.merge(written, %{thread: thread, vote: vote})}
     end
   end
@@ -1451,6 +1468,145 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
+
+  # ---- mentions (seshat#86; design/workspaces.md §6) ----
+
+  # A post or a reply naming a member, `@<name>` (a resident's name or
+  # slug, a witness's name or name-folder) or `@all`, is a post and a
+  # request to wake them: a resident's chat woken with a note saying
+  # where, never the words (the house wakes' own job); a witness's
+  # devices pushed, content-free. A member who muted the house or the
+  # thread is not woken; the mention waits in her next turn's or digest's
+  # note. A wake is a request, never an obligation.
+  defp mentioned({:ok, posted} = ok, household_id, %Actor{} = actor, attrs, reply) do
+    text = "#{attrs["title"]}\n#{attrs["content"]}"
+    by = author(household_id, actor)
+
+    for m <- named_in(household_id, text),
+        m.id != actor.id,
+        not Gaia.household_muted?(household_id, m.id, posted.path) do
+      wake_mentioned(household_id, m, mention_note(by, posted, reply))
+    end
+
+    ok
+  end
+
+  defp mentioned(other, _household_id, _actor, _attrs, _reply), do: other
+
+  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note) do
+    if not AgathosDaimon.held?(id),
+      do:
+        Jobs.enqueue(@house_wake_worker, %{
+          "household_id" => household_id,
+          "house_wake" => id,
+          "note" => note
+        })
+  end
+
+  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note), do: Gaia.notify(id)
+
+  defp mention_note(by, posted, reply) do
+    where = if reply, do: ", reply ##{reply}", else: ""
+
+    "#{by.name} mentioned you in the household thread #{posted.path} (\"#{posted.title}\")#{where}. " <>
+      "household_read with that path reads it. A mention asks for you; it does not oblige an answer, " <>
+      "and household_mute quiets the thread or the house."
+  end
+
+  @doc """
+  A member mutes or hears their mentions (gaia#46, seshat#86): one
+  thread (by `threads/<id>` or its id) or, with none, the whole house.
+  Answers the member's settings after, `%{house: muted?, threads: %{path
+  => muted?}}`.
+  """
+  def mute(%Actor{} = actor, thread_name, muted) when is_boolean(muted) do
+    with {:ok, household_id} <- household(actor),
+         {:ok, thread} <- mute_target(thread_name),
+         :ok <- Gaia.set_household_mentions(household_id, thread, muted, actor) do
+      {:ok, mutes(household_id, actor)}
+    end
+  end
+
+  def mute(%Actor{}, _thread, _muted),
+    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_mute_shape)}
+
+  @doc "A member's mention settings: `%{house: muted?, threads: %{path => muted?}}`."
+  def mutes(%Actor{} = actor) do
+    with {:ok, household_id} <- household(actor), do: {:ok, mutes(household_id, actor)}
+  end
+
+  defp mutes(household_id, actor) do
+    rows = Gaia.household_mutes(household_id, actor.id)
+    %{house: Map.get(rows, "", false), threads: Map.delete(rows, "")}
+  end
+
+  defp mute_target(nil), do: {:ok, nil}
+  defp mute_target(""), do: {:ok, nil}
+
+  defp mute_target(name) do
+    case thread_path(name) do
+      nil -> no_thread(name)
+      thread -> {:ok, thread}
+    end
+  end
+
+  @doc "The members a text names, `@<name>` or `@all` (seshat#86)."
+  def named_in(household_id, text) do
+    members = Gaia.household_members(household_id)
+
+    if Regex.match?(~r/(?<![\w@])@all(?![\w-])/iu, text),
+      do: members,
+      else: Enum.filter(members, fn m -> Enum.any?(handles(m), &handle?(text, &1)) end)
+  end
+
+  defp handles(%{kind: "resident", id: id, name: name}) do
+    slug =
+      case AgathosDaimon.fetch(id) do
+        {:ok, r} -> r.slug
+        _gone -> nil
+      end
+
+    Enum.reject([name, slug], &is_nil/1)
+  end
+
+  defp handles(%{kind: "witness", id: id, name: name}),
+    do: Enum.reject([name, Gaia.witness_folder(id)], &is_nil/1)
+
+  defp handle?(text, handle),
+    do: Regex.match?(~r/(?<![\w@])@#{Regex.escape(handle)}(?![\w-])/iu, text)
+
+  @doc """
+  The posts and replies that named a member since an instant (seshat#86),
+  `%{path, title, by, at}`: what her turn's note and her digest list, so
+  a muted mention is never lost.
+  """
+  def mentions_of(household_id, member_id, since) do
+    with {:ok, view} <- view(household_id),
+         %{} = member <- Enum.find(Gaia.household_members(household_id), &(&1.id == member_id)) do
+      for id <- thread_ids(view),
+          thread = "threads/" <> id,
+          {:ok, t} <- [load_thread(view, thread)],
+          {post, at} <- [
+            {t.trunk, t.trunk.meta["posted_at"]} | Enum.map(t.replies, &{&1, &1.meta["at"]})
+          ],
+          post.meta["by_id"] != member_id,
+          later?(at, since),
+          Enum.any?(handles(member), &handle?(post.body, &1)) or
+            Regex.match?(~r/(?<![\w@])@all(?![\w-])/iu, post.body),
+          do: %{path: thread, title: t.trunk.meta["title"], by: post.meta["by"], at: at}
+    else
+      _none -> []
+    end
+  end
+
+  defp later?(nil, _since), do: false
+
+  defp later?(at, since) do
+    case DateTime.from_iso8601(at) do
+      {:ok, t, _} -> DateTime.compare(t, since) != :lt
+      _bad -> false
+    end
+  end
 
   # ---- the watch (gaia#32, seshat#62) ----
 

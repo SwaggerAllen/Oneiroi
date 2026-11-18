@@ -726,3 +726,10 @@ whoever published, the repository the words live in says which of its
 drafts are public, and travels with them. Roll-forward only because a
 published commit is a citation target; allowing it to be taken back
 would let a citation point at nothing.
+
+## #86
+The note says where and never what, so a wake costs the woken a look
+rather than putting the post's words into a conversation that may be
+about something else; the reading is theirs to choose. A muted mention
+is still listed where she will look next, because the mute decides
+whether she is interrupted, not whether she finds out.

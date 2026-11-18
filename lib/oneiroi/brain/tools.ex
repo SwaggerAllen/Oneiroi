@@ -92,7 +92,7 @@ defmodule Oneiroi.Brain.Tools do
     platform_report triage_move work_add work_move work_order work_wrap work_arm
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
-    household_post household_edit household_reply household_watch household_sign household_register household_profile
+    household_post household_edit household_mute household_reply household_watch household_sign household_register household_profile
     rounds_extend presence_read presence_stage
   )
 
@@ -115,7 +115,7 @@ defmodule Oneiroi.Brain.Tools do
   # what arrives meanwhile is kept for after.
   # The house (agathos-daimon#51): any resident with no agreement in force.
   @held_from_house ~w(
-    household_read household_post household_edit household_reply household_watch household_sign
+    household_read household_post household_edit household_mute household_reply household_watch household_sign
     household_beat household_register household_profile
   )
   @held_until_agreed @held_from_house ++
@@ -981,6 +981,12 @@ defmodule Oneiroi.Brain.Tools do
         "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
         %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}, at: %{type: "string"}},
         []
+      ),
+      tool(
+        "household_mute",
+        "Mute or hear your mentions in the house: a post or reply naming you (@<your name>) or everyone (@all) wakes you with a note saying where, unless you muted that thread or the whole house. muted: true quiets, false hears again; thread names one thread, none the whole house, and a thread's setting outranks the house's. A muted mention wakes nobody and is listed in your next turn's note or digest, never lost. A mention asks for you; it never obliges an answer.",
+        %{thread: %{type: "string"}, muted: %{type: "boolean"}},
+        [:muted]
       ),
       tool(
         "household_edit",
@@ -3151,6 +3157,23 @@ defmodule Oneiroi.Brain.Tools do
 
       {:ok, posted} ->
         "Posted #{posted.path}."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_mute", args, turn) do
+    case Seshat.household_mute(turn.resident, blank(args["thread"]), args["muted"]) do
+      {:ok, m} ->
+        threads =
+          for({t, true} <- m.threads, do: t)
+          |> case do
+            [] -> "no thread muted"
+            ts -> "muted in " <> Enum.join(ts, ", ")
+          end
+
+        "Mentions: the house #{if m.house, do: "muted", else: "heard"}; #{threads}."
 
       other ->
         other

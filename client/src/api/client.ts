@@ -244,6 +244,12 @@ export interface HouseDoc {
   doc?: { path: string; commit: string | null; content: string; present: boolean } | null;
 }
 
+/** Your mentions in the house (seshat#86): the house muted or heard, and each thread's own. */
+export interface HouseMentions {
+  house: boolean;
+  threads: Record<string, boolean>;
+}
+
 export interface HouseVersion {
   version: number;
   prose: string;
@@ -610,6 +616,8 @@ export const api = {
   householdRead: (path: string) => call<HouseDoc>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
   householdEdit: (path: string, edit: { content?: string; mode?: 'owner' | 'open' }) =>
     call<{ path: string; mode: string; commit: string }>('PUT', '/v1/household/documents', { path, ...edit }),
+  householdMentions: () => call<HouseMentions>('GET', '/v1/household/mentions'),
+  householdMute: (thread: string | null, muted: boolean) => call<HouseMentions>('PUT', '/v1/household/mentions', { thread, muted }),
   householdReply: (thread: string, content: string) => call<{ number: number }>('POST', '/v1/household/replies', { thread, content }),
   // The house as its own subject (screen:next-house): the shelf, the
   // charter (the household contract), the beats, and posting in it.

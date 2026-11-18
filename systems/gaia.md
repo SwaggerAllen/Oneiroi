@@ -137,6 +137,7 @@ check-ins (#41) and their table `gaia_house_checkin`.
   `key_for/1`, wrapped as a secret, and holds no copy (`systems/nisaba.md`
   #1); the routes are `PUT` and `DELETE /v1/me/key`, and `/v1/me` says
   whether one is stored and since when.
+- **#46 Each member mutes or hears their own mentions in the house.** (design/workspaces.md §6: a wake is a request, never an obligation, and the receiver's decision is the mute; "each resident and witness configures their own notifications at the workspace and thread levels".) `SetHouseholdMentions` is a member's own, resident or witness, `muted` true or false, for one thread or (`thread` nil) the whole house; `HouseholdMentionsSet` upserts `gaia_household_mute` (platform-scoped, as the watch, `thread` "" for the house). `household_muted?/3` answers the thread's own setting, else the house's, else heard: heard is the default.
 
 ## #10 Initial vs target
 

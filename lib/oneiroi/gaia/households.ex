@@ -480,6 +480,51 @@ defmodule Oneiroi.Gaia.Households do
     end
   end
 
+  # ---- mentions (gaia#46) ----
+
+  @doc "A member mutes or hears their mentions: the whole house (`thread` nil) or one thread."
+  def set_mentions(household_id, thread, muted, %Actor{} = actor) do
+    command = %Commands.SetHouseholdMentions{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      thread: thread,
+      muted: muted
+    }
+
+    case HouseholdRouter.dispatch(command) do
+      {:ok, _} -> :ok
+      other -> refused(other)
+    end
+  end
+
+  @doc """
+  Whether a member's mentions in `thread` are muted: the thread's own
+  setting when there is one, else the house's, else heard (a wake is
+  on by default; the mute is the receiver's decision).
+  """
+  def muted?(household_id, member_id, thread) do
+    rows = mutes(household_id, member_id)
+
+    case Map.fetch(rows, thread || "") do
+      {:ok, muted} -> muted
+      :error -> Map.get(rows, "", false)
+    end
+  end
+
+  @doc "A member's mute settings: `%{thread or \"\" => muted}`."
+  def mutes(household_id, member_id) do
+    Scope.platform(fn ->
+      Repo.all(
+        from(m in Store.HouseholdMute,
+          where: m.household_id == ^household_id and m.member_id == ^member_id,
+          select: {m.thread, m.muted}
+        )
+      )
+    end)
+    |> Map.new()
+  end
+
   # ---- the watch (gaia#32) ----
 
   @doc "A resident watches one thread for the hours it states (gaia#32); answers until when."

@@ -251,7 +251,11 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   @doc "The digest at a beat's end for a resident whose profile is every_beat (gaia#37)."
   def run_digest(household_id, resident_id, top) do
     if Gaia.household_wake_profile(household_id, "resident", resident_id) == "every_beat" do
-      case Sunna.wake_for_household(resident_id, digest_note(household_id, top), @actor) do
+      case Sunna.wake_for_household(
+             resident_id,
+             digest_note(household_id, top, resident_id),
+             @actor
+           ) do
         {:ok, _} -> :ok
         {:error, %{kind: :sunna_household_wake_declined}} -> :ok
         {:error, _} = failed -> failed
@@ -287,14 +291,14 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     Your turn in the household's beats: turn ##{turn.turn}, in the beat that began #{iso(turn.beat_top)}.
 
     On the household's shelf since your last turn (#{iso(since)}):
-    #{delta(writes, since, turn.resident_id)}
+    #{delta(writes, since, turn.resident_id)}#{mentions_line(household_id, turn.resident_id, since)}
 
     This turn is a window until #{iso(turn.ends_by)}, about #{minutes} minutes: a guideline, and the turn ends when this wake does. In it you may post once in each thread (a new thread counts as a post in it) and write each household document once; household_read reads any of the above whole. Your post quota: #{left} of #{shape.quota} left in the last #{shape.window} hours. A vote is never held to the turns or the quota. household_beat shows the queue and your registrations. #{register_line(household_id, shape, turn.fired_at)}
     """
   end
 
   @doc "A beat's digest: its turns, who it passed over, what is new on the shelf in it, and how to register for a coming beat."
-  def digest_note(household_id, top) do
+  def digest_note(household_id, top, resident_id \\ nil) do
     shape = Gaia.household_beat_shape(household_id)
     beats = Gaia.household_beats(household_id, Clock.now())
     names = Map.new(beats.profiles, &{&1.id, &1.name})
@@ -327,10 +331,26 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     Its turns: #{turns}.#{passed}
 
     On the shelf in that beat:
-    #{delta(Household.writes(dir), top, nil)}
+    #{delta(Household.writes(dir), top, nil)}#{mentions_line(household_id, resident_id, top)}
 
     The beat running began #{iso(next)}; beats_ahead: 0 registers for it while its sign-up is open, until #{iso(Beats.signup_closes(next, shape))}. #{register_line(household_id, shape, Clock.now())} Your household writes go in during your turn; a vote does not wait for one.
     """
+  end
+
+  # The posts that named her since (seshat#86), muted or not: a muted
+  # mention woke nobody, and waits here.
+  defp mentions_line(_household_id, nil, _since), do: ""
+
+  defp mentions_line(household_id, resident_id, since) do
+    case Household.mentions_of(household_id, resident_id, since) do
+      [] ->
+        ""
+
+      named ->
+        "\n\nMentioned you: " <>
+          Enum.map_join(named, "; ", &"#{&1.path} (\"#{&1.title}\"), by #{&1.by} at #{&1.at}") <>
+          "."
+    end
   end
 
   # How to register for a coming beat, said in every wake the beats send
