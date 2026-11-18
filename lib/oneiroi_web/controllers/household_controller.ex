@@ -71,19 +71,32 @@ defmodule OneiroiWeb.HouseholdController do
 
   operation(:propose,
     summary:
-      "The founding witness proposes the household contract's version 1: prose alone, with a note; rules and settings come by ballot",
+      "The founding witness proposes the household contract's version 1: prose with a note, and its own rules and settings as a ballot's bundle (gaia#50), in force at once; later changes come by ballot",
     request_body:
       {"the prose", "application/json",
        %Schema{
          type: :object,
          required: [:prose, :note],
-         properties: %{prose: %Schema{type: :string}, note: %Schema{type: :string}}
+         properties: %{
+           prose: %Schema{type: :string},
+           note: %Schema{type: :string},
+           bundle: %Schema{
+             type: :array,
+             items: %Schema{type: :object},
+             description: "each {rule: text} or {setting: key, value}"
+           }
+         }
        }},
     responses: [created: {"the contract", "application/json", %Schema{type: :object}}]
   )
 
   def propose(conn, params) do
-    case Seshat.household_propose_contract(actor(conn), params["prose"], params["note"]) do
+    case Seshat.household_propose_contract(
+           actor(conn),
+           params["prose"],
+           params["note"],
+           params["bundle"]
+         ) do
       {:ok, c} -> conn |> put_status(201) |> json(c)
       {:error, e} -> error(conn, 422, e)
     end

@@ -104,6 +104,8 @@ defmodule Oneiroi.Gaia.Projectors.Household do
         household_id: e.id,
         version: e.version,
         prose: e.prose,
+        rules: e.rules || [],
+        settings: e.settings || %{},
         decided_by: by(e.actor),
         decided_at: e.at,
         note: e.note

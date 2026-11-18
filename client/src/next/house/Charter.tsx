@@ -30,7 +30,7 @@ export function Charter() {
   return (
     <HousePage label="Charter" title="Charter" lede="The house's rules and settings: the contract in force, who signed it, and the ballots that change it. Every member has one vote.">
       {contract.isError && <p className={css.note}>The charter could not be read.</p>}
-      {c && !c.in_force && <Found />}
+      {c && !c.in_force && <Found catalog={catalog} />}
       <Name />
       {c?.in_force && <InForce v={c.in_force} />}
       {c?.in_force && catalog.length > 0 && <Settings v={c.in_force} catalog={catalog} onPropose={propose} />}
@@ -229,22 +229,70 @@ function ValueInput({ entry, value: v, onChange }: { entry: HouseSetting | undef
   return <Field label="Value" value={v} onChange={(e) => onChange(e.target.value)} />;
 }
 
+/** The ballot's items (or a founding version's), as a bundle: rules, and settings with a value. */
+function toBundle(items: Draft[]): BallotItem[] {
+  return items
+    .map((d): BallotItem | null =>
+      d.kind === 'rule' ? (d.rule.trim() ? { rule: d.rule.trim() } : null) : d.setting.trim() && d.value.trim() ? { setting: d.setting.trim(), value: value(d.value.trim()) } : null,
+    )
+    .filter((x): x is BallotItem => x !== null);
+}
+
+/**
+ * Rules and settings, the settings picked from the catalog (gaia#49):
+ * the ballot form's, and the founding version's (gaia#50).
+ */
+function BundleEditor({ items, setItems, catalog, current }: { items: Draft[]; setItems: (d: Draft[]) => void; catalog: HouseSetting[]; current: Record<string, unknown> }) {
+  const entry = (key: string) => catalog.find((k) => k.key === key);
+  const set = (i: number, d: Draft) => setItems(items.map((x, j) => (j === i ? d : x)));
+  return (
+    <>
+      {items.map((d, i) =>
+        d.kind === 'rule' ? (
+          <Field key={i} label={`Rule ${i + 1}`} value={d.rule} onChange={(e) => set(i, { kind: 'rule', rule: e.target.value })} />
+        ) : (
+          <div key={i} className={css.column}>
+            <div className={css.row}>
+              <Select label={`Setting ${i + 1}`} value={d.setting} onChange={(v) => set(i, { ...d, setting: v, value: '' })}>
+                <option value="">Choose a setting…</option>
+                {catalog.map((k) => (
+                  <option key={k.key} value={k.key}>
+                    {k.label}
+                  </option>
+                ))}
+              </Select>
+              <ValueInput entry={entry(d.setting)} value={d.value} onChange={(v) => set(i, { ...d, value: v })} />
+            </div>
+            {entry(d.setting) && (
+              <p className={css.note}>
+                {entry(d.setting)?.about} Now: {shown(d.setting in current ? current[d.setting] : entry(d.setting)?.default)}.
+              </p>
+            )}
+          </div>
+        ),
+      )}
+      <div className={css.row}>
+        <button type="button" className={css.quiet} onClick={() => setItems([...items, { kind: 'rule', rule: '' }])}>
+          + A rule
+        </button>
+        <button type="button" className={css.quiet} onClick={() => setItems([...items, { kind: 'setting', setting: '', value: '' }])}>
+          + A setting
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** A change, proposed as a ballot on a new thread: its bundle fixed once it opens. */
 function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset: string | null; current: Record<string, unknown> }) {
-  const entry = (key: string) => catalog.find((k) => k.key === key);
-  const presetLabel = preset ? entry(preset)?.label ?? preset : null;
+  const presetLabel = preset ? catalog.find((k) => k.key === preset)?.label ?? preset : null;
   const [title, setTitle] = useState(presetLabel ? `Change: ${presetLabel}` : '');
   const [why, setWhy] = useState('');
   const [items, setItems] = useState<Draft[]>(preset ? [{ kind: 'setting', setting: preset, value: '' }] : [{ kind: 'rule', rule: '' }]);
   const [days, setDays] = useState('7');
   const [note, setNote] = useState('');
   const act = useAct();
-  const bundle: BallotItem[] = items
-    .map((d): BallotItem | null =>
-      d.kind === 'rule' ? (d.rule.trim() ? { rule: d.rule.trim() } : null) : d.setting.trim() && d.value.trim() ? { setting: d.setting.trim(), value: value(d.value.trim()) } : null,
-    )
-    .filter((x): x is BallotItem => x !== null);
-  const set = (i: number, d: Draft) => setItems(items.map((x, j) => (j === i ? d : x)));
+  const bundle = toBundle(items);
   return (
     <Card title="Propose a change">
       <p className={css.text}>A change goes to a ballot on its own thread. What it holds is fixed once it opens; a majority of the members carries the whole of it.</p>
@@ -268,38 +316,7 @@ function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset
       >
         <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <TextArea label="Why" value={why} onChange={(e) => setWhy(e.target.value)} />
-        {items.map((d, i) =>
-          d.kind === 'rule' ? (
-            <Field key={i} label={`Rule ${i + 1}`} value={d.rule} onChange={(e) => set(i, { kind: 'rule', rule: e.target.value })} />
-          ) : (
-            <div key={i} className={css.column}>
-              <div className={css.row}>
-                <Select label={`Setting ${i + 1}`} value={d.setting} onChange={(v) => set(i, { ...d, setting: v, value: '' })}>
-                  <option value="">Choose a setting…</option>
-                  {catalog.map((k) => (
-                    <option key={k.key} value={k.key}>
-                      {k.label}
-                    </option>
-                  ))}
-                </Select>
-                <ValueInput entry={entry(d.setting)} value={d.value} onChange={(v) => set(i, { ...d, value: v })} />
-              </div>
-              {entry(d.setting) && (
-                <p className={css.note}>
-                  {entry(d.setting)?.about} Now: {shown(d.setting in current ? current[d.setting] : entry(d.setting)?.default)}.
-                </p>
-              )}
-            </div>
-          ),
-        )}
-        <div className={css.row}>
-          <button type="button" className={css.quiet} onClick={() => setItems([...items, { kind: 'rule', rule: '' }])}>
-            + A rule
-          </button>
-          <button type="button" className={css.quiet} onClick={() => setItems([...items, { kind: 'setting', setting: '', value: '' }])}>
-            + A setting
-          </button>
-        </div>
+        <BundleEditor items={items} setItems={setItems} catalog={catalog} current={current} />
         <Field label="Open for days" type="number" min={1} value={days} onChange={(e) => setDays(e.target.value)} />
         <Field label="A note for the record" value={note} onChange={(e) => setNote(e.target.value)} />
         <div className={css.row}>
@@ -352,17 +369,30 @@ function Name() {
 }
 
 /** No version yet: the founding witness proposes version 1, prose alone. */
-function Found() {
+/**
+ * Version 1 of the charter (gaia#27), with its own rules and settings
+ * (gaia#50; the witness, 2026-11-18: "settings available for the initial
+ * charter proposal, not just text"), in force at once; later changes go
+ * by ballot.
+ */
+function Found({ catalog }: { catalog: HouseSetting[] }) {
   const [prose, setProse] = useState('');
   const [note, setNote] = useState('');
+  const [items, setItems] = useState<Draft[]>([]);
   const act = useAct();
   return (
     <Card title="Found the charter" witness>
-      <p className={css.text}>The house has no charter yet. Version 1 is prose alone; rules and settings come after, by ballot.</p>
+      <p className={css.text}>The house has no charter yet. Version 1 is its prose, and any rules and settings it starts with; it is in force once proposed, and changes after go by ballot.</p>
       <TextArea label="The charter" value={prose} onChange={(e) => setProse(e.target.value)} />
+      <BundleEditor items={items} setItems={setItems} catalog={catalog} current={{}} />
       <Field label="A note for the record" value={note} onChange={(e) => setNote(e.target.value)} />
       <div className={css.row}>
-        <button type="button" className={css.primary} disabled={act.busy || !prose.trim() || !note.trim()} onClick={() => void act.run(() => api.householdProposeCharter(prose.trim(), note.trim()).then(() => 'Founded.'), [...HOUSE])}>
+        <button
+          type="button"
+          className={css.primary}
+          disabled={act.busy || !prose.trim() || !note.trim()}
+          onClick={() => void act.run(() => api.householdProposeCharter(prose.trim(), note.trim(), toBundle(items)).then(() => 'Founded.'), [...HOUSE])}
+        >
           Propose version 1
         </button>
       </div>

@@ -188,6 +188,20 @@ describe('the house as a subject (2026-11-16)', () => {
     );
   });
 
+  it('founds the charter with its own settings, not only its prose (gaia#50)', async () => {
+    vi.spyOn(api, 'householdContract').mockResolvedValue({ ...contract, in_force: null, versions: [], ballots: [] });
+    const found = vi.spyOn(api, 'householdProposeCharter').mockResolvedValue(contract);
+    mount(<Charter />);
+    expect(await screen.findByText('Found the charter')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('The charter'), { target: { value: 'We share this house.' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ A setting' }));
+    fireEvent.change(screen.getByLabelText('Setting 1'), { target: { value: 'witness_posts' } });
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'unbounded' } });
+    fireEvent.change(screen.getByLabelText('A note for the record'), { target: { value: 'founding' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Propose version 1' }));
+    await waitFor(() => expect(found).toHaveBeenCalledWith('We share this house.', 'founding', [{ setting: 'witness_posts', value: 'unbounded' }]));
+  });
+
   it('lists every setting, and Propose a change opens the ballot with it filled in (gaia#49)', async () => {
     const post = vi.spyOn(api, 'householdPost').mockResolvedValue({ path: 'threads/witness-posts' });
     mount(<Charter />);

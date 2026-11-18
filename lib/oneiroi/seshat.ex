@@ -710,6 +710,13 @@ defmodule Oneiroi.Seshat do
     do: Household.propose_contract(actor, prose, note)
   )
 
+  @doc "The founding witness proposes version 1 with its own rules and settings (gaia#50)."
+  @spec household_propose_contract(Oneiroi.Actor.t(), String.t(), String.t(), list() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_propose_contract(actor, prose, note, bundle),
+    do: Household.propose_contract(actor, prose, note, bundle)
+  )
+
   @doc "A member signs the household contract's version in force (gaia#28)."
   @spec household_sign_contract(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_sign_contract(actor), do: Household.sign_contract(actor))

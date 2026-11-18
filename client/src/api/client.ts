@@ -640,7 +640,7 @@ export const api = {
   householdFiles: () => call<LibraryIndex>('GET', '/v1/household/files'),
   householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
-  householdProposeCharter: (prose: string, note: string) => call<HouseContract>('POST', '/v1/household/contract', { prose, note }),
+  householdProposeCharter: (prose: string, note: string, bundle: BallotItem[] = []) => call<HouseContract>('POST', '/v1/household/contract', { prose, note, bundle }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),

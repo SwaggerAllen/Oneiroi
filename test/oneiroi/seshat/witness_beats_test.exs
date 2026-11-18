@@ -133,4 +133,36 @@ defmodule Oneiroi.Seshat.WitnessBeatsTest do
     # Nobody registered, no turn open: the queue is empty.
     assert {:ok, _} = Seshat.household_reply(ctx.andrew, thread, %{"content" => "Two."})
   end
+
+  # gaia#50: a charter founded with its own settings, in force at once,
+  # held to a ballot's checks.
+  test "a charter is founded with its own settings and rules, in force at once" do
+    witness = Fixtures.account!()
+    andrew = Actor.new(:witness, witness.id)
+
+    assert {:error, %{kind: :gaia_beats_invalid}} =
+             Seshat.household_propose_contract(andrew, "Ours.", "founding", [
+               %{"setting" => "witness_posts", "value" => "always"}
+             ])
+
+    assert {:ok, _} =
+             Seshat.household_propose_contract(andrew, "Ours.", "founding", [
+               %{"setting" => "witness_posts", "value" => "unbounded"},
+               %{"rule" => "Be kind."}
+             ])
+
+    household = Gaia.household_of(andrew)
+    assert Gaia.household_beat_shape(household).witness_rule == "unbounded"
+
+    assert %{
+             in_force: %{
+               version: 1,
+               rules: ["Be kind."],
+               settings: %{"witness_posts" => "unbounded"}
+             }
+           } =
+             Gaia.household_contract(household)
+
+    on_exit(fn -> File.rm_rf!(SimaQian.Household.dir(witness.id)) end)
+  end
 end

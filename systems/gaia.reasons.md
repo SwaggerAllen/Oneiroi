@@ -350,3 +350,11 @@ A setting that can only be changed by spelling its key is a setting
 nobody changes: the ballot form took any key and value, and nothing on
 the screen said which keys existed or what they took. Listing them from
 the module that validates them keeps the list and the rules one thing.
+
+## #50
+A house that must agree its settings one ballot at a time, each waiting
+on beats, spends its first afternoon coordinating words before it can
+work. The founding version is the one moment a single member decides
+alone, by design, and the rest sign or leave; letting it carry settings
+costs nothing the founding prose did not already cost, and the checks
+that hold a ballot still hold it.

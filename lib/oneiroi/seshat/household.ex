@@ -1624,9 +1624,9 @@ defmodule Oneiroi.Seshat.Household do
   # ---- the contract (gaia#27, #28; seshat#63) ----
 
   @doc "The founding witness proposes the contract's version 1; `CONTRACT.md` is rendered from it."
-  def propose_contract(%Actor{} = actor, prose, note) do
+  def propose_contract(%Actor{} = actor, prose, note, bundle \\ nil) do
     with {:ok, household_id} <- household(actor),
-         :ok <- Gaia.propose_household_contract(household_id, prose, note, actor),
+         :ok <- Gaia.propose_household_contract(household_id, prose, note, actor, bundle),
          do: rendered(household_id, "Contract: version 1 proposed", author(household_id, actor))
   end
 
