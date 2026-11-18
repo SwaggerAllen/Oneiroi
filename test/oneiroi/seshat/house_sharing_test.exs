@@ -105,4 +105,28 @@ defmodule Oneiroi.Seshat.HouseSharingTest do
     assert {:error, %{kind: :seshat_household_invalid}} =
              Seshat.household_edit(ctx.andrew, t.path <> "/trunk.md", %{"content" => "Changed."})
   end
+
+  # seshat#87: his own folder is his to rewrite whenever he likes; a
+  # thread still keeps the beats.
+  test "a witness's own name-folder documents are never held to the beats", ctx do
+    {:ok, _} = post(ctx)
+
+    for n <- 1..3 do
+      assert {:ok, %{mode: "owner"}} =
+               Seshat.household_edit(ctx.andrew, @path, %{"content" => "Draft #{n + 1}."})
+    end
+
+    assert {:ok, _} =
+             Seshat.household_post(ctx.andrew, %{
+               "kind" => "human",
+               "path" => "human/andrew/second.md",
+               "content" => "Another."
+             })
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.andrew, %{"title" => "Plans", "content" => "Hi."})
+
+    assert {:error, %{kind: :seshat_household_beat_spent}} =
+             Seshat.household_reply(ctx.andrew, thread, %{"content" => "Again."})
+  end
 end
