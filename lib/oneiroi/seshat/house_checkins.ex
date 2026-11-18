@@ -59,9 +59,14 @@ defmodule Oneiroi.Seshat.HouseCheckins do
         words -> words
       end
 
-    "House check-in: #{c.label}, #{day}. The whole house checks in at once, in the shared workspace's thread #{thread}. " <>
-      "Your part: #{yours} Answer there with household_reply, once, in your own words; " <>
-      "your answer to a house check-in waits on no turn of the beats."
+    frame =
+      "House check-in: #{c.label}, #{day}. The whole house checks in at once, in the shared workspace's thread #{thread}. " <>
+        "Your part: #{yours} Answer there with household_reply, once, in your own words; " <>
+        "your answer to a house check-in waits on no turn of the beats."
+
+    # Her parts, set for her on her Rhythm (sunna#68), read for her now.
+    parts = Sunna.checkin_part_texts(resident_id, Sunna.house_parts(resident_id, c.key))
+    Enum.join([frame | parts], "\n\n")
   end
 
   # ---- as members read and keep them ----

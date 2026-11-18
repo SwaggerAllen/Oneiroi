@@ -24,7 +24,7 @@ export function HouseTime() {
         {checkins.data && (
           <>
             <p className={css.note}>Every time here is the house's, in {zone}.</p>
-            <Checkins checkins={checkins.data.checkins} />
+            <Checkins checkins={checkins.data.checkins} zone={zone} />
           </>
         )}
         {beats.data && <Now b={beats.data} />}
@@ -54,20 +54,44 @@ const keyOf = (label: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
 
-function Checkins({ checkins }: { checkins: HouseCheckin[] }) {
+/** Today on the house's clock, as the check-ins' days are kept. */
+function today(zone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/** The next to fire on the house's clock, said as a resident's Rhythm says it. */
+function nextOf(checkins: HouseCheckin[], zone: string): string | null {
+  if (checkins.length === 0) return null;
+  let now: string;
+  try {
+    now = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+  } catch {
+    now = new Date().toISOString().slice(11, 16);
+  }
+  const sorted = [...checkins].sort((a, b) => a.time.localeCompare(b.time));
+  const next = sorted.find((c) => c.time > now);
+  return next ? `${next.label} at ${next.time}` : `${sorted[0].label} at ${sorted[0].time} tomorrow`;
+}
+
+function Checkins({ checkins, zone }: { checkins: HouseCheckin[]; zone: string }) {
   const [label, setLabel] = useState('');
   const [time, setTime] = useState('');
   const add = useHouseWrite(() => api.setHouseCheckin(keyOf(label), label.trim(), time));
+  const next = nextOf(checkins, zone);
   return (
     <section className={css.section} aria-label="House check-ins">
       <h2 className={css.headingWitness}>HOUSE CHECK-INS</h2>
       <p className={css.note}>
-        Each opens a thread once a day at its time and wakes every resident at once, each with the words you set for her on her Rhythm. Her one answer waits on no turn;
-        your reply wakes everyone again. Quiet hours do not hold them.
+        Each opens a thread once a day at its time and wakes every resident at once. What each one's note carries, your words for her and her parts, is set on her own
+        Rhythm, so each can differ. Her one answer waits on no turn; your reply wakes everyone again. Quiet hours do not hold them.
       </p>
-      {checkins.length === 0 && <p className={css.note}>None set.</p>}
+      <p className={css.note}>{next ? `Next: ${next}.` : 'None set.'}</p>
       {checkins.map((c) => (
-        <Checkin key={c.key} c={c} />
+        <Checkin key={c.key} c={c} day={today(zone)} />
       ))}
       <form
         className={css.addRow}
@@ -93,39 +117,59 @@ function Checkins({ checkins }: { checkins: HouseCheckin[] }) {
   );
 }
 
-function Checkin({ c }: { c: HouseCheckin }) {
-  const [removing, setRemoving] = useState(false);
-  const [note, setNote] = useState('');
-  const remove = useHouseWrite(() => api.removeHouseCheckin(c.key, note.trim()));
+/**
+ * One house check-in, kept as a resident's own is (the witness,
+ * 2026-11-17): Change its label and time in place, Delete confirmed once
+ * in place. What it carries is each resident's, on her Rhythm (sunna#68).
+ */
+function Checkin({ c, day }: { c: HouseCheckin; day: string }) {
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [label, setLabel] = useState(c.label);
+  const [time, setTime] = useState(c.time);
+  const save = useHouseWrite(() => api.setHouseCheckin(c.key, label.trim(), time));
+  const remove = useHouseWrite(() => api.removeHouseCheckin(c.key, "deleted from the house's Time"));
+  const status = c.last_day === day ? 'TODAY: FIRED' : c.last_day ? `LAST FIRED ${c.last_day}` : 'NOT RUN YET';
   return (
     <div className={css.card}>
       <div className={css.cardHead}>
-        <span>{c.label}</span>
-        <span className={css.meta}>
-          {c.time} · {c.last_day ? `last ${c.last_day}` : 'not run yet'}
+        <span>
+          {c.label}
+          <span className={css.meta}> · {status}</span>
         </span>
+        <span className={css.meta}>{c.time}</span>
       </div>
-      {removing ? (
+      {editing ? (
         <form
-          className={css.addRow}
-          aria-label={`Remove ${c.label}`}
+          className={css.form}
+          aria-label={`Change ${c.label}`}
           onSubmit={(e) => {
             e.preventDefault();
-            remove.mutate(undefined);
+            save.mutate(undefined, { onSuccess: () => setEditing(false) });
           }}
         >
-          <input className={css.time} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why remove it" aria-label="Why remove it" />
-          <button type="submit" className={css.addButton} disabled={!note.trim() || remove.isPending}>
-            Remove {c.label}
-          </button>
-          <button type="button" className={css.quiet} onClick={() => setRemoving(false)}>
-            Keep it
-          </button>
+          <div className={css.addRow}>
+            <input className={css.time} value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} aria-label="Label" />
+            <input type="time" className={css.time} value={time} onChange={(e) => setTime(e.target.value)} aria-label="Time" />
+          </div>
+          <div className={css.addRow}>
+            <button type="submit" className={css.addButton} disabled={!label.trim() || !isTime(time) || save.isPending}>
+              Save
+            </button>
+            <button type="button" className={css.quiet} onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          </div>
+          <Failed error={save.error} />
         </form>
       ) : (
-        <div>
-          <button type="button" className={css.quiet} onClick={() => setRemoving(true)}>
-            Remove
+        <div className={css.addRow}>
+          <button type="button" className={css.quiet} onClick={() => setEditing(true)}>
+            Change
+          </button>
+          {/* A removal confirms once, in place, as a resident's own does. */}
+          <button type="button" className={css.quiet} disabled={remove.isPending} onClick={() => (confirming ? remove.mutate(undefined) : setConfirming(true))} onBlur={() => setConfirming(false)}>
+            {confirming ? `Delete ${c.label}` : 'Delete'}
           </button>
         </div>
       )}

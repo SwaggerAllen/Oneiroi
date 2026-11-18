@@ -290,7 +290,7 @@ defmodule Oneiroi.Sunna do
   def events do
     [
       {Oneiroi.Sunna.Events.CheckinSet, 2},
-      {Oneiroi.Sunna.Events.HousePromptSet, 1},
+      {Oneiroi.Sunna.Events.HousePromptSet, 2},
       {Oneiroi.Sunna.Events.CheckinChanged, 2},
       {Oneiroi.Sunna.Events.CheckinDeleted, 1},
       {Oneiroi.Sunna.Events.CheckinFired, 1},
@@ -414,6 +414,21 @@ defmodule Oneiroi.Sunna do
   defexport(set_house_prompt(resident_id, key, prompt, actor),
     do: Schedules.set_house_prompt(resident_id, key, prompt, actor)
   )
+
+  @doc "The witness sets a resident's words and parts for a house check-in (sunna#68): `parts:` the catalog's keys."
+  @spec set_house_prompt(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t(), keyword()) ::
+          :ok | {:error, term()}
+  defexport(set_house_prompt(resident_id, key, prompt, actor, opts),
+    do: Schedules.set_house_prompt(resident_id, key, prompt, actor, opts)
+  )
+
+  @doc "A resident's parts for a house check-in (sunna#68), none when unset."
+  @spec house_parts(String.t(), String.t()) :: [String.t()]
+  defexport(house_parts(resident_id, key), do: Schedules.house_parts(resident_id, key))
+
+  @doc "Every house check-in's parts for a resident, key to parts (sunna#68)."
+  @spec house_parts_all(String.t()) :: %{String.t() => [String.t()]}
+  defexport(house_parts_all(resident_id), do: Schedules.house_parts_all(resident_id))
 
   @doc "Sets a check-in (a fresh key when nil): label and HH:MM in the resident's zone; returns the key."
   @spec set_checkin(String.t(), String.t() | nil, String.t(), String.t(), Oneiroi.Actor.t()) ::
@@ -617,6 +632,12 @@ defmodule Oneiroi.Sunna do
   @doc "The dates section the brain reads, countdowns derived now; empty when none."
   @spec dates_text(String.t()) :: String.t()
   defexport(dates_text(resident_id), do: Schedules.dates_text(resident_id))
+
+  @doc "A check-in note's parts, read for this resident now, in the catalog's order (sunna#28; sunna#68 for a house check-in's)."
+  @spec checkin_part_texts(String.t(), [String.t()] | nil) :: [String.t()]
+  defexport(checkin_part_texts(resident_id, parts),
+    do: Schedules.part_texts(resident_id, parts)
+  )
 
   @doc "Every firing over the last `days` days in the resident's zone, for the audits."
   @spec firings(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Firing.t()]

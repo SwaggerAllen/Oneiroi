@@ -482,3 +482,9 @@ learn nothing. An outlasted turn is the likeliest kind of turn for a
 long survey, so treating it as a failure guaranteed the crossing exactly
 when the work was heaviest. Matching the conversation as well as the item
 closes the last way an earlier run can act inside a later one.
+
+## #68
+The parts are hers: her dates, her plan, her letters. A house check-in
+that carried one set for everyone would carry the wrong thing for one
+of them, so the setting sits with her words for it, per resident, where
+the witness already sets what she is asked to report.

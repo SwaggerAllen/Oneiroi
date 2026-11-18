@@ -31,7 +31,7 @@ export function Rhythm() {
               Every time here is {name}'s, in {s.timezone}.
             </p>
             <Checkins s={s} refresh={refresh} />
-            <HouseCheckins />
+            <HouseCheckins catalog={s.checkin_parts ?? []} />
             <FreeTime s={s} refresh={refresh} />
             {s.rounds && <Rounds rounds={s.rounds} refresh={refresh} />}
             <Quiet quiet={s.quiet} refresh={refresh} />
@@ -56,11 +56,12 @@ function Failed({ error }: { error: Error | null }) {
 }
 
 /**
- * The house's check-ins (gaia#41, sunna#65): when the whole house checks
- * in, what this resident reports, in your words for her. The check-ins
- * themselves are kept on the house's Time tab.
+ * The house's check-ins (gaia#41, sunna#65, #68): when the whole house
+ * checks in, what this resident reports, in your words for her, and the
+ * parts her note carries, as her own check-ins' do. The check-ins
+ * themselves (label, time) are kept on the house's Time tab.
  */
-function HouseCheckins() {
+function HouseCheckins({ catalog }: { catalog: CheckinPart[] }) {
   const { id, name } = useSubject();
   const house = useQuery({ queryKey: ['resident', id, 'time', 'house'], queryFn: () => api.houseForResident(id) });
   if (!house.data || house.data.checkins.length === 0) return null;
@@ -71,49 +72,102 @@ function HouseCheckins() {
         On the house's clock ({house.data.zone}). What {name} reports when the whole house checks in:
       </p>
       {house.data.checkins.map((c) => (
-        <HousePrompt key={c.key} keyName={c.key} label={c.label} time={c.time} prompt={c.prompt ?? ''} />
+        <HousePrompt key={c.key} keyName={c.key} label={c.label} time={c.time} prompt={c.prompt ?? ''} parts={c.parts ?? []} catalog={catalog} />
       ))}
     </section>
   );
 }
 
-function HousePrompt({ keyName, label, time, prompt }: { keyName: string; label: string; time: string; prompt: string }) {
+function HousePrompt({
+  keyName,
+  label,
+  time,
+  prompt,
+  parts,
+  catalog,
+}: {
+  keyName: string;
+  label: string;
+  time: string;
+  prompt: string;
+  parts: string[];
+  catalog: CheckinPart[];
+}) {
   const { id, name } = useSubject();
   const queries = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState(prompt);
+  const [chosen, setChosen] = useState<string[]>(parts);
   const save = useMutation({
-    mutationFn: () => api.setHousePrompt(id, keyName, text),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ['resident', id, 'time', 'house'] }),
+    mutationFn: () =>
+      api.setHousePrompt(
+        id,
+        keyName,
+        text,
+        catalog.map((p) => p.key).filter((k) => chosen.includes(k)),
+      ),
+    onSuccess: () => {
+      setEditing(false);
+      void queries.invalidateQueries({ queryKey: ['resident', id, 'time', 'house'] });
+    },
   });
+  const carries = catalog.filter((p) => parts.includes(p.key)).map((p) => p.label);
+  if (prompt) carries.unshift('your words');
+
   return (
     <div className={css.card}>
       <div className={css.cardHead}>
         <span>{label}</span>
         <span className={css.meta}>{time}</span>
       </div>
-      <form
-        className={css.form}
-        aria-label={`${name}'s part in ${label}`}
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-      >
-        <textarea
-          className={css.text}
-          rows={3}
-          maxLength={4000}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          aria-label={`What ${name} reports`}
-          placeholder={`What ${name} reports: her part of the work, in your words`}
-        />
-        <button type="submit" className={css.addButton} disabled={save.isPending || text === prompt}>
-          Keep
-        </button>
-      </form>
-      {save.isSuccess && text === prompt && <p className={css.note}>Kept.</p>}
-      <Failed error={save.error} />
+      <p className={css.note}>Carries for {name}: {carries.length > 0 ? carries.join(', ') : 'only the house check-in line'}.</p>
+      {editing ? (
+        <form
+          className={css.form}
+          aria-label={`${name}'s part in ${label}`}
+          onSubmit={(e) => {
+            e.preventDefault();
+            save.mutate();
+          }}
+        >
+          <textarea
+            className={css.text}
+            rows={3}
+            maxLength={4000}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            aria-label={`What ${name} reports`}
+            placeholder={`What ${name} reports: her part of the work, in your words`}
+          />
+          <fieldset className={css.fieldset}>
+            <legend className={css.meta}>PARTS, READ FOR {name.toUpperCase()} WHEN IT FIRES</legend>
+            {catalog.map((p) => (
+              <label key={p.key} className={css.check}>
+                <input type="checkbox" checked={chosen.includes(p.key)} onChange={() => setChosen((x) => (x.includes(p.key) ? x.filter((k) => k !== p.key) : [...x, p.key]))} />
+                <span>
+                  {p.label}
+                  <span className={css.note}> — {p.about}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className={css.addRow}>
+            <button type="submit" className={css.addButton} disabled={save.isPending}>
+              Save
+            </button>
+            <button type="button" className={css.quiet} onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          </div>
+          <Failed error={save.error} />
+        </form>
+      ) : (
+        <div className={css.addRow}>
+          <button type="button" className={css.quiet} onClick={() => setEditing(true)}>
+            Change
+          </button>
+        </div>
+      )}
     </div>
   );
 }

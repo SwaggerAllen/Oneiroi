@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../api/client';
 import type { ScheduleToday } from '../../api/types';
@@ -83,8 +83,12 @@ describe('Rhythm', () => {
     mount();
     expect(await screen.findByText('HOUSE CHECK-INS')).toBeTruthy();
     expect(screen.getByText(/On the house's clock \(America\/Los_Angeles\)/)).toBeTruthy();
+    // Configured as her own check-ins are (sunna#68): Change, her words and her parts.
+    expect(screen.getByText('Carries for Mira: only the house check-in line.')).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('region', { name: 'House check-ins' })).getByRole('button', { name: 'Change' }));
     fireEvent.change(screen.getByLabelText('What Mira reports'), { target: { value: 'The trials she ran.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
-    await waitFor(() => expect(set).toHaveBeenCalledWith('r1', 'morning', 'The trials she ran.'));
+    fireEvent.click(within(screen.getByRole('form', { name: "Mira's part in Morning" })).getByRole('checkbox', { name: /Dates/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('r1', 'morning', 'The trials she ran.', ['dates']));
   });
 });

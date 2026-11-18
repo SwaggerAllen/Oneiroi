@@ -326,8 +326,9 @@ export interface HouseCheckin {
   last_day: string | null;
   last_thread: string | null;
   last_fired_at: string | null;
-  // On a resident's Rhythm page: her own words for it.
+  // On a resident's Rhythm page: her own words for it, and her parts (sunna#68).
   prompt?: string | null;
+  parts?: string[];
 }
 
 export interface HouseCheckins {
@@ -611,8 +612,8 @@ export const api = {
     call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
   removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),
   houseForResident: (residentId: string) => call<HouseCheckins>('GET', `/v1/residents/${residentId}/schedule/house`),
-  setHousePrompt: (residentId: string, key: string, prompt: string) =>
-    call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt }),
+  setHousePrompt: (residentId: string, key: string, prompt: string, parts?: string[]) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt, ...(parts ? { parts } : {}) }),
   householdRead: (path: string) => call<HouseDoc>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
   householdEdit: (path: string, edit: { content?: string; mode?: 'owner' | 'open' }) =>
     call<{ path: string; mode: string; commit: string }>('PUT', '/v1/household/documents', { path, ...edit }),

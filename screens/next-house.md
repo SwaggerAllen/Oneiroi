@@ -47,10 +47,12 @@ server.
     shows above the composer.
 - **Time, laid out as a resident's Rhythm** (the witness, 2026-11-16).
   - "Every time here is the house's, in <zone>."
-  - **House check-ins** (gaia#41, seshat#75): each with its time and the
-    day it last ran, **Remove** asking why in place; **Add a check-in**
-    (label and time). Each resident's words for one are on her Rhythm
-    (screen:next-time).
+  - **House check-ins** (gaia#41, seshat#75): "Next: …", then each with
+    its time and "TODAY: FIRED", "LAST FIRED <day>" or "NOT RUN YET";
+    **Change** in place (label and time; Save, Cancel) and **Delete**,
+    confirmed once in place, as a resident's own check-in is; **Add a
+    check-in** (label and time). What each resident's note carries, your
+    words for her and her parts, is on her Rhythm (screen:next-time).
   - **The beat now**: began, sign-up closed, ends, turns so far; the turn
     open and whose; the queue; your posts left; the next beats.
   - **Who is in the house**: each member with its wake profile.

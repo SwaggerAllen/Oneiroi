@@ -152,6 +152,6 @@ defmodule Oneiroi.Sunna.Commands do
 
   # Her own words for a house check-in (sunna#65), by its key.
   defmodule SetHousePrompt do
-    use Oneiroi.Command, fields: [:id, :key, :prompt], bounds: [key: 64, prompt: 4_000]
+    use Oneiroi.Command, fields: [:id, :key, :prompt, :parts], bounds: [key: 64, prompt: 4_000]
   end
 end

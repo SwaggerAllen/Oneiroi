@@ -57,11 +57,15 @@ The rebuilt client's Time tab (`design/ui-build.md` P3), at
     (`PUT /schedule/quiet-hours`).
   - **Time zone:** every zone the browser knows, and "Use <device
     zone>" when the device is elsewhere (`PUT /timezone`).
-  - **House check-ins** (sunna#65): each of the house's check-ins with
-    its time on the house's clock, and what she is asked to report at
-    it, in your words (`PUT /residents/:id/schedule/house/:key`); empty,
-    the default line. The check-ins themselves are set on the house's
-    Time tab (screen:next-house).
+  - **House check-ins** (sunna#65, #68): each of the house's check-ins
+    with its time on the house's clock, configured for her as her own
+    check-ins are: "Carries for <her>: …", and **Change** in place for
+    what she is asked to report, in your words (empty, the default
+    line), and the parts read for her when it fires, the same catalog's
+    checkboxes, none by default; Save, Cancel
+    (`PUT /residents/:id/schedule/house/:key`). Each resident's are her
+    own, so Lily's and Scarlett's differ. The check-ins themselves are
+    set on the house's Time tab (screen:next-house).
 
 Every action the current client's ScheduleContainer offers is here
 (`setFreeTime` as move and add, `addFreeTimeOnce`, `addCheckin`,
