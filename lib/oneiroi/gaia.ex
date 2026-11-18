@@ -115,6 +115,7 @@ defmodule Oneiroi.Gaia do
     ]
 
   alias Oneiroi.Gaia.Accounts
+  alias Oneiroi.Gaia.Beats
   alias Oneiroi.Gaia.Boots
   alias Oneiroi.Gaia.Door
   alias Oneiroi.Gaia.Feedbacks
@@ -809,6 +810,10 @@ defmodule Oneiroi.Gaia do
   defexport(set_household_clock(household_id, zone, actor),
     do: Households.set_clock(household_id, zone, actor)
   )
+
+  @doc "Every beat setting with its meaning, default and what it takes (gaia#49)."
+  @spec household_settings_catalog() :: [map()]
+  defexport(household_settings_catalog(), do: Beats.catalog())
 
   @doc "A witness sets a house check-in (gaia#41)."
   @spec set_house_checkin(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

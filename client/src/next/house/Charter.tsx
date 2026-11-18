@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { api, type BallotItem, type HouseBallot, type HouseContract, type HouseVersion } from '../../api/client';
-import { Card, Field, Said, TextArea } from '../settings/common';
+import { useRef, useState } from 'react';
+import { api, type BallotItem, type HouseBallot, type HouseContract, type HouseSetting, type HouseVersion } from '../../api/client';
+import { Card, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HousePage } from './common';
@@ -18,15 +18,29 @@ export function Charter() {
   const contract = useQuery({ queryKey: CONTRACT, queryFn: api.householdContract, refetchInterval: 60_000 });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const c = contract.data;
+  // A setting picked from the list opens the ballot form with it filled
+  // in (gaia#49); the count remounts the form so the pick takes.
+  const [pick, setPick] = useState<{ n: number; setting: string } | null>(null);
+  const form = useRef<HTMLDivElement>(null);
+  const catalog = c?.catalog ?? [];
+  const propose = (setting: string) => {
+    setPick((p) => ({ n: (p?.n ?? 0) + 1, setting }));
+    setTimeout(() => form.current?.scrollIntoView?.({ block: 'start' }), 0);
+  };
   return (
     <HousePage label="Charter" title="Charter" lede="The house's rules and settings: the contract in force, who signed it, and the ballots that change it. Every member has one vote.">
       {contract.isError && <p className={css.note}>The charter could not be read.</p>}
       {c && !c.in_force && <Found />}
       <Name />
       {c?.in_force && <InForce v={c.in_force} />}
+      {c?.in_force && catalog.length > 0 && <Settings v={c.in_force} catalog={catalog} onPropose={propose} />}
       {c && <Members c={c} accountId={me.data?.account_id ?? undefined} />}
       {c && <Ballots ballots={c.ballots} />}
-      {c?.in_force && <Propose />}
+      {c?.in_force && (
+        <div ref={form}>
+          <Propose key={pick?.n ?? 0} catalog={catalog} preset={pick?.setting ?? null} current={c.in_force.settings ?? {}} />
+        </div>
+      )}
       {c && c.versions.length > 1 && <Versions versions={c.versions} />}
     </HousePage>
   );
@@ -51,22 +65,47 @@ function InForce({ v }: { v: HouseVersion }) {
           ))}
         </ol>
       )}
-      <h3 className={css.subheading}>Settings</h3>
-      {settings.length === 0 ? (
-        <p className={css.note}>Every setting at its default.</p>
-      ) : (
-        <ul className={css.list} aria-label="Settings">
-          {settings.map(([k, val]) => (
-            <li key={k} className={css.meta}>
-              {k}: {String(val)}
-            </li>
-          ))}
-        </ul>
-      )}
+      <p className={css.note}>{settings.length === 0 ? 'Every setting at its default.' : `${settings.length === 1 ? '1 setting' : `${settings.length} settings`} changed from the default, listed under Settings.`}</p>
       <p className={css.meta}>
         {v.ballot ? `By ballot #${v.ballot}` : 'The founding version'}
         {v.decided_at ? ` · ${when(v.decided_at)}` : ''}
       </p>
+    </Card>
+  );
+}
+
+const shown = (v: unknown) => (v === null || v === undefined ? 'as many as fit' : String(v));
+
+/**
+ * Every setting a ballot can change (gaia#49; the witness, 2026-11-18:
+ * "I don't see a way to propose settings changes"): what it does, its
+ * value in force or its default, and Propose a change, which opens the
+ * ballot form with it filled in.
+ */
+function Settings({ v, catalog, onPropose }: { v: HouseVersion; catalog: HouseSetting[]; onPropose: (key: string) => void }) {
+  const set = v.settings ?? {};
+  return (
+    <Card title="Settings">
+      <p className={css.note}>What the house runs on. Each changes by ballot: every member votes, and a majority carries it.</p>
+      <ul className={css.list} aria-label="Settings">
+        {catalog.map((k) => {
+          const changed = k.key in set;
+          return (
+            <li key={k.key} className={css.item}>
+              <div className={css.row}>
+                <span className={css.text}>
+                  <strong>{k.label}</strong>: {shown(changed ? set[k.key] : k.default)}
+                  <span className={css.meta}>{changed ? ' · by ballot' : ' · the default'}</span>
+                </span>
+                <button type="button" className={css.quiet} onClick={() => onPropose(k.key)}>
+                  Propose a change
+                </button>
+              </div>
+              <p className={css.note}>{k.about}</p>
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }
@@ -171,16 +210,39 @@ function value(v: string): string | number | boolean {
   return /^-?\d+$/.test(v) ? Number(v) : v;
 }
 
+/** A setting's value control, as its catalog entry says it takes (gaia#49). */
+function ValueInput({ entry, value: v, onChange }: { entry: HouseSetting | undefined; value: string; onChange: (v: string) => void }) {
+  if (entry?.type === 'boolean' || entry?.type === 'choice' || (entry?.options?.length ?? 0) > 0) {
+    const options = entry?.type === 'boolean' ? ['true', 'false'] : [...(entry?.type === 'integer' && entry.min !== undefined && entry.max !== undefined ? Array.from({ length: entry.max - entry.min + 1 }, (_, n) => String((entry.min as number) + n)) : []), ...(entry?.options ?? [])];
+    return (
+      <Select label="Value" value={v} onChange={onChange}>
+        <option value="">Choose…</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {entry?.type === 'boolean' ? (o === 'true' ? 'yes' : 'no') : o}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  if (entry?.type === 'integer') return <Field label={`Value (${entry.min} to ${entry.max})`} type="number" min={entry.min} max={entry.max} value={v} onChange={(e) => onChange(e.target.value)} />;
+  return <Field label="Value" value={v} onChange={(e) => onChange(e.target.value)} />;
+}
+
 /** A change, proposed as a ballot on a new thread: its bundle fixed once it opens. */
-function Propose() {
-  const [title, setTitle] = useState('');
+function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset: string | null; current: Record<string, unknown> }) {
+  const entry = (key: string) => catalog.find((k) => k.key === key);
+  const presetLabel = preset ? entry(preset)?.label ?? preset : null;
+  const [title, setTitle] = useState(presetLabel ? `Change: ${presetLabel}` : '');
   const [why, setWhy] = useState('');
-  const [items, setItems] = useState<Draft[]>([{ kind: 'rule', rule: '' }]);
+  const [items, setItems] = useState<Draft[]>(preset ? [{ kind: 'setting', setting: preset, value: '' }] : [{ kind: 'rule', rule: '' }]);
   const [days, setDays] = useState('7');
   const [note, setNote] = useState('');
   const act = useAct();
   const bundle: BallotItem[] = items
-    .map((d): BallotItem | null => (d.kind === 'rule' ? (d.rule.trim() ? { rule: d.rule.trim() } : null) : d.setting.trim() ? { setting: d.setting.trim(), value: value(d.value.trim()) } : null))
+    .map((d): BallotItem | null =>
+      d.kind === 'rule' ? (d.rule.trim() ? { rule: d.rule.trim() } : null) : d.setting.trim() && d.value.trim() ? { setting: d.setting.trim(), value: value(d.value.trim()) } : null,
+    )
     .filter((x): x is BallotItem => x !== null);
   const set = (i: number, d: Draft) => setItems(items.map((x, j) => (j === i ? d : x)));
   return (
@@ -210,9 +272,23 @@ function Propose() {
           d.kind === 'rule' ? (
             <Field key={i} label={`Rule ${i + 1}`} value={d.rule} onChange={(e) => set(i, { kind: 'rule', rule: e.target.value })} />
           ) : (
-            <div key={i} className={css.row}>
-              <Field label={`Setting ${i + 1}`} value={d.setting} placeholder="witnesses_post" onChange={(e) => set(i, { ...d, setting: e.target.value })} />
-              <Field label="Value" value={d.value} onChange={(e) => set(i, { ...d, value: e.target.value })} />
+            <div key={i} className={css.column}>
+              <div className={css.row}>
+                <Select label={`Setting ${i + 1}`} value={d.setting} onChange={(v) => set(i, { ...d, setting: v, value: '' })}>
+                  <option value="">Choose a setting…</option>
+                  {catalog.map((k) => (
+                    <option key={k.key} value={k.key}>
+                      {k.label}
+                    </option>
+                  ))}
+                </Select>
+                <ValueInput entry={entry(d.setting)} value={d.value} onChange={(v) => set(i, { ...d, value: v })} />
+              </div>
+              {entry(d.setting) && (
+                <p className={css.note}>
+                  {entry(d.setting)?.about} Now: {shown(d.setting in current ? current[d.setting] : entry(d.setting)?.default)}.
+                </p>
+              )}
             </div>
           ),
         )}

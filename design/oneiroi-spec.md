@@ -2687,7 +2687,7 @@ The repo is built to be driven by orchestration from the start.
   the stub workflows, `CLAUDE.md` with the gates.
 - **`pipeline.config.json`** (sketch): `designOwnedPaths` of `CHANGE.md`,
   `screens/**`, `storybook/**`, `systems/*.md`, `docs/*.md`,
-  `tests/manual/**`; `componentPaths` of `client/src/components/**`;
+  `tests/manual/**`; `componentPaths` of `client/src/next/**/*.tsx` (`client/src/components/**` until the first client was removed, client#14);
   `qualityGates` of `mix format --check-formatted`, `mix credo --strict`,
   `mix sobelow --exit`, `mix compile --warnings-as-errors`, `mix deps.audit`,
   `mix xref graph --format cycles --fail-above 0`, `mix test`, and in

@@ -63,7 +63,8 @@ defmodule OneiroiWeb.HouseholdController do
 
   def contract(conn, _params) do
     case Seshat.household_contract(actor(conn)) do
-      {:ok, c} -> json(conn, c)
+      # With every setting a ballot can change (gaia#49).
+      {:ok, c} -> json(conn, Map.put(c, :catalog, Oneiroi.Gaia.household_settings_catalog()))
       {:error, e} -> error(conn, 404, e)
     end
   end

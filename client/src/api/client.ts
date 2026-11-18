@@ -292,6 +292,19 @@ export interface HouseContract {
   versions: HouseVersion[];
   members: HouseMember[];
   ballots: HouseBallot[];
+  /** Every setting a ballot can change, with what it means and takes (gaia#49). */
+  catalog?: HouseSetting[];
+}
+
+export interface HouseSetting {
+  key: string;
+  label: string;
+  about: string;
+  default: string | number | boolean | null;
+  type: 'integer' | 'choice' | 'boolean';
+  min?: number;
+  max?: number;
+  options?: string[];
 }
 
 export interface HouseTurn {
