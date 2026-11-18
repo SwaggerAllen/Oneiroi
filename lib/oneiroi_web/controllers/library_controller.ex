@@ -147,8 +147,45 @@ defmodule OneiroiWeb.LibraryController do
   )
 
   def versions(conn, %{"id" => id, "path" => path}) do
-    case Seshat.versions(id, Enum.join(path, "/")) do
-      {:ok, versions} -> json(conn, versions)
+    path = Enum.join(path, "/")
+
+    case Seshat.versions(id, path) do
+      # With the draft published last (seshat#85), the commit, or null.
+      {:ok, versions} ->
+        json(conn, Map.put(versions, :published, Seshat.published_latest(id, path)))
+
+      other ->
+        respond(conn, other)
+    end
+  end
+
+  operation(:publish_draft,
+    summary:
+      "Publish a draft to the household (seshat#85): a witness's own file in their name-folder, human/<name>/, at one commit (none: its latest); only a draft after the one published. Recorded in PUBLISHED.md in this resident's repository",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the draft", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path],
+         properties: %{
+           path: %Schema{type: :string},
+           commit: %Schema{type: :string},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [ok: {"published", "application/json", %Schema{type: :object}}]
+  )
+
+  def publish_draft(conn, %{"id" => id} = params) do
+    case Seshat.publish(
+           id,
+           to_string(params["path"] || ""),
+           params["commit"],
+           params["note"],
+           actor(conn)
+         ) do
+      {:ok, published} -> json(conn, published)
       other -> respond(conn, other)
     end
   end

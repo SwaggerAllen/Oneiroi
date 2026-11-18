@@ -354,6 +354,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/library/version/*path", LibraryController, :version)
       get("/residents/:id/library/diff/*path", LibraryController, :diff)
       post("/residents/:id/library/restore", LibraryController, :restore)
+      post("/residents/:id/library/drafts/publish", LibraryController, :publish_draft)
       get("/residents/:id/library/leases", LibraryController, :leases)
       post("/residents/:id/library/leases", LibraryController, :acquire_lease)
       post("/residents/:id/library/leases/renew", LibraryController, :renew_lease)

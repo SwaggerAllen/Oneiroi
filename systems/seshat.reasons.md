@@ -716,3 +716,13 @@ shared copy makes the relation a fact either side can read, and naming
 the shared copy's talk in her read of the source is what makes the link
 live: she finds the feedback where she works, without visiting the
 house to look for it.
+
+## #85
+Public by explicit act, one commit at a time, because a folder setting
+or a per-file flag drifts: a file marked public stays public through
+every later draft, including ones its author never meant to show.
+Recording it in the source repository keeps the fact with the thing:
+whoever published, the repository the words live in says which of its
+drafts are public, and travels with them. Roll-forward only because a
+published commit is a citation target; allowing it to be taken back
+would let a citation point at nothing.

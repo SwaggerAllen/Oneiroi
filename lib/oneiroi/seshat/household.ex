@@ -49,6 +49,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Kinds
+  alias Oneiroi.Seshat.Published
   alias Oneiroi.SimaQian.Repos
 
   @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
@@ -958,6 +959,90 @@ defmodule Oneiroi.Seshat.Household do
       _other -> {:error, Error.new(:seshat_household_invalid, :seshat_household_mode_unknown)}
     end
   end
+
+  # ---- a housemate's published drafts (seshat#85, design §2) ----
+
+  @doc """
+  A housemate's published draft, read by its citation, `<slug>:<path>`
+  or `<slug>:<path>@<commit>` (seshat#85): it resolves against her
+  repository, the source, never the reader's; at the draft published
+  last, or at a commit named, when that commit is published. What is not
+  published is not the house's to read: the protocol is to ask her.
+  """
+  def read_published(%Actor{} = actor, cite) do
+    with {:ok, household_id} <- household(actor),
+         {:ok, slug, path, commit} <- housemate_cite(cite),
+         {:ok, owner} <- housemate(household_id, slug, cite),
+         {:ok, sha} <- public_at(owner.id, path, commit, cite),
+         {:ok, files} <- Repos.snapshot_at({:resident, owner.id}, sha),
+         text when is_binary(text) <-
+           Repos.at({:resident, owner.id}, files, path) || unpublished(cite) do
+      {:ok,
+       %{
+         path: path,
+         kind: "published",
+         owner: owner.name,
+         commit: sha,
+         latest: Published.latest(owner.id, path),
+         title: Path.basename(path, ".md"),
+         content: text,
+         cited_as: "#{slug}:#{path}@#{short(sha)}",
+         since: nil
+       }}
+    end
+  end
+
+  @doc "Whether a path reads as a housemate's citation, `<slug>:<path>`."
+  def housemate_cite?(cite), do: match?({:ok, _, _, _}, housemate_cite(cite))
+
+  defp housemate_cite(cite) when is_binary(cite) do
+    case Regex.run(~r/\A([a-z0-9][a-z0-9-]{0,63}):([^@\s]+?)(?:@([0-9a-f]{7,40}))?\z/, cite) do
+      [_, "house" <> _, _ | _] -> :error
+      [_, slug, path] -> {:ok, slug, path, nil}
+      [_, slug, path, commit] -> {:ok, slug, path, commit}
+      _no -> :error
+    end
+  end
+
+  defp housemate_cite(_other), do: :error
+
+  defp housemate(household_id, slug, cite) do
+    found =
+      Enum.find_value(Gaia.household_members(household_id), fn
+        %{kind: "resident", id: id, name: name} ->
+          case AgathosDaimon.fetch(id) do
+            {:ok, %{slug: ^slug}} -> %{id: id, name: name}
+            _other -> nil
+          end
+
+        _witness ->
+          nil
+      end)
+
+    if found, do: {:ok, found}, else: unpublished(cite)
+  end
+
+  defp public_at(owner_id, path, nil, cite) do
+    case Published.latest(owner_id, path) do
+      nil -> unpublished(cite)
+      sha -> {:ok, sha}
+    end
+  end
+
+  defp public_at(owner_id, path, commit, cite) do
+    case Enum.find(
+           Published.all(owner_id),
+           &(&1.path == path and String.starts_with?(&1.commit, commit))
+         ) do
+      nil -> unpublished(cite)
+      p -> {:ok, p.commit}
+    end
+  end
+
+  defp unpublished(cite),
+    do:
+      {:error,
+       Error.new(:seshat_household_unpublished, :seshat_household_cite_unpublished, path: cite)}
 
   # ---- the source-and-revision link (seshat#84) ----
 

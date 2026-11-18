@@ -35,6 +35,7 @@ defmodule Oneiroi.SimaQian.GiteaMigration do
   def start_link do
     case pending() do
       [] ->
+        protect_later()
         :ignore
 
       repos ->
@@ -74,9 +75,24 @@ defmodule Oneiroi.SimaQian.GiteaMigration do
       end)
 
     Logger.info("gitea: moved #{length(repos) - length(failed)} of #{length(repos)}")
+    protect()
     :ok
   after
     GiteaQueue.moving(false)
+  end
+
+  # Every repository on the server gets main protected at boot
+  # (sima-qian#64), off the boot's path: those made before it existed too.
+  defp protect_later do
+    if Config.fetch!(:sima_qian, :repos_client) == Repos.Gitea and Gitea.configured?(),
+      do: Task.start(&protect/0)
+  end
+
+  defp protect do
+    case Gitea.protect_all() do
+      [] -> Logger.info("gitea: main is protected on every repository")
+      failed -> Logger.error("gitea: main not protected on #{inspect(failed)}")
+    end
   end
 
   # What was on the disk is committed first (sima-qian#62): before #95 a

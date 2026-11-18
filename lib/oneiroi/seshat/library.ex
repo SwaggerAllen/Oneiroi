@@ -122,6 +122,24 @@ defmodule Oneiroi.Seshat.Library do
       }
   end
 
+  # A draft published (seshat#85): the document must be in the library;
+  # which commits are its drafts, and which come after the one public,
+  # the repository answers before the command is sent.
+  def execute(%__MODULE__{documents: documents}, %Commands.PublishDocument{} = c) do
+    if Map.has_key?(documents, c.path),
+      do: %Events.DocumentPublished{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        path: c.path,
+        commit: c.commit,
+        note: c.note
+      },
+      else:
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_publish_document_absent, path: c.path)}
+  end
+
   def execute(%__MODULE__{documents: documents}, %Commands.PublishPiece{} = c) do
     case Map.get(documents, c.path) do
       nil ->
@@ -627,6 +645,8 @@ defmodule Oneiroi.Seshat.Library do
   # longer there.
   def apply(%__MODULE__{} = l, %Events.PiecePublished{} = e),
     do: %{l | documents: Map.update!(l.documents, e.path, &%{&1 | url: e.url})}
+
+  def apply(%__MODULE__{} = l, %Events.DocumentPublished{}), do: l
 
   def apply(%__MODULE__{} = l, %Events.DiscussionOpened{} = e),
     do: %{l | discussions: MapSet.put(l.discussions, {e.path, e.session_key})}

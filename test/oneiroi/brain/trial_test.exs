@@ -388,6 +388,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"revision_decline", %{number: 1, note: "no"}},
     {"household_post", %{title: "Herons", content: "Seen at the weir."}},
     {"household_edit", %{path: "design/herons.md", content: "Seen twice."}},
+    {"document_publish", %{path: "writing/herons.md", note: "for the house"}},
     {"household_reply", %{thread: "threads/2026-10-26-herons", content: "And again."}},
     {"household_watch", %{thread: "threads/2026-10-26-herons", hours: 24}},
     {"household_sign", %{}},

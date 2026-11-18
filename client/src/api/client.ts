@@ -815,7 +815,9 @@ export const api = {
     call<{ path: string; kind: string; created: boolean; changed: boolean; indexed: boolean }>('POST', `/v1/residents/${residentId}/library/paste`, paste),
   // A document's history, its diffs, a restore (seshat#54), and the editor's lease (seshat#55).
   versions: (residentId: string, path: string) =>
-    call<{ path: string; current: string | null; versions: DocumentVersion[] }>('GET', `/v1/residents/${residentId}/library/versions/${path}`),
+    call<{ path: string; current: string | null; versions: DocumentVersion[]; published?: string | null }>('GET', `/v1/residents/${residentId}/library/versions/${path}`),
+  publishDraft: (residentId: string, path: string, commit: string, note: string) =>
+    call<{ path: string; commit: string }>('POST', `/v1/residents/${residentId}/library/drafts/publish`, { path, commit, note }),
   version: (residentId: string, path: string, version: string) =>
     call<{ path: string; version: string; content: string }>('GET', `/v1/residents/${residentId}/library/version/${path}?version=${version}`),
   diff: (residentId: string, path: string, from: string, to?: string) =>

@@ -46,7 +46,8 @@ defmodule Oneiroi.SimaQian.Backup do
     # `posts/` is a library folder (Seshat's kinds) and was in no class, so
     # the first resident to publish one would have failed every backup on
     # the stray check.
-    {"writing", ["writing/", "research/", "posts/", "system/"]},
+    # PUBLISHED.md (seshat#85), which drafts are public, rides with them.
+    {"writing", ["writing/", "research/", "posts/", "system/", "PUBLISHED.md"]},
     # `memory/` holds the originals of the resident's daily memory, a copy
     # of the source at a pinned commit that nothing writes again (seshat
     # #28): machine state by #7's rule, beside the export it sits with

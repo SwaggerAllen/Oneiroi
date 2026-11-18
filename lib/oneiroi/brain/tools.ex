@@ -83,7 +83,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_adopt keepsake_note letter_send free_time_set free_time_once
+    writing_discuss document_write document_publish document_adopt keepsake_note letter_send free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
@@ -955,6 +955,12 @@ defmodule Oneiroi.Brain.Tools do
         "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone at your root: a root document, yours or your witness's to write and rewrite (seshat#44), REACTIONS.md, the reacts' vocabulary, among them; it becomes a keepsake, never changed after, only when one of you registers it with keepsake_register. A writing piece carries status: draft, review or final in its frontmatter. Marked status: review in its frontmatter, a document of #{Enum.map_join(Enum.filter(Seshat.Kinds.all(), &Seshat.Kinds.approvable?/1), " or ", & &1.kind)} kind waits on your witness to approve or decline, on his waiting list (seshat#49). Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
         %{path: %{type: "string"}, content: %{type: "string"}},
         [:path, :content]
+      ),
+      tool(
+        "document_publish",
+        "Publish a draft of a file of yours to your household (seshat#85): the file at one commit becomes readable by your housemates, who cite it as <your slug>:<path>; a later draft stays yours until you publish it too. commit names the draft (seven characters or more of a commit from its history; none, its latest), and only a draft after the one published can be. To make an earlier draft public again, restore it (a new commit with its words) and publish that. note says why. It is recorded in PUBLISHED.md at your root.",
+        %{path: %{type: "string"}, commit: %{type: "string"}, note: %{type: "string"}},
+        [:path]
       ),
       tool(
         "document_remove",
@@ -3322,6 +3328,22 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- Seshat.remove(turn.resident_id, path, turn.resident), do: "Removed #{path}."
   end
 
+  defp call("document_publish", args, turn) do
+    case Seshat.publish(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           blank(args["commit"]),
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, p} ->
+        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates read it as #{own_slug(turn)}:#{p.path}."
+
+      other ->
+        other
+    end
+  end
+
   defp call("document_write", args, turn) do
     with :ok <- portrait_earned(turn, args["path"]) do
       write_document(args, turn)
@@ -4003,8 +4025,14 @@ defmodule Oneiroi.Brain.Tools do
   defp household_page(turn, path, at, from) do
     read =
       case Seshat.house_citation(path) do
-        {:ok, cite} -> Seshat.household_read_cited(turn.resident, cite)
-        :error -> Seshat.household_read(turn.resident, path, at: at)
+        {:ok, cite} ->
+          Seshat.household_read_cited(turn.resident, cite)
+
+        :error ->
+          # A housemate's published draft, by its citation (seshat#85).
+          if Seshat.housemate_cite?(path),
+            do: Seshat.household_read_published(turn.resident, path),
+            else: Seshat.household_read(turn.resident, path, at: at)
       end
 
     with {:ok, doc} <- read do
