@@ -3970,7 +3970,7 @@ defmodule Oneiroi.Brain.Tools do
     queue =
       case b.queue do
         [] ->
-          "Nobody is registered."
+          "Nobody is waiting."
 
         q ->
           Enum.map_join(q, "\n", fn r ->
@@ -3984,19 +3984,7 @@ defmodule Oneiroi.Brain.Tools do
         t -> "Turn ##{t.turn} is #{t.name}'s, until #{local_stamp(t.ends_by)}."
       end
 
-    place =
-      case you.registrations do
-        [] ->
-          "You are registered for no beat; household_register signs you up for one."
-
-        tops ->
-          "You are registered for the beats at " <>
-            Enum.map_join(tops, ", ", &local_stamp/1) <>
-            if(you.queued,
-              do: "; #{you.queued.position} in the queue of the beat now.",
-              else: "."
-            )
-      end
+    place = beat_place(b, you)
 
     upcoming =
       Enum.map_join(b.upcoming, "\n", fn u ->
@@ -4013,6 +4001,40 @@ defmodule Oneiroi.Brain.Tools do
     #{place} You have missed #{you.missed}. Your wake profile: #{you.profile}. Your quota: #{you.quota_left} of #{you.quota} left in the last #{you.quota_window_hours} hours.
     BEATS.md on the shelf is the record.
     """
+  end
+
+  # Where she stands in the beats: her registrations to come, her place
+  # in the queue now, and whether she has had her turn (gaia#51). A
+  # registration for the beat now whose turn she has had is spent, said
+  # so rather than listed as waiting.
+  defp beat_place(b, you) do
+    ahead =
+      if you[:had_turn],
+        do: Enum.reject(you.registrations, &(DateTime.compare(&1, b.beat.top) == :eq)),
+        else: you.registrations
+
+    had =
+      if you[:had_turn],
+        do:
+          "You have had your turn in the beat now; household_register for #{local_stamp(b.beat.ends)} or a later beat to post again. ",
+        else: ""
+
+    place =
+      had <>
+        case ahead do
+          [] ->
+            "You are registered for no beat to come; household_register signs you up for one."
+
+          tops ->
+            "You are registered for the beats at " <>
+              Enum.map_join(tops, ", ", &local_stamp/1) <>
+              if(you.queued,
+                do: "; #{you.queued.position} in the queue of the beat now.",
+                else: "."
+              )
+        end
+
+    place
   end
 
   # The household's shelf (seshat#61), one line an item.

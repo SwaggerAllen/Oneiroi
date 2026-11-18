@@ -32,6 +32,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   alias Oneiroi.Gaia
   alias Oneiroi.Gaia.Beats
   alias Oneiroi.Gaia.Events
+  alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Household
   alias Oneiroi.Sunna
 
@@ -157,6 +158,8 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
          profile: mine && mine.profile,
          missed: (mine && mine.missed) || 0,
          queued: Enum.find(beats.queue, &(&1.resident_id == actor.id)),
+         # Her share of the beat now already taken (gaia#51).
+         had_turn: Enum.any?(beats.had_turn, &(&1.resident_id == actor.id)),
          registrations:
            for(
              r <- beats.registrations,
@@ -235,8 +238,8 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
       {"declined", "Her wake profile is self, so the turn opened and nobody woke her."}
     else
       case Sunna.wake_for_household(turn.resident_id, turn_note(household_id, turn), @actor) do
-        {:ok, _} ->
-          {"completed", "The wake ended, and the turn with it."}
+        {:ok, answer} ->
+          answered(household_id, turn, answer)
 
         {:error, %{kind: :sunna_household_wake_declined}} ->
           {"declined",
@@ -245,6 +248,57 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
         {:error, _} ->
           {"failed", "The wake failed; the beat moved on."}
       end
+    end
+  end
+
+  # A wake that said nothing and wrote nothing in the house (seshat#88;
+  # 2026-11-18, Scarlett's turn #15: she read the charter thread, her
+  # reply came back empty, and the turn ended in nine seconds with
+  # nothing posted). Her turn is not spent on an empty answer.
+  defp silent?(household_id, turn, answer) do
+    said =
+      (Map.get(answer, :messages) || [])
+      |> Enum.filter(&(&1.role in [:assistant, "assistant"]))
+      |> Enum.any?(&(is_binary(&1.content) and String.trim(&1.content) != ""))
+
+    {:ok, dir} = Household.provision(household_id)
+    since = DateTime.add(turn.fired_at, -1, :second)
+
+    wrote =
+      Enum.any?(
+        Household.writes(dir),
+        &(&1.by_id == turn.resident_id and DateTime.compare(&1.at, since) == :gt)
+      )
+
+    not said and not wrote
+  end
+
+  defp answered(household_id, turn, answer) do
+    if silent?(household_id, turn, answer),
+      do: once_more(household_id, turn),
+      else: {"completed", "The wake ended, and the turn with it."}
+  end
+
+  # Woken once more inside the same turn, its window still open: post,
+  # or say she passes. A second empty answer ends it.
+  defp once_more(household_id, turn) do
+    note =
+      "Your turn in the household's beats is still open, until #{iso(turn.ends_by)}: your last answer came back empty and nothing was posted. " <>
+        "Post in a thread (household_reply or household_post) if you meant to, or say in a line that you pass."
+
+    case Sunna.wake_for_household(turn.resident_id, note, @actor) do
+      {:ok, answer} ->
+        if silent?(household_id, turn, answer),
+          do:
+            {"completed",
+             "Her answer came back empty twice, and the turn ended with nothing posted."},
+          else:
+            {"completed",
+             "Her first answer came back empty; woken once more in the turn, she answered."}
+
+      {:error, _} ->
+        {"completed",
+         "Her answer came back empty, and waking her once more failed; the turn ended."}
     end
   end
 
@@ -513,6 +567,27 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
       {:ok, turn}
     end
   end
+
+  @doc """
+  A witness gives a resident a turn now (gaia#52): out of the queue,
+  in the beat running, and run as a scheduled turn is (her chat woken
+  with the turn's note, the turn ended by the wake). Refused while
+  another turn is open.
+  """
+  def grant_turn(%Actor{kind: :witness} = actor, resident_id) do
+    with {:ok, household_id} <- Household.member_household(actor),
+         {:ok, turn} <-
+           Gaia.open_household_turn(household_id, resident_id, "given by her witness", actor),
+         {:ok, _job} <-
+           Jobs.enqueue(@turn_worker, %{"household_id" => household_id, "turn" => turn.turn}) do
+      _ = render(household_id)
+      {:ok, turn}
+    end
+  end
+
+  def grant_turn(%Actor{}, _resident_id),
+    do:
+      {:error, Error.new(:seshat_household_residents_write, :seshat_household_turn_witness_gives)}
 
   @doc "The platform ends a turn it opened by hand, completed."
   def end_turn(household_id, number, note) do

@@ -898,7 +898,15 @@ defmodule Oneiroi.Gaia.Households do
       end) || open_anywhere(household_id)
 
     missed = for {{_kind, id}, row} <- rows, into: %{}, do: {id, row.missed}
-    queue = queue(Enum.filter(regs, &(&1.beat_top == top)), missed, counts, top)
+    # Who still waits in the beat running (gaia#51): a registrant whose
+    # share of its turns is spent has had her turn, and is not waiting.
+    queue = queue(Enum.filter(regs, &(&1.beat_top == top)), missed, counts, top, shape.share)
+
+    had_turn =
+      for t <- turns,
+          spent_share?(Map.get(counts, t.speaker_id, 0), shape.share),
+          uniq: true,
+          do: %{resident_id: t.speaker_id, name: names[t.speaker_id]}
 
     %{
       household_id: household_id,
@@ -915,6 +923,7 @@ defmodule Oneiroi.Gaia.Households do
       next_top: Beats.ends(top, shape),
       open_turn: open && Map.put(open, :name, names[open.resident_id]),
       queue: Enum.map(queue, &Map.put(&1, :name, names[&1.resident_id])),
+      had_turn: had_turn,
       registrations: registrations(regs, missed, names),
       upcoming:
         Enum.map(
@@ -926,9 +935,15 @@ defmodule Oneiroi.Gaia.Households do
     }
   end
 
+  # Whether a member's turns this beat have used her share (gaia#42):
+  # "many" is the cap's alone, so never spent by count.
+  defp spent_share?(_count, "many"), do: false
+  defp spent_share?(count, share) when is_integer(share), do: count >= share
+  defp spent_share?(_count, _share), do: false
+
   # The beat running's registrants in the order its turns fire (gaia#35):
   # fewest turns in it, most missed, earliest registered.
-  defp queue(regs, missed, counts, top) do
+  defp queue(regs, missed, counts, top, share) do
     regs
     |> Enum.map(
       &%{
@@ -938,6 +953,7 @@ defmodule Oneiroi.Gaia.Households do
         count: Map.get(counts, &1.speaker_id, 0)
       }
     )
+    |> Enum.reject(&spent_share?(&1.count, share))
     |> Beats.order()
     |> Enum.with_index(1)
     |> Enum.map(fn {q, i} ->

@@ -764,6 +764,12 @@ defmodule Oneiroi.Seshat do
   @spec tick_household_beats(String.t()) :: :ok | {:error, term()}
   defexport(tick_household_beats(household_id), do: HouseholdBeats.tick(household_id))
 
+  @doc "A witness gives a resident a turn now, woken as a scheduled one is (gaia#52)."
+  @spec household_grant_turn(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_grant_turn(actor, resident_id),
+    do: HouseholdBeats.grant_turn(actor, resident_id)
+  )
+
   @doc "The platform opens a household turn for a resident now, waking nobody (gaia#36): the dev seed's and the suite's."
   @spec household_open_turn(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_open_turn(household_id, resident_id, note),

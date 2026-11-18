@@ -1291,8 +1291,8 @@ defmodule Oneiroi.Sunna.Schedules do
     with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
            resident(resident_id),
          false <- quiet?(local_now(resident_id), household_quiet(resident_id)),
-         :ok <- wake_main(resident_id, note, actor) do
-      {:ok, :woken}
+         {:ok, answer} <- wake_main_answer(resident_id, note, actor) do
+      {:ok, answer}
     else
       {:error, _} = failed ->
         failed
@@ -1341,6 +1341,15 @@ defmodule Oneiroi.Sunna.Schedules do
 
       _none ->
         nil
+    end
+  end
+
+  # The wake and what it answered (the captured turn): a beat's turn
+  # reads it to see whether she said or did anything (seshat#88).
+  defp wake_main_answer(resident_id, note, actor) do
+    with {:ok, row} <- resident(resident_id),
+         {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, actor) do
+      wake(resident_id, key, note, :chat)
     end
   end
 

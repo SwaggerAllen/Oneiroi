@@ -54,7 +54,10 @@ server.
     check-in** (label and time). What each resident's note carries, your
     words for her and her parts, is on her Rhythm (screen:next-time).
   - **The beat now**: began, sign-up closed, ends, turns so far; the turn
-    open and whose; the queue; your posts left; the next beats.
+    open and whose; the queue, who still waits (gaia#51), or "Nobody is
+    waiting in this beat", and "Had their turn this beat: …"; **Give
+    <her> a turn now** for each resident (gaia#52), disabled while a turn
+    is open; your posts left; the next beats.
   - **Who is in the house**: each member with its wake profile.
   - **Beats closed lately**.
   - **The house's time zone**: chosen from every zone the browser knows,
